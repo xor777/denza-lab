@@ -1156,6 +1156,319 @@ The essential detail is processing the main `Looper`; sleeping on that thread
 prevents callback delivery. The harness does not replace or extend the stock
 collection table.
 
+## Washer fluid level (2026-09-18, in progress)
+
+### Offline firmware follow-up (2026-09-23)
+
+**The newly readable archive opens another investigation path, but no washer
+level getter or CAN bit has been identified.** The September 18 absence of a
+Java name does not prove that the IVI never receives the sensor signal. The
+older statements below that it was "never given the signal" and that the raw
+stream is the "only" remaining path are stronger than the evidence supports.
+
+Inspected the existing offline extraction of
+`Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip`: `autoservice`,
+`libbydauto.so`, `libbydautoservice.so`, `auto.default.so`, and the decoded
+IVI MCU AppBlock. Their hashes were recomputed and agree with the extraction
+evidence in [the HAL/MCU trace](speaker-lift-findings.md#offline-hal-and-mcu-trace-2026-09-23).
+They have not been hash-matched to the installed vehicle binaries. No vehicle
+connection, installation, service call or state change was performed.
+
+An English/Chinese name search in UTF-8 and both UTF-16 byte orders found no
+washer-fluid-level label in these five files. More usefully, a bounded
+structural scan recovered 890 candidate receive-table records, with field
+coordinates, handlers and property identifiers. This is a structural inventory,
+not proof that all records are active for this car. The archive covers multiple
+vehicle/protocol variants; SDK names from different platform branches are
+annotations, not verified meanings for the selected runtime branch.
+
+Selected records demonstrate the deeper visibility:
+
+| Receive record | Table address | Result of matching descriptors to the existing catalogs |
+| --- | --- | --- |
+| `0x055` | `0xD468C`, 16 descriptors | Includes `0x0550001C` (brake-fluid level) and `0x05500031` (coolant level); neither is washer fluid. |
+| `0x133` | `0xD48BC`, 19 descriptors | Known light/stalk/wiper fields; no descriptor identified as washer level. |
+| `0x233` | `0xD620C`, 6 descriptors | No descriptor identified as washer level. |
+
+The literal identifiers `0x13300014`, `0x23300015`, `0x1330003C`,
+`0x3D90201E`, `0x3D95D012` and `0x3D95D015` were absent from this MCU image.
+That is only a literal-search result: some Java properties may be converted,
+computed, belong to another build or use another protocol branch. It does not
+establish that a sensor or a runtime API is absent.
+
+Reproducible local evidence is in ignored
+`captures/washer-firmware-20260923/`: `scan_washer.py`, `summary.json`,
+`rx-table-candidates.json` and `selected-rx-tables.json`. The script only reads
+local binaries/catalogs and writes reports; run it with
+`python3 captures/washer-firmware-20260923/scan_washer.py`.
+
+Next useful work is to identify the active receive-table/transport branch and
+trace any semantically supported candidate through the HAL, or correlate a
+passive raw capture with independently confirmed full/low reservoir states.
+No current candidate justifies trying arbitrary FIDs or labelling an unknown
+bit as washer level. A low/normal switch and a continuous volume measurement
+are separate possibilities; neither the sensor type nor its polarity is proven.
+The physical-state procedure below therefore needs a confirmed sensor/pinout,
+not an assumption that an open connector means low. The recovered MCU is the
+IVI controller, not a demonstrated body-controller or instrument-cluster ECU
+firmware, so it may not contain the source-side sensor logic.
+
+### Work without changing reservoir level (2026-09-23, second pass)
+
+The owner cannot currently change the reservoir state. Offline investigation
+can still make progress; a two-state capture is a semantic validation step,
+not a prerequisite for reading the remaining firmware.
+
+The saved September 22 vehicle dump
+`captures/telematics-20260922/registration-evidence/diagnostic-flags.json`
+records `sys.car.protocol=CANFD`. In the archive's HAL,
+`AutoHardwareInterface::init_maps` (`0xB3460`) selects `FeatureListCanFD`
+for type 1 and publishes that same property. Its vtable at `0x1D2220`
+points to initializer `0x103020`. `initFromProperty` (`0xB3AC0`) also
+selects type 1 for persisted `CANFD`. This identifies the relevant HAL
+protocol family using historical runtime evidence, not a fresh car check;
+it does not prove every MCU record is enabled for this vehicle.
+
+A static registration-pattern scan of that initializer finds the familiar
+GETs, including `WIPER_REAR_WIPER_WASH_GEAR` at `0x1081A8`,
+`INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` at `0x165B40`, and the brake/coolant
+warning GETs at `0x169AD8` / `0x169B8C`. The latter three use converter
+`0xE0C50`, which accepts unsigned values below 2 and otherwise returns
+`-10014`. Registration proves an interface entry, not a sensor's presence
+or the meaning of the ambiguous WASH label. It remains unconfirmed and
+must not be presented as washer level.
+
+The first structural MCU scan accepted only receive keys beginning `0xE0`.
+Extending it to the observed `0xE1` and `0xE2` families yields **1,012**
+candidate records, including 122 previously omitted ones. The additional
+records include these one-bit fields:
+
+| Receive key / table | MCU property | Descriptor coordinates | Possible SDK correspondence |
+| --- | --- | --- | --- |
+| `0xE203D902` / `0xD8A3C` | `0x3D90281E` | `[3,6,3,6]`, descriptor `0xF1044` | `0x3D90201E`, ambiguous WASH fault |
+| `0xE203D95D` / `0xD8B3C` | `0x3D95D812` | `[2,2,2,2]`, descriptor `0xF16EC` | `0x3D95D012`, brake-fluid warning |
+| `0xE203D95D` / `0xD8B3C` | `0x3D95D815` | `[2,5,2,5]`, descriptor `0xF1710` | `0x3D95D015`, coolant warning |
+
+All three MCU identifiers differ from the SDK identifier by `0x800`.
+This is a structural correspondence, **not yet a traced transport mapping**.
+The report's `masked_name_hints` deliberately distinguishes candidate names
+obtained by clearing `0xC00` from exact catalog matches. Do not send these
+MCU identifiers to Android as guessed FIDs. None identifies washer level.
+
+Local evidence now also includes `hal_registrations.py`,
+`canfd-hal-registration-candidates.json`, `hal-selected.asm` and the expanded
+receive-table reports. The linear registration scanner is an inventory of
+instruction patterns, not full control-flow verification. Next offline work
+can trace the identifier translation and stock consumers of the ambiguous
+fault, and establish which corresponding raw records occur in saved captures.
+No change to fluid level, car configuration or product code was made.
+
+### Read path verified; sensor identity still unproved (2026-09-23)
+
+The owner's requirement is a proven physical washer-level input that can then
+be displayed in Denza Apps. There is no stock warning/display to use as ground
+truth. The owner has requested the sensor part/connector/controller details
+from the service shop; changing reservoir level is currently unavailable.
+An API name, a readable zero, or presence in a generic catalog is insufficient
+to identify this sensor.
+
+This pass used the existing authorized ADB connection for bounded reads and a
+20-second passive stock-BigData subscription. **The installed**
+`/system/lib64/hw/auto.default.so` and `/system/lib64/libbydautoservice.so`
+now have live SHA-256 matches to the archive files listed above.
+`sys.car.protocol=CANFD` was also confirmed live. The installed MCU image
+has not been hash-matched. `autoservice` remained PID 128 before/after;
+the probe reported `UNREGISTERED` and exited. No APK, setter, stock collection
+table change, restart or physical intervention was used. The temporary probe
+dex was removed by the host runner.
+
+The earlier `0x800` correspondence is now traced for this receive path:
+
+- MCU `0x18A09C` extracts the descriptor field, updates its cache and calls
+  `0x196EFA`; emitter `0x15CB58` serializes the full property ID and value.
+- HAL `AutoHardwareInterface::updateParameters` (`0xB0A70`) parses the ID.
+  For a fixed list of 18 CAN IDs, including `0x3D9`, instruction `0xB0D3C`
+  clears bits `0xC00` with `0xFFFFF3FF` before lookup/update. Its own log
+  calls this conversion to CAN0. There is a specific exception `0x44900818`;
+  this is not a universal rule for arbitrary FIDs.
+- Thus incoming `0x3D90281E` maps to SDK `0x3D90201E` on this path.
+  Both identifiers are separately registered, but that does not mean both
+  caches are updated. Integer initialization at `0x83FA8` sets the cache
+  value to `65535`; that number must not be displayed as a sensor reading.
+
+Eight narrow `getInt` reads returned zero for SDK WASH, brake/coolant warnings
+and the two `0x055` fluid-level properties. The three corresponding `+0x800`
+warning IDs returned `65535`, consistent with untouched caches. The WASH
+label's physical meaning remains unproved; its zero is **not** evidence of a
+nonempty washer reservoir.
+
+The passive capture received **2,700 frames / 102 distinct addresses**, with
+consecutive sequence numbers, zero drops and zero callback errors. Frame
+`0x055` appeared 17 times: `(payload[2] >> 4) & 3` and
+`(payload[5] >> 1) & 3` were both zero, agreeing with the immediately preceding
+GETs for `0x0550001C` and `0x05500031`. This is a static-path and fixed-state
+cross-check on known catalog signals, not a physical sensor-state experiment.
+For `0x3D9`, only sub-ID `0x05` appeared (13 samples); sub-IDs `0x02` and
+`0x5D` were absent from this 20-second selected stream. Absence here does not
+prove absence on the vehicle bus or from the separate property transport.
+
+Further archive inspection found no package explicitly identified as a body
+controller firmware: the package list is Android, IVI MCU, DSP, ANC and Screen.
+The recovered `diagnostic_config.json` contains 213 diagnostic definitions;
+it and `BydHealthDiagnostic` did not reveal a washer-level definition. The
+latter presents IVI diagnostic records from `diag_socket_channel`, including
+system/camera/driver/MCU/audio categories; it has not supplied a named washer
+sensor readout. No diagnostic app or socket request was invoked on the car.
+
+Evidence is retained under `captures/washer-firmware-20260923/`:
+`live-narrow-reads.json`, `transport-evidence.json`, `hal-updateParameters.asm`,
+`hal-cache.asm`, `passive-can.log`, `passive-summary.json`, and diagnostic
+extraction/decompilation artifacts. **Current result:** the generic read path
+is supported by firmware and live observations; the physical washer signal
+has not been identified. Product integration is premature.
+
+The missing identity proof can come from an authoritative sensor-to-ECU signal
+definition corroborated by an independent diagnostic readout, or a repeatable
+controlled sensor-state change with independent confirmation of the physical
+state. In either case retain the raw address/FID, value/validity encoding and
+freshness behavior. Only then implement the supported low/normal or continuous
+measurement in Denza Apps; unavailable data must remain unknown. Part number
+alone helps locate the circuit but does not establish a CAN bit.
+
+The owner reports that the car never shows a low-washer-fluid warning anywhere,
+and that the dealer says the reservoir sensor is physically present. This
+section records what the head unit can and cannot know about that sensor. It
+is written as the investigation runs; each subsection says what was checked
+and what it proved.
+
+### The head unit has no name for it
+
+The vehicle service's whole signal vocabulary is `BYDAutoFeatureIds` (about
+30,000 lines in the framework). Three copies were searched: the MapHelper
+catalog in `reverse/maphelper-jadx`, the framework table in
+`reverse/speaker-lift/fw-fids`, and the copy bundled in the cluster APK pulled
+from this car today (`eng.build20260705`, the newest build we hold). Searched
+for `WASH`, `WASHER`, `WIPER`, `FLUID`, `LIQUID`, `WATER`, `GLASS`, `SPRAY`,
+`FLUSH`, `CLEAN`, `KETTLE`, `POT`, `RESERVOIR`, `BOTTLE`, `LEVEL`, `LACK`,
+`SHORTAGE`, `INSUFFICIENT`, and the Chinese 玻璃水 / 洗涤液 / 清洗液.
+
+Nothing names a washer-fluid level. What exists near it:
+
+| Name | FID | What it is |
+| --- | --- | --- |
+| `WIPER_FRONT_WASH_SWITCH_SINGAL_STATUS` | `0x13300014` | stalk pull, front washer pump command (new in the 2026-07 build) |
+| `WIPER_WINDSHIELD_WASH_SWITCH_STATUS` | `0x23300015` | stalk pull, same family (new in the 2026-07 build) |
+| `WIPER_REAR_WIPER_WASH_GEAR` | `0x1330003C` | rear wash stalk position |
+| `BODYWORK_FRONT_WASHER_MEDIA_CMD_EXEC` / `_REAR_` | `0x20E09040` / `0x20E09044` | voice-command washer pulse |
+| `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` | `0x3D90201E` | see below |
+| `INSTRUMENT_B_M_BRAKE_FLUID_LEVEL_LOW`, `INSTRUMENT_B_M_COOLANT_LEVEL_LOW` | `0x3D95D012`, `0x3D95D015` | the two fluid-level lamps the vocabulary does have |
+
+`INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` is the only constant with `WASH` in an
+instrument fault. It is almost certainly not the washer: in BYD's English,
+`ELEC_GATE` renders 电子油门, the electronic throttle, and "wash electronic
+throttle" is the throttle-body cleaning reminder that the older DD fault list
+(index `30` in `BYDAutoInstrumentDevice`, next to `ADAPT_GEARBOX`) carried on
+combustion cars. It answers `0` on devices `1007` and `1001` today, so it is a
+mapped signal, just not this one. Its Chinese label has not been found in the
+corpus; treat the reading as probable, not proven.
+
+The 2026-07 build added 65 instrument names over the MapHelper catalog
+(door/hatch-not-closed prompts, gear-switch prompts, EV-system faults, theme
+mode, HUD arrow style). None concerns washer fluid.
+
+`SpotInspection`, `EngineerMode`, and `VehicleConfig` resources contain no
+washer-fluid string either, so the dealer-facing inspection app on the head
+unit does not list it.
+
+### The lamps are not drawn by Android
+
+`/system/priv-app/BydClusterApp/BydClusterApp.apk` on this car (21.1 MB,
+different from the 15.7 MB copy in `reverse/hud/apks`, now decompiled to
+`reverse/cluster-jadx/`) is a thin shell: four `SimpleCluster*Activity`
+classes, 100 strings, no telltale drawables. It reads `INSTRUMENT_SIZE` and
+two dark/light-mode ids, and hosts `com.byd.cluster.projectionmanager`. The
+head unit has exactly one physical display (`ivi`, 2560x1600); every
+"cluster" surface is a 2560x720 virtual display owned by
+`com.xdja.containerservice` (`fission_bg_XDJAScreenProjection` and the two
+`shared_` variants) that is streamed to the instrument cluster.
+
+So the cluster is its own ECU. It draws the telltales from CAN directly and
+receives only a projected content region from Android. Whether a washer lamp
+exists is decided in the cluster ECU firmware and by whether the body
+controller transmits the level at all. The head-unit software cannot be "not
+finished" for this lamp; it was never given the signal.
+
+### The one remaining path: the raw stream
+
+The passive `BIGDATA_DYNAMIC_DATA_CALLBACK` stream described above is the only
+place on the head unit where a body-controller bit could be seen without a
+name. `CanDataCollect` (pulled today, decompiled to
+`reverse/candatacollect-jadx/`) registers three ids unconditionally
+(`addUrgencyId`: `0x08C` ch 0, `0x343` ch 2, `0x223` ch 1, 100 ms) and the rest
+from a cloud JSON (`canCollectConfig` with `cycleCanConfigInfoList` and
+`canCollectEventConfig`). The JSON carries ids, sub-ids, `netWorkIndex` and
+byte sections (`canIdKeySectionStart/End`), not signal names. The table is
+therefore whatever BYD's fleet telemetry wants, and it may or may not include
+the frame that carries the reservoir switch.
+
+A first 20-second inventory run today (Z9, `AutoType=170`, parked) was
+truncated by the host pipeline and discarded; a clean 30-second run received
+4,052 frames with zero drops. Summary of that run:
+
+| Item | Value |
+| --- | --- |
+| Distinct (id, sub-id, channel, length) addresses | 102 |
+| Channel 0 / 1 / 2 | 61 / 19 / 22 addresses |
+| Payload lengths | 8, 16, 32, 64 bytes |
+| Per-address rate | about 1 Hz for almost every address; `0x08C`, `0x223`, `0x343` at 10 Hz and `0x12D` at 20 Hz |
+| Addresses whose payload never changed in 30 s | 44 |
+| Addresses whose only change was a rolling counter or checksum in the last two bytes | about 25 |
+
+The 1 Hz cadence is the table's `collectCycle`, not the bus rate, and it is
+more than enough for a level switch. `0x38A` ch 0 (the turn-lamp frame from
+the 2026-09-04 capture) is still in the table, so at least one body-controller
+status frame is delivered. The stream includes many 64-byte CAN-FD status
+frames on channels 0 and 1 (`0x2CB`, `0x302` sub 32..40, `0x324`, `0x3BD`,
+`0x3FA`, `0x4A0`, `0x495`) and a block of 8-byte channel-2 frames that read as
+body/comfort status (`0x36D`, `0x444`, `0x446`, `0x449`, `0x464`).
+
+A reservoir switch is one bit that stays constant until the fluid state
+changes. A single parked capture therefore cannot find it: on a full
+reservoir it is one of thousands of constant bits. It can only be found by
+difference, and only if the frame that carries it is in the table.
+
+### What is owed, and the procedure
+
+To find the bit, or to prove the head unit never sees it, one labelled
+capture is needed with the sensor in both states:
+
+1. Car parked, ignition on, doors closed, nothing else changing. Run
+   `tools/raw_can_turn_probe.sh run 180` and type `MARK neutral_1` after the
+   `READY` line.
+2. Put the sensor into its "low" state and hold it: drain below the float, or
+   have the dealer lift the float / open the sensor connector (a float switch
+   that is normally closed reads "low" when open). Type `MARK left_1`. The
+   analyzer's four labels are fixed to the turn-signal vocabulary; `neutral` and
+   `left` stand for "ok" and "low" here until a state-diff analyzer with free
+   labels exists.
+3. Return the sensor to "ok", `MARK neutral_2`, then `STOP`.
+4. `tools/analyze_can_turn_capture.py <capture>` ranks every payload bit by how
+   cleanly it separates the labelled phases.
+
+Outcomes:
+
+- One bit flips with the label: the head unit can read washer level from the
+  raw stream as shell UID, and the finding goes into this section with the
+  address and bit. A product reader would still need the raw-stream lane that
+  the turn-signal work deliberately did not build (see the boundary above).
+- No bit flips: either the body controller does not transmit the level, or
+  its frame is not in BYD's collection table. The head unit cannot tell these
+  apart, and the question moves to the cluster ECU and the dealer's diagnostic
+  tool.
+
+Not done today: the labelled two-state capture (needs someone at the car who
+can change the sensor state), and the Chinese label of `DD_FAULT_WASH_ELEC_GATE`.
+
 ## Targeted turn-signal events (2026-09-04)
 
 An owner-controlled, read-only `app_process` probe registered a vendor light
