@@ -244,19 +244,21 @@
     const bx0 = AX - CT.gapFromAxis - CT.width, bx1 = AX - CT.gapFromAxis;
     const upY = v => zero - (zero - top) * Math.min(1, v / CT.upTo);
     const dnY = v => zero + (drop - zero) * Math.min(1, -v / CT.downTo);
-    const ch = f.chart, n = ch.length, st = (bx1 - bx0) / n;
+    // one pitch for the hundred points; a filling window is anchored at the right edge
+    const ch = f.chart, n = ch.length, st = (bx1 - bx0) / CT.points, x00 = bx1 - n * st;
+    if (!n) return traceFigure(c, f);
     c.save(); c.globalCompositeOperation = 'lighter';
     const fUp = new Path2D(), fDn = new Path2D();
-    fUp.moveTo(bx0, zero); fDn.moveTo(bx0, zero);
+    fUp.moveTo(x00, zero); fDn.moveTo(x00, zero);
     ch.forEach((v, i) => {
-      const x0 = bx0 + i * st, x1 = x0 + st;
+      const x0 = x00 + i * st, x1 = x0 + st;
       const yu = v > 0 ? upY(v) : zero, yd = v < 0 ? dnY(v) : zero;
       fUp.lineTo(x0, yu); fUp.lineTo(x1, yu); fDn.lineTo(x0, yd); fDn.lineTo(x1, yd);
     });
     fUp.lineTo(bx1, zero); fUp.closePath(); fDn.lineTo(bx1, zero); fDn.closePath();
-    const gu = c.createLinearGradient(bx0, 0, bx1, 0); gu.addColorStop(0, rgba(INK[0], 0.03)); gu.addColorStop(1, rgba(INK[0], 0.16));
+    const gu = c.createLinearGradient(x00, 0, bx1, 0); gu.addColorStop(0, rgba(INK[0], 0.03)); gu.addColorStop(1, rgba(INK[0], 0.16));
     c.fillStyle = gu; c.fill(fUp);
-    const gd = c.createLinearGradient(bx0, 0, bx1, 0); gd.addColorStop(0, rgba(BLUE[0], 0.05)); gd.addColorStop(1, rgba(BLUE[0], 0.3));
+    const gd = c.createLinearGradient(x00, 0, bx1, 0); gd.addColorStop(0, rgba(BLUE[0], 0.05)); gd.addColorStop(1, rgba(BLUE[0], 0.3));
     c.fillStyle = gd; c.fill(fDn);
     c.restore();
     // ten runs, the older ones dimmer. Spending is one white step line lying on zero through a
@@ -266,7 +268,7 @@
       const i0 = Math.floor(r * per), i1 = Math.min(n, Math.floor((r + 1) * per));
       const pu = new Path2D(), pd = new Path2D();
       for (let i = i0; i < i1; i++) {
-        const v = ch[i], x0 = bx0 + i * st, x1 = x0 + st, yu = upY(Math.max(0, v));
+        const v = ch[i], x0 = x00 + i * st, x1 = x0 + st, yu = upY(Math.max(0, v));
         if (i === i0) pu.moveTo(x0, i > 0 ? upY(Math.max(0, ch[i - 1])) : yu);
         pu.lineTo(x0, yu); pu.lineTo(x1, yu);
         if (v < 0) {
@@ -283,6 +285,10 @@
     const last = ch[n - 1];
     const dot = new Path2D(); dot.arc(bx1, last >= 0 ? upY(last) : dnY(last), 2.6, 0, Math.PI * 2);
     glowFill(c, dot, last < 0 ? BLUE : INK, 1, 12);
+    traceFigure(c, f);
+  }
+  function traceFigure(c, f) {
+    const zero = CT.zero;
     const fx = AX + CT.gapFromAxis;
     const fw = num(c, f.consumption, fx, zero, CT.figureSize, INK, 1, 'left');
     text(c, f.consumptionUnit, fx + fw + CT.unitGap, zero, CT.unitSize, GREY, 1);
@@ -329,6 +335,15 @@
       glyph(c, KINDS[i], x, CG.glyphBase, col, hot ? 1 : 0.85, hot);
       num(c, cell.value + '°', x, base, CG.tempSize, col, 1, 'left');
     });
+
+    // the cell spread, only while it is out of line: one line under the battery, in its colour
+    if (f.spread) {
+      const [sc] = tempColour(f.spread.state);
+      const y2 = base + CG.detailDrop;
+      let x = GL + text(c, f.spread.caption, GL, y2, CG.detailSize, sc, 1, { track: CG.detailTrack }) + 8;
+      x += num(c, f.spread.value, x, y2, 19, sc, 1, 'left') + 6;
+      text(c, f.spread.unit, x, y2, CG.detailSize, sc, 1);
+    }
 
     // right group: the engine at the group's left edge, the trip flush right
     if (f.engineGiving) {

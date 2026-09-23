@@ -72,6 +72,12 @@
     charging: Object.assign({}, clusterBase, { power: -7, peak: -7, peakAge: 9, volts: '561', temps: temps([27, 26, 25, 25, 29]),
                                                parked: true, gaveCaption: 'ДАЛ ДВС', gaveKwh: '1,1', regenCaption: 'РЕКУПЕРАЦИЯ', regenKwh: '3,1',
                                                consumption: '2:15', consumptionUnit: 'до полной' }),
+    // the pack's cells drift apart: the spread appears under the battery, in its level's colour
+    spread: Object.assign({}, clusterBase, { power: 31, peak: 38, peakAge: 1.2, volts: '547', temps: temps([34, 41, 39, 40, 46]),
+                                             spread: { caption: 'РАЗБРОС ЯЧЕЕК', value: '32', unit: 'мВ', state: 'warning' } }),
+    // a window still filling after a reset: 37 points, «за 3,7 км»
+    filling: Object.assign({}, clusterBase, { power: 22, peak: 30, peakAge: 1.0, volts: '550', temps: temps([28, 31, 29, 31, 32]),
+                                              chart: chart.slice(63), consumptionUnit: 'кВт·ч/100 км · за 3,7 км' }),
     // no access to the car: the skeleton and the message in the petal's place, nothing else
     unavailable: { t: 1.3, unavailable: true, message: 'ADB-ключ не подтверждён · Помощь → Диагностика', power: 0, peak: 0, peakAge: 9, chart: [] }
   };
@@ -115,6 +121,8 @@
     'cluster-hot':    [{ kind: 'cluster' }, scenes.hot],
     'cluster-park':   [{ kind: 'cluster' }, scenes.park],
     'cluster-charging':    [{ kind: 'cluster' }, scenes.charging],
+    'cluster-spread':      [{ kind: 'cluster' }, scenes.spread],
+    'cluster-filling':     [{ kind: 'cluster' }, scenes.filling],
     'cluster-unavailable': [{ kind: 'cluster' }, scenes.unavailable],
     'main-sound':      [{ kind: 'head', mode: 'full', page: 'sound' }, head],
     'main-car':        [{ kind: 'head', mode: 'full', page: 'car' }, head],

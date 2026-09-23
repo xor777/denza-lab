@@ -118,6 +118,7 @@
       "upTo": 60,
       "downTo": 20,
       "width": 232,
+      "points": 100,
       "gapFromAxis": 8,
       "runs": 10,
       "stroke": 1.5,
