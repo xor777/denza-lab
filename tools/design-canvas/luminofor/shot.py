@@ -92,10 +92,14 @@ def board_page(bid):
 """ % (json.dumps(bid), json.dumps(SIZES)))
 
 
-def chrome(args):
-    return subprocess.run([CHROME, '--headless=new', '--hide-scrollbars', '--disable-gpu',
-                           '--force-device-scale-factor=1', *args],
-                          capture_output=True, text=True)
+def chrome(args, out=None):
+    """Run headless Chrome. Its output goes to a file, never a pipe: a pending Chrome update starts
+    GoogleUpdater, which inherits the pipes and keeps them open, and a run that waits for EOF on
+    them never returns - which is how the first full render hung for twenty minutes."""
+    with open(out or os.devnull, 'w') as sink:
+        subprocess.run([CHROME, '--headless=new', '--hide-scrollbars', '--disable-gpu',
+                        '--force-device-scale-factor=1', *args],
+                       stdout=sink, stderr=subprocess.DEVNULL, timeout=120)
 
 
 def shoot(bid):
@@ -119,11 +123,15 @@ def export_fixtures():
     with tempfile.NamedTemporaryFile('w', suffix='.html', delete=False, encoding='utf-8') as f:
         f.write(html)
         path = f.name
+    dump = path + '.dom'
     try:
-        res = chrome(['--dump-dom', 'file://' + path])
+        chrome(['--dump-dom', 'file://' + path], out=dump)
+        with open(dump, encoding='utf-8') as f:
+            dom = f.read()
     finally:
         os.unlink(path)
-    dom = res.stdout
+        if os.path.exists(dump):
+            os.unlink(dump)
     start = dom.index('<body>') + len('<body>')
     text = dom[start:dom.index('</body>')]
     text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')

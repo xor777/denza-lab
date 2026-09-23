@@ -369,13 +369,13 @@
       text(c, f.tripCaption, x, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
       num(c, f.tripKwh, x, base, CG.figureSize, INK, 1, 'left');
       text(c, f.tripUnit, x + fw + CG.unitGap, base, CG.unitSize, GREY, 1);
-      if (f.parked) {
-        runLeft(c, RE, base + CG.detailDrop, [
-          { text: f.gaveCaption, track: CG.detailTrack }, { text: f.tripUnit, after: 6 }, { num: f.gaveKwh, after: 0 },
-          { gap: 28 },
-          { text: f.regenCaption, track: CG.detailTrack }, { text: f.tripUnit, after: 6 }, { num: f.regenKwh, after: 6 }, { dot: true }
-        ]);
-      }
+      // the trip's detail: «ДАЛ ДВС» whenever the engine gave this trip (the contract keeps that
+      // seat on the move), recuperation on P; one line under the trip, in the fixture's order
+      const parts = [];
+      if (f.gaveKwh) parts.push({ text: f.gaveCaption, track: CG.detailTrack }, { text: f.tripUnit, after: 6 }, { num: f.gaveKwh, after: 0 });
+      if (f.gaveKwh && f.regenKwh) parts.push({ gap: 28 });
+      if (f.regenKwh) parts.push({ text: f.regenCaption, track: CG.detailTrack }, { text: f.tripUnit, after: 6 }, { num: f.regenKwh, after: 6 }, { dot: true });
+      if (parts.length) runLeft(c, RE, base + CG.detailDrop, parts);
     }
     text(c, f.iceCaption, HR, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
     num(c, f.iceFigure, HR, base, CG.figureSize, INK, 1, 'left');
