@@ -17,24 +17,30 @@ import dev.denza.apps.feature.vehicle.VehicleWatcher
 import kotlin.math.abs
 
 /**
- * The trip panel itself: a lean custom View that draws directly on the screen
- * background (no card, no border, no frame), runs a Choreographer loop throttled
- * to <=30 FPS, attaches to the process-scoped [TripSession] hub, and draws the
- * [TripPanelRenderer] strip. Relaunching the activity re-attaches to the same
- * trip — the view never owns or resets the engine.
+ * The strip itself: a lean custom View that draws directly on the screen background (no card, no
+ * border, no frame), runs a Choreographer loop throttled to <=30 FPS, attaches to the
+ * process-scoped [TripSession] hub, and draws the [TripPanelRenderer] strip. Relaunching the
+ * activity re-attaches to the same trip — the view never owns or resets the engine.
  *
- * Inputs and rendering stop when the panel is detached or the activity is
- * paused. The draw path preallocates all Paint state.
+ * Inputs and rendering stop when the panel is detached or the activity is paused. The draw path
+ * preallocates all Paint state.
+ *
+ * **The view is laid over the strip box** the Luminofor spec names for its window width
+ * (`LuminoforSpec.Head.*.STRIP_BOX`), and draws in that box's own dp at the display's density -
+ * with [overhang] to spare on the left, the right and the foot, because the board draws a few
+ * things past the box's edge: the chart's newest point sits on the box's right edge with its glow
+ * around it, the analyser's outer columns glow three dp past their own sides, and its haze is a
+ * little wider than the field. A view exactly the box's size would cut the dot in half.
  *
  * ### The one thing it answers
  *
- * A horizontal swipe over the **field** moves between the two pages, and the dots under the field
- * say there are two. Everything else about this view is still untouchable: a vertical drag belongs
- * to whatever scrolls above it, and a tap does nothing — the strip is not a button.
+ * A horizontal swipe anywhere on the strip moves between the two pages, and the dots at its foot
+ * say there are two. A vertical drag belongs to whatever scrolls above it, and a tap does nothing -
+ * the strip is not a button.
  *
- * The swipe is taken on the field alone rather than on the whole strip. The three trip figures on
- * the right are not a page, and a gesture that started on them would be a promise this view does
- * not keep.
+ * The swipe used to be taken on the analyser's field alone, because the trip's figures beside it
+ * stayed put on both pages. Since the Luminofor strip each page is the whole strip - the car's page
+ * has no trip readings on it - so the whole strip is what a finger turns.
  *
  * ### And what the second page costs
  *
@@ -42,6 +48,12 @@ import kotlin.math.abs
  * on screen — visible, resumed, and chosen. That claim is a shell poll four times a second, so it
  * is not one to hold for a page nobody is looking at; the cluster's own claim is independent, and
  * either may be up without the other.
+ *
+ * ### A fixed scene
+ *
+ * [fixture] draws a [StripModel] instead of the live strip: the debug build sets one from the
+ * Luminofor board's fixtures, so a screenshot of the app can be laid over the board's PNG. While a
+ * fixture is up the view reads no source, claims no hub and runs no loop; [page] is not remembered.
  */
 @SuppressLint("ViewConstructor")
 class TripPanelView(context: Context) : View(context), Choreographer.FrameCallback {
@@ -56,12 +68,26 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
      * Read once here rather than on every frame: a preferences lookup in a draw path is a file
      * read thirty times a second for an answer that changes when a finger moves.
      */
-    private var page: StripPage = StripPageSettings.page(context)
+    var page: StripPage = StripPageSettings.page(context)
         set(value) {
             if (field == value) return
             field = value
-            StripPageSettings.setPage(context, value)
+            if (fixture == null) StripPageSettings.setPage(context, value)
             syncVehicle()
+            invalidate()
+        }
+
+    /**
+     * A still scene to draw in place of the live strip, or null for the live one.
+     *
+     * Setting one stops the loop and releases the hubs; clearing it takes them back if the view is
+     * up. The model is drawn as it is, every time the view draws - it is the caller's to change.
+     */
+    var fixture: StripModel? = null
+        set(value) {
+            if (field === value) return
+            field = value
+            syncLive()
             invalidate()
         }
 
@@ -75,11 +101,10 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
      */
     private var downX = 0f
     private var downY = 0f
-    private var paging = false
     private var turned = false
 
     private val swipe = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
-        override fun onDown(event: MotionEvent): Boolean = paging
+        override fun onDown(event: MotionEvent): Boolean = true
 
         override fun onFling(
             down: MotionEvent?,
@@ -100,7 +125,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
      * horizontal.
      */
     private fun turn(dx: Float, dy: Float): Boolean {
-        if (!paging || turned || abs(dx) < swipeSlop || abs(dx) <= abs(dy)) return false
+        if (turned || abs(dx) < swipeSlop || abs(dx) <= abs(dy)) return false
         turned = true
         page = page.next(forward = dx < 0)
         return true
@@ -109,7 +134,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     private var looping = false
     private var attached = false
     private var resumed = false
-    private var startNs = 0L
+    private var hubHeld = false
     private var lastDrawNs = 0L
     private var lastFrameNs = 0L
 
@@ -121,19 +146,30 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
             invalidate()
         }
 
+    /**
+     * How far, in pixels, this view reaches past the strip box on its left, its right and its foot.
+     *
+     * `SpectrumPanel` lays the view [OVERHANG_DP] larger than the box it is handed on those three
+     * sides and sets this to match, so the box itself stays where the dashboard put it and the few
+     * things the board draws past its edge are drawn rather than cut. Zero - the view is the box -
+     * for a host that places the view itself.
+     */
+    var overhang: Float = 0f
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidate()
+        }
+
     private val lifecycleObserver = object : DefaultLifecycleObserver {
         override fun onResume(owner: LifecycleOwner) {
             resumed = true
-            hub.start(context)
-            syncLoop()
-            syncVehicle()
+            syncLive()
         }
 
         override fun onPause(owner: LifecycleOwner) {
             resumed = false
-            syncLoop()
-            syncVehicle()
-            hub.stop()
+            syncLive()
         }
     }
 
@@ -151,27 +187,36 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
         } else {
             resumed = true
         }
-        if (resumed) hub.start(context)
-        syncLoop()
-        syncVehicle()
+        syncLive()
     }
 
     override fun onDetachedFromWindow() {
         findViewTreeLifecycleOwner()?.lifecycle?.removeObserver(lifecycleObserver)
         attached = false
-        stopLoop()
-        syncVehicle()
-        hub.stop()
+        syncLive()
         super.onDetachedFromWindow()
     }
 
-    private fun syncLoop() {
-        if (attached && resumed) startLoop() else stopLoop()
+    /** The hub, the loop and the car's claim, each held exactly while the live strip is on screen. */
+    private fun syncLive() {
+        val live = attached && resumed && fixture == null
+        if (live && !hubHeld) {
+            hub.start(context)
+            hubHeld = true
+        } else if (!live && hubHeld) {
+            hub.stop()
+            hubHeld = false
+        }
+        if (live) startLoop() else stopLoop()
+        syncVehicle()
     }
 
     /** The car is polled while its page is on screen, and not one moment longer. */
     private fun syncVehicle() {
-        vehicle.setActive(VehicleWatcher.STRIP, attached && resumed && page == StripPage.VEHICLE)
+        vehicle.setActive(
+            VehicleWatcher.STRIP,
+            attached && resumed && fixture == null && page == StripPage.VEHICLE,
+        )
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -180,13 +225,12 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
             MotionEvent.ACTION_DOWN -> {
                 downX = event.x
                 downY = event.y
-                paging = overField(event.x)
                 turned = false
             }
 
             MotionEvent.ACTION_MOVE -> {
                 val dx = event.x - downX
-                if (paging && !turned && abs(dx) >= swipeSlop && abs(dx) > abs(event.y - downY)) {
+                if (!turned && abs(dx) >= swipeSlop && abs(dx) > abs(event.y - downY)) {
                     parent?.requestDisallowInterceptTouchEvent(true)
                 }
             }
@@ -194,22 +238,12 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
             MotionEvent.ACTION_UP -> turn(event.x - downX, event.y - downY)
         }
         swipe.onTouchEvent(event)
-        return paging
+        return true
     }
-
-    /**
-     * Whether a gesture started over the field, which is the only part of this strip that pages.
-     *
-     * The field is the analyser's own share of the width, which the renderer states for each of
-     * the three window widths; the rest is the trip's figures.
-     */
-    private fun overField(x: Float): Boolean =
-        width > 0 && x <= width * renderer.fieldFraction(layout)
 
     private fun startLoop() {
         if (looping) return
         looping = true
-        startNs = System.nanoTime()
         lastDrawNs = 0L
         lastFrameNs = 0L
         Choreographer.getInstance().postFrameCallback(this)
@@ -231,24 +265,41 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     }
 
     override fun onDraw(canvas: Canvas) {
-        if (width <= 0 || height <= 0) return
-        val now = System.nanoTime()
-        val dt = if (lastFrameNs == 0L) 1.0 / 30.0 else (now - lastFrameNs) / 1_000_000_000.0
-        lastFrameNs = now
-        val frameTime = (now - startNs) / 1_000_000_000.0
-        // The renderer places the "no location access" hint in an area that
-        // stays clear of its own layout.
-        renderer.draw(
-            canvas, width.toFloat(), height.toFloat(), hub.engine, hub.spectrum, hub.nowPlaying,
-            frameTime, dt,
-            showLocationHint = !hub.locationGranted,
-            layout = layout,
-            page = page,
-            vehicle = vehicle.snapshot,
-        )
+        // The box is the view less its overhang, and the canvas's origin is moved onto the box.
+        val boxW = width - 2f * overhang
+        val boxH = height - overhang
+        if (boxW <= 0f || boxH <= 0f) return
+        val density = resources.displayMetrics.density
+        val save = canvas.save()
+        canvas.translate(overhang, 0f)
+        val still = fixture
+        if (still != null) {
+            renderer.drawModel(canvas, boxW, boxH, density, layout, page, still)
+        } else {
+            val now = System.nanoTime()
+            val dt = if (lastFrameNs == 0L) 1.0 / 30.0 else (now - lastFrameNs) / 1_000_000_000.0
+            lastFrameNs = now
+            renderer.draw(
+                canvas, boxW, boxH, density,
+                hub.engine, hub.spectrum, hub.nowPlaying,
+                dt,
+                showLocationHint = !hub.locationGranted,
+                layout = layout,
+                page = page,
+                vehicle = vehicle.snapshot,
+            )
+        }
+        canvas.restoreToCount(save)
     }
 
-    private companion object {
-        const val MIN_FRAME_NS = 1_000_000_000L / 30L
+    companion object {
+        private const val MIN_FRAME_NS = 1_000_000_000L / 30L
+
+        /**
+         * What the view reaches past the strip box, in dp: the chart's end dot (three) and its glow
+         * (eight), which is the widest of the board's overhangs. Every composition's page margin is
+         * at least this wide (12 dp on the one-third pane), so the overhang lands on the margin.
+         */
+        const val OVERHANG_DP = 12f
     }
 }

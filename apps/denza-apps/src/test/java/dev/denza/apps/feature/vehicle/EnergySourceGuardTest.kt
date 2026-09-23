@@ -26,7 +26,7 @@ class EnergySourceGuardTest {
 
     @Test
     fun neitherRendererFormatsANumberOfItsOwn() {
-        listOf(CLUSTER, CLUSTER_FRAME, STRIP).forEach { file ->
+        listOf(CLUSTER, CLUSTER_FRAME, STRIP, STRIP_READINGS).forEach { file ->
             val source = file.readText()
             BANNED.forEach { call ->
                 assertEquals(
@@ -42,19 +42,22 @@ class EnergySourceGuardTest {
      * And the words that are left in them are the ones only that screen says.
      *
      * `ContourReadout` is the cluster's own vocabulary and the strip reads what it needs of it, so
-     * a bare `VehiclePageWords.` in the strip is legitimate - for the two readings this page names
-     * and the one unit the cluster has no room for. What is not legitimate is an *energy* string
-     * there, which is what the three that left it were.
+     * a bare `VehiclePageWords.` on the car page is legitimate - for the voltage it names, the word
+     * in front of the consumption, and the one caption it has while the car is closed to it. What
+     * is not legitimate is an *energy* string there, which is what the three that left it were.
+     *
+     * Since the Luminofor strip the car page is drawn from a model, and the model is filled by
+     * [STRIP_READINGS]; that file is where the words are placed, so it is the one read here.
      */
     @Test
     fun theCarPageOnlyKeepsTheWordsThatAreItsOwn() {
-        val source = STRIP.readText()
+        val source = STRIP_READINGS.readText() + STRIP.readText()
         val words = Regex("""VehiclePageWords\.(\w+)""").findAll(source).map { it.groupValues[1] }.toSet()
-        assertEquals(setOf("TITLE_VOLTS", "TITLE_SPEND", "UNIT_MV", "UNIT_V"), words)
+        assertEquals(setOf("VOLTS", "UNIT_V", "SPEND", "CLOSED"), words)
         // The engine's cell, the direction of the pack's flow, the consumption and its window all
         // left that file for `EnergyReadouts`; the words file cannot quietly regrow them.
         val vocabulary = File(STRIP.parentFile, "VehiclePageWords.kt").readText()
-        listOf("engineCell", "fun volts", "БАТАРЕ", "РАСХОД 0").forEach {
+        listOf("engineCell", "fun volts", "БАТАРЕ", "атаре", "РАСХОД 0", "за поездку", "кВт").forEach {
             assertTrue("«$it» is back in VehiclePageWords", !vocabulary.contains(it))
         }
     }
@@ -72,6 +75,7 @@ class EnergySourceGuardTest {
         /** The cluster draws a frame, and this is where the frame's strings are chosen. */
         val CLUSTER_FRAME = File(MAIN, "feature/cluster/dashboard/ContourFrameBuilder.kt")
         val STRIP = File(MAIN, "feature/trip/VehiclePageRenderer.kt")
+        val STRIP_READINGS = File(MAIN, "feature/trip/StripReadings.kt")
 
         /**
          * Every way a renderer could print a number of its own.

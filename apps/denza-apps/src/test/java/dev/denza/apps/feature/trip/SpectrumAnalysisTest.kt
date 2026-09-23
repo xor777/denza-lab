@@ -127,6 +127,37 @@ class SpectrumBandMapTest {
         }
     }
 
+    /**
+     * The count the strip actually captures: the Luminofor board's thirty-six columns, over the
+     * same 45 Hz - 14 kHz the analyser has always covered.
+     *
+     * The tests above run the map at forty-eight bands because that is where its bass behaviour
+     * is hardest; this one holds the production count to the same two promises - centres that
+     * rise across the whole range, and a bass whose bands do not repeat one bin.
+     */
+    @Test
+    fun `the production map is thirty-six distinct bands over the same range`() {
+        assertEquals(36, SpectrumSource.BAND_COUNT)
+        assertEquals(45.0, SpectrumSource.MIN_HZ, 0.0)
+        assertEquals(14000.0, SpectrumSource.MAX_HZ, 0.0)
+        val bandMap = map(SpectrumSource.BAND_COUNT)
+        val centres = bandMap.centreHz
+        for (band in 1 until centres.size) {
+            assertTrue("band $band must sit above ${band - 1}", centres[band] > centres[band - 1])
+        }
+        assertTrue(centres.first() >= SpectrumSource.MIN_HZ && centres.last() <= SpectrumSource.MAX_HZ)
+
+        val fft = ByteArray(CAPTURE)
+        fft[2 * 1] = 20
+        fft[2 * 2] = 90
+        fft[2 * 3] = 40
+        val out = DoubleArray(bandMap.bandCount)
+        bandMap.magnitudes(fft, out)
+        for (band in 1 until 6) {
+            assertTrue("bass band $band must not repeat ${band - 1}: ${out.toList()}", out[band] != out[band - 1])
+        }
+    }
+
     private companion object {
         const val CAPTURE = 1024
         const val RATE = SpectrumSource.CALIBRATED_RATE_HZ
@@ -351,25 +382,11 @@ class SpectrumDynamicsTest {
     }
 
     @Test
-    fun `the bloom energy breathes behind the bars instead of blinking with them`() {
-        val dynamics = SpectrumDynamics(2)
-        val loud = floatArrayOf(1f, 1f)
-        repeat(4) { dynamics.update(loud, frame) }
-        val mean = (dynamics.bars[0] + dynamics.bars[1]) / 2f
-        assertTrue("bars are up: $mean", mean > 0.8f)
-        assertTrue("the bloom is still on its way: ${dynamics.energy}", dynamics.energy < mean * 0.5f)
-
-        repeat(60) { dynamics.update(loud, frame) }
-        assertTrue("and it does arrive: ${dynamics.energy}", dynamics.energy > 0.9f)
-    }
-
-    @Test
     fun `settle collapses the display`() {
         val dynamics = SpectrumDynamics(2)
         repeat(60) { dynamics.update(floatArrayOf(1f, 1f), frame) }
         repeat(120) { dynamics.settle(frame) }
         assertTrue(dynamics.bars.all { it < 0.02f })
         assertTrue(dynamics.peaks.all { it < 0.02f })
-        assertTrue(dynamics.energy < 0.02f)
     }
 }
