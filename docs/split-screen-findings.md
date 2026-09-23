@@ -358,12 +358,19 @@ this acceptance run, and the AVC crash buffer stayed empty.
 
 The user-invoked **Split Screen** launcher is a separate boundary from native
 edge discovery. Only that explicit launcher acquires a full-screen progress
-window. It uses the vehicle's SystemUI toast colors, typography, spinner and
-centered card with **«Запускаем разделение экрана…»**; edge drag and picker
-replacement never create this window.
+window; edge drag and picker replacement never create this window. It first
+showed the vehicle's SystemUI toast colors, typography, spinner and centered
+card with **«Запускаем разделение экрана…»**, later on an opaque dark scrim.
+Since 2026-09-23 it draws «Бригада сплита» instead - the owner-approved
+animation of a crew moving the divider, opaque black over the whole window,
+with the same words as its caption and its accessibility description
+(`SplitCrewView`; the design and its comparison tooling are in
+`tools/design-canvas/split-crew/`). Only the look changed: the window, its
+flags, the input it takes and the removal below are the same.
 
-The window lifecycle is lease-based. Every request has its own 700 ms minimum
-display time and an unconditional 15 second hard deadline. A normal completion
+The window lifecycle is lease-based. Every request has its own minimum display
+time (700 ms at first, 300 ms since the shield became opaque) and an
+unconditional 15 second hard deadline. A normal completion
 releases only its own lease after the minimum, an error releases it immediately,
 and stale or repeated timers are idempotent. Overlapping requests remain visible
 only while at least one live lease remains. Removal first makes the view

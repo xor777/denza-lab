@@ -125,6 +125,9 @@ internal object SplitLaunchOverlay {
         onUnavailable = {
             SplitDiagnostics.record("waiting window unavailable: no overlay permission")
         },
+        // The wait the owner approved on 2026-09-23 in place of the toast card: the crew moving
+        // the divider while the scene is built (tools/design-canvas/split-crew).
+        backdrop = ::SplitCrewView,
     )
 
     @Volatile

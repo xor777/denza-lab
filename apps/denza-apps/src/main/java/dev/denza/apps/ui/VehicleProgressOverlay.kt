@@ -23,18 +23,18 @@ internal object VehicleProgressOverlayStyle {
     val foregroundColor: Int = 0xE6FFFFFF.toInt()
 
     /**
-     * What a blocking wait actually shows the user (contract 1.13.2, "ожидание честное").
+     * What a blocking wait shows the user when its owner brings no backdrop of its own (contract
+     * 1.13.2, "ожидание честное").
      *
      * The shield used to take the input and nothing else: it was fully transparent, so the car went
      * on showing every intermediate window underneath it - the firmware's own remembered companion
      * flashing up, a half-built pane, an empty picker where an app is about to be. That is dirty
-     * waiting, and dirty waiting is red at any duration. The scrim is opaque and matches the dark
-     * ground of the picker the wait usually ends on, so the transition into the finished scene reads
-     * as one move rather than as a flicker.
-     */
-    /**
-     * Opaque top-to-bottom backdrop in the app's own dark palette: the shield must hide the
-     * rebuild (1.13.2), but it does not have to look like a flat grey void while doing so.
+     * waiting, and dirty waiting is red at any duration. So the scrim is opaque: a top-to-bottom
+     * gradient in the app's own dark palette, with the card centred on it.
+     *
+     * The split shield no longer shows it. Since 2026-09-23 it draws «Бригада»
+     * (`feature/split/SplitCrewView`) as its backdrop, which is opaque the same way - black over the
+     * whole display before a line is drawn - and carries the card's words as its caption.
      */
     val scrimGradient: IntArray = intArrayOf(0xFF161A21.toInt(), 0xFF0B0E13.toInt())
     const val cornerRadiusDp = 8
@@ -60,13 +60,25 @@ internal enum class VehicleProgressOverlayInputMode {
  * @param onUnavailable told once, with the reason, when this window cannot be shown at all - the
  * permission is gone or WindowManager refused it. A wait the user cannot see is exactly the silent
  * failure U5 forbids, so the owner of the overlay gets to say so on a surface that does work.
+ * @param backdrop what a [VehicleProgressOverlayInputMode.BLOCK_SCREEN] shield shows instead of the
+ * scrim and the card: a view the shield hosts over the whole display, given the text the card would
+ * have shown. It draws the wait itself, so it has to be opaque (1.13.2), and it is the window's
+ * accessibility node. The window, its flags, the input it takes and the way it comes down are the
+ * same with or without one. A pass-through window is only ever the card.
  */
 internal class VehicleProgressOverlay(
     @param:StringRes private val textRes: Int,
     private val windowTitle: String,
     private val inputMode: VehicleProgressOverlayInputMode,
     private val onUnavailable: (String) -> Unit = {},
+    private val backdrop: ((Context, CharSequence) -> View)? = null,
 ) {
+    init {
+        require(backdrop == null || inputMode == VehicleProgressOverlayInputMode.BLOCK_SCREEN) {
+            "$windowTitle: only a blocking shield has a backdrop"
+        }
+    }
+
     @Volatile
     private var appContext: Context? = null
 
@@ -203,19 +215,31 @@ internal class VehicleProgressOverlay(
     }
 
     private fun createWindowView(context: Context): View {
-        val card = createCard(context)
-        if (inputMode == VehicleProgressOverlayInputMode.PASS_THROUGH) return card
+        if (inputMode == VehicleProgressOverlayInputMode.PASS_THROUGH) return createCard(context)
         return TouchShieldFrameLayout(context).apply {
             isClickable = true
             isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            val scene = backdrop
+            if (scene != null) {
+                // The owner draws the whole wait: its view is the screen, and the node a screen
+                // reader finds in the card's place. The shield around it still takes every touch.
+                addView(
+                    scene(context, context.getText(textRes)),
+                    FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                    ),
+                )
+                return@apply
+            }
             // 1.13.2: while the wait runs, the only thing on screen is the wait.
             background = GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 VehicleProgressOverlayStyle.scrimGradient,
             )
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             addView(
-                card,
+                createCard(context),
                 FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT,
                     FrameLayout.LayoutParams.WRAP_CONTENT,
