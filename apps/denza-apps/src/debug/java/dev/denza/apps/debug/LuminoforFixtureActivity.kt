@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,10 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import dev.denza.apps.R
 import dev.denza.apps.design.luminofor.LuminoforSpec
 import dev.denza.apps.feature.cluster.dashboard.ClusterDashboardRenderer
 import dev.denza.apps.feature.cluster.dashboard.ContourFixtures
 import dev.denza.apps.feature.cluster.dashboard.ContourFrame
+import dev.denza.apps.feature.split.SplitCrewScene
+import dev.denza.apps.feature.split.SplitCrewView
 import dev.denza.apps.feature.trip.StripFixtures
 import dev.denza.apps.ui.DashboardFixtureFrame
 import dev.denza.apps.ui.SheetFixtures
@@ -40,6 +44,9 @@ import dev.denza.apps.ui.SpectrumPanel
  * model instead of the car. The cluster boards are the real Contour renderer drawing the fixture's
  * frame onto a 2560 x 720 view. The system bars are hidden so the corner is the screen's corner.
  * Debug builds only; nothing here reaches the car.
+ *
+ * `--es board split-crew --el t <ms>` is the split shield's wait instead, [SplitCrewView] pinned at
+ * that moment over the whole screen, for `tools/design-canvas/split-crew/compare.py`.
  */
 class LuminoforFixtureActivity : ComponentActivity() {
 
@@ -53,6 +60,18 @@ class LuminoforFixtureActivity : ComponentActivity() {
         window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
 
         val id = intent.getStringExtra(EXTRA_BOARD) ?: "main-sound"
+        if (id == SPLIT_CREW) {
+            // The split shield's wait, pinned at one moment, over the whole screen - the view the
+            // shield hosts, at the car's 2560 x 1600: tools/design-canvas/split-crew/compare.py.
+            val crew = SplitCrewView(this, getText(R.string.split_launch_overlay_text)).apply {
+                pin(intent.getLongExtra(EXTRA_T, SplitCrewScene.STILL_T.toLong()))
+            }
+            setContentView(
+                crew,
+                ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+            )
+            return
+        }
         val all = StripFixtures.load(this)
         val board = StripFixtures.board(all, id)
         val fixture = StripFixtures.fixture(all, id)
@@ -98,5 +117,9 @@ class LuminoforFixtureActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_BOARD = "board"
+
+        /** `--es board split-crew --el t <ms>`: «Бригада» at t ms, not a Luminofor board. */
+        const val SPLIT_CREW = "split-crew"
+        const val EXTRA_T = "t"
     }
 }
