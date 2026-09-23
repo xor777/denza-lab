@@ -15,9 +15,9 @@ import dev.denza.apps.design.DenzaMetrics
  *
  * It used to live inside a picker sheet, which meant only the three pickers that are a whole sheet
  * could have it. The default-app roles need a grid under a row of segments rather than under a
- * header, so they had built their own out of [DenzaTileGrid] - and on the same 480 dp panel the
- * two drew the same [DenzaAppTile] five to a row and four to a row, with different gaps, and on a
- * narrow pane one fitted its columns to the width while the other insisted on three.
+ * header, so they had built their own out of the dashboard's tile grid - and on the same 480 dp
+ * panel the two drew the same [DenzaAppTile] five to a row and four to a row, with different gaps,
+ * and on a narrow pane one fitted its columns to the width while the other insisted on three.
  *
  * How many fit in a row is the one thing a caller decides, because that is a real difference: the
  * navigators are few and large and the projection lists everything the car has. On a narrow pane

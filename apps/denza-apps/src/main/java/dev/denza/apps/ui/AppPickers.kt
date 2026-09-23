@@ -165,7 +165,7 @@ internal fun NavigationPickerDialog(
  *
  * There are two doors to this choice - the cluster's settings panel holds it under a heading, and
  * a feature waiting on it opens [NavigationPickerDialog] - and until now each door drew its own
- * grid: four columns of [dev.denza.apps.ui.components.DenzaTileGrid] in the panel against three
+ * grid: four columns of the dashboard's old row-of-weights grid in the panel against three
  * lazy ones in the sheet, with different gaps and a different empty state.
  *
  * This one stays bounded, because here the grid genuinely is one child of a panel that scrolls.

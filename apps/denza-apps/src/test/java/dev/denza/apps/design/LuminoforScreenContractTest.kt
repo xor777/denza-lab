@@ -1,6 +1,7 @@
 package dev.denza.apps.design
 
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.luminofor.LuminoforSpec
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.SpecJson.list
@@ -12,6 +13,7 @@ import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.components.TileFace
 import kotlin.math.roundToInt
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,9 +23,10 @@ import org.junit.Test
  * `LuminoforSpecContractTest` holds `LuminoforSpec` to the file value by value. That proves the
  * constants and nothing about the screen: the first cut of the tile carried every number off the
  * old board and still looked nothing like it, because the numbers were right and the arithmetic
- * between them was not. So this one does the board's arithmetic - how bright each word comes out
- * on its plate, what each face lights its glyph with, where the words hang - and asserts that
- * `DashboardLayoutPolicy`, `DenzaMetrics` and `TileFace` arrive at the same answers.
+ * between them was not. So this one does the board's arithmetic - where `drawHead` puts each tile
+ * and each chip, where the strip box starts and ends, how bright each word comes out on its plate -
+ * and asserts that `DashboardLayoutPolicy`, `DenzaMetrics` and `TileFace` arrive at the same
+ * answers in all three windows.
  *
  * It replaces `MainBoardContractTest` and `PaneBoardContractTest`, which read the same facts out of
  * `Main.dc.html`, `TwoThirds.dc.html` and `OneThird.dc.html`. Those boards are still on disk as the
@@ -66,7 +69,88 @@ class LuminoforScreenContractTest {
             near("$key margin", num("head", key, "margin"), DashboardLayoutPolicy.sideMargin(mode).value)
             near("$key strip box left", box[0], DashboardLayoutPolicy.sideMargin(mode).value)
             near("$key strip box right", width - box[2], DashboardLayoutPolicy.sideMargin(mode).value)
+            near("$key bottom margin", 680.0 - box[3], DashboardLayoutPolicy.bottomMargin(mode).value)
         }
+    }
+
+    @Test
+    fun theTilesStandWhereDrawHeadPutsThem() {
+        // drawHead: tw = (W - 2 margin - 5 gap) / 6; tile i at (L + (i % 6)(tw + gap), top + (i / 6)(h + gap))
+        val w = num("head", "full", "size", "0")
+        val margin = num("head", "full", "margin")
+        val gap = num("head", "full", "tiles", "gap")
+        val height = num("head", "full", "tiles", "height")
+        val top = num("head", "full", "tiles", "top")
+        val tw = (w - 2 * margin - gap * 5) / 6
+        assertEquals("the tile the board draws", 187.333, tw, 1e-3)
+
+        val band = DashboardLayoutPolicy.band(DashboardLayoutMode.WIDE, FEATURES, (w - 2 * margin).toFloat())
+        near("tile width", tw, band.cellWidth)
+        near("tile height", height, band.cellHeight)
+        near("tile height, as DenzaMetrics has it", height, DenzaMetrics.Component.TILE_HEIGHT.value)
+        assertEquals("rows", 2, band.rows)
+        val inset = DashboardLayoutPolicy.topInset(DashboardLayoutMode.WIDE).value
+        for (i in 0 until FEATURES) {
+            near("tile $i x", margin + (i % 6) * (tw + gap), margin.toFloat() + band.left(i))
+            near("tile $i y", top + (i / 6) * (height + gap), inset + band.top(i))
+        }
+    }
+
+    @Test
+    fun theChipsStandWhereDrawHeadPutsThem() {
+        for ((mode, key, bar) in modes.drop(1)) {
+            // drawHead: g = (Wd - perRow size) / (perRow - 1); chip i at L + (i % perRow)(size + g),
+            // top + (i / perRow)(size + rowGap) - one row at 828, two at 416.
+            val w = num("head", key, "size", "0")
+            val margin = num("head", key, "margin")
+            val content = w - 2 * margin
+            val size = num("head", key, "chips", "size")
+            val perRow = num("head", key, "chips", "perRow").toInt()
+            val rowGap = if (key == "one") num("head", "one", "chips", "rowGap") else 0.0
+            val g = (content - perRow * size) / (perRow - 1)
+            val top = num("head", key, "chips", "top")
+
+            val band = DashboardLayoutPolicy.band(mode, FEATURES, content.toFloat())
+            assertEquals("$key columns", perRow, band.columns)
+            near("$key chip", size, band.cellWidth)
+            near("$key chip is square", size, band.cellHeight)
+            near("$key chip at its measured window", size, DashboardLayoutPolicy.chipWidth(mode, FEATURES).value)
+            val inset = DashboardLayoutPolicy.topInset(mode).value
+            for (i in 0 until FEATURES) {
+                near("$key chip $i x", margin + (i % perRow) * (size + g), margin.toFloat() + band.left(i))
+                near("$key chip $i y", top + (i / perRow) * (size + rowGap), (bar + inset + band.top(i)).toFloat())
+            }
+        }
+    }
+
+    @Test
+    fun theStripBoxIsTheSpecsInAllThreeWidths() {
+        for ((mode, key, bar) in modes) {
+            val w = num("head", key, "size", "0")
+            val content = (w - 2 * DashboardLayoutPolicy.sideMargin(mode).value).toFloat()
+            val box = box(key)
+            // The page is laid out in what safeDrawing leaves: the window less its caption bar.
+            val page = DashboardLayoutPolicy.page(mode, FEATURES, content, (680.0 - bar).toFloat().dp)
+            assertFalse("$key should fit its window without scrolling", page.scrolls)
+
+            val stripTop = bar + DashboardLayoutPolicy.topInset(mode).value +
+                DashboardLayoutPolicy.featureBandHeight(mode, FEATURES, content).value +
+                DashboardLayoutPolicy.bandGap(mode).value
+            near("$key strip box top", box[1], stripTop.toFloat(), 0.05)
+            near("$key strip box height", box[3] - box[1], page.panelHeight.value, 0.05)
+            near("$key strip box width", box[2] - box[0], content)
+        }
+        near("the full screen's strip is its box's shape", 296.0, DashboardLayoutPolicy.wholeScreenPanelHeight(1184f).value)
+        near("the band gap on the full screen", 12.0, DashboardLayoutPolicy.bandGap(DashboardLayoutMode.WIDE).value)
+        near("the band gap in a pane", 24.0, DashboardLayoutPolicy.bandGap(DashboardLayoutMode.MEDIUM).value)
+        near("and in the other", 24.0, DashboardLayoutPolicy.bandGap(DashboardLayoutMode.NARROW).value)
+    }
+
+    @Test
+    fun theCaptionBarIsOnlyAPanesAndTheBandStandsUnderIt() {
+        near("full screen", num("head", "full", "tiles", "top"), DashboardLayoutPolicy.topInset(DashboardLayoutMode.WIDE).value)
+        near("two thirds: 16 under the bar", 16.0, DashboardLayoutPolicy.topInset(DashboardLayoutMode.MEDIUM).value)
+        near("one third: 12 under the bar", 12.0, DashboardLayoutPolicy.topInset(DashboardLayoutMode.NARROW).value)
     }
 
     @Test
