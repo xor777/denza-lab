@@ -26,11 +26,17 @@ still use the historical `denza-gateway` directory name.
   where experiments live, promotion checklist, live-car debugging rules, and
   the firmware behavior method (corpus-first, reset procedure, one owning
   session).
-- [tools/design-canvas/README.md](tools/design-canvas/README.md) — the
-  artboards the head unit and cluster are drawn from, the two type ramps, how to
-  render a board and how to measure one, and the unit tests that fail when a
-  board and the app disagree. Read it before changing anything under
-  `apps/denza-apps/src/main/java/dev/denza/apps/ui/` or `.../design/`.
+- [tools/design-canvas/luminofor/README.md](tools/design-canvas/luminofor/README.md)
+  — the Luminofor design (approved 2026-09-23), normative for the head unit's
+  dashboard, both panes, the strip's two pages and the cluster: `spec.json`,
+  the board renderer, the frozen scenes, how to render a board, and how to lay a
+  screenshot of the debug build's `LuminoforFixtureActivity` over it with
+  `compare.py`. Read it before changing anything under
+  `apps/denza-apps/src/main/java/dev/denza/apps/ui/`, `.../design/`,
+  `feature/trip` or `feature/cluster/dashboard`.
+- [tools/design-canvas/README.md](tools/design-canvas/README.md) — the method
+  (boards computed from the code's constants and measured) and the boards before
+  Luminofor, kept as their record.
 - [docs/energy-display-contract.md](docs/energy-display-contract.md) — normative
   energy contract for the cluster's Contour and the head unit's car page: one
   definition, one set of words and one chart on both screens, and how each is
@@ -38,7 +44,7 @@ still use the historical `denza-gateway` directory name.
   hundred-point chart and the engine's box where it diverges from the findings or
   the canvas README. Read it before touching `feature/vehicle`,
   `feature/cluster/dashboard` or `VehiclePageRenderer`.
-- [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, the Contour instrument panel, Mirrors, and navigation status.
+- [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, the Contour instrument panel (drawn as Luminofor since 2026-09-23), Mirrors, and navigation status.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
 - [docs/audio-capture-findings.md](docs/audio-capture-findings.md) — what a normal app can observe of played audio (spectrum analyser feasibility).
@@ -131,16 +137,19 @@ The same form works for every module in the second table above.
   hypothesis test that starts from a documented reset, owned by exactly one
   session at a time. Full rules: `docs/governance.md`, "Firmware Behavior
   Method".
-- UI work starts at the board, not at the screen. `tools/design-canvas/` holds
-  the design; render the board with `shot.py` and put it beside a screenshot of
-  the car before calling a screen finished. Numbers copied off a board are not
-  the same as a screen that looks like it - the first cut matched every value
-  and matched nothing that could be seen.
+- UI work starts at the board, not at the screen. `tools/design-canvas/luminofor/`
+  holds the design; render the board with its `shot.py` and put it beside a
+  screenshot of the app before calling a screen finished. Numbers copied off a
+  board are not the same as a screen that looks like it - the first cut matched
+  every value and matched nothing that could be seen.
 - When docs and implementation disagree, follow the code, manifests, and Gradle
   files, then correct the relevant page. A design board is the exception: it and
-  the code are both normative, they are joined by `MainBoardContractTest`,
-  `SpectrumBoardContractTest`, `ContourBoardContractTest` and
-  `StripPagesBoardContractTest`, and they move in one change or neither moves.
+  the code are both normative, they are joined by `LuminoforSpecContractTest`,
+  `LuminoforScreenContractTest`, `StripBoardContractTest`, `StripGeometryTest`,
+  `ContourGeometryTest`, `ContourFrameBuilderTest` and
+  `ContourFixturesContractTest`, and they move in one change or neither moves;
+  a screen is finished when `luminofor/compare.py` finds its screenshot and its
+  board agree to antialiasing.
   Energy is joined once more on top of that: `EnergyReadoutsTest` holds the
   cluster and the car page to one answer about every energy string either of them
   prints, and `VehicleLogReplayTest` holds the arithmetic to whatever

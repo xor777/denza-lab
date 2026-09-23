@@ -270,6 +270,46 @@ stock band turns out to be shallower, the dashboard gains room and nothing
 breaks - every block is placed against these values, never against the panel
 edge.
 
+### The Luminofor panel (2026-09-23)
+
+**The Contour's drawing was replaced on 2026-09-23** by the Luminofor design,
+which the owner approved as a live page after a day of iterations on the whole
+app's look - dashboard, panes, strip and this panel together. The quantities,
+their words and their rules below are unchanged and still owned by
+[energy-display-contract.md](energy-display-contract.md); what changed is the
+composition and the ink:
+
+- **A triptych on one caption line and one baseline**: the battery's volts and
+  the five temperatures captioned by their glyphs on the left, the power as the
+  hero on the axis, the engine and the trip on the right. The corners stay the
+  stock instruments'. One beam along the axis, the ten kilometres under it left
+  of the axis beside their figure. Exceptions - the cell spread, the trip's
+  detail on P, the engine giving - are one line under their own group, not a
+  second panel.
+- **Figures are drawn, not typeset**: one stroke of constant weight on a square
+  cap (`WideDigits`), the same on both screens. Captions are Jura, close to the
+  stock cluster's face. Every colour is the stock SystemUI's: ink `#DAE1EB`,
+  blue `#2D82D7` for energy coming back, orange and red for temperature alone.
+- **Additive light**: everything is composited `PLUS`, as the board composites
+  `lighter`. Calm things are flat; only the beam, its glow, the trace's dot and a
+  hot cell's pool glow.
+
+`tools/design-canvas/luminofor/` is the design (`luminofor.js`, `spec.json`, the
+`cluster-*` boards) and `ClusterDashboardRenderer` is that board ported line for
+line onto `LightPen`; the geometry is `ContourGeometry` and a picture is a
+`ContourFrame` filled by `ContourFrameBuilder`, or by the debug build's
+`ContourFixtures` from a board's scene. The debug build's
+`LuminoforFixtureActivity` draws any board at its own pixels and
+`luminofor/compare.py` lays the screenshot over the board: every cluster board
+agreed to within 0.13-0.66 % of its pixels on the emulator (2026-09-23), the
+rest being antialiasing. The keep-out hatching is the board's picture of the
+stock instruments and is not drawn by the app.
+
+`ContourPlan`, `ContourGlyphs`, `InstrumentPen` and `InstrumentFace`, the
+Contour's drawing code, went with it; the sections from here to "Rest states"
+are the record of the panel they drew and of why it was drawn that way. Nothing
+has been installed on the car from this design yet.
+
 ### What it shows, and what it deliberately does not: the Contour
 
 Replaced on 2026-09-04. The panel described here until then - a square-root arc

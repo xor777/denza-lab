@@ -37,6 +37,15 @@ The panel is an unconditional part of the current screen rather than a
 compile-time option. Speaker-cover automation can still own the shared audio
 source independently when its persistent user toggle is enabled.
 
+**Since the Luminofor strip (2026-09-23) the source reads 36 bands** over the
+same frequency range, up from 26. The full screen draws all 36 as columns of fine
+lines under one blue gradient; the two-thirds and one-third panes draw fewer
+columns and sample the 36 with the board's own index map
+(`SpectrumRenderer.sample`), so one capture serves three widths. The analyser
+itself - no blur, no reflection, no ticker, one elliptical haze - is described by
+`tools/design-canvas/luminofor/`; the tuning notes below (range, headroom, the
+floor) still hold, and the reflection and bloom they mention are gone.
+
 ## Evidence
 
 The probe was tested against a signal of known amplitude so that a pass could

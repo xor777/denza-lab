@@ -60,6 +60,14 @@ raw id, and the same charge was 7 kW on one screen and 0 on the other. The
 substitution is `EnergyReadouts.packKilowatts`, and it is the only place either
 screen decides what the pack is doing.
 
+**Drawn in the Luminofor palette (2026-09-23).** The words and their colours
+above are the car page's, which prints them in its sentence case - «Из батареи»,
+«● В батарею от ДВС» - derived from the capitals by `EnergyReadouts.sentence`, so
+the two cases cannot become two sentences. The cluster prints no direction word:
+the hero is ink out of the pack and while neutral (the stock flat white; a dimmed
+hero read as a fault), blue coming back, and the «кВт» beside it is grey, blue
+coming back. The side the beam takes says the rest.
+
 Unavailable is not zero: no figure, the caption stays, exactly as the cluster's
 staleness rule has it (`ContourScene`). And a read that did not land does not
 move the colour's hysteresis: the neutral zone remembers where the screen was,
@@ -99,8 +107,10 @@ newest closed buckets that are readings (§2.6), taken back until their road sum
 to ten kilometres, whatever the odometer says about the road between them. The
 unit names it: «кВт·ч/100 км · за 10 км» once ten kilometres of readings are in
 the log, and «· за 3,7 км» while it is still filling - the *known* road, not the
-bucket count. The car page prints the same two forms in its own case,
-«ЗА 10 КМ» / «ЗА 3,7 КМ», and never rounds a filling window to a whole number.
+bucket count. The car page prints the same unit in one sentence over its chart,
+«Расход 16,9 кВт·ч/100 км · за 10 км» (since the Luminofor strip, 2026-09-23; it
+used to set «ЗА 10 КМ» in capitals under its own figure), and never rounds a
+filling window to a whole number.
 
 ### 2.3 The history behind that figure
 
@@ -162,8 +172,10 @@ cluster's 37 units up and 13 down, 60 and 20 are 1.6 and 1.5 kWh/100 km per unit
 the same slope either side of the zero, so the line crosses it without a kink. A
 run of points past a ceiling is drawn along the ceiling with one three-unit tick
 standing just outside the box at the run's centre - the reader sees it was cut.
-The two ceilings are two constants in one place (`ContourPlan.PETAL_FULL`,
-`PETAL_RETURN_FULL`) and the plan board prints them.
+The two ceilings are one pair in `spec.json` for both screens - `upTo` and
+`downTo` under `cluster.trace` and `head.chart`, which `StripBoardContractTest`
+holds equal (they were `ContourPlan.PETAL_FULL` and `PETAL_RETURN_FULL`, printed
+by the plan board, before the Luminofor panel).
 
 **Form: a line.** The fourth board's steps («он как бы дискретный ступеньками»)
 were chosen when a step was a closed bucket and a step said so; a trailing mean is
@@ -171,11 +183,27 @@ a continuous function of the road, and a line is what says that. The engine's bo
 keeps its steps: its slots are closed five-second buckets and it is not this
 chart.
 
-**Where.** Unchanged: on the cluster the petal's history box (`ContourPlan.
-petalBox…`, zero on the figure's baseline, 37 up, 13 down); on the car page the
-box at the old trace's size with the axis gutter naming the ceilings, «60» and
-«−20». Same points, same scale law, same colours; the pixel height differs and
-nothing else.
+**Where.** On the cluster left of the axis beside its figure, zero on the
+figure's baseline, 37 units up and 13 down (`LuminoforSpec.Cluster.Trace`,
+`ContourGeometry.TRACE_*`); on the car page the strip's lower band, zero three
+quarters down (`LuminoforSpec.Head.Chart`). Same points, same scale law, same
+form; the pixel height differs, and the inks are each screen's own - ink and the
+cluster's blue there, the head unit's white and blue here.
+
+**Drawn (2026-09-23).** `Silhouette` draws it on both screens, and
+`silhouette()` in `tools/design-canvas/luminofor/luminofor.js` on both boards,
+line for line. A full window runs edge to edge, a pitch of a ninety-ninth of the
+box; a filling one grows leftward from the right edge at the same pitch, so
+«за 3,7 км» is thirty-six pitches and 36 % of the box - the contract's «37 %» to
+a pitch, since thirty-seven points have thirty-six gaps. The field and the line
+are drawn twice, clipped above the zero and below it, so the colour changes
+exactly where the line crosses and nothing is stroked along the zero. On the
+cluster the line keeps the Luminofor persistence: ten equal runs of the window,
+each a step dimmer than the next, drawn as one stroke under a stepped gradient.
+The car page's axis gutter - «60» and «−20» - is gone: the approved board has no
+gutter, and a scale the driver never reads is furniture on a page that was
+already called a mess. The ceilings are the spec's constants and the plan is in
+this section.
 
 ### 2.4 The trip
 
@@ -185,6 +213,12 @@ off, the engine's share `∫G dt` while it runs, its minutes. A trip quantity a
 fresh packet does not carry did not happen this trip, and its caption goes with
 it (`ContourValue.ledger`). Seat order on P: «ЗА ПОЕЗДКУ» at the edge, then
 «ДАЛ ДВС», then «● РЕКУПЕРАЦИЯ» at the far end, packed from the edge.
+
+On the Luminofor cluster the trip is the right group's figure - «42 км · ЗА
+ПОЕЗДКУ» over «9,3 кВт·ч» - and «ДАЛ ДВС» and «РЕКУПЕРАЦИЯ» stand on the detail
+line under it, «ДАЛ ДВС» whenever the ledger carries the engine's share and
+«РЕКУПЕРАЦИЯ» on P. The car page carries the same trip in its own cell, flush
+right on the full screen: «42 км · за поездку» over «9,3 кВт·ч».
 
 ### 2.5 The engine
 
@@ -206,12 +240,15 @@ the recording says which:
   corner; that is the truth, and a flat box was its caricature. The box leaves
   ten seconds after the flag drops - hysteresis against a dropped read, not a
   two-minute afterlife of zeros drawn in blue;
-- its sentence is **«ДВС ДАЁТ 8 кВт · ПОСЛЕДНИЕ 1:22»**: what the engine is
-  giving, not where it goes. «В БАТАРЕЮ» was a claim about `G`; «даёт» is true
+- its sentence is **«ДВС ДАЁТ 8 кВт · ПОСЛЕДНИЕ 1:22»**, set on two lines on the
+  Luminofor cluster - «ДВС ДАЁТ 8 кВт» on the caption line over the box and
+  «ПОСЛЕДНИЕ 1:22» under it: what the engine is giving, not where it goes. «В БАТАРЕЮ» was a claim about `G`; «даёт» is true
   under either meaning and is the same verb the trip's «ДАЛ ДВС» uses. No dot:
   the blue mark means «into the pack» everywhere else on the panel;
 - its field is the history colour - `MUTED_DEEP` under `INK`, like the petal -
-  not `RETURN`, for the same reason;
+  not `RETURN`, for the same reason. The Luminofor concept drew the box blue and
+  was brought back to this before it shipped (2026-09-23): an ink line, a faint
+  ink field, the sentence grey like every caption;
 - **nothing about the engine is drawn on the band.** The line under the band on
   the return span, and the seam behind the tip, both said `G` is or is not
   inside `P`; neither is known. `VehicleConvention.GENERATION_INSIDE_PACK_POWER`
@@ -271,10 +308,16 @@ ledger (§2.4) is fed by the same sweep and stops losing road for the same reaso
 | where | says | never |
 | --- | --- | --- |
 | direction of `P` | «ИЗ БАТАРЕИ» · «В БАТАРЕЮ» · «● В БАТАРЕЮ ОТ ДВС» · «● В БАТАРЕЮ ОТ ЗАРЯДКИ» · «БАТАРЕЯ» | a sign |
-| the figure's window | «кВт·ч/100 км · за 10 км» / «за 3,7 км»; car page «ЗА 10 КМ» / «ЗА 3,7 КМ» | «за 3 км», a whole-number rounding of a filling window, «ПОСЛЕДНИЕ 2 МИНУТЫ» |
-| the trip | «42 км · ЗА ПОЕЗДКУ» · «ДАЛ ДВС» · «● РЕКУПЕРАЦИЯ» | a zero, a caption over nothing |
-| the engine, live | «ДВС · об/мин» + rpm; box «ДВС ДАЁТ 8 кВт · ПОСЛЕДНИЕ 1:22» | «В БАТАРЕЮ» on the box, a dot on the box, «ГЕНЕРАЦИЯ», «ОБОРОТЫ» |
-| the engine, stopped | «ДВС · мин за поездку» + minutes | a box of zeros |
+| the figure's window | «кВт·ч/100 км · за 10 км» / «за 3,7 км»; car page «Расход 16,9 кВт·ч/100 км · за 10 км» | «за 3 км», a whole-number rounding of a filling window, «ПОСЛЕДНИЕ 2 МИНУТЫ» |
+| the trip | «42 км · ЗА ПОЕЗДКУ» · «ДАЛ ДВС» · «РЕКУПЕРАЦИЯ»; car page «42 км · за поездку» | a zero, a caption over nothing |
+| the engine, live | «ДВС · об/мин» + rpm; box «ДВС ДАЁТ 8 кВт» over «ПОСЛЕДНИЕ 1:22»; car page «ДВС» + rpm | «В БАТАРЕЮ» on the box, a dot on the box, «ГЕНЕРАЦИЯ», «ОБОРОТЫ» |
+| the engine, stopped | «ДВС · мин за поездку» + minutes; car page «ДВС за поездку» + «мин» | a box of zeros |
+| charging, the countdown | «2:15 до полной»; ten hours or more «12:30» | a day count |
+| the car page, closed | «Питание от машины» over the instruction | a row of empty captions |
+
+The car page prints every one of these in sentence case (§2.1), the cluster in
+its capitals; the Luminofor cluster sets its captions in Jura and the car page
+its words in Roboto, as the stock screens do.
 
 The blue mark «●» means *into the pack* and nothing else. `RETURN` colour means
 energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
@@ -297,19 +340,28 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   headline says «ОТ ЗАРЯДКИ» and the chart stays;
 - **window filling**: the chart grows from its right edge, the unit names the
   known road, and the two are one number - thirty-seven points and «за 3,7 км»;
+- **closed to us** (the shell cannot read the car): the cluster draws its
+  skeleton and the reason in the ten kilometres' place; the car page says
+  «Питание от машины» on its caption line and the instruction under it, and
+  nothing else;
 - **a gap in the record**: nothing to see. The chart is shorter by the road
   nobody recorded, the points either side of it are neighbours, and the figure is
   the mean of what is known.
 
 ## 5. Layout invariants
 
-- The car page's narrow (416 dp) layout keeps the consumption figure and its
-  window; if the stack does not fit the pane's height, the layout's unit shrinks
-  until it does. Content is never drawn past the pane.
-- The cluster's geometry is `ContourPlan` as of 2026-09-05: the petal's block
-  one unit gap right of the axis, the box 232 × 49.92 on the figure's baseline,
-  the seats packed from the edge. This page changes what is drawn in the box,
-  not where the box is.
+- The car page's narrow (416 dp) layout keeps the consumption sentence and its
+  chart. The strip's box is the spec's (`LuminoforSpec.Head.*.STRIP_BOX`); a box
+  shorter than the board's moves the analyser's floor and the page dots up and
+  nothing else, and `StripGeometry.minimumHeight` is how far that can go before
+  the dots meet the chart - `StripGeometryTest` holds every composition's box
+  above it. Content is never drawn past the pane.
+- The cluster's geometry is the Luminofor triptych (`LuminoforSpec.Cluster`,
+  `ContourGeometry`), approved 2026-09-23: the battery and its five temperatures
+  left, the hero on the axis, the engine and the trip - or the engine's box -
+  right, one beam along the axis at 296 units, and under it the ten kilometres
+  left of the axis beside their figure, zero on the figure's baseline at 364.
+  `ContourPlan` was the petal's plan and went with the petal.
 - Glass 320 mm wide, eyes **800 mm** (owner, 2026-09-07; 750 was the tape on
   2026-09-04). A cap of `size` units subtends `size × 0.648′`: 52 is 33.7′, 34
   is 22.0′, 18 is 11.7′. The ladder 88·52·34·18 stands; 18 is furniture, read
@@ -317,7 +369,17 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 
 ## 6. What the boards show
 
-`tools/design-canvas/ClusterContour*.dc.html` and `StripPages.dc.html` are the
+**Since 2026-09-23 the drawings of this page are the Luminofor boards**,
+`tools/design-canvas/luminofor/`: `cluster-*` for the driver's display and
+`main-car*`, `two-car`, `one-car` for the car page at three widths, drawn by
+`luminofor.js` from `spec.json` and the frozen scenes in `fixtures.js`. The
+debug build draws the same scenes (`LuminoforFixtureActivity`) and
+`compare.py` lays its screenshot over the board. The `cluster-launch` and
+`cluster-regen` scenes each carry a run past a ceiling, so the tick is on a
+board; `cluster-filling` is thirty-seven points under «за 3,7 км».
+
+What follows describes the boards they replaced and stays as their record.
+`tools/design-canvas/ClusterContour*.dc.html` and `StripPages.dc.html` were the
 drawings of this page: the whole cluster with the stock zones as a labelled
 schematic, and the car page inside the strip at both widths. Both draw the
 owner's own road of 2026-09-18, scaled to whatever average a scene names, and
@@ -361,10 +423,17 @@ test.
   reading bucket and equals the road the unit names, the figure equals energy over
   known road, every point equals the trailing ten readings computed a second time,
   no point is ever a `NaN`, and the engine's box is never up with the flag down.
-- **The boards.** `ContourBoardContractTest` and `StripPagesBoardContractTest`
-  hold the generators to `ContourPlan` and the page's constants, including the
-  point count, the smoothing, its floor of five, the ceilings and the sentence -
-  and to the absence of a hole helper on either record.
+- **The boards.** `LuminoforSpecContractTest` holds every number in
+  `spec.json` to `LuminoforSpec`; `StripBoardContractTest` holds the board's
+  inline numbers and scenes to the strip's renderers, including one ceiling and
+  one point count and tick for both charts; `ContourGeometryTest` holds the
+  trace's ladder, its slope either side of the zero and a filling window's width;
+  `ContourFixturesContractTest` holds the cluster's scenes to what
+  `ContourFrameBuilder` would print. And the pictures themselves are compared on
+  the emulator with `compare.py` - every board within about one per cent of its
+  pixels, the rest antialiasing. (`ContourBoardContractTest` and
+  `StripPagesBoardContractTest` held the boards before these, to `ContourPlan`,
+  the smoothing, its floor of five, the ceilings and the sentence.)
 - **Mutations** on the arithmetic (§2.2, §2.3, §2.6) before the merge, as on
   every wave before: the smoothing, its floor, the skipping of non-readings, the
   window's ten kilometres, the standing threshold and the null-speed rule.

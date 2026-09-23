@@ -4,6 +4,23 @@ The artboards behind the Denza Apps redesign, and the tooling that keeps
 them honest. Published as a Claude Design canvas; these are the sources it is
 seeded from.
 
+> **Since 2026-09-23 the design is [`luminofor/`](luminofor/README.md).** The
+> owner approved the Luminofor look for the head unit's dashboard, both panes,
+> the strip's two pages and the cluster, and those boards are normative: the app
+> is held to them by `LuminoforSpecContractTest`, `LuminoforScreenContractTest`,
+> `StripBoardContractTest`, `StripGeometryTest`, `ContourGeometryTest`,
+> `ContourFrameBuilderTest` and `ContourFixturesContractTest`, and to their
+> pixels by `luminofor/compare.py` against the debug build's
+> `LuminoforFixtureActivity`. The `Main`, pane, `StripPages` and
+> `ClusterContour*` boards below, the Python generators that emit them, and the
+> contract tests this page names for them (`MainBoardContractTest`,
+> `PaneBoardContractTest`, `SpectrumBoardContractTest`,
+> `ContourBoardContractTest`, `StripPagesBoardContractTest`) are the record of
+> the design before it; those tests are gone with the code they held. What is
+> still current here is the method - boards computed from the code's constants,
+> measured rather than eyeballed - and the boards for surfaces Luminofor does not
+> draw.
+
 ## Why this is in the repo
 
 An adversarial review of the first cut of these boards found about sixty defects
