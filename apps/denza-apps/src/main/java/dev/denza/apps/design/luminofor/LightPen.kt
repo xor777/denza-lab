@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
+import android.util.SparseArray
 import androidx.core.content.res.ResourcesCompat
 import dev.denza.apps.R
 import dev.denza.apps.design.luminofor.LuminoforSpec.Light
@@ -84,7 +85,13 @@ class LightPen(
         style = Paint.Style.FILL
         blendMode = BlendMode.PLUS
     }
-    private val blurs = HashMap<Int, BlurMaskFilter>()
+
+    /**
+     * One blur per radius, keyed by the radius in sixteenths of a pixel. The key is primitive: a
+     * `HashMap<Int, …>` boxes every key over 127 - a radius past eight pixels, which is most of the
+     * cluster's blurs - on every draw that asks for one.
+     */
+    private val blurs = SparseArray<BlurMaskFilter>()
 
     fun begin(canvas: Canvas, pxPerUnit: Float, originX: Float = 0f, originY: Float = 0f) {
         target = canvas
@@ -156,7 +163,8 @@ class LightPen(
 
     private fun blur(radius: Float): BlurMaskFilter {
         val key = (radius * 16f).roundToInt()
-        return blurs.getOrPut(key) { BlurMaskFilter(key / 16f, BlurMaskFilter.Blur.NORMAL) }
+        return blurs.get(key)
+            ?: BlurMaskFilter(key / 16f, BlurMaskFilter.Blur.NORMAL).also { blurs.put(key, it) }
     }
 
     /** Text on a baseline. Returns the width in units, without the trailing tracking. */
