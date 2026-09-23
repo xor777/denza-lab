@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import dev.denza.apps.core.DenzaRuntimeCoordinator
 import dev.denza.apps.core.RuntimeStartCause
+import dev.denza.apps.feature.split.SplitDiagnostics
 import dev.denza.apps.feature.vehicle.VehicleSession
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -16,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class DenzaAppsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        SplitDiagnostics.attach(this, Application.getProcessName())
         if (!DenzaProcessPolicy.shouldBootstrap(packageName, Application.getProcessName())) return
         ScreenOnRuntimeRecovery.register(this)
         // The road is recorded whether or not anyone looks (the energy display contract, §2.7).

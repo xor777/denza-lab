@@ -2634,3 +2634,17 @@ them.
 Open: the synthetic divider drag (`dragDividerToBalanced`) sends its injected
 touch while our launch overlay is up, and on the car that touch went to the
 overlay.
+
+### The split journal on disk (2026-09-23)
+
+The car's main log buffer is 256 KiB and held about twelve seconds that
+evening: BydDms alone wrote ~180 lines a second, gralloc4 ~90, and the
+`AudioEffect` lines the platform prints for every `Visualizer` capture of our
+analyser were about a tenth of the flow. So the product now keeps what
+`SplitDiagnostics.record` is told in `files/split-journal.log` in its own
+storage, with wall-clock times, a process tag and `bg` on background lines; a
+background line repeating the one before it is not written again. At 256 KiB
+the file becomes `split-journal.1.log` and the older one is dropped, so the
+journal never holds more than 512 KiB. Read it with
+
+    adb shell run-as dev.denza.apps cat files/split-journal.1.log files/split-journal.log

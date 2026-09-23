@@ -1,7 +1,15 @@
 package dev.denza.apps.feature.split
 
+import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import dev.denza.apps.feature.vehicle.JournalFile
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * Where a line the split product writes actually ends up.
@@ -98,14 +106,78 @@ internal class SplitDiagnosticRing(
     }
 }
 
+/**
+ * The ring on disk, so a split run can still be read after the fact (2026-09-23).
+ *
+ * The car's main log buffer is 256 KiB and turns over in about twelve seconds - the driver
+ * monitor alone writes some 180 lines a second - and the ring lives only as long as its process.
+ * This file keeps what the ring is given, with wall-clock times that line up with logcat, and
+ * never more than [capBytes] twice over: at the cap the current file becomes the previous one and
+ * the previous one is dropped. A background line that only repeats the one before it is not
+ * written again. Two processes append to the same pair; a rotation both of them see at once can
+ * cost the previous file, never the cap.
+ *
+ * Read: `adb shell run-as dev.denza.apps cat files/split-journal.1.log files/split-journal.log`.
+ */
+internal class SplitDiagnosticJournal(
+    private val directory: File,
+    private val processTag: String,
+    private val capBytes: Long = CAP_BYTES,
+    private val now: () -> Long = System::currentTimeMillis,
+) {
+    private val lock = Any()
+    private val time = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
+    private var lastBackground: String? = null
+
+    fun append(message: String, background: Boolean) {
+        synchronized(lock) {
+            if (background) {
+                if (message == lastBackground) return
+                lastBackground = message
+            } else {
+                lastBackground = null
+            }
+            val current = File(directory, CURRENT)
+            if (current.length() >= capBytes) current.renameTo(File(directory, PREVIOUS))
+            val lane = if (background) " bg" else ""
+            JournalFile.append(current, "${time.format(Date(now()))} $processTag$lane $message\n")
+        }
+    }
+
+    internal companion object {
+        /** Each of the two files; a split open writes a few kilobytes, so this is days of use. */
+        const val CAP_BYTES = 256L * 1024
+        const val CURRENT = "split-journal.log"
+        const val PREVIOUS = "split-journal.1.log"
+    }
+}
+
 internal object SplitDiagnostics {
     const val TAG = "DenzaSplitScreen"
 
     private val ring = SplitDiagnosticRing()
 
+    @Volatile
+    private var journal: SplitDiagnosticJournal? = null
+    private val writer: ExecutorService by lazy {
+        Executors.newSingleThreadExecutor { task ->
+            Thread(task, "split-journal").apply { isDaemon = true }
+        }
+    }
+
+    /** Every process that records gets the file; before this the lines reach the ring only. */
+    fun attach(context: Context, processName: String?) {
+        val tag = processName?.substringAfter(':', "main")?.ifEmpty { "main" } ?: "main"
+        journal = SplitDiagnosticJournal(context.filesDir, tag)
+    }
+
     fun record(message: String, background: Boolean = false) {
         Log.i(TAG, message)
         ring.record(SystemClock.elapsedRealtime(), message, background)
+        journal?.let { file ->
+            // Off the caller's thread: an open is timed, and a disk write is not its business.
+            writer.execute { runCatching { file.append(message, background) } }
+        }
     }
 
     fun recent(operationLimit: Int, backgroundLimit: Int): List<String> =
