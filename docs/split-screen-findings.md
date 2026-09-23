@@ -2019,3 +2019,341 @@ call less. This turns the observed timing (tap at +1.04 s, first read at
 tap. The second step, if wanted, is a faster Home hint: the dock's own Home
 button click through the accessibility service, tens of milliseconds after the
 tap, feeding the existing Home operation that verifies by reading the area.
+
+## The firmware read whole: reconstruction from the OTA image (2026-09-23)
+
+Until now the split mechanism was read a class at a time: five classes of
+`services.jar` pulled from the car and decompiled for one question each
+(2026-08-16, 2026-08-28), the rest inferred from live runs. The owner's OTA
+archive `Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip`, readable since the
+telematics work ([research/telematics-firmware](../research/telematics-firmware/README.md)),
+now gives the whole system image of one build, offline.
+
+**It is the car's build.** `system/framework/services.jar` from the image has
+SHA-256 `23a58a4e…c019` and `framework.jar` `aa3acd77…a8c` - byte for byte the
+corpus named above. Everything below therefore describes the code the car runs,
+not a neighbouring version. `ro.build.ui_platformized=1`,
+`ro.build.version.incremental=eng.build20260705.011226`.
+
+Extracted with
+[research/split-firmware/extract_system_files.py](../research/split-firmware/extract_system_files.py)
+(ignored, `captures/split-firmware-20260923/`, hashes in
+`extraction.json`): `services.jar`, `framework.jar`, `dilink-services.jar`,
+`dilink-compat-sdk.jar`, `androidx.window.extensions.jar`,
+`SystemUI_ui_platformized.apk`, `Launcher3.apk`, `BydRecents.apk`,
+`CheckAndKill.apk`, `AppStartManagement.apk`; decompiled with jadx into
+`jadx/`. The split core alone is fifteen `BydSmart*` classes, about 15 000
+lines (`BydSmartMultiIviController` 5 020, `BydSmartMultiDividerController`
+3 636), reached from some thirty AOSP classes.
+
+### The area is pushed, not only polled
+
+The value the product reads with `service call activity_task 30` more than
+thirty times in `SplitPickerShellSession` is
+`IActivityTaskManager.getScreenAreaInfoForMulti` (tx30). The same interface
+also **pushes** it: tx120 `registerScreenAreaInfoForMultiCallback(IScreenAreaInfoForMultiCallback)`
+and tx121 `unregisterScreenAreaInfoForMultiCallback()`, which the transaction
+table of 2026-08-16 left out.
+
+- `BydSmartMultiIviController.updateIviAreaInfo()` derives the area from
+  `mIviTopWindowMode` (3000 → 0, 3001 → 4, 3002 → by `mSplitWindowMode`:
+  100 → 3, 101 → 1, otherwise 2) and, **on every change**, posts message 567
+  to `ActivityTaskManagerService.H`, whose handler calls
+  `deliverScreenAreaInfoForMultiEvent(area)` → every registered callback's
+  `onScreenAreaInfoForMultiChanged(area)`.
+- `ActivityTaskManagerService.registerScreenAreaInfoForMultiCallback` checks
+  no permission: it clears the calling identity and registers one callback per
+  calling pid, with a death link.
+- `framework.jar` carries the client: `android.app.UnionActivityManager`
+  `registerScreenAreaInfoForMultiListener(listener, handler)`, next to
+  `getScreenAreaInfoForMulti()`, `getTasksOrderByAreaId(areaId)`,
+  `getTaskAreaIdForMulti(taskId)`, `getRunningTasksByAreaId` and
+  `getRecentTasksByAreaId`. The product already calls this class
+  (`ClusterProxyMain.rootTaskIdForArea`).
+
+The complete BYD part of the transaction table is 28-30, 99-126:
+`getTasksByAreaId` 28, `getRecentTasksByAreaId` 29,
+`getScreenAreaInfoForMulti` 30, `swapSplitUpdateEndPkg` 103,
+`getBydActivityTaskManagerService` 111, `startBydActivity` 113,
+`closeApplication` 117, `registerScreenAreaInfoForMultiCallback` 120,
+`unregisterScreenAreaInfoForMultiCallback` 121, in addition to the ones listed
+on 2026-08-16.
+
+### No permission guards the BYD split family
+
+`ActivityTaskManagerService.onTransact` only rethrows; the BYD methods behind
+tx 28-30, 107-109, 112-126 check no permission and no UID (read:
+`setStartToSplit` clears the identity and calls through,
+`setSplitScreenPersistentApp`, `changeSplitScreenMode`, `enterSplitMode`,
+`SwapSplitPosition`, `closeApplication`, `getRootTaskIdByAreaId` call straight
+into `BydSmartMultiController`). `getScreenAreaInfoForMulti` only requires the
+caller to be the current user. `getTasksOrderByAreaId` (tx122) walks the pane
+root's children top-first and returns `createRunningTaskInfo` →
+`fillTaskInfo(rti, true)`, with no `isGetTasksAllowed` trimming: task ids and
+component names of a pane, to any caller. What stays guarded is AOSP's own:
+`removeTask` (REMOVE_TASKS), `getAllRootTaskInfos`, `moveTaskToRootTask`,
+`resizeTask`, `setFocusedTask`, `registerTaskStackListener`
+(MANAGE_ACTIVITY_TASKS), `moveTaskToFront` (REORDER_TASKS). The BYD category
+of a start is read for any caller: `ActivityStarter.updateMultiStartMode` →
+`BydSmartMultiController.getMultiStartMode(intent, callingPackage)` looks at
+the calling package only to learn which container it already sits in.
+
+So the product's split reads and the gate need neither ADB nor the shell UID;
+the task surgery (remove a foreign task, resize, focus) does.
+
+### The divider's detent map, read
+
+`BydSmartMultiDividerController` takes `mIsDefaultSecondActivity =
+isDefaultSecondActivity()` when a drag starts, and
+`BydSmartMultiIviController.isDefaultSecondActivity()` is exactly: the package
+of the **wide** container's focus task is in `mPrimaryActivityList` (the
+runtime list tx125 appends to) or is `com.android.launcher3`. The narrow pane's
+app plays no part and the manifest marker plays no part. This is the mechanism
+behind 2699d68 (the hub listed through tx125), and it is general: any app in
+the wide pane that is not in the runtime list gets the reduced map where a drag
+past a tenth of the screen closes a pane. The product's `ensureSupported`
+calls tx125 only when tx112 answers false, and tx112 is also true by manifest -
+so an app that declares `BYD_SUPPORT_SPLIT_ACTIVITY=1` itself is never listed
+and gets "Release to close window" in the wide pane exactly as the hub did.
+
+### Reachable from the app process without an exemption
+
+The hidden-API flags in `framework.jar`'s dex (`hiddenapi_class_data`, map item
+`0xF000`), decoded and checked against members whose status is known: every
+public method of `android.app.UnionActivityManager` and
+`android.view.UnionWindowManager` carries the same value as
+`Activity.onCreate` (sdk), `ServiceManager.getService` and
+`ActivityThread.currentActivityThread` read "unsupported" (the familiar
+greylist), `ActivityTaskManager.getService` and every
+`IActivityTaskManager$Stub$Proxy` method read "blocked". So Denza Apps
+(targetSdk 33) may call `UnionActivityManager` by plain reflection, and reach
+the rest of the BYD table (tx125, tx126) by a raw `transact` on
+`ServiceManager.getService("activity_task")` - the product's
+`SplitTaskProxyMain.transactInt`, run in the app instead of the shell.
+`UnionActivityManager` itself exposes neither tx125 nor tx126.
+
+### Placement, read end to end
+
+**What places a task.** Two entries only. Every `ActivityStarter` request on
+display 0 whose target task is in BYD mode 105 - a new task, a reused one, and
+the app's own in-task activity starts, PendingIntents and dock taps alike -
+ends in `startBydFreeformWindowIfNeed` → `startWindowForMulti` →
+`startIviWindow(task, type)`; and every pick from recents (tx14) goes to
+`recentIviWindow` with type 0. `am task focus`, tx26/tx55 and
+`am stack move-task` never place: they reorder, and the area is recomputed
+from the new order. So a pane app "escapes" only on an activity start that
+targets its task - which is why the gate must stay open for as long as the
+scene is on screen: any app navigating inside itself is re-placed on every
+screen it opens.
+
+**The decision** (`startIviWindow`): split when
+`isSupportSplit(task) || type == 16 || type == 32`, **and** the gate is open;
+otherwise the full container. `isSupportSplit` is per package - the task's
+base package - and reads, in order: the controller's runtime copy of
+`mPrimaryActivityList` (which tx125 appends to), then the blacklist, then
+`mSecondAppList` or the manifest `BYD_SUPPORT_SPLIT_ACTIVITY=1`. The
+2026-08-28 statement "the placement path does not read `mPrimaryActivityList`"
+is wrong: tx125 makes a package split-capable for placement; only the choice of
+side ignores the list. Categories do not need capability, they need the gate:
+with the gate closed a `START_IVI_PRIMARY` start lands in the full container,
+the category consumed and nothing written. `START_IVI_FULL` (type 48) has no
+branch of its own and behaves as no category.
+
+**There is no native "launched from Home → fullscreen".** No row of the
+decision looks at Home on top, container visibility, the caller, launch flags
+or whether the task already sits in a container; `isHomeTopIvi` and
+`startSplitIfNeed` have no callers and `getCurStateForHome` returns 0. The
+stock 3+7 design means exactly that a split-capable app launched from Home
+opens in split and an empty container is filled with the remembered partner
+(`com.byd.sr` by default) - the "ADAS" window of 2026-09-18 is that partner.
+The global gate is the only switch, and nothing on this build closes it at
+Home. The dock (SystemUI's navigation bar, `AppIconItem.startActivityByPackageName`)
+launches with a plain `startActivity`, no category, no windowing mode.
+
+### Home, read end to end
+
+The dock's Home button injects `KEYCODE_HOME` (`HomeItem`), so every dock Home
+goes through `PhoneWindowManager.startDockOrHome`, which first sends
+`ACTION_CLOSE_SYSTEM_DIALOGS` with reason `homekey` and then starts Home.
+The area flips to 0 inside that start, when the home root moves to the top of
+the display area (`TaskDisplayArea.onChildPositionChanged` →
+`notifyIviOnChildPositionChanged`, the only writer of `mIviTopWindowMode`
+after construction). The push goes out after the Home transaction releases the
+global lock, because the handler of message 567 takes it again. Captured logs
+already on disk (`ground-v18`, `diag-v16`, `dock-split-v19`) give, from key-up:
+broadcast +3 ms, area flip +13-19 ms, push delivered +103-140 ms (flip to
+delivery 61-145 ms over six presses). The product's first area read after Home
+landed at +0.85-0.9 s. The stock dock is itself a client of the push
+(`CustomNavigationBarController`), so the mechanism runs on every car daily.
+Closing the gate takes no lock (`setStartToSplit` writes a static).
+
+**Home is not a hide.** Every successful start of the home activity - the key,
+and the firmware's own key-less Homes (Back or the last finish in the wide
+pane, a caption drag-out) - runs `removeIviStack("startDockOrHome",
+clearTotally=false)` twice: the wide container's and the full container's
+children are reparented out, each to its own root at the bottom of the display
+area; the narrow container keeps its tasks; every container moves behind Home.
+After a Home the wide app and the wide picker are ordinary tasks under Home,
+outside every container. A return after Home is therefore always a
+re-placement of the wide pane, never a reveal of a held pair (contract 1.9.1,
+"hidden, not closed", describes the user's view, not the machine).
+
+**What the push carries.** 3 when the split containers are on top in mode 100,
+1/2 after a collapse, 0 at Home (and at any home start, including the internal
+`no-focusable-task` one seen for a moment inside a product open), 4 when the
+full container is on top. It is computed from the order of four roots only
+(home, narrow, wide, full), never from their contents, so area 3 does not
+prove two populated panes. Nothing is pushed for a swap, a divider drag that
+does not collapse, a change of app inside a pane, or a cover that is not a
+container task (an overlay, a freeform or force-fullscreen app). The callback
+is oneway, one record per calling pid - a second registration from the same
+process is ignored silently, tx121 removes the process's record whatever
+registered it - and no initial value is sent.
+
+**The accessibility Home hint.** `com.byd.mycar` is the Home app, not the dock.
+Its `TYPE_WINDOW_STATE_CHANGED` events are focus changes of its window, sent on
+focus loss as well as gain, which is where the false Home hints over a visible
+split come from. The dock's Home produces no click event, so there is no
+accessibility Home signal to catch.
+
+### Why the wide picker dies, and who kills it
+
+`RecentTasks.trimInactiveRecentTasks` skips every task whose root is a
+container (`isDualRootTask`, a BYD addition) and, on this build,
+`isInVisibleRange` is false for every `excludeFromRecents` task
+unconditionally. After a Home the wide picker is exactly that: excluded, below
+Home, out of its container. The trim runs on the first idle after
+`RecentTasks.add` of a task new to recents; bringing a running task to front
+does not arm it. The narrow picker never leaves its container and is never
+trimmed. Across the eleven trims in the 2026-09-18 session, nine were armed by
+the product's own launcher trampolines (`SplitScreenLauncherAlias`,
+`DenzaLauncherActivity`, both a new task on every tap), one by
+`com.byd.recents`, one by `com.byd.sr`; fullscreen dock launches of apps that
+were already running armed none. The trim lands 0.3-0.45 s into the product's
+own open (at 18:55:35 the open read the scene 44 ms before the picker went).
+Recents keeps at least five tasks and a task stays eligible for six hours
+(`framework-res` values from the image).
+
+**The task manager.** BydRecents hides tasks in area 1 only
+(`RecentsTaskLoadPlan`, "task in 3 split, not show") and excluded ones; a wide
+pane's app has a card. A swipe calls `removeTask` and then `forceStopPackage`
+for every non-system package (`RecentsModel.removeTask`); "Clear all" does the
+same per listed card. Swiping a Denza Apps card force-stops the whole of
+`dev.denza.apps`. The contract's note that Recents shows no split participant
+is wrong for the wide pane. `CheckAndKill` names only Chinese packages and has
+an empty block list; `AppStartManagement` is a settings screen that kills
+nothing.
+
+### The divider and the stock picker, read end to end
+
+- A collapse sets mode 102, moves the survivor's top task into the wide
+  container and resets the remembered narrow package to
+  `com.android.launcher3` (read from bytecode - jadx drops these calls in
+  `runMoveDoneWithLock`). The survivor's picker base and everything else of the
+  closed pane go out of the containers alive. From then on every firmware
+  refill of the narrow pane opens the stock list: tx115, a divider drag from
+  102, a wide placement with the narrow container empty.
+- The stock picker (`Launcher3 SplitScreenListActivity`) places a tap with a
+  plain `startActivity` and `START_IVI_PRIMARY`/`START_IVI_SECOND` - the same
+  mechanism as ours; it is replaced by the app, not kept under it, and is evicted
+  when the app's open animation ends. Its component is hard-coded; the
+  SystemUI "select activity" path is dead code on this car.
+- tx117 `closeApplication(pkg)` closes the top app of a pane by package with
+  the firmware's own animation, revealing what is under it or collapsing; the
+  task stays alive. tx114 `changeSplitScreenMode(100)` matches no branch and
+  does nothing. tx124 needs an Activity token of the caller.
+- Every app window in a pane carries the firmware's caption bar (`DecorView`):
+  a tap opens the stock list in that pane, a drag down by a third closes it.
+- There is no public "window drawn" signal for a cold start in a pane; the
+  firmware's draw hooks stay in `system_server`.
+
+### Earlier statements this corrects
+
+- 2026-08-28: "the placement path does not read `mPrimaryActivityList`" -
+  it does (`isSupportSplit(task)`).
+- 2026-08-28: the firmware's split debug lines cannot be read over ADB -
+  captures of 2026-06-28, 08-23 and 08-24 contain them.
+- 2026-09-11: "every move-to-front of a pane member goes `startFullWindow`" -
+  only activity starts and recents picks place; a focus never does.
+- 2026-09-18: "at every fullscreen launch from Home" (the trim) - at the first
+  new task after a Home or a collapse, usually our own trampoline.
+- 2026-09-18: "that race cannot be won with hints; it would take an area poll",
+  and the plan to catch the dock's Home click through accessibility - the
+  `homekey` broadcast (+3 ms) and the area push (+0.1 s) both arrive long
+  before a human tap, and the click event does not exist.
+- The swap and "picker under the app" were credited to SystemUI's
+  `StageCoordinator`/`CustomDivider*`: those are the unused AOSP split; the BYD
+  split lives in `system_server`.
+
+Full per-question reports with file:line citations were kept outside the tree
+with the extraction (`captures/split-firmware-20260923/`).
+
+### Every sleep of the car force-stops the product (live 2026-09-23)
+
+The car was found with no `dev.denza.apps` process, a scene recorded in
+`split_state_v2` (Music narrow, the hub wide) and the gate lease owned.
+`dumpsys accessibility` listed both Denza accessibility services under
+"Crashed services", so the system was not rebinding them, and
+`dumpsys activity exit-info dev.denza.apps` gave the cause, three times on
+2026-09-22 (17:47, 19:52, 20:06): `reason=10 (USER REQUESTED) subreason=21
+(FORCE STOP) … description=stop dev.denza.apps due to quickboot 0`. The head
+unit had not rebooted for three days (`uptime` 2 d 23 h); it quickboots.
+
+The firmware side is `com.android.server.accmodemanager.Utils`: at quickboot
+`clearRecentApps` removes every recent and running task whose package is not in
+a hard-coded list (`com.byd.sr`, Bluetooth, boot guide and a few others) and
+then `killApplications` force-stops every package that is not a persistent
+system app, except that list, the StrategyManager permission strategy
+`AccOffWhite`, and live-wallpaper packages. Denza Apps is in none of them.
+
+What survives a quickboot is exactly what the product cannot see: the gate
+(`mIsEnterSplit`, a static in `system_server`), the runtime split list tx125
+extended, and the `byd_smart_multi_*` settings. What does not: every pane task,
+our pickers, the product process, and its accessibility services until the
+next open re-enables them. A gate left open at the moment of the kill stays
+open with nobody to close it, and the first dock launch of a listed package
+after the car wakes opens it in split next to `com.byd.sr` - the "ADAS" shape of
+2026-09-18 without a race. The accessibility-free Home signals below only help
+while the process lives; the product has to leave the gate closed whenever its
+scene is not on screen, and has to treat its own start as a moment to check.
+
+### The three calls, live from an app UID (2026-09-23)
+
+A disposable probe, [experiments/split-events-probe](../experiments/split-events-probe/README.md)
+(`dev.denza.splitevents.probe`, targetSdk 33 like the product, uid 10125, no
+permission), armed on the car at 13:39 and removed at 13:41; logs in
+`captures/split-events-probe-20260923/`.
+
+- **The area push.** `UnionActivityManager.registerScreenAreaInfoForMultiListener`
+  by plain reflection returned `true` in 2.7 ms; the firmware logged
+  `registerScreenAreaInfoForMultiCallbackInternal callingPid=27786,
+  callingUid=10125`. Reads from the same process: `getScreenAreaInfoForMulti`
+  0.4 ms, raw tx30 on `ServiceManager.getService("activity_task")` 1.1 ms,
+  `getTasksOrderByAreaId` 0.1-2.7 ms per area with task ids and component names
+  (after the quickboot both panes were empty and the full container held
+  `adbbridge` and `launcher3`).
+- **The gate.** Raw tx126 `0` from the app took 1.0 ms and the firmware answered
+  `The split-screen mode has not changed, return`: the call reached
+  `BydSmartMultiController.setStartToSplit`, and the gate the dead product had
+  left was already closed. Nothing changed.
+- **Home.** `input keyevent KEYCODE_HOME` over a fullscreen app:
+
+  | ms after key-up | event |
+  | --- | --- |
+  | 0 | `inject KeyEvent(KEYCODE_HOME, ACTION_UP)` (13:40:17.528) |
+  | +2 | `CLOSE_SYSTEM_DIALOGS` broadcast |
+  | **+9** | **the app's runtime receiver: `reason=homekey`** |
+  | +11 | `START … com.byd.mycar/.CarMainActivity` |
+  | +23 | `notifyIviOnChildPositionChanged topWindowMode = 3000` |
+  | +51, +76 | `removeIviStack reason = startDockOrHome` twice |
+  | +108 | `deliverScreenAreaInfoForMultiEvent value=UNION_DISPLAY_DEFAULT_AREA` |
+  | **+111** | **the app's listener: `area=0`** |
+
+  The `homekey` broadcast reached the app before the firmware had even started
+  Home. Bringing the app back with a launcher start: firmware flip +15 ms, the
+  app's `area=4` +94 ms.
+
+An app that owns the gate can therefore close it within about ten milliseconds
+of the key, with no ADB and no shell, and learn from the firmware itself one
+tenth of a second later that the scene is covered - against a first read at
+0.85-0.9 s and a lost tap at 1.0 s on 2026-09-18.
