@@ -60,6 +60,9 @@ if (providers.gradleProperty("experiments").isPresent) {
     include(":dicar-media-probe")
     project(":dicar-media-probe").projectDir = file("experiments/dicar-media-probe")
 
+    include(":split-events-probe")
+    project(":split-events-probe").projectDir = file("experiments/split-events-probe")
+
     // Frozen, maintenance-only (see CLAUDE.md). Kept buildable until it is retired.
     include(":denza-gateway")
     project(":denza-gateway").projectDir = file("legacy/denza-gateway")

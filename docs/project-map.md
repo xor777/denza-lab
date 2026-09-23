@@ -40,6 +40,7 @@ configured only under the `experiments` property, as "Build Outputs" describes.
 | `experiments/adb-rescue-probe/` | A second ADB identity, for a car whose authorization prompt never renders and whose owner is the only person who can reach it. Reads what any app may read, can spend its own prompt slot, and once trusted drains the queue that holds Denza Apps' request. | Research only, question answered. Run live 2026-08-29: eight public-key submissions on a car with `adb_enabled = 1` and adbd listening produced no authorization dialog, which establishes the failure as system-side and not Denza Apps. It never reads or clicks the system dialog, and never clears Denza Apps' data. See [adb-authorization-recovery.md](adb-authorization-recovery.md). |
 | `experiments/personbean-provider-probe/` | Disposable evaluation of what an ordinary app UID can do with `content://com.byd.autovoice/PersonBean` without ADB. | Research only, question answered. Read, write and a shell-verified restore all work from the app UID in about 2 ms; `ContentObserver` delivers nothing, so a reader re-reads instead of observing. See [shortcuts-automation-findings.md](shortcuts-automation-findings.md). |
 | `experiments/dicar-media-probe/` | Disposable evaluation of the car's own media service from an app UID, as the instrument for the speaker-lift playback report. | Research only. An app UID that requests no permission gets a live `ICarMediaService` handle (Z9GT, 2026-09-03); the amplifier's reaction is what a Z9GT cannot settle. See [speaker-lift-findings.md](speaker-lift-findings.md). |
+| `experiments/split-events-probe/` | Disposable evaluation of the firmware split signals from an app UID: the area push, the `homekey` broadcast and the gate transaction. | Research only, question answered. All three work with no permission and no ADB (2026-09-23): `homekey` +9 ms after the key, the area push +0.1 s, a gate flip 1 ms. See [split-screen-findings.md](split-screen-findings.md). |
 | `research/` | Parked experiments and deprecated modules that stay outside product builds. | Failed or permission-blocked probes live here instead of app source. Current examples are `research/simulcast-aliases/`, `research/vehicle-events/` and `research/navigationbar-control-extension/`. |
 | `reverse/` | Local reverse-engineering input/output, often large. | APKs and extracted binaries must stay untracked. |
 
@@ -256,6 +257,7 @@ The opt-in modules:
 ./gradlew -Pexperiments :speaker-lift-yandex-probe:assembleDebug
 ./gradlew -Pexperiments :personbean-provider-probe:assembleDebug
 ./gradlew -Pexperiments :dicar-media-probe:assembleDebug
+./gradlew -Pexperiments :split-events-probe:assembleDebug
 ./gradlew -Pexperiments :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
 ```
 
@@ -271,6 +273,7 @@ experiments/speaker-lift-yandex-probe/build/outputs/apk/debug/speaker-lift-yande
 experiments/display-probe/build/outputs/apk/debug/display-probe.apk
 experiments/personbean-provider-probe/build/outputs/apk/debug/personbean-provider-probe.apk
 experiments/dicar-media-probe/build/outputs/apk/debug/dicar-media-probe.apk
+experiments/split-events-probe/build/outputs/apk/debug/split-events-probe.apk
 experiments/adb-rescue-probe/build/outputs/apk/debug/adb-rescue.apk
 apps/car-adb-gateway/build/outputs/apk/debug/car-adb-gateway.apk
 ```
