@@ -131,13 +131,6 @@ class ContourReadoutTest {
             "and no mark leads it: blue means «into the pack»",
             !ContourReadout.LEGEND_PREFIX.contains("●"),
         )
-        assertTrue(
-            "only «ПОСЛЕДНИЕ» may be dropped",
-            ContourReadout.LEGEND_INTO_PACK_SHORT.length < ContourReadout.LEGEND_INTO_PACK.length,
-        )
-        // And both templates end in a window, because the window is drawn and not asserted.
-        assertTrue(ContourReadout.LEGEND_INTO_PACK.endsWith("0:00"))
-        assertTrue(ContourReadout.LEGEND_INTO_PACK_SHORT.endsWith("0:00"))
     }
 
     @Test
@@ -145,13 +138,11 @@ class ContourReadoutTest {
         // The ninth pass's own defect. «ПОСЛЕДНИЕ 2 МИН» is the box's *capacity*: the trace grows
         // from the right and is never front-padded, so five seconds after an engine start the
         // shape was one step wide and the words under it claimed two minutes of it.
-        assertEquals("ПОСЛЕДНИЕ 0:05", ContourReadout.intoPack(5, short = false))
-        assertEquals("ПОСЛЕДНИЕ 1:22", ContourReadout.intoPack(82, short = false))
+        assertEquals("ПОСЛЕДНИЕ 0:05", ContourReadout.intoPack(5))
+        assertEquals("ПОСЛЕДНИЕ 1:22", ContourReadout.intoPack(82))
         // The Luminofor board's own words under its box, with no «·» since the window has a line
         // of its own.
-        assertEquals("ПОСЛЕДНИЕ 2:00", ContourReadout.intoPack(120, short = false))
-        // The short form is what the old layout fell back to; nothing asks for it now.
-        assertEquals("· 1:22", ContourReadout.intoPack(82, short = true))
+        assertEquals("ПОСЛЕДНИЕ 2:00", ContourReadout.intoPack(120))
     }
 
     @Test
@@ -161,7 +152,6 @@ class ContourReadoutTest {
         // duration moves as it counts up.
         val lengths = (0..ContourReadout.MAX_WINDOW_SECONDS).map { ContourReadout.clock(it).length }
         assertEquals("every «м:сс» is one length", setOf(4), lengths.toSet())
-        assertEquals("and the template is measured at one of them", 4, "0:00".length)
         // Past the clamp the string would gain a glyph and every anchor would move. The trace it
         // names is two minutes long, so this is a guard rather than a case.
         assertEquals("9:59", ContourReadout.clock(ContourReadout.MAX_WINDOW_SECONDS))

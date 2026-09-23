@@ -80,7 +80,7 @@ class ContourFixturesContractTest {
             "${ContourReadout.LEGEND_PREFIX} 14 ${ContourReadout.UNIT_KW}",
             engine["engineCaption"],
         )
-        assertEquals(ContourReadout.intoPack(120, short = false), engine["engineWindow"])
+        assertEquals(ContourReadout.intoPack(120), engine["engineWindow"])
         assertEquals("two minutes of five-second steps", ContourGeometry.ENGINE_BINS, (engine["generation"] as List<*>).size)
     }
 

@@ -93,7 +93,7 @@ internal class EnergyReadouts {
     var engineFigure: String? = null
         private set
 
-    /** How far back its box reaches: «· ПОСЛЕДНИЕ 1:22», or «· 1:22» where the face crowds it. */
+    /** How far back its box reaches: «ПОСЛЕДНИЕ 1:22», on the line under the box. */
     var engineWindow: String = ""
         private set
 
@@ -153,13 +153,8 @@ internal class EnergyReadouts {
      * One snapshot.
      *
      * @param parked whether the selector is in P, which is what buys the consumption its tenth
-     * @param shortLegend whether the face in use crowds «ПОСЛЕДНИЕ» out of the engine's sentence
      */
-    fun read(
-        telemetry: VehicleTelemetry,
-        parked: Boolean,
-        shortLegend: Boolean = false,
-    ) {
+    fun read(telemetry: VehicleTelemetry, parked: Boolean) {
         val load = packKilowatts(telemetry)
         // A read that did not land is not a reading of zero, so it does not get to move the
         // hysteresis: one dropped sample used to reset the band's colour to grey, and the next
@@ -201,7 +196,7 @@ internal class EnergyReadouts {
         window = figures.perHundredKm(telemetry.consumptionKm)
 
         val trace = telemetry.engineTrace
-        engineWindow = figures.intoPack(trace.spanSeconds, shortLegend)
+        engineWindow = figures.intoPack(trace.spanSeconds)
         val generation = telemetry.generationKw
         // A figure of «0 кВт» inside «ДВС ДАЁТ … » is the zero this panel does not draw, and it is
         // the state the two drives so far recorded: the engine running with the id flat.

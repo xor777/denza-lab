@@ -143,7 +143,7 @@ class EnergyReadoutsTest {
         val model = StripModel()
         cases().forEach { (name, telemetry) ->
             val parked = telemetry.parked == true
-            cluster.read(telemetry, parked, shortLegend = false)
+            cluster.read(telemetry, parked)
             strip.read(telemetry, parked)
             page.car(model, telemetry)
 
@@ -491,20 +491,6 @@ class EnergyReadoutsTest {
         assertEquals("ДВС ДАЁТ", readouts.enginePrefix)
         assertEquals("14", readouts.engineFigure)
         assertEquals("ПОСЛЕДНИЕ 1:22", readouts.engineWindow)
-
-        readouts.read(
-            snapshot(
-                powerKw = -8.0,
-                values = mapOf(
-                    VehicleSignal.ENGINE_RUNNING to 3.0,
-                    VehicleSignal.GENERATION_KW to 14.0,
-                ),
-                trace = trace(82, 14f),
-            ),
-            parked = false,
-            shortLegend = true,
-        )
-        assertEquals("· 1:22", readouts.engineWindow)
 
         // Nothing about the engine while it is not turning - not even a generation reading that
         // is still on the wire. The flag is what says the engine is there to give anything.

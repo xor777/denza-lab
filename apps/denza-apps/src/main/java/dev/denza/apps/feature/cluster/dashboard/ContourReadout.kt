@@ -99,18 +99,6 @@ internal object ContourReadout {
      */
     const val LEGEND_WINDOW_PREFIX = "ПОСЛЕДНИЕ "
 
-    /**
-     * And what was left of it when the face in use crowded the phrase against its own box.
-     *
-     * The Luminofor layout gives the window a line of its own and never asks for this; it stays
-     * because `EnergyReadouts` still takes the flag.
-     */
-    const val LEGEND_WINDOW_PREFIX_SHORT = "· "
-
-    /** What the phrase is *measured* from: every «м:сс» is four tabular glyphs and one mark. */
-    const val LEGEND_INTO_PACK = LEGEND_WINDOW_PREFIX + "0:00"
-    const val LEGEND_INTO_PACK_SHORT = LEGEND_WINDOW_PREFIX_SHORT + "0:00"
-
     const val UNIT_KW = "кВт"
     const val UNIT_KWH = "кВт·ч"
     const val UNIT_KM = "км"
@@ -247,10 +235,8 @@ internal object ContourReadout {
      * The engine box's sentence, naming how far back the box actually reaches.
      *
      * @param seconds the trace's own span, which is the box's own width in seconds
-     * @param short whether the face in use crowds «ПОСЛЕДНИЕ» out of the phrase
      */
-    fun intoPack(seconds: Int, short: Boolean): String =
-        (if (short) LEGEND_WINDOW_PREFIX_SHORT else LEGEND_WINDOW_PREFIX) + clock(seconds)
+    fun intoPack(seconds: Int): String = LEGEND_WINDOW_PREFIX + clock(seconds)
 
     /**
      * A duration as «м:сс», in tabular figures, so that its width is a constant.

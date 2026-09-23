@@ -70,7 +70,7 @@ internal class ContourFigures {
         PETAL_UNIT,
         CHARGE_LEFT,
 
-        /** The engine box's own window, «· ПОСЛЕДНИЕ 1:22». */
+        /** The engine box's own window, «ПОСЛЕДНИЕ 1:22». */
         WINDOW,
         ;
     }
@@ -122,10 +122,10 @@ internal class ContourFigures {
     }
 
     /** The engine box's sentence, whose window is the box's own reach in seconds. */
-    fun intoPack(seconds: Int, short: Boolean): String {
+    fun intoPack(seconds: Int): String {
         val value = seconds.toDouble()
-        return hit(Slot.WINDOW, value, short)
-            ?: keep(Slot.WINDOW, value, short, ContourReadout.intoPack(seconds, short))
+        return hit(Slot.WINDOW, value, false)
+            ?: keep(Slot.WINDOW, value, false, ContourReadout.intoPack(seconds))
     }
 
     private fun hit(slot: Slot, value: Double, mark: Boolean): String? {

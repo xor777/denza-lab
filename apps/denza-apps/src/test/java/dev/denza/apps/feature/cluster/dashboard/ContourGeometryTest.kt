@@ -208,7 +208,7 @@ class ContourGeometryTest {
         assertTrue("the box starts at ${g.BOX_LEFT}", g.BOX_LEFT > iceCaption && g.BOX_LEFT > iceFigure)
         val sentence = "${ContourReadout.LEGEND_PREFIX} 99 ${ContourReadout.UNIT_KW}"
         assertTrue(g.BOX_LEFT + JuraMeasure.width(sentence, Grid.CAPTION_SIZE, track) < end)
-        val window = ContourReadout.intoPack(ContourReadout.MAX_WINDOW_SECONDS, short = false)
+        val window = ContourReadout.intoPack(ContourReadout.MAX_WINDOW_SECONDS)
         assertTrue(g.BOX_LEFT + JuraMeasure.width(window, Grid.DETAIL_SIZE, track) < end)
 
         // The park line, right to left, with both seats and three-digit figures in them.
