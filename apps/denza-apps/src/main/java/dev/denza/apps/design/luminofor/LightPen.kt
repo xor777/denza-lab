@@ -33,6 +33,13 @@ import kotlin.math.roundToInt
  * in Skia, so [blurRadius] inverts that; a blur too small to reach half a pixel is drawn unblurred,
  * which is what the board's near-zero blurs look like.
  *
+ * Shadow strength. A canvas shadow is cast by what is drawn, so it carries that drawing's alpha as
+ * well as its own: the spec copies the source's alpha channel and then multiplies it by
+ * `shadowColor`'s. Measured in the Chrome that renders the boards, a fill at 0.5 under an opaque
+ * shadow colour casts a shadow that peaks at 128, and under a shadow colour at 0.5 at 64. So the
+ * beam's blurred halo is 0.7 x 0.14 of the halo colour, not 0.7, and the glowing fill's is
+ * 0.8 x 0.55 - [shadow] takes both factors and multiplies them.
+ *
  * Tracking. Chrome adds `letterSpacing` after every glyph and the board subtracts the trailing one
  * from the width; Android spreads the same spacing half before and half after each glyph. The
  * width is the same once the trailing spacing is removed; the start is not, and [text] moves the
@@ -123,8 +130,9 @@ class LightPen(
             stroke.color = alpha(light.halo, 0.03f * intensity * glow)
             c.drawPath(p, stroke)
             stroke.strokeWidth = sw * 1.8f
-            shadow(p, stroke, light.halo, 0.7f * intensity * glow, min(30f, sw * 2.8f))
-            stroke.color = alpha(light.halo, 0.14f * intensity * glow)
+            val haloAlpha = 0.14f * intensity * glow
+            shadow(p, stroke, light.halo, 0.7f * intensity * glow, haloAlpha, min(30f, sw * 2.8f))
+            stroke.color = alpha(light.halo, haloAlpha)
             c.drawPath(p, stroke)
         }
         stroke.strokeWidth = sw
@@ -137,17 +145,21 @@ class LightPen(
         if (intensity <= 0.01f) return
         val p = toPx(path)
         fill.maskFilter = null
-        shadow(p, fill, light.halo, 0.8f * intensity, min(40f, blurUnits * scale))
-        fill.color = alpha(light.halo, 0.55f * intensity)
+        val haloAlpha = 0.55f * intensity
+        shadow(p, fill, light.halo, 0.8f * intensity, haloAlpha, min(40f, blurUnits * scale))
+        fill.color = alpha(light.halo, haloAlpha)
         canvas.drawPath(p, fill)
         fill.color = alpha(light.core, 0.85f * intensity)
         canvas.drawPath(p, fill)
     }
 
-    /** The board's `shadowColor` + `shadowBlur`: the same shape, blurred, under the real one. */
-    private fun shadow(p: Path, paint: Paint, color: Int, a: Float, blurPx: Float) {
+    /**
+     * The board's `shadowColor` + `shadowBlur`: the same shape, blurred, under the real one, at the
+     * shadow colour's alpha times the alpha of the drawing that casts it ([sourceAlpha]).
+     */
+    private fun shadow(p: Path, paint: Paint, color: Int, shadowAlpha: Float, sourceAlpha: Float, blurPx: Float) {
         val radius = blurRadius(blurPx)
-        paint.color = alpha(color, a)
+        paint.color = alpha(color, shadowAlpha * sourceAlpha)
         paint.maskFilter = if (radius > 0f) blur(radius) else null
         canvas.drawPath(p, paint)
         paint.maskFilter = null
