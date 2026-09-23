@@ -134,17 +134,27 @@ internal class SplitFirmwareSignals(
 }
 
 /**
- * tx126 `setStartToSplit` on the `activity_task` binder, from this process.
+ * The `activity_task` binder, called from this process.
  *
  * `IActivityTaskManager`'s proxy is closed to apps, but the binder itself is not:
- * `ServiceManager.getService` is on the greylist and the firmware's implementation checks no
- * permission (findings 2026-09-23). It is the same transaction `service call activity_task 126`
- * sends, with the interface token read from the binder exactly as `service call` reads it.
+ * `ServiceManager.getService` is on the greylist, and for the BYD split family the firmware checks
+ * no permission (findings 2026-09-23). These are the same transactions `service call
+ * activity_task` sends, with the interface token read from the binder exactly as `service call`
+ * reads it.
  */
-internal object BinderSplitGateSwitch : SplitGateSwitch {
-    private const val SET_START_TO_SPLIT = 126
+internal object ActivityTaskBinder : SplitBinderTransport {
+    override fun callInt(code: Int, arguments: List<SplitBinderArgument>): Int =
+        transact(code, arguments) { reply -> reply.readInt() }
 
-    override fun set(open: Boolean) {
+    override fun callVoid(code: Int, arguments: List<SplitBinderArgument>) {
+        transact(code, arguments) { }
+    }
+
+    private fun <T> transact(
+        code: Int,
+        arguments: List<SplitBinderArgument>,
+        read: (Parcel) -> T,
+    ): T {
         val service = Class.forName("android.os.ServiceManager")
             .getMethod("getService", String::class.java)
             .invoke(null, "activity_task") as IBinder?
@@ -153,12 +163,28 @@ internal object BinderSplitGateSwitch : SplitGateSwitch {
         val reply = Parcel.obtain()
         try {
             data.writeInterfaceToken(checkNotNull(service.interfaceDescriptor))
-            data.writeInt(if (open) 1 else 0)
-            check(service.transact(SET_START_TO_SPLIT, data, reply, 0)) { "tx126 не принята" }
+            arguments.forEach { argument ->
+                when (argument) {
+                    is SplitBinderArgument.Int32 -> data.writeInt(argument.value)
+                    is SplitBinderArgument.Utf16 -> data.writeString(argument.value)
+                }
+            }
+            check(service.transact(code, data, reply, 0)) { "tx$code не принята" }
             reply.readException()
+            return read(reply)
         } finally {
             reply.recycle()
             data.recycle()
         }
+    }
+}
+
+/** tx126 `setStartToSplit`, the gate, from this process (К 1.9). */
+internal object BinderSplitGateSwitch : SplitGateSwitch {
+    override fun set(open: Boolean) {
+        ActivityTaskBinder.callVoid(
+            SplitBinderCall.GATE,
+            listOf(SplitBinderArgument.Int32(if (open) 1 else 0)),
+        )
     }
 }

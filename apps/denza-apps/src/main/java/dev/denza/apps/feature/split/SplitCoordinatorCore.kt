@@ -256,6 +256,8 @@ internal class SplitCoordinatorCore(
     private val gate: SplitGateSwitch = SplitGateSwitch.ABSENT,
     /** The firmware area read in this process; `null` when it cannot be read here. */
     private val readArea: () -> Int? = { null },
+    /** The BYD split transactions every operation sends from this process, not over ADB. */
+    private val inProcessCalls: SplitInProcessCalls = SplitInProcessCalls.NONE,
 ) {
     private val stateLock = Any()
     private val recheckLock = Any()
@@ -747,6 +749,7 @@ internal class SplitCoordinatorCore(
             apkPath = apkPath,
             proxyClasspath = proxyClasspath,
             resident = resident,
+            inProcess = inProcessCalls,
             clock = clock,
             sleeper = sleeper,
             diagnostics = { line, background -> log.log(line, background || backgroundLane[0]) },

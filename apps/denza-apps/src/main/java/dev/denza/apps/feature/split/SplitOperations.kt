@@ -57,6 +57,8 @@ internal class SplitOperationWorkspace(
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
     /** The process-wide shell-UID helper, leased for this operation like the transport is. */
     private val resident: SplitResidentProxy? = null,
+    /** The BYD split transactions this process answers itself, in front of both of the above. */
+    private val inProcess: SplitInProcessCalls = SplitInProcessCalls.NONE,
     private val clock: SplitClock,
     private val sleeper: (Long) -> Unit,
     private val diagnostics: SplitDiagnosticLog,
@@ -124,10 +126,18 @@ internal class SplitOperationWorkspace(
         // here rather than inside the session because the leases this operation takes go straight
         // to the raw shell, and a lease that moved a task would otherwise leave a stale read behind.
         if (!SplitTopologyCache.isTopologyRead(command)) topology.invalidate()
+        // The BYD split transactions an app UID may send are sent from this process first: no
+        // round trip and no ADB (findings 2026-09-23). Anything else, or any failure, goes on.
+        inProcessAnswer(command)?.let { answer -> return answer }
         // Правка Ф1 волны 15: a command the resident helper may serve is answered by it, in the
         // words the shell would have used. Anything else, and any failure at all, is sent.
         residentAnswer(command)?.let { answer -> return answer }
         return send(command)
+    }
+
+    private fun inProcessAnswer(command: String): String? {
+        val startedAtMs = clock.nowMs()
+        return inProcess.answer(command)?.also { record(clock.nowMs() - startedAtMs) }
     }
 
     private fun send(command: String): String {

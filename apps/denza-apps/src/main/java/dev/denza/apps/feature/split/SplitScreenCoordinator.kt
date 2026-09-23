@@ -213,6 +213,7 @@ object SplitScreenCoordinator {
             ownership = TaskMoveOwnership.shared,
             gate = BinderSplitGateSwitch,
             readArea = { heard?.readArea() },
+            inProcessCalls = SplitInProcessFirmware(ActivityTaskBinder),
         )
     }
 
