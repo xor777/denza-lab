@@ -105,10 +105,6 @@ internal class EnergyReadouts {
     var engineCellTitle: String = ""
         private set
 
-    /** And in the car page's, which is the same words shouted. */
-    var engineCellTitleCaps: String = ""
-        private set
-
     /** The reading inside it - revolutions or minutes - or null where there is no cell. */
     var engineCellFigure: String? = null
         private set
@@ -282,7 +278,6 @@ internal class EnergyReadouts {
         if (t.engineRunning == true && rpm != null && rpm > 0.0) {
             engineCell = EngineCell.RPM
             engineCellTitle = ContourReadout.TITLE_ENGINE_RPM
-            engineCellTitleCaps = ContourReadout.TITLE_ENGINE_RPM_CAPS
             engineCellCaption = ENGINE_RPM_CAPTION
             engineCellUnit = ENGINE_RPM_UNIT
             engineCellFigure = figures.whole(ContourFigures.Slot.RPM, rpm)
@@ -292,7 +287,6 @@ internal class EnergyReadouts {
         if (!t.engineTrace.isEmpty && t.trip.engineRan && minutes >= 1.0) {
             engineCell = EngineCell.MINUTES
             engineCellTitle = ContourReadout.TITLE_ENGINE_MINUTES
-            engineCellTitleCaps = ContourReadout.TITLE_ENGINE_MINUTES_CAPS
             engineCellCaption = ENGINE_MINUTES_CAPTION
             engineCellUnit = ENGINE_MINUTES_UNIT
             engineCellFigure = figures.whole(ContourFigures.Slot.ENGINE_MINUTES, minutes)
@@ -300,7 +294,6 @@ internal class EnergyReadouts {
         }
         engineCell = EngineCell.NONE
         engineCellTitle = ""
-        engineCellTitleCaps = ""
         engineCellCaption = ""
         engineCellUnit = ""
         engineCellFigure = null
@@ -332,9 +325,8 @@ internal class EnergyReadouts {
          * Capitals into the car page's sentence case: a capital, lower case after it, and «ДВС»
          * left as it is written.
          *
-         * A derivation rather than five more literals, for the reason [ContourReadout] derives its
-         * capitals from the cluster's words: one word in two cases is one record, and a second
-         * record is a second place for it to change.
+         * A derivation rather than five more literals: one word in two cases is one record, and a
+         * second record is a second place for it to change.
          */
         fun sentence(caps: String): String =
             caps.lowercase()

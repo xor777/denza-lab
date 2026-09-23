@@ -33,24 +33,12 @@ internal object ContourReadout {
     const val TITLE_ENGINE_RPM = "ДВС · об/мин"
 
     /**
-     * And the same two headings shouted, which is the car page's own case for them.
-     *
-     * One word, two cases, one place - the arrangement the petal's window already has. The car
-     * page kept its own literals until the engine's cell became one rule for both screens, and a
-     * literal beside a derivation is a second record waiting to disagree.
-     */
-    val TITLE_ENGINE_RPM_CAPS: String = TITLE_ENGINE_RPM.uppercase()
-
-    /**
      * The sleeping engine's heading, and the window is in it.
      *
      * «ДВС · мин» alone was six minutes of *something*: this stop, this hour, this trip, the
      * odometer. The aperture leaves 250.1 units at this baseline and the words take 224.9.
      */
     const val TITLE_ENGINE_MINUTES = "ДВС · мин за поездку"
-
-    /** See [TITLE_ENGINE_RPM_CAPS]. */
-    val TITLE_ENGINE_MINUTES_CAPS: String = TITLE_ENGINE_MINUTES.uppercase()
 
     /**
      * The spread of *what* is exactly the question that started the sixth pass.

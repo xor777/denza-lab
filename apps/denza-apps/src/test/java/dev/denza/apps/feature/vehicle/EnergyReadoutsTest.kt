@@ -159,11 +159,6 @@ class EnergyReadoutsTest {
             // And what the car page's reads, which is the same list in its own case.
             assertEquals("$name: the engine's cell", cluster.engineCell, strip.engineCell)
             assertEquals("$name: its reading", cluster.engineCellFigure, strip.engineCellFigure)
-            assertEquals(
-                "$name: and its heading, which is one word in two cases",
-                cluster.engineCellTitle.uppercase(),
-                strip.engineCellTitleCaps,
-            )
             assertEquals("$name: the volts", cluster.voltsFigure, strip.voltsFigure)
             // The Luminofor strip prints the same words in sentence case: one decision, two cases.
             assertEquals(
@@ -595,14 +590,12 @@ class EnergyReadoutsTest {
             cell(rpm = 1321.0, running = 1.0),
         )
         assertEquals(ContourReadout.TITLE_ENGINE_RPM, readouts.engineCellTitle)
-        assertEquals("ДВС · ОБ/МИН", readouts.engineCellTitleCaps)
 
         assertEquals(
             EnergyReadouts.EngineCell.MINUTES to "14",
             cell(running = 0.0, trip = TripEnergy(engineSeconds = 14 * 60.0), warm = true),
         )
         assertEquals(ContourReadout.TITLE_ENGINE_MINUTES, readouts.engineCellTitle)
-        assertEquals("ДВС · МИН ЗА ПОЕЗДКУ", readouts.engineCellTitleCaps)
 
         // The owner's own case: he got into the car, had not started the engine, and the cell said
         // «3 мин за поездку» - true by the ledger, and read as *this* drive.
