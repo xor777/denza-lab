@@ -77,8 +77,12 @@ def board_page(bid):
   const cv = document.getElementById('c');
   cv.width = size[0]; cv.height = size[1];
   cv.style.width = size[0] + 'px'; cv.style.height = size[1] + 'px';
+  // Google Fonts splits each face by script and load() fetches only the subsets its sample text
+  // touches - a space, by default, which is Latin alone. Every Cyrillic word would then be drawn in
+  // the system's sans-serif, which is what the first PNGs showed: the sample names both scripts.
   try {
-    await Promise.all(['500 20px Jura', '600 20px Jura', '400 20px Roboto', '500 20px Roboto'].map(f => document.fonts.load(f)));
+    await Promise.all(['500 20px Jura', '600 20px Jura', '400 20px Roboto', '500 20px Roboto']
+      .map(f => document.fonts.load(f, 'Aa0 АБВабвё·→')));
   } catch (e) {}
   const c = cv.getContext('2d');
   c.fillStyle = '#000'; c.fillRect(0, 0, size[0], size[1]);
