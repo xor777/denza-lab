@@ -26,10 +26,26 @@ object MirrorFrameWatch {
     const val STALL_MS = 700L
 
     @Volatile private var lastFrameAtMs = -1L
+    @Volatile private var stockTookOver = false
 
     @JvmStatic fun reset() {
         lastFrameAtMs = -1L
+        stockTookOver = false
     }
+
+    /**
+     * AVC left its turn card for a view that binds the renderer itself (reverse, full screen).
+     * Its module re-binds only a surface it has created and frees its own on exit, so ours must
+     * only be detached: a free here lands after that bind and blacks the reverse picture
+     * (2026-09-23 17:06:42, R with a lamp on: our free waited 533 ms on AVC's bind, then stopped
+     * it). A surface of ours that is still in the field is left to [AvcIdleRelease].
+     */
+    @JvmStatic fun stockTakesOver() {
+        stockTookOver = true
+    }
+
+    /** True when our `freeDisplay` would stop a picture that is not ours. */
+    @JvmStatic fun mustNotFree(nowMs: Long): Boolean = stockTookOver || stolen(nowMs)
 
     @JvmStatic fun frame(nowMs: Long) {
         lastFrameAtMs = nowMs

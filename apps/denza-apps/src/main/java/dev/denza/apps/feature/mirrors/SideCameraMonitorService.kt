@@ -47,6 +47,7 @@ class SideCameraMonitorService : Service() {
     private var avcStock: AvcStockClient? = null
     private var stockChoice: AvcTurnCameraChoice? = null
     private var stockCardVisible = false
+    @Volatile private var lastStockMode: Int? = null
     private val transitionGate = MirrorTransitionGate()
     private var transitionState = MirrorTransitionState()
     private val preemptInFlight = AtomicBoolean()
@@ -219,8 +220,9 @@ class SideCameraMonitorService : Service() {
      * camera of ours is active: its Messenger runs on the thread that rebuilds the card.
      */
     private fun observeStock(detection: SideCameraDetection, now: Long): MirrorSide? {
-        val cardVisible = detection.meterPipWindow || detection.hostPipWindow ||
-            detection.unrecognizedCandidates > 0
+        // Only a turn card's own windows count: the reverse and full-screen views are AVC windows
+        // too, and asking AVC ten times a second while it draws the reverse view is the worst time.
+        val cardVisible = detection.meterPipWindow || detection.hostPipWindow
         val active = transitionGate.read { transitionState.phase != MirrorTransitionPhase.IDLE } ||
             ClusterSceneService.cameraRuntimeSnapshot().phase.let {
                 it == CameraRuntimePhase.STARTING || it == CameraRuntimePhase.READY
@@ -235,6 +237,7 @@ class SideCameraMonitorService : Service() {
         }
         stockCardVisible = cardVisible
         val mode = if (cardVisible || active) stock?.mode() else AvcStockMode.IDLE
+        lastStockMode = mode
         val side = MirrorStockPip.side(detection, mode, stockChoice)
         if (side != lastLoggedStockSide) {
             Log.i(
@@ -363,6 +366,7 @@ class SideCameraMonitorService : Service() {
             MirrorTransitionReducer.lampsLeft(transitionState, runtime, acceptedAt, reason)
         }
         preemptInFlight.set(true)
+        leaveRendererToStockIfItBindsIt()
         val commandGeneration = ClusterSceneService.preemptCamera(
             onLocalSurfaceDetached = {
                 Log.i(
@@ -451,6 +455,7 @@ class SideCameraMonitorService : Service() {
                 startOverlay(command.side, now, runtime)
             }
             MirrorTransitionCommand.Hide -> {
+                leaveRendererToStockIfItBindsIt()
                 Log.i(TAG, "command: hide")
                 ClusterSceneService.preemptCamera(
                     onVendorFreeCompleted = { Log.i(TAG, "command: hide finished") },
@@ -459,6 +464,14 @@ class SideCameraMonitorService : Service() {
             MirrorTransitionCommand.None -> Unit
         }
         queuePublicationLocked()
+    }
+
+    /** See [MirrorFrameWatch.stockTakesOver]: the last mode AVC reported decides it. */
+    private fun leaveRendererToStockIfItBindsIt() {
+        val mode = lastStockMode ?: return
+        if (!AvcStockMode.bindsRendererItself(mode)) return
+        MirrorFrameWatch.stockTakesOver()
+        Log.i(TAG, "AVC mode $mode binds its renderer itself; our surface is detached, not freed")
     }
 
     private fun startOverlay(

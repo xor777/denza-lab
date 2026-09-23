@@ -1359,6 +1359,38 @@ quarantine rules described above and in vehicle-data-findings.md:
 
 Not yet driven on the car at the time of writing.
 
+**Car state changed for the acceptance runs.** On 2026-09-23 at 17:02:01 the
+owner wrote the stock choice `1` (both images on the head unit) through
+`experiments/avc-stock-probe` (`SET_LIGHT value=1`; before `0`, after `1`, AVC
+idle). It persists in `/collect2/autovideo/initSettingParam.json`. Reset to the
+stock default with `SET_LIGHT value=0`.
+
+**First drive of the contract (2026-09-23, 17:06–17:07, build `6f65f674`,
+choice `1`, stationary D).** The owner: "all good, only on R the picture did not
+appear". The filtered capture (`captures/mirrors-firmware-model/live-1.log`)
+confirms the firmware model to the millisecond: AVC's `showMode` follows the
+flash event within 1 ms, AVC leaves its card exactly 2000 ms after the first off
+value (17.328→19.328, 26.412→28.412, 34.320→36.320, 24.314→26.315), our camera
+closed 3–5 ms after the lamps (once 2 ms before AVC's own event), and our first
+frame came 114–273 ms after we first saw the card. Right→left inside the stock
+tail (flash `1`→`2` 1.4 s apart) and a fast left→right→left (`2`→`4`→`2`, 1.5 s
+each) were AVC steals on the kept head-unit window: no crash, AVC PID `4746`
+throughout, crash buffer empty. A radar card (`5098`) at 17:05:55 opened nothing.
+
+**The R failure and its cause.** With the left lamp on, R at 17:06:42: AVC
+removed its card (`.459`), switched to the reverse view `5002` (`.492`); we saw
+`5002` at `.521` and closed our camera; our `freeDisplay` then took **533 ms**,
+because it waited on the renderer monitor while AVC bound the reverse view, and
+stopped that pipeline. The reverse picture stayed black: the exact freeze the
+firmware read predicted, reached because frames were still flowing when we
+decided to free. Fix: when AVC's last reported mode is neither idle nor a turn
+card, its own view binds the renderer (`PVCModuleTS` binds only a surface it has
+created and frees its own on exit), so our surface is detached and never freed;
+a surface of ours left in the field is cleared by the idle release. The same
+capture showed the monitor asking AVC its mode 8 times a second for the whole
+reverse episode, because the full-screen activity counted as a card; only the
+turn cards' own windows count now.
+
 ### Startup timing baseline (2026-09-04, instrumentation-only candidate)
 
 The startup worktree starts at `90821f086cd17cd7568dd6f583a38438818b960a`.

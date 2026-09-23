@@ -40,6 +40,12 @@ object AvcStockMode {
     const val PIP_RIGHT = 5096
     const val PIP_RIGHT_PORTRAIT = 5099
 
+    /**
+     * Every mode but idle and a turn card draws through a view AVC creates and binds itself
+     * (reverse, full screen, the radar and CMS cards).
+     */
+    fun bindsRendererItself(mode: Int): Boolean = mode != IDLE && turnSide(mode) == null
+
     /** The side of a turn-signal PIP, or null for idle, full-screen and the radar/CMS views. */
     fun turnSide(mode: Int): MirrorSide? = when (mode) {
         PIP_LEFT -> MirrorSide.LEFT

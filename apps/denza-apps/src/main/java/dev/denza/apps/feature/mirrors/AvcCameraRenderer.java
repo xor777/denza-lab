@@ -117,7 +117,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
         startupTiming = null;
         boolean hadLocalSurface = surface != null;
         if (client != null) {
-            if (MirrorFrameWatch.stolen(SystemClock.elapsedRealtime())) {
+            if (MirrorFrameWatch.mustNotFree(SystemClock.elapsedRealtime())) {
                 // AVC already draws elsewhere (its own card, the reverse view): its owner field
                 // holds its surface, and freeDisplay would null it and freeze that picture. The
                 // persisted claim stays, and the monitor frees once AVC reports idle.
