@@ -60,7 +60,10 @@ raw id, and the same charge was 7 kW on one screen and 0 on the other. The
 substitution is `EnergyReadouts.packKilowatts`, and it is the only place either
 screen decides what the pack is doing.
 
-**Drawn in the Luminofor palette (2026-09-23).** The words and their colours
+**Drawn in the Luminofor palette (2026-09-23).** The neutral row's `MUTED` is
+retired on both screens: a pack with no direction is named by its word and drawn
+white like any calm figure (`main-car-neutral`), because a dimmed figure read as a
+fault and the owner's rule is that calm is flat white. The words and their colours
 above are the car page's, which prints them in its sentence case - «Из батареи»,
 «● В батарею от ДВС» - derived from the capitals by `EnergyReadouts.sentence`, so
 the two cases cannot become two sentences. The cluster prints no direction word:
@@ -320,8 +323,19 @@ ledger (§2.4) is fed by the same sweep and stops losing road for the same reaso
 | the trip | «42 км · ЗА ПОЕЗДКУ» · «ДАЛ ДВС» · «РЕКУПЕРАЦИЯ»; car page «42 км · за поездку» | a zero, a caption over nothing |
 | the engine, live | «ДВС · об/мин» + rpm; box «ДВС ДАЁТ 8 кВт» over «ПОСЛЕДНИЕ 1:22»; car page «ДВС» + rpm | «В БАТАРЕЮ» on the box, a dot on the box, «ГЕНЕРАЦИЯ», «ОБОРОТЫ» |
 | the engine, stopped | «ДВС · мин за поездку» + minutes; car page «ДВС за поездку» + «мин» | a box of zeros |
-| charging, the countdown | «2:15 до полной»; ten hours or more «12:30» | a day count |
+| charging, the countdown | «2:15 до полной»; ten hours or more «12:30» (kept by the owner for now, 2026-09-23; see below) | a day count |
 | the car page, closed | «Питание от машины» over the instruction | a row of empty captions |
+
+**The stock countdown is hours and minutes, not a clock** (2026-09-23). The car's
+own charging screen prints the estimate as two figure-unit pairs - «1 h 57 min»
+in English, the units small on the figures' baseline
+(`captures/split-live-acceptance/v22-baseline-screen.png`); the app that draws it
+is not among the firmware files extracted so far, so its Russian units are not
+read, and «ч» / «мин» is the expectation, not a reading. The proposal is the
+car's form on the cluster too - «1 ч 57 мин до полной», and «12 ч 30 мин» past ten
+hours instead of a clock that reads as a time of day. The owner kept «2:15» and
+«12:30» for now; it is one formatter (`ContourFigures.chargeLeft`) and one board
+scene when it moves.
 
 The car page prints every one of these in sentence case (§2.1), the cluster in
 its capitals; the Luminofor cluster sets its captions in Jura and the car page
@@ -334,7 +348,11 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 
 - **first seconds**: skeleton, no captions, no figures;
 - **link lost / a dropped read**: figures leave after their horizon, captions
-  stay; a trip caption leaves when a fresh packet says the quantity is zero;
+  stay; a trip caption leaves when a fresh packet says the quantity is zero. On
+  the cluster the beam and its glow go with the power's figure, the glyphs stay
+  without their degrees, and the ten kilometres stay with their unit where the
+  last figure left it (`ContourFrame.consumptionHeld`, board `cluster-stale`); the
+  first seconds are the axis alone (`cluster-waking`);
 - **moving**: hero + band (cluster) / headline + figure (car page); the ten
   kilometre chart and its whole-kilowatt-hour figure; the trip's phrase; the
   engine's revolutions while it runs;

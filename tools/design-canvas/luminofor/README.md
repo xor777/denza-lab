@@ -57,7 +57,11 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `cluster-city`, `-launch`, `-regen`, `-engine`, `-hot` | the panel on the move: out, hard out with a run cut at 60, back with a run cut at −20, the engine giving, a hot inverter |
 | `cluster-park`, `-charging` | on P: the trip's detail line; the countdown in the figure's place |
 | `cluster-spread`, `-filling`, `-unavailable` | the cells drifting apart; 37 points under «за 3,7 км»; no access |
+| `cluster-stale`, `-waking` | the link lost - figures gone, captions and the ten kilometres kept; the first seconds, the axis alone |
 | `main-sound`, `main-car`, `main-car-engine`, `main-car-hot` | the full dashboard, the strip on each page |
+| `main-first`, `two-first` | a fresh install: tiles working, waiting on the driver and broken, no track, the analyser on its floor, the location hint |
+| `main-paused` | the track paused: half its light, the pause's bars |
+| `main-car-neutral`, `-charging`, `-closed`, `one-car-closed` | «Батарея» in white; on the charger; the shell closed, at two widths |
 | `two-sound`, `two-car`, `one-sound`, `one-car` | the two-thirds and one-third panes |
 | `digits` | the wide figures, for the eye |
 
@@ -83,10 +87,20 @@ python3 compare.py main-car app.png
 ```
 
 An emulator the car's size is enough (2560 x 1600 at 320 dpi, API 35): the board is drawn in the
-top-left corner at its own pixels. On 2026-09-23 all eighteen compared at 0.13-0.93 % of their
+top-left corner at its own pixels. On 2026-09-23 all twenty-seven compared at 0-0.93 % of their
 pixels moved and a mean difference under one level out of 255. What remains is antialiasing and
 Roboto: the board's comes from `fonts/`, the app's is the system's, and a right-aligned figure in
 Roboto lands a pixel or two apart.
+
+## The tiles' five tones
+
+Live and working are the lit plate with the dock's blue glyph added onto it; idle is the dark
+plate; a tile nothing can be done to is idle. Waiting on the driver and broken keep the lit plate
+and light the glyph and the status in the car's own orange `#FF9F19` and red `#FF4046`, **laid
+over whole** (`beam(..., over)`, `text(..., { over })`): added onto the plate, as the blue is, the
+orange came out yellow and the red pink. Working turns a quarter-circle ring in the glyph's blue
+and weight beside the glyph (`spec.json` → `head.icon.ring`); a board holds it at twelve o'clock,
+and so does the app under `LocalStillFrame`.
 
 ## The chart and the engine's box
 
