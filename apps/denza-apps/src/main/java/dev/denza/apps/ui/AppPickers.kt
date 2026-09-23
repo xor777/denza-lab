@@ -3,15 +3,13 @@ package dev.denza.apps.ui
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SIMULCAST_MAX_SELECTED
 import dev.denza.apps.SimulcastAppChoice
-import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.ui.components.DenzaAppChooser
 import dev.denza.apps.ui.components.DenzaAppChooserSheet
@@ -181,12 +179,7 @@ internal fun NavigationAppChoices(
     modifier: Modifier = Modifier,
 ) {
     if (apps.isEmpty()) {
-        Text(
-            text = "Поддерживаемые навигаторы не найдены",
-            style = MaterialTheme.typography.bodyLarge,
-            color = DenzaColors.Muted,
-            modifier = modifier,
-        )
+        DenzaNote("Поддерживаемые навигаторы не найдены", modifier)
         return
     }
     DenzaAppGrid(
@@ -194,7 +187,7 @@ internal fun NavigationAppChoices(
         key = NavigationAppChoice::packageName,
         compact = compact,
         modifier = modifier,
-        columns = DenzaMetrics.Component.NAVIGATION_PICKER_COLUMNS,
+        columns = Sheet.Apps.COLUMNS,
     ) { app ->
         DenzaAppTile(
             label = app.label,

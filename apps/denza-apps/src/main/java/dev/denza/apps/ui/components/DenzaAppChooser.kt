@@ -1,11 +1,8 @@
 package dev.denza.apps.ui.components
 
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
 
 /**
@@ -51,11 +48,7 @@ fun <T> ColumnScope.DenzaAppChooser(
     if (items.isEmpty()) {
         // A wait, not a verdict, and the caller picks the words: the car is perfectly capable of
         // answering the next read, and this page is asking for one.
-        Text(
-            text = emptyText,
-            style = MaterialTheme.typography.bodyLarge,
-            color = DenzaColors.Muted,
-        )
+        DenzaNote(emptyText)
     } else {
         DenzaAppGrid(
             items = items,

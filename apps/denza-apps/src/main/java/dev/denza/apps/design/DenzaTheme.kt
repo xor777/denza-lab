@@ -38,9 +38,8 @@ fun DenzaTheme(content: @Composable () -> Unit) {
 /**
  * Every role Material draws with, not the six that happened to be overridden.
  *
- * The vehicle separates its own roles and this keeps that separation: champagne is interface - the
- * live tile, the chosen button - and never instrument data, because warm yellow already means
- * caution in a car and an accent competing with [DenzaColors.Warning] costs a driver the glance.
+ * The vehicle separates its own roles and this keeps that separation: the stock blue is interface -
+ * on, chosen, working - and never instrument data, and the car's orange and red are its two alarms.
  */
 private val DenzaColorScheme = darkColorScheme(
     primary = DenzaColors.Accent,

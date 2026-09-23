@@ -156,6 +156,126 @@
   // the shell closed to us
   const headClosed = Object.assign({}, head, { unavailable: true, message: 'ADB-ключ не подтверждён · Помощь → Диагностика' });
 
+  // A feature's settings over the dashboard it came from. `sheet` is what the panel draws, block by
+  // block, in the words the app prints for the state the debug build's SheetFixtures builds from
+  // `state` - the two are one scene, and compare.py is what says so.
+  const TAP = 'Короткое нажатие на плитку делает то же самое';
+  const sheetOf = (tile, sheet, state) => Object.assign({}, head, { sheet: Object.assign({ icon: TILES[tile].icon, tone: 'live' }, sheet), state });
+  const NAV = [{ name: 'Яндекс', selected: true }, { name: 'Waze' }, { name: '2ГИС' }, { name: 'Приборы' }];
+  const CAST = [{ name: 'VK Видео', selected: true }, { name: 'Rutube', selected: true }, { name: 'YouTube' },
+    { name: 'Кинопоиск' }, { name: 'Okko' }, { name: 'Wink' }, { name: 'Telegram' }, { name: 'Яндекс Музыка' }];
+  const sheets = {
+    cluster: sheetOf(0, {
+      title: 'Экран водителя',
+      blocks: [
+        { t: 'section', label: 'Что показывать', body: { t: 'apps', columns: 4, items: NAV } },
+        { t: 'section', label: 'Размещение', body: { t: 'segmented', labels: ['Полный', 'Слева', 'Центр', 'Справа'], selected: 0 } },
+        { t: 'switch', title: 'Кнопка ★ на руле', on: true },
+        { t: 'note', text: 'Выбранное приложение занимает приборную панель за рулём. Короткое нажатие на плитку ставит его туда и убирает обратно.' }
+      ],
+      footer: [{ t: 'button', text: 'На приборку' }, { t: 'footnote', text: TAP }]
+    }, { tile: 'CLUSTER', navigation: NAV, placements: ['FULL', 'LEFT', 'CENTER', 'RIGHT'], placement: 'FULL', wheel: true, buttonLabel: 'На приборку' }),
+    mirrors: sheetOf(2, {
+      title: 'Зеркала',
+      blocks: [
+        { t: 'switch', title: 'Зеркала', on: true },
+        { t: 'section', label: 'Где показывать', body: { t: 'segmented', labels: ['По сторонам', 'По центру'], selected: 0 } },
+        { t: 'switch', title: 'Улучшение изображения', on: false },
+        { t: 'note', text: 'Когда включён поворотник, на экране появляется камера с этой стороны и пропадает вместе с ним. «По центру» показывает обе камеры одну над другой.' }
+      ],
+      footer: [{ t: 'button', text: 'Проверить камеры' }]
+    }, { tile: 'MIRRORS', mirrors: true, position: 'SIDES', processing: false }),
+    simulcast: sheetOf(1, {
+      title: 'Трансляция',
+      blocks: [
+        { t: 'switch', title: 'Поддержка трансляции', on: true },
+        { t: 'group', rows: [{ kind: 'choice', title: 'Что транслировать', icons: ['VK Видео', 'Rutube'] }] },
+        { t: 'note', text: 'Выбранные приложения показываются на пассажирском экране и на экране сзади. Запуск открывает их там сразу.' }
+      ],
+      footer: [{ t: 'button', text: 'Запустить' }, { t: 'footnote', text: TAP }]
+    }, { tile: 'SIMULCAST', simulcast: true, apps: CAST }),
+    castApps: sheetOf(1, {
+      title: 'Что транслировать', back: true, subtitle: 'Можно выбрать до 6 · выбрано 2',
+      blocks: [{ t: 'apps', items: CAST }],
+      footer: [{ t: 'button', text: 'Готово' }]
+    }, { tile: 'SIMULCAST', simulcast: true, apps: CAST, page: 'apps' }),
+    speakers: sheetOf(6, {
+      title: 'Динамики',
+      blocks: [
+        { t: 'switch', title: 'Автоуправление динамиками', on: true },
+        { t: 'button', kind: 'secondary', text: 'Поднять' },
+        { t: 'note', text: 'Динамики выезжают, когда играет музыка или открыт плеер — в том числе из приложений, которые машина своими не считает (Яндекс Музыка, Spotify, YouTube, Кинопоиск, штатный плеер). Убирает их машина сама. «Поднять» выдвигает их снова, если машина убрала их в простое.' }
+      ]
+    }, { tile: 'SPEAKERS', speakers: true }),
+    defaults: sheetOf(9, {
+      title: 'Приложения по умолчанию',
+      blocks: [
+        { t: 'switch', title: 'Заменять приложения', summary: 'Команды открывают выбранные приложения', on: true },
+        { t: 'group', rows: [
+          { kind: 'choice', title: 'Навигация', icons: ['Яндекс Навигатор'], value: 'Яндекс Навигатор' },
+          { kind: 'choice', title: 'Музыка', icons: ['Яндекс Музыка'], value: 'Яндекс Музыка' },
+          { kind: 'choice', title: 'Видео', icons: ['VK Видео'], value: 'VK Видео' }
+        ] },
+        { t: 'note', text: 'Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.' }
+      ],
+      footer: [{ t: 'button', text: 'Готово' }]
+    }, { tile: 'DEFAULT_APPS', substituting: true, roles: { NAVIGATION: 'Яндекс Навигатор', MUSIC: 'Яндекс Музыка', VIDEO: 'VK Видео' } }),
+    locale: sheetOf(7, {
+      title: 'Язык системы', tone: 'idle',
+      blocks: [{ t: 'note', text: 'Язык меняется у всей машины, а не у приложения: список открывает сама машина, в нём сорок языков, и выбранный применяется сразу, без перезагрузки.' }],
+      footer: [{ t: 'button', text: 'Выбрать язык' }, { t: 'footnote', text: TAP }]
+    }, { tile: 'LOCALE' }),
+    // a broken feature says so first, in the car's red, and keeps its switches under it
+    broken: sheetOf(2, {
+      title: 'Зеркала',
+      blocks: [
+        { t: 'status', tone: 'broken', text: 'Камеры не отвечают: штатный вид занял видеопоток' },
+        { t: 'switch', title: 'Зеркала', on: true },
+        { t: 'section', label: 'Где показывать', body: { t: 'segmented', labels: ['По сторонам', 'По центру'], selected: 0 } },
+        { t: 'switch', title: 'Улучшение изображения', on: false },
+        { t: 'note', text: 'Когда включён поворотник, на экране появляется камера с этой стороны и пропадает вместе с ним. «По центру» показывает обе камеры одну над другой.' }
+      ],
+      footer: [{ t: 'button', text: 'Проверить камеры' }]
+    }, { tile: 'MIRRORS', mirrors: true, position: 'SIDES', processing: false, error: 'Камеры не отвечают: штатный вид занял видеопоток' }),
+    // the service panel on a healthy car: its state first - on a car with something wrong, the
+    // tiles that need somebody, in their own words - then the car's access and the instruments'
+    // screen, and the readings behind a button
+    service: sheetOf(10, {
+      title: 'Сервис',
+      blocks: [
+        { t: 'section', label: 'Состояние', body: [{ t: 'note', text: 'Все функции работают.' }] },
+        { t: 'section', label: 'Доступ к машине', body: [
+          { t: 'reading', label: 'Состояние', value: 'ADB-доступ подтверждён' },
+          { t: 'note', text: 'Denza Apps использует уже доверенный ключ' },
+          { t: 'button', kind: 'secondary', text: 'Проверить доступ' }
+        ] },
+        { t: 'section', label: 'Приборный экран', body: [
+          { t: 'reading', label: 'Сейчас', value: 'Экран 1 · 1920×720' },
+          { t: 'note', text: 'Приложение само находит экран за рулём. Выберите другой, если приборы ушли не туда.' },
+          { t: 'stack', gap: 12, items: [
+            { t: 'button', kind: 'secondary', text: 'Экран 1 · 1920×720' },
+            { t: 'button', kind: 'secondary', text: 'Определять автоматически' }
+          ] }
+        ] },
+        { t: 'section', label: 'Технические сведения', body: [{ t: 'button', kind: 'secondary', text: 'Показать' }] }
+      ]
+    }, { tile: 'SERVICE', adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
+         cluster: 'Экран 1 · 1920×720', displays: [[2, 1920, 720]] })
+  };
+
+  // the ADB gate asking for the car's permission: the service's glyph in orange because there is a
+  // recovery to offer, the request across the card, the recovery and the explainer under it
+  const gate = Object.assign({}, head, {
+    modal: {
+      icon: TILES[10].icon, tone: 'attention', title: 'Подтвердите доступ к ADB',
+      message: 'Для работы Denza Apps разрешите системный запрос ADB на экране автомобиля',
+      details: 'Отладка по ADB включена в системе автомобиля',
+      primary: 'Запросить доступ',
+      quiet: [{ text: 'Восстановить ADB', attention: true }, { text: 'Что такое ADB' }]
+    },
+    state: { gate: 'AUTHORIZATION_REQUIRED', systemSwitch: 'ENABLED' }
+  });
+
   // board id -> [board, fixture]; px sizes are the displays' own
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
@@ -185,6 +305,19 @@
     'two-car':        [{ kind: 'head', mode: 'two', page: 'car' }, head],
     'one-sound':      [{ kind: 'head', mode: 'one', page: 'sound' }, head],
     'one-car':        [{ kind: 'head', mode: 'one', page: 'car' }, head],
+    'sheet-cluster':   [{ kind: 'sheet', mode: 'full' }, sheets.cluster],
+    'sheet-mirrors':   [{ kind: 'sheet', mode: 'full' }, sheets.mirrors],
+    'sheet-simulcast': [{ kind: 'sheet', mode: 'full' }, sheets.simulcast],
+    'sheet-cast-apps': [{ kind: 'sheet', mode: 'full' }, sheets.castApps],
+    'sheet-speakers':  [{ kind: 'sheet', mode: 'full' }, sheets.speakers],
+    'sheet-defaults':  [{ kind: 'sheet', mode: 'full' }, sheets.defaults],
+    'sheet-locale':    [{ kind: 'sheet', mode: 'full' }, sheets.locale],
+    'sheet-broken':    [{ kind: 'sheet', mode: 'full' }, sheets.broken],
+    'sheet-service':   [{ kind: 'sheet', mode: 'full' }, sheets.service],
+    'modal-adb':       [{ kind: 'modal', mode: 'full' }, gate],
+    'one-modal-adb':   [{ kind: 'modal', mode: 'one' }, gate],
+    'one-sheet-cluster':   [{ kind: 'sheet', mode: 'one' }, sheets.cluster],
+    'one-sheet-cast-apps': [{ kind: 'sheet', mode: 'one' }, sheets.castApps],
     'digits':         [{ kind: 'digits' }, {}]
   };
 })(window);

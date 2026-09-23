@@ -697,6 +697,263 @@
     dots(c, page, P.size[0] / 2, P.dotsY);
   }
 
+  /* ================================================================ settings */
+  // A feature's settings, drawn from the car's own BYD widget kit (CarSettingPlatform, byd_pvt_*
+  // dark) in Luminofor's grounds: the stock switch, list row, segmented tab, primary button and
+  // selection badge, on a panel the colour of an idle plate with groups on the lit plate's colour.
+  // Every text is placed by its baseline, as the app places it, so the two can be laid over.
+  const SH = S.sheet;
+  const hexA = (h, a) => rgba(hex(h), a);
+  function over(c, fn) { c.save(); c.globalCompositeOperation = 'source-over'; fn(); c.restore(); }
+  function fillRound(c, x, y, w, h, r, style) {
+    over(c, () => { c.fillStyle = style; c.beginPath(); c.roundRect(x, y, w, h, r); c.fill(); });
+  }
+  // words over a surface are drawn over it, not added: white at 0.9 over a plate is what Compose's
+  // text lays down, and the plate under a panel is not black
+  function words(c, str, x, y, px, a, o) {
+    o = o || {};
+    return text(c, str, x, y, px, o.col || WHT, a, Object.assign({ font: ROBOTO, w: o.w || 400, over: true }, o));
+  }
+  function wordsW(c, str, px, w) { return textWidth(c, str, px, { font: ROBOTO, w: w || 400 }); }
+  function wrap(c, str, px, w, room) {
+    const lines = []; let line = '';
+    String(str).split(' ').forEach(word => {
+      const next = line ? line + ' ' + word : word;
+      if (line && wordsW(c, next, px, w) > room) { lines.push(line); line = word; } else line = next;
+    });
+    if (line) lines.push(line);
+    return lines;
+  }
+  const CLOSE = [['p', 'M6 6l12 12M18 6L6 18']], BACK = [['p', 'M15 5l-7 7 7 7']], FORWARD = [['p', 'M9 5l7 7-7 7']];
+  const CHECK = new Path2D('M5.5 10.2l3 3 6-6.2');
+  // a glyph in a box, its ink centred - the tile's glyph when it stands on its own
+  function glyphAt(c, ops, x, y, size, a, col, ground) {
+    const k = inkBox(ops, S.head.icon.stroke), sc = size / 24, ic = iconPath(ops), ink = col || WHT[1];
+    c.save(); c.translate(x, y); c.scale(sc, sc); c.translate(12 - (k[0] + k[2]) / 2, 12 - (k[1] + k[3]) / 2);
+    over(c, () => { c.lineWidth = S.head.icon.stroke; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = rgba(ink, a); c.stroke(ic.strokes); });
+    ic.knobs.forEach(k2 => over(c, () => {
+      c.fillStyle = ground || S.sheet.panel.ground; c.beginPath(); c.arc(k2[1], k2[2], k2[3] + 1.1, 0, Math.PI * 2); c.fill();
+      c.lineWidth = S.head.icon.stroke; c.strokeStyle = rgba(ink, a); c.beginPath(); c.arc(k2[1], k2[2], k2[3], 0, Math.PI * 2); c.stroke();
+    }));
+    c.restore();
+  }
+  function lineGlyph(c, ops, x, y, size, a) {
+    const ic = iconPath(ops), sc = size / 24;
+    c.save(); c.translate(x, y); c.scale(sc, sc);
+    over(c, () => { c.lineWidth = S.head.icon.stroke; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = rgba(WHT[1], a); c.stroke(ic.strokes); });
+    c.restore();
+  }
+  function toggle(c, x, y, on, enabled) {
+    const W = SH.switch, a = enabled === false ? W.disabledAlpha : 1;
+    fillRound(c, x, y, W.width, W.height, W.height / 2, on ? hexA(W.on, a) : hexA(W.off, W.offAlpha * a));
+    const pad = (W.height - W.thumb) / 2, tx = on ? x + W.width - pad - W.thumb : x + pad;
+    over(c, () => { c.fillStyle = hexA(W.thumbColor, a); c.beginPath(); c.arc(tx + W.thumb / 2, y + W.height / 2, W.thumb / 2, 0, Math.PI * 2); c.fill(); });
+  }
+  function letterIcon(c, name, x, y, size) {
+    fillRound(c, x, y, size, size, size * 0.27, rgba([255, 255, 255], 0.1));
+    words(c, name.slice(0, 1).toUpperCase(), x + size / 2, centred(y + size / 2, size * 0.45), size * 0.45, 0.9, { w: 500, align: 'center' });
+  }
+  // the rows of one plate: a switch, a choice, or a reading
+  const RB = SH.roboto, R1 = SH.row.single, R2 = SH.row.twoLine, R3 = SH.row.withIcons;
+  const centred = (cy, px) => cy + RB.centre * px;
+  function rowHeight(r) { return r.icons && r.icons.length ? R3[0] : r.summary || (r.kind === 'choice' && r.value) ? R2[0] : R1[0]; }
+  function drawRow(c, r, x, y, w) {
+    const R = SH.row, h = rowHeight(r), dim = r.enabled === false ? 0.5 : 1;
+    const right = x + w - R.padX;
+    const icons = r.icons && r.icons.length, two = r.summary || (r.kind === 'choice' && r.value);
+    words(c, r.title, x + R.padX, y + (icons ? R3[1] : two ? R2[1] : R1[1]), R.titleSize, R.titleAlpha * dim);
+    if (icons) {
+      let ix = x + R.padX;
+      r.icons.forEach(n => { letterIcon(c, n, ix, y + R3[2], R.choiceIcon); ix += R.choiceIcon + R.choiceGap; });
+      if (r.value) words(c, r.value, ix, y + R3[3], R.summarySize, R.summaryAlpha * dim);
+    } else if (two) words(c, r.summary || r.value, x + R.padX, y + R2[2], R.summarySize, R.summaryAlpha * dim);
+    if (r.kind === 'switch') toggle(c, right - SH.switch.width, y + (h - SH.switch.height) / 2, r.on, r.enabled);
+    if (r.kind === 'choice') lineGlyph(c, FORWARD, right - R.chevron, y + (h - R.chevron) / 2, R.chevron, SH.header.closeAlpha);
+    return h;
+  }
+  function plate(c, rows, x, y, w) {
+    const P = SH.plate;
+    const hs = rows.map(rowHeight), total = hs.reduce((a, b) => a + b, 0);
+    fillRound(c, x, y, w, total, P.radius, P.color);
+    let yy = y;
+    rows.forEach((r, i) => {
+      if (i) over(c, () => { c.fillStyle = rgba([255, 255, 255], P.hairlineAlpha); c.fillRect(x + P.hairlineInset, yy, w - 2 * P.hairlineInset, 1); });
+      drawRow(c, r, x, yy, w); yy += hs[i];
+    });
+    return total;
+  }
+  function segmented(c, b, x, y, w) {
+    const G = SH.segmented, n = b.labels.length, a = b.enabled === false ? 0.5 : 1;
+    fillRound(c, x, y, w, G.height, G.radius, rgba([255, 255, 255], G.trackAlpha));
+    const cw = (w - 2 * G.pad) / n;
+    b.labels.forEach((l, i) => {
+      const cx = x + G.pad + i * cw, on = i === b.selected;
+      if (on) fillRound(c, cx, y + G.pad, cw, G.height - 2 * G.pad, G.radius - G.pad, rgba([255, 255, 255], G.pillAlpha * a));
+      words(c, l, cx + cw / 2, centred(y + G.height / 2, G.size), G.size, (on ? G.onTextAlpha : G.offTextAlpha) * a,
+        { w: on ? 500 : 400, align: 'center', col: on ? [[0, 0, 0], [0, 0, 0]] : WHT });
+    });
+    return G.height;
+  }
+  // The app's grid: a fixed count of columns on the full screen (four, three for the navigators),
+  // and in a pane as many 96-wide columns as fit - Compose's Adaptive - each stretched to share the
+  // width, so a cell is wider than tall and the tile is its width by 96.
+  function apps(c, b, x, y, w, compact) {
+    const A = SH.apps;
+    const cols = compact ? Math.max(1, Math.floor((w + A.gap) / (A.tile + A.gap))) : (b.columns || 4);
+    const cw = (w - (cols - 1) * A.gap) / cols;
+    b.items.forEach((it, i) => {
+      const tx = x + (i % cols) * (cw + A.gap), ty = y + Math.floor(i / cols) * (A.tile + A.gap);
+      const dim = it.enabled === false ? 0.5 : 1;
+      fillRound(c, tx, ty, cw, A.tile, A.radius, SH.plate.color);
+      letterIcon(c, it.name, tx + (cw - A.icon) / 2, ty + 14, A.icon);
+      let nm = it.name;
+      while (wordsW(c, nm, A.nameSize, 500) > cw - 12 && nm.length > 1) nm = nm.slice(0, -2) + '…';
+      words(c, nm, tx + cw / 2, ty + 82, A.nameSize, A.nameAlpha * dim, { w: 500, align: 'center' });
+      if (it.selected) {
+        const bx = tx + cw - A.badgeInset - A.badge, by = ty + A.badgeInset;
+        over(c, () => {
+          c.fillStyle = A.badgeColor; c.beginPath(); c.arc(bx + A.badge / 2, by + A.badge / 2, A.badge / 2, 0, Math.PI * 2); c.fill();
+          c.translate(bx, by); c.lineWidth = 2; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#FFFFFF'; c.stroke(CHECK);
+        });
+      }
+    });
+    const rows = Math.ceil(b.items.length / cols);
+    return rows * A.tile + (rows - 1) * A.gap;
+  }
+  function paragraph(c, str, x, y, w, size, leading, a, col) {
+    const lines = wrap(c, str, size, 400, w), lh = size * leading;
+    lines.forEach((l, i) => words(c, l, x, y + size * RB.ascent + i * lh, size, a, { col: col }));
+    return lines.length ? size * RB.ascent + (lines.length - 1) * lh + size * RB.descent : 0;
+  }
+  function button(c, b, x, y, w) {
+    const B = SH.button, primary = b.kind !== 'secondary', h = primary ? B.height : B.secondaryHeight;
+    const a = b.enabled === false ? B.disabledAlpha : 1, size = primary ? B.size : B.secondarySize;
+    fillRound(c, x, y, w, h, B.radius, primary ? hexA(B.primary, a) : rgba([255, 255, 255], B.secondaryAlpha));
+    // a quiet button that answers something waiting on the driver says so in the car's orange
+    const ink = b.attention ? [hex('#FF9F19'), hex('#FF9F19')] : WHT;
+    words(c, b.text, x + w / 2, centred(y + h / 2, size), size, (primary || b.attention ? 1 : 0.9) * a, { w: 500, align: 'center', col: ink });
+    return h;
+  }
+  let COMPACT = false;
+  function block(c, b, x, y, w) {
+    switch (b.t) {
+      case 'status': {
+        const col = b.tone === 'attention' ? [hex('#FF9F19'), hex('#FF9F19')] : b.tone === 'broken' ? [hex('#FF4046'), hex('#FF4046')] : null;
+        return paragraph(c, b.text, x, y, w, SH.status.size, SH.status.leading, col ? 1 : SH.note.alpha, col || WHT);
+      }
+      case 'group': return plate(c, b.rows, x, y, w);
+      case 'switch': return plate(c, [Object.assign({ kind: 'switch' }, b)], x, y, w);
+      // a section's words over its body - one block, or several a label's gap apart, as
+      // DenzaSection's column spaces everything under its label
+      case 'section': {
+        words(c, b.label, x, y + SH.label.size * RB.ascent, SH.label.size, SH.label.alpha, { w: 500 });
+        let yy = y + SH.label.size * (RB.ascent + RB.descent);
+        (Array.isArray(b.body) ? b.body : [b.body]).forEach(k => { yy += SH.label.gap; yy += block(c, k, x, yy, w); });
+        return yy - y;
+      }
+      // blocks stacked at a gap of their own: the display choices' column of buttons
+      case 'stack': {
+        let yy = y;
+        b.items.forEach((k, i) => { if (i) yy += b.gap; yy += block(c, k, x, yy, w); });
+        return yy - y;
+      }
+      case 'segmented': return segmented(c, b, x, y, w);
+      case 'apps': return apps(c, b, x, y, w, COMPACT);
+      case 'note': return paragraph(c, b.text, x, y, w, SH.note.size, SH.note.leading, SH.note.alpha);
+      case 'button': return button(c, b, x, y, w);
+      case 'footnote':
+        words(c, b.text, x + w / 2, y + SH.footnote.size * RB.ascent, SH.footnote.size, SH.footnote.alpha, { align: 'center' });
+        return SH.footnote.size * (RB.ascent + RB.descent);
+      case 'reading': {
+        const R = SH.reading;
+        const lh = R.labelSize * (RB.ascent + RB.descent);
+        words(c, b.label, x, y + R.labelSize * RB.ascent, R.labelSize, R.labelAlpha);
+        words(c, b.value, x, y + lh + R.gap + R.valueSize * RB.ascent, R.valueSize, R.valueAlpha, { w: 400 });
+        return lh + R.gap + R.valueSize * (RB.ascent + RB.descent);
+      }
+    }
+    return 0;
+  }
+  // the panel: at the right edge on the full screen, the whole window in a pane
+  function drawSheet(c, mode, f) {
+    const sh = f.sheet, full = mode === 'full', size = full ? S.head.full.size : mode === 'two' ? S.head.two.size : S.head.one.size;
+    drawHead(c, mode, f);
+    const P = SH.panel, K = full ? P : SH.compact, bar = full ? 0 : S.head[mode].captionBar;
+    // the scrim covers the window under a pane's caption bar: the bar is the system's
+    over(c, () => { c.fillStyle = rgba([0, 0, 0], SH.scrim); c.fillRect(0, bar, size[0], size[1] - bar); });
+    COMPACT = !full;
+    const px0 = full ? size[0] - P.width : 0, pw = full ? P.width : size[0];
+    over(c, () => { c.fillStyle = P.ground; c.fillRect(px0, bar, pw, size[1] - bar); });
+    if (full) over(c, () => { c.fillStyle = hexA(P.edge, P.edgeAlpha); c.fillRect(px0, 0, 1, size[1]); });
+    const x = px0 + K.padX, w = pw - 2 * K.padX;
+    let y = bar + K.padTop;
+    // the header: the tile's glyph or the way back, the title, the way out
+    const Hh = SH.header;
+    if (sh.back) lineGlyph(c, BACK, x, y + (Hh.height - Hh.close) / 2, Hh.close, Hh.closeAlpha);
+    // the tile's glyph names the panel - white, ink-centred, no state: the status line says that
+    else if (sh.icon) glyphAt(c, sh.icon, x, y + (Hh.height - Hh.glyph) / 2, Hh.glyph, Hh.glyphAlpha);
+    const tx = x + (sh.back ? Hh.close : sh.icon ? Hh.glyph : -Hh.glyphGap) + Hh.glyphGap;
+    words(c, sh.title, tx, centred(y + Hh.height / 2, Hh.titleSize), Hh.titleSize, 1, { w: 500 });
+    lineGlyph(c, CLOSE, x + w - Hh.close, y + (Hh.height - Hh.close) / 2, Hh.close, Hh.closeAlpha);
+    // a page's subtitle, under its title: what the choice is capped at, and where it stands
+    if (sh.subtitle) {
+      words(c, sh.subtitle, tx, y + Hh.height + Hh.subtitleSize * RB.ascent, Hh.subtitleSize, Hh.subtitleAlpha);
+      y += Hh.subtitleSize * (RB.ascent + RB.descent);
+    }
+    y += Hh.height + K.gap;
+    // the footer stands on the panel's foot, whatever is above it, and the settings scroll in what
+    // is left - a board shows them at the top of their scroll, cut where the viewport ends
+    const foot = sh.footer || [];
+    const hs = foot.map(b => b.t === 'button' ? (b.kind === 'secondary' ? SH.button.secondaryHeight : SH.button.height) : SH.footnote.size * (RB.ascent + RB.descent));
+    const footTop = foot.length ? size[1] - K.padBottom - hs.reduce((a, b) => a + b, 0) - (foot.length - 1) * SH.footnote.gap : size[1] - K.padBottom;
+    c.save(); c.beginPath(); c.rect(px0, y, pw, (foot.length ? footTop - K.gap : footTop) - y); c.clip();
+    (sh.blocks || []).forEach(b => { y += block(c, b, x, y, w) + K.gap; });
+    c.restore();
+    let fy = footTop;
+    foot.forEach((b, i) => { block(c, b, x, fy, w); fy += hs[i] + SH.footnote.gap; });
+  }
+
+  // The one surface that is not a panel at the edge: a card in the middle of the window, for the
+  // ADB gate - the stock dialog, a lit plate's colour with a hairline round it. Its actions are
+  // the stock dialog's: the one it exists for across the card, the quiet ones under it at equal
+  // widths side by side, or each on its own line in a pane.
+  function drawModal(c, mode, f) {
+    const m = f.modal, full = mode === 'full', size = full ? S.head.full.size : S.head[mode].size;
+    drawHead(c, mode, f);
+    const bar = full ? 0 : S.head[mode].captionBar, M = SH.modal;
+    over(c, () => { c.fillStyle = rgba([0, 0, 0], SH.scrim); c.fillRect(0, bar, size[0], size[1] - bar); });
+    const outer = SH.compact.padX, pad = full ? M.pad : SH.compact.padX;
+    const cw = Math.min(M.width, size[0] - 2 * outer), iw = cw - 2 * pad;
+    const para = (str, px, a) => {
+      const n = wrap(c, str, px, 400, iw).length;
+      return { str, px, a, h: n ? px * RB.ascent + (n - 1) * px * SH.note.leading + px * RB.descent : 0 };
+    };
+    const msg = para(m.message, M.textSize, M.textAlpha), det = m.details ? para(m.details, SH.note.size, SH.note.alpha) : null;
+    const quiet = m.quiet || [];
+    // in a pane the quiet ones are the card's own lines, at the card's own gap
+    const quietH = quiet.length ? (full ? SH.button.secondaryHeight : quiet.length * SH.button.secondaryHeight + (quiet.length - 1) * M.gap) : 0;
+    const parts = [M.icon, msg.h].concat(det ? [det.h] : []).concat(m.primary ? [SH.button.height] : []).concat(quiet.length ? [quietH] : []);
+    const ch = 2 * pad + parts.reduce((a, b) => a + b, 0) + (parts.length - 1) * M.gap;
+    const cx = (size[0] - cw) / 2, cy = bar + (size[1] - bar - ch) / 2;
+    fillRound(c, cx, cy, cw, ch, M.radius, SH.plate.color);
+    over(c, () => { c.strokeStyle = rgba([255, 255, 255], SH.panel.edgeAlpha); c.lineWidth = 1; c.beginPath(); c.roundRect(cx + 0.5, cy + 0.5, cw - 1, ch - 1, M.radius - 0.5); c.stroke(); });
+    const x = cx + pad; let y = cy + pad;
+    const col = m.tone === 'attention' ? hex('#FF9F19') : [255, 255, 255];
+    glyphAt(c, m.icon, x, y, M.icon, m.tone === 'attention' ? 1 : SH.header.closeAlpha, col, SH.plate.color);
+    const ts = full ? M.titleSize : M.compactTitleSize;
+    words(c, m.title, x + M.icon + M.iconGap, centred(y + M.icon / 2, ts), ts, 1, { w: 500 });
+    y += M.icon + M.gap;
+    y += paragraph(c, msg.str, x, y, iw, msg.px, SH.note.leading, msg.a) + M.gap;
+    if (det) y += paragraph(c, det.str, x, y, iw, det.px, SH.note.leading, det.a) + M.gap;
+    if (m.primary) y += button(c, { text: m.primary }, x, y, iw) + M.gap;
+    if (quiet.length) {
+      if (full) {
+        const qw = (iw - (quiet.length - 1) * SH.footnote.gap) / quiet.length;
+        quiet.forEach((q, i) => button(c, Object.assign({ kind: 'secondary' }, q), x + i * (qw + SH.footnote.gap), y, qw));
+      } else quiet.forEach((q, i) => button(c, Object.assign({ kind: 'secondary' }, q), x, y + i * (SH.button.secondaryHeight + M.gap), iw));
+    }
+  }
+
   /* ================================================================= boards */
   function drawDigits(c) {
     num(c, '0123456789', 60, 150, 150, INK, 1, 'left');
@@ -707,6 +964,8 @@
   function drawBoard(c, board, fixture) {
     if (board.kind === 'cluster') drawCluster(c, fixture);
     else if (board.kind === 'head') drawHead(c, board.mode, Object.assign({}, fixture, { page: board.page }));
+    else if (board.kind === 'sheet') drawSheet(c, board.mode, Object.assign({}, fixture, { page: board.page || 'sound' }));
+    else if (board.kind === 'modal') drawModal(c, board.mode, Object.assign({}, fixture, { page: board.page || 'sound' }));
     else drawDigits(c);
   }
 

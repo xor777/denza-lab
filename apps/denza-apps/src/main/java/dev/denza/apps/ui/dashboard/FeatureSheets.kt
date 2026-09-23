@@ -64,6 +64,7 @@ fun FeatureSheet(
     actions: DashboardActions,
     compact: Boolean,
     onDismiss: () -> Unit,
+    choosingAppsFirst: Boolean = false,
 ) {
     // Eleven tiles decided from scratch to read one of them, on every publication the runtime makes
     // while the panel stands open.
@@ -75,7 +76,8 @@ fun FeatureSheet(
     // The panel turns into a page when a row on it is pressed, rather than opening a second window
     // over itself. Projection is the only tile with a choice large enough to earn one; every other
     // panel here has switches and a segmented row, which fit in the panel and belong in it.
-    var choosingApps by remember { mutableStateOf(false) }
+    // [choosingAppsFirst] opens the panel on its page - the debug build's board of that page.
+    var choosingApps by remember { mutableStateOf(choosingAppsFirst) }
     // The car is asked when the page opens, not when the panel does. The list is every application
     // installed, icons and all, and reading it to draw the six the panel already knows about would
     // be paying for the whole catalog to answer a question the state has answered.
@@ -129,7 +131,7 @@ fun FeatureSheet(
             title = tile.name,
             subtitle = "",
             onDismiss = onDismiss,
-            icon = tileIcon(tile.icon),
+            glyph = tileGlyph(tile.icon),
         )
         // Whatever the feature has to say for itself, in the colour that state deserves. It is
         // said once, here, rather than by each sheet in its own words - and only when the state is

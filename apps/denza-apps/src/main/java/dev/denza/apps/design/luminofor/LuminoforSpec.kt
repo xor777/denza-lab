@@ -179,6 +179,177 @@ object LuminoforSpec {
         }
     }
 
+    /**
+     * A feature's settings: the panel a long press opens, the pages it turns into, the modal card
+     * (`spec.json` → `sheet`). The car's own BYD widget kit - the stock switch, list row, segmented
+     * tab, primary button and selection badge, read out of CarSettingPlatform's `byd_pvt_*` dark
+     * resources - in Luminofor's grounds: the panel is an idle plate's colour, a group a lit plate's.
+     */
+    object Sheet {
+        const val SCRIM: Float = 0.6f
+
+        object Panel {
+            const val WIDTH: Float = 480f
+            const val GROUND: Int = 0xFF17161B.toInt()
+            const val EDGE_ALPHA: Float = 0.08f
+            const val PAD_X: Float = 24f
+            const val PAD_TOP: Float = 20f
+            const val PAD_BOTTOM: Float = 24f
+            const val GAP: Float = 20f
+        }
+
+        /** The same panel filling a pane's window. */
+        object Compact {
+            const val PAD_X: Float = 16f
+            const val PAD_TOP: Float = 16f
+            const val PAD_BOTTOM: Float = 16f
+            const val GAP: Float = 16f
+        }
+
+        object Header {
+            const val HEIGHT: Float = 40f
+            const val GLYPH: Float = 26f
+            const val GLYPH_ALPHA: Float = 0.9f
+            const val GLYPH_GAP: Float = 14f
+            const val TITLE_SIZE: Float = 24f
+            const val CLOSE: Float = 24f
+            const val CLOSE_ALPHA: Float = 0.54f
+            const val SUBTITLE_SIZE: Float = 14f
+            const val SUBTITLE_ALPHA: Float = 0.54f
+        }
+
+        /** Roboto's ascent, descent and the offset that centres a line on a point, per unit of size. */
+        object Roboto {
+            const val ASCENT: Float = 0.928f
+            const val DESCENT: Float = 0.244f
+            const val CENTRE: Float = 0.342f
+        }
+
+        object Plate {
+            const val COLOR: Int = 0xFF2C2B33.toInt()
+            const val RADIUS: Float = 12f
+            const val HAIRLINE_ALPHA: Float = 0.08f
+            const val HAIRLINE_INSET: Float = 16f
+        }
+
+        /** A row: its height and its baselines, for one line, two, and a title over icons. */
+        object Row {
+            const val SINGLE_HEIGHT: Float = 64f
+            const val SINGLE_BASELINE: Float = 38f
+            const val TWO_HEIGHT: Float = 72f
+            const val TWO_TITLE: Float = 30f
+            const val TWO_SUMMARY: Float = 52f
+            const val ICONS_HEIGHT: Float = 80f
+            const val ICONS_TITLE: Float = 30f
+            const val ICONS_TOP: Float = 42f
+            const val ICONS_VALUE: Float = 59f
+            const val PAD_X: Float = 16f
+            const val TITLE_SIZE: Float = 18f
+            const val TITLE_ALPHA: Float = 0.9f
+            const val SUMMARY_SIZE: Float = 14f
+            const val SUMMARY_ALPHA: Float = 0.54f
+            const val CHEVRON: Float = 20f
+            const val CHOICE_ICON: Float = 24f
+            const val CHOICE_GAP: Float = 8f
+        }
+
+        object Label {
+            const val SIZE: Float = 15f
+            const val ALPHA: Float = 0.54f
+            const val GAP: Float = 10f
+        }
+
+        /** The stock switch: `byd_pvt_switch_*_dark`. */
+        object Switch {
+            const val WIDTH: Float = 48f
+            const val HEIGHT: Float = 28f
+            const val THUMB: Float = 22f
+            const val ON: Int = 0xFF3388FF.toInt()
+            const val OFF: Int = 0xFFDEE5F0.toInt()
+            const val OFF_ALPHA: Float = 0.2f
+            const val THUMB_COLOR: Int = 0xFFF8F9FA.toInt()
+            const val DISABLED_ALPHA: Float = 0.5f
+        }
+
+        /** The stock tab layout: a white pill at 0.8 on a track at 0.1, dark words on the pill. */
+        object Segmented {
+            const val HEIGHT: Float = 48f
+            const val RADIUS: Float = 10f
+            const val PAD: Float = 4f
+            const val TRACK_ALPHA: Float = 0.1f
+            const val PILL_ALPHA: Float = 0.8f
+            const val ON_TEXT_ALPHA: Float = 0.8f
+            const val OFF_TEXT_ALPHA: Float = 0.85f
+            const val SIZE: Float = 16f
+        }
+
+        object Apps {
+            const val TILE: Float = 96f
+            const val COLUMNS: Int = 4
+            const val NAVIGATION_COLUMNS: Int = 3
+            const val RADIUS: Float = 14f
+            const val ICON: Float = 44f
+            const val NAME_SIZE: Float = 14f
+            const val NAME_ALPHA: Float = 0.9f
+            const val GAP: Float = 12f
+            const val BADGE: Float = 20f
+            const val BADGE_COLOR: Int = 0xFF1677D9.toInt()
+            const val BADGE_INSET: Float = 6f
+        }
+
+        object Note {
+            const val SIZE: Float = 15f
+            const val ALPHA: Float = 0.54f
+            const val LEADING: Float = 1.466667f
+        }
+
+        object Status {
+            const val SIZE: Float = 15f
+            const val LEADING: Float = 1.466667f
+        }
+
+        /** The stock large primary button (`byd_pvt_container1_bg_dark`) and the quiet one beside it. */
+        object Button {
+            const val HEIGHT: Float = 56f
+            const val RADIUS: Float = 12f
+            const val PRIMARY: Int = 0xFF296DCC.toInt()
+            const val DISABLED_ALPHA: Float = 0.5f
+            const val SIZE: Float = 18f
+            const val SECONDARY_ALPHA: Float = 0.06f
+            const val SECONDARY_HEIGHT: Float = 48f
+            const val SECONDARY_SIZE: Float = 16f
+        }
+
+        object Footnote {
+            const val SIZE: Float = 14f
+            const val ALPHA: Float = 0.4f
+            const val GAP: Float = 12f
+        }
+
+        object Reading {
+            const val LABEL_SIZE: Float = 14f
+            const val LABEL_ALPHA: Float = 0.54f
+            const val VALUE_SIZE: Float = 18f
+            const val VALUE_ALPHA: Float = 0.9f
+            const val GAP: Float = 2f
+        }
+
+        object Modal {
+            const val WIDTH: Float = 560f
+            const val RADIUS: Float = 18f
+            const val PAD: Float = 28f
+            const val GAP: Float = 18f
+            const val ICON: Float = 32f
+            const val ICON_GAP: Float = 16f
+            const val TITLE_SIZE: Float = 24f
+
+            /** A pane's card is 384 dp wide: a title at 24 does not fit beside the glyph there. */
+            const val COMPACT_TITLE_SIZE: Float = 20f
+            const val TEXT_SIZE: Float = 16f
+            const val TEXT_ALPHA: Float = 0.7f
+        }
+    }
+
     object Head {
         /** A strip box in window dp: left, top, right, bottom. */
         class Box(val left: Float, val top: Float, val right: Float, val bottom: Float)

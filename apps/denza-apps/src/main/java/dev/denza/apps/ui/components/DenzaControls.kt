@@ -1,43 +1,26 @@
 package dev.denza.apps.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import dev.denza.apps.design.DenzaColors
-import dev.denza.apps.design.DenzaIcons
-import dev.denza.apps.design.DenzaMetrics
+import androidx.compose.ui.unit.dp
+import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
+import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
 /**
  * The controls a feature's settings are made of.
@@ -48,12 +31,18 @@ import dev.denza.apps.design.DenzaMetrics
  * size smaller, a disabled state one of them had and the others did not - and none of the drift was
  * a decision anybody made.
  *
- * They read colour and type from the theme rather than being handed either, so a change to
- * [dev.denza.apps.design.DenzaTheme] moves all of them at once. That is the only reason a component
- * layer is worth having.
+ * They read every number from [Sheet] - `spec.json` → `sheet`, the numbers the Luminofor board's
+ * `drawSheet()` draws with - so a change there moves the board and all of them at once. That is the
+ * only reason a component layer is worth having.
  */
 
-/** A setting that is on or off, with the reason it is what it is written underneath. */
+/**
+ * A setting that is on or off, on a plate of its own: the stock list row with the stock switch.
+ *
+ * The whole row toggles - a target that stops at the switch is a target that misses in a moving
+ * car - and the row is the board's: one line at [Sheet.Row.SINGLE_BASELINE], or a title and the
+ * reason it is what it is at [Sheet.Row.TWO_TITLE] and [Sheet.Row.TWO_SUMMARY].
+ */
 @Composable
 fun DenzaSwitchRow(
     title: String,
@@ -63,50 +52,71 @@ fun DenzaSwitchRow(
     subtitle: String? = null,
     enabled: Boolean = true,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = MaterialTheme.shapes.medium,
+    val p = Sheet.Plate
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(p.RADIUS.dp))
+            .background(Color(p.COLOR))
+            .clickable(enabled = enabled) { onCheckedChange(!checked) },
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = DenzaMetrics.Component.ROW_HEIGHT)
-                .padding(horizontal = DenzaMetrics.Space.L, vertical = DenzaMetrics.Space.M),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (enabled) DenzaColors.Ink else DenzaColors.Muted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = DenzaColors.Muted,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+        SheetRow(title = title, summary = subtitle, enabled = enabled) {
+            SheetSwitch(checked = checked, enabled = enabled)
         }
     }
 }
 
 /**
- * A choice of three or four, all visible at once, in one bordered strip.
- *
- * The board draws it as a single rounded rectangle cut into cells by hairlines, with the chosen
- * cell filled solid in the accent and its text in the ink that sits on the accent. What this
- * replaces was Material's own segmented row - pills floating inside a container, each with its own
- * gap - which at this size read as four separate buttons that happened to be adjacent, and spent
- * three different greys saying which one was chosen.
+ * One row of a plate - a title, the line under it, and whatever stands at its end - at the board's
+ * heights and baselines. Shared by the switch row and the choice row, so the two kinds of setting in
+ * one column are one kind of line.
+ */
+@Composable
+internal fun SheetRow(
+    title: String,
+    summary: String?,
+    enabled: Boolean,
+    icons: (@Composable () -> Unit)? = null,
+    end: @Composable () -> Unit,
+) {
+    val r = Sheet.Row
+    val dim = if (enabled) 1f else DISABLED
+    val two = !summary.isNullOrBlank()
+    val height = when {
+        icons != null -> r.ICONS_HEIGHT
+        two -> r.TWO_HEIGHT
+        else -> r.SINGLE_HEIGHT
+    }
+    Box(Modifier.fillMaxWidth().height(height.dp).padding(horizontal = r.PAD_X.dp)) {
+        val titleBaseline = when {
+            icons != null -> r.ICONS_TITLE
+            two -> r.TWO_TITLE
+            else -> r.SINGLE_BASELINE
+        }
+        Column(Modifier.fillMaxWidth().padding(end = (Sheet.Switch.WIDTH + r.PAD_X).dp)) {
+            BaselineText(
+                text = title,
+                style = SheetInk.style(r.TITLE_SIZE, 400, SheetInk.white(r.TITLE_ALPHA * dim)),
+                baseline = titleBaseline.dp,
+            )
+        }
+        if (icons != null) {
+            Box(Modifier.padding(top = r.ICONS_TOP.dp)) { icons() }
+        } else if (two) {
+            BaselineText(
+                text = summary.orEmpty(),
+                style = SheetInk.style(r.SUMMARY_SIZE, 400, SheetInk.white(r.SUMMARY_ALPHA * dim)),
+                baseline = r.TWO_SUMMARY.dp,
+                modifier = Modifier.padding(end = (Sheet.Switch.WIDTH + r.PAD_X).dp),
+            )
+        }
+        Box(Modifier.align(Alignment.CenterEnd)) { end() }
+    }
+}
+
+/**
+ * A choice of two to four, all visible at once: the stock tab layout - a track of white at 0.1, the
+ * chosen cell a white pill at 0.8 with its word dark on it.
  *
  * Selection is fill, never a thicker edge: an edge that grows on selection shifts its neighbours by
  * a pixel and the eye reads the shift rather than the choice.
@@ -119,41 +129,36 @@ fun DenzaSegmentedRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val shape = RoundedCornerShape(DenzaMetrics.Radius.M)
+    val g = Sheet.Segmented
+    val a = if (enabled) 1f else DISABLED
     Row(
         modifier = modifier
-            .height(DenzaMetrics.Component.SEGMENT_HEIGHT)
-            .clip(shape)
-            .border(BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.ink(0.18f)), shape),
+            .fillMaxWidth()
+            .height(g.HEIGHT.dp)
+            .clip(RoundedCornerShape(g.RADIUS.dp))
+            .background(SheetInk.white(g.TRACK_ALPHA))
+            .padding(g.PAD.dp),
     ) {
         labels.forEachIndexed { index, label ->
-            if (index > 0) {
-                Box(
-                    Modifier
-                        .fillMaxHeight()
-                        .width(DenzaMetrics.Stroke.HAIRLINE)
-                        .background(DenzaColors.ink(0.18f)),
-                )
-            }
             val selected = index == selectedIndex
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .background(if (selected) DenzaColors.Accent else Color.Transparent)
+                    .clip(RoundedCornerShape((g.RADIUS - g.PAD).dp))
+                    .background(if (selected) SheetInk.white(g.PILL_ALPHA * a) else Color.Transparent)
                     .clickable(enabled = enabled) { onSelect(index) },
-                contentAlignment = Alignment.Center,
             ) {
-                Text(
+                BaselineText(
                     text = label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                    color = when {
-                        selected -> DenzaColors.OnAccent
-                        enabled -> DenzaColors.MutedDeep
-                        else -> DenzaColors.ink(0.25f)
-                    },
-                    maxLines = 1,
+                    style = SheetInk.style(
+                        g.SIZE,
+                        if (selected) 500 else 400,
+                        if (selected) Color.Black.copy(alpha = g.ON_TEXT_ALPHA * a) else SheetInk.white(g.OFF_TEXT_ALPHA * a),
+                    ),
+                    baseline = centredBaseline(g.HEIGHT / 2f - g.PAD, g.SIZE),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
@@ -161,35 +166,21 @@ fun DenzaSegmentedRow(
 }
 
 /**
- * A sentence explaining what a choice above it will actually do.
- *
- * The only prose this screen allows itself. It is not an apology for a failure - the app never
- * writes one of those - it is the part of a setting that cannot be inferred from its name, which on
- * a car is usually the part that matters.
+ * What a feature is and how it behaves, in the driver's words: a paragraph in the stock list's
+ * summary grey, at the foot of the panel's settings.
  */
 @Composable
 fun DenzaNote(text: String, modifier: Modifier = Modifier) {
-    Row(
+    val n = Sheet.Note
+    ParagraphText(
+        text = text,
+        style = SheetInk.style(n.SIZE, 400, SheetInk.white(n.ALPHA), n.LEADING),
+        size = n.SIZE,
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-    ) {
-        Icon(
-            imageVector = DenzaIcons.Note,
-            contentDescription = null,
-            tint = DenzaColors.MutedDeep,
-            modifier = Modifier
-                .size(DenzaMetrics.Component.NOTE_ICON)
-                .padding(top = DenzaMetrics.Space.XS / 2),
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = DenzaColors.MutedDeep,
-        )
-    }
+    )
 }
 
-/** The one action a surface exists to offer. */
+/** The one action a surface exists to offer: the stock large primary button. */
 @Composable
 fun DenzaPrimaryButton(
     text: String,
@@ -197,90 +188,99 @@ fun DenzaPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.heightIn(min = DenzaMetrics.Component.SEGMENT_HEIGHT),
-        enabled = enabled,
-        shape = MaterialTheme.shapes.medium,
-        contentPadding = actionPadding,
-    ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+    val b = Sheet.Button
+    val a = if (enabled) 1f else b.DISABLED_ALPHA
+    SheetButton(text, onClick, modifier, enabled, b.HEIGHT, Color(b.PRIMARY).copy(alpha = a), b.SIZE, SheetInk.white(a))
 }
 
-/** An action beside the main one, weighted so it cannot be mistaken for it. */
+/**
+ * An action beside the main one, quiet enough not to be mistaken for it: white at 0.06.
+ *
+ * [attention] sets its word in the car's orange - the door to a recovery flow, the one action that
+ * answers something waiting on the driver.
+ */
 @Composable
 fun DenzaSecondaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    attention: Boolean = false,
 ) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.heightIn(min = DenzaMetrics.Component.SEGMENT_HEIGHT),
-        enabled = enabled,
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, MaterialTheme.colorScheme.outline),
-        contentPadding = actionPadding,
+    val b = Sheet.Button
+    val a = if (enabled) 1f else b.DISABLED_ALPHA
+    SheetButton(
+        text, onClick, modifier, enabled, b.SECONDARY_HEIGHT, SheetInk.white(b.SECONDARY_ALPHA), b.SECONDARY_SIZE,
+        if (attention) Color(ClusterInk.ORANGE.halo).copy(alpha = a) else SheetInk.white(SECONDARY_TEXT * a),
+    )
+}
+
+@Composable
+private fun SheetButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+    height: Float,
+    fill: Color,
+    size: Float,
+    ink: Color,
+) {
+    // As wide as the caller makes it - the panels' footers fill the panel, two buttons in a row
+    // share it - and never narrower than its word with a row's padding either side.
+    Box(
+        modifier = modifier
+            .height(height.dp)
+            .clip(RoundedCornerShape(Sheet.Button.RADIUS.dp))
+            .background(fill)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = Sheet.Row.PAD_X.dp),
     ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        BaselineText(
+            text = text,
+            style = SheetInk.style(size, 500, ink),
+            baseline = centredBaseline(height / 2f, size),
+            modifier = Modifier.align(Alignment.TopCenter),
         )
     }
 }
 
-/** A named reading, for diagnostics and anywhere else a fact needs its label beside it. */
+/**
+ * A named reading, for the service page and anywhere else a fact needs its label: the label in the
+ * summary grey over the value, as the board's `reading` block stacks them. [stacked] is kept for the
+ * callers that asked for it; a reading is always stacked now.
+ */
 @Composable
 fun DenzaKeyValueRow(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
-    stacked: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") stacked: Boolean = true,
 ) {
-    if (stacked) {
-        Column(modifier.fillMaxWidth()) {
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = DenzaColors.Muted)
-            Text(value, style = MaterialTheme.typography.bodyLarge, color = DenzaColors.Ink)
-        }
-    } else {
-        Row(
-            modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                color = DenzaColors.Muted,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyLarge,
-                color = DenzaColors.Ink,
-                modifier = Modifier.weight(1f),
-            )
-        }
+    val r = Sheet.Reading
+    val ro = Sheet.Roboto
+    Column(modifier.fillMaxWidth()) {
+        BaselineText(
+            text = label,
+            style = SheetInk.style(r.LABEL_SIZE, 400, SheetInk.white(r.LABEL_ALPHA)),
+            baseline = (r.LABEL_SIZE * ro.ASCENT).dp,
+        )
+        BaselineText(
+            text = value,
+            style = SheetInk.style(r.VALUE_SIZE, 400, SheetInk.white(r.VALUE_ALPHA)),
+            baseline = (r.GAP + r.VALUE_SIZE * ro.ASCENT).dp,
+            maxLines = 3,
+        )
     }
 }
 
 /**
- * What a feature is doing, in its own words, in the colour that state deserves.
+ * What a feature is doing, in its own words, in the colour that state deserves: the car's orange
+ * when it waits on the driver, its red when it is broken - whole, as the tile's status is - and the
+ * summary grey otherwise.
  *
- * Two lines, always. This is the one place on a panel that speaks in whatever words a failure
- * arrived with, and some of those words come from the car - a provider that answers with three
- * hundred characters of its own diagnosis put five lines through the middle of a panel and pushed
- * the grid, the choice and the button under it wherever they fitted. Nothing below a line that can
- * reflow by four lines has a settled place to be, so the ceiling belongs to the component rather
- * than to whoever remembers to pass it.
+ * Two lines, always: some of these words come from the car, and a line that can reflow by four
+ * lines leaves nothing under it a settled place to be.
  */
 @Composable
 fun DenzaStatusLine(
@@ -290,24 +290,29 @@ fun DenzaStatusLine(
     maxLines: Int = STATUS_LINES,
 ) {
     if (text.isBlank()) return
-    Text(
+    val st = Sheet.Status
+    ParagraphText(
         text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = when (tone) {
-            DenzaTileTone.ATTENTION -> DenzaColors.Warning
-            DenzaTileTone.BROKEN -> DenzaColors.Danger
-            else -> DenzaColors.Muted
-        },
+        size = st.SIZE,
+        style = SheetInk.style(
+            st.SIZE,
+            400,
+            when (tone) {
+                DenzaTileTone.ATTENTION -> Color(ClusterInk.ORANGE.halo)
+                DenzaTileTone.BROKEN -> Color(ClusterInk.RED.halo)
+                else -> SheetInk.white(Sheet.Note.ALPHA)
+            },
+            st.LEADING,
+        ),
         maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(),
     )
 }
 
 private const val STATUS_LINES = 2
 
-/** Material's own 24 was the one gap these buttons spent off the spacing ladder. */
-private val actionPadding = PaddingValues(
-    horizontal = DenzaMetrics.Space.L,
-    vertical = DenzaMetrics.Space.S,
-)
+/** A control nothing can be done to, at half its light - the stock kit's disabled rows. */
+internal const val DISABLED = 0.5f
+
+/** The quiet button's word, at the stock list title's 0.9. */
+private const val SECONDARY_TEXT = 0.9f

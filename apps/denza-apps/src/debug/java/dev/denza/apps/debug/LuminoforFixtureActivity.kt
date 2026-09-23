@@ -22,6 +22,7 @@ import dev.denza.apps.feature.cluster.dashboard.ContourFixtures
 import dev.denza.apps.feature.cluster.dashboard.ContourFrame
 import dev.denza.apps.feature.trip.StripFixtures
 import dev.denza.apps.ui.DashboardFixtureFrame
+import dev.denza.apps.ui.SheetFixtures
 import dev.denza.apps.ui.SpectrumPanel
 
 /**
@@ -70,9 +71,18 @@ class LuminoforFixtureActivity : ComponentActivity() {
         val model = StripFixtures.model(fixture)
         setContent {
             Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) {
-                DashboardFixtureFrame(board, fixture, strip = { modifier ->
-                    SpectrumPanel(layout, modifier, fixture = model, fixturePage = page)
-                })
+                DashboardFixtureFrame(
+                    board,
+                    fixture,
+                    strip = { modifier -> SpectrumPanel(layout, modifier, fixture = model, fixturePage = page) },
+                    overlay = {
+                        val compact = board.getString("mode") != "full"
+                        when (board.getString("kind")) {
+                            "sheet" -> SheetFixtures.Sheet(fixture, compact)
+                            "modal" -> SheetFixtures.Modal(fixture, compact)
+                        }
+                    },
+                )
             }
         }
     }

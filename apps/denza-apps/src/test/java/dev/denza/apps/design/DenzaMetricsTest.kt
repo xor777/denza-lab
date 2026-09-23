@@ -1,5 +1,6 @@
 package dev.denza.apps.design
 
+import dev.denza.apps.design.luminofor.LuminoforSpec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -77,7 +78,7 @@ class DenzaMetricsTest {
      */
     @Test
     fun noPickerRowIsTighterThanTheOneThatListsEverything() {
-        assertEquals(95.0f, pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS), 0.05f)
+        assertEquals(99.0f, pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS), 0.05f)
         val columns = DenzaMetrics.Component.NAVIGATION_PICKER_COLUMNS
         assertTrue(
             "$columns columns leave ${pickerTileWidth(columns)} dp a tile, under the " +
@@ -91,8 +92,9 @@ class DenzaMetricsTest {
     fun aRowIsBigEnoughForAFinger() {
         // 48 dp is the platform's own floor for a touch target; a car is worse than a desk, not
         // better, so nothing here goes under it.
-        assertTrue(DenzaMetrics.Component.ROW_HEIGHT.value >= 48f)
-        assertTrue(DenzaMetrics.Component.SEGMENT_HEIGHT.value >= 42f)
+        assertTrue(LuminoforSpec.Sheet.Row.SINGLE_HEIGHT >= 48f)
+        assertTrue(LuminoforSpec.Sheet.Segmented.HEIGHT >= 48f)
+        assertTrue(LuminoforSpec.Sheet.Button.SECONDARY_HEIGHT >= 48f)
     }
 
     private fun assertLadder(rungs: List<Float>) {
@@ -109,9 +111,9 @@ class DenzaMetricsTest {
 
     /** What one tile of a [columns]-wide picker row gets, on the sheet every picker uses. */
     private fun pickerTileWidth(columns: Int): Float {
-        val content = DenzaMetrics.Component.SHEET_WIDTH.value -
-            DenzaMetrics.Space.XL.value * 2
-        return (content - DenzaMetrics.Space.M.value * (columns - 1)) / columns
+        val panel = LuminoforSpec.Sheet.Panel
+        val content = panel.WIDTH - panel.PAD_X * 2
+        return (content - LuminoforSpec.Sheet.Apps.GAP * (columns - 1)) / columns
     }
 
     private companion object {

@@ -9,27 +9,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
-import dev.denza.apps.design.DenzaColors
-import dev.denza.apps.design.DenzaIcons
-import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
 /** One application on a row's value line: enough to draw it, and the key it is cached under. */
 data class DenzaChoiceIcon(val key: Any, val label: String, val drawable: Drawable?)
@@ -39,17 +36,11 @@ data class DenzaChoiceIcon(val key: Any, val label: String, val drawable: Drawab
  *
  * This is what a panel shows instead of the choice itself. A grid of every application the car has
  * belongs on a page of its own - see [DenzaAppChooser] - and what belongs in a panel beside a
- * switch and a paragraph is the answer: the three or four icons that are chosen, or a short line
- * saying nothing is.
+ * switch and a paragraph is the answer: the icons that are chosen, then a short line, or the line
+ * alone when nothing is.
  *
- * The value line is icons first and words second, deliberately. "Яндекс Навигатор" as text is
- * fifteen characters of a row that also has to hold a title and a chevron, and four applications
- * written out is a line nobody reads; four icons are recognised without being read, which is the
- * one thing an application's icon is genuinely good for.
- *
- * The row draws no surface of its own. Three of them under one switch are one group and one
- * silhouette, and that is [DenzaChoiceGroup]'s job; a row that carried its own background could
- * only ever be three separate cards pretending to be a list.
+ * The row draws no surface of its own: rows under one switch are one group and one silhouette, and
+ * that is [DenzaChoiceGroup]'s job.
  */
 @Composable
 fun DenzaChoiceRow(
@@ -60,66 +51,37 @@ fun DenzaChoiceRow(
     icons: List<DenzaChoiceIcon> = emptyList(),
     enabled: Boolean = true,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = DenzaMetrics.Component.ROW_HEIGHT)
-            // The whole row answers, padding included: a target that stops at the text is a target
-            // that misses in a moving car.
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = DenzaMetrics.Space.L, vertical = DenzaMetrics.Space.M),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-    ) {
-        // The board's 4 between the title and the value line. [DenzaSwitchRow] stacks its two lines
-        // with nothing between them and gets away with it because both are text and each carries
-        // its own leading; here the second line is a row of 24 dp icons, which have none, and on
-        // the car they sat against the title's descenders - the owner's word was "слиплись".
-        Column(
-            Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XS),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (enabled) DenzaColors.Ink else DenzaColors.Muted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (icons.isNotEmpty() || value.isNotBlank()) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    icons.forEach { icon -> ChoiceIcon(icon) }
-                    if (value.isNotBlank()) {
-                        Text(
-                            text = value,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = DenzaColors.Muted,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
+    val r = Sheet.Row
+    val dim = if (enabled) 1f else DISABLED
+    Box(modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick)) {
+        SheetRow(
+            title = title,
+            summary = if (icons.isEmpty()) value else null,
+            enabled = enabled,
+            icons = if (icons.isEmpty()) null else {
+                {
+                    Row(horizontalArrangement = Arrangement.spacedBy(r.CHOICE_GAP.dp)) {
+                        icons.forEach { icon -> ChoiceIcon(icon) }
+                        if (value.isNotBlank()) {
+                            BaselineText(
+                                text = value,
+                                style = SheetInk.style(r.SUMMARY_SIZE, 400, SheetInk.white(r.SUMMARY_ALPHA * dim)),
+                                baseline = (r.ICONS_VALUE - r.ICONS_TOP).dp,
+                                modifier = Modifier.padding(end = (r.CHEVRON + r.PAD_X).dp),
+                            )
+                        }
                     }
                 }
-            }
+            },
+        ) {
+            LineGlyph(SheetGlyphs.FORWARD, r.CHEVRON.dp, Sheet.Header.CLOSE_ALPHA)
         }
-        Icon(
-            imageVector = DenzaIcons.Forward,
-            contentDescription = null,
-            tint = DenzaColors.Muted,
-            modifier = Modifier.size(CLOSE_ICON),
-        )
     }
 }
 
 /**
- * One raised surface with hairlines between its rows.
- *
- * The rows are a list rather than a stack of cards, and a list is one surface. It is the same
- * surface [DenzaSwitchRow] draws itself on, so a switch above a group of rows reads as one column
- * of settings and not as two kinds of control that happen to be adjacent.
+ * One plate with hairlines between its rows: a list is one surface, and it is the surface a switch
+ * row stands on, so a switch above a group of choices reads as one column of settings.
  */
 @Composable
 fun <T> DenzaChoiceGroup(
@@ -127,58 +89,79 @@ fun <T> DenzaChoiceGroup(
     modifier: Modifier = Modifier,
     row: @Composable (T) -> Unit,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = MaterialTheme.shapes.medium,
+    val p = Sheet.Plate
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(p.RADIUS.dp))
+            .background(Color(p.COLOR)),
     ) {
-        Column(Modifier.fillMaxWidth()) {
-            items.forEachIndexed { index, entry ->
-                if (index > 0) {
-                    HorizontalDivider(
-                        thickness = DenzaMetrics.Stroke.HAIRLINE,
-                        color = DenzaColors.ink(0.12f),
-                    )
-                }
-                row(entry)
-            }
+        items.forEachIndexed { index, entry ->
+            // The hairline is drawn over the row's top rather than above it, as the board draws it,
+            // so every row keeps its full height and the plate is the sum of its rows.
+            Box(
+                Modifier.drawWithContent {
+                    drawContent()
+                    if (index > 0) {
+                        val inset = p.HAIRLINE_INSET.dp.toPx()
+                        drawRect(
+                            SheetInk.white(p.HAIRLINE_ALPHA),
+                            topLeft = Offset(inset, 0f),
+                            size = Size(size.width - 2 * inset, 1.dp.toPx()),
+                        )
+                    }
+                },
+            ) { row(entry) }
         }
     }
 }
 
-/** An application on a value line: its own icon, or the initial the board draws in its place. */
+/** An application on a value line: its own icon, or its initial on a square of white at 0.1. */
 @Composable
 private fun ChoiceIcon(icon: DenzaChoiceIcon) {
     // Keyed by the package alone, for the reason [DenzaAppTile] gives: a Drawable is a fresh
-    // instance on every read of the package manager, and keying on it re-rasterised every icon
-    // whenever the state behind the row was republished.
+    // instance on every read of the package manager.
     val bitmap = remember(icon.key) {
         icon.drawable?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap()
     }
+    val size = Sheet.Row.CHOICE_ICON
     if (bitmap != null) {
         Image(
             painter = BitmapPainter(bitmap),
             contentDescription = icon.label,
-            modifier = Modifier.size(DenzaMetrics.Component.CHOICE_ICON),
+            modifier = Modifier.size(size.dp),
             contentScale = ContentScale.Fit,
         )
     } else {
-        // A step *down* from the row, not up: the row already sits on the raised surface, so the
-        // tile's own raised well would vanish into it and leave a bare letter floating on the line.
-        Box(
-            modifier = Modifier
-                .size(DenzaMetrics.Component.CHOICE_ICON)
-                .background(DenzaColors.Surface, RoundedCornerShape(DenzaMetrics.Radius.S)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = icon.label.take(1).uppercase(),
-                style = MaterialTheme.typography.labelMedium,
-                color = DenzaColors.InkSecondary,
-            )
-        }
+        LetterIcon(icon.label, size)
+    }
+}
+
+/**
+ * The initial the board draws where an application has no icon: a square of white at 0.1 rounded at
+ * 0.27 of its side, the letter at 0.45 of it, centred.
+ */
+@Composable
+internal fun LetterIcon(label: String, size: Float, alpha: Float = 1f) {
+    Box(
+        Modifier
+            .size(size.dp)
+            .clip(RoundedCornerShape((size * LETTER_RADIUS).dp))
+            .background(SheetInk.white(LETTER_GROUND * alpha)),
+    ) {
+        val letter = size * LETTER_SIZE
+        BaselineText(
+            text = label.take(1).uppercase(),
+            style = SheetInk.style(letter, 500, SheetInk.white(LETTER_INK * alpha)),
+            baseline = centredBaseline(size / 2f, letter),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
 private const val ICON_PX = 128
-private val CLOSE_ICON = DenzaMetrics.Component.SHEET_CLOSE_ICON
+private const val LETTER_RADIUS = 0.27f
+private const val LETTER_SIZE = 0.45f
+private const val LETTER_GROUND = 0.1f
+private const val LETTER_INK = 0.9f

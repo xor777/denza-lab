@@ -96,7 +96,7 @@ internal fun DefaultAppsSheet(
             title = "Приложения по умолчанию",
             subtitle = "",
             onDismiss = onDismiss,
-            icon = DenzaIcons.Applications,
+            glyph = DenzaIcons.ApplicationsGlyph,
         )
 
         // The same switch the tile is, where a driver can see it. The tile carries the gesture

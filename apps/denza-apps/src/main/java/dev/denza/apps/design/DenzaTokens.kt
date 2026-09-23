@@ -1,36 +1,33 @@
 package dev.denza.apps.design
 
 /**
- * The one palette this app draws with, taken from the vehicle rather than invented.
+ * The one palette the app's Material surfaces draw with, taken from the vehicle rather than invented.
  *
- * Every value below was read out of `com.android.systemui.apk` pulled from this car - the build
- * whose SHA-256 `docs/instrument-display-findings.md` records - using the resource names given in
- * each comment. BYD ships several skins in one SystemUI; these are the `_denza` variants, whose
- * distinguishing move is that the accent is pale champagne where the base BYD skin uses cyan.
+ * Since the Luminofor design (2026-09-23) these are the car's own colours in Luminofor's grounds:
+ * the ground is the dashboard's black, a surface is an idle plate (`#17161B`) or a lit one
+ * (`#2C2B33`), and the accent is the stock switch's blue (`byd_pvt_switch_track_on_color_dark`,
+ * `#3388FF`). The `_denza` SystemUI skin's pale champagne was the accent before; the owner found it
+ * nowhere else in the car, and it went with the old dashboard. The settings surfaces themselves draw
+ * from `LuminoforSpec.Sheet`; what is left here is what Material widgets - a spinner, the split
+ * picker's surface - read through the theme.
  *
- * Which skin the car actually renders is not yet established: `ro.byd.ui.platformized` is captured
- * but no theme property is. If it turns out to be the base skin, [ACCENT] becomes `#FF00ACEB` and
- * nothing else here moves.
- *
- * Roles are separated the way the firmware itself separates them, and the separation is the point:
- * champagne marks *interface* only, because warm yellow already means caution in a car and an
- * accent that competes with [WARNING] costs a driver the glance. Instrument data is drawn in
- * [INK]; energy going back into the pack - regeneration and engine generation alike, which are the
- * same event - is drawn in [RETURN].
+ * Roles stay separated the way the firmware separates them: blue is *on* and *chosen*, instrument
+ * data is drawn in [INK], energy going back into the pack in [RETURN], and [WARNING] and [DANGER] are
+ * the car's two alarm colours and nothing else.
  */
 object DenzaPalette {
 
-    /** `sys_gray_900`. The deepest ground the platform defines. */
-    const val BACKGROUND: Int = 0xFF07080A.toInt()
+    /** Luminofor's ground: the dashboard's black. */
+    const val BACKGROUND: Int = 0xFF000000.toInt()
 
-    /** `sys_gray_800`. A surface that is off, disabled, or asleep. */
-    const val SURFACE_QUIET: Int = 0xFF15181F.toInt()
+    /** An idle plate, `head.cardOff`: a settings panel's ground. */
+    const val SURFACE_QUIET: Int = 0xFF17161B.toInt()
 
-    /** `qs_panel_start_color_bg_denza`. The live surface; the gradient's two stops are identical. */
-    const val SURFACE: Int = 0xFF212429.toInt()
+    /** A lit plate, `head.cardOn`: a group of settings, a dialog. */
+    const val SURFACE: Int = 0xFF2C2B33.toInt()
 
-    /** `scene_mode_button_bg_normal_denza`. */
-    const val SURFACE_RAISED: Int = 0xFF323538.toInt()
+    /** A step above a lit plate. */
+    const val SURFACE_RAISED: Int = 0xFF3A3942.toInt()
 
     /** `qs_adjust_icon_tint_color_denza`. */
     const val SURFACE_HIGH: Int = 0xFF484E55.toInt()
@@ -53,14 +50,14 @@ object DenzaPalette {
      */
     const val MUTED_DEEP: Int = 0xFF7C858F.toInt()
 
-    /** `qs_icon_on_denza`. Reads on top of [ACCENT]. */
-    const val ON_ACCENT: Int = 0xFF262D33.toInt()
+    /** Words on the accent: the stock primary button's white. */
+    const val ON_ACCENT: Int = 0xFFFFFFFF.toInt()
 
-    /** `vc_denza_progress_blue`, despite the name. Interface accent only - never instrument data. */
-    const val ACCENT: Int = 0xFFFEEFAB.toInt()
+    /** `byd_pvt_switch_track_on_color_dark`: *on* and *chosen*. Interface only - never instrument data. */
+    const val ACCENT: Int = 0xFF3388FF.toInt()
 
-    /** The live end of a data run: ink lifted towards the accent, so the newest value reads first. */
-    const val DATA_PEAK: Int = 0xFFFFF8DA.toInt()
+    /** The accent's pale end: the head unit's blue core, `#80BEFF`. */
+    const val DATA_PEAK: Int = 0xFF80BEFF.toInt()
 
     /** `sys_color_function` in the dark theme. Energy going back into the pack. */
     const val RETURN: Int = 0xFF2D82D7.toInt()

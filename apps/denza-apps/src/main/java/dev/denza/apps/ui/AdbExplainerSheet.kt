@@ -1,10 +1,10 @@
 package dev.denza.apps.ui
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import dev.denza.apps.design.DenzaColors
+import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
+import dev.denza.apps.ui.components.SheetInk
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.feature.adb.AdbExplainer
 import dev.denza.apps.feature.adb.ServiceEntryTaps
@@ -37,7 +37,7 @@ internal fun AdbExplainerSheet(
             title = AdbExplainer.TITLE,
             subtitle = "",
             onDismiss = onDismiss,
-            icon = DenzaIcons.Service,
+            glyph = DenzaIcons.ServiceGlyph,
             onTitleTap = {
                 if (taps.tap(System.currentTimeMillis())) {
                     onDismiss()
@@ -64,7 +64,6 @@ internal fun AdbExplainerSheet(
 private fun Paragraph(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge,
-        color = DenzaColors.Ink,
+        style = SheetInk.style(Sheet.Modal.TEXT_SIZE, 400, SheetInk.white(Sheet.Row.TITLE_ALPHA), Sheet.Note.LEADING),
     )
 }

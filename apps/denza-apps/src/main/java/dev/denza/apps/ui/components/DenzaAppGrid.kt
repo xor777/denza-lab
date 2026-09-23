@@ -8,7 +8,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
 /**
  * The grid of applications, wherever the driver is asked to point at one.
@@ -42,7 +44,7 @@ fun <T> DenzaAppGrid(
         // On a narrow pane the column count is whatever fits, because three fixed columns
         // in a 416 dp pane is three unreadable ones.
         columns = if (compact) {
-            GridCells.Adaptive(DenzaMetrics.Component.APP_TILE)
+            GridCells.Adaptive(Sheet.Apps.TILE.dp)
         } else {
             GridCells.Fixed(columns)
         },
@@ -55,8 +57,8 @@ fun <T> DenzaAppGrid(
         // The board's gap - `AppChooser.dc.html` and `Simulcast.dc.html` draw this grid at a
         // neighbour's rung; the whole-sheet pickers had been a rung tighter with nothing but code
         // behind the choice.
-        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-        verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
+        horizontalArrangement = Arrangement.spacedBy(Sheet.Apps.GAP.dp),
+        verticalArrangement = Arrangement.spacedBy(Sheet.Apps.GAP.dp),
     ) {
         items(items, key = key) { entry -> item(entry) }
     }

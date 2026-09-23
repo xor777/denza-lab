@@ -1,56 +1,58 @@
 package dev.denza.apps.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import dev.denza.apps.design.DenzaColors
-import dev.denza.apps.design.DenzaIcons
-import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.DenzaGlyph
+import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
 /**
  * The surface a feature's settings arrive on, and the header that names them.
  *
- * There were six dialog surfaces in the screen this replaces, at six different widths - 0.56, 0.68,
- * 0.72 and 0.92 of the screen, twice each - and three ways of drawing their headers, one of which
- * was shared and two of which were copies made because the shared one did not quite fit. A width
- * chosen per dialog is not a design; it is six people's guesses stacked up, and it shows as the
- * dialogs move about under the finger as you go between features.
+ * The Luminofor board's `drawSheet()` (`tools/design-canvas/luminofor/`): a panel [Sheet.Panel.WIDTH]
+ * dp wide hung off the right edge for the full height, over a black scrim at [Sheet.SCRIM], its
+ * ground an idle plate's colour with a hairline down its left edge - or, in a pane, the whole window
+ * below the caption bar. A panel at the edge leaves the dashboard beside it, so the thing being
+ * configured stays in sight while it is configured.
  *
- * This is the board's panel: 480 dp hung off the right edge for the full height, over a scrim, with
- * a lit left border and a shadow thrown back across the dashboard. The first attempt at unifying
- * them settled on one centred dialog, which is tidier than six but still covers the tile it belongs
- * to. A panel at the edge leaves the dashboard beside it, so the thing being configured stays in
- * sight while it is configured - and on a screen 1280 dp wide there is room for both.
+ * The settings scroll and the footer does not: whatever a panel holds, its one action is in the
+ * same place under the same thumb. [scrolls] is off for a page whose body is one long list, which
+ * scrolls itself - a list inside a scrolling column drags the page under it.
+ *
+ * Under [LocalStillFrame] - the debug build's fixture mode - the panel is drawn in place rather than
+ * in a dialog window of its own, so a screenshot of it is the dashboard with the panel over it, as
+ * the board draws them.
  */
 @Composable
 fun DenzaSheet(
@@ -62,99 +64,95 @@ fun DenzaSheet(
     footer: @Composable () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnClickOutside = dismissOnOutsideTouch,
-        ),
-    ) {
-        Box(modifier = modifier.fillMaxSize()) {
-            // The scrim is its own surface rather than the dialog's own dimming, so the panel can
-            // sit hard against the edge with nothing between it and the glass.
-            val taps = remember { MutableInteractionSource() }
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(DenzaColors.Scrim)
-                    .clickable(
-                        interactionSource = taps,
-                        indication = null,
-                        enabled = dismissOnOutsideTouch,
-                        onClick = onDismiss,
-                    ),
-            )
-            Column(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-                    .then(
-                        if (compact) Modifier.fillMaxWidth()
-                        else Modifier.width(DenzaMetrics.Component.SHEET_WIDTH),
-                    )
-                    .background(DenzaColors.SurfaceQuiet)
-                    // The ground is drawn under the caption bar and the header is not. A panel in a
-                    // pane window has BYD's freeform drag handle across its top 24 dp, and a header
-                    // laid out from the window's own edge puts the panel's name - and the only way
-                    // out of it - underneath that handle. The scrim above keeps filling the window,
-                    // so the panel still reaches the glass.
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    // A rung lower down the sides than across them: the window is 680 dp tall and
-                    // a panel with a header, its settings, an action and a footnote does not fit
-                    // 32 top and bottom. Measured on the board, which overflowed by 7 dp.
-                    .padding(
-                        horizontal = DenzaMetrics.Space.XL,
-                        vertical = DenzaMetrics.Space.L,
-                    ),
-                verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XL),
-            ) {
-                // The settings scroll and the action does not: whatever a panel holds, its one
-                // action is in the same place under the same thumb.
-                //
-                // The settings take every pixel above the action. They used to be `weight(1f,
-                // fill = false)` with a `Spacer(weight(1f))` under them, which reads like "as tall
-                // as they need, then push the action down" and measures as something else
-                // entirely: two children of weight 1 split the space in half, so the settings were
-                // capped at half the panel whatever their size. On the car that silently hid the
-                // mirrors' processing switch and its "check the cameras" button below a scroll
-                // nobody could see the need for, and left the projection panel a void.
-                //
-                // [scrolls] is off for a page whose body is one long list. A list has its own
-                // scroll, and a panel that scrolls too puts one inside the other: the list moves
-                // until it runs out and then drags the page under it, and the two offsets survive
-                // the content being swapped - which is how switching a role opened the next list
-                // four rows in. With the column not scrolling, a child may take `weight(1f)` and
-                // be the single thing that scrolls.
-                Column(
-                    modifier = Modifier.weight(1f)
-                        .then(
-                            if (scrolls) Modifier.verticalScroll(rememberScrollState())
-                            else Modifier,
-                        ),
-                    verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XL),
-                    content = content,
+    val body: @Composable () -> Unit = {
+        SheetPanel(onDismiss, compact, modifier, dismissOnOutsideTouch, scrolls, footer, content)
+    }
+    if (LocalStillFrame.current) {
+        body()
+    } else {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnClickOutside = dismissOnOutsideTouch,
+            ),
+            content = body,
+        )
+    }
+}
+
+@Composable
+private fun SheetPanel(
+    onDismiss: () -> Unit,
+    compact: Boolean,
+    modifier: Modifier,
+    dismissOnOutsideTouch: Boolean,
+    scrolls: Boolean,
+    footer: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val p = Sheet.Panel
+    val k = Sheet.Compact
+    val padX = if (compact) k.PAD_X else p.PAD_X
+    val padTop = if (compact) k.PAD_TOP else p.PAD_TOP
+    val padBottom = if (compact) k.PAD_BOTTOM else p.PAD_BOTTOM
+    val gap = if (compact) k.GAP else p.GAP
+    Box(modifier = modifier.fillMaxSize()) {
+        // The scrim is its own surface rather than the dialog's own dimming, so the panel can sit
+        // hard against the edge with nothing between it and the glass.
+        val taps = remember { MutableInteractionSource() }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = Sheet.SCRIM))
+                .clickable(
+                    interactionSource = taps,
+                    indication = null,
+                    enabled = dismissOnOutsideTouch,
+                    onClick = onDismiss,
+                ),
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .then(if (compact) Modifier.fillMaxWidth() else Modifier.width(p.WIDTH.dp))
+                // The ground starts under a pane's caption bar, not behind it: BYD's freeform
+                // windowing keeps its drag handle across the window's top 24 dp.
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .background(Color(p.GROUND))
+                .then(
+                    if (compact) Modifier
+                    else Modifier.drawBehind {
+                        drawRect(SheetInk.white(p.EDGE_ALPHA), size = size.copy(width = 1.dp.toPx()))
+                    },
                 )
-                footer()
-            }
+                // A tap on the panel's own ground is the panel's, not the scrim's.
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                .padding(start = padX.dp, end = padX.dp, top = padTop.dp, bottom = padBottom.dp),
+            verticalArrangement = Arrangement.spacedBy(gap.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+                    .then(if (scrolls) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                verticalArrangement = Arrangement.spacedBy(gap.dp),
+                content = content,
+            )
+            footer()
         }
     }
 }
 
 /**
- * A panel's name, what it is for, and the one way out of it.
+ * A panel's name, and the one way out of it: the board's header row.
  *
- * The icon repeats the tile the panel came from. On a screen where the panel covers a third of the
- * dashboard, that is the only thing saying which tile was pressed - and the tile it came from may
- * well be the one now underneath it.
+ * [glyph] repeats the tile the panel came from, white and centred on its own ink - it names the
+ * panel and says nothing about the feature's state, which is the status line's job. [onBack] turns
+ * the same header into a page's: the leading slot becomes the way back to the panel this page was
+ * opened from. [subtitle], on a page, says what the choice is capped at and where it stands.
  *
  * [onTitleTap] exists for one caller and is null everywhere else: a panel's title answers no touch
- * unless the panel says otherwise. It is deliberately on the title alone and not on the header, so
- * the subtitle and the way out keep answering only what they answer.
- *
- * [onBack] turns the same header into a page's: the leading slot stops repeating the tile and
- * becomes the way back to the panel this page was opened from. It wins over [icon] rather than
- * sitting beside it - a page reached from a row inside a panel has no tile of its own to repeat,
- * and two glyphs before one title is a toolbar.
+ * unless the panel says otherwise.
  */
 @Composable
 fun DenzaSheetHeader(
@@ -162,75 +160,68 @@ fun DenzaSheetHeader(
     subtitle: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    icon: ImageVector? = null,
+    glyph: DenzaGlyph? = null,
     onTitleTap: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-        verticalAlignment = Alignment.Top,
-    ) {
-        if (onBack != null) {
-            val backTaps = remember { MutableInteractionSource() }
-            Icon(
-                imageVector = DenzaIcons.Back,
-                contentDescription = "Назад",
-                tint = DenzaColors.Muted,
-                modifier = Modifier
-                    .size(CLOSE_ICON)
-                    .clickable(interactionSource = backTaps, indication = null, onClick = onBack),
-            )
-        } else if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = DenzaColors.Accent,
-                modifier = Modifier.size(HEADER_ICON),
-            )
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XS),
+    val h = Sheet.Header
+    Column(modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(h.HEIGHT.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            val titleTaps = remember { MutableInteractionSource() }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                color = DenzaColors.Ink,
-                modifier = if (onTitleTap == null) {
-                    Modifier
-                } else {
-                    // The whole line, not the glyphs. A title set at 24 sp is under 30 dp tall,
-                    // which is already below the touch floor this app holds itself to; taking the
-                    // width the column has anyway costs nothing and draws nothing, since the text
-                    // stays where it was.
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = titleTaps,
-                            indication = null,
-                            onClick = onTitleTap,
-                        )
-                },
-            )
-            if (subtitle.isNotBlank()) {
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = DenzaColors.Muted)
+            if (onBack != null) {
+                val backTaps = remember { MutableInteractionSource() }
+                LineGlyph(
+                    paths = SheetGlyphs.BACK,
+                    size = h.CLOSE.dp,
+                    alpha = h.CLOSE_ALPHA,
+                    modifier = Modifier.clickable(interactionSource = backTaps, indication = null, onClick = onBack),
+                )
+                Spacer(Modifier.width(h.GLYPH_GAP.dp))
+            } else if (glyph != null) {
+                NamedGlyph(glyph, h.GLYPH.dp, h.GLYPH_ALPHA, Color(Sheet.Panel.GROUND))
+                Spacer(Modifier.width(h.GLYPH_GAP.dp))
             }
+            val titleTaps = remember { MutableInteractionSource() }
+            Box(
+                modifier = Modifier.weight(1f).fillMaxHeight()
+                    .then(
+                        if (onTitleTap == null) Modifier
+                        else Modifier.clickable(interactionSource = titleTaps, indication = null, onClick = onTitleTap),
+                    ),
+            ) {
+                BaselineText(
+                    text = title,
+                    style = SheetInk.style(h.TITLE_SIZE, 500),
+                    baseline = centredBaseline(h.HEIGHT / 2f, h.TITLE_SIZE),
+                )
+            }
+            val taps = remember { MutableInteractionSource() }
+            LineGlyph(
+                paths = SheetGlyphs.CLOSE,
+                size = h.CLOSE.dp,
+                alpha = h.CLOSE_ALPHA,
+                modifier = Modifier.clickable(interactionSource = taps, indication = null, onClick = onDismiss),
+            )
         }
-        val taps = remember { MutableInteractionSource() }
-        Icon(
-            imageVector = DenzaIcons.Close,
-            contentDescription = "Закрыть",
-            tint = DenzaColors.Muted,
-            modifier = Modifier
-                .size(CLOSE_ICON)
-                .clickable(interactionSource = taps, indication = null, onClick = onDismiss),
-        )
+        if (subtitle.isNotBlank()) {
+            val lead = when {
+                onBack != null -> h.CLOSE + h.GLYPH_GAP
+                glyph != null -> h.GLYPH + h.GLYPH_GAP
+                else -> 0f
+            }
+            BaselineText(
+                text = subtitle,
+                style = SheetInk.style(h.SUBTITLE_SIZE, 400, SheetInk.white(h.SUBTITLE_ALPHA)),
+                baseline = (h.SUBTITLE_SIZE * Sheet.Roboto.ASCENT).dp,
+                modifier = Modifier.padding(start = lead.dp),
+            )
+        }
     }
 }
 
-/** A group of settings inside a panel, with the tracked capital that says what they share. */
+/** A group of settings inside a panel, under the words that say what they share. */
 @Composable
 fun DenzaSection(
     title: String,
@@ -239,7 +230,7 @@ fun DenzaSection(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
+        verticalArrangement = Arrangement.spacedBy(Sheet.Label.GAP.dp),
     ) {
         DenzaSectionLabel(title)
         content()
@@ -247,35 +238,30 @@ fun DenzaSection(
 }
 
 /**
- * The tracked capital on its own, for a panel whose groups are not a tidy nest of columns.
- *
- * The service panel is the one place that needs this: its groups are a long flat run of readings
- * and controls with headings between them, and wrapping each run in a column to get the heading
- * would be re-nesting a hundred lines to change a font.
+ * The words over a group, on their own: sentence case, the stock list's summary grey. The old
+ * panels set these as a tracked capital; the car's own settings never shout a heading.
  */
 @Composable
 fun DenzaSectionLabel(title: String, modifier: Modifier = Modifier) {
-    Text(
-        text = title.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
-        color = DenzaColors.Muted,
+    val l = Sheet.Label
+    BaselineText(
+        text = title,
+        style = SheetInk.style(l.SIZE, 500, SheetInk.white(l.ALPHA)),
+        baseline = (l.SIZE * Sheet.Roboto.ASCENT).dp,
         modifier = modifier,
     )
 }
 
 /**
- * A panel's closing note: what pressing the tile does, said once.
- *
- * The one place on this screen where an explanation is allowed to be a sentence, because it is not
- * explaining a failure - it is telling the driver that the thing they just learned to do the slow
- * way has a fast way, which is the only kind of instruction worth printing.
+ * A panel's closing note: what pressing the tile does, said once, under the action it describes.
  */
 @Composable
 fun DenzaSheetFootnote(text: String, modifier: Modifier = Modifier) {
-    Text(
+    val f = Sheet.Footnote
+    BaselineText(
         text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = DenzaColors.MutedDeep,
+        style = SheetInk.style(f.SIZE, 400, SheetInk.white(f.ALPHA)),
+        baseline = (f.SIZE * Sheet.Roboto.ASCENT).dp,
         textAlign = TextAlign.Center,
         modifier = modifier.fillMaxWidth(),
     )
@@ -304,35 +290,37 @@ fun DenzaModalCard(
     onScrimTouch: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val m = Sheet.Modal
     val taps = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DenzaColors.Scrim)
+            .background(Color.Black.copy(alpha = Sheet.SCRIM))
             .clickable(
                 interactionSource = taps,
                 indication = null,
                 onClick = onScrimTouch ?: {},
             )
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(DenzaMetrics.Space.XL),
+            .padding(Sheet.Compact.PAD_X.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Card(
+        // The stock dialog (`systemsettings_common_dialog_bg_*`): a lit plate's colour, a hairline
+        // round it at the white's 0.08, the large radius.
+        val shape = RoundedCornerShape(m.RADIUS.dp)
+        Column(
             modifier = Modifier
+                // The ceiling before the fill: a fill first fixes the width to the window's, and a
+                // ceiling after it has nothing left to limit.
+                .widthIn(max = m.WIDTH.dp)
                 .fillMaxWidth()
-                .widthIn(max = DenzaMetrics.Component.MODAL_WIDTH),
-            shape = MaterialTheme.shapes.large,
-            border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
-        ) {
-            Column(
-                modifier = Modifier.padding(
-                    if (compact) DenzaMetrics.Space.L else DenzaMetrics.Space.XL,
-                ),
-                verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
-                content = content,
-            )
-        }
+                .background(Color(Sheet.Plate.COLOR), shape)
+                .border(BorderStroke(1.dp, SheetInk.white(Sheet.Panel.EDGE_ALPHA)), shape)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                .padding(if (compact) Sheet.Compact.PAD_X.dp else m.PAD.dp),
+            verticalArrangement = Arrangement.spacedBy(m.GAP.dp),
+            content = content,
+        )
     }
 }
 
@@ -363,5 +351,3 @@ fun DenzaModalDialog(
     }
 }
 
-private val HEADER_ICON = DenzaMetrics.Component.SHEET_HEADER_ICON
-private val CLOSE_ICON = DenzaMetrics.Component.SHEET_CLOSE_ICON

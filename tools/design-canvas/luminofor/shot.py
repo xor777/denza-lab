@@ -87,7 +87,7 @@ def board_page(bid, bare=False):
   const [board, scene] = window.LUMINOFOR_BOARDS[id];
   // bare: the cluster without the stock zones' hatching, which is board furniture the app never draws
   const fixture = %s ? Object.assign({}, scene, { keepout: false }) : scene;
-  const key = board.kind === 'head' ? board.mode : board.kind;
+  const key = ['head', 'sheet', 'modal'].includes(board.kind) ? board.mode : board.kind;
   const size = %s[key];
   const cv = document.getElementById('c');
   cv.width = size[0]; cv.height = size[1];
@@ -124,7 +124,7 @@ def chrome(args, out=None):
 
 def shoot(bid):
     kind = bid.split('-')[0]
-    key = {'main': 'full', 'cluster': 'cluster', 'two': 'two', 'one': 'one', 'digits': 'digits'}[kind]
+    key = {'main': 'full', 'sheet': 'full', 'modal': 'full', 'cluster': 'cluster', 'two': 'two', 'one': 'one', 'digits': 'digits'}[kind]
     w, h, _ = SIZES[key]
     os.makedirs(SHOTS, exist_ok=True)
     # a cluster board is also shot bare, without the hatching, for compare.py

@@ -269,4 +269,68 @@ class LuminoforSpecContractTest {
         n(ch.ZERO_STROKE, "head", "chart", "zeroStroke"); n(ch.ZERO_ALPHA, "head", "chart", "zeroAlpha"); n(ch.DOT, "head", "chart", "dot")
         n(ch.CAPTION_ALPHA, "head", "chart", "captionAlpha")
     }
+
+    @Test
+    fun theSheetIsTheSpecs() {
+        val sh = LuminoforSpec.Sheet
+        n(sh.SCRIM, "sheet", "scrim")
+        val p = LuminoforSpec.Sheet.Panel
+        n(p.WIDTH, "sheet", "panel", "width"); assertEquals(hex(SpecJson.str("sheet", "panel", "ground")), p.GROUND)
+        n(p.EDGE_ALPHA, "sheet", "panel", "edgeAlpha"); n(p.PAD_X, "sheet", "panel", "padX")
+        n(p.PAD_TOP, "sheet", "panel", "padTop"); n(p.PAD_BOTTOM, "sheet", "panel", "padBottom"); n(p.GAP, "sheet", "panel", "gap")
+        val k = LuminoforSpec.Sheet.Compact
+        n(k.PAD_X, "sheet", "compact", "padX"); n(k.PAD_TOP, "sheet", "compact", "padTop")
+        n(k.PAD_BOTTOM, "sheet", "compact", "padBottom"); n(k.GAP, "sheet", "compact", "gap")
+        val h = LuminoforSpec.Sheet.Header
+        n(h.HEIGHT, "sheet", "header", "height"); n(h.GLYPH, "sheet", "header", "glyph"); n(h.GLYPH_ALPHA, "sheet", "header", "glyphAlpha")
+        n(h.GLYPH_GAP, "sheet", "header", "glyphGap"); n(h.TITLE_SIZE, "sheet", "header", "titleSize"); n(h.CLOSE, "sheet", "header", "close")
+        n(h.CLOSE_ALPHA, "sheet", "header", "closeAlpha"); n(h.SUBTITLE_SIZE, "sheet", "header", "subtitleSize")
+        n(h.SUBTITLE_ALPHA, "sheet", "header", "subtitleAlpha")
+        n(LuminoforSpec.Sheet.Roboto.ASCENT, "sheet", "roboto", "ascent"); n(LuminoforSpec.Sheet.Roboto.DESCENT, "sheet", "roboto", "descent")
+        n(LuminoforSpec.Sheet.Roboto.CENTRE, "sheet", "roboto", "centre")
+        assertEquals(hex(SpecJson.str("sheet", "plate", "color")), LuminoforSpec.Sheet.Plate.COLOR)
+        n(LuminoforSpec.Sheet.Plate.RADIUS, "sheet", "plate", "radius"); n(LuminoforSpec.Sheet.Plate.HAIRLINE_ALPHA, "sheet", "plate", "hairlineAlpha")
+        n(LuminoforSpec.Sheet.Plate.HAIRLINE_INSET, "sheet", "plate", "hairlineInset")
+        val r = LuminoforSpec.Sheet.Row
+        n(r.SINGLE_HEIGHT, "sheet", "row", "single", "0"); n(r.SINGLE_BASELINE, "sheet", "row", "single", "1")
+        n(r.TWO_HEIGHT, "sheet", "row", "twoLine", "0"); n(r.TWO_TITLE, "sheet", "row", "twoLine", "1"); n(r.TWO_SUMMARY, "sheet", "row", "twoLine", "2")
+        n(r.ICONS_HEIGHT, "sheet", "row", "withIcons", "0"); n(r.ICONS_TITLE, "sheet", "row", "withIcons", "1")
+        n(r.ICONS_TOP, "sheet", "row", "withIcons", "2"); n(r.ICONS_VALUE, "sheet", "row", "withIcons", "3")
+        n(r.PAD_X, "sheet", "row", "padX"); n(r.TITLE_SIZE, "sheet", "row", "titleSize"); n(r.TITLE_ALPHA, "sheet", "row", "titleAlpha")
+        n(r.SUMMARY_SIZE, "sheet", "row", "summarySize"); n(r.SUMMARY_ALPHA, "sheet", "row", "summaryAlpha")
+        n(r.CHEVRON, "sheet", "row", "chevron"); n(r.CHOICE_ICON, "sheet", "row", "choiceIcon"); n(r.CHOICE_GAP, "sheet", "row", "choiceGap")
+        n(LuminoforSpec.Sheet.Label.SIZE, "sheet", "label", "size"); n(LuminoforSpec.Sheet.Label.ALPHA, "sheet", "label", "alpha"); n(LuminoforSpec.Sheet.Label.GAP, "sheet", "label", "gap")
+        val w = LuminoforSpec.Sheet.Switch
+        n(w.WIDTH, "sheet", "switch", "width"); n(w.HEIGHT, "sheet", "switch", "height"); n(w.THUMB, "sheet", "switch", "thumb")
+        assertEquals(hex(SpecJson.str("sheet", "switch", "on")), w.ON); assertEquals(hex(SpecJson.str("sheet", "switch", "off")), w.OFF)
+        assertEquals(hex(SpecJson.str("sheet", "switch", "thumbColor")), w.THUMB_COLOR)
+        n(w.OFF_ALPHA, "sheet", "switch", "offAlpha"); n(w.DISABLED_ALPHA, "sheet", "switch", "disabledAlpha")
+        val g = LuminoforSpec.Sheet.Segmented
+        n(g.HEIGHT, "sheet", "segmented", "height"); n(g.RADIUS, "sheet", "segmented", "radius"); n(g.PAD, "sheet", "segmented", "pad")
+        n(g.TRACK_ALPHA, "sheet", "segmented", "trackAlpha"); n(g.PILL_ALPHA, "sheet", "segmented", "pillAlpha")
+        n(g.ON_TEXT_ALPHA, "sheet", "segmented", "onTextAlpha"); n(g.OFF_TEXT_ALPHA, "sheet", "segmented", "offTextAlpha")
+        n(g.SIZE, "sheet", "segmented", "size")
+        val a = LuminoforSpec.Sheet.Apps
+        n(a.TILE, "sheet", "apps", "tile"); i(a.COLUMNS, "sheet", "apps", "columns"); i(a.NAVIGATION_COLUMNS, "sheet", "apps", "navigationColumns")
+        n(a.RADIUS, "sheet", "apps", "radius"); n(a.ICON, "sheet", "apps", "icon"); n(a.NAME_SIZE, "sheet", "apps", "nameSize")
+        n(a.NAME_ALPHA, "sheet", "apps", "nameAlpha"); n(a.GAP, "sheet", "apps", "gap"); n(a.BADGE, "sheet", "apps", "badge")
+        assertEquals(hex(SpecJson.str("sheet", "apps", "badgeColor")), a.BADGE_COLOR); n(a.BADGE_INSET, "sheet", "apps", "badgeInset")
+        n(LuminoforSpec.Sheet.Note.SIZE, "sheet", "note", "size"); n(LuminoforSpec.Sheet.Note.ALPHA, "sheet", "note", "alpha"); n(LuminoforSpec.Sheet.Note.LEADING, "sheet", "note", "leading")
+        n(LuminoforSpec.Sheet.Status.SIZE, "sheet", "status", "size"); n(LuminoforSpec.Sheet.Status.LEADING, "sheet", "status", "leading")
+        val b = LuminoforSpec.Sheet.Button
+        n(b.HEIGHT, "sheet", "button", "height"); n(b.RADIUS, "sheet", "button", "radius")
+        assertEquals(hex(SpecJson.str("sheet", "button", "primary")), b.PRIMARY)
+        n(b.DISABLED_ALPHA, "sheet", "button", "disabledAlpha"); n(b.SIZE, "sheet", "button", "size")
+        n(b.SECONDARY_ALPHA, "sheet", "button", "secondaryAlpha"); n(b.SECONDARY_HEIGHT, "sheet", "button", "secondaryHeight")
+        n(b.SECONDARY_SIZE, "sheet", "button", "secondarySize")
+        n(LuminoforSpec.Sheet.Footnote.SIZE, "sheet", "footnote", "size"); n(LuminoforSpec.Sheet.Footnote.ALPHA, "sheet", "footnote", "alpha"); n(LuminoforSpec.Sheet.Footnote.GAP, "sheet", "footnote", "gap")
+        val rd = LuminoforSpec.Sheet.Reading
+        n(rd.LABEL_SIZE, "sheet", "reading", "labelSize"); n(rd.LABEL_ALPHA, "sheet", "reading", "labelAlpha")
+        n(rd.VALUE_SIZE, "sheet", "reading", "valueSize"); n(rd.VALUE_ALPHA, "sheet", "reading", "valueAlpha"); n(rd.GAP, "sheet", "reading", "gap")
+        val m = LuminoforSpec.Sheet.Modal
+        n(m.WIDTH, "sheet", "modal", "width"); n(m.RADIUS, "sheet", "modal", "radius"); n(m.PAD, "sheet", "modal", "pad")
+        n(m.ICON, "sheet", "modal", "icon"); n(m.ICON_GAP, "sheet", "modal", "iconGap")
+        n(m.GAP, "sheet", "modal", "gap"); n(m.TITLE_SIZE, "sheet", "modal", "titleSize"); n(m.TEXT_SIZE, "sheet", "modal", "textSize")
+        n(m.TEXT_ALPHA, "sheet", "modal", "textAlpha"); n(m.COMPACT_TITLE_SIZE, "sheet", "modal", "compactTitleSize")
+    }
 }

@@ -286,15 +286,8 @@ object DenzaMetrics {
          */
         val SHEET_WIDTH: Dp = 480.dp
 
-        /** The icon well of an application offered inside a settings panel. */
-        val SHEET_APP_ICON: Dp = 44.dp
-
         /** A panel's one full-width action. */
-        val PRIMARY_HEIGHT: Dp = 62.dp
-
-        /** The panel header's two glyphs: the tile's own icon, and the way out. */
-        val SHEET_HEADER_ICON: Dp = 32.dp
-        val SHEET_CLOSE_ICON: Dp = 26.dp
+        val PRIMARY_HEIGHT: Dp = LuminoforSpec.Sheet.Button.HEIGHT.dp
 
         /**
          * A centred modal, for the two windows that cannot be a panel at the edge.
@@ -311,14 +304,6 @@ object DenzaMetrics {
          */
         val MODAL_WIDTH: Dp = 640.dp
 
-        /** The glyph a modal leads with, and the spinner that stands in for it while it works. */
-        val MODAL_ICON: Dp = 48.dp
-        val MODAL_SPINNER: Dp = 42.dp
-        val MODAL_SPINNER_STROKE: Dp = 4.dp
-
-        /** The glyph beside a note, sized against the line of body text it sits on. */
-        val NOTE_ICON: Dp = 18.dp
-
         /**
          * How tall the narrow pane's strip is when nothing else has claimed the height.
          *
@@ -330,11 +315,6 @@ object DenzaMetrics {
          */
         val PANEL_HEIGHT_MIN: Dp = 300.dp
 
-        /** A row a finger has to hit. */
-        val ROW_HEIGHT: Dp = 56.dp
-
-        /** A segmented control's own height. */
-        val SEGMENT_HEIGHT: Dp = 42.dp
     }
 
     /**

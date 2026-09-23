@@ -86,6 +86,7 @@ internal fun DashboardFixtureFrame(
     board: JSONObject,
     fixture: JSONObject,
     strip: @Composable (Modifier) -> Unit = {},
+    overlay: @Composable () -> Unit = {},
 ) {
     val layout = TileFixtures.layout(board)
     val (width, bar) = when (layout) {
@@ -105,6 +106,8 @@ internal fun DashboardFixtureFrame(
                 strip = strip,
                 modifier = Modifier.fillMaxSize().padding(top = bar.dp),
             )
+            // A settings panel over the dashboard, under the pane's caption bar as on the car.
+            Box(Modifier.fillMaxSize().padding(top = bar.dp)) { overlay() }
         }
     }
 }

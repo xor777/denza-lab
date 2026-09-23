@@ -1,5 +1,12 @@
 package dev.denza.apps.ui
 
+import dev.denza.apps.ui.components.ParagraphText
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
+import dev.denza.apps.ui.components.glyphStroke
+import dev.denza.apps.ui.components.WorkingRing
+import dev.denza.apps.ui.components.NamedGlyph
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,14 +24,9 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
+import dev.denza.apps.ui.components.SheetInk
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaIcons
@@ -407,7 +411,7 @@ fun DenzaAppsRoot(
 }
 
 @Composable
-private fun AdbStartupOverlay(
+internal fun AdbStartupOverlay(
     model: AdbStartupOverlayModel,
     compact: Boolean,
     onPrimaryAction: () -> Unit,
@@ -415,85 +419,71 @@ private fun AdbStartupOverlay(
     onOpenExplainer: () -> Unit,
 ) {
     // No scrim touch to answer: the gate's whole statement is that nothing behind it may be used
-    // yet, so the dark swallows the tap rather than dismissing anything. The card's width, its
-    // corner and its padding are the modal's now - it used to take 0.72 of the screen behind a
-    // 32 dp corner, which is a rung off the spacing ladder standing in for a radius.
+    // yet, so the dark swallows the tap rather than dismissing anything.
+    val m = Sheet.Modal
     DenzaModalCard(compact = compact) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
+            horizontalArrangement = Arrangement.spacedBy(m.ICON_GAP.dp),
         ) {
+            // Working, the settings' own ring; otherwise the service's glyph, in the car's orange
+            // when there is a recovery to offer - the door the orange button below opens.
             if (model.busy) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(DenzaMetrics.Component.MODAL_SPINNER),
-                    color = DenzaColors.Accent,
-                    strokeWidth = DenzaMetrics.Component.MODAL_SPINNER_STROKE,
-                )
+                WorkingRing(size = m.ICON.dp, stroke = glyphStroke(m.ICON.dp))
             } else {
-                Icon(
-                    Icons.Outlined.Build,
-                    contentDescription = null,
-                    modifier = Modifier.size(DenzaMetrics.Component.MODAL_ICON),
-                    tint = if (model.recoveryAvailable) DenzaColors.Warning else DenzaColors.Muted,
+                NamedGlyph(
+                    glyph = DenzaIcons.ServiceGlyph,
+                    size = m.ICON.dp,
+                    alpha = if (model.recoveryAvailable) 1f else Sheet.Header.CLOSE_ALPHA,
+                    ground = Color(Sheet.Plate.COLOR),
+                    tint = if (model.recoveryAvailable) Color(ClusterInk.ORANGE.halo) else Color.White,
                 )
             }
             Text(
                 model.title,
-                style = MaterialTheme.typography.headlineMedium,
-                color = DenzaColors.Ink,
+                style = SheetInk.style(if (compact) m.COMPACT_TITLE_SIZE else m.TITLE_SIZE, 500),
+                maxLines = 1,
             )
         }
-        Text(
+        ParagraphText(
             model.message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = DenzaColors.Muted,
+            style = SheetInk.style(m.TEXT_SIZE, 400, SheetInk.white(m.TEXT_ALPHA), Sheet.Note.LEADING),
+            size = m.TEXT_SIZE,
+            modifier = Modifier.fillMaxWidth(),
         )
         // The cause, under the instruction that is the same for every car in this state. Without it
         // two different "ADB недоступен" gates are the same screen, and the one fact the app
         // actually read about this car - that the switch is off - reaches nobody.
-        model.details?.let { details ->
-            Text(details, style = MaterialTheme.typography.bodyMedium, color = DenzaColors.Muted)
+        model.details?.let { details -> DenzaNote(details) }
+        // The stock dialog's actions: the one it exists for across the card, the quiet ones under it
+        // side by side at equal widths - or, in a pane, each on a line of its own, primary first,
+        // because a card 384 dp wide has room for one button per line and no room for two.
+        model.primaryLabel?.let { label ->
+            DenzaPrimaryButton(text = label, onClick = onPrimaryAction, modifier = Modifier.fillMaxWidth())
         }
-        // **In a pane the actions stack.** A Row measures its children in order: the outlined
-        // action takes the width it asks for and the primary one is handed what is left, so at
-        // 416 dp "Я подтвердил - проверить" was drawn into a pill narrower than its own label and
-        // the words ran out past both ends of it. That was on the board as well as on the screen,
-        // and the note beside it said which button should lose was a product decision nobody had
-        // made.
-        //
-        // Neither loses. A card 312 dp wide has room for one button per line and no room for two,
-        // so the narrow gate spends a line each - primary first, because a stack is read from the
-        // top and the top is where the thing you came to press belongs.
-        if (model.primaryLabel != null) {
+        val quiet = listOfNotNull<@Composable (Modifier) -> Unit>(
+            if (model.primaryLabel != null && model.recoveryAvailable) {
+                { modifier -> RecoverButton(onClick = onOpenRecovery, modifier = modifier) }
+            } else {
+                null
+            },
+            if (model.explainerAvailable) {
+                { modifier -> DenzaSecondaryButton(AdbExplainer.OPEN_LABEL, onOpenExplainer, modifier) }
+            } else {
+                null
+            },
+        )
+        if (quiet.isNotEmpty()) {
             if (compact) {
-                DenzaPrimaryButton(
-                    text = model.primaryLabel,
-                    onClick = onPrimaryAction,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (model.recoveryAvailable) {
-                    RecoverButton(onClick = onOpenRecovery, modifier = Modifier.fillMaxWidth())
-                }
+                quiet.forEach { it(Modifier.fillMaxWidth()) }
             } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M, Alignment.End),
+                    horizontalArrangement = Arrangement.spacedBy(Sheet.Footnote.GAP.dp),
                 ) {
-                    if (model.recoveryAvailable) {
-                        RecoverButton(onClick = onOpenRecovery)
-                    }
-                    DenzaPrimaryButton(text = model.primaryLabel, onClick = onPrimaryAction)
+                    quiet.forEach { it(Modifier.weight(1f)) }
                 }
             }
-        }
-        // On its own line, under whatever action the state has, and on every state that
-        // blocks - including the ones with no action at all.
-        if (model.explainerAvailable) {
-            DenzaSecondaryButton(
-                text = AdbExplainer.OPEN_LABEL,
-                onClick = onOpenExplainer,
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
     }
 }
@@ -507,19 +497,7 @@ private fun AdbStartupOverlay(
  */
 @Composable
 private fun RecoverButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.heightIn(min = DenzaMetrics.Component.SEGMENT_HEIGHT),
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.Warning),
-    ) {
-        Text(
-            RECOVER_LABEL,
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+    DenzaSecondaryButton(text = RECOVER_LABEL, onClick = onClick, modifier = modifier, attention = true)
 }
 
 private const val RECOVER_LABEL = "Восстановить ADB"
@@ -546,18 +524,13 @@ private fun AdbRecoveryDialog(
     val busy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
         state.adbRescue.phase == AdbRescuePhase.REQUESTING
     DenzaModalDialog(compact = compact, onDismiss = onDismiss) {
-        Text(
-            "Восстановление ADB",
-            style = MaterialTheme.typography.titleLarge,
-            color = DenzaColors.Ink,
-        )
+        Text("Восстановление ADB", style = SheetInk.style(Sheet.Modal.TITLE_SIZE, 500))
         Text(
             state.adbRescue.message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = DenzaColors.Ink,
+            style = SheetInk.style(Sheet.Modal.TEXT_SIZE, 400, SheetInk.white(Sheet.Modal.TEXT_ALPHA), Sheet.Note.LEADING),
         )
         state.adbRescue.details?.let { details ->
-            Text(details, style = MaterialTheme.typography.bodyMedium, color = DenzaColors.Muted)
+            DenzaNote(details)
         }
         DenzaSecondaryButton(
             text = "Проверить доступ",
@@ -585,23 +558,13 @@ private fun AdbRecoveryDialog(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            // The one control here with no border: shaped like the buttons above it rather than
-            // like Material's fully rounded default, so its ripple is not a different corner from
-            // everything else on the card.
-            TextButton(onClick = onDismiss, shape = MaterialTheme.shapes.medium) {
-                Text(
-                    "Закрыть",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = DenzaColors.Accent,
-                    maxLines = 1,
-                )
-            }
+            DenzaSecondaryButton(text = "Закрыть", onClick = onDismiss)
         }
     }
 }
 
 @Composable
-private fun DiagnosticsDialog(
+internal fun DiagnosticsDialog(
     state: DenzaUiState,
     compactLayout: Boolean,
     onSelectClusterDisplay: (Int?) -> Unit,
@@ -637,15 +600,11 @@ private fun DiagnosticsDialog(
             title = "Сервис",
             subtitle = "",
             onDismiss = onDismiss,
-            icon = DenzaIcons.Service,
+            glyph = DenzaIcons.ServiceGlyph,
         )
         DenzaSection(if (needing.isEmpty()) "Состояние" else "Что не так") {
             if (needing.isEmpty()) {
-                Text(
-                    "Все функции работают.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = DenzaColors.Muted,
-                )
+                DenzaNote("Все функции работают.")
             } else {
                 needing.forEach { tile ->
                     DenzaKeyValueRow(label = tile.name, value = tile.state, stacked = true)
@@ -655,7 +614,7 @@ private fun DiagnosticsDialog(
         DenzaSection("Доступ к машине") {
             DenzaKeyValueRow(label = "Состояние", value = state.adbRescue.message, stacked = true)
             state.adbRescue.details?.let { details ->
-                Text(details, style = MaterialTheme.typography.bodyMedium, color = DenzaColors.Muted)
+                DenzaNote(details)
             }
             DenzaSecondaryButton(
                 text = "Проверить доступ",
@@ -795,7 +754,7 @@ private fun ClusterDisplayPickerDialog(
             title = "Приборный экран",
             subtitle = "После выбора на экране появится короткая проверка",
             onDismiss = onDismiss,
-            icon = DenzaIcons.Cluster,
+            glyph = DenzaIcons.ClusterGlyph,
         )
         if (choices.isEmpty()) {
             ClusterDisplaySearch(onRefresh = onRefresh)
@@ -827,15 +786,7 @@ private fun ClusterDisplaySearch(onRefresh: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(DenzaMetrics.Component.MODAL_SPINNER),
-            color = DenzaColors.Accent,
-            strokeWidth = DenzaMetrics.Component.MODAL_SPINNER_STROKE,
-        )
-        Text(
-            "Ищем экраны за рулём",
-            style = MaterialTheme.typography.bodyLarge,
-            color = DenzaColors.Muted,
-        )
+        WorkingRing(size = Sheet.Header.CLOSE.dp, stroke = glyphStroke(Sheet.Header.CLOSE.dp))
+        DenzaNote("Ищем экраны за рулём")
     }
 }
