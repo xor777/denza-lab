@@ -279,8 +279,9 @@ internal object VehicleConvention {
      * because the claim is the thing that has to be earned. It used to live as a private constant
      * in the renderer, where `tools/design-canvas/gen_contour.py` had the opposite default and the
      * board's canonical engine state drew the picture the app never draws. It is one decision about
-     * what a signal means, so it belongs here beside [POWER_POSITIVE_IS_DISCHARGE], and
-     * `ContourBoardContractTest` holds the generator's default against it.
+     * what a signal means, so it belongs here beside [POWER_POSITIVE_IS_DISCHARGE]. Nothing draws
+     * from it today: the energy contract (§2.5) keeps the engine off the band until a recording
+     * says what `GENERATION_KW` is in motion, and the Luminofor board draws no engine there.
      */
     const val GENERATION_INSIDE_PACK_POWER = true
 

@@ -68,6 +68,14 @@ the hero is ink out of the pack and while neutral (the stock flat white; a dimme
 hero read as a fault), blue coming back, and the «кВт» beside it is grey, blue
 coming back. The side the beam takes says the rest.
 
+The colour names on this page are roles, and since the Luminofor palette each is
+the car's own stock colour: `INK` is the ink `#DAE1EB` on the cluster
+(`ClusterInk.INK`) and the white on the head unit (`HeadInk.WHITE`); `RETURN` and
+`RETURN_INK` are the stock blue (`ClusterInk.BLUE`, `HeadInk.BLUE`); `MUTED` is the
+grey of a caption (`ClusterInk.GREY`); `MUTED_DEEP` is a faint field of the ink,
+added over black. The palette entries that carried these names in the app
+(`DenzaPalette.RETURN_INK` and its neighbours) went with the Contour's drawing.
+
 Unavailable is not zero: no figure, the caption stays, exactly as the cluster's
 staleness rule has it (`ContourScene`). And a read that did not land does not
 move the colour's hysteresis: the neutral zone remembers where the screen was,
