@@ -51,10 +51,4 @@ internal object ContourPlan {
      */
     const val PETAL_TICK = 3f
     const val PETAL_TICK_GAP = 2f
-
-    /**
-     * The old panel's data weight, in its units, which `ContourGlyphs` still strokes with while the
-     * car page draws those glyphs. The Luminofor cluster draws `ThermalGlyphs` instead.
-     */
-    const val DATA_LINE = 2.5f
 }

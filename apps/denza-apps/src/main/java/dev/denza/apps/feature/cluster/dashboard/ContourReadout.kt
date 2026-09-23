@@ -56,8 +56,9 @@ internal object ContourReadout {
      * The spread of *what* is exactly the question that started the sixth pass.
      *
      * And since the ninth it is the **only** word in the temperature row: `БАТАРЕЯ`, `МОТОРЫ` and
-     * `ИНВЕРТОР` are gone, replaced by [ContourGlyphs]. Which means a word there now means the pack
-     * is misbehaving, which is worth more than the three captions cost.
+     * `ИНВЕРТОР` are gone, replaced by five glyphs (`ThermalGlyphs` since the Luminofor board). Which
+     * means a word there now means the pack is misbehaving, which is worth more than the three
+     * captions cost.
      */
     const val CAPTION_SPREAD = "РАЗБРОС ЯЧЕЕК"
 
