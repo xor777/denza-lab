@@ -2358,7 +2358,7 @@ of the key, with no ADB and no shell, and learn from the firmware itself one
 tenth of a second later that the scene is covered - against a first read at
 0.85-0.9 s and a lost tap at 1.0 s on 2026-09-18.
 
-### What the product does with it (2026-09-23, code, not yet on the car)
+### What the product does with it (2026-09-23)
 
 - **Home and the area are heard in the app process.** `SplitFirmwareSignals`
   registers the `homekey` receiver and the `UnionActivityManager` area listener
@@ -2383,3 +2383,28 @@ tenth of a second later that the scene is covered - against a first read at
 
 Contract: invariant 8, §4.2, К 1.9, К 1.11, 1.9.1, the Recents note under
 1.7 and 1.12 carry the same edition.
+
+**Live on the car the same day** (build of `563b5eb3`, versionCode 53, logs in
+`captures/split-signals-live-20260923/`). The install itself rebound both
+accessibility services the quickboot had left "crashed"; the process armed
+`homekey=true area=true`, read area 4 and suspended the gate it still owned
+(1 ms). An open restored the pair (Music narrow, the hub wide) in 4.1 s. Then
+the race of 2026-09-18, on purpose: Home, and 0.39 s after the key the dock's
+own launch of Music (`NEW_TASK | RESET_TASK_IF_NEEDED`, no category).
+
+| ms after key-up | event |
+| --- | --- |
+| 0 | `KEYCODE_HOME` up (13:56:31.052) |
+| +16 | `gate закрыт на опережение (homekey) за 1 мс` |
+| +16 | firmware `topWindowMode = 3000` |
+| +48 | `home confirmed` (the Home operation's own read) |
+| +112 | area push 0 - `home hint dropped: the cover is already confirmed` |
+| +393 | `START … ru.yandex.music` |
+| +431 | **`startFullWindow`** - Music fullscreen, area 4, no `com.byd.sr` |
+
+The pushes of 3 and 4 that the firmware sent around that launch arrived with a
+reconcile queued and were left to it, as designed. Reopening then raised the
+same two tasks (#85, #86) in 1.45 s with no launch. A second Home closed the
+gate 10 ms after the key and was confirmed at +28 ms. The crash buffer stayed
+empty. Not exercised live: a swallowed Home (the undo), a Home without a key,
+and a tap faster than the gate (below about 20 ms, not a human one).
