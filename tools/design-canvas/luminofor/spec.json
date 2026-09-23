@@ -1,0 +1,179 @@
+{
+  "about": "Luminofor: the normative numbers for the head-unit dashboard, its two panes, the strip's two pages and the cluster's Contour. luminofor.js draws every board from this file; the Kotlin contract tests read the same file. Units: the head unit is laid out in dp on 1280 x 680 (panes 828 x 680 and 416 x 680), the cluster in its own virtual units on 1507.5556 x 424 mapped onto the 2560 x 720 cluster display. Colours are [halo, core]: the halo tints glow, the core is what a stroke or a fill actually is.",
+
+  "compositing": "additive",
+
+  "colors": {
+    "cluster": {
+      "ink":    ["#DAE1EB", "#ECF1F7"],
+      "grey":   ["#86909B", "#86909B"],
+      "blue":   ["#2D82D7", "#78B2EC"],
+      "orange": ["#FF9F19", "#FFC882"],
+      "red":    ["#FF4046", "#FFA0A0"],
+      "hatch":  "rgba(210,215,225,0.05)",
+      "hatchLabel": "rgba(210,215,225,0.2)"
+    },
+    "head": {
+      "white":   ["#FFFFFF", "#FFFFFF"],
+      "blue":    ["#439FFC", "#80BEFF"],
+      "cardOn":  "#2C2B33",
+      "cardOff": "#17161B",
+      "crown":   "rgba(200,228,255,0.95)",
+      "handle":  "rgba(255,255,255,0.35)",
+      "dotOn":   "#FFFFFF",
+      "dotOff":  "rgba(255,255,255,0.28)"
+    },
+    "background": "#000000"
+  },
+
+  "type": {
+    "cluster": { "family": "Jura", "weight": 500 },
+    "head":    { "family": "Roboto", "weight": 400, "strong": 500 }
+  },
+
+  "digits": {
+    "about": "Wide square numerals after the car's charging screen. A glyph is a stroked path on a 100-unit cap; the advance is the glyph's width plus the tracking. Figures are flat: no halo.",
+    "capRatio": 0.71,
+    "cap": 100,
+    "track": 18,
+    "strokePerSize": 0.075,
+    "strokeMin": 2.2,
+    "heroStroke": 4.2,
+    "glyphs": {
+      "0": [70, "M22 0H48A22 22 0 0 1 70 22V78A22 22 0 0 1 48 100H22A22 22 0 0 1 0 78V22A22 22 0 0 1 22 0Z"],
+      "1": [70, "M20 20L44 0V100"],
+      "2": [70, "M0 22A22 22 0 0 1 22 0H48A22 22 0 0 1 70 22V34Q70 48 56 56L0 100H70"],
+      "3": [70, "M4 0H66L32 42H48A22 22 0 0 1 70 64V78A22 22 0 0 1 48 100H22A22 22 0 0 1 0 78"],
+      "4": [70, "M52 100V0L0 68H70"],
+      "5": [70, "M66 0H4L2 44H48A22 22 0 0 1 70 66V78A22 22 0 0 1 48 100H22A22 22 0 0 1 0 78"],
+      "6": [70, "M62 4Q52 0 36 0H22A22 22 0 0 0 0 22V78A22 22 0 0 0 22 100H48A22 22 0 0 0 70 78V66A22 22 0 0 0 48 44H0"],
+      "7": [70, "M0 0H70L24 100"],
+      "8": [70, "M22 0H48A18 18 0 0 1 66 18V28A18 18 0 0 1 48 46H22A18 18 0 0 1 4 28V18A18 18 0 0 1 22 0ZM22 46H48A22 22 0 0 1 70 68V78A22 22 0 0 1 48 100H22A22 22 0 0 1 0 78V68A22 22 0 0 1 22 46Z"],
+      "9": [70, "M8 96Q18 100 34 100H48A22 22 0 0 0 70 78V22A22 22 0 0 0 48 0H22A22 22 0 0 0 0 22V34A22 22 0 0 0 22 56H70"],
+      ",": [14, "M9 94L4 112"],
+      ".": [14, "M7 99.6L7 100"],
+      ":": [16, "M8 32.6L8 33M8 84.6L8 85"],
+      "°": [34, "M4 14A12 12 0 1 1 28 14A12 12 0 1 1 4 14Z"],
+      "+": [56, "M28 34V78M6 56H50"],
+      "-": [50, "M5 56H45"],
+      " ": [30, ""]
+    }
+  },
+
+  "cluster": {
+    "display": [2560, 720],
+    "W": 1507.5556,
+    "H": 424,
+    "margin": 48,
+    "stock": {
+      "top": 160.1778,
+      "bottom": 335.6667,
+      "leftApertureRx": 361.5778,
+      "rightApertureRx": 301.5111,
+      "petalRx": 353.3333,
+      "petalRy": 194.3333,
+      "petalCy": 353.3333
+    },
+    "grid": {
+      "about": "One caption line, one baseline. The side groups are the same width and stand the same distance from the hero; a cell's caption and its figure share a left edge; the temperature glyphs are the temperatures' captions.",
+      "caption": 197,
+      "glyphBase": 207,
+      "baseline": 246.6578,
+      "axis": 296,
+      "side": 200,
+      "tempPitch": 72,
+      "heroSize": 88,
+      "heroUnitGap": 32,
+      "heroUnitSize": 34,
+      "figureSize": 52,
+      "tempSize": 34,
+      "captionSize": 17,
+      "captionTrack": 0.12,
+      "cellCaptionTrack": 0.08,
+      "unitSize": 17,
+      "unitGap": 8,
+      "detailSize": 15,
+      "detailTrack": 0.06,
+      "detailDrop": 30
+    },
+    "band": {
+      "outKw": 300,
+      "inKw": 100,
+      "filamentHalo": [5, 0.06],
+      "filamentCore": [1, 0.5],
+      "zeroTick": [7, 1.6, 0.45],
+      "beamStroke": 3.2,
+      "beamIntensity": 0.85,
+      "headRadius": 3.4,
+      "headBlur": 14,
+      "peakTick": [5, 1.4],
+      "threads": { "base": 30, "perUnit": 0.45, "ampBase": 5, "ampRange": 13, "ampKw": 200, "width": 0.7 },
+      "glow": { "max": 0.13, "fullKw": 120, "radius": 340, "reachBelow": 40 }
+    },
+    "trace": {
+      "about": "Ten kilometres under the axis: zero on the figure's baseline, spending up to the contract's 60 over the figure's cap (0.71 x 52 = 36.92), returns down to its 20 over a descender of 13.",
+      "zero": 364,
+      "top": 327.08,
+      "drop": 377,
+      "upTo": 60,
+      "downTo": 20,
+      "width": 232,
+      "gapFromAxis": 8,
+      "runs": 10,
+      "stroke": 1.5,
+      "figureSize": 52,
+      "unitGap": 10,
+      "unitSize": 17
+    },
+    "engineBox": { "width": 230, "upTo": 30, "stroke": 1.8, "baseStroke": 0.8 },
+    "glyph": { "outline": 1.4, "wheel": 1.1, "height": 24 }
+  },
+
+  "head": {
+    "full": {
+      "size": [1280, 680],
+      "margin": 48,
+      "tiles": { "top": 20, "gap": 12, "height": 164, "radius": 22, "icon": 30, "iconInset": [20, 22], "nameBaseline": 116, "statusBaseline": 142, "textInset": 20, "nameSize": 19, "statusSize": 15 },
+      "stripBox": [48, 372, 1232, 668],
+      "strip": { "caption": 404, "value": 454, "valueSize": 46, "labelSize": 17, "titleSize": 34, "readingGap": 56, "spectrumTop": 488, "floor": 646, "bars": 36, "dotsY": 664 },
+      "car": { "heroSize": 56, "side": 155, "tempPitch": 64, "tempSize": 30, "chartCaption": 502, "chartCaptionSize": 15, "chartTop": 514, "chartHeight": 126 }
+    },
+    "two": {
+      "size": [828, 680],
+      "margin": 20,
+      "stripBox": [20, 124.7, 808, 668],
+      "captionBar": 24,
+      "chips": { "top": 40, "size": 60.7, "radius": 16, "icon": 26, "perRow": 11 },
+      "sound": { "trackCaption": 160, "trackValue": 200, "titleSize": 32, "labelSize": 16, "caption": 246, "value": 294, "valueSize": 46, "gap": 48, "spectrumTop": 324, "floor": 634, "bars": 24 },
+      "car": { "caption": 160, "value": 212, "heroSize": 56, "valueSize": 46, "gap": 56, "row2Caption": 262, "row2Value": 304, "voltSize": 34, "tempPitch": 68, "tempSize": 30, "chartCaption": 350, "chartTop": 364, "chartHeight": 200 },
+      "dotsY": 656
+    },
+    "one": {
+      "size": [416, 680],
+      "margin": 12,
+      "stripBox": [12, 182.6, 404, 668],
+      "captionBar": 24,
+      "chips": { "top": 36, "size": 55.3, "radius": 14, "icon": 26, "perRow": 6, "rowGap": 12 },
+      "sound": { "trackCaption": 204, "trackValue": 236, "titleSize": 26, "labelSize": 14, "rowsTop": 286, "rowPitch": 42, "valueX": 118, "valueSize": 30, "spectrumTop": 400, "floor": 636, "bars": 12 },
+      "car": { "caption": 204, "value": 252, "heroSize": 44, "row2Caption": 292, "row2Value": 326, "row2Size": 28, "row2Gap": 40, "tempsCaption": 370, "tempsValue": 404, "tempPitch": 76, "tempSize": 26, "chartCaption": 446, "chartCaptionSize": 13, "chartTop": 458, "chartHeight": 150 },
+      "dotsY": 660
+    },
+    "handle": { "width": 44, "height": 4, "top": 9, "about": "The freeform caption bar's own drag handle - the system draws it; the boards draw it so a pane reads as a pane." },
+    "anchoring": "Positions are window dp. Inside a strip box everything hangs from the box top, except the spectrum floor and the page dots, which keep their distance from the box bottom.",
+    "reading": { "unitRatio": 0.42, "unitGapRatio": 0.2, "rateRatio": 0.45, "rateGapRatio": 0.3, "unitAlpha": 0.9 },
+    "icon": { "stroke": 1.5, "onGlow": 0.35, "offAlpha": 0.42 },
+    "spectrum": {
+      "barWidth": 22.97,
+      "lineWidth": 2,
+      "linePitch": 4.4,
+      "crownHeight": 2,
+      "crownLift": 6,
+      "headroom": 10,
+      "gradient": [0.34, 1.0],
+      "glowAlpha": 0.09,
+      "glowPad": 3,
+      "haze": { "rx": 0.52, "ry": 0.62, "cy": 0.62, "stops": [[0, 0.15], [0.55, 0.06], [1, 0]] }
+    },
+    "chart": { "zeroAt": 0.75, "upTo": 60, "downTo": 20, "fillUp": 0.10, "fillDown": 0.45, "stroke": 1.6, "zeroStroke": 0.8, "zeroAlpha": 0.25, "dot": 3, "captionAlpha": 0.8 }
+  }
+}
