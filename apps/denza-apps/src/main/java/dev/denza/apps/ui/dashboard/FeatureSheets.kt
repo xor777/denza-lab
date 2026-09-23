@@ -556,10 +556,10 @@ private fun cloudSheet(state: DenzaUiState, actions: DashboardActions) {
     )
     DenzaSwitchRow(
         title = "Держать Wi-Fi включенным",
-        // The price, where the switch is: the car stops turning its radio off when it parks, and
-        // how much that costs overnight has not been measured. Two lines in the narrow pane, cut at
-        // the same word in both widths.
-        subtitle = "Если машина долго стоит, может разрядиться аккумулятор",
+        // The price, where the switch is: the car stops turning its radio off when it parks, so the
+        // battery drains faster - how much faster overnight has not been measured, which is why it
+        // says «быстрее» and not «разрядится». Two lines in both widths: 224 and 155 dp at 15/400.
+        subtitle = "На стоянке аккумулятор может разряжаться быстрее",
         checked = state.cloudWifiRetained == true,
         onCheckedChange = actions.onSetCloudWifiRetained,
         enabled = !state.cloudLinkBusy && state.cloudWifiRetained != null,

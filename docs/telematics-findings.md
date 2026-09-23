@@ -171,7 +171,7 @@ independent switches:
   `settings put global byd_off_wifi_switch 1`. Off is
   `settings delete global byd_off_wifi_switch`, which restores the absent
   stock default rather than writing a zero. The panel prints its cost under
-  it: «Если машина долго стоит, может разрядиться аккумулятор».
+  it: «На стоянке аккумулятор может разряжаться быстрее».
   The 12V draw has not been measured.
 
 Every car call goes through the app's passive local ADB shell
