@@ -170,7 +170,9 @@ independent switches:
   `byd_off_wifi_switch`, always read back from the car. On is
   `settings put global byd_off_wifi_switch 1`. Off is
   `settings delete global byd_off_wifi_switch`, which restores the absent
-  stock default rather than writing a zero.
+  stock default rather than writing a zero. The panel prints its cost under
+  it: «Если машина долго стоит, может разрядиться аккумулятор».
+  The 12V draw has not been measured.
 
 Every car call goes through the app's passive local ADB shell
 (`DenzaLocalAdb`) and uses the commands the held run used:
@@ -202,6 +204,16 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   has lasted 90 s, with a backoff of 5, 10, 20, 40 and then 60 minutes. The
   backoff resets on TCP=1. A new `cloudmanager` PID gets `4` at once, because
   the framework replays only recorded APN states.
+- **Refusals wait too**: a `4` that did not happen counts against the same
+  backoff. That covers a profile the car did not write back, a Binder that
+  refused, and a shell that failed. Without this, a car that keeps refusing
+  would get the profile broadcast once a minute. Only the driver's own press
+  skips the wait.
+- **A car with its own cellular link is left alone**: when
+  `net.lte.apn1.state` or `net.lte.apn3.state` reads `connect`, which is the
+  stock receiver's own test, the adapter sends no profile, no `4` and no `-5`.
+  Explicit off still restores the build profile. This matters for other cars
+  with a working SIM, not this one.
 - **Explicit off**: `-5` if on `double_apn`, 1 s, then the build profile
   (`ro.build.byd.apn_type`, `triple_apn` here), read back. This is the only
   path that restores the profile.
@@ -214,7 +226,9 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
 
 The tile says «Выключено», «На связи» (TCP=1), «Нет Wi-Fi» (on and waiting,
 not a fault), «Подключается» (working), or the press the car refused: «Не
-включилось» / «Не выключилось».
+включилось» / «Не выключилось». Pressing a refused tile asks for the same
+thing again rather than reversing it. A refusal clears as soon as the link is
+seen up by any path.
 
 Lifecycle: ACC-off terminates the app. While parked, the link belongs to the
 stock client, and the Wi-Fi switch decides whether it stays reachable. On wake
@@ -230,6 +244,27 @@ Diagnose with:
 
 Stop with the panel switch, or by stopping the service. Stopping the service
 leaves the gate as it is.
+
+Edge cases the code does not close, known and accepted for the first live run:
+
+- **Link on, Wi-Fi retention off.** At ACC-off the radio policy turns Wi-Fi off
+  and the app is terminated within seconds, before the 30 s grace can send
+  `-5`. The gate stays open while the car is parked with no network. The stock
+  client retries, and the keepalive counts ticks without TCP towards the
+  reboot described below. This is the same state the car was in before the
+  feature. On wake the adapter recovers within its 90 s settle.
+- **Wi-Fi retention on, parked out of range.** Wi-Fi stays on and scans with
+  nothing to join. That costs charge and brings no link, and the reboot
+  counter runs.
+- **BYD's self-start switch.** «Disable background Apps» is reset by every APK
+  install. While it blocks the app, nothing restarts the adapter after a
+  wake, and the link rests on the stock client and Wi-Fi retention alone.
+- **Remote commands.** A connected stock client also receives the official
+  app's commands and processes them through its own checks. That is the stock
+  design; the adapter neither adds nor filters anything.
+- **Other builds.** Off restores `ro.build.byd.apn_type` when it is
+  `triple_apn` or `double_apn`, and otherwise `triple_apn`, this car's
+  profile. Only this car's build is proven.
 
 Still open:
 
