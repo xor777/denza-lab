@@ -2527,7 +2527,10 @@ Live today: at 15:06:11 the sleep removed the product's tasks and stopped uid
 10147 (`am_uid_stopped`); at 15:08:52 the wake's `BOOT_COMPLETED` to
 `dev.denza.apps` was skipped by exactly that path, together with
 `org.videolan.vlc`, `ru.vk.store` and `app.morphe.android.apps.maps` in the
-same broadcast.
+same broadcast. The next wake, at 15:23:45, skipped it again. The page itself,
+read the same afternoon through `uiautomator`, shows `checked=true` on every row
+that was read (24; a fling may have skipped some) - Denza Apps, both navigators, the music apps, the probes -
+which is the install default above, not a choice anyone made.
 
 `AccQuickBootSurvivalRegistrar` (see `adb-authorization-recovery.md`) cannot
 help either way. `setPkg2AccWhiteList` enforces `DEVICE_ACC`
