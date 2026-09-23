@@ -8,21 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,7 +35,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.design.DenzaColors
@@ -69,7 +61,7 @@ import dev.denza.apps.ui.components.DenzaSection
 import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.dashboard.DashboardActions
-import dev.denza.apps.ui.dashboard.DashboardGrid
+import dev.denza.apps.ui.dashboard.DashboardPress
 import dev.denza.apps.ui.dashboard.DashboardTiles
 import dev.denza.apps.ui.dashboard.DefaultAppsSheet
 import dev.denza.apps.ui.dashboard.FeatureSheet
@@ -251,106 +243,39 @@ fun DenzaAppsRoot(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val dashboardLayout = DashboardLayoutPolicy.resolve(maxWidth.value.roundToInt())
         val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
-        val sideMargin = DashboardLayoutPolicy.sideMargin(dashboardLayout)
-        val chips = DashboardLayoutPolicy.chips(dashboardLayout)
-        // The window the app is handed is not the box it may draw in. In a pane the car keeps the
-        // top 24 dp for its own freeform caption bar, and `safeDrawing` is what reports it - so the
-        // page subtracts exactly the insets it pads with, and the width the strip is measured
-        // against is the width the strip is given. The old line measured the full window, which is
-        // the same class of mistake as laying a pane out against 680.
-        val insets = WindowInsets.safeDrawing.asPaddingValues()
-        val direction = LocalLayoutDirection.current
-        val contentWidth = (
-            maxWidth - sideMargin * 2 -
-                insets.calculateStartPadding(direction) - insets.calculateEndPadding(direction)
-            ).value.coerceAtLeast(1f)
-        val contentHeight = maxHeight -
-            insets.calculateTopPadding() - insets.calculateBottomPadding() -
-            DenzaMetrics.Space.L - DenzaMetrics.Space.M
-        val features = remember(uiState) { DashboardTiles.of(uiState).size }
-        val page = DashboardLayoutPolicy.page(
-            mode = dashboardLayout,
-            features = features,
-            contentWidth = contentWidth,
-            contentHeight = contentHeight,
-        )
+        // Eleven tiles decided from scratch on every recomposition, and this one recomposes on every
+        // state publication the runtime makes.
+        val tiles = remember(uiState) { DashboardTiles.of(uiState) }
 
         DenzaTheme {
-            Surface(modifier = Modifier.fillMaxSize(), color = DenzaColors.Background) {
+            Surface(modifier = Modifier.fillMaxSize(), color = DenzaColors.Ground) {
                 // Правка W8: дашборд всегда вписывается в ширину своего окна. Панельные ширины
                 // (узкая 1/3 и средняя 2/3) перекомпоновывают карточки; горизонтального скролла с
                 // холстом 1280 dp больше нет - в панели 828 dp он прятал ~904 px дашборда за краем.
                 //
-                // Vertically the page degrades instead of overflowing. It used to add up to exactly
-                // 680 - 20 + 340 + 12 + 296 + 12 - with no scroll in any of the three widths, so
-                // the `Spacer(weight(1f))` under the strip was always handed nothing and any inset
-                // at all pushed the foot of the analyser past the bottom edge in silence. Now the
-                // strip takes what is left down to a floor, and when even that will not fit - a low
-                // window, or a car that keeps more of it than this one - the column scrolls.
-                Column(
+                // The window the app is handed is not the box it may draw in. In a pane the car
+                // keeps the top 24 dp for its own freeform caption bar, and `safeDrawing` is what
+                // reports it - so the page is padded by exactly those insets and measures itself
+                // inside them. The layout itself, and the arithmetic for when it does not fit, is
+                // [DashboardBody]'s: the debug fixture harness hosts the same body in a fixed frame.
+                DashboardBody(
+                    tiles = tiles,
+                    layout = dashboardLayout,
+                    enabled = !adbStartupBlocked,
+                    onPress = { tile -> DashboardPress.perform(tile, uiState, dashboardActions) },
+                    onHold = { tile -> dashboardActions.onOpenSettings(tile.id) },
+                    strip = { box ->
+                        if (!adbStartupBlocked) {
+                            SpectrumPanel(
+                                layout = DashboardLayoutPolicy.panel(dashboardLayout),
+                                modifier = box,
+                            )
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.safeDrawing)
-                        .then(
-                            if (page.scrolls) {
-                                Modifier.verticalScroll(rememberScrollState())
-                            } else {
-                                Modifier
-                            },
-                        )
-                        // Top and bottom are not the same rung, and every board says so: 20
-                        // over the features and 12 under the strip. Both were 20 here, which
-                        // put the page 8 dp taller than the window it is laid out for and drew
-                        // the foot of the analyser's reflection past the bottom edge.
-                        .padding(
-                            start = sideMargin,
-                            end = sideMargin,
-                            top = DenzaMetrics.Space.L,
-                            bottom = DenzaMetrics.Space.M,
-                        ),
-                ) {
-                    DashboardGrid(
-                        state = uiState,
-                        actions = dashboardActions,
-                        layout = dashboardLayout,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !adbStartupBlocked,
-                    )
-                    Spacer(Modifier.height(DashboardLayoutPolicy.bandGap(dashboardLayout)))
-                    if (!adbStartupBlocked) {
-                        // The strip draws in a virtual space of its own, and the box it is given
-                        // has to be that space's shape or the drawing arrives stretched. It used to
-                        // get whatever height was left over, which on the full screen was about
-                        // twice its own: every stroke came out drawn on a canvas stretched
-                        // vertically, which is why the analyser read as a sparse ripple rather than
-                        // the columns the board draws.
-                        //
-                        // So the full screen always asks for a box of the board's shape, and a pane
-                        // with room takes the remainder as a `weight(1f)` - which its renderer can
-                        // do, because it lays itself out at one unit to one dp in whatever it is
-                        // handed, and which is the one arrangement that cannot be wrong. A pane
-                        // only names a height when the column is scrolling, because a scrolling
-                        // column has no remainder: an infinite height is what a weight would be
-                        // measured against there.
-                        SpectrumPanel(
-                            layout = DashboardLayoutPolicy.panel(dashboardLayout),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(
-                                    if (chips && !page.scrolls) {
-                                        Modifier.weight(1f)
-                                    } else {
-                                        Modifier.height(page.panelHeight)
-                                    },
-                                ),
-                        )
-                    }
-                    // Any slack on the full screen goes under the strip rather than between it and
-                    // the tiles. A pane has none: its strip already took it.
-                    if (!chips && !page.scrolls) {
-                        Spacer(Modifier.weight(1f))
-                    }
-                }
+                        .windowInsetsPadding(WindowInsets.safeDrawing),
+                )
             }
             // Every dialog on this screen lives inside the theme, which is not where they
             // started. The first cut closed DenzaTheme around the dashboard alone, so the

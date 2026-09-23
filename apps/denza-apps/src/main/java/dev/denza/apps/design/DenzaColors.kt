@@ -1,6 +1,7 @@
 package dev.denza.apps.design
 
 import androidx.compose.ui.graphics.Color
+import dev.denza.apps.design.luminofor.LuminoforSpec
 
 /**
  * [DenzaPalette] as Compose sees it.
@@ -9,10 +10,21 @@ import androidx.compose.ui.graphics.Color
  * Compose cannot consume an `Int` as a colour. That gap is the whole reason this app carried five
  * palettes at once: the canvas renderers took the vehicle's colours, and every Compose screen
  * invented its own because the vehicle's were out of reach. This is the adapter, and it is
- * deliberately nothing else - every value below is [DenzaPalette] read through [Color], never a
- * colour of its own. Put a literal here and the two halves of the app start drifting apart again.
+ * deliberately nothing else - every value below is [DenzaPalette] or [LuminoforSpec] read through
+ * [Color], never a colour of its own. Put a literal here and the two halves of the app start
+ * drifting apart again.
  */
 object DenzaColors {
+
+    /**
+     * The dashboard's ground: Luminofor's black, not the platform's deepest grey.
+     *
+     * The approved board composites every light additively onto `#000`, and additive over black is
+     * the one case where a light is exactly the colour it was mixed as. [Background] is `#07080A`,
+     * seven levels up, which is close enough for a panel and not for a screen held pixel for pixel
+     * to a board - so the dashboard stands on this and the panels over it keep theirs.
+     */
+    val Ground: Color = Color(LuminoforSpec.BACKGROUND)
 
     val Background: Color = Color(DenzaPalette.BACKGROUND)
     val SurfaceQuiet: Color = Color(DenzaPalette.SURFACE_QUIET)

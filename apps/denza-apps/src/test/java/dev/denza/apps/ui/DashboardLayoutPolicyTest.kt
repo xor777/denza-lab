@@ -57,7 +57,8 @@ class DashboardLayoutPolicyTest {
     fun `each width gets its own margin, its own row and its own kind of feature`() {
         // One table, because these answers are one decision: the margin buys the width, the width
         // decides whether a feature can afford its name, and what is left over is the strip. The
-        // pane numbers are the boards' - TwoThirds.dc.html and OneThird.dc.html.
+        // numbers are Luminofor's - main-sound, two-sound and one-sound - and they are three rungs
+        // of the spacing ladder, which is why this compares them with the ladder.
         assertEquals(DenzaMetrics.Space.XXL, DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.WIDE))
         assertEquals(DenzaMetrics.Space.L, DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.MEDIUM))
         assertEquals(DenzaMetrics.Space.M, DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.NARROW))
@@ -81,7 +82,9 @@ class DashboardLayoutPolicyTest {
         // The question this answers: what happens when a feature is added. A band of icons is a
         // toolbar and a toolbar fits rather than wraps, so the chip is its share of the row and an
         // eleventh makes every chip smaller instead of taking a whole row of 80 dp off the
-        // analyser. `ChipDensity.dc.html` draws ten through thirteen.
+        // analyser. `ChipDensity.dc.html` draws ten through thirteen. The gap is the one the
+        // Luminofor boards spread eleven chips with - 12.03 and 12.04 - so the eleventh lands on
+        // the spec's 60.7 and 55.3 to the hundredth and the other counts move by the same rule.
         assertEquals(10, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM, 10))
         assertEquals(11, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM, 11))
         assertEquals(5, DashboardLayoutPolicy.columns(DashboardLayoutMode.NARROW, 10))
@@ -182,10 +185,10 @@ class DashboardLayoutPolicyTest {
         val wideContent = 1_280f - DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.WIDE).value * 2
         val narrowContent = 416f - DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.NARROW).value * 2
 
-        // The full screen as the board draws it: two rows of tiles and the strip's own 1184x296,
-        // adding up to the window with nothing over.
+        // The full screen as the board draws it: 20 over two rows of tiles, 12, the strip's own
+        // 1184x296 and 12 under it, adding up to the window with nothing over.
         val wide = DashboardLayoutPolicy.page(
-            DashboardLayoutMode.WIDE, FEATURES, wideContent, PAGE_HEIGHT.dp,
+            DashboardLayoutMode.WIDE, FEATURES, wideContent, WINDOW_DP.dp,
         )
         assertEquals(296f, wide.panelHeight.value, 1e-3f)
         assertEquals(false, wide.scrolls)
@@ -193,17 +196,18 @@ class DashboardLayoutPolicyTest {
         // The same screen with a caption bar over it - which is what a pane always has, and what
         // any future window that keeps more of itself would give the full screen too.
         val squeezed = DashboardLayoutPolicy.page(
-            DashboardLayoutMode.WIDE, FEATURES, wideContent, (PAGE_HEIGHT - CAPTION_DP).dp,
+            DashboardLayoutMode.WIDE, FEATURES, wideContent, (WINDOW_DP - CAPTION_DP).dp,
         )
         assertEquals("the strip keeps the board's shape", 296f, squeezed.panelHeight.value, 1e-3f)
         assertEquals("and the page that no longer holds it scrolls", true, squeezed.scrolls)
 
         // A pane has room to spare, so its floor never binds and the caller hands the strip a
-        // weight instead of this number.
+        // weight instead of this number - which comes out at the one-third board's strip box,
+        // 182.6 to 668.
         val pane = DashboardLayoutPolicy.page(
-            DashboardLayoutMode.NARROW, FEATURES, narrowContent, (PAGE_HEIGHT - CAPTION_DP).dp,
+            DashboardLayoutMode.NARROW, FEATURES, narrowContent, (WINDOW_DP - CAPTION_DP).dp,
         )
-        assertEquals(469.3f, pane.panelHeight.value, 0.05f)
+        assertEquals(485.4f, pane.panelHeight.value, 0.05f)
         assertEquals(false, pane.scrolls)
 
         // And a window too short for it holds the floor rather than shrinking the analyser.
@@ -234,12 +238,8 @@ class DashboardLayoutPolicyTest {
         /** What the dashboard actually carries today; DashboardTilesTest owns the list itself. */
         const val FEATURES = 11
 
-        /**
-         * What is left of the app's 680 dp window once the page's own margins are off it: 20 over
-         * the features and 12 under the strip.
-         */
-        val PAGE_HEIGHT: Float = 680f -
-            DenzaMetrics.Space.L.value - DenzaMetrics.Space.M.value
+        /** The app's window: what the car leaves it, measured. The page lays itself out inside. */
+        const val WINDOW_DP = 680f
 
         /** What BYD's freeform windowing keeps at the top of a pane. Measured on the car. */
         const val CAPTION_DP = 24f

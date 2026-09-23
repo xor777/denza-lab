@@ -1,27 +1,19 @@
 package dev.denza.apps.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import dev.denza.apps.design.DenzaColors
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Dp
+import dev.denza.apps.design.DenzaGlyph
 import dev.denza.apps.design.DenzaMetrics
 
 /**
@@ -30,108 +22,70 @@ import dev.denza.apps.design.DenzaMetrics
  * A pane is 828 or 416 dp wide and still 680 tall, and eleven tiles at the width their names need
  * would spend three quarters of that height on words. In a pane they are not being read: the driver
  * came here with the other two thirds of the screen doing something else, already knows the eleven
- * glyphs from the full screen, and what is worth the room is the thing that moves. So the caption
- * goes and the chip keeps what a caption was carrying anyway - is this on - in the border, the ink
- * and a dot.
+ * glyphs from the full screen, and what is worth the room is the thing that moves. So the words go
+ * and the chip keeps what they were carrying anyway - is this on - in the plate and the glyph's
+ * light, which is the tile's own [TileFace] and nothing else.
  *
  * Both gestures survive unchanged, which is the point of it being the same object: a short press
  * does the feature's own action and a long press opens its panel, where every word that was
  * dropped here is written out in full.
  *
  * Square, and as wide as the row gives it: eleven across the two-thirds pane is 60.7 dp, six across
- * two rows of the narrow one is 55.3. See `TwoThirds.dc.html` and `OneThird.dc.html`.
+ * two rows of the narrow one is 55.3. The glyph is a fixed [glyphSize] - 26 in both panes - centred
+ * as a box, the way Luminofor's `tileFace()` centres it: the box and not the ink, so a glyph hung on
+ * the shared left edge sits a little left of the chip's centre, on the board as here.
  *
- * **It measures itself.** The glyph and the dot are fractions of the chip rather than the tile's
- * fixed 30, 7 and 9 - which are exactly those fractions of 68 and so change nothing at ten
- * features. They have to be fractions because a chip is a fraction of its row: an eleventh feature
- * puts it at 60.7 dp, and a 30 dp glyph in a 60.7 chip has its top-right corner under the dot.
- * `ChipDensity.dc.html` draws what that looks like down to the point where it stops working.
+ * **No dot.** The older chip carried its state three times - a border, a tinted glyph and a lit dot
+ * in the corner - because a dark border on a dark page is a difference the eye finds only by
+ * comparing neighbours. Luminofor's lit plate and blue glyph against a dark plate and a grey one are
+ * read without comparing anything, which was the whole of the dot's job, and the board has none.
  */
 @Composable
 fun DenzaChip(
-    icon: ImageVector,
+    glyph: DenzaGlyph,
     tone: DenzaTileTone,
+    radius: Dp,
+    glyphSize: Dp,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
     val shown = DenzaTileTone.shown(tone, enabled)
-    val accent = chipAccent(shown)
-    val background by animateColorAsState(
-        targetValue = if (shown == DenzaTileTone.LIVE) DenzaColors.Surface else DenzaColors.SurfaceQuiet,
-        animationSpec = tween(DenzaMetrics.Motion.TRANSITION_MS),
-        label = "chipBackground",
-    )
-    val edge by animateColorAsState(
-        targetValue = accent.copy(alpha = if (shown == DenzaTileTone.IDLE) 0.10f else 0.30f),
-        animationSpec = tween(DenzaMetrics.Motion.TRANSITION_MS),
-        label = "chipEdge",
-    )
-    val shape = RoundedCornerShape(DenzaMetrics.Radius.M)
+    val face = TileFace.of(shown)
+    val plate by animatedInk(face.plate, "chipPlate")
+    val painter = remember { TileFacePainter() }
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
-            .aspectRatio(1f)
-            .background(background, shape)
-            .border(BorderStroke(DenzaMetrics.Stroke.HAIRLINE, edge), shape)
+            .clip(RoundedCornerShape(radius))
             .combinedClickable(
                 enabled = enabled,
                 onClick = onClick,
                 onLongClick = onLongClick,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        val side = maxWidth
-        val dot = side * DenzaMetrics.Component.CHIP_DOT_RATIO
-        val inset = side * DenzaMetrics.Component.CHIP_DOT_INSET_RATIO
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (shown == DenzaTileTone.IDLE) DenzaColors.Muted else accent,
-            modifier = Modifier.size(side * DenzaMetrics.Component.CHIP_ICON_RATIO),
-        )
-        if (shown == DenzaTileTone.WORKING) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(inset)
-                    .size(dot),
-                strokeWidth = DenzaMetrics.Component.BUSY_STROKE,
-                color = DenzaColors.Accent,
             )
-        } else {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(inset)
-                    .size(dot)
-                    .background(dotColour(shown), CircleShape),
+            .drawBehind {
+                val box = glyphSize.toPx()
+                painter.draw(
+                    scope = this,
+                    face = face,
+                    plate = plate,
+                    glyph = glyph,
+                    glyphAt = Offset((size.width - box) / 2f, (size.height - box) / 2f),
+                    glyphSize = box,
+                )
+            },
+    ) {
+        if (shown == DenzaTileTone.WORKING) {
+            // In the corner the dot used to hold, clear of a 26 glyph in a chip down to 52.
+            WorkingRing(
+                size = DenzaMetrics.Component.BUSY_DOT_CHIP,
+                stroke = glyphStroke(glyphSize),
+                modifier = Modifier.align(Alignment.TopEnd).padding(CHIP_RING_INSET),
             )
         }
     }
 }
 
-/** The border and the glyph, the same four answers the tile gives. */
-private fun chipAccent(tone: DenzaTileTone): Color = when (tone) {
-    DenzaTileTone.LIVE, DenzaTileTone.WORKING -> DenzaColors.Accent
-    DenzaTileTone.IDLE -> DenzaColors.Ink
-    DenzaTileTone.ATTENTION -> DenzaColors.Warning
-    DenzaTileTone.BROKEN -> DenzaColors.Danger
-}
-
-/**
- * The dot, which is the whole of what a chip says.
- *
- * It is deliberately not the same statement as the border. A dark border against a dark page is a
- * difference of a few per cent that the eye finds by comparing one chip with its neighbours; the
- * dot is a lit thing or an unlit thing and is read without comparing anything. That is what makes
- * a row of eleven scannable at a glance from a driver's seat, and it is the archived board's own
- * device rather than something invented here.
- */
-private fun dotColour(tone: DenzaTileTone): Color = when (tone) {
-    DenzaTileTone.LIVE, DenzaTileTone.WORKING -> DenzaColors.Accent
-    DenzaTileTone.IDLE -> DenzaColors.MutedDeep
-    DenzaTileTone.ATTENTION -> DenzaColors.Warning
-    DenzaTileTone.BROKEN -> DenzaColors.Danger
-}
+/** How far the chip's working ring stands in from its corner - clear of a 14 or 16 dp radius. */
+private val CHIP_RING_INSET = DenzaMetrics.Space.S
