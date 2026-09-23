@@ -484,6 +484,30 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    /**
+     * The same rule for every app a pane receives (findings, "The divider's detent map, read"):
+     * an app whose own manifest declares `BYD_SUPPORT_SPLIT_ACTIVITY=1` answers tx112 with yes
+     * before anybody listed it, and asking first left it outside the runtime list - "Release to
+     * close window" in the wide pane, the hub's defect of 2026-09-11 for anybody's app.
+     */
+    @Test
+    fun anAppTheManifestAlreadyMakesSplitCapableIsStillListedForTheDivider() {
+        val fake = FakeShell().apply { declareSplitCapableByManifest(MUSIC) }
+        val split = session(fake)
+        val pickers = split.buildPickers()
+
+        split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertTrue(
+            "tx112 и так «да» по манифесту, но карту детентов решает runtime-список",
+            fake.commands.contains("service call activity_task 125 s16 '$MUSIC'"),
+        )
+    }
+
     @Test
     fun explicitOpenPlacesPickersInNativePaneRootsWithoutSyntheticDividerDrag() {
         val fake = FakeShell().apply {

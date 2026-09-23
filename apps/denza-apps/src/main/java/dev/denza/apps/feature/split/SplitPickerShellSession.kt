@@ -3233,9 +3233,25 @@ internal class SplitPickerShellSession(
         return true
     }
 
+    /**
+     * Every package a pane receives goes into the firmware's runtime split list, always.
+     *
+     * The divider's detent map is decided by exactly that list: `isDefaultSecondActivity()` asks
+     * whether the package of the wide container's focus task is in `mPrimaryActivityList` (or is
+     * the stock list), and nothing else - not the manifest marker, not tx112 (findings, "The
+     * divider's detent map, read"). Asking tx112 first and listing only on "no" left every app that
+     * declares `BYD_SUPPORT_SPLIT_ACTIVITY=1` itself outside the list, with "Release to close
+     * window" in the wide pane - the hub's defect of 2026-09-11, for anybody's app. The same list
+     * makes a package split-capable for placement (`startIviWindow` → `isSupportSplit(task)`), so
+     * this is also what keeps a pane app's own next screen in its pane.
+     *
+     * tx125 appends only what the list does not already hold (`setPrimaryListApp`), so a repeat is
+     * free for the firmware; every call still reaches the ring as "allowlist extended" (1.12). The
+     * tx112 read after it is the postcondition: a firmware that refused the listing is a pane that
+     * failed, not a pane that silently lost its divider.
+     */
     private fun ensureSupported(packageName: String) {
         val quoted = shellQuote(packageName)
-        if (callBoolean("service call activity_task 112 s16 $quoted")) return
         callVoid("service call activity_task 125 s16 $quoted")
         check(callBoolean("service call activity_task 112 s16 $quoted")) {
             "Прошивка не добавила $packageName в split"

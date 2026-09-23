@@ -351,6 +351,14 @@ internal class FakeShell(
 
     fun isGateOpen(): Boolean = gate
 
+    /**
+     * A package whose own manifest carries `BYD_SUPPORT_SPLIT_ACTIVITY=1`: tx112 says yes before
+     * anybody listed it, while the runtime list the divider reads still does not hold it.
+     */
+    fun declareSplitCapableByManifest(packageName: String) {
+        synchronized(this) { supported += packageName }
+    }
+
     fun promoteActivity(rootId: Int, activityName: String) {
         val task = tasks.first {
             it.rootId == rootId && it.activityName == activityName
