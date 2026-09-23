@@ -2444,3 +2444,61 @@ its manifest, and with the gate open it lands in split -
 `startSplitWindow #96 … SplitScreenLauncherAlias newMode = 102` (live
 2026-09-23 14:10:40) - before the open rebalances to 100. The trampoline
 finishes at once, so the cost is a mode flip under the waiting window.
+
+### Sleep and wake, read end to end (2026-09-23, corpus)
+
+What `accmodemanager` does, in order, and what could bring the product back
+(file:line in `captures/split-firmware-20260923/reports/` and the agents'
+scratch notes; nothing here was run on a car).
+
+**ACC off** (`Utils.startAccOff`): orientation property;
+`AccStatusChangedToListener(false)` - a oneway `IAccModeListener.onStatusChange`
+to every registered listener; `goToSleep`; quickboot properties; boot-business
+reset; an ordered `ACTION_SHUTDOWN` with `from_quickboot=true`, not awaited;
+Bluetooth and Wi-Fi off; notifications cleared; `clearRecentApps` - `removeTask`
+on every recent and running task outside a short list, which empties both
+panes; then `killApplications`. The kill is `forceStopPackageLockedEx`: it does
+not mark the package stopped (hence `stopped=false` live) and sends no
+`PACKAGE_RESTARTED`, but it kills services without restart and purges the
+package's jobs and alarms. `handleAccState(false)` in the split controller only
+sets a flag and hides the shadow divider; the `handleAccStateOff` Home reason is
+accepted but emitted by nothing. The gate is not touched.
+
+**Exemptions from the kill:** a hard-coded list (`com.byd.sr`, Bluetooth, boot
+guide, ...), the StrategyManager key `AccOffWhite` (24 packages in the seed,
+`com.android.shell` among them), current live-wallpaper packages, persistent
+system apps. None is reachable by a third-party app or by the shell: the
+strategy lives in the native `strategyservice` behind SELinux (only
+`platform_app` and a few daemons may find it) and is refreshed from the cloud;
+`accmodemanager.setPkg2AccWhiteList` needs `DEVICE_ACC` (signature); a live
+wallpaper needs `SET_WALLPAPER_COMPONENT` or the user's own choice in the
+picker.
+
+**Accessibility after the kill.** The death of the bound service puts it in
+`mCrashedServices` while it stays enabled, and nothing in this build rebinds it
+by itself - not a later start of the process, not an activity, not a broadcast.
+It comes out on a package update (why a reinstall healed it), a user switch,
+or when `enabled_accessibility_services` is written first without the
+component and then, about a second later, with it: the first write clears the
+crashed mark (`updateCrashedServicesIfNeededLocked`), the second binds a fresh
+connection, and the BYD self-start gate exempts accessibility binds.
+`am stop-app` reproduces the sleep state on a bench.
+
+**ACC on** (`Utils.startAccOn`): wake; boot animation; radios back; boot
+business `guide` → `activated`, which starts Home (and so `removeIviStack` once
+more); the animation stops; an ordered `BOOT_COMPLETED` with `from_quickboot`
+and `FLAG_RECEIVER_INCLUDE_BACKGROUND`; last, `AccStatusChangedToListener(true)`.
+Nothing restores the last app, a recent task or a split. The `BOOT_COMPLETED`
+reaches a third-party manifest receiver only through BYD's self-start gate
+(`persist.sys.relatestart`, five sites in `com.android.server.am`): a new app's
+uid is stored as blocked (value 1) at install unless it is on a short Chinese
+allow list, and it becomes allowed (0) only from the "App startup management"
+screen - the provider behind it is system-only, the write needs a signature
+permission. An activity start, a job or an alarm is not gated, but the kill
+purged the latter two.
+
+**Who can hear ACC off before the kill.** `accmodemanager.addListener` (tx7)
+checks no permission, and the notification is step 2 of 10 - before the task
+removal and the kill. But SELinux lets only `platform_app` and `system_server`
+find `accmodemanager_service`; an app UID cannot reach it, the shell can (its
+`find` attribute covers every `service_manager_type` but a few).
