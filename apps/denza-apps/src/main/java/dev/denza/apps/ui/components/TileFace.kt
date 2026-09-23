@@ -91,10 +91,10 @@ internal class TileFace private constructor(
          * The lit plate with its glyph in [glyph] and its status line in [status]; the name stays
          * white.
          *
-         * The status keeps the lit face's intensity whatever the light, so the one line that says
-         * what is wrong is set exactly as bright as the line it replaces and differs from it only
-         * in colour - on the lit plate that is `#CAA784` for orange and `#CA8E96` for red, against
-         * `#CAC9D1` for white.
+         * A calm status is white at the lit face's 0.62. A status that says something is wrong is
+         * the car's own colour for it, whole - `sys_color_abnormal` `#FF9F19` or `sys_color_warning`
+         * `#FF4046`, the light's halo. Dimmed like the calm line, their pale cores came out tan and
+         * dusty pink on the plate, which is no colour the car uses for anything.
          */
         private fun lit(glyph: Light, status: Light) = TileFace(
             lit = true,
@@ -103,7 +103,7 @@ internal class TileFace private constructor(
             glyphIntensity = 1f,
             glyphGlow = Head.Icon.ON_GLOW,
             name = lighter(HeadInk.CARD_ON, HeadInk.WHITE.core, NAME_LIT),
-            status = lighter(HeadInk.CARD_ON, status.core, STATUS_LIT),
+            status = if (status === HeadInk.WHITE) lighter(HeadInk.CARD_ON, status.core, STATUS_LIT) else status.halo,
         )
 
         /**

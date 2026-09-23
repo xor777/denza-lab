@@ -3,6 +3,7 @@ package dev.denza.apps.design
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.luminofor.LuminoforSpec
+import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.SpecJson.list
 import dev.denza.apps.design.luminofor.SpecJson.num
@@ -252,9 +253,12 @@ class LuminoforScreenContractTest {
             assertEquals("$tone plate", on, face.plate)
             assertEquals("$tone glyph", light, face.glyph.core)
             assertEquals("$tone name", 0xFFFFFFFF.toInt(), face.name)
-            assertEquals("$tone status", add(on, light, 0.62), face.status)
+            assertEquals("$tone glyph halo", if (tone == DenzaTileTone.ATTENTION) ClusterInk.ORANGE.halo else ClusterInk.RED.halo, face.glyph.halo)
+            // a status that says something is wrong is the car's own colour for it, whole
+            assertEquals("$tone status", face.glyph.halo, face.status)
         }
-        assertEquals(0xFFCAA784.toInt(), TileFace.of(DenzaTileTone.ATTENTION).status)
+        assertEquals(0xFFFF9F19.toInt(), TileFace.of(DenzaTileTone.ATTENTION).status)
+        assertEquals(0xFFFF4046.toInt(), TileFace.of(DenzaTileTone.BROKEN).status)
         assertEquals("working is lit", lit.plate, TileFace.of(DenzaTileTone.WORKING).plate)
         assertEquals("disabled reads as dark", dark.plate, TileFace.of(DenzaTileTone.shown(DenzaTileTone.LIVE, false)).plate)
     }
