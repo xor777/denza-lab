@@ -103,6 +103,11 @@ class SpectrumRenderer {
         }
     }
 
+    private val ramp = LightPen.additiveRamp(
+        HeadInk.BLUE.halo, Head.Spectrum.GRADIENT_FOOT, HeadInk.BLUE.core, Head.Spectrum.GRADIENT_TOP,
+    )
+    private val rampPositions = FloatArray(ramp.size) { it / (ramp.size - 1f) }
+
     /** The field's gradient and its haze, rebuilt when the field moves on the screen. */
     private fun prepare(pen: LightPen, x0: Float, top: Float, w: Float, floor: Float) {
         val px0 = pen.x(x0)
@@ -117,10 +122,13 @@ class SpectrumRenderer {
 
         val sp = Head.Spectrum
         val blue = HeadInk.BLUE
+        // The only gradient on either screen whose colour and alpha both change along it, so the
+        // only one where Chrome and Skia disagree: Chrome interpolates unpremultiplied, Skia
+        // premultiplied, and the app's columns came out redder. Drawn additively, a ramp of opaque
+        // stops carrying Chrome's colour x alpha adds exactly what the board adds.
         lines.shader = LinearGradient(
             0f, pFloor, 0f, pTop,
-            LightPen.alpha(blue.halo, sp.GRADIENT_FOOT),
-            LightPen.alpha(blue.core, sp.GRADIENT_TOP),
+            ramp, rampPositions,
             Shader.TileMode.CLAMP,
         )
 

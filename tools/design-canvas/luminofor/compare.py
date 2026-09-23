@@ -33,7 +33,9 @@ def unit_scale(bid):
 
 
 def main(bid, shot, at=(0, 0)):
-    board = Image.open(os.path.join(SHOTS, bid + '.png')).convert('RGB')
+    # a cluster is compared with its bare board: the hatching is the board's, not the app's
+    bare = os.path.join(SHOTS, bid + '.bare.png')
+    board = Image.open(bare if os.path.exists(bare) else os.path.join(SHOTS, bid + '.png')).convert('RGB')
     app = Image.open(shot).convert('RGB')
     x, y = at
     app = app.crop((x, y, x + board.width, y + board.height))

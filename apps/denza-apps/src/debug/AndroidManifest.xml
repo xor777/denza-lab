@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <!-- Draws a Luminofor board's fixture with the app's own code, for compare.py. -->
+        <activity
+            android:name=".debug.LuminoforFixtureActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <receiver
             android:name=".SimulcastDebugReceiver"
             android:enabled="true"

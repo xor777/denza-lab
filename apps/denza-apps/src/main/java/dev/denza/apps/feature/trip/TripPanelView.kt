@@ -271,7 +271,13 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
         if (boxW <= 0f || boxH <= 0f) return
         val density = resources.displayMetrics.density
         val save = canvas.save()
-        canvas.translate(overhang, 0f)
+        // The board's box stands on fractions of a pixel - 124.7 dp is 249.4 px on a pane - and a
+        // view on whole ones, so every horizontal line would land up to half a pixel off the
+        // board's. Where the view stands on its box to within that rounding, the canvas takes the
+        // missing fraction; a view laid somewhere else on purpose is left where it is.
+        getLocationInWindow(location)
+        val box = TripPanelRenderer.box(layout)
+        canvas.translate(overhang + fraction(box.left * density - (location[0] + overhang)), fraction(box.top * density - location[1]))
         val still = fixture
         if (still != null) {
             renderer.drawModel(canvas, boxW, boxH, density, layout, page, still)
@@ -291,6 +297,11 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
         }
         canvas.restoreToCount(save)
     }
+
+    private val location = IntArray(2)
+
+    /** A rounding remainder, or nothing when the difference is more than a pixel's rounding. */
+    private fun fraction(d: Float): Float = if (kotlin.math.abs(d) < 1f) d else 0f
 
     companion object {
         private const val MIN_FRAME_NS = 1_000_000_000L / 30L

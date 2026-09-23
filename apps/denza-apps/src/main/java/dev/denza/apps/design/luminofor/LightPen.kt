@@ -78,7 +78,9 @@ class LightPen(
         style = Paint.Style.FILL
         blendMode = BlendMode.PLUS
     }
-    private val type = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+    // Linear text: advances at the size asked for, not hinted to whole pixels - Chrome lays text out
+    // that way, and without it a line of Jura on the cluster came out two per cent short.
+    private val type = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.LINEAR_TEXT_FLAG).apply {
         style = Paint.Style.FILL
         blendMode = BlendMode.PLUS
     }
@@ -252,6 +254,25 @@ class LightPen(
             val sigma = shadowBlurPx / 2f
             return if (sigma <= 0.5f) 0f else (sigma - 0.5f) / 0.57735f
         }
+
+        /**
+         * A gradient from [from] at [fromAlpha] to [to] at [toAlpha] as [steps] opaque stops, for a
+         * paint that draws additively. Chrome interpolates a canvas gradient's colour and alpha
+         * unpremultiplied and then adds colour x alpha; Skia interpolates premultiplied. Each stop
+         * here is Chrome's colour x alpha at its position, opaque, so PLUS adds what the board adds;
+         * sixteen stops keep the product's curve within a level.
+         */
+        fun additiveRamp(from: Int, fromAlpha: Float, to: Int, toAlpha: Float, steps: Int = 16): IntArray =
+            IntArray(steps) { i ->
+                val t = i / (steps - 1f)
+                val a = fromAlpha + (toAlpha - fromAlpha) * t
+                fun channel(shift: Int): Int {
+                    val c0 = (from shr shift) and 0xFF
+                    val c1 = (to shr shift) and 0xFF
+                    return ((c0 + (c1 - c0) * t) * a).roundToInt().coerceIn(0, 255)
+                }
+                (0xFF shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
+            }
 
         fun alpha(color: Int, a: Float): Int {
             val base = (color ushr 24) / 255f

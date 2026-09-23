@@ -8,7 +8,7 @@ Render the Luminofor boards to PNGs at the displays' own pixels, and export thei
 
 A board is luminofor.js drawing one fixture from fixtures.js with the numbers in spec.json - the
 same code the owner approved as a live page, made deterministic. Each board is written into one
-self-contained HTML page (the three sources inlined, Jura and Roboto from Google Fonts) and shot by
+self-contained HTML page (the three sources and the fonts in fonts/ inlined) and shot by
 headless Chrome at device scale 1 into a canvas the size of the real display: the cluster at
 2560 x 720, the head unit at 2560 x 1360 (1280 x 680 dp at 2.0), the panes at 1656 and 832 wide.
 Those PNGs are what `compare.py` lays a screenshot of the app against.
@@ -25,8 +25,22 @@ REPO = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 APP_FIXTURES = os.path.join(REPO, 'apps', 'denza-apps', 'src', 'debug', 'assets', 'luminofor', 'fixtures.json')
 CHROME = os.environ.get('DC_CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 
-FONTS = ('https://fonts.googleapis.com/css2?family=Jura:wght@500;600'
-         '&family=Roboto:wght@400;500&display=swap')
+# The faces are files in fonts/, inlined into each page: Jura is the very file the app ships in
+# res/font, Roboto 400 and 500 are Google Fonts' full TrueType. Fetching them per page from Google
+# Fonts made the boards flaky - a subset or a weight not there yet when the canvas drew, and a
+# Cyrillic caption or a whole title came out in the fallback.
+FACES = [('Jura', 500, 'Jura-Medium.ttf'), ('Roboto', 400, 'Roboto-400.ttf'), ('Roboto', 500, 'Roboto-500.ttf')]
+
+
+def font_css():
+    import base64
+    rules = []
+    for family, weight, name in FACES:
+        with open(os.path.join(HERE, 'fonts', name), 'rb') as f:
+            data = base64.b64encode(f.read()).decode('ascii')
+        rules.append("@font-face{font-family:'%s';font-weight:%d;font-style:normal;"
+                     "src:url(data:font/ttf;base64,%s) format('truetype');}" % (family, weight, data))
+    return ''.join(rules)
 
 # board id -> (css width, css height, scale from layout units to pixels)
 SIZES = {
@@ -58,8 +72,7 @@ def board_ids():
 def page(body_script):
     spec = read('spec.json')
     return ('<!doctype html><html><head><meta charset="utf-8">'
-            f'<link rel="stylesheet" href="{FONTS}">'
-            '<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>'
+            f'<style>{font_css()}html,body{{margin:0;background:#000;overflow:hidden}}canvas{{display:block}}</style>'
             '</head><body><canvas id="c"></canvas>'
             f'<script>window.LUMINOFOR_SPEC = {spec};</script>'
             f'<script>{read("fixtures.js")}</script>'
@@ -67,11 +80,13 @@ def page(body_script):
             f'<script>{body_script}</script></body></html>')
 
 
-def board_page(bid):
+def board_page(bid, bare=False):
     return page("""
 (async function () {
   const id = %s;
-  const [board, fixture] = window.LUMINOFOR_BOARDS[id];
+  const [board, scene] = window.LUMINOFOR_BOARDS[id];
+  // bare: the cluster without the stock zones' hatching, which is board furniture the app never draws
+  const fixture = %s ? Object.assign({}, scene, { keepout: false }) : scene;
   const key = board.kind === 'head' ? board.mode : board.kind;
   const size = %s[key];
   const cv = document.getElementById('c');
@@ -80,16 +95,21 @@ def board_page(bid):
   // Google Fonts splits each face by script and load() fetches only the subsets its sample text
   // touches - a space, by default, which is Latin alone. Every Cyrillic word would then be drawn in
   // the system's sans-serif, which is what the first PNGs showed: the sample names both scripts.
-  try {
-    await Promise.all(['500 20px Jura', '600 20px Jura', '400 20px Roboto', '500 20px Roboto']
-      .map(f => document.fonts.load(f, 'Aa0 АБВабвё·→')));
-  } catch (e) {}
+  // and load() can return before a subset is usable, so the board waits until check() says both
+  // scripts of every face are there - a board once came out with its Cyrillic in the fallback.
+  const faces = ['500 20px Jura', '400 20px Roboto', '500 20px Roboto'];
+  const sample = 'Aa0 АБВабвё·→';
+  for (let i = 0; i < 60; i++) {
+    try { await Promise.all(faces.map(f => document.fonts.load(f, sample))); await document.fonts.ready; } catch (e) {}
+    if (faces.every(f => document.fonts.check(f, sample))) break;
+    await new Promise(r => setTimeout(r, 100));
+  }
   const c = cv.getContext('2d');
   c.fillStyle = '#000'; c.fillRect(0, 0, size[0], size[1]);
   c.setTransform(size[2], 0, 0, size[2], 0, 0);
   window.Luminofor.drawBoard(c, board, fixture);
 })();
-""" % (json.dumps(bid), json.dumps(SIZES)))
+""" % (json.dumps(bid), 'true' if bare else 'false', json.dumps(SIZES)))
 
 
 def chrome(args, out=None):
@@ -107,15 +127,17 @@ def shoot(bid):
     key = {'main': 'full', 'cluster': 'cluster', 'two': 'two', 'one': 'one', 'digits': 'digits'}[kind]
     w, h, _ = SIZES[key]
     os.makedirs(SHOTS, exist_ok=True)
-    out = os.path.join(SHOTS, bid + '.png')
-    with tempfile.NamedTemporaryFile('w', suffix='.html', delete=False, encoding='utf-8') as f:
-        f.write(board_page(bid))
-        path = f.name
-    try:
-        chrome([f'--window-size={w},{h}', '--virtual-time-budget=8000', f'--screenshot={out}', 'file://' + path])
-    finally:
-        os.unlink(path)
-    print(out, f'{w}x{h}')
+    # a cluster board is also shot bare, without the hatching, for compare.py
+    for bare in ([False, True] if kind == 'cluster' else [False]):
+        out = os.path.join(SHOTS, bid + ('.bare' if bare else '') + '.png')
+        with tempfile.NamedTemporaryFile('w', suffix='.html', delete=False, encoding='utf-8') as f:
+            f.write(board_page(bid, bare))
+            path = f.name
+        try:
+            chrome([f'--window-size={w},{h}', '--virtual-time-budget=8000', f'--screenshot={out}', 'file://' + path])
+        finally:
+            os.unlink(path)
+        print(out, f'{w}x{h}')
 
 
 def export_fixtures():

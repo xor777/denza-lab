@@ -24,6 +24,7 @@ import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextMotion
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
@@ -143,6 +144,9 @@ private fun TileLine(text: String, weight: FontWeight, size: Float, baseline: Dp
             fontSize = (size / fontScale).sp,
             letterSpacing = 0.sp,
             platformStyle = PlatformTextStyle(includeFontPadding = false),
+            // Advances as the font gives them, not hinted to whole pixels - the board's Chrome sets
+            // text that way, and hinted Roboto ran a few per cent short of it.
+            textMotion = TextMotion.Animated,
         ),
         maxLines = 1,
         softWrap = false,

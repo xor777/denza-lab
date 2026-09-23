@@ -6,6 +6,8 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import dev.denza.apps.feature.trip.StripModel
+import dev.denza.apps.feature.trip.StripPage
 import dev.denza.apps.feature.trip.TripPanelLayout
 import dev.denza.apps.feature.trip.TripPanelView
 import kotlin.math.roundToInt
@@ -28,10 +30,15 @@ import kotlin.math.roundToInt
 internal fun SpectrumPanel(
     layout: TripPanelLayout,
     modifier: Modifier = Modifier,
+    fixture: StripModel? = null,
+    fixturePage: StripPage? = null,
 ) {
     AndroidView(
-        factory = { context -> TripPanelView(context) },
+        // A fixture (the debug build's boards) is set before anything else, so the view never
+        // starts its hubs; the real screen passes none.
+        factory = { context -> TripPanelView(context).also { view -> fixture?.let { view.fixture = it } } },
         update = { view ->
+            fixturePage?.let { view.page = it }
             view.layout = layout
             // The same whole pixels the layout below adds, so the box lands where it was placed.
             view.overhang = (TripPanelView.OVERHANG_DP * view.resources.displayMetrics.density).roundToInt().toFloat()
