@@ -158,6 +158,17 @@ class EnergyReadoutsTest {
                 strip.engineCellTitleCaps,
             )
             assertEquals("$name: the volts", cluster.voltsFigure, strip.voltsFigure)
+            // The Luminofor strip prints the same words in sentence case: one decision, two cases.
+            assertEquals(
+                "$name: the direction in the car page's case",
+                EnergyReadouts.sentence(cluster.word),
+                strip.wordSentence,
+            )
+            assertEquals(
+                "$name: the engine's heading, split into the car page's caption and unit",
+                words(cluster.engineCellTitle).sorted(),
+                (words(strip.engineCellCaption) + words(strip.engineCellUnit)).sorted(),
+            )
             // The window is one distance printed in three lines: «за 3,7 км», «ЗА 3,7 КМ», and the
             // car page's whole foot unit.
             assertEquals("$name: the window's distance", distance(cluster.window), distance(strip.windowCaps))
@@ -239,6 +250,101 @@ class EnergyReadoutsTest {
         assertTrue(readouts.mark)
         word(snapshot(powerKw = -42.0))
         assertFalse("a plain return names no source", readouts.mark)
+    }
+
+    /**
+     * The car page's case of every word above, written out: the Luminofor board prints these and
+     * nothing else, and a derivation that went wrong would be agreed with by the test above.
+     */
+    @Test
+    fun theCarPageSaysTheSameWordsInSentenceCase() {
+        assertEquals("Батарея", EnergyReadouts.WORD_NEUTRAL_SENTENCE)
+        assertEquals("Из батареи", EnergyReadouts.WORD_FROM_PACK_SENTENCE)
+        assertEquals("В батарею", EnergyReadouts.WORD_TO_PACK_SENTENCE)
+        // «ДВС» is an abbreviation and stays one in every case.
+        assertEquals("В батарею от ДВС", EnergyReadouts.WORD_FROM_ENGINE_SENTENCE)
+        assertEquals("В батарею от зарядки", EnergyReadouts.WORD_FROM_CHARGER_SENTENCE)
+
+        val readouts = EnergyReadouts()
+        fun sentence(telemetry: VehicleTelemetry): Pair<String, String> {
+            readouts.read(telemetry, parked = false)
+            return readouts.word to readouts.wordSentence
+        }
+        assertEquals("ИЗ БАТАРЕИ" to "Из батареи", sentence(snapshot(powerKw = 34.0)))
+        assertEquals("В БАТАРЕЮ" to "В батарею", sentence(snapshot(powerKw = -42.0)))
+        assertEquals("БАТАРЕЯ" to "Батарея", sentence(snapshot(powerKw = null)))
+        assertEquals(
+            "В БАТАРЕЮ ОТ ДВС" to "В батарею от ДВС",
+            sentence(
+                snapshot(
+                    powerKw = -8.0,
+                    values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0, VehicleSignal.GENERATION_KW to 8.0),
+                ),
+            ),
+        )
+        assertEquals(
+            "В БАТАРЕЮ ОТ ЗАРЯДКИ" to "В батарею от зарядки",
+            sentence(
+                snapshot(
+                    powerKw = -2.4,
+                    values = mapOf(VehicleSignal.CHARGE_GUN to 2.0, VehicleSignal.CHARGE_KW to 2.4),
+                ),
+            ),
+        )
+
+        // The engine's cell: «ДВС · об/мин» on the cluster, «ДВС» over «… об/мин» on the car page.
+        readouts.read(
+            snapshot(values = mapOf(VehicleSignal.ENGINE_RUNNING to 3.0, VehicleSignal.ENGINE_RPM to 1650.0)),
+            parked = false,
+        )
+        assertEquals("ДВС · об/мин", readouts.engineCellTitle)
+        assertEquals("ДВС", readouts.engineCellCaption)
+        assertEquals("об/мин", readouts.engineCellUnit)
+        assertEquals("1650", readouts.engineCellFigure)
+        readouts.read(
+            snapshot(
+                values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0),
+                trace = trace(2, 8f),
+                trip = TripEnergy(engineSeconds = 6 * 60.0),
+            ),
+            parked = false,
+        )
+        assertEquals("ДВС · мин за поездку", readouts.engineCellTitle)
+        assertEquals("ДВС за поездку", readouts.engineCellCaption)
+        assertEquals("мин", readouts.engineCellUnit)
+        readouts.read(snapshot(values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0)), parked = false)
+        assertEquals("no cell, no words", "" to "", readouts.engineCellCaption to readouts.engineCellUnit)
+    }
+
+    /**
+     * The trip's cell, which the car page gained from the cluster's first seat: the same integral,
+     * a tenth, under the cluster's own phrase in sentence case - and nothing at all until the car
+     * has answered.
+     */
+    @Test
+    fun theTripCellIsTheClustersFirstSeatInTheCarPagesCase() {
+        val readouts = EnergyReadouts()
+        readouts.read(snapshot(trip = TripEnergy(netKwh = 9.27, kilometres = 42.3)), parked = false)
+        assertEquals(ContourReadout.tenth(9.27), readouts.tripFigure)
+        assertEquals("9,3", readouts.tripFigure)
+        assertEquals("42 км · за поездку", readouts.tripCaption)
+        assertEquals(
+            "the cluster's phrase, one case down",
+            ("42 " + ContourReadout.UNIT_KM + " " + ContourReadout.CAPTION_TRIP).lowercase(),
+            readouts.tripCaption.lowercase(),
+        )
+
+        // The odometer has said nothing yet: the phrase stands alone, the way the cluster's does.
+        readouts.read(snapshot(trip = TripEnergy(netKwh = 0.4)), parked = false)
+        assertEquals("0,4", readouts.tripFigure)
+        assertEquals("За поездку", readouts.tripCaption)
+        assertEquals(EnergyReadouts.sentence(ContourReadout.CAPTION_TRIP_ALONE), readouts.tripCaption)
+
+        // A car that has not answered has no trip to print, rather than a trip of nothing.
+        readouts.read(VehicleTelemetry(), parked = false)
+        assertNull(readouts.tripFigure)
+        readouts.read(VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "нет"), parked = false)
+        assertNull(readouts.tripFigure)
     }
 
     @Test
@@ -582,6 +688,10 @@ class EnergyReadoutsTest {
     }
 
     /** The distance a window names, whichever case it is printed in. */
+    /** A heading's words without its separator: what the two layouts of it must both say. */
+    private fun words(text: String): List<String> =
+        text.split(' ').filter { it.isNotEmpty() && it != "·" }
+
     private fun distance(window: String): String =
         Regex("""\d+(,\d+)?""").findAll(window).lastOrNull()?.value ?: window
 
