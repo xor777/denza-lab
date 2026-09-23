@@ -121,6 +121,7 @@
       "points": 100,
       "gapFromAxis": 8,
       "runs": 10,
+      "tick": 3,
       "stroke": 1.5,
       "figureSize": 52,
       "unitGap": 10,
@@ -175,6 +176,6 @@
       "glowPad": 3,
       "haze": { "rx": 0.52, "ry": 0.62, "cy": 0.62, "stops": [[0, 0.15], [0.55, 0.06], [1, 0]] }
     },
-    "chart": { "zeroAt": 0.75, "upTo": 60, "downTo": 20, "fillUp": 0.10, "fillDown": 0.45, "stroke": 1.6, "zeroStroke": 0.8, "zeroAlpha": 0.25, "dot": 3, "captionAlpha": 0.8 }
+    "chart": { "points": 100, "tick": 3, "zeroAt": 0.75, "upTo": 60, "downTo": 20, "fillUp": 0.10, "fillDown": 0.45, "stroke": 1.6, "zeroStroke": 0.8, "zeroAlpha": 0.25, "dot": 3, "captionAlpha": 0.8 }
   }
 }

@@ -239,52 +239,77 @@
     }
   }
 
-  function trace(c, f) {
-    const zero = CT.zero, top = CT.top, drop = CT.drop;
-    const bx0 = AX - CT.gapFromAxis - CT.width, bx1 = AX - CT.gapFromAxis;
-    const upY = v => zero - (zero - top) * Math.min(1, v / CT.upTo);
-    const dnY = v => zero + (drop - zero) * Math.min(1, -v / CT.downTo);
-    // one pitch for the hundred points; a filling window is anchored at the right edge
-    const ch = f.chart, n = ch.length, st = (bx1 - bx0) / CT.points, x00 = bx1 - n * st;
-    if (!n) return traceFigure(c, f);
+  // The ten-kilometre chart as the energy contract draws it (§2.3), on both screens: one line
+  // through the points - a hundred kilometre-means, one per hundred metres of recorded road, the
+  // newest on the right edge, a full window edge to edge and a filling one growing leftward at the
+  // same pitch, so «за 3,7 км» is as wide as its road - and the field between the line
+  // and zero. White above zero and blue under it, split by zero itself, so nothing is stroked along
+  // the zero. A run of points past a ceiling lies along it, with one tick just outside the box at
+  // the run's centre, so the reader sees it was cut.
+  function silhouette(c, ch, o) {
+    const n = ch.length;
+    const xOf = i => o.right - (n - 1 - i) * o.pitch;
+    const yOf = v => v >= 0 ? o.zero - (o.zero - o.top) * Math.min(1, v / o.upTo) : o.zero + (o.bottom - o.zero) * Math.min(1, -v / o.downTo);
+    const x0 = xOf(0), x1 = xOf(n - 1);
+    const line = new Path2D();
+    ch.forEach((v, i) => i ? line.lineTo(xOf(i), yOf(v)) : line.moveTo(xOf(i), yOf(v)));
+    const field = new Path2D(line); field.lineTo(x1, o.zero); field.lineTo(x0, o.zero); field.closePath();
+    const above = new Path2D(); above.rect(x0 - 20, o.top - 20, x1 - x0 + 40, o.zero - o.top + 20);
+    const below = new Path2D(); below.rect(x0 - 20, o.zero, x1 - x0 + 40, o.bottom - o.zero + 20);
     c.save(); c.globalCompositeOperation = 'lighter';
-    const fUp = new Path2D(), fDn = new Path2D();
-    fUp.moveTo(x00, zero); fDn.moveTo(x00, zero);
-    ch.forEach((v, i) => {
-      const x0 = x00 + i * st, x1 = x0 + st;
-      const yu = v > 0 ? upY(v) : zero, yd = v < 0 ? dnY(v) : zero;
-      fUp.lineTo(x0, yu); fUp.lineTo(x1, yu); fDn.lineTo(x0, yd); fDn.lineTo(x1, yd);
-    });
-    fUp.lineTo(bx1, zero); fUp.closePath(); fDn.lineTo(bx1, zero); fDn.closePath();
-    const gu = c.createLinearGradient(x00, 0, bx1, 0); gu.addColorStop(0, rgba(INK[0], 0.03)); gu.addColorStop(1, rgba(INK[0], 0.16));
-    c.fillStyle = gu; c.fill(fUp);
-    const gd = c.createLinearGradient(x00, 0, bx1, 0); gd.addColorStop(0, rgba(BLUE[0], 0.05)); gd.addColorStop(1, rgba(BLUE[0], 0.3));
-    c.fillStyle = gd; c.fill(fDn);
+    c.save(); c.clip(above); o.fillUp(c, field, x0, x1); c.restore();
+    c.save(); c.clip(below); o.fillDown(c, field, x0, x1); c.restore();
     c.restore();
-    // ten runs, the older ones dimmer. Spending is one white step line lying on zero through a
-    // return; each return is its own blue shape under zero, and nothing blue runs along zero.
-    const runs = CT.runs, per = n / runs;
-    for (let r = 0; r < runs; r++) {
-      const i0 = Math.floor(r * per), i1 = Math.min(n, Math.floor((r + 1) * per));
-      const pu = new Path2D(), pd = new Path2D();
-      for (let i = i0; i < i1; i++) {
-        const v = ch[i], x0 = x00 + i * st, x1 = x0 + st, yu = upY(Math.max(0, v));
-        if (i === i0) pu.moveTo(x0, i > 0 ? upY(Math.max(0, ch[i - 1])) : yu);
-        pu.lineTo(x0, yu); pu.lineTo(x1, yu);
-        if (v < 0) {
-          const yd = dnY(v), prevNeg = i > i0 && ch[i - 1] < 0;
-          if (!prevNeg) pd.moveTo(x0, zero);
-          pd.lineTo(x0, yd); pd.lineTo(x1, yd);
-          const nextNeg = i + 1 < i1 && ch[i + 1] < 0;
-          if (!nextNeg) pd.lineTo(x1, zero);
-        }
+    // One stroke, lit in runs: the window is cut into equal runs of x and each is drawn a step
+    // dimmer than the one after it - the beam's persistence - by a stepped gradient along x rather
+    // than a path per run, whose round caps would meet and add up into a bright bead at every seam.
+    const runs = o.runs;
+    const lit = col => {
+      const g = c.createLinearGradient(x0, 0, x1, 0);
+      for (let r = 0; r < runs; r++) {
+        const I = o.intensity(r, runs);
+        g.addColorStop(r / runs, rgba(col[1], I)); g.addColorStop((r + 1) / runs, rgba(col[1], I));
       }
-      const I = 0.28 + 0.72 * Math.pow((r + 1) / runs, 1.6);
-      beam(c, pu, CT.stroke, INK, I, 0); beam(c, pd, CT.stroke, BLUE, I, 0);
+      return g;
+    };
+    [[above, o.upLight], [below, o.downLight]].forEach(([clip, col]) => {
+      c.save(); c.clip(clip); c.globalCompositeOperation = 'lighter';
+      c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = o.stroke; c.strokeStyle = lit(col); c.stroke(line);
+      c.restore();
+    });
+    for (let i = 0; i < n;) {
+      const up = ch[i] > o.upTo, dn = ch[i] < -o.downTo;
+      if (!up && !dn) { i++; continue; }
+      let j = i;
+      while (j + 1 < n && (up ? ch[j + 1] > o.upTo : ch[j + 1] < -o.downTo)) j++;
+      const xm = (xOf(i) + xOf(j)) / 2, t = new Path2D();
+      if (up) { t.moveTo(xm, o.top - 1); t.lineTo(xm, o.top - 1 - o.tick); }
+      else { t.moveTo(xm, o.bottom + 1); t.lineTo(xm, o.bottom + 1 + o.tick); }
+      beam(c, t, o.stroke, up ? o.upLight : o.downLight, 1, 0);
+      i = j + 1;
     }
-    const last = ch[n - 1];
-    const dot = new Path2D(); dot.arc(bx1, last >= 0 ? upY(last) : dnY(last), 2.6, 0, Math.PI * 2);
-    glowFill(c, dot, last < 0 ? BLUE : INK, 1, 12);
+    return { x: x1, y: yOf(ch[n - 1]), last: ch[n - 1] };
+  }
+
+  function trace(c, f) {
+    const ch = f.chart;
+    if (!ch.length) return traceFigure(c, f);
+    const end = silhouette(c, ch, {
+      right: AX - CT.gapFromAxis, pitch: CT.width / (CT.points - 1), zero: CT.zero, top: CT.top, bottom: CT.drop,
+      upTo: CT.upTo, downTo: CT.downTo, upLight: INK, downLight: BLUE, stroke: CT.stroke, tick: CT.tick, runs: CT.runs,
+      // ten runs, the older ones dimmer - the beam's persistence
+      intensity: (r, runs) => 0.28 + 0.72 * Math.pow((r + 1) / runs, 1.6),
+      fillUp: (cc, field, x0, x1) => {
+        const g = cc.createLinearGradient(x0, 0, x1, 0); g.addColorStop(0, rgba(INK[0], 0.03)); g.addColorStop(1, rgba(INK[0], 0.16));
+        cc.fillStyle = g; cc.fill(field);
+      },
+      fillDown: (cc, field, x0, x1) => {
+        const g = cc.createLinearGradient(x0, 0, x1, 0); g.addColorStop(0, rgba(BLUE[0], 0.05)); g.addColorStop(1, rgba(BLUE[0], 0.3));
+        cc.fillStyle = g; cc.fill(field);
+      }
+    });
+    const dot = new Path2D(); dot.arc(end.x, end.y, 2.6, 0, Math.PI * 2);
+    glowFill(c, dot, end.last < 0 ? BLUE : INK, 1, 12);
     traceFigure(c, f);
   }
   function traceFigure(c, f) {
@@ -356,11 +381,13 @@
       f.generation.forEach((v, i) => { const yy = sy(v); if (i === 0) edge.moveTo(bx0, yy); else edge.lineTo(bx0 + i * step, yy); edge.lineTo(bx0 + (i + 1) * step, yy); area.lineTo(bx0 + i * step, yy); area.lineTo(bx0 + (i + 1) * step, yy); });
       area.lineTo(RE, zeroY); area.closePath();
       c.save(); c.globalCompositeOperation = 'lighter';
-      const g = c.createLinearGradient(0, top, 0, zeroY); g.addColorStop(0, rgba(BLUE[0], 0.2)); g.addColorStop(1, rgba(BLUE[0], 0.02));
+      // the history's colours, not the return's: what G is in motion is open (contract §2.5), and
+      // blue on this panel means «into the pack» and nothing else
+      const g = c.createLinearGradient(0, top, 0, zeroY); g.addColorStop(0, rgba(INK[0], 0.16)); g.addColorStop(1, rgba(INK[0], 0.02));
       c.fillStyle = g; c.fill(area); c.restore();
-      beam(c, edge, E.stroke, BLUE, 0.95, 0);
-      const b0 = new Path2D(); b0.moveTo(bx0, zeroY); b0.lineTo(RE, zeroY); beam(c, b0, E.baseStroke, BLUE, 0.35, 0);
-      text(c, f.engineCaption, bx0, CG.caption, CG.captionSize, BLUE, 1, { track: CG.cellCaptionTrack });
+      beam(c, edge, E.stroke, INK, 0.95, 0);
+      const b0 = new Path2D(); b0.moveTo(bx0, zeroY); b0.lineTo(RE, zeroY); beam(c, b0, E.baseStroke, INK, 0.35, 0);
+      text(c, f.engineCaption, bx0, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
       text(c, f.engineWindow, bx0, base + CG.detailDrop, CG.detailSize, GREY, 1, { track: CG.cellCaptionTrack });
     } else {
       const uw = textWidth(c, f.tripUnit, CG.unitSize), cw = textWidth(c, f.tripCaption, CG.captionSize, { track: CG.cellCaptionTrack });
@@ -443,27 +470,18 @@
     c.restore();
   }
   function carChart(c, f, x0, y0, w, h) {
-    const C = S.head.chart;
-    const zero = y0 + h * C.zeroAt;
-    const up = v => zero - (zero - y0) * Math.min(1, v / C.upTo), dn = v => zero + (y0 + h - zero) * Math.min(1, -v / C.downTo);
-    const ch = f.chart, n = ch.length, st = w / n;
-    const pu = new Path2D(), fu = new Path2D(), fd = new Path2D();
-    fu.moveTo(x0, zero); fd.moveTo(x0, zero);
-    ch.forEach((v, i) => {
-      const a = x0 + i * st, b = a + st, yu = up(Math.max(0, v)), yd = v < 0 ? dn(v) : zero;
-      if (i === 0) pu.moveTo(a, yu);
-      pu.lineTo(a, yu); pu.lineTo(b, yu);
-      fu.lineTo(a, yu); fu.lineTo(b, yu); fd.lineTo(a, yd); fd.lineTo(b, yd);
-    });
-    fu.lineTo(x0 + w, zero); fu.closePath(); fd.lineTo(x0 + w, zero); fd.closePath();
-    c.save(); c.globalCompositeOperation = 'lighter';
-    c.fillStyle = rgba(WHT[0], C.fillUp); c.fill(fu);
-    c.fillStyle = rgba(HUB[0], C.fillDown); c.fill(fd);
-    c.restore();
-    beam(c, pu, C.stroke, WHT, 0.95, 0);
+    const C = S.head.chart, zero = y0 + h * C.zeroAt, ch = f.chart;
+    if (!ch.length) return;
     const z = new Path2D(); z.moveTo(x0, zero); z.lineTo(x0 + w, zero); beam(c, z, C.zeroStroke, WHT, C.zeroAlpha, 0);
-    const last = ch[n - 1], d = new Path2D(); d.arc(x0 + w, last >= 0 ? up(last) : dn(last), C.dot, 0, Math.PI * 2);
-    glowFill(c, d, last < 0 ? HUB : WHT, 1, 8);
+    const end = silhouette(c, ch, {
+      right: x0 + w, pitch: w / (C.points - 1), zero, top: y0, bottom: y0 + h,
+      upTo: C.upTo, downTo: C.downTo, upLight: WHT, downLight: HUB, stroke: C.stroke, tick: C.tick, runs: 1,
+      intensity: () => 0.95,
+      fillUp: (cc, field) => { cc.fillStyle = rgba(WHT[0], C.fillUp); cc.fill(field); },
+      fillDown: (cc, field) => { cc.fillStyle = rgba(HUB[0], C.fillDown); cc.fill(field); }
+    });
+    const d = new Path2D(); d.arc(end.x, end.y, C.dot, 0, Math.PI * 2);
+    glowFill(c, d, end.last < 0 ? HUB : WHT, 1, 8);
   }
   function tempsRow(c, f, x0, capY, valY, pitch, size) {
     f.temps.forEach((cell, i) => {

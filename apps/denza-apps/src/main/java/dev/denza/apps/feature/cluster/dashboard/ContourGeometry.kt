@@ -177,18 +177,11 @@ internal object ContourGeometry {
     const val TRACE_LEFT: Float = AXIS - Trace.GAP_FROM_AXIS - Trace.WIDTH
     const val TRACE_RIGHT: Float = AXIS - Trace.GAP_FROM_AXIS
 
-    /** One pitch for the hundred points, so a filling window is as wide as its road. */
-    const val TRACE_PITCH: Float = Trace.WIDTH / Trace.POINTS
-
-    /** Where the oldest of [count] points starts: the window grows leftward from the right edge. */
-    fun traceStart(count: Int): Float = TRACE_RIGHT - count * TRACE_PITCH
-
-    /** Spending climbs the figure's cap to 60; a return hangs a descender under it to 20. */
-    fun traceUp(value: Float): Float =
-        Trace.ZERO - (Trace.ZERO - Trace.TOP) * min(1f, value / Trace.UP_TO)
-
-    fun traceDown(value: Float): Float =
-        Trace.ZERO + (Trace.DROP - Trace.ZERO) * min(1f, -value / Trace.DOWN_TO)
+    /**
+     * One pitch for the hundred points: a full window runs edge to edge and a filling one grows
+     * leftward from the right edge at the same pitch, so it is as wide as its road.
+     */
+    const val TRACE_PITCH: Float = Trace.WIDTH / (Trace.POINTS - 1)
 
     /** The ten runs brighten toward the present: 0.28 + 0.72·((r + 1) / 10)^1.6. */
     fun runIntensity(run: Int): Float =

@@ -18,11 +18,11 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Grid
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Trace
 import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.design.luminofor.LuminoforSpec.Light
+import dev.denza.apps.design.luminofor.Silhouette
 import dev.denza.apps.design.luminofor.ThermalGlyphs
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.cluster.dashboard.ContourGeometry.AXIS
 import kotlin.math.abs
-import kotlin.math.floor
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -64,7 +64,6 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
 
     private val path = Path()
     private val area = Path()
-    private val down = Path()
 
     private val shade = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -95,10 +94,16 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
     private var hotRed: Shader? = null
     private var boxShader: Shader? = null
 
-    // And the trace's, which also depend on how far the window has filled.
-    private var traceShadedCount = -1
-    private var traceUp: Shader? = null
-    private var traceDown: Shader? = null
+    /** The ten kilometres: ink over zero and blue under it, ten runs brightening to the present. */
+    private val silhouette = Silhouette(
+        upLight = ClusterInk.INK,
+        downLight = ClusterInk.BLUE,
+        stroke = Trace.STROKE,
+        tick = Trace.TICK,
+        runLevels = FloatArray(Trace.RUNS) { ContourGeometry.runIntensity(it) },
+        upFill = floatArrayOf(TRACE_UP_OLD, TRACE_UP_NEW),
+        downFill = floatArrayOf(TRACE_DOWN_OLD, TRACE_DOWN_NEW),
+    )
 
     /** The last consumption figure's width, so its unit does not jump while the figure is stale. */
     private var lastFigureWidth = 0f
@@ -379,8 +384,12 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
     }
 
     /**
-     * The engine's box in the trip's place: a blue step trace of what it gave, over the figures'
-     * own height, its sentence on the caption line and its window under it.
+     * The engine's box in the trip's place: a step trace of what it gave, over the figures' own
+     * height, its sentence on the caption line and its window under it.
+     *
+     * In the history's colours - ink, a faint ink field, the sentence grey like every caption - and
+     * not the return's blue: what `G` is in motion is open (contract §2.5), and blue on this panel
+     * means «into the pack» and nothing else.
      *
      * The board draws every bin as one step line; the app draws the runs of bins the engine
      * actually gave in, because a bin nothing answered in and a bin at zero are not a reading - a
@@ -413,17 +422,17 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         shade.alpha = OPAQUE
         pen.canvas.drawPath(pen.toPx(area), shade)
         shade.shader = null
-        pen.beam(path, EngineBox.STROKE, ClusterInk.BLUE, BOX_EDGE_INTENSITY)
+        pen.beam(path, EngineBox.STROKE, ClusterInk.INK, BOX_EDGE_INTENSITY)
         path.rewind()
         path.moveTo(ContourGeometry.BOX_LEFT, zeroY)
         path.lineTo(right, zeroY)
-        pen.beam(path, EngineBox.BASE_STROKE, ClusterInk.BLUE, BOX_BASE_INTENSITY)
+        pen.beam(path, EngineBox.BASE_STROKE, ClusterInk.INK, BOX_BASE_INTENSITY)
         pen.text(
             f.engineCaption,
             ContourGeometry.BOX_LEFT,
             Grid.CAPTION,
             Grid.CAPTION_SIZE,
-            ClusterInk.BLUE,
+            ClusterInk.GREY,
             1f,
             track = Grid.CELL_CAPTION_TRACK,
         )
@@ -442,89 +451,27 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
 
     /**
      * The hundred points under the axis, zero on the figure's baseline: spending climbs the cap to
-     * 60, a return hangs a descender to 20 (`docs/energy-display-contract.md` §2.3). One pitch for
-     * the hundred, so a filling window is anchored at the right edge and is as wide as its road.
+     * 60, a return hangs a descender to 20, one line through the points and the field under it
+     * (`docs/energy-display-contract.md` §2.3) - [Silhouette], which the car page draws too.
      */
     private fun trace(f: ContourFrame) {
         val n = f.chartCount
-        if (n <= 0) {
-            traceFigure(f)
-            return
-        }
-        val ch = f.chart
-        val zero = Trace.ZERO
-        val right = ContourGeometry.TRACE_RIGHT
-        val st = ContourGeometry.TRACE_PITCH
-        val x00 = ContourGeometry.traceStart(n)
-        traceShaders(n)
-
-        area.rewind()
-        down.rewind()
-        area.moveTo(x00, zero)
-        down.moveTo(x00, zero)
-        for (i in 0 until n) {
-            val v = ch[i]
-            val x0 = x00 + i * st
-            val x1 = x0 + st
-            val yu = if (v > 0f) ContourGeometry.traceUp(v) else zero
-            val yd = if (v < 0f) ContourGeometry.traceDown(v) else zero
-            area.lineTo(x0, yu)
-            area.lineTo(x1, yu)
-            down.lineTo(x0, yd)
-            down.lineTo(x1, yd)
-        }
-        area.lineTo(right, zero)
-        area.close()
-        down.lineTo(right, zero)
-        down.close()
-        shade.alpha = OPAQUE
-        shade.shader = traceUp
-        pen.canvas.drawPath(pen.toPx(area), shade)
-        shade.shader = traceDown
-        pen.canvas.drawPath(pen.toPx(down), shade)
-        shade.shader = null
-
-        // Ten runs, the older ones dimmer. Spending is one white step line lying on zero through a
-        // return; each return is its own blue shape under zero, and nothing blue runs along zero.
-        val per = n.toDouble() / Trace.RUNS
-        for (r in 0 until Trace.RUNS) {
-            val i0 = floor(r * per).toInt()
-            val i1 = min(n, floor((r + 1) * per).toInt())
-            path.rewind()
-            down.rewind()
-            for (i in i0 until i1) {
-                val v = ch[i]
-                val x0 = x00 + i * st
-                val x1 = x0 + st
-                val yu = ContourGeometry.traceUp(maxOf(0f, v))
-                if (i == i0) path.moveTo(x0, if (i > 0) ContourGeometry.traceUp(maxOf(0f, ch[i - 1])) else yu)
-                path.lineTo(x0, yu)
-                path.lineTo(x1, yu)
-                if (v < 0f) {
-                    val yd = ContourGeometry.traceDown(v)
-                    val prevNeg = i > i0 && ch[i - 1] < 0f
-                    if (!prevNeg) down.moveTo(x0, zero)
-                    down.lineTo(x0, yd)
-                    down.lineTo(x1, yd)
-                    val nextNeg = i + 1 < i1 && ch[i + 1] < 0f
-                    if (!nextNeg) down.lineTo(x1, zero)
-                }
-            }
-            val intensity = ContourGeometry.runIntensity(r)
-            if (i1 > i0) {
-                pen.beam(path, Trace.STROKE, ClusterInk.INK, intensity)
-                pen.beam(down, Trace.STROKE, ClusterInk.BLUE, intensity)
-            }
-        }
-        val last = ch[n - 1]
-        path.rewind()
-        path.addCircle(
-            right,
-            if (last >= 0f) ContourGeometry.traceUp(last) else ContourGeometry.traceDown(last),
-            ContourGeometry.TRACE_DOT,
-            Path.Direction.CW,
+        val drawn = silhouette.draw(
+            pen, f.chart, 0, n,
+            right = ContourGeometry.TRACE_RIGHT,
+            pitch = ContourGeometry.TRACE_PITCH,
+            zero = Trace.ZERO,
+            top = Trace.TOP,
+            bottom = Trace.DROP,
+            upTo = Trace.UP_TO,
+            downTo = Trace.DOWN_TO,
         )
-        pen.glowFill(path, if (last < 0f) ClusterInk.BLUE else ClusterInk.INK, 1f, ContourGeometry.TRACE_DOT_BLUR)
+        if (drawn) {
+            path.rewind()
+            path.addCircle(silhouette.endX, silhouette.endY, ContourGeometry.TRACE_DOT, Path.Direction.CW)
+            val light = if (silhouette.endValue < 0f) ClusterInk.BLUE else ClusterInk.INK
+            pen.glowFill(path, light, 1f, ContourGeometry.TRACE_DOT_BLUR)
+        }
         traceFigure(f)
     }
 
@@ -562,7 +509,6 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         if (scale == shadedScale && originX == shadedOrigin) return
         shadedScale = scale
         shadedOrigin = originX
-        traceShadedCount = -1
         val clear = { color: Int -> color and 0x00FFFFFF }
         val ink = ClusterInk.INK.halo
         filamentShader = LinearGradient(
@@ -578,25 +524,7 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         hotRed = RadialGradient(0f, 0f, hot, ClusterInk.RED.halo, clear(ClusterInk.RED.halo), Shader.TileMode.CLAMP)
         boxShader = LinearGradient(
             0f, pen.y(ContourGeometry.BOX_TOP), 0f, pen.y(ContourGeometry.BOX_ZERO),
-            LightPen.alpha(blue, BOX_FILL_TOP), LightPen.alpha(blue, BOX_FILL_ZERO), Shader.TileMode.CLAMP,
-        )
-    }
-
-    /** The trace's two fills run from its oldest point to the right edge, so they follow the window. */
-    private fun traceShaders(count: Int) {
-        if (count == traceShadedCount) return
-        traceShadedCount = count
-        val from = pen.x(ContourGeometry.traceStart(count))
-        val to = pen.x(ContourGeometry.TRACE_RIGHT)
-        val ink = ClusterInk.INK.halo
-        val blue = ClusterInk.BLUE.halo
-        traceUp = LinearGradient(
-            from, 0f, to, 0f,
-            LightPen.alpha(ink, TRACE_UP_OLD), LightPen.alpha(ink, TRACE_UP_NEW), Shader.TileMode.CLAMP,
-        )
-        traceDown = LinearGradient(
-            from, 0f, to, 0f,
-            LightPen.alpha(blue, TRACE_DOWN_OLD), LightPen.alpha(blue, TRACE_DOWN_NEW), Shader.TileMode.CLAMP,
+            LightPen.alpha(ink, BOX_FILL_TOP), LightPen.alpha(ink, BOX_FILL_ZERO), Shader.TileMode.CLAMP,
         )
     }
 
@@ -614,7 +542,7 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         /** The engine box: its edge, its base line and its fill, top to zero. */
         const val BOX_EDGE_INTENSITY = 0.95f
         const val BOX_BASE_INTENSITY = 0.35f
-        const val BOX_FILL_TOP = 0.2f
+        const val BOX_FILL_TOP = 0.16f
         const val BOX_FILL_ZERO = 0.02f
 
         /** The trace's fills, oldest point to newest. */

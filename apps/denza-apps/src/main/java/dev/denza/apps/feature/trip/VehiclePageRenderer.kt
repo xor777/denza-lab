@@ -1,13 +1,11 @@
 package dev.denza.apps.feature.trip
 
-import android.graphics.BlendMode
-import android.graphics.Paint
 import android.graphics.Path
 import dev.denza.apps.design.luminofor.LightPen
 import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.design.luminofor.LuminoforSpec.HeadInk
-import dev.denza.apps.design.luminofor.LuminoforSpec.Light
+import dev.denza.apps.design.luminofor.Silhouette
 import dev.denza.apps.design.luminofor.ThermalGlyphs
 import kotlin.math.max
 import kotlin.math.min
@@ -27,37 +25,33 @@ import kotlin.math.min
  *    which is white until a cell leaves its band;
  *  - **the engine's cell and the trip's** - the engine only while it has something to say, the trip
  *    flush right on the full screen;
- *  - **the chart**, under «Расход 16,9 кВт·ч/100 км · за 10 км»: a white step line over a faint
- *    field, the returns as blue shapes under the zero, a dot at the newest point.
+ *  - **the chart**, under «Расход 16,9 кВт·ч/100 км · за 10 км»: one line through the hundred
+ *    points over a faint field, white above the zero and blue under it, a dot at the newest point.
  *
  * Every word and figure comes in through the [StripModel], decided by `EnergyReadouts` for both
  * screens (`docs/energy-display-contract.md`); this class owns the geometry and nothing else. What
  * the older page drew and this one does not - the axis gutter's «60» and «−20», the shelf's tracks
  * and zones, the cell spread's row - is not on the board.
  *
- * Nothing is allocated in a frame: the chart's paths are rebuilt when its points or its box move,
- * which is four times a second at most, and reused in between.
+ * Nothing is allocated in a frame: the chart's paths are reused and its gradients rebuilt only when
+ * its box moves.
  */
 internal class VehiclePageRenderer {
 
     private val placement = StripGeometry.CarPlacement()
     private val wrapped = StripInk.Wrapped()
 
-    private val step = Path()
-    private val fillUp = Path()
-    private val fillDown = Path()
     private val zeroLine = Path()
     private val endDot = Path()
-    private val upPaint = plus(LightPen.alpha(HeadInk.WHITE.halo, Head.Chart.FILL_UP))
-    private val downPaint = plus(LightPen.alpha(HeadInk.BLUE.halo, Head.Chart.FILL_DOWN))
-
-    private var chartPoints: FloatArray? = null
-    private var chartCount = -1
-    private var chartX = Float.NaN
-    private var chartY = Float.NaN
-    private var chartW = Float.NaN
-    private var chartH = Float.NaN
-    private var endLight: Light = HeadInk.WHITE
+    private val silhouette = Silhouette(
+        upLight = HeadInk.WHITE,
+        downLight = HeadInk.BLUE,
+        stroke = Head.Chart.STROKE,
+        tick = Head.Chart.TICK,
+        runLevels = floatArrayOf(LINE_INTENSITY),
+        upFill = floatArrayOf(Head.Chart.FILL_UP, Head.Chart.FILL_UP),
+        downFill = floatArrayOf(Head.Chart.FILL_DOWN, Head.Chart.FILL_DOWN),
+    )
 
     fun draw(ink: StripInk, layout: TripPanelLayout, model: StripModel, left: Float, right: Float) {
         if (model.closed) {
@@ -159,90 +153,36 @@ internal class VehiclePageRenderer {
     /**
      * The board's `carChart`: the last ten kilometres, a hundred points on the contract's own
      * ladder - zero three quarters of the way down, sixty up to the top, twenty down to the foot,
-     * clamped at both.
+     * clamped at both, with a tick over a run that was cut.
      *
-     * One pitch for the hundred points and a window still filling anchored at the right edge, as
-     * the cluster's trace draws it and as the contract says (§2.3, «за 3,7 км» is 37 % of the box);
-     * the board, whose scenes are all full, spreads whatever it has over the width, and for a
-     * hundred points the two are the same drawing. The zero spans the box either way.
+     * One line through the points and the field under it, white over zero and blue under it - the
+     * cluster's [Silhouette] in the head unit's inks, one level instead of ten runs. A full window
+     * runs edge to edge and a filling one grows leftward from the right edge at the same pitch, as
+     * the contract says (§2.3, «за 3,7 км» is 37 % of the box). The zero spans the box either way.
      */
     private fun chart(pen: LightPen, model: StripModel, x0: Float, y0: Float, w: Float, h: Float) {
         val c = Head.Chart
         val zero = y0 + h * c.ZERO_AT
-        val count = min(model.chartCount, model.chart.size)
-        if (count > 0) {
-            buildChart(model.chart, count, x0, y0, w, h)
-            val canvas = pen.canvas
-            canvas.drawPath(pen.toPx(fillUp), upPaint)
-            canvas.drawPath(pen.toPx(fillDown), downPaint)
-            pen.beam(step, c.STROKE, HeadInk.WHITE, LINE_INTENSITY)
-        }
-        zeroLine.reset()
+        zeroLine.rewind()
         zeroLine.moveTo(x0, zero)
         zeroLine.lineTo(x0 + w, zero)
         pen.beam(zeroLine, c.ZERO_STROKE, HeadInk.WHITE, c.ZERO_ALPHA)
-        if (count > 0) pen.glowFill(endDot, endLight, 1f, END_BLUR)
-    }
-
-    private fun buildChart(points: FloatArray, count: Int, x0: Float, y0: Float, w: Float, h: Float) {
-        if (points === chartPoints && count == chartCount && x0 == chartX && y0 == chartY &&
-            w == chartW && h == chartH
-        ) {
-            return
-        }
-        chartPoints = points
-        chartCount = count
-        chartX = x0
-        chartY = y0
-        chartW = w
-        chartH = h
-
-        val c = Head.Chart
-        val bottom = y0 + h
-        val zero = y0 + h * c.ZERO_AT
-        val pitch = w / POINTS
-        val start = x0 + w - count * pitch
-        val first = points.size - count
-        step.reset()
-        fillUp.reset()
-        fillDown.reset()
-        fillUp.moveTo(start, zero)
-        fillDown.moveTo(start, zero)
-        for (i in 0 until count) {
-            val v = points[first + i]
-            val a = start + i * pitch
-            val b = a + pitch
-            val yu = up(max(0f, v), zero, y0)
-            val yd = if (v < 0f) down(v, zero, bottom) else zero
-            if (i == 0) step.moveTo(a, yu)
-            step.lineTo(a, yu)
-            step.lineTo(b, yu)
-            fillUp.lineTo(a, yu)
-            fillUp.lineTo(b, yu)
-            fillDown.lineTo(a, yd)
-            fillDown.lineTo(b, yd)
-        }
-        fillUp.lineTo(x0 + w, zero)
-        fillUp.close()
-        fillDown.lineTo(x0 + w, zero)
-        fillDown.close()
-
-        val last = points[points.size - 1]
-        endDot.reset()
-        endDot.addCircle(
-            x0 + w,
-            if (last >= 0f) up(last, zero, y0) else down(last, zero, bottom),
-            c.DOT,
-            Path.Direction.CW,
+        val count = min(model.chartCount, model.chart.size)
+        val drawn = silhouette.draw(
+            pen, model.chart, model.chart.size - count, count,
+            right = x0 + w,
+            pitch = w / (c.POINTS - 1),
+            zero = zero,
+            top = y0,
+            bottom = y0 + h,
+            upTo = c.UP_TO,
+            downTo = c.DOWN_TO,
         )
-        endLight = if (last < 0f) HeadInk.BLUE else HeadInk.WHITE
+        if (!drawn) return
+        endDot.rewind()
+        endDot.addCircle(silhouette.endX, silhouette.endY, c.DOT, Path.Direction.CW)
+        pen.glowFill(endDot, if (silhouette.endValue < 0f) HeadInk.BLUE else HeadInk.WHITE, 1f, END_BLUR)
     }
-
-    private fun up(v: Float, zero: Float, top: Float): Float =
-        zero - (zero - top) * min(1f, v / Head.Chart.UP_TO)
-
-    private fun down(v: Float, zero: Float, bottom: Float): Float =
-        zero + (bottom - zero) * min(1f, -v / Head.Chart.DOWN_TO)
 
     /**
      * The car closed to us: «Питание от машины» on the caption line and the instruction under it,
@@ -283,9 +223,6 @@ internal class VehiclePageRenderer {
     }
 
     internal companion object {
-        /** The chart's pitch is a hundredth of its box: the contract's hundred points. */
-        const val POINTS = 100
-
         const val LINE_INTENSITY = 0.95f
         const val END_BLUR = 8f
 
@@ -303,11 +240,5 @@ internal class VehiclePageRenderer {
             ThermalGlyphs.Cell.REAR_RIGHT,
             ThermalGlyphs.Cell.INVERTER,
         )
-
-        private fun plus(color: Int) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.FILL
-            blendMode = BlendMode.PLUS
-            this.color = color
-        }
     }
 }

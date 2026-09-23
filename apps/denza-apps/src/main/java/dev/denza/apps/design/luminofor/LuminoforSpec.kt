@@ -156,6 +156,9 @@ object LuminoforSpec {
             const val POINTS: Int = 100
             const val GAP_FROM_AXIS: Float = 8f
             const val RUNS: Int = 10
+
+            /** A run cut at a ceiling wears one tick this long, just outside the box. */
+            const val TICK: Float = 3f
             const val STROKE: Float = 1.5f
             const val FIGURE_SIZE: Float = 52f
             const val UNIT_GAP: Float = 10f
@@ -365,6 +368,9 @@ object LuminoforSpec {
         }
 
         object Chart {
+            /** The cluster's hundred points, a full window edge to edge. */
+            const val POINTS: Int = 100
+            const val TICK: Float = 3f
             const val ZERO_AT: Float = 0.75f
             const val UP_TO: Float = 60f
             const val DOWN_TO: Float = 20f

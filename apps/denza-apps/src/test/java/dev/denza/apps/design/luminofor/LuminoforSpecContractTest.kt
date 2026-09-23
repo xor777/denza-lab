@@ -148,6 +148,7 @@ class LuminoforSpecContractTest {
         n(t.UP_TO, "cluster", "trace", "upTo"); n(t.DOWN_TO, "cluster", "trace", "downTo"); n(t.WIDTH, "cluster", "trace", "width")
         i(t.POINTS, "cluster", "trace", "points")
         n(t.GAP_FROM_AXIS, "cluster", "trace", "gapFromAxis"); i(t.RUNS, "cluster", "trace", "runs")
+        n(t.TICK, "cluster", "trace", "tick")
         n(t.STROKE, "cluster", "trace", "stroke"); n(t.FIGURE_SIZE, "cluster", "trace", "figureSize")
         n(t.UNIT_GAP, "cluster", "trace", "unitGap"); n(t.UNIT_SIZE, "cluster", "trace", "unitSize")
         val e = Cluster.EngineBox
@@ -259,6 +260,7 @@ class LuminoforSpecContractTest {
         val stops = list("head", "spectrum", "haze", "stops").map { (it as List<*>).map { v -> (v as Number).toFloat() } }
         assertEquals(stops.map { it[0] to it[1] }, sp.HAZE_STOPS)
         val ch = Head.Chart
+        i(ch.POINTS, "head", "chart", "points"); n(ch.TICK, "head", "chart", "tick")
         n(ch.ZERO_AT, "head", "chart", "zeroAt"); n(ch.UP_TO, "head", "chart", "upTo"); n(ch.DOWN_TO, "head", "chart", "downTo")
         n(ch.FILL_UP, "head", "chart", "fillUp"); n(ch.FILL_DOWN, "head", "chart", "fillDown"); n(ch.STROKE, "head", "chart", "stroke")
         n(ch.ZERO_STROKE, "head", "chart", "zeroStroke"); n(ch.ZERO_ALPHA, "head", "chart", "zeroAlpha"); n(ch.DOT, "head", "chart", "dot")

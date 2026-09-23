@@ -44,7 +44,8 @@ class StripBoardContractTest {
     fun theChartIsTheContractsLadder() {
         assertEquals(SpecJson.num("cluster", "trace", "upTo"), SpecJson.num("head", "chart", "upTo"), 0.0)
         assertEquals(SpecJson.num("cluster", "trace", "downTo"), SpecJson.num("head", "chart", "downTo"), 0.0)
-        assertEquals(SpecJson.num("cluster", "trace", "points").toInt(), VehiclePageRenderer.POINTS)
+        assertEquals(SpecJson.num("cluster", "trace", "points"), SpecJson.num("head", "chart", "points"), 0.0)
+        assertEquals(SpecJson.num("cluster", "trace", "tick"), SpecJson.num("head", "chart", "tick"), 0.0)
         assertEquals(ConsumptionWindow.KM, 10.0, 0.0)
     }
 
@@ -194,8 +195,11 @@ class StripBoardContractTest {
             "a temperature's glyph",
             "glyph(c, KINDS[i], x, capY + ${js(v.GLYPH_DROP)}, col, hot ? 1 : ${js(v.GLYPH_LEVEL)}, hot)",
         )
-        assertDrawn("the chart's line", "beam(c, pu, C.stroke, WHT, ${js(v.LINE_INTENSITY)}, 0)")
-        assertDrawn("the chart's newest point", "glowFill(c, d, last < 0 ? HUB : WHT, 1, ${js(v.END_BLUR)})")
+        assertDrawn("the chart's line", "runs: 1,\n      intensity: () => ${js(v.LINE_INTENSITY)},")
+        assertDrawn("the chart's newest point", "glowFill(c, d, end.last < 0 ? HUB : WHT, 1, ${js(v.END_BLUR)})")
+        // Silhouette's one inline number: a tick stands one unit clear of the box it was cut at.
+        assertDrawn("a cut run's tick", "t.moveTo(xm, o.top - 1); t.lineTo(xm, o.top - 1 - o.tick)")
+        assertDrawn("a cut run's tick below", "t.moveTo(xm, o.bottom + 1); t.lineTo(xm, o.bottom + 1 + o.tick)")
         assertDrawn("the two-thirds pane's caption", "lab(c, cons, L, s.chartCaption, ${js(Head.Full.Car.CHART_CAPTION_SIZE)},")
 
         assertDrawn("a column's least height", "h = Math.max(${js(SpectrumRenderer.MIN_HEIGHT)}, lv[si] * fh)")

@@ -7,6 +7,7 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineBox
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Grid
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Trace
 import dev.denza.apps.design.luminofor.LuminoforSpec.Digits
+import dev.denza.apps.design.luminofor.Silhouette
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.vehicle.ConsumptionChart
@@ -56,8 +57,7 @@ class ContourGeometryTest {
         // down a descender. The spec writes the cap out as 327.08; this is where it comes from.
         assertEquals(Trace.ZERO - Digits.CAP_RATIO * Trace.FIGURE_SIZE, Trace.TOP, 1e-3f)
         assertEquals(Grid.FIGURE_SIZE, Trace.FIGURE_SIZE, 0f)
-        assertEquals(Trace.ZERO, g.traceUp(0f), 0f)
-        assertEquals(Trace.ZERO, g.traceDown(0f), 0f)
+        assertEquals(Trace.ZERO, level(0f), 0f)
     }
 
     @Test
@@ -105,20 +105,29 @@ class ContourGeometryTest {
 
     @Test
     fun theTraceIsOneFixedLadderClampedAtBothEnds() {
-        assertEquals(Trace.TOP, g.traceUp(60f), 1e-4f)
-        assertEquals("and stays there past it", Trace.TOP, g.traceUp(144f), 1e-4f)
-        assertEquals(Trace.DROP, g.traceDown(-20f), 1e-4f)
-        assertEquals(Trace.DROP, g.traceDown(-60f), 1e-4f)
-        assertEquals((Trace.ZERO + Trace.TOP) / 2f, g.traceUp(30f), 1e-3f)
-        assertEquals((Trace.ZERO + Trace.DROP) / 2f, g.traceDown(-10f), 1e-3f)
+        assertEquals(Trace.TOP, level(60f), 1e-4f)
+        assertEquals("and stays there past it", Trace.TOP, level(144f), 1e-4f)
+        assertEquals(Trace.DROP, level(-20f), 1e-4f)
+        assertEquals(Trace.DROP, level(-60f), 1e-4f)
+        assertEquals((Trace.ZERO + Trace.TOP) / 2f, level(30f), 1e-3f)
+        assertEquals((Trace.ZERO + Trace.DROP) / 2f, level(-10f), 1e-3f)
+        // 60 over 37 units and 20 over 13 are one slope either side, so the line crosses the zero
+        // without a kink (contract §2.3).
+        val up = Trace.UP_TO / (Trace.ZERO - Trace.TOP)
+        val down = Trace.DOWN_TO / (Trace.DROP - Trace.ZERO)
+        assertEquals(up, down, 0.1f)
     }
 
     @Test
     fun aFillingWindowGrowsFromTheRightEdgeAtTheHundredPointPitch() {
-        assertEquals(g.TRACE_LEFT, g.traceStart(Trace.POINTS), 1e-3f)
-        assertEquals(g.TRACE_RIGHT, g.traceStart(0), 0f)
-        // Thirty-seven points under «за 3,7 км» are thirty-seven per cent of the box.
-        assertEquals(0.37f * Trace.WIDTH, g.TRACE_RIGHT - g.traceStart(37), 1e-3f)
+        val at = { i: Int, n: Int -> Silhouette.x(i, n, g.TRACE_RIGHT, g.TRACE_PITCH) }
+        // A full window runs edge to edge, the newest point on the right edge.
+        assertEquals(g.TRACE_LEFT, at(0, Trace.POINTS), 1e-3f)
+        assertEquals(g.TRACE_RIGHT, at(Trace.POINTS - 1, Trace.POINTS), 0f)
+        // A filling one stands at the same pitch from the right: «за 3,7 км» is 37 per cent of the
+        // road and of the box, to a pitch.
+        assertEquals(g.TRACE_RIGHT, at(36, 37), 0f)
+        assertEquals(36f / 99f * Trace.WIDTH, g.TRACE_RIGHT - at(0, 37), 1e-3f)
     }
 
     @Test
@@ -254,4 +263,7 @@ class ContourGeometryTest {
         frame.unavailable = true
         assertFalse("and nothing does on a closed shell", g.flickers(frame))
     }
+
+    private fun level(v: Float): Float =
+        Silhouette.y(v, Trace.ZERO, Trace.TOP, Trace.DROP, Trace.UP_TO, Trace.DOWN_TO)
 }
