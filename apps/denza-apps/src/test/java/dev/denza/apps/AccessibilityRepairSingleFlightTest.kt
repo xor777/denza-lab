@@ -1,5 +1,6 @@
 package dev.denza.apps
 
+import dev.denza.apps.feature.split.SplitNativePickerAccessController
 import dev.denza.apps.feature.split.SplitNativePickerAccessLeaseStore
 import dev.denza.apps.feature.split.SplitNativePickerAccessibilityAccess
 import org.junit.Assert.assertEquals
@@ -134,6 +135,70 @@ class AccessibilityRepairSingleFlightTest {
         assertSame(failure, received[0])
         assertSame(failure, received[1])
         assertTrue(repair.join { received += it })
+    }
+
+    /**
+     * Live 2026-09-24: a cold open after a sleep queued 4.6 s behind the process-start repair for
+     * the split service that repair was about to enable anyway. While such a repair holds the
+     * setting, the open's picker lease returns at once and writes nothing.
+     */
+    @Test
+    fun thePickerLeaseDoesNotWaitOutARepairThatEnablesItsService() {
+        val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
+        val simulcast = SimulcastAccessibilityAccess.COMPONENT
+        val split = SplitNativePickerAccessibilityAccess.COMPONENT
+        val repairShell = FakeAccessibilitySettings(listOf(system, simulcast, split))
+        val leaseShell = FakeAccessibilitySettings(listOf(system, simulcast, split))
+        val lease = FakeSplitAccessLease(owned = true, configurationVersion = 6)
+        val paused = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val repair = thread {
+            DenzaAccessibilityRepairController(
+                shell = repairShell::run,
+                splitLeaseStore = lease,
+                pause = {
+                    paused.countDown()
+                    release.await(5, TimeUnit.SECONDS)
+                },
+            ).repair(ensureSplit = true)
+        }
+        assertTrue(paused.await(5, TimeUnit.SECONDS))
+        assertTrue(AccessibilitySettingsMutationLock.repairingSplitAccess)
+
+        val leaseTaken = CountDownLatch(1)
+        thread {
+            SplitNativePickerAccessController(
+                shell = leaseShell::run,
+                leaseStore = lease,
+                pauseAfterDisable = {},
+                isConnected = { false },
+            ).enable()
+            leaseTaken.countDown()
+        }
+
+        assertTrue("the lease did not wait for the repair", leaseTaken.await(2, TimeUnit.SECONDS))
+        assertTrue("and left the setting to the repair", leaseShell.writes.isEmpty())
+        release.countDown()
+        repair.join(5_000)
+        assertFalse(AccessibilitySettingsMutationLock.repairingSplitAccess)
+        assertTrue(SplitNativePickerAccessibilityAccess.isEnabled(repairShell.services))
+    }
+
+    /** A repair that leaves the split service alone promises nothing, and the lease still waits. */
+    @Test
+    fun onlyARepairThatEnsuresTheSplitServiceIsNamedForTheLease() {
+        val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
+        val shell = FakeAccessibilitySettings(listOf(system))
+        val seen = mutableListOf<Boolean>()
+
+        DenzaAccessibilityRepairController(
+            shell = shell::run,
+            splitLeaseStore = FakeSplitAccessLease(owned = false, configurationVersion = 0),
+            pause = { seen += AccessibilitySettingsMutationLock.repairingSplitAccess },
+        ).repair(ensureSplit = false)
+
+        assertEquals(listOf(false), seen)
+        assertFalse(AccessibilitySettingsMutationLock.repairingSplitAccess)
     }
 
     @Test

@@ -49,7 +49,9 @@ internal class DenzaAccessibilityRepairController(
 ) {
     private val settings = AccessibilityServiceSettings(shell)
 
-    fun repair(ensureSplit: Boolean) = AccessibilitySettingsMutationLock.withLock {
+    fun repair(ensureSplit: Boolean) = AccessibilitySettingsMutationLock.withLock(
+        ensuresSplitAccess = ensureSplit,
+    ) {
         val original = settings.read()
         val originalSplitOwned = splitLeaseStore.isOwned()
         val originalSplitVersion = splitLeaseStore.configurationVersion()

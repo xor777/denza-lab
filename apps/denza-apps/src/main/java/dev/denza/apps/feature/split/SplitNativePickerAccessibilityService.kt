@@ -148,7 +148,15 @@ internal class SplitNativePickerAccessController(
 ) {
     private val settings = AccessibilityServiceSettings(shell)
 
-    fun enable() = AccessibilitySettingsMutationLock.withLock {
+    fun enable() {
+        // A repair that ends with this very service enabled and owned holds the setting right now
+        // (the process-start recovery after a sleep): waiting for it only spends the open's budget
+        // on its pauses. The service connects a few seconds after the scene instead of before it.
+        if (AccessibilitySettingsMutationLock.repairingSplitAccess) return
+        enableLocked()
+    }
+
+    private fun enableLocked() = AccessibilitySettingsMutationLock.withLock {
         val current = settings.read()
         val alreadyEnabled = SplitNativePickerAccessibilityAccess.isEnabled(current)
         if (

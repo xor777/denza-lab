@@ -7,7 +7,28 @@ import kotlin.concurrent.withLock
 internal object AccessibilitySettingsMutationLock {
     private val lock = ReentrantLock(true)
 
-    fun <T> withLock(block: () -> T): T = lock.withLock(block)
+    /**
+     * True while the lock is held by a repair that ends with the split picker's service enabled and
+     * owned - the very state a split open's picker lease asks for.
+     *
+     * Live 2026-09-24: after a sleep the process starts cold, the process-start recovery heals the
+     * crashed services with three writes and 1 + 2 + 1 s of pauses, and the open that started the
+     * process queued behind it for 4.6 of its 7.2 s (twice that day past its 10 s budget, leaving
+     * two pickers and no apps). A lease that finds this set has nothing to wait for.
+     */
+    @Volatile
+    var repairingSplitAccess: Boolean = false
+        private set
+
+    fun <T> withLock(ensuresSplitAccess: Boolean = false, block: () -> T): T = lock.withLock {
+        if (!ensuresSplitAccess) return@withLock block()
+        repairingSplitAccess = true
+        try {
+            block()
+        } finally {
+            repairingSplitAccess = false
+        }
+    }
 }
 
 /** Joins all current accessibility owners to one serialized system rebind. */
