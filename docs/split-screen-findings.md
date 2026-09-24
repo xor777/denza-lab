@@ -2682,3 +2682,24 @@ marks `<label> +Nms dequeued` once it holds the task tree, so each is a start
 and a terminal in the journal; a start with no terminal after a minute is an
 operation whose process died first (every sleep of the car force-stops the
 product), and a terminal with no start is the lines since its tap.
+
+### A cold open waits out the accessibility repair (live 2026-09-24)
+
+After a stop the owner's first split tap showed two pickers and no apps: the
+open of 19:20:47 ended `outcome=cancelled reason=deadline in 10008ms`, with
+`unfinished restore left standing: dev.denza.apps, com.apple.android.music` -
+the pair was remembered, it was not reached in ten seconds. The process had
+been started by that tap (self-start blocked again by the 16:45 install).
+
+Reproduced at 20:01 with `am stop-app dev.denza.apps` and the dock's own
+intent, the log streamed to the host: the open committed in 7205 ms, of which
+4.86 s were one step, `scene-read` +270 ms to `leases-taken` +5131 ms, while
+the whole open spent 2.1 s in the shell. In that gap the process-start recovery
+was healing the crashed accessibility services - `DenzaAccessibilityRepairController`
+writes `enabled_accessibility_services` three times with 1 + 2 + 1 s pauses and
+holds `AccessibilitySettingsMutationLock` across all of them
+(`DenzaSimulcastA11y: service connected` 19.029, `DenzaSplitPickerA11y:
+service connected` 21.099). The open's picker-access lease takes the same lock
+to confirm the split service; it waited until 22.1 and then found the service
+enabled and connected. On 2026-08-27 a cold open measured 3.5 s and the budget
+comment names this margin as the thin one.
