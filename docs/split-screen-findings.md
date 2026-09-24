@@ -2648,3 +2648,37 @@ the file becomes `split-journal.1.log` and the older one is dropped, so the
 journal never holds more than 512 KiB. Read it with
 
     adb shell run-as dev.denza.apps cat files/split-journal.1.log files/split-journal.log
+
+### The split on the service page, for a photo (2026-09-24)
+
+Owners on another BYD firmware report that Split Screen stopped working in
+0.7.0-alpha, and none of those cars can be reached with ADB: what they can
+send is a photo. So the service's «Технические сведения» (its main page is
+unchanged) says what differs on a foreign firmware, in the split's section:
+
+- «Последнее открытие» - from the journal: `20:34 · не вышло · 3,1 с`,
+  `готово`, `идёт`, or `не было`;
+- «Сплит прошивки» - `byd_smart_multi_split_window_mode` (100 две панели,
+  101 одна узкая, 102 одна широкая) and the area read in process
+  (`getScreenAreaInfoForMulti`); a question mark for what could not be read.
+  The mode is a hint, not the firmware's memory: the SmartMulti lease writes
+  it back at the end of every session of ours, and a hidden `Settings.System`
+  key may be refused to an app targeting 33 outright;
+- «Сигналы прошивки» - `Home да/нет · область да/нет · вызовы да/нет/не было`:
+  whether the homekey receiver and the `UnionActivityManager` area listener are
+  registered right now, and how the last in-process BYD binder call went
+  (`SplitInProcessHealth`). This is the row that tells a foreign firmware
+  apart: a refused listener means Home and the area are not heard in process,
+  and refused calls mean every open quietly pays the shell's round trips for
+  what took under a millisecond here.
+
+Under the section a row opens «Журнал работы»: the last three operations from
+`split-journal.1.log` and `split-journal.log` (64 KiB of each tail), newest
+first, the newest step by step - `+N мс` of wall clock after its first line,
+the line without its own `<label> +Nms` stamp, then `итог` as the terminal
+wrote it - and the two before it by their end. Background lines are never
+shown. Every operation a person asks for (open, select, enable, disable) now
+marks `<label> +Nms dequeued` once it holds the task tree, so each is a start
+and a terminal in the journal; a start with no terminal after a minute is an
+operation whose process died first (every sleep of the car force-stops the
+product), and a terminal with no start is the lines since its tap.
