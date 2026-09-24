@@ -159,15 +159,32 @@ internal object SplitDiagnostics {
 
     @Volatile
     private var journal: SplitDiagnosticJournal? = null
+
+    @Volatile
+    private var directory: File? = null
+
+    @Volatile
+    private var work: List<SplitWorkOperation> = emptyList()
+
+    /** The files' lengths and times at the last read; the reader's thread alone touches it. */
+    private var readStamp: List<Long>? = null
+
     private val writer: ExecutorService by lazy {
         Executors.newSingleThreadExecutor { task ->
             Thread(task, "split-journal").apply { isDaemon = true }
         }
     }
 
+    private val reader: ExecutorService by lazy {
+        Executors.newSingleThreadExecutor { task ->
+            Thread(task, "split-journal-read").apply { isDaemon = true }
+        }
+    }
+
     /** Every process that records gets the file; before this the lines reach the ring only. */
     fun attach(context: Context, processName: String?) {
         val tag = processName?.substringAfter(':', "main")?.ifEmpty { "main" } ?: "main"
+        directory = context.filesDir
         journal = SplitDiagnosticJournal(context.filesDir, tag)
     }
 
@@ -182,4 +199,39 @@ internal object SplitDiagnostics {
 
     fun recent(operationLimit: Int, backgroundLimit: Int): List<String> =
         ring.recent(operationLimit, backgroundLimit)
+
+    /**
+     * The split's work as the journal on disk last told it ([SplitWorkJournal]): what the service
+     * prints. Empty until [rereadWork] has read the files once; never read on the caller's thread.
+     */
+    fun work(): List<SplitWorkOperation> = work
+
+    /**
+     * Reads the journal again - if either file changed since the last read - and calls [onChanged]
+     * when the work it holds is not what [work] says.
+     *
+     * The read is queued behind every line this process has handed the writer so far - the
+     * terminal an operation writes just before its state is published is on disk by the time the
+     * read that publication asked for gets to the file - and then runs, with [onChanged], on a
+     * thread of its own. Not on the writer's: the journal stamps a line when the writer gets to
+     * it, and a writer busy parsing, or redrawing the service, would stamp an open's steps late.
+     */
+    fun rereadWork(onChanged: () -> Unit) {
+        val files = directory ?: return
+        writer.execute {
+            reader.execute {
+                runCatching {
+                    val stamp = listOf(SplitDiagnosticJournal.PREVIOUS, SplitDiagnosticJournal.CURRENT)
+                        .flatMap { name -> File(files, name).let { listOf(it.length(), it.lastModified()) } }
+                    if (stamp == readStamp) return@runCatching
+                    readStamp = stamp
+                    val read = SplitWorkJournal.read(files, System.currentTimeMillis())
+                    if (read != work) {
+                        work = read
+                        onChanged()
+                    }
+                }
+            }
+        }
+    }
 }
