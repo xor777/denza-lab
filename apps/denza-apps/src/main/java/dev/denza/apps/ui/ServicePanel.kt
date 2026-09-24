@@ -3,6 +3,7 @@ package dev.denza.apps.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.BuildConfig
 import dev.denza.apps.DenzaUiState
+import dev.denza.apps.SupportDiagnostics
 import dev.denza.apps.TechnicalReadings
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.feature.adb.AdbRescuePhase
@@ -35,8 +37,20 @@ import dev.denza.apps.ui.dashboard.DashboardTile
 import dev.denza.apps.ui.dashboard.DashboardTiles
 import dev.denza.apps.ui.dashboard.TileId
 
-/** Where in the service panel the driver is: the answer, or one of the two pages behind it. */
-internal enum class ServicePage { MAIN, SCREEN, TECHNICAL }
+/**
+ * Where in the service panel the driver is: the answer, one of the two pages behind it, or the
+ * split's journal behind the technical page.
+ */
+internal enum class ServicePage {
+    MAIN,
+    SCREEN,
+    TECHNICAL,
+    JOURNAL,
+    ;
+
+    /** The page the header's way back returns to. */
+    val parent: ServicePage get() = if (this == JOURNAL) TECHNICAL else MAIN
+}
 
 /**
  * What the service panel says, decided without Compose so it can be held to its cases.
@@ -102,7 +116,8 @@ internal data class ServiceModel(
  * trusted us, a button for every screen the instruments could go to, and «Показать» over forty
  * readings. What the driver opens it for is now all there is on it; the rest is a page.
  *
- * [firstPage] opens it on a page - the debug build's boards of the two pages - and [version] is the
+ * [firstPage] opens it on a page - the debug build's boards of the pages - [firstPageAtEnd] scrolled
+ * to that page's end (the board of the technical page's split section), and [version] is the
  * foot's words, the build's own unless a board says otherwise.
  */
 @Composable
@@ -116,13 +131,20 @@ internal fun ServicePanel(
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onDismiss: () -> Unit,
     firstPage: ServicePage = ServicePage.MAIN,
+    firstPageAtEnd: Boolean = false,
     version: String = "Denza Apps ${BuildConfig.VERSION_NAME} · сборка ${BuildConfig.VERSION_CODE}",
 ) {
     var page by rememberSaveable { mutableStateOf(firstPage) }
-    val back = { page = ServicePage.MAIN }
+    val back = { page = page.parent }
+    // One place a page: the journal is opened from the bottom of a long report, and the report has
+    // to come back at its split section - and the journal must not open at the report's offset.
+    val scrolls = ServicePage.entries.associateWith { each ->
+        rememberScrollState(if (each == firstPage && firstPageAtEnd) Int.MAX_VALUE else 0)
+    }
     DenzaSheet(
         onDismiss = { if (page == ServicePage.MAIN) onDismiss() else back() },
         compact = compactLayout,
+        scrollState = scrolls.getValue(page),
         footer = { if (page == ServicePage.MAIN) DenzaSheetFootnote(version) },
     ) {
         when (page) {
@@ -146,7 +168,11 @@ internal fun ServicePanel(
             }
             ServicePage.TECHNICAL -> {
                 DenzaSheetHeader(title = "Технические сведения", subtitle = version, onDismiss = onDismiss, onBack = back)
-                ServiceTechnicalPage(state.technicalDetails)
+                ServiceTechnicalPage(state.technicalDetails) { page = ServicePage.JOURNAL }
+            }
+            ServicePage.JOURNAL -> {
+                DenzaSheetHeader(title = "Журнал работы", subtitle = JOURNAL_OF, onDismiss = onDismiss, onBack = back)
+                ReadingsPage(state.splitJournal)
             }
         }
     }
@@ -249,21 +275,53 @@ private fun ServiceScreenPage(state: DenzaUiState, onSelect: (Int?) -> Unit) {
     DenzaNote("Приложение само находит экран за рулём. Выберите другой, если приборы ушли не туда.")
 }
 
-/** The report, one section a feature, one reading a row - the cloud first. */
+/**
+ * The report, one section a feature, one reading a row - the cloud first - and under the split's
+ * section the way to its journal.
+ */
 @Composable
-private fun ServiceTechnicalPage(report: String) {
+private fun ServiceTechnicalPage(report: String, onJournal: () -> Unit) {
+    ReadingsPage(report) { title ->
+        if (title == SupportDiagnostics.SPLIT_SECTION) {
+            // A plate of its own under the readings, a label's gap away, as the main page keeps its
+            // two pages' rows apart from what it reports: this one is pressed, those are read.
+            DenzaChoiceGroup(listOf(JOURNAL_ROW)) {
+                DenzaChoiceRow(title = "Журнал работы", value = "Три последние операции, по шагам", onClick = onJournal)
+            }
+        }
+    }
+}
+
+/**
+ * A page of readings in the report's format ([TechnicalReadings]): a plate of dense key-value rows
+ * a section, under the section's words. The technical page and the split's journal are both this,
+ * so the journal speaks in no new visual language. [under] adds what belongs beneath a section.
+ */
+@Composable
+private fun ReadingsPage(report: String, under: @Composable (title: String) -> Unit = {}) {
     val sections = remember(report) { TechnicalReadings.parse(report) }
     sections.forEach { section ->
         val plate: @Composable () -> Unit = {
             DenzaChoiceGroup(section.rows) { row -> DenzaPairRow(row.key, row.value) }
         }
         val title = section.title
-        if (title == null) plate() else DenzaSection(title) { plate() }
+        if (title == null) {
+            plate()
+        } else {
+            DenzaSection(title) {
+                plate()
+                under(title)
+            }
+        }
     }
 }
 
 private const val ALL_WORKING = "all-working"
 private const val ACCESS = "access"
+private const val JOURNAL_ROW = "journal"
+
+/** Whose journal the page is: the photo of it has to say so without the page before it. */
+private const val JOURNAL_OF = "Разделение экрана"
 
 /** Between the access buttons, as the board's stack draws them. */
 private const val BUTTON_GAP = 12f

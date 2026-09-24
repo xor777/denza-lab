@@ -4,6 +4,11 @@ import dev.denza.apps.feature.cluster.CameraRuntimePhase
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.mirrors.MirrorSide
 import dev.denza.apps.feature.mirrors.SideCameraDetection
+import dev.denza.apps.feature.split.SplitFirmwareReading
+import dev.denza.apps.feature.split.SplitWorkEnd
+import dev.denza.apps.feature.split.SplitWorkOperation
+import dev.denza.apps.feature.split.SplitWorkState
+import dev.denza.apps.feature.split.SplitWorkStep
 import dev.denza.apps.feature.trip.SpectrumSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -115,6 +120,58 @@ class SupportDiagnosticsTest {
     @Test
     fun `the spectrum line says so when the panel was never opened`() {
         assertEquals("панель не открывалась", SupportDiagnostics.spectrumLabel(null))
+    }
+
+    /**
+     * Сплит перестал работать в 0.7.0-alpha на чужой прошивке, до которой нет ADB (2026-09-24):
+     * раздел говорит, как прошло последнее открытие и что прошивка говорит и даёт услышать.
+     */
+    @Test
+    fun `the split section says how the last open went and what the firmware lets us hear`() {
+        val work = listOf(
+            SplitWorkOperation(
+                label = "open",
+                startedAt = "20:34:02",
+                steps = listOf(SplitWorkStep(0, "dequeued"), SplitWorkStep(588, "roots-started")),
+                state = SplitWorkState.ENDED,
+                end = SplitWorkEnd("rolled-back", "Прошивка не раскрыла native split", 3112),
+            ),
+        )
+        val firmware = SplitFirmwareReading(
+            mode = 100,
+            area = 0,
+            homeKeyHeard = true,
+            areaHeard = true,
+            callsOk = false,
+        )
+
+        assertEquals(
+            listOf(
+                TechnicalRow("Состояние", "active"),
+                TechnicalRow("Последнее открытие", "20:34 · не вышло · 3,1 с"),
+                TechnicalRow("Сплит прошивки", "две панели · область 0"),
+                TechnicalRow("Сигналы прошивки", "Home да · область да · вызовы нет"),
+            ),
+            SupportDiagnostics.splitRows("active", work, firmware),
+        )
+        assertEquals(
+            "страница журнала - тот же формат отчёта, и читается тем же разбором",
+            listOf(
+                TechnicalSection(
+                    "Открытие 20:34:02 · не вышло · 3,1 с",
+                    listOf(
+                        TechnicalRow("+0 мс", "dequeued"),
+                        TechnicalRow("+588 мс", "roots-started"),
+                        TechnicalRow("итог", "outcome=rolled-back reason=Прошивка не раскрыла native split"),
+                    ),
+                ),
+            ),
+            TechnicalReadings.parse(SupportDiagnostics.splitJournal(work)),
+        )
+        assertEquals(
+            listOf(TechnicalSection(null, listOf(TechnicalRow("Операции", "пока не было")))),
+            TechnicalReadings.parse(SupportDiagnostics.splitJournal(emptyList())),
+        )
     }
 
     private fun spectrum(

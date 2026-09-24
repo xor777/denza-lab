@@ -71,4 +71,12 @@ class ServiceModelTest {
         assertTrue(model.accessActions)
         assertTrue(model.accessBusy)
     }
+
+    /** The split's journal is opened from the technical page, and its way back goes there. */
+    @Test
+    fun `the journal goes back to the technical page and every other page to the answer`() {
+        assertEquals(ServicePage.TECHNICAL, ServicePage.JOURNAL.parent)
+        assertEquals(ServicePage.MAIN, ServicePage.TECHNICAL.parent)
+        assertEquals(ServicePage.MAIN, ServicePage.SCREEN.parent)
+    }
 }

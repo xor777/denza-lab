@@ -1,6 +1,7 @@
 package dev.denza.apps.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,7 +49,9 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
  *
  * The settings scroll and the footer does not: whatever a panel holds, its one action is in the
  * same place under the same thumb. [scrolls] is off for a page whose body is one long list, which
- * scrolls itself - a list inside a scrolling column drags the page under it.
+ * scrolls itself - a list inside a scrolling column drags the page under it. [scrollState] is for a
+ * panel of several pages: each keeps its own place, so the page a row opened comes back where the
+ * row was, and a short page is not opened at the offset a long one was left at.
  *
  * Under [LocalStillFrame] - the debug build's fixture mode - the panel is drawn in place rather than
  * in a dialog window of its own, so a screenshot of it is the dashboard with the panel over it, as
@@ -61,11 +64,12 @@ fun DenzaSheet(
     modifier: Modifier = Modifier,
     dismissOnOutsideTouch: Boolean = true,
     scrolls: Boolean = true,
+    scrollState: ScrollState? = null,
     footer: @Composable () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val body: @Composable () -> Unit = {
-        SheetPanel(onDismiss, compact, modifier, dismissOnOutsideTouch, scrolls, footer, content)
+        SheetPanel(onDismiss, compact, modifier, dismissOnOutsideTouch, scrolls, scrollState, footer, content)
     }
     if (LocalStillFrame.current) {
         body()
@@ -88,9 +92,11 @@ private fun SheetPanel(
     modifier: Modifier,
     dismissOnOutsideTouch: Boolean,
     scrolls: Boolean,
+    scrollState: ScrollState?,
     footer: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val scroll = scrollState ?: rememberScrollState()
     val p = Sheet.Panel
     val k = Sheet.Compact
     val padX = if (compact) k.PAD_X else p.PAD_X
@@ -134,7 +140,7 @@ private fun SheetPanel(
         ) {
             Column(
                 modifier = Modifier.weight(1f)
-                    .then(if (scrolls) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                    .then(if (scrolls) Modifier.verticalScroll(scroll) else Modifier),
                 verticalArrangement = Arrangement.spacedBy(gap.dp),
                 content = content,
             )

@@ -56,6 +56,7 @@ import dev.denza.apps.feature.navigation.NavigationPhase
 import dev.denza.apps.feature.navigation.NavigationPlacementPolicy
 import dev.denza.apps.feature.navigation.NavigationSettings
 import dev.denza.apps.feature.navigation.SteeringWheelNavigationAccessCoordinator
+import dev.denza.apps.feature.split.SplitDiagnostics
 import dev.denza.apps.feature.split.SplitLauncherIconController
 import dev.denza.apps.feature.split.SplitScreenCoordinator
 import dev.denza.apps.feature.split.SplitScreenPhase
@@ -175,6 +176,11 @@ data class DenzaUiState(
     val weatherTemperature: Int? = null,
     val weatherUpdatedMillis: Long = 0L,
     val technicalDetails: String = "",
+    /**
+     * The service's «Журнал работы»: the split's last operations, step by step, in the report's
+     * format ([TechnicalReadings]). Read off the journal on disk on a thread of its own.
+     */
+    val splitJournal: String = "",
     val clusterCandidates: List<ClusterDisplayDescriptor> = emptyList(),
     /** Which screen the instruments are going to, said the way the service panel says it. */
     val clusterDisplayLabel: String = "Определяется автоматически",
@@ -291,6 +297,10 @@ object DenzaAppRepository {
         )
         val cloudLinkBusy = CloudLinkRuntime.busy
         val technicalDetails = supportDiagnostics(context)
+        // What the split's journal said when last read; if the files moved since, they are read
+        // again on the journal's own thread and this runs once more with what they say now.
+        val splitJournal = SupportDiagnostics.splitJournal()
+        SplitDiagnostics.rereadWork { refresh() }
         val clusterCandidates = ClusterDisplayResolver.candidates(context)
         val clusterDisplayLabel = clusterDisplayLabel(context, clusterCandidates)
         val clusterDisplayOverride = ClusterDisplayResolver.overrideId(context)
@@ -335,6 +345,7 @@ object DenzaAppRepository {
                 cloudLinkBusy = cloudLinkBusy,
                 adbRescue = adbRescue,
                 technicalDetails = technicalDetails,
+                splitJournal = splitJournal,
                 clusterCandidates = clusterCandidates,
                 clusterDisplayLabel = clusterDisplayLabel,
                 clusterDisplayOverride = clusterDisplayOverride,

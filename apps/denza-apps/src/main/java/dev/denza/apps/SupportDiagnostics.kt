@@ -32,7 +32,11 @@ import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
 import dev.denza.apps.feature.mirrors.SideCameraDetection
 import dev.denza.apps.feature.navigation.NavigationCoordinator
+import dev.denza.apps.feature.split.SplitDiagnostics
+import dev.denza.apps.feature.split.SplitFirmwareReading
 import dev.denza.apps.feature.split.SplitScreenCoordinator
+import dev.denza.apps.feature.split.SplitWorkJournal
+import dev.denza.apps.feature.split.SplitWorkOperation
 import dev.denza.apps.feature.trip.SpectrumSource
 import dev.denza.apps.feature.trip.TripSession
 
@@ -55,6 +59,9 @@ data class SupportDiagnosticsHeader(
  * send a screenshot of this page, and the first screen of the page is the screenshot.
  */
 object SupportDiagnostics {
+    /** The split's section: the technical page opens its journal from under it. */
+    const val SPLIT_SECTION = "Разделение экрана"
+
     fun build(context: Context, fseInstaller: FeatureSnapshot): String {
         val header = SupportDiagnosticsHeader(
             versionName = installedVersionName(context),
@@ -75,7 +82,7 @@ object SupportDiagnostics {
                 section("Трансляция", simulcastRows(context, header)),
                 section("Зеркала", mirrorsRows(context, header)),
                 section("Экран водителя", driverScreenRows(context)),
-                section("Разделение экрана", splitRows()),
+                section(SPLIT_SECTION, splitRows(context)),
                 section("HUD", hudRows(context)),
                 // A refused wheel press goes back to stock routing, whose Play fallback opens the
                 // stock local player - exactly what the N9 owner reports. The only other trace was
@@ -208,11 +215,43 @@ object SupportDiagnostics {
     // Sixty lines of the split screen's own log used to be spliced in here, on the reasoning that a
     // diagnostic nobody can read is a silent failure - `Log.i` from this application cannot be
     // proven to reach logcat on this firmware. True, and it made this report a log file.
-    // `SplitDiagnostics.recent` is still there for a session that needs it.
-    private fun splitRows(): List<TechnicalRow> {
+    // `SplitDiagnostics.recent` is still there for a session that needs it, and the journal's steps
+    // are a page of their own behind this section («Журнал работы», [splitJournal]).
+    private fun splitRows(context: Context): List<TechnicalRow> {
         val split = SplitScreenCoordinator.snapshot()
-        return listOf(row("Состояние", split.message.ifBlank { split.phase.name.lowercase() }))
+        return splitRows(
+            state = split.message.ifBlank { split.phase.name.lowercase() },
+            work = SplitDiagnostics.work(),
+            firmware = SplitScreenCoordinator.firmwareReading(context),
+        )
     }
+
+    /**
+     * The split section: its state, how the last open went, and what the firmware says and lets us
+     * hear. Split Screen stopped working in 0.7.0-alpha on a firmware nobody here can reach, and a
+     * photo of this is what its owner can send: the last two rows are the ones that differ there.
+     */
+    internal fun splitRows(
+        state: String,
+        work: List<SplitWorkOperation>,
+        firmware: SplitFirmwareReading,
+    ): List<TechnicalRow> = listOf(
+        row("Состояние", state),
+        row("Последнее открытие", SplitWorkJournal.lastOpen(work)),
+        row("Сплит прошивки", firmware.split()),
+        row("Сигналы прошивки", firmware.signals()),
+    )
+
+    /**
+     * The «Журнал работы» page: the split's last operations from its journal, in this report's own
+     * format, so the page is drawn by the same rows as the technical one.
+     */
+    internal fun splitJournal(work: List<SplitWorkOperation> = SplitDiagnostics.work()): String =
+        TechnicalReadings.render(
+            SplitWorkJournal.page(work).map { section ->
+                TechnicalSection(section.title, section.rows.map { (key, value) -> row(key, value) })
+            },
+        )
 
     private fun hudRows(context: Context): List<TechnicalRow> = buildList {
         add(row("Подсказки", yesNo(HudGuidanceSettings.isEnabled(context))))
