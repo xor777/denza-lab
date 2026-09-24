@@ -336,7 +336,9 @@
     'итог=outcome=committed reason=-'
   ];
   const svcState = { tile: 'SERVICE', adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
-    cluster: 'Определён сам: Экран 1 · 1920×720', displays: [[2, 1920, 720]], version: '0.6.2', build: 53, technical: SVC_TECHNICAL };
+    cluster: 'Определён сам: Экран 1 · 1920×720', displays: [[2, 1920, 720]], version: '0.6.2', build: 53, technical: SVC_TECHNICAL,
+    // every scene of the panel carries the journal, so the debug build's row opens the page
+    journal: SVC_JOURNAL };
   const service = {
     ok: sheetOf(11, {
       title: 'Сервис',
@@ -388,7 +390,7 @@
     split: sheetOf(11, { title: 'Технические сведения', back: true, subtitle: 'Denza Apps 0.6.2 · сборка 53', blocks: techBlocks(SVC_TECHNICAL, SVC_JOURNAL_ROW), scroll: 'end' },
       Object.assign({}, svcState, { page: 'technical', scroll: 'end' })),
     journal: sheetOf(11, { title: 'Журнал работы', back: true, subtitle: 'Разделение экрана', blocks: techBlocks(SVC_JOURNAL) },
-      Object.assign({}, svcState, { page: 'journal', journal: SVC_JOURNAL }))
+      Object.assign({}, svcState, { page: 'journal' }))
   };
 
   // the ADB gate asking for the car's permission: the service's glyph in orange because there is a
