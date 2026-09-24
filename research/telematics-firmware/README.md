@@ -152,6 +152,33 @@ The temporary Unicorn installation is removed after verification.
 Reproduction requires the existing current cloudmanager binary and separately
 supplied Unicorn/pyelftools/cryptography; no additional firmware copy is needed.
 
+`verify_identity_native.py` additionally executes the native constructor,
+identity preparation, MD5 and 211 body builder with synthetic Android property
+values, stopping before serialization. Fifteen scenarios / twenty calls cover
+short, long, hexadecimal and absent inputs; cached values after property
+changes; partial initialization mixing old ICCID and new IMSI; and the binary
+MD5 first-byte cache check. It requires pyelftools and Unicorn 2.1.4, rejects
+unknown firmware hashes/calls/syscalls, and bounds each call. Run:
+
+```sh
+python3 research/telematics-firmware/verify_identity_native.py \
+  captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager
+```
+
+Results and the separately inspected older Dolphin comparison are retained in
+`captures/telematics-20260924/iccid-offline/`. Native construction of a synthetic
+body says nothing about its acceptance by the real server; no online probes or
+identifier changes are part of this harness.
+
+`inspect_identity_cache.py` inventories direct constructor/preparation calls,
+singleton references, static initialization and candidate identity-field
+accesses in the same hash-checked native binary. Pass the firmware path and
+`captures/telematics-20260923/readable-firmware/cloud-function-ranges.json`.
+The output is a static review aid, not complete pointer-alias analysis. The
+reviewed lifecycle/reset paths and Binder interface did not expose a narrow
+cache-refresh operation; evidence lives in `captures/telematics-20260924/cache-refresh/`
+and the corresponding findings section. No reset command is run by this script.
+
 `status512_body.py` assembles 25 cache entries into the native 104-byte body.
 Live tools are in `tools/telematics/registration_probe.py` (preview by default),
 `tls_identity_probe.py`, `tls_identity_client.c`, `CloudCanSnapshotProbe.java`,

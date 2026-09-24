@@ -289,11 +289,11 @@ object DenzaAppRepository {
         // The last reading, never a fresh one: this runs on whatever thread asked for a redraw,
         // and the car is asked on the cloud link's own thread.
         val cloudCar = CloudLinkRuntime.car
-        val cloudLink = CloudLinkStatus.snapshot(
+        val cloudLink = CloudLinkRuntime.snapshot(
             enabled = CloudLinkSettings.isEnabled(context),
-            car = cloudCar,
             network = CloudNetwork.usable(context),
-            failure = CloudLinkRuntime.failure,
+            pendingDisable = CloudLinkSettings.pendingDisable(context),
+            nowMs = android.os.SystemClock.elapsedRealtime(),
         )
         val cloudLinkBusy = CloudLinkRuntime.busy
         val technicalDetails = supportDiagnostics(context)
@@ -719,9 +719,7 @@ object DenzaAppRepository {
      */
     fun setCloudLinkEnabled(enabled: Boolean) {
         val context = appContext ?: return
-        CloudLinkSettings.setEnabled(context, enabled)
         if (enabled) CloudLinkController.switchOn(context) else CloudLinkController.switchOff(context)
-        CloudLinkService.reconcile(context)
         refresh()
     }
 

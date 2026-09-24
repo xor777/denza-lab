@@ -8,95 +8,69 @@ import dev.denza.apps.adb.DenzaLocalAdb
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-/**
- * The one place the cloud link talks to the car.
- *
- * Every read and write goes through one thread, in order, so the driver's «off» can never land in
- * the middle of an automatic «ready», and each automatic task re-reads the switch when it runs
- * rather than when it was queued. [CloudLinkCore] decides; this carries the decision out over the
- * local ADB shell, publishes the reading to [CloudLinkRuntime] and asks the dashboard to redraw.
- *
- * [CloudLinkService] is what keeps the process alive and feeds the network events in; the readings
- * it asks for between events are scheduled here, and stop when it stops.
- */
+/** One writer. Desired state and pending teardown are durable before any vehicle operation. */
 object CloudLinkController {
     private const val TAG = "DenzaCloudLink"
-
-    /** The live run waited this long after the profile broadcast before trusting it. */
-    private const val PROFILE_SETTLE_MS = 3_000L
-
-    /** And this long between «gone» and the profile it no longer needs. */
-    private const val GONE_SETTLE_MS = 1_000L
-
-    /** Readings after a «ready», to catch the connection coming up: the live run's own schedule. */
-    private val FOLLOW_UP_MS = longArrayOf(5_000L, 15_000L, 30_000L, 60_000L)
-
-    /** Between events: once a minute while there is something to wait for, else every five. */
-    private const val WATCH_MS = 60_000L
-    private const val IDLE_MS = 5 * 60_000L
-
-    private const val ENABLE_FAILED = "Не включилось"
-    private const val DISABLE_FAILED = "Не выключилось"
-
     private val executor = Executors.newSingleThreadScheduledExecutor { runnable ->
         Thread(runnable, "denza-cloud-link").apply { isDaemon = true }
     }
     private val core = CloudLinkCore()
     private var watching = false
     private var tick: ScheduledFuture<*>? = null
+    private val followUps = mutableListOf<ScheduledFuture<*>>()
     private val pressesInFlight = AtomicInteger()
+    private val hintQueued = AtomicBoolean()
+    private var disableRetryAt = 0L
 
-    /** The driver switched the link on. */
-    fun switchOn(context: Context) {
+    fun switchOn(context: Context) = switch(context, true)
+    fun switchOff(context: Context) = switch(context, false)
+
+    private fun switch(context: Context, enabled: Boolean) {
         val app = context.applicationContext
-        explicit(ENABLE_FAILED) {
-            val car = read(app)
-            attempt(app, core.switchedOn(car, CloudNetwork.usable(app), now()))
+        explicit(app) {
+            cancelFollowUps()
+            CloudLinkRuntime.registrationFailure = null
+            CloudLinkRuntime.registrationNotBeforeEpochMs = System.currentTimeMillis()
+            CloudLinkSettings.save(app, CloudLinkSettings.request(app).request(enabled))
+            record(app, "request enabled=$enabled pendingDisable=${CloudLinkSettings.pendingDisable(app)}")
+            // Start recovery before touching the car; keep it alive even when the desired state is off.
+            CloudLinkService.reconcile(app)
+            check(finishDisable(app, force = true)) { "Выключение не завершено" }
+            if (enabled) {
+                attempt(app, core.switchedOn(read(app), CloudNetwork.usable(app), now()))
+            }
+            true
         }
     }
 
-    /** The driver switched the link off: close the gate and hand the car its profile back. */
-    fun switchOff(context: Context) {
-        val app = context.applicationContext
-        explicit(DISABLE_FAILED) {
-            val car = read(app)
-            run(app, core.switchedOff(car)).also { read(app) }
-        }
-    }
-
-    /**
-     * Keep client Wi-Fi on through sleep, or give the choice back to the car.
-     *
-     * The panel's switch shows the car's value, not this call's: a write the car did not take
-     * leaves the switch where the car says it is, which is the whole of the error handling.
-     */
     fun setWifiRetained(context: Context, retain: Boolean) {
         val app = context.applicationContext
-        explicit(failure = null) {
-            val output = shell(app, CloudLinkProtocol.wifiRetentionCommand(retain))
-            val taken = read(app).wifiRetained == retain
-            Log.i(TAG, "wifi retention retain=$retain taken=$taken output=${output.trim()}")
-            taken
+        explicit(app) {
+            shell(app, CloudLinkProtocol.wifiRetentionCommand(retain))
+            check(read(app).wifiRetained == retain) { "Настройка Wi-Fi не подтвердилась" }
+            record(app, "wifiRetention=$retain confirmed")
+            true
         }
     }
 
-    /** Read the car for the screen, and change nothing. */
+    /** Reading and reporting do not write to the vehicle. */
     fun refresh(context: Context) {
         val app = context.applicationContext
         executor.execute {
-            runCatching { read(app) }.onFailure { Log.i(TAG, "read failed", it) }
-            publish()
+            runCatching { read(app) }.onFailure { recordError(app, "read", it) }
+            publish(app)
         }
     }
 
-    /** The service is up: reconcile now, and keep reading until it stops. */
     fun serviceStarted(context: Context) {
         val app = context.applicationContext
         executor.execute {
             watching = true
-            automatic(app, "service start") { car, network -> core.reconcile(car, network, now()) }
+            record(app, "service start")
+            automatic(app, "start")
         }
     }
 
@@ -105,191 +79,198 @@ object CloudLinkController {
             watching = false
             tick?.cancel(false)
             tick = null
+            cancelFollowUps()
         }
     }
 
-    /** Usable internet came back. */
     fun networkReturned(context: Context) {
         val app = context.applicationContext
-        executor.execute {
-            automatic(app, "network returned") { car, _ -> core.networkReturned(car, now()) }
-        }
+        executor.execute { automatic(app, "network returned", returned = true) }
     }
 
-    /** Usable internet has stayed gone for the grace period. */
     fun networkGone(context: Context) {
         val app = context.applicationContext
-        executor.execute {
-            automatic(app, "network gone") { car, network -> if (network) emptyList() else core.networkGone(car) }
-        }
+        executor.execute { automatic(app, "network gone", lost = true) }
     }
 
-    /**
-     * The stock client announced a status change. A hint to read, never a fact to act on: its
-     * delivery to an ordinary app is unproven, and nothing here depends on it arriving.
-     */
     fun hint(context: Context) {
+        if (!hintQueued.compareAndSet(false, true)) return
         val app = context.applicationContext
         executor.execute {
-            automatic(app, "status broadcast") { car, network -> core.reconcile(car, network, now()) }
+            try { automatic(app, "status broadcast") } finally { hintQueued.set(false) }
         }
     }
 
-    /**
-     * One automatic pass: read, ask the core, carry out, schedule the next reading.
-     *
-     * The switch is re-read here, on this thread, because an automatic task may have been queued
-     * before the driver switched off - and a switched-off link says nothing to the car.
-     */
-    private fun automatic(
-        app: Context,
-        reason: String,
-        decide: (CloudCarState, Boolean) -> List<CloudStep>,
-    ) {
+    private fun automatic(app: Context, reason: String, returned: Boolean = false, lost: Boolean = false) {
         try {
+            if (!CloudLinkSettings.needsService(app)) return
+            if (!finishDisable(app)) return
             if (!CloudLinkSettings.isEnabled(app)) return
             val car = read(app)
-            val network = CloudNetwork.kind(app)
-            val steps = decide(car, network != CloudNetworkKind.NONE)
-            if (steps.isNotEmpty()) {
-                Log.i(TAG, "$reason: $steps network=$network gate=${core.gate} attempts=${core.attempts}")
+            val network = CloudNetwork.usable(app)
+            val steps = when {
+                returned -> core.networkReturned(car, now(), network)
+                lost && !network -> core.networkGone(car, now())
+                else -> core.reconcile(car, network, now())
             }
-            // A press the car refused earlier is not the news once the link is up by other means:
-            // the tile would say «Не включилось» over a car the phone can see.
-            if (car.connected == true || (steps.isNotEmpty() && attempt(app, steps))) {
+            if (steps.isNotEmpty()) {
+                record(app, "$reason steps=$steps")
+                attempt(app, steps, lossOnly = !network && CloudStep.AnnounceGone in steps)
+                CloudLinkRuntime.failure = null
+            } else if (car.connected == true) {
                 CloudLinkRuntime.failure = null
             }
         } catch (error: Exception) {
-            Log.i(TAG, "$reason failed", error)
+            CloudLinkRuntime.failure = failure(error)
+            recordError(app, reason, error)
         } finally {
-            publish()
+            publish(app)
             schedule(app)
         }
     }
 
-    /**
-     * A press: grey the switches, do it, and let go.
-     *
-     * [block] answers whether the car took it. One that did not - refused, or never reached because
-     * the shell itself failed - leaves [failure] on the tile until a later press is taken; a press
-     * with no [failure] of its own (Wi-Fi in sleep) is answered by its switch reading the car back.
-     */
-    private fun explicit(failure: String?, block: () -> Boolean) {
-        pressesInFlight.incrementAndGet()
-        CloudLinkRuntime.busy = true
-        publish()
-        executor.execute {
-            try {
-                val taken = runCatching(block)
-                    .onFailure { Log.w(TAG, "switch failed", it) }
-                    .getOrDefault(false)
-                if (failure != null) CloudLinkRuntime.failure = if (taken) null else failure
-            } finally {
-                CloudLinkRuntime.busy = pressesInFlight.decrementAndGet() > 0
-                publish()
-            }
+    /** A failed disable survives process death and is resumed before any new enable. */
+    private fun finishDisable(app: Context, force: Boolean = false): Boolean {
+        if (!CloudLinkSettings.pendingDisable(app)) return true
+        if (!force && now() < disableRetryAt) return false
+        disableRetryAt = now() + CloudLinkCore.NETWORK_LOSS_GRACE_MS
+        val car = read(app)
+        val closing = CloudLinkSettings.request(app).let {
+            it.copy(awaitingTcpDown = it.awaitingTcpDown || (car.wifiProfile && !car.cellular))
         }
-    }
-
-    /**
-     * [run], with a «ready» that did not happen counted against the backoff, and the readings that
-     * catch one that did. Never throws: a shell that failed is a step the car did not take.
-     */
-    private fun attempt(app: Context, steps: List<CloudStep>): Boolean {
-        val taken = runCatching { run(app, steps) }
-            .onFailure { Log.w(TAG, "steps $steps failed", it) }
-            .getOrDefault(false)
-        if (CloudStep.AnnounceReady in steps) {
-            if (taken) followUp(app) else core.readyFailed(now())
+        // Journal the teardown obligation before -5; keep it if the process dies or the
+        // profile is changed by somebody else while TCP is still being torn down.
+        CloudLinkSettings.save(app, closing)
+        val steps = core.switchedOff(car).toMutableList()
+        if (closing.awaitingTcpDown && !car.cellular && CloudStep.WaitDisconnected !in steps) {
+            steps.add(0, CloudStep.WaitDisconnected)
         }
-        return taken
-    }
-
-    /**
-     * Carry the steps out in order and stop at the first the car refuses. True when all were taken.
-     *
-     * A profile change is trusted only once the car reads it back: the broadcast is answered by
-     * `com.android.phone`, and a completed broadcast is not yet a written property.
-     */
-    private fun run(app: Context, steps: List<CloudStep>): Boolean {
-        for (step in steps) {
-            val taken = when (step) {
-                CloudStep.UseWifiProfile -> switchProfile(app, CloudLinkProtocol.WIFI_PROFILE) { it.wifiProfile }
-                is CloudStep.RestoreProfile -> switchProfile(app, step.profile) { it.onStockProfile }
-                CloudStep.AnnounceReady -> notify(app, CloudLinkProtocol.READY).also { taken ->
-                    if (taken) core.readySent(now())
-                }
-                CloudStep.AnnounceGone -> notify(app, CloudLinkProtocol.GONE).also { taken ->
-                    if (taken) {
-                        core.goneSent()
-                        Thread.sleep(GONE_SETTLE_MS)
-                    }
-                }
-            }
-            Log.i(TAG, "step=$step taken=$taken")
-            if (!taken) return false
-        }
+        operations(app).run(steps)
+        val request = CloudLinkSettings.request(app).disabled(read(app))
+        CloudLinkSettings.save(app, request)
+        CloudLinkRuntime.failure = null
+        record(app, "disable confirmed pendingDisable=false")
+        CloudLinkService.reconcile(app)
         return true
     }
 
-    private fun switchProfile(app: Context, profile: String, done: (CloudCarState) -> Boolean): Boolean {
-        val output = shell(app, CloudLinkProtocol.profileCommand(profile))
-        if (!CloudLinkProtocol.profileAccepted(output)) {
-            Log.w(TAG, "profile $profile refused: ${output.trim()}")
-            return false
+    private fun explicit(app: Context, block: () -> Boolean) {
+        pressesInFlight.incrementAndGet()
+        CloudLinkRuntime.busy = true
+        // Core is worker-owned; the caller publishes only the atomic busy flag.
+        runCatching { DenzaAppRepository.refresh() }.onFailure { Log.w(TAG, "publish busy failed", it) }
+        executor.execute {
+            try {
+                check(block()) { "Операция не подтвердилась" }
+                CloudLinkRuntime.failure = null
+            } catch (error: Exception) {
+                CloudLinkRuntime.failure = failure(error)
+                recordError(app, "explicit", error)
+            } finally {
+                CloudLinkRuntime.busy = pressesInFlight.decrementAndGet() > 0
+                publish(app)
+                schedule(app)
+            }
         }
-        Thread.sleep(PROFILE_SETTLE_MS)
-        return done(read(app))
     }
 
-    private fun notify(app: Context, state: Int): Boolean {
-        val output = shell(app, CloudLinkProtocol.notifyCommand(state))
-        return CloudLinkProtocol.notifyAccepted(output).also { taken ->
-            if (!taken) Log.w(TAG, "notify $state refused: ${output.trim()}")
+    private fun attempt(app: Context, steps: List<CloudStep>, lossOnly: Boolean = false) {
+        try {
+            operations(app).run(steps, lossOnly)
+            if (CloudStep.AnnounceReady in steps) followUp(app)
+        } catch (error: Exception) {
+            if (CloudStep.AnnounceReady in steps) core.readyFailed(now())
+            throw error
         }
     }
 
-    private fun read(app: Context): CloudCarState =
-        CloudLinkProtocol.parseRead(shell(app, CloudLinkProtocol.readCommand())).also {
-            CloudLinkRuntime.car = it
+    private fun operations(app: Context) = CloudLinkOperations(
+        core, { read(app) }, { shell(app, it) }, { CloudNetwork.usable(app) },
+        ::now, Thread::sleep, { record(app, it) },
+    )
+
+    private fun read(app: Context): CloudCarState {
+        try {
+            val car = CloudLinkProtocol.parseRead(shell(app, CloudLinkProtocol.readCommand()))
+            CloudLinkRuntime.car = car
             CloudLinkRuntime.readAtMs = now()
+            runCatching { CloudLinkDiagnostics.observe(app, car, CloudNetwork.reading(app)) }
+                .onFailure { Log.w(TAG, "diagnostic observation failed", it) }
+            CloudLinkProtocol.readFailure(car)?.let { error(it) }
+            CloudLinkRuntime.readFailure = null
+            if (car.connected == true) {
+                // Do not resurrect a preceding rejection if this working session later drops.
+                CloudLinkRuntime.registrationFailure = null
+                CloudLinkRuntime.registrationNotBeforeEpochMs = System.currentTimeMillis()
+            }
+            core.observe(car)
+            return car
+        } catch (error: Exception) {
+            CloudLinkRuntime.readFailure = failure(error)
+            throw error
         }
+    }
 
-    private fun shell(app: Context, command: String): String =
-        DenzaLocalAdb.client(app).shell(command)
+    private fun shell(app: Context, command: String): String = DenzaLocalAdb.client(app).shell(command)
 
-    /** Readings to catch the connection a «ready» should bring, so the tile turns without a wait. */
     private fun followUp(app: Context) {
-        FOLLOW_UP_MS.forEach { delay ->
-            executor.schedule({
-                runCatching { read(app) }
-                publish()
+        cancelFollowUps()
+        for (delay in longArrayOf(5_000, 15_000, 30_000, 60_000)) {
+            followUps += executor.schedule({
+                if (watching && CloudLinkSettings.needsService(app)) automatic(app, "follow up")
             }, delay, TimeUnit.MILLISECONDS)
         }
     }
 
-    /** The next reading, while the service watches. */
+    private fun cancelFollowUps() {
+        followUps.forEach { it.cancel(false) }
+        followUps.clear()
+    }
+
     private fun schedule(app: Context) {
         tick?.cancel(false)
         tick = null
-        if (!watching || !CloudLinkSettings.isEnabled(app)) return
-        val car = CloudLinkRuntime.car
-        val waiting = car?.connected != true && CloudNetwork.usable(app)
-        tick = executor.schedule({
-            automatic(app, "tick") { reading, network -> core.reconcile(reading, network, now()) }
-        }, if (waiting) WATCH_MS else IDLE_MS, TimeUnit.MILLISECONDS)
+        if (!watching || !CloudLinkSettings.needsService(app)) return
+        // Poll while offline too: an initial or failed network-loss action must be repaired.
+        val delay = when {
+            CloudLinkSettings.pendingDisable(app) || !CloudNetwork.usable(app) -> 30_000L
+            // Keep the bounded native log window while connecting. Core's write/retry budgets
+            // are unchanged; a diagnostic sample never sends a network notification.
+            CloudLinkRuntime.car?.connected != true -> CloudNativeLog.INTERVAL_MS
+            else -> 60_000L
+        }
+        tick = executor.schedule({ automatic(app, "tick") }, delay, TimeUnit.MILLISECONDS)
     }
 
-    private fun publish() {
+    private fun publish(app: Context? = null) {
         CloudLinkRuntime.adapter = CloudLinkReport.Adapter(
-            gate = core.gate.name,
-            attempts = core.attempts,
-            lastReadyAtMs = core.lastReadyAt,
-            disconnectedSinceMs = core.disconnectedSince,
-            nextReadyAtMs = core.nextReadyAt,
+            core.gate.name, core.attempts, core.lastReadyAt, core.disconnectedSince, core.nextReadyAt,
         )
-        DenzaAppRepository.refresh()
+        // Reporting must never interrupt cleanup, leave busy set or stop recovery scheduling.
+        if (app != null) {
+            CloudLinkDiagnostics.captureNative(app, now()) {
+                DenzaLocalAdb.client(app).shell(it, 4_000)
+            }
+            runCatching { CloudLinkDiagnostics.export(app) }
+                .onFailure { Log.w(TAG, "export failed", it) }
+        }
+        runCatching { DenzaAppRepository.refresh() }.onFailure { Log.w(TAG, "publish failed", it) }
     }
+
+    private fun record(app: Context, message: String) {
+        Log.i(TAG, message)
+        CloudLinkDiagnostics.record(app, message)
+    }
+
+    private fun recordError(app: Context, stage: String, error: Throwable) {
+        Log.w(TAG, "$stage failed", error)
+        // Exception messages/command output can contain identifiers. Export only our controlled
+        // state-machine messages; arbitrary transport exceptions are represented by class name.
+        record(app, "$stage failed ${failure(error)}")
+    }
+
+    private fun failure(error: Throwable): String =
+        if (error is IllegalStateException) error.message.orEmpty().take(160) else "Нет ответа: ${error.javaClass.simpleName}"
 
     private fun now(): Long = SystemClock.elapsedRealtime()
 }

@@ -63,6 +63,9 @@ data class DashboardActions(
 object DashboardPress {
 
     fun perform(tile: DashboardTile, state: DenzaUiState, actions: DashboardActions) {
+        // The settings switches already do this. The tile must not queue another request
+        // against the old desired value while its current write is still being persisted.
+        if (tile.id == TileId.CLOUD && state.cloudLinkBusy && tile.action != TileAction.SETTINGS) return
         when (tile.action) {
             TileAction.CLUSTER_PROJECT -> actions.onNavigationAction()
             TileAction.SIMULCAST_LAUNCH -> actions.onLaunchSimulcast()

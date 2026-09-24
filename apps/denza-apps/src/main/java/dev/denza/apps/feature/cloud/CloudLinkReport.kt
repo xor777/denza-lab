@@ -46,7 +46,7 @@ object CloudLinkReport {
         "Сотовая BYD" to yesNo(car?.cellular),
         "cloudmanager" to "PID ${car?.cloudPid ?: NONE}, TCP ${car?.connected?.let { if (it) 1 else 0 } ?: UNKNOWN}",
         "Wi-Fi во сне" to yesNo(car?.wifiRetained),
-        "Шлюз" to (adapter?.let { "${it.gate}, попыток ${it.attempts}" } ?: NONE),
+        "Адаптер" to (adapter?.let { "${it.gate} (оценка приложения), попыток ${it.attempts}" } ?: NONE),
         "Последний ready" to ready(adapter, nowMs),
         "Без связи" to (adapter?.disconnectedSinceMs?.let { span(nowMs - it) } ?: NONE),
         "Прочитано" to (readAtMs?.let { "${span(nowMs - it)} назад" } ?: "ещё не было") +
@@ -70,7 +70,7 @@ object CloudLinkReport {
 
     private fun sim(operator: String?): String {
         val code = operator?.ifBlank { null } ?: return "нет"
-        return if (CloudNetwork.chineseSim(code)) "$code, китайская" else code
+        return if (CloudNetwork.chineseSim(code)) "$code, MCC 460" else code
     }
 
     private fun yesNo(value: Boolean?): String = when (value) {

@@ -46,7 +46,7 @@ class CloudLinkReportTest {
                 "Сотовая BYD" to "нет",
                 "cloudmanager" to "PID 113, TCP 1",
                 "Wi-Fi во сне" to "да",
-                "Шлюз" to "OPENED, попыток 1",
+                "Адаптер" to "OPENED (оценка приложения), попыток 1",
                 "Последний ready" to "4 мин назад",
                 "Без связи" to "—",
                 "Прочитано" to "12 с назад",
@@ -62,16 +62,16 @@ class CloudLinkReportTest {
         assertEquals("?, сборки ?, APN1 ?", r["Профиль"])
         assertEquals("—", r["Последний ready"])
         assertEquals("PID —, TCP ?", r["cloudmanager"])
-        assertEquals("—", r["Шлюз"])
+        assertEquals("—", r["Адаптер"])
         assertEquals("ещё не было", r["Прочитано"])
     }
 
     @Test
-    fun `a Chinese SIM is named as one, and mobile data from it is not internet to the rule`() {
+    fun `operator metadata does not turn validated mobile internet into no network`() {
         val roaming = CloudNetworkReading(validated = true, wifi = false, cellular = true, simOperator = "46001")
         val r = rows(network = roaming)
-        assertEquals("46001, китайская", r["SIM"])
-        assertEquals("нет, интернет проверен", r["Сеть"])
+        assertEquals("46001, MCC 460", r["SIM"])
+        assertEquals("мобильный, интернет проверен", r["Сеть"])
         assertEquals("нет / да", r["Wi-Fi / сотовая"])
         val local = CloudNetworkReading(validated = true, wifi = false, cellular = true, simOperator = "25001")
         assertEquals("мобильный, интернет проверен", rows(network = local)["Сеть"])
@@ -93,7 +93,7 @@ class CloudLinkReportTest {
             busy = true,
         )
         assertEquals("Не включилось", r["Отказ"])
-        assertEquals("CLOSED, попыток 2", r["Шлюз"])
+        assertEquals("CLOSED (оценка приложения), попыток 2", r["Адаптер"])
         assertEquals("1 мин назад, повтор не раньше чем через 9 мин", r["Последний ready"])
         assertEquals("2 ч 5 мин", r["Без связи"])
         assertEquals("12 с назад, идёт запись", r["Прочитано"])

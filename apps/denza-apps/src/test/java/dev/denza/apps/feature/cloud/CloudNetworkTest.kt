@@ -9,8 +9,8 @@ import org.junit.Test
  * Which internet the cloud link translates for the stock client.
  *
  * Wi-Fi is proven (2026-09-23). Mobile data from a local SIM is built for owners to test and is not
- * proven on any car. A Chinese SIM's mobile data is never used: a Chinese SIM with service is a
- * roaming SIM on BYD's private APN, and the adapter must not move that car off it.
+ * proven on any car. The operator code does not establish private APN ownership;
+ * actual stock APN state is guarded by the controller and its operations.
  */
 class CloudNetworkTest {
 
@@ -25,15 +25,14 @@ class CloudNetworkTest {
     fun mobileDataFromALocalSimIsUsable() {
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "25001"))
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "25099"))
-        // An operator code the car will not give is not taken for a Chinese one.
+        // Missing operator metadata does not invalidate an otherwise validated network.
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = null))
     }
 
-    /** A roaming Chinese SIM - an «rSIM» - is the stock client's own network; it is left alone. */
     @Test
-    fun mobileDataFromAChineseSimIsNotOurs() {
-        assertEquals(CloudNetworkKind.NONE, kind(cellular = true, sim = "46013"))
-        assertEquals(CloudNetworkKind.NONE, kind(cellular = true, sim = "46000"))
+    fun operatorCodeCannotDisqualifyValidatedMobileInternet() {
+        assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "46013"))
+        assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "46000"))
         assertTrue(CloudNetwork.chineseSim("46011"))
         assertFalse(CloudNetwork.chineseSim("25002"))
         assertFalse(CloudNetwork.chineseSim(null))
@@ -52,5 +51,5 @@ class CloudNetworkTest {
         wifi: Boolean = false,
         cellular: Boolean = false,
         sim: String?,
-    ) = CloudNetwork.kindOf(validated, wifi, cellular, sim)
+    ) = CloudNetworkReading(validated, wifi, cellular, sim).kind
 }

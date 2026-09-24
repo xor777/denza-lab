@@ -31,6 +31,8 @@ internal object CloudLinkProtocol {
     const val WIFI_RETENTION_KEY = "byd_off_wifi_switch"
 
     private const val MARKER = "@@"
+    private val APN_FIELDS = setOf("apn1state", "apn3state")
+    private val APN_EXIT = Regex("@@(apn[13]state)Exit:([0-9]+)")
 
     private val FIELDS = listOf(
         "profile" to "getprop persist.sys.byd.apn_type",
@@ -43,11 +45,24 @@ internal object CloudLinkProtocol {
         // The stock TCP client's own getter: the second word is 1 while it holds a connection.
         "tcp" to "service call cloudmanager 7",
         "wifi" to "settings get global $WIFI_RETENTION_KEY",
+        "step" to "getprop sys.tcp_step",
+        "regError" to "getprop sys.tcp_reg_errcode",
+        "apn1if" to "getprop net.lte.apn1.ifname",
+        "apn3if" to "getprop net.lte.apn3.ifname",
     )
 
-    /** One round trip for everything the tile and the adapter need, each answer tagged. */
+    /** APN defaults require a matching completed command, not merely an empty output buffer. */
     fun readCommand(): String =
-        FIELDS.joinToString("; ") { (name, command) -> "echo $MARKER$name; $command" }
+        FIELDS.joinToString("; ") { (name, command) ->
+            "echo $MARKER$name; $command" +
+                if (name in APN_FIELDS) "; echo $MARKER${name}Exit:${'$'}?" else ""
+        }
+
+    private data class ReadField(
+        val lines: MutableList<String> = mutableListOf(),
+        var exit: Int? = null,
+        var invalid: Boolean = false,
+    )
 
     /**
      * The car's answers, a field left null when its command printed nothing it could mean.
@@ -55,35 +70,81 @@ internal object CloudLinkProtocol {
      * A missing `tcp` is not «disconnected»: the adapter must not act on a reading it did not get.
      */
     fun parseRead(output: String): CloudCarState {
-        val values = HashMap<String, String>()
+        val fields = HashMap<String, ReadField>()
         var field: String? = null
         output.lineSequence().forEach { raw ->
             val line = raw.trim()
             val current = field
+            val end = APN_EXIT.matchEntire(line)
             when {
-                line.startsWith(MARKER) -> field = line.removePrefix(MARKER)
-                current != null && line.isNotEmpty() && current !in values -> values[current] = line
+                end != null -> {
+                    val name = end.groupValues[1]
+                    val read = fields.getOrPut(name) { ReadField(invalid = true) }
+                    if (current != name || read.exit != null) read.invalid = true
+                    read.exit = end.groupValues[2].toIntOrNull()
+                    field = null
+                }
+                line.startsWith(MARKER) -> {
+                    val name = line.removePrefix(MARKER)
+                    if (name in fields) fields.getValue(name).invalid = true
+                    else fields[name] = ReadField()
+                    field = name
+                }
+                current != null && line.isNotEmpty() -> fields.getValue(current).lines.add(line)
             }
         }
+        val values = fields.filterValues { !it.invalid }.mapValues { it.value.lines.firstOrNull() }
+        val apn1 = readApnState(fields["apn1state"])
+        val apn3 = readApnState(fields["apn3state"])
         return CloudCarState(
-            profile = values["profile"]?.takeIf { it.isNotBlank() },
-            buildProfile = values["build"]?.takeIf { it.isNotBlank() },
+            profile = values["profile"]?.takeIf { it in setOf(WIFI_PROFILE, STOCK_PROFILE) },
+            buildProfile = values["build"]?.takeIf { it.matches(Regex("[a-z_]{1,32}")) },
             apn1Disabled = when (values["apn1"]) {
                 "1" -> true
                 "0" -> false
                 else -> null
             },
-            cellular = values["apn1state"].isConnected() || values["apn3state"].isConnected(),
+            cellular = apn1.first.isConnected() || apn3.first.isConnected(),
             cloudPid = values["pid"]?.split(' ')?.singleOrNull()?.takeIf { it.all(Char::isDigit) },
             connected = values["tcp"]?.let(::tcpConnected),
             wifiRetained = when (values["wifi"]) {
                 "1" -> true
                 // Nothing printed is a read that failed. The shell's own word for an absent key is
                 // the string `null`, which is the stock default and means «turn Wi-Fi off».
-                null -> null
-                else -> false
+                "0", "null" -> false
+                else -> null
             },
+            apn1State = apn1.first,
+            apn3State = apn3.first,
+            tcpStep = values["step"]?.toIntOrNull(),
+            registrationError = values["regError"]?.toIntOrNull(),
+            apn1Interface = values["apn1if"].interfaceName(),
+            apn3Interface = values["apn3if"].interfaceName(),
+            apn1ReadSource = apn1.second,
+            apn3ReadSource = apn3.second,
         )
+    }
+
+    private fun readApnState(read: ReadField?): Pair<String?, CloudApnReadSource> = when {
+        read == null || read.invalid || read.exit == null -> null to CloudApnReadSource.INCOMPLETE
+        read.exit != 0 -> null to CloudApnReadSource.FAILED
+        // The retained stock readers use SystemProperties.get(key, "disconnected") for both APNs.
+        read.lines.isEmpty() -> "disconnected" to CloudApnReadSource.DEFAULT_EMPTY
+        read.lines.size != 1 -> null to CloudApnReadSource.UNSUPPORTED
+        else -> read.lines.single().knownApnState()?.let { it to CloudApnReadSource.VALUE }
+            ?: (null to CloudApnReadSource.UNSUPPORTED)
+    }
+
+    /** Local read validation; never describe a missing property as an error from Denza's server. */
+    fun readFailure(car: CloudCarState): String? {
+        val missing = buildList {
+            if (car.connected == null) add("TCP")
+            if (car.profile !in setOf(WIFI_PROFILE, STOCK_PROFILE)) add("профиль")
+            if (car.apn1Disabled == null) add("флаг APN1")
+            if (car.apn1State == null) add("APN1 (${car.apn1ReadSource?.problem ?: "нет данных"})")
+            if (car.apn3State == null) add("APN3 (${car.apn3ReadSource?.problem ?: "нет данных"})")
+        }
+        return missing.takeIf { it.isNotEmpty() }?.joinToString(", ", "Не прочитано с машины: ")
     }
 
     /**
@@ -91,6 +152,12 @@ internal object CloudLinkProtocol {
      * read `disconnected` on both. `connected` is accepted too, as the spelling nobody has seen yet.
      */
     private fun String?.isConnected(): Boolean = this == "connect" || this == "connected"
+
+    private fun String?.knownApnState(): String? = takeIf {
+        it in setOf("connect", "connected", "disconnected", "connecting", "disconnecting")
+    }
+
+    private fun String?.interfaceName(): String? = this?.takeIf { it.matches(Regex("[a-zA-Z0-9_.-]{1,32}")) }
 
     /** `Result: Parcel(00000000 00000001 ...)`: no exception, and the client holds a connection. */
     fun tcpConnected(line: String): Boolean? {
@@ -116,8 +183,8 @@ internal object CloudLinkProtocol {
     /** One network event to the native client; the Binder answers `Parcel(NULL)`. */
     fun notifyCommand(state: Int): String = "service call cloudmanager 1 i32 $state"
 
-    /** A reply that is a parcel at all; `service not found` and friends are not. */
-    fun notifyAccepted(output: String): Boolean = output.contains("Result: Parcel(")
+    /** Exact successful reply recorded on the target firmware. Unknown replies fail closed. */
+    fun notifyAccepted(output: String): Boolean = output.trim() == "Result: Parcel(NULL)"
 
     /**
      * Keep client Wi-Fi through ACC-off, or give the decision back to the car.
@@ -135,6 +202,15 @@ internal object CloudLinkProtocol {
 
     private val PARCEL = Regex("""Parcel\(([^')]*)""")
     private val WORD = Regex("""[0-9a-fA-F]{8}""")
+}
+
+/** Controlled diagnostic labels; no arbitrary shell output is included in reports. */
+enum class CloudApnReadSource(val problem: String? = null) {
+    VALUE,
+    DEFAULT_EMPTY,
+    INCOMPLETE("чтение не завершено"),
+    FAILED("ошибка команды"),
+    UNSUPPORTED("неизвестное значение"),
 }
 
 /**
@@ -156,7 +232,19 @@ data class CloudCarState(
     val cloudPid: String? = null,
     val connected: Boolean? = null,
     val wifiRetained: Boolean? = null,
+    val apn1State: String? = null,
+    val apn3State: String? = null,
+    val tcpStep: Int? = null,
+    val registrationError: Int? = null,
+    val apn1Interface: String? = null,
+    val apn3Interface: String? = null,
+    val apn1ReadSource: CloudApnReadSource? = null,
+    val apn3ReadSource: CloudApnReadSource? = null,
 ) {
+    /** An APN owned by the stock framework is connected or still transitioning. */
+    val stockApnBusy: Boolean
+        get() = cellular || listOf(apn1State, apn3State).any { it in setOf("connecting", "disconnecting") }
+
     /** The profile the adapter needs: the gate opens on [CloudLinkProtocol.READY] only under it. */
     val wifiProfile: Boolean
         get() = profile == CloudLinkProtocol.WIFI_PROFILE && apn1Disabled == true

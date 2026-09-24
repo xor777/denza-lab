@@ -13,6 +13,9 @@ internal sealed interface CloudStep {
     /** `notify_nw(-5)`: close it, and let the client disconnect cleanly. */
     data object AnnounceGone : CloudStep
 
+    /** Do not restore a profile or re-enable against the TCP being torn down. */
+    data object WaitDisconnected : CloudStep
+
     /** Give the car back the profile it ships with. */
     data class RestoreProfile(val profile: String) : CloudStep
 }
@@ -25,7 +28,7 @@ internal sealed interface CloudStep {
  * whole protocol; the only thing it lacks on this car is a network it believes in. Its gate opens on
  * APN3's «ready» (`notify_nw(4)`) and on nothing Wi-Fi sends it, and closes on APN3's «gone»
  * (`-5`). So the adapter translates: usable internet ([CloudNetwork] - Wi-Fi, or mobile data from
- * a SIM that is not Chinese) is «ready», internet that has stayed gone is «gone» - paired, because
+ * any SIM, with actual stock APNs guarded separately) is «ready», internet that has stayed gone is «gone» - paired, because
  * a gate opened and never closed is a synthetic APN left standing (docs/telematics-findings.md,
  * "Stock-client Wi-Fi adaptation"). Only Wi-Fi is proven on a car.
  *
@@ -66,6 +69,8 @@ internal class CloudLinkCore {
     private var lastReadyAtMs: Long? = null
     private var disconnectedSinceMs: Long? = null
     private var cloudPid: String? = null
+    private var networkLostAtMs: Long? = null
+    private var lastGoneAttemptAtMs: Long? = null
 
     /** What the service report prints of the adapter's clocks; nothing decides on these. */
     val lastReadyAt: Long? get() = lastReadyAtMs
@@ -92,20 +97,18 @@ internal class CloudLinkCore {
      * start of the service, usable internet coming back.
      */
     fun reconcile(car: CloudCarState, network: Boolean, nowMs: Long): List<CloudStep> {
-        car.cloudPid?.let { pid ->
-            // A restarted client has a fresh gate, and the framework replays only the APN states
-            // it recorded - never ours. Nothing is in doubt about what it needs.
-            if (cloudPid != null && cloudPid != pid) closed()
-            cloudPid = pid
-        }
-        if (car.connected == true) {
-            gate = Gate.OPENED
-            attempts = 0
-            disconnectedSinceMs = null
+        observe(car)
+        // Also runs at startup and after a failed close: an edge callback is only a hint.
+        if (!network) {
+            val lostAt = networkLostAtMs ?: nowMs.also { networkLostAtMs = it }
+            if (nowMs - lostAt >= NETWORK_LOSS_GRACE_MS) return networkGone(car, nowMs)
             return emptyList()
         }
-        if (car.cellular || !network) {
-            disconnectedSinceMs = null
+        networkLostAtMs = null
+        lastGoneAttemptAtMs = null
+        if (car.connected == true) return emptyList()
+        if (car.stockApnBusy) {
+            if (disconnectedSinceMs == null) disconnectedSinceMs = nowMs
             return emptyList()
         }
         // A car that did not answer is not a car that is offline.
@@ -114,9 +117,6 @@ internal class CloudLinkCore {
         val since = disconnectedSinceMs ?: nowMs.also { disconnectedSinceMs = it }
         val backedOff = lastReadyAtMs.let { it == null || nowMs - it >= backoff(attempts) }
         val due = when (gate) {
-            // Closed by us or by a restart: nothing to settle. Only an attempt the car refused -
-            // a profile that did not take, a shell that failed - holds it back, on the backoff,
-            // or a car that keeps refusing is sent the profile broadcast once a minute for ever.
             Gate.CLOSED -> backedOff
             Gate.UNKNOWN, Gate.OPENED -> nowMs - since >= SETTLE_MS && backedOff
         }
@@ -127,17 +127,36 @@ internal class CloudLinkCore {
         }
     }
 
+    /** Every successful observation, including the short follow-ups, updates our knowledge. */
+    fun observe(car: CloudCarState) {
+        car.cloudPid?.let { pid ->
+            // A restarted client has a fresh gate, and the framework replays only the APN states
+            // it recorded - never ours. Nothing is in doubt about what it needs.
+            if (cloudPid != null && cloudPid != pid) closed()
+            cloudPid = pid
+        }
+        if (car.connected == true) {
+            gate = Gate.OPENED
+            attempts = 0
+            disconnectedSinceMs = null
+        } else if (!car.wifiProfile && gate == Gate.OPENED) {
+            // A reply to 4 is not proof of a gate under a different profile. Keep the retry
+            // budget: do not fight another firmware owner by rewriting the profile in a loop.
+            gate = Gate.UNKNOWN
+        }
+    }
+
     /**
      * Usable internet came back. If we closed the gate when it went, it is closed now and the
      * client is waiting for exactly this; if it was a flicker we never answered, the client's own
      * reconnect is already on it.
      */
-    fun networkReturned(car: CloudCarState, nowMs: Long): List<CloudStep> {
-        if (gate == Gate.CLOSED) {
+    fun networkReturned(car: CloudCarState, nowMs: Long, network: Boolean = true): List<CloudStep> {
+        if (network && gate == Gate.CLOSED) {
             attempts = 0
             lastReadyAtMs = null
         }
-        return reconcile(car, network = true, nowMs = nowMs)
+        return reconcile(car, network = network, nowMs = nowMs)
     }
 
     /**
@@ -149,10 +168,13 @@ internal class CloudLinkCore {
      * [Gate.UNKNOWN] answers too - and only under the profile the adapter put the car on: outside
      * it the gate is not a synthetic APN of ours to close.
      */
-    fun networkGone(car: CloudCarState): List<CloudStep> =
+    fun networkGone(car: CloudCarState, nowMs: Long = 0): List<CloudStep> =
         if (gate == Gate.CLOSED || car.cellular || car.profile != CloudLinkProtocol.WIFI_PROFILE) {
             emptyList()
+        } else if (lastGoneAttemptAtMs?.let { nowMs - it < NETWORK_LOSS_GRACE_MS } == true) {
+            emptyList()
         } else {
+            lastGoneAttemptAtMs = nowMs
             listOf(CloudStep.AnnounceGone)
         }
 
@@ -162,6 +184,7 @@ internal class CloudLinkCore {
      */
     fun switchedOff(car: CloudCarState): List<CloudStep> = buildList {
         if (car.profile == CloudLinkProtocol.WIFI_PROFILE && !car.cellular) add(CloudStep.AnnounceGone)
+        if (car.profile == CloudLinkProtocol.WIFI_PROFILE && !car.cellular) add(CloudStep.WaitDisconnected)
         if (!car.onStockProfile) add(CloudStep.RestoreProfile(car.stockProfile))
     }
 

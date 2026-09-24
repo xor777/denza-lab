@@ -9,9 +9,9 @@ import org.junit.Test
 /**
  * The shell protocol against what the car printed.
  *
- * Every answer below is copied from the owner-approved live run of 2026-09-23
- * (`captures/telematics-20260923/stock-client-wifi/live-hold-1/`): the stock TCP getter before and
- * after the link came up, the profile broadcast, and the native Binder's reply to `notify_nw(4)`.
+ * Baseline values come from the owner-approved live run of 2026-09-23
+ * (`captures/telematics-20260923/stock-client-wifi/live-hold-1/`). Empty, failed and interrupted
+ * command responses below are synthetic boundary cases, not recordings from the forum car.
  */
 class CloudLinkProtocolTest {
 
@@ -27,8 +27,10 @@ class CloudLinkProtocolTest {
             1
             @@apn1state
             disconnected
+            @@apn1stateExit:0
             @@apn3state
             disconnected
+            @@apn3stateExit:0
             @@pid
             113
             @@tcp
@@ -106,11 +108,134 @@ class CloudLinkProtocolTest {
         val output = """
             @@apn1state
             disconnected
+            @@apn1stateExit:0
             @@apn3state
             connect
+            @@apn3stateExit:0
         """.trimIndent()
         assertTrue(CloudLinkProtocol.parseRead(output).cellular)
         assertFalse(CloudLinkProtocol.parseRead("@@apn3state").cellular)
+    }
+
+    @Test
+    fun successfulEmptyApnPropertiesUseTheStockDisconnectedDefault() {
+        val car = CloudLinkProtocol.parseRead("""
+            @@apn1state
+
+            @@apn1stateExit:0
+            @@apn3state
+
+            @@apn3stateExit:0
+        """.trimIndent())
+        assertEquals("disconnected", car.apn1State)
+        assertEquals("disconnected", car.apn3State)
+        assertEquals(CloudApnReadSource.DEFAULT_EMPTY, car.apn1ReadSource)
+        assertEquals(CloudApnReadSource.DEFAULT_EMPTY, car.apn3ReadSource)
+        assertFalse(car.cellular)
+    }
+
+    @Test
+    fun anExitMarkerCannotDefaultAPropertyWhoseReadNeverStarted() {
+        val car = CloudLinkProtocol.parseRead("@@apn1stateExit:0\n@@apn3stateExit:0")
+        assertNull(car.apn1State)
+        assertNull(car.apn3State)
+    }
+
+    @Test
+    fun interruptedOrFailedApnReadsNeverBecomeDisconnectedOrCellular() {
+        for (body in listOf(
+            "@@apn1state\n",
+            "@@apn1state\nconnect\n",
+            "@@apn1state\n@@apn1stateExit:1",
+            "@@apn1state\nconnect\n@@apn1stateExit:1",
+            "@@apn1state\n@@apn1stateExit:",
+        )) {
+            val car = CloudLinkProtocol.parseRead(body)
+            assertNull(body, car.apn1State)
+            assertFalse(body, car.cellular)
+        }
+    }
+
+    @Test
+    fun unsupportedAndConflictingApnResponsesDoNotUseTheEmptyDefault() {
+        for (body in listOf(
+            "@@apn1state\nunfamiliar\n@@apn1stateExit:0",
+            "@@apn1state\nwarning\nconnect\n@@apn1stateExit:0",
+            "@@apn1state\nconnect\nwarning\n@@apn1stateExit:0",
+            "@@apn1state\nconnect\n@@apn1stateExit:0\n@@apn1stateExit:0",
+            "@@apn1state\nconnect\n@@apn1state\n@@apn1stateExit:0",
+        )) {
+            val car = CloudLinkProtocol.parseRead(body)
+            assertNull(body, car.apn1State)
+            assertFalse(body, car.cellular)
+        }
+    }
+
+    @Test
+    fun completingAnotherFieldCannotAcknowledgeAnInterruptedApnRead() {
+        val car = CloudLinkProtocol.parseRead("""
+            @@apn1state
+            @@apn3state
+            disconnected
+            @@apn1stateExit:0
+            @@apn3stateExit:0
+        """.trimIndent())
+        assertNull(car.apn1State)
+        assertNull(car.apn3State)
+    }
+
+    // The photos establish the other fields, not APN1's raw bytes. Inject the empty-property
+    // hypothesis here so this test is not mistaken for a recording from that vehicle.
+    private fun photoStateWithApn1(apn1: String, apn3: String = "disconnected"): CloudCarState =
+        CloudLinkProtocol.parseRead("""
+            @@profile
+            double_apn
+            @@build
+            triple_apn
+            @@apn1
+            1
+            @@apn1state
+            $apn1
+            @@apn1stateExit:0
+            @@apn3state
+            $apn3
+            @@apn3stateExit:0
+            @@pid
+            120
+            @@tcp
+            Result: Parcel(00000000 00000000   '........')
+        """.trimIndent())
+
+    @Test
+    fun aCompletedEmptyApn1ReadAllowsThePhotographedStateToProceed() {
+        val car = photoStateWithApn1("")
+        assertNull(CloudLinkProtocol.readFailure(car))
+        assertEquals(
+            listOf(CloudStep.AnnounceReady),
+            CloudLinkCore().switchedOn(car, network = true, nowMs = 0),
+        )
+        assertTrue(CloudLinkProtocol.readFailure(car.copy(connected = null))!!.contains("TCP"))
+        assertTrue(CloudLinkProtocol.readFailure(car.copy(profile = null))!!.contains("профиль"))
+        assertTrue(CloudLinkProtocol.readFailure(car.copy(apn1Disabled = null))!!.contains("флаг APN1"))
+    }
+
+    @Test
+    fun defaultingEmptyApn1StillProtectsAConnectedRealApn3() {
+        val car = photoStateWithApn1("", apn3 = "connect")
+        assertNull(CloudLinkProtocol.readFailure(car))
+        assertTrue(car.cellular)
+        assertTrue(CloudLinkCore().switchedOn(car, network = true, nowMs = 0).isEmpty())
+        assertTrue(CloudLinkCore().switchedOff(car).none { it == CloudStep.AnnounceGone })
+    }
+
+    @Test
+    fun unsupportedApn1NamesTheLocalFieldWithoutExposingArbitraryOutput() {
+        val car = photoStateWithApn1("unrecognized private output")
+        assertEquals(CloudApnReadSource.UNSUPPORTED, car.apn1ReadSource)
+        assertEquals(
+            "Не прочитано с машины: APN1 (неизвестное значение)",
+            CloudLinkProtocol.readFailure(car),
+        )
     }
 
     @Test
@@ -169,6 +294,8 @@ class CloudLinkProtocolTest {
         assertFalse(command.contains(" put "))
         assertFalse(command.contains("i32"))
         assertFalse(command.contains("am broadcast"))
+        assertTrue(command.contains("getprop net.lte.apn1.state; echo @@apn1stateExit:${'$'}?"))
+        assertTrue(command.contains("getprop net.lte.apn3.state; echo @@apn3stateExit:${'$'}?"))
     }
 
     @Test

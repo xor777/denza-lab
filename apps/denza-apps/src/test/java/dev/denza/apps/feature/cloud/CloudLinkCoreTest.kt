@@ -5,6 +5,7 @@ import dev.denza.apps.feature.cloud.CloudStep.AnnounceGone
 import dev.denza.apps.feature.cloud.CloudStep.AnnounceReady
 import dev.denza.apps.feature.cloud.CloudStep.RestoreProfile
 import dev.denza.apps.feature.cloud.CloudStep.UseWifiProfile
+import dev.denza.apps.feature.cloud.CloudStep.WaitDisconnected
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -162,7 +163,7 @@ class CloudLinkCoreTest {
     @Test
     fun switchingOffClosesTheGateAndRestoresTheCarsProfile() {
         val core = CloudLinkCore()
-        assertEquals(listOf(AnnounceGone, RestoreProfile("triple_apn")), core.switchedOff(online))
+        assertEquals(listOf(AnnounceGone, WaitDisconnected, RestoreProfile("triple_apn")), core.switchedOff(online))
         // Already stock: nothing to say.
         assertEquals(emptyList<CloudStep>(), core.switchedOff(stock))
         // Stock profile left with APN1 disabled is not stock: put it back.

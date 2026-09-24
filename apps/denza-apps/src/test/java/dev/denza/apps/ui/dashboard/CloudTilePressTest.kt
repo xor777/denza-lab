@@ -18,6 +18,14 @@ class CloudTilePressTest {
     private val asked = mutableListOf<Boolean>()
 
     @Test
+    fun anotherPressDuringAWriteDoesNotQueueAnOldToggle() {
+        press(state(enabled = true, failure = null).copy(cloudLinkBusy = true))
+        assertEquals(emptyList<Boolean>(), asked)
+        press(state(enabled = true, failure = null))
+        assertEquals(listOf(false), asked)
+    }
+
+    @Test
     fun aPressFlipsTheLink() {
         press(DenzaUiState())
         press(state(enabled = true, failure = null))

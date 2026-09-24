@@ -12,6 +12,7 @@ import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.cloud.CloudLinkReport
+import dev.denza.apps.feature.cloud.CloudLinkDiagnostics
 import dev.denza.apps.feature.cloud.CloudLinkRuntime
 import dev.denza.apps.feature.cloud.CloudLinkSettings
 import dev.denza.apps.feature.cloud.CloudLinkStatus
@@ -126,11 +127,11 @@ object SupportDiagnostics {
         val network = CloudNetwork.reading(context)
         val car = CloudLinkRuntime.car
         val tile = CloudLinkStatus.words(
-            CloudLinkStatus.snapshot(
+            CloudLinkRuntime.snapshot(
                 enabled = enabled,
-                car = car,
                 network = network.kind != CloudNetworkKind.NONE,
-                failure = CloudLinkRuntime.failure,
+                pendingDisable = CloudLinkSettings.pendingDisable(context),
+                nowMs = SystemClock.elapsedRealtime(),
             ),
         )
         return CloudLinkReport.rows(
@@ -143,7 +144,13 @@ object SupportDiagnostics {
             adapter = CloudLinkRuntime.adapter,
             busy = CloudLinkRuntime.busy,
             nowMs = SystemClock.elapsedRealtime(),
-        ).map { (key, value) -> row(key, value) }
+        ).map { (key, value) -> row(key, value) } + listOf(
+            row("Чтение", CloudLinkRuntime.readFailure ?: if (CloudLinkRuntime.readingFailed(SystemClock.elapsedRealtime())) "устарело" else "актуально"),
+            row("Ожидает выключения", yesNo(CloudLinkSettings.pendingDisable(context))),
+            row("APN1 / APN3", "${car?.apn1State ?: "?"} / ${car?.apn3State ?: "?"}"),
+            row("Этап / код облака", "${car?.tcpStep ?: "?"} / ${car?.registrationError ?: "?"}"),
+            row("Отчёт в Загрузках", CloudLinkDiagnostics.exportStatus),
+        )
     }
 
     private fun accessRows(): List<TechnicalRow> {

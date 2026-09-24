@@ -21,7 +21,7 @@ import dev.denza.apps.R
 
 /**
  * Keeps the cloud link's adapter alive while the switch is on, and tells it when internet comes and
- * goes - Wi-Fi, or mobile data from a SIM that is not Chinese ([CloudNetwork]).
+ * goes - Wi-Fi or validated mobile data ([CloudNetwork]); stock APNs are guarded separately.
  *
  * It decides nothing: [CloudLinkController] reads the car and [CloudLinkCore] says what to send.
  * What only a running component can do is here - hold the process, watch the default network, and
@@ -75,13 +75,15 @@ class CloudLinkService : Service() {
         registerReceiver(statusReceiver, IntentFilter(TCP_STATUS_ACTION), Context.RECEIVER_EXPORTED)
         watching = true
         CloudLinkController.serviceStarted(this)
+        if (!validated) handler.postDelayed(lossCheck, CloudLinkCore.NETWORK_LOSS_GRACE_MS)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!CloudLinkSettings.isEnabled(this)) {
+        if (!CloudLinkSettings.needsService(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
+        getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification())
         return START_STICKY
     }
 
@@ -134,7 +136,7 @@ class CloudLinkService : Service() {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_denza_apps)
             .setContentTitle("Denza Apps")
-            .setContentText("Связь с облаком поддерживается")
+            .setContentText(if (CloudLinkSettings.pendingDisable(this)) "Завершается отключение облака" else "Связь с облаком поддерживается")
             .setContentIntent(openApp)
             .setOngoing(true)
             .setShowWhen(false)
@@ -151,7 +153,7 @@ class CloudLinkService : Service() {
         /** The switch, read from settings: on runs the adapter, off stops it. */
         fun reconcile(context: Context) {
             val app = context.applicationContext
-            if (CloudLinkSettings.isEnabled(app)) {
+            if (CloudLinkSettings.needsService(app)) {
                 ContextCompat.startForegroundService(app, Intent(app, CloudLinkService::class.java))
             } else {
                 app.stopService(Intent(app, CloudLinkService::class.java))

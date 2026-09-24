@@ -1,6 +1,5 @@
 package dev.denza.apps.feature.cloud
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -22,16 +21,26 @@ import dev.denza.apps.core.FeatureStatus
 object CloudLinkSettings {
     private const val PREFS = "cloud_link"
     private const val ENABLED = "enabled"
+    private const val PENDING_DISABLE = "pending_disable"
+    private const val AWAITING_TCP_DOWN = "awaiting_tcp_down"
 
     fun isEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(ENABLED, false)
 
-    @SuppressLint("UseKtx")
-    fun setEnabled(context: Context, enabled: Boolean) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(ENABLED, enabled)
-            .apply()
+    internal fun request(context: Context): CloudLinkRequest =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).let {
+            CloudLinkRequest(it.getBoolean(ENABLED, false), it.getBoolean(PENDING_DISABLE, false), it.getBoolean(AWAITING_TCP_DOWN, false))
+        }
+
+    fun needsService(context: Context): Boolean = request(context).needsService
+    fun pendingDisable(context: Context): Boolean = request(context).pendingDisable
+
+    /** Called on the controller thread, durably before writes to the car. */
+    internal fun save(context: Context, request: CloudLinkRequest) {
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(ENABLED, request.enabled)
+            .putBoolean(AWAITING_TCP_DOWN, request.awaitingTcpDown)
+            .putBoolean(PENDING_DISABLE, request.pendingDisable).commit()) { "Не удалось сохранить запрос" }
     }
 }
 
@@ -61,6 +70,26 @@ object CloudLinkRuntime {
     /** When the car was last read (elapsedRealtime), so a report can say how old [car] is. */
     @Volatile
     var readAtMs: Long? = null
+
+    @Volatile
+    var readFailure: String? = null
+
+    @Volatile internal var registrationFailure: CloudRegistrationFailure? = null
+    @Volatile internal var registrationNotBeforeEpochMs: Long = 0
+
+    fun readingFailed(nowMs: Long): Boolean = readFailure != null ||
+        readAtMs?.let { nowMs - it !in 0..90_000L } == true
+
+    fun snapshot(enabled: Boolean, network: Boolean, pendingDisable: Boolean, nowMs: Long): FeatureSnapshot =
+        CloudLinkStatus.snapshot(
+            enabled, car, network, failure,
+            readingFailed = readingFailed(nowMs),
+            pendingDisable = pendingDisable && !busy,
+            stalled = adapter?.disconnectedSinceMs?.let { nowMs - it >= CloudLinkCore.SETTLE_MS } == true,
+            profileDrift = car?.let { !it.wifiProfile && !it.cellular && it.connected == false } == true &&
+                adapter?.let { it.attempts > 0 && it.gate == "UNKNOWN" } == true,
+            registrationFailure = registrationFailure?.message(car, nowMs),
+        )
 }
 
 /** The kind of internet the car is on, as far as the cloud link is concerned. */
@@ -78,10 +107,8 @@ enum class CloudNetworkKind(val label: String) {
  * SIM. Proven over Wi-Fi on 2026-09-23; **mobile data is not proven on any car** - it is built so
  * owners with a local SIM can test it.
  *
- * Mobile data counts only from a SIM that is not Chinese (MCC 460). A Chinese SIM with service is
- * a roaming SIM on BYD's private APN - the network the stock client was built for, on the stock
- * profile - and the adapter switching that car to the public profile would disable the private
- * APN under it. Such a car is left to the stock framework unless it is on Wi-Fi.
+ * Operator metadata cannot establish whether a private BYD APN is active. Core and operations
+ * guard the actual APN1/APN3 state before changing the profile or notifying the client.
  */
 object CloudNetwork {
     fun usable(context: Context): Boolean = kind(context) != CloudNetworkKind.NONE
@@ -108,15 +135,14 @@ object CloudNetwork {
         validated: Boolean,
         wifi: Boolean,
         cellular: Boolean,
-        simOperator: String?,
     ): CloudNetworkKind = when {
         !validated -> CloudNetworkKind.NONE
         wifi -> CloudNetworkKind.WIFI
-        cellular && !chineseSim(simOperator) -> CloudNetworkKind.MOBILE
+        cellular -> CloudNetworkKind.MOBILE
         else -> CloudNetworkKind.NONE
     }
 
-    /** `46000`-`46099`: a mainland SIM, factory or roaming. An unreadable one is not assumed Chinese. */
+    /** Report metadata only: the supplied operator code has MCC 460, not proof of SIM hardware/APN. */
     internal fun chineseSim(simOperator: String?): Boolean = simOperator?.startsWith("460") == true
 }
 
@@ -128,7 +154,7 @@ data class CloudNetworkReading(
     val simOperator: String?,
 ) {
     val kind: CloudNetworkKind
-        get() = CloudNetwork.kindOf(validated, wifi, cellular, simOperator)
+        get() = CloudNetwork.kindOf(validated, wifi, cellular)
 }
 
 /**
@@ -156,7 +182,7 @@ object CloudLinkStatus {
     fun words(snapshot: FeatureSnapshot): String = when (snapshot.status) {
         FeatureStatus.OFF -> "Выключено"
         FeatureStatus.ACTIVE -> "На связи"
-        FeatureStatus.READY -> "Нет интернета"
+        FeatureStatus.READY -> snapshot.message.ifBlank { "Нет интернета" }
         FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE -> snapshot.message.ifBlank { "Не переключилось" }
         else -> "Подключается"
     }
@@ -166,6 +192,11 @@ object CloudLinkStatus {
         car: CloudCarState?,
         network: Boolean,
         failure: String?,
+        readingFailed: Boolean = false,
+        pendingDisable: Boolean = false,
+        stalled: Boolean = false,
+        profileDrift: Boolean = false,
+        registrationFailure: String? = null,
     ): FeatureSnapshot {
         val base = if (enabled) {
             FeatureReducer.starting(FeatureId.CLOUD_LINK)
@@ -173,10 +204,15 @@ object CloudLinkStatus {
             FeatureReducer.disabled(FeatureId.CLOUD_LINK)
         }
         return when {
+            pendingDisable -> base.copy(status = FeatureStatus.ERROR, message = "Выключение не завершено")
             failure != null -> base.copy(status = FeatureStatus.ERROR, message = failure)
             !enabled -> base
+            readingFailed -> base.copy(status = FeatureStatus.ERROR, message = "Нет свежих данных")
             car?.connected == true -> FeatureReducer.ready(FeatureId.CLOUD_LINK, active = true)
             !network -> FeatureReducer.ready(FeatureId.CLOUD_LINK)
+            profileDrift -> base.copy(status = FeatureStatus.ERROR, message = "Профиль изменился")
+            registrationFailure != null -> base.copy(status = FeatureStatus.ERROR, message = registrationFailure)
+            stalled -> base.copy(status = FeatureStatus.ERROR, message = "Нет связи с облаком")
             else -> base
         }
     }

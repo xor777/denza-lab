@@ -1,0 +1,16 @@
+1790163598.450   113 23192 E [BYDCLOUD]main: send211,but can not parse domian ip;
+1790163601.963   113   113 E [BYDCLOUD]main: notify_nw()  state = 4
+1790163601.975   113   113 W c_ares_dns: function_apn address: 139.*.*.68
+1790163602.209   113   113 W c_ares_dns: function_apn address: 113.*.*.69
+1790163602.212   113  1078 W c_ares_dns: function_apn address: 139.*.*.68
+1790163602.213   113  1078 W c_ares_dns: function_apn address: 113.*.*.69
+1790163602.371   113  1080 E [BYDCLOUD]socket: connecting socket!
+1790163602.600   113  1080 E [BYDCLOUD]socket: connecting status:1!
+1790163603.200   113  1080 E [BYDCLOUD]SSLUtils: SSL_connect with ECDHE-RSA-AES128-GCM-SHA256 ,ShowCerts = 1
+1790163603.804   113  1080 E [BYDCLOUD]socket: connecting socket!
+1790163604.091   113  1080 E [BYDCLOUD]socket: connecting status:1!
+1790163604.813   113  1080 E [BYDCLOUD]SSLUtils: SSL_connect with ECDHE-RSA-AES128-GCM-SHA256 ,ShowCerts = 1
+1790163605.206   113 12600 W c_ares_dns: function_apn address: 124.*.*.211
+1790163605.452   113  1080 E [BYDCLOUD]socket: connecting socket!
+1790163605.735   113  1080 E [BYDCLOUD]socket: connecting status:1!
+1790163606.514   113  1080 E [BYDCLOUD]SSLUtils: SSL_connect with ECDHE-RSA-AES128-GCM-SHA256 ,ShowCerts = 1
