@@ -463,6 +463,13 @@ internal abstract class SplitCoreOperation<P>(
         // Первым делом и до единой команды: отказ ценой одной проверки в памяти - это ноль
         // shell-сессий и ноль мутаций, а не откат уже сделанного (§11.21).
         if (!takeTaskMoveOwnership()) return null
+        // Где в журнале начинается работа, которую попросил человек (2026-09-24): страница
+        // «Журнал работы» в сервисе режет журнал на операции от этой строки до терминала. Её
+        // писало одно открытие, и выбор, включение и выключение были в файле одним терминалом без
+        // начала. После владения, не до: каждая отметка операции - момент, когда задачи её
+        // (сценарий `whileASplitOperationRunsNobodyElseGetsTheTaskTree`); отказ по владению
+        // остаётся терминалом без начала, и страница читает его так же, как старый журнал.
+        if (label in SplitCoordinatorCore.USER_LABELS) mark(op, "dequeued")
         working = work.state()
         liveScene = work.live()
         unfinishedRestore = work.unfinishedRestore()
@@ -825,7 +832,6 @@ internal class OpenOperation(
 
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): SplitOpenPlan? {
         if (!working.enabled) return null
-        mark(op, "dequeued")
         // 1.3.4 is decided here or nowhere: this is the one moment a pane the user closed can be
         // brought back, so it is also the one moment worth asking the car again (правка волны 12).
         settleTheCollapseNobodyRead(op)
