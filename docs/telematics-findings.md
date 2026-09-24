@@ -1015,6 +1015,30 @@ Report, hashes, comparison and selected reference assembly are retained in
 `captures/telematics-20260924/forum-additional-reports/d7f0053927bc/`.
 No vehicle or product changes were made.
 
+### Build 60 hotfix: stale-reading flash on re-enable, 2026-09-24
+
+The owner saw a brief red «Нет свежих данных» after off/on. The retained trace
+`captures/telematics-20260924/fresh-reading-135119/report.txt` shows off confirmed
+at 13:48:48 UTC, on requested at 13:50:22 (94 seconds later), and TCP true at
+13:50:28, with no read/operation error. Off stops polling, so the cached reading
+was older than the 90-second freshness limit when the enabled preference became
+visible, before the operation's first fresh read.
+
+`CloudLinkRuntime.snapshot` now distinguishes an in-flight operation awaiting a
+fresh read from an actual read failure. While that operation is busy and no
+read failure is recorded, an expired reading renders «Подключается». It cannot
+render an expired TCP=1 as «На связи». Actual read/operation failures retain their
+priority, and an idle stale reading still renders an error at the same limit.
+No polling, network, retry or vehicle-write behavior changed.
+
+Four regression cases exercise the recorded pause, expired TCP success during
+refresh, genuine failures while busy, and the unchanged 90-second boundary.
+The two transition cases failed before the fix. At the owner's explicit request,
+the replacement APK keeps version `0.7.0-alpha.1`, code `60`, the existing release
+description and tag; distinguish it by APK SHA-256 in the diagnostic report.
+Release/build evidence lives under
+`captures/releases/denza-apps-v0.7.0-alpha.1/fresh-reading-fix/`.
+
 ### Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24
 
 The owner requested fixing supported application defects and continuing cache

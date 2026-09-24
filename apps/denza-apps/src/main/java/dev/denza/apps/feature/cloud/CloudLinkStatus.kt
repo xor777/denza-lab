@@ -84,6 +84,7 @@ object CloudLinkRuntime {
         CloudLinkStatus.snapshot(
             enabled, car, network, failure,
             readingFailed = readingFailed(nowMs),
+            awaitingFreshRead = busy && readFailure == null,
             pendingDisable = pendingDisable && !busy,
             stalled = adapter?.disconnectedSinceMs?.let { nowMs - it >= CloudLinkCore.SETTLE_MS } == true,
             profileDrift = car?.let { !it.wifiProfile && !it.cellular && it.connected == false } == true &&
@@ -197,6 +198,7 @@ object CloudLinkStatus {
         stalled: Boolean = false,
         profileDrift: Boolean = false,
         registrationFailure: String? = null,
+        awaitingFreshRead: Boolean = false,
     ): FeatureSnapshot {
         val base = if (enabled) {
             FeatureReducer.starting(FeatureId.CLOUD_LINK)
@@ -207,7 +209,11 @@ object CloudLinkStatus {
             pendingDisable -> base.copy(status = FeatureStatus.ERROR, message = "Выключение не завершено")
             failure != null -> base.copy(status = FeatureStatus.ERROR, message = failure)
             !enabled -> base
-            readingFailed -> base.copy(status = FeatureStatus.ERROR, message = "Нет свежих данных")
+            // Off stops polling. On after a long pause must wait for its bounded operation's
+            // fresh read, not flash an error or claim success from the expired TCP snapshot.
+            // An actual read/operation failure still wins, and idle stale readings still fail.
+            readingFailed -> if (awaitingFreshRead) base else
+                base.copy(status = FeatureStatus.ERROR, message = "Нет свежих данных")
             car?.connected == true -> FeatureReducer.ready(FeatureId.CLOUD_LINK, active = true)
             !network -> FeatureReducer.ready(FeatureId.CLOUD_LINK)
             profileDrift -> base.copy(status = FeatureStatus.ERROR, message = "Профиль изменился")
