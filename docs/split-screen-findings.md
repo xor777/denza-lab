@@ -2703,3 +2703,14 @@ service connected` 21.099). The open's picker-access lease takes the same lock
 to confirm the split service; it waited until 22.1 and then found the service
 enabled and connected. On 2026-08-27 a cold open measured 3.5 s and the budget
 comment names this margin as the thin one.
+
+Fixed in 15ad480f: while the lock is held by a repair that ends with the split
+service enabled and owned (`repair(ensureSplit = true)` sets the same lease), the
+picker lease returns at once. Measured on the car the same evening with that
+build, four cold opens (`am stop-app`, then the dock's intent), all committed:
+4.9, 5.2 and 5.4 s when the open reached the lock first - the lease then does its
+own one-second rebind and the repair follows - and 5.1 s with the repair forced
+first (the hub started 1.5 s before the tap), where the lease step took 156 ms
+instead of 4.86 s and the picker's service connected 1.6 s after the scene was
+placed. What is left of a cold open is contention: its shell calls and the
+recovery's run at once.
