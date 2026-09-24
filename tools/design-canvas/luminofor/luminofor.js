@@ -722,11 +722,29 @@
     return text(c, str, x, y, px, o.col || WHT, a, Object.assign({ font: ROBOTO, w: o.w || 400, over: true }, o));
   }
   function wordsW(c, str, px, w) { return textWidth(c, str, px, { font: ROBOTO, w: w || 400 }); }
+  // Lines as Android's breaker makes them: at spaces, and - for a word the room cannot hold, such as
+  // a firmware's fingerprint - after a slash or a hyphen with no digit after it (UAX #14 as far as
+  // the reports need it: `BYD/IVI/` breaks, `:13/34.1` does not), and where it runs out when even
+  // that is not enough.
   function wrap(c, str, px, w, room) {
     const lines = []; let line = '';
+    const fits = s => wordsW(c, s, px, w) <= room;
     String(str).split(' ').forEach(word => {
-      const next = line ? line + ' ' + word : word;
-      if (line && wordsW(c, next, px, w) > room) { lines.push(line); line = word; } else line = next;
+      let from = 0;
+      const pieces = [];
+      for (let i = 0; i < word.length - 1; i++) {
+        if ((word[i] === '/' || word[i] === '-') && !/[0-9]/.test(word[i + 1])) { pieces.push(word.slice(from, i + 1)); from = i + 1; }
+      }
+      pieces.push(word.slice(from));
+      pieces.forEach((piece, i) => {
+        const next = line ? line + (i ? '' : ' ') + piece : piece;
+        if (line && !fits(next)) { lines.push(line); line = piece; } else line = next;
+        while (line.length > 1 && !fits(line)) {
+          let cut = line.length - 1;
+          while (cut > 1 && !fits(line.slice(0, cut))) cut--;
+          lines.push(line.slice(0, cut)); line = line.slice(cut);
+        }
+      });
     });
     if (line) lines.push(line);
     return lines;
@@ -951,10 +969,30 @@
     const px0 = full ? size[0] - P.width : 0, pw = full ? P.width : size[0];
     over(c, () => { c.fillStyle = P.ground; c.fillRect(px0, bar, pw, size[1] - bar); });
     if (full) over(c, () => { c.fillStyle = hexA(P.edge, P.edgeAlpha); c.fillRect(px0, 0, 1, size[1]); });
-    const x = px0 + K.padX, w = pw - 2 * K.padX;
-    let y = bar + K.padTop;
-    // the header: the tile's glyph or the way back, the title, the way out
+    const x = px0 + K.padX, w = pw - 2 * K.padX, top = bar + K.padTop;
     const Hh = SH.header;
+    // the footer stands on the panel's foot, whatever is above it, and the settings scroll in what
+    // is left - a board shows them at the top of their scroll, cut where the viewport ends
+    const foot = sh.footer || [];
+    const hs = foot.map(b => b.t === 'button' ? (b.kind === 'secondary' ? SH.button.secondaryHeight : SH.button.height) : SH.footnote.size * (RB.ascent + RB.descent));
+    const footTop = foot.length ? size[1] - K.padBottom - hs.reduce((a, b) => a + b, 0) - (foot.length - 1) * SH.footnote.gap : size[1] - K.padBottom;
+    const bottom = foot.length ? footTop - K.gap : footTop;
+    // ...unless the scene scrolls them (`scroll`: dp, or 'end'). Then the header goes too: in the
+    // app it is the first row of the same scrolling column, and the viewport is the whole column.
+    const scrolled = sh.scroll != null;
+    let offset = 0;
+    if (scrolled) {
+      const blocks = sh.blocks || [];
+      c.save(); c.beginPath(); c.rect(0, 0, 0, 0); c.clip();   // measured by drawing them nowhere
+      const body = blocks.reduce((sum, b, i) => sum + (i ? K.gap : 0) + block(c, b, x, 0, w), 0);
+      c.restore();
+      const head = Hh.height + (sh.subtitle ? Hh.subtitleSize * (RB.ascent + RB.descent) : 0);
+      const total = head + (blocks.length ? K.gap + body : 0);
+      offset = sh.scroll === 'end' ? Math.max(0, total - (bottom - top)) : sh.scroll;
+      c.save(); c.beginPath(); c.rect(px0, top, pw, bottom - top); c.clip();
+    }
+    let y = top - offset;
+    // the header: the tile's glyph or the way back, the title, the way out
     if (sh.back) lineGlyph(c, BACK, x, y + (Hh.height - Hh.close) / 2, Hh.close, Hh.closeAlpha);
     // the tile's glyph names the panel - white, ink-centred, no state: the status line says that
     else if (sh.icon) glyphAt(c, sh.icon, x, y + (Hh.height - Hh.glyph) / 2, Hh.glyph, Hh.glyphAlpha);
@@ -967,12 +1005,7 @@
       y += Hh.subtitleSize * (RB.ascent + RB.descent);
     }
     y += Hh.height + K.gap;
-    // the footer stands on the panel's foot, whatever is above it, and the settings scroll in what
-    // is left - a board shows them at the top of their scroll, cut where the viewport ends
-    const foot = sh.footer || [];
-    const hs = foot.map(b => b.t === 'button' ? (b.kind === 'secondary' ? SH.button.secondaryHeight : SH.button.height) : SH.footnote.size * (RB.ascent + RB.descent));
-    const footTop = foot.length ? size[1] - K.padBottom - hs.reduce((a, b) => a + b, 0) - (foot.length - 1) * SH.footnote.gap : size[1] - K.padBottom;
-    c.save(); c.beginPath(); c.rect(px0, y, pw, (foot.length ? footTop - K.gap : footTop) - y); c.clip();
+    if (!scrolled) { c.save(); c.beginPath(); c.rect(px0, y, pw, bottom - y); c.clip(); }
     (sh.blocks || []).forEach(b => { y += block(c, b, x, y, w) + K.gap; });
     c.restore();
     let fy = footTop;

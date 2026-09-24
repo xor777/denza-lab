@@ -67,6 +67,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `sheet-cast-apps`, `sheet-defaults` | a panel's page of applications, the default-apps panel |
 | `sheet-service`, `sheet-service-trouble`, `sheet-service-access`, `one-sheet-service-trouble` | the service panel on a healthy car, with two features needing somebody (wide and in the one-third pane), and with no access to the car |
 | `sheet-service-screen`, `sheet-service-technical` | the service's two pages: the instruments' screen, and the technical report with the cloud first |
+| `sheet-service-split`, `sheet-service-journal` | the technical report scrolled to its end - the split's section and the row to its journal - and «Журнал работы»: a failed open step by step over the two operations before it |
 | `one-sheet-cluster`, `one-sheet-cast-apps` | the same panels filling a one-third pane |
 | `modal-adb`, `one-modal-adb` | the ADB gate asking for the car's permission |
 | `digits` | the wide figures, for the eye |
@@ -136,7 +137,19 @@ Luminofor's grounds (`spec.json` → `sheet`, `drawSheet()` and `drawModal()`):
   screen is a page of rows with the stock badge on the chosen one (`kind: 'chosen'`), the report is
   a page of dense key-value rows (`sheet.pair`) one section a feature - `[Раздел]` then `key=value`
   lines, the rule `techBlocks()` and the app's `TechnicalReadings` share - and the version stands at
-  the panel's foot.
+  the panel's foot;
+- the split's section of the report ends in a plate of its own, a label's gap under its readings:
+  one choice row, «Журнал работы», opening a page of the same pair rows in the same format - the
+  split's last three operations from its journal, the newest step by step (`+N мс` after its first
+  line), the two before it by their `итог` alone. No new kit: an owner on a firmware nobody here can
+  reach photographs both pages and sends them.
+
+A scene may scroll its panel (`scroll`: dp, or `'end'`). The header scrolls with the rows then, as
+it does in the app, where it is the first row of the same column; the debug build opens the page at
+the same end (`ServicePanel`'s `firstPageAtEnd`). A value wraps as Android's breaker wraps it: at
+spaces, after a slash or a hyphen with no digit after it when a word is wider than its room - a
+firmware's fingerprint is `BYD/IVI/` over `DiLink5_1:13/…/1:user/` over `release-keys` on both - and
+where the room runs out when even that is not enough.
 
 Every word is placed by its baseline - Roboto's ascent, descent and centring offset are in the
 spec - so a panel can be laid over its board: the debug build's `SheetFixtures` builds the real
@@ -144,7 +157,9 @@ panel (`FeatureSheet`, `DefaultAppsSheet`, the service panel, the ADB gate) from
 `state`, over the real dashboard. The applications in the scenes have no icons, and both draw the
 initial in their place. On 2026-09-23 the thirteen settings boards compared at 0.58-1.91 %; the
 residue is a star glyph (`★`) that Roboto does not have and each engine fills from a different
-fallback, and baselines Android snaps to whole pixels.
+fallback, and baselines Android snaps to whole pixels. On 2026-09-24 the report scrolled to the
+split's section compared at 0.93 % and the journal at 1.16 %, the technical report's first screen
+still at 1.05 %.
 
 ## The chart and the engine's box
 

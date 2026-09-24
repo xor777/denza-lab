@@ -56,8 +56,12 @@ internal object SheetFixtures {
                 firstPage = when (s.optString("page")) {
                     "screen" -> ServicePage.SCREEN
                     "technical" -> ServicePage.TECHNICAL
+                    "journal" -> ServicePage.JOURNAL
                     else -> ServicePage.MAIN
                 },
+                // The board's `scroll: 'end'`: the page at the end of its scroll, where the report's
+                // split section is.
+                firstPageAtEnd = s.optString("scroll") == "end",
                 version = "Denza Apps ${s.getString("version")} · сборка ${s.getInt("build")}",
             )
             return
@@ -101,13 +105,15 @@ internal object SheetFixtures {
     }
 
     /**
-     * The service panel's state: the car's access, the instruments' screen, the displays and the
-     * report. `trouble` puts two features in the states the app really shows as waiting on the
-     * driver and as broken - HUD guidance that lost its access, a cloud link the car refused.
+     * The service panel's state: the car's access, the instruments' screen, the displays, the
+     * report and the split's journal. `trouble` puts two features in the states the app really shows
+     * as waiting on the driver and as broken - HUD guidance that lost its access, a cloud link the
+     * car refused.
      */
     private fun service(s: JSONObject): DenzaUiState {
         val displays = s.optJSONArray("displays") ?: JSONArray()
         val technical = s.optJSONArray("technical") ?: JSONArray()
+        val journal = s.optJSONArray("journal") ?: JSONArray()
         var state = DenzaUiState(
             adbRescue = AdbRescueSnapshot(
                 phase = AdbRescuePhase.valueOf(s.optString("adbPhase", "TRUSTED")),
@@ -121,6 +127,7 @@ internal object SheetFixtures {
                 ClusterDisplayDescriptor(d.getInt(0), "ClusterDisplay", d.getInt(1), d.getInt(2), 160, 0, 0)
             },
             technicalDetails = (0 until technical.length()).joinToString("\n") { technical.getString(it) },
+            splitJournal = (0 until journal.length()).joinToString("\n") { journal.getString(it) },
         )
         if (s.optBoolean("trouble", false)) {
             state = state.copy(

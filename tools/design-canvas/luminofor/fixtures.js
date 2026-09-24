@@ -289,19 +289,52 @@
     '[Доступ к машине]',
     'Состояние=trusted',
     'Отладка ADB в машине=включено',
-    'Запрос ждёт ответа=нет'
+    'Запрос ждёт ответа=нет',
+    // the sections between - projection, mirrors, the driver's screen - are left out, as the ones
+    // after are. The split's: a car on another firmware whose open did not go, the in-process calls
+    // refused (2026-09-24)
+    '[Разделение экрана]',
+    'Состояние=active',
+    'Последнее открытие=20:34 · не вышло · 3,1 с',
+    'Сплит прошивки=две панели · область 0',
+    'Сигналы прошивки=Home да · область да · вызовы нет'
   ];
-  const techBlocks = lines => {
+  // Blocks from the report. `under` puts blocks beneath a section's readings, a label's gap below
+  // them in its column - the way to the split's journal is a pressed row, not a reading.
+  const techBlocks = (lines, under) => {
     const blocks = []; let section = null;
     lines.forEach(line => {
       const m = /^\[(.+)\]$/.exec(line);
-      if (m) { section = null; blocks.push({ t: 'section', label: m[1], body: { t: 'group', rows: [] } }); section = blocks[blocks.length - 1].body; return; }
+      if (m) {
+        const rows = { t: 'group', rows: [] }, more = (under && under[m[1]]) || [];
+        blocks.push({ t: 'section', label: m[1], body: more.length ? [rows].concat(more) : rows });
+        section = rows; return;
+      }
       if (!section) { section = { t: 'group', rows: [] }; blocks.push(section); }
       const i = line.indexOf('='), key = i < 0 ? line : line.slice(0, i), value = i < 0 ? '—' : (line.slice(i + 1) || '—');
       section.rows.push({ kind: 'pair', title: key, value });
     });
     return blocks;
   };
+  const SVC_JOURNAL_ROW = { 'Разделение экрана': [{ t: 'group', rows: [
+    { kind: 'choice', title: 'Журнал работы', summary: 'Три последние операции, по шагам' }
+  ] }] };
+  // «Журнал работы»: the split's last three operations from its journal, newest first - the newest
+  // step by step, milliseconds after its first line, the two before it by their end alone - in the
+  // report's format, drawn by the report's rows (SplitWorkJournal.page in the app)
+  const SVC_JOURNAL = [
+    '[Открытие 20:34:02 · не вышло · 3,1 с]',
+    '+0 мс=dequeued',
+    '+131 мс=scene-read: area=0',
+    '+433 мс=leases-taken',
+    '+590 мс=roots-started',
+    '+3104 мс=open: обращений 23, в shell 2.4 с, транспорт (очередь 0.0, отправка 0.1, ответ 2.2), разбор 0.0 с, в паузах 0.3 с',
+    'итог=outcome=rolled-back reason=Прошивка не раскрыла native split',
+    '[Выбор 20:33:40 · готово · 1,2 с]',
+    'итог=outcome=committed reason=-',
+    '[Открытие 20:33:21 · готово · 1,9 с]',
+    'итог=outcome=committed reason=-'
+  ];
   const svcState = { tile: 'SERVICE', adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
     cluster: 'Определён сам: Экран 1 · 1920×720', displays: [[2, 1920, 720]], version: '0.6.2', build: 53, technical: SVC_TECHNICAL };
   const service = {
@@ -347,8 +380,15 @@
         { t: 'note', text: 'Приложение само находит экран за рулём. Выберите другой, если приборы ушли не туда.' }
       ]
     }, Object.assign({}, svcState, { page: 'screen' })),
-    tech: sheetOf(11, { title: 'Технические сведения', back: true, subtitle: 'Denza Apps 0.6.2 · сборка 53', blocks: techBlocks(SVC_TECHNICAL) },
-      Object.assign({}, svcState, { page: 'technical' }))
+    tech: sheetOf(11, { title: 'Технические сведения', back: true, subtitle: 'Denza Apps 0.6.2 · сборка 53', blocks: techBlocks(SVC_TECHNICAL, SVC_JOURNAL_ROW) },
+      Object.assign({}, svcState, { page: 'technical' })),
+    // the same page scrolled to its end, where the split's section and the way to its journal are:
+    // what an owner on another firmware photographs (the header scrolls away with the rows, as the
+    // app's column does)
+    split: sheetOf(11, { title: 'Технические сведения', back: true, subtitle: 'Denza Apps 0.6.2 · сборка 53', blocks: techBlocks(SVC_TECHNICAL, SVC_JOURNAL_ROW), scroll: 'end' },
+      Object.assign({}, svcState, { page: 'technical', scroll: 'end' })),
+    journal: sheetOf(11, { title: 'Журнал работы', back: true, subtitle: 'Разделение экрана', blocks: techBlocks(SVC_JOURNAL) },
+      Object.assign({}, svcState, { page: 'journal', journal: SVC_JOURNAL }))
   };
 
   // the ADB gate asking for the car's permission: the service's glyph in orange because there is a
@@ -418,6 +458,8 @@
     'sheet-service-access':   [{ kind: 'sheet', mode: 'full' }, service.access],
     'sheet-service-screen':   [{ kind: 'sheet', mode: 'full' }, service.screen],
     'sheet-service-technical': [{ kind: 'sheet', mode: 'full' }, service.tech],
+    'sheet-service-split':   [{ kind: 'sheet', mode: 'full' }, service.split],
+    'sheet-service-journal': [{ kind: 'sheet', mode: 'full' }, service.journal],
     'one-sheet-service-trouble': [{ kind: 'sheet', mode: 'one' }, service.trouble],
     'modal-adb':       [{ kind: 'modal', mode: 'full' }, gate],
     'one-modal-adb':   [{ kind: 'modal', mode: 'one' }, gate],
