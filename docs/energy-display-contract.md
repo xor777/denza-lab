@@ -468,7 +468,6 @@ test.
 
 | open | closes with |
 | --- | --- |
-| what `GENERATION_KW` is in motion | one recorded drive with the engine running at speed, `tools/vehicle_log.py` or the car's own `VehicleCapture` |
 | whether a DC charge (`CHARGE_GUN` = 3) reads «● В БАТАРЕЮ ОТ ЗАРЯДКИ» | the owner's word, and a second DC stop recorded |
 | the stock zones' true edges | the grid photograph |
 
@@ -483,6 +482,29 @@ shell loop while the head unit was out of the home Wi-Fi: two drives, 3.2 km and
 | whether `ENGINE_RPM` reports anything with the engine off in motion | **no**: over 748 moving samples the primary id answered `0x1FFF` - the invalid pattern the decode already refuses - and its `_20D` twin, `GENERATION_KW` and `GENERATION_STATE` all read `0`. Neither is the id that stood the box up on 2026-09-05 in this build's decoding |
 | does `0x2ED00010` mean anything of its own | no, a third time: it equals `POWER_KW` on 65 % of rows and differs only where the two reads were a second apart |
 | what the road cost | 23.5 and 30.2 kWh/100 km moving; the standing energy of the second drive, −3.76 kWh, is the DC stop, and the standing rule of §2.2 kept it off the road |
+
+**Closed by the second recorded drive, 2026-09-24** -
+`captures/vehicle-log/vehicle-20260924-182412-car.csv`, 12.2 km, the owner
+starting the engine on purpose. It started three times, every time in motion:
+
+| run | length | speed | pack power | rpm | `GENERATION_KW`, state |
+| --- | --- | --- | --- | --- | --- |
+| 18:39 | 76 s | 18…68 km/h | −38…+226 kW | 1304…2985 | 0, state 0 throughout |
+| 19:09 | 22 s | 44…65 km/h | −50…+229 kW | 1451…1885 | 0, state 0 throughout |
+| 19:22 | 171 s | 9…62 km/h | −51…+291 kW | 1346…2034 | 0, state 0 throughout |
+
+**`GENERATION_KW` is the engine's charge into the pack, not the generator's
+output.** Each start came with a demand past 220 kW and the engine drove the
+wheels beside the pack; not one sample of 186 had the id or its state off zero.
+So §2.5's box is right as drawn: it stands only while the engine is charging, and
+a running engine that drives the wheels shows its revolutions in the corner and
+nothing on the shelf. What it gives the wheels has no reading on this firmware -
+torque, fuel flow and boost are the silent `0x324`/`0x387`/`0x30D` families
+(`docs/vehicle-data-findings.md`). `ENGINE_RPM` is real in motion (1304…2985),
+and its `_20D` twin agrees once the engine is past cranking.
+
+The same drive proved §2.7 live: the product's own journal holds 122 buckets over
+the 12.2 km, no gap, every one a reading, with no screen asked to watch.
 
 The DC stop is the new question. `CHARGE_GUN` read `3` for six minutes with the
 car in P, `POWER_KW` −46…−57 kW, 3.9 kWh into the pack, and `CHARGE_KW` - the AC

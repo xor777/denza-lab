@@ -950,7 +950,9 @@ From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
 2. ~~**the sign of `POWER_KW`** under a known acceleration and a known braking~~ -
    closed by the drive of 2026-09-22: positive out of the pack at speed
    (`docs/energy-display-contract.md` §8);
-3. **what `GENERATION_KW` is in motion at all**, from one engine run at speed.
+3. ~~**what `GENERATION_KW` is in motion at all**~~ - closed 2026-09-24: zero
+   while the engine drives the wheels, so it is the engine's charge into the pack
+   (`docs/energy-display-contract.md` §8). The rest of this item is history:
    Nothing about the engine is drawn on the band until it is answered - both
    drawings that were there were the claim in two different shapes - and
    `VehicleConvention.GENERATION_INSIDE_PACK_POWER` stays as the recorded
