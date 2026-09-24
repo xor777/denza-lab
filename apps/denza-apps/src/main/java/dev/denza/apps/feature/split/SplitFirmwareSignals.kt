@@ -55,6 +55,16 @@ internal class SplitFirmwareSignals(
         }
     }
 
+    /**
+     * Whether Home is being heard right now: [arm] registered the receiver and [disarm] has not
+     * taken it away. The service's technical page prints it - on a firmware nobody here can reach,
+     * a receiver that never registered is the difference, and until now it was one log line.
+     */
+    val homeKeyHeard: Boolean get() = synchronized(lock) { homeReceiver != null }
+
+    /** Whether the area push is being heard right now, as [homeKeyHeard] is for Home. */
+    val areaHeard: Boolean get() = synchronized(lock) { areaListener != null }
+
     /** The toggle went off (U4): nothing of ours listens to the car any more. */
     fun disarm() {
         synchronized(lock) {

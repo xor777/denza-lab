@@ -89,6 +89,72 @@ class SplitInProcessCallsTest {
         assertEquals(listOf(30, 126, 118), calls.map { it.first })
     }
 
+    /**
+     * The service's «Сигналы прошивки» (2026-09-24): on a firmware whose binder refuses these calls
+     * every open quietly pays the shell instead, and the last call's result is how a photo says so.
+     */
+    @Test
+    fun theLastCallThisProcessSentIsWrittenDownAndACommandItDidNotSendIsNot() {
+        var refuse = false
+        val health = SplitInProcessHealth()
+        val firmware = SplitInProcessFirmware(
+            object : SplitBinderTransport {
+                override fun callInt(code: Int, arguments: List<SplitBinderArgument>): Int {
+                    if (refuse) throw SecurityException("tx$code")
+                    return 3
+                }
+
+                override fun callVoid(code: Int, arguments: List<SplitBinderArgument>) {
+                    if (refuse) throw SecurityException("tx$code")
+                }
+            },
+            health,
+        )
+
+        assertNull("не было ни одного вызова", health.lastCallOk)
+        firmware.answer("am stack list")
+        assertNull("чужая команда о binder ничего не говорит", health.lastCallOk)
+
+        firmware.answer("service call activity_task 30")
+        assertEquals(true, health.lastCallOk)
+
+        refuse = true
+        firmware.answer("service call activity_task 126 i32 1")
+        assertEquals(false, health.lastCallOk)
+
+        firmware.answer("service call activity_task 114 i32 101")
+        assertEquals("нераспознанная команда не стирает отказ", false, health.lastCallOk)
+
+        refuse = false
+        firmware.answer("service call activity_task 118 i32 2")
+        assertEquals(true, health.lastCallOk)
+    }
+
+    @Test
+    fun theFirmwareRowsSayWhatWasReadAndAQuestionMarkForWhatWasNot() {
+        assertEquals(
+            "две панели · область 3",
+            SplitFirmwareReading(100, 3, homeKeyHeard = true, areaHeard = true, callsOk = true).split(),
+        )
+        assertEquals("одна узкая · область 1", SplitFirmwareReading(101, 1, true, true, true).split())
+        assertEquals("одна широкая · область 0", SplitFirmwareReading(102, 0, true, true, true).split())
+        assertEquals("режим ? · область 2", SplitFirmwareReading(103, 2, true, true, true).split())
+        assertEquals("режим ? · область ?", SplitFirmwareReading(null, null, true, true, true).split())
+
+        assertEquals(
+            "Home да · область да · вызовы да",
+            SplitFirmwareReading(100, 3, homeKeyHeard = true, areaHeard = true, callsOk = true).signals(),
+        )
+        assertEquals(
+            "Home нет · область да · вызовы нет",
+            SplitFirmwareReading(100, 3, homeKeyHeard = false, areaHeard = true, callsOk = false).signals(),
+        )
+        assertEquals(
+            "Home да · область нет · вызовы не было",
+            SplitFirmwareReading(null, null, homeKeyHeard = true, areaHeard = false, callsOk = null).signals(),
+        )
+    }
+
     @Test
     fun anOpenSendsNoneOfThemOverAdbAndEndsExactlyAsBefore() {
         val car = SplitCarFixture(FakeShell()).also(cars::add)

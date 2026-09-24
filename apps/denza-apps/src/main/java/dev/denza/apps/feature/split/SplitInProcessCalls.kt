@@ -91,20 +91,49 @@ internal interface SplitBinderTransport {
     fun callVoid(code: Int, arguments: List<SplitBinderArgument>)
 }
 
+/**
+ * Whether the BYD transactions this process sends itself go through: the last one's result, or
+ * `null` before the first.
+ *
+ * A failed call costs nothing a user can see - the command goes on down the funnel to the shell -
+ * which is exactly why it has to be written down somewhere. The five codes were proven on one
+ * firmware; on another the binder may refuse them all, every open then pays the shell's round trips
+ * instead, and the service's technical page is the only place that can say so from a photo.
+ */
+internal class SplitInProcessHealth {
+    @Volatile
+    var lastCallOk: Boolean? = null
+        private set
+
+    fun record(ok: Boolean) {
+        lastCallOk = ok
+    }
+
+    companion object {
+        /** The process's own: what the product's coordinator sends, and what the page reads. */
+        val process = SplitInProcessHealth()
+    }
+}
+
 /** [SplitInProcessCalls] over a [SplitBinderTransport], answering in `service call`'s own words. */
 internal class SplitInProcessFirmware(
     private val transport: SplitBinderTransport,
+    private val health: SplitInProcessHealth = SplitInProcessHealth.process,
 ) : SplitInProcessCalls {
     override fun answer(command: String): String? {
         val call = SplitBinderCall.of(command) ?: return null
-        return runCatching {
+        val reply = runCatching {
             if (call.repliesInt) {
                 SplitTaskProxyMain.parcelInt(transport.callInt(call.code, call.arguments))
             } else {
                 transport.callVoid(call.code, call.arguments)
                 VOID_REPLY
             }
-        }.getOrNull()
+        }
+        // Only a call this process actually sent: a command it does not recognise says nothing
+        // about the binder.
+        health.record(reply.isSuccess)
+        return reply.getOrNull()
     }
 
     private companion object {

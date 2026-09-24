@@ -76,6 +76,33 @@ object SplitScreenCoordinator {
 
     fun snapshot(): SplitScreenSession = core?.snapshot() ?: SplitScreenSession()
 
+    /**
+     * What the service's technical page says about the firmware's split (see [SplitFirmwareReading]).
+     *
+     * Two reads and three facts already in memory: the mode from `Settings.System`, the area from
+     * one in-process call (0.4 ms on the car), whether the signals are registered, and how the last
+     * in-process binder call went. Nothing is sent over ADB, so it is safe on whatever thread asks
+     * for a redraw.
+     */
+    internal fun firmwareReading(context: Context): SplitFirmwareReading {
+        val app = context.applicationContext
+        val heard = signals
+        return SplitFirmwareReading(
+            // A hidden key of Settings.System may be refused outright to an app targeting 33
+            // (SecurityException), or simply be absent on a firmware without SmartMulti: either way
+            // the page says «режим ?» rather than guessing.
+            mode = runCatching {
+                Settings.System.getString(app.contentResolver, SplitFirmwareReading.MODE_KEY)?.trim()?.toIntOrNull()
+            }.getOrNull(),
+            // Outside the main process, or before the coordinator exists, nobody holds the signals;
+            // the area is still one plain call away.
+            area = (heard ?: SplitFirmwareSignals(app) {}).readArea(),
+            homeKeyHeard = heard?.homeKeyHeard ?: false,
+            areaHeard = heard?.areaHeard ?: false,
+            callsOk = SplitInProcessHealth.process.lastCallOk,
+        )
+    }
+
     /** Opens the explicit two-picker product flow from its launcher icon. */
     internal fun openPickerSession(
         context: Context,
