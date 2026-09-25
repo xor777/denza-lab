@@ -23,7 +23,10 @@ internal class CloudLinkOperations(
                     check(network()) { "Интернет пропал перед подключением" }
                     profile(CloudLinkProtocol.WIFI_PROFILE) { it.wifiProfile }
                 }
-                is CloudStep.RestoreProfile -> profile(step.profile) { it.onStockProfile }
+                is CloudStep.RestoreProfile -> {
+                    check(!read().stockApnTransitioning) { "Ожидается переключение сотовой сети" }
+                    profile(step.profile) { it.onStockProfile }
+                }
                 CloudStep.AnnounceReady -> {
                     val before = read()
                     if (before.stockApnBusy || before.connected == true) {
@@ -46,7 +49,7 @@ internal class CloudLinkOperations(
                         record("skip AnnounceGone: network returned")
                         continue
                     }
-                    check(before.profile == CloudLinkProtocol.WIFI_PROFILE && !before.cellular) {
+                    check(before.profile == CloudLinkProtocol.WIFI_PROFILE && !before.stockApnBusy) {
                         "Состояние сети изменилось перед отключением"
                     }
                     notify(CloudLinkProtocol.GONE)

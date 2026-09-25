@@ -502,14 +502,15 @@ class DashboardTilesTest {
     @Test
     fun theCloudTileReadsTheLinkNotTheSwitch() {
         fun cloud(enabled: Boolean, car: CloudCarState?, network: Boolean, failure: String? = null) =
-            DenzaUiState(cloudLink = CloudLinkStatus.snapshot(enabled, car, network, failure))
+            DenzaUiState(cloudLink = CloudLinkStatus.snapshot(enabled, car, network, failure),
+                cloudMode = dev.denza.apps.feature.cloud.CloudSimMode.FACTORY)
                 .tile(TileId.CLOUD)
 
         val off = DenzaUiState().tile(TileId.CLOUD)
         assertEquals("Облако", off.name)
         assertEquals("Выключено", off.state)
         assertEquals(DenzaTileTone.IDLE, off.tone)
-        assertEquals(TileAction.TOGGLE, off.action)
+        assertEquals(TileAction.SETTINGS, off.action)
 
         val connected = cloud(true, CloudCarState(connected = true), network = true)
         assertEquals("На связи", connected.state)

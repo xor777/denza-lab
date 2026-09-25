@@ -39,9 +39,12 @@ import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
 import dev.denza.apps.feature.cloud.CloudLinkController
+import dev.denza.apps.feature.cloud.CloudLinkDiagnostics
 import dev.denza.apps.feature.cloud.CloudLinkRuntime
 import dev.denza.apps.feature.cloud.CloudLinkService
 import dev.denza.apps.feature.cloud.CloudLinkSettings
+import dev.denza.apps.feature.cloud.CloudIdentity
+import dev.denza.apps.feature.cloud.CloudSimMode
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cloud.CloudNetwork
 import dev.denza.apps.feature.locale.SystemLanguage
@@ -140,8 +143,16 @@ data class DenzaUiState(
      * car, so the panel's switch can only ever say what the car will do. Null until it answers.
      */
     val cloudWifiRetained: Boolean? = null,
+    val cloudWifiFailure: String? = null,
     /** A cloud switch is on the wire; the panel greys both until the car answers. */
     val cloudLinkBusy: Boolean = false,
+    val cloudMode: CloudSimMode? = null,
+    val cloudIdentity: CloudIdentity? = null,
+    val cloudPendingDisable: Boolean = false,
+    val cloudConfigurable: Boolean = true,
+    val cloudReportExportEnabled: Boolean = false,
+    val cloudReportExportPending: Boolean = false,
+    val cloudReportExportError: String? = null,
     val fseInstaller: FeatureSnapshot = FeatureSnapshot(
         id = FeatureId.FSE_INSTALLER,
         desiredEnabled = false,
@@ -291,9 +302,11 @@ object DenzaAppRepository {
         val cloudCar = CloudLinkRuntime.car
         val cloudLink = CloudLinkRuntime.snapshot(
             enabled = CloudLinkSettings.isEnabled(context),
-            network = CloudNetwork.usable(context),
+            network = CloudNetwork.usable(context, CloudLinkSettings.mode(context)),
             pendingDisable = CloudLinkSettings.pendingDisable(context),
             nowMs = android.os.SystemClock.elapsedRealtime(),
+            mode = CloudLinkSettings.mode(context),
+            uptimeMs = android.os.SystemClock.uptimeMillis(),
         )
         val cloudLinkBusy = CloudLinkRuntime.busy
         val technicalDetails = supportDiagnostics(context)
@@ -341,8 +354,16 @@ object DenzaAppRepository {
                 speakerCovers = speakerCovers,
                 speakerCoversReporting = speakerCoversReporting,
                 cloudLink = cloudLink,
-                cloudWifiRetained = cloudCar?.wifiRetained,
+                cloudWifiRetained = CloudLinkRuntime.wifiRetained,
+                cloudWifiFailure = CloudLinkRuntime.wifiFailure,
                 cloudLinkBusy = cloudLinkBusy,
+                cloudMode = CloudLinkSettings.mode(context),
+                cloudIdentity = CloudLinkSettings.customIdentity(context),
+                cloudReportExportEnabled = CloudLinkDiagnostics.exportEnabled(context),
+                cloudReportExportPending = CloudLinkDiagnostics.exportSwitchPending != null,
+                cloudReportExportError = CloudLinkDiagnostics.exportSwitchError,
+                cloudPendingDisable = CloudLinkSettings.pendingDisable(context),
+                cloudConfigurable = CloudLinkSettings.configurable(context),
                 adbRescue = adbRescue,
                 technicalDetails = technicalDetails,
                 splitJournal = splitJournal,
@@ -723,10 +744,37 @@ object DenzaAppRepository {
         refresh()
     }
 
+    fun setCloudMode(mode: CloudSimMode) {
+        val context = appContext ?: return
+        if (CloudLinkSettings.chooseMode(context, mode)) CloudLinkRuntime.failure = null
+        refresh()
+    }
+
+    fun saveCloudIdentity(identity: CloudIdentity) {
+        val context = appContext ?: return
+        CloudLinkSettings.saveCustomIdentity(context, identity)
+        refresh()
+    }
+
+    fun regenerateCloudIdentity() {
+        val context = appContext ?: return
+        CloudLinkSettings.regenerate(context)
+        refresh()
+    }
+
     /** Keep client Wi-Fi on through sleep; written to the car and read back from it. */
     fun setCloudWifiRetained(retain: Boolean) {
         val context = appContext ?: return
         CloudLinkController.setWifiRetained(context, retain)
+    }
+
+    fun setCloudReportExport(enabled: Boolean) {
+        val context = appContext ?: return
+        CloudLinkDiagnostics.setExportEnabledAsync(context, enabled) {
+            refresh()
+            if (enabled && CloudLinkDiagnostics.exportEnabled(context)) CloudLinkController.reportNow(context)
+        }
+        refresh()
     }
 
     /** Read the cloud link's state from the car for the screen. Changes nothing. */

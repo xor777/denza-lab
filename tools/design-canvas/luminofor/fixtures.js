@@ -263,6 +263,7 @@
     { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },
     { kind: 'choice', title: 'Технические сведения', summary: 'Версия, прошивка, состояние функций' }
   ] };
+  const SVC_EXPORT = { t: 'switch', title: 'Записывать отчёт об облаке', summary: 'Файл в Загрузках · Denza Apps', on: false };
   const SVC_ACCESS = { title: 'Доступ к машине', summary: 'ADB-доступ подтверждён' };
   // The report the technical page is read from - SupportDiagnostics, the cloud first: a line
   // `[Название]` opens a section, every other line is `key=value` in it, split on the first '='.
@@ -342,7 +343,7 @@
   const service = {
     ok: sheetOf(11, {
       title: 'Сервис',
-      blocks: [{ t: 'group', rows: [{ title: 'Все функции работают' }, SVC_ACCESS] }, SVC_MORE],
+      blocks: [{ t: 'group', rows: [{ title: 'Все функции работают' }, SVC_ACCESS] }, SVC_MORE, SVC_EXPORT],
       footer: [SVC_VERSION]
     }, Object.assign({}, svcState, { page: 'main' })),
     trouble: sheetOf(11, {
@@ -354,7 +355,8 @@
           { kind: 'choice', title: 'Облако', summary: 'Не включилось', tone: 'broken' },
           SVC_ACCESS
         ] },
-        SVC_MORE
+        SVC_MORE,
+        SVC_EXPORT
       ],
       footer: [SVC_VERSION]
     }, Object.assign({}, svcState, { page: 'main', trouble: true })),
@@ -368,7 +370,8 @@
           { t: 'button', text: 'Отправить один запрос' },
           { t: 'button', kind: 'secondary', text: 'Проверить доступ' }
         ] },
-        SVC_MORE
+        SVC_MORE,
+        SVC_EXPORT
       ],
       footer: [SVC_VERSION]
     }, Object.assign({}, svcState, { page: 'main', adb: 'Нужно разрешение ADB для Denza Apps', adbDetails: 'Можно вручную отправить ровно один запрос', adbPhase: 'AUTHORIZATION_REQUIRED' })),
@@ -406,15 +409,34 @@
     state: { gate: 'AUTHORIZATION_REQUIRED', systemSwitch: 'ENABLED' }
   });
 
-  // the cloud link: a switch whose reason is a warning, on two lines rather than cut short
+  // Cloud starts with an explicit SIM choice. The two identity values here are design-only examples.
   sheets.cloud = sheetOf(10, {
     title: 'Облако',
     blocks: [
-      { t: 'switch', title: 'Поддерживать связь с облаком', on: true },
-      { t: 'switch', title: 'Держать Wi-Fi включенным', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false },
-      { t: 'note', text: 'Машина выходит в облако через обычный интернет — Wi-Fi или мобильный интернет местной SIM-карты, — и приложение Denza на телефоне видит её заряд и запас хода. «Держать Wi-Fi включенным» не даёт машине выключать Wi-Fi, когда она засыпает, — связь остаётся и на стоянке.' }
+      { t: 'segmented', labels: ['Заводская SIM', 'Заменённая SIM'], selected: -1 },
+      { t: 'note', text: 'Выберите SIM для входа в облако.' },
+      { t: 'switch', title: 'Держать Wi-Fi включенным', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false }
     ]
-  }, { tile: 'CLOUD', cloud: true, wifi: false });
+  }, { tile: 'CLOUD', cloud: false, cloudMode: null, wifi: false });
+  sheets.cloudFactory = sheetOf(10, {
+    title: 'Облако', blocks: [
+      { t: 'segmented', labels: ['Заводская SIM', 'Заменённая SIM'], selected: 0 },
+      { t: 'switch', title: 'Держать Wi-Fi включенным', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false },
+      { t: 'note', text: 'Для входа используются данные заводской SIM. Интернет — через Wi-Fi.' },
+      { t: 'switch', title: 'Поддерживать связь с облаком', on: false }
+    ]
+  }, { tile: 'CLOUD', cloud: false, cloudMode: 'factory', wifi: false });
+  sheets.cloudCustom = sheetOf(10, {
+    title: 'Облако', blocks: [
+      { t: 'segmented', labels: ['Заводская SIM', 'Заменённая SIM'], selected: 1 },
+      { t: 'input', title: 'ICCID', value: '89860712345678901234' },
+      { t: 'input', title: 'IMSI', value: '460011234567890' },
+      { t: 'button', kind: 'secondary', text: 'Сгенерировать заново' },
+      { t: 'switch', title: 'Держать Wi-Fi включенным', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false },
+      { t: 'note', text: 'Для проверки на включённой машине. Связь работает, пока запущен Denza Apps, в том числе в фоне.' },
+      { t: 'switch', title: 'Поддерживать связь с облаком', on: false }
+    ]
+  }, { tile: 'CLOUD', cloud: false, cloudMode: 'custom', wifi: false });
 
   // board id -> [board, fixture]; px sizes are the displays' own
   root.LUMINOFOR_BOARDS = {
@@ -467,6 +489,10 @@
     'one-modal-adb':   [{ kind: 'modal', mode: 'one' }, gate],
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],
     'one-sheet-cloud': [{ kind: 'sheet', mode: 'one' }, sheets.cloud],
+    'sheet-cloud-factory': [{ kind: 'sheet', mode: 'full' }, sheets.cloudFactory],
+    'one-sheet-cloud-factory': [{ kind: 'sheet', mode: 'one' }, sheets.cloudFactory],
+    'sheet-cloud-custom': [{ kind: 'sheet', mode: 'full' }, sheets.cloudCustom],
+    'one-sheet-cloud-custom': [{ kind: 'sheet', mode: 'one' }, sheets.cloudCustom],
     'one-sheet-cluster':   [{ kind: 'sheet', mode: 'one' }, sheets.cluster],
     'one-sheet-cast-apps': [{ kind: 'sheet', mode: 'one' }, sheets.castApps],
     'digits':         [{ kind: 'digits' }, {}]

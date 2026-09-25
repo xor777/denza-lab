@@ -1,0 +1,197 @@
+package dev.denza.tools.runtime;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import org.json.JSONObject;
+
+/** Offline reproduction of a guardian STATUS blocked at the service lease deadline. */
+public final class CloudGuardianLeaseTest {
+    private static final String INSTALL="0123456789abcdef0123456789abcdef";
+    private static final String SERVICE="11111111111111111111111111111111";
+    private static void need(boolean ok,String reason){if(!ok)throw new AssertionError(reason);}
+    private static void await(CountDownLatch latch)throws Exception{
+        need(latch.await(2,TimeUnit.SECONDS),"latch timeout");
+    }
+    private static void marker(Path path)throws Exception{
+        Files.createDirectories(path.getParent());
+        Files.write(path,("{\"protocol\":2,\"install_id\":\""+INSTALL+
+            "\",\"generation\":1,\"desired\":\"custom\"}\n").getBytes(StandardCharsets.US_ASCII));
+    }
+    private static void blockedStatusStillExpiresWorker()throws Exception{
+        Path base=Files.createTempDirectory("cloud-guardian-lease-");
+        Path path=base.resolve("Android/data/dev.denza.apps/files/cloud/install.json");marker(path);
+        AtomicLong time=new AtomicLong(1000);
+        CountDownLatch enteredStatus=new CountDownLatch(1),releaseStatus=new CountDownLatch(1),running=new CountDownLatch(1);
+        AtomicInteger started=new AtomicInteger();
+        final class Worker implements CloudGuardianState.Worker {
+            final CloudRuntimeSupervisor inner;
+            final CloudRuntimeProtocol wire;
+            long id;boolean closed;
+            Worker()throws Exception{
+                CloudRuntimeSupervisor.Clock clock=()->time.get();
+                inner=new CloudRuntimeSupervisor(clock,new CloudRuntimeSupervisor.OwnerLock(){
+                    public boolean acquire(){return true;}
+                    public void release(){}
+                    public void close(){}
+                },()->{},(scope,pair,sink)->{
+                    started.incrementAndGet();running.countDown();
+                    while(!scope.cancelled())Thread.sleep(5);
+                },code->{throw new AssertionError("unexpected inner fatal");});
+                wire=new CloudRuntimeProtocol(inner,4242);
+                wire.handle("{\"id\":1,\"op\":\"PROBE\"}");id=1;
+            }
+            public JSONObject request(String op,CloudRuntimeSupervisor.Identity pair)throws Exception{
+                return request(op,pair,0);
+            }
+            public JSONObject request(String op,CloudRuntimeSupervisor.Identity pair,long ceiling)throws Exception{
+                if(op.equals("STATUS")){enteredStatus.countDown();releaseStatus.await();}
+                JSONObject command=new JSONObject().put("id",++id).put("op",op);
+                if(pair!=null)command.put("iccid",pair.iccid).put("imsi",pair.imsi);
+                if(op.equals("START")||op.equals("STATUS")||op.equals("PERMIT"))
+                    command.put("lease_until_uptime_ms",ceiling);
+                return new JSONObject(wire.handle(command.toString()));
+            }
+            public boolean isAlive(){return !closed;}
+            public void close(){closed=true;inner.closeAndAwait();}
+        }
+        Worker worker=new Worker();
+        CloudGuardianState owner=new CloudGuardianState(path,CloudInstallMarker.read(path),
+            "abc123abc123-abc123abc123",new CloudGateJournal(base.resolve("gate.pending")),
+            new CloudStopFence(base.resolve("stop.fence")),
+            new CloudRegistrationJournal(base.resolve("registration.pending")),
+            new CloudStockGate.BinderAccess(){public int tcp(){return 0;}
+                public String profile(){return "double_apn";}},()->worker,
+            ()->44,time::get,time::get,pair->{},false);
+        try{
+            JSONObject start=new JSONObject().put("id",1).put("op","START").put("protocol",3)
+                .put("profile","awake-alpha-v1").put("iccid","89010000000000000001")
+                .put("imsi","001010123456789").put("service_instance",SERVICE).put("renew_seq",1);
+            JSONObject accepted=owner.execute(CloudControlRequest.parse(start.toString()),CloudInstallMarker.read(path));
+            need(accepted.getBoolean("ok")&&accepted.getLong("lease_until_uptime_ms")==31_000,
+                "guardian START ceiling");
+            await(running);need(started.get()==1,"inner worker not started");
+            time.set(30_999);
+            Thread status=new Thread(owner::tick,"blocked-guardian-status");status.start();await(enteredStatus);
+            time.set(31_000);
+            worker.inner.watchdogTick();worker.inner.awaitCleanup(1000);
+            need(worker.inner.snapshot().code==CloudRuntimeSupervisor.Code.LEASE_EXPIRED &&
+                !worker.inner.snapshot().sessionLive,"inner watchdog depended on guardian STATUS");
+            releaseStatus.countDown();status.join(2000);need(!status.isAlive(),"guardian STATUS did not finish");
+        }finally{releaseStatus.countDown();owner.emergencyShutdown();}
+    }
+    private static void schedulerErrorTriggersBoundedFatal()throws Exception{
+        AtomicInteger teardown=new AtomicInteger(),fatal=new AtomicInteger();
+        try{CloudNativeGuardian.watchdogGuard(()->{throw new AssertionError("watchdog_error");},
+            teardown::incrementAndGet,fatal::incrementAndGet,50);
+            throw new AssertionError("returned from fatal guard");
+        }catch(AssertionError expected){}
+        need(teardown.get()==1&&fatal.get()==1,"watchdog Error escaped without teardown/fatal");
+
+        CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
+        fatal.set(0);
+        Thread blocked=new Thread(()->{
+            try{CloudNativeGuardian.watchdogGuard(()->{throw new AssertionError("watchdog_error");},
+                ()->{entered.countDown();try{release.await();}catch(InterruptedException ignored){}},
+                fatal::incrementAndGet,50);
+            }catch(AssertionError expected){}
+        },"blocked-guardian-teardown");
+        blocked.start();await(entered);
+        long end=System.nanoTime()+TimeUnit.SECONDS.toNanos(2);
+        while(fatal.get()==0&&System.nanoTime()<end)Thread.sleep(5);
+        need(fatal.get()==1,"bounded fatal fallback did not fire");
+        release.countDown();blocked.join(2000);
+        need(!blocked.isAlive()&&fatal.get()==1,"fatal callback repeated after teardown");
+    }
+    private static void cleanLaunchFailureReleasesOwnerForRetry()throws Exception{
+        Path base=Files.createTempDirectory("cloud-guardian-launch-");
+        Path path=base.resolve("Android/data/dev.denza.apps/files/cloud/install.json");marker(path);
+        AtomicLong time=new AtomicLong(1000);AtomicInteger attempts=new AtomicInteger();
+        CloudGuardianState.WorkerFactory factory=()->{
+            if(attempts.getAndIncrement()==0)throw new IOException("temporary_spawn_failure");
+            return new CloudGuardianState.Worker(){
+                public JSONObject request(String op,CloudRuntimeSupervisor.Identity pair)throws Exception{
+                    return new JSONObject().put("ok",true).put("stage","connected").put("code","connected")
+                        .put("session_live",true);
+                }
+                public boolean isAlive(){return true;}
+                public void close(){}
+            };
+        };
+        CloudInstallMarker install=CloudInstallMarker.read(path);
+        CloudGuardianState first=new CloudGuardianState(path,install,"abc123abc123-abc123abc123",
+            new CloudGateJournal(base.resolve("gate.pending")),new CloudStopFence(base.resolve("stop.fence")),
+            new CloudRegistrationJournal(base.resolve("registration.pending")),
+            new CloudStockGate.BinderAccess(){public int tcp(){return 0;}
+                public String profile(){return "double_apn";}},factory,()->44,time::get,time::get,pair->{},false);
+        JSONObject command=new JSONObject().put("id",1).put("op","START").put("protocol",3)
+            .put("profile","awake-alpha-v1").put("iccid","89010000000000000001")
+            .put("imsi","001010123456789").put("service_instance",SERVICE).put("renew_seq",1);
+        JSONObject refused=first.execute(CloudControlRequest.parse(command.toString()),install);
+        need(!refused.getBoolean("ok")&&refused.getBoolean("retryable")&&
+            refused.getString("code").equals("network_retry")&&first.shutdownRequested(),
+            "clean spawn failure poisoned START generation");
+        first.emergencyShutdown();
+        CloudGuardianState second=new CloudGuardianState(path,install,"abc123abc123-abc123abc123",
+            new CloudGateJournal(base.resolve("gate.pending")),new CloudStopFence(base.resolve("stop.fence")),
+            new CloudRegistrationJournal(base.resolve("registration.pending")),
+            new CloudStockGate.BinderAccess(){public int tcp(){return 0;}
+                public String profile(){return "double_apn";}},factory,()->45,time::get,time::get,pair->{},false);
+        try{need(second.execute(CloudControlRequest.parse(command.toString()),install).getBoolean("ok")&&
+            attempts.get()==2,"new guardian could not retry clean spawn failure");}
+        finally{second.emergencyShutdown();}
+    }
+    private static void offPreemptsBlockedStatus()throws Exception{
+        Path base=Files.createTempDirectory("cloud-guardian-off-");
+        Path path=base.resolve("Android/data/dev.denza.apps/files/cloud/install.json");marker(path);
+        AtomicLong time=new AtomicLong(1000);
+        CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1),stopped=new CountDownLatch(1);
+        AtomicBoolean aborted=new AtomicBoolean();
+        CloudGuardianState.Worker worker=new CloudGuardianState.Worker(){
+            public JSONObject request(String op,CloudRuntimeSupervisor.Identity pair)throws Exception{
+                if(op.equals("STATUS")){entered.countDown();release.await();}
+                return new JSONObject().put("ok",true).put("stage","connected").put("code","connected")
+                    .put("session_live",true);
+            }
+            public void abort(){aborted.set(true);release.countDown();}
+            public boolean isAlive(){return true;}
+            public void close(){}
+        };
+        CloudInstallMarker install=CloudInstallMarker.read(path);
+        CloudGuardianState owner=new CloudGuardianState(path,install,"abc123abc123-abc123abc123",
+            new CloudGateJournal(base.resolve("gate.pending")),new CloudStopFence(base.resolve("stop.fence")),
+            new CloudRegistrationJournal(base.resolve("registration.pending")),
+            new CloudStockGate.BinderAccess(){public int tcp(){return 0;}
+                public String profile(){return "double_apn";}},()->worker,
+            ()->44,time::get,time::get,pair->{},false);
+        JSONObject start=new JSONObject().put("id",1).put("op","START").put("protocol",3)
+            .put("profile","awake-alpha-v1").put("iccid","89010000000000000001")
+            .put("imsi","001010123456789").put("service_instance",SERVICE).put("renew_seq",1);
+        need(owner.execute(CloudControlRequest.parse(start.toString()),install).getBoolean("ok"),"off fixture START");
+        Thread status=new Thread(owner::tick,"off-blocked-status");status.start();await(entered);
+        Files.write(path,("{\"protocol\":2,\"install_id\":\""+INSTALL+
+            "\",\"generation\":2,\"desired\":\"off\"}\n").getBytes(StandardCharsets.US_ASCII));
+        JSONObject stop=new JSONObject().put("id",2).put("op","STOP").put("protocol",3)
+            .put("owner_id","").put("service_instance","");
+        Thread task=new Thread(()->{
+            try{owner.execute(CloudControlRequest.parse(stop.toString()),CloudInstallMarker.read(path));}
+            catch(Exception failure){throw new AssertionError(failure);}
+            finally{stopped.countDown();}
+        },"off-preemptive-stop");
+        task.start();
+        try{need(stopped.await(2,TimeUnit.SECONDS)&&aborted.get(),
+            "OFF waited for blocked STATUS instead of aborting child");}
+        finally{release.countDown();status.join(2000);task.join(2000);owner.emergencyShutdown();}
+    }
+    public static void main(String[] args)throws Exception{
+        blockedStatusStillExpiresWorker();schedulerErrorTriggersBoundedFatal();
+        cleanLaunchFailureReleasesOwnerForRetry();offPreemptsBlockedStatus();
+        System.out.println("PASS guardian fixed lease, clean launch retry, preemptive OFF and watchdog Error cases=4");
+    }
+}

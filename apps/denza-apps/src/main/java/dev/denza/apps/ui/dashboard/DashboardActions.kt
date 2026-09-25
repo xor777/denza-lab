@@ -7,6 +7,8 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
+import dev.denza.apps.feature.cloud.CloudIdentity
+import dev.denza.apps.feature.cloud.CloudSimMode
 
 /**
  * Everything the dashboard can ask the runtime to do, in one parameter.
@@ -51,6 +53,9 @@ data class DashboardActions(
     val onOpenClusterPicker: () -> Unit,
     val onOpenService: () -> Unit,
     val onOpenSettings: (TileId) -> Unit,
+    val onSelectCloudMode: (CloudSimMode) -> Unit = {},
+    val onSaveCloudIdentity: (CloudIdentity) -> Unit = {},
+    val onRegenerateCloudIdentity: () -> Unit = {},
 )
 
 /**
@@ -63,6 +68,10 @@ data class DashboardActions(
 object DashboardPress {
 
     fun perform(tile: DashboardTile, state: DenzaUiState, actions: DashboardActions) {
+        if (tile.id == TileId.CLOUD && state.cloudMode == null) {
+            actions.onOpenSettings(tile.id)
+            return
+        }
         // The settings switches already do this. The tile must not queue another request
         // against the old desired value while its current write is still being persisted.
         if (tile.id == TileId.CLOUD && state.cloudLinkBusy && tile.action != TileAction.SETTINGS) return

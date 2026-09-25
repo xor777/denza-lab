@@ -165,7 +165,11 @@ internal object CloudLinkProtocol {
             WORD.findAll(body).map { it.value.toLong(16).toInt() }.toList()
         } ?: return null
         if (words.size < 2 || words[0] != 0) return null
-        return words[1] == 1
+        return when (words[1]) {
+            0 -> false
+            1 -> true
+            else -> null
+        }
     }
 
     /**
@@ -199,6 +203,14 @@ internal object CloudLinkProtocol {
         } else {
             "settings delete global $WIFI_RETENTION_KEY"
         }
+
+    fun wifiRetentionReadCommand(): String = "settings get global $WIFI_RETENTION_KEY"
+
+    fun parseWifiRetention(output: String): Boolean? = when (output.trim()) {
+        "1" -> true
+        "0", "null" -> false
+        else -> null
+    }
 
     private val PARCEL = Regex("""Parcel\(([^')]*)""")
     private val WORD = Regex("""[0-9a-fA-F]{8}""")
@@ -243,7 +255,11 @@ data class CloudCarState(
 ) {
     /** An APN owned by the stock framework is connected or still transitioning. */
     val stockApnBusy: Boolean
-        get() = cellular || listOf(apn1State, apn3State).any { it in setOf("connecting", "disconnecting") }
+        get() = cellular || stockApnTransitioning
+
+    /** Do not change a gate or profile while the modem is changing ownership of its links. */
+    val stockApnTransitioning: Boolean
+        get() = listOf(apn1State, apn3State).any { it in setOf("connecting", "disconnecting") }
 
     /** The profile the adapter needs: the gate opens on [CloudLinkProtocol.READY] only under it. */
     val wifiProfile: Boolean

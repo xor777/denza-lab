@@ -242,6 +242,8 @@ class CloudLinkProtocolTest {
     fun theTcpGetterIsItsSecondWordAndOnlyWithoutAnException() {
         assertEquals(true, CloudLinkProtocol.tcpConnected("Result: Parcel(00000000 00000001   '........')"))
         assertEquals(false, CloudLinkProtocol.tcpConnected("Result: Parcel(00000000 00000000   '........')"))
+        assertNull(CloudLinkProtocol.tcpConnected("Result: Parcel(00000000 00000002   '........')"))
+        assertNull(CloudLinkProtocol.tcpConnected("Result: Parcel(00000000 ffffffff   '........')"))
         // An exception code in the first word is not a reading.
         assertNull(CloudLinkProtocol.tcpConnected("Result: Parcel(ffffffb5 00000001   '........')"))
         assertNull(CloudLinkProtocol.tcpConnected("Result: Parcel(NULL)"))
@@ -282,6 +284,10 @@ class CloudLinkProtocolTest {
             "settings delete global byd_off_wifi_switch",
             CloudLinkProtocol.wifiRetentionCommand(retain = false),
         )
+        assertEquals("settings get global byd_off_wifi_switch", CloudLinkProtocol.wifiRetentionReadCommand())
+        assertEquals(true, CloudLinkProtocol.parseWifiRetention("1\n"))
+        assertEquals(false, CloudLinkProtocol.parseWifiRetention("null\n"))
+        assertNull(CloudLinkProtocol.parseWifiRetention("Permission denial"))
     }
 
     @Test

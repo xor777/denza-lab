@@ -4,7 +4,7 @@ package dev.denza.apps.feature.cloud
  * The cloud link's line in the service report: everything this app knows about the link, as the
  * technical page's «Облако» section.
  *
- * The link is tested on cars nobody here can reach - mobile data on a local SIM most of all - so the
+ * The replacement-SIM runtime still awaits car acceptance, so the
  * section is the whole state, and one screenshot of it has to be enough: what the driver asked for
  * and what the tile says, why a press did not take, the network the rule reads and the facts it
  * reads it from, the SIM's operator code (never its identity), what the car last said and how long
@@ -15,6 +15,35 @@ package dev.denza.apps.feature.cloud
  * would look for first on top.
  */
 object CloudLinkReport {
+
+    /** Custom facts come only from the custom worker, never stock cloudmanager/TCP. */
+    internal fun customRows(
+        enabled: Boolean,
+        tile: String,
+        failure: String?,
+        network: CloudNetworkReading,
+        status: CloudCustomStatus?,
+        readAtMs: Long?,
+        busy: Boolean,
+        nowMs: Long,
+    ): List<Pair<String, String>> = listOf(
+        "Режим" to "Заменённая SIM",
+        "Связь" to "${if (enabled) "включена" else "выключена"}, плитка «$tile»",
+        "Отказ" to (failure ?: "нет"),
+        "Сеть" to "${network.kind.label}, интернет ${if (network.validated) "проверен" else "не проверен"}",
+        "Сессия" to (status?.let { "PID ${it.pid}, подтверждена ${yesNo(it.sessionLive)}" } ?: NONE),
+        "Этап / код" to (status?.let { "${it.stage} / ${it.code}" } ?: NONE),
+        "Адаптер" to (status?.let { "${it.runtimeId.ifEmpty { NONE }}, поколение ${it.configGeneration}, " +
+            "аренда ${if (it.leaseActive) "активна" else "неактивна"}" } ?: NONE),
+        "Возможности" to (status?.capabilities?.sorted()?.joinToString(", ")?.ifEmpty { NONE } ?: NONE),
+        "Счётчики" to (status?.let { "попыток ${it.attempts}, отчётов ${it.reportsSent}, ответов ${it.statusReplies}, переподключений ${it.reconnects}" } ?: NONE),
+        "Команды" to (status?.let { "передано ${it.commandsForwarded}, завершено ${it.commandsCompleted}" } ?: NONE),
+        "Активность" to (status?.let { "RX ${age(it.lastRxElapsedMs, nowMs)}, TX ${age(it.lastTxElapsedMs, nowMs)}, отчёт ${age(it.lastReportElapsedMs, nowMs)}" } ?: NONE),
+        "Callback / повтор" to (status?.let { "${if (it.callbackAgeMs < 0) NONE else span(it.callbackAgeMs)}, ${if (it.nextRetryElapsedMs <= 0) NONE else "через ${span(it.nextRetryElapsedMs - nowMs)}"}" } ?: NONE),
+        "Прочитано" to (readAtMs?.let { "${span(nowMs - it)} назад" } ?: "ещё не было") + if (busy) ", идёт операция" else "",
+    )
+
+    private fun age(atMs: Long, nowMs: Long): String = if (atMs <= 0) NONE else "${span(nowMs - atMs)} назад"
 
     /** What the adapter believes about the gate, and its clocks (elapsedRealtime). */
     data class Adapter(

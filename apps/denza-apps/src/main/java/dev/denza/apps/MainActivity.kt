@@ -6,12 +6,14 @@ import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import dev.denza.apps.feature.navigation.NavigationTransferOverlay
 import dev.denza.apps.ui.DenzaAppsRoot
+import dev.denza.apps.feature.cloud.CloudLinkController
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         DenzaAppRepository.initialize(this)
+        CloudLinkController.explicitAppOpened(this)
         setContent(
             content = {
                 DenzaAppsRoot(
@@ -38,7 +40,11 @@ class MainActivity : ComponentActivity() {
                     onToggleSpeakerCovers = DenzaAppRepository::setSpeakerCoversEnabled,
                     onRaiseSpeakerCovers = DenzaAppRepository::raiseSpeakerCovers,
                     onToggleCloudLink = DenzaAppRepository::setCloudLinkEnabled,
+                    onSelectCloudMode = DenzaAppRepository::setCloudMode,
+                    onSaveCloudIdentity = DenzaAppRepository::saveCloudIdentity,
+                    onRegenerateCloudIdentity = DenzaAppRepository::regenerateCloudIdentity,
                     onSetCloudWifiRetained = DenzaAppRepository::setCloudWifiRetained,
+                    onSetCloudReportExport = DenzaAppRepository::setCloudReportExport,
                     onSelectClusterDisplay = DenzaAppRepository::selectClusterDisplay,
                     onRefreshScreenDiagnostics = DenzaAppRepository::refreshScreenDiagnostics,
                     onCheckAdbAccess = DenzaAppRepository::checkAdbAccess,

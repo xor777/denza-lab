@@ -1,6 +1,8 @@
 import javax.inject.Inject
 import javax.tools.ToolProvider
 import org.gradle.process.ExecOperations
+import groovy.json.JsonSlurper
+import java.security.MessageDigest
 
 plugins {
     id("com.android.application")
@@ -22,6 +24,9 @@ plugins {
 abstract class PackShellProxy : DefaultTask() {
     @get:InputFile
     abstract val source: RegularFileProperty
+
+    @get:InputFiles
+    abstract val additionalSources: ConfigurableFileCollection
 
     @get:InputFiles
     abstract val androidJar: ConfigurableFileCollection
@@ -61,7 +66,8 @@ abstract class PackShellProxy : DefaultTask() {
             platform,
             "-d",
             classes.absolutePath,
-            source.get().asFile.absolutePath,
+            *(listOf(source.get().asFile) + additionalSources.files.sortedBy { it.absolutePath })
+                .map { it.absolutePath }.toTypedArray(),
         )
         check(compiled == 0) { "could not compile ${source.get().asFile.name}" }
 
@@ -92,6 +98,66 @@ abstract class PackShellProxy : DefaultTask() {
     }
 }
 
+/** Offline candidate only. Packaging into an APK has a separate, non-overridable qualification gate. */
+abstract class BuildCloudRuntime : DefaultTask() {
+    @get:InputFiles abstract val sources: ConfigurableFileCollection
+    @get:InputFile abstract val script: RegularFileProperty
+    @get:InputFile abstract val firmware: RegularFileProperty
+    @get:InputFile abstract val linker: RegularFileProperty
+    @get:InputFiles abstract val androidJar: ConfigurableFileCollection
+    @get:Internal abstract val sdkDirectory: DirectoryProperty
+    @get:Input abstract val python: Property<String>
+    @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
+    @get:Inject abstract val execOperations: ExecOperations
+
+    @TaskAction fun buildRuntime() {
+        val platform = androidJar.files.single { it.name == "android.jar" }
+        val d8 = sdkDirectory.get().asFile.resolve("build-tools").listFiles().orEmpty()
+            .sortedBy(File::getName).map { it.resolve("d8") }.lastOrNull(File::canExecute)
+            ?: error("no Android d8")
+        execOperations.exec {
+            executable = python.get()
+            args(script.get().asFile.absolutePath, "--firmware", firmware.get().asFile.absolutePath,
+                "--linker", linker.get().asFile.absolutePath, "--android-jar", platform.absolutePath,
+                "--d8", d8.absolutePath, "--out", outputDirectory.get().asFile.absolutePath)
+            environment("PYTHONDONTWRITEBYTECODE", "1")
+        }
+    }
+}
+
+abstract class QualifiedCloudAssets : DefaultTask() {
+    @get:InputDirectory abstract val candidate: DirectoryProperty
+    @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction fun qualify() {
+        val input = candidate.get().asFile
+        val manifest = JsonSlurper().parse(input.resolve("cloud-native-manifest.json")) as Map<*, *>
+        check(manifest["protocol"] == 3 && manifest["native_protocol"] == 2 &&
+            manifest["profile"] == "awake-alpha-v1" && manifest["profile_qualified"] == true &&
+            manifest["product_qualified"] == false) { "Cloud runtime is not qualified for the controlled awake alpha" }
+        val capabilities = manifest["profile_capabilities"] as Map<*, *>
+        check(listOf("native_registration_codec", "opaque_data_ingest", "control_awake",
+            "wake_ack_awake", "timers_awake", "post_login_awake", "heartbeat")
+            .all { capabilities[it] == true }) { "Cloud awake profile has incomplete native chains" }
+        val files = manifest["files"] as Map<*, *>
+        val names = listOf("cloud-native-proxy.jar", "cloud-native-worker")
+        val hashes = names.associateWith { name ->
+            MessageDigest.getInstance("SHA-256").digest(input.resolve(name).readBytes())
+                .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        }
+        check(names.all { files[it] == hashes[it] }) { "Cloud runtime hash mismatch" }
+        check(manifest["runtime_id"] == hashes.getValue(names[0]).take(12) + "-" + hashes.getValue(names[1]).take(12))
+        val output = outputDirectory.get().asFile
+        output.deleteRecursively()
+        output.mkdirs()
+        (names + "cloud-native-manifest.json").forEach { input.resolve(it).copyTo(output.resolve(it)) }
+    }
+}
+
+// Native session lifecycle is still under offline qualification. Do not ship a
+// partial experimental worker merely by passing a build property.
+val cloudNativePilot = false
+
 android {
     namespace = "dev.denza.apps"
     compileSdk = 37
@@ -105,6 +171,8 @@ android {
         // can tell builds apart during acceptance; it never drives the version.
         versionCode = 60
         versionName = "0.7.0-alpha.1"
+        buildConfigField("boolean", "CLOUD_NATIVE_PILOT", cloudNativePilot.toString())
+        buildConfigField("String", "CLOUD_RUNTIME_PROFILE", "\"awake-alpha-v1\"")
     }
 
     buildFeatures {
@@ -123,7 +191,46 @@ android {
     androidComponents {
         val platform = sdkComponents.bootClasspath
         val sdk = sdkComponents.sdkDirectory
+        val cloudCandidate = tasks.register<BuildCloudRuntime>("buildCloudRuntimeCandidate") {
+            sources.from(rootProject.fileTree("tools/telematics/runtime") { include("*.java"); exclude("*Test.java") })
+            sources.from(rootProject.file("tools/telematics/OncarTls.java"))
+            sources.from(rootProject.fileTree("research/telematics-firmware") { include("*.py", "*.c", "*.h") })
+            script.set(rootProject.layout.projectDirectory.file("tools/telematics/build_runtime_package.py"))
+            firmware.set(rootProject.layout.projectDirectory.file(
+                "captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager"))
+            linker.set(layout.file(providers.gradleProperty("cloudRuntimeLinker")
+                .orElse(providers.environmentVariable("DENZA_CLOUD_LINKER")).map { File(it) }))
+            python.convention(providers.environmentVariable("DENZA_CLOUD_PYTHON").orElse("python3"))
+            androidJar.from(platform)
+            sdkDirectory.set(sdk)
+            outputDirectory.set(layout.buildDirectory.dir("cloud-runtime/candidate"))
+        }
         onVariants(selector().all()) { variant ->
+            // Management must survive a downgrade/kill switch: it can detach/STOP old owners
+            // even when this APK does not contain or permit the ARM64 session engine.
+            val cloudControl = tasks.register<PackShellProxy>(
+                "pack${variant.name.replaceFirstChar(Char::titlecase)}CloudControlProxy",
+            ) {
+                source.set(rootProject.layout.projectDirectory.file("tools/telematics/runtime/CloudNativeMain.java"))
+                additionalSources.from(rootProject.fileTree("tools/telematics/runtime") {
+                    include("*.java"); exclude("*Test.java", "CloudNativeMain.java", "CloudStartPermit.java")
+                })
+                additionalSources.from(rootProject.file("tools/telematics/OncarTls.java"))
+                androidJar.from(platform)
+                sdkDirectory.set(sdk)
+                minApi.set(33)
+                archiveName.set("cloud-control-proxy.jar")
+            }
+            variant.sources.assets?.addGeneratedSourceDirectory(cloudControl, PackShellProxy::outputDirectory)
+            if (cloudNativePilot) {
+                val cloudAssets = tasks.register<QualifiedCloudAssets>(
+                    "pack${variant.name.replaceFirstChar(Char::titlecase)}CloudRuntime",
+                ) {
+                    candidate.set(cloudCandidate.flatMap { it.outputDirectory })
+                    outputDirectory.set(layout.buildDirectory.dir("cloud-runtime/${variant.name}/assets"))
+                }
+                variant.sources.assets?.addGeneratedSourceDirectory(cloudAssets, QualifiedCloudAssets::outputDirectory)
+            }
             variant.outputs.forEach { output ->
                 output.outputFileName.set("denza-apps.apk")
             }
@@ -203,4 +310,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20250517")
 }

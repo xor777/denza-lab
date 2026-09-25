@@ -5,7 +5,182 @@ Research scripts, verified on 2026-09-23 against the owner's
 builds. They read a local archive and write selected evidence to a separate
 directory; no car, updater, router or cloud connection is involved.
 
+**Product scope clarified on 2026-09-24:** firmware code must implement vehicle
+data structures, telemetry construction/parsing and incoming-command checks.
+The adapter may bridge identity, raw data, completed messages or transport, and
+may call original native routines. It must not recreate those schemas itself.
+The local instruction tests establish potential boundaries, not an integrated
+replacement client. See the
+[owner's adapter boundary](../../docs/telematics-findings.md#owners-adapter-boundary-clarified-2026-09-24).
+
+The 2026-09-25 persistent-runtime work is separate from the historical bounded
+on-car probes below. `build_persistent_runtime.py`, `persistent_runtime.c`,
+`persistent_timer.h` and `verify_persistent_engine.py` exercise original native
+instructions behind a typed primitive interface. Fifteen offline scenarios and
+the timer test pass, including explicit failures at incomplete dependencies.
+The output status packet stays opaque. Control/wake/post-login/heartbeat
+capabilities are still disabled; passing these research tests does not qualify
+an unattended product session. Exact source/build/test evidence is preserved
+under `captures/telematics-20260924/cloud-quality-review/persistent-native/`;
+the [resident adapter findings](../../docs/telematics-findings.md#resident-adapter-implementation-2026-09-25)
+record the remaining original-code paths and Java integration boundaries.
+
+The 2026-09-24 follow-up `verify_identity_override_native.py` extends the
+identity-cache emulator with a synthetic process-local property source. Six
+cases verify the actual 211/220 body builders with an original pair different
+from the simulated modem pair, including reapplication after process creation
+and the zero-first-byte MD5 cache edge. It requires the same pinned cloudmanager,
+pyelftools and Unicorn 2.1.4. It performs no live patching, signing or networking
+and does not establish privileges to deploy such an adapter. See the
+[identity adapter findings](../../docs/telematics-findings.md#original-sim-pair-and-a-thin-native-adapter-2026-09-24).
+
+The next offline pass adds two bounded native checks:
+
+- `verify_cloud_startup_native.py <cloudmanager>` executes the original service
+  factory and main control flow with synthetic Binder objects. Three cases show
+  initialization and the thread pool are still requested after publication
+  failure; constructors, service effects and downstream initialization are
+  stubbed. This is a reason not to start an unchanged second daemon as a probe.
+- `verify_mqtt_identity_native.py <mqttserv>` executes only its ICCID getter.
+  Eight cases establish current-property precedence, the 20-byte length check,
+  fallback to `persist.radio.iccid`, and missing/invalid results. It does not
+  execute authentication or any caller's cache.
+
+Both require pyelftools and Unicorn 2.1.4, verify the respective firmware hash,
+bound execution, and reject unreviewed calls and syscalls. They have no car or
+cloud connection. Evidence and the next vehicle checks are under
+[alternative integration levels](../../docs/telematics-findings.md#alternative-integration-levels-offline-2026-09-24).
+
 ## Reproduce the extraction
+
+### Isolated on-car instruction execution (2026-09-24)
+
+`build_identity_runtime.py` builds `identity_runtime_probe.c` using installed
+Clang and an ELF-capable LLD. It verifies the archived cloudmanager hash and
+copies only reviewed instruction ranges into a private image with unused text
+replaced by traps. No ELF initialization, native cloud daemon or stock worker
+thread is launched. Android lifetime/property calls and the serializer boundary
+are stubbed; real preparation/MD5/body instructions execute with synthetic data.
+
+The resulting standalone executable passed seven cases on both the ARM64
+Android emulator and the owner's car as shell UID 2000 / SELinux Enforcing.
+It permits no network/Binder/file-open syscalls while running those routines,
+has a five-second wall timer, and was removed from both targets after testing.
+This establishes local code reuse, not deployment inside the privileged stock
+process, a live cloud login, command execution or an ordinary-app permission.
+See [the native runtime result](../../docs/telematics-findings.md#isolated-native-identity-routines-executed-on-the-car-2026-09-24).
+
+Example build (does not contact a vehicle):
+
+```sh
+python3 research/telematics-firmware/build_identity_runtime.py \
+  captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager \
+  --out captures/telematics-20260924/native-identity-runtime \
+  --linker /absolute/path/to/ld.lld
+```
+
+Requires pyelftools for extraction; execution uses no downloaded NDK, Android
+libraries or real subscriber identifiers. Preserve the result manifest beside
+the executable. The live plan and before/after evidence are in the output
+directory, which is ignored by Git.
+
+### Opaque data through original routines (2026-09-24)
+
+`verify_opaque_native.py` replays exact SDK callback buffers into the original
+native cache and report builder, without an independent vehicle-field encoder.
+It also checks the native message constructor's deep copy and SSL-wrapper I/O
+semantics. Nine cases pass in bounded Unicorn execution. The companion
+`build_opaque_runtime.py` / `opaque_runtime_probe.c` execute the same reviewed
+routines on hardware; nine cases also passed on the ARM64 emulator and owner
+car under shell/Enforcing, with network/Binder/file/thread syscalls blocked.
+
+```sh
+python3 research/telematics-firmware/verify_opaque_native.py \
+  captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager \
+  captures/telematics-20260924/opaque-native-adapter/callback-opaque.log
+python3 research/telematics-firmware/build_opaque_runtime.py \
+  captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager \
+  captures/telematics-20260924/opaque-native-adapter/callback-opaque.log \
+  --out captures/telematics-20260924/opaque-native-adapter/runtime \
+  --linker /absolute/path/to/ld.lld
+```
+
+Both commands are offline. They need pyelftools and Unicorn; the second also
+needs Clang/ELF LLD. Generated fixtures and binary embed private callback bytes
+and must remain ignored, with restricted permissions. The native report is not
+uploaded. The surrounding context and external effects are stubbed; full
+initialization, live subscriptions, framing/TLS and incoming dispatch remain
+unproved. The firmware implements the field mapping. See
+[the complete scope and result](../../docs/telematics-findings.md#opaque-buffer-execution-verified-on-the-car-2026-09-24).
+
+The executable's optional `--stream` mode accepts the bounded opaque output of
+`CloudCanSnapshotProbe` on stdin, passes bytes unchanged to the native consumer,
+then invokes the original builder at clean stream completion. It requires the
+producer's unregister and clean completion markers. Empty/truncated/oversized
+streams fail. On the owner car a ten-second **local pipe** delivered 975 SDK
+buffers without sending them through the Mac. The helper emitted only a count
+and result, not the report itself; its send hook remained disabled. Both remote
+files were removed and stock TCP=1/step=6 remained unchanged. Stream seccomp
+allows stdin reads in addition to stdout/stderr writes and exit; it permits no
+network, Binder, file-open or process creation. The stream limit is 25 seconds,
+10,000 buffers and 2 MB of IPC data. This is still an isolated partial-context
+probe, not a resident client.
+
+### Original status request/reply (2026-09-24)
+
+`verify_native_roundtrip.py` extends that isolated cache with the original
+encrypted packet constructor, decoder and checked 511 status dispatcher. It
+creates local synthetic session material, forwards complete packets to native
+code and verifies a native request/report/reply roundtrip. Fourteen cases pass,
+including invalid identity/key/frame inputs and not-ready/not-logged-in states.
+The decoder's AES/CRC/VIN/UUID checks execute; no success return is substituted.
+There is no Python/C telemetry schema or independent packet encoder.
+
+```sh
+python3 research/telematics-firmware/verify_native_roundtrip.py \
+  captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager \
+  captures/telematics-20260924/opaque-native-adapter/callback-opaque.log
+python3 research/telematics-firmware/build_native_roundtrip.py \
+  captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager \
+  captures/telematics-20260924/opaque-native-adapter/callback-opaque.log \
+  --out captures/telematics-20260924/native-status-roundtrip/runtime \
+  --linker /absolute/path/to/ld.lld
+```
+
+Both commands are offline. Dependencies are pyelftools, Unicorn and Capstone;
+the builder also uses installed Clang/ELF LLD. The companion
+`native_roundtrip_probe.c` passed the same fourteen local checks on the ARM64
+emulator and car with seccomp/W^X, and was removed. Only the status handler from
+the large native switch is retained; there are no actuator handlers or network
+calls. Private generated fixtures contain vehicle callback bytes.
+
+The first hardware test exposed a missing auxiliary native vector, masked by
+the first emulator's zero-based ELF mapping. Both harnesses now supply an explicit
+empty vector, and the offline test unmaps the null page. This remains partial
+initialization, not a complete cloud runtime. The current result proves local
+native status processing, not real cloud authentication or remote control.
+See [the exact results and limitations](../../docs/telematics-findings.md#native-status-request-and-reply-verified-on-the-car-2026-09-24).
+
+### Native registration against the cloud (2026-09-24)
+
+`native_registration.py <cloudmanager>` runs six offline checks of the original
+helper constructor, identity preparation, 211 builder/codec and response handler.
+It preserves native success/rejection status and original decoder checks; the
+post-reply continuation is captured before effects. It imports the bounded
+native harness above, not an independent packet codec. Actual identity/frame
+data remain in memory when used by the live wrapper.
+
+The preview-first `tools/telematics/native_registration_probe.py` completed one
+owner-authorized real 211 exchange through car Wi-Fi at 17:50 UTC: original
+native request/response code, one factory TLS signature, 101 bytes sent,
+69 received, native status 1. No working-server login, telemetry, control command
+or second cloud attempt occurred. The stock session's sampled state stayed
+TCP=1/step=6. Native execution and TLS orchestration were on the Mac; this does
+not establish autonomous deployment. The archived executable is hash-pinned;
+shell cannot read/hash the installed executable, and that limitation is explicit.
+See [the live result](../../docs/telematics-findings.md#one-real-registration-exchange-through-original-native-code-2026-09-24).
+
+### Archive extraction
 
 Python 3 with `cryptography` is required. Static disassembly additionally used
 `pyelftools` and `capstone`; neither is needed for the commands below.
@@ -214,3 +389,129 @@ The owner observed current data in the official app during the stock session.
 The host observer/guard subsequently exited on ADB timeouts without restoring
 the profile. A 15:15 Moscow read-only check confirmed stock TCP=1 with no host
 test running; the owner explicitly requested leaving this car session active.
+
+`native_session.py` extends the original-code adapter with native discovery200,
+login220 and status511. Original code owns body construction, endpoint parsing,
+login acceptance, checked decode, correlation and report framing. Only external
+I/O/runtime dependencies and post-login side effects are captured. Incoming
+command allowlisting occurs after native decode and before dispatch. Offline:
+
+```sh
+PYTHONPATH=/tmp/denza-hud-analysis-deps PYTHONDONTWRITEBYTECODE=1 \
+  python3 research/telematics-firmware/verify_native_session.py \
+  captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager \
+  captures/telematics-20260924/opaque-native-adapter/callback-opaque.log
+```
+
+Ten native cases passed. The owner-authorized 2026-09-24 18:01 UTC car-origin
+cloud session then passed discovery/login, received an actual511 request and
+sent a181-byte native reply built from1,894 fresh SDK buffers. Native SOC82%
+matched the independent getter. Stock TCP was paused only during the adapter
+session and restored afterward; Wi-Fi/profile/APK unchanged. Exact source and
+runtime evidence: `captures/telematics-20260924/native-session-status/`.
+The host runner is `tools/telematics/native_session_probe.py`, preview by default.
+No repeat is needed for an already-proved exchange. Native post-login ancillary
+work was captured, token_flag was already1, whole-field cache completeness is
+unproved, and this does not establish actuator execution, autonomous on-car
+operation, custom identity with a replacement SIM, or reconnect/sleep behavior.
+
+`session_runtime.c` and `build_session_runtime.py` move the reviewed original
+211/200/220/511 routines to a native ARM64 pipe worker. The builder pins the
+archived firmware hash, replaces unselected text with traps, and rejects native
+syscalls in retained ranges. The worker separates executable/writable pages,
+freezes the supplied identity after START and restricts its syscalls to pipe I/O
+and exit. No daemon startup, network/Binder operation or actuator dispatch is
+allowed inside this worker. `verify_session_runtime.py` compares synthetic
+results byte-for-byte with the previous emulated native oracle and checks
+rejected/corrupt login, unexpected command, pre-login request and input handling.
+
+Build (requires pyelftools, Capstone, clang and an ARM64-capable ELF linker):
+
+```sh
+python3 research/telematics-firmware/build_session_runtime.py \
+  captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager \
+  --out captures/telematics-20260924/oncar-native-session/runtime \
+  --linker /Users/dmitry/.rustup/toolchains/stable-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/gcc-ld/ld.lld
+```
+
+The network-free verifier takes an explicit Android serial, firmware path and
+opaque fixture capture, and expects the compiled worker at
+`/data/local/tmp/denza-session-worker`. Seven cases passed on emulator and car.
+Do not confuse that synthetic test with the stateful live controller in
+`tools/telematics/OncarNativeSession.java`.
+
+The authorized on-car test at18:14–18:17 UTC used Android TLS and the factory
+signer, explicit current ICCID/IMSI input, native211/200/220 and two real511
+request/replies across a new worker/TLS session. Both responses reported81% SOC,
+matching the independent getter. All runtime work was local to the car; the
+Mac only deployed and observed. Stock TCP was restored and test files/processes
+removed. The first25s request window timed out cleanly before the owner refresh;
+its accepted registration/discovery were reused for the successful second run.
+Evidence: `captures/telematics-20260924/oncar-native-session/`. This is a bounded
+separate helper using archived routines, not modification of the installed
+daemon. Product integration, unexpected disconnect/sleep recovery, replacement
+SIM transport, provisioning/MQTT and actuator commands remain unproved. See the
+[on-car findings](../../docs/telematics-findings.md#on-car-native-adapter-with-an-explicitly-supplied-sim-pair-2026-09-24).
+
+### Quality gate after the generated-pair command experiment
+
+`audit_control_lifecycle.py <pinned-cloudmanager>` runs only host Unicorn with
+synthetic opaque requests. It covers MCU result paths as well as requests and
+records unresolved dependencies, allocator growth and the asleep wake path.
+See `docs/telematics-findings.md`, "Generated pair: real command and offline
+promotion review" and "Cloud product recovery contract under preparation".
+The short worker is not a persistent custom backend; removing its climate
+allowlist or its time limits does not qualify it for product use.
+
+The C wrapper now treats terminal completion as a per-exchange event. Its
+`terminal_is_per_exchange_not_sticky`, two-distinct-command and interleaved-wake
+regressions passed on the local emulator as part of twelve synthetic IPC cases.
+The test worker was temporary; no APK or car deployment was made.
+
+`bounded_arena.h` replaces the bump-only allocator/no-op deletes while preserving
+the worker's command and time limits. `test_bounded_arena.py` exercises the actual
+header with host ASan/UBSan. `audit_bounded_arena.py` uses that compiled allocator
+with original firmware instructions and requires per-iteration forwarding and
+completion with distinct correlations. The100-control/100-status replay used
+256 bytes at peak and left no live allocations. This does not prove every other
+firmware allocation path or qualify an unlimited process.
+
+`verify_generic_control_closure.py` separately extends offline callback coverage
+to all256 synthetic532 subcommands, including sub5's secondary object and native
+709 side effects, sub17's32-second timer, and sub39's special CAN/timeout path.
+It does not widen the target worker's allowlist. Its separate `--timer-semantics`
+run executes sub5's later5-second callback (stop plus another native709) and
+the original16/32-second generic timeout body. The latter clears busy without
+a reply and still allows a later MCU terminal result. Forced duplicate expiry
+is distinct from real duplicate timer delivery. Actual timer scheduling,
+TimerEvent lifetime and SDK listeners remain unqualified.
+
+`verify_wake_wait_native.py` executes the original wake helper and power-state
+getter with explicit SDK/clock/condition fixtures. Eight cases cover awake,
+delayed external state, timeout, setter failure, spurious wake and wait error.
+The helper issues `setInt(1005, 0xaa00004a, 1)` and waits up to three one-second
+attempts. A timeout does not become success. The delayed-state fixture is **not**
+proof of the native event callback or of a sleeping car waking; the real callback
+also reports502, wakes the condition and invokes further lifecycle work. Those
+dependencies cannot be replaced with an assumed awake state.
+
+`verify_wake_callback_native.py` then exercises the original MCU state callback,
+502 construction and opaque queue drain in five offline cases. The sleeping536
+dispatcher itself creates its queue item; direct awake callback invocation
+cancels the two-second timer and forwards that item once, byte-for-byte.
+Duplicate state is a no-op. Sleeping532 instead returns native reason0x25 after
+three wake timeouts without queuing an actuator command. SDK getters/properties,
+timer scheduling, listener delivery, Binder writes and cloud sends remain
+external fixtures, so this is still not sleeping-car acceptance.
+
+`verify_sleep_transition_native.py` adds an original1→0→1 MCU callback pass with
+the original secondary constructor and explicit empty listener/scheduled-work
+fixtures. Both native502 messages, sleep-side property effects and the returning
+wake notification/getter/drain execute. Populated lists, SDK delivery and timer
+scheduling remain outside that proof. It does not qualify an unattended service.
+
+The research Android TLS helper now scopes peer verification, identity and the
+signing budget to one handshake. `tools/telematics/test_oncar_tls_isolation.py`
+tests its actual Java provider on the host using synthetic keys. Twelve host
+cases and a separate five-case Android/Conscrypt integration suite passed.
+Neither uses the car or its key.

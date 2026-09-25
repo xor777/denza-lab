@@ -8,9 +8,7 @@ import org.junit.Test
 /**
  * Which internet the cloud link translates for the stock client.
  *
- * Wi-Fi is proven (2026-09-23). Mobile data from a local SIM is built for owners to test and is not
- * proven on any car. The operator code does not establish private APN ownership;
- * actual stock APN state is guarded by the controller and its operations.
+ * Wi-Fi is proven (2026-09-23). Mobile transport is reported but never used by the link.
  */
 class CloudNetworkTest {
 
@@ -22,15 +20,17 @@ class CloudNetworkTest {
     }
 
     @Test
-    fun mobileDataFromALocalSimIsUsable() {
+    fun mobileDataIsRecognizedButNotUsable() {
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "25001"))
-        assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "25099"))
-        // Missing operator metadata does not invalidate an otherwise validated network.
-        assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = null))
+        assertFalse(CloudNetwork.usable(CloudNetworkReading(true, false, true, "25001")))
+        assertTrue(CloudNetwork.usable(CloudNetworkReading(true, true, false, null)))
+        assertFalse(CloudNetwork.usable(CloudNetworkReading(true, false, true, "25001"), CloudSimMode.FACTORY))
+        assertTrue(CloudNetwork.usable(CloudNetworkReading(true, false, true, "25001"), CloudSimMode.CUSTOM))
+        assertFalse(CloudNetwork.usable(CloudNetworkReading(false, false, true, "25001"), CloudSimMode.CUSTOM))
     }
 
     @Test
-    fun operatorCodeCannotDisqualifyValidatedMobileInternet() {
+    fun operatorCodeDoesNotChangeNetworkClassification() {
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "46013"))
         assertEquals(CloudNetworkKind.MOBILE, kind(cellular = true, sim = "46000"))
         assertTrue(CloudNetwork.chineseSim("46011"))

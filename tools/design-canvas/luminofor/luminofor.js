@@ -805,6 +805,7 @@
     return wrap(c, r.value, Q.size, 400, room);
   }
   function rowHeight(r, c) {
+    if (r.kind === 'input') return R2[0];
     if (r.kind === 'pair') {
       const Q = SH.pair, n = c ? pairLines(c, r).length : 1;
       return Math.max(Q.minHeight, 2 * Q.padY + (n - 1) * Q.step + Q.size * (RB.ascent + RB.descent));
@@ -823,6 +824,11 @@
     }
     const R = SH.row, h = rowHeight(r, c), dim = r.enabled === false ? 0.5 : 1;
     const right = x + w - R.padX;
+    if (r.kind === 'input') {
+      words(c, r.title, x + R.padX, y + R2[1], R.titleSize, R.titleAlpha * dim);
+      words(c, r.value || '', x + R.padX, y + R2[2], R.summarySize, R.summaryAlpha * dim);
+      return h;
+    }
     const icons = r.icons && r.icons.length, lines = icons ? [] : summaryLines(c, r), two = lines.length > 0;
     words(c, r.title, x + R.padX, y + (icons ? R3[1] : two ? R2[1] : R1[1]), R.titleSize, R.titleAlpha * dim);
     if (icons) {
@@ -917,6 +923,7 @@
       }
       case 'group': return plate(c, b.rows, x, y, w);
       case 'switch': return plate(c, [Object.assign({ kind: 'switch' }, b)], x, y, w);
+      case 'input': return plate(c, [Object.assign({ kind: 'input' }, b)], x, y, w);
       // a section's words over its body - one block, or several a label's gap apart, as
       // DenzaSection's column spaces everything under its label
       case 'section': {

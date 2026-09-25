@@ -32,6 +32,7 @@ import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetFootnote
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.components.DenzaStatusLine
+import dev.denza.apps.ui.components.DenzaSwitchRow
 import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.dashboard.DashboardTile
 import dev.denza.apps.ui.dashboard.DashboardTiles
@@ -129,6 +130,7 @@ internal fun ServicePanel(
     onCheckAdbAccess: () -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
+    onSetCloudReportExport: (Boolean) -> Unit,
     onDismiss: () -> Unit,
     firstPage: ServicePage = ServicePage.MAIN,
     firstPageAtEnd: Boolean = false,
@@ -156,6 +158,7 @@ internal fun ServicePanel(
                     onCheckAdbAccess = onCheckAdbAccess,
                     onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+                    onSetCloudReportExport = onSetCloudReportExport,
                     onPage = { page = it },
                 )
             }
@@ -185,6 +188,7 @@ private fun ServiceMain(
     onCheckAdbAccess: () -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
+    onSetCloudReportExport: (Boolean) -> Unit,
     onPage: (ServicePage) -> Unit,
 ) {
     val model = remember(state) { ServiceModel.of(state) }
@@ -245,6 +249,15 @@ private fun ServiceMain(
             )
         }
     }
+    DenzaSwitchRow(
+        title = "Записывать отчёт об облаке",
+        subtitle = if (state.cloudReportExportPending)
+            "Сохранение настройки…" else "Файл в Загрузках · Denza Apps",
+        checked = state.cloudReportExportEnabled,
+        onCheckedChange = onSetCloudReportExport,
+        enabled = !state.cloudReportExportPending,
+    )
+    state.cloudReportExportError?.let { DenzaNote(it) }
 }
 
 /**

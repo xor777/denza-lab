@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """One owner-authorized DiLink bootstrap exchange over factory mutual TLS.
 
-Default is preview. Real vehicle identifiers and cloud parameters remain in
-memory. This can change the server's registration record for the owner's car.
+Default is preview. Vehicle crypto inputs remain in memory. The optional
+owner-only input file supplies the owner's original SIM pair, without modem
+writes. This can change the server's registration record for the owner's car.
 CLI supports registration/discovery/login. status_upload_probe may supply one
 reviewed status body after validated login. No heartbeat or vehicle control.
 """
@@ -21,6 +22,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "research/telematics-firmware"))
 from registration_packet import build_registration, build_discovery, build_login, build_status, decode_response
 from tls_identity_probe import adb_read, execute, DEFAULT_BINARY, HOST, PORT
+from cloud_identity import CloudIdentity, load_identity
+
+OWNER_VIN_SHA256 = "102d46beb9421745e31923bdceb59c3170869bfbe9ff0c2cca69c64728664938"
 
 
 def read_buffer(serial, device, fid, expected_length):
@@ -42,7 +46,14 @@ def read_buffer(serial, device, fid, expected_length):
     return data[8:8 + length]
 
 
-def run(serial, binary, report, discovery=False, login=False, status_body=None):
+def run(serial, binary, report, discovery=False, login=False, status_body=None, transport_source="car", identity_override=None):
+    if transport_source not in ("car", "host"):
+        raise ValueError("Unknown transport source")
+    if identity_override is not None and not isinstance(identity_override, CloudIdentity):
+        raise ValueError("Invalid identity source")
+    if discovery and identity_override is not None:
+        raise ValueError("Discovery does not use SIM identity")
+    report["identity_source"] = "provided_original_pair" if identity_override is not None else "modem"
     if status_body is not None and not login:
         raise ValueError("Status requires validated application login")
     report["phase"] = "source_identity"
@@ -53,7 +64,7 @@ def run(serial, binary, report, discovery=False, login=False, status_body=None):
         if actual != expected:
             raise ValueError("Reviewed autoservice library mismatch")
     vin = read_buffer(serial, 1001, 0x9900021a, 17)
-    if hashlib.sha256(vin).hexdigest() != "102d46beb9421745e31923bdceb59c3170869bfbe9ff0c2cca69c64728664938":
+    if hashlib.sha256(vin).hexdigest() != OWNER_VIN_SHA256:
         raise ValueError("Different vehicle")
     params = read_buffer(serial, 1034, 0x99000005, 33)
     if params[0] == 0:
@@ -71,15 +82,18 @@ def run(serial, binary, report, discovery=False, login=False, status_body=None):
         if (host, port) != ("dilinknat0-cn.denzacloud.com", 6041):
             raise ValueError("Unreviewed working endpoint")
         command = 220
-        imsi = adb_read(serial, ["shell", "getprop", "ril.imsi"]).strip().encode("ascii")
+        imsi = identity_override.imsi if identity_override is not None else adb_read(
+            serial, ["shell", "getprop", "ril.imsi"]).strip().encode("ascii")
         device_serial = adb_read(serial, ["shell", "getprop", "debug.ro.serialno"]).strip().encode("ascii")
         packet = build_login(vin, imsi, device_serial, os.urandom(16), key, uuid, timestamp)
         report["serial_property_present"] = bool(device_serial)
     elif discovery:
         packet = build_discovery(vin, key, uuid, timestamp)
     else:
-        imsi = adb_read(serial, ["shell", "getprop", "ril.imsi"]).strip().encode("ascii")
-        iccid = adb_read(serial, ["shell", "getprop", "ril.csim.iccid"]).strip().encode("ascii")
+        imsi = identity_override.imsi if identity_override is not None else adb_read(
+            serial, ["shell", "getprop", "ril.imsi"]).strip().encode("ascii")
+        iccid = identity_override.iccid if identity_override is not None else adb_read(
+            serial, ["shell", "getprop", "ril.csim.iccid"]).strip().encode("ascii")
         packet = build_registration(vin, imsi, iccid, key, uuid, timestamp)
     report["inputs"] = {"reviewed_libraries_match": True, "vin_matches_owner_car": True,
                         "cloud_parameters_valid": True, "packet_length": len(packet),
@@ -111,7 +125,7 @@ def run(serial, binary, report, discovery=False, login=False, status_body=None):
     application = (packet, receive)
     if status_body is not None:
         application += (lambda: build_status(vin, key, uuid, int(time.time()), status_body),)
-    execute(binary, serial, report, application, host, port)
+    execute(binary, serial, report, application, host, port, transport_source=transport_source)
     report["registration_accepted"] = bool((report["native"].get("application_response") or {}).get("registration_accepted"))
     report["discovery_received"] = bool((report["native"].get("application_response") or {}).get("discovery_received"))
     report["login_accepted"] = bool((report["native"].get("application_response") or {}).get("login_accepted"))
@@ -125,20 +139,31 @@ def main():
     operation.add_argument("--login", action="store_true", help="One command 220 login at the verified working endpoint")
     parser.add_argument("--serial", default="127.0.0.1:5555")
     parser.add_argument("--binary", type=Path, default=DEFAULT_BINARY)
+    parser.add_argument("--transport", choices=("car", "host"), default="car",
+                        help="TCP origin only; vehicle crypto inputs/signing still come from the pinned car")
+    parser.add_argument("--identity-file", type=Path,
+                        help="Owner-only JSON with the owner's original iccid/imsi; no modem writes")
     args = parser.parse_args()
+    if args.discover and args.identity_file:
+        parser.error("Discovery does not use --identity-file")
     endpoint = "dilinknat0-cn.denzacloud.com:6041" if args.login else "dilinkaddr-cn.denzacloud.com:6021" if args.discover else f"{HOST}:{PORT}"
     report = {"mode": "execute" if args.execute else "preview", "endpoint": endpoint,
+              "transport_source": args.transport,
+              "identity_source": "provided_original_pair" if args.identity_file else "modem",
               "cloud_contacted": False, "stock_signature_calls": 0, "application_bytes_sent": 0,
               "registration_sent": False, "telemetry_sent": False, "official_phone_update_verified": False}
     if args.execute:
         report["started_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
         try:
-            run(args.serial, args.binary, report, args.discover, args.login)
+            report["phase"] = "identity_selection"
+            identity = load_identity(args.identity_file) if args.identity_file else None
+            run(args.serial, args.binary, report, args.discover, args.login,
+                transport_source=args.transport, identity_override=identity)
         except Exception as error:
             report.update({"failed": True, "error_type": type(error).__name__, "instruction": "Stop; no automatic retry"})
         report["finished_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
     else:
-        report["proposal"] = "Read real vehicle inputs; one authenticated TLS session and one packet (220 with --login, 200 with --discover, otherwise 211); validate one reply; close"
+        report["proposal"] = "Use the selected SIM identity source and real vehicle crypto inputs; one authenticated TLS session and one packet (220 with --login, 200 with --discover, otherwise 211); validate one reply; close"
         report["stock_side_effects"] = "Chip wake and possible stock initialization/PIN recovery; server registration record may change"
     print(json.dumps(report, indent=2))
     if args.execute and not report.get("login_accepted" if args.login else "discovery_received" if args.discover else "registration_accepted"):

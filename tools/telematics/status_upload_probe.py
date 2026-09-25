@@ -15,6 +15,7 @@ from registration_probe import ROOT, run
 from tls_identity_probe import adb_read, DEFAULT_BINARY
 from status512_body import build_body
 from inspect_status512 import inspect_body
+from cloud_identity import load_identity
 
 
 def assemble(serial, capture, allow_missing, report):
@@ -71,14 +72,18 @@ def main():
     parser.add_argument("--allow-missing-0417", action="store_true")
     parser.add_argument("--serial", default="127.0.0.1:5555")
     parser.add_argument("--binary", type=Path, default=DEFAULT_BINARY)
+    parser.add_argument("--identity-file", type=Path,
+                        help="Owner-only original SIM pair used for login; no modem writes")
     args = parser.parse_args()
     report = {"mode": "execute" if args.execute else "preview", "cloud_contacted": False, "telemetry_sent": False,
+        "identity_source": "provided_original_pair" if args.identity_file else "modem",
         "official_phone_update_verified": False, "endpoint": "dilinknat0-cn.denzacloud.com:6041"}
     if args.execute:
         report["started_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
         try:
+            identity = load_identity(args.identity_file) if args.identity_file else None
             body = assemble(args.serial, args.capture, args.allow_missing_0417, report)
-            run(args.serial, args.binary, report, login=True, status_body=body)
+            run(args.serial, args.binary, report, login=True, status_body=body, identity_override=identity)
         except Exception as error:
             report.update({"failed": True, "error_type": type(error).__name__, "instruction": "Stop; no automatic retry"})
         report["finished_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
