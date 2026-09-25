@@ -27,8 +27,8 @@ internal sealed interface CloudStep {
  * **What the stock client needs from us.** `cloudmanager` owns identity, telemetry, timers and the
  * whole protocol; the only thing it lacks on this car is a network it believes in. Its gate opens on
  * APN3's «ready» (`notify_nw(4)`) and on nothing Wi-Fi sends it, and closes on APN3's «gone»
- * (`-5`). In factory mode the adapter translates validated Wi-Fi ([CloudNetwork]) into «ready»
- * and a sustained loss into «gone», with actual stock APNs guarded separately - paired, because
+ * (`-5`). So the adapter translates: usable internet ([CloudNetwork] - Wi-Fi, or mobile data from
+ * any SIM, with actual stock APNs guarded separately) is «ready», internet that has stayed gone is «gone» - paired, because
  * a gate opened and never closed is a synthetic APN left standing (docs/telematics-findings.md,
  * "Stock-client Wi-Fi adaptation"). Only Wi-Fi is proven on a car.
  *
@@ -160,16 +160,16 @@ internal class CloudLinkCore {
     }
 
     /**
-     * Usable Wi-Fi has been gone for [NETWORK_LOSS_GRACE_MS]: the other half of the pair.
-     * Factory mode does not open a synthetic gate for ordinary mobile data. A real stock APN
-     * remains the stock framework's responsibility, including while it is transitioning.
+     * Usable internet has been gone for [NETWORK_LOSS_GRACE_MS]: the other half of the pair. Moving
+     * from Wi-Fi to mobile data is not a loss - the client's socket drops with the old network and
+     * its own reconnect, or the repeat after the settle, carries it onto the new one.
      *
      * Said while the gate may be ours - including one a previous process opened, which is why
      * [Gate.UNKNOWN] answers too - and only under the profile the adapter put the car on: outside
      * it the gate is not a synthetic APN of ours to close.
      */
     fun networkGone(car: CloudCarState, nowMs: Long = 0): List<CloudStep> =
-        if (gate == Gate.CLOSED || car.stockApnBusy || car.profile != CloudLinkProtocol.WIFI_PROFILE) {
+        if (gate == Gate.CLOSED || car.cellular || car.profile != CloudLinkProtocol.WIFI_PROFILE) {
             emptyList()
         } else if (lastGoneAttemptAtMs?.let { nowMs - it < NETWORK_LOSS_GRACE_MS } == true) {
             emptyList()
@@ -183,7 +183,6 @@ internal class CloudLinkCore {
      * give the car its own profile back. Each half only when the reading says it is needed.
      */
     fun switchedOff(car: CloudCarState): List<CloudStep> = buildList {
-        if (car.stockApnTransitioning) return@buildList
         if (car.profile == CloudLinkProtocol.WIFI_PROFILE && !car.cellular) add(CloudStep.AnnounceGone)
         if (car.profile == CloudLinkProtocol.WIFI_PROFILE && !car.cellular) add(CloudStep.WaitDisconnected)
         if (!car.onStockProfile) add(CloudStep.RestoreProfile(car.stockProfile))

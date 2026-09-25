@@ -108,47 +108,6 @@ class CloudLinkRecoveryTest {
         }
     }
 
-    @Test fun stockApnTransitionDefersOffAndNetworkLossWithoutClosingTheStockGate() {
-        for (state in listOf("connecting", "disconnecting")) {
-            for (car in listOf(adapted.copy(apn1State = state), adapted.copy(apn3State = state))) {
-                val core = CloudLinkCore()
-                core.readySent(0)
-                assertTrue(core.switchedOff(car).isEmpty())
-                assertTrue(core.networkGone(car, 30_000).isEmpty())
-                val pending = CloudLinkRequest(enabled = true).request(false)
-                assertTrue(pending.pendingDisable)
-                assertThrows(IllegalStateException::class.java) {
-                    pending.disabled(car.copy(profile = "triple_apn", apn1Disabled = false))
-                }
-                // A real APN that finishes connecting owns its TCP. OFF restores the profile,
-                // but does not wait for that connection to disappear or send a synthetic -5.
-                val connected = adapted.copy(cellular = true, apn3State = "connect", connected = true)
-                assertEquals(listOf(CloudStep.RestoreProfile("triple_apn")), core.switchedOff(connected))
-                assertFalse(pending.copy(awaitingTcpDown = true).disabled(
-                    connected.copy(profile = "triple_apn", apn1Disabled = false),
-                ).needsService)
-                // A transition that ends disconnected resumes the ordinary teardown.
-                assertEquals(listOf(CloudStep.AnnounceGone, CloudStep.WaitDisconnected,
-                    CloudStep.RestoreProfile("triple_apn")), core.switchedOff(adapted))
-            }
-        }
-    }
-
-    @Test fun apnTransitionAfterOffPlanningPreventsGoneAndProfileWrites() {
-        for (state in listOf("connecting", "disconnecting")) {
-            val b = Boundary()
-            val steps = b.core.switchedOff(b.car)
-            b.car = adapted.copy(apn3State = state)
-            assertThrows(IllegalStateException::class.java) { b.operations.run(steps) }
-            assertTrue(b.writes.isEmpty())
-            // Also fence a transition that starts after TCP has already dropped.
-            assertThrows(IllegalStateException::class.java) {
-                b.operations.run(listOf(CloudStep.RestoreProfile("triple_apn")))
-            }
-            assertTrue(b.writes.isEmpty())
-        }
-    }
-
     @Test fun disableWaitsForTcpBeforeRestoringTheProfile() {
         val b = Boundary()
         b.car = adapted.copy(connected = true)

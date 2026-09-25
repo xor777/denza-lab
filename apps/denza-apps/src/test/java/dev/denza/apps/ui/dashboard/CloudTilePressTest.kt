@@ -3,7 +3,6 @@ package dev.denza.apps.ui.dashboard
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.feature.cloud.CloudCarState
 import dev.denza.apps.feature.cloud.CloudLinkStatus
-import dev.denza.apps.feature.cloud.CloudSimMode
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -17,14 +16,6 @@ import org.junit.Test
 class CloudTilePressTest {
 
     private val asked = mutableListOf<Boolean>()
-    private var opened = 0
-
-    @Test
-    fun firstTapOpensSettingsWithoutSwitching() {
-        press(DenzaUiState())
-        assertEquals(1, opened)
-        assertEquals(emptyList<Boolean>(), asked)
-    }
 
     @Test
     fun anotherPressDuringAWriteDoesNotQueueAnOldToggle() {
@@ -36,7 +27,7 @@ class CloudTilePressTest {
 
     @Test
     fun aPressFlipsTheLink() {
-        press(state(enabled = false, failure = null))
+        press(DenzaUiState())
         press(state(enabled = true, failure = null))
         assertEquals(listOf(true, false), asked)
     }
@@ -50,7 +41,6 @@ class CloudTilePressTest {
 
     private fun state(enabled: Boolean, failure: String?) = DenzaUiState(
         cloudLink = CloudLinkStatus.snapshot(enabled, CloudCarState(connected = false), network = true, failure),
-        cloudMode = CloudSimMode.FACTORY,
     )
 
     private fun press(state: DenzaUiState) {
@@ -88,6 +78,6 @@ class CloudTilePressTest {
         onChooseFseApp = {},
         onOpenClusterPicker = {},
         onOpenService = {},
-        onOpenSettings = { opened++ },
+        onOpenSettings = {},
     )
 }

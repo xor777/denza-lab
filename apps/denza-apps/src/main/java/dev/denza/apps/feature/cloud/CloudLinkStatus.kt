@@ -23,12 +23,6 @@ object CloudLinkSettings {
     private const val ENABLED = "enabled"
     private const val PENDING_DISABLE = "pending_disable"
     private const val AWAITING_TCP_DOWN = "awaiting_tcp_down"
-    private const val MODE = "sim_mode"
-    private const val ICCID = "custom_iccid"
-    private const val IMSI = "custom_imsi"
-    private const val CUSTOM_OWNER = "custom_owner_nonce"
-    private const val CUSTOM_TERMINAL = "custom_terminal_code"
-    private const val CUSTOM_TERMINAL_GENERATION = "custom_terminal_generation"
 
     fun isEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(ENABLED, false)
@@ -41,116 +35,12 @@ object CloudLinkSettings {
     fun needsService(context: Context): Boolean = request(context).needsService
     fun pendingDisable(context: Context): Boolean = request(context).pendingDisable
 
-    /** An old enabled install predates the mode choice and keeps its factory path. */
-    fun mode(context: Context): CloudSimMode? =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).let { prefs ->
-            resolveMode(prefs.getString(MODE, null), prefs.getBoolean(ENABLED, false))
-        }
-
-    internal fun resolveMode(saved: String?, enabled: Boolean): CloudSimMode? = when (saved) {
-        CloudSimMode.FACTORY.name -> CloudSimMode.FACTORY
-        CloudSimMode.CUSTOM.name -> CloudSimMode.CUSTOM
-        else -> if (enabled) CloudSimMode.FACTORY else null
-    }
-
-    fun customIdentity(context: Context): CloudIdentity? =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).let { prefs ->
-            val iccid = prefs.getString(ICCID, null)
-            val imsi = prefs.getString(IMSI, null)
-            if (iccid == null || imsi == null) null else CloudIdentity(iccid, imsi)
-        }
-
-    /** Settings changes are serialized with an enable request before it enters the worker queue. */
-    @Synchronized fun chooseMode(context: Context, mode: CloudSimMode): Boolean {
-        if (!configurable(context)) return false
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val editor = prefs.edit().putString(MODE, mode.name)
-        if (mode == CloudSimMode.CUSTOM && customIdentity(context) == null) {
-            val identity = CloudIdentity.generate()
-            editor.putString(ICCID, identity.iccid).putString(IMSI, identity.imsi)
-        }
-        return editor.commit()
-    }
-
-    @Synchronized fun saveCustomIdentity(context: Context, identity: CloudIdentity): Boolean {
-        if (!configurable(context) || mode(context) != CloudSimMode.CUSTOM || !identity.valid()) return false
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(ICCID, identity.iccid).putString(IMSI, identity.imsi).commit()
-    }
-
-    @Synchronized fun regenerate(context: Context): Boolean {
-        if (!configurable(context) || mode(context) != CloudSimMode.CUSTOM) return false
-        return saveCustomIdentity(context, CloudIdentity.generate())
-    }
-
-    fun configurable(context: Context): Boolean =
-        canConfigure(isEnabled(context), pendingDisable(context), CloudLinkRuntime.busy,
-            customOwner(context) != null)
-
-    internal fun customOwner(context: Context): String? =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CUSTOM_OWNER, null)
-
-    /** Durable before the helper can run; a timed-out START is an ambiguous owner, not absence. */
-    @Synchronized internal fun claimCustomOwner(context: Context, nonce: String) {
-        check(customOwner(context) == null) { "Предыдущая сессия не закрыта" }
-        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(CUSTOM_OWNER, nonce).commit()) { "Не удалось сохранить владение" }
-    }
-
-    @Synchronized internal fun clearCustomOwner(context: Context, nonce: String) {
-        check(customOwner(context) == nonce) { "Владение изменилось" }
-        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .remove(CUSTOM_OWNER).commit()) { "Не удалось сохранить выключение" }
-    }
-
-    @Synchronized internal fun adoptCustomOwner(context: Context, expected: String?, owner: String) {
-        check(owner.matches(Regex("[0-9a-f]{32}"))) { "Владение изменилось" }
-        check(customOwner(context) == expected) { "Владение изменилось" }
-        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(CUSTOM_OWNER, owner).commit()) { "Не удалось сохранить владение" }
-    }
-
-    internal fun customTerminal(context: Context): String? {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (prefs.getLong(CUSTOM_TERMINAL_GENERATION, -1) != CloudCustomInstallation.generation(context)) return null
-        return prefs.getString(CUSTOM_TERMINAL, null)?.also {
-            check(it.matches(Regex("[a-z][a-z0-9_]{0,79}")) && !Regex("[0-9]{4,}").containsMatchIn(it)) {
-                "Не удалось прочитать настройки облака"
-            }
-        }
-    }
-
-    @Synchronized internal fun saveCustomTerminal(context: Context, code: String) {
-        val generation = CloudCustomInstallation.generation(context)
-        check(generation > 0) { "Не удалось прочитать настройки облака" }
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        // commit(false) may already have changed SharedPreferences' RAM map. Equality
-        // cannot prove durability; repeat commit so a prior failed disk write is retried.
-        check(prefs.edit().putString(CUSTOM_TERMINAL, code)
-            .putLong(CUSTOM_TERMINAL_GENERATION, generation).commit()) { "Не удалось сохранить настройки облака" }
-    }
-
-    @Synchronized internal fun clearCustomTerminal(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        check(prefs.edit().remove(CUSTOM_TERMINAL).remove(CUSTOM_TERMINAL_GENERATION).commit()) {
-            "Не удалось сохранить настройки облака"
-        }
-    }
-
-    internal fun canConfigure(enabled: Boolean, pendingDisable: Boolean, busy: Boolean,
-                              customOwner: Boolean = false): Boolean =
-        !enabled && !pendingDisable && !busy && !customOwner
-
     /** Called on the controller thread, durably before writes to the car. */
     internal fun save(context: Context, request: CloudLinkRequest) {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val legacyFactory = !prefs.contains(MODE) && prefs.getBoolean(ENABLED, false)
-        val editor = prefs.edit()
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean(ENABLED, request.enabled)
             .putBoolean(AWAITING_TCP_DOWN, request.awaitingTcpDown)
-            .putBoolean(PENDING_DISABLE, request.pendingDisable)
-        if (legacyFactory) editor.putString(MODE, CloudSimMode.FACTORY.name)
-        check(editor.commit()) { "Не удалось сохранить запрос" }
+            .putBoolean(PENDING_DISABLE, request.pendingDisable).commit()) { "Не удалось сохранить запрос" }
     }
 }
 
@@ -184,22 +74,13 @@ object CloudLinkRuntime {
     @Volatile
     var readFailure: String? = null
 
-    @Volatile var wifiRetained: Boolean? = null
-    @Volatile var wifiFailure: String? = null
-
     @Volatile internal var registrationFailure: CloudRegistrationFailure? = null
     @Volatile internal var registrationNotBeforeEpochMs: Long = 0
-
-    @Volatile internal var custom: CloudCustomStatus? = null
-    @Volatile var customReadAtMs: Long? = null
-    @Volatile var leaseFailure: String? = null
 
     fun readingFailed(nowMs: Long): Boolean = readFailure != null ||
         readAtMs?.let { nowMs - it !in 0..90_000L } == true
 
-    fun snapshot(enabled: Boolean, network: Boolean, pendingDisable: Boolean, nowMs: Long,
-                 mode: CloudSimMode? = CloudSimMode.FACTORY, uptimeMs: Long = nowMs): FeatureSnapshot =
-        if (mode == CloudSimMode.CUSTOM) customSnapshot(enabled, network, pendingDisable, nowMs, uptimeMs) else
+    fun snapshot(enabled: Boolean, network: Boolean, pendingDisable: Boolean, nowMs: Long): FeatureSnapshot =
         CloudLinkStatus.snapshot(
             enabled, car, network, failure,
             readingFailed = readingFailed(nowMs),
@@ -210,33 +91,6 @@ object CloudLinkRuntime {
                 adapter?.let { it.attempts > 0 && it.gate == "UNKNOWN" } == true,
             registrationFailure = registrationFailure?.message(car, nowMs),
         )
-
-    private fun customSnapshot(enabled: Boolean, network: Boolean, pendingDisable: Boolean,
-                               nowMs: Long, uptimeMs: Long): FeatureSnapshot {
-        val base = if (enabled) FeatureReducer.starting(FeatureId.CLOUD_LINK) else FeatureReducer.disabled(FeatureId.CLOUD_LINK)
-        val status = custom
-        return when {
-            pendingDisable -> if (busy) base else base.copy(status = FeatureStatus.ERROR, message = "Выключение не завершено")
-            !enabled -> base
-            leaseFailure != null -> base.copy(status = FeatureStatus.ERROR, message = leaseFailure.orEmpty())
-            status?.stage == "failed" && !status.retryable ->
-                base.copy(status = FeatureStatus.ERROR, message = CloudCustomMessages.error(status.code))
-            !network -> FeatureReducer.ready(FeatureId.CLOUD_LINK)
-            failure != null -> base.copy(status = FeatureStatus.ERROR, message = failure.orEmpty())
-            status == null -> base
-            customReadAtMs?.let { nowMs - it !in 0..30_000L } != false ->
-                if (busy) base else base.copy(status = FeatureStatus.ERROR, message = "Нет свежих данных")
-            nowMs - status.updatedElapsedMs !in -5_000L..90_000L ->
-                if (busy) base else base.copy(status = FeatureStatus.ERROR, message = "Нет свежих данных")
-            status.leaseActive && status.leaseUntilUptimeMs <= uptimeMs ->
-                base.copy(status = FeatureStatus.ERROR, message = "Служба связи остановилась")
-            status.sessionLive && status.leaseActive -> FeatureReducer.ready(FeatureId.CLOUD_LINK, active = true)
-            status.stage == "retry_wait" && status.retryable -> base
-            status.stage == "failed" || status.stage == "stopped" || status.stage == "retry_wait" ->
-                base.copy(status = FeatureStatus.ERROR, message = CloudCustomMessages.error(status.code))
-            else -> base
-        }
-    }
 }
 
 /** The kind of internet the car is on, as far as the cloud link is concerned. */
@@ -247,22 +101,18 @@ enum class CloudNetworkKind(val label: String) {
 }
 
 /**
- * The stock factory adapter requires validated Wi-Fi. The custom worker may use validated Wi-Fi
- * or cellular internet; choosing an identity never changes the car's physical APN/SIM network.
+ * Whether the car has internet the adapter can translate into «APN3 up» for the stock client.
+ *
+ * The public profile goes out through the default network like any other client, so it is not
+ * Wi-Fi as such that it needs but validated internet: Wi-Fi, or mobile data from the car's own
+ * SIM. Proven over Wi-Fi on 2026-09-23; **mobile data is not proven on any car** - it is built so
+ * owners with a local SIM can test it.
  *
  * Operator metadata cannot establish whether a private BYD APN is active. Core and operations
  * guard the actual APN1/APN3 state before changing the profile or notifying the client.
  */
 object CloudNetwork {
-    fun usable(context: Context): Boolean = usable(reading(context))
-
-    fun usable(context: Context, mode: CloudSimMode?): Boolean = usable(reading(context), mode)
-
-    internal fun usable(reading: CloudNetworkReading): Boolean = reading.kind == CloudNetworkKind.WIFI
-
-    internal fun usable(reading: CloudNetworkReading, mode: CloudSimMode?): Boolean =
-        reading.kind == CloudNetworkKind.WIFI ||
-            (mode == CloudSimMode.CUSTOM && reading.kind == CloudNetworkKind.MOBILE)
+    fun usable(context: Context): Boolean = kind(context) != CloudNetworkKind.NONE
 
     fun kind(context: Context): CloudNetworkKind = reading(context).kind
 

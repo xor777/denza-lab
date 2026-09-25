@@ -30,16 +30,11 @@ public final class CloudCanSnapshotProbe {
     private static final int MAX_DURATION_SECONDS = 40;
     private static final int DEFAULT_QUEUE_CAPACITY = 4096;
     private static final int MAX_QUEUE_CAPACITY = 8192;
-    private static boolean opaqueOutput;
 
     private CloudCanSnapshotProbe() {
     }
 
     public static void main(String[] args) {
-        if (args.length > 3 || (args.length == 3 && !"--opaque".equals(args[2]))) {
-            throw new IllegalArgumentException("Optional third argument must be --opaque");
-        }
-        opaqueOutput = args.length == 3;
         int durationSeconds = boundedArg(
                 args, 0, DEFAULT_DURATION_SECONDS, 10, MAX_DURATION_SECONDS, "durationSeconds");
         int queueCapacity = boundedArg(
@@ -246,7 +241,7 @@ public final class CloudCanSnapshotProbe {
         System.exit(0);
     }
 
-    static boolean allowedCanId(long id) {
+    private static boolean allowedCanId(long id) {
         switch ((int) id) {
             case 0x3cd: case 0x3d9: case 0x12d: case 0x4a5: case 0x294:
             case 0x41a: case 0x2c0: case 0x26f: case 0x447: case 0x445:
@@ -258,13 +253,6 @@ public final class CloudCanSnapshotProbe {
 
     private static void writeFrame(Frame frame) {
         byte[] data = frame.data;
-        if (opaqueOutput) {
-            // Preserve the exact SDK callback buffer for native replay. No
-            // vehicle-field decoding or reconstructed callback headers.
-            out("OPAQUE seq=" + frame.sequence + " t_ns=" + frame.elapsedNanos
-                    + " bytes=" + data.length + " raw=" + hex(data, 0, data.length));
-            return;
-        }
         if (data.length < 10) {
             out("FRAME seq=" + frame.sequence
                     + " t_ns=" + frame.elapsedNanos

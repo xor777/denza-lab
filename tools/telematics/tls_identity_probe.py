@@ -65,15 +65,13 @@ def run_native(binary, transport, hostname, root, leaf, issuer, signer, applicat
             packet = application[0]
             if len(packet) not in (69, 101, 117) or packet[:4] != bytes.fromhex("fefe0300") or packet[4] != len(packet)-5:
                 raise ValueError("Bootstrap packet shape")
-            command.append({2:"--bootstrap-once",3:"--status-once",4:"--session-once"}[len(application)])
+            command.append("--status-once" if len(application) == 3 else "--bootstrap-once")
         process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE, pass_fds=(transport.fileno(),))
         calls = 0
         sent = received = False
         decoded = None
         status_requested = False
-        session_started = session_replied = False
-        session_error = None
         try:
             # Child has a 35-second alarm; bounded fixed-size signing protocol.
             while True:
@@ -103,22 +101,6 @@ def run_native(binary, transport, hostname, root, leaf, issuer, signer, applicat
                     except Exception as error:
                         decoded = {"validation_failed": True, "error_type": type(error).__name__}
                     continue
-                if line == b"SESSION_READY\n" and application is not None and len(application)==4 and received and not session_started:
-                    session_started=True
-                    accepted=bool(decoded and decoded.get("login_accepted"))
-                    if accepted:application[3]()
-                    process.stdin.write(b"CONTINUE\n" if accepted else b"STOP\n");process.stdin.flush()
-                    continue
-                if line.startswith(b"FRAME ") and session_started and not session_replied and re.fullmatch(rb"FRAME [0-9a-f]{106,2048}\n",line):
-                    session_replied=True
-                    try:
-                        reply=application[2](bytes.fromhex(line[6:-1].decode()))
-                        if not isinstance(reply,bytes) or not 53<=len(reply)<=1024:raise ValueError("Native reply bound")
-                        process.stdin.write(reply.hex().encode()+b"\n")
-                    except Exception as error:
-                        session_error=type(error).__name__
-                        process.stdin.write(b"STOP\n")
-                    process.stdin.flush();continue
                 if calls or not re.fullmatch(rb"SIGN [0-9a-f]{512}\n", line):
                     raise ValueError("Unexpected signer request; no retry")
                 block = bytes.fromhex(line[5:-1].decode())
@@ -133,7 +115,6 @@ def run_native(binary, transport, hostname, root, leaf, issuer, signer, applicat
             metadata = process.stderr.read(32768).decode()
             return {"returncode": process.returncode, "signer_calls": calls,
                     "application_requested": sent, "application_response": decoded, "status_requested": status_requested,
-                    "session_started":session_started,"session_reply_requested":session_replied,"session_error":session_error,
                     "events": [json.loads(line) for line in metadata.splitlines()]}
         finally:
             if process.poll() is None:
@@ -170,13 +151,10 @@ def self_test(binary):
     server = make_cert(server_key, ca_key, ca_name, x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")]), server=True)
     client = make_cert(client_key, ca_key, ca_name, x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "test client")]))
     cases = []
-    for name in ("mutual_tls", "wrong_hostname", "wrong_ca", "bad_signature", "omitted_server_intermediate", "registration_fragmented", "registration_wrong_hostname", "discovery_fragmented", "login_fragmented", "status_after_login", "status_rejected_login", "session_fragmented", "session_coalesced", "session_rejected_login", "session_bad_header", "session_bad_decoder", "session_truncated"):
+    for name in ("mutual_tls", "wrong_hostname", "wrong_ca", "bad_signature", "omitted_server_intermediate", "registration_fragmented", "registration_wrong_hostname", "discovery_fragmented", "login_fragmented", "status_after_login", "status_rejected_login"):
         status_case = name.startswith("status_")
-        session_case = name.startswith("session_")
-        packet_length = 69 if name == "discovery_fragmented" else 117 if name == "login_fragmented" or status_case or session_case else 101
-        exchange = name.endswith("_fragmented") or status_case or session_case
-        session_frame=bytes.fromhex("fefe030050")+bytes(80)
-        session_reply=bytes.fromhex("fefe0300b0")+bytes(176)
+        packet_length = 69 if name == "discovery_fragmented" else 117 if name == "login_fragmented" or status_case else 101
+        exchange = name.endswith("_fragmented") or status_case
         with tempfile.TemporaryDirectory(prefix="denza-tls-selftest-") as directory:
             root = Path(directory)
             chain_issuer, case_server, case_client = None, server, client
@@ -216,24 +194,9 @@ def self_test(binary):
                                     break
                                 data += part
                             outcome["application_bytes_received"] = len(data)
-                            if name=="session_coalesced":secure.sendall(data+session_frame)
-                            else:
-                                secure.sendall(data[:3])
-                                secure.sendall(data[3:19])
-                                secure.sendall(data[19:])
-                            if session_case:
-                                if name!="session_coalesced" and name!="session_rejected_login":
-                                    frame=b"wrong" if name=="session_bad_header" else session_frame[:9] if name=="session_truncated" else session_frame
-                                    for part in (frame[:2],frame[2:5],frame[5:]):
-                                        if part:secure.sendall(part)
-                                if name=="session_truncated":return
-                                reply=b""
-                                while len(reply)<181:
-                                    part=secure.recv(181-len(reply))
-                                    if not part:break
-                                    reply+=part
-                                outcome["reply_bytes"]=len(reply)
-                                outcome["reply_matches"]=reply==session_reply
+                            secure.sendall(data[:3])
+                            secure.sendall(data[3:19])
+                            secure.sendall(data[19:])
                             if status_case:
                                 status_data = b""
                                 while len(status_data) < 165:
@@ -257,7 +220,7 @@ def self_test(binary):
                 if name == "bad_signature":
                     return b"\x00" * 256
                 return client_key.sign(digest, padding.PKCS1v15(), utils.Prehashed(hashes.SHA256()))
-            with HostTransport(*listener.getsockname()) as transport:
+            with socket.create_connection(listener.getsockname(), timeout=8) as transport:
                 # OpenSSL receives a blocking fd; the native alarm bounds it.
                 transport.settimeout(None)
                 payload = bytes.fromhex("fefe0300") + bytes([packet_length-5]) + bytes(packet_length-5)
@@ -265,11 +228,6 @@ def self_test(binary):
                 if status_case:
                     application = (payload, lambda data: {"echo_matches": data == payload, "login_accepted": name == "status_after_login"},
                                    lambda: bytes.fromhex("fefe0300a0") + bytes(160))
-                if session_case:
-                    def relay(frame):
-                        if name=="session_bad_decoder" or frame!=session_frame:raise ValueError("fixture rejected")
-                        return session_reply
-                    application=(payload,lambda data:{"echo_matches":data==payload,"login_accepted":name!="session_rejected_login"},relay,lambda:None)
                 result = run_native(binary, transport, "wrong.invalid" if "wrong_hostname" in name else "localhost", trust, case_client, chain_issuer, sign, application)
             worker.join(10)
             listener.close()
@@ -284,10 +242,6 @@ def self_test(binary):
                 expected_status_bytes = 165 if name == "status_after_login" else 0
                 passed = outcome.get("status_bytes_received") == expected_status_bytes and result["application_response"]["echo_matches"]
                 passed = passed and ((result["returncode"] == 0) == (name == "status_after_login"))
-            if session_case:
-                success=name in ("session_fragmented","session_coalesced")
-                passed=(result["returncode"]==0)==success and result["signer_calls"]==1
-                passed=passed and (outcome.get("reply_matches",False) if success else outcome.get("reply_bytes",0)==0)
             if name == "bad_signature":
                 passed = passed and result["signer_calls"] == 1
             cases.append({"case": name, "passed": bool(passed), "native": result, "server": outcome})
@@ -297,21 +251,19 @@ def self_test(binary):
 
 class AdbTransport:
     """Single bounded raw TCP stream from shell UID on the car, no installation."""
-    def __init__(self, serial, host=HOST, port=PORT, max_seconds=40):
-        if not 40<=max_seconds<=120:raise ValueError("Transport duration bound")
-        self.max_seconds=max_seconds
+    def __init__(self, serial, host=HOST, port=PORT):
         self.local, self.bridge = socket.socketpair()
         self.stats = {"to_car_bytes": 0, "from_car_bytes": 0}
         # exec-out copies only remote stdout; shell -T forwards stdin as well.
         self.process = subprocess.Popen(["adb", "-s", serial, "shell", "-T", "toybox", "nc",
-                                         "-w", "10", "-W", str(max_seconds-10), host, str(port)],
+                                         "-w", "10", "-W", "30", host, str(port)],
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.thread = threading.Thread(target=self.pump, daemon=True)
         self.thread.start()
 
     def pump(self):
         try:
-            deadline = time.monotonic() + self.max_seconds
+            deadline = time.monotonic() + 40
             while time.monotonic() < deadline:
                 ready, _, _ = select.select([self.bridge, self.process.stdout], [], [], 1)
                 for source in ready:
@@ -351,72 +303,13 @@ class AdbTransport:
             stream.close()
 
 
-class HostTransport:
-    """One TCP stream from the host; same byte/deadline bounds as the car bridge."""
-    MAX_BYTES = 131072
-    MAX_SECONDS = 40
-
-    def __init__(self, host, port):
-        self.remote = socket.create_connection((host, port), timeout=10)
-        try:
-            self.local, self.bridge = socket.socketpair()
-        except Exception:
-            self.remote.close()
-            raise
-        self.remote.settimeout(2)
-        self.bridge.settimeout(2)
-        self.stats = {"origin": "host", "peer_ip": self.remote.getpeername()[0],
-                      "to_server_bytes": 0, "from_server_bytes": 0}
-        self.thread = threading.Thread(target=self.pump, daemon=True)
-        self.thread.start()
-
-    def pump(self):
-        try:
-            deadline = time.monotonic() + self.MAX_SECONDS
-            while time.monotonic() < deadline:
-                ready, _, _ = select.select([self.bridge, self.remote], [], [],
-                                            min(1, max(0, deadline - time.monotonic())))
-                for source in ready:
-                    data = source.recv(16384)
-                    if not data:
-                        return
-                    outgoing = source is self.bridge
-                    counter = "to_server_bytes" if outgoing else "from_server_bytes"
-                    self.stats[counter] += len(data)
-                    if self.stats[counter] > self.MAX_BYTES:
-                        raise ValueError("Transport byte cap")
-                    (self.remote if outgoing else self.bridge).sendall(data)
-            self.stats["deadline_reached"] = True
-        except Exception as error:
-            self.stats["error_type"] = type(error).__name__
-        finally:
-            self.bridge.close()
-            self.remote.close()
-
-    def close(self):
-        self.local.close()
-        self.thread.join(3)
-        if self.thread.is_alive():
-            raise RuntimeError("Host transport did not stop")
-
-    def __enter__(self):
-        return self.local
-
-    def __exit__(self, *unused):
-        self.close()
-
-
-def execute(binary, serial, report, application=None, host=HOST, port=PORT, transport_source="car"):
-    if transport_source not in ("car", "host"):
-        raise ValueError("Unknown transport source")
-    report["transport_source"] = transport_source
+def execute(binary, serial, report, application=None, host=HOST, port=PORT):
     report["phase"] = "transport_and_identity_check"
     if adb_read(serial, ["get-state"]).strip() != "device":
         raise RuntimeError("Existing transport not ready")
     if adb_read(serial, ["shell", "sha256sum", "/system/lib64/libsafekeyservice.so"]).split()[0] != LIBRARY_HASH:
         raise RuntimeError("Reviewed library mismatch")
-    report["route" if transport_source == "car" else "car_reference_route"] = adb_read(
-        serial, ["shell", "ip", "route", "get", "1.1.1.1"]).strip()
+    report["route"] = adb_read(serial, ["shell", "ip", "route", "get", "1.1.1.1"]).strip()
     report["phase"] = "public_certificate_chain"
     certs = []
     report["public_certificates"] = []
@@ -465,8 +358,7 @@ def execute(binary, serial, report, application=None, host=HOST, port=PORT, tran
         return signature
     report["phase"] = "single_tls_handshake"
     report["cloud_contacted"] = True
-    session_mode=application is not None and len(application)==4
-    transport = AdbTransport(serial, host, port,120 if session_mode else 40) if transport_source == "car" else HostTransport(host, port)
+    transport = AdbTransport(serial, host, port)
     try:
         report["native"] = run_native(binary, transport.local, host, root, leaf, issuer, sign, application)
     finally:
@@ -478,11 +370,7 @@ def execute(binary, serial, report, application=None, host=HOST, port=PORT, tran
     report["application_bytes_sent"] = sum(max(0, e["bytes"]) for e in events if e.get("event") == "application_write")
     report["registration_sent"] = report["application_bytes_sent"] == 101
     report["status_bytes_sent"] = sum(max(0, e["bytes"]) for e in events if e.get("event") == "status_write")
-    report["session_response_bytes_sent"] = sum(max(0,e["bytes"]) for e in events if e.get("event")=="session_write")
-    # Opaque session traffic has no application semantics in this TLS adapter.
-    # Its caller records native command/telemetry proof. Preserve the legacy
-    # boolean only for the older 512 uploader, not as a false negative for 511.
-    if not session_mode:report["telemetry_sent"] = report["status_bytes_sent"] == 165
+    report["telemetry_sent"] = report["status_bytes_sent"] == 165
 
 
 def main():

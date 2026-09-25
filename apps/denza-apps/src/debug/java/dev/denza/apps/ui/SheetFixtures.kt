@@ -52,7 +52,6 @@ internal object SheetFixtures {
                 onCheckAdbAccess = {},
                 onRequestAdbAuthorizationOnce = {},
                 onAllowNewAdbAuthorizationAttempt = {},
-                onSetCloudReportExport = {},
                 onDismiss = {},
                 firstPage = when (s.optString("page")) {
                     "screen" -> ServicePage.SCREEN
@@ -129,7 +128,6 @@ internal object SheetFixtures {
             },
             technicalDetails = (0 until technical.length()).joinToString("\n") { technical.getString(it) },
             splitJournal = (0 until journal.length()).joinToString("\n") { journal.getString(it) },
-            cloudReportExportEnabled = s.optBoolean("cloudExport", false),
         )
         if (s.optBoolean("trouble", false)) {
             state = state.copy(
@@ -188,13 +186,6 @@ internal object SheetFixtures {
             state = state.copy(
                 cloudLink = snapshot(FeatureId.CLOUD_LINK, s.getBoolean("cloud"), s),
                 cloudWifiRetained = if (s.has("wifi")) s.getBoolean("wifi") else null,
-                cloudMode = when (s.optString("cloudMode")) {
-                    "factory" -> dev.denza.apps.feature.cloud.CloudSimMode.FACTORY
-                    "custom" -> dev.denza.apps.feature.cloud.CloudSimMode.CUSTOM
-                    else -> null
-                },
-                cloudIdentity = if (s.optString("cloudMode") == "custom")
-                    dev.denza.apps.feature.cloud.CloudIdentity("89860712345678901234", "460011234567890") else null,
             )
         }
         if (s.has("speakers")) {

@@ -15,7 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <poll.h>
 
 static SSL *active_ssl;
 static int verified_leaf, sign_count, certificate_requested;
@@ -149,59 +148,9 @@ static int status_once(SSL *ssl) {
     return 1;
 }
 
-/* Opaque full-frame relay after the host's original native login handler.
- * Only envelope boundaries are read here, never a vehicle command or field.
- * One inbound frame and one possible reply; idle wait 55s, hard cap 65s.
- */
-static int session_once(SSL *ssl) {
-    char line[2060]; unsigned char packet[1024];
-    fputs("SESSION_READY\n",stdout);fflush(stdout);
-    alarm(65);
-    if (!fgets(line,sizeof(line),stdin) || strcmp(line,"CONTINUE\n")) return 0;
-    if (!SSL_pending(ssl)) {
-        struct pollfd fd={.fd=SSL_get_fd(ssl),.events=POLLIN};
-        int ready=poll(&fd,1,55000);
-        if (ready==0) {
-            fputs("{\"event\":\"session_idle_timeout\"}\n",stderr);return 1;
-        }
-        if (ready<0 || !(fd.revents&POLLIN)) return 0;
-    }
-    size_t have=0,need=5;
-    while (have<need) {
-        int got=SSL_read(ssl,packet+have,(int)(need-have));
-        if (got<=0) return 0;
-        have+=(size_t)got;
-        if (have==5) {
-            if (packet[0]!=0xfe || packet[1]!=0xfe || packet[2]!=3) return 0;
-            need=5+(((size_t)packet[3]<<8)|packet[4]);
-            if (need<53 || need>sizeof(packet)) return 0;
-        }
-    }
-    fputs("FRAME ",stdout);
-    for (size_t i=0;i<have;i++) fprintf(stdout,"%02x",packet[i]);
-    fputc('\n',stdout);fflush(stdout);
-    fprintf(stderr,"{\"event\":\"session_read\",\"bytes\":%zu}\n",have);
-    if (!fgets(line,sizeof(line),stdin)) return 0;
-    size_t chars=strlen(line);
-    if (chars<107 || chars>2049 || chars%2!=1 || line[chars-1]!='\n') return 0;
-    size_t size=(chars-1)/2;
-    for (size_t i=0;i<size;i++) {
-        int hi=hex_digit(line[2*i]),lo=hex_digit(line[2*i+1]);
-        if (hi<0 || lo<0) return 0;
-        packet[i]=(unsigned char)((hi<<4)|lo);
-    }
-    if (packet[0]!=0xfe || packet[1]!=0xfe || packet[2]!=3 ||
-        5+(((size_t)packet[3]<<8)|packet[4])!=size) return 0;
-    int sent=SSL_write(ssl,packet,(int)size);
-    OPENSSL_cleanse(line,sizeof(line));OPENSSL_cleanse(packet,sizeof(packet));
-    fprintf(stderr,"{\"event\":\"session_write\",\"bytes\":%d}\n",sent);
-    if (sent!=(int)size) return 0;
-    sleep(1);return 1;
-}
-
 int main(int argc, char **argv) {
     /* fd, hostname, trusted CA file, client leaf, client issuer (or '-'). */
-    if (argc != 6 && !(argc == 7 && (!strcmp(argv[6], "--bootstrap-once") || !strcmp(argv[6], "--status-once") || !strcmp(argv[6], "--session-once")))) return 64;
+    if (argc != 6 && !(argc == 7 && (!strcmp(argv[6], "--bootstrap-once") || !strcmp(argv[6], "--status-once")))) return 64;
     signal(SIGPIPE, SIG_IGN);
     alarm(35);
     SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());
@@ -260,7 +209,6 @@ int main(int argc, char **argv) {
                 SSL_get_version(active_ssl), SSL_get_cipher_name(active_ssl));
         result = argc == 7 ? !bootstrap_once(active_ssl) : 0;
         if (!result && argc == 7 && !strcmp(argv[6], "--status-once")) result = !status_once(active_ssl);
-        if (!result && argc == 7 && !strcmp(argv[6], "--session-once")) result = !session_once(active_ssl);
         SSL_shutdown(active_ssl); /* Single close_notify; no read/retry loop. */
     }
 done:

@@ -18,7 +18,6 @@ import dev.denza.apps.feature.cloud.CloudLinkSettings
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cloud.CloudNetwork
 import dev.denza.apps.feature.cloud.CloudNetworkKind
-import dev.denza.apps.feature.cloud.CloudSimMode
 import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
@@ -125,29 +124,16 @@ object SupportDiagnostics {
      */
     private fun cloudRows(context: Context): List<TechnicalRow> {
         val enabled = CloudLinkSettings.isEnabled(context)
-        val mode = CloudLinkSettings.mode(context)
         val network = CloudNetwork.reading(context)
         val car = CloudLinkRuntime.car
-        val nowMs = SystemClock.elapsedRealtime()
         val tile = CloudLinkStatus.words(
             CloudLinkRuntime.snapshot(
                 enabled = enabled,
-                network = CloudNetwork.usable(network, mode),
+                network = network.kind != CloudNetworkKind.NONE,
                 pendingDisable = CloudLinkSettings.pendingDisable(context),
-                nowMs = nowMs,
-                mode = mode,
-                uptimeMs = SystemClock.uptimeMillis(),
+                nowMs = SystemClock.elapsedRealtime(),
             ),
         )
-        if (mode == CloudSimMode.CUSTOM) {
-            return CloudLinkReport.customRows(
-                enabled, tile, CloudLinkRuntime.failure, network, CloudLinkRuntime.custom,
-                CloudLinkRuntime.customReadAtMs, CloudLinkRuntime.busy, nowMs,
-            ).map { (key, value) -> row(key, value) } + listOf(
-                row("Ожидает выключения", yesNo(CloudLinkSettings.pendingDisable(context))),
-                row("Отчёт в Загрузках", CloudLinkDiagnostics.reportStatus(context)),
-            )
-        }
         return CloudLinkReport.rows(
             enabled = enabled,
             tile = tile,
@@ -163,7 +149,7 @@ object SupportDiagnostics {
             row("Ожидает выключения", yesNo(CloudLinkSettings.pendingDisable(context))),
             row("APN1 / APN3", "${car?.apn1State ?: "?"} / ${car?.apn3State ?: "?"}"),
             row("Этап / код облака", "${car?.tcpStep ?: "?"} / ${car?.registrationError ?: "?"}"),
-            row("Отчёт в Загрузках", CloudLinkDiagnostics.reportStatus(context)),
+            row("Отчёт в Загрузках", CloudLinkDiagnostics.exportStatus),
         )
     }
 

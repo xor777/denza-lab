@@ -503,7 +503,8 @@ object DashboardTiles {
     }
 
     /**
-     * The cloud link uses validated Wi-Fi; the SIM choice determines the identity used for login.
+     * The car's own link to the cloud, carried over ordinary internet - Wi-Fi, or mobile data from a
+     * local SIM - which is what the Denza app on the phone reads the car through.
      *
      * The caption is a reading whenever the switch is on, because that is the question anybody
      * glancing at it is asking: is the phone seeing the car. «На связи» is the stock client holding
@@ -522,7 +523,7 @@ object DashboardTiles {
             state = CloudLinkStatus.words(snapshot),
             tone = toneOf(snapshot),
             caption = if (connected) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
-            action = if (state.cloudMode == null) TileAction.SETTINGS else actionOf(snapshot, TileAction.TOGGLE),
+            action = actionOf(snapshot, TileAction.TOGGLE),
         )
     }
 

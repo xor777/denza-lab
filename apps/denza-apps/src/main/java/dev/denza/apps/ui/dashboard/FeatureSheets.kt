@@ -1,17 +1,10 @@
 package dev.denza.apps.ui.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,16 +12,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import dev.denza.apps.DenzaUiState
-import dev.denza.apps.BuildConfig
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaMetrics
-import dev.denza.apps.design.luminofor.LuminoforSpec
-import dev.denza.apps.feature.cloud.CloudIdentity
-import dev.denza.apps.feature.cloud.CloudSimMode
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.speaker.SpeakerCoverApps
@@ -52,8 +38,6 @@ import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.components.DenzaSheetFootnote
 import dev.denza.apps.ui.components.DenzaStatusLine
 import dev.denza.apps.ui.components.DenzaSwitchRow
-import dev.denza.apps.ui.components.BaselineText
-import dev.denza.apps.ui.components.SheetInk
 
 /**
  * What a long press opens: one feature's settings, and nothing else on the screen.
@@ -211,7 +195,7 @@ fun FeatureSheet(
         // посреди экрана. Ошибки живут в «Сервисе», и туда же эта строка уже попадает; на
         // центральной панели после действия есть состояние функции и объяснение, что она делает,
         // и третьего быть не должно (U5).
-        if (id != TileId.CLOUD) DenzaNote(helpOf(id))
+        DenzaNote(helpOf(id))
     }
 }
 
@@ -249,7 +233,10 @@ private fun helpOf(id: TileId): String = when (id) {
             "которые машина своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина " +
             "сама. «Поднять» выдвигает их снова, если машина убрала их в простое."
     TileId.CLOUD ->
-        "Связь с облаком работает через Wi-Fi. Выберите SIM для входа в настройках."
+        "Машина выходит в облако через обычный интернет — Wi-Fi или мобильный интернет " +
+            "местной SIM-карты, — и приложение Denza на телефоне видит её заряд и запас хода. " +
+            "«Держать Wi-Fi включенным» не даёт машине выключать Wi-Fi, когда она засыпает, — " +
+            "связь остаётся и на стоянке."
     TileId.LOCALE ->
         "Язык меняется у всей машины, а не у приложения: список открывает сама машина, " +
             "в нём сорок языков, и выбранный применяется сразу, без перезагрузки."
@@ -563,44 +550,12 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
  */
 @Composable
 private fun cloudSheet(state: DenzaUiState, actions: DashboardActions) {
-    val identity = state.cloudIdentity
-    var iccid by remember(identity?.iccid, state.cloudMode) { mutableStateOf(identity?.iccid.orEmpty()) }
-    var imsi by remember(identity?.imsi, state.cloudMode) { mutableStateOf(identity?.imsi.orEmpty()) }
-    val draft = CloudIdentity(iccid, imsi)
-    val dirty = state.cloudMode == CloudSimMode.CUSTOM &&
-        (iccid != identity?.iccid || imsi != identity.imsi)
-    val configurable = state.cloudConfigurable
-
-    DenzaSegmentedRow(
-        labels = listOf("Заводская SIM", "Заменённая SIM"),
-        selectedIndex = when (state.cloudMode) {
-            CloudSimMode.FACTORY -> 0
-            CloudSimMode.CUSTOM -> 1
-            null -> -1
-        },
-        onSelect = { actions.onSelectCloudMode(if (it == 0) CloudSimMode.FACTORY else CloudSimMode.CUSTOM) },
-        enabled = configurable && !dirty,
+    DenzaSwitchRow(
+        title = "Поддерживать связь с облаком",
+        checked = state.cloudLink.desiredEnabled,
+        onCheckedChange = actions.onToggleCloudLink,
+        enabled = !state.cloudLinkBusy,
     )
-    if (state.cloudMode == null) DenzaNote("Выберите SIM для входа в облако.")
-    if (state.cloudMode == CloudSimMode.CUSTOM) {
-        CloudDigitsField("ICCID", iccid, 20, configurable) { iccid = it }
-        CloudDigitsField("IMSI", imsi, 15, configurable) { imsi = it }
-        DenzaSecondaryButton(
-            text = "Сгенерировать заново",
-            onClick = actions.onRegenerateCloudIdentity,
-            enabled = configurable && !dirty,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (dirty) {
-            DenzaPrimaryButton(
-                text = "Сохранить",
-                onClick = { actions.onSaveCloudIdentity(draft) },
-                enabled = configurable && draft.valid(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (!draft.valid()) DenzaNote("ICCID — 20 цифр, IMSI — 15 цифр")
-        }
-    }
     DenzaSwitchRow(
         title = "Держать Wi-Fi включенным",
         // The price, where the switch is: the car stops turning its radio off when it parks, so the
@@ -611,68 +566,6 @@ private fun cloudSheet(state: DenzaUiState, actions: DashboardActions) {
         onCheckedChange = actions.onSetCloudWifiRetained,
         enabled = !state.cloudLinkBusy && state.cloudWifiRetained != null,
     )
-    state.cloudWifiFailure?.let { DenzaNote(it) }
-    when (state.cloudMode) {
-        CloudSimMode.FACTORY -> DenzaNote("Для входа используются данные заводской SIM. Интернет — через Wi-Fi.")
-        CloudSimMode.CUSTOM -> DenzaNote(
-            "Для проверки на включённой машине. Связь работает, пока запущен Denza Apps, в том числе в фоне.",
-        )
-        null -> Unit
-    }
-    if (state.cloudMode == CloudSimMode.CUSTOM && !BuildConfig.CLOUD_NATIVE_PILOT) {
-        DenzaNote("Связь через заменённую SIM пока недоступна")
-    }
-    if (state.cloudMode != null) {
-        DenzaSwitchRow(
-            title = "Поддерживать связь с облаком",
-            checked = state.cloudLink.desiredEnabled,
-            onCheckedChange = actions.onToggleCloudLink,
-            // Three note lines round one pixel taller in Compose than on the board.
-            modifier = Modifier.offset(y = (-0.5).dp),
-            enabled = !state.cloudLinkBusy && !state.cloudPendingDisable &&
-                (state.cloudLink.desiredEnabled || state.cloudMode != CloudSimMode.CUSTOM ||
-                    (BuildConfig.CLOUD_NATIVE_PILOT && !dirty && draft.valid())),
-        )
-    }
-}
-
-@Composable
-private fun CloudDigitsField(
-    title: String,
-    value: String,
-    maxLength: Int,
-    enabled: Boolean,
-    onChange: (String) -> Unit,
-) {
-    val row = LuminoforSpec.Sheet.Row
-    Box(
-        modifier = Modifier.fillMaxWidth().height(row.TWO_HEIGHT.dp)
-            .background(Color(LuminoforSpec.Sheet.Plate.COLOR), RoundedCornerShape(LuminoforSpec.Sheet.Plate.RADIUS.dp))
-            .padding(horizontal = row.PAD_X.dp),
-    ) {
-        BaselineText(
-            text = title,
-            baseline = row.TWO_TITLE.dp,
-            style = SheetInk.style(
-                row.TITLE_SIZE, 400,
-                Color.White.copy(alpha = if (enabled) row.TITLE_ALPHA else row.TITLE_ALPHA * 0.5f),
-            ),
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = { next ->
-                if (next.length <= maxLength && next.all { it in '0'..'9' }) onChange(next)
-            },
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth().padding(top = 38.5.dp),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            textStyle = SheetInk.style(
-                row.SUMMARY_SIZE, 400,
-                Color.White.copy(alpha = if (enabled) row.SUMMARY_ALPHA else row.SUMMARY_ALPHA * 0.5f),
-            ),
-        )
-    }
 }
 
 // The panel's own grid is gone, and with it the panel's own column count. The projection's

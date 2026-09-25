@@ -15,8 +15,7 @@ internal data class CloudLinkRequest(
     )
 
     fun disabled(car: CloudCarState): CloudLinkRequest {
-        check(car.onStockProfile && !car.stockApnTransitioning &&
-            (!awaitingTcpDown || car.cellular || car.connected == false)) {
+        check(car.onStockProfile && (!awaitingTcpDown || car.cellular || car.connected == false)) {
             "Выключение ещё не подтверждено"
         }
         return copy(pendingDisable = false, awaitingTcpDown = false)

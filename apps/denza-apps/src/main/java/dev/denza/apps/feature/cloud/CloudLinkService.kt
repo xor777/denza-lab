@@ -18,23 +18,23 @@ import android.os.Looper
 import androidx.core.content.ContextCompat
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
-import java.security.SecureRandom
 
 /**
  * Keeps the cloud link's adapter alive while the switch is on, and tells it when internet comes and
- * goes - validated Wi-Fi ([CloudNetwork]); stock APNs are guarded separately.
+ * goes - Wi-Fi or validated mobile data ([CloudNetwork]); stock APNs are guarded separately.
  *
  * It decides nothing: [CloudLinkController] reads the car and [CloudLinkCore] says what to send.
  * What only a running component can do is here - hold the process, watch the default network, and
  * listen for the stock client's own status broadcast.
  *
- * In CUSTOM the service is the lifetime owner of the awake alpha session. A fresh instance ID
- * exists only while this foreground service exists; boot recovery cannot mint one.
+ * It does not outlive parking and is not meant to. ACC-off terminates ordinary apps and clears
+ * their alarms; the stock client keeps its own session through QuickBoot, and on the way back
+ * `BOOT_COMPLETED` (with `from_quickboot`) brings this service up through the runtime recovery,
+ * which reconciles. While parked the link is the stock client's, and what keeps it up is Wi-Fi
+ * staying on - the panel's second switch.
  */
 class CloudLinkService : Service() {
     private val handler = Handler(Looper.getMainLooper())
-    private val instance = ByteArray(16).also(SecureRandom()::nextBytes)
-        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
     private var validated = false
     private var watching = false
 
@@ -50,12 +50,12 @@ class CloudLinkService : Service() {
      * must not cost a disconnect and a new login.
      */
     private val lossCheck = Runnable {
-        if (!CloudNetwork.usable(this, CloudLinkSettings.mode(this))) CloudLinkController.networkGone(this)
+        if (!CloudNetwork.usable(this)) CloudLinkController.networkGone(this)
     }
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (CloudLinkSettings.mode(context) != CloudSimMode.CUSTOM) CloudLinkController.hint(context)
+            CloudLinkController.hint(context)
         }
     }
 
@@ -63,7 +63,7 @@ class CloudLinkService : Service() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, notification())
-        validated = CloudNetwork.usable(this, CloudLinkSettings.mode(this))
+        validated = CloudNetwork.usable(this)
         // The default network, because that is what [CloudNetwork.kind] asks about. A callback on
         // one transport fires when that network validates, which can be a moment before it becomes
         // the default - the question then answers «no», the transition is lost, and the link waits
@@ -74,7 +74,7 @@ class CloudLinkService : Service() {
         // arrive at all. Whether it does arrive at an ordinary app is unproven; nothing waits on it.
         registerReceiver(statusReceiver, IntentFilter(TCP_STATUS_ACTION), Context.RECEIVER_EXPORTED)
         watching = true
-        CloudLinkController.serviceStarted(this, instance)
+        CloudLinkController.serviceStarted(this)
         if (!validated) handler.postDelayed(lossCheck, CloudLinkCore.NETWORK_LOSS_GRACE_MS)
     }
 
@@ -98,14 +98,14 @@ class CloudLinkService : Service() {
             watching = false
         }
         handler.removeCallbacks(lossCheck)
-        CloudLinkController.serviceStopped(this, instance)
+        CloudLinkController.serviceStopped()
         super.onDestroy()
     }
 
     /** Callbacks arrive on the connectivity thread and say little; the one question is asked here. */
     private fun changed() {
         handler.post {
-            val now = CloudNetwork.usable(this, CloudLinkSettings.mode(this))
+            val now = CloudNetwork.usable(this)
             if (now == validated) return@post
             validated = now
             if (now) {
@@ -151,10 +151,8 @@ class CloudLinkService : Service() {
         private const val TCP_STATUS_ACTION = "com.byd.tcp.cloud.server.status"
 
         /** The switch, read from settings: on runs the adapter, off stops it. */
-        fun reconcile(context: Context, explicitCustomStart: Boolean = false) {
+        fun reconcile(context: Context) {
             val app = context.applicationContext
-            if (CloudLinkSettings.mode(app) == CloudSimMode.CUSTOM &&
-                !explicitCustomStart && !CloudLinkController.hasLiveService()) return
             if (CloudLinkSettings.needsService(app)) {
                 ContextCompat.startForegroundService(app, Intent(app, CloudLinkService::class.java))
             } else {
