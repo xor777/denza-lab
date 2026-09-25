@@ -2,7 +2,9 @@ package dev.denza.tools.runtime;
 
 import android.net.LocalServerSocket;
 import android.net.LocalSocket;
+import android.net.LocalSocketAddress;
 import android.os.Looper;
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -13,6 +15,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import org.json.JSONObject;
 
 /** Detached shell process: owns the kernel lock and survives app/bridge EOF. */
@@ -29,6 +32,7 @@ final class CloudNativeGuardian {
             // remains a separate on-car qualification gate.
         }
         Looper.prepareMainLooper();
+        if(workdir!=null)CloudPlatform.AndroidBackend.initializeOnMainThread(true);
         // Recovery runs without the SDK worker, but still needs the same
         // hidden SystemProperties/ServiceManager Binder access as that worker.
         Class<?> runtime=Class.forName("dalvik.system.VMRuntime");
@@ -63,30 +67,65 @@ final class CloudNativeGuardian {
             });
             timer.scheduleAtFixedRate(()->watchdogGuard(()->{
                 state.tick();
-                if(state.shutdownRequested())try{server.close();}catch(IOException ignored){}
+                // Android LocalServerSocket.close() does not reliably wake a
+                // thread already blocked in accept(). A local connection does.
+                // Only wake after state has completed worker/journal cleanup.
+                if(shutdownRequested(state))wakeAccept();
             },()->{
                 try{state.emergencyShutdown();}catch(Throwable ignored){}
             },()->Runtime.getRuntime().halt(74),5_000),500,500,TimeUnit.MILLISECONDS);
             try{
-                while(!state.shutdownRequested()){
-                    LocalSocket client;
-                    try{client=server.accept();}
-                    catch(IOException stopped){if(state.shutdownRequested())break;throw stopped;}
-                    if(!clients.tryAcquire()){client.close();continue;}
+                acceptUntilShutdown(()->shutdownRequested(state),server::accept,client->{
+                    if(!clients.tryAcquire()){client.close();return;}
                     Thread handler=new Thread(()->{
                         try(LocalSocket incoming=client){serve(incoming,secret,markerPath,state);}
                         catch(Exception failure){/* One malformed client cannot take the owner down. */}
                         finally{clients.release();}
                     },"cloud-guardian-client");
                     handler.setDaemon(true);handler.start();
-                }
+                });
             }finally{timer.shutdownNow();}
+            // STOP may set shutdown before its handler flushes the reply. Keep
+            // the owner process and lock until accepted clients have finished;
+            // their socket reads are bounded to 12 seconds.
+            server.close();
+            awaitClientHandlers(clients);
         }finally{
             // An accept/setup failure must not release the global lock while
             // the worker still has access to the vehicle or cloud. If cleanup
             // is uncertain, the worker's independent lock remains the orphan
             // exclusion gate even after this process terminates.
             try{state.emergencyShutdown();}finally{lock.close();}
+        }
+    }
+    private static boolean shutdownRequested(CloudGuardianState state){
+        // tick()/execute()/emergencyShutdown() publish shutdown under this lock.
+        synchronized(state){return state.shutdownRequested();}
+    }
+    private static void wakeAccept(){wakeAccept(CloudLocalControl.SOCKET);}
+    static void wakeAccept(String socketName){
+        try(LocalSocket wake=new LocalSocket()){
+            wake.connect(new LocalSocketAddress(socketName,
+                LocalSocketAddress.Namespace.ABSTRACT));
+        }catch(IOException unavailable){
+            // A failed connect is retried by the next watchdog tick. The owner
+            // lock stays held until the accept loop has actually exited.
+        }
+    }
+    static void awaitClientHandlers(Semaphore clients)throws Exception{
+        if(!clients.tryAcquire(4,15,TimeUnit.SECONDS))
+            throw new IOException("guardian_clients_not_drained");
+    }
+    interface Acceptor<T extends Closeable>{T accept()throws IOException;}
+    interface ClientHandler<T extends Closeable>{void handle(T client)throws IOException;}
+    static <T extends Closeable> void acceptUntilShutdown(BooleanSupplier shutdown,
+            Acceptor<T> acceptor,ClientHandler<T> handler)throws IOException{
+        while(!shutdown.getAsBoolean()){
+            T client;
+            try{client=acceptor.accept();}
+            catch(IOException failure){if(shutdown.getAsBoolean())break;throw failure;}
+            if(shutdown.getAsBoolean()){client.close();break;}
+            handler.handle(client);
         }
     }
     /** An Error must not silently cancel the only guardian lease watcher. */

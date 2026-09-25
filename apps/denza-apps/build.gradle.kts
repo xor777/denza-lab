@@ -154,9 +154,9 @@ abstract class QualifiedCloudAssets : DefaultTask() {
     }
 }
 
-// Native session lifecycle is still under offline qualification. Do not ship a
-// partial experimental worker merely by passing a build property.
-val cloudNativePilot = false
+// Explicit awake-only tester profile; the asset task still requires every
+// reviewed native capability and matching hashes. Sleep/QuickBoot stay gated.
+val cloudNativePilot = true
 
 android {
     namespace = "dev.denza.apps"
@@ -169,7 +169,7 @@ android {
         // versionName is the owner's product version - it changes only by their
         // explicit decision. versionCode is an internal build counter so the car
         // can tell builds apart during acceptance; it never drives the version.
-        versionCode = 60
+        versionCode = 62
         versionName = "0.7.0-alpha.1"
         buildConfigField("boolean", "CLOUD_NATIVE_PILOT", cloudNativePilot.toString())
         buildConfigField("String", "CLOUD_RUNTIME_PROFILE", "\"awake-alpha-v1\"")
@@ -194,14 +194,19 @@ android {
         val cloudCandidate = tasks.register<BuildCloudRuntime>("buildCloudRuntimeCandidate") {
             sources.from(rootProject.fileTree("tools/telematics/runtime") { include("*.java"); exclude("*Test.java") })
             sources.from(rootProject.file("tools/telematics/OncarTls.java"))
-            sources.from(rootProject.fileTree("research/telematics-firmware") { include("*.py", "*.c", "*.h") })
+            sources.from(rootProject.fileTree("research/telematics-firmware") {
+                include("build_persistent_runtime.py", "native_profile.py", "persistent_runtime.c",
+                    "bounded_arena.h", "persistent_timer.h")
+            })
             script.set(rootProject.layout.projectDirectory.file("tools/telematics/build_runtime_package.py"))
             firmware.set(rootProject.layout.projectDirectory.file(
                 "captures/telematics-20260923/readable-firmware/current-files/system/bin/cloudmanager"))
             linker.set(layout.file(providers.gradleProperty("cloudRuntimeLinker")
                 .orElse(providers.environmentVariable("DENZA_CLOUD_LINKER")).map { File(it) }))
             python.convention(providers.environmentVariable("DENZA_CLOUD_PYTHON").orElse("python3"))
-            androidJar.from(platform)
+            // app_process runs on the car's Android 13 even when the APK is
+            // compiled with a newer SDK. Do not let desktop JDK APIs mask it.
+            androidJar.from(sdk.map { it.file("platforms/android-33/android.jar") })
             sdkDirectory.set(sdk)
             outputDirectory.set(layout.buildDirectory.dir("cloud-runtime/candidate"))
         }

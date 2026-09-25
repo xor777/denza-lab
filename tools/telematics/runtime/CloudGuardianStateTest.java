@@ -26,10 +26,11 @@ public final class CloudGuardianStateTest {
     }
     private static final class Worker implements CloudGuardianState.Worker {
         boolean closed,failStop,failStatus,emitEvent;
+        String statusFailureCode="session_failed";
         public JSONObject request(String op,CloudRuntimeSupervisor.Identity ignored)throws Exception{
             if(op.equals("STOP")&&failStop)throw new IOException("ack_lost");
             if(op.equals("STATUS")&&failStatus)return new JSONObject().put("ok",true)
-                .put("stage","failed").put("code","session_failed").put("session_live",false)
+                .put("stage","failed").put("code",statusFailureCode).put("session_live",false)
                 .put("native_events",events());
             return new JSONObject().put("ok",true).put("stage",op.equals("STOP")?"stopped":"connected")
                 .put("code",op.equals("STOP")?"owner_stopped":"connected")
@@ -117,8 +118,9 @@ public final class CloudGuardianStateTest {
         try{debt.beforeWrite("1");throw new AssertionError();}catch(IOException expected){}
         check(!debt.pending());
         debt.beforeWrite("0");check(debt.pending());
-        try{debt.resolveIfUnchanged("1");throw new AssertionError();}catch(IOException expected){}
-        check(debt.pending());debt.resolveIfUnchanged("0");check(!debt.pending());
+        try{debt.resolveAfterExit("");throw new AssertionError();}catch(IOException expected){}
+        check(debt.pending());debt.resolveAfterExit("1");check(!debt.pending());
+        debt.beforeWrite("0");debt.resolveAfterExit("0");check(!debt.pending());
     }
     private static void foreignProfileDriftDoesNotBlockLocalOff()throws Exception{
         Path base=Files.createTempDirectory("cloud-profile-host-");
@@ -161,12 +163,67 @@ public final class CloudGuardianStateTest {
         gate.resolved();gate.beforePause("double_apn");check(gate.profile().equals("double_apn"));
         check(CloudGateJournal.goneValue("triple_apn")==-2&&CloudGateJournal.goneValue("double_apn")==-5);
     }
+    private static CloudControlRequest protocol3(long id,String op,JSONObject fields)throws Exception{
+        JSONObject request=new JSONObject().put("protocol",3).put("id",id).put("op",op);
+        if(fields!=null)for(java.util.Iterator<String> keys=fields.keys();keys.hasNext();){
+            String key=keys.next();request.put(key,fields.get(key));
+        }
+        return CloudControlRequest.parse(request.toString());
+    }
+    private static void terminalWorkerFailurePreservesCauseAndReleasesOwner(boolean stopEarly)throws Exception{
+        Path base=Files.createTempDirectory("cloud-terminal-host-");
+        Path marker=base.resolve("Android/data/dev.denza.apps/files/cloud/install.json");
+        publish(marker,17,"custom");CloudInstallMarker custom=CloudInstallMarker.read(marker);
+        CloudStopFence fence=new CloudStopFence(base.resolve("stop.fence"));
+        Worker worker=new Worker();worker.failStatus=true;worker.statusFailureCode="native_unavailable";
+        AtomicInteger starts=new AtomicInteger();AtomicLong elapsed=new AtomicLong(1000),uptime=new AtomicLong(900);
+        CloudGuardianState owner=new CloudGuardianState(marker,custom,RUNTIME,
+            new CloudGateJournal(base.resolve("gate.pending")),fence,
+            new CloudRegistrationJournal(base.resolve("registration.pending")),new Stock(),
+            ()->{starts.incrementAndGet();return worker;},()->50,elapsed::get,uptime::get,pair->{},false);
+        String service="11111111111111111111111111111111";
+        JSONObject started=owner.execute(protocol3(1,"START",new JSONObject()
+            .put("profile","awake-alpha-v1").put("iccid","89860700000000000000")
+            .put("imsi","460010000000000").put("service_instance",service)
+            .put("renew_seq",1)),custom);
+        check(started.getBoolean("ok")&&started.getBoolean("lease_active"));
+        owner.tick();
+        check(worker.closed&&starts.get()==1&&fence.blocked(INSTALL,17)&&!owner.shutdownRequested());
+        elapsed.set(12000);uptime.set(11900);owner.tick();
+        check(!owner.shutdownRequested()&&starts.get()==1);
+        JSONObject status=owner.execute(protocol3(2,"STATUS",null),custom);
+        check(status.getBoolean("ok")&&status.getString("code").equals("native_unavailable")&&
+            status.getString("stage").equals("failed")&&!status.getBoolean("lease_active"));
+        JSONObject identity=new JSONObject().put("owner_id",owner.ownerId())
+            .put("service_instance",service);
+        JSONObject attach=owner.execute(protocol3(3,"ATTACH",identity),custom);
+        check(!attach.getBoolean("ok")&&attach.getString("code").equals("native_unavailable"));
+        JSONObject renew=owner.execute(protocol3(4,"RENEW",new JSONObject(identity.toString())
+            .put("renew_seq",2)),custom);
+        check(!renew.getBoolean("ok")&&renew.getString("code").equals("native_unavailable")&&
+            !renew.getBoolean("retryable")&&!renew.getBoolean("lease_active"));
+        if(stopEarly){
+            JSONObject stopped=owner.execute(protocol3(5,"STOP",new JSONObject()
+                .put("owner_id","").put("service_instance","")),custom);
+            check(stopped.getBoolean("ok")&&stopped.getString("code").equals("owner_stopped")&&
+                owner.shutdownRequested());
+        }else{
+            elapsed.set(31000);uptime.set(30900);owner.tick();
+            check(owner.shutdownRequested());
+            JSONObject expired=owner.execute(protocol3(5,"STATUS",null),custom);
+            check(expired.getString("code").equals("native_unavailable")&&
+                !expired.getBoolean("lease_active"));
+        }
+        check(starts.get()==1);
+    }
     public static void main(String[]args)throws Exception{
         stopFencesOldGenerationAndRecoversGate(false);
         stopFencesOldGenerationAndRecoversGate(true);
         missingMarkerStopsWithoutClient();idleAndRetryAreBounded();
         sharedPropertyDebtNeverGuessesRestoration();reconnectPreservesPauseProfile();
         foreignProfileDriftDoesNotBlockLocalOff();recoveryOnlyStopDoesNotFenceSavedCustomIntent();
-        System.out.println("PASS guardian STOP fence, retry, and cleanup debt cases=8");
+        terminalWorkerFailurePreservesCauseAndReleasesOwner(true);
+        terminalWorkerFailurePreservesCauseAndReleasesOwner(false);
+        System.out.println("PASS guardian STOP fence, retry, terminal failure, and cleanup debt cases=10");
     }
 }

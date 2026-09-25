@@ -24,7 +24,8 @@ internal object CloudCustomInstallation {
 
     private fun desired(app: Context): Boolean = BuildConfig.CLOUD_NATIVE_PILOT &&
         CloudLinkSettings.isEnabled(app) && !CloudLinkSettings.pendingDisable(app) &&
-        CloudLinkSettings.mode(app) == CloudSimMode.CUSTOM
+        CloudLinkSettings.mode(app) == CloudSimMode.CUSTOM &&
+        CloudLinkSettings.customIdentity(app)?.valid() == true
 
     private fun stamp(app: Context): String {
         val identity = CloudLinkSettings.customIdentity(app)

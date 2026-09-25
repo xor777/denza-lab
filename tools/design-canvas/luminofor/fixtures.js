@@ -409,34 +409,41 @@
     state: { gate: 'AUTHORIZATION_REQUIRED', systemSwitch: 'ENABLED' }
   });
 
-  // Cloud starts with an explicit SIM choice. The two identity values here are design-only examples.
+  // Cloud starts with the factory SIM selected and the link off. CUSTOM has no implicit pair.
   sheets.cloud = sheetOf(10, {
     title: 'Облако',
     blocks: [
-      { t: 'segmented', labels: ['Заводская SIM', 'Заменённая SIM'], selected: -1 },
-      { t: 'note', text: 'Выберите SIM для входа в облако.' },
-      { t: 'switch', title: 'Держать Wi-Fi включенным', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false }
+      { t: 'segmented', labels: ['Заводская SIM', 'Заменённая SIM'], selected: 0 },
+      { t: 'switch', title: 'Держать Wi-Fi включенным', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false },
+      { t: 'note', text: 'Штатный сервис машины. Интернет — через Wi-Fi или раздачу с телефона.' },
+      { t: 'switch', title: 'Поддерживать связь с облаком', on: false }
     ]
-  }, { tile: 'CLOUD', cloud: false, cloudMode: null, wifi: false });
+  }, { tile: 'CLOUD', cloud: false, cloudMode: 'factory', wifi: false });
   sheets.cloudFactory = sheetOf(10, {
     title: 'Облако', blocks: [
       { t: 'segmented', labels: ['Заводская SIM', 'Заменённая SIM'], selected: 0 },
       { t: 'switch', title: 'Держать Wi-Fi включенным', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false },
-      { t: 'note', text: 'Для входа используются данные заводской SIM. Интернет — через Wi-Fi.' },
+      { t: 'note', text: 'Штатный сервис машины. Интернет — через Wi-Fi или раздачу с телефона.' },
       { t: 'switch', title: 'Поддерживать связь с облаком', on: false }
     ]
   }, { tile: 'CLOUD', cloud: false, cloudMode: 'factory', wifi: false });
   sheets.cloudCustom = sheetOf(10, {
     title: 'Облако', blocks: [
       { t: 'segmented', labels: ['Заводская SIM', 'Заменённая SIM'], selected: 1 },
-      { t: 'input', title: 'ICCID', value: '89860712345678901234' },
-      { t: 'input', title: 'IMSI', value: '460011234567890' },
-      { t: 'button', kind: 'secondary', text: 'Сгенерировать заново' },
-      { t: 'switch', title: 'Держать Wi-Fi включенным', summary: 'На стоянке аккумулятор может разряжаться быстрее', on: false },
-      { t: 'note', text: 'Для проверки на включённой машине. Связь работает, пока запущен Denza Apps, в том числе в фоне.' },
+      { t: 'input', title: 'ICCID', value: '' },
+      { t: 'input', title: 'IMSI', value: '' },
+      { t: 'button', kind: 'secondary', text: 'Сгенерировать' },
+      { t: 'note', text: 'Если сохранились номера заводской SIM, введите их. Меняйте пару как можно реже.' },
+      { t: 'note', text: 'Сервис Denza Apps работает, пока машина включена. Стабильность ещё проверяется.' },
       { t: 'switch', title: 'Поддерживать связь с облаком', on: false }
     ]
   }, { tile: 'CLOUD', cloud: false, cloudMode: 'custom', wifi: false });
+  const cloudGenerate = Object.assign({}, head, {
+    modal: { icon: TILES[10].icon, title: 'Сгенерировать номера SIM?',
+      message: 'Случайные номера могут не работать. Если сохранились номера заводской SIM, лучше ввести их; меняйте пару как можно реже.',
+      primary: 'Сгенерировать', quiet: [{ text: 'Отмена' }] },
+    state: { cloudPairGenerate: true },
+  });
 
   // board id -> [board, fixture]; px sizes are the displays' own
   root.LUMINOFOR_BOARDS = {
@@ -487,6 +494,8 @@
     'one-sheet-service-trouble': [{ kind: 'sheet', mode: 'one' }, service.trouble],
     'modal-adb':       [{ kind: 'modal', mode: 'full' }, gate],
     'one-modal-adb':   [{ kind: 'modal', mode: 'one' }, gate],
+    'modal-cloud-generate': [{ kind: 'modal', mode: 'full' }, cloudGenerate],
+    'one-modal-cloud-generate': [{ kind: 'modal', mode: 'one' }, cloudGenerate],
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],
     'one-sheet-cloud': [{ kind: 'sheet', mode: 'one' }, sheets.cloud],
     'sheet-cloud-factory': [{ kind: 'sheet', mode: 'full' }, sheets.cloudFactory],

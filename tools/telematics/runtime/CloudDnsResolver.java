@@ -2,6 +2,9 @@ package dev.denza.tools.runtime;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.function.BooleanSupplier;
 
@@ -32,15 +35,21 @@ final class CloudDnsResolver {
                 try{
                     InetAddress[] addresses=task.get(Math.min(remaining,TimeUnit.MILLISECONDS.toNanos(50)),TimeUnit.NANOSECONDS);
                     if(cancelled.getAsBoolean())throw new CancellationException("owner_stopped");
-                    if(addresses==null||addresses.length>4)throw new CloudNativePipe.ProtocolFailure();
-                    byte[][] ipv4=new byte[addresses.length][];
-                    for(int i=0;i<addresses.length;i++){
-                        if(addresses[i]==null)throw new CloudNativePipe.ProtocolFailure();
-                        byte[] raw=addresses[i].getAddress();
-                        if(raw.length!=4)throw new CloudNativePipe.ProtocolFailure();
-                        ipv4[i]=raw.clone();
+                    if(addresses==null)throw new CloudSessionLoop.NetworkFailure();
+                    // getAllByName returns both families and may return more
+                    // records than the original IPv4 hostent can hold. Keep
+                    // supported answers in resolver order; this is a normal
+                    // network result, not evidence of a broken native ABI.
+                    List<byte[]> ipv4=new ArrayList<>(4);
+                    for(InetAddress address:addresses){
+                        if(address==null)continue;
+                        byte[] raw=address.getAddress();
+                        if(raw.length!=4)continue;
+                        if(ipv4.stream().noneMatch(value->Arrays.equals(value,raw)))ipv4.add(raw.clone());
+                        if(ipv4.size()==4)break;
                     }
-                    return ipv4;
+                    if(ipv4.isEmpty())throw new CloudSessionLoop.NetworkFailure();
+                    return ipv4.toArray(new byte[0][]);
                 }catch(TimeoutException pending){/* Poll STOP while the system resolver is blocked. */}
             }
         }catch(ExecutionException failed){

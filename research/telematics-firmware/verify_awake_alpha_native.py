@@ -10,6 +10,8 @@ import hashlib
 import json
 import struct
 from pathlib import Path
+from unicorn import UC_HOOK_CODE
+from unicorn.arm64_const import UC_ARM64_REG_X21, UC_ARM64_REG_X24
 
 from native_session import NativeSession
 from verify_generic_control_closure import GenericControl
@@ -68,15 +70,15 @@ def run(binary: Path, firmware: Path, observed_path=None):
     script += ('OP 10 1 START\nOP 11 1 TICK 0 0 1700000000000\n'
                'OP 12 1 NETSTATE 4\n' +
                f'OP 13 1 R211 {registration_reply.hex()}\n' +
-               f'OP 21 1 R200 {discovery.hex()}\n')
+               f'OP 22 1 R200 {discovery.hex()}\n')
     ready = Process(binary, (script + 'QUIT\n').encode(), auto_replies=True,
                     auto_vin_fixture=VIN_VALUE,
                     auto_vin19_fixture=auto_vin19, **observed)
     ready_code, ready_output = ready.run()
     assert ready_code == 0 and 'DONE 12 1 NETSTATE' in ready_output, (ready_output,ready.buffer_getter_calls,ready.guard_calls,ready.dns_requests,ready.timer_settime_requests,ready.string_copy_calls,ready.sender_signals)
     assert 'DONE 11 1 TICK' in ready_output
-    assert 'CALL 21 1 DNS_LOOKUP ' in ready_output
-    assert 'RESULT 21 1 ENDPOINT test.denzacloud.com 6003' in ready_output
+    assert 'CALL 22 1 DNS_LOOKUP ' in ready_output
+    assert 'RESULT 22 1 ENDPOINT test.denzacloud.com 6003' in ready_output
     assert ready.path_hits.get('0x75b70') == 1
     result = {'qualified_for_live': False,
               'native_network_and_discovery': 'original NETSTATE4 -> 0x52ea0 DNS -> 0x75b70 sender endpoint',
@@ -135,26 +137,73 @@ def run(binary: Path, firmware: Path, observed_path=None):
         'output_tail': registration_output.splitlines()[-8:],
     }
     assert registration_complete, result['registration_continuation']
-    rejected_reply = fixture(211, 1, b'\x00')
-    rejected_script = registration_script.replace(registration_reply.hex(),
-                                                   rejected_reply.hex())
-    rejected = Process(binary, rejected_script.encode(), auto_replies=True,
+    pending_reply = fixture(211, 1, b'\x00')
+    pending_script = registration_script.replace(registration_reply.hex(),
+                                                 pending_reply.hex()).replace(
+        'QUIT\n', 'OP 14 1 TICK 69999 69999 1700000069999\n'
+                  'OP 15 1 TICK 70000 70000 1700000070000\n'
+                  f'OP 16 1 R200 {discovery.hex()}\n'
+                  f'OP 17 1 R220 {login.hex()}\nQUIT\n')
+    pending = Process(binary, pending_script.encode(), auto_replies=True,
                        auto_vin_fixture=VIN_VALUE,
                        auto_vin19_fixture=auto_vin19, **observed)
+    pending_branches = []
+    def trace_pending(engine, address, size, data):
+        if address in (0x50057c58, 0x50057c5c, 0x50057c70, 0x50057c84):
+            x24 = engine.reg_read(UC_ARM64_REG_X24)
+            pending_branches.append((hex(address-0x50000000),
+                                     engine.reg_read(UC_ARM64_REG_X21),
+                                     bytes(engine.mem_read(x24, 1)).hex()))
+    pending.u.hook_add(UC_HOOK_CODE, trace_pending)
     try:
-        rejected_code, rejected_output = rejected.run()
-        rejected_frontier = None
+        pending_code, pending_output = pending.run()
+        pending_frontier = None
     except RuntimeError as error:
-        rejected_code = None
-        rejected_output = rejected.output.decode('ascii', errors='replace')
-        rejected_frontier = str(error).splitlines()[0]
-    result['registration_rejection'] = {
-        'completed': rejected_code == 0 and 'RESULT 13 1 REG 0' in rejected_output,
-        'frontier': rejected_frontier,
-        'original_listener_visits': rejected.boundary_visits.get('0x48280', 0),
-        'original_destroy_visits': rejected.boundary_visits.get('0x75904', 0),
-        'output_tail': rejected_output.splitlines()[-8:],
+        pending_code = None
+        pending_output = pending.output.decode('ascii', errors='replace')
+        pending_frontier = str(error).splitlines()[0]
+    result['registration_pending'] = {
+        'completed': pending_code == 0 and 'RESULT 13 1 REG 0' in pending_output
+                     and 'ARM 13 1 ' in pending_output
+                     and pending_output.count('NET 14 1 ') == 0
+                     and pending_output.count('NET 15 1 ') == 1
+                     and pending.path_hits.get('0x36edc', 0) >= 1
+                     and int.from_bytes(pending.u.mem_read(pending.symbols['object']+0x2b0, 8), 'little')
+                         == int.from_bytes(pending.u.mem_read(pending.symbols['native_sender'], 8), 'little')
+                     and int.from_bytes(pending.u.mem_read(pending.symbols['native_sender'], 8), 'little') != 0
+                     and 'RESULT 16 1 ENDPOINT test.denzacloud.com 6003' in pending_output
+                     and 'RESULT 17 1 LOGIN 1' in pending_output,
+        'frontier': pending_frontier,
+        'original_listener_visits': pending.boundary_visits.get('0x48280', 0),
+        'original_destroy_visits': pending.boundary_visits.get('0x75904', 0),
+        'native_200_frames': pending.body_commands.count(200),
+        'original_sender_endpoint_hits': pending.path_hits.get('0x75b70', 0),
+        'original_lazy_sender_hits': pending.path_hits.get('0x36edc', 0),
+        'sender_signals': pending.sender_signals,
+        'native_sends_field': int.from_bytes(pending.u.mem_read(pending.symbols['sends'], 4), 'little'),
+        'last_command_field': int.from_bytes(pending.u.mem_read(pending.symbols['last_command'], 4), 'little'),
+        'object_sender_pointer': int.from_bytes(pending.u.mem_read(pending.symbols['object']+0x2b0, 8), 'little'),
+        'object_alarm_byte': int.from_bytes(pending.u.mem_read(pending.symbols['object']+0x2e20, 1), 'little'),
+        'native_sender_pointer': int.from_bytes(pending.u.mem_read(pending.symbols['native_sender'], 8), 'little'),
+        'original_r200_branches': pending_branches,
+        'output_tail': pending_output.splitlines()[-16:],
     }
+    assert result['registration_pending']['completed'], result['registration_pending']
+    refused_reply = fixture(211, 1, b'\x03')
+    refused_script = registration_script.replace(registration_reply.hex(),
+                                                 refused_reply.hex()).replace(
+        'QUIT\n', 'OP 14 1 TICK 70000 70000 1700000070000\nQUIT\n')
+    refused = Process(binary, refused_script.encode(), auto_replies=True,
+                      auto_vin_fixture=VIN_VALUE,
+                      auto_vin19_fixture=auto_vin19, **observed)
+    refused_code, refused_output = refused.run()
+    result['registration_refused'] = {
+        'completed': refused_code == 0 and 'RESULT 13 1 REG 3' in refused_output
+                     and 'ARM 13 1 ' not in refused_output
+                     and 'NET 14 1 ' not in refused_output,
+        'output_tail': refused_output.splitlines()[-10:],
+    }
+    assert result['registration_refused']['completed'], result['registration_refused']
 
     environment = struct.pack('<9I', 2, 1, 0, 1,
                               struct.unpack('<I', struct.pack('<f', 79.0))[0],

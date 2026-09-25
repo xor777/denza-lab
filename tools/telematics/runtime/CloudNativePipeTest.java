@@ -18,6 +18,7 @@ public final class CloudNativePipeTest {
         BufferedReader r=new BufferedReader(new InputStreamReader(System.in));
         for(String line;(line=r.readLine())!=null;){
             String[] words=line.split(" ");String id=words[1],epoch=words[2];
+            if(mode.equals("exit_after_op"))System.exit(23);
             if(mode.equals("hang")){Thread.sleep(10000);continue;}
             if(mode.equals("bound")){System.out.println("x".repeat(5000));System.out.flush();continue;}
             if(mode.equals("flood")){for(int i=0;i<200;i++)System.out.println("NET "+id+" "+epoch+" 00");System.out.flush();continue;}
@@ -121,10 +122,39 @@ public final class CloudNativePipeTest {
         Process child=child("ready");try{CloudNativePipe.open(new CloudRuntimeSupervisor.Scope(),child,1);throw new AssertionError();}catch(IOException expected){}
         check(!child.isAlive());tests++;
     }
+    static void childExitAfterOperation()throws Exception{
+        Process child=child("exit_after_op");
+        try(CloudNativePipe pipe=CloudNativePipe.open(new CloudRuntimeSupervisor.Scope(),child,1)){
+            try{
+                pipe.exchange("RX 73656e736974697665",effects(new AtomicInteger()),1000);
+                throw new AssertionError("child exit accepted");
+            }catch(CloudNativePipe.NativeFailure expected){}
+            java.lang.reflect.Field field=CloudNativePipe.class.getDeclaredField("readTerminationStage");
+            field.setAccessible(true);
+            check("native_pipe_eof_exit_23_op_RX_after_NONE".equals(field.get(pipe)));
+            check(!child.isAlive());
+        }tests++;
+    }
+    static void boundaryPrivacy(){
+        check(CloudNativePipe.diagnosticBoundary(Arrays.asList("PROPERTY_GET",
+            "706572736973742e7379732e7265636f72645f3631305f75706c6f6164"))
+            .equals("PROPERTY_GET_persist.sys.record_610_upload"));
+        check(CloudNativePipe.diagnosticBoundary(Arrays.asList("PROPERTY_SET","name","private-value"))
+            .equals("PROPERTY_SET"));
+        check(CloudNativePipe.diagnosticBoundary(Arrays.asList("SECONDARY_WRITE","private-packet"))
+            .equals("SECONDARY_WRITE"));
+        check(CloudNativePipe.diagnosticBoundary(Arrays.asList("GET_BUFFER","1027","2566914586"))
+            .equals("GET_BUFFER_1027_2566914586"));
+        check(CloudNativePipe.diagnosticBoundary(Arrays.asList("PROPERTY_GET","zz"))
+            .equals("PROPERTY_GET"));
+        tests++;
+    }
     public static void main(String[] args)throws Exception{
         if(args.length>0){simulate(args[1]);return;}
         happy();fullSecondaryPayload();mismatchedEffect("id");mismatchedEffect("epoch");callFailure();
         permanentCallFailureSurvivesBrokenErrReply();cancellation();oversizedOutput();failedStartup();
+        childExitAfterOperation();
+        boundaryPrivacy();
         System.out.println("PASS native IPC cases="+tests);
     }
 }

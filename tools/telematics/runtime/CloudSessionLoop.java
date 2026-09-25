@@ -65,7 +65,11 @@ public final class CloudSessionLoop implements SessionTask {
                 for(;;){
                     scope.check();connection.pump(250,progress);progress.pulse();
                 }
-            }catch(Exception failure){failed=failure;}
+            }catch(LinkageError mismatch){
+                // A missing Android API or incompatible component cannot be
+                // repaired by opening another session. Retire this owner once.
+                diagnostic("platform_linkage",mismatch);failed=new Unavailable();
+            }catch(Exception failure){diagnostic("connection",failure);failed=failure;}
             finally{
                 // Any close failure exits the loop. A replacement must never coexist
                 // with an old socket, listener, native operation or unjoined thread.
@@ -87,5 +91,30 @@ public final class CloudSessionLoop implements SessionTask {
                 progress.pulse();waiter.waitMs(Math.min(250,until-clock.nowMs()));
             }
         }
+    }
+    /** Bounded code locations only: exception messages may contain private native input. */
+    static synchronized void diagnostic(String stage,Throwable failure) {
+        StringBuilder safe=new StringBuilder(stage);
+        for(int depth=0;failure!=null&&depth<3;depth++,failure=failure.getCause()) {
+            safe.append(" ").append(failure.getClass().getSimpleName());
+            StackTraceElement[] frames=failure.getStackTrace();
+            for(int n=0;n<Math.min(4,frames.length);n++) {
+                StackTraceElement frame=frames[n];
+                safe.append(" at ").append(frame.getClassName()).append(".")
+                    .append(frame.getMethodName()).append(":").append(frame.getLineNumber());
+            }
+        }
+        try{android.util.Log.w("DenzaCloudRuntime",safe.toString());}
+        catch(RuntimeException hostWithoutAndroid){/* Host fixtures have no Android logger. */}
+        try {
+            java.nio.file.Path file=CloudLocalControl.STATE.resolve("last-failure.txt");
+            java.util.List<String> recent=java.nio.file.Files.exists(file)
+                &&java.nio.file.Files.size(file)<32768
+                ?java.nio.file.Files.readAllLines(file):new java.util.ArrayList<>();
+            recent.add(safe.toString());
+            java.nio.file.Files.write(file,recent.subList(Math.max(0,recent.size()-8),recent.size()));
+            java.nio.file.Files.setPosixFilePermissions(file,
+                java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
+        } catch(Exception unavailable){/* Failure capture cannot change session cleanup. */}
     }
 }

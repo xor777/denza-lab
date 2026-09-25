@@ -22,6 +22,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.ui.dashboard.DashboardActions
+import dev.denza.apps.ui.dashboard.CloudPairConfirmationDialog
 import dev.denza.apps.ui.dashboard.DefaultAppsSheet
 import dev.denza.apps.ui.dashboard.FeatureSheet
 import dev.denza.apps.ui.dashboard.TileId
@@ -85,6 +86,8 @@ internal object SheetFixtures {
             compact = compact,
             onDismiss = {},
             choosingAppsFirst = s.optString("page") == "apps",
+            previewCloudPilot = s.optString("cloudMode") == "custom" ||
+                (tile == TileId.CLOUD && s.optString("cloudMode") == "factory"),
         )
     }
 
@@ -92,6 +95,11 @@ internal object SheetFixtures {
     @Composable
     fun Modal(fixture: JSONObject, compact: Boolean) {
         val s = fixture.getJSONObject("state")
+        if (s.optBoolean("cloudPairGenerate")) {
+            CloudPairConfirmationDialog(generating = true, compact = compact,
+                onConfirm = {}, onDismiss = {})
+            return
+        }
         val snapshot = AdbRescueSnapshot(
             phase = AdbRescuePhase.valueOf(s.getString("gate")),
             systemSwitch = AdbSystemSwitch.valueOf(s.optString("systemSwitch", "UNKNOWN")),
@@ -193,8 +201,7 @@ internal object SheetFixtures {
                     "custom" -> dev.denza.apps.feature.cloud.CloudSimMode.CUSTOM
                     else -> null
                 },
-                cloudIdentity = if (s.optString("cloudMode") == "custom")
-                    dev.denza.apps.feature.cloud.CloudIdentity("89860712345678901234", "460011234567890") else null,
+                cloudIdentity = null,
             )
         }
         if (s.has("speakers")) {

@@ -212,6 +212,7 @@ object DenzaAppRepository {
     private val defaultAppsExecutor = Executors.newSingleThreadExecutor()
     private val adbRuntimeStarted = AtomicBoolean(false)
     private val adbRuntimePassRunning = AtomicBoolean(false)
+    private val explicitCloudOpenPending = AtomicBoolean(false)
     private val defaultAppsHydrated = AtomicBoolean(false)
     private val defaultAppsRefreshRequested = AtomicBoolean(false)
     private val defaultAppsRefreshRunning = AtomicBoolean(false)
@@ -228,6 +229,20 @@ object DenzaAppRepository {
 
     fun initialize(context: Context) {
         initializeAdbGate(context.applicationContext)
+    }
+
+    /** Only MainActivity's explicit launch/reopen may resume a saved CUSTOM ON. */
+    fun explicitCloudAppOpened() {
+        explicitCloudOpenPending.set(true)
+        dispatchExplicitCloudOpen()
+    }
+
+    private fun dispatchExplicitCloudOpen() {
+        val app = appContext ?: return
+        if (!adbRuntimeStarted.get() || adbRuntimePassRunning.get() ||
+            AdbRescueCoordinator.snapshot().phase != AdbRescuePhase.TRUSTED) return
+        if (explicitCloudOpenPending.compareAndSet(true, false))
+            CloudLinkController.explicitAppOpened(app)
     }
 
     fun recoverEnabledFeatures(context: Context) {
@@ -307,6 +322,8 @@ object DenzaAppRepository {
             nowMs = android.os.SystemClock.elapsedRealtime(),
             mode = CloudLinkSettings.mode(context),
             uptimeMs = android.os.SystemClock.uptimeMillis(),
+            identityValid = CloudLinkSettings.customIdentity(context)?.valid() == true,
+            serviceAlive = CloudLinkController.hasLiveService(),
         )
         val cloudLinkBusy = CloudLinkRuntime.busy
         val technicalDetails = supportDiagnostics(context)
@@ -746,19 +763,19 @@ object DenzaAppRepository {
 
     fun setCloudMode(mode: CloudSimMode) {
         val context = appContext ?: return
-        if (CloudLinkSettings.chooseMode(context, mode)) CloudLinkRuntime.failure = null
+        CloudLinkController.selectMode(context, mode)
         refresh()
     }
 
     fun saveCloudIdentity(identity: CloudIdentity) {
         val context = appContext ?: return
-        CloudLinkSettings.saveCustomIdentity(context, identity)
+        CloudLinkController.saveIdentity(context, identity)
         refresh()
     }
 
     fun regenerateCloudIdentity() {
         val context = appContext ?: return
-        CloudLinkSettings.regenerate(context)
+        CloudLinkController.generateIdentity(context)
         refresh()
     }
 
@@ -1080,6 +1097,7 @@ object DenzaAppRepository {
             }
         } finally {
             adbRuntimePassRunning.set(false)
+            dispatchExplicitCloudOpen()
         }
     }
 

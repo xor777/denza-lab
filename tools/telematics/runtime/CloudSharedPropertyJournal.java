@@ -43,10 +43,14 @@ final class CloudSharedPropertyJournal {
         if(raw.equals(KEY+"=0\n"))return "0";
         throw new IOException("shared_property_journal_invalid");
     }
-    void resolveIfUnchanged(String observed)throws IOException{
+    void resolveAfterExit(String observed)throws IOException{
         if(!pending())return;
-        String before=baseline();
-        if(!before.equals(observed))throw new IOException("shared_property_cleanup_uncertain");
+        baseline();
+        // The admitted custom write is 0 over 0. A later 1 belongs to an
+        // external writer; local cleanup must leave it intact and may drop
+        // only our journal. Unknown values still retain the debt.
+        if(!"0".equals(observed)&&!"1".equals(observed))
+            throw new IOException("shared_property_cleanup_uncertain");
         Files.delete(file);syncDirectory();
     }
     private void syncDirectory()throws IOException{

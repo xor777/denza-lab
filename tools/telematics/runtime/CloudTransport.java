@@ -131,6 +131,7 @@ public final class CloudTransport implements AutoCloseable {
             return socket;
         }
     }
+    void requireConnected() throws IOException { active(); }
     public byte[] readFrame() throws Exception {
         synchronized (readLock) {
             try {
@@ -167,6 +168,12 @@ public final class CloudTransport implements AutoCloseable {
             (nativeFrame[2] & 255) != 3 ||
             (((nativeFrame[3] & 255) << 8) | (nativeFrame[4] & 255)) != nativeFrame.length - 5)
             throw new IllegalArgumentException("native frame bound");
+        sendOpaqueBytes(nativeFrame);
+    }
+    /** Original sender bytes, including its own framing; never re-encoded here. */
+    public void sendOpaqueBytes(byte[] nativeFrame) throws Exception {
+        if(nativeFrame==null||nativeFrame.length<1||nativeFrame.length>1024)
+            throw new IllegalArgumentException("native write bound");
         synchronized (writeLock) {
             try {
                 SSLSocket current = active();

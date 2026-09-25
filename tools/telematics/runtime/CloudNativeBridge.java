@@ -20,7 +20,6 @@ final class CloudNativeBridge {
     private final Path workdir,markerPath;
     private final String nonce;
     private final boolean allowStart;
-    private LocalSocket socket;
     private long lastId;
     CloudNativeBridge(Path workdir,Path markerPath,String nonce){
         this(workdir,markerPath,nonce,true);
@@ -31,53 +30,59 @@ final class CloudNativeBridge {
     void serve(InputStream input,PrintStream output)throws Exception{
         String frame="DENZA_SERVE_"+nonce;
         output.print(frame+":READY\n");output.flush();
-        try{
-            for(;;){
-                String line=CloudLocalControl.readLine(input,4096);if(line==null)return;
-                CloudControlRequest request=CloudControlRequest.parse(line);
-                if(request.id<=lastId)throw new IOException("control_id_reused");lastId=request.id;
-                JSONObject answer=handle(line,request);
-                output.print(frame+":BEGIN\n");output.print(answer.toString());
-                output.print("\n"+frame+":END ok\n");output.flush();
-                if(output.checkError())throw new IOException("control_output_failed");
-            }
-        }finally{if(socket!=null)socket.close();}
+        for(;;){
+            String line=CloudLocalControl.readLine(input,4096);if(line==null)return;
+            CloudControlRequest request=CloudControlRequest.parse(line);
+            if(request.id<=lastId)throw new IOException("control_id_reused");lastId=request.id;
+            JSONObject answer=handle(line,request);
+            output.print(frame+":BEGIN\n");output.print(answer.toString());
+            output.print("\n"+frame+":END ok\n");output.flush();
+            if(output.checkError())throw new IOException("control_output_failed");
+        }
     }
     private JSONObject handle(String raw,CloudControlRequest request)throws Exception{
         if(!allowStart && (request.op.equals("START")||request.op.equals("ATTACH")||
                 request.op.equals("RENEW")))throw new IOException("control_only_active_forbidden");
-        if(socket==null){
-            try{socket=authenticate();}
-            catch(Exception unavailable){
-                if(!globalAbsent())throw unavailable;
-                if(request.op.equals("STOP") && hasCleanupDebt()){
-                    launchRecoveryGuardian();
-                    try{socket=waitForGuardian();}
-                    catch(Exception raced){
-                        // A recovery-only guardian may finish and exit before
-                        // ATTACH. Confirm both kernel absence and cleared debt.
-                        if(globalAbsent()&&!hasCleanupDebt())return version(absent(request.id,request.op),request.protocol);
-                        throw raced;
-                    }
-                }else if(!request.op.equals("START"))
-                    return version(hasCleanupDebt()?absentDebt(request.id,request.op):absent(request.id,request.op),request.protocol);
-                if(socket==null){
+        // The app may keep this bridge alive between 10-second STATUS polls, while
+        // the guardian closes an idle client after 12 seconds. Authenticate a new
+        // channel for each request so scheduler delay never sends to a dead socket.
+        LocalSocket channel;
+        try{channel=authenticate();}
+        catch(Exception unavailable){
+            if(!globalAbsent())throw unavailable;
+            if(request.op.equals("STOP") && hasCleanupDebt()){
+                launchRecoveryGuardian();
+                try{channel=waitForGuardian();}
+                catch(Exception raced){
+                    // A recovery-only guardian may finish and exit before
+                    // ATTACH. Confirm both kernel absence and cleared debt.
+                    if(globalAbsent()&&!hasCleanupDebt())return version(absent(request.id,request.op),request.protocol);
+                    throw raced;
+                }
+            }else if(!request.op.equals("START"))
+                return version(hasCleanupDebt()?absentDebt(request.id,request.op):absent(request.id,request.op),request.protocol);
+            else{
                 CloudInstallMarker marker=CloudInstallMarker.read(markerPath);
                 if(!marker.desired.equals("custom"))return version(absent(request.id,request.op),request.protocol);
-                launchGuardian();socket=waitForGuardian();
-                }
+                launchGuardian();channel=waitForGuardian();
             }
         }
         try{
-            CloudLocalControl.writeLine(socket.getOutputStream(),raw);
-            String result=CloudLocalControl.readLine(socket.getInputStream(),32768);
+            // START includes bounded worker creation and can use most of the
+            // guardian's 30s lease. The default 12s socket read timeout would
+            // lose its answer even though the app allows 40s for this operation.
+            channel.setSoTimeout(request.op.equals("START")?35000:12000);
+            CloudLocalControl.writeLine(channel.getOutputStream(),raw);
+            String result=CloudLocalControl.readLine(channel.getInputStream(),32768);
             if(result==null)throw new IOException("guardian_eof");
             JSONObject answer=new JSONObject(result);
             if(answer.getInt("protocol")!=request.protocol||answer.getLong("id")!=request.id||
                !request.op.equals(answer.getString("op")))throw new IOException("guardian_response_mismatch");
             return answer;
-        }catch(Exception failure){
-            try{socket.close();}catch(IOException cleanup){failure.addSuppressed(cleanup);}socket=null;throw failure;
+        }finally{
+            // The response is already known. A close error must not turn an
+            // executed START or STOP into an ambiguous failed acknowledgement.
+            try{channel.close();}catch(IOException ignored){}
         }
     }
     static JSONObject version(JSONObject response,int protocol)throws Exception{

@@ -137,6 +137,7 @@ object SupportDiagnostics {
                 nowMs = nowMs,
                 mode = mode,
                 uptimeMs = SystemClock.uptimeMillis(),
+                identityValid = CloudLinkSettings.customIdentity(context)?.valid() == true,
             ),
         )
         if (mode == CloudSimMode.CUSTOM) {

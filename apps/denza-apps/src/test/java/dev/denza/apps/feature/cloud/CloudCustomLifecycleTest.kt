@@ -249,6 +249,24 @@ class CloudCustomLifecycleTest {
         assertEquals(0, f.count("attach")); assertEquals(1, f.count("stop"))
     }
 
+    @Test fun explicitAppOpenAfterFencedGenerationStopsBeforeNewStart() {
+        val f = Fixture(); f.backend("old"); f.lifecycle().on(f)
+        val oldOwner = f.nativeOwner
+        f.generationMatches = false // The prior service's generation is fenced.
+        f.backend("cleanup")
+        val restarted = f.lifecycle()
+        assertTrue(restarted.reconcile(false, true, true, null, force = true).stopConfirmed)
+        assertNull(f.nativeOwner)
+        assertEquals(1, f.count("start"))
+        f.generationMatches = true // OFF/ON published the new permitted generation.
+        f.backend("new")
+        assertTrue(restarted.on(f).completed)
+        assertNotEquals(oldOwner, f.nativeOwner)
+        assertEquals(2, f.count("start"))
+        assertEquals(0, f.count("attach"))
+        assertTrue(f.log.indexOf("stop:cleanup") < f.log.indexOf("start:new"))
+    }
+
     @Test fun offOnCannotStartUntilCallerDurablyClearsPendingDisable() {
         val f = Fixture(); f.backend("first"); val lifecycle = f.lifecycle(); lifecycle.on(f)
         val old = f.nativeOwner; f.backend("off-proof")
@@ -352,6 +370,21 @@ class CloudCustomLifecycleTest {
         f.backend("new"); assertTrue(restarted.on(f).completed)
     }
 
+    @Test fun expiredAndFailedSessionsLatchUntilConfirmedOff() {
+        for (code in listOf("lease_expired", "session_failed", "worker_stalled", "config_changed")) {
+            val f = Fixture()
+            val bridge = f.backend("bridge")
+            val lifecycle = f.lifecycle()
+            assertTrue(lifecycle.on(f).completed)
+            bridge.statusAnswer = status("failed", code, now = f.time,
+                owner = f.nativeOwner.orEmpty()).copy(retryable = false)
+            lifecycle.on(f)
+            assertEquals(code, f.store.durableTerminal)
+            assertFalse(lifecycle.on(f, force = true).completed)
+            assertEquals(1, f.count("start"))
+        }
+    }
+
     @Test fun startArbitratesRaceAfterProbeAndDoesNotClearActualOwner() {
         val f = Fixture(); f.raceAtStart = true; f.backend("first")
         val lifecycle = f.lifecycle(); assertFalse(lifecycle.on(f).completed)
@@ -404,6 +437,21 @@ class CloudCustomLifecycleTest {
         assertEquals("registration_rejected", f.store.durableTerminal)
         f.nativeOwner = null // Guardian later exits; only the app's durable outcome remains.
         assertFalse(f.lifecycle().on(f).completed)
+        assertEquals(1, f.count("start"))
+    }
+
+    @Test fun unfamiliarFailedStatusUsesGuardianRetryability() {
+        val f = Fixture(); val bridge = f.backend("first"); val lifecycle = f.lifecycle()
+        assertTrue(lifecycle.on(f).completed)
+        bridge.statusAnswer = status("failed", "native_incompatible", owner = f.nativeOwner.orEmpty())
+            .copy(retryable = true)
+        assertTrue(lifecycle.on(f).completed)
+        assertNull(f.store.durableTerminal)
+        bridge.statusAnswer = bridge.statusAnswer?.copy(retryable = false)
+        assertTrue(lifecycle.on(f).completed)
+        assertEquals("native_incompatible", f.store.durableTerminal)
+        f.nativeOwner = null
+        assertFalse(f.lifecycle().on(f, force = true).completed)
         assertEquals(1, f.count("start"))
     }
 

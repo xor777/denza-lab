@@ -2,6 +2,9 @@ package dev.denza.tools.runtime;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.json.JSONObject;
 
 /** Host control-plane tests. Uses a fake owner and never opens a vehicle or network connection. */
@@ -120,8 +123,60 @@ public final class CloudRuntimeProtocolTest {
             throw new AssertionError("invalid UTF-8 accepted");
         } catch (IOException expected) { badUtfSupervisor.awaitCleanup(1000); }
     }
+    static void protocolFdChild() throws Exception {
+        Clock clock=new Clock();Owner owner=new Owner();
+        CloudRuntimeSupervisor supervisor=supervisor(clock,owner);
+        CloudRuntimeProtocol protocol=new CloudRuntimeProtocol(supervisor,4242);
+        String start="{\"id\":1,\"op\":\"START\",\"iccid\":\"89010000000000000001\","
+            +"\"imsi\":\"001010123456789\",\"lease_until_uptime_ms\":30000}\n";
+        String status="{\"id\":2,\"op\":\"STATUS\",\"lease_until_uptime_ms\":30000}\n";
+        String stop="{\"id\":3,\"op\":\"STOP\"}\n";
+        AtomicBoolean injected=new AtomicBoolean();
+        ByteArrayInputStream input=new ByteArrayInputStream((start+status+stop).getBytes(StandardCharsets.UTF_8)){
+            @Override public synchronized int read(){
+                if(!injected.get()&&pos==start.length()){
+                    System.out.print("incidental Java stdout after START\n");
+                    try{
+                        int result=new ProcessBuilder("/bin/echo","incidental native stdout after START")
+                            .inheritIO().start().waitFor();
+                        need(result==0,"native stdout injection failed");
+                    }catch(Exception failure){throw new AssertionError(failure);}
+                    injected.set(true);
+                }
+                return super.read();
+            }
+        };
+        // The test launcher supplies fd 3 as the protocol pipe and fd 1 as
+        // /dev/null, matching the worker's dup + dup2 descriptor topology.
+        try(PrintStream channel=new PrintStream(new FileOutputStream("/dev/fd/3"),true,"UTF-8")){
+            protocol.serve(input,channel,"00112233445566778899aabbccddeeff");
+        }
+        need(injected.get(),"stdout injection missed");
+        supervisor.awaitCleanup(1000);need(owner.closed,"worker owner remained after EOF");
+    }
+    static void incidentalStdoutAfterStartCannotCorruptStatus() throws Exception {
+        String java=Path.of(System.getProperty("java.home"),"bin","java").toString();
+        Process child=new ProcessBuilder("/bin/sh","-c","exec 3>&1 1>/dev/null; exec \"$@\"","sh",
+            java,"-cp",System.getProperty("java.class.path"),
+            CloudRuntimeProtocolTest.class.getName(),"protocol-fd-child").start();
+        child.getOutputStream().close();
+        String output;
+        try{
+            need(child.waitFor(10,TimeUnit.SECONDS),"isolated protocol process hung");
+            need(child.exitValue()==0,"isolated protocol process failed: "
+                +new String(child.getErrorStream().readAllBytes(),StandardCharsets.UTF_8));
+            output=new String(child.getInputStream().readAllBytes(),StandardCharsets.UTF_8);
+        }finally{child.destroyForcibly();}
+        String[] lines=output.split("\n");
+        need(lines.length==10&&lines[1].endsWith(":BEGIN")&&lines[4].endsWith(":BEGIN")&&
+            lines[7].endsWith(":BEGIN")&&new JSONObject(lines[5]).getString("op").equals("STATUS")&&
+            !output.contains("incidental"),
+            "incidental stdout corrupted STATUS framing");
+    }
     public static void main(String[] args) throws Exception {
+        if(args.length==1&&args[0].equals("protocol-fd-child")){protocolFdChild();return;}
         commands(); malformedDoesNotRenew(); statusCannotExtendAbsoluteCeiling(); residentFraming();
+        incidentalStdoutAfterStartCannotCorruptStatus();
         System.out.println("PASS cloud runtime protocol");
     }
 }

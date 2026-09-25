@@ -8,13 +8,15 @@ Java platform/transport backends; this helper is never packaged in the APK.
 """
 import argparse
 import os
+import re
 from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'research/telematics-firmware'))
 from verify_persistent_engine import Process
-from unicorn.arm64_const import UC_ARM64_REG_X0, UC_ARM64_REG_X1, UC_ARM64_REG_X2, UC_ARM64_REG_X8
+from unicorn.arm64_const import (UC_ARM64_REG_X0, UC_ARM64_REG_X1, UC_ARM64_REG_X2,
+                                UC_ARM64_REG_X8, UC_ARM64_REG_PC, UC_ARM64_REG_LR)
 
 
 class InteractiveProcess(Process):
@@ -44,6 +46,12 @@ class InteractiveProcess(Process):
                 raise RuntimeError('unexpected output descriptor or bound')
             output = bytes(self.u.mem_read(target, size))
             self.output.extend(output)
+            if self.output.endswith(b'\n'):
+                last_line = self.output.rsplit(b'\n', 2)[-2]
+                failure = re.fullmatch(rb'\{"passed":false,"stage":"([a-z0-9_]{1,80})"\}', last_line)
+                if failure:
+                    print('offline native stage=' + failure[1].decode('ascii'),
+                          file=sys.stderr, flush=True)
             # os.write may complete only a prefix; model its real byte count.
             count = os.write(fd, output)
             self.u.reg_write(UC_ARM64_REG_X0, count)
@@ -60,9 +68,11 @@ def main():
         code, _ = process.run()
         if code is None:
             raise RuntimeError('native instruction budget exhausted without exit')
-    except Exception:
+    except Exception as error:
         # Do not dump the protocol transcript or identity inputs on failure.
-        print('offline native integration failed', file=sys.stderr)
+        print('offline native integration failed: ' + type(error).__name__ +
+              f' pc={process.u.reg_read(UC_ARM64_REG_PC):#x}' +
+              f' lr={process.u.reg_read(UC_ARM64_REG_LR):#x}', file=sys.stderr)
         return 1
     return code
 

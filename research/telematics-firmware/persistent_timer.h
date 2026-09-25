@@ -4,12 +4,13 @@
 #ifndef PERSISTENT_TIMER_H
 #define PERSISTENT_TIMER_H
 typedef unsigned long pt_u64;
+#define PT_TIMER_SLOTS 9
 struct pt_timer {
  pt_u64 handle, deadline_ms, interval_ms, callback, context;
  unsigned generation, active;
 };
 struct pt_scheduler {
- struct pt_timer slot[6];
+ struct pt_timer slot[PT_TIMER_SLOTS];
  pt_u64 now_ms;
  unsigned next_generation;
 };
@@ -18,7 +19,7 @@ static int pt_advance(struct pt_scheduler *s,pt_u64 ms){
  s->now_ms=ms;return 0;
 }
 static int pt_create(struct pt_scheduler *s,unsigned index,pt_u64 callback,pt_u64 context,pt_u64 *handle){
- if(index>=6 || !callback || !handle)return -1;
+ if(index>=PT_TIMER_SLOTS || !callback || !handle)return -1;
  struct pt_timer *t=&s->slot[index];
  t->generation=++s->next_generation;
  if(!t->generation)t->generation=++s->next_generation;
@@ -28,13 +29,13 @@ static int pt_create(struct pt_scheduler *s,unsigned index,pt_u64 callback,pt_u6
 }
 static struct pt_timer *pt_find(struct pt_scheduler *s,pt_u64 handle){
  unsigned index=(unsigned)(handle&255);
- if(!index || index>6)return 0;
+ if(!index || index>PT_TIMER_SLOTS)return 0;
  struct pt_timer *t=&s->slot[index-1];
  return t->handle==handle?t:0;
 }
 static int pt_arm(struct pt_scheduler *s,pt_u64 handle,pt_u64 delay_ms,pt_u64 interval_ms){
  struct pt_timer *t=pt_find(s,handle);
- if(!t || !delay_ms || delay_ms>3600000 || interval_ms>3600000 ||
+ if(!t || !delay_ms || delay_ms>65535000 || interval_ms>65535000 ||
     s->now_ms>~(pt_u64)0-delay_ms)return -1;
  t->deadline_ms=s->now_ms+delay_ms;t->interval_ms=interval_ms;t->active=1;
  return 0;
@@ -47,7 +48,7 @@ static int pt_delete(struct pt_scheduler *s,pt_u64 handle){
 }
 static int pt_due(struct pt_scheduler *s,unsigned index,pt_u64 *handle,
                   pt_u64 *callback,pt_u64 *context){
- if(index>=6)return 0;
+ if(index>=PT_TIMER_SLOTS)return 0;
  struct pt_timer *t=&s->slot[index];
  if(!t->active || s->now_ms<t->deadline_ms)return 0;
  *handle=t->handle;*callback=t->callback;*context=t->context;

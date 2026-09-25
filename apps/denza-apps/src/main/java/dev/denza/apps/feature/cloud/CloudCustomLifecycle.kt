@@ -296,8 +296,9 @@ internal class CloudCustomLifecycle(
             if (value.updatedElapsedMs > clock() + 5_000L) reject(operation, Reason.FUTURE_STATUS)
             status = value
             processNonce = value.ownerId.ifEmpty { source.nonce }
-            if (operation != Operation.PROBE && value.stage == "failed" && !value.retryable &&
-                value.code in TERMINAL_CODES) {
+            // The guardian owns retryability. An unfamiliar, validated failure code
+            // must not cause a new START after the guardian has already stopped.
+            if (operation != Operation.PROBE && value.stage == "failed" && !value.retryable) {
                 permanentFailure = Failure(operation, Reason.REJECTED, null, value.code, false)
                 call(Operation.SAVE_TERMINAL) { store.saveTerminal(value.code) }
             }
@@ -323,8 +324,5 @@ internal class CloudCustomLifecycle(
 
     companion object {
         const val RETRY_MS = 30_000L
-        private val TERMINAL_CODES = setOf("unsupported_firmware", "unsupported_identity", "native_unavailable",
-            "power_lost", "power_unavailable",
-            "registration_rejected", "login_rejected", "stock_owner_competed", "operation_rejected")
     }
 }

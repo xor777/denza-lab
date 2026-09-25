@@ -1,7 +1,7 @@
 # Offline Denza firmware reader
 
 Research scripts, verified on 2026-09-23 against the owner's
-`Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip`. These stay outside product
+`Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip`. Extraction scripts stay outside product
 builds. They read a local archive and write selected evidence to a separate
 directory; no car, updater, router or cloud connection is involved.
 
@@ -24,6 +24,18 @@ an unattended product session. Exact source/build/test evidence is preserved
 under `captures/telematics-20260924/cloud-quality-review/persistent-native/`;
 the [resident adapter findings](../../docs/telematics-findings.md#resident-adapter-implementation-2026-09-25)
 record the remaining original-code paths and Java integration boundaries.
+
+Later on 2026-09-25, build 61 qualifies the narrower `awake-alpha-v1` profile
+for a live foreground service and powered-on vehicle. Its packaged worker is
+`9b874c2df22d1248c226c7ff760ee6c85f100a8fb03d3bae0c23582025351cf3`.
+The original sender, registration status0 alarm continuation, awake command
+chains, sub5 and heartbeat run behind generic SDK/transport boundaries. A
+successful opaque TLS write returns SENT with the original command number;
+the engine invokes the original send-complete callback. Heartbeat uses the
+same authenticated connection. Full-product and sleep capabilities stay false.
+The 21-case native regression and focused native/Java replays are saved under
+`captures/telematics-20260925/awake-alpha/`; they do not establish live-car
+acceptance. See the [runtime contract](../../docs/cloud-custom-runtime-contract.md).
 
 The 2026-09-24 follow-up `verify_identity_override_native.py` extends the
 identity-cache emulator with a synthetic process-local property source. Six

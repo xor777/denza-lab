@@ -2,6 +2,7 @@ package dev.denza.apps.ui.dashboard
 
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.feature.cloud.CloudCarState
+import dev.denza.apps.feature.cloud.CloudLinkRuntime
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cloud.CloudSimMode
 import org.junit.Assert.assertEquals
@@ -46,6 +47,20 @@ class CloudTilePressTest {
         press(state(enabled = true, failure = "Не включилось"))
         press(state(enabled = false, failure = "Не выключилось"))
         assertEquals(listOf(true, false), asked)
+    }
+
+    @Test
+    fun aPressAfterCustomServiceDeathExplicitlyRetriesOn() {
+        CloudLinkRuntime.custom = null
+        CloudLinkRuntime.failure = null
+        CloudLinkRuntime.leaseFailure = null
+        CloudLinkRuntime.busy = false
+        val snapshot = CloudLinkRuntime.snapshot(enabled = true, network = true,
+            pendingDisable = false, nowMs = 100_000L, mode = CloudSimMode.CUSTOM,
+            serviceAlive = false)
+        press(DenzaUiState(cloudLink = snapshot, cloudMode = CloudSimMode.CUSTOM))
+        assertEquals("Служба связи остановилась", CloudLinkStatus.words(snapshot))
+        assertEquals(listOf(true), asked)
     }
 
     private fun state(enabled: Boolean, failure: String?) = DenzaUiState(

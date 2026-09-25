@@ -3,6 +3,7 @@ package dev.denza.apps.feature.cloud
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import dev.denza.apps.core.FeatureStatus
 
@@ -13,6 +14,7 @@ class CloudCustomStatusTest {
         CloudLinkRuntime.car = null
         CloudLinkRuntime.failure = null
         CloudLinkRuntime.leaseFailure = null
+        CloudLinkRuntime.customServiceStartPendingUntilMs = 0L
         CloudLinkRuntime.busy = false
     }
 
@@ -41,6 +43,44 @@ class CloudCustomStatusTest {
                 uptimeMs = 130_001L)))
     }
 
+    @Test fun blankPairKeepsTheWishButAsksForNumbersWithoutClaimingAConnection() {
+        CloudLinkRuntime.custom = status(true, "connected")
+        CloudLinkRuntime.customReadAtMs = 100_000L
+        val snapshot = CloudLinkRuntime.snapshot(true, true, false, 100_000L,
+            CloudSimMode.CUSTOM, identityValid = false)
+        assertEquals(FeatureStatus.NEEDS_ACTION, snapshot.status)
+        assertEquals("Нужны номера SIM", CloudLinkStatus.words(snapshot))
+    }
+
+    @Test fun deadServiceRemainsActionableWithoutImplicitResume() {
+        val stopped = CloudLinkRuntime.snapshot(true, true, false, 100_000L,
+            CloudSimMode.CUSTOM, serviceAlive = false)
+        assertEquals(FeatureStatus.ERROR, stopped.status)
+        assertEquals("Служба связи остановилась",
+            CloudLinkStatus.words(stopped))
+        CloudLinkRuntime.busy = true
+        assertEquals("Подключается", CloudLinkStatus.words(CloudLinkRuntime.snapshot(
+            true, true, false, 100_000L, CloudSimMode.CUSTOM, serviceAlive = false)))
+        CloudLinkRuntime.busy = false
+        assertEquals("Выключено", CloudLinkStatus.words(CloudLinkRuntime.snapshot(
+            false, true, false, 100_000L, CloudSimMode.CUSTOM, serviceAlive = false)))
+        assertEquals("Нужны номера SIM", CloudLinkStatus.words(CloudLinkRuntime.snapshot(
+            true, true, false, 100_000L, CloudSimMode.CUSTOM,
+            identityValid = false, serviceAlive = false)))
+    }
+
+    @Test fun serviceStartWaitsBrieflyThenReportsMissingServiceOrLiveStartup() {
+        CloudLinkRuntime.customServiceStartPendingUntilMs = 110_000L
+        assertEquals("Подключается", CloudLinkStatus.words(CloudLinkRuntime.snapshot(
+            true, true, false, 100_000L, CloudSimMode.CUSTOM, serviceAlive = false)))
+        assertEquals("Подключается", CloudLinkStatus.words(CloudLinkRuntime.snapshot(
+            true, true, false, 110_000L, CloudSimMode.CUSTOM, serviceAlive = true)))
+        assertEquals("Служба связи остановилась", CloudLinkStatus.words(CloudLinkRuntime.snapshot(
+            true, true, false, 110_000L, CloudSimMode.CUSTOM, serviceAlive = false)))
+        assertEquals("Выключено", CloudLinkStatus.words(CloudLinkRuntime.snapshot(
+            false, true, false, 100_000L, CloudSimMode.CUSTOM, serviceAlive = false)))
+    }
+
     @Test fun staleOrUnconfirmedCustomSessionNeverAppearsConnected() {
         CloudLinkRuntime.custom = status(true, "connected")
         CloudLinkRuntime.customReadAtMs = 69_999L
@@ -61,6 +101,22 @@ class CloudCustomStatusTest {
         assertEquals("Выключено", words(enabled = false))
     }
 
+    @Test fun unconfirmedStopAppearsBetweenRetriesWithoutFlashingDuringNormalStop() {
+        val pending = CloudLinkRequest(enabled = true).request(false)
+        assertFalse(pending.enabled)
+        assertTrue(pending.pendingDisable)
+        assertFalse(CloudLinkSettings.canConfigure(pending.enabled, pending.pendingDisable, busy = false))
+        CloudLinkRuntime.busy = true
+        // Normal in-flight STOP stays transitional instead of flashing an error.
+        assertFalse(CloudLinkRuntime.snapshot(false, true, true, 100_000L, CloudSimMode.CUSTOM)
+            .status == FeatureStatus.ERROR)
+        CloudLinkRuntime.busy = false
+        // An earlier ON cannot erase the durable OFF obligation during the retry delay.
+        assertEquals("Выключение не завершено", words(enabled = false, pending = true))
+        assertEquals("Выключение не завершено", words(enabled = true, pending = true))
+        assertEquals("Выключено", words(enabled = false, pending = false))
+    }
+
     @Test fun retryIsTransitionalButPermanentRejectionIsSpecific() {
         CloudLinkRuntime.customReadAtMs = 100_000L
         CloudLinkRuntime.custom = status(false, "retry_wait").copy(code = "network_retry", retryable = true)
@@ -70,6 +126,8 @@ class CloudCustomStatusTest {
         assertEquals("Облако отклонило регистрацию", words())
         CloudLinkRuntime.custom = status(false, "failed").copy(code = "unsupported_firmware")
         assertEquals("Эта прошивка пока не поддерживается", words())
+        CloudLinkRuntime.custom = status(false, "failed").copy(code = "native_unavailable")
+        assertEquals("Не удалось запустить адаптер облака", words())
         CloudLinkRuntime.custom = status(false, "failed").copy(code = "power_lost")
         assertEquals("Машина выключена", words())
         CloudLinkRuntime.custom = status(false, "failed").copy(code = "power_unavailable")

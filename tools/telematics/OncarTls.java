@@ -84,14 +84,43 @@ public final class OncarTls {
             try {if(n>0)engineUpdate(b,o,n);byte[] message=input.toByteArray(),block;
                 if(raw){need(message.length==256,"raw TLS block");block=message;}
                 else{need(message.length==51&&hex(Arrays.copyOf(message,19)).equals("3031300d060960864801650304020105000420"),"TLS digest algorithm");block=new byte[256];block[1]=1;Arrays.fill(block,2,204,(byte)255);System.arraycopy(message,0,block,205,51);}
-                need(block[0]==0&&block[1]==1&&block[204]==0&&hex(Arrays.copyOfRange(block,205,224)).equals("3031300d060960864801650304020105000420"),"TLS raw digest algorithm");
-                for(int j=2;j<204;j++)need(block[j]==(byte)255,"TLS raw padding");
+                need(pkcs1Sha256(block)||(raw&&pssTls(block)),"TLS raw digest algorithm");
                 need(attempt!=null,"TLS cipher not initialized");attempt.reserve();
                 byte[] result=attempt.identity.sign(block);need(result!=null&&result.length==256,"signature bytes");
                 Cipher verify=verificationCipher();verify.init(Cipher.DECRYPT_MODE,attempt.identity.publicKey);need(MessageDigest.isEqual(block,verify.doFinal(result)),"signature verification");return result;
             }catch(Exception e){throw new BadPaddingException("factory TLS signature failed: "+e.getClass().getSimpleName());}
         }
         protected int engineDoFinal(byte[] b,int o,int n,byte[] dst,int off)throws BadPaddingException,ShortBufferException {if(off<0||off>dst.length-256)throw new ShortBufferException();byte[] result=engineDoFinal(b,o,n);System.arraycopy(result,0,dst,off,result.length);return result.length;}
+    }
+    private static boolean pkcs1Sha256(byte[] block){
+        if(block.length!=256||block[0]!=0||block[1]!=1||block[204]!=0||
+           !hex(Arrays.copyOfRange(block,205,224)).equals("3031300d060960864801650304020105000420"))return false;
+        for(int j=2;j<204;j++)if(block[j]!=(byte)255)return false;
+        return true;
+    }
+    /** Conscrypt passes the complete RSA-PSS encoded message to NoPadding.
+     * TLS RSA-PSS uses MGF1 with the same SHA-2 digest and a digest-sized salt.
+     * Validate that format before allowing the one hardware operation. */
+    private static boolean pssTls(byte[] block)throws GeneralSecurityException {
+        if(block.length!=256||(block[0]&0x80)!=0||block[255]!=(byte)0xbc)return false;
+        return pssTls(block,"SHA-256",32)||pssTls(block,"SHA-384",48)||pssTls(block,"SHA-512",64);
+    }
+    private static boolean pssTls(byte[] block,String algorithm,int hLen)throws GeneralSecurityException {
+        int dbLen=block.length-hLen-1,psLen=dbLen-hLen-1;
+        byte[] seed=Arrays.copyOfRange(block,dbLen,dbLen+hLen);
+        byte[] dbMask=new byte[dbLen];MessageDigest digest=MessageDigest.getInstance(algorithm);
+        for(int counter=0,offset=0;offset<dbLen;counter++){
+            digest.update(seed);digest.update(new byte[]{0,0,0,(byte)counter});
+            byte[] part=digest.digest();int count=Math.min(part.length,dbLen-offset);
+            System.arraycopy(part,0,dbMask,offset,count);offset+=count;
+        }
+        for(int j=0;j<dbLen;j++){
+            int decoded=(block[j]^dbMask[j])&255;
+            if(j==0)decoded&=0x7f; // emBits = RSA-2048 modulus bits minus one.
+            if(j<psLen&&decoded!=0)return false;
+            if(j==psLen&&decoded!=1)return false;
+        }
+        return true;
     }
     public static final class RawFactoryCipher extends FactoryCipher {public RawFactoryCipher(){raw=true;}}
     static Cipher verificationCipher()throws GeneralSecurityException {

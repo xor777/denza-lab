@@ -1,19 +1,29 @@
 package dev.denza.apps
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
+import dev.denza.apps.feature.cloud.CloudAppOpenPolicy
 import dev.denza.apps.feature.navigation.NavigationTransferOverlay
 import dev.denza.apps.ui.DenzaAppsRoot
-import dev.denza.apps.feature.cloud.CloudLinkController
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        private var previousDestroyWasConfiguration = false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val explicitOpen = CloudAppOpenPolicy.handleCreate(
+            hasSavedState = savedInstanceState != null,
+            previousDestroyWasConfiguration = previousDestroyWasConfiguration,
+        )
+        previousDestroyWasConfiguration = false
         WindowCompat.setDecorFitsSystemWindows(window, false)
         DenzaAppRepository.initialize(this)
-        CloudLinkController.explicitAppOpened(this)
+        if (explicitOpen) DenzaAppRepository.explicitCloudAppOpened()
         setContent(
             content = {
                 DenzaAppsRoot(
@@ -72,6 +82,12 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // singleTask delivers an explicit launcher reopen here, without onCreate.
+        DenzaAppRepository.explicitCloudAppOpened()
+    }
+
     override fun onResume() {
         super.onResume()
         NavigationTransferOverlay.setMainActivityResumed(this, true)
@@ -89,6 +105,11 @@ class MainActivity : ComponentActivity() {
         ) {
             SimulcastOverlayService.showActiveExit(this)
         }
+    }
+
+    override fun onDestroy() {
+        previousDestroyWasConfiguration = isChangingConfigurations
+        super.onDestroy()
     }
 
 }

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Parcel;
+import java.io.IOException;
 import java.lang.reflect.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -19,6 +20,7 @@ public final class CloudPlatform implements AutoCloseable {
     public static final int MCU_ENVELOPE = 0xaa000004, MCU_SECONDARY = 0xaa00001e;
     public static final int MCU_WAKE = 0xaa00004a;
     public static final int POST_LOGIN_MARKER = 0xaa000102;
+    public static final int DATA_SUBSCRIPTION = 0xaa000023;
     public static final int SPEED = 0x14400008, VEHICLE_MODE = 0x2f4000fa;
     public static final int AC_POWER = 0x40400010, TARGET_TEMPERATURE = 0x40400028;
     public static final int SOC = 0x4a505038;
@@ -57,7 +59,7 @@ public final class CloudPlatform implements AutoCloseable {
         private Identity(byte[] vin, byte[] params, byte[] serial, String iccid, String imsi) {
             require(vin != null && vin.length == 17, "VIN length");
             require(params != null && params.length == 33 && params[0] != 0, "cloud parameters");
-            require(serial != null && serial.length > 0 && serial.length <= 91, "serial length");
+            require(serial != null && serial.length <= 91, "serial length");
             require(iccid != null && iccid.matches("[0-9]{20}"), "ICCID shape");
             require(imsi != null && imsi.matches("[0-9]{15}"), "IMSI shape");
             this.vin = vin.clone(); this.key = Arrays.copyOfRange(params, 1, 17);
@@ -155,15 +157,18 @@ public final class CloudPlatform implements AutoCloseable {
         require((device == POWER && (fid == MCU_STATE || fid == POWER_ACC)) || (device == BODYWORK && (fid == ACC || fid == 0x40d00010)) ||
             (device == BODYWORK && (fid == 0x47002000 || fid == 0x29400000 ||
                 fid == 0x45400000 || fid == 0x40601022 || fid == 0x44f0001a)) ||
-            (device == CHARGING && fid == CHARGE) || (device == 1014 && fid == SPEED) ||
-            (device == 1023 && (fid == VEHICLE_MODE || fid == 0x2f400000 || fid == 0x90900118)) ||
+            (device == CHARGING && (fid == CHARGE || fid == 0x47002011 || fid == 0x47002012)) ||
+            (device == 1014 && fid == SPEED) ||
+            (device == 1023 && (fid == VEHICLE_MODE || fid == 0x2f400000 || fid == 0x90900118 ||
+                fid == 0x2940002a || fid == 0x4540000c)) ||
+            (device == 1025 && fid == 0x4f401038) ||
             (device == 1031 && fid == 0x4f401000) ||
             (device == 1000 && (fid == AC_POWER || fid == TARGET_TEMPERATURE)), "unsupported integer getter");
         synchronized (this) { require(!closed && !failed, "platform closed or failed"); }
         return backend.getInt(device, fid);
     }
     public BufferResult getNativeBuffer(int device,int fid)throws Exception{
-        require(device==1027&&(fid==0x99000002||fid==0x9900021a||fid==0x99000035),"unsupported buffer getter");
+        require(device==1027&&(fid==0x99000002||fid==0x9900021a||fid==0x99000035||fid==0x99000402),"unsupported buffer getter");
         synchronized(this){require(!closed&&!failed,"platform closed or failed");}
         BufferResult value=backend.getBufferResult(device,fid);
         require(value!=null,"buffer result missing");
@@ -177,6 +182,24 @@ public final class CloudPlatform implements AutoCloseable {
         return backend.getFloat(device, fid);
     }
     public int tcpState() throws Exception { return backend.tcpState(); }
+    /** Alpha excludes stock service/repair modes and pending version-cache resets.
+     * Read these before pausing the stock client; never acknowledge its global resets.
+     */
+    public void requireAwakeStartup() throws Exception {
+        if (!inactive(property("persist.sys.cloudtest")) ||
+            !inactive(property("persist.sys.repair_mode.enable")) ||
+            !inactive(property("persist.sys.repair_mode_record")) ||
+            "0".equals(property("persist.sys.cloud_enable")) ||
+            !integerPresent(property("persist.sys.energytype")) ||
+            !property("apps.setting.product.outswver").equals(property("persist.sys.version")) ||
+            !property("mcu_version").equals(property("persist.sys.mcu_version")))
+            throw new CloudSessionLoop.PermanentFailure(CloudRuntimeSupervisor.Code.UNSUPPORTED_FIRMWARE);
+    }
+    private static boolean inactive(String value) { return "".equals(value) || "0".equals(value); }
+    private static boolean integerPresent(String value) {
+        try { Integer.parseInt(value); return true; }
+        catch(NumberFormatException missing) { return false; }
+    }
     /** Exact profile-specific stock gone event; local OFF never sends factory ready. */
     public synchronized void stockGate(int value) throws Exception {
         require(!closed && !failed, "platform closed or failed");
@@ -184,36 +207,11 @@ public final class CloudPlatform implements AutoCloseable {
         backend.stockGate(value);
     }
     public String property(String key) throws Exception {
-        require("persist.sys.repair_mode.enable".equals(key) || "persist.sys.energytype".equals(key) ||
-            "persist.sys.record_610_upload".equals(key) || "sys.cloud.unlock_index".equals(key) ||
-            "persist.sys.vehicle_40d_code".equals(key) || "persist.sys.gpsinfo".equals(key) ||
-            "persist.byd.telephony.networkType".equals(key) || "sys.signalstrength".equals(key) ||
-            "persist.sys.cloud.last_vin".equals(key) ||
-            "persist.sys.cloud_enable".equals(key) ||
-            "persist.sys.mcu_func_record".equals(key) ||
-            "persist.sys.cloudtest".equals(key) ||
-            "persist.sys.cloud.token_flag".equals(key) ||
-            "persist.sys.system_info".equals(key) ||
-            "apps.setting.product.outswver".equals(key) || "mcu_version".equals(key) ||
-            "persist.sys.version".equals(key) || "persist.sys.mcu_version".equals(key) ||
-            "persist.sys.user_authentication_status".equals(key) ||
-            "ro.vehicle.type.value".equals(key) || "ro.build.car.series".equals(key) ||
-            "persist.sys.byd.apn_type".equals(key) ||
-            "persist.sys.remotethemechange".equals(key) ||
-            "persist.sys.sentrymode_feature".equals(key) ||
-            "persist.sys.sentrymode_record".equals(key) ||
-            "persist.sys.smart_charge_stage".equals(key) ||
-            "persist.sys.smart_charge_support_limit".equals(key) ||
-            "persist.sys.smart_charge_stage_record".equals(key) ||
-            "persist.sys.record_499_upload".equals(key) ||
-            "persist.sys.byd.ditrainer_state".equals(key) ||
-            "persist.sys.flag.vent_heat_combined".equals(key) ||
-            "persist.sys.remote_video_off_push".equals(key) ||
-            "persist.sys.sentrymode_upload".equals(key) ||
-            "persist.sys.cloud_fid_uploaded".equals(key) ||
-            "persist.sys.record_421_notify".equals(key) ||
-            "persist.sys.repair_mode_record".equals(key),
-            "unsupported property");
+        // The pinned firmware owns property names and fallback semantics.
+        // Reading a new property must not require a new vehicle-specific rule.
+        // Identity and client-local state are intercepted before this boundary;
+        // this admits no additional shared writes.
+        require(key!=null && key.matches("[A-Za-z0-9_.-]{1,96}"), "invalid property name");
         return backend.property(key);
     }
     /** Relay a supported native property write without interpreting its originating command. */
@@ -224,7 +222,24 @@ public final class CloudPlatform implements AutoCloseable {
             "unsupported property setter");
         backend.setProperty(key, nativeValue);
     }
+    /** Explicit policy refusal for a known global configuration outside this session. */
+    public synchronized int sendNativePropertyStatus(String key,String value)throws Exception {
+        require(!closed&&!failed,"platform closed or failed");
+        require("persist.sys.edge.enable.sre".equals(key)&&("0".equals(value)||"1".equals(value)),
+            "unsupported property status setter");
+        // This alpha does not own the stock edge service's persistent setting.
+        // Deny the write through the native API's failure result. The original
+        // caller ignores the failure and continues; no successful write is claimed.
+        return -1;
+    }
     /** Relay an unchanged original-firmware output for an identified setter. */
+    public synchronized void sendNativeSubscription(byte[] nativeBytes) throws Exception {
+        require(!closed && !failed, "platform unavailable");
+        require(nativeBytes != null && nativeBytes.length >= 8 && nativeBytes.length <= 512 &&
+            nativeBytes.length % 8 == 0, "native subscription bound");
+        require(backend.setBuffer(YUN, DATA_SUBSCRIPTION, nativeBytes.clone()) == 0,
+            "vehicle subscription setter refused");
+    }
     public synchronized void sendNativeBuffer(int device, int fid, byte[] nativeBytes) throws Exception {
         require(!closed && !failed, "platform closed or failed");
         require(device == YUN && (fid == MCU_ENVELOPE || fid == MCU_SECONDARY || fid == POST_LOGIN_MARKER),
@@ -261,19 +276,48 @@ public final class CloudPlatform implements AutoCloseable {
 
     /** Uses the same autoservice getters and SDK listener interface observed in the firmware corpus. */
     public static final class AndroidBackend implements Backend {
-        private final Context context;
+        private static final class RuntimeState {
+            final Context context;
+            final Object auto;
+            final Map<Integer,Object> devices;
+            RuntimeState(Context context,Object auto,Map<Integer,Object> devices) {
+                this.context=context;this.auto=auto;this.devices=devices;
+            }
+        }
+        private static volatile RuntimeState runtimeState;
         private final Object auto;
+        private final Map<Integer,Object> devices;
         private final Class<?> listenerType, eventType;
         private final Method getDeviceType, getEventType, getBufferData, getValue;
+        /** app_process has no ActivityThread until its own main Looper creates it. */
+        static synchronized void initializeOnMainThread(boolean listeners) throws Exception {
+            require(Looper.myLooper()!=null && Looper.myLooper()==Looper.getMainLooper(),
+                "Android SDK initialization requires main Looper thread");
+            RuntimeState current=runtimeState;
+            if(current!=null && (!listeners || !current.devices.isEmpty()))return;
+            if(current==null){
+                Class<?> runtime = Class.forName("dalvik.system.VMRuntime");
+                Object vm = runtime.getMethod("getRuntime").invoke(null);
+                runtime.getMethod("setHiddenApiExemptions", String[].class).invoke(vm, (Object)new String[]{"L"});
+                Class<?> at = Class.forName("android.app.ActivityThread");
+                Object thread = at.getMethod("systemMain").invoke(null);
+                Context context=(Context)at.getMethod("getSystemContext").invoke(thread);
+                require(context!=null,"system context unavailable");
+                Object auto=context.getSystemService("auto");require(auto!=null,"auto SDK unavailable");
+                current=new RuntimeState(context,auto,Collections.emptyMap());
+                runtimeState=current;
+            }
+            if(listeners){
+                Map<Integer,Object> devices=new HashMap<>();
+                for(int id:new int[]{YUN,POWER,BODYWORK,CHARGING})
+                    devices.put(id,createDevice(id,current.context));
+                runtimeState=new RuntimeState(current.context,current.auto,Collections.unmodifiableMap(devices));
+            }
+        }
         public AndroidBackend() throws Exception {
-            require(Looper.getMainLooper()!=null, "runtime main Looper required");
-            Class<?> runtime = Class.forName("dalvik.system.VMRuntime");
-            Object vm = runtime.getMethod("getRuntime").invoke(null);
-            runtime.getMethod("setHiddenApiExemptions", String[].class).invoke(vm, (Object)new String[]{"L"});
-            Class<?> at = Class.forName("android.app.ActivityThread");
-            Object thread = at.getMethod("systemMain").invoke(null);
-            context = (Context)at.getMethod("getSystemContext").invoke(thread);
-            auto = context.getSystemService("auto"); require(auto != null, "auto SDK unavailable");
+            RuntimeState state=runtimeState;
+            require(state!=null,"Android SDK not initialized on main thread");
+            auto=state.auto;devices=state.devices;
             listenerType = Class.forName("android.hardware.IBYDAutoListener");
             eventType = Class.forName("android.hardware.IBYDAutoEvent");
             getDeviceType = eventType.getMethod("getDeviceType");
@@ -340,20 +384,24 @@ public final class CloudPlatform implements AutoCloseable {
             return (String)Class.forName("android.os.SystemProperties").getMethod("get", String.class)
                 .invoke(null, key);
         }
-        public void setProperty(String key, String value) throws Exception {
-            if(!key.equals("sys.cloud.remote_controling")||!value.equals("0"))
+        static void satisfyRemoteControlZero(String key,String value,Backend backend) throws Exception {
+            if(!"sys.cloud.remote_controling".equals(key)||!"0".equals(value))
                 throw new IllegalArgumentException("unsupported shared property write");
-            new CloudSharedPropertyJournal(CloudLocalControl.STATE.resolve("property.pending"))
-                .beforeWrite(property(key));
-            Class.forName("android.os.SystemProperties").getMethod("set", String.class, String.class)
-                .invoke(null, key, value);
-            require(value.equals(property(key)), "native property effect not observed");
+            // The matching CloudReboot reader polls the current value; it has
+            // no write-event dependency in the inspected source.
+            // The original requested result is already present, so no shared write
+            // or crash-cleanup debt is needed. Unknown and nonzero values fail closed.
+            if(!"0".equals(backend.property(key)))
+                throw new IOException("shared_property_original_unqualified");
+        }
+        public void setProperty(String key, String value) throws Exception {
+            satisfyRemoteControlZero(key,value,this);
         }
         public String serial() throws Exception {
             return (String)Class.forName("android.os.SystemProperties").getMethod("get", String.class)
                 .invoke(null, "debug.ro.serialno");
         }
-        private Object device(int id) throws Exception {
+        private static Object createDevice(int id,Context context) throws Exception {
             String name;
             if (id == YUN) name = "android.hardware.bydauto.yun.BYDAutoYunDevice";
             else if (id == POWER) name = "android.hardware.bydauto.power.BYDAutoPowerDevice";
@@ -362,6 +410,11 @@ public final class CloudPlatform implements AutoCloseable {
             else throw new IllegalArgumentException("device");
             Object result = Class.forName(name).getMethod("getInstance", Context.class).invoke(null, context);
             require(result != null, "SDK device unavailable"); return result;
+        }
+        private Object device(int id) {
+            Object result=devices.get(id);
+            require(result!=null,"SDK listener device not initialized on main thread");
+            return result;
         }
         private static final class Registration {
             final Object device, listener; Registration(Object d, Object l) { device = d; listener = l; }

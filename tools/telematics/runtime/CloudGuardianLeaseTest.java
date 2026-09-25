@@ -189,9 +189,160 @@ public final class CloudGuardianLeaseTest {
             "OFF waited for blocked STATUS instead of aborting child");}
         finally{release.countDown();status.join(2000);task.join(2000);owner.emergencyShutdown();}
     }
+    private static void ambiguousStartCannotReplayGeneration()throws Exception{
+        Path base=Files.createTempDirectory("cloud-guardian-ambiguous-");
+        Path path=base.resolve("Android/data/dev.denza.apps/files/cloud/install.json");marker(path);
+        AtomicLong time=new AtomicLong(1000);AtomicInteger starts=new AtomicInteger();
+        CloudStopFence fence=new CloudStopFence(base.resolve("stop.fence"));
+        CloudGuardianState owner=new CloudGuardianState(path,CloudInstallMarker.read(path),
+            "abc123abc123-abc123abc123",new CloudGateJournal(base.resolve("gate.pending")),fence,
+            new CloudRegistrationJournal(base.resolve("registration.pending")),
+            new CloudStockGate.BinderAccess(){public int tcp(){return 0;}
+                public String profile(){return "double_apn";}},()->new CloudGuardianState.Worker(){
+                public JSONObject request(String op,CloudRuntimeSupervisor.Identity pair)throws Exception{
+                    if(op.equals("START")){starts.incrementAndGet();throw new IOException("start_reply_lost");}
+                    return new JSONObject().put("ok",true).put("stage","stopped");
+                }
+                public boolean isAlive(){return true;}
+                public void close(){}
+            },()->44,time::get,time::get,pair->{},false);
+        JSONObject start=new JSONObject().put("id",1).put("op","START").put("protocol",3)
+            .put("profile","awake-alpha-v1").put("iccid","89010000000000000001")
+            .put("imsi","001010123456789").put("service_instance",SERVICE).put("renew_seq",1);
+        CloudInstallMarker install=CloudInstallMarker.read(path);
+        JSONObject first=owner.execute(CloudControlRequest.parse(start.toString()),install);
+        need(!first.getBoolean("ok")&&!first.getBoolean("retryable")&&
+            first.getString("code").equals("operation_rejected")&&fence.blocked(INSTALL,1),
+            "ambiguous START was replayable");
+        start.put("id",2);
+        JSONObject again=owner.execute(CloudControlRequest.parse(start.toString()),install);
+        need(!again.getBoolean("ok")&&again.getString("code").equals("config_changed")&&
+            !again.getBoolean("retryable")&&starts.get()==1,"same generation repeated ambiguous START");
+        owner.emergencyShutdown();
+    }
+    private static void delayedStartReplyRecoversByAttach()throws Exception{
+        Path base=Files.createTempDirectory("cloud-guardian-slow-start-");
+        Path path=base.resolve("Android/data/dev.denza.apps/files/cloud/install.json");marker(path);
+        AtomicLong time=new AtomicLong(1000);AtomicInteger starts=new AtomicInteger();
+        CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
+        CloudGuardianState owner=new CloudGuardianState(path,CloudInstallMarker.read(path),
+            "abc123abc123-abc123abc123",new CloudGateJournal(base.resolve("gate.pending")),
+            new CloudStopFence(base.resolve("stop.fence")),
+            new CloudRegistrationJournal(base.resolve("registration.pending")),
+            new CloudStockGate.BinderAccess(){public int tcp(){return 0;}
+                public String profile(){return "double_apn";}},()->new CloudGuardianState.Worker(){
+                public JSONObject request(String op,CloudRuntimeSupervisor.Identity pair)throws Exception{
+                    if(op.equals("START")){starts.incrementAndGet();entered.countDown();release.await();}
+                    return new JSONObject().put("ok",true).put("stage","connected").put("code","connected")
+                        .put("session_live",true);
+                }
+                public boolean isAlive(){return true;}
+                public void close(){}
+            },()->44,time::get,time::get,pair->{},false);
+        CloudInstallMarker install=CloudInstallMarker.read(path);
+        JSONObject start=new JSONObject().put("id",1).put("op","START").put("protocol",3)
+            .put("profile","awake-alpha-v1").put("iccid","89010000000000000001")
+            .put("imsi","001010123456789").put("service_instance",SERVICE).put("renew_seq",1);
+        Thread pending=new Thread(()->{
+            try{owner.execute(CloudControlRequest.parse(start.toString()),install);}
+            catch(Exception failure){throw new AssertionError(failure);}
+        },"delayed-start-reply");
+        pending.start();await(entered);
+        // Simulate the old ten-second client timeout while START is still
+        // running; a new bridge probes and attaches, never sends START again.
+        need(pending.isAlive(),"START did not remain pending for timeout simulation");
+        release.countDown();pending.join(2000);need(!pending.isAlive(),"START did not finish");
+        JSONObject probe=owner.execute(CloudControlRequest.parse(
+            new JSONObject().put("id",2).put("op","PROBE").put("protocol",3).toString()),install);
+        JSONObject attach=owner.execute(CloudControlRequest.parse(
+            new JSONObject().put("id",3).put("op","ATTACH").put("protocol",3)
+                .put("owner_id",probe.getString("owner_id"))
+                .put("service_instance",SERVICE).toString()),install);
+        need(probe.getString("code").equals("owner_present")&&attach.getBoolean("ok")&&
+            starts.get()==1,"lost START reply caused duplicate child START");
+        owner.emergencyShutdown();
+    }
+    private static void slowLaunchCannotExtendServiceLease()throws Exception{
+        Path base=Files.createTempDirectory("cloud-guardian-slow-lease-");
+        Path path=base.resolve("Android/data/dev.denza.apps/files/cloud/install.json");marker(path);
+        AtomicLong time=new AtomicLong(1000);AtomicInteger childStarts=new AtomicInteger();
+        CloudStopFence fence=new CloudStopFence(base.resolve("stop.fence"));
+        CloudGuardianState owner=new CloudGuardianState(path,CloudInstallMarker.read(path),
+            "abc123abc123-abc123abc123",new CloudGateJournal(base.resolve("gate.pending")),fence,
+            new CloudRegistrationJournal(base.resolve("registration.pending")),
+            new CloudStockGate.BinderAccess(){public int tcp(){return 0;}
+                public String profile(){return "double_apn";}},()->{
+                time.set(31_000); // worker startup consumed the original 30-second lease
+                return new CloudGuardianState.Worker(){
+                    public JSONObject request(String op,CloudRuntimeSupervisor.Identity pair)throws Exception{
+                        if(op.equals("START"))childStarts.incrementAndGet();
+                        return new JSONObject().put("ok",true).put("stage","stopped");
+                    }
+                    public boolean isAlive(){return true;}
+                    public void close(){}
+                };
+            },()->44,time::get,time::get,pair->{},false);
+        JSONObject start=new JSONObject().put("id",1).put("op","START").put("protocol",3)
+            .put("profile","awake-alpha-v1").put("iccid","89010000000000000001")
+            .put("imsi","001010123456789").put("service_instance",SERVICE).put("renew_seq",1);
+        JSONObject result=owner.execute(CloudControlRequest.parse(start.toString()),CloudInstallMarker.read(path));
+        need(!result.getBoolean("ok")&&result.getString("code").equals("lease_expired")&&
+            !result.getBoolean("retryable")&&childStarts.get()==0&&fence.blocked(INSTALL,1),
+            "slow worker startup extended or replayed service lease");
+        owner.emergencyShutdown();
+    }
+    private static void expiredGenerationRequiresNewStartEpoch()throws Exception{
+        Path base=Files.createTempDirectory("cloud-guardian-generation-");
+        Path path=base.resolve("Android/data/dev.denza.apps/files/cloud/install.json");marker(path);
+        AtomicLong time=new AtomicLong(1000);
+        CloudStopFence fence=new CloudStopFence(base.resolve("stop.fence"));
+        CloudGuardianState.WorkerFactory workers=()->new CloudGuardianState.Worker(){
+            public JSONObject request(String op,CloudRuntimeSupervisor.Identity pair)throws Exception{
+                return new JSONObject().put("ok",true).put("stage","connected").put("code","connected")
+                    .put("session_live",true);
+            }
+            public boolean isAlive(){return true;}
+            public void close(){}
+        };
+        CloudStockGate.BinderAccess stock=new CloudStockGate.BinderAccess(){
+            public int tcp(){return 0;}public String profile(){return "double_apn";}
+        };
+        CloudInstallMarker firstMarker=CloudInstallMarker.read(path);
+        CloudGuardianState first=new CloudGuardianState(path,firstMarker,"abc123abc123-abc123abc123",
+            new CloudGateJournal(base.resolve("gate.pending")),fence,
+            new CloudRegistrationJournal(base.resolve("registration.pending")),stock,workers,
+            ()->44,time::get,time::get,pair->{},false);
+        JSONObject start=new JSONObject().put("id",1).put("op","START").put("protocol",3)
+            .put("profile","awake-alpha-v1").put("iccid","89010000000000000001")
+            .put("imsi","001010123456789").put("service_instance",SERVICE).put("renew_seq",1);
+        need(first.execute(CloudControlRequest.parse(start.toString()),firstMarker).getBoolean("ok"),
+            "first generation START");
+        time.set(31_000);first.tick();need(fence.blocked(INSTALL,1),"expired generation not fenced");
+        first.emergencyShutdown();
+        CloudGuardianState same=new CloudGuardianState(path,firstMarker,"abc123abc123-abc123abc123",
+            new CloudGateJournal(base.resolve("gate.pending")),fence,
+            new CloudRegistrationJournal(base.resolve("registration.pending")),stock,workers,
+            ()->45,time::get,time::get,pair->{},false);
+        JSONObject stale=same.execute(CloudControlRequest.parse(start.toString()),firstMarker);
+        need(!stale.getBoolean("ok")&&stale.getString("code").equals("config_changed")&&
+            !stale.getBoolean("retryable"),"fenced generation advertised endless retry");
+        same.emergencyShutdown();
+        Files.write(path,("{\"protocol\":2,\"install_id\":\""+INSTALL+
+            "\",\"generation\":2,\"desired\":\"custom\"}\n").getBytes(StandardCharsets.US_ASCII));
+        CloudInstallMarker nextMarker=CloudInstallMarker.read(path);
+        CloudGuardianState next=new CloudGuardianState(path,nextMarker,"abc123abc123-abc123abc123",
+            new CloudGateJournal(base.resolve("gate.pending")),fence,
+            new CloudRegistrationJournal(base.resolve("registration.pending")),stock,workers,
+            ()->46,time::get,time::get,pair->{},false);
+        try{need(next.execute(CloudControlRequest.parse(start.toString()),nextMarker).getBoolean("ok"),
+            "new explicit generation remained fenced");}
+        finally{next.emergencyShutdown();}
+    }
     public static void main(String[] args)throws Exception{
         blockedStatusStillExpiresWorker();schedulerErrorTriggersBoundedFatal();
-        cleanLaunchFailureReleasesOwnerForRetry();offPreemptsBlockedStatus();
-        System.out.println("PASS guardian fixed lease, clean launch retry, preemptive OFF and watchdog Error cases=4");
+        cleanLaunchFailureReleasesOwnerForRetry();ambiguousStartCannotReplayGeneration();
+        delayedStartReplyRecoversByAttach();slowLaunchCannotExtendServiceLease();offPreemptsBlockedStatus();
+        expiredGenerationRequiresNewStartEpoch();
+        System.out.println("PASS guardian lease, clean retry, ambiguous/delayed START, slow launch, preemptive OFF, terminal generation and Error cases=8");
     }
 }

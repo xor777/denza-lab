@@ -522,7 +522,8 @@ object DashboardTiles {
             state = CloudLinkStatus.words(snapshot),
             tone = toneOf(snapshot),
             caption = if (connected) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
-            action = if (state.cloudMode == null) TileAction.SETTINGS else actionOf(snapshot, TileAction.TOGGLE),
+            action = if (snapshot.status == FeatureStatus.NEEDS_ACTION || state.cloudMode == null)
+                TileAction.SETTINGS else actionOf(snapshot, TileAction.TOGGLE),
         )
     }
 

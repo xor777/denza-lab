@@ -29,6 +29,8 @@ object CloudLinkSettings {
     private const val CUSTOM_OWNER = "custom_owner_nonce"
     private const val CUSTOM_TERMINAL = "custom_terminal_code"
     private const val CUSTOM_TERMINAL_GENERATION = "custom_terminal_generation"
+    private const val CUSTOM_CLEANUP_REQUIRED = "custom_cleanup_required"
+    private const val APP_OPEN_RESUME_PENDING = "app_open_resume_pending"
 
     fun isEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(ENABLED, false)
@@ -41,6 +43,60 @@ object CloudLinkSettings {
     fun needsService(context: Context): Boolean = request(context).needsService
     fun pendingDisable(context: Context): Boolean = request(context).pendingDisable
 
+    /** Preserves the saved ON wish while an explicit app-open restart cleans up the old owner. */
+    internal fun appOpenResumePending(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(APP_OPEN_RESUME_PENDING, false)
+
+    @Synchronized internal fun beginAppOpenRestart(context: Context) {
+        val request = request(context)
+        check(request.enabled || appOpenResumePending(context)) { "Нет запроса на запуск" }
+        val stopped = request.request(false)
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(ENABLED, false)
+            .putBoolean(PENDING_DISABLE, stopped.pendingDisable)
+            .putBoolean(AWAITING_TCP_DOWN, stopped.awaitingTcpDown)
+            .putBoolean(APP_OPEN_RESUME_PENDING, true).commit()) { "Не удалось сохранить запрос" }
+    }
+
+    @Synchronized internal fun completeAppOpenRestart(context: Context) {
+        check(appOpenResumePending(context) && !isEnabled(context) && !pendingDisable(context) &&
+            customOwner(context) == null) { "Выключение не завершено" }
+        save(context, request(context).request(true))
+    }
+
+    @Synchronized internal fun cancelAppOpenRestart(context: Context) {
+        if (!appOpenResumePending(context)) return
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(APP_OPEN_RESUME_PENDING, false).commit()) { "Не удалось сохранить выключение" }
+    }
+
+    /** A later explicit OFF or mode choice wins even if restart just persisted ON. */
+    @Synchronized internal fun cancelAppOpenRestartAndStop(context: Context) {
+        val stopped = request(context).request(false)
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(ENABLED, false)
+            .putBoolean(PENDING_DISABLE, stopped.pendingDisable)
+            .putBoolean(AWAITING_TCP_DOWN, stopped.awaitingTcpDown)
+            .putBoolean(APP_OPEN_RESUME_PENDING, false).commit()) { "Не удалось сохранить выключение" }
+    }
+
+    /** A durable hint to probe the global owner after this installation has used CUSTOM. */
+    fun customCleanupRequired(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(CUSTOM_CLEANUP_REQUIRED, false) || customOwner(context) != null ||
+            (mode(context) == CloudSimMode.CUSTOM && (isEnabled(context) || pendingDisable(context)))
+
+    @Synchronized internal fun markCustomCleanupRequired(context: Context) {
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(CUSTOM_CLEANUP_REQUIRED, true).commit()) { "Не удалось сохранить владение" }
+    }
+
+    @Synchronized internal fun clearCustomCleanupRequired(context: Context) {
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(CUSTOM_CLEANUP_REQUIRED, false).commit()) { "Не удалось сохранить выключение" }
+    }
+
     /** An old enabled install predates the mode choice and keeps its factory path. */
     fun mode(context: Context): CloudSimMode? =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).let { prefs ->
@@ -50,7 +106,7 @@ object CloudLinkSettings {
     internal fun resolveMode(saved: String?, enabled: Boolean): CloudSimMode? = when (saved) {
         CloudSimMode.FACTORY.name -> CloudSimMode.FACTORY
         CloudSimMode.CUSTOM.name -> CloudSimMode.CUSTOM
-        else -> if (enabled) CloudSimMode.FACTORY else null
+        else -> CloudSimMode.FACTORY
     }
 
     fun customIdentity(context: Context): CloudIdentity? =
@@ -60,27 +116,24 @@ object CloudLinkSettings {
             if (iccid == null || imsi == null) null else CloudIdentity(iccid, imsi)
         }
 
-    /** Settings changes are serialized with an enable request before it enters the worker queue. */
-    @Synchronized fun chooseMode(context: Context, mode: CloudSimMode): Boolean {
-        if (!configurable(context)) return false
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val editor = prefs.edit().putString(MODE, mode.name)
-        if (mode == CloudSimMode.CUSTOM && customIdentity(context) == null) {
-            val identity = CloudIdentity.generate()
-            editor.putString(ICCID, identity.iccid).putString(IMSI, identity.imsi)
+    /** Controller-only transition after the old side has durably finished teardown. */
+    @Synchronized internal fun modeAfterStop(context: Context, mode: CloudSimMode) {
+        check(!isEnabled(context) && !pendingDisable(context) && customOwner(context) == null) {
+            "Выключение не завершено"
         }
-        return editor.commit()
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(MODE, mode.name).putBoolean(APP_OPEN_RESUME_PENDING, false).commit()) {
+            "Не удалось сохранить режим"
+        }
     }
 
-    @Synchronized fun saveCustomIdentity(context: Context, identity: CloudIdentity): Boolean {
-        if (!configurable(context) || mode(context) != CloudSimMode.CUSTOM || !identity.valid()) return false
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(ICCID, identity.iccid).putString(IMSI, identity.imsi).commit()
-    }
-
-    @Synchronized fun regenerate(context: Context): Boolean {
-        if (!configurable(context) || mode(context) != CloudSimMode.CUSTOM) return false
-        return saveCustomIdentity(context, CloudIdentity.generate())
+    @Synchronized internal fun identityAfterStop(context: Context, identity: CloudIdentity) {
+        check(!isEnabled(context) && !pendingDisable(context) && customOwner(context) == null &&
+            mode(context) == CloudSimMode.CUSTOM && identity.valid()) { "Выключение не завершено" }
+        check(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(ICCID, identity.iccid).putString(IMSI, identity.imsi).commit()) {
+            "Не удалось сохранить номера SIM"
+        }
     }
 
     fun configurable(context: Context): Boolean =
@@ -149,6 +202,7 @@ object CloudLinkSettings {
             .putBoolean(ENABLED, request.enabled)
             .putBoolean(AWAITING_TCP_DOWN, request.awaitingTcpDown)
             .putBoolean(PENDING_DISABLE, request.pendingDisable)
+        if (request.enabled) editor.putBoolean(APP_OPEN_RESUME_PENDING, false)
         if (legacyFactory) editor.putString(MODE, CloudSimMode.FACTORY.name)
         check(editor.commit()) { "Не удалось сохранить запрос" }
     }
@@ -193,13 +247,16 @@ object CloudLinkRuntime {
     @Volatile internal var custom: CloudCustomStatus? = null
     @Volatile var customReadAtMs: Long? = null
     @Volatile var leaseFailure: String? = null
+    @Volatile internal var customServiceStartPendingUntilMs: Long = 0L
 
     fun readingFailed(nowMs: Long): Boolean = readFailure != null ||
         readAtMs?.let { nowMs - it !in 0..90_000L } == true
 
     fun snapshot(enabled: Boolean, network: Boolean, pendingDisable: Boolean, nowMs: Long,
-                 mode: CloudSimMode? = CloudSimMode.FACTORY, uptimeMs: Long = nowMs): FeatureSnapshot =
-        if (mode == CloudSimMode.CUSTOM) customSnapshot(enabled, network, pendingDisable, nowMs, uptimeMs) else
+                 mode: CloudSimMode? = CloudSimMode.FACTORY, uptimeMs: Long = nowMs,
+                 identityValid: Boolean = true, serviceAlive: Boolean = true): FeatureSnapshot =
+        if (mode == CloudSimMode.CUSTOM) customSnapshot(enabled, network, pendingDisable, nowMs,
+            uptimeMs, identityValid, serviceAlive) else
         CloudLinkStatus.snapshot(
             enabled, car, network, failure,
             readingFailed = readingFailed(nowMs),
@@ -212,16 +269,20 @@ object CloudLinkRuntime {
         )
 
     private fun customSnapshot(enabled: Boolean, network: Boolean, pendingDisable: Boolean,
-                               nowMs: Long, uptimeMs: Long): FeatureSnapshot {
+                               nowMs: Long, uptimeMs: Long, identityValid: Boolean,
+                               serviceAlive: Boolean): FeatureSnapshot {
         val base = if (enabled) FeatureReducer.starting(FeatureId.CLOUD_LINK) else FeatureReducer.disabled(FeatureId.CLOUD_LINK)
         val status = custom
         return when {
             pendingDisable -> if (busy) base else base.copy(status = FeatureStatus.ERROR, message = "Выключение не завершено")
             !enabled -> base
+            !identityValid -> FeatureReducer.needsAction(base, "Нужны номера SIM")
             leaseFailure != null -> base.copy(status = FeatureStatus.ERROR, message = leaseFailure.orEmpty())
             status?.stage == "failed" && !status.retryable ->
                 base.copy(status = FeatureStatus.ERROR, message = CloudCustomMessages.error(status.code))
-            !network -> FeatureReducer.ready(FeatureId.CLOUD_LINK)
+            !serviceAlive && !busy && nowMs >= customServiceStartPendingUntilMs -> base.copy(status = FeatureStatus.ERROR,
+                message = "Служба связи остановилась")
+            !network -> FeatureReducer.ready(FeatureId.CLOUD_LINK).copy(message = "Нет интернета")
             failure != null -> base.copy(status = FeatureStatus.ERROR, message = failure.orEmpty())
             status == null -> base
             customReadAtMs?.let { nowMs - it !in 0..30_000L } != false ->
@@ -333,7 +394,8 @@ object CloudLinkStatus {
     fun words(snapshot: FeatureSnapshot): String = when (snapshot.status) {
         FeatureStatus.OFF -> "Выключено"
         FeatureStatus.ACTIVE -> "На связи"
-        FeatureStatus.READY -> snapshot.message.ifBlank { "Нет интернета" }
+        FeatureStatus.READY -> snapshot.message.ifBlank { "Ждёт Wi-Fi" }
+        FeatureStatus.NEEDS_ACTION -> snapshot.message.ifBlank { "Нужно действие" }
         FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE -> snapshot.message.ifBlank { "Не переключилось" }
         else -> "Подключается"
     }
@@ -365,7 +427,7 @@ object CloudLinkStatus {
             readingFailed -> if (awaitingFreshRead) base else
                 base.copy(status = FeatureStatus.ERROR, message = "Нет свежих данных")
             car?.connected == true -> FeatureReducer.ready(FeatureId.CLOUD_LINK, active = true)
-            !network -> FeatureReducer.ready(FeatureId.CLOUD_LINK)
+            !network -> FeatureReducer.ready(FeatureId.CLOUD_LINK).copy(message = "Ждёт Wi-Fi")
             profileDrift -> base.copy(status = FeatureStatus.ERROR, message = "Профиль изменился")
             registrationFailure != null -> base.copy(status = FeatureStatus.ERROR, message = registrationFailure)
             stalled -> base.copy(status = FeatureStatus.ERROR, message = "Нет связи с облаком")

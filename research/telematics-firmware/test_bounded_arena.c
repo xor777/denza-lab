@@ -18,8 +18,13 @@ int main(void) {
  reset(sizeof(storage));
  assert(arena_deallocate(&a,0)==ARENA_OK);
  assert(!arena_allocate(&a,0,&status) && status==ARENA_BOUND);
- assert(!arena_allocate(&a,4097,&status) && status==ARENA_BOUND);
+ assert(!arena_allocate(&a,ARENA_MAX_REQUEST+1UL,&status) && status==ARENA_BOUND);
  assert(!arena_allocate(&a,~0UL,&status) && status==ARENA_BOUND);
+ /* Largest stock configuration: 255 records, companion array and vector. */
+ void *records=get(140*255), *indices=get(1+8*255), *vector=get(24*256);
+ assert(arena_deallocate(&a,records)==ARENA_OK);
+ assert(arena_deallocate(&a,indices)==ARENA_OK);
+ assert(arena_deallocate(&a,vector)==ARENA_OK && a.end==0);
 
  unsigned char *owner=get(31), *temporary=get(80), *other=get(47);
  for(int i=0;i<31;i++)owner[i]=0x31;

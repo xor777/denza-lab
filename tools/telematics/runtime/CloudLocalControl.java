@@ -58,7 +58,10 @@ final class CloudLocalControl {
     }
     static LocalSocket connect()throws IOException{
         LocalSocket socket=new LocalSocket();
-        try{socket.connect(new LocalSocketAddress(SOCKET,LocalSocketAddress.Namespace.ABSTRACT),1000);
+        // Android's LocalSocket.connect(address, timeout) is an unsupported API
+        // even though it is present in android.jar. The abstract Unix endpoint
+        // is local; use its supported connect overload, then bound protocol I/O.
+        try{socket.connect(new LocalSocketAddress(SOCKET,LocalSocketAddress.Namespace.ABSTRACT));
             socket.setSoTimeout(12000);return socket;}
         catch(IOException failure){try{socket.close();}catch(IOException ignored){}throw failure;}
     }

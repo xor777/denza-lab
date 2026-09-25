@@ -1,10 +1,22 @@
 # Telematics probes
 
-Research tools, outside product APKs. Start with
+Research probes, outside product APKs. The `runtime/` Java component is the
+explicit exception used by the bounded awake alpha described below. Start with
 [the findings](../../docs/telematics-findings.md) for the exact authorization,
 firmware, live results and unresolved boundaries. On 2026-09-23 the bounded
 helper delivered real **74% SOC** to the official Denza app through vehicle Wi-Fi.
 It is not a persistent service.
+
+Build 61 packages `runtime/` and the qualified original ARM64 instruction subset
+as `awake-alpha-v1`. It requires an awake vehicle and Denza Apps foreground
+service. Original firmware handles telemetry and commands; Java forwards
+opaque frames and SDK calls. After a successful frame write it returns the
+original command number as SENT, allowing the original completion handler to
+run. Registration status0 uses the original 70-second timer; heartbeat uses
+the same authenticated TLS session. Offline qualification is saved under
+`captures/telematics-20260925/awake-alpha/`. Sleep, QuickBoot and full autonomous
+operation remain unsupported, and ordinary-SIM internet requires separate live
+acceptance. See [the runtime contract](../../docs/cloud-custom-runtime-contract.md).
 
 The owner's 2026-09-24 design boundary excludes our own telemetry/command
 schemas: future adaptation may forward opaque data/messages or call stock
@@ -267,16 +279,24 @@ owner vehicle data; keep them local. See `source-artifacts.json` at the capture
 root for source and binary identities.
 
 
-## Resident custom-identity runtime (offline preparation)
+## Custom-identity runtime and awake alpha
 
 `runtime/` contains the resident process owner, app control protocol, fresh
 connection loop, Android SDK/TLS bindings and typed primitive bridge for the
-isolated firmware functions. It is not bundled into the APK: the product pilot
-flag remains false and `CloudNativeConnection` rejects an engine lacking any
-required lifecycle capability before SDK/cloud effects.
+isolated firmware functions. The APK packages the `awake-alpha-v1` profile for
+an enabled foreground service and a powered-on car. Sleep, wake-up and QuickBoot
+are not qualified. `CloudNativeConnection` checks this profile's capabilities
+before SDK/cloud effects; full resident-product qualification remains false.
+
+`build_runtime_package.py` compiles production Java against Android API 33,
+including its standard Java classes, with Java 8 language syntax. Install
+`platforms;android-33` in the configured Android SDK. Compiling with the desktop
+JDK's standard library is insufficient: it accepted `Path.of`, which is absent
+on the car's Android 13. The packaged manifest records API level, component and
+toolchain hashes. The app's own compile SDK is independent of this runtime API.
 
 Run `python3 tools/telematics/runtime/test_runtime.py` for local Java compilation
-and six fault-oriented host suites. They use fake SDKs/sockets, synthetic child
+and the fault-oriented host suites. They use fake SDKs/sockets, synthetic child
 processes and temporary output directories; no APK, ADB or cloud access. Native
 firmware execution has its separate build/replay under
 `research/telematics-firmware/`. See the resident implementation section of

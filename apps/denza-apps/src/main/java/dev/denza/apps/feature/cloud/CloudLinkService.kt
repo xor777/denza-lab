@@ -37,6 +37,7 @@ class CloudLinkService : Service() {
         .joinToString("") { "%02x".format(it.toInt() and 0xff) }
     private var validated = false
     private var watching = false
+    private var controllerStarted = false
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) = changed()
@@ -74,7 +75,6 @@ class CloudLinkService : Service() {
         // arrive at all. Whether it does arrive at an ordinary app is unproven; nothing waits on it.
         registerReceiver(statusReceiver, IntentFilter(TCP_STATUS_ACTION), Context.RECEIVER_EXPORTED)
         watching = true
-        CloudLinkController.serviceStarted(this, instance)
         if (!validated) handler.postDelayed(lossCheck, CloudLinkCore.NETWORK_LOSS_GRACE_MS)
     }
 
@@ -83,8 +83,19 @@ class CloudLinkService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        val custom = CloudLinkSettings.mode(this) == CloudSimMode.CUSTOM
+        if (!CloudServiceStartPolicy.accept(custom, CloudLinkSettings.pendingDisable(this),
+                controllerStarted, intent?.getBooleanExtra(EXTRA_EXPLICIT_CUSTOM_START, false) == true)) {
+            // A stale FACTORY sticky restart must not mint a new CUSTOM lease after power loss.
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (!controllerStarted) {
+            controllerStarted = true
+            CloudLinkController.serviceStarted(this, instance)
+        }
         getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification())
-        return START_STICKY
+        return if (custom) START_NOT_STICKY else START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -98,7 +109,7 @@ class CloudLinkService : Service() {
             watching = false
         }
         handler.removeCallbacks(lossCheck)
-        CloudLinkController.serviceStopped(this, instance)
+        if (controllerStarted) CloudLinkController.serviceStopped(this, instance)
         super.onDestroy()
     }
 
@@ -146,6 +157,7 @@ class CloudLinkService : Service() {
     companion object {
         private const val CHANNEL_ID = "denza_cloud_link"
         private const val NOTIFICATION_ID = 18_891
+        private const val EXTRA_EXPLICIT_CUSTOM_START = "explicit_custom_start"
 
         /** `BYDTCPConnectService.notify_tcp_status`, extra `tcp_status`. */
         private const val TCP_STATUS_ACTION = "com.byd.tcp.cloud.server.status"
@@ -153,13 +165,48 @@ class CloudLinkService : Service() {
         /** The switch, read from settings: on runs the adapter, off stops it. */
         fun reconcile(context: Context, explicitCustomStart: Boolean = false) {
             val app = context.applicationContext
-            if (CloudLinkSettings.mode(app) == CloudSimMode.CUSTOM &&
-                !explicitCustomStart && !CloudLinkController.hasLiveService()) return
-            if (CloudLinkSettings.needsService(app)) {
-                ContextCompat.startForegroundService(app, Intent(app, CloudLinkService::class.java))
+            val custom = CloudLinkSettings.mode(app) == CloudSimMode.CUSTOM
+            synchronized(CloudLinkSettings) {
+                if (CloudServiceStartPolicy.deferCleanupOnlyRestart(custom,
+                        CloudLinkSettings.request(app), CloudLinkController.hasLiveService(),
+                        explicitCustomStart)) {
+                    // An interrupted OFF/ON may leave saved ON with pending STOP. Boot may
+                    // run STOP, but only a later explicit app open may request its next START.
+                    CloudLinkSettings.beginAppOpenRestart(app)
+                }
+            }
+            val enabled = CloudLinkSettings.isEnabled(app)
+            val pendingDisable = CloudLinkSettings.pendingDisable(app)
+            if (!custom || !enabled || pendingDisable) CloudLinkController.customServiceStartCanceled()
+            // The same gate applies before requesting the service and on delivery:
+            // an old ON cannot resume itself, but a durable OFF must finish cleanup.
+            if (!CloudServiceStartPolicy.accept(custom, pendingDisable,
+                    CloudLinkController.hasLiveService(), explicitCustomStart)) return
+            val waitingForPair = custom && enabled && !pendingDisable &&
+                CloudLinkSettings.customIdentity(app)?.valid() != true
+            if (CloudLinkSettings.needsService(app) && !waitingForPair) {
+                val customStart = custom && enabled && !pendingDisable && explicitCustomStart
+                if (customStart) CloudLinkController.customServiceStartRequested(app)
+                try {
+                    ContextCompat.startForegroundService(app, Intent(app, CloudLinkService::class.java)
+                        .putExtra(EXTRA_EXPLICIT_CUSTOM_START, explicitCustomStart))
+                } catch (error: Exception) {
+                    if (customStart) CloudLinkController.customServiceStartCanceled()
+                    throw error
+                }
             } else {
                 app.stopService(Intent(app, CloudLinkService::class.java))
             }
         }
     }
+}
+
+internal object CloudServiceStartPolicy {
+    fun deferCleanupOnlyRestart(custom: Boolean, request: CloudLinkRequest,
+                                serviceAlive: Boolean, explicitCustomStart: Boolean): Boolean =
+        custom && request.enabled && request.pendingDisable && !serviceAlive && !explicitCustomStart
+
+    fun accept(custom: Boolean, pendingDisable: Boolean, alreadyStarted: Boolean,
+               explicitCustomStart: Boolean): Boolean =
+        !custom || pendingDisable || alreadyStarted || explicitCustomStart
 }

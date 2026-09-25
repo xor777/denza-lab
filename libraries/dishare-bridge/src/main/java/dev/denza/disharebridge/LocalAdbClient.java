@@ -169,18 +169,41 @@ public final class LocalAdbClient {
         if (readTimeoutMs < 1) {
             throw new IllegalArgumentException("readTimeoutMs must be positive");
         }
+        return shellOnce(hosts, host -> connectShell(host, readTimeoutMs), command);
+    }
+
+    interface ShellTransport extends AutoCloseable {
+        String run(String command) throws IOException;
+        @Override void close() throws IOException;
+    }
+
+    interface ShellConnector {
+        ShellTransport connect(String host) throws IOException, GeneralSecurityException;
+    }
+
+    /** Fallback is safe only before OPEN can dispatch the command. */
+    static String shellOnce(List<String> hosts, ShellConnector connector, String command)
+            throws IOException, GeneralSecurityException {
         IOException lastIoFailure = null;
         GeneralSecurityException lastSecurityFailure = null;
         for (String host : hosts) {
+            final ShellTransport connected;
             try {
-                return shell(host, command, readTimeoutMs);
+                connected = connector.connect(host);
             } catch (GeneralSecurityException e) {
                 lastSecurityFailure = e;
+                continue;
             } catch (IOException e) {
                 if (isAuthorizationPending(e)) {
                     throw e;
                 }
                 lastIoFailure = e;
+                continue;
+            }
+            // A lost response or partial OPEN write has an unknown result.
+            // Neither execution nor close failure may replay it on another host.
+            try (ShellTransport transport = connected) {
+                return transport.run(command);
             }
         }
         if (lastSecurityFailure != null) {
@@ -192,18 +215,24 @@ public final class LocalAdbClient {
         throw new IOException("No ADB hosts available");
     }
 
-    private String shell(String host, String command, int readTimeoutMs)
+    private ShellTransport connectShell(String host, int readTimeoutMs)
             throws IOException, GeneralSecurityException {
         Socket socket = new Socket();
-        socket.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
-        prepareTransport(socket, readTimeoutMs);
         try {
+            socket.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
+            prepareTransport(socket, readTimeoutMs);
             InputStream input = socket.getInputStream();
             OutputStream output = socket.getOutputStream();
             connect(input, output);
-            return runShell(input, output, command);
-        } finally {
-            socket.close();
+            return new ShellTransport() {
+                public String run(String command) throws IOException {
+                    return runShell(input, output, command);
+                }
+                public void close() throws IOException { socket.close(); }
+            };
+        } catch (IOException | GeneralSecurityException | RuntimeException failure) {
+            closeQuietly(socket);
+            throw failure;
         }
     }
 

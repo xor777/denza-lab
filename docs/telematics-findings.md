@@ -13,9 +13,51 @@ current controlled alpha uses management protocol 3 with a foreground-service
 permission renewed every five seconds and expiring after 30 seconds. Native IPC
 remains 2. Installation generations, ATTACH and local OFF remain independent of
 factory registration. The package builder binds versions, hashes and the explicit
-`awake-alpha-v1` capabilities. Native dependency closure is still being completed;
-earlier short experiments and host tests do not qualify the full parked product.
-`CLOUD_NATIVE_PILOT` remains false.
+`awake-alpha-v1` capabilities. Build 61 enables the awake pilot after offline
+native and Java integration checks. The full parked product remains unqualified;
+sleep, QuickBoot and ordinary-SIM internet have not passed vehicle acceptance.
+
+The offline candidate uses worker SHA256
+`9b874c2df22d1248c226c7ff760ee6c85f100a8fb03d3bae0c23582025351cf3`
+and Java component SHA256
+`99299c55655f8cf158fd8b76fa9254ad8be4e42242426b5836dbc37bc6ae0588`.
+Nine Java/ARM64 replays pass against this exact worker: bootstrap, registration
+status0 continuation, both paths with the real positive SDK-buffer shape,
+empty observed debug serial, awake536, sub5, heartbeat ACK and timeout. The original sender is shared with
+CloudControl; successful opaque writes notify its original send-complete
+callback. REG0 schedules the original 70-second continuation rather than being
+treated as a rejection. Native snapshots and final replays are retained under
+`captures/telematics-20260925/awake-alpha/`. These checks are offline evidence,
+not proof of an installed APK's cloud exchange or vehicle commands.
+
+The first installed build-61 attempt did not complete CUSTOM registration: it
+stopped during REGISTERING with `native_unavailable` before cloud frame TX.
+Android integration fixes cover the supported local-socket connect API,
+main-thread SDK initialization and a legitimately empty debug serial. Following
+the owner's request to disconnect, FACTORY was returned to TCP=1, workers stopped,
+and the remaining idle guardian was terminated after its cleanup debt was checked.
+No further vehicle calls were made during that offline-work interval.
+
+After the owner reconnected the car, the offline candidate was installed. Its
+CUSTOM attempt still failed before application-frame TX. A production TLS-only
+probe isolated a local incompatibility: Conscrypt supplied RSA-PSS to the opaque
+key provider, which admitted only PKCS#1. Strict TLS PSS encoding support fixed
+the on-car handshake (TLSv1.2, one chip signature, no application frames sent).
+This is not a registration rejection or proof of a SIM restriction. The APK's
+end-to-end acceptance remains separate; see the resumed acceptance section of
+the runtime contract and `awake-alpha/resumed-acceptance/` evidence.
+
+Further offline review corrected guardian accept-loop exit and DNS responses
+containing mixed IPv6/IPv4 or many A records; the latter had incorrectly caused
+a permanent native failure. The cause of the recorded vehicle failure is still
+unproved. The obsolete separate TLS transport is now test-only. In addition to
+the nine native IPC replays, two tests execute production `establish()` with the
+real ARM64 child through REG1 and REG0, post-login and keepalive, using explicit
+synthetic SDK/DNS/TLS boundaries. Sixteen host groups, fourteen signer-isolation
+tests, seven Android-emulator mutual-TLS cases and an Android abstract-socket
+STOP/exit test pass. Evidence is under `awake-alpha/final-native-integration/`
+and `awake-alpha/offline-review/` within the capture directory above. These checks
+do not establish vehicle command delivery or make the APK ready for distribution.
 
 ### Awake-alpha power preflight, 2026-09-25
 

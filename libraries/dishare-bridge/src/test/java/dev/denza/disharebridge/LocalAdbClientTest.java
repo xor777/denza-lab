@@ -28,6 +28,62 @@ import org.junit.Test;
 
 public final class LocalAdbClientTest {
     @Test
+    public void lostShellReplyDoesNotExecuteOnNextHost() throws Exception {
+        List<String> connected = new ArrayList<>();
+        List<String> executed = new ArrayList<>();
+        List<String> closed = new ArrayList<>();
+        try {
+            LocalAdbClient.shellOnce(Arrays.asList("first", "second"), host -> {
+                connected.add(host);
+                return new LocalAdbClient.ShellTransport() {
+                    public String run(String command) throws IOException {
+                        executed.add(command);
+                        throw new java.net.SocketTimeoutException("response lost after dispatch");
+                    }
+                    public void close() { closed.add(host); }
+                };
+            }, "one side effect");
+            fail("lost response accepted");
+        } catch (java.net.SocketTimeoutException expected) { }
+        assertEquals(Arrays.asList("first"), connected);
+        assertEquals(Arrays.asList("one side effect"), executed);
+        assertEquals(Arrays.asList("first"), closed);
+    }
+
+    @Test
+    public void shellCanFallbackBeforeCommandDispatch() throws Exception {
+        List<String> connected = new ArrayList<>();
+        List<String> executed = new ArrayList<>();
+        String answer = LocalAdbClient.shellOnce(Arrays.asList("offline", "ready"), host -> {
+            connected.add(host);
+            if (host.equals("offline")) throw new java.net.ConnectException("offline");
+            return new LocalAdbClient.ShellTransport() {
+                public String run(String command) { executed.add(command); return "done"; }
+                public void close() { }
+            };
+        }, "one side effect");
+        assertEquals("done", answer);
+        assertEquals(Arrays.asList("offline", "ready"), connected);
+        assertEquals(Arrays.asList("one side effect"), executed);
+    }
+
+    @Test
+    public void shellCloseFailureDoesNotReplayCompletedCommand() throws Exception {
+        List<String> connected = new ArrayList<>();
+        try {
+            LocalAdbClient.shellOnce(Arrays.asList("first", "second"), host -> {
+                connected.add(host);
+                return new LocalAdbClient.ShellTransport() {
+                    public String run(String command) { return "done"; }
+                    public void close() throws IOException { throw new IOException("close failed"); }
+                };
+            }, "one side effect");
+            fail("close failure swallowed");
+        } catch (IOException expected) { }
+        assertEquals(Arrays.asList("first"), connected);
+    }
+
+    @Test
     public void authorizationPendingStopsHostFallback() {
         assertTrue(LocalAdbClient.isAuthorizationPending(
                 new IOException("ADB authorization pending; confirm the ADB request")));

@@ -16,6 +16,8 @@ public final class CloudNativeClockTest {
             " WAKE_ACK_AWAKE=1 TIMERS_AWAKE=1 POST_LOGIN_AWAKE=1 HEARTBEAT=1");
         System.out.flush();
         boolean registrationAnswered=false,prematureNet=mode.equals("premature");
+        boolean delayed=mode.startsWith("reg0"),discoverySent=false;
+        long lastTick=0,registrationAt=0;
         try(BufferedReader in=new BufferedReader(new InputStreamReader(System.in))){
             for(String line;(line=in.readLine())!=null;){
                 String[] words=line.split(" ");
@@ -23,13 +25,24 @@ public final class CloudNativeClockTest {
                 Files.writeString(trace,operation+(operation.equals("TICK")?" "+words[4]+" "+words[5]+" "+words[6]:"")+"\n",
                     StandardOpenOption.CREATE,StandardOpenOption.APPEND);
                 String id=words[1],epoch=words[2];
+                if(operation.equals("TICK"))lastTick=Long.parseLong(words[5]);
+                if(delayed&&registrationAnswered&&!discoverySent&&operation.equals("TICK")&&
+                   !mode.equals("reg0-timeout")&&lastTick-registrationAt>=70_000){
+                    System.out.println("NET "+id+" "+epoch+" 200 "+CloudNativeConnection.hex(CloudRuntimeBoundaryTest.frame(48)));
+                    discoverySent=true;
+                }
                 if(prematureNet&&registrationAnswered&&operation.equals("TICK"))
-                    System.out.println("NET "+id+" "+epoch+" "+CloudNativeConnection.hex(CloudRuntimeBoundaryTest.frame(48)));
-                if(operation.equals("NETSTATE")||operation.equals("R211")||operation.equals("R200")||operation.equals("KEEPALIVE"))
-                    System.out.println("NET "+id+" "+epoch+" "+CloudNativeConnection.hex(CloudRuntimeBoundaryTest.frame(48)));
+                    System.out.println("NET "+id+" "+epoch+" 200 "+CloudNativeConnection.hex(CloudRuntimeBoundaryTest.frame(48)));
+                if(operation.equals("NETSTATE")||(operation.equals("R211")&&!delayed)||operation.equals("R200")||operation.equals("KEEPALIVE"))
+                    System.out.println("NET "+id+" "+epoch+" "+
+                        (operation.equals("NETSTATE")?211:operation.equals("R211")?200:operation.equals("R200")?220:201)+
+                        " "+CloudNativeConnection.hex(CloudRuntimeBoundaryTest.frame(48)));
                 if(operation.equals("R200"))System.out.println("RESULT "+id+" "+epoch+" ENDPOINT test.denzacloud.com 6000");
                 else if(operation.equals("R220"))System.out.println("RESULT "+id+" "+epoch+" LOGIN 1");
-                else if(operation.equals("R211")){System.out.println("RESULT "+id+" "+epoch+" REG 1");registrationAnswered=true;}
+                else if(operation.equals("R211")){
+                    System.out.println("RESULT "+id+" "+epoch+" REG "+(delayed?"0":"1"));
+                    registrationAnswered=true;registrationAt=lastTick;
+                }
                 System.out.println("DONE "+id+" "+epoch+" OK");System.out.flush();
             }
         }
@@ -75,7 +88,7 @@ public final class CloudNativeClockTest {
             }
             public CloudPlatform platform(Scope resources,Identity pair)throws Exception{
                 return CloudPlatform.open(resources,new CloudRuntimeBoundaryTest.FakeBackend(){
-                    public String property(String key){return key.equals("persist.sys.byd.apn_type")?"double_apn":"0";}
+                    public String property(String key){return key.equals("persist.sys.byd.apn_type")?"double_apn":super.property(key);}
                 },pair.iccid,pair.imsi,8);
             }
             public void initializeTls(){}
@@ -107,6 +120,10 @@ public final class CloudNativeClockTest {
     }
     private static void clockBeforeLogin(boolean prematureNet,boolean suspendPreflight,
             CloudNativeConnection.Registration registration,long base)throws Exception{
+        clockBeforeLogin(prematureNet,suspendPreflight,registration,base,"");
+    }
+    private static void clockBeforeLogin(boolean prematureNet,boolean suspendPreflight,
+            CloudNativeConnection.Registration registration,long base,String pendingMode)throws Exception{
         Path trace=Files.createTempFile("native-clock-order-", ".txt");
         Path gate=trace.resolveSibling(trace.getFileName()+".gate");
         Path registrationMarker=trace.resolveSibling(trace.getFileName()+".registration");
@@ -122,44 +139,78 @@ public final class CloudNativeClockTest {
         List<CloudRuntimeBoundaryTest.FakeSocket> sockets=new ArrayList<>();
         java.util.concurrent.atomic.AtomicReference<CloudRuntimeBoundaryTest.FakeBackend> sdk=
             new java.util.concurrent.atomic.AtomicReference<>();
-        java.util.concurrent.atomic.AtomicInteger secondaryWrites=new java.util.concurrent.atomic.AtomicInteger();
         java.util.concurrent.atomic.AtomicBoolean partial=new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicLong waited=new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicReference<CloudNativeConnection> current=new java.util.concurrent.atomic.AtomicReference<>();
         CloudNativeConnection.Dependencies dependencies=new CloudNativeConnection.Dependencies(){
             public void verifyFirmware(){}
             public Process launch(Path executable)throws Exception{
                 return new ProcessBuilder(System.getProperty("java.home")+"/bin/java","-cp",
-                    System.getProperty("java.class.path"),CloudNativeClockTest.class.getName(),"--child",trace.toString(),prematureNet?"premature":"normal")
+                    System.getProperty("java.class.path"),CloudNativeClockTest.class.getName(),"--child",trace.toString(),
+                    !pendingMode.isEmpty()?pendingMode:prematureNet?"premature":"normal")
                     .redirectError(ProcessBuilder.Redirect.INHERIT).start();
             }
             public CloudPlatform platform(Scope resources,Identity pair)throws Exception{
                 if(suspendPreflight)now.addAndGet(1_800_000);
                 CloudRuntimeBoundaryTest.FakeBackend backend=new CloudRuntimeBoundaryTest.FakeBackend(){
-                    public String property(String key){return key.equals("persist.sys.byd.apn_type")?"double_apn":"0";}
+                    public String property(String key){return key.equals("persist.sys.byd.apn_type")?"double_apn":super.property(key);}
                 };
                 sdk.set(backend);return CloudPlatform.open(resources,backend,pair.iccid,pair.imsi,8);
             }
             public void initializeTls(){}
             public Path gateJournalPath(){return gate;}
             public Path registrationJournalPath(){return registrationMarker;}
-            public CloudSecondaryTransport secondary(CloudSecondaryTransport.EndpointAuthorizer authorizer){
-                return new CloudSecondaryTransport(authorizer,(host,selected,p,owner)->{
-                    need(host.equals("test.denzacloud.com")&&p==6000&&
-                        selected.getHostAddress().equals("192.0.2.42"),"secondary route/peer identity changed");
-                    return new CloudSecondaryTransport.Channel(){
-                        public int read(byte[] bytes,int timeout){return -1;}
-                        public int write(byte[] bytes){secondaryWrites.incrementAndGet();return partial.get()?1:bytes.length;}
-                        public void close(){}
-                    };
-                });
+            public void waitForNativeTimer(long durationMs)throws InterruptedException{
+                waited.addAndGet(durationMs);now.addAndGet(durationMs);uptime.addAndGet(durationMs);
+                if(pendingMode.equals("reg0-sleep"))now.addAndGet(5000);
+                if(pendingMode.equals("reg0-off"))
+                    sdk.get().sinks.get(1).integer(CloudPlatform.POWER,CloudPlatform.POWER_ACC,0);
+                if(pendingMode.equals("reg0-stop"))try{current.get().close();}
+                    catch(Exception failure){throw new AssertionError(failure);}
             }
             public CloudTransport transport(){return new CloudTransport((name,p)->{
-                now.set(base+10000);uptime.set(base+9900);CloudRuntimeBoundaryTest.FakeSocket socket=new CloudRuntimeBoundaryTest.FakeSocket(CloudRuntimeBoundaryTest.frame(48));
+                now.set(Math.max(now.get(),base+10000));uptime.set(Math.max(uptime.get(),base+9900));
+                boolean finalSession=sockets.size()==2;
+                CloudRuntimeBoundaryTest.FakeSocket socket=new CloudRuntimeBoundaryTest.FakeSocket(CloudRuntimeBoundaryTest.frame(48)){
+                    public OutputStream getOutputStream(){
+                        return new OutputStream(){
+                            public void write(int value)throws IOException{write(new byte[]{(byte)value},0,1);}
+                            public void write(byte[] bytes,int offset,int length)throws IOException{
+                                if(finalSession&&partial.get()){
+                                    output.write(bytes[offset]);throw new IOException("synthetic ambiguous write");
+                                }
+                                output.write(bytes,offset,length);
+                            }
+                        };
+                    }
+                };
+                if(finalSession){
+                    ByteArrayInputStream login=new ByteArrayInputStream(CloudRuntimeBoundaryTest.frame(48));
+                    socket.input=new InputStream(){
+                        public int read()throws IOException{
+                            if(login.available()>0)return login.read();
+                            try{Thread.sleep(10);}catch(InterruptedException stopped){throw new IOException(stopped);}
+                            throw new java.net.SocketTimeoutException("synthetic idle");
+                        }
+                    };
+                }
                 sockets.add(socket);return socket;
             });}
         };
         CloudNativeConnection connection=new CloudNativeConnection(Path.of("unused"),
             new Identity("89010000000000000001","001010123456789"),1,clock,sink,registration,dependencies);
+        current.set(connection);
         try{
+            if(List.of("reg0-sleep","reg0-off","reg0-stop","reg0-timeout").contains(pendingMode)){
+                try{connection.establish(new CloudSessionLoop.Progress(){public void pulse(){}public void stage(Stage s,Code c){}});
+                    throw new AssertionError("unsafe or missing native continuation admitted");}
+                catch(CloudSessionLoop.PermanentFailure expected){
+                    need(pendingMode.equals("reg0-timeout")?expected.code==Code.NATIVE_UNAVAILABLE:
+                        expected.code==Code.POWER_LOST,"wrong pending registration refusal");
+                }catch(java.util.concurrent.CancellationException stopped){need(pendingMode.equals("reg0-stop"),"unexpected stop");}
+                need(sockets.size()==1&&Files.readAllLines(trace).stream().noneMatch(s->s.equals("R200")||s.equals("R220")),
+                    "pending registration failure sent discovery or login");return;
+            }
             if(suspendPreflight){
                 try{connection.establish(new CloudSessionLoop.Progress(){public void pulse(){}public void stage(Stage s,Code c){}});
                     throw new AssertionError("preflight sleep was accepted");}
@@ -186,13 +237,15 @@ public final class CloudNativeClockTest {
                 "new native child reused an endpoint without original registration/discovery");
             need(!operations.contains("G")&&!operations.contains("D")&&!operations.contains("L"),
                 "Java duplicated a firmware-produced bootstrap request");
+            if(!pendingMode.isEmpty())need(waited.get()==70_000,
+                "REG0 did not await native-produced discovery frame");
             need(Collections.frequency(operations,"KEEPALIVE")==1&&operations.indexOf("KEEPALIVE")>login,
                 "initial native keepalive missing or sent before actual login");
             need(sockets.get(2).output.size()==2*CloudRuntimeBoundaryTest.frame(48).length,
                 "login or original keepalive sent to wrong transport");
             need(operations.get(start+1).equals("TICK "+(base+1000)+" "+(base+900)+" "+(1700000001000L+base)),"initial clock not set after START");
             int fresh=-1;for(int i=start+2;i<login;i++)if(operations.get(i).startsWith("TICK "))fresh=i;
-            need(fresh>=0&&operations.get(fresh).equals("TICK "+(base+10000)+" "+(base+9900)+" "+(1700000010000L+base)),
+            need(fresh>=0&&operations.get(fresh).equals("TICK "+(base+10000+waited.get())+" "+(base+9900+waited.get())+" "+(1700000010000L+base+waited.get())),
                 "login received stale clock after TLS connect");
             need(operations.get(fresh-2).equals("E")&&operations.get(fresh-1).equals("X"),
                 "due timer ran before fresh getter snapshots");
@@ -204,13 +257,21 @@ public final class CloudNativeClockTest {
             java.lang.reflect.Field dns=CloudNativeConnection.class.getDeclaredField("nativeDns");dns.setAccessible(true);
             @SuppressWarnings("unchecked") Map<String,Set<String>> addresses=(Map<String,Set<String>>)dns.get(connection);
             addresses.put("test.denzacloud.com",Set.of("192.0.2.42"));
-            need(connection.call("SECONDARY_CONNECT",List.of(host,address,"6000")).equals("CONNECTED 1"),"secondary connect reply");
+            need(connection.call("SECONDARY_CONNECT",List.of(host,address,"6000")).equals("CONNECTED 1"),"sender attach reply");
+            int before=sockets.get(2).output.size();
             need(connection.call("SECONDARY_WRITE",List.of("010203")).equals("WRITTEN 3"),"opaque write reply");
-            need(connection.call("SECONDARY_CLOSE",List.of()).equals("OK"),"secondary close reply");
-            connection.call("SECONDARY_CONNECT",List.of(host,address,"6000"));partial.set(true);
-            try{connection.call("SECONDARY_WRITE",List.of("010203"));throw new AssertionError("partial write acknowledged");}
-            catch(CloudNativePipe.ProtocolFailure expected){}
-            need(secondaryWrites.get()==2,"uncertain secondary command replayed");
+            need(sockets.size()==3&&sockets.get(2).output.size()==before+3,
+                "original sender did not reuse authenticated final TLS");
+            partial.set(true);
+            try{connection.call("SECONDARY_WRITE",List.of("010203"));throw new AssertionError("ambiguous write acknowledged");}
+            catch(IOException expected){}
+            need(sockets.size()==3&&sockets.get(2).output.size()==before+4,
+                "uncertain sender write replayed or opened second TLS");
+            try{connection.call("SECONDARY_CLOSE",List.of());throw new AssertionError("closed sender remained connected");}
+            catch(CloudSessionLoop.NetworkFailure expected){}
+            need(connection.call("LINK_STATE",List.of("1")).equals("OK"),"local native link notice failed");
+            try{connection.call("LINK_STATE",List.of("0"));throw new AssertionError("original disconnect ignored");}
+            catch(CloudSessionLoop.NetworkFailure expected){}
             java.lang.reflect.Method drain=CloudNativeConnection.class.getDeclaredMethod("drainPlatform");
             drain.setAccessible(true);
             sdk.get().sinks.get(1).integer(CloudPlatform.POWER,CloudPlatform.POWER_ACC,1);
@@ -236,6 +297,8 @@ public final class CloudNativeClockTest {
         clockBeforeLogin(false,true,new CloudNativeConnection.Registration(),0);
         missingStockBridgeFailsBeforePlatform();
         primaryTlsFailure(true);primaryTlsFailure(false);
-        System.out.println("PASS native clock, fresh-child bootstrap, TLS refusal, secondary boundary and capability cases=7");
+        for(String mode:List.of("reg0","reg0-sleep","reg0-off","reg0-stop","reg0-timeout"))
+            clockBeforeLogin(false,false,new CloudNativeConnection.Registration(),0,mode);
+        System.out.println("PASS native clock, original REG0 continuation/cancel/power/timeout, fresh-child bootstrap, TLS refusal, shared sender, disconnect and capability cases=12");
     }
 }

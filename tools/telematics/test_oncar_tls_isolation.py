@@ -37,6 +37,13 @@ public class TlsIsolationHarness {
     static byte[] bytes(String dir,String name)throws Exception{return Files.readAllBytes(Paths.get(dir,name+".der"));}
     static byte[] digest(){byte[] value=new byte[51];System.arraycopy(OncarTls.unhex("3031300d060960864801650304020105000420"),0,value,0,19);Arrays.fill(value,19,51,(byte)42);return value;}
     static byte[] raw(){byte[] value=new byte[256];value[1]=1;Arrays.fill(value,2,204,(byte)255);System.arraycopy(digest(),0,value,205,51);return value;}
+    static byte[] pss(String hash,int hLen,int saltLen)throws Exception{
+        Signature signer=Signature.getInstance("RSASSA-PSS");
+        signer.setParameter(new PSSParameterSpec(hash,"MGF1",new MGF1ParameterSpec(hash),saltLen,1));
+        signer.initSign(key);signer.update("TLS CertificateVerify fixture".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        Cipher recover=Cipher.getInstance("RSA/ECB/NoPadding","SunJCE");
+        recover.init(Cipher.DECRYPT_MODE,leaf.getPublicKey());return recover.doFinal(signer.sign());
+    }
     static OncarTls.Identity identity(X509Certificate leaf,PrivateKey key,AtomicInteger calls){
         return new OncarTls.Identity(root,issuer,leaf,block->{calls.incrementAndGet();Cipher signer=Cipher.getInstance("RSA/ECB/NoPadding","SunJCE");signer.init(Cipher.ENCRYPT_MODE,key);return signer.doFinal(block);});
     }
@@ -117,6 +124,25 @@ public class TlsIsolationHarness {
         }else if(test.equals("invalid_block")){
             verified(a);byte[] block=raw();block[20]=0;reject(cipher(a,true),block);block=raw();block[220]=0;reject(cipher(a,true),block);
             need(calls.get()==0&&a.signatures()==0,"invalid block reached signer");check(cipher(a,true).doFinal(raw()),raw(),leaf);
+        }else if(test.startsWith("pss_valid_")){
+            int hLen=Integer.parseInt(test.substring("pss_valid_".length()));String hash="SHA-"+(hLen*8);
+            byte[] block=pss(hash,hLen,hLen);verified(a);check(cipher(a,true).doFinal(block),block,leaf);
+            need(calls.get()==1&&a.signatures()==1,"valid PSS signing budget");
+            reject(cipher(a,true),block);need(calls.get()==1,"PSS signature repeated");
+        }else if(test.equals("pss_invalid")){
+            verified(a);byte[] good=pss("SHA-256",32,32),bad=good.clone();bad[255]=0;reject(cipher(a,true),bad);
+            bad=good.clone();bad[0]|=(byte)0x80;reject(cipher(a,true),bad);
+            bad=good.clone();bad[10]^=1;reject(cipher(a,true),bad);
+            reject(cipher(a,true),pss("SHA-256",32,20));
+            reject(cipher(a,true),pss("SHA-256",32,0));
+            reject(cipher(a,true),pss("SHA-1",20,20));
+            need(calls.get()==0&&a.signatures()==0,"malformed PSS reached signer");
+            check(cipher(a,true).doFinal(good),good,leaf);
+        }else if(test.equals("pss_unverified")){
+            byte[] block=pss("SHA-256",32,32);
+            reject(cipher(a,true),block);need(calls.get()==0&&a.signatures()==0,"unverified PSS reached signer");
+            verified(a);a.finish();reject(cipher(a,true),block);
+            need(calls.get()==0&&a.signatures()==0,"finished PSS reached signer");
         }else if(test.equals("failed_reinit")){
             verified(a);OncarTls.FactoryCipher spi=new OncarTls.FactoryCipher();spi.engineInit(Cipher.ENCRYPT_MODE,new OncarTls.OpaqueKey(a),new SecureRandom());
             try{spi.engineInit(Cipher.ENCRYPT_MODE,key,new SecureRandom());throw new AssertionError("real key accepted");}catch(InvalidKeyException expected){}
@@ -171,7 +197,8 @@ class TlsIsolationTest(unittest.TestCase):
 
 
 for _case in ('hardware_proof', 'hardware_mismatch', 'unverified', 'peer_isolation', 'socket_isolation', 'identity_snapshot', 'concurrent_budget',
-              'failed_identity_reinit', 'failed_connect_diagnostics', 'finished_attempt', 'failed_signer_budget', 'invalid_block', 'failed_reinit', 'short_buffer'):
+              'failed_identity_reinit', 'failed_connect_diagnostics', 'finished_attempt', 'failed_signer_budget', 'invalid_block',
+              'pss_valid_32', 'pss_valid_48', 'pss_valid_64', 'pss_invalid', 'pss_unverified', 'failed_reinit', 'short_buffer'):
     setattr(TlsIsolationTest, 'test_' + _case, lambda self, case=_case: self.run_case(case))
 
 if __name__ == '__main__':

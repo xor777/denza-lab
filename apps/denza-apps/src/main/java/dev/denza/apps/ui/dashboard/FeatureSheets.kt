@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +44,7 @@ import dev.denza.apps.ui.components.DenzaChoiceIcon
 import dev.denza.apps.ui.components.DenzaChoiceRow
 import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.components.DenzaNote
+import dev.denza.apps.ui.components.DenzaModalDialog
 import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.ui.components.DenzaSecondaryButton
 import dev.denza.apps.ui.components.DenzaSection
@@ -83,6 +85,7 @@ fun FeatureSheet(
     compact: Boolean,
     onDismiss: () -> Unit,
     choosingAppsFirst: Boolean = false,
+    previewCloudPilot: Boolean = false,
 ) {
     // Eleven tiles decided from scratch to read one of them, on every publication the runtime makes
     // while the panel stands open.
@@ -201,7 +204,7 @@ fun FeatureSheet(
             TileId.HUD -> hudSheet(state, actions, busy)
             TileId.WEATHER -> weatherSheet(state, actions)
             TileId.SPEAKERS -> speakerSheet(state, actions, busy)
-            TileId.CLOUD -> cloudSheet(state, actions)
+            TileId.CLOUD -> cloudSheet(state, actions, compact, BuildConfig.CLOUD_NATIVE_PILOT || previewCloudPilot)
             // Nothing to switch: the paragraph below is the whole panel, and the button at the
             // foot is the one thing there is to do.
             TileId.LOCALE, TileId.PASSENGER, TileId.DEFAULT_APPS, TileId.SERVICE -> Unit
@@ -249,7 +252,7 @@ private fun helpOf(id: TileId): String = when (id) {
             "которые машина своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина " +
             "сама. «Поднять» выдвигает их снова, если машина убрала их в простое."
     TileId.CLOUD ->
-        "Связь с облаком работает через Wi-Fi. Выберите SIM для входа в настройках."
+        "Поддерживает связь машины с облаком. Режим SIM выбирается в настройках."
     TileId.LOCALE ->
         "Язык меняется у всей машины, а не у приложения: список открывает сама машина, " +
             "в нём сорок языков, и выбранный применяется сразу, без перезагрузки."
@@ -561,78 +564,111 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
  * Both grey while either is being written: each is one shell round trip and a read-back, and a
  * second press during it would only queue behind the first.
  */
+private enum class CloudPairConfirmation { GENERATE, CHANGE }
+
 @Composable
-private fun cloudSheet(state: DenzaUiState, actions: DashboardActions) {
+private fun cloudSheet(state: DenzaUiState, actions: DashboardActions, compact: Boolean,
+                       customAvailable: Boolean) {
     val identity = state.cloudIdentity
     var iccid by remember(identity?.iccid, state.cloudMode) { mutableStateOf(identity?.iccid.orEmpty()) }
     var imsi by remember(identity?.imsi, state.cloudMode) { mutableStateOf(identity?.imsi.orEmpty()) }
+    var confirmation by remember { mutableStateOf<CloudPairConfirmation?>(null) }
     val draft = CloudIdentity(iccid, imsi)
     val dirty = state.cloudMode == CloudSimMode.CUSTOM &&
-        (iccid != identity?.iccid || imsi != identity.imsi)
-    val configurable = state.cloudConfigurable
+        (iccid != identity?.iccid.orEmpty() || imsi != identity?.imsi.orEmpty())
+    val editable = !state.cloudLinkBusy && !state.cloudPendingDisable
 
-    DenzaSegmentedRow(
-        labels = listOf("Заводская SIM", "Заменённая SIM"),
-        selectedIndex = when (state.cloudMode) {
-            CloudSimMode.FACTORY -> 0
-            CloudSimMode.CUSTOM -> 1
-            null -> -1
-        },
-        onSelect = { actions.onSelectCloudMode(if (it == 0) CloudSimMode.FACTORY else CloudSimMode.CUSTOM) },
-        enabled = configurable && !dirty,
-    )
-    if (state.cloudMode == null) DenzaNote("Выберите SIM для входа в облако.")
-    if (state.cloudMode == CloudSimMode.CUSTOM) {
-        CloudDigitsField("ICCID", iccid, 20, configurable) { iccid = it }
-        CloudDigitsField("IMSI", imsi, 15, configurable) { imsi = it }
-        DenzaSecondaryButton(
-            text = "Сгенерировать заново",
-            onClick = actions.onRegenerateCloudIdentity,
-            enabled = configurable && !dirty,
-            modifier = Modifier.fillMaxWidth(),
+    if (customAvailable || state.cloudMode == CloudSimMode.CUSTOM) {
+        DenzaSegmentedRow(
+            labels = listOf("Заводская SIM", "Заменённая SIM"),
+            selectedIndex = if (state.cloudMode == CloudSimMode.CUSTOM) 1 else 0,
+            onSelect = { actions.onSelectCloudMode(if (it == 0) CloudSimMode.FACTORY else CloudSimMode.CUSTOM) },
+            enabled = editable && !dirty,
         )
+    }
+    if (state.cloudMode == CloudSimMode.CUSTOM) {
+        val canEditPair = editable && customAvailable
+        CloudDigitsField("ICCID", iccid, 20, canEditPair) { iccid = it }
+        CloudDigitsField("IMSI", imsi, 15, canEditPair) { imsi = it }
+        if (identity == null && iccid.isEmpty() && imsi.isEmpty() && customAvailable) {
+            DenzaSecondaryButton(
+                text = "Сгенерировать",
+                onClick = { confirmation = CloudPairConfirmation.GENERATE },
+                enabled = canEditPair,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         if (dirty) {
             DenzaPrimaryButton(
                 text = "Сохранить",
-                onClick = { actions.onSaveCloudIdentity(draft) },
-                enabled = configurable && draft.valid(),
+                onClick = {
+                    if (identity?.valid() == true) confirmation = CloudPairConfirmation.CHANGE
+                    else actions.onSaveCloudIdentity(draft)
+                },
+                enabled = canEditPair && draft.valid(),
                 modifier = Modifier.fillMaxWidth(),
             )
             if (!draft.valid()) DenzaNote("ICCID — 20 цифр, IMSI — 15 цифр")
         }
+        DenzaNote("Если сохранились номера заводской SIM, введите их. Меняйте пару как можно реже.")
     }
-    DenzaSwitchRow(
-        title = "Держать Wi-Fi включенным",
-        // The price, where the switch is: the car stops turning its radio off when it parks, so the
-        // battery drains faster - how much faster overnight has not been measured, which is why it
-        // says «быстрее» and not «разрядится». Two lines in both widths: 224 and 155 dp at 15/400.
-        subtitle = "На стоянке аккумулятор может разряжаться быстрее",
-        checked = state.cloudWifiRetained == true,
-        onCheckedChange = actions.onSetCloudWifiRetained,
-        enabled = !state.cloudLinkBusy && state.cloudWifiRetained != null,
-    )
-    state.cloudWifiFailure?.let { DenzaNote(it) }
+    if (state.cloudMode != CloudSimMode.CUSTOM) {
+        DenzaSwitchRow(
+            title = "Держать Wi-Fi включенным",
+            subtitle = "На стоянке аккумулятор может разряжаться быстрее",
+            checked = state.cloudWifiRetained == true,
+            onCheckedChange = actions.onSetCloudWifiRetained,
+            enabled = !state.cloudLinkBusy && state.cloudWifiRetained != null,
+        )
+        state.cloudWifiFailure?.let { DenzaNote(it) }
+    }
     when (state.cloudMode) {
-        CloudSimMode.FACTORY -> DenzaNote("Для входа используются данные заводской SIM. Интернет — через Wi-Fi.")
+        CloudSimMode.FACTORY -> DenzaNote("Штатный сервис машины. Интернет — через Wi-Fi или раздачу с телефона.")
         CloudSimMode.CUSTOM -> DenzaNote(
-            "Для проверки на включённой машине. Связь работает, пока запущен Denza Apps, в том числе в фоне.",
+            "Сервис Denza Apps работает, пока машина включена. Стабильность ещё проверяется.",
         )
         null -> Unit
     }
-    if (state.cloudMode == CloudSimMode.CUSTOM && !BuildConfig.CLOUD_NATIVE_PILOT) {
+    if (state.cloudMode == CloudSimMode.CUSTOM && !customAvailable) {
         DenzaNote("Связь через заменённую SIM пока недоступна")
     }
-    if (state.cloudMode != null) {
-        DenzaSwitchRow(
-            title = "Поддерживать связь с облаком",
-            checked = state.cloudLink.desiredEnabled,
-            onCheckedChange = actions.onToggleCloudLink,
-            // Three note lines round one pixel taller in Compose than on the board.
-            modifier = Modifier.offset(y = (-0.5).dp),
-            enabled = !state.cloudLinkBusy && !state.cloudPendingDisable &&
-                (state.cloudLink.desiredEnabled || state.cloudMode != CloudSimMode.CUSTOM ||
-                    (BuildConfig.CLOUD_NATIVE_PILOT && !dirty && draft.valid())),
+    DenzaSwitchRow(
+        title = "Поддерживать связь с облаком",
+        checked = state.cloudLink.desiredEnabled,
+        onCheckedChange = actions.onToggleCloudLink,
+        modifier = Modifier.offset(y = (-0.5).dp),
+        enabled = editable && !dirty &&
+            (state.cloudMode != CloudSimMode.CUSTOM || state.cloudLink.desiredEnabled || customAvailable),
+    )
+    if (confirmation != null) {
+        val generating = confirmation == CloudPairConfirmation.GENERATE
+        CloudPairConfirmationDialog(generating, compact, onConfirm = {
+            if (generating) actions.onRegenerateCloudIdentity() else actions.onSaveCloudIdentity(draft)
+            confirmation = null
+        }, onDismiss = { confirmation = null })
+    }
+}
+
+@Composable
+internal fun CloudPairConfirmationDialog(generating: Boolean, compact: Boolean,
+                                         onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    DenzaModalDialog(compact = compact, onDismiss = onDismiss) {
+        Text(
+            if (generating) "Сгенерировать номера SIM?" else "Сменить номера SIM?",
+            style = SheetInk.style(LuminoforSpec.Sheet.Modal.TITLE_SIZE, 500),
         )
+        Text(
+            "Случайные номера могут не работать. Если сохранились номера заводской SIM, " +
+                "лучше ввести их; меняйте пару как можно реже.",
+            style = SheetInk.style(LuminoforSpec.Sheet.Modal.TEXT_SIZE, 400,
+                SheetInk.white(LuminoforSpec.Sheet.Modal.TEXT_ALPHA), LuminoforSpec.Sheet.Note.LEADING),
+        )
+        DenzaPrimaryButton(
+            text = if (generating) "Сгенерировать" else "Сменить",
+            onClick = onConfirm,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        DenzaSecondaryButton(text = "Отмена", onClick = onDismiss)
     }
 }
 

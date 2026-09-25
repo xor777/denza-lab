@@ -23,6 +23,8 @@ FULL_REQUIRED = ('native_registration_codec', 'opaque_data_ingest', 'control_532
 PROFILE = 'awake-alpha-v1'
 PROFILE_REQUIRED = ('native_registration_codec', 'opaque_data_ingest', 'control_awake',
                     'wake_ack_awake', 'timers_awake', 'post_login_awake', 'heartbeat')
+NATIVE_SOURCES = ('build_persistent_runtime.py', 'native_profile.py',
+                  'persistent_runtime.c', 'bounded_arena.h', 'persistent_timer.h')
 
 
 def profile_qualification(native):
@@ -47,7 +49,7 @@ def sha(path):
 def source_manifest():
     paths = sorted(p for p in (HERE / 'runtime').glob('*.java') if not p.name.endswith('Test.java'))
     paths += [HERE / 'OncarTls.java', Path(__file__).resolve()]
-    paths += sorted(p for p in RESEARCH.iterdir() if p.suffix in ('.c', '.h', '.py'))
+    paths += [RESEARCH / name for name in NATIVE_SOURCES]
     return {str(p.relative_to(ROOT)): sha(p) for p in paths}
 
 
@@ -78,8 +80,12 @@ def main():
         raise SystemExit('JAVA_HOME must point to JDK 17')
     clang = Path(shutil.which('clang') or '')
     d8_implementation = args.d8.resolve().parent / 'lib/d8.jar'
-    if not clang.is_file() or not d8_implementation.is_file():
-        raise SystemExit('clang and the Android build-tools lib/d8.jar are required')
+    lambda_stubs = args.d8.resolve().parent / 'core-lambda-stubs.jar'
+    if not clang.is_file() or not d8_implementation.is_file() or not lambda_stubs.is_file():
+        raise SystemExit('clang and Android build-tools (D8 and lambda stubs) are required')
+    sdk_properties = args.android_jar.parent / 'source.properties'
+    if not sdk_properties.is_file() or 'AndroidVersion.ApiLevel=33' not in sdk_properties.read_text().replace(' ', ''):
+        raise SystemExit('Cloud runtime must compile against platforms/android-33/android.jar')
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='denza-cloud-package-') as temporary:
@@ -101,8 +107,12 @@ def main():
         classes.mkdir()
         sources = sorted(p for p in (HERE / 'runtime').glob('*.java') if not p.name.endswith('Test.java'))
         sources += [HERE / 'OncarTls.java']
-        subprocess.run([str(javac), '--release', '17', '-g:none', '-encoding', 'UTF-8',
-                        '-cp', str(args.android_jar.resolve()), '-d', str(classes),
+        # --release 17 would silently supply desktop java.* APIs absent on the
+        # car. The runtime uses Java 8 language features and the real API-33
+        # boot classpath; D8 lowers lambdas using the SDK's compiler stubs.
+        subprocess.run([str(javac), '-source', '8', '-target', '8', '-g:none', '-encoding', 'UTF-8',
+                        '-bootclasspath', os.pathsep.join((str(lambda_stubs),str(args.android_jar.resolve()))),
+                        '-d', str(classes),
                         *map(str, sources)], check=True, timeout=90)
         raw_jar = build / 'runtime.jar'
         subprocess.run([str(args.d8.resolve()), '--lib', str(args.android_jar.resolve()),
@@ -128,6 +138,7 @@ def main():
                           'clang_version': subprocess.check_output([str(clang), '--version'], text=True).strip(),
                           'clang_sha256': sha(clang),
                           'android_jar_sha256': sha(args.android_jar), 'd8_launcher_sha256': sha(args.d8),
+                          'android_api': 33, 'java_language': 8, 'lambda_stubs_sha256': sha(lambda_stubs),
                           'd8_implementation_sha256': sha(d8_implementation),
                           'linker_sha256': sha(args.linker)},
         }

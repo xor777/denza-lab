@@ -54,9 +54,15 @@ public final class CloudDnsResolverTest {
             throw new AssertionError("untrusted hostname admitted");}
         catch(IOException expected){}
         try{CloudDnsResolver.resolve(HOST,()->false,host->new InetAddress[]{InetAddress.getByAddress(new byte[16])});
-            throw new AssertionError("IPv6 silently truncated");}
-        catch(CloudNativePipe.ProtocolFailure expected){}
-        need(CloudDnsResolver.resolve(HOST,()->false,host->new InetAddress[0]).length==0,"empty resolver result changed");
+            throw new AssertionError("IPv6-only network fabricated an IPv4 address");}
+        catch(CloudSessionLoop.NetworkFailure expected){}
+        try{CloudDnsResolver.resolve(HOST,()->false,host->new InetAddress[0]);
+            throw new AssertionError("empty DNS answer admitted");}
+        catch(CloudSessionLoop.NetworkFailure expected){}
+        byte[][] mixed=CloudDnsResolver.resolve(HOST,()->false,host->new InetAddress[]{
+            InetAddress.getByAddress(new byte[16]),ipv4(4),ipv4(4),ipv4(5),null,ipv4(6),ipv4(7),ipv4(8)});
+        need(mixed.length==4,"native IPv4 capacity not respected");
+        for(int i=0;i<4;i++)need(mixed[i].length==4&&mixed[i][3]==i+4,"IPv4 resolver order/provenance changed");
     }
     public static void main(String[] args)throws Exception{
         boundedAndCancelled();timeoutAndShape();

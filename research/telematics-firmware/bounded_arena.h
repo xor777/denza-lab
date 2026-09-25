@@ -20,7 +20,9 @@ struct bounded_arena { arena_u8 *bytes; arena_u32 capacity, end; };
 #define ARENA_TAG 0x41524e41U
 #define ARENA_HEADER 16U
 #define ARENA_ALIGNMENT 16U
-#define ARENA_MAX_REQUEST 4096U
+/* Native config records use 140 * an unsigned-byte count (up to 35,700),
+ * alongside vector growth. This is an allocation bound, not a frame bound. */
+#define ARENA_MAX_REQUEST 65536U
 
 static void arena_init(struct bounded_arena *a, void *bytes, arena_u32 capacity) {
  a->bytes=bytes; a->capacity=capacity; a->end=0;

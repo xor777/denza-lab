@@ -84,6 +84,7 @@ public final class CloudNativeBridgeIntegrationTest {
             CloudNativePipe pipe=CloudNativePipe.open(scope,child,1);
             CloudSecondaryTransport[] secondary={null};
             boolean[] discovered={false};
+            ArrayDeque<Integer> writtenFrames=new ArrayDeque<>();
             // Deliberately a research-level protocol replay, not a product START:
             // capability values are untouched and never upgraded by this test.
             CloudNativePipe.Effects forwarding=new CloudNativePipe.Effects(){
@@ -92,6 +93,7 @@ public final class CloudNativeBridgeIntegrationTest {
                     if(kind.startsWith("PROPERTY_")&&!arguments.isEmpty())
                         boundary+=" "+new String(CloudNativeConnection.unhex(arguments.get(0),96),StandardCharsets.US_ASCII);
                     calls.add(boundary);
+                    if(kind.equals("LINK_STATE"))return CloudNativeConnection.nativeLinkState(arguments);
                     if(kind.equals("SECONDARY_CONNECT")){
                         if(arguments.size()!=3||secondary[0]!=null||!discovered[0])throw new AssertionError("secondary phase");
                         String host=new String(CloudNativeConnection.unhex(arguments.get(0),253),StandardCharsets.US_ASCII);
@@ -124,27 +126,51 @@ public final class CloudNativeBridgeIntegrationTest {
                         if(arguments.size()!=2)throw new AssertionError("AUTO arity");
                         platform.sendNativeBuffer(CloudPlatform.YUN,Integer.parseUnsignedInt(arguments.get(0)),
                             CloudNativeConnection.unhex(arguments.get(1),256));
-                    }else if(List.of("NET","ARM","CANCEL","FIRED","NOTIFY").contains(kind))effects.add("fixture "+kind);
+                    }else if(kind.equals("NET")){
+                        if(arguments.size()!=2)throw new AssertionError("NET metadata missing");
+                        CloudNativeConnection.unhex(arguments.get(1),1024);
+                        // The offline transport explicitly accepts this complete
+                        // opaque frame; production acknowledges only a real write.
+                        writtenFrames.addLast(Integer.parseInt(arguments.get(0)));
+                        effects.add("fixture NET");
+                    }else if(List.of("ARM","CANCEL","FIRED","NOTIFY").contains(kind))effects.add("fixture "+kind);
                     else throw new AssertionError("unknown event "+kind);
                 }
             };
             JSONArray script=fixture.getJSONArray("script");
             JSONObject expected=fixture.optJSONObject("expected_results");
+            JSONObject expectedNets=fixture.optJSONObject("expected_net_counts");
+            JSONObject expectedFailure=fixture.optJSONObject("expected_failure");
+            boolean failureObserved=false;
             for(int i=0;i<script.length();i++){
                 String operation=script.getString(i);
                 try{
+                    long netsBefore=effects.stream().filter(e->e.equals("fixture NET")).count();
                     List<String> results=pipe.exchange(operation,forwarding,10000);
+                    for(int count=0;!writtenFrames.isEmpty();count++){
+                        if(count>=64)throw new AssertionError("unbounded send completion fixture");
+                        pipe.exchange("SENT "+writtenFrames.removeFirst(),forwarding,10000);
+                    }
                     if(expected!=null&&expected.has(Integer.toString(i))&&
                        !results.contains(expected.getString(Integer.toString(i))))
                         throw new AssertionError("native result did not match fixture at step "+i);
+                    if(expectedNets!=null&&expectedNets.has(Integer.toString(i))&&
+                       effects.stream().filter(e->e.equals("fixture NET")).count()-netsBefore!=
+                       expectedNets.getInt(Integer.toString(i)))
+                        throw new AssertionError("native wire effect count did not match fixture at step "+i);
                     if(results.contains("ENDPOINT test.denzacloud.com 6003"))discovered[0]=true;
                 }
                 catch(Exception|Error failure){
+                    if(expectedFailure!=null&&expectedFailure.getInt("step")==i&&
+                       expectedFailure.getString("type").equals(failure.getClass().getSimpleName())){
+                        failureObserved=true;break;
+                    }
                     // Boundary names identify missing dependencies without logging identities or payloads.
                     System.err.println("native integration step="+i+" op="+operation.split(" ",2)[0]+" calls="+calls+" effects="+effects);
                     throw failure;
                 }
             }
+            if(expectedFailure!=null&&!failureObserved)throw new AssertionError("expected failure did not occur");
             System.out.println("PASS original native FFI steps="+script.length()+" capabilities="+pipe.capabilities()+
                 " calls="+calls+" effects="+effects+"; synthetic external boundaries, no live qualification");
         }

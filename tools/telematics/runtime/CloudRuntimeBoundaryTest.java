@@ -21,7 +21,7 @@ public final class CloudRuntimeBoundaryTest {
         public float getFloat(int d, int f) { return 74.0f; }
         public int tcpState() { return 0; }
         public void stockGate(int value) { }
-        public String property(String key) { return "0"; }
+        public String property(String key) { return key.equals("persist.sys.cloud_enable") ? "" : "0"; }
         public void setProperty(String key, String value) {
             need(key.equals("sys.cloud.remote_controling") && value.equals("0"), "property escaped allowlist");
             writes++;
@@ -71,7 +71,89 @@ public final class CloudRuntimeBoundaryTest {
         byte[] b = new byte[n + 5]; b[0] = (byte)0xfe; b[1] = (byte)0xfe;
         b[2] = 3; b[3] = (byte)(n >>> 8); b[4] = (byte)n; return b;
     }
+    static void alreadySatisfiedSharedProperty() throws Exception {
+        final String[] observed={"0"};
+        final int[] reads={0};
+        FakeBackend backend=new FakeBackend(){
+            @Override public String property(String key){
+                need(key.equals("sys.cloud.remote_controling"),"wrong shared property read");
+                reads[0]++;return observed[0];
+            }
+        };
+        CloudPlatform.AndroidBackend.satisfyRemoteControlZero(
+            "sys.cloud.remote_controling","0",backend);
+        need(reads[0]==1&&backend.writes==0,"idempotent zero invoked shared setter");
+        for(String current:new String[]{"1",""}){
+            observed[0]=current;
+            try{
+                CloudPlatform.AndroidBackend.satisfyRemoteControlZero(
+                    "sys.cloud.remote_controling","0",backend);
+                throw new AssertionError("unqualified shared property accepted");
+            }catch(IOException expected){
+                need("shared_property_original_unqualified".equals(expected.getMessage()),
+                    "wrong shared property failure");
+            }
+        }
+        need(reads[0]==3&&backend.writes==0,"unqualified value invoked shared setter");
+        try{
+            CloudPlatform.AndroidBackend.satisfyRemoteControlZero(
+                "sys.cloud.remote_controling","1",backend);
+            throw new AssertionError("unsupported value accepted");
+        }catch(IllegalArgumentException expected){}
+        need(reads[0]==3&&backend.writes==0,"unsupported value read or wrote shared property");
+    }
+    static void deniedOptionalProperty() throws Exception {
+        FakeBackend backend=new FakeBackend();
+        try(CloudPlatform p=CloudPlatform.open(new CloudRuntimeSupervisor.Scope(),backend,
+                "89010000000000000001","001010123456789",4)){
+            for(String value:new String[]{"0","1"})
+                need(p.sendNativePropertyStatus("persist.sys.edge.enable.sre",value)==-1,
+                    "optional property refusal invented success");
+            for(String key:new String[]{"ril.imsi","sys.tcp_connect_status"}){
+                try{p.sendNativePropertyStatus(key,"0");throw new AssertionError("property escaped scope");}
+                catch(IllegalStateException expected){}
+            }
+            try{p.sendNativePropertyStatus("persist.sys.edge.enable.sre","2");throw new AssertionError("value escaped scope");}
+            catch(IllegalStateException expected){}
+            need(backend.writes==0,"denied optional property invoked backend");
+        }
+    }
+    static void awakeStartupState() throws Exception {
+        java.util.Map<String,String> values=new java.util.HashMap<>();
+        FakeBackend backend=new FakeBackend(){
+            public String property(String key){return values.getOrDefault(key,key.equals("persist.sys.energytype")?"0":"");}
+            public int getInt(int device,int fid){return -17;}
+        };
+        try(CloudPlatform p=CloudPlatform.open(new CloudRuntimeSupervisor.Scope(),backend,
+                "89010000000000000001","001010123456789",4)){
+            p.requireAwakeStartup();
+            for(String key:new String[]{"persist.sys.cloudtest","persist.sys.repair_mode.enable",
+                    "persist.sys.repair_mode_record","persist.sys.cloud_enable","persist.sys.version",
+                    "persist.sys.mcu_version"}){
+                values.put(key,key.equals("persist.sys.cloud_enable")?"0":"1");
+                try{p.requireAwakeStartup();throw new AssertionError("unsupported startup accepted");}
+                catch(CloudSessionLoop.PermanentFailure expected){
+                    need(expected.code==CloudRuntimeSupervisor.Code.UNSUPPORTED_FIRMWARE,"wrong startup refusal");
+                }
+                values.clear();
+            }
+            for(int[] getter:new int[][]{{1009,0x47002011},{1009,0x47002012},
+                    {1023,0x2940002a},{1023,0x4540000c},{1025,0x4f401038}})
+                need(p.getInt(getter[0],getter[1])==-17,"SDK value changed");
+            need(backend.writes==0,"startup preflight changed stock state");
+        }
+    }
     static void platform() throws Exception {
+        FakeBackend emptySerial = new FakeBackend() {
+            @Override public String serial() { return ""; }
+        };
+        try (CloudPlatform p = CloudPlatform.open(new CloudRuntimeSupervisor.Scope(), emptySerial,
+                "89010000000000000001", "001010123456789", 4)) {
+            need(p.identity.serial().length == 0 && emptySerial.registrations == 4,
+                "empty original serial rejected or replaced");
+            need(emptySerial.writes == 0, "empty serial triggered vehicle write");
+        }
+        need(emptySerial.unregistrations == 4, "empty serial subscriptions leaked");
         FakeBackend failing = new FakeBackend(); failing.failAt = 3;
         try { CloudPlatform.open(new CloudRuntimeSupervisor.Scope(), failing, "89010000000000000001", "001010123456789", 2);
             throw new AssertionError("partial constructor passed"); }
@@ -208,6 +290,7 @@ public final class CloudRuntimeBoundaryTest {
         need(System.nanoTime()-start<TimeUnit.SECONDS.toNanos(2)&&trickle.closed,"whole frame timeout");
     }
     public static void main(String[] args) throws Exception {
-        platform(); transport(); faultBoundaries(); System.out.println("PASS cloud runtime boundaries");
+        platform(); alreadySatisfiedSharedProperty(); deniedOptionalProperty(); awakeStartupState(); transport(); faultBoundaries();
+        System.out.println("PASS cloud runtime boundaries");
     }
 }

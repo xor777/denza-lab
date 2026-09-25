@@ -35,7 +35,10 @@
  *     and condition waits; the third supplies time().
  *   RESULT <id> <epoch> WIRE|LOGIN|REG|ENDPOINT|STATUS ...
  *   ARM|CANCEL|FIRED <id> <epoch> <generation handle> [deadline_ms]
- *   NET <id> <epoch> <native TLS frame hex>
+ *   NET <id> <epoch> <original command decimal> <native TLS frame hex>
+ *   After an actual complete TLS write of that frame, OP <id> <epoch>
+ *   SENT <same command> invokes original sender send_complete(0x47d54).
+ *   Completions are FIFO and an RX for an uncompleted matching send aborts.
  *   AUTO <id> <epoch> <FID decimal> <native SDK bytes hex>
  *   DONE <id> <epoch> <verb or decoded command> [reply count terminal flag]
  *   CALL <id> <epoch> GET_INT <device> <fid decimal>;
@@ -52,12 +55,18 @@
  *     Original 0x52ea0 owns the DNS decision and iterates the hostent list.
  *   CALL <id> <epoch> PROPERTY_GET <key hex>;
  *     RET <id> <epoch> VALUE <ASCII hex or - for empty>
- *   CALL <id> <epoch> PROPERTY_SET <key hex> <value hex>;
- *     RET <id> <epoch> OK only after the exact allowed external write.
- *     The host applies the exact property allowlist and ownership policy;
- *     no unknown property read/write has an engine-synthesized success.
+ *   CALL <id> <epoch> PROPERTY_SET_RESULT <key hex> <value hex or ->;
+ *     RET <id> <epoch> VALUE <0|-1>. Session-owned latches are local;
+ *     unsupported shared writes return -1 to the original caller.
+ *     Qualified shared effects return success only after the actual operation.
  *   CALL <id> <epoch> PROPERTY_SET_NULL <key hex> for an original null
  *     `property_set` value; live bridge must prove its platform semantics.
+ *   CALL <id> <epoch> PROPERTY_SET_STATUS <key hex> <value hex>;
+ *     RET <id> <epoch> VALUE <0|-1>. Only the optional edge configuration
+ *     publication uses this path. The awake adapter denies that global write
+ *     with -1; original firmware decides how to continue after refusal.
+ *   CALL <id> <epoch> MATH_POW <raw double u64> <raw double u64>;
+ *     RET <id> <epoch> VALUE <raw double u64>, a standard libm primitive.
  *   CALL <id> <epoch> LOCALTIME <signed Unix seconds>;
  *     RET <id> <epoch> TM <sec> <min> <hour> <mday> <mon0>
  *       <year_since1900> <wday_sun0> <yday0> <isdst>.
@@ -92,11 +101,28 @@ extern const u8 native_image_start[], native_image_end[];
 #include "persistent_timer.h"
 static u8 *base;
 static u8 object[0x5000] __attribute__((aligned(16)));
+static u8 sender_slot[0x1b0] __attribute__((aligned(16)));
 static u8 secondary[0x600] __attribute__((aligned(16)));
 static u8 observer[0x100] __attribute__((aligned(16)));
-static u8 native_listener_map[0x40] __attribute__((aligned(16)));
+/* Local empty SRE sink, not a constructed stock 0x7da8c publisher. The
+ * original list lookup observes no subscribers. Publication through the
+ * external SRE bus remains explicitly unsupported; RTT payload logging is
+ * omitted. This port is separate from the live vehicle SDK subscription. */
+static u8 local_sre_empty_sink[0x40] __attribute__((aligned(16)));
+static u8 local_sre_sink_ready=1;
+/* This listener is local to the detached engine. It implements only the
+ * original alarm_start/set_alarm_interval calls made by 0x48280 for REG0;
+ * it is never installed as the stock system_server Binder listener. */
+static u64 local_alarm_vtable[12] __attribute__((aligned(16)));
+static u64 local_alarm_object[2],local_alarm_vector[1];
+static u64 local_send_listener[3];
+static u8 local_alarm_records[4][16] __attribute__((aligned(16)));
+static u32 local_alarm_count,local_alarm_interval;
+static u64 local_alarm_handle;
 static u8 aux[0xc000] __attribute__((aligned(16)));
-static u8 arena[0x10000] __attribute__((aligned(16)));
+/* Config arrays coexist with session objects and vector reallocations. Keep a
+ * fixed 1 MiB process-local budget; no allocation changes vehicle state. */
+static u8 arena[0x100000] __attribute__((aligned(16)));
 static u8 input[1024], tls[128], vin[18];
 static struct bounded_arena heap;
 static u8 framed[1024], decoded[1024], body[1024];
@@ -113,6 +139,8 @@ static u8 key[16],uuid[16],random_nonce[16];
 static u32 timestamp,body_size,expected_command,prepared,callbacks;
 
 static u32 sends, last_command, subscription_bytes, frames, frame_size, body_command;
+static u32 pending_network[16];
+static u64 pending_network_head,pending_network_tail;
 static u32 decodes, decoded_size, decoded_command;
 static struct pt_scheduler timer_queue;
 static u32 current_id, session_epoch;
@@ -122,12 +150,14 @@ static u32 local_tm[9];
 struct unlock_event {u64 handle;u64 reserved;u64 lambda[2];};
 static struct unlock_event *active_unlock_event;
 static struct unlock_event *active_heartbeat_event;
+static struct unlock_event *active_config_event;
 static u8 *heartbeat_state;
 static u32 timer_manager_registered;
+static u32 config_handler_registered;
 static u32 auxiliary_manager_registered;
 static u32 sender_thread_registered;
-static u8 *heartbeat_sender;
-static u32 heartbeat_sender_thread_registered;
+static u8 *native_sender;
+static u32 sender_slot_used;
 static u8 *secondary_transport;
 static u32 secondary_connected;
 static u32 sender_callback_generation;
@@ -170,25 +200,89 @@ static u32 signed_input(const char *s);
 static u32 unhex(const char *s,u8 *out,u32 cap);
 static int parse_native_integer(const char *input);
 static char *token(char **cursor);
+static void require(int ok,const char *why);
 static void run_due_timers(void);
+static void native_alarm_interval(void *self,u32 event,u32 seconds){
+ require(self==local_alarm_object && event==3 && seconds==70 && clock_ready,
+         "alarm_interval_boundary");
+ local_alarm_interval=seconds;
+}
+static void native_alarm_start(void *self,u32 event){
+ require(self==local_alarm_object && event==3 && local_alarm_interval==70 &&
+         clock_ready,"alarm_start_boundary");
+ if(local_alarm_handle){
+  require(pt_delete(&timer_queue,local_alarm_handle)==0,"alarm_restart_cancel");
+  text("CANCEL ");number(current_id);text(" ");number(session_epoch);
+  text(" ");number64(local_alarm_handle);text("\n");
+ }
+ require(pt_create(&timer_queue,6,(u64)(base+0x539d8),(u64)object,
+                   &local_alarm_handle)==0,"alarm_create");
+ require(pt_arm(&timer_queue,local_alarm_handle,(u64)local_alarm_interval*1000,0)==0,
+         "alarm_arm");
+ text("ARM ");number(current_id);text(" ");number(session_epoch);
+ text(" ");number64(local_alarm_handle);text(" ");
+ number64(pt_find(&timer_queue,local_alarm_handle)->deadline_ms);text("\n");
+}
+/* The original 0x5aef4 stores (alarm-id, sp<record>) pairs in its
+ * SortedVector. Only its exact object+0x370 instance is admitted here. */
+static long native_alarm_index(void *self,const void *item){
+ require(self==object+0x370 && item,"alarm_index_boundary");
+ u32 event=*(const u32 *)item;
+ for(u32 i=0;i<local_alarm_count;i++)
+  if(*(u32 *)local_alarm_records[i]==event)return i;
+ return -1;
+}
+static long native_alarm_add(void *self,const void *item){
+ require(self==object+0x370 && item && local_alarm_count<4,
+         "alarm_add_boundary");
+ require(native_alarm_index(self,item)<0,"alarm_add_duplicate");
+ u32 at=local_alarm_count++;
+ copy(local_alarm_records[at],item,16);
+ return at;
+}
+static void *native_alarm_edit(void *self,u64 index){
+ require(self==object+0x370 && index<local_alarm_count,"alarm_edit_boundary");
+ return local_alarm_records[index];
+}
 __attribute__((noreturn)) static void fail(const char *why){text("{\"passed\":false,\"stage\":\"");text(why);text("\"}\n");syscall6(94,1,0,0,0,0,0);for(;;){}}
 static void require(int ok,const char *why){if(!ok)fail(why);}
 static long nothing(void){return 0;}
-static void *allocate(u64 n){enum arena_status status;void *p=arena_allocate(&heap,n,&status);require(status==ARENA_OK,"allocation_bound");
- if(n==0x1b0){require(!heartbeat_sender,"heartbeat_sender_overlap");heartbeat_sender=(u8 *)p+0x18;}
- return p;}
-static void deallocate(void *p){require(arena_deallocate(&heap,p)==ARENA_OK,"deallocation_bound");}
+static void *allocate(u64 n){
+ enum arena_status status;void *p=arena_allocate(&heap,n,&status);
+ require(status!=ARENA_EXHAUSTED,"allocation_exhausted");
+ require(status==ARENA_OK,"allocation_bound");return p;
+}
+__attribute__((used)) static void *native_cpp_allocate_impl(u64 n,const void *caller){
+ // Only the original sender constructor owns this slot. A JSON string or
+ // an unrelated object can have the same size and must use the ordinary heap.
+ if(caller==base+0x36ef8){
+  require(n==sizeof(sender_slot)&&!sender_slot_used,"sender_singleton_overlap");
+  sender_slot_used=1;fill(sender_slot,0,sizeof(sender_slot));
+  native_sender=sender_slot+0x18;return sender_slot;
+ }
+ /* Both scalar and array operator new must return a distinct live allocation
+  * even for zero bytes. The stock config continuation calls new[](140*count)
+  * unconditionally, including count == 0. */
+ return allocate(n?n:1);
+}
+__attribute__((naked)) static void native_cpp_allocate(void){
+ __asm__ volatile("mov x1, x30\nb native_cpp_allocate_impl");
+}
+static void deallocate(void *p){
+ if(p==sender_slot){require(sender_slot_used,"sender_singleton_release");
+  sender_slot_used=0;native_sender=0;return;}
+ require(arena_deallocate(&heap,p)==ARENA_OK,"deallocation_bound");}
 /* Matching libutils VectorImplC2Emj ABI: the vendor constructor requests an
  * eight-byte element and zero flags for its secondary sender queue. The
  * virtual methods and worker still need original-code closure. */
 static void *native_vector_ctor(void *self,u64 item_size,u32 flags){
- require((self==aux+0xb010||self==heartbeat_sender+0x10) && item_size==8 && flags==0,"vector_ctor_boundary");
+ require(self==native_sender+0x10 && item_size==8 && flags==0,"vector_ctor_boundary");
  *(u64 *)((u8 *)self+8)=0;*(u64 *)((u8 *)self+16)=0;
  *(u32 *)((u8 *)self+24)=flags;*(u64 *)((u8 *)self+32)=item_size;
  return self;
 }
 static long native_vector_capacity(void *self,u64 requested){
- require((self==aux+0xb010||self==heartbeat_sender+0x10)&&requested==20&&
+ require(self==native_sender+0x10&&requested==20&&
          *(u64 *)((u8 *)self+16)==0&&*(u64 *)((u8 *)self+32)==8,
          "sender_capacity_boundary");
  u8 *buffer=allocate(24+20*8);fill(buffer,0,24+20*8);
@@ -197,7 +291,7 @@ static long native_vector_capacity(void *self,u64 requested){
  return 20;
 }
 static long native_vector_insert(void *self,const void *item,u64 position,u64 count){
- require(self==aux+0xb010&&item&&count==1&&
+ require(self==native_sender+0x10&&item&&count==1&&
          *(u64 *)((u8 *)self+32)==8,"sender_insert_shape");
  u64 size=*(u64 *)((u8 *)self+16);
  require(position==size&&size<20,"sender_queue_bound");
@@ -206,11 +300,11 @@ static long native_vector_insert(void *self,const void *item,u64 position,u64 co
  return (long)position;
 }
 static void *native_vector_edit(void *self){
- require(self==aux+0xb010,"sender_edit_shape");
+ require(self==native_sender+0x10,"sender_edit_shape");
  return (void *)(*(u64 *)((u8 *)self+8));
 }
 static long native_vector_remove(void *self,u64 position,u64 count){
- require(self==aux+0xb010 && count==1,"sender_remove_shape");
+ require(self==native_sender+0x10 && count==1,"sender_remove_shape");
  u64 size=*(u64 *)((u8 *)self+16);
  require(position<size,"sender_remove_index");
  u8 *data=(u8 *)(*(u64 *)((u8 *)self+8));
@@ -222,32 +316,63 @@ static long native_vector_remove(void *self,u64 position,u64 count){
 }
 static int native_sender_signal(void *condition){
  require(sender_thread_registered,"sender_signal_shape");
- if(condition==aux+0xb124){sender_callback_generation++;return 0;}
- require(condition==aux+0xb060,"sender_signal_shape");
- require(*(u64 *)(aux+0xb020)>0,"sender_signal_queue");
- if(aux[0xb048])((void (*)(void *))(base+0x752d8))(aux+0xb000);
+ if(condition==native_sender+0x124){sender_callback_generation++;return 0;}
+ require(condition==native_sender+0x60,"sender_signal_shape");
+ require(*(u64 *)(native_sender+0x20)>0,"sender_signal_queue");
+ if(native_sender[0x48])((void (*)(void *))(base+0x752d8))(native_sender);
  return 0;
 }
 static int native_sender_cond_init(void *self,const void *attributes){
- require(attributes==0&&((self==aux+0xb0e0||self==aux+0xb090||
-         self==aux+0xb0b8||self==aux+0xb154)||
-         (heartbeat_sender&&(self==heartbeat_sender+0xe0||self==heartbeat_sender+0x90||
-          self==heartbeat_sender+0xb8||self==heartbeat_sender+0x154))),"sender_cond_init_boundary");
+ require(attributes==0&&native_sender&&
+         (self==native_sender+0xe0||self==native_sender+0x90||
+          self==native_sender+0xb8||self==native_sender+0x154),"sender_cond_init_boundary");
  fill(self,0,48);return 0;
 }
 static int native_sender_mutex_init(void *self,const void *attributes){
- require(attributes==0&&(self==aux+0xb060||self==aux+0xb124||
-         (heartbeat_sender&&(self==heartbeat_sender+0x60||self==heartbeat_sender+0x124))),
+ require(attributes==0&&native_sender&&
+         (self==native_sender+0x60||self==native_sender+0x124),
          "sender_mutex_init_boundary");
  fill(self,0,40);return 0;
 }
-static void *bounded_copy(void *d,const void *s,u64 n){require(n<=4096,"copy_bound");copy(d,s,n);return d;}
+static void *bounded_copy(void *d,const void *s,u64 n){require(n<=ARENA_MAX_REQUEST,"copy_bound");copy(d,s,n);return d;}
+static void *bounded_move(void *d,const void *s,u64 n){
+ require(n<=ARENA_MAX_REQUEST,"move_bound");u8 *dst=d;const u8 *src=s;
+ if((u64)dst>(u64)src && (u64)dst-(u64)src<n){
+  for(u64 i=n;i>0;i--)dst[i-1]=src[i-1];
+ }else copy(dst,src,n);
+ return d;
+}
 static char *bounded_strncpy(char *d,const char *s,u64 n){
- require(n<=1024,"strncpy_bound");u64 i=0;for(;i<n&&s[i];i++)d[i]=s[i];
+ require(n<=ARENA_MAX_REQUEST,"strncpy_bound");u64 i=0;for(;i<n&&s[i];i++)d[i]=s[i];
  for(;i<n;i++)d[i]=0;return d;
 }
+static char *native_strncpy_chk2(char *d,const char *s,u64 n,u64 dest_size,u64 source_size){
+ require(d&&s&&n<=ARENA_MAX_REQUEST&&n<=dest_size,"strncpy_checked_dest");
+ u64 i=0;
+ for(;i<n;i++){
+  require(i<source_size,"strncpy_checked_source");
+  d[i]=s[i];if(!s[i]){i++;break;}
+ }
+ for(;i<n;i++)d[i]=0;
+ return d;
+}
+/* libc strsep ABI only; separators and field meaning remain original code. */
+static char *native_strsep(char **cursor,const char *delimiters){
+ require(cursor&&delimiters,"strsep_pointer");
+ if(!*cursor)return 0;
+ u64 dn=0;while(dn<64&&delimiters[dn])dn++;
+ require(dn<64,"strsep_delimiter_bound");
+ char *start=*cursor;
+ for(u64 i=0;i<1024;i++){
+  if(!start[i]){*cursor=0;return start;}
+  for(u64 j=0;j<dn;j++)if(start[i]==delimiters[j]){
+   start[i]=0;*cursor=start+i+1;return start;
+  }
+ }
+ fail("strsep_string_bound");
+}
 static void *checked_copy(void *d,const void *s,u64 n,u64 bound){require(n<=bound,"checked_copy_bound");return bounded_copy(d,s,n);}
-static void *bounded_set(void *d,int b,u64 n){require(n<=4096,"set_bound");fill(d,b,n);return d;}
+static void *bounded_set(void *d,int b,u64 n){require(n<=ARENA_MAX_REQUEST,"set_bound");fill(d,b,n);return d;}
 __attribute__((noreturn)) static void event_publisher_unqualified(void){
  fail("event_publisher_unqualified");
 }
@@ -278,7 +403,8 @@ static void call_ok_reply(void){
  * and queues its packet; only the class's socket/SSL implementation is
  * delegated to the owning Java mutual-TLS transport. */
 static void *native_secondary_ctor(void *self,void *receiver,void *completion){
- require(self && receiver==aux+0xb038 && completion==aux+0xb180 &&
+ require(self && native_sender && receiver==native_sender+0x38 &&
+         completion==native_sender+0x180 &&
          !secondary_connected,"secondary_ctor_shape");
  fill(self,0,0x5c0);secondary_transport=self;
  *(u64 *)((u8 *)self+0x428)=(u64)receiver;
@@ -301,7 +427,7 @@ static int native_secondary_connect(void *self,const char *ip,u32 port,u32 mode)
  require(self==secondary_transport && ip && port>0 && port<=65535 &&
          mode<=1 && domain[0] && dns_count>0 &&
          native_dns_address_matches(ip) &&
-         port==*(u16 *)(aux+0xb05c),"secondary_endpoint_provenance");
+         port==*(u16 *)(native_sender+0x5c),"secondary_endpoint_provenance");
  u32 host_n=(u32)bounded_length(domain),ip_n=(u32)bounded_length(ip);
  text("CALL ");number(current_id);text(" ");number(session_epoch);
  text(" SECONDARY_CONNECT ");hex((const u8 *)domain,host_n);
@@ -324,8 +450,8 @@ static int native_secondary_write(void *self,const u8 *bytes,u32 size){
  /* This is the same original completion that the TLS send worker invokes
   * after a complete SSL_write, now after the actual Java TLS result. */
  u64 *completion_slot=(u64 *)(*(u64 *)((u8 *)self+0x560));
- require(completion_slot==(u64 *)(aux+0xb180) && *completion_slot &&
-         *(u64 *)(*completion_slot+0x10)==(u64)(aux+0xb000),
+ require(completion_slot==(u64 *)(native_sender+0x180) && *completion_slot &&
+         *(u64 *)(*completion_slot+0x10)==(u64)native_sender,
          "secondary_completion_object");
  ((void (*)(void *,int))(base+0x73228))((void *)*completion_slot,1);
  return 1;
@@ -355,6 +481,98 @@ static u32 call_property_get(const char *name,char *out,u32 cap){
  u32 n=unhex(value,(u8 *)out,cap-1);require(n>0,"property_get_empty_encoding");
  out[n]=0;for(u32 i=0;i<n;i++)require((u8)out[i]>=32&&(u8)out[i]<=126,"property_get_ascii");
  return n;
+}
+struct native_file {u32 fd;};
+static struct native_file readonly_files[2];
+static struct native_file *native_file_handle(void *file){
+ require((file==&readonly_files[0]||file==&readonly_files[1])&&
+         ((struct native_file *)file)->fd,"file_handle_boundary");
+ return file;
+}
+static void file_call(const char *verb,u32 fd){
+ text("CALL ");number(current_id);text(" ");number(session_epoch);
+ text(" ");text(verb);text(" ");number(fd);
+}
+static void *native_fopen(const char *path,const char *mode){
+ require(path&&mode&&length(path)<=128&&length(mode)<=3,"file_open_shape");
+ text("CALL ");number(current_id);text(" ");number(session_epoch);
+ text(" FILE_OPEN ");hex((const u8 *)path,(u32)length(path));text(" ");
+ hex((const u8 *)mode,(u32)length(mode));text("\n");
+ int fd=(int)signed_input(call_reply("VALUE"));
+ if(fd<0)return 0;
+ require(fd>0,"file_open_zero");
+ for(u32 i=0;i<2;i++)if(!readonly_files[i].fd){readonly_files[i].fd=(u32)fd;return &readonly_files[i];}
+ fail("file_handles_full");
+}
+static u64 native_fread(void *out,u64 size,u64 count,void *handle){
+ struct native_file *file=native_file_handle(handle);
+ if(!size||!count)return 0;
+ require(out&&size<=65536&&count<=65536/size,"file_read_bound");
+ u32 total=(u32)(size*count),done=0;
+ while(done<total){
+  u32 chunk=total-done;if(chunk>512)chunk=512;
+  file_call("FILE_READ",file->fd);text(" ");number(chunk);text("\n");
+  char *cursor=(char *)call_reply("BUFFER");int status=(int)signed_input(token(&cursor));
+  char *encoded=token(&cursor);require(!*cursor,"file_read_reply");
+  if(status<0){require(equal(encoded,"-",2),"file_error_data");fail("file_read_failed");}
+  require(status==0,"file_read_status");
+  u32 n=equal(encoded,"-",2)?0:unhex(encoded,(u8 *)out+done,chunk);
+  done+=n;if(n<chunk)break;
+ }
+ return done/size;
+}
+static int native_feof(void *handle){
+ struct native_file *file=native_file_handle(handle);
+ file_call("FILE_EOF",file->fd);text("\n");
+ int result=(int)signed_input(call_reply("VALUE"));require(result==0||result==1,"file_eof_status");return result;
+}
+static int native_fclose(void *handle){
+ struct native_file *file=native_file_handle(handle);
+ file_call("FILE_CLOSE",file->fd);text("\n");
+ int result=(int)signed_input(call_reply("VALUE"));file->fd=0;return result;
+}
+static int native_file_access(const char *path,int mode){
+ require(path&&length(path)<=128&&mode>=0&&mode<=7,"file_access_shape");
+ text("CALL ");number(current_id);text(" ");number(session_epoch);
+ text(" FILE_ACCESS ");hex((const u8 *)path,(u32)length(path));text(" ");number((u32)mode);text("\n");
+ return (int)signed_input(call_reply("VALUE"));
+}
+static int native_file_remove(const char *path){
+ require(path&&length(path)<=128,"file_remove_shape");
+ text("CALL ");number(current_id);text(" ");number(session_epoch);
+ text(" FILE_REMOVE ");hex((const u8 *)path,(u32)length(path));text("\n");
+ return (int)signed_input(call_reply("VALUE"));
+}
+/* The host owns the per-session file namespace.  The original routines see
+ * ordinary libc return values, including the policy's negative refusal for
+ * writes to the stock cache or diagnostic marker. */
+static int native_file_chmod(const char *path,u32 mode){
+ require(path&&length(path)<=128&&mode<=07777,"file_chmod_shape");
+ return -1;
+}
+static int native_file_seek(void *handle,long offset,int whence){
+ (void)native_file_handle(handle);
+ require(whence>=0&&whence<=2&&offset>=-65536&&offset<=65536,"file_seek_shape");
+ return -1;
+}
+static u64 native_fwrite(const void *bytes,u64 size,u64 count,void *handle){
+ struct native_file *file=native_file_handle(handle);
+ if(!size||!count)return 0;
+ require(bytes&&size<=65536&&count<=65536/size,"file_write_bound");
+ u32 total=(u32)(size*count),done=0;
+ while(done<total){
+  u32 chunk=total-done;if(chunk>512)chunk=512;
+  file_call("FILE_WRITE",file->fd);text(" ");hex((const u8 *)bytes+done,chunk);text("\n");
+  int actual=(int)signed_input(call_reply("VALUE"));
+  if(actual<0)break;
+  require((u32)actual<=chunk,"file_write_reply_bound");
+  done+=(u32)actual;if((u32)actual<chunk)break;
+ }
+ return done/size;
+}
+static u64 native_fwrite_checked(const void *bytes,u64 size,u64 count,void *handle,u64 object_size){
+ require(!size||count<=object_size/size,"file_write_object_bound");
+ return native_fwrite(bytes,size,count,handle);
 }
 /* Original 0x52ea0 consumes this imported Android DNS hostent. The external
  * resolver supplies ordered raw IPv4 addresses; C only exposes its ABI. */
@@ -399,7 +617,7 @@ static const char *native_inet_ntop(u32 family,const u8 *address,char *out,u32 c
  * the SDK buffer and the firmware still decides how to use its contents. */
 static int native_get_buffer(void *sdk,u32 device,u32 fid,u8 **out,u32 *size){
  (void)sdk;require(out&&size&&device==1027&&
-     (fid==0x99000002||fid==0x9900021a||fid==0x99000035),"get_buffer_boundary");
+     (fid==0x99000002||fid==0x9900021a||fid==0x99000035||fid==0x99000402),"get_buffer_boundary");
  *out=0;*size=0;
  text("CALL ");number(current_id);text(" ");number(session_epoch);
  text(" GET_BUFFER ");number(device);text(" ");number(fid);text("\n");
@@ -435,6 +653,22 @@ static long native_mktime(u32 *tm){
  require(magnitude<=(negative?0x8000000000000000ul:0x7ffffffffffffffful),"mktime_reply_bound");
  return negative?-(long)(magnitude-1)-1:(long)magnitude;
 }
+/* Standard libm primitive. JSON syntax and configuration decisions remain
+ * in the original parser; the host supplies only IEEE754 pow(). */
+static double native_pow(double left,double right){
+ union {double value;u64 bits;} a={.value=left},b={.value=right},result;
+ require(current_id&&session_epoch,"math_operation_missing");
+ text("CALL ");number(current_id);text(" ");number(session_epoch);
+ text(" MATH_POW ");number64(a.bits);text(" ");number64(b.bits);text("\n");
+ result.bits=decimal(call_reply("VALUE"));return result.value;
+}
+static double native_atof(const char *input){
+ require(input&&current_id&&session_epoch,"atof_operation_missing");
+ u64 n=bounded_length(input);union {double value;u64 bits;} result;
+ text("CALL ");number(current_id);text(" ");number(session_epoch);
+ text(" C_ATOF ");if(n)hex((const u8 *)input,(u32)n);else text("-");text("\n");
+ result.bits=decimal(call_reply("VALUE"));return result.value;
+}
 static void load_environment(const char *value){
  u8 snapshot[36];require(unhex(value,snapshot,sizeof(snapshot))==sizeof(snapshot),"environment_input");
  copy(env,snapshot,32);copy(&env_valid,snapshot+32,4);
@@ -450,24 +684,29 @@ static void load_wake_values(const char *value){
 static int native_timer_create(int clock_id,const u8 *event,u64 *out){
  require(clock_id==0 && event && out && *(const u32 *)(event+12)==2,"timer_create_boundary");
  unsigned index=out==(u64 *)(object+0x5d8)?0:out==(u64 *)(object+0x5c8)?1:
-                out==(u64 *)(object+0x5b8)?2:out==(u64 *)(object+0x5c0)?3:4;
- require(index<4,"timer_slot_unknown");
+                out==(u64 *)(object+0x5b8)?2:out==(u64 *)(object+0x5c0)?3:
+                out==(u64 *)(object+0x5d0)?8:9;
+ require(index<PT_TIMER_SLOTS,"timer_slot_unknown");
  u64 callback=*(const u64 *)(event+16),context=*(const u64 *)event;
  require((index==0 && callback==(u64)(base+0x5eef0)) ||
          (index==1 && callback==(u64)(base+0x4a480)) ||
-         ((index==2||index==3)&&callback==(u64)(base+0x5e7e8)),"timer_callback_boundary");
+         (index==2&&callback==(u64)(base+0x5e7e8)) ||
+         (index==3&&(callback==(u64)(base+0x5e7e8)||
+                     callback==(u64)(base+0x56b90))) ||
+         (index==8 && callback==(u64)(base+0x5f154)),"timer_callback_boundary");
  require(context==(u64)object,"timer_context_boundary");
  require(pt_create(&timer_queue,index,callback,context,out)==0,"timer_create_state");
  return 0;
 }
 static int native_timer_settime(u64 handle,int flags,const u64 *spec,void *old){
  require(flags==0 && spec && !old && !spec[1] && !spec[3],"timer_settime_boundary");
- require(spec[2]==2 || spec[2]==3 || spec[2]==10 || spec[2]==16 || spec[2]==32,"timer_duration_boundary");
+ require(spec[2]>=1&&spec[2]<=((handle&255)==9?65535:255),"timer_duration_boundary");
  struct pt_timer *t=pt_find(&timer_queue,handle);
  require(t && ((t==&timer_queue.slot[0] && (spec[2]==16 || spec[2]==32)) ||
-               (t==&timer_queue.slot[1] && spec[2]==10) ||
+               (t==&timer_queue.slot[1] && (spec[2]==10 || spec[2]==5)) ||
                (t==&timer_queue.slot[2]&&(spec[2]==2 || spec[2]==3)) ||
-               (t==&timer_queue.slot[3]&&spec[2]==2)),"timer_slot_boundary");
+               (t==&timer_queue.slot[3]&&spec[2]>=1&&spec[2]<=255) ||
+               (t==&timer_queue.slot[8]&&spec[2]>=1&&spec[2]<=65535)),"timer_slot_boundary");
  require(pt_arm(&timer_queue,handle,spec[2]*1000,spec[0]*1000)==0,"timer_arm");
  text("ARM ");number(current_id);text(" ");number(session_epoch);text(" ");number64(handle);
  text(" ");number64(t->deadline_ms);text("\n");
@@ -481,14 +720,22 @@ static int native_timer_delete(u64 handle){
 static int timer_guard_acquire(u8 *guard){
  require(guard==(u8 *)*(u64 *)(base+0x8ea18)||
          guard==(u8 *)*(u64 *)(base+0x8ea40)||
-         guard==(u8 *)*(u64 *)(base+0x8ed38),"timer_guard_boundary");
+         guard==(u8 *)*(u64 *)(base+0x8ed38)||
+         guard==(u8 *)*(u64 *)(base+0x8ed48)||
+         guard==(u8 *)*(u64 *)(base+0x8ec38)||
+         guard==(u8 *)*(u64 *)(base+0x8ed58)||
+         guard==(u8 *)*(u64 *)(base+0x8ee00),"timer_guard_boundary");
  if(*guard==1)return 0;
  require(*guard==0,"timer_guard_recursive");*guard=2;return 1;
 }
 static void timer_guard_release(u8 *guard){
  require((guard==(u8 *)*(u64 *)(base+0x8ea18)||
           guard==(u8 *)*(u64 *)(base+0x8ea40)||
-          guard==(u8 *)*(u64 *)(base+0x8ed38))&&*guard==2,
+          guard==(u8 *)*(u64 *)(base+0x8ed38)||
+          guard==(u8 *)*(u64 *)(base+0x8ed48)||
+          guard==(u8 *)*(u64 *)(base+0x8ec38)||
+          guard==(u8 *)*(u64 *)(base+0x8ed58)||
+          guard==(u8 *)*(u64 *)(base+0x8ee00))&&*guard==2,
          "timer_guard_release");*guard=1;
 }
 static void *timer_manager_construct(void *manager){
@@ -498,8 +745,24 @@ static void *timer_manager_construct(void *manager){
 }
 static int timer_manager_atexit(void *destructor,void *manager,void *dso){
  (void)destructor;(void)dso;
+ /* These singleton constructors own only this process's bounded arena.
+  * Keep their real guard/object pairs; process exit releases the arena.
+  * No timer, file, or SDK registration is owned by these destructors here. */
+ const u64 data_objects[][3]={{0x8ec38,0x8ec40,0x442a0},
+                            {0x8ed58,0x8ed60,0x4104c},
+                            {0x8ee00,0x8ee08,0x46684}};
+ for(u32 i=0;i<3;i++)if(manager==(void *)*(u64 *)(base+data_objects[i][1])){
+  require(destructor==base+data_objects[i][2]&&
+          **(u8 **)(base+data_objects[i][0])==2,"data_singleton_atexit");
+  return 0;
+ }
+ if(manager==(void *)*(u64 *)(base+0x8ed50)){
+  require(destructor==base+0x390e4&&!config_handler_registered&&active_config_event,
+          "config_handler_atexit");
+  config_handler_registered=1;return 0;
+ }
  if(manager==(void *)*(u64 *)(base+0x8ea20)){
-  require(heartbeat_sender&&heartbeat_sender_thread_registered,"heartbeat_sender_atexit");
+  require(native_sender&&sender_thread_registered,"sender_singleton_atexit");
   return 0;
  }
  if(manager==(void *)*(u64 *)(base+0x8ed40)){
@@ -518,31 +781,33 @@ __attribute__((used)) static void timer_manager_create_impl(void *manager,u64 de
  require(manager==(void *)*(u64 *)(base+0x8ea48)&&timer_manager_registered&&
          delay==5000&&!initial&&type==7&&out&&lambda&&
          ((repeat==0&&lambda[0]==(u64)(base+0x8b330)&&lambda[1]==(u64)secondary)||
-          (repeat==5000&&lambda[0]==(u64)(base+0x8aad0)&&lambda[1]==(u64)heartbeat_state)),
+          (repeat==5000&&lambda[0]==(u64)(base+0x8aad0)&&lambda[1]==(u64)heartbeat_state)||
+          (repeat==5000&&lambda[0]==(u64)(base+0x8abe0)&&lambda[1]==*(u64 *)(base+0x8ed50))),
          "timer_manager_create_boundary");
- unsigned slot=repeat?5:4;
- require(!(repeat?active_heartbeat_event:active_unlock_event),"timer_manager_overlap");
+ unsigned slot=lambda[0]==(u64)(base+0x8abe0)?7:repeat?5:4;
+ require(!(slot==7?active_config_event:slot==5?active_heartbeat_event:active_unlock_event),"timer_manager_overlap");
  struct unlock_event *event=allocate(sizeof(*event));
  u64 *counter=allocate(32);fill(event,0,sizeof(*event));fill(counter,0,32);
  copy(event->lambda,lambda,16);counter[1]=2;
- require(pt_create(&timer_queue,slot,(u64)(base+(repeat?0x38cbc:0x45ca4)),
+ require(pt_create(&timer_queue,slot,(u64)(base+(slot==7?0x398a0:slot==5?0x38cbc:0x45ca4)),
                    (u64)event->lambda,&event->handle)==0,"native_timer_create");
  out[0]=(u64)event;out[1]=(u64)counter;
- if(repeat)active_heartbeat_event=event;else active_unlock_event=event;
+ if(slot==7)active_config_event=event;
+ else if(slot==5)active_heartbeat_event=event;else active_unlock_event=event;
 }
 __attribute__((naked)) static void timer_manager_create(void){
  __asm__ volatile("mov x7, x8\nb timer_manager_create_impl");
 }
 static void timer_event_start(struct unlock_event *event){
- require(event && (event==active_unlock_event||event==active_heartbeat_event)&&event->handle,
+ require(event && (event==active_unlock_event||event==active_heartbeat_event||event==active_config_event)&&event->handle,
          "native_timer_start_boundary");
  require(pt_arm(&timer_queue,event->handle,5000,
-                event==active_heartbeat_event?5000:0)==0,"native_timer_arm");
+                event==active_unlock_event?0:5000)==0,"native_timer_arm");
  text("ARM ");number(current_id);text(" ");number(session_epoch);text(" ");
  number64(event->handle);text(" ");number64(pt_find(&timer_queue,event->handle)->deadline_ms);text("\n");
 }
 static void timer_event_stop(struct unlock_event *event){
- require(event && (event==active_unlock_event||event==active_heartbeat_event),"native_timer_stop_boundary");
+ require(event && (event==active_unlock_event||event==active_heartbeat_event||event==active_config_event),"native_timer_stop_boundary");
  if(!event->handle)return;
  u64 handle=event->handle;
  if(event==active_unlock_event){require(pt_delete(&timer_queue,handle)==0,"unlock_timer_cancel");event->handle=0;active_unlock_event=0;}
@@ -568,14 +833,13 @@ static int native_thread_attr(void *arg){require(arg!=0,"thread_attr_boundary");
 static int native_thread_detach(void *arg,int state){require(arg && state==1,"thread_detach_boundary");return 0;}
 static int native_thread_create(u64 *thread,void *attr,void *entry,void *arg){
  if(entry==base+0x7396c){
-  require(thread&&attr&&((arg==aux+0xb000&&!sender_thread_registered)||
-          (arg==heartbeat_sender&&!heartbeat_sender_thread_registered)),
+  require(thread&&attr&&arg==native_sender&&!sender_thread_registered,
           "sender_thread_boundary");
-  if(arg==aux+0xb000)sender_thread_registered=1;
-  else heartbeat_sender_thread_registered=1;
+  sender_thread_registered=1;
   *thread=2;return 0;
  }
- require(thread && attr && (entry==base+0x61230||entry==base+0x611b8) && !arg,"thread_entry_boundary");
+ require(thread && attr && (entry==base+0x61208||entry==base+0x61230||entry==base+0x611b8||
+                            entry==base+0x611e0) && !arg,"thread_entry_boundary");
  *thread=1;((void *(*)(void *))entry)(arg);return 0;
 }
 static int native_usleep(u32 microseconds){
@@ -649,24 +913,35 @@ static int native_condition_wait(void *condition,void *mutex,u32 clock_id,const 
  return 0;
 }
 static void run_due_timers(void){
- for(unsigned i=0;i<6;i++){
+ for(unsigned i=0;i<PT_TIMER_SLOTS;i++){
   u64 handle=0,callback=0,context=0;
   if(pt_due(&timer_queue,i,&handle,&callback,&context)){
-   require(i==5 ? (callback==(u64)(base+0x38cbc) && active_heartbeat_event &&
+   int standard_callback=(callback==(u64)(base+(i==0?0x5eef0:i==1?0x4a480:
+                                              i==2?0x5e7e8:0x56b90)) ||
+                          (i==3&&callback==(u64)(base+0x5e7e8))) &&
+                         context==(u64)object;
+   require(i==8 ? (callback==(u64)(base+0x5f154) && context==(u64)object) :
+          i==7 ? (callback==(u64)(base+0x398a0) && active_config_event &&
+                   context==(u64)active_config_event->lambda) :
+          i==6 ? (callback==(u64)(base+0x539d8) &&
+                   context==(u64)object && handle==local_alarm_handle) :
+          i==5 ? (callback==(u64)(base+0x38cbc) && active_heartbeat_event &&
                    context==(u64)active_heartbeat_event->lambda) :
           i==4 ? (callback==(u64)(base+0x45ca4) && active_unlock_event &&
                    context==(u64)active_unlock_event->lambda) :
-                  (callback==(u64)(base+(i==0?0x5eef0:i==1?0x4a480:0x5e7e8)) &&
-                   context==(u64)object),"timer_fire_boundary");
-   ((void (*)(void *))callback)((void *)context);
+                  standard_callback,"timer_fire_boundary");
+   if(i==6){
+    local_alarm_handle=0;local_alarm_interval=0;
+    ((void (*)(void *,u32))callback)((void *)context,3);
+   }else ((void (*)(void *))callback)((void *)context);
    text("FIRED ");number(current_id);text(" ");number(session_epoch);text(" ");number64(handle);text("\n");
   }
  }
 }
-static int bounded_compare(const u8 *a,const u8 *b,u64 n){require(n<=17,"compare_bound");for(u64 i=0;i<n;i++){if(a[i]!=b[i])return (int)a[i]-b[i];if(!a[i])break;}return 0;}
+static int bounded_compare(const u8 *a,const u8 *b,u64 n){require(n<=ARENA_MAX_REQUEST,"compare_bound");for(u64 i=0;i<n;i++){if(a[i]!=b[i])return (int)a[i]-b[i];if(!a[i])break;}return 0;}
 static int native_strcmp(const u8 *a,const u8 *b){
  require(a&&b,"strcmp_pointer");
- for(u32 i=0;i<128;i++){int delta=(int)a[i]-(int)b[i];if(delta||!a[i])return delta;}
+ for(u32 i=0;i<4096;i++){int delta=(int)a[i]-(int)b[i];if(delta||!a[i])return delta;}
  fail("strcmp_bound");return 0;
 }
 static int property(const char *name,char *out,const char *fallback){
@@ -691,6 +966,16 @@ static long native_system_clock_now(void){
  require(clock_ready&&wall_ms<=9223372036854UL,"system_clock_domain");
  return (long)(wall_ms*1000000UL);
 }
+/* The sole original sysinfo call is the real-VIN branch at 0x4a30c.  It reads
+ * only the first field (kernel uptime seconds) before recording the result in
+ * sys.vin_valid_record_time. Android elapsedRealtime is CLOCK_BOOTTIME, which
+ * includes suspend; uptimeMillis would lose the car's sleep time. */
+static int native_sysinfo(void *out){
+ require((u64)__builtin_return_address(0)==(u64)(base+0x4a310)&&
+         out&&clock_ready&&current_id&&session_epoch&&
+         timer_queue.now_ms/1000<=0x7fffffffUL,"vin_sysinfo_boundary");
+ *(u64 *)out=timer_queue.now_ms/1000;return 0;
+}
 /* 0x699a4 is called by original producers, including internal continuations.
  * Ask the owner for fresh entropy at every call; a bootstrap N snapshot cannot
  * safely stand in for later calls made by original firmware code. */
@@ -702,35 +987,98 @@ static int nonce(u8 *out,u32 n){
  require(unhex(encoded,out,16)==16,"nonce_reply_bound");
  return 0;
 }
-static void *string_copy(char *out,const char *in){u64 n=bounded_length(in);copy(out,in,n+1);return out;}
-static void *native_string_assign(void *out,const char *value){
- require((out==secondary+0x90 || out==object+0x70) && value,
-         "native_string_target");
- u32 n=(u32)bounded_length(value);
- require(n<=22 && !(*(u8 *)out&1),"native_short_string_boundary");
- fill(out,0,24);((u8 *)out)[0]=(u8)(n*2);
- copy((u8 *)out+1,value,n);return out;
-}
-static void *native_string_copy_ctor(void *out,const void *source){
- require(out&&source,"native_string_copy_shape");
- const u8 *s=source;
+static u64 native_string_length(const char *value);
+static void *string_copy(char *out,const char *in){u64 n=native_string_length(in);copy(out,in,n+1);return out;}
+/* The pinned NDK libc++ string ABI is a 24-byte object: short length*2
+ * and 22 inline bytes, or allocation-count|1, length and owned data. These
+ * are generic string operations, independent of any command or SDK value. */
+#define NATIVE_STRING_MAX 4095U
+static const u8 *native_string_data(const void *source,u64 *size){
+ require(source&&size,"native_string_pointer");const u8 *s=source;
  if(!(s[0]&1)){
-  require(s[0]/2<=22,"native_string_copy_short_bound");
-  copy(out,source,24);return out;
+  *size=s[0]/2;require(*size<=22,"native_string_short_bound");return s+1;
  }
- u64 capacity=*(const u64 *)source&~1UL;
- u64 size=*(const u64 *)(s+8);
- const u8 *data=(const u8 *)(*(const u64 *)(s+16));
- require(capacity>=size && capacity<=128 && data && !data[size],
-         "native_string_copy_long_bound");
- u8 *owned=allocate(capacity+1);
- copy(owned,data,size+1);
- *(u64 *)out=capacity|1UL;
- *(u64 *)((u8 *)out+8)=size;
- *(u64 *)((u8 *)out+16)=(u64)owned;
+ u64 capacity=*(const u64 *)s&~1UL;*size=*(const u64 *)(s+8);
+ const u8 *data=*(const u8 *const *)(s+16);
+ require(data&&*size<capacity&&capacity<=4096,"native_string_long_bound");
+ return data;
+}
+static u64 native_string_length(const char *value){
+ require(value!=0,"native_string_source");
+ u64 n=0;while(n<=NATIVE_STRING_MAX&&value[n])n++;
+ require(n<=NATIVE_STRING_MAX,"native_string_length_bound");return n;
+}
+static u64 native_strlen_chk(const char *value,u64 object_size){
+ require(value!=0,"native_string_source");
+ u64 limit=object_size<NATIVE_STRING_MAX+1UL?object_size:NATIVE_STRING_MAX+1UL;
+ for(u64 n=0;n<limit;n++)if(!value[n])return n;
+ fail("native_strlen_checked_bound");
+}
+static void *native_string_construct(void *out,const void *bytes,u64 size){
+ require(out&&bytes&&size<=NATIVE_STRING_MAX,"native_string_construct_bound");
+ u8 image[24];fill(image,0,sizeof(image));
+ if(size<=22){image[0]=(u8)(size*2);copy(image+1,bytes,size);}
+ else{
+  u64 capacity=(size+16)&~15UL;u8 *data=allocate(capacity);
+  copy(data,bytes,size);data[size]=0;
+  *(u64 *)image=capacity|1UL;*(u64 *)(image+8)=size;*(u64 *)(image+16)=(u64)data;
+ }
+ copy(out,image,24);return out;
+}
+static void *native_string_assign_n(void *out,const void *bytes,u64 size){
+ u64 old_size;const u8 *old=native_string_data(out,&old_size);
+ int owned=*(u8 *)out&1;
+ /* Construct before releasing: assigning an overlapping substring is valid. */
+ native_string_construct(out,bytes,size);if(owned)deallocate((void *)old);
  return out;
 }
-static int memory_compare(const u8 *a,const u8 *b,u64 n){require(n<=128,"memcmp_bound");for(u64 i=0;i<n;i++)if(a[i]!=b[i])return (int)a[i]-b[i];return 0;}
+static void *native_string_assign(void *out,const char *value){
+ return native_string_assign_n(out,value,native_string_length(value));
+}
+static void *native_string_copy_ctor(void *out,const void *source){
+ u64 size;const u8 *data=native_string_data(source,&size);
+ return native_string_construct(out,data,size);
+}
+static void *native_string_copy_assign(void *out,const void *source){
+ if(out==source)return out;
+ u64 size;const u8 *data=native_string_data(source,&size);
+ return native_string_assign_n(out,data,size);
+}
+static void *native_string_insert_n(void *out,u64 at,const void *bytes,u64 count){
+ u64 size;const u8 *data=native_string_data(out,&size);
+ require(bytes&&at<=size&&count<=NATIVE_STRING_MAX-size,"native_string_insert_bound");
+ u8 result[4096];copy(result,data,at);copy(result+at,bytes,count);
+ copy(result+at+count,data+at,size-at);
+ return native_string_assign_n(out,result,size+count);
+}
+static void *native_string_insert(void *out,u64 at,const char *bytes){
+ return native_string_insert_n(out,at,bytes,native_string_length(bytes));
+}
+static void *native_string_append_n(void *out,const void *bytes,u64 count){
+ u64 size;native_string_data(out,&size);return native_string_insert_n(out,size,bytes,count);
+}
+static void *native_string_append(void *out,const char *bytes){
+ return native_string_append_n(out,bytes,native_string_length(bytes));
+}
+static void native_string_push(void *out,char value){native_string_append_n(out,&value,1);}
+static void native_string_resize(void *out,u64 size,char value){
+ u64 old_size;const u8 *data=native_string_data(out,&old_size);
+ require(size<=NATIVE_STRING_MAX,"native_string_resize_bound");
+ u8 result[4096];u64 kept=size<old_size?size:old_size;
+ copy(result,data,kept);fill(result+kept,(u8)value,size-kept);
+ native_string_assign_n(out,result,size);
+}
+__attribute__((used)) static void native_to_string_impl(int value,void *out){
+ char digits[12];u64 count=0,magnitude=value<0?(u64)-(long)value:(u64)value;
+ do{digits[count++]=(char)('0'+magnitude%10);magnitude/=10;}while(magnitude);
+ if(value<0)digits[count++]='-';
+ for(u64 i=0;i<count/2;i++){char t=digits[i];digits[i]=digits[count-1-i];digits[count-1-i]=t;}
+ native_string_construct(out,digits,count);
+}
+__attribute__((naked)) static void native_to_string(void){
+ __asm__ volatile("mov x1, x8\nb native_to_string_impl");
+}
+static int memory_compare(const u8 *a,const u8 *b,u64 n){require(n<=ARENA_MAX_REQUEST,"memcmp_bound");for(u64 i=0;i<n;i++)if(a[i]!=b[i])return (int)a[i]-b[i];return 0;}
 #ifdef CONTROL_EXPERIMENT
 /* Emit every native effect in call order. No whole-session operation quota or
  * per-OP eight-effect queue can drop a later original firmware send. */
@@ -738,6 +1086,32 @@ static void effect(u32 fid,const void *value,u32 n){
  require(value&&n>0&&n<=1024&&current_id&&session_epoch,"effect_bound");
  text(fid?"AUTO ":"NET ");number(current_id);text(" ");number(session_epoch);text(" ");
  if(fid){number(fid);text(" ");}hex(value,n);text("\n");
+}
+static void native_network_effect(u32 command,const void *value,u32 n){
+ require(command>0 && command<=65535 && value && n>0 && n<=1024 &&
+         pending_network_tail>=pending_network_head &&
+         pending_network_tail-pending_network_head<16 &&
+         pending_network_tail!=(u64)-1,"network_completion_queue");
+ pending_network[pending_network_tail++%16]=command;
+ text("NET ");number(current_id);text(" ");number(session_epoch);
+ text(" ");number(command);text(" ");hex(value,n);text("\n");
+}
+static void native_network_sent(u32 command){
+ require(native_sender && pending_network_head<pending_network_tail &&
+         pending_network[pending_network_head%16]==command,
+         "network_completion_order");
+ u8 *listener=(u8 *)*(u64 *)(native_sender+0x38);
+ require(listener==(u8 *)local_send_listener &&
+         *(u64 *)(listener+0x10)==(u64)object &&
+         *(u64 *)listener==(u64)(base+0x8b8b0) &&
+         *(u64 *)(base+0x8b8e0)==(u64)(base+0x47d54),
+         "network_completion_listener");
+ pending_network_head++;
+ ((void (*)(void *,u32,u32))(base+0x47d54))(listener,1,command);
+}
+static void native_network_response_ready(u32 command){
+ for(u64 at=pending_network_head;at<pending_network_tail;at++)
+  require(pending_network[at%16]!=command,"network_completion_missing");
 }
 #endif
 static void subscription(void *self,u32 device,u32 fid,const void *value,u32 n){
@@ -748,7 +1122,11 @@ static void subscription(void *self,u32 device,u32 fid,const void *value,u32 n){
           (fid==0xaa000102?n==2:n<=256),"control_write_boundary");
   effect(fid,value,n);control_writes++;return;}
 #endif
- require(self==object && device==1034 && fid==0xaa000023 && value && n==176,"subscription_boundary");subscription_bytes=n;
+ require(self==object && device==1034 && fid==0xaa000023 && value &&
+         n>=8 && n<=512 && n%8==0,"subscription_boundary");
+ text("CALL ");number(current_id);text(" ");number(session_epoch);
+ text(" SDK_CONFIG ");hex(value,n);text("\n");
+ call_ok_reply();subscription_bytes=n;
 }
 __attribute__((naked)) static void singleton(void){__asm__("adrp x9, aux\nadd x9, x9, :lo12:aux\nadd x9, x9, #0x400\nstr x9, [x8]\nret");}
 __attribute__((unused)) static void send_capture(void *self,u32 cmd){
@@ -764,11 +1142,57 @@ static u32 encode_capture(void *helper,void *value,void *out,u32 n){
  require(size>0 && size<=sizeof(framed),"framed_bound");copy(framed,out,size);frame_size=size;frames++;return size;
 }
 static u32 decode_capture(void *helper,u32 type,u32 source,const void *in,u32 n,u16 *cmd,u8 *flag,u8 *version,u8 *out,u16 *size){
+ const void *caller=__builtin_return_address(0);
  require(type==3 && source==0,"decoder_source");
  u32 ok=((u32 (*)(void *,u32,u32,const void *,u32,u16 *,u8 *,u8 *,u8 *,u16 *))(base+0x98040))(helper,type,source,in,n,cmd,flag,version,out,size);
  if(ok&1){
+  /* The stored-config parser reads through body[26]; the outer network
+   * dispatcher only needs 23. Preserve that distinction for short replies. */
+  if(caller==base+0x4e218){
+   require(*size>=27,"native_config_item_boundary");
+   /* Re-decoding a stored item is internal work, not another received frame.
+    * Keep its result with its original caller; don't repeat queue correlation
+    * or overwrite the outer RX operation's decoded command/counter. */
+   return ok;
+  }
 #ifdef CONTROL_EXPERIMENT
-  if(!expected_command){require(*cmd==511||*cmd==532||*cmd==536,"control_command_boundary");
+  if(!expected_command){require(*cmd==201||*cmd==301||*cmd==316||*cmd==415||*cmd==421||*cmd==499||*cmd==505||
+                                *cmd==511||*cmd==531||*cmd==532||*cmd==536||
+                                *cmd==542||*cmd==552||*cmd==599||*cmd==610,"control_command_boundary");
+   if(*cmd==531){
+    require(active_config_event&&config_handler_registered&&*version==0,
+            "config_response_boundary");
+    native_network_response_ready(531);
+   }
+   if(*cmd==542||*cmd==552){
+    require(active_config_event&&config_handler_registered&&
+            *cmd==(aux[0]?552:542)&&*size>=23,
+            "native_config_reply_boundary");
+    native_network_response_ready(aux[0]?551:541);
+   }
+   if(*cmd==301){
+    /* The native 301 branch reads its status at body+17.  Status 1 also
+     * reads a byte and BE halfword through body+20 before arming GPS. */
+    require(*size>=18 && (out[17]!=1 || *size>=21),"native_301_body_boundary");
+    native_network_response_ready(300);
+   }
+   if(*cmd==505){
+    /* The original handler uses body+17 and body+19 without a local check. */
+    require(*size>=20,"native_505_body_boundary");
+    native_network_response_ready(505);
+   }
+   if(*cmd==316){
+    /* Original registration-state handler reads body[17..19]. Status 1
+     * updates its private latch; onboarding broadcasts on some status 2
+     * branches remain an unsupported external dependency. */
+    require(*size>=20,"native_316_body_boundary");
+    native_network_response_ready(316);
+   }
+   /* Original report acknowledgements retain their own bookkeeping. Their
+    * branches index no body bytes. Do not process a reply while the matching
+    * write is incomplete; original handlers own other correlation checks. */
+   if(*cmd==415||*cmd==421||*cmd==499||*cmd==599||*cmd==610)
+    native_network_response_ready(*cmd);
    if(*cmd==532)require(env_ready && *version==0 && (*flag==254||*flag==4) && *size>=20 && *size<=64,"generic_532_boundary");
    if(*cmd==536)require(env_ready && *version==0 && *flag==254 && *size==1,"wake_536_boundary");
   }else{require(*cmd==expected_command,"command_boundary");}
@@ -780,33 +1204,57 @@ static u32 decode_capture(void *helper,u32 type,u32 source,const void *in,u32 n,
  return ok;
 }
 static void body_capture(void *helper,void *unused,void *packet,u32 cmd,u32 flag,const void *value,u32 n,u32 version){
- require(cmd>0 && cmd<=65535 && value && n<=sizeof(body),"body_boundary");
+ require(cmd>0 && cmd<=65535 && (!n||value) && n<=sizeof(body),"body_boundary");
  copy(body,value,n);body_size=n;body_command=cmd;
  ((void (*)(void *,void *,void *,u32,u32,const void *,u32,u32))(base+0x98080))(helper,unused,packet,cmd,flag,value,n,version);
 }
 static void jump(u64 at,void *target){*(u32 *)(base+at)=0x58000050;*(u32 *)(base+at+4)=0xd61f0200;*(u64 *)(base+at+8)=(u64)target;}
+__attribute__((used,noreturn)) static void native_unavailable_at(u64 address){
+ char stage[]="unselected_code_000000";
+ u64 offset=address-(u64)base-4;
+ require(offset<0x98000,"unselected_code_range");
+ for(u32 i=0;i<6;i++)stage[16+i]="0123456789abcdef"[(offset>>(4*(5-i)))&15];
+ fail(stage);
+}
+__attribute__((naked)) static void native_unavailable_entry(void){
+ __asm__("mov x0, x30\nb native_unavailable_at");
+}
 static void ptr(u64 at,void *target){*(u64 *)(base+at)=(u64)target;}
 static void thunk(u64 entry,u64 at,void *wrapper){copy(base+at,base+entry,16);jump(at+16,base+entry+16);jump(entry,wrapper);}
 #ifdef CONTROL_EXPERIMENT
-static int control_property(void *unused,const char *name,int fallback){(void)unused;(void)fallback;
- if(equal(name,"persist.sys.repair_mode.enable",30)){require(env_ready&&(env_valid&(1u<<5)),"repair_mode_property_failed");return env[5];}
- if(equal(name,"sys.cloud.unlock_index",22)){
-  char value[16];u32 n=call_property_get(name,value,sizeof(value));require(n>0,"unlock_index_empty");
-  int index=parse_native_integer(value);require(index>=0&&index<=255,"unlock_index_range");
-  wake_values[2]=(u32)index;wake_valid|=4;wake_ready=1;return index;}
- fail("control_property_boundary");}
 static int get_int(void *self,u32 device,u32 fid,u32 *out){(void)self;require(out!=0,"getter_output");
  require(device>0&&device<=4096,"integer_device_bound");
  *out=call_integer(device,fid,0);return 0;}
 static int get_float(void *self,u32 device,u32 fid,u32 *out){(void)self;
  require(device>0&&device<=4096&&out,"float_getter_bound");
  *out=call_integer(device,fid,1);return 0;}
-static int native_snprintf(char *out,u64 cap,const char *format,...){
- require(out&&format&&cap>=2&&cap<=256,"format_shape");
+__attribute__((noinline)) static int native_sprintf_checked(char *out,u64 object_size,const char *format,...){
+ /* 0x4ad30 wraps __vsprintf_chk, not snprintf. SIZE_MAX is the compiler's
+  * unknown-object-size sentinel. Other original callers use up to 1024.
+  * Retain fortified known-size checks plus an overall formatting bound. */
+ require(out&&format&&object_size>0&&
+         (object_size<=65536||object_size==~(u64)0),"format_shape");
+ u64 cap=object_size>4096?4096:object_size;
+ if(object_size==~(u64)0){
+  cap=0;
+  /* The two string-concatenation sites allocate their destination in this
+   * arena. Honor its actual remaining allocation, including interior pointers. */
+  for(u32 at=0;at<heap.end;){
+   struct arena_block *block;
+   require(arena_block_at(&heap,at,&block)==ARENA_OK,"format_arena");
+   u64 start=(u64)heap.bytes+at+ARENA_HEADER,p=(u64)out;
+   if(block->live&&p>=start&&p<start+block->size){cap=start+block->size-p;break;}
+   at+=ARENA_HEADER+block->size;
+  }
+  /* The only stack call with unknown size prints one LDRB-loaded byte at
+   * 0x6179c and advances by two. Each iteration needs exactly three bytes. */
+  if(!cap&&__builtin_return_address(0)==base+0x617a0&&equal(format,"%02x",5))cap=3;
+  require(cap>0,"format_unknown_object");
+ }
  __builtin_va_list args;__builtin_va_start(args,format);
  u32 at=0;
  for(u32 i=0;format[i];i++){
-  require(i<127,"format_string_bound");
+  require(i<256,"format_string_bound");
   if(format[i]!='%'){require(at+1<cap,"format_capacity");out[at++]=format[i];continue;}
   i++;if(format[i]=='%'){require(at+1<cap,"format_capacity");out[at++]='%';continue;}
   u32 zero=0,width=0;
@@ -816,13 +1264,22 @@ static int native_snprintf(char *out,u64 cap,const char *format,...){
   char digits[24];const char *value=digits;u32 n=0;
   if(format[i]=='s'){
    value=__builtin_va_arg(args,const char *);require(value!=0,"format_string_null");
-   n=(u32)bounded_length(value);require(!width,"format_string_width");
+   while(n<cap-at&&value[n])n++;
+   require(n<cap-at&&!width,"format_string_capacity");
   }else if(format[i]=='d'||format[i]=='i'){
    n=signed_decimal(digits,(u32)__builtin_va_arg(args,int));
   }else if(format[i]=='u'){
    n=write_decimal(digits,(u32)__builtin_va_arg(args,unsigned));digits[n]=0;
+  }else if(format[i]=='x'||format[i]=='X'){
+   u32 v=(u32)__builtin_va_arg(args,unsigned);char reverse[8];
+   const char *alphabet=format[i]=='x'?"0123456789abcdef":"0123456789ABCDEF";
+   do{reverse[n++]=alphabet[v&15];v>>=4;}while(v);
+   for(u32 j=0;j<n;j++)digits[j]=reverse[n-1-j];digits[n]=0;
   }else fail("format_conversion_boundary");
   require(at+(width>n?width:n)<cap,"format_capacity");
+  if(zero&&width>n&&value[0]=='-'){
+   out[at++]='-';value++;n--;width--;
+  }
   for(u32 p=n;p<width;p++)out[at++]=zero?'0':' ';
   copy(out+at,value,n);at+=n;
  }
@@ -848,36 +1305,65 @@ static int control_property_set(const char *name,const char *value){
  require(name && bounded_length(name)<=64,"property_write_shape");
  if(!value){
   require(equal(name,"persist.sys.cloud.user_id",26)||
-          equal(name,"sys.cloud.unlock_uuid",22),"property_null_boundary");
+          equal(name,"sys.cloud.unlock_uuid",22)||
+          equal(name,"persist.sys.cloud_412_data",27),"property_null_boundary");
   text("CALL ");number(current_id);text(" ");number(session_epoch);
   text(" PROPERTY_SET_NULL ");hex((const u8 *)name,(u32)length(name));text("\n");
   require_property_ack();return 0;
  }
  require(bounded_length(value)<=127,"property_value_bound");
+ if(equal(name,"persist.sys.edge.enable.sre",28)){
+  require(equal(value,"0",2)||equal(value,"1",2),"config_property_value");
+  text("CALL ");number(current_id);text(" ");number(session_epoch);
+  text(" PROPERTY_SET_STATUS ");hex((const u8 *)name,(u32)length(name));text(" ");
+  hex((const u8 *)value,(u32)length(value));text("\n");
+  u32 status=signed_input(call_reply("VALUE"));
+  require(status==0||status==(u32)-1,"property_status_boundary");
+  /* Return the adapter's setter status, including its explicit policy refusal.
+   * Original 0x48018 ignores the return code; no successful write is invented. */
+  return (int)status;
+ }
  if(equal(name,"sys.tcp_step",13)){
-  require(equal(value,"4",2)||equal(value,"6",2),"tcp_step_value");
+  /* Original sender completion 0x47d54 publishes 1/3/5 for 211/200/220;
+   * 0/4/6 are reached by the original connection state handlers. This is
+   * private state of this copied engine, never the stock daemon property. */
+  require(equal(value,"0",2)||equal(value,"1",2)||equal(value,"3",2)||
+          equal(value,"4",2)||equal(value,"5",2)||equal(value,"6",2),
+          "tcp_step_value");
   private_tcp_step=value[0];return 0;
  }
  if(equal(name,"sys.tcp_connect_status",23)){
   require(equal(value,"0",2)||equal(value,"1",2),"tcp_connect_value");
-  private_tcp_connect_status=value[0];return 0;
+  if(private_tcp_connect_status!=value[0]){
+   /* The stock private status setter is the source of this owner-local
+    * transition.  A synchronous boundary lets the owner retire its TLS
+    * stream on disconnect before the original socket destructor continues;
+    * an unacknowledged transition never becomes a successful native result. */
+   text("CALL ");number(current_id);text(" ");number(session_epoch);
+   text(" LINK_STATE ");text(value);text("\n");
+   call_ok_reply();private_tcp_connect_status=value[0];
+  }
+  return 0;
  }
  int unlock_index=equal(name,"sys.cloud.unlock_index",23);
  if(unlock_index){require(wake_ready&&(wake_valid&4)&&wake_values[2]<=255,"unlock_index_source");
   require(parse_native_integer(value)==(int)(wake_values[2]<255?wake_values[2]+1:0),"unlock_index_transition");}
- /* All other property writes remain typed host calls. The live host owns the
-  * exact allowlist, side effect, and crash cleanup; an ERR never becomes OK. */
+ /* Return libproperty's real status to the original caller. Unsupported
+  * shared writes are refused with -1, never acknowledged or converted into
+  * an unconditional session abort when the original caller ignores status. */
  require(current_id && session_epoch,"property_write_operation");
- text("CALL ");number(current_id);text(" ");number(session_epoch);text(" PROPERTY_SET ");
- hex((const u8 *)name,(u32)length(name));text(" ");hex((const u8 *)value,(u32)length(value));text("\n");
- require_property_ack();
- if(unlock_index)wake_values[2]=(wake_values[2]<255?wake_values[2]+1:0);
- return 0;
+ text("CALL ");number(current_id);text(" ");number(session_epoch);text(" PROPERTY_SET_RESULT ");
+ hex((const u8 *)name,(u32)length(name));text(" ");
+ if(value[0])hex((const u8 *)value,(u32)length(value));else text("-");text("\n");
+ u32 status=signed_input(call_reply("VALUE"));
+ require(status==0||status==(u32)-1,"property_status_boundary");
+ if(!status&&unlock_index)wake_values[2]=(wake_values[2]<255?wake_values[2]+1:0);
+ return (int)status;
 }
 static void result_send(void *self,u32 signal){
- require(self==aux+0xb000||(self==heartbeat_sender&&signal==201),"result_send_self");
+ require(self==native_sender,"result_send_self");
  require(signal>0&&signal<=65535,"result_send_signal");
- if(self==heartbeat_sender){
+ if(signal==201){
   ((void (*)(void *,u32))(base+0x98100))(self,signal);
   return;
  }
@@ -891,7 +1377,8 @@ static void result_send(void *self,u32 signal){
  if(signal!=1&&signal!=709&&signal!=197&&signal!=0x2154){
   require(frames>0&&frame_size>0&&body_command==signal,
           "bootstrap_frame_boundary");
-  effect(0,framed,frame_size);sends++;last_command=signal;return;}
+  native_network_effect(signal,framed,frame_size);
+  sends++;last_command=signal;return;}
  ((void (*)(void *,u32))(base+0x98100))(self,signal);
  if(signal==1)control_replies++;
 }
@@ -905,7 +1392,23 @@ static void result_journal(void *self,u32 command,u32 flag,u32 ikey){
 static void native_listener_dispatch(void *self,u32 event){
  require(self==object && *(u64 *)((u8 *)self+0x2e8)==0,
          "listener_bridge_unqualified");
+ if(event==3){
+  require(*(u64 *)((u8 *)self+0x2e0)==0 && !local_alarm_handle,
+          "alarm_listener_overlap");
+  local_alarm_vtable[3+4]=(u64)native_alarm_start; /* vtable +0x20 */
+  local_alarm_vtable[3+6]=(u64)native_alarm_interval; /* +0x30 */
+  local_alarm_object[0]=(u64)(local_alarm_vtable+3);
+  local_alarm_vector[0]=(u64)local_alarm_object;
+  *(u64 *)((u8 *)self+0x2e0)=(u64)local_alarm_vector;
+  *(u64 *)((u8 *)self+0x2e8)=1;
+ }
  ((void (*)(void *,u32))(base+0x98140))(self,event);
+ if(event==3){
+  require(local_alarm_handle && local_alarm_interval==70,
+          "alarm_original_dispatch_missing");
+  *(u64 *)((u8 *)self+0x2e0)=0;
+  *(u64 *)((u8 *)self+0x2e8)=0;
+ }
 }
 /* Enter only the original 0x48c6c..0x48cb4 CloudControl constructor block.
  * It formats fallback "1", calls Android property_get and atoi, then stores
@@ -926,15 +1429,23 @@ __attribute__((naked)) static void ctor_property_finish(void){
 #endif
 static void prepare(void){
  require(native_image_end-native_image_start==0x98000,"image_size");long mapping=syscall6(222,0,0x99000,3,0x22,-1,0);require((u64)mapping<(u64)-4095,"mmap");base=(u8 *)mapping;copy(base,native_image_start,0x98000);
+ jump(0x98200,native_unavailable_entry);
  native_tcb[5]=(u64)base ^ 0x7d5fa65b53a91c47UL;
  __asm__ volatile("msr tpidr_el0, %0"::"r"(native_tcb):"memory");
  for(u64 i=0;i<sizeof(RELATIVE_RELOCS)/sizeof(RELATIVE_RELOCS[0]);i++)
   *(u64 *)(base+RELATIVE_RELOCS[i][0])=(u64)(base+RELATIVE_RELOCS[i][1]);
- const u64 noops[]={0x883c0,0x883f0,0x6ecf8,0x54320,0x888b0,0x88dd0,0x3f7f4,0x7e934,0x7e97c,0x88990,0x7c920,0x88410,0x39288,0x72718};
+ /* 0x72718 only formats hex bytes for the discarded debug logger: each
+  * caller passes its result solely to 0x883c0 and then frees the buffer.
+  * Original 0x54320 reads BODYWORK/0x12d0002a and refreshes its object state.
+  * Its zero-state cache path uses the same read-only file boundary; the
+  * separate live POWER/MCU guard still controls this profile's lifetime. */
+ const u64 noops[]={0x883c0,0x883f0,0x6ecf8,0x888b0,0x88dd0,0x7e934,0x7e97c,0x88990,0x7c920,0x88410,0x39288,0x72718};
  for(u64 i=0;i<sizeof(noops)/sizeof(noops[0]);i++)jump(noops[i],nothing);
- jump(0x88470,allocate);jump(0x88590,allocate);jump(0x88460,deallocate);jump(0x885b0,deallocate);jump(0x88570,bounded_copy);jump(0x88960,memory_compare);jump(0x88600,bounded_length);jump(0x890a0,string_copy);jump(0x699a4,nonce);jump(0x88c60,native_dns);jump(0x88c50,native_inet_ntop);jump(0x88560,bounded_copy);jump(0x887f0,checked_copy);jump(0x885a0,bounded_set);jump(0x88620,bounded_length);jump(0x89010,bounded_compare);jump(0x88550,native_strcmp);
+ jump(0x88470,native_cpp_allocate);jump(0x88590,native_cpp_allocate);jump(0x88460,deallocate);jump(0x885b0,deallocate);jump(0x88570,bounded_move);jump(0x88960,memory_compare);jump(0x88600,native_strlen_chk);jump(0x890a0,string_copy);jump(0x699a4,nonce);jump(0x88c60,native_dns);jump(0x88c50,native_inet_ntop);jump(0x88560,bounded_copy);jump(0x887f0,checked_copy);jump(0x885a0,bounded_set);jump(0x88620,native_string_length);jump(0x89010,bounded_compare);jump(0x88550,native_strcmp);
  jump(0x88610,bounded_strncpy);
  jump(0x889d0,native_vector_ctor);jump(0x889f0,native_sender_cond_init);
+ jump(0x88970,native_alarm_index);jump(0x88cd0,native_alarm_add);
+ jump(0x88980,native_alarm_edit);
  jump(0x88a10,native_sender_mutex_init);
  jump(0x89070,native_vector_capacity);
  jump(0x89080,native_vector_insert);jump(0x89090,native_vector_edit);
@@ -943,10 +1454,15 @@ static void prepare(void){
  jump(0x82b98,native_secondary_write);jump(0x80b24,native_secondary_close);
  jump(0x88640,property);jump(0x88f60,current_time);jump(0x4ab90,subscription);jump(0x6dac4,singleton);
  jump(0x887b0,native_string_assign);
- jump(0x888f0,native_string_copy_ctor);
+ jump(0x888f0,native_string_copy_ctor);jump(0x887c0,native_string_copy_assign);
+ jump(0x88750,native_to_string);jump(0x88760,native_string_insert);
+ jump(0x88770,native_string_append);jump(0x888e0,native_string_append_n);
+ jump(0x89000,native_string_assign_n);jump(0x886b0,native_string_push);
+ jump(0x886c0,native_string_resize);
  thunk(0x6e858,0x98000,encode_capture);thunk(0x727bc,0x98040,decode_capture);thunk(0x6e3b0,0x98080,body_capture);
 #ifdef CONTROL_EXPERIMENT
- jump(0x48698,control_property);jump(0x88880,get_int);jump(0x88cc0,get_float);
+ /* Original 0x48698 owns integer-property fallback and conversion. */
+ jump(0x88880,get_int);jump(0x88cc0,get_float);
  jump(0x88f90,native_timer_delete);jump(0x88fa0,native_timer_create);jump(0x88fb0,native_timer_settime);
  jump(0x88b70,native_set_int);jump(0x88b60,native_get_buffer);jump(0x883d0,deallocate);jump(0x88b90,native_mutex_lock);
  jump(0x88ba0,native_steady_clock);jump(0x88bb0,native_condition_wait);
@@ -962,8 +1478,18 @@ static void prepare(void){
  jump(0x884e0,timer_event_start);
  jump(0x88500,timer_event_pause);jump(0x88510,timer_event_restart);
  jump(0x884f0,native_system_clock_now);
- jump(0x88890,nothing);jump(0x71888,nothing);jump(0x4ad30,native_snprintf);jump(0x885c0,control_property_set);jump(0x88a00,parse_native_integer);
+ jump(0x88890,nothing);jump(0x71888,nothing);jump(0x4ad30,native_sprintf_checked);jump(0x885c0,control_property_set);jump(0x88a00,parse_native_integer);
+ jump(0x88b80,native_sysinfo);
  jump(0x88f70,native_localtime);jump(0x88f80,native_mktime);
+ jump(0x89230,native_pow);
+ jump(0x89050,native_strsep);jump(0x89060,native_atof);
+ jump(0x88c70,native_strncpy_chk2);
+ jump(0x887d0,native_file_access);jump(0x887e0,native_file_remove);
+ jump(0x88810,native_fopen);jump(0x88820,native_file_chmod);
+ jump(0x88830,native_file_seek);jump(0x88840,native_fwrite);
+ jump(0x88dc0,native_fwrite_checked);jump(0x88bf0,native_fread);
+ jump(0x88d30,native_feof);jump(0x88850,native_fclose);
+ ptr(0x90df0,allocate);ptr(0x90df8,deallocate);
  thunk(0x54e20,0x980c0,result_journal);
  thunk(0x739a0,0x98100,result_send);
  thunk(0x48280,0x98140,native_listener_dispatch);
@@ -974,13 +1500,18 @@ static void prepare(void){
  ptr(0x8ec40,secondary);ptr(0x8ebb0,base+0x8b280);ptr(0x8eca8,base+0x8b538);
  ptr(0x8f010,native_packet_scratch);
  ptr(0x8eee8,native_502_scratch);
- ptr(0x8ecd0,native_listener_map);
+ ptr(0x8ecd0,local_sre_empty_sink);
+ ptr(0x8ecc8,&local_sre_sink_ready);
  /* 0x5fe04 addresses this BSS vector directly; 0x5de60 reaches it through GOT. */
  ptr(0x8ec98,base+0x910f8);
 #endif
- aux[0]=1;ptr(0x8ed00,aux);ptr(0x8eba8,aux+8);ptr(0x8ed58,aux);ptr(0x8ee00,aux);ptr(0x8ecc8,aux);ptr(0x8ec00,vin);
- ptr(0x8ed60,aux+0x100);ptr(0x8ee08,aux+0x200);*(u64 *)(aux+0x200)=(u64)(aux+0x300);*(u64 *)(aux+0x328)=(u64)nothing;
- ptr(0x8ed18,aux+0x700); /* Explicit empty auxiliary subscription vector. */
+ aux[0]=1;ptr(0x8ed00,aux);ptr(0x8eba8,aux+8);ptr(0x8ec00,vin);
+ /* DATA consumers retain their relocated BSS objects, vtables and lazy
+  * constructors. They must not appear initialized through a shared dummy
+  * guard or discard data through a fabricated vtable. */
+ /* Keep the original BSS vector identity.  0x62100 reaches it through GOT,
+  * while the configuration replay also addresses 0x91128 directly. */
+ ptr(0x8ed18,base+0x91128);
  ptr(0x8eec8,aux+0x6000);ptr(0x8eda8,aux+0x8000);ptr(0x8eed0,aux+0x9000);ptr(0x8ecc0,aux+0xa000);
  ptr(0x8eef0,aux+0x1000);ptr(0x8eef8,aux+0x2000);
  for(u64 at=0;at<0x99000;at+=64)__asm__ volatile("dc cvau, %0"::"r"(base+at):"memory");
@@ -1018,6 +1549,7 @@ static void command_result(void){text("DONE ");number(current_id);text(" ");numb
 #endif
 static int line(char *out,u32 cap){u32 n=0;for(;;){char c;long got=syscall6(63,0,(long)&c,1,0,0,0);if(!got)return 0;require(got==1,"stdin");if(c=='\n'){out[n]=0;return 1;}require(n+1<cap && c>=32 && c<=126,"line_bound");out[n++]=c;}}
 static void receive(u32 command,const char *arg){u32 n=unhex(arg,input,sizeof(input));require(n>=53,"frame_short");expected_command=command;decodes=0;sends=0;frames=0;frame_size=0;
+ if(command)native_network_response_ready(command);
 #ifdef CONTROL_EXPERIMENT
  /* Completion is an event from this exchange, not a level carried from a
   * previous command. Original native busy/correlation state is untouched. */
@@ -1029,7 +1561,8 @@ static void receive(u32 command,const char *arg){u32 n=unhex(arg,input,sizeof(in
  if(!command && decoded_command!=511){command_result();env_ready=0;return;}
  if(!command)command=decoded_command;
 #endif
- if(command==200){u32 native_port=*(u16 *)(aux+0xb000+0x5c);
+ if(command==200){require(native_sender!=0,"discovery_sender_absent");
+  u32 native_port=*(u16 *)(native_sender+0x5c);
   require(native_port && domain[0] && sends==1 && last_command==220,"discovery_failed");
   result_prefix("ENDPOINT");text(domain);text(" ");number(native_port);text("\n");}
  else if(command==220){result_prefix("LOGIN");number(object[0x2d0]);text("\n");}
@@ -1041,7 +1574,7 @@ __attribute__((noreturn)) void probe_main(void){
  u64 core[2]={0,0};require(syscall6(261,0,4,(long)core,0,0,0)==0,"core_limit");require(syscall6(167,4,0,0,0,0,0)==0,"dumpable");
  long parent=syscall6(173,0,0,0,0,0,0);require(parent>1,"parent_missing");
  require(syscall6(167,1,9,0,0,0,0)==0 && syscall6(173,0,0,0,0,0,0)==parent,"parent_race");
- __asm__ volatile("msr tpidr_el0, %0"::"r"(tls):"memory");arena_init(&heap,arena,sizeof(arena));prepare();restrict_process();text("READY\nCAPS PROTO2=1 REG=1 DATA=1 CONTROL532=0 WAKE536=0 MCU_STATE=0 POSIX_TIMERS=0 SUB5_TIMER=0 POST_LOGIN=0 HEARTBEAT=0 STOCK_LIFECYCLE_BRIDGE=0 CONTROL_AWAKE=0 WAKE_ACK_AWAKE=0 TIMERS_AWAKE=0 POST_LOGIN_AWAKE=0\n");char cmd[2100];u32 mask=0;
+ __asm__ volatile("msr tpidr_el0, %0"::"r"(tls):"memory");arena_init(&heap,arena,sizeof(arena));prepare();restrict_process();text("READY\nCAPS PROTO2=1 REG=1 DATA=1 CONTROL532=0 WAKE536=0 MCU_STATE=0 POSIX_TIMERS=0 SUB5_TIMER=0 POST_LOGIN=0 HEARTBEAT=1 STOCK_LIFECYCLE_BRIDGE=0 CONTROL_AWAKE=1 WAKE_ACK_AWAKE=1 TIMERS_AWAKE=1 POST_LOGIN_AWAKE=1\n");char cmd[2100];u32 mask=0;
  while(line(cmd,sizeof(cmd))){char *arg=cmd;while(*arg && *arg!=' ')arg++;if(*arg)*arg++=0;
   if(equal(cmd,"OP",3)){
    char *cursor=arg;u64 id=decimal(token(&cursor)),epoch=decimal(token(&cursor));
@@ -1066,6 +1599,12 @@ __attribute__((noreturn)) void probe_main(void){
    frames=0;frame_size=0;
    ((void (*)(void *,u32))(base+0x4b694))(object,state);
    done("NETSTATE");continue;}
+  if(equal(cmd,"SENT",5)){
+   require(prepared&&current_id,"network_completion_not_ready");
+   u64 command=decimal(arg);require(command>0&&command<=65535,
+                                 "network_completion_command");
+   native_network_sent((u32)command);
+   done("SENT");continue;}
   if(equal(cmd,"KEEPALIVE",10)){
    require(prepared&&current_id&&clock_ready&&object[0x2d0]==1&&
            equal(arg,"1",2),"keepalive_awake_boundary");
@@ -1098,16 +1637,32 @@ __attribute__((noreturn)) void probe_main(void){
    ((void (*)(void *,u32,const void *,u32))(base+0x6039c))(object,0x99000004,input,n);command_result();env_ready=0;continue;}
 #endif
   if(equal(cmd,"START",6)){require(mask==511 && !prepared && current_id,"init_inputs");
-   ((void (*)(void *))(base+0x4404c))(secondary);*(u64 *)(object+0x30)=(u64)secondary;
+   u8 *secondary_guard=*(u8 **)(base+0x8ec38);
+   require(timer_guard_acquire(secondary_guard)==1,"secondary_initialized_twice");
+   ((void (*)(void *))(base+0x4404c))(secondary);
+   timer_manager_atexit(base+0x442a0,secondary,base+0x90ea0);
+   timer_guard_release(secondary_guard);
+   *(u64 *)(object+0x30)=(u64)secondary;
    *(u64 *)object=(u64)(base+0x8b550);
    *(u64 *)(observer+0x10)=(u64)object;
+   /* Original 0x36b78 copies this +0x2c0 listener into its lazy sender.
+    * The selected vtable's +0x30 method is original send_complete 0x47d54. */
+   local_send_listener[0]=(u64)(base+0x8b8b0);
+   local_send_listener[2]=(u64)object;
+   *(u64 *)(object+0x2c0)=(u64)local_send_listener;
    ctor_property_entry(object,base+0x48c6c);
    heartbeat_state=allocate(0x60);fill(heartbeat_state,0,0x60);
    ((void (*)(void *))(base+0x383a8))(heartbeat_state);
    *(u64 *)(object+0x38)=(u64)heartbeat_state;
+   /* 0x5bf78..0x5bf88 installs this exact std::function target in stock:
+    * vtable 0x8c570, capture CloudControl*, inline callable at +0x20.
+    * Invoke the original assignment 0x38898 so expiry uses its native
+    * disconnect callback rather than an invented timeout result. */
+   u64 disconnect[5]={(u64)(base+0x8c570),(u64)object,0,0,0};
+   disconnect[4]=(u64)disconnect;
+   ((void (*)(void *,void *))(base+0x38898))(heartbeat_state,disconnect);
    ((void (*)(void *))(base+0x6d9f4))(aux+0x400);copy(aux+0x400+0xe2,uuid,16);copy(aux+0x400+0xf2,key,16);
-   ((void (*)(void *))(base+0x732c4))(aux+0xb000);
-   *(u64 *)(object+0x2b0)=(u64)(aux+0xb000);object[0x615]=1;*(u32 *)(object+0x294)=0xff;
+   object[0x615]=1;*(u32 *)(object+0x294)=0xff;
    ((void (*)(void *))(base+0x61cf0))(object);require(subscription_bytes==176,"table");
    require(((u32 (*)(void *))(base+0x6dcf0))(aux+0x400)==1 && ((u32 (*)(void *))(base+0x72e0c))(aux+0x400)==1,"native_identity");prepared=1;done("START");continue;
   }

@@ -13,13 +13,32 @@ from elftools.elf.elffile import ELFFile
 from unicorn import Uc, UC_ARCH_ARM64, UC_MODE_ARM, UC_HOOK_INTR, UC_HOOK_MEM_INVALID, UC_HOOK_CODE
 from unicorn.arm64_const import UC_ARM64_REG_PC, UC_ARM64_REG_SP, UC_ARM64_REG_LR, UC_ARM64_REG_X0, UC_ARM64_REG_X1, UC_ARM64_REG_X2, UC_ARM64_REG_X3, UC_ARM64_REG_X4, UC_ARM64_REG_X5, UC_ARM64_REG_X8, UC_ARM64_REG_X19
 
+# Test-session property namespace only. These keys are never asserted to be
+# writable on a car; the production Java bridge owns the actual policy.
+FIXTURE_PRIVATE_ONLY_PROPERTIES = {
+    'persist.sys.cloud.unlock_type', 'sys.cloud.unlock_uuid', 'sys.cloud_532_reply',
+    'sys.tcp_reg_errcode', 'persist.sys.cloud.user_id', 'sys.cloud.201_send_status',
+    'persist.sys.cloud_412_data', 'persist.sys.505_req_status',
+}
+FIXTURE_LOCAL_WRITES = FIXTURE_PRIVATE_ONLY_PROPERTIES | {
+    'persist.sys.sentrymode_record', 'persist.sys.smart_charge_stage_record',
+    'persist.sys.record_610_upload', 'persist.sys.system_info',
+    'persist.sys.cloud.app_reg_status', 'persist.sys.cloud_fid_uploaded',
+    'persist.sys.record_421_notify', 'persist.sys.record_499_upload',
+    'persist.sys.316_req_status', 'persist.sys.mcu_func_record',
+    'persist.sys.vehicle_sales_record', 'sys.cloud.unlock_index',
+    'sys.vin_valid_record_time', 'sys.tcp_step', 'sys.tcp_connect_status',
+    'sys.virtual.vin', 'sys.cloud_domin_ip',
+}
+
 
 class Process:
     def __init__(self, binary: Path, script: bytes, auto_replies=False,
                  fail_call_kind=None, mcu_getter=1, acc_getter=2,
                  wake_event_on_wait=False, auto_vin_fixture=None,
                  auto_vin19_fixture=None, secondary_write_count_override=None,
-                 observed_getters=None, observed_properties=None):
+                 observed_getters=None, observed_properties=None, property_status_fixture=-1,
+                 observed_buffers=None):
         self.u = Uc(UC_ARCH_ARM64, UC_MODE_ARM)
         self.input = bytearray(script)
         self.output = bytearray()
@@ -42,9 +61,16 @@ class Process:
         self.sender_callers = []
         self.random_requests = 0
         self.string_copy_calls = []
+        self.property_set_calls = []
         self.auto_replies = auto_replies
+        # Offline fixture: acknowledge each native NET only after the outer
+        # OP completes, mirroring a host that fully wrote the opaque frame.
+        # The actual Java bridge sends SENT after its TLS write instead.
+        self.fixture_network_sends = []
+        self.fixture_sent_sequence = 0
         self.sdk_getter_requests = set()
         self.property_get_requests = set()
+        self.fixture_private_properties = {}
         self.fixture_ack_writes = []
         self.fail_call_kind = fail_call_kind
         self.mcu_getter = mcu_getter
@@ -55,6 +81,8 @@ class Process:
         self.secondary_write_count_override = secondary_write_count_override
         self.observed_getters = observed_getters or {}
         self.observed_properties = observed_properties or {}
+        self.property_status_fixture = property_status_fixture
+        self.observed_buffers = observed_buffers or {}
         self.wait_count = 0
         self.handled_output = 0
         with binary.open('rb') as source:
@@ -105,6 +133,12 @@ class Process:
         if address == 0x500888f0:
             source = self.u.reg_read(UC_ARM64_REG_X1)
             self.string_copy_calls.append(bytes(self.u.mem_read(source, 24)).hex())
+        if address == 0x500885c0:
+            name = self.u.reg_read(UC_ARM64_REG_X0)
+            value = self.u.reg_read(UC_ARM64_REG_X1)
+            self.property_set_calls.append((
+                bytes(self.u.mem_read(name, 128)).split(b'\0', 1)[0],
+                bytes(self.u.mem_read(value, 128)).split(b'\0', 1)[0] if value else None))
         if address == 0x5006e3b0:
             self.body_commands.append(self.u.reg_read(UC_ARM64_REG_X3))
         if address == 0x500739a0:
@@ -132,7 +166,9 @@ class Process:
                                     0x5fe04, 0x5ffdc, 0x5ffe4, 0x5fff8,
                                     0x60020, 0x6015c, 0x73228,
                                     0x75b0c, 0x383a8, 0x38680, 0x3896c,
-                                    0x38a24, 0x539d8, 0x36edc, 0x53668):
+                                    0x38a24, 0x539d8, 0x36edc, 0x53668,
+                                    0x38eb4, 0x39178, 0x39420, 0x3955c, 0x39698,
+                                    0x71e7c, 0x725b4):
             at = hex(address - 0x50000000)
             self.path_hits[at] = self.path_hits.get(at, 0) + 1
         if 0x50000000 <= address < 0x50098000 and address - 0x50000000 in (
@@ -156,7 +192,10 @@ class Process:
         if op == 222:  # mmap anonymous private image
             self.u.mem_map(0x50000000, 0x99000)
             result = 0x50000000
-        elif op in (226, 261):  # mprotect, prlimit64
+        elif op == 226:  # Honor the generated worker's actual page permissions.
+            self.u.mem_protect(regs[0], regs[1], regs[2])
+            result = 0
+        elif op == 261:  # prlimit64
             result = 0
         elif op == 167:  # prctl setup
             result = 0
@@ -179,12 +218,25 @@ class Process:
                         break
                     line = self.output[self.handled_output:end].decode('ascii')
                     self.handled_output = end + 1
+                    if line.startswith('NET '):
+                        fields = line.split()
+                        if len(fields) != 5:
+                            raise RuntimeError(f'malformed native NET {line}')
+                        self.fixture_network_sends.append((fields[2], fields[3]))
+                    if line.startswith('DONE ') and self.fixture_network_sends:
+                        pending = self.fixture_network_sends
+                        self.fixture_network_sends = []
+                        suffix = bytearray()
+                        for epoch, command in pending:
+                            self.fixture_sent_sequence += 1
+                            suffix.extend(f'OP {3000000+self.fixture_sent_sequence} {epoch} SENT {command}\n'.encode())
+                        self.input[:0] = suffix
                     if line.startswith('CALL '):
                         fields = line.split()
                         _, ident, epoch, kind, *args = fields
                         if kind.startswith('SECONDARY_'):
                             self.secondary_calls.append((kind, args))
-                        if kind == self.fail_call_kind:
+                        if kind == self.fail_call_kind and (kind != 'LINK_STATE' or args == ['0']):
                             value = 'ERR'
                         elif kind == 'SECONDARY_CONNECT':
                             assert args == [b'test.denzacloud.com'.hex(),
@@ -196,6 +248,9 @@ class Process:
                             if self.secondary_write_count_override is not None:
                                 count = self.secondary_write_count_override
                             value = 'WRITTEN ' + str(count)
+                        elif kind == 'LINK_STATE':
+                            assert args in (['0'], ['1'])
+                            value = 'OK'  # Owner-local notification fixture only.
                         elif kind == 'SECONDARY_CLOSE':
                             assert not args
                             value = 'OK'
@@ -221,14 +276,16 @@ class Process:
                                       'persist.sys.cloud_enable': '',
                                       'sys.cloud.unlock_index': '0'}
                             values.update(self.observed_properties)
-                            if key in values:
+                            if key in self.fixture_private_properties:
+                                data = self.fixture_private_properties[key]
+                                value = ('VALUE ' + data.encode().hex()) if data else 'VALUE -'
+                            elif key in FIXTURE_PRIVATE_ONLY_PROPERTIES:
+                                value = 'VALUE -'  # Unpublished private value is absent, not stock state.
+                            elif key in values:
                                 value = ('VALUE ' + values[key].encode().hex()) if values[key] else 'VALUE -'
                             elif (key == 'persist.sys.cloud.last_vin'
                                   and self.auto_vin19_fixture is not None):
                                 value = 'VALUE ' + self.auto_vin19_fixture.hex()
-                            elif key == 'persist.sys.505_req_status':
-                                value = ('VALUE 31' if getattr(self, 'status505_set', False)
-                                         else 'VALUE -')
                             elif key in ('persist.sys.gpsinfo',
                                          'persist.sys.cloud.token_flag',
                                          'persist.sys.system_info',
@@ -243,11 +300,52 @@ class Process:
                                 self.unqualified_properties = getattr(self, 'unqualified_properties', set())
                                 self.unqualified_properties.add(key)
                                 value = 'VALUE -'  # Explicit missing-property exploration fixture.
+                        elif kind == 'FILE_OPEN':
+                            if (len(args)!=2 or bytes.fromhex(args[0])!=b'/data/cloudservice/div15_msg_info_542_vector.dat'
+                                    or bytes.fromhex(args[1]) not in (b'r',b'rb')):
+                                raise RuntimeError('unsupported fixture file open')
+                            value='VALUE -2'  # Explicit absent-cache fixture, no file contents invented.
+                        elif kind == 'MATH_POW':
+                            import math
+                            a,b=(struct.unpack('<d',struct.pack('<Q',int(x)))[0] for x in args)
+                            value='VALUE '+str(struct.unpack('<Q',struct.pack('<d',math.pow(a,b)))[0])
+                        elif kind == 'C_ATOF':
+                            import ctypes
+                            if len(args)!=1:
+                                raise RuntimeError('invalid atof fixture shape')
+                            source=b'' if args[0]=='-' else bytes.fromhex(args[0])
+                            if len(source)>128 or any(b==0 or b>127 for b in source):
+                                raise RuntimeError('invalid atof fixture input')
+                            atof=ctypes.CDLL(None).atof
+                            atof.argtypes=[ctypes.c_char_p];atof.restype=ctypes.c_double
+                            value='VALUE '+str(struct.unpack('<Q',struct.pack('<d',atof(source)))[0])
+                        elif kind == 'PROPERTY_SET_STATUS':
+                            if (len(args)!=2 or bytes.fromhex(args[0])!=b'persist.sys.edge.enable.sre'
+                                    or bytes.fromhex(args[1]) not in (b'0',b'1')):
+                                raise RuntimeError('unsupported fixture property status')
+                            self.fixture_ack_writes.append((kind,args))
+                            value='VALUE '+str(self.property_status_fixture)
+                        elif kind == 'PROPERTY_SET_RESULT':
+                            if len(args)!=2:
+                                raise RuntimeError('invalid property-result fixture shape')
+                            key = bytes.fromhex(args[0]).decode('ascii')
+                            data = '' if args[1]=='-' else bytes.fromhex(args[1]).decode('ascii')
+                            self.fixture_ack_writes.append((kind,args))
+                            if key in FIXTURE_LOCAL_WRITES:
+                                self.fixture_private_properties[key] = data
+                                value = 'VALUE 0'  # Isolated offline namespace, not a stock setter result.
+                            else:
+                                value = 'VALUE -1'  # No shared property write in this fixture.
                         elif kind in ('PROPERTY_SET', 'PROPERTY_SET_NULL'):
                             self.fixture_ack_writes.append((kind,args))
-                            if kind == 'PROPERTY_SET' and args == [
-                                    b'persist.sys.505_req_status'.hex(), b'1'.hex()]:
-                                self.status505_set = True
+                            if kind == 'PROPERTY_SET_NULL':
+                                if len(args)!=1:
+                                    raise RuntimeError('invalid null-property fixture shape')
+                                key = bytes.fromhex(args[0]).decode('ascii')
+                                if key not in ('persist.sys.cloud.user_id', 'sys.cloud.unlock_uuid',
+                                               'persist.sys.cloud_412_data'):
+                                    raise RuntimeError('unsupported null-property fixture')
+                                self.fixture_private_properties[key] = ''
                             value = 'OK'
                         elif kind == 'RANDOM_BYTES':
                             if args != ['16']:
@@ -283,10 +381,16 @@ class Process:
                         elif kind == 'GET_BUFFER':
                             if list(map(int, args)) not in ([1027, 0x99000002],
                                                              [1027, 0x9900021a],
-                                                             [1027, 0x99000035]):
+                                                             [1027, 0x99000035],
+                                                             [1027, 0x99000402]):
                                 raise RuntimeError(f'unexpected native buffer getter {line}')
                             self.get_buffer_calls = getattr(self, 'get_buffer_calls', 0) + 1
-                            if (list(map(int,args)) == [1027, 0x9900021a]
+                            buffer_key=tuple(map(int,args))
+                            if buffer_key in self.observed_buffers:
+                                status,content=self.observed_buffers[buffer_key]
+                                assert len(content)<=512 and (status==0 or not content)
+                                value=f'BUFFER {status} '+(content.hex() if content else '-')
+                            elif (list(map(int,args)) == [1027, 0x9900021a]
                                     and self.auto_vin_fixture is not None):
                                 assert len(self.auto_vin_fixture) == 17
                                 value = 'BUFFER 0 ' + self.auto_vin_fixture.hex()
@@ -378,6 +482,10 @@ def self_test(binary: Path, firmware: Path):
 
     peer = NativeSession(firmware, VIN_VALUE, KEY, UUID,
                          b'89010000000000000001', b'001010123456789', b'', 1700000000)
+    peer.u.mem_write(INPUT, b'\x01')
+    peer.call(0x6e3b0, HELPER, 0, PACKET, 211, 1, INPUT, 1, 0)
+    peer.call(0x6e858, HELPER, PACKET, WIRE, 1)
+    registration = peer.frames[-1]
     peer.u.mem_write(INPUT, bytes(16))
     peer.call(0x6e3b0, HELPER, 0, PACKET, 220, 1, INPUT, 16, 0)
     peer.call(0x6e858, HELPER, PACKET, WIRE, 16)
@@ -398,24 +506,32 @@ def self_test(binary: Path, firmware: Path):
     identity_prefix = ''.join(f'OP {i} 1 {name} {value.hex()}\n'
                               for i, (name, value) in enumerate(identity, 1))
     state_snapshot = struct.pack('<4I', 0, 0, 0, 7)
-    prefix = identity_prefix + (f'OP 10 1 START\nOP 11 1 R220 {login.hex()}\n'
-               f'OP 200 1 E {snapshot.hex()}\nOP 201 1 X {state_snapshot.hex()}\n'
-               f'OP 202 1 INT 1005 {0x99000003} 1\nOP 12 1 TICK 0 0 1700000000000\n')
+    prefix = identity_prefix + (
+        'OP 10 1 START\nOP 11 1 TICK 0 0 1700000000000\n'
+        'OP 12 1 NETSTATE 4\n'
+        f'OP 19 1 R211 {registration.hex()}\n'
+        f'OP 21 1 R200 {discovery.hex()}\n'
+        f'OP 200 1 E {snapshot.hex()}\nOP 201 1 X {state_snapshot.hex()}\n'
+        'OP 17 1 TICK 0 0 1700000000000\n'
+        f'OP 18 1 R220 {login.hex()}\n'
+        f'OP 202 1 INT 1005 {0x99000003} 1\n')
     cases = []
     discovery_probe = identity_prefix + f'OP 10 1 START\nOP 19 1 R200 {discovery.hex()}\nQUIT\n'
     discovery_process = Process(binary, discovery_probe.encode(), auto_replies=True)
     code, discovery_output = discovery_process.run()
-    if code != 1 or '"stage":"discovery_failed"' not in discovery_output or \
+    if code != 1 or '"stage":"discovery_sender_absent"' not in discovery_output or \
        'STOCK_LIFECYCLE_BRIDGE=0' not in discovery_output or \
        'POSIX_TIMERS=0' not in discovery_output or \
        ' DNS_LOOKUP ' in discovery_output:
         raise AssertionError(f'original R200 resolver gate: {discovery_output}')
     cases.append({'original_R200_resolver_gate':
-                  '0x52ea0 returns before DNS while original listener state OBJ+0x35e is zero',
+                  'R200 before NETSTATE cannot use an uninitialized original sender',
                   'native_dns_calls': 0})
     cases.append({'stock_lifecycle_capability': 'STOCK_LIFECYCLE_BRIDGE=0 in native CAPS; no detached system_server status callback'})
     cases.append({'posix_timer_capability': 'POSIX_TIMERS=0 in native CAPS; offline scheduler replay does not qualify Android suspend/wall semantics'})
-    network_probe = identity_prefix + 'OP 10 1 START\nOP 20 1 NETSTATE 4\nQUIT\n'
+    network_probe = identity_prefix + ('OP 10 1 START\n'
+                                       'OP 11 1 TICK 0 0 1700000000000\n'
+                                       'OP 20 1 NETSTATE 4\nQUIT\n')
     network_process = Process(binary, network_probe.encode(), auto_replies=True)
     code, network_output = network_process.run()
     network_gate = bytes(network_process.u.mem_read(
@@ -445,10 +561,10 @@ def self_test(binary: Path, firmware: Path):
            not any(x.startswith('FIRED 15 1 ') for x in lines):
             raise AssertionError(f'timer {sub}: {code} {output}')
         auto = [x for x in lines if x.startswith('AUTO 14 1 ')]
-        net_request = [x for x in lines if x.startswith('NET 14 1 ')]
-        net_expiry = [x for x in lines if x.startswith('NET 15 1 ')]
+        net_request = [x for x in lines if x.startswith(('NET 14 1 ', 'CALL 14 1 SECONDARY_WRITE '))]
+        net_expiry = [x for x in lines if x.startswith(('NET 15 1 ', 'CALL 15 1 SECONDARY_WRITE '))]
         if sub == 39:
-            if len(auto) != 5 or process.sleep_calls.count((0, 100000000)) != 5 or \
+            if len(auto) != 5 or process.sleep_calls.count((0, 100000000)) != 6 or \
                len(net_request) != 2 or len(net_expiry) != 1:
                 raise AssertionError(f'sub39 effects: auto={len(auto)} waits100={process.sleep_calls.count((0, 100000000))} net_request={len(net_request)} net_expiry={len(net_expiry)} waits={process.sleep_calls} {output}')
         elif len(auto) != 1 or len(net_request) != 1 or net_expiry:
@@ -456,7 +572,8 @@ def self_test(binary: Path, firmware: Path):
         cases.append({'subcommand': sub, 'deadline_ms': duration,
                       'original_expiry_net': len(net_expiry),
                       'opaque_auto_writes': len(auto),
-                      'external_100ms_waits': process.sleep_calls.count((0, 100000000))})
+                      'external_100ms_waits': process.sleep_calls.count((0, 100000000)),
+                      'postlogin_100ms_waits_in_prefix': 1})
 
     frame, _ = GenericControl(firmware).request(3)
     native = GenericControl(firmware)
@@ -474,7 +591,7 @@ def self_test(binary: Path, firmware: Path):
         process = Process(binary, script.encode(), auto_replies=True)
         code, output = process.run()
         if code != 0 or 'DONE 17 1 532 1 1' not in output or \
-           'CALL 17 1 PROPERTY_SET 7379732e636c6f75645f3533325f7265706c79 ' not in output or \
+           'CALL 17 1 PROPERTY_SET_RESULT 7379732e636c6f75645f3533325f7265706c79 ' not in output or \
            f'CALL 17 1 LOCALTIME {1700000016 if late else 1700000000}' not in output or \
            'CALL 17 1 MKTIME ' not in output or \
            process.path_hits.get('0x54e20') != 1 or process.path_hits.get('0x69630') != 1:
@@ -526,8 +643,8 @@ def self_test(binary: Path, firmware: Path):
               f'OP 16 1 E {snapshot.hex()}\n'
               f'OP 17 1 MCU {terminal.hex()}\n')
     code, output = Process(binary, script.encode(), auto_replies=True,
-                           fail_call_kind='PROPERTY_SET').run()
-    if code != 1 or '"stage":"property_write_failed"' not in output:
+                           fail_call_kind='PROPERTY_SET_RESULT').run()
+    if code != 1 or '"stage":"call_reply_failed"' not in output:
         raise AssertionError(f'host property failure was accepted: {output}')
     cases.append({'failed_host_property_write': 'fails closed'})
 
@@ -544,7 +661,7 @@ def self_test(binary: Path, firmware: Path):
               f'OP 210 1 X {awake_index.hex()}\n'
               f'OP 211 1 INT 1005 {0x99000003} 1\nQUIT\n')
     code, output = Process(binary, script.encode(), auto_replies=True).run()
-    if code != 0 or output.count('CALL 205 1 PROPERTY_SET ') != 2 or \
+    if code != 0 or output.count('CALL 205 1 PROPERTY_SET_RESULT ') != 2 or \
        output.count('NET 205 1 ') != 1 or output.count('NET 208 1 ') != 1 or \
        'NOTIFY 208 1 2' not in output or 'NET 211 1 ' in output or \
        'NOTIFY 211 1 ' in output:
@@ -569,7 +686,7 @@ def self_test(binary: Path, firmware: Path):
     cases.append({'opaque_STATUS_IPC': 'RESULT id epoch STATUS framehex; no SOC field'})
     postlogin_paths = ('0x55b30','0x565ac','0x510d4','0x4ca68','0x4b4fc')
     postlogin_hits = {key: status_process.path_hits.get(key,0) for key in postlogin_paths}
-    postlogin_net = [line for line in output.splitlines() if line.startswith('NET 11 1 ')]
+    postlogin_net = [line for line in output.splitlines() if line.startswith('NET 18 1 ')]
     if any(value!=1 for value in postlogin_hits.values()) or len(postlogin_net)!=8:
         raise AssertionError(f'original post-login path/effects: {postlogin_hits} net={len(postlogin_net)} {output}')
     cases.append({'original_post_login_fixture':postlogin_hits,
@@ -591,7 +708,10 @@ def self_test(binary: Path, firmware: Path):
     wake_peer.call(0x6e858, HELPER, PACKET, WIRE, 0)
     sleeping_env = struct.pack('<9I', 0, 0, 0, 1, 0x429e0000,
                                0, 1, 1, 255)
-    sleeping = prefix.split('OP 200 1 E ')[0] + (f'OP 220 1 E {sleeping_env.hex()}\n'
+    sleeping = prefix + (f'OP 217 1 E {sleeping_env.hex()}\n'
+                         f'OP 218 1 X {sleep_index.hex()}\n'
+                         f'OP 219 1 INT 1005 {0x99000003} 0\n'
+                         f'OP 220 1 E {sleeping_env.hex()}\n'
                          f'OP 221 1 X {sleep_index.hex()}\n'
                          'OP 222 1 TICK 0 0 1700000000000\n'
                          f'OP 223 1 E {sleeping_env.hex()}\n'
@@ -629,8 +749,13 @@ def self_test(binary: Path, firmware: Path):
         expiry_process.symbols['base'], 8))[0]
     expiry_queue = struct.unpack('<QQQ', expiry_process.u.mem_read(
         expiry_image + 0x910f8, 24))
-    if code != 0 or 'FIRED 229 1 259' not in output or \
-       'ARM 229 1 515 13000' not in output or \
+    expiry_arm = next((line.split() for line in output.splitlines()
+                       if line.startswith('ARM 225 1 ')), None)
+    expiry_handle = expiry_arm[3] if expiry_arm else None
+    if code != 0 or expiry_handle is None or \
+       f'FIRED 229 1 {expiry_handle}' not in output or \
+       not any(line.startswith('ARM 229 1 ') and line.endswith(' 13000')
+               for line in output.splitlines()) or \
        'NET 229 1 ' in output or 'AUTO 229 1 ' in output or \
        expiry_process.path_hits.get('0x54cc0') != 1:
         raise AssertionError(f'536 native expiry/rearm boundary: {output}')

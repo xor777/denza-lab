@@ -22,9 +22,10 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
         CloudPlatform platform(Scope resources,Identity pair)throws Exception;
         void initializeTls()throws Exception;
         CloudTransport transport();
-        default CloudSecondaryTransport secondary(CloudSecondaryTransport.EndpointAuthorizer authorizer){
-            return new CloudSecondaryTransport(authorizer);
+        default byte[][] dnsLookup(String host,java.util.function.BooleanSupplier cancelled)throws Exception{
+            return CloudDnsResolver.resolve(host,cancelled);
         }
+        default void waitForNativeTimer(long durationMs)throws InterruptedException{Thread.sleep(durationMs);}
         default Path gateJournalPath(){return CloudLocalControl.STATE.resolve("gate.pending");}
         default Path registrationJournalPath(){return CloudLocalControl.STATE.resolve("registration.pending");}
     }
@@ -58,6 +59,7 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
             throw new CloudSessionLoop.Unavailable();
     }
     private final Dependencies dependencies;
+    private final CloudReadOnlyFiles readOnlyFiles;
     /** Survives socket reconnects within one owner, never a mode/pair change or process restart. */
     public static final class Registration {
         private final CloudPowerGuard.Continuity continuity=new CloudPowerGuard.Continuity();
@@ -85,7 +87,8 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
     private static final long KEEPALIVE_INTERVAL_MS=250_000;
     private long nextKeepaliveUptimeMs=Long.MAX_VALUE;
     private CloudTransport transport;
-    private CloudSecondaryTransport secondary;
+    private boolean nativeSenderAttached;
+    private final ArrayDeque<Integer> completedWrites=new ArrayDeque<>();
     private final Map<String,Set<String>> nativeDns=new HashMap<>();
     private FrameSource source;
     private boolean nativeWrite;
@@ -97,7 +100,13 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
     }
     CloudNativeConnection(Path executable,Identity pair,long epoch,Clock clock,
             CloudRuntimeSupervisor.Sink sink,Registration registration,Dependencies dependencies) {
+        this(executable,pair,epoch,clock,sink,registration,dependencies,new CloudReadOnlyFiles());
+    }
+    CloudNativeConnection(Path executable,Identity pair,long epoch,Clock clock,
+            CloudRuntimeSupervisor.Sink sink,Registration registration,Dependencies dependencies,
+            CloudReadOnlyFiles readOnlyFiles) {
         this.executable=executable;this.pair=pair;this.epoch=epoch;this.clock=clock;this.sink=sink;this.registration=registration;this.dependencies=dependencies;
+        this.readOnlyFiles=readOnlyFiles;
     }
     @Override public void establish(CloudSessionLoop.Progress progress) throws Exception {
         synchronized(operationLock){
@@ -117,6 +126,7 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
             }catch(Exception unavailable){throw new CloudNativePipe.NativeFailure();}
             power=new CloudPowerGuard(platform::getInt,clock::nowMs,clock::nativeMonotonicMs,registration.continuity);
             power.check();
+            platform.requireAwakeStartup();
             primitives=new CloudPrimitiveBridge(new CloudPrimitiveBridge.Platform(){
                 public int getInt(int device,int fid)throws Exception{return platform.getInt(device,fid);}
                 public CloudPlatform.BufferResult getBuffer(int device,int fid)throws Exception{
@@ -129,15 +139,18 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
                 }
                 public void setInt(int device,int fid,int value)throws Exception{ensureStockPaused();platform.sendNativeInt(device,fid,value);}
                 public void setProperty(String key,String value)throws Exception{ensureStockPaused();platform.sendNativeProperty(key,value);}
+                public int setPropertyStatus(String key,String value)throws Exception{
+                    ensureStockPaused();return platform.sendNativePropertyStatus(key,value);
+                }
                 public byte[][] dnsLookup(String host)throws Exception{
-                    ensureStockPaused();byte[][] addresses=CloudDnsResolver.resolve(host,()->closed);
+                    ensureStockPaused();byte[][] addresses=dependencies.dnsLookup(host,()->closed);
                     Set<String> approved=new HashSet<>();
                     for(byte[] address:addresses)approved.add(java.net.InetAddress.getByAddress(address).getHostAddress());
                     if(!nativeDns.containsKey(host)&&nativeDns.size()>=8)throw new CloudNativePipe.ProtocolFailure();
                     nativeDns.put(host,approved);return addresses;
                 }
                 public String waitForEvent(long deadlineNs)throws Exception{return awaitSdkEvent(deadlineNs);}
-            },random::nextBytes,registration.nativeCounters);
+            },random::nextBytes,registration.nativeCounters,readOnlyFiles);
             CloudPlatform.Identity identity=platform.identity;
             try{stockProfile=platform.property("persist.sys.byd.apn_type");}
             catch(CloudSessionLoop.PermanentFailure refusal){throw refusal;}
@@ -148,10 +161,7 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
             input("C",identity.iccid());input("M",identity.imsi());input("S",identity.serial());
             // Only the native copy sees the virtual public transport profile.
             // The physical stock profile remains separate for gate ownership.
-            input("A",VIRTUAL_NATIVE_PROFILE.getBytes(StandardCharsets.US_ASCII));freshEntropy();command("START");
-            // START initializes the isolated firmware. Its first native clock sample
-            // must precede every registration/login continuation.
-            tick();
+            input("A",VIRTUAL_NATIVE_PROFILE.getBytes(StandardCharsets.US_ASCII));freshEntropy();
             progress.pulse();
             dependencies.initializeTls();
             check();
@@ -175,18 +185,26 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
                     throw new CloudSessionLoop.PermanentFailure(Code.STOCK_OWNER_COMPETED);
                 progress.pulse();Thread.sleep(100);
             }
+            // The original constructors publish the native data subscription table.
+            // Run them only after the stock connection has relinquished ownership;
+            // every SDK write now returns its real result instead of being discarded.
+            command("START");
+            tick();
             // The original network-state callback initiates 211, whose reply
             // initiates 200, whose reply initiates 220. Java supplies each
             // transport and passes bytes unchanged; it never invokes G/D/L too.
             progress.stage(Stage.REGISTERING,Code.REGISTERING);
             Produced initial=collectNativeFrame("NETSTATE 4");
             Produced registered=bootstrap("dilinkreg-cn.denzacloud.com",6001,
-                requireFrame(initial),"R211",true);
-            if(!singleResult(registered.results).equals("REG 1"))
+                initial,"R211",true);
+            String registrationResult=singleResult(registered.results);
+            if(registrationResult.equals("REG 0"))
+                registered=awaitNativeDiscovery(registered,progress);
+            else if(!registrationResult.equals("REG 1"))
                 throw new CloudSessionLoop.PermanentFailure(Code.REGISTRATION_REJECTED);
             progress.stage(Stage.DISCOVERING,Code.DISCOVERING);
             Produced discovered=bootstrap("dilinkaddr-cn.denzacloud.com",6021,
-                requireFrame(registered),"R200",false);
+                registered,"R200",false);
             String[] endpoint=singleResult(discovered.results).split(" ");
             if(endpoint.length!=3||!endpoint[0].equals("ENDPOINT")||
                !endpoint[1].matches("[a-z0-9-]+\\.denzacloud\\.com"))throw new CloudSessionLoop.Unavailable();
@@ -198,6 +216,7 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
             transport=openTransport(discoveryHost,discoveryPort);
             refreshAndTick();
             ensureStockPaused();transport.sendNativeFrame(requireFrame(discovered));sink.count(Metric.TX);
+            command("SENT "+discovered.command);
             byte[] loginReply=transport.readFrame();
             refreshAndTick();
             String result=singleResult(command("R220 "+hex(loginReply)));
@@ -237,31 +256,68 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
     private static final class Produced {
         final List<String> results;
         final byte[] frame;
-        Produced(List<String> results,byte[] frame){this.results=results;this.frame=frame;}
+        final int command;
+        Produced(List<String> results,byte[] frame,int command){this.results=results;this.frame=frame;this.command=command;}
     }
     private boolean collectingFrame;
     private byte[] collectedFrame;
+    private int collectedCommand;
     private Produced collectNativeFrame(String operation)throws Exception{
         if(collectingFrame)throw new CloudNativePipe.ProtocolFailure();
-        collectingFrame=true;collectedFrame=null;
-        try{return new Produced(command(operation),collectedFrame);}
-        finally{collectingFrame=false;collectedFrame=null;}
+        collectingFrame=true;collectedFrame=null;collectedCommand=0;
+        try{return new Produced(command(operation),collectedFrame,collectedCommand);}
+        finally{collectingFrame=false;collectedFrame=null;collectedCommand=0;}
     }
     private static byte[] requireFrame(Produced produced)throws IOException{
-        if(produced.frame==null)throw new CloudNativePipe.ProtocolFailure();
+        if(produced.frame==null||produced.command<1||produced.command>65535)throw new CloudNativePipe.ProtocolFailure();
         return produced.frame;
     }
-    private Produced bootstrap(String host,int port,byte[] request,String receiver,boolean registrationRequest)throws Exception{
+    private Produced bootstrap(String host,int port,Produced request,String receiver,boolean registrationRequest)throws Exception{
         CloudTransport channel=openTransport(host,port);
         try{
             refreshAndTick();
             if(registrationRequest)
                 new CloudRegistrationJournal(dependencies.registrationJournalPath()).customMayRegister();
-            ensureStockPaused();channel.sendNativeFrame(request);sink.count(Metric.TX);
+            ensureStockPaused();channel.sendNativeFrame(requireFrame(request));sink.count(Metric.TX);
+            command("SENT "+request.command);
             byte[] received=channel.readFrame();sink.count(Metric.RX);
             refreshAndTick();
             return collectNativeFrame(receiver+" "+hex(received));
         }finally{resources.retire(channel);}
+    }
+    private Produced awaitNativeDiscovery(Produced pending,CloudSessionLoop.Progress progress)throws Exception{
+        if(pending.frame!=null||collectingFrame)throw new CloudNativePipe.ProtocolFailure();
+        // REG0 arms the original alarm3. Its callback, rather than a Java
+        // sleep followed by a fabricated D invocation, must produce the 200.
+        // The ceiling detects a broken continuation; it does not trigger it.
+        long deadline=clock.nativeMonotonicMs()+90_000;
+        collectingFrame=true;collectedFrame=null;collectedCommand=0;
+        try{
+            while(clock.nativeMonotonicMs()<deadline){
+                ensureStockPaused();
+                drainBeforeLogin();
+                refreshAndTick();
+                progress.pulse();
+                if(collectedFrame!=null)return new Produced(Collections.emptyList(),collectedFrame,collectedCommand);
+                dependencies.waitForNativeTimer(Math.min(250,Math.max(1,deadline-clock.nativeMonotonicMs())));
+            }
+            throw new CloudNativePipe.ProtocolFailure();
+        }finally{collectingFrame=false;collectedFrame=null;collectedCommand=0;}
+    }
+    private void drainBeforeLogin()throws Exception{
+        if(!platform.healthy())throw new CloudNativePipe.NativeFailure();
+        for(int i=0;i<128;i++){
+            CloudPlatform.Event event=platform.poll(0);if(event==null)break;
+            check();sink.callbackObserved();
+            if(event.kind==CloudPlatform.Event.Kind.INTEGER)
+                CloudPowerGuard.checkEvent(event.device,event.fid,event.value);
+            power.check();
+            if(event.kind==CloudPlatform.Event.Kind.BUFFER&&event.fid==CloudPlatform.YUN_DATA)
+                input("I",event.bytes);
+            // No command has been admitted before login. An old MCU result
+            // cannot be saved and later correlated with a fresh cloud command.
+            // Other integer state is read afresh by E/X before each timer tick.
+        }
     }
     @Override public void pump(long maxWaitMs,CloudSessionLoop.Progress progress)throws Exception{
         synchronized(operationLock){
@@ -323,7 +379,7 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
     private byte[] extraEnvironment()throws Exception{
         ByteBuffer out=ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN);int mask=0;int[] values=new int[3];
         try{values[0]=platform.getInt(1001,0x40d00010);mask|=1;}catch(Exception missing){}
-        try{String raw=platform.property("persist.sys.record_610_upload");values[1]=raw.isEmpty()?0:Integer.parseInt(raw);mask|=2;}catch(Exception missing){}
+        try{String raw=primitives.propertyValue("persist.sys.record_610_upload");values[1]=raw.isEmpty()?0:Integer.parseInt(raw);mask|=2;}catch(Exception missing){}
         try{String raw=primitives.propertyValue("sys.cloud.unlock_index");values[2]=raw.isEmpty()?0:Integer.parseInt(raw);mask|=4;}catch(Exception missing){}
         for(int value:values)out.putInt(value);out.putInt(mask);return out.array();
     }
@@ -374,12 +430,18 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
         check();power.check();
         switch(kind){
             case "NET":
-                if(args.size()!=1)throw new CloudNativePipe.ProtocolFailure();
-                byte[] frame=unhex(args.get(0),1024);
+                if(args.size()!=2||!args.get(0).matches("[1-9][0-9]{0,4}"))throw new CloudNativePipe.ProtocolFailure();
+                int sentCommand=Integer.parseInt(args.get(0));
+                if(sentCommand>65535)throw new CloudNativePipe.ProtocolFailure();
+                byte[] frame=unhex(args.get(1),1024);
                 if(collectingFrame){
                     if(collectedFrame!=null)throw new CloudNativePipe.ProtocolFailure();
-                    collectedFrame=frame;
-                }else send(frame);
+                    collectedFrame=frame;collectedCommand=sentCommand;
+                }else{
+                    send(frame);
+                    if(completedWrites.size()>=64)throw new CloudNativePipe.ProtocolFailure();
+                    completedWrites.addLast(sentCommand);
+                }
                 break;
             case "AUTO":
                 if(args.size()!=2)throw new CloudNativePipe.ProtocolFailure();
@@ -398,14 +460,29 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
     @Override public String call(String kind,List<String> args)throws Exception{
         check();if(primitives==null)throw new CloudNativePipe.ProtocolFailure();
         power.check();
+        if(kind.equals("SDK_CONFIG")){
+            if(args.size()!=1)throw new CloudNativePipe.ProtocolFailure();
+            ensureStockPaused();
+            platform.sendNativeSubscription(unhex(args.get(0),512));
+            return "OK";
+        }
+        if(kind.equals("LINK_STATE"))return nativeLinkState(args);
         if(kind.startsWith("SECONDARY_"))return secondaryCall(kind,args);
         return primitives.call(kind,args);
+    }
+    static String nativeLinkState(List<String> args)throws IOException{
+        if(args.size()!=1||!(args.get(0).equals("0")||args.get(0).equals("1")))
+            throw new CloudNativePipe.ProtocolFailure();
+        // This is the isolated original client's actual callback, never
+        // a write to stock TCP properties. Stop before its next effect.
+        if(args.get(0).equals("0"))throw new CloudSessionLoop.NetworkFailure();
+        return "OK";
     }
     private String secondaryCall(String kind,List<String> args)throws Exception{
         ensureStockPaused();
         switch(kind){
             case "SECONDARY_CONNECT":{
-                if(args.size()!=3||secondary!=null||!args.get(2).matches("[1-9][0-9]{0,4}"))
+                if(args.size()!=3||nativeSenderAttached||!args.get(2).matches("[1-9][0-9]{0,4}"))
                     throw new CloudNativePipe.ProtocolFailure();
                 byte[] name=unhex(args.get(0),253);
                 for(byte b:name)if(b<33||b>126)throw new CloudNativePipe.ProtocolFailure();
@@ -413,46 +490,40 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
                 String selected=new String(unhex(args.get(1),15),StandardCharsets.US_ASCII);
                 if(!nativeDns.getOrDefault(host,Collections.emptySet()).contains(selected))
                     throw new CloudNativePipe.ProtocolFailure();
-                String[] octets=selected.split("\\.",-1);byte[] address=new byte[4];
-                if(octets.length!=4)throw new CloudNativePipe.ProtocolFailure();
-                for(int i=0;i<4;i++)address[i]=(byte)Integer.parseInt(octets[i]);
-                secondary=resources.own(dependencies.secondary((h,p)->{
-                    if(discoveryHost==null||!discoveryHost.equals(h)||discoveryPort!=p)
-                        throw new CloudNativePipe.ProtocolFailure();
-                }));
-                try{
-                    secondary.connect(host,java.net.InetAddress.getByAddress(address),port,5000);
-                    ensureStockPaused();return "CONNECTED 1";
-                }catch(java.net.ConnectException|java.net.NoRouteToHostException|
-                        java.net.UnknownHostException|java.net.SocketTimeoutException unavailable){
-                    resources.retire(secondary);secondary=null;ensureStockPaused();return "CONNECTED 0";
-                }catch(javax.net.ssl.SSLException tls){
-                    if(certificateFailure(tls))throw certificateRefusal(tls);
-                    // Peer EOF/reset during handshake has no application write.
-                    // It is not evidence that this firmware/identity is invalid.
-                    resources.retire(secondary);secondary=null;ensureStockPaused();return "CONNECTED 0";
-                }catch(java.security.GeneralSecurityException trust){
-                    throw new CloudSessionLoop.PermanentFailure(Code.NATIVE_UNAVAILABLE);
-                }
+                if(transport==null||discoveryHost==null||!discoveryHost.equals(host)||discoveryPort!=port)
+                    throw new CloudNativePipe.ProtocolFailure();
+                // The name is retained in the IPC grammar, but this is the
+                // original singleton sender's socket. Bootstrap already opened
+                // and authenticated it. Opening a second TLS connection here
+                // would send keepalive/results without that connection's login.
+                transport.requireConnected();
+                nativeSenderAttached=true;return "CONNECTED 1";
             }
             case "SECONDARY_WRITE":{
-                if(args.size()!=1||secondary==null)throw new CloudNativePipe.ProtocolFailure();
+                if(args.size()!=1||!nativeSenderAttached||transport==null)throw new CloudNativePipe.ProtocolFailure();
                 byte[] payload=unhex(args.get(0),1024);
-                int count=secondary.write(payload,2000);
-                // A partial/unknown completion must not authorize the original
-                // success callback or replay this command on another stream.
-                if(count!=payload.length){resources.retire(secondary);secondary=null;throw new CloudNativePipe.ProtocolFailure();}
-                ensureStockPaused();return "WRITTEN "+count;
+                transport.sendOpaqueBytes(payload);sink.count(Metric.TX);
+                ensureStockPaused();return "WRITTEN "+payload.length;
             }
             case "SECONDARY_CLOSE":
                 if(!args.isEmpty())throw new CloudNativePipe.ProtocolFailure();
-                if(secondary!=null){resources.retire(secondary);secondary=null;}
-                return "OK";
+                nativeSenderAttached=false;
+                if(transport!=null)transport.close();
+                throw new CloudSessionLoop.NetworkFailure();
             default:throw new CloudNativePipe.ProtocolFailure();
         }
     }
     private List<String> command(String value)throws Exception{
         check();sink.progress();nativeWrite=false;List<String> result=nativePipe.exchange(value,this,8000);sink.progress();
+        // Effects are received while exchange is still executing. Report real
+        // writes only after its DONE, avoiding recursive native operations and
+        // preserving the original sender's completion callback order.
+        for(int count=0;!completedWrites.isEmpty();count++){
+            if(count>=64)throw new CloudNativePipe.ProtocolFailure();
+            ensureStockPaused();
+            nativePipe.exchange("SENT "+completedWrites.removeFirst(),this,8000);
+            sink.progress();
+        }
         String[] done=result.get(result.size()-1).split(" ");
         if(done.length==4 && done[0].equals("DONE") && done[1].equals("532")){
             if(nativeWrite && value.startsWith("RX "))sink.count(Metric.COMMAND_FORWARDED);
@@ -460,15 +531,23 @@ public final class CloudNativeConnection implements CloudSessionLoop.Connection,
         }
         return result;
     }
-    private void input(String key,byte[] bytes)throws Exception{command(key+" "+hex(bytes));}
+    private void input(String key,byte[] bytes)throws Exception{
+        // debug.ro.serialno is legitimately empty on the reviewed car. Native
+        // S accepts that value; a bare verb avoids a malformed trailing IPC space.
+        command(bytes.length==0?key:key+" "+hex(bytes));
+    }
     private void freshEntropy()throws Exception{byte[] nonce=new byte[16];random.nextBytes(nonce);input("N",nonce);input("T",le((int)(System.currentTimeMillis()/1000)));}
     private static String singleResult(List<String> lines)throws IOException{
         if(lines.size()!=2||!lines.get(1).startsWith("DONE "))throw new CloudNativePipe.ProtocolFailure();return lines.get(0);
     }
     private void check(){if(closed)throw new CancellationException("owner_stopped");resources.check();}
     @Override public void close()throws Exception{
-        closed=true;resources.close();
-        synchronized(operationLock){resources.close();}
+        closed=true;
+        try{resources.close();}
+        finally{synchronized(operationLock){
+            try{readOnlyFiles.close();}
+            finally{resources.close();}
+        }}
         // STOP stops local ownership. It never claims that factory cloud identity was restored.
     }
     static byte[] le(int value){return ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array();}

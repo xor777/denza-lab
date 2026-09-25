@@ -58,7 +58,7 @@ final class CloudGuardianState {
     private CloudPowerGuard.Continuity continuity;
     private int retries;
     private JSONObject last;
-    private boolean cleanupUncertain,shutdown,stockCompeted,cleanLaunchRetry;
+    private boolean cleanupUncertain,shutdown,stockCompeted,cleanLaunchRetry,terminalOutcome;
 
     CloudGuardianState(Path markerPath,CloudInstallMarker installation,String runtimeId,
             CloudGateJournal gateJournal,CloudStopFence stopFence,CloudRegistrationJournal registrationJournal,
@@ -124,11 +124,12 @@ final class CloudGuardianState {
         if(serviceInstance==null||uptimeMs.getAsLong()<leaseUntilUptimeMs)return false;
         leaseActive=false;savedPair=null;retryAt=0;serviceInstance=null;
         stopFence.block(installation.installId,installation.generation);
-        stopWorker();last=empty("failed","lease_expired");
+        stopWorker();
+        if(!terminalOutcome)last=empty("failed","lease_expired");
         shutdown=!cleanupUncertain;return true;
     }
     private void checkContinuity()throws CloudSessionLoop.PermanentFailure{
-        if(continuity!=null&&serviceInstance!=null){
+        if(!terminalOutcome&&continuity!=null&&serviceInstance!=null){
             long uptime=uptimeMs.getAsLong();continuity.check(elapsedMs.getAsLong(),uptime);
         }
     }
@@ -150,7 +151,8 @@ final class CloudGuardianState {
             if(expireLeaseIfNeeded())return;
             if(worker==null && gateJournal.pending())recoverGate();
             if(worker==null && sharedJournal.pending())recoverShared();
-            if(worker==null && savedPair==null && elapsedMs.getAsLong()-bornAt>=10_000){
+            if(worker==null && savedPair==null && !terminalOutcome &&
+               elapsedMs.getAsLong()-bornAt>=10_000){
                 // START may have been lost after guardian launch. An idle lock
                 // with no effects cannot become a permanent phantom owner.
                 shutdown=true;return;
@@ -174,7 +176,10 @@ final class CloudGuardianState {
                             stopFence.block(installation.installId,installation.generation);
                             last=empty("failed","session_failed");
                         }
-                    }catch(Exception uncertain){cleanupUncertain=true;last=empty("failed","cleanup_uncertain");}
+                    }catch(Exception uncertain){
+                        CloudSessionLoop.diagnostic("guardian_reap",uncertain);
+                        cleanupUncertain=true;last=empty("failed","cleanup_uncertain");
+                    }
                 }else{
                     JSONObject status=worker.request("STATUS",null,leaseUntilUptimeMs);
                     if(offRequested)throw new IOException("off_requested");
@@ -192,7 +197,12 @@ final class CloudGuardianState {
                         }else{
                             // Terminal results require a new app generation.
                             stopFence.block(installation.installId,installation.generation);
+                            savedPair=null;retryAt=0;leaseActive=false;
+                            terminalOutcome=true;
                             last=empty("failed",code);
+                            // Keep the diagnostic readable until the original
+                            // lease deadline; no renewal or worker restart is allowed.
+                            shutdown=serviceInstance==null&&!cleanupUncertain;
                         }
                     }
                 }
@@ -200,6 +210,7 @@ final class CloudGuardianState {
         }catch(Exception failure){
             // A missing marker or broken worker is an OFF trigger, never a
             // reason to keep vehicle effects running without an owner.
+            CloudSessionLoop.diagnostic("guardian_tick",failure);
             if(!recoveryOnly)try{stopFence.block(installation.installId,installation.generation);}catch(Exception ignored){cleanupUncertain=true;}
             try{stopWorker();}catch(Exception ignored){cleanupUncertain=true;}
             leaseActive=false;savedPair=null;retryAt=0;
@@ -243,7 +254,7 @@ final class CloudGuardianState {
             }else if(!caller.installId.equals(installation.installId)){
                 reject="owner_changed";
             }else if(op.equals("STOP")){
-                boolean protectedLease=serviceInstance!=null &&
+                boolean protectedLease=!terminalOutcome && serviceInstance!=null &&
                     uptimeMs.getAsLong()<leaseUntilUptimeMs && caller.desired.equals("custom");
                 if(protocol==2 && protectedLease)reject="owner_changed";
                 else if(protocol==3 && protectedLease &&
@@ -269,6 +280,7 @@ final class CloudGuardianState {
                 reject=last.optString("code","owner_stopped");
             }else if(op.equals("ATTACH")&&protocol==3){
                 if(!ownerId.equals(requestedOwner))reject="owner_changed";
+                else if(terminalOutcome)reject=last.optString("code","session_failed");
                 else if(savedPair==null || recoveryOnly)reject="identity_required";
                 else if(serviceInstance==null)reject="lease_expired";
                 else if(serviceInstance.equals(requestedService)){
@@ -281,6 +293,7 @@ final class CloudGuardianState {
                 }
             }else if(op.equals("RENEW")&&protocol==3){
                 if(!ownerId.equals(requestedOwner))reject="owner_changed";
+                else if(terminalOutcome)reject=last.optString("code","session_failed");
                 else if(serviceInstance==null||!serviceInstance.equals(requestedService))reject="service_changed";
                 else if(requestedSeq<=renewSeq)reject="lease_sequence";
                 else if(uptimeMs.getAsLong()>=leaseUntilUptimeMs)reject="lease_expired";
@@ -299,7 +312,8 @@ final class CloudGuardianState {
                         if(!permitted.getBoolean("ok"))throw new IOException("worker_renew_rejected");
                         leaseUntilUptimeMs=nextCeiling;
                     }else leaseUntilUptimeMs=nextCeiling;
-                    if(uptimeMs.getAsLong()>=nextCeiling)throw new IOException("worker_renew_expired");
+                    if(uptimeMs.getAsLong()>=nextCeiling)
+                        throw new CloudSessionLoop.PermanentFailure(CloudRuntimeSupervisor.Code.LEASE_EXPIRED);
                     renewSeq=requestedSeq;
                     leaseActive=true;
                 }
@@ -323,10 +337,13 @@ final class CloudGuardianState {
                     else leaseActive=true; // Legacy host-fixture seam; wire v2 START is rejected.
                     startWorker(pair);
                     if(protocol==3&&uptimeMs.getAsLong()>=leaseUntilUptimeMs)
-                        throw new CloudSessionLoop.PermanentFailure(CloudRuntimeSupervisor.Code.POWER_LOST);
+                        throw new CloudSessionLoop.PermanentFailure(CloudRuntimeSupervisor.Code.LEASE_EXPIRED);
                 }
             }else reject="operation_rejected";
         }catch(Exception failure){
+            if(!(failure instanceof CloudSessionLoop.PermanentFailure)
+                && !(failure instanceof CleanLaunchFailure))
+                CloudSessionLoop.diagnostic("guardian_request",failure);
             reject=cleanupUncertain?"cleanup_uncertain":
                 failure instanceof CloudSessionLoop.PermanentFailure
                     ? ((CloudSessionLoop.PermanentFailure)failure).code.name().toLowerCase(Locale.ROOT)
@@ -336,9 +353,16 @@ final class CloudGuardianState {
             if(op.equals("START")){savedPair=null;retryAt=0;leaseActive=false;serviceInstance=null;leaseUntilUptimeMs=0;}
             if(op.equals("START")&&failure instanceof CleanLaunchFailure&&!cleanupUncertain)
             {cleanLaunchRetry=true;shutdown=true;} // No child/effects: permit a fresh owner to retry.
+            else if(op.equals("START")&&!recoveryOnly){
+                // Once START may have reached a child, a lost reply cannot
+                // authorize another registration in the same generation.
+                try{stopFence.block(installation.installId,installation.generation);}
+                catch(Exception debt){cleanupUncertain=true;reject="cleanup_uncertain";}
+            }
             if(failure instanceof CloudSessionLoop.PermanentFailure&&
                (((CloudSessionLoop.PermanentFailure)failure).code==CloudRuntimeSupervisor.Code.POWER_LOST||
-                ((CloudSessionLoop.PermanentFailure)failure).code==CloudRuntimeSupervisor.Code.POWER_UNAVAILABLE)){
+                ((CloudSessionLoop.PermanentFailure)failure).code==CloudRuntimeSupervisor.Code.POWER_UNAVAILABLE||
+                ((CloudSessionLoop.PermanentFailure)failure).code==CloudRuntimeSupervisor.Code.LEASE_EXPIRED)){
                 try{stopFence.block(installation.installId,installation.generation);}
                 catch(Exception debt){cleanupUncertain=true;reject="cleanup_uncertain";}
                 leaseActive=false;savedPair=null;retryAt=0;serviceInstance=null;
@@ -350,7 +374,7 @@ final class CloudGuardianState {
         String stage=base.optString("stage","");
         String code=base.optString("code","");
         retryable=op.equals("PROBE") || stage.equals("retry_wait") || code.equals("network_retry") ||
-            code.equals("config_changed") || code.equals("owner_present") ||
+            code.equals("owner_present") ||
             code.equals("owner_changed");
         JSONObject answer;
         try{answer=new JSONObject(base.toString());if(op.equals("PROBE"))answer.put("code","owner_present");}
@@ -409,9 +433,13 @@ final class CloudGuardianState {
         worker=fresh;
         if(offRequested){fresh.abort();throw new IOException("off_requested");}
         if(continuity!=null){long uptime=uptimeMs.getAsLong();continuity.check(elapsedMs.getAsLong(),uptime);}
+        if(continuity!=null&&uptimeMs.getAsLong()>=leaseUntilUptimeMs)
+            throw new CloudSessionLoop.PermanentFailure(CloudRuntimeSupervisor.Code.LEASE_EXPIRED);
         lastWorkerEventSequence=0;
         last=fresh.request("START",pair,leaseUntilUptimeMs);
         if(continuity!=null){long uptime=uptimeMs.getAsLong();continuity.check(elapsedMs.getAsLong(),uptime);}
+        if(continuity!=null&&uptimeMs.getAsLong()>=leaseUntilUptimeMs)
+            throw new CloudSessionLoop.PermanentFailure(CloudRuntimeSupervisor.Code.LEASE_EXPIRED);
         absorbEvents(last);
         if(!last.getBoolean("ok"))throw new IOException("java_worker_start_rejected");
     }
@@ -455,7 +483,7 @@ final class CloudGuardianState {
         if(!sharedJournal.pending())return;
         String observed=(String)Class.forName("android.os.SystemProperties")
             .getMethod("get",String.class).invoke(null,"sys.cloud.remote_controling");
-        sharedJournal.resolveIfUnchanged(observed);
+        sharedJournal.resolveAfterExit(observed);
     }
     private void stopWorker()throws Exception{
         if(worker!=null){

@@ -59,7 +59,7 @@ internal class CloudCustomBackend private constructor(
         val id = ++nextId
         // Never log this line or the raw reply: START contains the private ICCID/IMSI pair.
         val answer = resident.request(CloudCustomProtocol.request(id, op, identity, ownerId,
-            serviceInstance, renewSeq, legacyCleanup), REQUEST_TIMEOUT_MS)
+            serviceInstance, renewSeq, legacyCleanup), timeoutFor(op))
         if (allowLegacyReply && runCatching { JSONObject(answer).optInt("protocol") }.getOrNull() == 2)
             legacyCleanup = true
         return CloudCustomProtocol.answer(answer, id, op, allowLegacyReply || legacyCleanup)
@@ -73,8 +73,12 @@ internal class CloudCustomBackend private constructor(
         private const val WORKER_ASSET = "cloud-native-worker"
         private const val ROOT = "/data/local/tmp/denza-cloud-native"
         private const val REQUEST_TIMEOUT_MS = 10_000
+        private const val START_TIMEOUT_MS = 40_000
         private const val READY_TIMEOUT_MS = 20_000
         private const val CHUNK_CHARS = 8_192
+
+        internal fun timeoutFor(op: String): Int =
+            if (op == "START") START_TIMEOUT_MS else REQUEST_TIMEOUT_MS
 
         fun open(context: Context, serviceInstance: String? = null,
                  onStartRequest: () -> Unit = {}): CloudCustomBackend {

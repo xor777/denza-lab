@@ -297,6 +297,9 @@ public final class CloudRuntimeSupervisor implements AutoCloseable {
                     catch(Exception failure) { end=Code.REGISTRATION_JOURNAL_FAILED; return; }
                     current.check();
                     task.run(current,identity,new Sink(epoch));
+                } catch(LinkageError mismatch) {
+                    CloudSessionLoop.diagnostic("platform_linkage",mismatch);
+                    end=Code.NATIVE_UNAVAILABLE;
                 } catch(Exception failure) {
                     end=failure instanceof CloudSessionLoop.PermanentFailure
                         ? ((CloudSessionLoop.PermanentFailure)failure).code : Code.SESSION_FAILED;
