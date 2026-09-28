@@ -19,6 +19,7 @@ import dev.denza.apps.TechnicalReadings
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
+import dev.denza.apps.feature.cloud.CloudDiagnosticExport
 import dev.denza.apps.ui.components.DenzaChoiceGroup
 import dev.denza.apps.ui.components.DenzaChoiceRow
 import dev.denza.apps.ui.components.DenzaChosenRow
@@ -130,6 +131,8 @@ internal fun ServicePanel(
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onDismiss: () -> Unit,
+    cloudDiagnostic: CloudDiagnosticExport.State = CloudDiagnosticExport.State(),
+    onCollectCloudDiagnostics: () -> Unit = {},
     firstPage: ServicePage = ServicePage.MAIN,
     firstPageAtEnd: Boolean = false,
     version: String = "Denza Apps ${BuildConfig.VERSION_NAME} · сборка ${BuildConfig.VERSION_CODE}",
@@ -157,6 +160,8 @@ internal fun ServicePanel(
                     onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
                     onPage = { page = it },
+                    cloudDiagnostic = cloudDiagnostic,
+                    onCollectCloudDiagnostics = onCollectCloudDiagnostics,
                 )
             }
             ServicePage.SCREEN -> {
@@ -186,6 +191,8 @@ private fun ServiceMain(
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onPage: (ServicePage) -> Unit,
+    cloudDiagnostic: CloudDiagnosticExport.State,
+    onCollectCloudDiagnostics: () -> Unit,
 ) {
     val model = remember(state) { ServiceModel.of(state) }
     val adb = state.adbRescue
@@ -245,6 +252,13 @@ private fun ServiceMain(
             )
         }
     }
+    DenzaSecondaryButton(
+        text = if (cloudDiagnostic.busy) "Собираем диагностику…" else "Собрать диагностику облака",
+        onClick = onCollectCloudDiagnostics,
+        enabled = !cloudDiagnostic.busy,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    DenzaNote(cloudDiagnostic.message)
 }
 
 /**

@@ -37,6 +37,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import dev.denza.apps.feature.cloud.CloudDiagnosticExport
 import androidx.compose.ui.text.style.TextOverflow
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 import dev.denza.apps.ui.components.SheetInk
@@ -117,6 +119,8 @@ fun DenzaAppsRoot(
     onInstallFseApp: (String) -> Unit,
 ) {
     val uiState by state.collectAsState()
+    val cloudDiagnostic by CloudDiagnosticExport.state.collectAsState()
+    val appContext = LocalContext.current.applicationContext
     // Saved rather than merely remembered. The split path of this firmware recreates the activity
     // when a pane is promoted or collapsed, and every open panel used to vanish with it - so a
     // driver who widened the window to read a setting arrived back on the dashboard instead.
@@ -333,6 +337,8 @@ fun DenzaAppsRoot(
                     onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
                     onDismiss = { showDiagnostics = false },
+                    cloudDiagnostic = cloudDiagnostic,
+                    onCollectCloudDiagnostics = { CloudDiagnosticExport.collect(appContext) },
                 )
             }
             if (showClusterPicker) {

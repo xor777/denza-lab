@@ -5,6 +5,109 @@ vehicle telemetry ingestion must be established separately. The head unit
 itself runs several cloud clients; ownership of the phone's main status feed
 by a separate T-Box has not been established. Open 2026-09-22.
 
+## U9 diagnostic build without a remote ADB connection, 2026-09-28
+
+The existing Android-12 branch (`7b5cb5a0`) was renamed `yangwang-u9` and
+extended with a manual diagnostic export; app version remains `0.7.0-alpha.1`,
+build **61**, minSdk **31**. Stock cloud activation logic is unchanged.
+This is an investigation build, not a confirmed U9 cloud fix.
+
+**Owner flow:** open Denza Apps → **Сервис** → **Собрать диагностику облака**.
+Wait for **Сохранено** and copy **Download/Denza Apps/denza-cloud-u9.zip**
+using the vehicle's file manager and a USB drive. Collect soon after the failed
+connection while its messages remain in Android's log buffers. No external
+computer connection or separate archiver is needed. The app reuses its existing
+trusted local ADB key and never requests a new authorization from this button.
+
+The archive contains app/build identity and retained sanitized history, a fixed
+allowlist of system properties, cloud-related Binder service names, the native
+process's recent logs without Denza-specific tag filtering, related framework
+logs, process maps where permitted, and system-file availability. If readable,
+the installed `/system/bin/cloudmanager` ELF is included (maximum 2 MiB) with
+its SHA-256 for offline inspection. No binary is executed and no chip/service
+method is called. Text filtering removes identity, credentials, location and
+packet-dump lines; unknown diagnostic messages otherwise remain readable.
+
+Collection uses finite reads with shell timeouts and size limits. A missing
+process, inaccessible file or failed command is recorded inside the archive;
+it does not discard the other sections or establish a cloud rejection. No
+profile, network, log level or service state is changed by collection. There is
+no automatic upload or automatic ZIP generation. Another press replaces the
+same export; deleting it allows the next press to recreate it. Temporary ZIP
+storage is app-owned and removed at completion/failure, or replaced next time
+if Android terminates the app during collection. An interrupted pending
+MediaStore row is reused on the next attempt.
+
+Validation: **119 focused tests passed** (collector/privacy/ZIP, existing cloud
+logic and UI contracts), debug assembly passed, and the APK declares minSdk 31.
+On the API-35 emulator, the real service button produced a valid ZIP through
+local ADB; APK identity in the archive matches the installed build. Repeated
+collection replaced the same file, deleting it allowed recreation, and no
+temporary ZIP remained. Absent BYD services were marked unavailable without
+losing Android properties or other evidence. The full-width service fixture
+compared at 0.77% changed pixels / 0.89 mean levels; the narrow fixture at
+1.87% / 1.31. This verifies collection
+and presentation, not Android-12/U9 firmware behavior: actual U9 collection
+and cloud compatibility remain for the owner to check.
+
+Delivery APK SHA-256:
+`3ef50b0d5aa33ac51feb4979b1d9c773477d699521c30a9f5f3aa1a34614787e`.
+Local checks and emulator exports are in
+`captures/u9-diagnostic-validation/` in the Android-12 worktree.
+
+## Yangwang U9 / Android 12: ready notification arrives without connection, 2026-09-28
+
+Two owner-supplied reports, exported at **11:40:39** and **14:29:32 UTC**, come
+from the same build-60 APK (SHA-256
+`f9a72cdd42a9c48448201f9adfc2a6169da3a3104d47bfd7075af4b36d27ae01`).
+The user identifies the vehicle as U9. Its reported firmware is
+`BYD-AUTO/DiLink6.0/DiLink6.0:12/SKQ1.220702.001/eng.build.20260416.233403:user/release-keys`.
+This is not the researched Z9GT firmware. Running the APK and exporting these
+reports establishes that the installation barrier was passed on this build;
+it does not establish feature compatibility.
+
+Both exports show validated Wi-Fi, `double_apn`, APN1 disabled, disconnected
+APN1/APN3 and TCP=false. The native log independently records **eight** ready=4
+notifications in the earlier report and **six** in the later one. Thus the
+Binder notification reaches cloudmanager; this is stronger than a successful
+shell reply. Profile changes and restoration read back successfully. No
+sample records TCP=true. Earlier PIDs change 706 → 773 → 750; the reports do
+not distinguish process restart from head-unit reboot or explain the cause.
+The later report retains PID 750 throughout its approximately 39-minute history.
+
+The reports contain no classified DNS, socket, TLS or registration-reply
+events. `step` and `regError` are absent, not zero. `registration=1` reads the
+persistent `persist.sys.cloud.app_reg_status`, not a fresh 211 response;
+`token=0` is not a demonstrated cause. Both SIM properties have numeric shapes
+of 15/20 characters, which does not establish server acceptance. `gate=OPENED`
+is the app's estimate after sending ready, not a read of the native gate.
+The finite log capture restricts PID, tags and recognized messages to the
+researched Denza patterns. Missing events cannot establish that U9 attempted
+no network traffic or that BYD rejected registration.
+
+**Concrete hypothesis, not U9 proof:** the previously retained Dolphin
+comparison implements notify_nw for only 1 and -2. At `0x28524–0x28530`, any
+other value, including 4, goes to the epilogue after the notification log.
+The researched Z9GT instead handles 4 under double_apn. A U9 variant of that
+earlier handler would explain the observed notification-only trace. Its native
+binary/framework must be inspected before choosing a different event and its
+matching disconnect behavior. Endpoint/profile selection and the TCP getter
+also need verification on that build; no addresses or transaction semantics
+from another firmware constitute U9 proof.
+
+Next useful evidence is one read-only U9 collection: native startup/connection
+logs without the Denza-specific tag restriction, relevant framework/Binder
+definitions and the matching cloudmanager executable if readable (otherwise
+from matching firmware). This permits static selection of a bounded stock
+activation test rather than repeated blind toggles. No APK, service, router,
+vehicle or cloud mutation was made in this analysis.
+
+Saved reports and source hashes are in ignored
+`captures/telematics-20260928/u9-cloud-reports/`. Report SHA-256 values are
+`b5298af26ce3b4ccf6b2e5a9351c0e820eba1fae8bd68005b9b726009b9bceea`
+and `3cd8308fbc3c19f7e543b5bdf8b987f3837d5d4ce8524d1bba2c579aab9bd74b`.
+
+
 ## Real SOC reached the official phone app over Wi-Fi, 2026-09-23
 
 **The official Denza app displayed 74% after the helper uploaded this car's

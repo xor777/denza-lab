@@ -263,6 +263,10 @@
     { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },
     { kind: 'choice', title: 'Технические сведения', summary: 'Версия, прошивка, состояние функций' }
   ] };
+  const SVC_CLOUD_EXPORT = [
+    { t: 'button', kind: 'secondary', text: 'Собрать диагностику облака' },
+    { t: 'note', text: 'ZIP в Download/Denza Apps/. Повторный сбор заменит файл.' }
+  ];
   const SVC_ACCESS = { title: 'Доступ к машине', summary: 'ADB-доступ подтверждён' };
   // The report the technical page is read from - SupportDiagnostics, the cloud first: a line
   // `[Название]` opens a section, every other line is `key=value` in it, split on the first '='.
@@ -342,7 +346,7 @@
   const service = {
     ok: sheetOf(11, {
       title: 'Сервис',
-      blocks: [{ t: 'group', rows: [{ title: 'Все функции работают' }, SVC_ACCESS] }, SVC_MORE],
+      blocks: [{ t: 'group', rows: [{ title: 'Все функции работают' }, SVC_ACCESS] }, SVC_MORE, ...SVC_CLOUD_EXPORT],
       footer: [SVC_VERSION]
     }, Object.assign({}, svcState, { page: 'main' })),
     trouble: sheetOf(11, {
@@ -354,7 +358,7 @@
           { kind: 'choice', title: 'Облако', summary: 'Не включилось', tone: 'broken' },
           SVC_ACCESS
         ] },
-        SVC_MORE
+        SVC_MORE, ...SVC_CLOUD_EXPORT
       ],
       footer: [SVC_VERSION]
     }, Object.assign({}, svcState, { page: 'main', trouble: true })),
@@ -368,7 +372,7 @@
           { t: 'button', text: 'Отправить один запрос' },
           { t: 'button', kind: 'secondary', text: 'Проверить доступ' }
         ] },
-        SVC_MORE
+        SVC_MORE, ...SVC_CLOUD_EXPORT
       ],
       footer: [SVC_VERSION]
     }, Object.assign({}, svcState, { page: 'main', adb: 'Нужно разрешение ADB для Denza Apps', adbDetails: 'Можно вручную отправить ровно один запрос', adbPhase: 'AUTHORIZATION_REQUIRED' })),

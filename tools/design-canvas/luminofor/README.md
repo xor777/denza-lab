@@ -161,6 +161,14 @@ fallback, and baselines Android snaps to whole pixels. On 2026-09-24 the report 
 split's section compared at 0.93 % and the journal at 1.16 %, the technical report's first screen
 still at 1.05 %.
 
+## U9 diagnostic branch
+
+The Android-12 `yangwang-u9` branch adds one quiet button at the foot of the
+service panel: «Собрать диагностику облака», followed by the output-folder note.
+The main service fixtures include it at full and narrow widths. During collection
+the button is disabled; the note shows progress, the saved ZIP path, or an error.
+The technical report and split journal keep their existing layout.
+
 ## The chart and the engine's box
 
 The approved page drew the ten kilometres in steps, with the cluster's ceilings at 30 and 10, and
