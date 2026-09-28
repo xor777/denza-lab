@@ -3,7 +3,9 @@ package dev.denza.apps.feature.weather
 import android.content.Context
 import android.location.Address
 import android.location.Geocoder
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -46,7 +48,7 @@ internal data class WeatherLocationLabel(
     }
 }
 
-/** Best-effort reverse geocoding through the Android 13 platform service. */
+/** Best-effort reverse geocoding through the platform service. */
 internal class AndroidWeatherGeocoder(context: Context) {
     private val appContext = context.applicationContext
 
@@ -57,11 +59,31 @@ internal class AndroidWeatherGeocoder(context: Context) {
             return null
         }
 
+        val geocoder = Geocoder(appContext, Locale.forLanguageTag("ru-RU"))
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            resolveAsync(geocoder, latitude, longitude)
+        } else {
+            resolveLegacy(geocoder, latitude, longitude)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun resolveLegacy(geocoder: Geocoder, latitude: Double, longitude: Double): WeatherLocationLabel? =
+        try {
+            geocoder.getFromLocation(latitude, longitude, MAX_RESULTS)
+                ?.firstNotNullOfOrNull { address -> address.toWeatherLocationLabel() }
+        } catch (failure: Exception) {
+            Log.i(TAG, "Android Geocoder failed", failure)
+            null
+        }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun resolveAsync(geocoder: Geocoder, latitude: Double, longitude: Double): WeatherLocationLabel? {
         val result = AtomicReference<List<Address>>(emptyList())
         val error = AtomicReference<String?>(null)
         val latch = CountDownLatch(1)
         return try {
-            Geocoder(appContext, Locale.forLanguageTag("ru-RU")).getFromLocation(
+            geocoder.getFromLocation(
                 latitude,
                 longitude,
                 MAX_RESULTS,

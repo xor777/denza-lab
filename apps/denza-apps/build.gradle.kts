@@ -98,7 +98,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.denza.apps"
-        minSdk = 33
+        minSdk = 31
         targetSdk = 33
         // versionName is the owner's product version - it changes only by their
         // explicit decision. versionCode is an internal build counter so the car
@@ -137,7 +137,7 @@ android {
                 )
                 androidJar.from(platform)
                 sdkDirectory.set(sdk)
-                minApi.set(33)
+                minApi.set(31)
                 archiveName.set("split-task-proxy.jar")
             }
             variant.sources.assets?.addGeneratedSourceDirectory(
@@ -155,7 +155,7 @@ android {
                 )
                 androidJar.from(platform)
                 sdkDirectory.set(sdk)
-                minApi.set(33)
+                minApi.set(31)
                 archiveName.set("vehicle-signal-proxy.jar")
             }
             variant.sources.assets?.addGeneratedSourceDirectory(
@@ -170,7 +170,7 @@ android {
                 ))
                 androidJar.from(platform)
                 sdkDirectory.set(sdk)
-                minApi.set(33)
+                minApi.set(31)
                 archiveName.set("media-focus-pause-proxy.jar")
             }
             variant.sources.assets?.addGeneratedSourceDirectory(

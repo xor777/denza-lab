@@ -72,7 +72,12 @@ class CloudLinkService : Service() {
             ?.registerDefaultNetworkCallback(networkCallback)
         // Sent by system_server with no permission and no package, so it has to be exported to
         // arrive at all. Whether it does arrive at an ordinary app is unproven; nothing waits on it.
-        registerReceiver(statusReceiver, IntentFilter(TCP_STATUS_ACTION), Context.RECEIVER_EXPORTED)
+        ContextCompat.registerReceiver(
+            this,
+            statusReceiver,
+            IntentFilter(TCP_STATUS_ACTION),
+            ContextCompat.RECEIVER_EXPORTED,
+        )
         watching = true
         CloudLinkController.serviceStarted(this)
         if (!validated) handler.postDelayed(lossCheck, CloudLinkCore.NETWORK_LOSS_GRACE_MS)

@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Parcel
+import androidx.core.content.ContextCompat
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
 
@@ -96,12 +97,13 @@ internal class SplitFirmwareSignals(
                 if (intent.getStringExtra(EXTRA_REASON) == REASON_HOME_KEY) onHomeKey()
             }
         }
-        app.registerReceiver(
+        ContextCompat.registerReceiver(
+            app,
             receiver,
             IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS),
             null,
             handler,
-            Context.RECEIVER_EXPORTED,
+            ContextCompat.RECEIVER_EXPORTED,
         )
         return receiver
     }
