@@ -8,6 +8,72 @@ Established on the live car (DiLink5.1, `BYD AUTO`, Android 13 / API 33) on
 2026-08-14, after the firmware update that changed the app-launch button to open
 a plain fullscreen picker.
 
+## Current state
+
+Updated 2026-10-03. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
+
+| Claim | Status | Since | Section |
+|---|---|---|---|
+| «Разделить экран» (`SplitScreenLauncherAlias` → `SplitLauncherEntryActivity`) puts one `SplitPickerActivity` task in each pane with `am start -c byd.intent.category.START_IVI_PRIMARY` / `START_IVI_SECOND -f 0x18010000`; it never calls tx115 and never goes through Home (`SplitPickerShellSession.kt`) | code | 2026-08-18 | [Product direction](#product-direction-explicit-two-picker-session) |
+| A pane app is launched with `0x10200000`, which hands back the package's existing task; `0x18200000` (`MULTIPLE_TASK`) only for a second copy of a package the other pane holds; a `singleTask`/`singleInstance` second copy is refused with «Это приложение не поддерживает два окна» (`SplitPickerShellSession.kt`) | code | 2026-08-23 | [Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22) |
+| Durable state is one `split_state_v2` snapshot: the enabled flag plus `Closed`/`Picker`/`App(package)` per pane; a task or root id has no encoding (`SplitStore.kt`) | code | 2026-08-23 | [Product direction](#product-direction-explicit-two-picker-session) |
+| A session leases the gate (closed only if we opened it), `force_resizable_activities` (`SplitResizeabilityController.kt`) and the four SmartMulti keys `byd_smart_multi_primary_activity` / `_second_activity` / `_primary_position` / `_split_window_mode` (100 both panes, 101 narrow only, 102 wide only), compare-and-restored when the scene ends (`SplitSmartMultiController.kt`); the keys record a split, they do not command one | code | 2026-08-23 | [What a session now borrows and gives back](#what-a-session-now-borrows-and-gives-back-2026-08-23-code), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16), [Settings: state, not controls](#settings-state-not-controls) |
+| Edge drag: the split accessibility service draws no window; it replaces Launcher3 `SplitScreenListActivity` with a Denza picker only after balanced area 3 with no active pointer on 10 consecutive 100 ms samples (5 released non-balanced samples cancel) (`SplitNativePickerAccessibilityService.kt`, `SplitPickerShellSession.kt`) | live | 2026-08-22 | [Live acceptance status](#live-acceptance-status) |
+| Gate tx126 `setStartToSplit(bool)` is one global static (`mIsEnterSplit`, default `true`): while open, every split-capable start lands in split and an empty pane is filled with the remembered partner (`com.byd.sr`, the "ADAS" window); while closed, even a `START_IVI_*` start goes fullscreen | firmware | 2026-09-23 | [Placement, read end to end](#placement-read-end-to-end), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16) |
+| Placement: `startIviWindow` splits when the gate is open and either `isSupportSplit(task)` (tx125 list, blacklist, `mSecondAppList`, manifest `BYD_SUPPORT_SPLIT_ACTIVITY=1`) or the category is type 16/32. Side: `START_IVI_PRIMARY` (16) narrow, `START_IVI_SECOND` (32) wide; with no category, narrow only if the package equals `mPrimaryActivity`. Only activity starts and recents picks place a task; `am task focus` and `am stack move-task` never do | firmware | 2026-09-23 | [Placement, read end to end](#placement-read-end-to-end) |
+| tx125 `setSplitScreenPersistentApp(pkg)` appends to an in-memory list that has no remove and is cleared only by a reboot; the wide pane's app being on it gives the full divider detent map. The product lists itself once per build and every pane app always (`ensureSupported`, `SplitPickerShellSession.kt`) | code | 2026-09-23 | [The divider's detent map, read](#the-dividers-detent-map-read), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16) |
+| tx118 roots: area 1 → root 2 (narrow, `[24,112][856,1472]`), 2 → root 3 (wide, `[880,112][2536,1472]`), 4 → root 4 (full IVI, holds no background tasks). The pane roots are permanent containers and never come back ≤0 | live | 2026-08-24 | [Panel containers are permanent](#panel-containers-are-permanent-the-live-tx30-map-2026-08-24-diagnosis), [Live-proven substrate](#live-proven-substrate-2026-08-14) |
+| tx30 area: 0 Home, 3 split on screen, 1 narrow survivor, 2 wide survivor, 4 an app in the full container on top. It is computed from the order of four roots, not their contents, so area 3 does not prove two populated panes | live | 2026-08-24 | [Panel containers are permanent](#panel-containers-are-permanent-the-live-tx30-map-2026-08-24-diagnosis), [Home, read end to end](#home-read-end-to-end) |
+| Home and the area are heard in process with no permission: `CLOSE_SYSTEM_DIALOGS` `reason=homekey` arrives 9 ms after key-up, the tx120 area push (`UnionActivityManager.registerScreenAreaInfoForMultiListener`) 0.1 s after it; `SplitFirmwareSignals.kt` registers both and `SplitCoordinatorCore.homeKeyPressed` closes our gate. Live: gate closed at +16 ms, a dock launch at +393 ms went fullscreen | live | 2026-09-23 | [The three calls, live from an app UID](#the-three-calls-live-from-an-app-uid-2026-09-23), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
+| tx30/112/118/125/126 are transacted from the app process (`SplitInProcessCalls.kt`, `BinderSplitGateSwitch`); the world read (`am stack list`), moves, focus and `remove-task` (`SplitTaskProxyMain.java`) still need the shell | code | 2026-09-23 | [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
+| Other transactions: tx115 `enterSplitMode` restores the remembered pair (the product never calls it); tx114 `changeSplitScreenMode` 101/102 expand one pane and 100 does nothing; tx116 swaps; tx117 `closeApplication(pkg)` closes a pane's top app natively; tx124 needs the caller's Activity token | firmware | 2026-09-23 | [The divider and the stock picker](#the-divider-and-the-stock-picker-read-end-to-end), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16), [Product direction](#product-direction-explicit-two-picker-session) |
+| Home moves the wide and full containers' tasks out, under Home and outside any container; the narrow container keeps its tasks; a return after Home is always a re-placement of the wide pane | firmware | 2026-09-23 | [Home, read end to end](#home-read-end-to-end) |
+| A picker stranded outside the pane roots (the wide one after Home, the closed pane's after a collapse) is killed by `RecentTasks.trimInactiveRecentTasks` at the first task new to recents, usually our own trampoline; the open never takes it back and launches a fresh one (`SplitPickerShellSession.kt`) | code | 2026-09-23 | [Why the wide picker dies, and who kills it](#why-the-wide-picker-dies-and-who-kills-it), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
+| An open over a single-pane firmware (mode 101/102, e.g. a navigator back from the cluster) relaunches the narrow picker with `START_IVI_PRIMARY`, the one launch that re-splits (phase `resplit-from-single-pane`, `SplitPickerShellSession.kt`) | code | 2026-09-23 | [An open over a single-pane firmware](#an-open-over-a-single-pane-firmware-after-the-navigator-came-back-live-2026-09-23) |
+| Every sleep (quickboot) removes all pane tasks and force-stops `dev.denza.apps`, and no exemption is reachable; the gate, the tx125 list and the SmartMulti keys survive. A starting process reads the area once and suspends a gate it still owns | live | 2026-09-23 | [Every sleep of the car force-stops the product](#every-sleep-of-the-car-force-stops-the-product-live-2026-09-23), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
+| «Disable background Apps» (`com.byd.appstartmanagement`) checked means self-start is blocked; every APK install or update re-blocks it, so the wake's `BOOT_COMPLETED` skips the product until the owner unchecks it. Unchecked, `RuntimeRecoveryReceiver` brought the product back at wake | live | 2026-09-23 | [The self-start switch](#the-self-start-switch-and-a-registrar-that-never-registered-live-2026-09-23) |
+| Two Denza tasks side by side (hub + picker, picker + picker): a stock divider resize becomes a side swap (`changePrimaryAppAndPosition` returns early); left as the firmware does it, by the owner's decision | live | 2026-09-23 | [A resize between two panes of one package](#a-resize-between-two-panes-of-one-package-moves-them-instead-live-2026-09-23) |
+| Measured: warm open 0.9–1.5 s, cold 3.5 s, first after an install 7.1 s, select 1.1–1.2 s, disable 2.2 s. Budgets: 10 s for toggle/open/select/home, 25 s edge, 30 s reconcile (`SplitOperations.kt`); the waiting shield stays at least 300 ms and at most 15 s (`SplitLaunchOverlay.kt`) | code | 2026-08-27 | [What the operations actually cost](#what-the-operations-actually-cost-and-the-budgets-that-now-follow-from-it-live-v39-2026-08-27), [Explicit restore progress window](#explicit-restore-progress-window-and-bounded-close-2026-08-22) |
+| "Native split is dead from user space; a display of our own is the only route." Not so: native split works through the gate and the BYD categories, and an app-owned display loses the hosted app at its first own activity start | refuted | 2026-08-14 | [Historical verdict (incorrect)](#historical-verdict-incorrect) |
+| "A foreground router, a transparent host task (`SplitAppHostActivity`), a placeholder pane or persisted task ids can carry the split." Not so: the router could not intercept a launch before it drew, the host made the divider overlay show the Denza icon for the hosted app, and task ids are observations. All four were deleted on 2026-08-23 in favour of explicit pickers and app-owned tasks | refuted | 2026-08-23 | [Product direction](#product-direction-explicit-two-picker-session), [Live-proven substrate](#live-proven-substrate-2026-08-14), [Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22) |
+| "The wide picker dies (`recent-task-trimmed`) at every fullscreen launch from Home." Not so: only the first task new to recents after a Home or a collapse arms the trim; fullscreen dock launches of running apps armed none | refuted | 2026-09-23 | [Why the wide picker dies, and who kills it](#why-the-wide-picker-dies-and-who-kills-it) |
+| "The tx125 list has no bearing on placement" and "the firmware's split debug lines cannot be read over ADB" (2026-08-28). Not so: `isSupportSplit(task)` reads the list, and captures of 06-28, 08-23 and 08-24 contain the lines | refuted | 2026-09-23 | [Earlier statements this corrects](#earlier-statements-this-corrects) |
+| "The Home→dock race cannot be won with hints; catch the dock's Home click through accessibility." Not so: the dock's Home makes no click event, while `homekey` (broadcast +3 ms, our receiver +9 ms) and the area push (+0.1 s) win the race; the accessibility Home hint was removed | refuted | 2026-09-23 | [Home, read end to end](#home-read-end-to-end), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
+
+**Open questions**
+- Other BYD firmwares: owners report that split stopped working in 0.7.0-alpha on cars nobody here can reach. A photo of the service's «Технические сведения» split rows («Сплит прошивки», «Сигналы прошивки») would settle which lever is refused ([The split on the service page](#the-split-on-the-service-page-for-a-photo-2026-09-24)).
+- Simulcast has never had its own cross-feature acceptance pass over a live scene; a run with no split task mutations would settle it ([Product direction](#product-direction-explicit-two-picker-session)).
+- The synthetic divider drag (`dragDividerToBalanced`) sends its touch while our launch shield is up, and on the car that touch went to the shield. A live empty-scene open trace would settle it ([An open over a single-pane firmware](#an-open-over-a-single-pane-firmware-after-the-navigator-came-back-live-2026-09-23)).
+- "Two bare pickers, apps a moment later": the shield comes down before a cold-restored app has drawn, and there is no public window-drawn signal. Holding it on a `dumpsys window` surface read, tested live, would settle it ([Review of the control logic](#review-of-the-control-logic-code-2026-09-11-checked-live-2026-09-18), [The divider and the stock picker](#the-divider-and-the-stock-picker-read-end-to-end)).
+- Never run live: a swallowed Home (the one-second undo of the early gate close), a Home with no key (Back or the last finish in the wide pane), a tap within about 20 ms of the key ([What the product does with it](#what-the-product-does-with-it-2026-09-23)).
+- A long park that ends in a full power-off: whether the self-start switch and the wake recovery survive it ([The self-start switch](#the-self-start-switch-and-a-registrar-that-never-registered-live-2026-09-23)).
+- The launch mode of both Yandex apps under the 2026-08-23 `MULTIPLE_TASK` rule is still owed live ([Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22)).
+- Whether a product resize normalizes a task that became a leaf inside `ivi_full` with pane bounds (the 2026-08-27 defect) has not been measured ([Internal Activity transitions](#internal-activity-transitions)).
+
+## Contents
+- [Product direction: explicit two-picker session](#product-direction-explicit-two-picker-session) — the product flow, 2026-08-16 to 08-23, and its live acceptance: progress window, edge collapse, SmartMulti persistence and package routing, the retired host, acceptance reset, leases, navigation projection.
+- [Live-proven substrate (2026-08-14)](#live-proven-substrate-2026-08-14) — the router-era recipe that first proved native split; permanent pane containers and the tx30 map (08-24); `force_resizable_activities`; the former routing state machine.
+- [Historical verdict (incorrect)](#historical-verdict-incorrect) — the pre-2026-08-14 claim that native split was dead.
+- [One rule that seemed to explain everything (before 2026-08-14, superseded)](#one-rule-that-seemed-to-explain-everything-before-2026-08-14-superseded) — visible `byd-freeform` tasks snap back to fullscreen; true only outside the split containers.
+- [What survived, and what it is worth](#what-survived-and-what-it-is-worth) — the pre-08-14 inventory: stock picker, empty pane, AOSP root, AE window.
+- [AE Window: works, and is useless here](#ae-window-works-and-is-useless-here) — real freeform windows, but only for 109 packages compiled into `services.jar`.
+- [Settings: state, not controls](#settings-state-not-controls) — the `byd_smart_multi_*` keys record a split and are rewritten from memory.
+- [Dead ends, so they are not re-run](#dead-ends-so-they-are-not-re-run) — `--windowingMode`, `cmd aewindow`, writing the SmartMulti keys.
+- [A secondary display, once thought the only route (2026-08-14, superseded)](#a-secondary-display-once-thought-the-only-route-2026-08-14-superseded) — the `overlay_display_devices` spike: rendering and input work.
+- [Spike on the real target apps: both pass](#spike-on-the-real-target-apps-both-pass) — Yandex Music and Navigator on a simulated display; 25 ms per injected tap.
+- [Second spike: an app-owned display, once taken for the product shape](#second-spike-an-app-owned-display-once-taken-for-the-product-shape) — a public app-owned display hosts the first screen, then the app escapes.
+- [Historical conclusion (incorrect)](#historical-conclusion-incorrect) — "every route out of user space is closed".
+- [What a command costs, and what the budget line measures (live v33, 2026-08-26)](#what-a-command-costs-and-what-the-budget-line-measures-live-v33-2026-08-26) — round trips over the product's shell: 20.7 ms per trip, warm 46–50 ms, cold 87–103 ms; helper economics.
+- [Disable from inside a pane left the firmware in split (live v33, 2026-08-26; not reproduced on v38)](#disable-from-inside-a-pane-left-the-firmware-in-split-live-v33-2026-08-26-not-reproduced-on-v38) — a v33 rollback with `area=2` that v38 did not reproduce.
+- [The Home hint arrives twice in eight, and the open gate is what pulls apps in (live v33, 2026-08-26)](#the-home-hint-arrives-twice-in-eight-and-the-open-gate-is-what-pulls-apps-in-live-v33-2026-08-26) — the lost accessibility Home hint, the reconcile-side gate suspension (0835017) accepted on v37, and the app's own logcat lines.
+- [A selection now proves its scene, and says why (live v37, 2026-08-27)](#a-selection-now-proves-its-scene-and-says-why-live-v37-2026-08-27) — the strict select read-back; open times; the narrow pane is `w416dp h680dp`.
+- [Where focus actually is, and a defect that no longer reproduces (live v38, 2026-08-27)](#where-focus-actually-is-and-a-defect-that-no-longer-reproduces-live-v38-2026-08-27) — `mFocusedApp` in `dumpsys activity activities`; the split tile launches and its switch lives in the tile's panel.
+- [The focus read, proven on the product's own channel (live v39, 2026-08-27)](#the-focus-read-proven-on-the-products-own-channel-live-v39-2026-08-27) — the piped focus read over `shell:sh`; the picker palette at 1/3 and 2/3.
+- [What the operations actually cost, and the budgets that now follow from it (live v39, 2026-08-27)](#what-the-operations-actually-cost-and-the-budgets-that-now-follow-from-it-live-v39-2026-08-27) — measured open/select/disable times and the 10 s user-visible budgets.
+- [Review of the control logic (code, 2026-09-11; checked live 2026-09-18)](#review-of-the-control-logic-code-2026-09-11-checked-live-2026-09-18) — dead host code removed, gate resumption, an eviction raises the scene, the hub listed through tx125.
+- [A narrated live session, mapped to the logs (2026-09-18)](#a-narrated-live-session-mapped-to-the-logs-2026-09-18) — six narrated minutes: one dead app under cover, the single-pane read-back, the survivor's pane, the Home→dock race and its first step.
+- [The firmware read whole: reconstruction from the OTA image (2026-09-23)](#the-firmware-read-whole-reconstruction-from-the-ota-image-2026-09-23) — the whole OTA corpus (area push, unguarded transactions, detent map, placement, Home, the trim, sleep and wake, self-start) and what the product does with each; the journal and service page (09-24); a cold open against the accessibility repair.
+
 ## Product direction: explicit two-picker session
 
 **2026-08-23.** The product was moved onto the contract core described in
@@ -20,6 +86,8 @@ nothing durable can name a task or root any more. The record below is the
 journal of live proof and stays as it is - none of it was re-run. Live
 confirmation of the rebuilt core is deferred until the car is available and
 will follow section 12 of the contract.
+
+> **Superseded 2026-08-26:** the rebuilt core has run on the car since v33 (2026-08-26), through v37–v39 (2026-08-27), the narrated session of 2026-09-18 and the builds of 2026-09-23 — see [What a command costs, and what the budget line measures](#what-a-command-costs-and-what-the-budget-line-measures-live-v33-2026-08-26).
 
 The contextual foreground router was replaced in product code on 2026-08-16 by
 an explicit launcher entry named **«Разделить экран»**. The final one-package
@@ -86,6 +154,12 @@ Selected app tasks still receive one bounded `am task resize` when a verified
 post-move snapshot shows stale bounds; the operation is within the destination
 root and its equality postcondition is mandatory.
 
+> **Superseded 2026-09-23:** `CustomDividerActivity`, `CustomDividerSecondaryActivity`, `DividerUtils` and `StageCoordinator` are SystemUI's unused AOSP split; the BYD split, its picker-under-app model and its swap live in `system_server` (`BydSmartMulti*`) — see [Earlier statements this corrects](#earlier-statements-this-corrects).
+
+> **Superseded 2026-09-11:** the shell-UID helper's only mutation is `remove-task` (its resident mode also serves the world read and `activity_task` reads); focus and moves go through `am` (`SplitTaskProxyMain.java`) — see [Review of the control logic](#review-of-the-control-logic-code-2026-09-11-checked-live-2026-09-18).
+
+> **Superseded 2026-09-23 (code):** one synthetic drag is used: `SplitPickerShellSession.dragDividerToBalanced` drags the native divider once when a picker launched on a truly empty scene comes up fullscreen — see [An open over a single-pane firmware](#an-open-over-a-single-pane-firmware-after-the-navigator-came-back-live-2026-09-23).
+
 Starting with Denza Apps v0.5.3, the launcher entry, pane-neutral picker, and
 stable app host live in the single installed package `dev.denza.apps`. The
 **Разделить экран** tile is a disabled-by-default `activity-alias`; the in-app
@@ -126,6 +200,8 @@ established that cross-UID service/provider starts can be discarded while
 Denza Apps is stopped. The finding remains historical evidence, but the current
 same-package entry calls the coordinator in-process and does not cross that
 vendor process-start boundary.
+
+> **Superseded 2026-08-23:** the 200 ms router is deleted, not compiled - it went with the transparent host, the placeholder and the persisted task ids (first paragraph of this section; [governance.md](governance.md), "IVI Split-Screen Rules") — see [Former routing state machine](#former-routing-state-machine).
 
 The old 200 ms router remains compiled only as a regression/reference seam and
 is not constructed in explicit-picker mode. Navigation and Simulcast therefore
@@ -410,6 +486,8 @@ above the same host, restored `SECONDARY=APP`, and playback was returned to
 `PlaybackState=3`. Both Denza accessibility services remained enabled and the
 accessibility crash set was empty.
 
+> **Superseded 2026-08-22:** the selected-app host described next was retired the same day and deleted on 2026-08-23; a selected app runs in its own task — see [Native task identity in the divider overlay](#native-task-identity-in-the-divider-overlay-2026-08-22).
+
 The selected-app stable host is an optional ratchet above the previously proven
 direct BYD launch, never a replacement for it. On the 2026-08-16 17:47 live
 Music selection, SmartMulti created host task `#395` in the requested secondary
@@ -540,6 +618,8 @@ from `Task` and from `ActivityStarter`, and `moveToFrontHook(Task)`, which is a
 stub in this build. Any move-to-front of a task in mode 105 therefore replays
 the same lottery.
 
+> **Superseded 2026-09-23:** only an activity start that targets the task (new, reused, in-task, PendingIntent, dock tap) or a recents pick places it; `am task focus`, tx26/tx55 and `am stack move-task` only reorder — see [Placement, read end to end](#placement-read-end-to-end).
+
 **The narrow-panel marker is written by whatever lands there, and the write is
 asymmetric.** `changePrimaryActivityForPkg(String pkgName)` has exactly one
 guard - do not write if the value is already equal:
@@ -627,6 +707,8 @@ easy to conflate:
    `BYD_SUPPORT_SPLIT_ACTIVITY`, which is what tx112 reads;
 4. the single string `mPrimaryActivity` - the marker above.
 
+> **Superseded 2026-09-23:** the reason given above is wrong: the placement path does read the runtime list - `startIviWindow` splits when `isSupportSplit(task)`, which checks the tx125 list first - so tx125 makes a package split-capable for placement; only the choice of side ignores it — see [Placement, read end to end](#placement-read-end-to-end).
+
 `AppTransitionController.handleOpeningApps` logs `isOpenPrimaryApp` from set
 (1), which tx125 never writes, which is why the incident log shows
 `isOpenPrimaryApp: false` for a task that was physically lying in the narrow
@@ -647,6 +729,9 @@ empty.
 - `service call activity_task 112 s16 dev.denza.apps` returned **1**. The
   product never writes itself into the firmware's split list (`ensureSupported`
   returns early); that is now confirmed live and not only from the code.
+
+  > **Superseded 2026-09-11:** every build lists `dev.denza.apps` through tx125 (2699d68), and since 2026-09-23 `ensureSupported` lists every pane app and checks tx112 after it (`SplitPickerShellSession.kt`) — see [What the product does with it](#what-the-product-does-with-it-2026-09-23).
+
 - **Reproduced twice**: starting our picker with `START_IVI_PRIMARY` into the
   narrow panel moved the marker to `dev.denza.apps` - once from
   `ru.yandex.music`, once from `com.android.launcher3`. Confirmed both by
@@ -677,6 +762,8 @@ Two caveats, recorded so that neither is read as more than it is:
   comes back empty. Every piece of evidence above was collected from system
   state instead. This is a limitation of the instrument and is written down so
   the next session does not spend time rediscovering it.
+
+  > **Superseded 2026-09-23:** captures of 2026-06-28, 08-23 and 08-24 contain these lines, and the 2026-09-18 session read `startSplitWindow #68 type=32 newMode=102` from logcat — see [Earlier statements this corrects](#earlier-statements-this-corrects).
 
 ### Single-package launcher-alias spike (2026-08-16)
 
@@ -1014,6 +1101,8 @@ operation that had a shell open and still owned its token, because this
 application's own `Log.i` could not be shown to reach the buffer on this
 firmware. The same lines are readable in the support report ("Split log=").
 
+> **Superseded 2026-08-27:** `Log.i` from `dev.denza.apps` does reach logd on this car and the `log -t` mirror was removed (a75ff8f7); since 2026-09-23 the ring is also kept on disk in `files/split-journal.log` — see [The logcat contradiction, settled](#the-logcat-contradiction-settled-live-v37-2026-08-27).
+
 ### Navigation projection interaction
 
 The split picker is the permanent base task below a selected navigator. When
@@ -1049,6 +1138,8 @@ an obsolete numeric task id. The tested debug APK SHA-256 was
 `ffe54ebfebc82a45099c6f8bca46e680d11aa76ff2527407181b8ea167d54bf7`.
 
 ## Live-proven substrate (2026-08-14)
+
+> **Superseded 2026-08-16:** the five-step route below is the former router's recipe (a placeholder pane, tx125 for the first app, `am stack move-task`, a synthetic divider drag); the product launches its own pickers with `START_IVI_PRIMARY`/`START_IVI_SECOND`, and the placeholder was deleted on 2026-08-23. The observations in this section's subsections stay valid — see [Product direction: explicit two-picker session](#product-direction-explicit-two-picker-session).
 
 Native BYD split is reachable from user space without `/system` changes. The
 working route is:
@@ -1131,10 +1222,15 @@ Measured live on TP1A.220624.014 (`eng.build20260705.011226`), gestures only:
   the area never returns to `1`/`2`.
 - **One full scene-postcondition sample costs ~350 ms** here (area plus one
   `am stack list`), so a twenty-attempt poll is a 7-second wait.
+
+  > **Superseded 2026-08-26:** over the product's own shell a warm round trip costs 46–50 ms (a bare `am stack list` 17.7 ms on the car), and since 2026-09-23 the area is read in-process in about a millisecond — see [What a command costs, and what the budget line measures](#what-a-command-costs-and-what-the-budget-line-measures-live-v33-2026-08-26).
+
 - A clean idle scene is stable: picker|picker and a real app pair both
   survived 90 s untouched and visible (area `3` throughout). The earlier
   ~50 s idle-teardown observation was state-specific (a dirty,
   mid-transition world), not a property of every idle scene.
+
+> **Superseded 2026-08-23:** `SplitPlaceholderActivity` is deleted; a pane is held by the pane-neutral `SplitPickerActivity` — see [Product direction: explicit two-picker session](#product-direction-explicit-two-picker-session).
 
 The placeholder intentionally contains only “Откройте второе приложение”. It
 is the stable seam where the custom all-app picker can be added later without
@@ -1148,6 +1244,8 @@ longer the product interaction.
 `dev.denza.apps` itself is explicitly launched with
 `byd.intent.category.START_IVI_FULL`, so the control UI stays fullscreen even
 when a native pair was already open.
+
+> **Superseded 2026-08-22:** Denza Apps is launched as an ordinary app with no BYD category (`DenzaLauncherActivity` only starts `MainActivity`), and `START_IVI_FULL` (type 48) has no branch in the firmware - it behaves as no category — see [Placement, read end to end](#placement-read-end-to-end).
 
 The former coordinator observed ordinary launcher starts after they occurred; it could not
 intercept the launcher before the second app draws. Polling is therefore 200 ms
@@ -1232,6 +1330,8 @@ movement to the native shell. It also refreshes a pane member from the visible
 top task, while treating `SplitScreenListActivity` as a temporary overlay. This
 keeps the other half of the pair stable when the stock selector is opened and
 provides the state model the custom picker can reuse.
+
+> **Superseded 2026-09-23:** the swap is BYD code in `system_server` (`BydSmartMultiIviController`), not SystemUI's `StageCoordinator`, which belongs to the unused AOSP split; and a divider drag across the middle does move the two app tasks between roots while the pickers stay (2026-08-22, [Live acceptance status](#live-acceptance-status)) — see [Earlier statements this corrects](#earlier-statements-this-corrects).
 
 The same rule applies after one pane is closed and the survivor expands. A
 manual divider pull can put the stock selector into either native root, and its
@@ -1320,7 +1420,9 @@ state-machine rules.
 picker survived; the placement behind it did not. Reviving it means modifying
 the framework, not flipping a setting.
 
-## One rule explains everything
+## One rule that seemed to explain everything (before 2026-08-14, superseded)
+
+> **Superseded 2026-08-14:** the rule holds only for a task outside the BYD split containers; a task the firmware places into a pane (gate open, BYD category or split-capable package) keeps the pane's bounds and relayouts after one resize — see [Live-proven substrate (2026-08-14)](#live-proven-substrate-2026-08-14).
 
 BYD's framework forces every **visible** task in `byd-freeform` back to
 fullscreen. The name is misleading: `byd-freeform` is the ordinary mode every
@@ -1342,6 +1444,8 @@ A real floating window exists in exactly one place: `mode=freeform` (without the
 `byd-` prefix), which the framework grants only to apps on the AE whitelist.
 
 ## What survived, and what it is worth
+
+> **Superseded 2026-09-23:** with the gate open the stock picker places a tap into its own pane with `START_IVI_PRIMARY`/`START_IVI_SECOND` - the same mechanism as Denza's picker - instead of opening it fullscreen — see [The divider and the stock picker, read end to end](#the-divider-and-the-stock-picker-read-end-to-end).
 
 | Piece | State | Use |
 | --- | --- | --- |
@@ -1403,9 +1507,14 @@ product keeps removing the inserted `com.byd.sr` task by exact identity.
   coerced to `byd-freeform` fullscreen.
 - **`cmd aewindow`** — "No shell command implementation".
 - **`am task resize`** — applies, then is undone the moment the task is visible.
+
+  > **Superseded 2026-08-14:** inside a split pane the resize holds and the app relayouts; the product still applies one bounded resize when a placed task kept stale bounds — see [Live-proven substrate (2026-08-14)](#live-proven-substrate-2026-08-14).
+
 - **Writing the `byd_smart_multi_*` settings** — no effect, overwritten.
 
-## The one route that does work: a secondary display
+## A secondary display, once thought the only route (2026-08-14, superseded)
+
+> **Superseded 2026-08-14:** native split works from user space (the tx126 gate plus BYD launch categories), and a display the app owns loses the hosted app at its first own activity start — see [And then it dies: the hosted app escapes on its own navigation](#and-then-it-dies-the-hosted-app-escapes-on-its-own-navigation).
 
 Proven by spike. A simulated secondary display was created with
 `settings put global overlay_display_devices "1200x1400/320"`, and a **third
@@ -1454,7 +1563,9 @@ shell-side helper holding an `InputManager` connection (the scrcpy pattern,
 reached over the app's existing `LocalAdbClient` channel) removes the per-event
 process spawn entirely and can deliver real motion streams.
 
-## Second spike: an app-owned display, which is the product shape
+## Second spike: an app-owned display, once taken for the product shape
+
+> **Superseded 2026-08-14:** it is not the product shape - the hosted app escapes to the main display on its own navigation (next subsection), and the product is the native split — see [Product direction: explicit two-picker session](#product-direction-explicit-two-picker-session).
 
 The first spike used `overlay_display_devices` — a display owned by the
 *system*. That proved rendering but not the product, because a display an app
@@ -1576,7 +1687,9 @@ a restore would save 28 × ~12 ms = 336 ms against a 476 ms start, so starting i
 for reads loses on a single operation. That arithmetic changes only if requests
 are batched, since one trip would then replace several.
 
-## Disable from inside a pane leaves the firmware in split (live v33, 2026-08-26)
+## Disable from inside a pane left the firmware in split (live v33, 2026-08-26; not reproduced on v38)
+
+> **Superseded 2026-08-27:** not reproduced on v38: the same disable committed and the focused app went fullscreen; the likely precondition, an app pulled into the pane over an open gate, is removed by `0835017` — see [Where focus actually is, and a defect that no longer reproduces](#where-focus-actually-is-and-a-defect-that-no-longer-reproduces-live-v38-2026-08-27).
 
 Pressing the feature's own toggle while Denza Apps itself sits in the wide pane
 of a live scene rolls the operation back: `Прошивка сохранила split после
@@ -1596,6 +1709,8 @@ No orphan process remains afterwards, but a session that ends by the toggle keep
 one alive for up to half a minute.
 
 ## The Home hint arrives twice in eight, and the open gate is what pulls apps in (live v33, 2026-08-26)
+
+> **Superseded 2026-09-23:** the accessibility Home hint is gone; Home is heard from the firmware (`CLOSE_SYSTEM_DIALOGS` `reason=homekey`, +9 ms, and the area push) and the gate is closed in-process ahead of the area (`SplitFirmwareSignals.kt`, `SplitCoordinatorCore.homeKeyPressed`). That an open gate pulls the next launch into split still stands — see [What the product does with it](#what-the-product-does-with-it-2026-09-23).
 
 The ADAS sighting and the "wrong app went fullscreen" sighting above share one
 root, and it is not the cooperative `displaced` yielding that was suspected. The
@@ -1681,6 +1796,8 @@ ordinary ADB context on this car - `logcat -s` on those tags returns nothing.
 See "Live confirmation of package-name routing (2026-08-28)" above; that
 investigation had to take its evidence from system state instead.
 
+> **Superseded 2026-09-23:** the vendor lines are readable over ADB - captures of 2026-06-28, 08-23 and 08-24 contain them — see [Earlier statements this corrects](#earlier-statements-this-corrects).
+
 ## A selection now proves its scene, and says why (live v37, 2026-08-27)
 
 `SelectOperation.readBack` used to read the whole scene through
@@ -1702,6 +1819,8 @@ Both committed, in 1248 ms and 1124 ms, with the scene proven `adoptable`. No
 spurious refusal. The `read-back начат` mark is there so that a read which
 throws is distinguishable in the journal from an operation that never reached
 the read.
+
+> **Superseded 2026-09-18:** the strict read-back did refuse good selections: it accepted only area 0/3/4 with a base in each root, so every selection in a fullscreen survivor picker (area 1/2) rolled back; it now reads the single pane the area names — see [A narrated live session, mapped to the logs](#a-narrated-live-session-mapped-to-the-logs-2026-09-18).
 
 Measured in the same run, for the record: cold first open of a session 3727 ms
 (the shell-UID helper is born inside it), warm restore of the same pair 1480 ms,
@@ -1821,7 +1940,7 @@ is. `EDGE` waits on a finger the user is holding on the divider, and killing tha
 would be worse than waiting. `RECONCILE` is background work nobody is waiting for; its ceiling
 exists only so a wedged reconcile cannot hold the single worker forever.
 
-## Review of the control logic, 2026-09-11 (code only, not yet on the car)
+## Review of the control logic (code, 2026-09-11; checked live 2026-09-18)
 
 A read of the whole split package against the contract, asked for by the owner
 with three live symptoms in hand: Yandex sometimes escaping to fullscreen, the
@@ -1829,6 +1948,8 @@ divider offering "Release to close window" over the hub's pane, and an open
 that once showed two bare pickers with the apps arriving a moment later. Five
 commits (8519d38..d2e9633), 413 split tests, 1390 in the module, 0 failures.
 Nothing here has been run on the car.
+
+> **Superseded 2026-09-18:** both live checks this review owed were paid - a suspended gate resumed by the reconcile without a tap, and resize detents (no "Release to close") over the hub's wide pane — see [A narrated live session, mapped to the logs](#a-narrated-live-session-mapped-to-the-logs-2026-09-18).
 
 **Dead code removed (8519d38).** The app-host era outlived its Activity by
 three weeks: `SplitAppHostActivity` was deleted on 2026-08-23 and a package
@@ -1861,6 +1982,8 @@ gate; a refused reveal or build over Home therefore reopened the gate and
 nothing closed it again (the ADAS/second-window sighting of 1.9.2). It is now
 read from the scene.
 
+> **Superseded 2026-09-23:** a gate closed under a scene that is on screen re-places a pane app only on an activity start into its task or a recents pick; a move-to-front (`am task focus`) never places — see [Placement, read end to end](#placement-read-end-to-end).
+
 **A recipe whose postcondition could not hold (e865fd9).** `evictToFullRoot`
 carried the machine truth of 2026-08-28 in its own doc - root 4 holds no
 background tasks, the evicted window stays visible - and answered it with
@@ -1878,6 +2001,8 @@ answer the manifest fixed - same one round trip, one "allowlist extended" line
 per build. The placement path does not read that list and tx112 was already
 true for us, so the detent map is the only thing this can change. **Owed
 live:** pull the divider over the hub's pane and confirm resize detents.
+
+> **Superseded 2026-09-23:** placement does read the runtime list (`isSupportSplit(task)`), so tx125 also keeps a pane app's next screen in its pane; the detent check was paid live on 2026-09-18 — see [Placement, read end to end](#placement-read-end-to-end).
 
 **Two bare pickers, apps a moment later - not changed.** No product path
 launches apps after the open commits. The likely reading is a cold restore:
@@ -1965,6 +2090,8 @@ drag, a collapse) and each cost a three-second area poll: `home suspend
 unconfirmed: area==0 не подтвердилось за ~3с`. Neither changes what the user
 sees.
 
+> **Superseded 2026-09-23:** the killer is `RecentTasks.trimInactiveRecentTasks`, armed by the first task new to recents after a Home or a collapse - usually our own launcher trampoline - not by every fullscreen launch (dock launches of running apps armed none); the open no longer takes a stranded picker back, and the accessibility Home hint with its three-second poll is gone — see [Why the wide picker dies, and who kills it](#why-the-wide-picker-dies-and-who-kills-it).
+
 **The collapse survivor's pane - decided by the owner the same day.** After
 collapsing the picker pane next to music and reopening after Home, the product
 restored music into its recorded narrow pane and the picker into the wide one
@@ -2006,6 +2133,8 @@ never opens it. Two rules for live work follow: one owning session per car
 while an acceptance runs (governance), and a couple of seconds between Home
 and the dock until the race has a real answer.
 
+> **Superseded 2026-09-23:** the race has its answer: `homekey` reaches the app 9 ms after the key and the area push 0.1 s after it; live, the gate closed 16 ms after the key and a dock launch 0.39 s after Home went fullscreen, so no pause is needed — see [What the product does with it](#what-the-product-does-with-it-2026-09-23).
+
 **Not reproduced: Yandex Music leaving the split.** The owner tried after the
 session; every move-to-front of Music (three) answered `startSplitWindow`. The
 mechanism behind the old escape - a gate closed under a cover that went away
@@ -2026,6 +2155,8 @@ call less. This turns the observed timing (tap at +1.04 s, first read at
 tap. The second step, if wanted, is a faster Home hint: the dock's own Home
 button click through the accessibility service, tens of milliseconds after the
 tap, feeding the existing Home operation that verifies by reading the area.
+
+> **Superseded 2026-09-23:** the dock's Home produces no click event to catch; the faster signal is the `homekey` broadcast, which the product now uses — see [Home, read end to end](#home-read-end-to-end).
 
 ## The firmware read whole: reconstruction from the OTA image (2026-09-23)
 
@@ -2122,6 +2253,8 @@ past a tenth of the screen closes a pane. The product's `ensureSupported`
 calls tx125 only when tx112 answers false, and tx112 is also true by manifest -
 so an app that declares `BYD_SUPPORT_SPLIT_ACTIVITY=1` itself is never listed
 and gets "Release to close window" in the wide pane exactly as the hub did.
+
+> **Superseded 2026-09-23 (same day):** `ensureSupported` now calls tx125 for every pane app and checks tx112 after it (41bc1e90, `SplitPickerShellSession.kt`) — see [What the product does with it](#what-the-product-does-with-it-2026-09-23).
 
 ### Reachable from the app process without an exemption
 
@@ -2250,6 +2383,8 @@ same per listed card. Swiping a Denza Apps card force-stops the whole of
 is wrong for the wide pane. `CheckAndKill` names only Chinese packages and has
 an empty block list; `AppStartManagement` is a settings screen that kills
 nothing.
+
+> **Superseded 2026-09-23 (same day):** the contract's Recents note under 1.7 now carries this correction: BydRecents hides only the narrow pane's tasks and excluded ones — see [What the product does with it](#what-the-product-does-with-it-2026-09-23).
 
 ### The divider and the stock picker, read end to end
 
