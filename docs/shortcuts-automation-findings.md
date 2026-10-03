@@ -4,29 +4,6 @@ What the BYD "Shortcuts" automation engine can and cannot do for a third-party
 app, how Then-actions actually start activities, and which switches can point
 those actions at Denza Apps.
 
-Observed live on 2026-08-16, 2026-08-22, and 2026-08-27 over ADB (`shell` UID,
-no root), plus
-static reading of `BydAutoVoice.apk` (`v15.3.149.11.260512.7`, 11 dex files).
-The 2026-08-22 pass decompiled the remaining automation dexes
-(`AppMangerUtils`, `NaviManager`, `MediaApi`, `DiyChoiceScence5_1`,
-`IOTProvider`, `HandleDefaultAppUtils`) and took read-only dumps of PersonBean
-and installed role packages. A later bounded write the same day pointed
-`DEFAULT_MAP_SWITCH` at `ru.yandex.yandexnavi`; a live Shortcuts Test Run of
-`102000` opened Yandex Navigator. The row was restored to
-`com.byd.launchermap` and the restore was read back. `byd_map_package` was
-not changed.
-
-The 2026-08-27 pass also proved the music and video roles with installed RF
-apps. With `MUSIC_SWITCH=ru.yandex.music`, the firmware's **Continue playing**
-action executed runtime command `129003`, read the Yandex package, and started
-`ru.yandex.music/.main.MainScreenActivity`. The apparent **Open music** action
-executed `129136` and opened the stock media center instead. With
-`VIDEO_SWITCH=com.vk.vkvideo`, **Open video** opened VK Video and was confirmed
-by the operator; the corresponding runtime path is `131500`. Both PersonBean
-rows were restored to their stock values and read back after the test. On this
-DiLink build a successful `content update` prints no row count, so the exact
-post-write query is the authoritative success check.
-
 ## Steering-wheel Play/Pause feasibility (2026-09-05)
 
 Status: **minimal in-app implementation; physical-key interception and resume
@@ -595,6 +572,31 @@ vendor 334/335 to explicit Play/Pause, and the reported N9 wheel may well use on
 routing, whose Play fallback opens the stock local player. The record is
 write-only: nothing in it is read back by the filter, so the key decides exactly
 what it decided before.
+
+## Evidence base for the role findings (2026-08-16 to 2026-08-27)
+
+Observed live on 2026-08-16, 2026-08-22, and 2026-08-27 over ADB (`shell` UID,
+no root), plus
+static reading of `BydAutoVoice.apk` (`v15.3.149.11.260512.7`, 11 dex files).
+The 2026-08-22 pass decompiled the remaining automation dexes
+(`AppMangerUtils`, `NaviManager`, `MediaApi`, `DiyChoiceScence5_1`,
+`IOTProvider`, `HandleDefaultAppUtils`) and took read-only dumps of PersonBean
+and installed role packages. A later bounded write the same day pointed
+`DEFAULT_MAP_SWITCH` at `ru.yandex.yandexnavi`; a live Shortcuts Test Run of
+`102000` opened Yandex Navigator. The row was restored to
+`com.byd.launchermap` and the restore was read back. `byd_map_package` was
+not changed.
+
+The 2026-08-27 pass also proved the music and video roles with installed RF
+apps. With `MUSIC_SWITCH=ru.yandex.music`, the firmware's **Continue playing**
+action executed runtime command `129003`, read the Yandex package, and started
+`ru.yandex.music/.main.MainScreenActivity`. The apparent **Open music** action
+executed `129136` and opened the stock media center instead. With
+`VIDEO_SWITCH=com.vk.vkvideo`, **Open video** opened VK Video and was confirmed
+by the operator; the corresponding runtime path is `131500`. Both PersonBean
+rows were restored to their stock values and read back after the test. On this
+DiLink build a successful `content update` prints no row count, so the exact
+post-write query is the authoritative success check.
 
 ## Where the feature lives
 
