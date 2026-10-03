@@ -15,7 +15,7 @@ import org.junit.Test
  * The car states are the ones the live run of 2026-09-23 read: the stock baseline (`triple_apn`,
  * APN1 enabled, TCP 0) and the car the owner left running (`double_apn`, APN1 disabled, TCP 1,
  * `cloudmanager` 113). What the gate does with 4 and -5, and that the stock receiver sends -5 on
- * its own, is the firmware's (docs/telematics-findings.md, "Stock-client Wi-Fi adaptation").
+ * its own, is the firmware's (docs/telematics/cloud-tile.md, "Stock-client Wi-Fi adaptation").
  */
 class CloudLinkCoreTest {
 

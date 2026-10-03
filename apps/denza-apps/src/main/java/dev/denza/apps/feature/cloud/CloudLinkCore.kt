@@ -29,7 +29,7 @@ internal sealed interface CloudStep {
  * APN3's «ready» (`notify_nw(4)`) and on nothing Wi-Fi sends it, and closes on APN3's «gone»
  * (`-5`). So the adapter translates: usable internet ([CloudNetwork] - Wi-Fi, or mobile data from
  * any SIM, with actual stock APNs guarded separately) is «ready», internet that has stayed gone is «gone» - paired, because
- * a gate opened and never closed is a synthetic APN left standing (docs/telematics-findings.md,
+ * a gate opened and never closed is a synthetic APN left standing (docs/telematics/cloud-tile.md,
  * "Stock-client Wi-Fi adaptation"). Only Wi-Fi is proven on a car.
  *
  * **Why it may have to say «ready» again.** The stock `BYDMultiApnConnReceiver` sends `-5` itself on

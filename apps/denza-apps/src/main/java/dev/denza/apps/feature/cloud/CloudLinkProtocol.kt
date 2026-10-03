@@ -5,7 +5,7 @@ package dev.denza.apps.feature.cloud
  * Android imports, so the whole protocol is unit tested on the JVM.
  *
  * Everything here goes through the shell, as the live run of 2026-09-23 did
- * (`tools/telematics/stock_wifi_gate_test.py`, docs/telematics-findings.md, "Stock-client Wi-Fi
+ * (`tools/telematics/stock_wifi_gate_test.py`, docs/telematics/cloud-tile.md, "Stock-client Wi-Fi
  * adaptation"): the stock profile broadcast, the native `cloudmanager` Binder and the global setting
  * are all out of the app UID's reach, and shell holds every one of them. Nothing new goes into the
  * product manifest for it.

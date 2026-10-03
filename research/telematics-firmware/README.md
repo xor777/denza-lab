@@ -73,7 +73,7 @@ They are local artifacts, not committed or uploaded. The original archive in
 Downloads is needed to reproduce or extract additional files. Temporary signed
 download URLs and large intermediate images are not retained.
 
-Start with [the telematics findings](../../docs/telematics-findings.md) for the
+Start with [the telematics findings](../../docs/telematics/README.md) for the
 current cloud-client gate and the distinction between static proof and vehicle
 observations. Do not resume the old search for a decoder: this package is now
 readable. Follow-up bootstrap evidence is retained in ignored
@@ -189,7 +189,7 @@ The status uploader requires a fresh capture, independent SOC agreement, verifie
 TLS and accepted login before one report; it has no remote vehicle-control executor.
 Eleven local TLS/application scenarios passed, including no report on failed login.
 
-Resume from `docs/telematics-findings.md` and the evidence READMEs for
+Resume from `docs/telematics/cloud-protocol.md` and the evidence READMEs for
 `registration-inputs/`, `tls-wifi/`, `phone-validation/`, and `status-passive/`.
 The charging override is resolved: device 1009 / FID 0x34400018, live value 1.
 Both diagnostic uploads used the owner's explicit permission for one unmeasured

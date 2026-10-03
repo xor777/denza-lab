@@ -1,7 +1,7 @@
 # Telematics probes
 
 Research tools, outside product APKs. Start with
-[the findings](../../docs/telematics-findings.md) for the exact authorization,
+[the findings](../../docs/telematics/README.md) for the exact authorization,
 firmware, live results and unresolved boundaries. On 2026-09-23 the bounded
 helper delivered real **74% SOC** to the official Denza app through vehicle Wi-Fi.
 It is not a persistent service.
