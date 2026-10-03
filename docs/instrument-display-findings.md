@@ -4,6 +4,65 @@ This page tracks the instrument-display scene shared by Mirrors and navigation.
 The implementation summary was last checked against the code on 2026-09-04;
 live-car evidence is current through 2026-09-04.
 
+> **Superseded 2026-10-03:** the Current state table below was checked against the code on 2026-10-03; the newest live evidence on this page is the Mirrors runs of 2026-09-23, and the energy drives of 2026-09-22 and 2026-09-24 are cited from `docs/energy-display-contract.md` §8.
+
+## Current state
+
+Updated 2026-10-03. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
+
+Owned elsewhere: what an energy figure means, its words and its chart - [energy-display-contract.md](energy-display-contract.md) (normative, wins over this page); the panel's drawing, boards and `compare.py` - [tools/design-canvas/luminofor/README.md](../tools/design-canvas/luminofor/README.md) (normative); the HUD as a display - [hud-projection-findings.md](hud-projection-findings.md); the turn-signal CAN events - [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
+
+| Claim | Status | Since | Section |
+|---|---|---|---|
+| One `ClusterSceneService` owns two presentations: the base layer (a projected application's `SurfaceView`, or this app's instruments) on `shared_fission_bg_XDJAScreenProjection_0`, the camera `TextureView` on `shared_fission_bg_XDJAScreenProjection_1`; `ClusterDisplayResolver.kt` picks them by name evidence and never guesses a numeric display id | code | 2026-07-18 | [Product architecture](#product-architecture) |
+| The driver's display shows one thing at a time: `Приборы` (this app's instruments, the default and the fallback, `FULL` only) or any application with a launch intent except this app and HOME (`ProjectablePackages.java`, asked again in `ClusterProxyMain.java` before every task mutation); there is no package list | code | 2026-09-23 | [How the driver reaches it](#how-the-driver-reaches-it), [Any application, not six navigators](#any-application-not-six-navigators) |
+| The instruments are the Luminofor triptych: `ClusterDashboardRenderer.kt` is the board ported onto `LightPen`, its anchors are `ContourGeometry.kt` on `LuminoforSpec`, the Kotlin copy of `spec.json`; a `View` on the base presentation, with no virtual display and no shell command | code | 2026-09-23 | [App-owned instrument dashboard](#app-owned-instrument-dashboard), [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23) |
+| Luminofor reached the car with main `001940ae` (APK `cd4c97de`) at 17:31 on 2026-09-23; the Contour before it was on the car from 2026-09-05 (build 44) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23), [What still waits for the car](#what-still-waits-for-the-car) |
+| Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22) and `GENERATION_KW` the engine's charge into the pack, zero while the engine drives the wheels (2026-09-24); so the engine's box stands only while the engine charges and leaves 10 s after `ENGINE_RUNNING` drops | live | 2026-09-24 | [What still waits for the car](#what-still-waits-for-the-car), [Why the engine's box does not flicker](#why-the-engines-box-does-not-flicker) |
+| Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
+| `VehicleTelemetryHub.kt` polls for three `VehicleWatcher`s: `CLUSTER`, `STRIP` and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-09-22 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
+| Mirrors follow AVC's own inputs (`MirrorTransitionReducer.kt`): show side X while AVC's card of X is built and the lamps flash X (FID `0x38A0002C`: `2`/`3` left, `4`/`5` right); close at once when the lamps leave X, the card ends, or the raw lever FID `0x1330002C` has an onset toward the other side | code | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
+| While Mirrors are on they own the stock choice: each monitor start writes choice `1` (both images on the head unit) and keeps the owner's value in `stock_turn_camera_before`; turning Mirrors off gives it back if `1` is still set (`SideCameraMonitorService.kt`, `MirrorsSettings.kt`) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
+| `com.byd.avc/.AutoVideoService` (action `com.byd.action.AVCSERVICE`, no permission, no caller check) answers a Messenger: `what=35` gives the mode in `arg2` (`5095` left, `5096`/`5099` right, `5000` idle), `what=1011` replies `1012` with the choice (`0` left on the meter, `1` head unit, `2` full-screen, `3` off), `what=1013` writes it, `what=52` closes the PIP (read, not run); an app UID binds in 23 ms and gets answers in 6-11 ms on AVC's main thread, so it is asked once per transition, never polled | live | 2026-09-23 | [The stock turn-signal camera, read from the firmware (2026-09-23)](#the-stock-turn-signal-camera-read-from-the-firmware-2026-09-23) |
+| AVC's renderer (TS SDK, one field `AbsAPI.mCurrentSurface`) has one output: our `initDisplay` takes it from the stock PIP, any window-creating stock PIP entry while our surface holds it crashes AVC (`TSAPI.createDisplay` from `PIPViewAlertController.modeChange`, the 2026-09-04 tombstone), and nothing clears our surface if our process dies | firmware | 2026-09-23 | [The stock turn-signal camera, read from the firmware (2026-09-23)](#the-stock-turn-signal-camera-read-from-the-firmware-2026-09-23) |
+| Stock PIP rules: the card stays 2.00 s after the lamps go off (`LightUtil.onLightOff`; matched to the millisecond live on 2026-09-23); no speed gate; only the left side can go to the meter, the right is always the head-unit `PIP2HostAlert`; the meter card is started by `BydProjectionService` on `shared_fission_bg_XDJAScreenProjection_1` for a fixed package list | firmware | 2026-09-23 | [The stock turn-signal camera, read from the firmware (2026-09-23)](#the-stock-turn-signal-camera-read-from-the-firmware-2026-09-23) |
+| Stationary runs of the contract with choice `1`: hazard (`6`) and a comfort tap close ours 3 ms after the lamps; right/left inside the tail and left-right-left are AVC steals on the kept window; in R we detach and skip `freeDisplay` once AVC's own view binds (before `001940ae` our free left the reverse picture black); AVC PID `4746` throughout | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
+| `com.byd.avc` crash history: a direct left-to-right while we held the renderer crashed AVC (tombstone 2026-09-04); since the opposite-onset teardown AVC has kept its PID through every recorded run. A crash is an escalation: `adb logcat -b crash -d -v time`, tell the owner once | live | 2026-09-04 | [Mirrors behavior preserved in Denza Apps](#mirrors-behavior-preserved-in-denza-apps), [Recorded car runs and escalation alerts](#recorded-car-runs-and-escalation-alerts) |
+| Camera start, stock-window observation to first `TextureView` update: median 272 ms (243-391, n=10); `initDisplay` 150-232 ms; the two diagnostic reads 0-1 ms | live | 2026-09-04 | [Completed baseline and confirmed cancellation flicker](#completed-baseline-and-confirmed-cancellation-flicker) |
+| Show gated on the BYDAutoLight listener (two 2026-09-04 contracts) made the camera appear "randomly" and was removed that evening; the window-only Show and five-poll quarantine that followed were replaced by the firmware-model contract | refuted | 2026-09-23 | [Mirrors behavior preserved in Denza Apps](#mirrors-behavior-preserved-in-denza-apps) |
+| "Five polls of a surviving same-side window mean the lever came back": the survivor is AVC's two-second timer (tails 2.18-3.06 s, not 100-300 ms), and the rule was the cancellation flicker | refuted | 2026-09-04 | [Completed baseline and confirmed cancellation flicker](#completed-baseline-and-confirmed-cancellation-flicker) |
+| Projection: the app owns the `VirtualDisplay` and its Surface; a short-lived shell-UID `ClusterProxyMain` only finds, moves, resizes, focuses or backgrounds one task; a split child is reparented alone into an organizer-created empty root | live | 2026-08-14 | [Navigation projection](#navigation-projection), [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
+| An Activity as the projection root: on 2026-08-14 a tap reached vendor `Task.resumeTopActivityUncheckedLocked`, whose `ClassCastException` killed `system_server`; forbidden, and root discovery fails closed unless one new organizer root reports `childTaskIds=[rootTaskId]` | refuted | 2026-08-14 | [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
+| Placements on the 2560x720 cluster: Full at `272 dpi`, Center `Rect(768, 0 - 1791, 720)` at `320 dpi`, Left `Rect(0, 0 - 1023, 609)`, Right `Rect(1537, 95 - 2560, 619)`; Waze renders in Full and Right and stays black in Center and Left | live | 2026-08-19 | [Navigation projection](#navigation-projection), [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
+| One tap launches a missing task on display `0` and projects it (900 ms, then at most five checks 700 ms apart); missing-task launch, return and warm re-projection passed with Yandex Navigator | live | 2026-09-05 | [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
+| A navigator allowlist: six packages (the Morphe Google Maps build `app.morphe.android.apps.maps` added 2026-09-11, `d66c61ab`) in `NavigationAppPolicy` and `ClusterProxyMain.ALLOWED_PACKAGES`; removed 2026-09-23 by the owner's decision, and `DriverScreenChoicesTest` fails if any of the six reappears | refuted | 2026-09-23 | [Any application, not six navigators](#any-application-not-six-navigators) |
+| HUD guidance reads Yandex's accessibility nodes (and its notification `RemoteViews`) and sends `HudRoadInfoNotifyStruct` to `SomeIpServerService`, service `3097367205183488`, topic `1127042368241665` (`HudSomeIpClient.java`); field 28 uses the OpenBYD icon table, live-verified for left, right and both slights | live | 2026-09-03 | [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
+| A cluster DVR view from Android camera `0`: its delivered orientation flips with vendor state no app can read; behind `ClusterDvrFlag` from 2026-08-14 (`55190633`), renderer and flag deleted 2026-08-26 (`4233dd15`) | refuted | 2026-08-26 | [DVR Camera2 source: verified renderer, product path retired](#dvr-camera2-source-verified-renderer-product-path-retired) |
+| Other dead ends: `IWindowManager.mirrorDisplay` copies (the stock card stays above, the right copy carries stock controls), DiShare HUD camera (protected AVC frames black), the stock cluster projection Binder (package list, left card for `com.byd.avc` only), ADAS cameras (no video endpoint), the AVC surround source (a wide-angle parking view, not long-range vision) | refuted | 2026-07-25 | [Failed or research-only paths](#failed-or-research-only-paths), [AVC surround-view source](#avc-surround-view-source) |
+
+**Open questions**
+- The stock graphics' true edges: one photograph of a white 8-unit grid over the whole cluster and one with the bulb check, indicators and ADAS lit; it also checks the range badge at 426.7 and the power figure at about 1095 ([What still waits for the car](#what-still-waits-for-the-car)).
+- Glance checks on the move: whether «34» merges with the stock «34 км/ч», whether the stock dimmer darkens our window at night, frames per second inside the `Presentation` - one drive with photographs and a frame counter.
+- The firmware-model Mirrors contract in motion: only stationary runs (D, R, hazard) of 2026-09-23 are recorded; a moving drive with the `captures/mirrors-firmware-model/` capture settles it. AVC's floating `‹ ›` (view `5097`) while we hold the renderer is a crash path by the code and is not to be tried.
+- Any non-navigator projected on this firmware, `com.byd.avc` above all: one owning session, from a documented reset, with `logcat -b crash -v time` ([Any application, not six navigators](#any-application-not-six-navigators)).
+- Whether the camera-start trims of `44f02df5` are faster: the matched A/B protocol in [Acceleration candidates: skip unused camera-start work (2026-09-05)](#acceleration-candidates-skip-unused-camera-start-work-2026-09-05).
+- HUD field-28 IDs for sharp, U-turn, straight and roundabout (a parked ID sweep), and the notification artwork and background guidance (a minimized-route check) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
+- Navigation recovery paths not run live: selection change, launch-discovery timeout, command failure, lost ADB, APK restart; and the `Переносим…` overlay seen on the car.
+- `android.hardware.AVMCamera` as a raw camera source outside AVC: its access control is not in the image; an isolated probe settles it.
+
+## Contents
+- [Product architecture](#product-architecture) — the two presentations and how `ClusterDisplayResolver` picks their displays.
+- [App-owned instrument dashboard](#app-owned-instrument-dashboard) — the panel on the cluster: how it is reached, where it may draw, the Luminofor drawing (2026-09-23), the Contour's record (2026-09-04 to 2026-09-23), what still waits for the car, telemetry and the car's own recorder.
+- [Energy display proposals before the contract (2026-09-05 and 2026-09-07, superseded)](#energy-display-proposals-before-the-contract-2026-09-05-and-2026-09-07-superseded) — the energy audit and whole-panel correction that the energy contract answered.
+- [Mirrors behavior preserved in Denza Apps](#mirrors-behavior-preserved-in-denza-apps) — camera geometry, the 2026-09-04 guard history, the 2026-09-23 firmware read and contract with its live runs, and the startup timing runs.
+- [Navigation projection](#navigation-projection) — placements, any application since 2026-09-23, task topology and capture method, one-tap launch, transfer overlay, steering-wheel key, teardown rules.
+- [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) — Yandex guidance to the stock SOME/IP road topic, the AR arrow approximation, field-28 maneuver IDs.
+- [Central IVI split routing](#central-ivi-split-routing) — the retired router, kept for the stock `byd-freeform` substrate it measured.
+- [OpenBYD research boundary](#openbyd-research-boundary) — what `com.sr.openbyd` taught and what was not copied.
+- [Recorded car runs and escalation alerts](#recorded-car-runs-and-escalation-alerts) — 2026-07 acceptance runs by APK hash, open hardware checks, the `com.byd.avc` crash procedure.
+- [Failed or research-only paths](#failed-or-research-only-paths) — the dead ends in one list.
+- [Front-camera source evaluation (2026-07-25)](#front-camera-source-evaluation-2026-07-25) — the AVC surround source, the retired DVR renderer, the ADAS cameras.
+
 ## Product architecture
 
 `denza-apps` owns two transparent presentations in one `ClusterSceneService`,
@@ -19,6 +78,8 @@ matching the two-layer Denza display composition verified on the car:
   renderer no longer ships in Denza Apps;
 - camera diagnostics use the same overlay display and appear after the user
   presses **Проверить камеры** or chooses a display in hidden diagnostics.
+
+> **Superseded 2026-09-23:** the base layer is not Yandex Navigator's alone: it hosts any application `ProjectablePackages` admits, or this app's own instruments drawn as a `View` with no virtual display (since 2026-08-25) — see [Any application, not six navigators](#any-application-not-six-navigators) and [App-owned instrument dashboard](#app-owned-instrument-dashboard).
 
 `ClusterDisplayResolver` accepts a saved manual override, the exact known Denza
 display name
@@ -122,6 +183,8 @@ and `Убрать` for the dashboard, `Открыть` / `На приборку`
 navigator. The target is stamped in `NavigationCoordinator.update`, from the
 current selection, so no call site that builds a fresh session can forget it.
 
+> **Superseded 2026-09-05:** there is no `Открыть` any more; an application's button reads `На приборку`, `Проверяю` while it opens or projects, and `Вернуть` (`NavigationModels.kt`, `applicationLabel`) — see [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment).
+
 Everything the projection path needs and the dashboard does not is skipped: no
 transfer overlay, no split routing lease, no `bypassExternalTaskMoves`, no task
 discovery, and no five-second projection health check. The former hidden
@@ -179,6 +242,8 @@ of 8 units - so the composition is measured against the boundary rather than
 against the panel edge, and it gains room if that boundary turns out to be
 shallower.
 
+> **Superseded 2026-09-23:** `ContourPlan` was deleted with the Contour's drawing; the anchors are now `ContourGeometry` reading `spec.json` (`LuminoforSpec.Cluster`), and `ClusterDashboardLayoutTest` holds the spec's `cluster.stock` apertures to these radii (`ClusterDashboardLayout.kt`) — see [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23).
+
 **The one number still owed a measurement:** these boundaries were tuned by eye
 against live captures when the shade was built, not measured. Confirm them with
 the display `3` capture described above before treating them as exact. If the
@@ -226,7 +291,11 @@ Contour's drawing code, went with it; the sections from here to "Rest states"
 are the record of the panel they drew and of why it was drawn that way. Nothing
 has been installed on the car from this design yet.
 
+> **Superseded 2026-09-23:** the design reached the car the same day: main `001940ae` (APK `cd4c97de`) "with the Luminofor design" was installed for the Mirrors R fix at 17:31 — see [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23). No owner verdict on the cluster panel itself is recorded on this page.
+
 ### What it shows, and what it deliberately does not: the Contour
+
+> **Superseded 2026-09-23:** "now" below means 2026-09-04 to 2026-09-23. The driver's display draws the Luminofor triptych; `ContourPlan` and `ContourBoardContractTest` no longer exist, and the board↔code joins are `LuminoforSpecContractTest`, `ContourGeometryTest`, `ContourFrameBuilderTest` and `ContourFixturesContractTest` — see [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23). What a figure means is owned by [energy-display-contract.md](energy-display-contract.md).
 
 Replaced on 2026-09-04. The panel described here until then - a square-root arc
 with the consumption bars nested inside it, two columns of readings either side,
@@ -387,6 +456,8 @@ advance, its unit hangs off the field rather than off the string, and neighbours
 are set against the field's edge. 34 becomes 128 and nothing moves.
 
 ### The type, and the tape measure behind it
+
+> **Superseded 2026-09-07:** the eye distance in force is 800 mm, not 750 (`docs/energy-display-contract.md` §5); since 2026-09-23 the figures are `WideDigits` strokes and the captions Jura, not Roboto — see [Energy display proposals before the contract](#energy-display-proposals-before-the-contract-2026-09-05-and-2026-09-07-superseded) and [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23).
 
 Every ergonomic claim on the first three boards stood on the brief's "порядка
 25 см (оценка)". The owner took a tape to the car on 2026-09-04: **the active area
@@ -702,6 +773,8 @@ others:
 
 ### The instrument system underneath
 
+> **Superseded 2026-09-23:** `InstrumentDensity`, `InstrumentFace`, `InstrumentPen`, `ContourPlan` and `ContourType` are gone from the code (`ad8fbb17`, `a89e3048`); the Luminofor panel draws through `LightPen` and `WideDigits` (`design/luminofor/`) at `ContourGeometry`'s anchors — see [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23).
+
 The panel is built on a small design layer rather than on constants chosen per
 method, and that layer exists because of what an adversarial audit of the design
 boards found: twenty-seven distinct type sizes where six were declared, eighteen
@@ -731,6 +804,8 @@ test pins, and `ContourType.of(pen)` is the car's own `Paint`. The two are allow
 to differ by the face; the arithmetic between them is not.
 
 ### Mutation run
+
+> **Superseded 2026-09-05:** the Contour was installed and driven from 2026-09-05 (build 44), and several mutated classes (`ContourPlan`, `ContourGlyphs`, `GlyphSurface`, `InstrumentPen`) were deleted on 2026-09-23; this run is a record of the method — see [What still waits for the car](#what-still-waits-for-the-car).
 
 The panel is drawn, tested and not yet installed, so the only thing that can be
 said about it before the car is whether its tests bite. **1,108 unit tests; 80
@@ -874,8 +949,12 @@ From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
    whether «34» and «34 км/ч» merge;
 5. **whether the stock dimmer darkens our window at night.** If it does,
    `ClusterDashboardRenderer.NIGHT_DIM` stays at 1.0 forever;
+
+   > **Superseded 2026-09-23:** there is no `NIGHT_DIM` in the Luminofor renderer; the question itself is still open.
 6. **how often the engine starts per hour in a winter jam**, which is what says
    whether 120 s of shelf hysteresis is enough;
+
+   > **Superseded 2026-09-07:** the hysteresis is ten seconds after `ENGINE_RUNNING` drops, not 120 s — see [Why the engine's box does not flicker](#why-the-engines-box-does-not-flicker).
 7. **frames per second inside the `Presentation`**, and whether the vendor
    composites over our edges;
 8. ~~**which of `ENGINE_RPM` and `GENERATION_KW` is not zero on an electric drive**~~ -
@@ -893,6 +972,8 @@ From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
 10. **the distribution of 500 m consumption bins on a real road**, which is what
    says whether the chart's 40 and −20 are the right ceilings on both screens.
 
+   > **Superseded 2026-09-18:** closed by the car's own journal: the chart is a line through a hundred kilometre-means on 0…60 / 0…20 (`docs/energy-display-contract.md` §2.3, §8) — see [The two boxes, and what a running panel said about them](#the-two-boxes-and-what-a-running-panel-said-about-them).
+
 Items 2, 3, 8 and 10 are one drive rather than four. **`tools/vehicle_log.py` is
 the recorder**: it asks the same `autoservice` Binder the app asks, from the host
 over ADB, one CSV row a second into `captures/vehicle-log/`, with the raw parcel
@@ -905,6 +986,8 @@ depend on what a signal means; it passed with the directory empty until
 became its first file (`docs/vehicle-data-findings.md`, «Second parked cycle»).
 It passes on that file, and items 2, 3, 8 and 10 still want the drive.
 
+> **Superseded 2026-09-24:** items 2 and 8 were closed by the recorded drive of 2026-09-22, item 3 by the drive of 2026-09-24, item 10 by the journal of 2026-09-18 (`docs/energy-display-contract.md` §8); items 1, 4, 5, 6, 7 and 9 remain open.
+
 The panel has been in front of the owner since 2026-09-05: build 44 was installed
 and driven, and the section above is what the first drive said. The energy
 contract has been on the car since 2026-09-11 (build 46, then 47 the same
@@ -916,7 +999,11 @@ cluster - which is the design: the cluster carries direction as colour, and the
 sentence «● В БАТАРЕЮ ОТ ДВС» is the car page's. The parked scene is accepted;
 the drive is still owed.
 
+> **Superseded 2026-09-24:** the drives were recorded on 2026-09-22 and 2026-09-24; on the second the engine ran three times in motion with `GENERATION_KW` at zero throughout, so the box correctly stayed off the shelf (`docs/energy-display-contract.md` §8). No owner report of the panel on those drives is recorded here.
+
 ### Telemetry ownership
+
+> **Superseded 2026-09-18:** the cluster is no longer the only owner and `setDashboardActive` is gone. `VehicleTelemetryHub.setActive(VehicleWatcher, Boolean)` takes three watchers (`VehicleTelemetryHub.kt`): `CLUSTER` (this panel's view), `STRIP` (the head unit's car page, since 2026-09-05) and `LEDGER`, claimed by `DenzaAppsApplication` at start and never released, so the road is recorded whether or not anyone looks (`docs/energy-display-contract.md` §2.7).
 
 Since 2026-08-27 the cluster dashboard is the only UI owner of
 `VehicleTelemetryHub`. `setDashboardActive(true)` starts polling when its view
@@ -1013,6 +1100,8 @@ replaying, and that is what the shared names buy. `VehicleCaptureTest` reads
 a rename on either side is a failing test rather than a column of silence.
 
 ## Energy display proposals before the contract (2026-09-05 and 2026-09-07, superseded)
+
+> **Superseded 2026-09-07:** both proposals were answered by the normative [energy-display-contract.md](energy-display-contract.md) (net consumption over known road, one chart on both screens, the engine's box only while it gives, eyes at 800 mm), and the chart has been a line through a hundred kilometre-means since 2026-09-18 — see [The two boxes, and what a running panel said about them](#the-two-boxes-and-what-a-running-panel-said-about-them). Until 2026-10-03 these two subsections opened this page.
 
 ### Energy display audit (2026-09-05, proposal; not implemented)
 
@@ -1143,6 +1232,8 @@ live-produced an opposite-direction pulse, which is why the raw phase never
 selects a side. Full evidence, resource measurements, the two retired contracts
 and the remaining acceptance matrix are in
 [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
+
+> **Superseded 2026-09-23:** the window-only Show and its two- and five-poll quarantine are no longer current, and the revision "not driven yet" below was replaced before it was driven. Show now needs AVC's card of a side and the lamps (flash FID `0x38A0002C`) on that side, the lamps close it at once, and the raw onset still tears down early (`MirrorTransitionReducer.kt`) — see [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23).
 
 The early teardown itself is the live-proven part: after the original direct
 left-to-right run crashed stock AVC, the instrumented guard detached the old
@@ -1406,6 +1497,8 @@ while our surface holds the renderer (not tried on the car, and not to be).
 
 Not yet driven on the car at the time of writing.
 
+> **Superseded 2026-09-23:** the contract ran on the car the same day, stationary in D with choice `1` (17:06) and through R after the fix (17:31), in the paragraphs below; no run in motion is recorded on this page.
+
 **Car state changed for the acceptance runs.** On 2026-09-23 at 17:02:01 the
 owner wrote the stock choice `1` (both images on the head unit) through
 `experiments/avc-stock-probe` (`SET_LIGHT value=1`; before `0`, after `1`, AVC
@@ -1447,6 +1540,8 @@ release cleared our claim at 14.654. AVC kept PID `4746`, crash buffer empty.
 The capture is `captures/mirrors-firmware-model/live-2.log`.
 
 ### Startup timing baseline (2026-09-04, instrumentation-only candidate)
+
+> **Superseded 2026-09-23:** the reducer rules in this section and its four subsections (the five-poll reopen, then the confirmed-mode rearm of the cancellation fix) were replaced by the firmware-model contract; the timing measurements stand — see [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23).
 
 The startup worktree starts at `90821f086cd17cd7568dd6f583a38438818b960a`.
 Before installing the timing candidate, the car's APK and the main checkout's
@@ -1700,6 +1795,8 @@ change below, is
 `0ffdaf8c3d4f101c00bce501b95bbf1c0043fbd414597436802598223316e21b`.
 All three are ignored local artifacts. `versionCode` remains 44 and neither
 candidate has been installed from this worktree.
+
+> **Superseded 2026-09-05:** both changes landed on main in `44f02df5` (`createBaseLayers` and `resolveCameraOverlay` in `ClusterSceneService.kt` / `ClusterDisplayResolver.kt`) and ship in every build since; the matched A/B described at the end of this section was never run, so no speed claim is established.
 
 `ClusterSceneService.prepareScene` now passes the selected `cameraLayer` into
 its `ClusterPresentation`. The presentation creates and attaches the invisible
@@ -1993,6 +2090,8 @@ is saved, and projection sessions stay in memory and end with the process. The
 automatic **Map mode** implementation also remains in code, but its unfinished
 UI switch is hidden in the current build.
 
+> **Superseded 2026-08-26:** the Map-mode follower is not in the code; `StockClusterModeDetector` and its poll were deleted in `4233dd15`, as the Map-mode paragraph further down this section says.
+
 Both directions now expose the otherwise quiet task-move delay on the main IVI
 display. While Denza Apps' `MainActivity` is not resumed, a centered,
 non-interactive **Переносим…** window with an indeterminate progress indicator
@@ -2232,6 +2331,8 @@ reproduces the drive. The trade-off is intentional: on strongly curved
 approaches AR now drops to the compact packet more often instead of drawing a
 semantically wrong bend. The live re-check is recorded in the next paragraph.
 
+> **Superseded 2026-09-03:** the nose cone was not the fix. The wrong-side arrow came from the field-28 maneuver-ID table; with the table recovered from OpenBYD the slight exits render on the commanded side, and the nose cone stays only as a geometry safety net (next paragraph).
+
 On 2026-09-03 the live re-check reported the same failure after the nose-cone
 fix, while the flat maneuver PNG was always correct. That points away from
 parsing and geometry and at field 28 (`recommendedDrivingDirectionsId`). The
@@ -2454,6 +2555,8 @@ Hardware-dependent checks still open:
   cancellation, hazard, sleep/wake, repeated stress, moving-speed, and
   second-firmware matrix remains open.
 
+  > **Superseded 2026-09-23:** the window-only contract and its reopen rule were replaced by the firmware-model contract. With choice `1` a direct switch is an AVC steal on the kept head-unit window, and the stationary runs of 2026-09-23 covered cancellation, hazard, a comfort tap, fast left→right→left and R with AVC PID `4746` unchanged; sleep/wake, repeated stress, moving speed and a second firmware remain open — see [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23).
+
 A `com.byd.avc` crash is an escalation alert. Save the evidence, tell the user
 once, and continue safe work. Avoid repeating the same suspected trigger until
 it has been isolated. Collect:
@@ -2512,6 +2615,8 @@ not be cited as an accepted operator start path. The APK remains short-lived,
 has no launcher/boot entry, and is useful only as source-evaluation evidence.
 
 ### DVR Camera2 source: verified renderer, product path retired
+
+> **Superseded 2026-08-26:** everything below written in the present tense about Denza Apps ("now requests", "now explicitly requests") describes code that no longer exists. The cluster DVR was put behind `ClusterDvrFlag` on 2026-08-14 (`55190633`), and `DvrCameraRenderer`, its probe and the flag were deleted on 2026-08-26 (`4233dd15`).
 
 Android camera `0` identifies itself through the BYD metadata as `dvr` and was
 already opened successfully by an ordinary debug APK in an earlier live test.
