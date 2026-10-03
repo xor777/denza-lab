@@ -64,6 +64,43 @@ Every durable note should include:
 - result: working, blocked, flaky, or unknown;
 - next action or reason to stop.
 
+## Findings Documents
+
+Added 2026-10-03, after an audit of two weeks of agent sessions. The findings
+docs had grown into dated journals of 100–240 KB. Agents could not read them
+whole, rebuilt an outline with `rg -n '^#'` in session after session, and kept
+landing on conclusions that a later section had overturned without the earlier
+one saying so: "Why Wi-Fi cannot carry the telematics link (settled
+2026-09-22)" stood unmarked for ten days beside sections that proved Wi-Fi
+registration and SOC upload.
+
+- A findings doc opens, under its title and a short intro, with `## Current
+  state`: `Updated <date>.`, one sentence on the question the doc answers, and a
+  table `Claim | Status | Since | Section` of at most 25 rows, then **Open
+  questions** (at most eight, each naming what would settle it), then
+  `## Contents` with every `##` section in order. Below that the dated sections
+  stay as they are.
+- Status is one of `live` (seen on a real car; name it if it is not the owner's
+  Z9GT), `firmware` (read from the OTA corpus, not run), `code` (true of the
+  current product code; the claim names the file), `refuted` (shown false; the
+  row stays so nobody derives it again, and it says what is true instead), or
+  `open`. A Russian doc keeps these English words, so they can be searched.
+- Update the table in the same change as the finding. A doc whose table is
+  older than its newest section is stale.
+- When a finding overturns an earlier one, mark the earlier one where it
+  stands. Put `> **Superseded <date>:** <what is true instead> — see
+  [Section](#anchor).` directly under its heading or sentence. If the heading
+  itself asserts the old conclusion ("settled", "the cause", "at every"),
+  reword it so a heading scan no longer states it, and `git grep` the old text
+  and anchor first to update inbound references. A correction appended further
+  down is not enough.
+- Status sentences ("owed", "pending", "not yet on the car") belong in the
+  table, not in `CLAUDE.md`. `CLAUDE.md` is a router: one line per doc.
+- When a doc no longer fits a reader's context, split it into a directory with
+  a `README.md` that carries the table, as `docs/telematics/` does. Leave a
+  short stub at the old path that maps its old headings to the new pages, so
+  existing citations still resolve.
+
 ## Promotion Checklist
 
 Before moving research/prototype code into a product APK (or out of a `…​.probe`
@@ -116,7 +153,11 @@ any work that depends on undocumented firmware behavior.
 
 - The decompiled framework/SystemUI corpus from this exact vehicle, plus
   read-only dumps from the car, are the primary source for firmware behavior.
-  A live install is a hypothesis test, not an exploration tool.
+  A live install is a hypothesis test, not an exploration tool. `CLAUDE.md`,
+  "Firmware corpus", lists the OTA archives, the extractions and decompiles
+  already in `captures/` and `reverse/`, and the readers. Reuse them before
+  extracting again. Write agent reports into the capture directory rather than
+  a session scratchpad, which does not outlive the session.
 - Vendor controllers (SmartMulti, DiShare, and similar) are stateful automatons
   with persistent memory: settings keys, runtime registration lists, remembered
   pairs, launcher databases. Before designing against one, write its state
@@ -178,7 +219,7 @@ any work that depends on undocumented firmware behavior.
   display IDs such as `2` or `4`. If the result is ambiguous, show it in
   diagnostics and leave the feature unavailable.
 - Navigation owns the full-size base surface. Side cameras are overlays and must
-  not resize, restart, or duplicate the Yandex task.
+  not resize, restart, or duplicate the projected application's task.
 - Navigation shell commands are internal, fixed, short-lived operations. They
   act only on a package `ProjectablePackages` admits - any application the car
   can open, never this app and never the home screen - and check task identity
@@ -226,10 +267,10 @@ any work that depends on undocumented firmware behavior.
 - Persist the last selected package per root in Denza Apps and rebuild the pair
   from component-validated state. Remove only exact picker/host/control
   artifacts owned by the current session.
-- Keep shell operations fixed and narrow. Task focus/removal helpers must
-  validate the task id and component; selected-app resize is bounded and must
-  prove equality with the destination root afterward. Never expose arbitrary
-  shell text to the UI.
+- Keep shell operations fixed and narrow. The task-removal helper (focus goes
+  through `am task focus`) must validate the task id and component;
+  selected-app resize is bounded and must prove equality with the destination
+  root afterward. Never expose arbitrary shell text to the UI.
 - Navigation projection/return and Simulcast moves hold picker reconciliation
   through an external-move lease. While a selected task is on another display,
   the split automaton must not reclaim or prune it.
