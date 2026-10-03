@@ -4,7 +4,86 @@ What the BYD "Shortcuts" automation engine can and cannot do for a third-party
 app, how Then-actions actually start activities, and which switches can point
 those actions at Denza Apps.
 
+## Current state
+
+Updated 2026-10-03. What the stock Shortcuts/AutoVoice engine lets a third-party app launch, how
+Denza Apps points the three stock default-app roles at chosen packages, and how the steering
+wheel's Play/Pause key is answered.
+
+**Normative section:** [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11)
+is the contract for `feature/media`; where any other section disagrees with it, that section wins.
+Everything else here is a dated findings journal.
+
+| Claim | Status | Since | Section |
+|---|---|---|---|
+| Wheel Play/Pause is keyed by **package**: the last package seen PLAYING is persisted in prefs `media_resume`, `last_played_package` (`last_played_at` is written, never read: no expiry) (`MediaResumeCore.kt`, `MediaLastPlayedPreferences.kt`) | code | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
+| Play resolves in order: something PLAYING → pause it; a live or dormant session of the last-played package → `play()` with no `ACTION_PLAY` gate; none → reconnect; no record → stock (`stock-no-history`) (`MediaResumeCore.perform`) | code | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
+| A session that leaves `getActiveSessions` stays commandable until `onSessionDestroyed`: this vehicle's `MediaSessionRecord` routes `play()` without reading `mIsActive` | firmware | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
+| The firmware's Play fallback (`MediaKeyHandler`) is the audio-focus owner's controller, else `com.byd.mediacenter`, so every Play we refuse opens the stock player | firmware | 2026-09-05 | [Why Pause can work while Play selects stock music](#why-pause-can-work-while-play-selects-stock-music) |
+| Z9GT wheel: play/pause arrives as `386`; next/previous arrive twice each, `307`/`308` and then the re-injected `87`/`88` | live | 2026-09-18 | [The press the preparation swallowed](#the-press-the-preparation-swallowed-and-what-the-car-taught-on-2026-09-18) |
+| `SimulcastAccessibilityService.onKeyEvent` takes `126`/`127`/`85`/`386` and consumes a whole down/up only when the policy accepts it; `334`/`335` keep the stock route (`MediaResumeCore.kt`, `MediaResumeKeyInterceptor`) | code | 2026-09-05 | [Minimal built-in slice](#minimal-built-in-slice-requested-by-the-owner) |
+| Direct `MediaController` pause/play of VK Video and Yandex Music from the physical key, operator-confirmed on build `5d85e806…` | live | 2026-09-05 | [VK pause restored Yandex](#vk-pause-restored-yandex-through-transient-audio-focus-2026-09-05) |
+| `MediaKeyExperiment.FOCUS_SURGERY = false`: no shell helper edits the audio-focus stack, a pause with paused predecessors is an ordinary pause, and a player paused under a video may resume when the video pauses | code | 2026-09-18 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
+| Focus-stack surgery as the answer to VK→Yandex auto-resume: worked on 2026-09-05, then threw on 6 of 7 presses, held each pause ~650 ms and once emptied the stack so the next press reached the stock player | refuted | 2026-09-18 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
+| BYD's self-start gate (`ActivityManagerService.isEnableFeature()` in `bindServiceLocked`, `startServiceLocked`, `BroadcastQueue`) refused the `MediaBrowser` bind and both `MEDIA_BUTTON` broadcasts to Yandex; nothing played (build 47) | live | 2026-09-18 | [The firmware's self-start gate](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) |
+| `MediaResumeReconnect.kt` still reports an accepted `media-button-sent` after a gate-dropped broadcast; none of that section's consequences is applied | code | 2026-09-18 | [The firmware's self-start gate](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) |
+| "`ForegroundServiceStartNotAllowedException` inside Yandex loses the reconnect Play": the press never reaches Yandex, the gate drops it first | refuted | 2026-09-18 | [The firmware's self-start gate](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) |
+| "A checked switch in `com.byd.appstartmanagement` is the permissive state": checked is the deny bit (`getAppStartupData(uid) == 1`), new installs get `1`, every APK update re-blocks (split-screen-findings.md) | refuted | 2026-09-23 | [The firmware's self-start gate](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) |
+| Yandex Music 2026.07.2: `MusicBrowserService.onGetRoot` returns `null` to Denza Apps (caller allowlist); the exported `DebugMediaButtonReceiver` forwards `KEYCODE_MEDIA_PLAY` to the player service | firmware | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
+| Yandex casting to a home speaker holds no audio focus and no track in the car, so any media-key reading taken then is void | live | 2026-09-18 | [The press the preparation swallowed](#the-press-the-preparation-swallowed-and-what-the-car-taught-on-2026-09-18) |
+| Support report «Кнопка play/pause на руле»: `Кнопка play/pause=`, `Режим медиакнопки=`, `Запомненная сессия=`, `Последние нажатия=` (last 12 presses); the only trace where `log.tag=M` hides `DenzaMediaResume` (`MediaKeyDiagnostics.kt`) | code | 2026-09-18 | [What the support report says](#what-the-support-report-says-about-the-key-2026-09-11) |
+| `content://com.byd.autovoice/PersonBean` is exported with no permission or caller check: app-UID `query` 2.3 ms, `update` 3.1 ms, shell `content query` 1.21 s; a `ContentObserver` saw no change | live | 2026-09-03 | [App-UID ContentResolver access](#app-uid-contentresolver-access-live-proven-2026-09-03) |
+| `DefaultAppRoleRepository.kt` reads and writes `DEFAULT_MAP_SWITCH`, `MUSIC_SWITCH`, `VIDEO_SWITCH` through `ContentResolver` (`SETTING=?`; conditional `SETTING=? AND VALUE=?` matching exactly one row); each role holds the chosen app's real package; no ADB, no proxy | code | 2026-09-04 | [App-UID ContentResolver access](#app-uid-contentresolver-access-live-proven-2026-09-03) |
+| Single-package navigation proxy (`DEFAULT_MAP_SWITCH=dev.denza.apps` plus a trampoline): AutoVoice "open app" and the map role both arrive as `getLaunchIntentForPackage(dev.denza.apps)` with `MAIN + INFO` and `FROM=com.byd.autovoice`; retired in build 42 | refuted | 2026-09-03 | [Retired single-package navigation proxy](#retired-single-package-navigation-proxy-experiment-2026-09-03) |
+| AutoVoice's `AppReceiver` resets `DEFAULT_MAP_SWITCH` to stock on `PACKAGE_REMOVED` without reading `EXTRA_REPLACING`, so a Store update of the chosen navigator drops the role; the product does not repair it | firmware | 2026-09-03 | [Retired single-package navigation proxy](#retired-single-package-navigation-proxy-experiment-2026-09-03) |
+| Shortcuts actions that honour the roles: map `102000` (导航 → 地图 → 打开), music **Continue playing** runtime `129003`, video **Open video** runtime `131500` (static `131501`) | live | 2026-08-27 | [Role switches](#role-switches-live-2026-08-22-rechecked-2026-08-27) |
+| "Music → Open music follows `MUSIC_SWITCH`": live runtime `129136` opened `com.byd.mediacenter`; use Continue playing | refuted | 2026-08-27 | [Music — static open path versus the live launch action](#music--static-open-path-versus-the-live-launch-action) |
+| The Then catalog is compiled in (`DiyChoiceScence5_1.initLevel1()`), `101000` offers five BYD names, and `IOTProvider` insert admits only `com.byd.iotmanager`/`com.byd.mediacenter`: no arbitrary app per rule | firmware | 2026-08-22 | [Product shape](#product-shape-inject-into-autovoice-do-not-daemonize-denza-apps) |
+| Key `321` is the wheel custom key: on this car action `1` opens `com.byd.avc` and starts an APA scan; never inject it | live | 2026-08-16 | [Never inject key code 321](#never-inject-key-code-321-as-a-navigation-trigger) |
+
+**Open questions**
+- Several sessions PLAYING at once: the policy pauses the first one it finds and records any PLAYING
+  package, the stock player included, as last-played (`MediaResumeCore.perform`, `markPlaying`).
+  Settled by deciding which session the driver means and a ring capture with a video paused in the
+  other pane.
+- Reconnect under the self-start gate: whether to record a refused bind as its own reason, and
+  whether starting the player's activity (its window appears) is acceptable. Settled by the owner's
+  decision, then acceptance step 3 on the Z9GT.
+- Acceptance steps 2 (our service restarted) and 5 (stock or Bluetooth as the last source) have no
+  recorded run. Settled by running them as written.
+- Which codes the N9 wheel sends, `386` or `334`/`335`. Settled by an N9 support report taken after a
+  few presses.
+- Next and previous in the same policy (the "second step"), and with it whether
+  `MediaFocusPauseBridge` and its shell proxy are deleted.
+- Role recovery after a Store update: whether a stopped Denza Apps receives `PACKAGE_REMOVED`,
+  `PACKAGE_ADDED` and `PACKAGE_REPLACED` with `EXTRA_REPLACING`, under the self-start deny bit
+  (split-screen-findings.md). Settled by the isolated package-event probe in Next validation.
+- Any app per rule: a persist path for a `101000` + label `DiyCommandBean`; the next bounded probe is
+  the `IOTProvider` caller gate, invalid JSON only.
+- Shortcuts `102000` with Denza Apps force-stopped, and `129003`/`131500` from cold state and with
+  active sessions, on a direct-role build. Settled by the Next validation runs.
+
+## Contents
+- [Steering-wheel Play/Pause feasibility (2026-09-05)](#steering-wheel-playpause-feasibility-2026-09-05) — corpus key routing, the accessibility key filter, the VK/Yandex focus diagnosis, the normative resume contract and its 2026-09-18 live corrections.
+- [Evidence base for the role findings (2026-08-16 to 2026-08-27)](#evidence-base-for-the-role-findings-2026-08-16-to-2026-08-27) — what the August live passes and decompiles covered.
+- [Where the feature lives](#where-the-feature-lives) — `com.byd.autovoice/.DiyCommandActivity` and its GreenDAO storage.
+- [Trigger catalog (rich)](#trigger-catalog-rich) — the If-side conditions.
+- [Execution catalog (closed in the UI)](#execution-catalog-closed-in-the-ui) — Then items, catalog IDs against live runtime IDs.
+- [How Then-actions start an activity](#how-then-actions-start-an-activity) — the `getLaunchIntentForPackage` paths for map, music, video and named app.
+- [Role switches (live 2026-08-22, rechecked 2026-08-27)](#role-switches-live-2026-08-22-rechecked-2026-08-27) — PersonBean keys, stock values, read/write recipe.
+- [Signature-gated hooks (still closed)](#signature-gated-hooks-still-closed) — `thirdapp`, IoT broadcast, `BYDAUTO_*`, `IOTProvider`.
+- [Masquerading as a Chinese app does not win the role](#masquerading-as-a-chinese-app-does-not-win-the-role) — why a fake Gaode/NetEase package changes nothing.
+- [Registration APIs and adjacent paths](#registration-apis-and-adjacent-paths) — PersonBean, `setDefaultApp`, `FUNCTION_UPDATE`, voice by label.
+- [Two independent map-role switches](#two-independent-map-role-switches) — `DEFAULT_MAP_SWITCH` against `byd_map_package`.
+- [Product shape: inject into AutoVoice, do not daemonize Denza Apps](#product-shape-inject-into-autovoice-do-not-daemonize-denza-apps) — the «Приложения» panel, the retired proxy, app-UID PersonBean access.
+- [Russia-oriented launch strategy](#russia-oriented-launch-strategy) — which Shortcuts action to use per role.
+- [Restore-wrapped live probe](#restore-wrapped-live-probe) — `tools/default_app_role_probe.sh`, and never key `321`.
+- [Cost to weigh before taking the role](#cost-to-weigh-before-taking-the-role) — what each role is shared with.
+- [Next validation](#next-validation) — outstanding live checks for the roles.
+
 ## Steering-wheel Play/Pause feasibility (2026-09-05)
+
+> **Superseded 2026-09-05:** the "not live-tested" status below is out of date: physical key `386` interception and direct VK/Yandex resume were confirmed by the operator the same day, and the token memory was replaced by the package contract on 2026-09-11 — see [VK pause restored Yandex through transient audio focus (2026-09-05)](#vk-pause-restored-yandex-through-transient-audio-focus-2026-09-05) and [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
 
 Status: **minimal in-app implementation; physical-key interception and resume
 have not been live-tested**. The initial research pass only read the connected
@@ -33,6 +112,8 @@ The vendor toggle is key **386**. `tramsformKeyEvent` converts it to **127
 (Pause)** when the chosen controller reports state 3 (playing), otherwise **126
 (Play)**. Vendor keys **334/335** become explicit Play/Pause. These are corpus
 mappings, not a capture identifying this user's physical button.
+
+> **Superseded 2026-09-18:** the Z9GT's physical play/pause is captured as `386`, and next/previous arrive as `307`/`308` followed by `87`/`88` — see [The press the preparation swallowed, and what the car taught on 2026-09-18](#the-press-the-preparation-swallowed-and-what-the-car-taught-on-2026-09-18).
 
 `MediaSessionServiceExtImpl.dispatchMediaKeyEvent` uses the same current-focus
 then stock-controller policy for generic media dispatch. Sending a global media
@@ -79,6 +160,8 @@ the session instead of invoking BYD's global routing. The existing
 `SpeakerMediaSessionObserver` demonstrates active-session observation through
 the enabled notification listener, but does not implement this memory or control.
 
+> **Superseded 2026-09-11:** resume is keyed by package, not by token, and the package outlives the process — see [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
+
 The initial research recommendation was an isolated probe observing key code/action/source/repeat and session
 state without consuming events. On a stationary car, capture one physical
 Pause/Play pair with Yandex initially playing. Only after the physical mapping
@@ -97,7 +180,11 @@ package after reboot. Preserve the stock call/mute and special vehicle-mode
 guards before any product promotion. A successful normal-UID key-consumption
 test and direct Yandex resume are the remaining feasibility gates.
 
+> **Superseded 2026-09-11:** both gates passed on the car on 2026-09-05, and "do not guess a package after reboot" is reversed: the persisted last-played package is resumed or reconnected — see [VK pause restored Yandex through transient audio focus (2026-09-05)](#vk-pause-restored-yandex-through-transient-audio-focus-2026-09-05) and [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
+
 ### Minimal built-in slice requested by the owner
+
+> **Superseded 2026-09-11:** the one-token, process-lifetime memory and the no-relaunch rule of this slice are replaced by the package contract, and the physical check it still owed passed on 2026-09-05 — see [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11) and [VK pause restored Yandex through transient audio focus (2026-09-05)](#vk-pause-restored-yandex-through-transient-audio-focus-2026-09-05).
 
 The owner explicitly requested implementation directly in Denza Apps, with no
 settings or separate probe. `feature.media.MediaResumeController` attaches to
@@ -151,6 +238,8 @@ resume still require an operator check; successful installation is not that
 acceptance result.
 
 ### VK pause restored Yandex through transient audio focus (2026-09-05)
+
+> **Superseded 2026-09-18:** the diagnosis stands, but the focus-stack helper this section introduces is switched off (`MediaKeyExperiment.FOCUS_SURGERY = false`; `SimulcastAccessibilityService.java` no longer builds `MediaFocusPauseBridge`). A pause with paused predecessors is an ordinary pause, and a player paused under a video may resume when the video pauses — see "A pause is a pause" in [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
 
 The operator reproduced: Yandex playing -> VK Video playing (Yandex pauses) ->
 wheel pause -> VK pauses but Yandex starts. This was **not a wrong selected
@@ -283,6 +372,9 @@ not tracked at all.
 1. something is PLAYING now, any package - the wheel key is a toggle, so this is
    the pause path, unchanged: remembered-playing preference, paused predecessors
    that once played, deferred pause through `MediaFocusPauseBridge`;
+
+   > **Superseded 2026-09-18:** the deferred pause no longer runs: `SimulcastAccessibilityService.java` builds no `MediaFocusPauseBridge` while `MediaKeyExperiment.FOCUS_SURGERY` is false, so every pause is dispatched directly — see "A pause is a pause" below in [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
+
 2. a live target, active or dormant, for the last-played package - `play()` on
    it. There is no `ACTION_PLAY` gate: the platform does not enforce the
    advertised bits and some players only advertise `ACTION_PLAY_PAUSE`. A Play
@@ -373,6 +465,8 @@ it is caught and logged - the press would then be silently lost, and the log
 would show `media-button-sent` for a Play that never happened. The above is
 static reading of a decompiled APK, not a live observation.
 
+> **Superseded 2026-09-18:** on the Z9GT (build 47) neither reconnect path reached Yandex: BYD's self-start gate refused the `MediaBrowser` bind and both `MEDIA_BUTTON` broadcasts, the controller still logged `media-button-sent`, and the foreground-service caveat is not the cause. `MediaResumeReconnect.kt` still takes both paths unchanged — see [The firmware's self-start gate blocks both reconnect paths (2026-09-18)](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18).
+
 **Where the decisions come out.** Every accept and refusal leaves through
 `MediaResumeController.decide` as one `Log.i` line on tag `DenzaMediaResume`:
 `media command accepted|skipped key=<code> reason=<reason> package=<pkg>`. The
@@ -394,6 +488,8 @@ record, Play re-sent to a playing session, and the record never written - were
 each caught by the suite. No APK was built for the car in this pass.
 
 #### Live acceptance plan (Z9GT, owner)
+
+> **Superseded 2026-09-18:** "nothing below has been run" is out of date. On the Z9GT step 3 failed (the self-start gate dropped both reconnect paths, build 47); step 1 held once build 51 stopped dropping pauses whose preparation failed; step 4's focus helper is switched off; steps 2 and 5 have no recorded run — see [The firmware's self-start gate blocks both reconnect paths (2026-09-18)](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) and [The press the preparation swallowed, and what the car taught on 2026-09-18](#the-press-the-preparation-swallowed-and-what-the-car-taught-on-2026-09-18).
 
 Nothing below has been run on a car. Narrow logging first: global `log.tag=M`
 suppresses these lines, so raise `DenzaMediaResume` before pressing anything,
@@ -480,6 +576,8 @@ opposite polarity for that page ("a checked switch means blocked"); the decompil
 manager and the gate say a checked switch is the permissive state. One look at the
 live page settles it, and the loser of that comparison must be corrected.
 
+> **Superseded 2026-09-23:** this doc lost the comparison. A checked switch is the deny bit itself (`getAppStartupData(uid) == 1`, the value the gate refuses), a new install is written `1`, and every APK update re-blocks the app; [adb-authorization-recovery.md](adb-authorization-recovery.md) is right — see split-screen-findings.md, "The self-start switch, and a registrar that never registered (live 2026-09-23)".
+
 Consequences for `feature/media`, none of them applied yet: a bind refused by the
 gate returns false synchronously and must be recorded as its own refusal rather
 than becoming an accepted `media-button-sent`; the broadcast refusal is invisible
@@ -519,6 +617,8 @@ enough that several of them could be the one: every session of a package must
 agree on the state, the current target must be the top of the focus stack, and a
 predecessor must carry a transient loss. Not worth a live experiment until it
 costs something, now that a failed preparation no longer eats the press.
+
+> **Superseded 2026-09-18:** moot: the helper was switched off the same day (`MediaKeyExperiment.FOCUS_SURGERY = false`), so no preparation runs — see "A pause is a pause" in [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
 
 **Remote playback invalidates any media-key reading.** Yandex Music casting to a
 home speaker holds no audio focus in the car and owns no audio track there, while
@@ -563,6 +663,8 @@ the filter's own words: `not-media` for a code we never intercept,
 entry with no key code is a decision reached after its press was over: a
 deferred pause completing, or a reconnect ending (`reconnect-played`,
 `reconnect-failed`, `reconnect-timeout`, `no-browser-service`).
+
+> **Superseded 2026-09-18:** the section has four lines, not three: `Режим медиакнопки=` (`MediaKeyExperiment.label`, `без правки фокуса` in the current build) follows `Кнопка play/pause=` — see `MediaKeyDiagnostics.kt`, `MediaKeyReport.lines`.
 
 To read a remote car, have the owner press the wheel button a few times and send
 the report. No entry at all for those presses means the key never reaches
@@ -810,6 +912,8 @@ post-write and restore readbacks:
 - `VIDEO_SWITCH`: VK Video opened from the visible Open video action, whose
   runtime path was `131500` (2026-08-27, operator-confirmed).
 
+> **Superseded 2026-09-03:** shell is no longer the writer: the same rows are readable and writable from an ordinary app UID through `ContentResolver`, which is the product's path (`DefaultAppRoleRepository.kt`); shell `content` stays the host-side oracle — see [App-UID ContentResolver access (live-proven 2026-09-03)](#app-uid-contentresolver-access-live-proven-2026-09-03).
+
 `settings put global byd_map_package` is also writable (2026-08-16) but is a
 different wheel-key setting and was not touched in any of these role tests.
 The DiLink 5.1 `content update` command returns exit success with empty stdout;
@@ -890,6 +994,9 @@ stated otherwise.
    through `content://com.byd.autovoice`. Points the matching Shortcuts
    Then-action at any installed launchable package. Shared with voice
    "open map/music". Restore the original row after a probe.
+
+   > **Superseded 2026-09-03:** the same write works from the app UID through `ContentResolver`, with no ADB, and that is what the product uses — see [App-UID ContentResolver access (live-proven 2026-09-03)](#app-uid-contentresolver-access-live-proven-2026-09-03).
+
 2. **`VoiceSettingDatabaseProvider.call("setDefaultApp")`** — exported, no
    caller check. Bundle keys `type`, `appName`, `pkgName`. `type=music|video|ktv|news|radio`
    writes `pkgName` with no whitelist. `type=map` still requires a known map
@@ -1045,6 +1152,8 @@ build 41 may have left `DEFAULT_MAP_SWITCH=dev.denza.apps`; after installing
 build 42, select the navigator again in `Приложения` and verify the exact
 package with a provider readback.
 
+> **Superseded 2026-09-22:** later builds replaced build 41 (build 47 and up were on the Z9GT by 2026-09-18), and `DEFAULT_MAP_SWITCH` read `ru.yandex.yandexnavi` on 2026-09-22, so the build-41 value is gone — see [stock-map-findings.md](stock-map-findings.md) and [The firmware's self-start gate blocks both reconnect paths (2026-09-18)](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18).
+
 The proposed second stage is recovery, not indirection:
 
 1. First use an isolated probe to establish whether Store delivers
@@ -1125,6 +1234,8 @@ unchanged (three-key allowlist, package-name regex, one-row preflight, exact
 readback) and unit-tested; `:denza-apps:testDebugUnitTest` and `assembleDebug`
 pass. The product change itself has no live acceptance yet - only the probe
 above has run in the car.
+
+> **Superseded 2026-09-03:** build 41, the ContentResolver build (`95bd2794`), ran this path on the car the same evening: its first read rewrote `DEFAULT_MAP_SWITCH` (the "Build 41" paragraph below), and on 2026-09-22 the row read `ru.yandex.yandexnavi` ([stock-map-findings.md](stock-map-findings.md)). No owner acceptance of the «Приложения» panel itself is recorded.
 
 The panel now hydrates from the last confirmed state, revalidates on every resume without changing
 a known state or refusing a tap, and sweeps installed launchers once per process and after package
@@ -1248,6 +1359,8 @@ records `byd_map_package` and the package-scoped
 `CUSTOM_NAVI_STANDARD_BROADCAST_RECV` broadcast for the wheel key.
 
 ## Next validation
+
+> **Superseded 2026-09-22:** the first bullet is overtaken: builds 47 and up replaced build 41 on the Z9GT by 2026-09-18, and `DEFAULT_MAP_SWITCH` read `ru.yandex.yandexnavi` on 2026-09-22 ([stock-map-findings.md](stock-map-findings.md)). Of the second bullet only that map readback is recorded; the other bullets have no recorded run — see [Retired single-package navigation proxy experiment (2026-09-03)](#retired-single-package-navigation-proxy-experiment-2026-09-03).
 
 - Install direct-role build 42. Because installed build 41 may leave
   `DEFAULT_MAP_SWITCH=dev.denza.apps` or AutoVoice may reset it to stock during
