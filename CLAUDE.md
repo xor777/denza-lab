@@ -1,6 +1,9 @@
 # CLAUDE.md
 
-Working notes for anyone changing this repository.
+Working notes for anyone changing this repository. `AGENTS.md` is a symlink to
+this file, so Claude Code and Codex load the same rules. Keep it a router: one
+line per doc and no status, which lives in each doc's Current state table. Keep
+it under 32 KiB, the size Codex loads by default.
 
 ## What this is
 
@@ -18,74 +21,80 @@ areas:
 The GitHub repository is `xor777/denza-lab`. An existing local checkout may
 still use the historical `denza-gateway` directory name.
 
-## Read before changing code
+## Where to start
 
 - [docs/project-map.md](docs/project-map.md) — structure and per-component status.
-- [docs/README.md](docs/README.md) — index of topic-specific durable findings.
+- [docs/README.md](docs/README.md) — index of the findings docs.
 - [docs/governance.md](docs/governance.md) — product/prototype/research lanes,
-  where experiments live, promotion checklist, live-car debugging rules, and
-  the firmware behavior method (corpus-first, reset procedure, one owning
-  session).
-- [tools/design-canvas/luminofor/README.md](tools/design-canvas/luminofor/README.md)
-  — the Luminofor design (approved 2026-09-23), normative for the head unit's
-  dashboard, both panes, the strip's two pages, every settings panel and
-  dialog, and the cluster: `spec.json`, the board renderer, the frozen scenes, how to render a board, and how to lay a
-  screenshot of the debug build's `LuminoforFixtureActivity` over it with
-  `compare.py`. Read it before changing anything under
-  `apps/denza-apps/src/main/java/dev/denza/apps/ui/`, `.../design/`,
-  `feature/trip` or `feature/cluster/dashboard`.
-- [tools/design-canvas/README.md](tools/design-canvas/README.md) — the method
-  (boards computed from the code's constants and measured) and the boards before
-  Luminofor, kept as their record.
-- [docs/energy-display-contract.md](docs/energy-display-contract.md) — normative
-  energy contract for the cluster's Contour and the head unit's car page: one
-  definition, one set of words and one chart on both screens, and how each is
-  proved. It owns pack power's direction, the ten-kilometre consumption, the
-  hundred-point chart and the engine's box where it diverges from the findings or
-  the canvas README. Read it before touching `feature/vehicle`,
-  `feature/cluster/dashboard` or `VehiclePageRenderer`.
-- [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, the Contour instrument panel (drawn as Luminofor since 2026-09-23), Mirrors, and navigation status.
-- [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
-- [docs/hud-projection-findings.md](docs/hud-projection-findings.md) — the HUD
-  as a display, read from the firmware and the car: direct-drive variants use
-  FSE's `BydHud`; PackageManager skips it when `sys.hud.direct.config == 0`.
-  SOME/IP carries maneuver/map pictures and DiShare carries full-screen video.
-  The map window works despite an absent feature flag. The FSE HUD Inspector
-  live read (2026-09-24) found direct.config=0, BydHud not registered, and
-  `arhud` 1280×640 / 60 Hz; installed DiShare matches the OTA. IVI access type 3
-  selects the separate HUD video path. A stationary P→D→P test closed DiShare
-  with 605 as availability fell 2→1, with no automatic return after P.
-  Inspector 0.2.1 confirmed ordinary-UID rendering on arhud: a focused 1280×640
-  window, 397 draws/frame callbacks, normal stop after 20 seconds. The owner
-  saw no change on the glass, so independent input selection remains unresolved;
-  vehicle GET/SET permissions are signature-protected and the physical input's
-  motion rule remains unresolved. Offline HAL tracing found the start command
-  routed to FSE's local SPI and arhudshift mapping availability between HUD
-  configurations without computing gear eligibility. The stock diagnostic UI
-  contains a gated network-ADB switch; FSE shell access is still unproved.
-  Offline Cross replay also found a candidate path to the HAL's original-write
-  entry through an existing Cross subscription; live delivery and HUD response
-  remain unproved. Inspector 0.2.2 adds a one-button access/hash export; FSE's
-  stock installer confirmed its update, and its first access report/self hash
-  is pending. See sections 14.9–14.13 and
-  `research/fse-firmware/README.md`.
-- [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
-- [docs/audio-capture-findings.md](docs/audio-capture-findings.md) — what a normal app can observe of played audio (spectrum analyser feasibility).
-- [docs/split-screen-findings.md](docs/split-screen-findings.md) — live-proven BYD split substrate, retired router, and the explicit two-picker product flow.
-- [docs/split-screen-product-contract.md](docs/split-screen-product-contract.md) — normative Split Screen contract: user-visible combinatorics, invariants, single-automaton core, delete-first policy, test-audit verdict, and the live acceptance protocol. Owns the product contract where it diverges from findings.
-- [docs/system-language.md](docs/system-language.md) — the car's language: the stock picker's
-  gated list, the unlisted `LOCALE_SETTINGS1` screen with all forty, the vendor
-  HAL that applies one without a reboot, how far a switch actually reaches, and
-  the Denza Apps tile that opens it. Read it before touching `feature/locale`.
-- [docs/adb-authorization-recovery.md](docs/adb-authorization-recovery.md) — passive local-ADB startup gate and bounded recovery flow.
-- [docs/vehicle-data-findings.md](docs/vehicle-data-findings.md) — GNSS/IMU for a normal APK; `autoservice` FID protocol for shell-UID BMS/HV/12V reads.
-- [docs/weather-adapter-findings.md](docs/weather-adapter-findings.md) — native weather-provider contract and adapter status.
-- [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — Shortcuts If/Then catalog; the live-proven navigation, music, and video PersonBean roles; and the firmware-specific actions that honor them; PersonBean itself is readable and writable from the app UID through `ContentResolver` (live-proven 2026-09-03). It also owns the normative steering-wheel Play/Pause contract: identity is the package, the last-played package is persisted, a session that leaves the active list stays addressable, and a package with no live session is reconnected through `MediaBrowser` or its own exported media-button receiver. Read it before touching `feature/media`.
-- [docs/speaker-lift-findings.md](docs/speaker-lift-findings.md) — Devialet pop-out covers. On the Z9GT `AUDIO_RLSA_STATE_SET` (`0x16300025`) drives the motor both ways as an edge, `1` out / `2` in, with no audio. On the N9 the same property is the stock auto-lift enable flag: `2` retracts, `1` never raises. The product lever on both cars is the playback report `INSTRUMENT_MUSIC_STATE_SET` (`0x43E0000A`) = `1`, live-proven on the Z9GT (2026-09-03) and the N9 (2026-09-04); the app never touches the flag.
-- [docs/car-adb-gateway-architecture.md](docs/car-adb-gateway-architecture.md) and
-  [docs/car-adb-gateway-decision-log.md](docs/car-adb-gateway-decision-log.md) — the
-  relay-only design of Car ADB Gateway and the decisions behind it. The decision log
-  is a precondition for any change to `:car-adb-gateway` or `platform/relay/`.
+  where experiments live, promotion checklist, live-car debugging rules, the
+  firmware behavior method, and how a findings doc is laid out.
+
+Every findings doc opens with a **Current state** table (claim, status, section)
+and a contents list. Read that first; then `rg -n '^#{2,3} ' <doc>` and
+`sed -n 'a,bp'`. The docs are 40–240 KB, so never `cat` one whole.
+
+## Read before touching
+
+| You are changing | Read first |
+| --- | --- |
+| `ui/`, `design/`, `feature/trip`, `feature/cluster/dashboard` | [tools/design-canvas/luminofor/README.md](tools/design-canvas/luminofor/README.md) — the Luminofor design, normative: how to render a board and lay a `LuminoforFixtureActivity` screenshot over it with `compare.py`. [tools/design-canvas/README.md](tools/design-canvas/README.md) is the method and the boards before Luminofor. |
+| `feature/vehicle`, `feature/cluster/dashboard`, `VehiclePageRenderer` | [docs/energy-display-contract.md](docs/energy-display-contract.md) — normative energy contract for the Contour and the car page. [docs/vehicle-data-findings.md](docs/vehicle-data-findings.md) — GNSS/IMU and the `autoservice` FID protocol. |
+| `feature/split` | [docs/split-screen-product-contract.md](docs/split-screen-product-contract.md) — normative; wins over [docs/split-screen-findings.md](docs/split-screen-findings.md). |
+| `feature/media`, `feature/defaultapps` | [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — PersonBean roles and the normative steering-wheel Play/Pause contract. |
+| `feature/cloud` | [docs/telematics/README.md](docs/telematics/README.md) — the car's own cloud client (`cloudmanager`) over Wi-Fi, the «Облако» tile, result codes. |
+| `feature/hud`, `feature/fse` | [docs/hud-projection-findings.md](docs/hud-projection-findings.md) — the HUD as a display and the working recipe on this car; [docs/fse-app-installation.md](docs/fse-app-installation.md) — installing on the passenger computer; [research/fse-firmware/README.md](research/fse-firmware/README.md), with BydHud's direct-drive internals (inactive on this car) in `bydhud-direct-drive.md` there. Turn-by-turn guidance: [docs/instrument-display-findings.md](docs/instrument-display-findings.md), "HUD turn-by-turn guidance". |
+| `feature/cluster`, `feature/mirrors`, `feature/navigation` | [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, Contour, Mirrors, navigation projection. |
+| `feature/simulcast`, DiShare in `:dishare-bridge` | [docs/dishare-api-notes.md](docs/dishare-api-notes.md) |
+| `feature/speaker` | [docs/speaker-lift-findings.md](docs/speaker-lift-findings.md) |
+| `feature/locale` | [docs/system-language.md](docs/system-language.md) |
+| `feature/weather` | [docs/weather-adapter-findings.md](docs/weather-adapter-findings.md) |
+| `feature/adb`, `LocalAdbClient`, the startup gate | [docs/adb-authorization-recovery.md](docs/adb-authorization-recovery.md) |
+| The spectrum analyser, audio capture | [docs/audio-capture-findings.md](docs/audio-capture-findings.md) |
+| The car's own map | [docs/stock-map-findings.md](docs/stock-map-findings.md) |
+| CarPlay | [docs/carplay-findings.md](docs/carplay-findings.md) |
+| `:car-adb-gateway`, `platform/relay/` | [docs/car-adb-gateway-decision-log.md](docs/car-adb-gateway-decision-log.md) — a precondition for any change — and [docs/car-adb-gateway-architecture.md](docs/car-adb-gateway-architecture.md). |
+
+Package paths are under `apps/denza-apps/src/main/java/dev/denza/apps/`.
+
+## Firmware corpus (local, untracked)
+
+The owner's IVI OTA `Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip` and FSE OTA
+`Di5.1_FSE_42.1.8.2605219.1.42.2.3.2605250.2.zip` sit in `~/Downloads`. They have
+already been extracted and decompiled several times. Look before extracting again:
+
+- `captures/split-firmware-20260923/`, `hud-firmware-20260923/`,
+  `ambient-light-20260923/`, `speaker-firmware-20260923/`,
+  `washer-firmware-20260923/` — parts of the IVI OTA, with `jadx/` trees and,
+  where present, `extraction.json` / `files-*.txt` listings.
+  `captures/fse-firmware-20260924/` is the FSE OTA.
+  `reverse/*-jadx` holds older decompiles; `reverse/dishare-jadx` is an older
+  DiShare build than the car's.
+- Readers: `research/split-firmware/`, `research/telematics-firmware/`,
+  `research/fse-firmware/`. The first two take `DENZA_FIRMWARE_ARCHIVE` and
+  `DENZA_FIRMWARE_OUTPUT`; the output directory must contain
+  `Config-readable.xml`, which only `captures/telematics-20260923/readable-firmware/`
+  has.
+- Feature IDs: jadx cannot evaluate the `BYDAutoFeatureIds` initializer. The
+  resolved table is `captures/ambient-light-20260923/data/fids-canfd.tsv` (and
+  `fids-can-classic.tsv`, built by `resolve_clinit.py` beside them).
+- `rg` skips the git-ignored `captures/` and `reverse/`; search them with
+  `rg --no-ignore`.
+
+## Parked work
+
+- Branch `archive/cloudmanager-runtime` — the custom-SIM runtime for
+  `cloudmanager` (`tools/telematics/runtime/`,
+  `research/telematics-firmware/persistent_runtime.c`,
+  `docs/cloud-custom-runtime-contract.md`, the CUSTOM mode of `feature/cloud`),
+  moved off main in `eed3a411`.
+
+## Shell
+
+- The shell is zsh: quote globs (`grep -r --include='*.kt'`) or use
+  `rg -g '*.kt'`. An unquoted `*.kt` fails with "no matches found".
+- `grep` is ugrep; a missing file is a warning, not an error.
+- There is no `timeout` or `gtimeout`. Bound a command with
+  `perl -e 'alarm shift; exec @ARGV' 20 <command>`.
 
 ## Modules
 
@@ -113,7 +122,7 @@ The on-device probes and the frozen legacy app are configured only when the
 | `:dicar-media-probe` | `experiments/dicar-media-probe/` | `dev.denza.dicarmedia.probe` (disposable app-UID car media service evaluation for the speaker lift) |
 | `:split-events-probe` | `experiments/split-events-probe/` | `dev.denza.splitevents.probe` (disposable app-UID split area push, `homekey` and gate evaluation) |
 | `:hud-frames-probe` | `experiments/hud-frames-probe/` | `dev.denza.hudframes.probe` (disposable moving-frames test of the HUD's picture slots and DiShare video) |
-| `:fse-hud-inspector` | `experiments/fse-hud-inspector/` | `dev.denza.fsehud.probe` (FSE snapshot/export; manual 20-second local arhud Activity and own crash export; 0.2.2 access/hash export update confirmed by stock installer, first report pending; no vehicle setters or DiShare) |
+| `:fse-hud-inspector` | `experiments/fse-hud-inspector/` | `dev.denza.fsehud.probe` (FSE snapshot/export and a manual 20-second local arhud Activity; no vehicle setters or DiShare) |
 | `:avc-stock-probe` | `experiments/avc-stock-probe/` | `dev.denza.avcstock.probe` (disposable app-UID read and write of the stock AVC mode and turn-camera choice) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
@@ -184,6 +193,10 @@ The same form works for every module in the second table above.
   reads without knowing which of the two made them.
 - Record durable findings in the closest existing doc, not only in chat. Create a
   new `.md` only when the topic has a durable owner. Parked code → `research/`.
+  Update the doc's Current state table in the same change. When a finding
+  overturns an earlier one, mark the earlier one where it stands
+  (`docs/governance.md`, "Findings Documents"); a correction appended further
+  down is not enough.
 - Never commit APKs, reverse-engineered APKs, or large extracted binaries
   (`reverse/`, `captures/`, build outputs are git-ignored).
 - Treat a `com.byd.avc` crash as an escalation alert. Capture
