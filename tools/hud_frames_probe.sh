@@ -5,7 +5,8 @@
 #   icon   the maneuver-picture slot of the road packet (event 0x8001, field 8). Proven to show
 #          a still picture while driving; does it follow a changing one, and how fast?
 #   map    the map window (event 0x8003). This HUD reports no map feature; does it show
-#          anything at all?
+#          anything at all? (Answered 2026-09-23: yes, beside a "navigating" road packet;
+#          see the doc's working recipe.)
 #   video  DiShare video: Denza Apps' debug receiver casts the probe's pattern Activity to
 #          screen_hud. Moving video on the HUD, parked.
 #

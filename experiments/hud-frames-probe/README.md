@@ -11,6 +11,14 @@ windshield HUD show *changing* pictures, and through which channel?
 | `yandex` | SOME/IP `0x8003`, fed by a crop of Yandex Navigator moved onto the probe's own virtual display | the map window follows 300×180 frames at 15 fps | is a real navigator map readable there? |
 | `video` | DiShare `screen_hud`, the probe's `PatternActivity` on `BYD-Mirror` | app video shows, parked | smoothness of a known moving pattern |
 
+All four were answered, parked, on 2026-09-23: every channel shows moving
+pictures; the `map` window appears despite `65535`, but only beside a
+"navigating" road packet (`road=1` when no route runs); 300×180 fits and
+600×360 is cropped; DiShare video takes the whole projection and ends in D
+even at standstill (2026-09-24, exit `605`). See the doc's
+[working recipe](../../docs/hud-projection-findings.md#рабочий-рецепт-на-машине-владельца)
+and [moving-frames test](../../docs/hud-projection-findings.md#hud-moving-frames).
+
 Each `icon`/`map` frame changes in ways readable off the glass: a hand turning
 30°, a digit counting 0–9, and (map) a sweeping bar. Field 9 (distance) and
 field 27 carry the frame number as text, so "text updates but the picture does

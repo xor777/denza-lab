@@ -10,6 +10,12 @@ In particular, successful emulation does not prove physical HUD output or
 operation in D. The separate FSE and IVI Android systems have different access
 contexts.
 
+[`bydhud-direct-drive.md`](bydhud-direct-drive.md) holds the BydHud internals
+(scene automaton, SZ/HT/SN/EZ profiles, map crop, LVDS P-gate, warp, evidence
+index), moved from sections 2–13 of the findings on 2026-10-03. BydHud is not
+registered on the owner's car (`sys.hud.direct.config = 0`), so that page
+describes direct-drive variants, not this car's HUD.
+
 - `read_fse_ota.py`: list partitions/files and extract selected files from the
   nested Android A/B OTA without extracting the whole filesystem. Reuses the
   local telematics/split firmware readers; see its module docstring for commands.

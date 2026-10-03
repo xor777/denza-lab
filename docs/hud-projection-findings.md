@@ -1,81 +1,125 @@
 # HUD и BydHud: инженерный разбор
 
-Обновлено **2026-09-24**. Основной разбор выполнен **офлайн по FSE OTA,
-Java-коду, ресурсам и AArch64-дизассемблеру**. Затем на машину установлен
-FSE HUD Inspector и получен снимок принимающей стороны; автомобильные
-сигналы только читали. Результат натурной идентификации —
-[раздел 14.8](#fse-inspector-live); трасса P → D → P —
-[14.9](#hud-pd-live); поиск пути без Simulcast в framework, native HAL,
-правах доступа и MCU-контейнере — [14.10](#hud-independent-route);
-прямая Activity нашего APK на arhud — [14.11](#fse-local-probe);
-маршрут команды в локальный SPI FSE и штатная диагностика —
-[14.12](#hud-hal-input-route); альтернативный вход через Cross, проверенный
-эмуляцией функций прошивки, — [14.13](#hud-cross-input-candidate).
+Проекционный HUD машины владельца как дисплей: какие картинки и видео на него
+можно вывести обычным приложением, кто рисует штатную сцену и что выключает
+показ. Разбор офлайн по IVI и FSE OTA (Java, ресурсы, AArch64-дизассемблер,
+эмуляция отдельных функций); на машине — чтения, пробники и парковочные
+прогоны, автомобильные свойства нашими пробниками не записывались.
 
-**На машине владельца BydHud не зарегистрирован:**
-`sys.hud.direct.config = 0`, PackageManager отвечает `NameNotFoundException`.
-Файл BydHud присутствует и совпадает с OTA, но его native renderer здесь
-не определяет штатную раскладку. FSE видит `arhud` 1280×640 при 60 Гц;
-IVI сообщает access type 3 и доступный в P отдельный видеовход HUD.
-Штатный полноэкранный тракт — DiShare → `HudClientActivity` → `arhud` →
-контроллер HUD. **На месте при переходе в D он закрылся с кодом 605:**
-доступность `0x38B00036` изменилась 2 → 1 при скорости 0. После P вернулась
-доступность, но сеанс и изображение сами не восстановились. Это не готовое
-решение для движения. Собственный renderer на FSE `arhud` **проверен**:
-Inspector 0.2.1 создал окно 1280×640 и за 20 секунд получил 397 draw-вызовов
-и 397 window frame callbacks. **На стекле ничего не изменилось.**
-Одного Android-окна недостаточно; отдельно требуется решить выбор и условия
-физического видеовхода. Поведение своего renderer в D ещё не проверялось.
+## Текущее состояние
 
-**Продолжение офлайн-разбора:** в HAL команда `0x1B60A010` идёт через
-локальный `/dev/spidev_ivi` FSE. Обработчик availability `arhudshift`
-сопоставляет FID двух конфигураций HUD, сохраняя значение; проверки передачи
-в нём нет. Найден штатный вход в диагностику FSE и переключатель сетевой ADB,
-но он требует авторизации. Рабочий независимый видеовход пока не включён.
-Дополнительно найден кандидат без FSE shell: доставить команду через Cross
-в существующий `BYDCrossObserver` FSE HAL. Офлайн подтверждены регистрация,
-разбор буфера и передача неизменённой команды в `writeDeviceOriginal`.
-Сетевая доставка, доступ вызывающего UID и реакция HUD ещё не проверены.
+Обновлено 2026-10-03. Документ отвечает, как вывести свою картинку или видео на HUD этой машины и почему полноэкранный показ пропадает вне P.
 
-**BydHud — системное Android-приложение для конфигурации с прямым
-управлением HUD с FSE.** В нём работает нативный движок, который собирает
-приборы, навигацию и AR,
-выбирает сцену, рисует её OpenGL и подготавливает изображение для оптики HUD.
-IVI передаёт ему данные и отдельные картинки; DiShare передаёт видео другим
-трактом. Это несколько взаимодействующих подсистем, а не один видеомонитор.
+| Утверждение | Статус | С | Раздел |
+|---|---|---|---|
+| На машине владельца `sys.hud.direct.config = 0`; `PackageManager` отвечает `NameNotFoundException` для `com.byd.hud` (BydHud not registered), хотя `/system/app/BydHud/BydHud.apk` лежит в образе и по SHA-256 совпадает с OTA | live | 2026-09-24 | [14.8 FSE не запускает BydHud](#fse-inspector-live) |
+| Причина — `BydPackageUtil.nonDirectDrive` в `PackageManagerService.scanDirLI`: при `direct.config == 0` пакет пропускается при сканировании; это аппаратная конфигурация, не P/D | firmware | 2026-09-24 | [14.2 BydHud не во всех конфигурациях](#hud-bydhud-not-direct) |
+| Устройство BydHud (автомат сцен, профили SZ/HT/SN/EZ, crop карты, P-gate LVDS `gear == P`, warp) — direct-drive вариант OTA, к HUD этой машины не применяется | firmware | 2026-09-24 | [2–13 перенесено](#bydhud-direct-drive) |
+| «Штатную картинку HUD рисует BydHud на FSE `arhud`» (журнал, 2026-09-24) — неверно для этой машины: BydHud не зарегистрирован; где синтезируется её штатная сцена (согласованная модель — отдельный HUD-контроллер), не разобрано | refuted | 2026-09-24 | [FSE: первое чтение](#hist-fse-first-read) |
+| FSE видит дисплей `arhud` 1280×640, ~60 Гц, flags 139 (trusted, без PRIVATE), в снимке Android id 2 — искать по имени; это видеовыход FSE, а не размер окна карты | live | 2026-09-24 | [14.8 FSE не запускает BydHud](#fse-inspector-live) |
+| IVI: access type `0x34C00010 = 3`, видеовход отдельного HUD `0x38B0003A = 1`, `0x38B00036 = 2` в P; по коду совпавшего по хешу FSE DiShare эта ветка запускает `HudClientActivity` на дисплее `*hud*`: штатный полноэкранный тракт DiShare → `HudClientActivity` → `arhud` → контроллер HUD | live | 2026-09-24 | [14.8 FSE не запускает BydHud](#fse-inspector-live) |
+| Окно карты: SOME/IP `0x8003` (`HudNavigationmap`, Base64 PNG) показывается справа от скорости, в правой трети проекции; скорость и поле 8 остаются | live | 2026-09-23 | [Moving-frames test](#hud-moving-frames) |
+| Окно карты показывается только рядом с road-пакетом `0x8001` «навигация идёт» (поле 16 = 2, у пробника `road=1`); без него кадры принимаются, а окно пустое | live | 2026-09-23 | [Яндекс в окне карты](#hud-yandex-map-window) |
+| Кадр 300×180 помещается в окно целиком; 600×360 обрезается (crop, не масштабирование) — уменьшать надо на IVI; размер слота отдельного контроллера не измерен | live | 2026-09-23 | [Second run](#hud-map-rate-size), [third run](#hud-map-grid) |
+| IVI принимает `0x8003` 300×180 до 15 fps и 600×360 до 10 fps без отказов; штатный навигатор шлёт 5 fps; частота на стекле не измерена | live | 2026-09-23 | [Second run](#hud-map-rate-size) |
+| Карта Яндекса на стекле: вырезка 300×180 с app-owned display «Denza Navigation» (960×576), PNG 5 fps плюс `road=1`, без системных прав; только в P | live | 2026-09-23 | [Яндекс в окне карты](#hud-yandex-map-window) |
+| «HUD не заявляет функцию карты (`0x38B00030 = 65535`), значит окно карты не появится» — окно появилось 2026-09-23 17:39; `65535` значит лишь, что в штатных настройках нет переключателя карты | refuted | 2026-09-23 | [Moving-frames test](#hud-moving-frames) |
+| «Большой кадр карты режется от левого верхнего угла» — сетка этого не установила; в BydHud (здесь неактивен) crop центрирующий, снизу при превышении обеих осей; алгоритм отдельного контроллера не установлен | refuted | 2026-09-24 | [Third run](#hud-map-grid) |
+| Поле 8 `0x8001` (картинка манёвра) следует за новой картинкой каждый кадр, на глаз до 10 fps; этот слот уже работает на ходу | live | 2026-09-23 | [Moving-frames test](#hud-moving-frames) |
+| Продукт шлёт только road-пакет `0x8001` (topic `1127042368241665`, поле 8 — иконка манёвра, поле 16 — 2/1); отправителя `0x8003` нет — `apps/denza-apps/src/main/java/dev/denza/apps/feature/hud/HudSomeIpClient.java` | code | 2026-10-03 | [Рабочий рецепт](#рабочий-рецепт-на-машине-владельца) |
+| DiShare `screen_hud`: окно любого приложения (H.264, 30 fps) занимает всю проекцию и заменяет штатную картинку вместе со скоростью; плавно, в P | live | 2026-09-23 | [Moving-frames test](#hud-moving-frames) |
+| P→D на месте (0 км/ч): `0x38B00036` 2→1, DiShare удаляет receiver с `605`; примерно через 4 с в P доступность снова 2, но сеанс сам не возобновился | live | 2026-09-24 | [14.9 DiShare закрывается в D](#hud-pd-live) |
+| Цепочка 605: FSE `DeviceConfigHelper` считает available из `0x38B0003A`/`0x38B00036` (приоритет у `0x4C50000F`/`0x4C500014`) → `DiShareSession` удаляет receiver → `HudClientActivity.finish` → `0x1B60A010 = 1`; проверки gear/speed в DiShare нет | firmware | 2026-09-24 | [14.3 Доступность трансляции](#hud-availability-chain) |
+| «Камера поворотника на HUD через DiShare — это сеанс на всю поездку, правило движения неизвестно» — DiShare не переживает даже D на месте, так что камера или Яндекс на всю проекцию через DiShare на ходу не работают | refuted | 2026-09-24 | [Камера поворотника](#hist-turn-signal-camera) |
+| Своя Activity ordinary-UID APK на FSE `arhud` (Inspector 0.2.1): окно 1280×640, 397 draws и frame callbacks за 20 с без IVI и DiShare — на стекле ничего не изменилось | live | 2026-09-24 | [14.11 Пробник прямой Activity](#fse-local-probe) |
+| Команда видеовхода `0x1B60A010` (2 — начало, 1 — конец) уходит в локальный `/dev/spidev_ivi` FSE; `arhudshift` только переназначает availability между конфигурациями, без проверки передачи; GET/SET device 1023 требуют signature permissions | firmware | 2026-09-24 | [14.12 Команда включения](#hud-hal-input-route), [14.10.2](#hud-video-switch-permissions) |
+| Кандидат без FSE shell: Cross `0x2130001C` → FSE `BYDCrossObserver` → `writeDeviceOriginal` с исходной командой (эмуляция функций); доставка, права UID и реакция HUD не проверены | firmware | 2026-09-24 | [14.13 Вход через Cross](#hud-cross-input-candidate) |
+| Штатная диагностика FSE: 10 нажатий за 4 с по подписи яркости → DevelopmentTools → после авторизации `Wireless adb debug switch` (`service.adb.tcp.port=5555`); на машине не проверялось | firmware | 2026-09-24 | [14.12.3 Штатная диагностика](#hud-fse-diagnostics) |
+| Других готовых входов нет: RTSP `DiSRPlayer` — заглушки, virtual HUD в `bydCreatVirtualDisplayService` не реализован, `0x8004` не обрабатывается, большой PNG не даёт полноэкранной карты | firmware | 2026-09-24 | [14.1 Что можно построить](#hud-options-table) |
+| Inspector 0.2.2 («Доступ FSE → JSON») установлен на FSE: штатный installer ответил `result=-7` на `res_id=924151925`; первого отчёта и проверки хеша запущенного APK ещё нет | live | 2026-09-24 | [14.13.6 Установка 0.2.2](#hud-inspector-022-install) |
 
-**Граница доказательства:** механизм BydHud ниже описывает direct-drive
-вариант общей OTA. Хеши файлов BydHud и установленного DiShare теперь
-сверены на FSE; BydHud исключён из регистрации на этой машине. Его профили,
-точный crop и P-gate нельзя приписывать отдельному HUD-контроллеру.
-Снимок 14.8 не содержит видеосеанса; последующий опыт 14.9 содержит
-работающий сеанс и переключение передачи, но не движение автомобиля.
-Там, где это существенно, ниже указано «код OTA» или «наблюдалось на машине».
+**Открытые вопросы**
+- Где рождается `0x38B00036 = 1` в D: входящее сообщение FSE HAL, MCU или контроллер HUD? Решит запись входящего пакета до cache FSE HAL из диагностического контекста FSE — [14.12.2](#hud-hal-input-route).
+- Покажет ли стекло наш рисунок на `arhud` после штатной команды `0x1B60A010 = 2` в P без DiShare? Решит один ограниченный сеанс с гарантированным `= 1` через FSE autoservice или Cross — [14.12.4](#hud-hal-input-route), [14.13.4](#hud-cross-input-candidate).
+- Доставляет ли Cross с IVI команду в FSE HAL от UID нашего APK? Решат первый отчёт Inspector 0.2.2 (одно нажатие «Доступ FSE → JSON») и сверка хешей установленных IVI Cross-библиотек — [14.13.6](#hud-inspector-022-install).
+- Держится ли окно карты `0x8003` (наша карта плюс `road=1`) на ходу? Решит прогон в движении, согласованный с владельцем — [14.1](#hud-options-table).
+- Точный размер и привязка окна карты у отдельного контроллера (270×180 или 300×180, где центр)? Решит один парковочный прогон с рамкой и метками краёв обоих размеров — [crop в BydHud](#hist-bydhud-map-crop).
+- Частота показа на стекле окна карты и поля 8 (а не приёма на IVI)? Решит номер кадра на стекле с синхронной записью отправки — [second run](#hud-map-rate-size).
+- Кто синтезирует штатную сцену этой машины? Прошивка отдельного HUD-контроллера не идентифицирована; решат его идентичность и образ — [14.3](#hud-availability-chain).
 
-**Уточнение после трассировки PackageManager:** при
-`sys.hud.direct.config == 0` система пропускает `com.byd.hud` при сканировании
-APK. Наличие файла BydHud в общей OTA не доказывает, что он работает на
-конкретном автомобиле. Снимок FSE и свежие показания IVI подтвердили
-неинтегрированную конфигурацию с отдельным видеовходом. Подробности и путь к цели
-«Яндекс на всей проекции в движении» — [раздел 14](#engineering-yandex-motion).
+Граница доказательства: снимок 14.8 не содержит видеосеанса; опыт 14.9 —
+работающий сеанс и переключение передачи на месте, но не движение. Поведение
+своего renderer на `arhud` в D не проверялось. Где это существенно, ниже
+указано «код OTA» или «наблюдалось на машине».
 
 ## Содержание
 
-1. [Главные ответы](#engineering-answers)
-2. [Корпус и состав](#engineering-corpus)
-3. [Архитектура и слои](#engineering-layers)
-4. [Запуск и жизненный цикл](#engineering-lifecycle)
-5. [Откуда приходят сигналы и изображения](#engineering-inputs)
-6. [Автомат сцен и отключение на ходу](#engineering-scenes)
-7. [Раскладки и геометрия](#engineering-layout)
-8. [Алгоритм обработки карты и причина кропа](#engineering-map)
-9. [Отрисовка 2D, AR и оптическая коррекция](#engineering-render)
-10. [Видеотракты](#engineering-video)
-11. [До каких уровней можно добраться](#engineering-access)
-12. [Ограничения, диагностика и открытые вопросы](#engineering-limits)
-13. [Указатель доказательств](#engineering-evidence)
-14. [Яндекс на всём HUD в движении: результат поиска способа](#engineering-yandex-motion)
-15. [Журнал прежних исследований и опытов](#historical-record)
+- [Текущее состояние](#текущее-состояние) — таблица утверждений и открытые вопросы.
+- [Рабочий рецепт на машине владельца](#рабочий-рецепт-на-машине-владельца) — окно карты, поле 8 и DiShare: что работает и где граница.
+- [1. Главные ответы](#engineering-answers) — короткие ответы на основные вопросы о HUD.
+- [2–13. Устройство BydHud (direct-drive): перенесено](#bydhud-direct-drive) — сводка неактивного здесь рендерера и ссылка на research.
+- [14. Яндекс на всём HUD в движении](#engineering-yandex-motion) — офлайн-разбор, Inspector, P→D, путь без Simulcast, HAL, Cross.
+- [15. Журнал прежнего исследования](#historical-record) — IVI-чтения и парковочные прогоны 2026-09-23, первое чтение FSE OTA.
+
+## Рабочий рецепт на машине владельца
+
+Что сейчас работает с обычного APK на IVI, без системных прав. Всё проверено
+только на стоянке в P; доказательства — по ссылкам, сами опыты остаются в 14–15.
+
+**Своя картинка в окне карты (`0x8003`).**
+
+1. Подключиться к `com.ts.car.someip.service` (`SomeIpServerService`) и
+   предложить сервис 266, как это делают `HudSomeIpClient` продукта и
+   `hud-frames-probe`. IVI не проверяет ни отправителя, ни topic, ни размер
+   ([штатная карта](#hist-stock-map-picture)).
+2. Рядом с каждым кадром карты слать road-пакет `0x8001`
+   (topic `1127042368241665`) в состоянии «навигация идёт», поле 16 = 2
+   (`HudSomeIpSender.roadPayload` пробника, `road=1` в
+   `tools/hud_frames_probe.sh yandex`). Без него кадры принимаются, а окно
+   пустое ([прогон 18:44](#hud-yandex-map-window)). Во время маршрута Яндекса
+   такой пакет уже шлёт продукт.
+3. Кадр — `HudNavigationmap{1: Base64 PNG}` в событии `0x8003`
+   (topic `1127042368241667`), 300×180: помещается целиком, края мягкие.
+   Больший кадр обрезается, а не уменьшается (600×360 — кроп), поэтому
+   вырезать и масштабировать нужно на IVI до кодирования
+   ([второй](#hud-map-rate-size) и [третий](#hud-map-grid) прогоны).
+   Профильные размеры BydHud SZ 300×180, HT/SN 270×180, EZ 200×160 к этой
+   машине не относятся; слот её контроллера не измерен.
+4. Частота: штатный навигатор шлёт 5 fps; IVI принимал 300×180 до 15 fps,
+   600×360 до 10 fps. Частоту на стекле никто не измерял.
+5. Источник Яндекса в опыте — app-owned virtual display «Denza Navigation»
+   (960×576, 160 dpi), на который скрипт переносит задачу навигатора;
+   вырезка вокруг стрелки машины, PNG 5 fps. Владелец видел карту на стекле
+   2026-09-23 в 18:50 ([Яндекс в окне карты](#hud-yandex-map-window)).
+   Перенос задачи — не форма продукта: кадры можно снять GL-тройником
+   кластерного дисплея или через `MediaProjection` ([как использовать](#hud-map-copy-design)).
+6. В конце — пустой кадр карты (чёрный на HUD не виден), пакет «не навигация»
+   (поле 16 = 1), если road-пакет слали сами, и снять offer. Штатный навигатор
+   пишет в те же события; побеждает последняя запись.
+
+Окно карты стоит справа от скорости, в правой трети проекции; скорость и
+поле 8 остаются ([moving-frames](#hud-moving-frames)). В Denza Apps отправителя
+`0x8003` пока нет: `HudSomeIpClient.java` шлёт только `0x8001`.
+
+**Картинка манёвра (поле 8 `0x8001`).** Слот следует за новой картинкой каждый
+кадр, на глаз до 10 fps, и уже работает на ходу ([moving-frames](#hud-moving-frames)).
+
+**Видео на всю проекцию (DiShare `screen_hud`).**
+`start(screen_ivi, [screen_hud], <app>, com.byd.dishare)` от обычного APK
+кодирует окно приложения в H.264 (30 fps) и показывает его на всей проекции
+вместо штатной картинки, скорость тоже пропадает. Работает в P: переход в D
+даже на месте снимает `0x38B00036` 2→1, DiShare закрывает receiver с `605`,
+после P сеанс сам не возвращается; N, R и движение не проверялись
+([14.9](#hud-pd-live)). После stop своё
+Activity остаётся на главном экране в `byd-freeform`, его надо закрыть самому
+([moving-frames](#hud-moving-frames)). P-gate нативной LVDS-сцены BydHud — правило
+direct-drive варианта, не этой машины.
+
+**Не работает или не применимо здесь:** правка BydHud и его профилей (пакет не
+зарегистрирован, [14.8](#fse-inspector-live)); большой PNG вместо полного
+экрана, RTSP, virtual HUD, `0x8004` ([14.1](#hud-options-table)); своя Activity
+на `arhud` рисует, но стекло без выбора видеовхода не меняется
+([14.11](#fse-local-probe)).
 
 <a id="engineering-answers"></a>
 
@@ -149,6 +193,8 @@ persistent) запускает `MainActivity` на дисплее `arhud` и н�
 P/D-прогон — в [14.9](#hud-pd-live), последующий native-разбор и независимый
 путь — в [14.10](#hud-independent-route).
 
+<a id="hud-options-table"></a>
+
 ### 14.1. Что уже можно построить, а что ещё не найдено
 
 | Вариант | Найденный способ | Что мешает считать цель достигнутой |
@@ -164,6 +210,8 @@ P/D-прогон — в [14.9](#hud-pd-live), последующий native-ра
 работу в движении на этой машине пока не доказан.** Нельзя заменить этот
 пробел предположением «Android умеет выводить Activity, значит HUD её покажет».
 Штатный DiShare уже показал отрицательный результат в D на месте (14.9).
+
+<a id="hud-bydhud-not-direct"></a>
 
 ### 14.2. Главная поправка: BydHud используется не во всех конфигурациях
 
@@ -214,8 +262,11 @@ flowchart TB
 Практическое следствие: найденный `gear == P` относится к LVDS-сцене
 BydHud. Если BydHud не загружен, изменение его ресурсов/логики не поможет
 работающему HUD. И наоборот, его P-gate не доказывает запрет отдельного ECU.
-Точное правило crop и четыре размера из разделов 7–8 также относятся
+Точное правило crop и четыре размера из разделов 7–8
+([перенесены](../research/fse-firmware/bydhud-direct-drive.md#engineering-layout)) также относятся
 именно к этому бинарнику; наблюдавшийся на стекле кроп — отдельный факт.
+
+<a id="hud-availability-chain"></a>
 
 ### 14.3. Откуда берётся доступность полноэкранной трансляции
 
@@ -345,6 +396,8 @@ display и посылал его кадры. Для постоянной реа�
 остановка старых кадров при потере источника; корректное освобождение
 display/возврат задачи. Статический BydHud не запрещает карту вне P,
 но натурный результат по нашей карте в движении ещё отсутствует.
+
+> **Superseded 2026-10-03:** класса `HudNavigationBridge` в коде нет; road-пакет продукта публикует `apps/denza-apps/src/main/java/dev/denza/apps/feature/hud/HudSomeIpClient.java`, отправителя `0x8003` там нет. Довод про BydHud к этой машине не относится (пакет не зарегистрирован), правило карты вне P для неё не установлено — см. [рабочий рецепт](#рабочий-рецепт-на-машине-владельца) и [14.8](#fse-inspector-live).
 
 **Узкий FSE Inspector здесь полезен и имеет конкретную задачу:** определить
 архитектуру и записать, какой уровень прекращает показ. Первый набор данных:
@@ -698,6 +751,8 @@ Activity отдельной задачей с
 не равна Android display ID 2. Обычная смена display power state проходит
 через SurfaceFlinger; отдельное условие gear в просмотренных функциях
 авторизации запуска и управления этим состоянием не найдено.
+
+<a id="hud-video-switch-permissions"></a>
 
 #### 14.10.2. Включение видео защищено отдельно от рисования
 
@@ -1147,6 +1202,8 @@ shell или за доказанный способ переключить эт�
 устройства до cache в этом проходе не записан и полностью не воспроизведён.
 Точное место, где на D рождается значение 1, **ещё не найдено**.
 
+<a id="hud-fse-diagnostics"></a>
+
 #### 14.12.3. Штатная диагностика FSE вместо добавления бесполезных permissions
 
 Из той же OTA извлечены и прочитаны диагностические приложения:
@@ -1450,6 +1507,8 @@ IVI Cross-библиотеки с уже разобранными и прове�
 Предыдущий `fse-hud-input-20260924/manifest.json` сохраняет идентичность
 предыдущей версии анализатора, а новый manifest — текущей.
 
+<a id="hud-inspector-022-install"></a>
+
 #### 14.13.6. Установка 0.2.2 на FSE
 
 2026-09-24, около 18:20 MSK. По запросу владельца обновление отправлено
@@ -1487,8 +1546,15 @@ FSE/SMB остались online, crash tail IVI не изменился. HUD н�
 с установленным DiShare теперь доказано хешем в разделе 14.8; присутствующий
 APK BydHud тоже совпал, но пакет не зарегистрирован.
 
+> Разделы 2–13 с 2026-10-03 лежат в
+> [research/fse-firmware/bydhud-direct-drive.md](../research/fse-firmware/bydhud-direct-drive.md);
+> всё, что журнал ниже говорит о BydHud как о рендерере этой машины, к ней не
+> относится ([14.8](#fse-inspector-live)).
+
 
 ### Исторический HUD projection findings
+
+> **Superseded 2026-09-24:** the "FSE renderer" in this status is BydHud, which is not registered on this car (`sys.hud.direct.config = 0`); motion is no longer unverified for DiShare: it closes already in D at 0 km/h with `605` — see [14.8](#fse-inspector-live) and [14.9](#hud-pd-live).
 
 Status: **parked picture tests completed 2026-09-23; FSE renderer and map
 crop read from the OTA on 2026-09-24; motion behavior remains unverified.** Corpus-first read
@@ -1520,12 +1586,14 @@ stay in [dishare-api-notes.md](dishare-api-notes.md).
     on the receiving side. The later FSE OTA contains `BydHud`, the native
     stock renderer; the IVI image alone did not contain it. In the parked
     test video replaced the stock layout, including the speed.
+    > **Superseded 2026-09-24:** BydHud is not registered on this car, so it is not the stock renderer here; on the receiving side DiShare video ends already in D at 0 km/h (`605`) — see [14.8](#fse-inspector-live), [14.9](#hud-pd-live).
 - **All three channels show moving pictures on this car** (live, parked,
   2026-09-23 17:39–17:42, see "Moving-frames test"). The maneuver slot follows a
   new picture every frame. The map window appears (on the right) even though
   the HUD reports no map feature (`0x38B00030 = 65535`). DiShare video plays
   smoothly. The maneuver slot is proven to render while driving; the map window
   is the stock navigator's own in-motion channel; video in motion is unknown.
+  > **Superseded 2026-09-24:** video in motion is no longer unknown for DiShare: it ends already in D at 0 km/h (`605`) — see [14.9](#hud-pd-live).
 - **A live Yandex Navigator map shows in the map window** (parked, 2026-09-23
   18:50, see "Yandex map in the map window"): a 300×180 crop of Yandex drawn on
   an app-owned display, sent as PNG at 5 fps, appears next to the speed. The
@@ -1535,10 +1603,12 @@ stay in [dishare-api-notes.md](dishare-api-notes.md).
   270×180 (`HT`/`SN`), or 200×160 (`EZ`). Smaller frames are padded. The
   installed FSE APK and active profile have not been read back; 300×180 is
   the proven usable input on this car, not a measured native window size.
+  > **Superseded 2026-09-24:** the installed BydHud APK was read back and matches the OTA, but the package is not registered, so no BydHud profile or crop rule applies here; the separate controller's window and crop are unmeasured — see [14.8](#fse-inspector-live), [third run](#hud-map-grid).
 - **Turn-signal camera:** the only frame source is AVC `initDisplay`, the same
   one Mirrors uses. It can reach the HUD only through DiShare video, so it
   inherits both the Mirrors renderer contention and the unknown motion rule.
   The stock has no camera-to-HUD path.
+  > **Superseded 2026-09-24:** the motion rule is known for DiShare: it ends in D even at standstill, so a camera on the HUD through DiShare cannot work while driving — see [14.9](#hud-pd-live).
 
 #### What was already proven before this pass
 
@@ -1557,7 +1627,11 @@ stay in [dishare-api-notes.md](dishare-api-notes.md).
   `com.ts.car.someip.service` and render while driving; field 8 already
   carries an app-drawn PNG.
 
+<a id="hist-who-draws"></a>
+
 #### Who draws the HUD picture
+
+> **Superseded 2026-09-24:** on this car `sys.hud.direct.config = 0` and PackageManager skips `com.byd.hud` (BydHud not registered), so BydHud does not draw this HUD and the "correction" below does not hold here; where the stock scene is synthesised (a separate HUD controller is the consistent model) is not analysed — see [14.8](#fse-inspector-live), [14.2](#hud-bydhud-not-direct).
 
 The IVI sends navigation data rather than the whole stock HUD picture. The
 2026-09-24 FSE OTA identifies the renderer: `com.byd.hud` launches on the
@@ -1630,8 +1704,12 @@ the standalone AR-HUD ECU, and the receiver on the FSE most likely runs
 `HudClientActivity` on an FSE display named `*hud*`, not the DirectBuffer
 surface. The FSE firmware is not in the image; one FSE log line
 (`getHudAccessType` or `startHudFromLeftDoMain hudDisplay=`) would settle it.
+
+> **Superseded 2026-09-24:** the FSE OTA has since been read, and the FSE snapshot confirmed this branch without a log line: `arhud` 1280×640 exists, BydHud is not registered, the installed DiShare matches the OTA, access type is still `3` — see [14.8](#fse-inspector-live).
 DiShare lists `screen_hud` under device `fse` (`v.java:445-454`); the HUD can
 never be a share source.
+
+<a id="hist-stock-map-picture"></a>
 
 #### The stock map picture on the HUD
 
@@ -1663,6 +1741,7 @@ while driving:
   Denza Apps sends are already live-proven while driving. Whether the HUD shows
   the map window in motion, and from a sender other than the stock route, is
   decided in HUD firmware that this image does not contain.
+  > **Superseded 2026-09-23:** from a non-stock sender it does show, parked, when a "navigating" road packet goes beside the map — see [Yandex map in the map window](#hud-yandex-map-window); in motion it is still untested.
 
 In Russia the stock map draws nothing but the car arrow
 ([stock-map-findings.md](stock-map-findings.md)), so on this car the stock map
@@ -1747,6 +1826,8 @@ So a "no video while driving" rule, if this car has one, is in the HUD ECU
 (dropping `0x38B00036`, or ignoring its input while `1B6 = 2`) or in the FSE
 vendor layer. None of these is in the image.
 
+> **Superseded 2026-09-24:** the rule exists and shows as the availability drop: P→D at 0 km/h took `0x38B00036` 2→1 and DiShare removed the receiver with `605` ([14.9](#hud-pd-live)); the FSE HAL's `arhudshift` only forwards that value ([14.12](#hud-hal-input-route)); where it is computed is still open.
+
 **App-supplied stream.** `IDiShareApiService` tx 16
 `setMirrorSourceClient(IMirrorSourceClient)` makes DiShare skip `BYD-Mirror`
 and its own encoder. The app must send H.264 in DiShare's UDP framing to the
@@ -1756,6 +1837,8 @@ labels it "support" (`legacy/.../HudDiShareActivity.java:1094-1100`). The API
 takes no Surface; the probe got one by loading DiShare's native
 `SessionServer`. For a product, casting an app window through the control
 service is the simpler route.
+
+<a id="hist-turn-signal-camera"></a>
 
 #### The turn-signal camera and the HUD
 
@@ -1800,6 +1883,7 @@ turn-signal camera, read from the firmware". What matters for the HUD, read in
   session kept up for the whole drive, with the HUD showing our stream for that
   whole time, in place of or beside the stock picture (unknown, see above). The
   latency on top of the renderer is the 60–120 ms above.
+  > **Superseded 2026-09-24:** a DiShare session does not survive D even at standstill (`605`, [14.9](#hud-pd-live)), so a turn-signal camera on the HUD through DiShare cannot work while driving on this car; the video replaces the whole stock picture ([Moving-frames test](#hud-moving-frames)).
 
 #### Read-only reads on the car (2026-09-23 17:11)
 
@@ -1875,6 +1959,8 @@ half (the `*hud*` display and its vendor layer) is also not in the image; a
 read-only probe on the FSE could copy its `/system` framework out over the
 existing SMB share.
 
+> **Superseded 2026-09-24:** the FSE OTA was read instead; FSE DiShare has no gear/speed check either, and the rule shows as `0x38B00036` dropping to `1` in D at standstill ([14.3](#hud-availability-chain), [14.9](#hud-pd-live)); its source (HAL input, MCU or HUD controller) is still open ([14.12](#hud-hal-input-route)).
+
 **What "custom pictures on the HUD" means elsewhere.** BYDMate
 ([README](https://github.com/AndyShaman/BYDMate/blob/main/README.en.md)) puts
 Yandex Navigator guidance on the factory HUD over "the HUD's own factory
@@ -1890,11 +1976,15 @@ not a map or video.
   anything on the HUD: if it leaves `2` above some speed, DiShare ends any HUD
   share with `605` and that is the firmware's rule. If it stays `2`, the HUD
   may still blank its input in motion; only a shown picture can tell.
+  > **Superseded 2026-09-24:** answered without driving: `0x38B00036` left `2` already in D at 0 km/h and DiShare ended with `605` — see [14.9](#hud-pd-live).
 - Which vehicle profile the installed `BydHud` uses, and whether its APK
   matches the extracted FSE OTA. Read its load-config log or saved profile
   and hash the installed APK before treating a corpus layout as the car's
   exact pixel geometry. The parked video test already settled takeover:
   DiShare replaces the stock layout.
+  > **Superseded 2026-09-24:** the installed APK matches the OTA, but the package is not registered (`sys.hud.direct.config = 0`), so no BydHud profile is in use on this car — see [14.8](#fse-inspector-live).
+
+<a id="hud-moving-frames"></a>
 
 #### Moving-frames test (run 2026-09-23, parked)
 
@@ -1949,6 +2039,10 @@ Not yet known: the map window's highest rate and its native size (only
 `map` step (that step sent no field-8 picture, and the owner does not remember
 what was there); and all of it in motion.
 
+> **Superseded 2026-09-23:** the second run sent 300×180 at up to 15 fps (all accepted) and showed 600×360 cropped; the third run showed the two windows are independent. The rate on the glass, the native window size and motion are still unknown — see [Second run](#hud-map-rate-size), [Third run](#hud-map-grid).
+
+<a id="hud-map-rate-size"></a>
+
 ##### Second run: map window rate and size (17:49–17:51, parked)
 
 Probe updated to `23c4d618…` (adds `marker`: a still square-and-cross in
@@ -1970,6 +2064,8 @@ it did not fit the window, so the HUD draws the frame into a fixed window
 without scaling it down. The window's native size lies below 600×360; the
 stock sends 300×180 on DiLink 5.1 (resolution code 2).
 
+<a id="hud-map-grid"></a>
+
 ##### Third run: what each window shows, and the window size (18:32–18:33, parked)
 
 Probe `eb6e5cd0…` (adds `grid`: a still 600×360 calibration frame, grid every
@@ -1989,6 +2085,7 @@ column, a cross at the centre). `map 5,10,15` at 300×180 with the marker:
   bottom rows when both dimensions exceed the window. A last visible source
   coordinate is not the window size without the first visible coordinate.
   300×180 remains a usable input; exact native geometry needs the FSE profile.
+  > **Superseded 2026-09-24:** no FSE profile applies: BydHud, whose code centres the crop, is not registered on this car ([14.8](#fse-inspector-live)); the separate controller's window and crop can be measured only on the glass, with framed 270×180 and 300×180 inputs.
 
 The owner's question after the reads: can the HUD show *changing* pictures at
 all? `experiments/hud-frames-probe` and `tools/hud_frames_probe.sh` play a
@@ -2004,6 +2101,8 @@ tail recorded before and after. The probe touches neither AVC nor Denza Apps.
 | `video-start` | the pattern on the HUD within a few seconds; bar and hand move smoothly at up to 30 fps | a black or frozen HUD, or a share refused by DiShare |
 | after each | `video_available` still `2`, crash tail unchanged | a new `com.byd.avc`, `autoservice` or `com.ts.car.someip.service` crash |
 
+> **Superseded 2026-09-23:** the `map` prediction was falsified at 17:39: a map window appeared; `0x38B00030 = 65535` only means the stock settings offer no map switch — see [Moving-frames test](#hud-moving-frames).
+
 The `icon` step is the one that matters for driving: that slot is already
 proven to render in motion, so if it follows a changing picture, a small
 moving picture while driving needs no video path at all. The rate it sustains
@@ -2013,6 +2112,10 @@ A test of the motion rule itself follows only after these: with the owner
 driving and a static card, not moving video, does the DiShare picture stay up?
 If the HUD drops it in motion, that is the firmware's safety decision and the
 answer, not something to work around.
+
+> **Superseded 2026-09-24:** answered before any drive: the DiShare picture is dropped already in D at 0 km/h (`0x38B00036` 2→1, `605`) — see [14.9](#hud-pd-live).
+
+<a id="hud-yandex-map-window"></a>
 
 ##### Yandex map in the map window (run 2026-09-23, parked)
 
@@ -2058,6 +2161,8 @@ hypothesis: the map window shows only while the road event says
 needs no system privilege: an app-owned display, a crop, and two SOME/IP
 events. Parked only so far.
 
+<a id="hud-map-copy-design"></a>
+
 ##### Using it: one task, one display, but the picture can be copied
 
 A task lives on one display, so the probe's way of moving Yandex away from the
@@ -2085,7 +2190,11 @@ Either way the road event must say "navigating" while the map shows; with a
 Yandex route that is Denza Apps' own guidance, without one the app would send
 it itself.
 
-#### The FSE firmware: who really draws the HUD (2026-09-24, in progress)
+<a id="hist-fse-first-read"></a>
+
+#### The FSE firmware: first read of who draws the HUD (2026-09-24, superseded)
+
+> **Superseded 2026-09-24:** the FSE snapshot the same day found `sys.hud.direct.config = 0` and `com.byd.hud` not registered, so BydHud does not draw this car's HUD; `arhud` here is the FSE's video output for DiShare (access type 3), and where the stock scene is synthesised is not analysed — see [14.8](#fse-inspector-live), [14.2](#hud-bydhud-not-direct).
 
 The owner found the passenger-screen computer's own OTA,
 `Di5.1_FSE_42.1.8.2605219.1.42.2.3.2605250.2.zip`. Unlike the IVI package it is
@@ -2118,7 +2227,11 @@ First read, and it changes the model above:
   motion policy still needs tracing; finding this APK alone does not prove
   that no additional rule exists in a vendor layer or the projector.
 
-##### Map crop confirmed in the native renderer (2026-09-24)
+<a id="hist-bydhud-map-crop"></a>
+
+##### Map crop in the BydHud native renderer (2026-09-24, not this car's renderer)
+
+> **Superseded 2026-09-24:** this is BydHud's code, and BydHud is not registered on this car ([14.8](#fse-inspector-live)); the crop seen on the glass is a separate fact and the controller's own algorithm is not established. The parked framed 270×180 / 300×180 comparison below is still the useful next run; the "installed FSE profile" is not.
 
 Local OTA analysis only; no car connection, install or setting change in this
 pass. `BydHud.apk` SHA-256
