@@ -257,10 +257,11 @@ internal enum class VehicleSignal(
  *
  * Sign of [VehicleSignal.POWER_KW]: parked on AC charge this car reported `-2`
  * on the power feature id while the charging device reported `+2.4` kW, so
- * positive is taken to mean energy leaving the battery. That is the likely
- * convention, not a proven one — docs/vehicle-data-findings.md lists the moving
- * capture that settles it. If acceleration turns out to read negative, flip
- * [POWER_POSITIVE_IS_DISCHARGE]; nothing else in the feature needs to change.
+ * positive is taken to mean energy leaving the battery. The drive of 2026-09-22
+ * proved it: accelerating read +10…61 kW, decelerating mostly negative
+ * (docs/energy-display-contract.md, section 8). Should another firmware read the
+ * other way, flip [POWER_POSITIVE_IS_DISCHARGE]; nothing else in the feature needs
+ * to change.
  */
 internal object VehicleConvention {
     const val POWER_POSITIVE_IS_DISCHARGE = true

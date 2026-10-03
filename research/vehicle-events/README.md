@@ -34,6 +34,14 @@ lives in
   remaining in-architecture fast-switch candidate is an accessibility
   window-push trigger (~10–20 ms) against the measured 95–174 ms crash budget.
 
+> **Superseded 2026-09-23:** this holds for app-level listeners and logcat
+> `postEvent`, not for the car's signals. Received under the shell UID
+> (`TargetedBydLightEventProxyMain`, run by `app_process` over local ADB), the
+> lamps FID `0x38A0002C` and the raw lever FID `0x1330002C` now drive Mirrors:
+> show with AVC's card and the lamps, teardown on a lever onset toward the other
+> side. The window monitor is no longer the trigger — see
+> [`docs/instrument-display-findings.md`](../../docs/instrument-display-findings.md#the-firmware-model-contract-2026-09-23).
+
 ## If Research Resumes
 
 Copy `VehicleEventProbeService.java` back into:

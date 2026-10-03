@@ -142,8 +142,9 @@ internal data class VehicleTelemetry(
     /**
      * Null when the signal has not answered yet, which is not the same as
      * stopped. Measured on the car across a full start/stop cycle this reads `0`
-     * stopped and `3` running, including while spinning down; no other value has
-     * been seen.
+     * stopped and `3` running, including while spinning down, and `1` for the
+     * cranking second (docs/vehicle-data-findings.md, 2026-09-18), which already
+     * counts as running.
      */
     val engineRunning: Boolean? get() = this[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
 
