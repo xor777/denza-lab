@@ -1,20 +1,5 @@
 # Vehicle Data Availability Findings
 
-Status: live-car availability investigation on 2026-07-24, with the earlier
-vehicle-event probe results from 2026-06-27 retained where relevant, a shell-UID
-`autoservice` FID read on 2026-08-22, and the former head-unit vehicle panels
-wired to that allowlist the same day (built and unit-tested then, reviewed on
-the car on 2026-08-23). The cluster dashboard first ran on the car on
-2026-08-25. Product wiring was checked again on 2026-08-27: the head-unit panels
-are deleted, and the cluster dashboard is the only active UI consumer of the
-telemetry backend. A second car, a Denza N9, was attached on 2026-08-30, and the
-vehicle-id check that tells it apart from the Z9GT is recorded here. On
-2026-09-03, passive raw CAN-FD callbacks were also confirmed from an
-owner-controlled local ADB shell on the Denza Z9. Targeted shell-UID turn-signal
-events were live-proven on 2026-09-04. They feed bounded diagnostics and an
-early-teardown guard for an active Mirrors camera; the stock AVC window is the
-only camera-eligibility authority, and the listener can never open a camera.
-
 This page records which vehicle and journey signals a normal Denza Apps APK can
 actually use. It distinguishes product-usable sources from values that are
 visible only to system processes, shell diagnostics, or vendor API surfaces
@@ -60,6 +45,21 @@ normal Denza Apps process can register for it. Details:
 [raw CAN-FD callback](#raw-can-fd-callback-2026-09-03).
 
 ## Test environment
+
+Status: live-car availability investigation on 2026-07-24, with the earlier
+vehicle-event probe results from 2026-06-27 retained where relevant, a shell-UID
+`autoservice` FID read on 2026-08-22, and the former head-unit vehicle panels
+wired to that allowlist the same day (built and unit-tested then, reviewed on
+the car on 2026-08-23). The cluster dashboard first ran on the car on
+2026-08-25. Product wiring was checked again on 2026-08-27: the head-unit panels
+are deleted, and the cluster dashboard is the only active UI consumer of the
+telemetry backend. A second car, a Denza N9, was attached on 2026-08-30, and the
+vehicle-id check that tells it apart from the Z9GT is recorded here. On
+2026-09-03, passive raw CAN-FD callbacks were also confirmed from an
+owner-controlled local ADB shell on the Denza Z9. Targeted shell-UID turn-signal
+events were live-proven on 2026-09-04. They feed bounded diagnostics and an
+early-teardown guard for an active Mirrors camera; the stock AVC window is the
+only camera-eligibility authority, and the listener can never open a camera.
 
 | Item | Value |
 | --- | --- |
