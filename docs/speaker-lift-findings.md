@@ -13,6 +13,68 @@ LOCAL path itself used a host dex via `app_process`, not an APK install.
 Parallel locale session was not disturbed except for a recovered `autoservice`
 restart (below).
 
+## Current state
+
+Updated 2026-10-03. What raises the Devialet speaker covers on the Z9GT and the N9, what Denza Apps writes to make it happen, and which levers are dead.
+
+| Claim | Status | Since | Section |
+|---|---|---|---|
+| The product's only write is the playback report `INSTRUMENT_MUSIC_STATE_SET` (`0x43E0000A`, dev `1007`) = `1` through `DenzaLocalAdb` shell, `service call autoservice 6 i32 1007 i32 1138753546 i32 1 null`, nothing read first (`SpeakerCoverProtocol.kt`, `SpeakerCoverTransport.kt`) | code | 2026-09-04 | [Product contract v2](#product-contract-v2-one-report-and-the-flag-is-the-cars-2026-09-04) |
+| That report raises the covers on both cars, with no audio and the auto-lift setting untouched: live on the Z9GT (2026-09-03) and on the N9 (2026-09-04) | live | 2026-09-04 | [Verified on the N9](#verified-on-the-n9) |
+| The report is one-way: `2` (PAUSED) does not retract. The car lowers the covers itself at power-off and after an idle (about 30 min on the N9, hours on the Z9GT); there is no "close now" | live | 2026-09-03 | [The report is one-way](#the-report-is-one-way-and-that-settles-the-product-shape) |
+| The app never reads or writes `AUDIO_RLSA_STATE_SET` (`0x16300025`) or its echo `0x35A000DA`; `SpeakerCoverFlagContractTest` fails the build if the speaker package names either | code | 2026-09-04 | [The rule](#the-rule) |
+| With the switch on it reports when a player the car does not speak for starts playing, or when such a player from the eager list comes to the foreground; «Поднять» always reports (`SpeakerCoverPolicy.kt`, `SpeakerCoverApps.kt`); a playback report is sent again once after 1.2 s, and the same player not again for 60 s (`SpeakerCoverService.kt`) | code | 2026-09-04 | [The product, in one screen](#the-product-in-one-screen-1) |
+| The car reports by itself for `MediaTaskManager`'s whitelist (`com.byd.mediacenter`, `com.byd.videoplay*`, QQ Music, NetEase, Ximalaya, `bubei.tingshu.hd`) and filter (`android`, telecom, Bluetooth); the app's copy is `SpeakerCoverReporting.kt`, to re-read after a firmware update | code | 2026-09-03 | [Who the app reports for](#who-the-app-reports-for) |
+| Why Yandex never raises them: for any other focus owner the stock `MediaController` sends source `26` and `PAUSED` 500 ms after it takes focus | firmware | 2026-09-03 | [Why Yandex playback never raises the covers](#why-yandex-playback-never-raises-the-covers-corpus-2026-09-03) |
+| The report is refused from the app UID (`20004`, `BYDAUTO_INSTRUMENT_SET`) even though `ICarMediaService` is reachable from it; the shell UID is accepted | live | 2026-09-03 | [It is a shell write, not an app-UID one](#it-is-a-shell-write-not-an-app-uid-one) |
+| The tile reads OFF, NEEDS_ACTION «Повторите настройку доступа» (media-session access) or READY and never spins; `SpeakerCoverRuntime.reporting` only greys «Поднять» (`SpeakerCoverStatus.kt`) | code | 2026-09-04 | [Second pass, same day](#second-pass-same-day-the-status-reads-like-every-other-tiles) |
+| On the Z9GT `0x16300025` (dev `1002`) drives the motor as an edge: `1` out, `2` in; rewriting the value it already holds moves nothing | live | 2026-08-25 | [Direct cover control](#direct-cover-control-2026-08-25-live-proven-both-ways) |
+| On the Z9GT the first `2` latches the amp into manual mode (`0x35A000DA` reads `2`, stock raises stop) until an ignition cycle; it read `1` again by 2026-09-03 | live | 2026-08-25 | [Confirmed: direct retract disables stock auto-lift](#confirmed-direct-retract-disables-stock-auto-lift-for-the-ignition-cycle) |
+| On the N9 `0x16300025` is the stock auto-lift enable flag (CarSettings `SpeakerAutoLiftCommon`): `2` retracts and disables auto-lift, `1` never raises | live | 2026-08-30 | [On the N9 the setting closes reliably and never opens](#on-the-n9-the-setting-closes-reliably-and-never-opens) |
+| The two cars are identical at the amp FID layer: amp `0x4FD00030` = `7` (Devialet 20-channel), flip-cover config `0x35A000D8` = `1`, `AUDIO_RLSA_COFIG` `0x4C000010` = `0`; only the vehicle id tells them apart | live | 2026-09-03 | [The two cars are identical at the amp FID layer](#the-two-cars-are-identical-at-the-amp-fid-layer) |
+| Cover position has no getter: `0x3D20001E` / `0x4EF52026` answer `−10011` on all 50 device families and are in no HAL or MCU table; `0x35A000DA` is the setting's echo (MCU frame `0x35A`, `payload[26]` bits 2–3), not a position | firmware | 2026-09-23 | [The position candidate](#the-position-candidate-and-the-remaining-boundary), [What the MCU actually reports](#what-the-mcu-actually-reports) |
+| `0x16300025` is a write-only, type-0 HAL property with a pass-through converter (`auto.default.so` `0xE0BE0`); neither the HAL nor the MCU request path hides a speaker motor routine | firmware | 2026-09-23 | [The old switch has no hidden motor translation](#the-old-switch-has-no-hidden-motor-translation-in-the-traced-path) |
+| The head unit suspends instead of rebooting with the ignition (kernel boot 31.4 h against about 7 h of uptime), while the amplifier does power-cycle: "per boot" is not "per trip" | live | 2026-08-28 | [The trip is a waking, not a boot](#the-trip-is-a-waking-not-a-boot-falsified-live-2026-08-28) |
+| `autoservice` transacts `10`/`12` with `i32`-only parcels SIGSEGV'd `/system/bin/autoservice` (it restarted; `com.byd.avc` stayed up); never repeat that arity | live | 2026-08-22 | [Hazard log](#hazard-log-2026-08-22) |
+| Stock MediaCenter LOCAL `playById` (`MediaAction=14`) raises the covers with an audible chime: the first positive control, not a product path | live | 2026-08-22 | [Superseded working path](#superseded-working-path-2026-08-22-2019) |
+| Refuted: `0x16300025` is the lever on every car (the sections from 2026-08-25 to 2026-09-03). It drives the motor only on the Z9GT and is the car's own switch on both; the report is the lever | refuted | 2026-09-04 | [Why the flag is left alone](#why-the-flag-is-left-alone) |
+| Refuted: the app must branch on `getAutoType` because the cars lift differently. Both answer the same report, so there is nothing to branch on | refuted | 2026-09-04 | [The two cars are the same car](#the-two-cars-are-the-same-car) |
+| Refuted: Yandex fails because ExoPlayer skips the `MediaPlayer.startImpl()` side effect `setUseVehicleSpeaker()`. That call and a plain `MediaPlayer` both moved nothing; the car reports Yandex as paused | refuted | 2026-09-03 | [Falsified 2026-08-25: the media-scene path](#falsified-2026-08-25-the-media-scene-path) |
+| Refuted levers, do not retest: `startAudioOutput` (lights only), spoofing `0x1B10001C` or the instrument source `0x33F00030`, stream-14 / `CONTENT_TYPE_BTMUSIC` tones, `lamp_status`, single-int `WORKING_STATE_SET` | refuted | 2026-09-03 | [Rejected product-shaped call](#rejected-product-shaped-call), [The signal that separates the two tables](#the-signal-that-separates-the-two-tables) |
+| Refuted: real rendered audio is the N9's trigger. The file that raises the covers is digital silence, and a 20 s tone with the stock player's attributes moved nothing | refuted | 2026-09-03 | [What actually raises the covers](#what-actually-raises-the-covers-and-what-does-not) |
+
+**Open questions**
+- Whether the re-report 1.2 s after playback is needed at all: one look at the dash with the repeat disabled.
+- Whether the car retracts under one long continuous track; if it does, a periodic report replaces the 60 s per-player guard.
+- What the cluster shows for a `PLAYING` report from a player that only opened (source `26`, blank metadata).
+- Whether the car overwrites the report on track changes inside the same unknown app, or only on focus changes: a capture across a track change in Yandex.
+- Whether any raw frame (`0x3D2`, `0x35A`, `0x4C0`) carries cover position: a passive, labelled raw capture through down, rising, up and falling.
+- Whether the installed MCU image matches the archive's AppBlock (the two Android libraries already match): a hash of the installed image.
+- No live acceptance of the shipped v2 service is recorded here: one owner drive opening Yandex with the switch on, and one «Поднять» after an idle retract.
+
+## Contents
+- [Verdict](#verdict) — the 2026-08-22..25 summary table; the normative part is the v2 contract
+- [Direct cover control (2026-08-25, live-proven both ways)](#direct-cover-control-2026-08-25-live-proven-both-ways) — `0x16300025` as a motor edge on the Z9GT, and the manual-mode latch
+- [Denza Apps automation (implemented 2026-08-26, redesigned 2026-08-28; deleted 2026-09-03)](#denza-apps-automation-implemented-2026-08-26-redesigned-2026-08-28-deleted-2026-09-03) — the motor-driving automaton, its trip scope and defects, now deleted
+- [Superseded working path (2026-08-22 20:19)](#superseded-working-path-2026-08-22-2019) — the MediaCenter LOCAL `playById` raise
+- [Yandex-open normal-UID probe (built, live-unverified)](#yandex-open-normal-uid-probe-built-live-unverified) — a disposable probe that pulses MediaCenter on Yandex open
+- [Live snapshot (2026-08-22)](#live-snapshot-2026-08-22) — the audio FID values and the paired idle / BT / Yandex captures
+- [The call (RLSA stack — the investigation's lever, not the product's)](#the-call-rlsa-stack--the-investigations-lever-not-the-products) — the `AUDIO_RLSA_STATE_SET` call chain, values and voice commands
+- [Shell Binder](#shell-binder) — `autoservice` transacts and the read/write command lines
+- [Why stock music / BT work and Yandex does not](#why-stock-music--bt-work-and-yandex-does-not) — the 2026-08-22..25 corpus hypotheses and the rejected stock paths
+- [Hazard log (2026-08-22)](#hazard-log-2026-08-22) — what crashed `autoservice`, what not to repeat
+- [Live `startAudioOutput` (2026-08-22 18:46)](#live-startaudiooutput-2026-08-22-1846) — the visualizer pulse that moved only the lights
+- [Superseded route: HAL / trusted stream](#superseded-route-hal--trusted-stream) — the pre-test plan, kept as negative history
+- [Corpus round 2 (2026-08-22, host-only)](#corpus-round-2-2026-08-22-host-only) — MediaCenter decompile findings and why BT shape did not help
+- [Live session protocol (probe: `tools/speaker_lift_probe.sh`)](#live-session-protocol-probe-toolsspeaker_lift_probesh) — the T1–T5 ladder and its negative results
+- [Falsified 2026-08-25: the media-scene path](#falsified-2026-08-25-the-media-scene-path) — `setUseVehicleSpeaker()` and plain `MediaPlayer` move nothing
+- [The latch: after one successful open, the app cannot open again (live v39, 2026-08-27)](#the-latch-after-one-successful-open-the-app-cannot-open-again-live-v39-2026-08-27) — the automaton's latch and its by-design resolution
+- [N9 vs Z9GT: the same amp surface, a different lift rule (2026-09-03)](#n9-vs-z9gt-the-same-amp-surface-a-different-lift-rule-2026-09-03) — the N9 trace, the enable flag, and why Yandex is reported as paused
+- [The playback report is the lever (live-proven on the Z9GT, 2026-09-03)](#the-playback-report-is-the-lever-live-proven-on-the-z9gt-2026-09-03) — `0x43E0000A` = `1` raises the covers; shell only
+- [Product contract: report playback, never drive the motor (2026-09-03)](#product-contract-report-playback-never-drive-the-motor-2026-09-03) — contract v1, superseded in three places by v2
+- [Product contract v2: one report, and the flag is the car's (2026-09-04)](#product-contract-v2-one-report-and-the-flag-is-the-cars-2026-09-04) — **normative**: one report, the flag untouched, one switch and one button
+- [Offline HAL and MCU trace (2026-09-23)](#offline-hal-and-mcu-trace-2026-09-23) — the native command and receive tables; no position getter, no new motor command
+
 ## Verdict
 
 > **The normative part of this page is "Product contract v2: one report, and the
@@ -48,6 +110,10 @@ The lever is `AUDIO_RLSA_STATE_SET`, written as an **edge**. The MediaCenter
 LOCAL pulse below was the first stock-shaped raise, but it is not the product
 path: it is audible, seizes MediaCenter, cannot retract, and stopped raising the
 covers after the first direct `2` latched the amp's auto-lift setting off.
+
+> **Superseded 2026-09-04:** the lever on both cars is the playback report `INSTRUMENT_MUSIC_STATE_SET` (`0x43E0000A`) = `1`. `AUDIO_RLSA_STATE_SET` drives the motor only on the Z9GT, is the stock auto-lift enable flag on the N9 (`2` retracts, `1` never raises), and the app never touches it — see [Product contract v2](#product-contract-v2-one-report-and-the-flag-is-the-cars-2026-09-04).
+
+> **Superseded 2026-09-03:** two rows of the table above no longer hold. The Yandex row's `startImpl()` / `setUseVehicleSpeaker()` explanation was falsified (that call and a plain `MediaPlayer` moved nothing); the car itself reports Yandex as paused — see [Why Yandex playback never raises the covers](#why-yandex-playback-never-raises-the-covers-corpus-2026-09-03). And the auto-lift setting that "now reads `2`" read `1` again by 2026-09-03 — see [Why the flag is left alone](#why-the-flag-is-left-alone).
 
 ## Direct cover control (2026-08-25, live-proven both ways)
 
@@ -112,6 +178,8 @@ stock auto-lift. This car exposes no stock speaker auto-lift toggle, and the
 voice-setting path also only writes the same `1`. A power/ignition cycle is the
 remaining expected reset, not yet re-verified after this latch.
 
+> **Superseded 2026-09-04:** the reset is verified: the Z9GT read `1` on 2026-09-03 after every August write of `2` — see [Why the flag is left alone](#why-the-flag-is-left-alone).
+
 Cover position stays unobservable regardless: `AUDIO_SPEAKER_FLIP_COVER_STATUS`
 (`0x3D20001E`) and `AUDIO_SPEAKER_FLIP_COVER_STATUS_SET` (`0x4EF52026`) return
 `−10011` on **all 50** device families, not just on `1002` (swept 2026-08-22).
@@ -122,7 +190,7 @@ Cover position stays unobservable regardless: `AUDIO_SPEAKER_FLIP_COVER_STATUS`
 not go into a product manifest, so Denza Apps drives this through
 `DenzaLocalAdb` shell, the same route as the BMS FIDs.
 
-## Denza Apps automation (implemented 2026-08-26, redesigned 2026-08-28; live acceptance pending)
+## Denza Apps automation (implemented 2026-08-26, redesigned 2026-08-28; deleted 2026-09-03)
 
 *Superseded by Product contract v2 (2026-09-04): there is no output-mix layer
 and the product no longer replaces the stock auto-lift.*
@@ -545,7 +613,11 @@ This route is retained as historical evidence only. Direct
 `AUDIO_RLSA_STATE_SET` control is now live-proven both ways and is the product
 path.
 
+> **Superseded 2026-09-04:** direct `AUDIO_RLSA_STATE_SET` control is not the product path; the playback report `0x43E0000A` = `1` is — see [Product contract v2](#product-contract-v2-one-report-and-the-flag-is-the-cars-2026-09-04).
+
 ## Yandex-open normal-UID probe (built, live-unverified)
+
+> **Superseded 2026-09-04:** the product raises the covers on Yandex open with the silent playback report (`SpeakerCoverApps` eager list), not with a MediaCenter chime; this probe is no longer the next test — see [Product contract v2](#product-contract-v2-one-report-and-the-flag-is-the-cars-2026-09-04).
 
 `experiments/speaker-lift-yandex-probe/` is a disposable APK for the next clean
 test. It deliberately stays outside Denza Apps until normal-UID behavior is
@@ -709,7 +781,7 @@ Yandex `AudioTrack` `state:started` `CONTENT_TYPE_UNKNOWN`. No
 has only `0:Owner` — FSE user 999 is not running; the bodywork flag still makes
 `hasFse()` true.
 
-## The call (RLSA stack — this is the working lever)
+## The call (RLSA stack — the investigation's lever, not the product's)
 
 *Superseded by Product contract v2 (2026-09-04): the heading names the lever the
 investigation found, not the product's. The product's lever is the playback
@@ -778,6 +850,8 @@ adb -s 127.0.0.1:5555 shell service call autoservice 5 i32 1002 i32 1281359884
 adb -s 127.0.0.1:5555 shell service call autoservice 6 i32 1002 i32 454033436 i32 1 null
 ```
 
+> **Superseded 2026-08-25:** "no cover motion" on the RLSA SET above was a null experiment (`1` written over `1`); on the Z9GT `2` then `1` move the motor — see [Direct cover control](#direct-cover-control-2026-08-25-live-proven-both-ways). Since 2026-09-04 the product never writes it — see [Product contract v2](#product-contract-v2-one-report-and-the-flag-is-the-cars-2026-09-04).
+
 `372244517` = `0x16300025`. `454033436` = `0x1B10001C`. Parcel `00000001` on
 transact `6` is the raw HAL code that Java treats as success, not a failure.
 
@@ -810,7 +884,9 @@ is **not** the differentiator. At this stage the visualizer allowlist and
 BT-specific stream were hypotheses; both were later rejected by live tests.
 The confirmed working difference is MediaCenter's real LOCAL player path.
 
-### Stock Java API behind that LOCAL pulse (corpus 2026-08-25, live-unverified as a motor)
+> **Superseded 2026-09-03:** the difference is the playback report, not the LOCAL player path: stock `MediaController` reports Yandex (any non-whitelisted focus owner) as source `26` and `PAUSED`, and the stock player as playing — see [Why Yandex playback never raises the covers](#why-yandex-playback-never-raises-the-covers-corpus-2026-09-03).
+
+### Stock Java API behind that LOCAL pulse (corpus 2026-08-25, falsified live as the motor)
 
 Firmware zip `Di5.1_34.1.33.2605218.1` is the same build as the connected
 IVI (`apps.setting.product.outswver=34.1.33.2605218.1`,
@@ -848,6 +924,8 @@ if (allowed
 
 `AudioTrack` / ExoPlayer never call this. That is why stream-14 tones
 were audible and did not extend, and why Yandex (ExoPlayer) does not.
+
+> **Superseded 2026-08-25:** this side effect is not the motor: `setUseVehicleSpeaker()` and a plain `MediaPlayer` on stream 3 both fired and moved nothing — see [Falsified 2026-08-25: the media-scene path](#falsified-2026-08-25-the-media-scene-path); the 2026-09-03 N9 trace excluded it again.
 
 `IviVehicleAudioBroker.setUseVehicleSpeaker()`:
 
@@ -999,7 +1077,11 @@ but also failed; neither is the motor trigger.
 | `IviVehicleAudioBroker` music-play bit | **Not the trigger.** Yandex already matches `{contentType 0/2/3/5}`. |
 | `BydAudioManager.startAudioOutput("com.byd.mediacenter")` | **Dead for covers.** Java path live 18:46:12: MCU `[2, 1]` five times. User: covers did **not** move. Lights/visualizer only. |
 
+> **Superseded 2026-09-04:** the first row's "This is the lever" holds only as a Z9GT motor edge; the product lever on both cars is the playback report `0x43E0000A` = `1`, and the app never writes `AUDIO_RLSA_STATE_SET` — see [Product contract v2](#product-contract-v2-one-report-and-the-flag-is-the-cars-2026-09-04).
+
 ## Hazard log (2026-08-22)
+
+> **Superseded 2026-09-04:** the `0x16300025` "working control" and "Retract is `0x16300025 = 2`" lines are Z9GT-only: on the N9 that write switches the driver's stock auto-lift off, `1` never raises, and the product writes neither value — see [On the N9 the setting closes reliably and never opens](#on-the-n9-the-setting-closes-reliably-and-never-opens) and [Product contract v2](#product-contract-v2-one-report-and-the-flag-is-the-cars-2026-09-04).
 
 - **Do:** `getInt` transact `5` on the FIDs in the snapshot table.
 - **Working control:** `setInt` transact `6` of `0x16300025` with `1` (extend) / `2` (retract) and a `null` binder. Live-proven both ways 2026-08-25. Edge-triggered — rewriting the current value is a no-op. Run it while someone can see the covers.
@@ -1125,6 +1207,8 @@ single-int `0x4EF52026` — all proven dead. `AUDIO_RLSA_STATE_SET` is **not** i
 that list: it is the working lever, and any future negative result on it must
 state which value was written, what the previous value was, and that
 `0x35A000DA` was the observable.
+
+> **Superseded 2026-09-04:** the `AUDIO_RLSA_STATE_SET` edge is not the product direction and not "the working lever": it moves the motor only on the Z9GT, the playback report `0x43E0000A` = `1` raises the covers on both cars, and the 2026-09-03 contract added the whole `AUDIO_RLSA_*` family to the do-not-re-probe list — see [Product contract v2](#product-contract-v2-one-report-and-the-flag-is-the-cars-2026-09-04) and [What the Z9GT can and cannot settle](#what-the-z9gt-can-and-cannot-settle).
 
 ## Falsified 2026-08-25: the media-scene path
 
@@ -1415,6 +1499,8 @@ nothing observable. The app must not treat the two cars as the same motor.
 Discriminate on `getAutoType` (`168` = N9, `170` = Z9GT) per
 [vehicle-data-findings.md](vehicle-data-findings.md).
 
+> **Superseded 2026-09-03:** the plan to branch on `getAutoType` was dropped the same day: once the app reports playback instead of driving a motor, both cars answer the same write — see [No model discrimination](#no-model-discrimination) and [The two cars are the same car](#the-two-cars-are-the-same-car).
+
 ### Why the current Z9GT lever is temporary
 
 The owner's read of this, on 2026-09-03, is that `1`/`2` is a stopgap: when a
@@ -1496,6 +1582,8 @@ architecture.
 Open: whether the amplifier retracts on the `2` report, and whether the N9
 behaves the same. The first needs one look at the dash, the second needs the
 mini APK for that car's owner.
+
+> **Superseded 2026-09-04:** both are answered and the retract bullet above does not hold: reporting `2` does not retract (2026-09-03), so the product has no retract at all, and the N9 raised on the report (2026-09-04) — see [The report is one-way](#the-report-is-one-way-and-that-settles-the-product-shape) and [Verified on the N9](#verified-on-the-n9).
 
 ## Product contract: report playback, never drive the motor (2026-09-03)
 
@@ -1661,6 +1749,8 @@ vendor list, the enable step skipped - were each killed by a failing test.
 
 ### Still to verify
 
+> **Superseded 2026-09-04:** items 1 and 2 are closed - the Z9GT read `1` after every August write of `2`, and the N9 raised on the report; v2 writes no `2` at all. Item 3 is still open — see [Why the flag is left alone](#why-the-flag-is-left-alone) and [Verified on the N9](#verified-on-the-n9).
+
 1. Does an ignition cycle restore `0x35A000DA` to `1` after the app has written
    `2`? The whole "hide for the rest of this trip" promise rests on it. Indirect
    evidence says yes, and one reading after the next drive settles it.
@@ -1676,6 +1766,8 @@ Settled 2026-09-03: reporting `2` does not retract, so the report is one-way and
 nothing needs to be held.
 
 ### The decisive experiment, when an N9 is available
+
+> **Superseded 2026-09-04:** run in effect on the N9: the playback report `0x43E0000A` = `1` raised the covers. Step 1's app-UID route is refused at the property layer (`20004`), so the report goes through the shell — see [Verified on the N9](#verified-on-the-n9) and [It is a shell write, not an app-UID one](#it-is-a-shell-write-not-an-app-uid-one).
 
 One owner, covers in, stock auto-lift freshly enabled (`0x16300025 = 1`,
 `0x35A000DA` reads `1`), car in READY, nothing playing. Run in order and stop at
@@ -1736,6 +1828,8 @@ writing `1` there is itself a motor edge, so the covers come out the moment the
 flag is set. A positive result would still count - retract with `2`, then send
 the playback report and watch - but a negative one would say nothing about the
 N9, whose amplifier has an auto-lift rule this car does not.
+
+> **Superseded 2026-09-04:** the Z9GT amplifier has the same auto-lift rule - it raised on stock playback before the first manual `2` - and both cars raise on the report — see [Why the current Z9GT lever is temporary](#why-the-current-z9gt-lever-is-temporary) and [The two cars are the same car](#the-two-cars-are-the-same-car).
 
 Do not re-probe the direct position FIDs `0x3D20001E` / `0x4EF52026`, the
 `AUDIO_RLSA_*` family, `startAudioOutput`, or `lamp_status`. All four are
@@ -1914,6 +2008,8 @@ Native ELF addresses below are virtual addresses within the named library;
 MCU addresses use the XCD load base `0x40000`. The supplied archive has not been
 hash-matched against the currently installed protected files. Selective operation
 hashes and the MCU checksum do not verify vendor authenticity or whole partitions.
+
+> **Superseded 2026-09-23:** two of these files are now matched: the installed `/system/lib64/hw/auto.default.so` and `/system/lib64/libbydautoservice.so` have the SHA-256 values in the table above (live read the same day, `captures/washer-firmware-20260923/live-narrow-reads.json`); the installed MCU image is still unmatched — see [vehicle-data-findings.md, Read path verified](vehicle-data-findings.md#read-path-verified-sensor-identity-still-unproved-2026-09-23).
 
 Local scripts, extraction reports, compact binaries, table evidence and assembly
 are in ignored `captures/speaker-firmware-20260923/`. The analysis used Capstone
