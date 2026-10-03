@@ -1,8 +1,70 @@
 # DiShare API notes
 
-Context: reverse pass against `com.byd.dishare` from the car image, package version
-`1.5.1.1.23102ef`. Dynamic test showed DiShare can create a virtual display named
-`BYD-Mirror` and move Bilibili to it.
+Context: the IVI's current firmware
+(`BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226`) ships `com.byd.dishare`
+`1.5.1.1.1b1f648` (see [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy)).
+The first reverse pass and the June alias work below were made against the June 2026 car pull,
+package version `1.5.1.1.23102ef`; the HUD video path is the same in both
+([hud-projection-findings.md](hud-projection-findings.md)). Dynamic test showed DiShare can
+create a virtual display named `BYD-Mirror` and move Bilibili to it.
+
+## Current state
+
+Updated 2026-10-03. How a normal APK drives DiShare (Simulcast) on this car, how Denza Apps
+draws and casts over the stock Simulcast screen, and which camera/HUD streaming routes are dead
+ends.
+
+| Claim | Status | Since | Section |
+|---|---|---|---|
+| The IVI firmware ships `com.byd.dishare` `1.5.1.1.1b1f648`; this doc's first reverse pass used the June pull `1.5.1.1.23102ef`; the FSE runs its own `1.5.1.1.afb8f06` (live read 2026-09-24, hud-projection-findings.md) | firmware | 2026-08-14 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
+| Bind `com.byd.dishare.control.DiShareControlService` (`IDiShareControl`) by its action: a component-only bind reaches the service, but `onBind()` returns null | live | 2026-06-26 | [Exported components](#exported-components) |
+| A normal APK registers as `packageName=com.byd.dishare` (tx `0x2`), and `start(screen_ivi, [screen_hud], app, com.byd.dishare)` (tx `0x6`) returns `{screen_hud=0, screen_ivi=0}` with the app on the HUD via a `BYD-Mirror` display | live | 2026-06-26 | [Direct start path](#direct-start-path) |
+| The product does the same: `DiShareProjectionBridge.java` registers, starts, reads state, stops and closes the UI as `com.byd.dishare` (tx `0x2`/`0x6`/`0x5`/`0x7`/`0xb`); `DiShareScreens.java` asks tx `0x4` | code | 2026-06-28 | [Direct control service transaction map](#direct-control-service-transaction-map) |
+| On the Z9GT `getScreens` reports `screen_hud`, `screen_fse` and `screen_ivi` (the source); rear, overhead and `screen_tv` receivers are implemented from the contract only | live | 2026-06-28 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
+| A drop target is a receiver DiShare reports available whose stock card is in the accessibility tree; `ScreenTarget.java` maps `screen_hud`→`ar_hud_screen`, `screen_fse`→`fse_screen`, `screen_rse_l`/`_r`→`left_rse_screen`/`right_rse_screen`, `screen_overhead` and `screen_tv`→`overhead_screen` | code | 2026-07-18 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
+| "Drop zones come from the decoded `window_share_layout_ivi_r` coordinates and the row is anchored to an 839 dp panel": both are the live node bounds of the receiver cards, `app_list` and `switch_share_app` (`SimulcastDialogGeometry.java`) | refuted | 2026-06-29 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
+| The native App Change row draws DiShare's private `ShareApp` metadata (`cloud_request_result`, refreshed from `videoList`), not launcher labels or icons; shell cannot write it (`/data/user_de` denied, `run-as` refused, DynaConfig writes are no-ops), so Denza Apps draws its own row over it | live | 2026-06-28 | [Historical Simulcast App Change alias path](#historical-simulcast-app-change-alias-path) |
+| Share size: `SimulcastVideoSizeResolver.kt` copies the matched Android display's aspect onto a 2560 side, else `2560x1440`; the bridge degrades a dimension outside `180..4096` to the legacy `1024x576` | code | 2026-07-24 | [Share video size vs receiver aspect](#share-video-size-vs-receiver-aspect-2026-07-24) |
+| `1b1f648` clamps the mirror to at least 16:9; centered `videoViewBounds` (`SimulcastVideoBoundsResolver.kt`) put the `2560x1440` frame at `[0,80][2560,1520]` on the IVI's `2560x1600` panel, uncropped and undistorted | live | 2026-08-14 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
+| "An aspect-matched share size removes a 16:10 receiver's black bar": DiShare clamps the request back to 16:9 (`2560x1600` asked, `2560x1440` `BYD-Mirror` made); the product centres the frame instead | refuted | 2026-08-14 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
+| Debug builds only: `SimulcastDebugReceiver`, guarded by `android.permission.DUMP`, takes `dev.denza.apps.START_SIMULCAST_TARGET` (`targetPackage`, `receiver`) and `STOP_SIMULCAST_TARGET` (`apps/denza-apps/src/debug/AndroidManifest.xml`) | code | 2026-08-20 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
+| Dialog lifecycle comes from the accessibility service with a 320 ms disappearance grace, never from `action.byd.dishare.DIALOG_HOME`/`DIALOG_LAUNCHER`/`DIALOG_CLOSE`; the outgoing `DIALOG_CLOSE` is package-scoped to `com.byd.dishare` (`SimulcastAccessibilityService.java`, `SimulcastOverlayService.java`) | code | 2026-08-27 | [Dialog lifecycle trust boundary](#dialog-lifecycle-trust-boundary) |
+| Self-repair over local ADB grants `SYSTEM_ALERT_WINDOW` and enables `SimulcastAccessibilityService` (`SimulcastCoordinator.kt`); `LocalAdbClient.java` tries `127.0.0.1:5555`, then the car's non-loopback IPv4 addresses | code | 2026-06-30 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
+| DiShare video to `screen_hud` ends with exit `605` when HUD availability `0x38B00036` falls 2→1 on P→D at 0 km/h, and does not come back in P (hud-projection-findings.md) | live | 2026-09-24 | [hud-projection-findings.md](hud-projection-findings.md) |
+| Generated frames and Camera2 ids `0`/`1` stream to the HUD through DiShare; ids `2` and `10`, which AVC uses, throw for a normal app UID, and AVC `initDisplay` into the DiShare encoder surface gives a black HUD | live | 2026-06-26 | [HUD camera streaming findings](#hud-camera-streaming-findings) |
+| Never call AVC AIDL tx 8 (`getCameraSurface()`): it returns the renderer's input and releases AVC's own copy of that Surface | firmware | 2026-09-23 | [HUD camera streaming findings](#hud-camera-streaming-findings) |
+| An app `initDisplay(appSurface)` arms the AVC crash: the stock `PIPViewAlertController.modeChange()` re-binds and dies in `native_setSurface` (`SIGSEGV`, `ANativeWindow_getWidth`) or `libvc_sdk_ui.so` (`SIGABRT`); removing our window before `freeDisplay()` fixed isolated cycles | live | 2026-07-18 | [Live-car side-switch safety finding](#live-car-side-switch-safety-finding-2026-07-18) |
+| "One bound AVC display and one Surface, switching only the viewpoint, survives a side change": `SIGSEGV` on the car at 21:10 and again at 21:18 | refuted | 2026-07-18 | [Live-car side-switch safety finding](#live-car-side-switch-safety-finding-2026-07-18) |
+| "An accessibility window-push guard can tear down before the AVC crash": it never fired in 3 of 3 fast flips, `TYPE_WINDOWS_CHANGED` arrived 5.3 s late, and it was reverted | refuted | 2026-07-25 | [Fast-switch guard trial result](#fast-switch-guard-trial-result-reverted-2026-07-25) |
+| "Fast left-to-right cannot be fixed from the app and the quarantine is the accepted behaviour": tearing down on the raw turn-lever onset, 3–4 ms after it, kept AVC's PID through instrumented canaries and three fast switches each way (instrument-display-findings.md) | refuted | 2026-09-04 | [Fast-switch guard trial result](#fast-switch-guard-trial-result-reverted-2026-07-25) |
+| Mirrors now: a lever onset only tears down (`MirrorSwitchPreemption.kt`), a reopen after our teardown waits `REOPEN_SAMPLES` = 2 clean polls (`MirrorTransitionReducer.kt`), and vendor `freeDisplay` runs on the `denza-avc-teardown` thread (`ClusterSceneService.kt`) | code | 2026-09-04 | [Fast-switch guard trial result](#fast-switch-guard-trial-result-reverted-2026-07-25) |
+| The `TYPE_APPLICATION_OVERLAY` camera presentation threw `Window type mismatch` on every show; the attempt is gone and the presentation sets flags only (`ClusterSceneService.kt`) | code | 2026-09-04 | [Accessibility push-timing probe](#accessibility-push-timing-probe-2026-07-24-toolsa11y-window-timing-probesh) |
+| SurfaceControl copies of the stock camera windows (shell `mirrorDisplay`/`captureLayers`) as a camera source: drawn under the composited display-4 card, copying stock text and controls, black under a colour transform; removed from the product | refuted | 2026-07-18 | [Stock-owned non-AIDL candidate](#stock-owned-non-aidl-candidate-2026-07-18) |
+
+**Open questions**
+- N9 rear, overhead and `screen_tv` receivers: settled by `getScreens`, an accessibility-tree
+  capture and one isolated launch per receiver on that car.
+- Whether any rear receiver honours a non-16:9 share size: compare the `Последний запуск` line in
+  «Сервис» with the `BYD-Mirror` size in `dumpsys display` after a rear cast.
+- Dialog lifecycle on the car: one real Simulcast open/close cycle, and a negative check that
+  broadcasting `DIALOG_HOME`, `DIALOG_LAUNCHER` and `DIALOG_CLOSE` leaves the exit control unchanged.
+- Native App Change metadata without root: a controlled `videoList` response that proves TLS trust
+  and routing on the car (`tools/dishare_native_metadata_probe.py`).
+- HUD camera output: needs platform privileges or a non-protected frame source for cameras `2`
+  and `10`.
+- A non-AVC copy of the stock camera window: the parked shell buffer/crop pipeline in
+  [Stock-owned non-AIDL candidate](#stock-owned-non-aidl-candidate-2026-07-18).
+- HUD video while driving: an input that survives P→D, which DiShare's does not
+  (hud-projection-findings.md).
+
+## Contents
+- [Exported components](#exported-components) — DiShare's services, binder descriptors, the action-only bind.
+- [Direct control service transaction map](#direct-control-service-transaction-map) — `IDiShareControl` transaction codes and return parcelables.
+- [Direct start path](#direct-start-path) — what `start` checks, and the first live HUD share as `com.byd.dishare`.
+- [Probe commands](#probe-commands) — the legacy raw-Binder probe activity and its extras.
+- [Historical Simulcast App Change alias path](#historical-simulcast-app-change-alias-path) — the archived alias APKs, where the native row's metadata lives, the native-list follow-up.
+- [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) — the accessibility row and drop layer, dialog lifecycle, centered aspect-fit, receivers, share size.
+- [HUD camera streaming findings](#hud-camera-streaming-findings) — what streams to the HUD, the AVC AIDL limits, the side-switch crash, the fast-switch guard trial, SurfaceControl copies.
 
 ## Exported components
 
@@ -100,6 +162,8 @@ Dynamic result from the car:
 The repo probe APK now has a raw Binder activity for this service. Use the activity
 entrypoint because this firmware blocks self-started manifest receivers for ordinary
 app uids.
+
+> **Superseded 2026-07-19:** that probe activity lives in the frozen `legacy/denza-mirrors/` source, which the root Gradle build no longer includes; the product's path to the same service is `DiShareProjectionBridge` and `DiShareScreens` in `libraries/dishare-bridge/` — see [Direct control service transaction map](#direct-control-service-transaction-map).
 
 ```bash
 adb shell am start -W \
@@ -267,6 +331,9 @@ Current no-root custom drag approach:
    `window_share_layout_ivi_r`: `screen_hud`, `screen_fse`, `screen_overhead`,
    `screen_rse_l`, `screen_rse_r`, with `screen_ivi` treated as the local/source
    screen.
+
+   > **Superseded 2026-06-29:** hit zones are the live accessibility bounds of the stock receiver cards (`ar_hud_screen`, `fse_screen`, …), read by `SimulcastDialogGeometry.java`; no decoded layout coordinates are used — see [Multi-screen receiver contract (2026-07-18)](#multi-screen-receiver-contract-2026-07-18).
+
 6. `SimulcastAccessibilityService` queries DiShare `getScreens` through
    `DiShareScreens` and intersects runtime-available receivers with receiver
    nodes visible in the current accessibility tree. On the
@@ -277,6 +344,9 @@ Current no-root custom drag approach:
    width (`839dp`) instead of centering on the full physical display. This keeps
    the custom row aligned with the native App Change row when the right side is
    occupied by navigation or another app.
+
+   > **Superseded 2026-06-29:** the 839 dp layout profile was removed; the row is centred on the live `app_list` node, or on a box derived from the `switch_share_app` button when the list is absent (`SimulcastDialogGeometry.java`, `SimulcastAccessibilityService.java`) — see [Multi-screen receiver contract (2026-07-18)](#multi-screen-receiver-contract-2026-07-18).
+
 8. The debug build exposes a `SimulcastDebugReceiver` bridge for two repeatable
    ADB checks. The receiver requires `android.permission.DUMP` and forwards the
    validated command to the non-exported `SimulcastOverlayService`:
@@ -303,6 +373,8 @@ grace treats short accessibility gaps as unknown rather than closed. Boot and AP
 replacement recovery remain in a non-exported receiver with an exact three-action
 allowlist. Denza Apps still sends `DIALOG_CLOSE` to close the stock dialog, but
 that outgoing intent is package-scoped to `com.byd.dishare`.
+
+> **Superseded 2026-09-04:** the recovery receiver is now `RuntimeRecoveryReceiver` with a two-action allowlist, `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`; `LOCKED_BOOT_COMPLETED` was dropped (`RuntimeRecoveryActionPolicy.java`, `AndroidManifest.xml`) — see [adb-authorization-recovery.md](adb-authorization-recovery.md).
 
 This boundary is covered by deterministic transition and boot-action tests. It
 still needs live-car acceptance for a real dialog open/close cycle and a negative
@@ -415,6 +487,9 @@ Known caveats:
 - Drop-zone coordinates are still a product calibration point. If BYD changes
   the Simulcast layout or another model uses a different layout family, the
   custom drag layer may need per-layout receiver bounds.
+
+  > **Superseded 2026-06-29:** there are no calibrated coordinates left: drop zones are the live bounds of the stock receiver cards, so a layout change moves them with it, and a renamed card id would show up as a missing target — see [Multi-screen receiver contract (2026-07-18)](#multi-screen-receiver-contract-2026-07-18).
+
 - Native DiShare metadata injection is still unresolved. The native row uses
   `ShareApp.appIconStr`/`appName` from DiShare's private cloud/local metadata,
   not the installed APK launcher label/icon.
@@ -457,6 +532,8 @@ in one place. Open **Help**, tap **Как пользоваться** seven times
 - every public Android `Display`, including id, name, real size, dpi, reflected
   type, and flags.
 
+> **Superseded 2026-08-26:** the way in above is gone: the diagnostics are the «Сервис» tile, these rows sit in its «Трансляция» and «Экраны Android» sections (`SupportDiagnostics.kt`), and seven taps survive only on the title of the ADB explainer sheet (`AdbExplainerSheet.kt`).
+
 Opening the diagnostic view triggers a fresh `getScreens` query even when the
 stock dialog is closed. Receiver-card rows are the last observed accessibility
 snapshot, so on an N9 first open the stock Simulcast/App Change window once, then
@@ -465,6 +542,8 @@ DiShare from a missing stock card or an Android-only rear display without
 guessing a target id.
 
 ### Share video size vs receiver aspect (2026-07-24)
+
+> **Superseded 2026-08-14:** the "known risk" below is the firmware's behaviour, not a hypothesis: the IVI's DiShare `1.5.1.1.1b1f648` clamps the mirror to at least 16:9 (`MirrorDisplayWrapper`), so a 16:10 request still yields a 16:9 `BYD-Mirror`. The bar is answered by centered `videoViewBounds` with equal fields, live on the IVI; `SimulcastVideoSizeResolver.kt` still requests the matched display's aspect, and rear receivers remain unverified — see [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy).
 
 A rear-screen user report showed a black bar at the bottom of the receiver
 during casting. Working hypothesis: the fixed `2560x1440` (16:9) share size is
@@ -571,6 +650,8 @@ This restores the pause-based Denza Mirrors compatibility behavior. Rapid
 left-to-right switching remains unverified after the fix and must still be
 treated as the known unsafe case.
 
+> **Superseded 2026-09-04:** rapid left-to-right is no longer the unverified unsafe case: tearing our surface down on the raw turn-lever onset, which precedes the lamps AVC reacts to, kept AVC alive in instrumented canaries and in three fast switches each way on that day's drive — see [Fast-switch guard trial result: reverted (2026-07-25)](#fast-switch-guard-trial-result-reverted-2026-07-25) and instrument-display-findings.md, "Mirrors behavior preserved in Denza Apps".
+
 The quarantine added on 2026-07-23 prevents a direct side change from issuing a
 second `initDisplay()`: it closes the active app-owned presentation once, then
 waits for three neutral window samples before accepting another camera session.
@@ -587,6 +668,8 @@ phase. This change is locally unit-tested and built but still needs one
 live-car close check. It deliberately does not queue the opposite side:
 automatically opening it without a confirmed neutral interval would re-enter
 the known AVC crash path.
+
+> **Superseded 2026-09-04:** the quarantine and its neutral wait are gone from the code: after one of our teardowns the next start waits for `REOPEN_SAMPLES` = 2 clean polls of one side, and a side whose start of ours failed waits until its stock card or lamps end (`MirrorTransitionReducer.kt`) — see [Fast-switch guard trial result: reverted (2026-07-25)](#fast-switch-guard-trial-result-reverted-2026-07-25).
 
 ### Live re-test with quarantine build 0.4.3 (2026-07-24 evening)
 
@@ -624,6 +707,8 @@ after the left PIP activity window. The vehicle-event alternative is falsified
 (see `research/vehicle-events/README.md`), so this push is the earliest
 app-visible trigger.
 
+> **Superseded 2026-09-04:** only the logcat `postEvent` channels were falsified. A targeted BYDAutoLight listener, run through Denza Apps' passive local-ADB lane, delivers the raw turn-lever onset (`2` left, `4` right) about 63 ms before the lamps AVC reacts to (`MirrorSwitchPreemption.kt`), and that is the trigger in use — see vehicle-data-findings.md, "Targeted turn-signal events (2026-09-04)", and [Fast-switch guard trial result: reverted (2026-07-25)](#fast-switch-guard-trial-result-reverted-2026-07-25).
+
 Race math: +35 ms trigger + current two-phase teardown (105–142 ms measured
 via the `DenzaClusterScene` marks) = ~140–177 ms — inside the soft 174 ms
 budget but past the hard 95 ms case. An emergency teardown that frees the AVC
@@ -641,7 +726,11 @@ every `showCamera` on this firmware and always falls back to the normal
 camera window. Functional, but the overlay attempt is dead code here and
 logs a full stack per activation.
 
-### Fast-switch guard implementation (2026-07-24, untested on the car)
+> **Superseded 2026-09-04:** the overlay attempt is removed; the camera presentation keeps the platform's `TYPE_PRESENTATION` and sets flags only (`ClusterSceneService.kt`, commit `0c6f60c9`).
+
+### Fast-switch guard implementation (2026-07-24, reverted 2026-07-25)
+
+> **Superseded 2026-07-25:** this guard was tried on the car the next day, never fired, and was reverted; the heading said "untested on the car" until 2026-10-03 — see [Fast-switch guard trial result: reverted (2026-07-25)](#fast-switch-guard-trial-result-reverted-2026-07-25).
 
 Built on the probe numbers above, in three gated pieces:
 
@@ -725,6 +814,8 @@ normal-uid app on DiLink 5.1. The quarantine remains the accepted behavior —
 the flip costs the right mirror for that cycle, the stock crash is not
 preventable by us, and state recovery is automatic. Revisit only with
 platform-signature privileges or a non-AVC frame source.
+
+> **Superseded 2026-09-04:** there is an earlier trigger after all. The raw turn-lever onset, read through Denza Apps' passive local-ADB lane, precedes AVC's lamp-driven transition; detaching our surface 3–4 ms after it, with vendor release in 105–121 ms, kept AVC's PID through instrumented canaries and three fast switches each way on the 22:17 drive. The lever only ever tears down (`MirrorSwitchPreemption.kt`) and the quarantine is gone from the code (`MirrorTransitionReducer.kt`) — see instrument-display-findings.md, "Mirrors behavior preserved in Denza Apps".
 
 ### Stock-owned non-AIDL candidate (2026-07-18)
 
