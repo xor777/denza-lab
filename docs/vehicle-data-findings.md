@@ -5,6 +5,72 @@ actually use. It distinguishes product-usable sources from values that are
 visible only to system processes, shell diagnostics, or vendor API surfaces
 identified through static inspection.
 
+## Current state
+
+Updated 2026-10-03. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
+
+| Claim | Status | Since | Section |
+|---|---|---|---|
+| A normal app UID gets standard GNSS (~1 Hz), the standard IMU and `persist.sys.AutoType`; the useful DiCar getters answer `20004` (missing `BYDAUTO_*_GET`) | live | 2026-07-24 | [High-level DiCar service](#high-level-dicar-service) |
+| Shell UID reads the native Binder: `service call autoservice 5` (`getInt`) or `7` (`getFloat`) `i32 <dev> i32 <fid>`, fid as signed decimal, payload = second parcel word | live | 2026-08-22 | [autoservice FID protocol](#autoservice-fid-protocol) |
+| Sentinels: `−10013` wrong transact (retry the other one), `−10011` no data on this generation, `0xbf800000` invalid float; max-range placeholders are dropped by a per-unit range gate | live | 2026-08-22 | [Sentinels — do not display](#sentinels--do-not-display) |
+| Transacts `10`/`12` with `i32`-only parcels SIGSEGV'd `/system/bin/autoservice`; the product sends only `5`/`7` and never `6` (`VehicleSignals.kt`, `VehicleTransact`) | code | 2026-08-22 | [Binder](#binder) |
+| Device ids: `1000` AC, `1001` bodywork, `1006` energy, `1009` charging, `1011` gearbox, `1012` engine, `1013` speed, `1014` statistic/BMS, `1039` GB (motors, bus V), `1061` big data | live | 2026-08-22 | [Binder](#binder) |
+| Every `BYDAutoFeatureIds` constant, resolved for this car: untracked `captures/ambient-light-20260923/data/fids-canfd.tsv` (and `fids-can-classic.tsv`), tab-separated `<class or TOP>`, `<NAME>`, `<signed decimal>`, built by `resolve_clinit.py` because jadx cannot evaluate the static initializer; look ids up there, not by hand | firmware | 2026-09-23 | [autoservice FID protocol](#autoservice-fid-protocol) |
+| The product polls 8 hot ids (pack power, pack V, odometer, park, speed, rpm, engine running, generation) every 100 ms while the cluster or the strip's car page is up and every 1 s otherwise, plus 12 cold ids every 10 s; readings expire after 2 s / 25 s (`VehicleSignals.kt`, `VehicleTelemetryHub.kt`) | code | 2026-09-18 | [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) |
+| Pack power `0x14400020` (dev 1012, catalog `ENGINE_POWER`) is positive out of the pack, on a charger and in motion (`VehicleConvention.POWER_POSITIVE_IS_DISCHARGE`) | live | 2026-09-22 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
+| `GENERATION_KW` `0x2610001F` (dev 1006) is the engine's charge into the pack: 8–10 kW generating in P, `0` while the engine drives the wheels; `0x2ED00010` (catalog `ENGINE_CHARGE_POWER`) is pack power, not generation | live | 2026-09-24 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
+| `ENGINE_RUNNING` `0x10D00038`: `0` stopped, `1` cranking, `3` running; the product tests `≥ 1` (`VehicleTelemetry.kt`) | live | 2026-09-18 | [Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster) |
+| `ENGINE_RPM` `0x14400012` answers `0x1FFF` (13-bit "not available") with the engine off, parked or moving; `VehicleSignal.invalid` refuses it before decoding | live | 2026-09-22 | [A resting reading is not the same as a resting ECU](#a-resting-reading-is-not-the-same-as-a-resting-ecu) |
+| Scales: pack temp = raw − 40 °C; cells in mV; odometer = raw / 10 km; tyres = raw / 100 bar; 12 V and SOC are floats | live | 2026-08-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car) |
+| `CHARGE_GUN` `0x34400032`: `2` AC connected, `1` on every moving row of both recorded drives, `3` on a DC stop; "charging" needs `2`, a charger reading and a pack that is not discharging (`VehicleTelemetry.kt`) | live | 2026-09-24 | [The gun is not a charger](#the-gun-is-not-a-charger-2026-09-06-falsified-on-the-road) |
+| Silent on this firmware with the engine running or not: coolant and thermostat temperature, torque, boost, knock, instantaneous fuel (the `0x324` / `0x387` / `0x30D` families) | live | 2026-08-23 | [Did not answer](#did-not-answer--every-candidate-at-every-device-tried) |
+| A floored accelerator in P starts the engine, which generates 8–10 kW into the pack while held; `0x34200008` is the pedal in percent | live | 2026-09-18 | [Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster) |
+| Consumption is the last 10 km of recorded road: a 100-point chart of 100 m buckets, each point a 1 km trailing mean; the journal `filesDir/consumption.log` keeps the newest 300 buckets as `odometer,kwh,km,knownKm` (`ConsumptionWindow.kt`, `ConsumptionChart.kt`, `ConsumptionJournal.kt`) | code | 2026-09-18 | [Energy contract §2.2](energy-display-contract.md#22-consumption-over-the-last-ten-kilometres) |
+| Which car: `persist.sys.AutoType` (readable from the app UID through `getprop`) or FID `0x40D00010`: `168` N9, `170` our Z9GT; an unrecognised id is an unknown car (Z9GT properties never captured, FID only) | live | 2026-08-30 | [Which car is this](#which-car-is-this-2026-08-30) |
+| Raw CAN-FD frames: shell-UID `BYDAutoBigDataDevice` (`1061`) listener on `0x99000020`, about 137 frames/s, delivered only while the main `Looper` runs; app-UID registration unproven | live | 2026-09-03 | [Raw CAN-FD callback](#raw-can-fd-callback-2026-09-03) |
+| Turn signals: shell-UID listener on `0x1330002C` (raw lever phase, never names a side) and `0x38A0002C` (lamps: `1` off, `2` left, `4` right, `6` hazard) behind `VehicleSignalHub` (`TurnSignalEventProtocol.kt`) | live | 2026-09-04 | [Targeted turn-signal events](#targeted-turn-signal-events-2026-09-04) |
+| Refuted: the stock AVC window alone opens a Denza camera (window-only contract). Since 2026-09-23 Show needs AVC's card **and** the lamps on that side, and the lamps leaving close it | refuted | 2026-09-23 | [Firmware-model contract](instrument-display-findings.md#the-firmware-model-contract-2026-09-23) |
+| Refuted: `0x44700028` / 10 is remaining energy (a ~100 kWh pack). It is state of charge ×10; nothing on the Binder gives the pack size | refuted | 2026-08-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car) |
+| Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
+| Washer fluid level: no FID, name or CAN bit identified; `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` (`0x3D90201E`) is probably throttle cleaning, and its `0` proves nothing | open | 2026-09-23 | [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23) |
+| Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
+
+**Open questions**
+- What `STATISTIC_INSTANTANEOUS_CURRENT` (raw `35721`) and the third-party "rear motor 40 °C" card are: a drive recorded with the current and rear-motor ids, which `tools/vehicle_log.py` does not record yet.
+- Whether a DC stop (`CHARGE_GUN` = `3`) should read as charging: the owner's word and a second recorded DC stop ([energy contract §8](energy-display-contract.md#8-open-and-what-closes-each)).
+- The pack's real capacity: the owner's paperwork or one full charge session.
+- Traction-voltage sag under load: `pack_volt` read across a full-throttle pull (the 2026-09-24 recording has the column; not analysed here).
+- Which physical signal is the washer level: an authoritative sensor-to-ECU definition, or a controlled two-state capture with `tools/raw_can_turn_probe.sh`.
+- Which palette this car uses: one read of `SET_IAL_COLOR_CONFIG`, or the owner naming the cabin colour.
+- Whether a normal APK can register the raw CAN-FD listener, DiCar's ambient-light listener or the vendor SCP IMU sensors: one isolated probe each.
+- The Z9GT's own `persist.sys.*` vehicle-id properties: one `getprop` dump.
+
+## Contents
+- [Executive result](#executive-result) — what a normal APK can and cannot read, in one screen
+- [Test environment](#test-environment) — cars, firmware, ADB target, and the dated history of this page
+- [Which car is this (2026-08-30)](#which-car-is-this-2026-08-30) — telling the N9 from the Z9GT by the vendor vehicle id
+- [Evidence labels](#evidence-labels) — the five labels the matrix uses
+- [Availability and frequency matrix](#availability-and-frequency-matrix) — every source, its rate, permission and product status
+- [Android inertial sensors](#android-inertial-sensors) — standard and vendor IMU sensors and their rates
+- [GNSS](#gnss) — the Android GPS provider and what can be derived from it
+- [Exported car-status provider](#exported-car-status-provider) — `com.byd.carStatusProvider`, readable but unqualified
+- [High-level DiCar service](#high-level-dicar-service) — reachable Binder, blocked getters
+- [autoservice FID protocol](#autoservice-fid-protocol) — the shell-UID read recipe, device ids, sentinels and scales
+- [Widget allowlist (2026-08-22)](#widget-allowlist-2026-08-22) — the measured FIDs with dev, transact and decoding
+- [Vehicle telemetry wiring (2026-08-22 to 2026-08-27)](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) — the decisions behind `feature.vehicle`, its consumers and cadence
+- [Combustion side of the hybrid (2026-08-23)](#combustion-side-of-the-hybrid-2026-08-23) — engine, generation, lamps, fuel, and the recorded start/stop cycles
+- [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
+- [Raw CAN-FD callback (2026-09-03)](#raw-can-fd-callback-2026-09-03) — the passive shell-UID frame stream and its envelope
+- [Washer fluid level (2026-09-18, in progress)](#washer-fluid-level-2026-09-18-in-progress) — no name, no bit yet; firmware and raw-stream paths
+- [Targeted turn-signal events (2026-09-04)](#targeted-turn-signal-events-2026-09-04) — the two-FID light listener, its hub, and the camera contracts it fed
+- [Interior ambient light colour (2026-09-23, in progress)](#interior-ambient-light-colour-2026-09-23-in-progress) — where the cabin lamp colour lives and how it could be read
+- [Legacy BYDAuto events and system logs](#legacy-bydauto-events-and-system-logs) — the 2026-06-27 probe and system-log observations
+- [Existing navigation-derived data](#existing-navigation-derived-data) — the Yandex guidance read through accessibility
+- [Product implications](#product-implications) — which product concepts the available inputs support
+- [Commands and inspected inputs](#commands-and-inspected-inputs) — the read-only commands and vendor APKs used
+- [Next useful validation](#next-useful-validation) — the remaining GNSS/IMU, `autoservice` and raw-CAN work
+
 ## Executive result
 
 A normal `/data/app` APK cannot read most BYD CAN-backed values. The exported
@@ -61,6 +127,10 @@ events were live-proven on 2026-09-04. They feed bounded diagnostics and an
 early-teardown guard for an active Mirrors camera; the stock AVC window is the
 only camera-eligibility authority, and the listener can never open a camera.
 
+> **Superseded 2026-09-18:** the cluster is not the only consumer of the telemetry backend: the strip's car page claims it since 2026-09-05 and an always-on ledger claim since 2026-09-18 (`VehicleWatcher`) — see [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27).
+
+> **Superseded 2026-09-23:** the stock AVC window is not the only camera authority any more: Show needs AVC's card and the lamps (`0x38A0002C`) on that side, and the lamps leaving close the camera — see [the firmware-model contract](instrument-display-findings.md#the-firmware-model-contract-2026-09-23).
+
 | Item | Value |
 | --- | --- |
 | Vehicle | Denza Z9GT (everything before 2026-08-30); Denza N9 from 2026-08-30 |
@@ -71,6 +141,8 @@ only camera-eligibility authority, and the listener can never open a camera.
 | Product package | `dev.denza.apps` |
 | Temporary probe package | `dev.denza.tools.vehicledatareadprobe` |
 | Probe identity | normal app UID; no BYD/system permissions |
+
+> **Superseded 2026-09-03:** "Denza N9 from 2026-08-30" does not mean every later reading is the N9's: later sections name their car, and the raw CAN-FD (2026-09-03) and washer (2026-09-18) runs were on the Z9GT (`AutoType=170`) with firmware `eng.build20260705.011226`, not the `eng.build20251214` above — see [Raw CAN-FD callback](#raw-can-fd-callback-2026-09-03).
 
 The temporary probe was uninstalled after the 2026-07-24 run. The 2026-08-22
 `autoservice` reads used only `service list` and `service call`; Denza Apps was
@@ -401,6 +473,22 @@ The catalog is ~8000 constants; most are SET/CONFIG/FAULT. Motor temp IDs are
 generation-specific (`GB_FRONT_MOTOR_TEMP` vs `_DM40` vs `_DM40_464`); this
 car answers on the `_DM40_464` set.
 
+**The full resolved table (2026-09-23, local and untracked).** The framework's
+`BYDAutoFeatureIds` sets many values in its static initializer as
+`isCanFD ? A : B`, which jadx does not evaluate (it overflows on `Setting`), so
+ids kept being looked up by hand. `captures/ambient-light-20260923/data/resolve_clinit.py`
+interprets the jadx fallback-mode `<clinit>` of the 2026-09-23 OTA framework for a
+fixed branch and wrote `fids-canfd.tsv` (`isCanFD=1`, this car's
+`sys.car.protocol=CANFD`) and `fids-can-classic.tsv` (`isCanFD=0`) beside it:
+10,348 lines each, tab-separated `<nested class or TOP>`, `<NAME>`,
+`<value as signed decimal>`. Search the decimal the shell takes
+(`rg -w 1138753546 fids-canfd.tsv`) or the name. Its cross-check against the
+2,961 ternaries jadx did render found no mismatch
+(`captures/ambient-light-20260923/reports/framework-fids.md`, section 0), and the
+product's ids resolve to their catalog names in it (`0x14400020`
+`ENGINE_POWER`, `0x94400008` `SPEED_AUTO_SPEED`, `0x05500030`
+`GEARBOX_PARK_BRAKE_SWITCH`).
+
 ### How to read
 
 ```bash
@@ -544,6 +632,8 @@ deleted views and page-specific gates are historical, not current entry points.
 | One lamp folded from several feature ids | `EngineLamp` (deleted 2026-09-04) | Four ids report low oil pressure and four report low coolant level; they are generation variants, and reading all of them is cheaper than betting on one |
 | A lamp that never answered is not "healthy" | `LampState.UNKNOWN` (deleted 2026-09-04) | Every lamp read `0` on a healthy car, which proves they are readable, not that they light. A hollow dot makes a weaker claim than a green one |
 
+> **Superseded 2026-09-22:** the pack-power sign is proven, not inferred: accelerating in motion read +10…61 kW and decelerating mostly negative, so `POWER_POSITIVE_IS_DISCHARGE = true` holds — see [energy contract §8](energy-display-contract.md#8-open-and-what-closes-each).
+
 There are **two** product consumers since 2026-09-05, and the hub polls while
 either is up: `feature.cluster.dashboard`, whose view claims it as long as the
 driver's display shows our panel, and the head unit's trip strip, whose view
@@ -558,12 +648,16 @@ and thirty cold signals for whoever is watching. The consumption history is
 always rendered over the latest **10 km**; no saved head-unit selector is
 consulted.
 
+> **Superseded 2026-09-18:** there are three watchers, not two: `VehicleWatcher.LEDGER` is claimed at application start and never released, so the hub always polls - every 100 ms while the cluster or the strip is on screen, every 1 s otherwise (`VehicleSweepCadence`). It reads 8 hot signals (`VEHICLE_SPEED` joined on 2026-09-18) and 12 cold ones, not seven and thirty (`VehicleSignals.kt`) — see [energy contract §2.7](energy-display-contract.md#27-the-road-is-recorded-whether-or-not-anyone-looks).
+
 Both screens draw one chart from that window and no extra signals:
 `ConsumptionChart` bins the closed buckets the hub already keeps into twenty
 steps of 500 m, anchored to the odometer's own half kilometre. The strip's own
 two-minute `PowerTrace` was deleted with it - it was a second history of the
 quantity the page's headline already prints, and the reason the two screens'
 graphs could not be compared (`docs/energy-display-contract.md`, §2.3).
+
+> **Superseded 2026-09-18:** the chart is no longer twenty 500 m steps on the odometer's grid: it is up to 100 points, one per recorded 100 m bucket, each the mean over the last kilometre of readings (`ConsumptionChart.POINTS`, `SMOOTH_STEPS`) — see [energy contract §2.3](energy-display-contract.md#23-the-history-behind-that-figure).
 
 Unit tests cover the command shape, the marker alignment, the proven scales, the
 sentinel and plausibility rules, and the consumption accumulator including the
@@ -614,6 +708,8 @@ actually says, and read it on a DC charger. If a DC session answers neither
 taken deliberately, because naming the wrong scene costs the panel more than
 missing one.
 
+> **Superseded 2026-09-24:** both questions have answers. In both recorded drives the gun read `1` on every moving row (748 rows on 2026-09-22, 1,152 on 2026-09-24, `captures/vehicle-log/vehicle-20260922-172447-car.csv` and `vehicle-20260924-182412-car.csv`), and through the 2026-09-22 DC stop it read `3` while `CHARGE_KW` still said about 25 kW against a 46–57 kW charge. The gate still requires `2`, so a DC stop reads «В БАТАРЕЮ» without «ОТ ЗАРЯДКИ» — see [energy contract §8](energy-display-contract.md#8-open-and-what-closes-each).
+
 ### Measured on the car (2026-08-22, second session, parked on AC charge)
 
 All 33 allowlist signals answered, none returned a sentinel, and none was
@@ -649,6 +745,8 @@ park switch, engine revolutions, engine running, and generation. Every due sweep
 includes the full hot or cold set the cluster needs; there is no longer an
 electrical-page/engine-page split. Splitting the hot set any finer would buy
 nothing: a one-call batch costs almost what a five-call batch costs.
+
+> **Superseded 2026-09-18:** the hot set is eight signals - `VEHICLE_SPEED` (`0x94400008`) joined it for the standing-energy rule - and the hot cadence runs while the cluster or the strip's car page is on screen, with a 1 s sweep for the always-on ledger otherwise (`VehicleSignals.kt`, `VehicleSweepCadence`) — see [energy contract §2.2](energy-display-contract.md#22-consumption-over-the-last-ten-kilometres).
 
 Two readings from the same session are worth keeping:
 
@@ -710,7 +808,9 @@ pattern says otherwise, and the pattern is the width of that signal's field —
 value was a resting `0` is owed the same suspicion**: a resting zero may only
 mean the ECU was awake that day.
 
-### One of engine speed and generation is not zero on an electric drive
+### What stood the engine box up on an electric drive (2026-09-05, superseded)
+
+> **Superseded 2026-09-22:** the owed log exists and neither id reads above zero with the engine off in motion: over 748 moving samples the primary rpm id answered only `0x1FFF`, which the decode refuses, and its `_20D` twin, `GENERATION_KW` and `GENERATION_STATE` read `0`. The cluster stays keyed on `ENGINE_RUNNING` — see [energy contract §8](energy-display-contract.md#8-open-and-what-closes-each).
 
 On the first drive with the Contour panel (2026-09-05) the engine's history box
 stood on the cluster's right shelf for half the trip with the engine off, flat at
@@ -855,6 +955,8 @@ flat, which is consistent with the first reading and not with the second. The si
 of `POWER_KW` under acceleration and whether `ENGINE_RPM` reports anything with the
 engine off in motion are open for the same reason.
 
+> **Superseded 2026-09-24:** all three are closed by recorded drives: `POWER_KW` is positive out of the pack in motion and `ENGINE_RPM` sends only `0x1FFF` with the engine off (2026-09-22), and `GENERATION_KW` stayed `0` through three engine runs at speed, so it is the pack's charge from the engine, not the generator's output (2026-09-24) — see [energy contract §8](energy-display-contract.md#8-open-and-what-closes-each).
+
 `tools/vehicle_log.py` is what closes them. It asks this same Binder through the
 same `service call` chain, from the host over ADB, one CSV row a second into
 `captures/vehicle-log/` (git-ignored), reconnecting when the car sleeps; the
@@ -928,6 +1030,8 @@ What the cycle does *not* add is anything about motion: the car stood in P, so
 2026-08-23. `VehicleLogReplayTest` runs against this file and passes; the drive
 that closes the open items is still owed.
 
+> **Superseded 2026-09-24:** the drives were recorded on 2026-09-22 and 2026-09-24, and they close the motion questions above — see [energy contract §8](energy-display-contract.md#8-open-and-what-closes-each).
+
 ### Engine itself — `com/byd/feature/engine/Engine.java`, dev `1012`
 
 | Reading | Constant | FID |
@@ -984,6 +1088,8 @@ cluster keeps the fuel level, range and low-fuel lamp a few centimetres away.
 
 Added 2026-08-25, on the owner's decision. Not yet run on the car.
 
+> **Superseded 2026-09-24:** three things below are no longer true. Both screens show the last **10 km** of recorded road, not 3 km (`ConsumptionWindow.KM`, since 2026-09-05); a line is `odometer,kwh,km,knownKm`, and two-column files are refused and wiped (`ConsumptionJournal.COLUMNS`, since 2026-09-07); and the journal has run on the car - the 2026-09-24 drive left 122 buckets over 12.2 km with no screen watching — see [energy contract §2.2](energy-display-contract.md#22-consumption-over-the-last-ten-kilometres) and [§8](energy-display-contract.md#8-open-and-what-closes-each).
+
 The consumption chart used to hold twenty-four bars of 200 m - one window of
 4.8 km - and it lived in the app's process, so it started empty after every
 restart. The journal now keeps **300 bars of 100 m**, while the active cluster
@@ -1037,6 +1143,9 @@ head-unit panel's retirement.
   engine's own output — but the label is an assumption, and the drive capture
   that settles the sign should settle the meaning at the same time. If it turns
   out to be combustion power, the whole consumption block is mislabelled.
+
+  > **Superseded 2026-09-22:** the drive capture settled both: with the engine never started the id read +10…61 kW accelerating, so it is the pack's power, positive out of the pack, not combustion power — see [energy contract §8](energy-display-contract.md#8-open-and-what-closes-each).
+
 - **Vehicle speed exists and reads**: `SPEED_AUTO_SPEED` = `0x94400008`
   (dev `1013`), on transact **7** as a float, `0.0` parked. `SPEED_AUTO_SPEED_121`
   = `0x12100008` agrees. An earlier note in this session said speed was absent;
@@ -1174,6 +1283,8 @@ IVI MCU AppBlock. Their hashes were recomputed and agree with the extraction
 evidence in [the HAL/MCU trace](speaker-lift-findings.md#offline-hal-and-mcu-trace-2026-09-23).
 They have not been hash-matched to the installed vehicle binaries. No vehicle
 connection, installation, service call or state change was performed.
+
+> **Superseded 2026-09-23:** the installed `/system/lib64/hw/auto.default.so` and `/system/lib64/libbydautoservice.so` were hash-matched live to these archive files later the same day; the installed MCU image is still unmatched — see [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23).
 
 An English/Chinese name search in UTF-8 and both UTF-16 byte orders found no
 washer-fluid-level label in these five files. More usefully, a bounded
@@ -1399,7 +1510,11 @@ exists is decided in the cluster ECU firmware and by whether the body
 controller transmits the level at all. The head-unit software cannot be "not
 finished" for this lamp; it was never given the signal.
 
-### The one remaining path: the raw stream
+> **Superseded 2026-09-23:** "never given the signal" is stronger than the evidence: no Java name proves nothing about the IVI's receive tables, which the MCU firmware read now inventories — see [Offline firmware follow-up](#offline-firmware-follow-up-2026-09-23).
+
+### The raw stream as a path (2026-09-18, not the only one)
+
+> **Superseded 2026-09-23:** the raw stream is not the only path: the HAL and IVI MCU receive tables (1,012 candidate records, the `0xC00` CAN0 conversion traced through `updateParameters`) are a second, offline one — see [Work without changing reservoir level](#work-without-changing-reservoir-level-2026-09-23-second-pass) and [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23).
 
 The passive `BIGDATA_DYNAMIC_DATA_CALLBACK` stream described above is the only
 place on the head unit where a body-controller bit could be seen without a
@@ -1503,6 +1618,8 @@ and slower for this feature than the targeted semantic listener and is not a
 product source.
 
 ### Product adapter and safety boundary
+
+> **Superseded 2026-09-23** for the camera policy only (the hub, helper, two-FID allowlist and backoff below are unchanged): the window observer is no longer the only Show authority. Mirrors follows AVC's own mode and card; Show needs the card **and** the lamps flashing that side, the lamps leaving close the camera, and the quarantine and five-poll rules below are replaced — see [the firmware-model contract](instrument-display-findings.md#the-firmware-model-contract-2026-09-23).
 
 The product uses a process-local typed `VehicleSignalHub` with
 demand leases and a dedicated `MIRROR_EVENTS`-style source lane. It starts only
@@ -1898,6 +2015,8 @@ to the preceding byte-matched APK.
 
 ### Window-only Show, onset-only teardown (2026-09-04, late)
 
+> **Superseded 2026-09-23:** this contract and its quarantine recovery were replaced by the firmware-model contract, live-run on 2026-09-23; the raw-onset teardown is kept unchanged — see [the firmware-model contract](instrument-display-findings.md#the-firmware-model-contract-2026-09-23).
+
 An independent review of the gated contracts against a passive filtered
 `logcat -s` capture of two ordinary right cycles found that the randomness the
 owner reported was designed in. (The main ring buffer holds under a second of
@@ -2109,6 +2228,10 @@ in this vehicle-data investigation.
 | Raw CAN diagnostics | `BYDAutoBigDataDevice` callback `0x99000020` from local ADB shell | Confirmed passive stream; not proven from the Denza Apps UID and not yet a product input |
 | Turn-signal guard | targeted shell-UID BYDAutoLight listener | Event-driven and low-CPU; a raw onset only tears down an active opposite-side Denza surface; the stock AVC window alone opens and reopens |
 
+> **Superseded 2026-09-23:** the stock AVC window no longer opens alone: Show needs AVC's card and the lamps (`0x38A0002C`) on that side, and the lamps leaving close the camera — see [the firmware-model contract](instrument-display-findings.md#the-firmware-model-contract-2026-09-23).
+
+> **Superseded 2026-09-05:** the dashboard row is not cluster-only: the strip's car page reads the same allowlist (`VehicleWatcher.STRIP`) — see [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27).
+
 The current road-thread/body-field prototypes use simulated values. They show a
 candidate visual mapping only; they are not live-car evidence.
 
@@ -2175,6 +2298,8 @@ restoring this pipeline to the product):
 6. ~~Record `sweepMillis`~~ **done**: the hot batch costs 129–195 ms and the full
    sweep 270–287 ms. The hot interval was set to 300 ms on that evidence; what
    remains is to confirm on a drive that the car keeps up with it under load.
+
+> **Superseded 2026-09-24:** item 3 is done - acceleration reads positive, the constant stays (2026-09-22); item 1 is done for pack power and engine rpm (2026-09-22 and 2026-09-24 drives) but not for `STATISTIC_INSTANTANEOUS_CURRENT` or the motor temperatures, which the recorder does not read; and the hot interval in item 6 is 100 ms on screen and 1 s otherwise, not 300 ms — see [energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) and [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27).
 
 Raw CAN-FD diagnostics (2026-09-03):
 
