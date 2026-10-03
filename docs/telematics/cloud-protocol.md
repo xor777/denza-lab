@@ -119,6 +119,8 @@ behavior, continuous connection and the production handling of byte 102 remain
 unproved. A working cellular attachment was not required for these Wi-Fi uploads;
 they did use the car's existing factory SIM identity and cryptographic identity.
 
+> **Superseded 2026-09-23:** the stock-client adaptation went live the same day: stock `cloudmanager` holds its TCP connection over Wi-Fi and the phone shows a connected car with live values, so continuous presence comes from the stock client, not a separate uploader — see [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23).
+
 The sections below preserve the earlier stages; their outstanding items describe
 what was unknown at that time and are superseded by the live result above.
 
@@ -213,6 +215,8 @@ session, and observe **73% (or the then-current reading)** in the official app.
 Continuous operation also needs a bounded heartbeat/reconnection design and
 handling that never executes unsolicited vehicle-control commands.
 
+> **Superseded 2026-09-23:** done the same day: a fresh capture, SOC 74% matching the getter, one report 512 and 74% on the phone — see [Real SOC reached the official phone app over Wi-Fi, 2026-09-23](#real-soc-reached-the-official-phone-app-over-wi-fi-2026-09-23).
+
 ### Passive stock state capture after login
 
 The new bounded [CloudCanSnapshotProbe](../../tools/telematics/CloudCanSnapshotProbe.java)
@@ -238,6 +242,8 @@ missing-group semantics and charging override, assemble a complete measured
 body, verify it against the native `0x55350` copy routine, then perform one
 controlled status upload while directly observing the phone. Evidence and
 coverage metadata are in `captures/telematics-20260923/status-passive/`.
+
+> **Superseded 2026-09-23:** resolved: the charging override is device 1009 / FID `0x34400018` (live 1), the `0x417` stream reads DEVICE_OFFLINE_ALWAYS, and the upload ran — see [Report completeness and the resolved charging field](#report-completeness-and-the-resolved-charging-field).
 
 ## Factory mutual TLS over vehicle Wi-Fi verified, 2026-09-23
 
@@ -311,6 +317,8 @@ DiLink registration/discovery/login, a fresh measured status report, and an
 observed official phone update. Cellular network registration was not needed
 for this helper's TLS connection; that result does not remove SIM identity
 requirements in the application protocol.
+
+> **Superseded 2026-09-23:** all of it followed the same day: registration, discovery and login, then a measured report shown by the phone — see [Official-cloud registration and login over Wi-Fi verified, 2026-09-23](#official-cloud-registration-and-login-over-wi-fi-verified-2026-09-23) and [Real SOC reached the official phone app over Wi-Fi, 2026-09-23](#real-soc-reached-the-official-phone-app-over-wi-fi-2026-09-23).
 
 ## Factory identity access: local signature verified, 2026-09-23
 
@@ -442,6 +450,8 @@ not proof that its library is the selected provider.
 
 ### Transport and remaining proof
 
+> **Superseded 2026-09-23:** the TLS adapter, registration/login and a measured report 512 all followed the same day — see [Factory mutual TLS over vehicle Wi-Fi verified, 2026-09-23](#factory-mutual-tls-over-vehicle-wi-fi-verified-2026-09-23) and [Real SOC reached the official phone app over Wi-Fi, 2026-09-23](#real-soc-reached-the-official-phone-app-over-wi-fi-2026-09-23).
+
 The live policy routing table **10 is empty**. Table **1040** has a Wi-Fi default
 route via `192.168.88.1`; a kernel route query for UID 2000 selects `wlan0` and
 table 1040. This query sends no packet. It supports Wi-Fi transport for a shell
@@ -549,6 +559,8 @@ The supplied archive has not been hash-matched to installed protected binaries.
 
 ### What this changes for an official-cloud helper
 
+> **Superseded 2026-09-23:** the authenticated path and the phone feed are both proven: a helper upload of message 512 showed 74% in the phone app, and one `notify_nw(4)` under `double_apn` opens the stock gate — see [Real SOC reached the official phone app over Wi-Fi, 2026-09-23](#real-soc-reached-the-official-phone-app-over-wi-fi-2026-09-23) and [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23).
+
 The head unit contains a stock producer whose report includes the known SOC.
 An on-car helper can use the already-established local getter as a comparison
 source. The unresolved work is the authenticated delivery path and whether
@@ -614,6 +626,8 @@ This is bounded static evidence, not a formal proof against all indirect aliases
 A router DNS/proxy change cannot affect this observed pre-DNS return.
 
 ### The client also selects cellular routes, but their failure is not fatal here
+
+> **Superseded 2026-09-23:** Wi-Fi transport after the gate is proven: with empty APN interfaces the stock client resolved, connected and completed TLS over Wi-Fi — see [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23).
 
 `addIPRoute` (`0x74db4`) reads `net.lte.apn1.ifname` for `triple_apn`, otherwise
 `net.lte.apn3.ifname`. Its helper constructs
@@ -687,6 +701,8 @@ a demonstrated bootstrap solution. The historical reason for an earlier token's
 absence/deletion remains unknown.
 
 ### Consequence for the requested official-cloud sidecar
+
+> **Superseded 2026-09-23:** both are established: a helper login and upload showed 74% in the phone app, and the stock client itself runs over Wi-Fi after `notify_nw(4)` — see [Real SOC reached the official phone app over Wi-Fi, 2026-09-23](#real-soc-reached-the-official-phone-app-over-wi-fi-2026-09-23) and [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23).
 
 The first observed obstacle is the stock client's cellular-state gate. Beyond
 it lie route selection, hardware-backed authentication and the actual telemetry

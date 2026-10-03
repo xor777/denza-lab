@@ -24,6 +24,8 @@ adapter, sleep/wake behavior and ordinary APK access still need to be establishe
 The firmware-first sleep investigation below identifies the relevant lifecycle
 and Wi-Fi policy; it does not establish parked reachability.
 
+> **Superseded 2026-09-24:** the durable adapter exists: the «Облако» tile, on the owner's car since build 55, drives the stock client through the local ADB shell (not from the app UID) — see [cloud-tile.md, Denza Apps «Облако» tile (2026-09-23; on the owner's car since build 55)](cloud-tile.md#denza-apps-облако-tile-2026-09-23-on-the-owners-car-since-build-55).
+
 **Existing power-aware connection work:** the retained current framework code
 `captures/telematics-20260922/registration-evidence/framework-extra/` shows:
 
@@ -274,6 +276,8 @@ enable action. A subsequent explicit disable can implement the agreed
 restore the handoff-time `double_apn` state. Wi-Fi-retention ownership is
 separate: its original value was absent, its last verified value is 1, and it
 has not been restored. Installation still awaits the owner's coordination.
+
+> **Superseded 2026-09-24:** build 55 was installed on the owner's car — see [cloud-tile.md, Build 55 recovery fixes and owner-car timing checks, 2026-09-24](cloud-tile.md#build-55-recovery-fixes-and-owner-car-timing-checks-2026-09-24).
 
 Evidence: `captures/telematics-20260923/stock-client-wifi/handoff-20260923T173911/`
 contains the current snapshot, bounded network-event scan, historical scan,

@@ -5,7 +5,7 @@ Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-f
 ## Contents
 
 - [Stock-client Wi-Fi adaptation, 2026-09-23](#stock-client-wi-fi-adaptation-2026-09-23)
-  - [Denza Apps «Облако» tile: implemented, not yet on the car (2026-09-23)](#denza-apps-облако-tile-implemented-not-yet-on-the-car-2026-09-23)
+  - [Denza Apps «Облако» tile (2026-09-23; on the owner's car since build 55)](#denza-apps-облако-tile-2026-09-23-on-the-owners-car-since-build-55)
   - [Implementation review, 2026-09-24: recovery defects before live acceptance](#implementation-review-2026-09-24-recovery-defects-before-live-acceptance)
   - [Owner-reported off/on stall and local-SIM failures, 2026-09-24](#owner-reported-offon-stall-and-local-sim-failures-2026-09-24)
   - [Forum photos: OPENED with triple_apn on both transports, 2026-09-24](#forum-photos-opened-with-triple_apn-on-both-transports-2026-09-24)
@@ -26,6 +26,7 @@ Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-f
   - [Stock keepalive reboots a parked head unit after ~3.5 h without TCP (firmware, 2026-09-23)](#stock-keepalive-reboots-a-parked-head-unit-after-35-h-without-tcp-firmware-2026-09-23)
   - [Official app operation-PIN reset, observed 2026-09-23](#official-app-operation-pin-reset-observed-2026-09-23)
   - [Phone app English-language investigation, 2026-09-23](#phone-app-english-language-investigation-2026-09-23)
+  - [Pre-activation evidence: native gate emulation and read-only checks, 2026-09-23](#pre-activation-evidence-native-gate-emulation-and-read-only-checks-2026-09-23)
 
 ## Stock-client Wi-Fi adaptation, 2026-09-23
 
@@ -82,7 +83,9 @@ sleep/wake recovery or cold-boot persistence. Evidence:
 `guard-output.txt` in the run directory. Do not describe this as a verified
 rollback or leave the old run labelled active.
 
-### Denza Apps «Облако» tile: implemented, not yet on the car (2026-09-23)
+### Denza Apps «Облако» tile (2026-09-23; on the owner's car since build 55)
+
+> **Superseded 2026-09-24:** build 55 was installed on the owner's car and passed an awake off/on check; builds 55–60 changed recovery, polling, freshness and diagnostics — see [Build 55 recovery fixes and owner-car timing checks, 2026-09-24](#build-55-recovery-fixes-and-owner-car-timing-checks-2026-09-24) and the build sections after it.
 
 The on-vehicle adapter this experiment pointed to is built as the twelfth
 dashboard tile, «Облако», in `apps/denza-apps/.../feature/cloud/`. It is
@@ -128,6 +131,7 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   connected or transitioning stock APNs defer public-profile activation.
   **Only Wi-Fi is proven on a car.** Mobile data from a local SIM was added on
   2026-09-23 for owners with such a SIM to test (see below).
+  > **Checked 2026-10-03:** still true on main. `CloudNetwork.kindOf` (`feature/cloud/CloudLinkStatus.kt`) counts a validated Wi-Fi or cellular default network as usable. A Wi-Fi-only factory rule existed only in WIP commit 9cc0247e, which eed3a411 reverted (kept on branch `archive/cloudmanager-runtime`).
 - **On**: when the car is not on `double_apn` with APN1 disabled, send the
   profile broadcast, wait 3 s and read the profile back. Then, with usable
   internet and TCP≠1, send one `4`.
@@ -162,6 +166,7 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   while on usable internet without TCP and every 5 min otherwise. Readings run only while
   the foreground `CloudLinkService` runs, and it runs only while the switch is
   on.
+  > **Superseded 2026-09-24:** after the 5/15/30/60 s follow-ups, polling is now every 15 s while connecting, 60 s while connected and 30 s while offline or finishing a disable, and a reading older than 90 s is stale (`CloudLinkController.kt`, `CloudLinkStatus.kt`) — see [Build 55 recovery fixes and owner-car timing checks, 2026-09-24](#build-55-recovery-fixes-and-owner-car-timing-checks-2026-09-24) and [Build 58: automatic native-cloud diagnostics in the same export, 2026-09-24](#build-58-automatic-native-cloud-diagnostics-in-the-same-export-2026-09-24).
 
 The tile says «Выключено», «На связи» (TCP=1), «Нет интернета» (on and
 waiting, not a fault), «Подключается» (working), or the press the car refused: «Не
@@ -209,7 +214,9 @@ Edge cases the code does not close, known and accepted for the first live run:
   `triple_apn` or `double_apn`, and otherwise `triple_apn`, this car's
   profile. Only this car's build is proven.
 
-#### Mobile data from a local SIM: built, not tested (2026-09-23)
+#### Mobile data from a local SIM (built 2026-09-23; forum attempts 2026-09-24)
+
+> **Superseded 2026-09-24:** forum owners tried it. Over mobile data (`ccmni1`) the stock client connected, finished TLS and sent 211, and the server answered code 3; no TCP=1 on mobile data has been recorded — see [Build-58 follow-up: fresh native registration replies with code 3, 2026-09-24](#build-58-follow-up-fresh-native-registration-replies-with-code-3-2026-09-24).
 
 The initial implementation assumed that the public profile could also ride a
 local operator's default mobile network: `addIPRoute` attempts an APN3 route
@@ -238,6 +245,8 @@ Still open:
 - 12V draw with Wi-Fi retained.
 
 ### Implementation review, 2026-09-24: recovery defects before live acceptance
+
+> **Superseded 2026-09-24:** all six defects below were fixed in build 55 — see [Build 55 recovery fixes and owner-car timing checks, 2026-09-24](#build-55-recovery-fixes-and-owner-car-timing-checks-2026-09-24).
 
 Reviewed committed implementation at
 `abd903896bcde078668ccc936573cf204684fca0` (build 54), including local-SIM change
@@ -348,6 +357,8 @@ STARTING indefinitely. There is no elapsed-time/error transition for failed
 native registration. Core retry intervals grow from 5 to 60 minutes. This is
 distinct from `CloudLinkRuntime.busy`, which greys both settings switches while
 an explicit command runs. The reported spinner does not distinguish the two.
+
+> **Superseded 2026-09-24:** build 55 ends the indefinite spinner: after the 90-second settle an unconnected client shows «Нет связи с облаком» (`CloudLinkStatus.kt`) while bounded recovery continues — see [Build 55 recovery fixes and owner-car timing checks, 2026-09-24](#build-55-recovery-fixes-and-owner-car-timing-checks-2026-09-24).
 
 **Off/on remains a hypothesis to capture, not a diagnosed native fault.** Off
 sends -5, waits one second and restores the build profile; on re-reads TCP and
@@ -634,6 +645,8 @@ The owner's car remains on the previously installed build 55.
 
 ### Forum report: incomplete cloud-service response, 2026-09-24
 
+> **Superseded 2026-09-24:** build 57 reads a completed empty APN property as `disconnected` and names the unread field instead of the generic message («Не прочитано с машины: …», `CloudLinkProtocol.readFailure`) — see [Build 57: completed empty APN reads use the firmware default, 2026-09-24](#build-57-completed-empty-apn-reads-use-the-firmware-default-2026-09-24).
+
 The owner relayed another user's wording "неполный ответ сервера". The product's
 matching message is `Неполный ответ облачного сервиса`, emitted locally by
 `CloudLinkController.read` in builds 55/56. It is not an HTTP response or a
@@ -731,6 +744,8 @@ establish that its raw value is empty. Connection on that car therefore
 remains unverified; an unsupported value will now produce a precise error.
 
 ### Forum Wi-Fi / ordinary-SIM reports: native registration stage, 2026-09-24
+
+> **Superseded 2026-09-24:** build-58 exports from the same car recorded fresh 211 replies with code 3 after successful TLS and sends, so code 3 is a current rejection, not only a stale value — see [Build-58 follow-up: fresh native registration replies with code 3, 2026-09-24](#build-58-follow-up-fresh-native-registration-replies-with-code-3-2026-09-24).
 
 The owner supplied Wi-Fi and SIM exports, then corrected this user's symptom
 to `Нет связи с облаком`. Both files identify **build 56**, fingerprint
@@ -1359,6 +1374,8 @@ original values for a later requested restoration. Temporary navigation
 screenshots were removed. Packages `com.coloros.translate` and
 `com.google.android.apps.translate` are installed; a screen-translation workflow
 is a candidate, not yet exercised or configured in this test.
+
+### Pre-activation evidence: native gate emulation and read-only checks, 2026-09-23
 
 A small network-event adapter is therefore a live-supported path without
 replacing the stock executable. Native execution

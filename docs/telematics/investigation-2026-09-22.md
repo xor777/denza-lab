@@ -4,7 +4,7 @@ Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-f
 
 ## Contents
 
-- [Latest findings: vehicle investigation and authorized APN test, 2026-09-22](#latest-findings-vehicle-investigation-and-authorized-apn-test-2026-09-22)
+- [Vehicle investigation and authorized APN test, 2026-09-22](#vehicle-investigation-and-authorized-apn-test-2026-09-22)
   - [Registration failure located in a full keepalive cycle](#registration-failure-located-in-a-full-keepalive-cycle)
   - [Authorized public-path test: endpoint selection works, connection does not](#authorized-public-path-test-endpoint-selection-works-connection-does-not)
   - [Resolver follow-up: fast local failure, still no identified DNS cause](#resolver-follow-up-fast-local-failure-still-no-identified-dns-cause)
@@ -21,21 +21,23 @@ Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-f
 - [Subject](#subject)
 - [Phone link: healthy (measured 2026-09-22)](#phone-link-healthy-measured-2026-09-22)
 - [What the app reports about the vehicle](#what-the-app-reports-about-the-vehicle)
-- [Vehicle link: the onboard SIM has no service (measured 2026-09-22)](#vehicle-link-the-onboard-sim-has-no-service-measured-2026-09-22)
+- [Onboard SIM: no service (measured 2026-09-22)](#onboard-sim-no-service-measured-2026-09-22)
 - [Internet sockets do not identify a working telematics channel](#internet-sockets-do-not-identify-a-working-telematics-channel)
 - [Live test: data + roaming on, no change (2026-09-22, owner-authorised)](#live-test-data--roaming-on-no-change-2026-09-22-owner-authorised)
 - [Where the car's remote switches live (found 2026-09-22)](#where-the-cars-remote-switches-live-found-2026-09-22)
 - [Remote Location refuses to turn on: owner-account gate (2026-09-22)](#remote-location-refuses-to-turn-on-owner-account-gate-2026-09-22)
-- [Owner in the cloud, not on the car (2026-09-22)](#owner-in-the-cloud-not-on-the-car-2026-09-22)
+- [Owner in the cloud, refused on the car (2026-09-22)](#owner-in-the-cloud-refused-on-the-car-2026-09-22)
 - [The car's SIM is not real-name registered (2026-09-22)](#the-cars-sim-is-not-real-name-registered-2026-09-22)
-- [Why Wi-Fi cannot carry the telematics link (settled 2026-09-22)](#why-wi-fi-cannot-carry-the-telematics-link-settled-2026-09-22)
+- [Why Wi-Fi seemed unable to carry the telematics link (2026-09-22, superseded)](#why-wi-fi-seemed-unable-to-carry-the-telematics-link-2026-09-22-superseded)
 - [The private APN, and why a Chinese roaming SIM restores everything (2026-09-22)](#the-private-apn-and-why-a-chinese-roaming-sim-restores-everything-2026-09-22)
 - [Historical private-endpoint investigation (2026-09-22)](#historical-private-endpoint-investigation-2026-09-22)
-- [Public MQTT broker is reachable; registration is not (2026-09-22, later pass)](#public-mqtt-broker-is-reachable-registration-is-not-2026-09-22-later-pass)
+- [Public MQTT broker is reachable; private registration path is not (2026-09-22, later pass)](#public-mqtt-broker-is-reachable-private-registration-path-is-not-2026-09-22-later-pass)
 - [Stock virtual SIM and the roaming reject (2026-09-22, later pass)](#stock-virtual-sim-and-the-roaming-reject-2026-09-22-later-pass)
-- [Not established yet](#not-established-yet)
+- [Not established yet (2026-09-22, superseded)](#not-established-yet-2026-09-22-superseded)
 
-## Latest findings: vehicle investigation and authorized APN test, 2026-09-22
+## Vehicle investigation and authorized APN test, 2026-09-22
+
+> **Superseded 2026-09-23:** the public-branch failure was the native pre-DNS gate, which `notify_nw(4)` under `double_apn` opens; the stock client then registered, logged in and got its token over Wi-Fi — see [firmware-reading.md, Current-build network gate, now established in code](firmware-reading.md#current-build-network-gate-now-established-in-code) and [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23).
 
 The requested outcome is **sidecar → Denza cloud → official Denza phone app**.
 An independent dashboard is not the target. The owner confirms a master account
@@ -204,6 +206,8 @@ resolver implementation exists in this firmware, **not** that the observed
 condition remain to be located before proposing any DNS or routing change.
 
 ### Resolver follow-up: fast local failure, still no identified DNS cause
+
+> **Superseded 2026-09-23:** the cause is not DNS: `getSSLIPByDomainName` returns before any lookup while gate byte `0x35e` is 0 — see [firmware-reading.md, Current-build network gate, now established in code](firmware-reading.md#current-build-network-gate-now-established-in-code).
 
 After the owner asked to continue, a second bounded test used the same stock
 profile transition and restoration, with a complete redacted text stream from
@@ -394,6 +398,8 @@ Denza build. Readable current IPC libraries did not supply the missing
 implementation. The next precise static target remains the current native
 function and its caller; the installed executable is unreadable to this shell,
 and a matching extractable firmware image is not yet available.
+
+> **Superseded 2026-09-23:** the matching OTA was decoded and `cloudmanager` recovered — see [firmware-reading.md, Matching archive decoded and cloud client recovered, 2026-09-23](firmware-reading.md#matching-archive-decoded-and-cloud-client-recovered-2026-09-23).
 
 The Android app also contains stock energy-statistics upload code
 (`EnergyUploadService`, `NOTIFY_ENERGY_RANKING`), gated on MQTT connection.
@@ -681,6 +687,8 @@ evidence-backed repair.
 
 ### Sidecar/API and firmware limits
 
+> **Superseded 2026-09-23:** a readable `cloudmanager` was recovered from the decoded OTA, and a status upload reached the phone over Wi-Fi — see [firmware-reading.md, Matching archive decoded and cloud client recovered, 2026-09-23](firmware-reading.md#matching-archive-decoded-and-cloud-client-recovered-2026-09-23) and [cloud-protocol.md, Real SOC reached the official phone app over Wi-Fi, 2026-09-23](cloud-protocol.md#real-soc-reached-the-official-phone-app-over-wi-fi-2026-09-23).
+
 The current APK's `CloudControllerManager.publishMqttMessage()` requires an
 already connected MQTT client, accepts only AppID DMS 101, and implements the
 `V/1/V2W/` watch-message branch. It is not a verified SOC/status upload API.
@@ -785,7 +793,9 @@ corrected accordingly.
 The account, the binding and the vehicle identity are fine: the cloud knows
 the car and holds a two-month-old report for it.
 
-## Vehicle link: the onboard SIM has no service (measured 2026-09-22)
+## Onboard SIM: no service (measured 2026-09-22)
+
+> **Superseded 2026-09-23:** the SIM is still out of service (read again on 2026-09-23), but it is no longer the car's cloud link: the stock client registers and uploads over Wi-Fi — see [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23) and [stock-client-boundaries.md, Cellular data retention during ACC-off, 2026-09-23](stock-client-boundaries.md#cellular-data-retention-during-acc-off-2026-09-23).
 
 Read from the head unit over ADB (`127.0.0.1:5555`, `DiLink5_1`), read-only.
 
@@ -901,7 +911,9 @@ from inside the device in the same shell command as the tap. A host-side
 `exec-out screencap` loses the race; `dumpsys window windows | grep Toast`
 confirms a toast exists but never carries its text.
 
-## Owner in the cloud, not on the car (2026-09-22)
+## Owner in the cloud, refused on the car (2026-09-22)
+
+> **Superseded 2026-09-23:** the explanation below assumed the head unit hears from the cloud only over its suspended SIM; since 2026-09-23 the stock client registers and holds TCP over Wi-Fi. Whether the owner-only gate has cleared since has not been rechecked — see the open questions in [README](README.md#current-state).
 
 The owner states the car was imported from China and that ownership was
 transferred to their account through a representative. The app agrees.
@@ -944,7 +956,11 @@ leading explanation, not a proven chain: the car does hold Wi-Fi sockets to
 the same cloud, and nothing yet shows that ownership sync refuses to ride
 them.
 
-## Why Wi-Fi cannot carry the telematics link (settled 2026-09-22)
+> **Superseded 2026-09-23:** the premise that the cloud link runs only on the suspended SIM no longer holds: the stock client rides Wi-Fi — see [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23). Whether ownership then syncs is unverified.
+
+## Why Wi-Fi seemed unable to carry the telematics link (2026-09-22, superseded)
+
+> **Superseded 2026-09-23:** Wi-Fi carries it. The placeholder names (`apr-cn`, `idilink-cn` → `1.1.1.1`) are not what the client needs: under `double_apn` it uses the public `dilinkreg-cn.denzacloud.com:6001`, `dilinkaddr-cn.denzacloud.com:6021` and the returned `dilinknat0-cn.denzacloud.com:6041`, and registration, login, token and SOC upload all ran over Wi-Fi — see [cloud-protocol.md, Official-cloud registration and login over Wi-Fi verified, 2026-09-23](cloud-protocol.md#official-cloud-registration-and-login-over-wi-fi-verified-2026-09-23) and [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23).
 
 The car names its own cloud in system properties:
 
@@ -1030,7 +1046,11 @@ help: it offers general internet, not this private APN. What is needed is a
 factory SIM restored to service, or a replacement M2M SIM from the same
 provisioning. The earlier conclusion stands only for the Wi-Fi path.
 
+> **Superseded 2026-09-24:** no Chinese SIM is needed for the cloud link: the public profile works over Wi-Fi with no cellular service, and a forum car reportedly connected over Wi-Fi after its rSIM was removed. Forum cars on local SIMs reach TLS and send 211 over mobile data but get code 3 — see [cloud-tile.md, Reported Wi-Fi success after SIM removal; native identity cache, 2026-09-24](cloud-tile.md#reported-wi-fi-success-after-sim-removal-native-identity-cache-2026-09-24) and [cloud-tile.md, Build-58 follow-up: fresh native registration replies with code 3, 2026-09-24](cloud-tile.md#build-58-follow-up-fresh-native-registration-replies-with-code-3-2026-09-24).
+
 ## Historical private-endpoint investigation (2026-09-22)
+
+> **Superseded 2026-09-23:** the stock client needs no address inside the private APN: the public endpoints carry registration, login and SOC upload over Wi-Fi, so the note below that no upload path is demonstrated is itself out of date — see [cloud-protocol.md, Real SOC reached the official phone app over Wi-Fi, 2026-09-23](cloud-protocol.md#real-soc-reached-the-official-phone-app-over-wi-fi-2026-09-23).
 
 **Superseded conclusion:** the early claims below that every software route
 was closed or that the private SIM was necessarily required are not established.
@@ -1068,7 +1088,9 @@ software-side substitutes for it.
 The next section narrows that sentence. It was right about registration and
 wrong about there being no public address at all.
 
-## Public MQTT broker is reachable; registration is not (2026-09-22, later pass)
+## Public MQTT broker is reachable; private registration path is not (2026-09-22, later pass)
+
+> **Superseded 2026-09-23:** registration is reachable on the public profile: 211 to `dilinkreg-cn.denzacloud.com:6001` succeeded over Wi-Fi, and the stock client then got its token (`token_flag` 1) without `10.167.206.17` — see [cloud-protocol.md, Official-cloud registration and login over Wi-Fi verified, 2026-09-23](cloud-protocol.md#official-cloud-registration-and-login-over-wi-fi-verified-2026-09-23) and [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23).
 
 Read-only. No settings, routes, or services were changed. The head unit was
 still `127.0.0.1:5555` on Wi-Fi `192.168.88.109`.
@@ -1164,7 +1186,9 @@ strings are empty. That tunnel would still authenticate this same SIM
 to China Mobile, and it carries IMS, not the `CMIOTBYDNSA.GD` telematics
 APN.
 
-## Not established yet
+## Not established yet (2026-09-22, superseded)
+
+> **Superseded 2026-09-23:** stale list. The executable is readable and the archive decoded ([firmware-reading.md, Matching archive decoded and cloud client recovered, 2026-09-23](firmware-reading.md#matching-archive-decoded-and-cloud-client-recovered-2026-09-23)); the status card is fed by the head unit's own message 512 ([cloud-protocol.md, Real SOC reached the official phone app over Wi-Fi, 2026-09-23](cloud-protocol.md#real-soc-reached-the-official-phone-app-over-wi-fi-2026-09-23)); registration works over Wi-Fi. The items still open (incoming commands, local SIM, the owner gate) are in the open questions of [README](README.md#current-state).
 
 - **Whether the established sockets carry this car's telematics.** A root UID
   and port 30023 do not establish the process, protocol or purpose.

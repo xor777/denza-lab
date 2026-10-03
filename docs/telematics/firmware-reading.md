@@ -101,7 +101,11 @@ fresh vehicle observation was performed. The public-profile gate value remains
 inferred. No successful official-cloud sidecar or status update has yet been
 demonstrated.
 
+> **Superseded 2026-09-23:** a helper status upload and the live stock-client activation were both demonstrated later that day — see [cloud-protocol.md, Real SOC reached the official phone app over Wi-Fi, 2026-09-23](cloud-protocol.md#real-soc-reached-the-official-phone-app-over-wi-fi-2026-09-23) and [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23).
+
 ## Stock updater handoff traced, 2026-09-23 (earlier stage)
+
+> **Superseded 2026-09-23:** the package was decoded without the updater, and the current `cloudmanager` was recovered — see [Matching archive decoded and cloud client recovered, 2026-09-23](#matching-archive-decoded-and-cloud-client-recovered-2026-09-23).
 
 ### Where a readable component could come from
 
@@ -210,6 +214,8 @@ research corpus remain in place. No updater, BCB operation, reboot, settings
 change, registration request or cloud upload was performed.
 
 ## Downloaded firmware inspection, 2026-09-23
+
+> **Superseded 2026-09-23:** the opaque `Android/Target/android.zip` and `Config.xml` were decoded and `cloudmanager` extracted — see [Matching archive decoded and cloud client recovered, 2026-09-23](#matching-archive-decoded-and-cloud-client-recovered-2026-09-23).
 
 The owner supplied
 `~/Downloads/Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip`.
