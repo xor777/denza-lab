@@ -198,6 +198,15 @@ outcome. Other numeric results remain failures, and a missing callback remains a
 timeout. The classification is based on live package visibility rather than the
 same numeric value's meaning in the public Android package-manager constants.
 
+The host `FseCrossMessageProbe` now also registers a cross listener before
+sending requests with a `theme_id` (2026-09-24). It logs `CROSS_RESPONSE` only
+for the matching FSE→IVI `using_wallpaper_result` / `res_id`, then unregisters
+and finishes; the wait is bounded by `FSE_CROSS_WAIT_SECONDS`. Non-theme
+requests retain the one-shot send behavior. Inspector 0.2.0 installation
+returned matching `result=-7` / `res_id=924140127` in ~1.86 s; sender return
+0 alone is still not installation proof. The FSE app's exported self hash is
+the subsequent installed-build identity check.
+
 ## Live verification
 
 AIMP and Yandex Navigator were copied through the existing SMB mount, installed

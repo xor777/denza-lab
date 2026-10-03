@@ -62,7 +62,7 @@ capture_pid=$!
 sleep 1
 "${adb_cmd[@]}" shell am start -W \
   -n dev.denza.tools.fsecrossmessageprobe/dev.denza.tools.FseCrossMessageProbe \
-  --es message_base64 "$message_base64" >/dev/null
+  --es message_base64 "$message_base64" --ei wait_seconds "$wait_seconds" >/dev/null
 sleep "$wait_seconds"
 kill "$capture_pid" >/dev/null 2>&1 || true
 wait "$capture_pid" 2>/dev/null || true

@@ -69,6 +69,9 @@ if (providers.gradleProperty("experiments").isPresent) {
     include(":hud-frames-probe")
     project(":hud-frames-probe").projectDir = file("experiments/hud-frames-probe")
 
+    include(":fse-hud-inspector")
+    project(":fse-hud-inspector").projectDir = file("experiments/fse-hud-inspector")
+
     // Frozen, maintenance-only (see CLAUDE.md). Kept buildable until it is retired.
     include(":denza-gateway")
     project(":denza-gateway").projectDir = file("legacy/denza-gateway")

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No permissions, service, boot receiver, car setters or network access. -->
+    <queries>
+        <package android:name="com.byd.hud" />
+        <package android:name="com.byd.dishare" />
+        <package android:name="com.byd.byddevelopmenttools" />
+        <package android:name="com.byd.carsettings.fse" />
+    </queries>
+    <application android:name=".ProbeApplication" android:allowBackup="false" android:label="FSE HUD Inspector">
+        <activity
+            android:name=".LocalHudActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="dev.denza.fsehud.probe.localhud"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|density"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <activity
+            android:name=".InspectorActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -47,10 +47,28 @@ still use the historical `denza-gateway` directory name.
 - [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, the Contour instrument panel (drawn as Luminofor since 2026-09-23), Mirrors, and navigation status.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
 - [docs/hud-projection-findings.md](docs/hud-projection-findings.md) — the HUD
-  as a display, read from the firmware and the car: the HUD ECU draws its own
-  picture, the SOME/IP map window (`0x8003`) and DiShare video are the only
-  picture channels, this car's HUD reports no map-window feature, and any
-  motion rule lives in the HUD, not the IVI.
+  as a display, read from the firmware and the car: direct-drive variants use
+  FSE's `BydHud`; PackageManager skips it when `sys.hud.direct.config == 0`.
+  SOME/IP carries maneuver/map pictures and DiShare carries full-screen video.
+  The map window works despite an absent feature flag. The FSE HUD Inspector
+  live read (2026-09-24) found direct.config=0, BydHud not registered, and
+  `arhud` 1280×640 / 60 Hz; installed DiShare matches the OTA. IVI access type 3
+  selects the separate HUD video path. A stationary P→D→P test closed DiShare
+  with 605 as availability fell 2→1, with no automatic return after P.
+  Inspector 0.2.1 confirmed ordinary-UID rendering on arhud: a focused 1280×640
+  window, 397 draws/frame callbacks, normal stop after 20 seconds. The owner
+  saw no change on the glass, so independent input selection remains unresolved;
+  vehicle GET/SET permissions are signature-protected and the physical input's
+  motion rule remains unresolved. Offline HAL tracing found the start command
+  routed to FSE's local SPI and arhudshift mapping availability between HUD
+  configurations without computing gear eligibility. The stock diagnostic UI
+  contains a gated network-ADB switch; FSE shell access is still unproved.
+  Offline Cross replay also found a candidate path to the HAL's original-write
+  entry through an existing Cross subscription; live delivery and HUD response
+  remain unproved. Inspector 0.2.2 adds a one-button access/hash export; FSE's
+  stock installer confirmed its update, and its first access report/self hash
+  is pending. See sections 14.9–14.13 and
+  `research/fse-firmware/README.md`.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
 - [docs/audio-capture-findings.md](docs/audio-capture-findings.md) — what a normal app can observe of played audio (spectrum analyser feasibility).
 - [docs/split-screen-findings.md](docs/split-screen-findings.md) — live-proven BYD split substrate, retired router, and the explicit two-picker product flow.
@@ -95,6 +113,7 @@ The on-device probes and the frozen legacy app are configured only when the
 | `:dicar-media-probe` | `experiments/dicar-media-probe/` | `dev.denza.dicarmedia.probe` (disposable app-UID car media service evaluation for the speaker lift) |
 | `:split-events-probe` | `experiments/split-events-probe/` | `dev.denza.splitevents.probe` (disposable app-UID split area push, `homekey` and gate evaluation) |
 | `:hud-frames-probe` | `experiments/hud-frames-probe/` | `dev.denza.hudframes.probe` (disposable moving-frames test of the HUD's picture slots and DiShare video) |
+| `:fse-hud-inspector` | `experiments/fse-hud-inspector/` | `dev.denza.fsehud.probe` (FSE snapshot/export; manual 20-second local arhud Activity and own crash export; 0.2.2 access/hash export update confirmed by stock installer, first report pending; no vehicle setters or DiShare) |
 | `:avc-stock-probe` | `experiments/avc-stock-probe/` | `dev.denza.avcstock.probe` (disposable app-UID read and write of the stock AVC mode and turn-camera choice) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
