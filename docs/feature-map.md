@@ -121,14 +121,14 @@ Repeats Yandex Navigator's turn-by-turn hints (manoeuvre, distance) on the winds
 
 The car's own weather widget keeps getting a fresh forecast for where the car is; nothing of ours draws weather.
 
-- **Tile:** `DashboardTiles.weather`; no runtime feature (`TileId.feature` is null); state `DenzaUiState.weatherEnabled`, `DenzaUiState.weatherTemperature`, `DenzaUiState.weatherUpdatedMillis` — copied from `WeatherAdapterState` only by `DenzaAppRepository.startAdbRuntime` and `DenzaAppRepository.setWeatherEnabled`, never by `DenzaAppRepository.refresh`.
+- **Tile:** `DashboardTiles.weather`; no runtime feature (`TileId.feature` is null); state `DenzaUiState.weatherEnabled`, `DenzaUiState.weatherTemperature`, `DenzaUiState.weatherUpdatedMillis` — copied from `WeatherAdapterState` by `DenzaAppRepository.refresh` and by `DenzaAppRepository.refreshWeather`, which `WeatherAdapterState.observe` calls after every run.
 - **Press / long press:** always `TileAction.TOGGLE`: `DashboardBody` → `DashboardPress.perform` → `DashboardPress.toggle` → `DashboardActions.onSetWeatherEnabled` (bound in `MainActivity`, handed down by `DenzaAppsRoot`) → `DenzaAppRepository.setWeatherEnabled` → `WeatherAdapterState.setEnabled` + `WeatherAdapterScheduler.ensureScheduled` / `WeatherAdapterScheduler.cancel`. Long press: `DashboardActions.onOpenSettings` → `DenzaAppsRoot` → `FeatureSheet`.
 - **Panel:** `weatherSheet` (switch «Данные для виджета», age line via `DashboardTiles.ago`) in `apps/denza-apps/src/main/java/dev/denza/apps/ui/dashboard/FeatureSheets.kt`, inside `FeatureSheet`; paragraph from `helpOf`; no footer button (`panelAction`).
-- **Runtime:** `feature/weather/` — `WeatherAdapterScheduler` (AlarmManager every 10 min, `WeatherAdapterConfig`), `WeatherAdapterReceiver` (manifest receiver for the alarm), `WeatherAdapterService` (manifest foreground service in its own process, :weather) → `WeatherAdapterController` (`WeatherLocationSource`, `AndroidWeatherGeocoder`, `MetNorwayClient`, `NativeWeatherPayload`) → `NativeWeatherStore` writes the stock weather provider. `SimulcastAccessibilityService.onAccessibilityEvent` calls `WeatherAdapterScheduler.onNativeWeatherVisible` when the stock weather app comes up.
+- **Runtime:** `feature/weather/` — `WeatherAdapterScheduler` (AlarmManager every 10 min, `WeatherAdapterConfig`), `WeatherAdapterReceiver` (manifest receiver for the alarm), `WeatherAdapterService` (manifest foreground service, in the app's own process since 2026-10-06) → `WeatherAdapterController` (`WeatherLocationSource`, `AndroidWeatherGeocoder`, `MetNorwayClient`, `NativeWeatherPayload`) → `NativeWeatherStore` writes the stock weather provider. `SimulcastAccessibilityService.onAccessibilityEvent` calls `WeatherAdapterScheduler.onNativeWeatherVisible` when the stock weather app comes up.
 - **Settings:** `WeatherAdapterState` (switch, default on; last temperature; last success; next alarm).
 - **Docs:** `docs/weather-adapter-findings.md`.
 - **Luminofor:** fixtures: none for the panel (no weather sheet board); the tile face is on `main-sound` and every other head board — shared tile face.
-- **Tests:** `DashboardTilesTest`, `WeatherForecastCachePolicyTest`, `WeatherCodeMapperTest`, `WeatherLocationLabelTest`, `RuntimeRecoveryManifestContractTest`, `DenzaProcessPolicyTest`.
+- **Tests:** `WeatherProcessContractTest`, `DashboardTilesTest`, `WeatherForecastCachePolicyTest`, `WeatherCodeMapperTest`, `WeatherLocationLabelTest`, `RuntimeRecoveryManifestContractTest`, `DenzaProcessPolicyTest`.
 
 ### «Динамики» — `SPEAKERS`
 

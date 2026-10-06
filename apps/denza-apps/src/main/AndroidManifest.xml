@@ -131,11 +131,14 @@
             android:name=".feature.mirrors.SideCameraMonitorService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Weather runs in the app's own process. In a `:weather` process of its own it shared
+             one SharedPreferences file with this one: each process wrote its cached copy over the
+             other's, the tile kept the temperature of the process start, and a run could fetch
+             and re-arm its alarm after the switch went off. The alarm wakes this process anyway. -->
         <service
             android:name=".feature.weather.WeatherAdapterService"
             android:exported="false"
-            android:foregroundServiceType="dataSync"
-            android:process=":weather" />
+            android:foregroundServiceType="dataSync" />
         <service
             android:name=".feature.speaker.SpeakerCoverService"
             android:exported="false" />

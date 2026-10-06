@@ -8,7 +8,6 @@ class DenzaProcessPolicyTest {
     @Test
     fun `runtime bootstrap belongs only to the main application process`() {
         assertTrue(DenzaProcessPolicy.shouldBootstrap("dev.denza.apps", "dev.denza.apps"))
-        assertFalse(DenzaProcessPolicy.shouldBootstrap("dev.denza.apps", "dev.denza.apps:weather"))
         assertFalse(DenzaProcessPolicy.shouldBootstrap("dev.denza.apps", "dev.denza.apps:picker"))
         assertFalse(DenzaProcessPolicy.shouldBootstrap("dev.denza.apps", null))
     }

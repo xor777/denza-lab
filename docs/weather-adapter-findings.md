@@ -5,6 +5,36 @@ stock `com.byd.weatherdata` package version `2.9.36.260424`. Android Geocoder
 city labels were added and locally build-verified on 2026-08-22; their
 availability and returned fields still need a live-car check.
 
+## Current state
+
+Updated 2026-10-06. How Denza Apps feeds the car's own weather widget a forecast it can show in
+Russia, and what the «Погода» tile reads back.
+
+| Claim | Status | Since | Section |
+|---|---|---|---|
+| The stock record is one JSON row in `content://com.byd.weatherdata.utils.WeatherContentProvider/weather`; replacing it and nudging the launcher and widget refreshes them | live | 2026-08-14 | [Native contract](#native-contract) |
+| MET Norway Locationforecast, mapped to the stock weather IDs, fills every native field but AQI | live | 2026-08-14 | [Product implementation](#product-implementation) |
+| A run every ten minutes (`setAndAllowWhileIdle`, may be deferred while the car sleeps), plus on opening the stock weather app and on app start | code | 2026-08-14 | [Product implementation](#product-implementation) |
+| The «Погода» tile switches the adapter; on by default, off cancels the alarm and nothing is fetched (`WeatherAdapterState`, `WeatherAdapterService`) | code | 2026-08-26 | [Product implementation](#product-implementation) |
+| The service runs in the app's own process, and the tile follows each run (`DenzaAppRepository.refreshWeather`, `WeatherAdapterState.observe`) | code | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
+| "The adapter runs in a short-lived `:weather` process": it did until 2026-10-06, and sharing preferences with the main process left the tile on the process start's temperature | refuted | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
+| Android `Geocoder` city labels on the car | open | 2026-08-22 | [Boundaries](#boundaries) |
+
+**Open questions**
+- Does the DiLink `Geocoder` return a Russian locality? One run on the car with the label read back
+  from the provider settles it.
+- On the car: does the tile's temperature now change between runs, and does switching weather off
+  stop the provider row from being rewritten? One evening with the tile and the widget side by side.
+
+## Contents
+- [Problem](#problem) — the stock endpoint gives nothing usable in Russia.
+- [Native contract](#native-contract) — the provider row and the two refresh paths.
+- [Product implementation](#product-implementation) — what a run does.
+- [Live proof](#live-proof) — the in-car path and the mutation probes.
+- [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) — one process
+  for the service and the dashboard.
+- [Boundaries](#boundaries) — what is not guaranteed.
+
 ## Problem
 
 The stock weather application and home-screen widgets are functional, but their
@@ -39,8 +69,11 @@ to forge a protected broadcast.
 
 ## Product implementation
 
-The adapter is always enabled and runs in a short-lived `:weather` foreground
-service. `AlarmManager` schedules the next run after ten minutes. Boot, package
+The «Погода» tile switches the adapter; it is on by default, because it shipped
+before it had a switch. A run is a foreground service in the app's own process
+(until 2026-10-06 a separate `:weather` process; see
+[The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06)).
+`AlarmManager` schedules the next run after ten minutes. Boot, package
 replacement, opening the native weather UI, and launching Denza Apps also repair
 or accelerate the schedule.
 
@@ -104,6 +137,29 @@ Mutation probes also established that:
 - non-finite wind/direction values fail safe instead of selecting an extreme
   native icon or direction;
 - stale-cache acceptance is bounded on both sides of a system-clock adjustment.
+
+## The tile read a stale temperature (2026-10-06)
+
+Found while mapping the tiles to their code, from the code alone; not yet seen on the car.
+
+The service ran in a `:weather` process of its own and wrote the temperature and the time of the
+last success into a SharedPreferences file, `weather_adapter_runtime`, that the main process
+read and wrote too: the switch, and the alarm's next time at every alarm. SharedPreferences
+caches a file per process and writes the whole cached copy back, so:
+
+- the dashboard copied the temperature into its state only when the ADB runtime started, never
+  on `refresh`, and the tile showed the temperature of that moment for the life of the process;
+  the panel's «Отдано виджету … назад» counted from the same moment;
+- even a fresh read in the main process would have read its own cached copy, and every alarm the
+  main process handled wrote that copy back over the temperature `:weather` had just recorded;
+- a `:weather` process still alive after the switch went off read the switch from its own copy
+  as on, fetched, wrote the provider row and re-armed the alarm.
+
+The separate process bought nothing: the alarm's receiver has always run in the main process,
+so every run woke it anyway. Since 2026-10-06 the service runs in the app's own process, the
+preferences have one copy, `DenzaAppRepository.refresh` reads the record, and the runtime
+observes it (`WeatherAdapterState.observe`) so the tile follows each run as it is recorded.
+`WeatherProcessContractTest` holds both.
 
 ## Boundaries
 

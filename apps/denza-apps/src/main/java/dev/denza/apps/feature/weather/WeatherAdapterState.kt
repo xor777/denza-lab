@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.weather
 
 import android.content.Context
+import android.content.SharedPreferences
 
 internal object WeatherAdapterState {
     private const val NO_TEMPERATURE = Int.MIN_VALUE
@@ -68,6 +69,29 @@ internal object WeatherAdapterState {
             if (value == null) remove(KEY_OWNED_PROXY) else putString(KEY_OWNED_PROXY, value)
         }.commit()
     }
+
+    /**
+     * Calls [onChange] whenever a run records a temperature or a success, or the switch moves.
+     *
+     * The service shares the dashboard's process, so what it writes lands in the very
+     * preferences instance the dashboard reads, and this is all it takes for the tile to follow
+     * each run rather than the process start. Calling it again replaces the previous observer.
+     * The listener is held here because the platform holds its listeners weakly.
+     */
+    fun observe(context: Context, onChange: () -> Unit) {
+        val preferences = preferences(context)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key in OBSERVED_KEYS) onChange()
+        }
+        synchronized(this) {
+            observer?.let(preferences::unregisterOnSharedPreferenceChangeListener)
+            observer = listener
+            preferences.registerOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    private var observer: SharedPreferences.OnSharedPreferenceChangeListener? = null
+    private val OBSERVED_KEYS = setOf(KEY_ENABLED, KEY_LAST_TEMPERATURE, KEY_LAST_SUCCESS_MILLIS)
 
     private fun preferences(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

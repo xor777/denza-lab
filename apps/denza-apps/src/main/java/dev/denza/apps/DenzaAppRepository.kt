@@ -308,6 +308,9 @@ object DenzaAppRepository {
             ClusterDisplayResolver.select(clusterCandidates),
             clusterCandidates,
         )
+        val weatherEnabled = WeatherAdapterState.enabled(context)
+        val weatherTemperature = WeatherAdapterState.lastTemperature(context)
+        val weatherUpdatedMillis = WeatherAdapterState.lastSuccessMillis(context)
         stateStore.update { current ->
             current.copy(
                 simulcast = snapshot,
@@ -343,6 +346,9 @@ object DenzaAppRepository {
                 cloudLink = cloudLink,
                 cloudWifiRetained = cloudCar?.wifiRetained,
                 cloudLinkBusy = cloudLinkBusy,
+                weatherEnabled = weatherEnabled,
+                weatherTemperature = weatherTemperature,
+                weatherUpdatedMillis = weatherUpdatedMillis,
                 adbRescue = adbRescue,
                 technicalDetails = technicalDetails,
                 splitJournal = splitJournal,
@@ -917,13 +923,6 @@ object DenzaAppRepository {
     }
 
     /**
-     * Whether the car is fed weather at all.
-     *
-     * There is no coordinator behind this and no handshake to wait for: the adapter either has a
-     * standing alarm or it does not, so the press is the whole of the operation and the state can
-     * be reported the moment it is written.
-     */
-    /**
      * Split the screen now, through the same door the launcher icon opens.
      *
      * Not a second way of doing it - literally the same entry activity, so the flow a driver gets
@@ -939,12 +938,42 @@ object DenzaAppRepository {
         }
     }
 
+    /**
+     * Whether the car is fed weather at all.
+     *
+     * There is no coordinator behind this and no handshake to wait for: the adapter either has a
+     * standing alarm or it does not, so the press is the whole of the operation and the state can
+     * be reported the moment it is written.
+     */
     fun setWeatherEnabled(enabled: Boolean) {
         val context = appContext ?: return
         WeatherAdapterState.setEnabled(context, enabled)
         if (enabled) WeatherAdapterScheduler.ensureScheduled(context)
         else WeatherAdapterScheduler.cancel(context)
         stateStore.update { current -> current.copy(weatherEnabled = enabled) }
+    }
+
+    /**
+     * What the car was last handed, copied from the adapter's own record.
+     *
+     * The forecast is fetched every ten minutes by [WeatherAdapterService], which writes the
+     * temperature and the time of the last success as it goes; the tile and the panel read them
+     * from here. Called by [refresh] and, through [WeatherAdapterState.observe], by every run as
+     * it records - until 2026-10-06 only the runtime start read them, so the tile kept the
+     * temperature of the moment the process came up.
+     */
+    fun refreshWeather() {
+        val context = appContext ?: return
+        val enabled = WeatherAdapterState.enabled(context)
+        val temperature = WeatherAdapterState.lastTemperature(context)
+        val updatedMillis = WeatherAdapterState.lastSuccessMillis(context)
+        stateStore.update { current ->
+            current.copy(
+                weatherEnabled = enabled,
+                weatherTemperature = temperature,
+                weatherUpdatedMillis = updatedMillis,
+            )
+        }
     }
 
     /**
@@ -997,16 +1026,8 @@ object DenzaAppRepository {
             }
             runtimeStep("weather initialize") {
                 WeatherAdapterScheduler.ensureScheduled(app)
-                val weatherEnabled = WeatherAdapterState.enabled(app)
-                val weatherTemperature = WeatherAdapterState.lastTemperature(app)
-                val weatherUpdatedMillis = WeatherAdapterState.lastSuccessMillis(app)
-                stateStore.update { current ->
-                    current.copy(
-                        weatherEnabled = weatherEnabled,
-                        weatherTemperature = weatherTemperature,
-                        weatherUpdatedMillis = weatherUpdatedMillis,
-                    )
-                }
+                WeatherAdapterState.observe(app) { refreshWeather() }
+                refreshWeather()
             }
             runtimeStep("dashboard refresh") { refresh() }
             runtimeStep("default apps refresh") { refreshDefaultApps() }
