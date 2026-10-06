@@ -10,6 +10,7 @@ Documents".
 | File | Use for |
 | --- | --- |
 | `project-map.md` | Repo structure, app boundaries, build outputs, product direction. |
+| `feature-map.md` | Each dashboard tile and each surface that is not a tile, as the driver names it, mapped to its code, panel, runtime, settings, docs, Luminofor fixtures and tests; and the checklist for adding a tile. Held to the code by `FeatureMapContractTest`. |
 | `governance.md` | Rules for product/prototype/research changes and promotion. |
 | `adb-authorization-recovery.md` | Denza Apps local-ADB startup gate, one-shot authorization flow, stuck-queue boundary, and acceptance status. |
 | `instrument-display-findings.md` | The driver's display: the instrument panel (Contour, drawn as Luminofor since 2026-09-23), Mirrors following the stock turn-signal camera, navigation projection, HUD turn-by-turn guidance, and open issues. |

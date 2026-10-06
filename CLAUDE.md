@@ -24,6 +24,9 @@ still use the historical `denza-gateway` directory name.
 ## Where to start
 
 - [docs/project-map.md](docs/project-map.md) — structure and per-component status.
+- [docs/feature-map.md](docs/feature-map.md) — what the driver sees (each tile, the strip,
+  the instruments) → its code, panel, runtime, settings, docs, fixtures and tests. Start here
+  when a task names a tile rather than a class.
 - [docs/README.md](docs/README.md) — index of the findings docs.
 - [docs/governance.md](docs/governance.md) — product/prototype/research lanes,
   where experiments live, promotion checklist, live-car debugging rules, the
