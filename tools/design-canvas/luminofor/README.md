@@ -85,6 +85,24 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 - The debug build can draw any board's fixture at the board's pixel size; `compare.py` lays that
   screenshot over the PNG. A screen is finished when the two agree to antialiasing.
 
+Which Kotlin draws what a board function draws (paths under
+`apps/denza-apps/src/main/java/dev/denza/apps/`):
+
+| `luminofor.js` | Kotlin |
+| --- | --- |
+| `beam`, `glowFill`, `text`, `num` | `LightPen` (`design/luminofor/`); the figures' shapes are `WideDigits`, which `drawDigits` shows |
+| `silhouette` | `Silhouette` (`design/luminofor/`) |
+| `drawCluster`, `centre`, `keepout`, `trace` | `ClusterDashboardRenderer`, on `ContourGeometry`; its `f` is `ContourFrame`, built by `ContourFrameBuilder` (`feature/cluster/dashboard/`) |
+| `drawHead`: the tiles, `tileFace` | `DashboardGrid` (`ui/dashboard/`) places them; `TileFacePainter` and `TileFace` (`ui/components/`) draw one |
+| `drawHead`: the strip's sound page, `trackBlock`, `spectrumField`, `reading`, `dots` | `TripPanelRenderer`, `SpectrumRenderer`, `StripInk`, `StripGeometry`, `StripModel` (`feature/trip/`) |
+| `drawHead`: the car page, `carChart`, `tempsRow`, `closedPage` | `VehiclePageRenderer` (`feature/trip/`) |
+| `drawSheet`: rows, `toggle`, `segmented`, `apps`, `button` | `DenzaSheet` and `SheetInk` (`ui/components/`); each tile's panel is in `ui/dashboard/FeatureSheets.kt` |
+| `drawModal` | `DenzaModalDialog` (`ui/components/DenzaSurfaces.kt`) |
+| `spec.json` | `LuminoforSpec` (`design/luminofor/`), held to it by `LuminoforSpecContractTest` |
+
+Which tile is which feature, and where each one's panel, runtime and tests are:
+[`docs/feature-map.md`](../../../docs/feature-map.md).
+
 ```bash
 ./gradlew :denza-apps:assembleDebug
 adb -s emulator-5580 install -r -t apps/denza-apps/build/outputs/apk/debug/*.apk
