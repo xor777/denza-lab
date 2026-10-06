@@ -440,6 +440,111 @@ and not a dialog: a `persist.` property is written below the application layer, 
 factory tooling. Nothing in the decompiled corpus outside SystemUI so much as mentions it.
 
 
+## Port 5555 after a reboot, and reopening it through wireless debugging (corpus, 2026-10-06)
+
+Owners on the forum report that IVI builds from mid-2026 (version strings with «2606») leave
+port 5555 closed after every reboot of the head unit, so anything that reaches adbd over TCP
+stops until ADB is opened again by hand. Nobody has seen this on this project's car, which runs
+`Di5.1_34.1.33.2605218`, and the 2606 OTA is not in the corpus. What follows is read from the
+2605 image, with the files under `captures/adb-firmware-20261006/`.
+
+It matters to the product directly: `LocalAdbClient` talks only to `127.0.0.1:5555`
+(`PORT = 5555`), classic protocol, no TLS. On a build that closes that port, every feature
+behind the startup gate stops after each reboot, and nothing in Denza Apps can reopen it.
+
+### What opens 5555 on the 2605 image
+
+- `/system/etc/init/hw/init.rc:1685–1694`, commented `houcl add for wifi adb`:
+  `on property:sys.connect.adb.wiress=1` sets `service.adb.tcp.port 5555` and restarts adbd;
+  `=0` clears the port and restarts it. Owners describe 2606 as having lost this hook. That is
+  their reading, not checked here.
+- The only writer in the corpus is BYD's `BydDevelopmentTools` (shared UID `android.uid.system`,
+  `/system/byd/devices/users/priv-app/`), TestTools → *Wireless adb debug switch*:
+  `LogControlAndTestToolsActivity:386–391` writes `persist.sys.adb.wiress.enable`,
+  `sys.connect.adb.wiress` and, through BYD's `SystemProperties.setHost`, the same property on
+  the fission host side. Unlike the FSE copy of this app, the IVI copy does not write the
+  property again when the screen opens (`G0()` only reads).
+- That app's only `BOOT_COMPLETED` receiver starts repair mode and nothing else. No component
+  in the decompiled corpus sets `sys.connect.adb.wiress` at boot, and a `sys.` property does not
+  survive a kernel reboot.
+- adbd falls back to `persist.adb.tcp.port` when `service.adb.tcp.port` is empty (the string
+  is in `/system/apex/com.android.adbd/bin/adbd`; this is AOSP behaviour).
+
+What keeps 5555 open across a full reboot on 2605 is therefore **open**:
+`persist.adb.tcp.port`, a native daemon outside the corpus, or whatever the remote unlock
+wrote. Also open: whether these reports mean every wake from sleep or only full reboots. The
+car's sleep is a quickboot (the kernel and init keep running, so properties survive), and that
+is a different event from a kernel reboot. One read-only measurement on the working car
+settles the first question, and it should be taken before any OTA:
+
+```bash
+adb shell 'getprop | grep -iE "adb|wiress|usb.config"'
+```
+
+### Reopening 5555 through wireless debugging
+
+Owners describe a restore that uses Android's own wireless debugging to ask adbd for
+`tcpip:5555`. Every step is stock AOSP on this image:
+
+1. While classic ADB still works, the app grants itself `WRITE_SECURE_SETTINGS` with
+   `pm grant` over its own shell. The manifest must request the permission; Denza Apps does not
+   request it today.
+2. After the reboot it writes `Settings.Global.adb_wifi_enabled = 1`. `AdbService` and
+   `AdbDebuggingManager` are unmodified (`AdbDebuggingManager` handler case 11, about lines
+   838–858, and `verifyWifiNetwork` at 1115). With no Wi-Fi the setting is put back to 0. On a
+   BSSID that is not trusted, the framework starts the network confirmation and also puts it
+   back to 0. A write that does not stick for about a second therefore means the dialog is up.
+3. The dialog is SystemUI's `WifiDebuggingActivity`, and it is stock. It has no
+   `persist.sys.factory.version.flag.config` bypass, unlike `UsbDebuggingActivity` above. Its
+   Allow button ignores obscured touches (`lambda$onCreate$0`, flags 1|2). An accessibility
+   `ACTION_CLICK` is not a touch, so a service can press it. *Always allow on this network*
+   stores the BSSID, and a phone hotspot gets a new BSSID each time it starts, so on a hotspot
+   the dialog comes back after every reboot.
+4. The TLS port is in `service.adb.tls.port`, which an app may not be able to read, or it can
+   be found over mDNS as `_adb-tls-connect._tcp`. Only an advertisement from one of the unit's
+   own addresses counts.
+5. Connect to that port: `CNXN`, adbd answers `STLS`, then TLS 1.3 with a self-signed
+   certificate around the app's RSA key. adbd checks that key against `adb_keys`
+   (`adbd_tls_verify_cert`), the same file that *Always allow* on the classic prompt writes.
+   No pairing code is needed.
+6. Open `tcpip:5555`. adbd sets `service.adb.tcp.port` and restarts, and the reply may come
+   back as EOF. Success is the classic port answering again, not the reply.
+
+**This keeps ADB open; it does not open it.** Every one of these preconditions has to hold:
+
+- The app's key is already trusted.
+- `WRITE_SECURE_SETTINGS` was granted before the port closed.
+- Android 11 or later (this car runs 13).
+- Wi-Fi is connected. The framework refuses wireless debugging without it.
+- The OTA left wireless debugging and `adb_enabled` working. What 2606 changed is not known
+  here.
+
+A car where ADB was never opened gets nothing from this. Neither does an update installed before
+the permission was granted.
+
+### Consequences for the product
+
+| Claim | Status | Where |
+| --- | --- | --- |
+| 2605 opens 5555 through `sys.connect.adb.wiress`, written only by BYD's developer tools | firmware | `init.rc:1685`, `LogControlAndTestToolsActivity:389–391` |
+| Who sets it, or `persist.adb.tcp.port`, after a full reboot on 2605 | open | getprop above |
+| 2606 closes 5555 after a reboot | open | owners' reports only |
+| The wireless-debugging path and its dialog are stock on 2605 | firmware | `AdbDebuggingManager`, `WifiDebuggingActivity` |
+| Denza Apps reaches adbd only over classic 5555 and has no reopening path | code | `LocalAdbClient.PORT` |
+
+On a 2606-class build, the product would need four things:
+
+- A `WRITE_SECURE_SETTINGS` request in the manifest, granted while 5555 still answers.
+- An STLS client and mDNS discovery added to `LocalAdbClient`.
+- A third accessibility job for the network dialog. Simulcast and the split picker already run
+  accessibility services.
+- A gate state for "no Wi-Fi yet".
+
+None of this is built.
+
+The rule for the car follows from the preconditions: a build that holds the permission has to be
+on the car before such an OTA is installed.
+
 ## The persistent shell is a terminal (live v31, 2026-08-26)
 
 Feature clients do not run one command per ADB stream. `LocalAdbClient.openPersistentShell()`

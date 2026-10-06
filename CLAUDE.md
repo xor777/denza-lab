@@ -64,7 +64,8 @@ already been extracted and decompiled several times. Look before extracting agai
 
 - `captures/split-firmware-20260923/`, `hud-firmware-20260923/`,
   `ambient-light-20260923/`, `speaker-firmware-20260923/`,
-  `washer-firmware-20260923/` — parts of the IVI OTA, with `jadx/` trees and,
+  `washer-firmware-20260923/`, `adb-firmware-20261006/` (init/adbd/USB scripts
+  and BYD developer tools) — parts of the IVI OTA, with `jadx/` trees and,
   where present, `extraction.json` / `files-*.txt` listings.
   `captures/fse-firmware-20260924/` is the FSE OTA.
   `reverse/*-jadx` holds older decompiles; `reverse/dishare-jadx` is an older
