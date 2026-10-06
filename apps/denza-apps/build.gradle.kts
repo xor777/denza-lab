@@ -204,3 +204,19 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
 }
+
+/**
+ * The contract tests read files this module does not compile, so Gradle has to be told about
+ * them or it calls the tests up to date when only a board or the feature map changed. The
+ * Luminofor boards and their spec, the debug build's fixtures, the split crew's board and
+ * `docs/feature-map.md` are each held to the code by a test here (`LuminoforSpecContractTest`,
+ * `ContourFixturesContractTest`, `SplitCrewBoardContractTest`, `FeatureMapContractTest`, ...).
+ */
+tasks.withType<Test>().configureEach {
+    inputs.files(
+        rootProject.fileTree("tools/design-canvas/luminofor"),
+        rootProject.fileTree("tools/design-canvas/split-crew"),
+        fileTree("src/debug/assets/luminofor"),
+        rootProject.file("docs/feature-map.md"),
+    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("contractSources")
+}
