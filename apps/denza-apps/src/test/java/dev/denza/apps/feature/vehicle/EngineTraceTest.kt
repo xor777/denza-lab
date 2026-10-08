@@ -30,7 +30,7 @@ import org.junit.Test
 class EngineTraceTest {
 
     /** One second per step, so a test can state what each second holds. */
-    private fun trace() = EngineTrace(slotMillis = 1_000L, capacity = 5, binSeconds = 1)
+    private fun trace() = EngineTrace(capacity = 5, binSeconds = 1)
 
     private fun EngineTraceSnapshot.values(): List<Double?> =
         bins.map { if (it.isNaN()) null else it.toDouble() }
@@ -193,7 +193,7 @@ class EngineTraceTest {
 
     /** A trace at the panel's own step size, small enough for a test to fill. */
     private fun stepped(capacity: Int = 20) =
-        EngineTrace(slotMillis = 1_000L, capacity = capacity, binSeconds = 5)
+        EngineTrace(capacity = capacity, binSeconds = 5)
 
     private fun feed(trace: EngineTrace, fromSecond: Long, values: List<Double?>) {
         values.forEachIndexed { index, value ->

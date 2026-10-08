@@ -47,7 +47,6 @@ import kotlin.math.min
  * a right-anchored grid whose grouping is stable.
  */
 internal class EngineTrace(
-    private val slotMillis: Long = SLOT_MS,
     private val capacity: Int = SLOTS,
     private val binSeconds: Int = BIN_SECONDS,
 ) {
@@ -71,7 +70,7 @@ internal class EngineTrace(
      * figure with no flag behind it is recorded but does not make the slot alive.
      */
     fun sample(atMillis: Long, engineRunning: Boolean?, generationKw: Double?) {
-        val slot = atMillis / slotMillis
+        val slot = atMillis / SLOT_MS
         val alive = engineRunning == true
         when {
             lastSlot == Long.MIN_VALUE -> Unit

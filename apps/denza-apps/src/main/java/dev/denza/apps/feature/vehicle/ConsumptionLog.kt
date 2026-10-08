@@ -72,7 +72,6 @@ internal data class ConsumptionSample(
 }
 
 internal class ConsumptionLog(
-    private val bucketKm: Double = DEFAULT_BUCKET_KM,
     private val capacity: Int = DEFAULT_CAPACITY,
     private val onBucketClosed: (ConsumptionSample) -> Unit = {},
 ) {
@@ -157,7 +156,7 @@ internal class ConsumptionLog(
             pendingKnownKm += km
             if (moving) pendingKwh += powerKw!! * dtSeconds / 3600.0
         }
-        if (pendingKm >= bucketKm - KM_EPSILON) {
+        if (pendingKm >= DEFAULT_BUCKET_KM - KM_EPSILON) {
             val sample = ConsumptionSample(reading, pendingKwh, pendingKm, pendingKnownKm)
             closed.addLast(sample)
             while (closed.size > capacity) closed.removeFirst()
