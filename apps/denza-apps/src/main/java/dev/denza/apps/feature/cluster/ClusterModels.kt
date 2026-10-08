@@ -65,7 +65,6 @@ data class ClusterLayout(
     val cameraPosition: ClusterCameraPosition,
     val centerExtendPercent: Int = 20,
 ) {
-    val mapBounds: ClusterBounds = ClusterBounds(0, 0, displayWidth, displayHeight)
     val baseSlotWidth: Int = (displayWidth / 3).coerceAtLeast(1)
     val cameraWidth: Int = (
         baseSlotWidth + (baseSlotWidth * centerExtendPercent.coerceIn(0, 100) / 100f).toInt()

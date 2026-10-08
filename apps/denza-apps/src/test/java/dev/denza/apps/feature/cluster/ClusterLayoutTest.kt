@@ -5,12 +5,6 @@ import org.junit.Test
 
 class ClusterLayoutTest {
     @Test
-    fun mapAlwaysOccupiesTheWholeDisplay() {
-        val layout = ClusterLayout(1920, 720, ClusterCameraPosition.CENTER)
-        assertEquals(ClusterBounds(0, 0, 1920, 720), layout.mapBounds)
-    }
-
-    @Test
     fun cameraUsesOneThirdPlusTwentyPercentAtEachPosition() {
         val left = ClusterLayout(1920, 720, ClusterCameraPosition.LEFT)
         val center = ClusterLayout(1920, 720, ClusterCameraPosition.CENTER)
