@@ -181,10 +181,15 @@ data class DenzaUiState(
     val weatherEnabled: Boolean = true,
     val weatherTemperature: Int? = null,
     val weatherUpdatedMillis: Long = 0L,
+    /**
+     * «Сервис» → «Технические сведения», in the report's format ([TechnicalReadings]). Built only
+     * while the service panel is open ([ServiceReport]); what it last said otherwise.
+     */
     val technicalDetails: String = "",
     /**
      * The service's «Журнал работы»: the split's last operations, step by step, in the report's
-     * format ([TechnicalReadings]). Read off the journal on disk on a thread of its own.
+     * format ([TechnicalReadings]). Read off the journal on disk on a thread of its own, and built
+     * with [technicalDetails].
      */
     val splitJournal: String = "",
     val clusterCandidates: List<ClusterDisplayDescriptor> = emptyList(),
@@ -205,25 +210,17 @@ data class DenzaUiState(
 )
 
 /**
- * What the dashboard publishes while local ADB is not trusted: the gate's own state and the
- * service's report, and nothing else.
+ * What a recompute publishes while local ADB is not trusted: the gate's own state, and nothing else.
  *
  * The tiles keep their last healthy state, because a feature probe that cannot reach the shell
- * would only turn one missing prerequisite into a wall of unrelated errors. The report used to be
- * kept the same way, and on a fresh process that meant blank: «Технические сведения» behind the
- * gate's seven-tap door showed nothing at all - no access phase, no switch reading, no version or
- * firmware - exactly when an owner opens it to send a screenshot. The report reads prefs, the
- * package manager, the displays and what this process holds; none of it needs the shell.
+ * would only turn one missing prerequisite into a wall of unrelated errors. The service's report
+ * is not a recompute's to publish at all: it is built while the panel is open, gate or no gate
+ * ([ServiceReport]) - it reads prefs, the package manager, the displays and what this process
+ * holds, and none of it needs the shell. Kept the way the tiles are, it used to be blank behind the
+ * gate's seven-tap door on a fresh process, exactly when an owner opens it to send a screenshot.
  */
-internal fun DenzaUiState.behindAdbGate(
-    adbRescue: AdbRescueSnapshot,
-    technicalDetails: String,
-    splitJournal: String,
-): DenzaUiState = copy(
-    adbRescue = adbRescue,
-    technicalDetails = technicalDetails,
-    splitJournal = splitJournal,
-)
+internal fun DenzaUiState.behindAdbGate(adbRescue: AdbRescueSnapshot): DenzaUiState =
+    copy(adbRescue = adbRescue)
 
 /** Android-facing state owner shared by the Compose shell and runtime services. */
 object DenzaAppRepository {
@@ -240,6 +237,23 @@ object DenzaAppRepository {
     }
     private val adbRuntimeStarted = AtomicBoolean(false)
     private val adbRuntimePassRunning = AtomicBoolean(false)
+
+    /** How often an open «Технические сведения» is built again: its readings carry ages. */
+    private const val SERVICE_REPORT_PERIOD_MS = 1_000L
+
+    private val serviceReport = ServiceReport(
+        clock = ServiceReport.ThreadClock("denza-report"),
+        periodMs = SERVICE_REPORT_PERIOD_MS,
+        build = ::buildServicePages,
+        publish = { pages ->
+            stateStore.update { current ->
+                current.copy(
+                    technicalDetails = pages.technicalDetails,
+                    splitJournal = pages.splitJournal,
+                )
+            }
+        },
+    )
     private val defaultAppsHydrated = AtomicBoolean(false)
     private val defaultAppsRefreshRequested = AtomicBoolean(false)
     private val defaultAppsRefreshRunning = AtomicBoolean(false)
@@ -307,30 +321,37 @@ object DenzaAppRepository {
             // Keep the last healthy dashboard (or its neutral first-launch defaults) behind the
             // startup overlay. Individual feature probes must not turn a missing global ADB
             // prerequisite into a wall of unrelated errors.
-            // The report is the exception: it needs no shell, and behind the gate it is the one
-            // channel left.
-            val technicalDetails = supportDiagnostics(context)
-            val splitJournal = SupportDiagnostics.splitJournal()
-            SplitDiagnostics.rereadWork { refresh("split journal") }
             stateStore.update { current ->
-                current.behindAdbGate(adbRescue, technicalDetails, splitJournal).copy(adbRestore = AdbRestore.snapshot())
+                current.behindAdbGate(adbRescue).copy(adbRestore = AdbRestore.snapshot())
             }
             return
         }
         val readings = StateSlice.entries.map { slice -> readSlice(context, slice) }
-        val technicalDetails = supportDiagnostics(context)
-        // What the split's journal said when last read; if the files moved since, they are read
-        // again on the journal's own thread and this runs once more with what they say now.
-        val splitJournal = SupportDiagnostics.splitJournal()
-        SplitDiagnostics.rereadWork { refresh("split journal") }
         stateStore.update { current ->
             current.withReadings(readings).copy(
                 adbRescue = adbRescue,
                 adbRestore = AdbRestore.snapshot(),
-                technicalDetails = technicalDetails,
-                splitJournal = splitJournal,
             )
         }
+    }
+
+    /**
+     * The service panel is on screen, or gone: the report and the split's journal are built while
+     * it is ([ServiceReport]), behind the ADB gate too, and not at all otherwise.
+     */
+    fun setServiceReportOpen(open: Boolean) {
+        serviceReport.setOpen(open)
+    }
+
+    private fun buildServicePages(): ServiceReport.Pages {
+        val context = checkNotNull(appContext) { "the report is opened before the app is initialised" }
+        // What the split's journal said when last read; if the files moved since, they are read
+        // again on the journal's own thread and the pages are built once more with what they say.
+        SplitDiagnostics.rereadWork { serviceReport.rebuildNow() }
+        return ServiceReport.Pages(
+            technicalDetails = supportDiagnostics(context),
+            splitJournal = SupportDiagnostics.splitJournal(),
+        )
     }
 
     /**
@@ -763,13 +784,8 @@ object DenzaAppRepository {
                     failure.toString(),
                     problem.resolution,
                 )
-                val technicalDetails = supportDiagnostics(context)
-                stateStore.update { current ->
-                    current.copy(
-                        hudGuidance = hudGuidance,
-                        technicalDetails = technicalDetails,
-                    )
-                }
+                stateStore.update { current -> current.copy(hudGuidance = hudGuidance) }
+                serviceReport.rebuildNow()
             }
         }
     }
@@ -886,7 +902,11 @@ object DenzaAppRepository {
 
     fun refreshScreenDiagnostics() {
         val context = appContext ?: return
-        SimulcastScreenDiagnostics.refresh(context) { refresh("screen search") }
+        SimulcastScreenDiagnostics.refresh(context) {
+            // DiShare's screens are the report's; the displays are the instruments' picker's.
+            serviceReport.rebuildNow()
+            refresh("screen search")
+        }
     }
 
     fun checkAdbAccess() {
@@ -1189,13 +1209,8 @@ object DenzaAppRepository {
             }
             else -> {
                 val mirrors = MirrorDisplayReadiness.snapshot(selection, active = false)
-                val technicalDetails = supportDiagnostics(context)
-                stateStore.update { current ->
-                    current.copy(
-                        mirrors = mirrors,
-                        technicalDetails = technicalDetails,
-                    )
-                }
+                stateStore.update { current -> current.copy(mirrors = mirrors) }
+                serviceReport.rebuildNow()
             }
         }
     }
@@ -1229,15 +1244,14 @@ object DenzaAppRepository {
                 }
                 is SimulcastReconcileEvent.Blocked -> {
                     val simulcast = SimulcastCoordinator.blockedSnapshot(event.blocker)
-                    val technicalDetails = supportDiagnostics(context)
                     stateStore.update { current ->
                         current.copy(
                             setupRunning = event.setupRunning,
                             simulcast = simulcast,
                             selectedAppCount = event.selectedAppCount,
-                            technicalDetails = technicalDetails,
                         )
                     }
+                    serviceReport.rebuildNow()
                 }
                 SimulcastReconcileEvent.Repairing -> {
                     val simulcast = FeatureReducer.recovering(
@@ -1264,14 +1278,13 @@ object DenzaAppRepository {
                         event.details,
                         event.resolution,
                     )
-                    val technicalDetails = supportDiagnostics(context)
                     stateStore.update { current ->
                         current.copy(
                             setupRunning = event.setupRunning,
                             simulcast = simulcast,
-                            technicalDetails = technicalDetails,
                         )
                     }
+                    serviceReport.rebuildNow()
                 }
             }
         }

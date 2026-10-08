@@ -31,7 +31,7 @@ class WeatherProcessContractTest {
     @Test
     fun theDashboardReadsTheRecordOnEveryRefreshAndEveryRun() {
         val repository = File("src/main/java/dev/denza/apps/DenzaAppRepository.kt").readText()
-        val refresh = repository.between("\n    private fun recompute() {", "\n    fun ")
+        val refresh = repository.between("\n    private fun readSlice(", "\n    fun ")
         assertTrue(
             "DenzaAppRepository.refresh must read the weather record",
             "WeatherAdapterState.lastTemperature" in refresh &&

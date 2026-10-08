@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.compose.LifecycleStartEffect
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 import dev.denza.apps.ui.components.SheetInk
 import dev.denza.apps.DenzaUiState
@@ -100,6 +101,7 @@ fun DenzaAppsRoot(
     onSetCloudWifiRetained: (Boolean) -> Unit,
     onSelectClusterDisplay: (Int?) -> Unit,
     onRefreshScreenDiagnostics: () -> Unit,
+    onServiceReportVisible: (Boolean) -> Unit,
     onCheckAdbAccess: () -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
@@ -319,6 +321,12 @@ fun DenzaAppsRoot(
                 }
             }
             if (showDiagnostics) {
+                // The report and the split's journal are built while the panel stands on a
+                // started screen, and not at all otherwise.
+                LifecycleStartEffect(Unit) {
+                    onServiceReportVisible(true)
+                    onStopOrDispose { onServiceReportVisible(false) }
+                }
                 ServicePanel(
                     state = uiState,
                     compactLayout = compactLayout,
