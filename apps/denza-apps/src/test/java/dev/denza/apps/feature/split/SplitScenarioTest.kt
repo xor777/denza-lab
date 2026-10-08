@@ -205,18 +205,15 @@ class SplitScenarioTest {
     @Test
     fun reentrantLeaseRebindCannotKillTheOpenItServes() {
         // live red P1.2, триггер 1: OPEN первым делом берёт picker-access; со стёртыми prefs это
-        // полный ре-байнд сервиса, а свежий сервис отчитывается координатору синхронно, изнутри
-        // той самой операции, которая его и подняла
+        // полный ре-байнд сервиса изнутри той самой операции, которая его и подняла. Свежий
+        // сервис когда-то отчитывался координатору синтезированным Home; теперь ему нечем - входа
+        // Home у координатора для него нет, - и здесь проверяется сам ре-байнд под OPEN
         val car = car(FakeShell())
-        var built: SplitCoordinatorCore? = null
-        val observer = ReentrantPickerAccessLease(
-            onServiceConnected = { ReboundObserver.report(built!!, stockPickerVisible = false) },
-        )
+        val observer = ReentrantPickerAccessLease()
         val core = car.core(
             SplitDurable(enabled = true),
             leases = listOf(FakeLease(SplitLeaseKind.RESIZEABILITY, RESIZE_KEY), observer),
         )
-        built = core
         core.initialize {}
         val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
@@ -301,15 +298,11 @@ class SplitScenarioTest {
                 area = 4
             },
         )
-        var built: SplitCoordinatorCore? = null
-        val observer = ReentrantPickerAccessLease(
-            onServiceConnected = { ReboundObserver.report(built!!, stockPickerVisible = false) },
-        )
+        val observer = ReentrantPickerAccessLease()
         val core = car.core(
             SplitDurable(enabled = true, slots = PICKER_PAIR),
             leases = listOf(FakeLease(SplitLeaseKind.RESIZEABILITY, RESIZE_KEY), observer),
         )
-        built = core
         core.initialize {}
         val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
