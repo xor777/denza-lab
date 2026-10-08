@@ -53,43 +53,19 @@ class FeatureMapContractTest {
         TEST_CLASS.matches(token) -> testClasses.contains(token)
         MEMBER.matches(token) -> {
             val (owner, member) = token.split('.')
-            declaring(owner).any { declares(it, member) }
+            owners[owner].orEmpty().any { source ->
+                member in if (CONSTANT.matches(member)) source.words else source.members
+            }
         }
-        CONSTANT.matches(token) -> sources.values.any { Regex("""\b$token\b""").containsMatchIn(it) }
-        IDENTIFIER.matches(token) -> declared(token) || quoted(token)
-        LITERAL.matches(token) -> quoted(token)
+        CONSTANT.matches(token) -> token in words
+        IDENTIFIER.matches(token) -> token in declared || token in quoted
+        LITERAL.matches(token) -> token in quoted
         // Commands, hex values, prose in code type: nothing to resolve.
         else -> true
     }
 
     private fun pathOf(token: String): File =
         if (ROOTS.any { token.startsWith(it) }) File(repo, token) else File(main, token)
-
-    private fun declaring(owner: String): List<String> {
-        val declaration = Regex("""\b(class|object|interface|enum)\s+$owner\b""")
-        return sources.values.filter { declaration.containsMatchIn(it) }
-    }
-
-    private fun declares(text: String, member: String): Boolean =
-        if (CONSTANT.matches(member)) {
-            Regex("""\b$member\b""").containsMatchIn(text)
-        } else {
-            Regex("""\b(fun|val|var)\s+(<[^>]+>\s+)?([\w.]+\.)?$member\b""").containsMatchIn(text) ||
-                Regex("""[\w>\]]\s+$member\s*\(""").containsMatchIn(text)
-        }
-
-    /** A class, object, interface or function: Kotlin, Java, or the board's own JavaScript. */
-    private fun declared(name: String): Boolean {
-        val kotlin = Regex("""\b(class|object|interface|fun)\s+(<[^>]+>\s+)?([\w.]+\.)?$name\b""")
-        val java = Regex("""\b(class|interface|enum)\s+$name\b""")
-        val script = Regex("""\bfunction\s+$name\b""")
-        return sources.values.any {
-            kotlin.containsMatchIn(it) || java.containsMatchIn(it) || script.containsMatchIn(it)
-        }
-    }
-
-    /** A preferences key or another literal, written in the sources as a string. */
-    private fun quoted(token: String): Boolean = sources.values.any { "\"$token\"" in it }
 
     private companion object {
         val ROOTS = listOf("apps/", "docs/", "tools/", "libraries/", "research/", "experiments/")
@@ -123,6 +99,60 @@ class FeatureMapContractTest {
                     .toList()
             } + File(repo, "tools/design-canvas/luminofor/luminofor.js")
             ).associateWith { it.readText() }
+
+        /** One source, indexed once: every word in it, and every member name it declares. */
+        class Indexed(val words: Set<String>, val members: Set<String>)
+
+        /**
+         * The names a source declares after one of [keywords]: the last segment of `fun Foo.bar`
+         * and every segment before it, since the receiver is optional to the pattern too. The name
+         * is read ahead rather than consumed, so `enum class Foo` and `fun interface Foo` still
+         * show the keyword in front of `Foo` to the next match.
+         */
+        fun declarations(text: String, keywords: String): Sequence<String> =
+            Regex("""\b(?:$keywords)\s+(?:<[^>]+>\s+)?(?=([\w.]+))""").findAll(text)
+                .flatMap { it.groupValues[1].split('.').asSequence() }
+                .filter { it.isNotEmpty() }
+
+        private val WORD = Regex("""\w+""")
+
+        /**
+         * The sources, indexed in one pass: a word set, the declared names, the quoted literals and
+         * which files declare which types. Until 2026-10-08 every backticked name compiled its own
+         * patterns and ran them over every source, which was 39 of the suite's 44 seconds.
+         */
+        val indexed: Map<File, Indexed> = sources.mapValues { (_, text) ->
+            Indexed(
+                words = WORD.findAll(text).map { it.value }.toSet(),
+                members = (
+                    declarations(text, "fun|val|var") +
+                        Regex("""[\w>\]]\s+(\w+)(?=\s*\()""").findAll(text).map { it.groupValues[1] }
+                    ).toSet(),
+            )
+        }
+
+        val words: Set<String> = indexed.values.flatMapTo(HashSet()) { it.words }
+
+        /** A class, object, interface or function: Kotlin, Java, or the board's own JavaScript. */
+        val declared: Set<String> = sources.values.flatMapTo(HashSet()) { text ->
+            declarations(text, "class|object|interface|fun") +
+                Regex("""\b(?:class|interface|enum|function)\s+(?=(\w+))""").findAll(text).map { it.groupValues[1] }
+        }
+
+        /** A preferences key or another literal, written in the sources as a string. */
+        val quoted: Set<String> = sources.values.flatMapTo(HashSet()) { text ->
+            Regex("""(?<=")[A-Za-z0-9_.]+(?=")""").findAll(text).map { it.value }
+        }
+
+        /** Which files declare a type of each name. */
+        val owners: Map<String, List<Indexed>> = sources.entries
+            .flatMap { (file, text) ->
+                Regex("""\b(?:class|object|interface|enum)\s+(?=(\w+))""").findAll(text)
+                    .map { it.groupValues[1] to indexed.getValue(file) }
+                    .toList()
+            }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, files) -> files.distinct() }
 
         /** A file named on its own, without its directory: somewhere in the app's sources. */
         val fileNames: Set<String> = sources.keys.map { it.name }.toSet()
