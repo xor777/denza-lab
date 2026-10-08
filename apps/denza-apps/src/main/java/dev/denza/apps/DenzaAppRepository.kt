@@ -195,6 +195,27 @@ data class DenzaUiState(
     val fseInstallApps: List<FseInstallApp> = emptyList(),
 )
 
+/**
+ * What the dashboard publishes while local ADB is not trusted: the gate's own state and the
+ * service's report, and nothing else.
+ *
+ * The tiles keep their last healthy state, because a feature probe that cannot reach the shell
+ * would only turn one missing prerequisite into a wall of unrelated errors. The report used to be
+ * kept the same way, and on a fresh process that meant blank: «Технические сведения» behind the
+ * gate's seven-tap door showed nothing at all - no access phase, no switch reading, no version or
+ * firmware - exactly when an owner opens it to send a screenshot. The report reads prefs, the
+ * package manager, the displays and what this process holds; none of it needs the shell.
+ */
+internal fun DenzaUiState.behindAdbGate(
+    adbRescue: AdbRescueSnapshot,
+    technicalDetails: String,
+    splitJournal: String,
+): DenzaUiState = copy(
+    adbRescue = adbRescue,
+    technicalDetails = technicalDetails,
+    splitJournal = splitJournal,
+)
+
 /** Android-facing state owner shared by the Compose shell and runtime services. */
 object DenzaAppRepository {
     private const val TAG = "DenzaApps.Repository"
@@ -256,7 +277,14 @@ object DenzaAppRepository {
             // Keep the last healthy dashboard (or its neutral first-launch defaults) behind the
             // startup overlay. Individual feature probes must not turn a missing global ADB
             // prerequisite into a wall of unrelated errors.
-            stateStore.update { current -> current.copy(adbRescue = adbRescue) }
+            // The report is the exception: it needs no shell, and behind the gate it is the one
+            // channel left.
+            val technicalDetails = supportDiagnostics(context)
+            val splitJournal = SupportDiagnostics.splitJournal()
+            SplitDiagnostics.rereadWork { refresh() }
+            stateStore.update { current ->
+                current.behindAdbGate(adbRescue, technicalDetails, splitJournal)
+            }
             return
         }
         val snapshot = SimulcastCoordinator.evaluate(SimulcastCoordinator.inspect(context))

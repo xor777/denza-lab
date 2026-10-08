@@ -128,6 +128,13 @@ The window can be touched at all because it is a `Dialog`, so the platform gives
 the activity, while the gate's shield is a full-screen `clickable` inside the activity's own
 window. The recovery panel has reached the owner by that same route since v29.
 
+Until 2026-10-08 the door opened onto a blank **Технические сведения** in a fresh process. Before
+`TRUSTED`, `DenzaAppRepository.refresh` published only the gate's phase, and the report was built
+only on paths that need a trusted shell. The page then had no access phase, no switch reading, no
+version and no firmware. Behind the gate `refresh` now builds the report and the split's
+**Журнал работы** too (`behindAdbGate`). Neither needs the shell: they read prefs, the package
+manager, the displays and what the process holds. The tiles still keep their last state.
+
 What *does* differ between the two states is the cause, and that goes on the gate itself, under
 the instruction. It carries a classification and never a failure label: a disabled switch is named
 outright because it is a reading, an unreadable flag stays silent because absence of evidence is
