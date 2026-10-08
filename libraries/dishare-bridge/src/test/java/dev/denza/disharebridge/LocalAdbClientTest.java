@@ -14,9 +14,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -35,6 +37,124 @@ public final class LocalAdbClientTest {
                 new LocalAdbClient.AuthorizationRequiredException()));
         assertFalse(LocalAdbClient.isAuthorizationPending(
                 new IOException("Connection refused")));
+    }
+
+    /**
+     * The defect: adbd took the OPEN, the command ran long, the read timed out - and the same
+     * command went to wlan0's address and ran a second time.
+     */
+    @Test
+    public void aCommandThatReachedAdbdIsNeverSentToAnotherHost() throws Exception {
+        List<String> asked = new ArrayList<>();
+        ByteArrayOutputStream written = new ByteArrayOutputStream();
+        try {
+            LocalAdbClient.firstHostThatAnswers(
+                    Arrays.asList("127.0.0.1", "192.168.43.20"),
+                    (host, sent) -> {
+                        asked.add(host);
+                        // adbd acknowledges the stream, then nothing comes before the timeout.
+                        return LocalAdbClient.runShell(
+                                new TimesOutAfter(message("OKAY", 7, 1, "")),
+                                written,
+                                "cmd notify_nw 4",
+                                sent);
+                    });
+            fail("a command that may have run was reported as answered");
+        } catch (SocketTimeoutException expected) {
+            // The caller hears the timeout; it decides whether the command may run again.
+        }
+
+        assertEquals(Arrays.asList("127.0.0.1"), asked);
+        assertEquals(Arrays.asList("OPEN:1:0"), messageHeaders(written.toByteArray()));
+    }
+
+    @Test
+    public void aHostThatNeverTookTheCommandFallsThroughToTheNext() throws Exception {
+        List<String> asked = new ArrayList<>();
+
+        String answer = LocalAdbClient.firstHostThatAnswers(
+                Arrays.asList("127.0.0.1", "192.168.43.20"),
+                (host, sent) -> {
+                    asked.add(host);
+                    if (host.equals("127.0.0.1")) {
+                        throw new ConnectException("Connection refused");
+                    }
+                    return LocalAdbClient.runShell(
+                            new ByteArrayInputStream(concat(
+                                    message("OKAY", 7, 1, ""),
+                                    message("WRTE", 7, 1, "ok\n"),
+                                    message("CLSE", 7, 1, ""))),
+                            new ByteArrayOutputStream(),
+                            "echo ok",
+                            sent);
+                });
+
+        assertEquals("ok\n", answer);
+        assertEquals(Arrays.asList("127.0.0.1", "192.168.43.20"), asked);
+    }
+
+    @Test
+    public void aFailedHandshakeIsNotASentCommand() throws Exception {
+        List<String> asked = new ArrayList<>();
+
+        String answer = LocalAdbClient.firstHostThatAnswers(
+                Arrays.asList("127.0.0.1", "192.168.43.20"),
+                (host, sent) -> {
+                    asked.add(host);
+                    if (host.equals("127.0.0.1")) {
+                        // A CNXN that never came back: the transport is broken before any OPEN.
+                        throw new SocketTimeoutException("Read timed out");
+                    }
+                    return "ok";
+                });
+
+        assertEquals("ok", answer);
+        assertEquals(Arrays.asList("127.0.0.1", "192.168.43.20"), asked);
+    }
+
+    @Test
+    public void aPendingAuthorizationStillStopsAtTheFirstHost() throws Exception {
+        List<String> asked = new ArrayList<>();
+        try {
+            LocalAdbClient.firstHostThatAnswers(
+                    Arrays.asList("127.0.0.1", "192.168.43.20"),
+                    (host, sent) -> {
+                        asked.add(host);
+                        throw new LocalAdbClient.AuthorizationRequiredException();
+                    });
+            fail("a refused key was retried on another address");
+        } catch (LocalAdbClient.AuthorizationRequiredException expected) {
+            // Same adbd, same key, same answer: asking again only adds a prompt.
+        }
+
+        assertEquals(Arrays.asList("127.0.0.1"), asked);
+    }
+
+    /** Hands out its bytes, then times out the way a socket with SO_TIMEOUT does. */
+    private static final class TimesOutAfter extends java.io.InputStream {
+        private final ByteArrayInputStream bytes;
+
+        TimesOutAfter(byte[] bytes) {
+            this.bytes = new ByteArrayInputStream(bytes);
+        }
+
+        @Override
+        public int read() throws IOException {
+            int value = bytes.read();
+            if (value < 0) {
+                throw new SocketTimeoutException("Read timed out");
+            }
+            return value;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            int read = bytes.read(buffer, offset, length);
+            if (read < 0) {
+                throw new SocketTimeoutException("Read timed out");
+            }
+            return read;
+        }
     }
 
     @Test
