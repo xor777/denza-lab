@@ -3,6 +3,7 @@ package dev.denza.apps.feature.split
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -2350,11 +2351,20 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.commands.any { it == "service call activity_task 115" })
     }
 
-    @Test(expected = IllegalStateException::class)
+    /**
+     * Fails closed on the firmware's refusal itself, and stops there. `expected = ISE` used to
+     * accept any IllegalStateException, the fake's own «Unexpected command» among them.
+     */
+    @Test
     fun explicitOpenFailsClosedWhenNativePaneLaunchIsRejected() {
         val fake = FakeShell(hostingSucceeds = false)
 
-        session(fake).buildPickers()
+        val refusal = assertThrows(IllegalStateException::class.java) { session(fake).buildPickers() }
+
+        assertEquals("Error: picker launch rejected", refusal.message)
+        val launches = fake.commands.filter { it.startsWith("am start ") }
+        assertEquals("one launch, the refused one, and nothing after it", 1, launches.size)
+        assertEquals(launches.single(), fake.commands.last())
     }
 
     @Test
@@ -3043,21 +3053,35 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.commands.any { it.contains("remove-task ${placement.appTaskId} ") })
     }
 
-    @Test(expected = IllegalStateException::class)
+    /**
+     * Refused for the reason it names, and the projected task is where it was. `expected = ISE`
+     * used to accept any IllegalStateException, the fake's own «Unexpected command» among them.
+     */
+    @Test
     fun engineDoesNotReclaimAppProjectedToAnotherDisplay() {
         val fake = FakeShell().apply {
             addTask(EXTERNAL_ROOT, 91, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
         val split = session(fake)
         val pickers = split.buildPickers()
+        val before = fake.commands.size
 
-        split.selectApp(
-            pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
-            target = SplitLaunchTarget(
-                NAVIGATOR,
-                "$NAVIGATOR/$NAVIGATOR.MainActivity",
-            ),
-            pickerComponents = PICKER_COMPONENTS,
+        val refusal = assertThrows(IllegalStateException::class.java) {
+            split.selectApp(
+                pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
+                target = SplitLaunchTarget(
+                    NAVIGATOR,
+                    "$NAVIGATOR/$NAVIGATOR.MainActivity",
+                ),
+                pickerComponents = PICKER_COMPONENTS,
+            )
+        }
+
+        assertEquals("Приложение уже открыто на другом экране", refusal.message)
+        assertEquals("the projection stays on its display", EXTERNAL_ROOT, fake.taskRoot(91))
+        assertTrue(
+            "and the refusal launched nothing: ${fake.commands.drop(before)}",
+            fake.commands.drop(before).none { it.startsWith("am start ") },
         )
     }
 
