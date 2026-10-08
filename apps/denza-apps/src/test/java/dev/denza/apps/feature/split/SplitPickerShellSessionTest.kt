@@ -266,7 +266,6 @@ class SplitPickerShellSessionTest {
             "ни одного remove-task: членство в корне - не приговор",
             fake.commands.any { it.contains(" remove-task ") },
         )
-        assertFalse(fake.commands.any { it == "service call activity_task 115" })
     }
 
     /**
@@ -523,7 +522,6 @@ class SplitPickerShellSessionTest {
 
         session(fake).buildPickers()
 
-        assertFalse(fake.commands.any { it == "service call activity_task 115" })
         SplitPane.entries.forEach { pane ->
             val root = if (pane == SplitPane.PRIMARY) PRIMARY_ROOT else SECONDARY_ROOT
             val picker = PICKERS.getValue(pane)
@@ -548,7 +546,6 @@ class SplitPickerShellSessionTest {
         }
         assertFalse(fake.hasPackage(PRIMARY_ROOT, STOCK_PICKER_PACKAGE))
         assertFalse(fake.commands.any { it.startsWith("input swipe ") })
-        assertFalse(fake.commands.any { it.contains("replace-task-base ") })
     }
 
     /**
@@ -2369,7 +2366,6 @@ class SplitPickerShellSessionTest {
         assertEquals(40, built.panes.getValue(SplitPane.PRIMARY).appTaskId)
         assertEquals(41, built.panes.getValue(SplitPane.SECONDARY).appTaskId)
         assertFalse(fake.commands.any { it == "input keyevent KEYCODE_HOME" })
-        assertFalse(fake.commands.any { it == "service call activity_task 115" })
     }
 
     /**
@@ -3504,11 +3500,7 @@ class SplitPickerShellSessionTest {
         assertEquals(null, observation.hostTaskId)
         assertFalse(fake.hasActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY))
         assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
-        assertFalse(
-            fake.commands.drop(beforeCommands).any {
-                it.startsWith("am start ") || it.contains("replace-task-base ")
-            },
-        )
+        assertFalse(fake.commands.drop(beforeCommands).any { it.startsWith("am start ") })
     }
 
     @Test

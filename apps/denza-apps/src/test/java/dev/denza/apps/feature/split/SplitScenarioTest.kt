@@ -2618,14 +2618,14 @@ class SplitScenarioTest {
             PICKER_PAIR,
             car.store.load().slots,
         )
-        assertFalse("nothing is launched", car.commands().any { it.startsWith("am start ") })
-        assertFalse(
-            "the split is not re-entered",
-            car.commands().any { it.startsWith("service call activity_task 115") },
-        )
-        assertFalse(
-            "and no task is moved back into a pane",
-            car.commands().any { it.startsWith("am stack move-task ") },
+        // Cleanup is the removal of our own stumps and nothing more. Anything else that changes the
+        // screen - a launch, a task moved back into a pane, the firmware's own split entry (tx115) -
+        // is not cleanup. It is read off [SplitCarFixture.mutations] rather than left to FakeShell's
+        // strictness: the cleanup calls run inside runCatching and would swallow its refusal.
+        assertEquals(
+            "nothing is launched, re-entered or moved back into a pane",
+            emptyList<String>(),
+            car.mutations().filterNot { it.contains(" remove-task ") },
         )
         assertEquals("one settled fact, one commit", commits + 1, car.store.commits)
 
