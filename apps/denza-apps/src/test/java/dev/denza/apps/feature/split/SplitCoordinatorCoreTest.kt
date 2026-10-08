@@ -253,26 +253,29 @@ class SplitCoordinatorCoreTest {
         assertEquals(0, car.store.commits)
     }
 
+    /**
+     * Invariant 1, through the inputs the firmware actually sends: the Home key and the area push.
+     *
+     * A lease of ours is still on the gate, so the key's ahead-close has a gate it could close -
+     * and must not while the toggle is off. `HomeOperation` keeps a toggle guard of its own, but
+     * no input reaches it with the toggle off: both firmware signals return first, and an off
+     * cancels every unfinished operation. Until 2026-10-08 this test went to it through
+     * `homeVisible()`, a door no production code opens.
+     */
     @Test
     fun hintsWhileDisabledNeverOpenAShell() {
-        // инвариант 1: при выключенном тумблере продукт не реагирует ни на что
         val car = car(FakeShell(initialGate = true).apply { stockSplitOfSomeoneElse() })
         val core = car.core(SplitDurable(enabled = false))
         core.initialize {}
-        // A lease of ours still on the gate: without it the Home hint is dropped for having nothing
-        // to suspend before it is ever an operation, and the toggle's own guard in HomeOperation -
-        // the one a Home queued just ahead of an off meets - went untested behind that one.
         car.gateLease.setOwned(true)
 
         repeat(50) { core.dividerResized() }
-        core.homeVisible()
+        core.homeKeyPressed()
+        core.areaChanged(0)
         core.nativePickerVisible()
         car.barrier()
 
-        assertTrue(
-            "the Home hint got past the coordinator's own guards",
-            car.diagnostics.none { it.startsWith("home hint dropped:") },
-        )
+        assertTrue("someone else's split keeps its gate", car.fake.isGateOpen())
         assertEquals(0, car.shells.opened.get())
         assertEquals(emptyList<String>(), car.commands())
     }
