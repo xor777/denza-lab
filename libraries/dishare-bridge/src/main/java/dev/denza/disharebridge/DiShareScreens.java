@@ -1,14 +1,12 @@
 package dev.denza.disharebridge;
 
-import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Parcel;
 import android.os.RemoteException;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,6 +38,7 @@ public final class DiShareScreens {
         }
     }
 
+    private static final String TAG = "DenzaDiShareScreens";
     private static final String CONTROL_ACTION = "com.byd.dishare.control.DiShareControlService";
     private static final String CONTROL_DESCRIPTOR = "com.byd.dishare.control.IDiShareControl";
     private static final String CONTROL_PACKAGE = "com.byd.dishare";
@@ -53,46 +52,41 @@ public final class DiShareScreens {
     }
 
     private static final class Query {
-        private final Context context;
         private final String packageName;
         private final Callback callback;
         private final Handler handler = new Handler(Looper.getMainLooper());
-        private IBinder controlBinder;
-        private boolean bound;
+        private final DiShareBinding binding;
         private boolean finished;
 
-        private final ServiceConnection connection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                controlBinder = service;
-                try {
-                    callback.onScreens(readScreens());
-                    finish();
-                } catch (RuntimeException e) {
-                    fail(shortError(e));
-                }
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                controlBinder = null;
-                bound = false;
-            }
-        };
-
         Query(Context context, String packageName, Callback callback) {
-            this.context = context;
             this.packageName = packageName == null || packageName.trim().isEmpty()
                     ? CONTROL_PACKAGE : packageName.trim();
             this.callback = callback;
+            this.binding = new DiShareBinding(context, CONTROL_ACTION,
+                    new DiShareBinding.Listener() {
+                        @Override
+                        public void onConnected(IBinder binder) {
+                            List<Screen> screens;
+                            try {
+                                screens = readScreens(binder);
+                            } catch (RuntimeException e) {
+                                fail(shortError(e));
+                                return;
+                            }
+                            deliver(screens);
+                        }
+
+                        @Override
+                        public void onDisconnected() {
+                            fail("disconnected");
+                        }
+                    });
         }
 
         void start() {
-            Intent intent = new Intent();
-            intent.setAction(CONTROL_ACTION);
-            intent.setPackage(CONTROL_PACKAGE);
+            boolean bound;
             try {
-                bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
+                bound = binding.bind();
             } catch (RuntimeException e) {
                 fail("bind failed: " + shortError(e));
                 return;
@@ -109,13 +103,13 @@ public final class DiShareScreens {
             }, 3000L);
         }
 
-        private List<Screen> readScreens() {
+        private List<Screen> readScreens(IBinder controlBinder) {
             Parcel data = Parcel.obtain();
             Parcel reply = Parcel.obtain();
             try {
                 data.writeInterfaceToken(CONTROL_DESCRIPTOR);
                 data.writeString(packageName);
-                if (controlBinder == null || !controlBinder.transact(TX_GET_SCREENS, data, reply, 0)) {
+                if (!controlBinder.transact(TX_GET_SCREENS, data, reply, 0)) {
                     throw new IllegalStateException("getScreens transact failed");
                 }
                 reply.readException();
@@ -140,29 +134,34 @@ public final class DiShareScreens {
             }
         }
 
+        /** Exactly one of the two callbacks, once; a throwing onScreens is not also a failure. */
+        private void deliver(List<Screen> screens) {
+            if (!finish()) {
+                return;
+            }
+            try {
+                callback.onScreens(screens);
+            } catch (RuntimeException e) {
+                Log.w(TAG, "screens callback failed", e);
+            }
+        }
+
         private void fail(String message) {
-            if (finished) {
+            if (!finish()) {
                 return;
             }
             callback.onFailed(message);
-            finish();
         }
 
-        private void finish() {
+        /** Returns false when the query had already finished. */
+        private boolean finish() {
             if (finished) {
-                return;
+                return false;
             }
             finished = true;
             handler.removeCallbacksAndMessages(null);
-            if (bound) {
-                try {
-                    context.unbindService(connection);
-                } catch (RuntimeException ignored) {
-                    // DiShare can already have restarted or closed the binding.
-                }
-            }
-            bound = false;
-            controlBinder = null;
+            binding.release();
+            return true;
         }
     }
 

@@ -10,7 +10,7 @@ create a virtual display named `BYD-Mirror` and move Bilibili to it.
 
 ## Current state
 
-Updated 2026-10-03. How a normal APK drives DiShare (Simulcast) on this car, how Denza Apps
+Updated 2026-10-08. How a normal APK drives DiShare (Simulcast) on this car, how Denza Apps
 draws and casts over the stock Simulcast screen, and which camera/HUD streaming routes are dead
 ends.
 
@@ -20,6 +20,7 @@ ends.
 | Bind `com.byd.dishare.control.DiShareControlService` (`IDiShareControl`) by its action: a component-only bind reaches the service, but `onBind()` returns null | live | 2026-06-26 | [Exported components](#exported-components) |
 | A normal APK registers as `packageName=com.byd.dishare` (tx `0x2`), and `start(screen_ivi, [screen_hud], app, com.byd.dishare)` (tx `0x6`) returns `{screen_hud=0, screen_ivi=0}` with the app on the HUD via a `BYD-Mirror` display | live | 2026-06-26 | [Direct start path](#direct-start-path) |
 | The product does the same: `DiShareProjectionBridge.java` registers, starts, reads state, stops and closes the UI as `com.byd.dishare` (tx `0x2`/`0x6`/`0x5`/`0x7`/`0xb`); `DiShareScreens.java` asks tx `0x4` | code | 2026-06-28 | [Direct control service transaction map](#direct-control-service-transaction-map) |
+| Every bind to DiShare goes through `DiShareBinding.java`: unbound exactly once, also after `onServiceDisconnected`, and a reconnection when DiShare comes back is never delivered, so it cannot start a share again | code | 2026-10-08 | [Share session lifecycle](#share-session-lifecycle-2026-10-08) |
 | On the Z9GT `getScreens` reports `screen_hud`, `screen_fse` and `screen_ivi` (the source); rear, overhead and `screen_tv` receivers are implemented from the contract only | live | 2026-06-28 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
 | A drop target is a receiver DiShare reports available whose stock card is in the accessibility tree; `ScreenTarget.java` maps `screen_hud`→`ar_hud_screen`, `screen_fse`→`fse_screen`, `screen_rse_l`/`_r`→`left_rse_screen`/`right_rse_screen`, `screen_overhead` and `screen_tv`→`overhead_screen` | code | 2026-07-18 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
 | "Drop zones come from the decoded `window_share_layout_ivi_r` coordinates and the row is anchored to an 839 dp panel": both are the live node bounds of the receiver cards, `app_list` and `switch_share_app` (`SimulcastDialogGeometry.java`) | refuted | 2026-06-29 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
@@ -61,6 +62,7 @@ ends.
 - [Exported components](#exported-components) — DiShare's services, binder descriptors, the action-only bind.
 - [Direct control service transaction map](#direct-control-service-transaction-map) — `IDiShareControl` transaction codes and return parcelables.
 - [Direct start path](#direct-start-path) — what `start` checks, and the first live HUD share as `com.byd.dishare`.
+- [Share session lifecycle (2026-10-08)](#share-session-lifecycle-2026-10-08) — how the product binds to DiShare and lets go.
 - [Probe commands](#probe-commands) — the legacy raw-Binder probe activity and its extras.
 - [Historical Simulcast App Change alias path](#historical-simulcast-app-change-alias-path) — the archived alias APKs, where the native row's metadata lives, the native-list follow-up.
 - [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) — the accessibility row and drop layer, dialog lifecycle, centered aspect-fit, receivers, share size.
@@ -156,6 +158,26 @@ Dynamic result from the car:
 - `stop(sessionId=1, com.byd.dishare)` returned `{1=0}` and removed `BYD-Mirror`;
 - an immediate `getState` right after `stop` can still show stale state, but a repeat
   `probe` shortly after stop returned `state=null`.
+
+## Share session lifecycle (2026-10-08)
+
+How the product holds its bindings to DiShare and lets go of them.
+
+### Bindings
+
+Every bind to DiShare goes through `DiShareBinding.java`: the projection bridge's API and
+control bindings, the current-share stopper, the UI closer and `DiShareScreens.java`. Its
+rules live in `DiShareBindingState.java` and are tested there.
+
+- Android keeps a `BIND_AUTO_CREATE` binding registered after `onServiceDisconnected` and calls
+  `onServiceConnected` again once the service runs again. The bridge used to clear its
+  "bound" flag on disconnect, so its cleanup never unbound, and DiShare coming back re-ran
+  `createApiSource` → register (tx `0x2`) → start (tx `0x6`): the share started again by
+  itself, also after the driver had pressed exit while DiShare was down.
+- "`bindService` was called" is now kept apart from "connected". Release always unbinds it,
+  once; only the first connection reaches the owner, and none after release.
+- A disconnect while a start or a one-shot call is in flight fails it at once rather than at the
+  timeout. `DiShareScreens` delivers exactly one of `onScreens`/`onFailed`.
 
 ## Probe commands
 

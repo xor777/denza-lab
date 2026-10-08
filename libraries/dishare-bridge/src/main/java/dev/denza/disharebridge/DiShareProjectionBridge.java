@@ -1,9 +1,6 @@
 package dev.denza.disharebridge;
 
-import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
 import android.graphics.Rect;
 import android.os.Binder;
 import android.os.Bundle;
@@ -33,7 +30,6 @@ public final class DiShareProjectionBridge {
 
     private static final String TAG = "DenzaDiShareBridge";
     private static final String API_ACTION = "com.byd.dishare.api.DiShareApiService";
-    private static final String API_PACKAGE = "com.byd.dishare";
     private static final String API_DESCRIPTOR = "com.byd.dishare.api.IDiShareApiService";
     private static final String API_CLIENT_DESCRIPTOR = "com.byd.dishare.api.IDiShareApiClient";
     private static final String CONTROL_ACTION = "com.byd.dishare.control.DiShareControlService";
@@ -64,10 +60,8 @@ public final class DiShareProjectionBridge {
     private final String targetPackage;
     private final Callback callback;
 
-    private IBinder apiBinder;
-    private IBinder controlBinder;
-    private boolean apiBound;
-    private boolean controlBound;
+    private DiShareBinding apiBinding;
+    private DiShareBinding controlBinding;
     private boolean started;
     private boolean failed;
     private boolean sourceOnly;
@@ -77,11 +71,10 @@ public final class DiShareProjectionBridge {
     private int targetVideoHeight;
     private Rect targetVideoBounds;
 
-    private final ServiceConnection apiConnection = new ServiceConnection() {
+    private final DiShareBinding.Listener apiListener = new DiShareBinding.Listener() {
         @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            apiBinder = service;
-            log("api connected " + name.flattenToShortString());
+        public void onConnected(IBinder binder) {
+            log("api connected");
             try {
                 createApiSource();
                 if (sourceOnly) {
@@ -99,18 +92,19 @@ public final class DiShareProjectionBridge {
         }
 
         @Override
-        public void onServiceDisconnected(ComponentName name) {
-            apiBinder = null;
-            apiBound = false;
-            log("api disconnected " + name.flattenToShortString());
+        public void onDisconnected() {
+            log("api disconnected");
+            // DiShare died. Before the start finished that is a failed start. A started share
+            // keeps the binding until stop() releases it; DiShareBinding never hands a
+            // reconnection back, so DiShare coming back does not run the start a second time.
+            fail("api disconnected");
         }
     };
 
-    private final ServiceConnection controlConnection = new ServiceConnection() {
+    private final DiShareBinding.Listener controlListener = new DiShareBinding.Listener() {
         @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            controlBinder = service;
-            log("control connected " + name.flattenToShortString());
+        public void onConnected(IBinder binder) {
+            log("control connected");
             try {
                 registerControlClient();
                 Bundle result = startShare();
@@ -128,10 +122,9 @@ public final class DiShareProjectionBridge {
         }
 
         @Override
-        public void onServiceDisconnected(ComponentName name) {
-            controlBinder = null;
-            controlBound = false;
-            log("control disconnected " + name.flattenToShortString());
+        public void onDisconnected() {
+            log("control disconnected");
+            fail("control disconnected");
         }
     };
 
@@ -208,22 +201,22 @@ public final class DiShareProjectionBridge {
         this.targetVideoWidth = sanitizeVideoDimension(videoWidth);
         this.targetVideoHeight = sanitizeVideoDimension(videoHeight);
         this.targetVideoBounds = sanitizeVideoBounds(videoBounds);
+        cleanup();
         this.failed = false;
         this.started = false;
         log("start target=" + targetPackage
                 + " copyCurrentShareTarget=" + copyCurrentShareTarget
                 + " video=" + targetVideoWidth + "x" + targetVideoHeight
                 + " bounds=" + targetVideoBounds);
-        Intent intent = new Intent();
-        intent.setAction(API_ACTION);
-        intent.setPackage(API_PACKAGE);
+        apiBinding = new DiShareBinding(context, API_ACTION, apiListener);
+        boolean bound;
         try {
-            apiBound = context.bindService(intent, apiConnection, Context.BIND_AUTO_CREATE);
+            bound = apiBinding.bind();
         } catch (RuntimeException e) {
             fail("bind api failed: " + shortError(e));
             return;
         }
-        if (!apiBound) {
+        if (!bound) {
             fail("bind api returned false");
             return;
         }
@@ -239,7 +232,7 @@ public final class DiShareProjectionBridge {
         handler.removeCallbacksAndMessages(null);
         String stopResult = "stopped";
         try {
-            if (apiBinder != null) {
+            if (apiBinder() != null) {
                 if (!sourceOnly) {
                     callFinishShare();
                 }
@@ -297,13 +290,18 @@ public final class DiShareProjectionBridge {
     }
 
     private void bindControl() {
-        Intent intent = new Intent();
-        intent.setAction(CONTROL_ACTION);
-        intent.setPackage(API_PACKAGE);
-        controlBound = context.bindService(intent, controlConnection, Context.BIND_AUTO_CREATE);
-        if (!controlBound) {
+        controlBinding = new DiShareBinding(context, CONTROL_ACTION, controlListener);
+        if (!controlBinding.bind()) {
             throw new IllegalStateException("bind control returned false");
         }
+    }
+
+    private IBinder apiBinder() {
+        return apiBinding == null ? null : apiBinding.binder();
+    }
+
+    private IBinder controlBinder() {
+        return controlBinding == null ? null : controlBinding.binder();
     }
 
     private void registerControlClient() {
@@ -439,6 +437,7 @@ public final class DiShareProjectionBridge {
         try {
             data.writeInterfaceToken(API_DESCRIPTOR);
             writer.write(data);
+            IBinder apiBinder = apiBinder();
             if (apiBinder == null || !apiBinder.transact(code, data, reply, 0)) {
                 throw new IllegalStateException("api transact false code=" + code);
             }
@@ -453,6 +452,7 @@ public final class DiShareProjectionBridge {
 
     private void transactControl(int code, Parcel data, Parcel reply) {
         try {
+            IBinder controlBinder = controlBinder();
             if (controlBinder == null || !controlBinder.transact(code, data, reply, 0)) {
                 throw new IllegalStateException("control transact false code=" + code);
             }
@@ -474,29 +474,17 @@ public final class DiShareProjectionBridge {
     private void cleanup() {
         handler.removeCallbacksAndMessages(null);
         unbindControl();
-        if (apiBound) {
-            try {
-                context.unbindService(apiConnection);
-            } catch (RuntimeException ignored) {
-                // Service can already be gone if DiShare restarted.
-            }
-            apiBound = false;
+        if (apiBinding != null) {
+            apiBinding.release();
+            apiBinding = null;
         }
-        apiBinder = null;
-        controlBinder = null;
     }
 
     private void unbindControl() {
-        if (!controlBound) {
-            return;
+        if (controlBinding != null) {
+            controlBinding.release();
+            controlBinding = null;
         }
-        try {
-            context.unbindService(controlConnection);
-        } catch (RuntimeException ignored) {
-            // Service can already be gone if DiShare restarted.
-        }
-        controlBound = false;
-        controlBinder = null;
     }
 
     private boolean isSuccessfulResult(Bundle result) {
@@ -581,46 +569,39 @@ public final class DiShareProjectionBridge {
     }
 
     private static final class CurrentShareStopper {
-        private final Context context;
         private final Callback callback;
         private final Handler handler = new Handler(Looper.getMainLooper());
         private final DiShareListenerBinder listener = new DiShareListenerBinder();
-        private IBinder controlBinder;
-        private boolean controlBound;
+        private final DiShareBinding controlBinding;
         private boolean finished;
 
-        private final ServiceConnection controlConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                controlBinder = service;
-                log("stop current control connected " + name.flattenToShortString());
-                runStop();
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                controlBinder = null;
-                controlBound = false;
-                log("stop current control disconnected " + name.flattenToShortString());
-            }
-        };
-
         CurrentShareStopper(Context context, Callback callback) {
-            this.context = context;
             this.callback = callback;
+            this.controlBinding = new DiShareBinding(context, CONTROL_ACTION,
+                    new DiShareBinding.Listener() {
+                        @Override
+                        public void onConnected(IBinder binder) {
+                            log("stop current control connected");
+                            runStop();
+                        }
+
+                        @Override
+                        public void onDisconnected() {
+                            log("stop current control disconnected");
+                            fail("control disconnected");
+                        }
+                    });
         }
 
         void start() {
-            Intent intent = new Intent();
-            intent.setAction(CONTROL_ACTION);
-            intent.setPackage(CONTROL_PACKAGE);
+            boolean bound;
             try {
-                controlBound = context.bindService(intent, controlConnection, Context.BIND_AUTO_CREATE);
+                bound = controlBinding.bind();
             } catch (RuntimeException e) {
                 fail("bind control failed: " + shortError(e));
                 return;
             }
-            if (!controlBound) {
+            if (!bound) {
                 fail("bind control returned false");
                 return;
             }
@@ -709,6 +690,7 @@ public final class DiShareProjectionBridge {
 
         private void transactControl(int code, Parcel data, Parcel reply) {
             try {
+                IBinder controlBinder = controlBinding.binder();
                 if (controlBinder == null || !controlBinder.transact(code, data, reply, 0)) {
                     throw new IllegalStateException("control transact false code=" + code);
                 }
@@ -738,15 +720,7 @@ public final class DiShareProjectionBridge {
         private void cleanup() {
             finished = true;
             handler.removeCallbacksAndMessages(null);
-            if (controlBound) {
-                try {
-                    context.unbindService(controlConnection);
-                } catch (RuntimeException ignored) {
-                    // Service can already be gone if DiShare restarted.
-                }
-                controlBound = false;
-            }
-            controlBinder = null;
+            controlBinding.release();
         }
 
         private void log(String message) {
@@ -756,49 +730,42 @@ public final class DiShareProjectionBridge {
     }
 
     private static final class DiShareUiCloser {
-        private final Context context;
         private final String screenId;
         private final Callback callback;
         private final Handler handler = new Handler(Looper.getMainLooper());
         private final DiShareListenerBinder listener = new DiShareListenerBinder();
-        private IBinder controlBinder;
-        private boolean controlBound;
+        private final DiShareBinding controlBinding;
         private boolean finished;
 
-        private final ServiceConnection controlConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                controlBinder = service;
-                log("close ui control connected " + name.flattenToShortString());
-                runClose();
-            }
-
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                controlBinder = null;
-                controlBound = false;
-                log("close ui control disconnected " + name.flattenToShortString());
-            }
-        };
-
         DiShareUiCloser(Context context, String screenId, Callback callback) {
-            this.context = context;
             this.screenId = screenId == null || screenId.trim().isEmpty()
                     ? "screen_ivi" : screenId.trim();
             this.callback = callback;
+            this.controlBinding = new DiShareBinding(context, CONTROL_ACTION,
+                    new DiShareBinding.Listener() {
+                        @Override
+                        public void onConnected(IBinder binder) {
+                            log("close ui control connected");
+                            runClose();
+                        }
+
+                        @Override
+                        public void onDisconnected() {
+                            log("close ui control disconnected");
+                            fail("control disconnected");
+                        }
+                    });
         }
 
         void start() {
-            Intent intent = new Intent();
-            intent.setAction(CONTROL_ACTION);
-            intent.setPackage(CONTROL_PACKAGE);
+            boolean bound;
             try {
-                controlBound = context.bindService(intent, controlConnection, Context.BIND_AUTO_CREATE);
+                bound = controlBinding.bind();
             } catch (RuntimeException e) {
                 fail("bind control failed: " + shortError(e));
                 return;
             }
-            if (!controlBound) {
+            if (!bound) {
                 fail("bind control returned false");
                 return;
             }
@@ -861,6 +828,7 @@ public final class DiShareProjectionBridge {
 
         private void transactControl(int code, Parcel data, Parcel reply) {
             try {
+                IBinder controlBinder = controlBinding.binder();
                 if (controlBinder == null || !controlBinder.transact(code, data, reply, 0)) {
                     throw new IllegalStateException("control transact false code=" + code);
                 }
@@ -890,15 +858,7 @@ public final class DiShareProjectionBridge {
         private void cleanup() {
             finished = true;
             handler.removeCallbacksAndMessages(null);
-            if (controlBound) {
-                try {
-                    context.unbindService(controlConnection);
-                } catch (RuntimeException ignored) {
-                    // Service can already be gone if DiShare restarted.
-                }
-                controlBound = false;
-            }
-            controlBinder = null;
+            controlBinding.release();
         }
 
         private void log(String message) {
