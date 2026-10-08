@@ -82,7 +82,33 @@ class StripGeometryTest {
     }
 
     private fun reading(what: String, r: StripReading, x: Float, size: Float, label: Float) =
-        Span(what, x, x + StripGeometry.readingExtent(r, size, label, m))
+        Span(what, x, x + readingExtent(r, size, label))
+
+    /**
+     * How far a reading actually reaches from its left edge: the board's `readingW`, which leaves
+     * the blue mark out, with the mark's [StripGeometry.MARK_INDENT] put back in front of the caption.
+     */
+    private fun readingExtent(r: StripReading, size: Float, label: Float): Float =
+        max(StripGeometry.runWidth(r, size, m), (if (r.dot) StripGeometry.MARK_INDENT else 0f) + m.sans(r.caption, label, false))
+
+    /**
+     * How far a one-third row's reading reaches from the row's left edge, placed the way
+     * `TripPanelRenderer.row` places it: the figure at the value column, the unit
+     * [StripGeometry.ROW_UNIT_GAP] past it, the rate's arrow [StripGeometry.ROW_RATE_OFFSET] past the
+     * figure and the rate [StripGeometry.ROW_ARROW_ROOM] past the arrow.
+     */
+    private fun oneRowExtent(r: StripReading): Float {
+        val s = Head.One.Sound
+        val figure = r.figure ?: return m.sans(r.caption, s.LABEL_SIZE, false)
+        var ux = s.VALUE_X + WideDigits.width(figure, s.VALUE_SIZE)
+        var end = ux
+        r.unit?.let { end = ux + StripGeometry.ROW_UNIT_GAP + m.sans(it, StripGeometry.ROW_SMALL, false) }
+        r.rate?.let {
+            ux += StripGeometry.ROW_RATE_OFFSET + StripGeometry.ROW_ARROW_ROOM
+            end = max(end, ux + WideDigits.width(it, StripGeometry.ROW_SMALL))
+        }
+        return end
+    }
 
     // ------------------------------------------------------------------------------ sound page
 
@@ -132,7 +158,7 @@ class StripGeometryTest {
             val model = widestSound(hint)
             for (k in 0 until model.tripCount) {
                 val r = model.trip[k]
-                assertTrue("row $k reaches ${StripGeometry.oneRowExtent(r, m)} of $width", StripGeometry.oneRowExtent(r, m) <= width)
+                assertTrue("row $k reaches ${oneRowExtent(r)} of $width", oneRowExtent(r) <= width)
                 if (r.figure != null) {
                     val caption = m.sans(r.caption, s.LABEL_SIZE, false)
                     assertTrue("row $k's caption ($caption) reaches its value column", caption < s.VALUE_X)
@@ -383,13 +409,6 @@ class StripGeometryTest {
             m.sans("Напряжение", 17f, false),
             StripGeometry.readingWidth(absent, 46f, 17f, m),
             1e-4f,
-        )
-        // The blue mark is outside the board's width and inside the extent.
-        val marked = StripReading().apply { set("В батарею от ДВС", "14", "кВт", dot = true) }
-        assertEquals(
-            StripGeometry.readingWidth(marked, 56f, 17f, m) + StripGeometry.MARK_INDENT,
-            StripGeometry.readingExtent(marked, 56f, 17f, m),
-            1e-3f,
         )
     }
 

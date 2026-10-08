@@ -66,14 +66,11 @@ internal object StripGeometry {
      * and rate. A figure that is not there has taken its unit and its rate with it.
      *
      * **The blue mark is not counted**, exactly as the board does not count it: the caption stands
-     * [MARK_INDENT] further right than this width says. [readingExtent] is what it actually covers.
+     * [MARK_INDENT] further right than this width says, and `StripGeometryTest` counts it where it
+     * looks for collisions.
      */
     fun readingWidth(r: StripReading, size: Float, label: Float, m: Measure): Float =
         max(runWidth(r, size, m), m.sans(r.caption, label, false))
-
-    /** How far a reading actually reaches from its left edge, the mark's indent included. */
-    fun readingExtent(r: StripReading, size: Float, label: Float, m: Measure): Float =
-        max(runWidth(r, size, m), (if (r.dot) MARK_INDENT else 0f) + m.sans(r.caption, label, false))
 
     /** The figure, its unit and the variometer's arrow and rate, without the caption. */
     fun runWidth(r: StripReading, size: Float, m: Measure): Float {
@@ -121,20 +118,6 @@ internal object StripGeometry {
             val w = readingWidth(model.trip[k], s.VALUE_SIZE, s.LABEL_SIZE, m)
             end = x + w
             x += w + s.GAP
-        }
-        return end
-    }
-
-    /** How far a one-third row's reading reaches from the row's left edge. */
-    fun oneRowExtent(r: StripReading, m: Measure): Float {
-        val s = Head.One.Sound
-        val figure = r.figure ?: return m.sans(r.caption, s.LABEL_SIZE, false)
-        var ux = s.VALUE_X + WideDigits.width(figure, s.VALUE_SIZE)
-        var end = ux
-        r.unit?.let { end = ux + ROW_UNIT_GAP + m.sans(it, ROW_SMALL, false) }
-        r.rate?.let {
-            ux += ROW_RATE_OFFSET + ROW_ARROW_ROOM
-            end = max(end, ux + WideDigits.width(it, ROW_SMALL))
         }
         return end
     }
