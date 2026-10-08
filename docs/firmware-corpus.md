@@ -17,7 +17,7 @@ Updated 2026-10-08. What a session needs before it opens either archive.
 | Both archives sit in `~/Dev/denza/firmware/`, not `~/Downloads` (moved 2026-10-07) | live | 2026-10-07 | [Archives](#archives) |
 | `python3 tools/firmware_corpus.py find <name>` lists every copy, decompile and partition-listing line of a file; the index has 345 entries: 205 copied files, 68 jadx trees, 64 loose APKs/JARs, 8 listings | code | 2026-10-08 | [Looking before extracting](#looking-before-extracting) |
 | `reverse/dishare-jadx` is DiShare `1.5.1.1.23102ef` pulled from the car before the OTA; the OTA's own DiShare is a different APK (SHA-256 `ffc548…` IVI, `ef1d35…` FSE) | firmware | 2026-10-08 | [What is already there](#what-is-already-there) |
-| The 14 loose APKs and JARs that were byte-identical to another copy (1.97 GB) are APFS clones of it since 2026-10-08: every path stays, none takes space of its own. Repeated decompiles remain: DiCarServer 3.2.0-beta.1 three times, MapHelper 1.0.6 and AutoVideo twice | code | 2026-10-08 | [What is already there](#what-is-already-there) |
+| Each file is in the corpus once: the 14 loose APKs and JARs that were byte-identical to another copy (1.97 GB) were removed on 2026-10-08 and the docs that cited them repointed. Repeated decompiles remain: DiCarServer 3.2.0-beta.1 three times, MapHelper 1.0.6 and AutoVideo twice | code | 2026-10-08 | [What is already there](#what-is-already-there) |
 | The IVI system partition is system-as-root: `/system/framework/services.jar` lands at `<out>/system/system/framework/services.jar` | code | 2026-09-23 | [Reading an archive](#reading-an-archive) |
 | "The output directory must contain `Config-readable.xml`" (CLAUDE.md until 2026-10-08): the readers now decrypt it from the archive when it is missing | refuted | 2026-10-08 | [Reading an archive](#reading-an-archive) |
 | Copies record their partition and archive in `extraction.json` since 2026-10-08; older copies are attributed by directory name | code | 2026-10-08 | [Reading an archive](#reading-an-archive) |
@@ -167,4 +167,4 @@ As of 2026-10-08, by directory; `find` is the authority for any single file.
 | `captures/fse-firmware-20260924/` | FSE | BydHud (unpacked), DiShare, DiCarServer, CrossControl, SystemUI, framework, services; listings of five partitions |
 | `captures/fse-hud-*-20260924/` | FSE | HAL, Cross and access evidence for the HUD; the FSE settings and developer tools decompiled |
 | `captures/telematics-2026092*/` | IVI | `cloudmanager` and its readable firmware; a telephony jar decompiled from a car pull of 2026-09-22 |
-| `reverse/` | pulled from the car | APKs and decompiles from before the OTAs; `speaker-lift/` holds jars byte-identical to the IVI image |
+| `reverse/` | pulled from the car | APKs and decompiles from before the OTAs; the copies that were byte-identical to the IVI image were removed on 2026-10-08 |

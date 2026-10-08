@@ -141,7 +141,7 @@ at `reverse/speaker-lift/PhoneWindowManager-simple.java`, generated with:
 ```bash
 jadx -r -m simple --single-class com.android.server.policy.PhoneWindowManager \
   --single-class-output reverse/speaker-lift/PhoneWindowManager-simple.java \
-  reverse/speaker-lift/services.jar
+  captures/split-firmware-20260923/system/system/framework/services.jar
 ```
 
 Android documents that
