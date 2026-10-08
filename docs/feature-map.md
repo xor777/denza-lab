@@ -19,7 +19,10 @@ tile through them.
 - `TileId` (`ui/dashboard/TileId.kt`) — the tile's identity and `TileId.feature`, the
   `FeatureId` (`core/FeatureModels.kt`) of the runtime behind it, if any.
 - `DashboardTiles` (`ui/dashboard/DashboardTiles.kt`) — one private builder per tile, listed in
-  `DashboardTiles.of`; the Russian name, the state line, the tone, the action.
+  `DashboardTiles.of`; the Russian name, the state line, the tone, the action. Every tile with a
+  feature behind it writes its state line through `DashboardTiles.caption`: waiting, refused
+  (`ERROR`) or absent (`UNAVAILABLE`) shows the feature's own message, or «Не переключилось» /
+  «Недоступно» when it has none, and never the words of the settled switch.
 - `DashboardPress` (`ui/dashboard/DashboardActions.kt`) — what a press does
   (`DashboardPress.perform`) and which `FeatureSnapshot` a tile reads
   (`DashboardPress.snapshotOf`); the callbacks themselves are the fields of `DashboardActions`.

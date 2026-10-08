@@ -167,6 +167,40 @@ object DashboardTiles {
     }
 
     /**
+     * The line under a tile's name: the words [settled] gives, unless the feature did not settle.
+     *
+     * One priority for every tile that has a feature behind it. It used to live inside the split
+     * builder alone, and every other builder decided for itself when to show the feature's own
+     * message - most of them only while it waited on the driver. A failed or absent feature keeps
+     * the wish it was handed, so a builder reading its words off `desiredEnabled` wrote «Включены»
+     * on a coral HUD whose navigator is not installed and «Выбрано 6» on a coral projection this
+     * system does not have: the words claiming what the colour was there to deny.
+     *
+     * Waiting, refused and absent say what the feature said about itself. When it said nothing, a
+     * word that agrees with the colour stands in for it - never the settled words, which are true
+     * only of a feature that got where it was asked to go. A wait with nothing to say keeps them,
+     * because amber is a decision pending, not a denial of the switch.
+     */
+    fun caption(snapshot: FeatureSnapshot, settled: String): String = unsettled(snapshot) ?: settled
+
+    /** What a feature that did not settle says instead, or null when it settled. */
+    private fun unsettled(snapshot: FeatureSnapshot): String? = when (snapshot.status) {
+        FeatureStatus.NEEDS_ACTION -> snapshot.message.ifBlank { null }
+        FeatureStatus.UNAVAILABLE -> snapshot.message.ifBlank { ABSENT }
+        FeatureStatus.ERROR -> snapshot.message.ifBlank { REFUSED }
+        else -> null
+    }
+
+    /** Whether [caption] prints the settled words - the only words that can be a reading. */
+    private fun settled(snapshot: FeatureSnapshot): Boolean = unsettled(snapshot) == null
+
+    /** A feature this car does not have, when it gave no reason. */
+    internal const val ABSENT = "Недоступно"
+
+    /** A switch the car did not take, when it gave no reason. */
+    internal const val REFUSED = "Не переключилось"
+
+    /**
      * What the press does, given where the feature has got to.
      *
      * A feature waiting on a choice answers the press with that choice rather than with its main
@@ -191,7 +225,6 @@ object DashboardTiles {
     private fun cluster(state: DenzaUiState): DashboardTile {
         val snapshot = state.navigation
         val projected = snapshot.status == FeatureStatus.ACTIVE
-        val waiting = snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
         return DashboardTile(
             id = TileId.CLUSTER,
             icon = TileIcon.CLUSTER,
@@ -200,7 +233,7 @@ object DashboardTiles {
             // the screen and the only one that changed length when the feature was used, which is
             // the jump this whole pass exists to remove. Whether it is on the cluster is already
             // said twice over - by the tone, and by the accent this caption takes below.
-            state = if (waiting) snapshot.message else state.navigationAppLabel,
+            state = caption(snapshot, state.navigationAppLabel),
             tone = toneOf(snapshot),
             // On the cluster is a reading; merely chosen for it is a setting.
             caption = if (projected) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
@@ -222,15 +255,12 @@ object DashboardTiles {
             id = TileId.SIMULCAST,
             icon = TileIcon.SIMULCAST,
             name = "Трансляция",
-            state = when {
-                snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
-                    snapshot.message
+            state = caption(
+                snapshot,
                 // "6 приложений" made this tile read like a second application selector beside
-                // Shortcuts.
-                // one row along; "выбрано" names the projection's own fact.
-                state.selectedAppCount == 0 -> "Не выбрано"
-                else -> "Выбрано ${state.selectedAppCount}"
-            },
+                // Shortcuts, one row along; "выбрано" names the projection's own fact.
+                if (state.selectedAppCount == 0) "Не выбрано" else "Выбрано ${state.selectedAppCount}",
+            ),
             tone = toneOf(snapshot),
             // A count of chosen applications is as true stopped as running.
             caption = DenzaTileCaption.SETTING,
@@ -242,18 +272,17 @@ object DashboardTiles {
     private fun mirrors(state: DenzaUiState): DashboardTile {
         val snapshot = state.mirrors
         val watching = snapshot.desiredEnabled
-        val waiting = snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
         return DashboardTile(
             id = TileId.MIRRORS,
             icon = TileIcon.MIRRORS,
             name = "Зеркала",
-            state = when {
-                waiting -> snapshot.message
-                watching -> "Включены"
-                else -> "Выключены"
-            },
+            state = caption(snapshot, if (watching) "Включены" else "Выключены"),
             tone = toneOf(snapshot),
-            caption = if (watching && !waiting) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
+            caption = if (watching && settled(snapshot)) {
+                DenzaTileCaption.READING
+            } else {
+                DenzaTileCaption.SETTING
+            },
             action = actionOf(snapshot, TileAction.TOGGLE),
         )
     }
@@ -276,19 +305,9 @@ object DashboardTiles {
             // "Разделение экрана" wrapped onto two lines over a two-line caption, which was the
             // untidiest tile on the board. The icon says which screen, and the panel says the rest.
             name = "Разделение",
-            state = when {
-                snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
-                    snapshot.message
-                // A failed switch keeps the wish it was given, so reading the caption off
-                // `desiredEnabled` had the tile saying "Включено" in coral - the words claiming
-                // the thing the colour was there to deny. What is true after a refusal is that
-                // nothing moved, and that is what it says.
-                snapshot.status == FeatureStatus.UNAVAILABLE -> "Недоступно"
-                snapshot.status == FeatureStatus.ERROR ->
-                    snapshot.message.ifBlank { "Не переключилось" }
-                snapshot.desiredEnabled -> "Включено"
-                else -> "Выключено"
-            },
+            // A failed switch keeps the wish it was given; [caption] is what stops that wish from
+            // being read back as "Включено" in coral. This tile is where the rule was found.
+            state = caption(snapshot, if (snapshot.desiredEnabled) "Включено" else "Выключено"),
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.SPLIT_LAUNCH),
@@ -299,18 +318,17 @@ object DashboardTiles {
     private fun hud(state: DenzaUiState): DashboardTile {
         val snapshot = state.hudGuidance
         val showing = snapshot.desiredEnabled
-        val waiting = snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
         return DashboardTile(
             id = TileId.HUD,
             icon = TileIcon.HUD,
             name = "HUD Подсказки",
-            state = when {
-                waiting -> snapshot.message
-                showing -> "Включены"
-                else -> "Выключены"
-            },
+            state = caption(snapshot, if (showing) "Включены" else "Выключены"),
             tone = toneOf(snapshot),
-            caption = if (showing && !waiting) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
+            caption = if (showing && settled(snapshot)) {
+                DenzaTileCaption.READING
+            } else {
+                DenzaTileCaption.SETTING
+            },
             action = actionOf(snapshot, TileAction.TOGGLE),
         )
     }
@@ -403,16 +421,11 @@ object DashboardTiles {
     /** Motorised speaker covers: the car raises them, the app reports the music the car will not. */
     private fun speakers(state: DenzaUiState): DashboardTile {
         val snapshot = state.speakerCovers
-        val waiting = snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
         return DashboardTile(
             id = TileId.SPEAKERS,
             icon = TileIcon.SPEAKER,
             name = "Динамики",
-            state = when {
-                waiting -> snapshot.message
-                snapshot.desiredEnabled -> "Включена"
-                else -> "Выключена"
-            },
+            state = caption(snapshot, if (snapshot.desiredEnabled) "Включена" else "Выключена"),
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.TOGGLE),
@@ -460,7 +473,7 @@ object DashboardTiles {
             name = "Экран справа",
             // The application that went over there, in the same words the driver's tile uses for
             // its own. "Установить приложение" described the machinery instead of the result.
-            state = snapshot.message.ifBlank { "Не выбрано" },
+            state = caption(snapshot, snapshot.message.ifBlank { "Не выбрано" }),
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.PASSENGER_INSTALL),
@@ -520,7 +533,7 @@ object DashboardTiles {
             id = TileId.CLOUD,
             icon = TileIcon.CLOUD,
             name = "Облако",
-            state = CloudLinkStatus.words(snapshot),
+            state = caption(snapshot, CloudLinkStatus.words(snapshot)),
             tone = toneOf(snapshot),
             caption = if (connected) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.TOGGLE),

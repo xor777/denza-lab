@@ -17,6 +17,7 @@ import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -465,6 +466,44 @@ class DashboardTilesTest {
     }
 
     /**
+     * No broken tile reads back the words of a feature that got where it was asked to go.
+     *
+     * The split tile had this fixed for itself while the rule lived inside its builder: the HUD
+     * with its navigator missing still said «Включены» in coral, and a projection this system does
+     * not have said «Выбрано 6». Every tile with a feature behind it is held to the one rule here,
+     * at both broken statuses, with a reason of the feature's own and without one.
+     */
+    @Test
+    fun noBrokenTileClaimsTheWordsOfOneThatWorks() {
+        fun dressed(state: DenzaUiState) =
+            state.copy(selectedAppCount = 6, navigationAppLabel = "Яндекс Навигатор")
+        val settled = DashboardTiles.of(dressed(everyFeatureAt(FeatureStatus.READY)))
+            .associate { it.id to it.state }
+        val features = TileId.entries.filter { it.feature != null }
+
+        for (status in listOf(FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE)) {
+            for (reason in listOf("", "Навигатор не найден")) {
+                val tiles = DashboardTiles.of(dressed(everyFeatureAt(status, reason)))
+                val expected = reason.ifBlank {
+                    if (status == FeatureStatus.UNAVAILABLE) "Недоступно" else "Не переключилось"
+                }
+                for (id in features) {
+                    val tile = tiles.first { it.id == id }
+                    assertEquals("$id at $status", DenzaTileTone.BROKEN, tile.tone)
+                    assertNotEquals(
+                        "$id at $status reads like it works",
+                        settled.getValue(id),
+                        tile.state,
+                    )
+                    assertEquals("$id at $status, reason «$reason»", expected, tile.state)
+                    // A refusal is not a reading of the feature acting on the world either.
+                    assertEquals("$id at $status", DenzaTileCaption.SETTING, tile.caption)
+                }
+            }
+        }
+    }
+
+    /**
      * The language tile names a language and opens a list; it has no opinion of its own.
      *
      * It used to be a switch over a per-application override, which could be refused, so it wore
@@ -611,15 +650,15 @@ class DashboardTilesTest {
         resolution = resolution,
     )
 
-    private fun everyFeatureAt(status: FeatureStatus) = DenzaUiState(
-        simulcast = snapshot(status),
-        mirrors = snapshot(status),
-        navigation = snapshot(status),
-        splitScreen = snapshot(status),
-        hudGuidance = snapshot(status),
-        speakerCovers = snapshot(status),
-        fseInstaller = snapshot(status),
-        cloudLink = snapshot(status),
+    private fun everyFeatureAt(status: FeatureStatus, message: String = "") = DenzaUiState(
+        simulcast = snapshot(status, message = message),
+        mirrors = snapshot(status, message = message),
+        navigation = snapshot(status, message = message),
+        splitScreen = snapshot(status, message = message),
+        hudGuidance = snapshot(status, message = message),
+        speakerCovers = snapshot(status, message = message),
+        fseInstaller = snapshot(status, message = message),
+        cloudLink = snapshot(status, message = message),
     )
 
     /** Every role read, every one of them on the car's own application, catalog still installed. */
