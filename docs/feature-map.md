@@ -66,7 +66,7 @@ Puts one thing on the instrument cluster behind the wheel (this app's own instru
 - **Settings:** `NavigationSettings` (key `denza_navigation`: chosen package, placement, ★ button); `ClusterDisplayResolver` (key `denza_cluster`: hand-picked cluster display).
 - **Docs:** `docs/energy-display-contract.md` (normative for the Contour's figures), `tools/design-canvas/luminofor/README.md` (normative for the Contour's look), `docs/instrument-display-findings.md` ("Navigation projection", "App-owned instrument dashboard").
 - **Luminofor:** fixtures `sheet-cluster`, `one-sheet-cluster`, `sheet-driver-apps`, `one-sheet-driver-apps` in `apps/denza-apps/src/debug/assets/luminofor/fixtures.json`. The Contour itself has fixtures `cluster-city`, `cluster-park`, `cluster-charging`, `cluster-unavailable` and eight more cluster-… keys, drawn by `drawCluster` in `tools/design-canvas/luminofor/luminofor.js`.
-- **Tests:** `DriverScreenChoicesTest`, `NavigationModelsTest`, `NavigationOneTapSourceContractTest`, `NavigationProxyClientTest`, `ClusterProxyMainTest`, `SteeringWheelNavigationButtonTest`, `ClusterDisplayResolverTest`, `ContourFixturesContractTest`.
+- **Tests:** `DriverScreenChoicesTest`, `NavigationModelsTest`, `NavigationChoiceOrderTest`, `NavigationOneTapSourceContractTest`, `NavigationProxyClientTest`, `ClusterProxyMainTest`, `SteeringWheelNavigationButtonTest`, `ClusterDisplayResolverTest`, `ContourFixturesContractTest`.
 
 ### «Трансляция» — `SIMULCAST`
 

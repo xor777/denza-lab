@@ -26,7 +26,10 @@ internal data class NavigationLaunchAttempt(
     val token: Long,
 )
 
-/** Keeps delayed task discovery attached to the package launch that scheduled it. */
+/**
+ * Keeps a delayed step attached to the request that scheduled it: task discovery to the package
+ * launch, and the projection's surface task to the projection that asked the scene for a surface.
+ */
 internal class NavigationLaunchFence {
     private var token = 0L
 
@@ -61,6 +64,7 @@ object NavigationCoordinator {
     /** The last uncertain health reading that reached logcat, as (actual display, confirmations). */
     private var lastUncertainLogged: Pair<Int, Int>? = null
     private val launchFence = NavigationLaunchFence()
+    private val projectionFence = NavigationLaunchFence()
     private val projectionHealth = NavigationProjectionHealthTracker()
     private val primaryActionPending = AtomicBoolean(false)
     private val splitRoutingLease = NavigationSplitRoutingLease()
@@ -121,8 +125,14 @@ object NavigationCoordinator {
                 onStateChanged?.invoke()
                 return@execute
             }
+            // A projection or a return in flight finishes under the choice that started it; a
+            // choice arriving in between is refused, as a placement is.
+            if (!NavigationChoicePolicy.admits(session)) {
+                onStateChanged?.invoke()
+                return@execute
+            }
             cancelPendingLaunch()
-            if (session.phase == NavigationPhase.PROJECTED) {
+            if (NavigationChoicePolicy.outgoingOnCluster(session)) {
                 // Whatever is on the cluster belongs to the outgoing choice, and comes off the way
                 // that choice put it there. Read before the new selection is stored.
                 if (dashboardSelected()) {
@@ -130,7 +140,14 @@ object NavigationCoordinator {
                 } else {
                     returnToCentralDisplay(focusTask = false)
                 }
+                // A return that failed leaves the application on the cluster and the card asking
+                // to repeat it; the choice stays with it until it is off.
+                if (NavigationChoicePolicy.outgoingOnCluster(session)) {
+                    onStateChanged?.invoke()
+                    return@execute
+                }
             }
+            projectionFence.invalidate()
             NavigationSettings.setSelectedPackage(app, packageName)
             selectedPackage = packageName
             discoverTask()
@@ -467,6 +484,7 @@ object NavigationCoordinator {
         NavigationTransferOverlay.refresh(app)
         splitRoutingLease.acquire()
         projectionHealth.reset()
+        val projection = projectionFence.begin(packageName)
         update(
             session.copy(
                 phase = NavigationPhase.PROJECTING,
@@ -482,6 +500,13 @@ object NavigationCoordinator {
                 MapSurfaceConsumer { surface, width, height, density ->
                     if (!consumed.compareAndSet(false, true)) return@MapSurfaceConsumer
                     executor.execute {
+                        // The surface task is queued behind whatever reached the executor first.
+                        // It moves the task only for the projection that asked for this surface,
+                        // while its application is still the one chosen.
+                        if (!projectionFence.accepts(projection, selectedPackage)) {
+                            abandonSurface(app)
+                            return@execute
+                        }
                         try {
                             val origin = NavigationProxyClient.projectionOrigin(
                                 app,
@@ -523,6 +548,7 @@ object NavigationCoordinator {
                                     phase = NavigationPhase.PROJECTED,
                                     taskId = taskId,
                                     virtualDisplayId = displayId,
+                                    projectedPackage = packageName,
                                 ),
                             )
                             projectionHealth.reset()
@@ -537,14 +563,14 @@ object NavigationCoordinator {
                                 TimeUnit.MILLISECONDS,
                             )
                         } catch (error: Exception) {
-                            failProjection(app, taskId, error)
+                            failProjection(app, packageName, taskId, error)
                         }
                     }
                 },
             )
         } catch (error: RuntimeException) {
             consumed.set(true)
-            failProjection(app, taskId, error)
+            failProjection(app, packageName, taskId, error)
             return
         }
         executor.schedule(
@@ -552,6 +578,7 @@ object NavigationCoordinator {
                 if (!consumed.compareAndSet(false, true)) return@schedule
                 failProjection(
                     app,
+                    packageName,
                     taskId,
                     IllegalStateException("navigation surface timed out"),
                 )
@@ -570,7 +597,7 @@ object NavigationCoordinator {
         beginTransfer(app)
         splitRoutingLease.acquire()
         val taskId = session.taskId
-        val packageName = selectedPackage
+        val packageName = session.returnPackage(selectedPackage)
         val origin = projectedOrigin ?: NavigationProjectionOrigin(
             sourceRootTaskId = taskId ?: -1,
             companionTaskId = 0,
@@ -738,7 +765,7 @@ object NavigationCoordinator {
         if (current.phase != NavigationPhase.PROJECTED) return
         val taskId = current.taskId ?: return
         val expectedDisplay = current.virtualDisplayId ?: return
-        val packageName = selectedPackage
+        val packageName = current.returnPackage(selectedPackage)
         if (!NavigationProxyClient.isVirtualDisplayAlive(expectedDisplay)) {
             Log.w(TAG, "projection display disappeared display=$expectedDisplay task=$taskId")
             finishExternallyEndedProjection(app, taskId = null)
@@ -784,6 +811,18 @@ object NavigationCoordinator {
         }
     }
 
+    /**
+     * The surface arrived for a projection that is no longer wanted. Nothing was moved, so what the
+     * projection took is given back unless a newer one holds it now.
+     */
+    private fun abandonSurface(app: Context) {
+        Log.w(TAG, "navigation surface arrived for a superseded projection; nothing moved")
+        if (!NavigationChoicePolicy.abandonedSurfaceReleasesScene(session)) return
+        ClusterSceneService.hideMap(app)
+        splitRoutingLease.release()
+        finishTransfer()
+    }
+
     private fun finishExternallyEndedProjection(app: Context, taskId: Int?) {
         projectedOrigin = null
         projectionHealth.reset()
@@ -796,7 +835,7 @@ object NavigationCoordinator {
         }, RETURN_SETTLE_MS, TimeUnit.MILLISECONDS)
     }
 
-    private fun failProjection(app: Context, taskId: Int, error: Exception) {
+    private fun failProjection(app: Context, packageName: String, taskId: Int, error: Exception) {
         Log.w(TAG, "navigation projection failed", error)
         val origin = projectedOrigin
         val ownedDisplayId = NavigationProxyClient.currentVirtualDisplayId()
@@ -805,7 +844,7 @@ object NavigationCoordinator {
         ) == true
         val actualTaskDisplayId = if (ownedDisplayAlive) {
             try {
-                NavigationProxyClient.taskDisplayId(app, selectedPackage, taskId)
+                NavigationProxyClient.taskDisplayId(app, packageName, taskId)
             } catch (locationError: Exception) {
                 Log.w(
                     TAG,
@@ -834,7 +873,7 @@ object NavigationCoordinator {
                     try {
                         NavigationProxyClient.returnTask(
                             app,
-                            selectedPackage,
+                            packageName,
                             taskId,
                             origin,
                             focusNavigation = false,
@@ -857,6 +896,7 @@ object NavigationCoordinator {
                     phase = NavigationPhase.PROJECTED,
                     taskId = taskId,
                     virtualDisplayId = ownedDisplayId,
+                    projectedPackage = packageName,
                     message = "Приложение осталось на приборке; повторите возврат",
                     details = error.toString(),
                     resolution = FeatureResolution.RETRY,

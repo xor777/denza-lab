@@ -48,7 +48,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - Any non-navigator projected on this firmware, `com.byd.avc` above all: one owning session, from a documented reset, with `logcat -b crash -v time` ([Any application, not six navigators](#any-application-not-six-navigators)).
 - Whether the camera-start trims of `44f02df5` are faster: the matched A/B protocol in [Acceleration candidates: skip unused camera-start work (2026-09-05)](#acceleration-candidates-skip-unused-camera-start-work-2026-09-05).
 - HUD field-28 IDs for sharp, U-turn, straight and roundabout (a parked ID sweep), the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check, which also has to measure how often Yandex reposts its notification while driving, against the six-second age) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
-- Navigation recovery paths not run live: selection change, launch-discovery timeout, command failure, lost ADB, APK restart; and the `Переносим…` overlay seen on the car.
+- Navigation recovery paths not run live: selection change (the choice rule of 2026-10-08 included), launch-discovery timeout, command failure, lost ADB, APK restart; and the `Переносим…` overlay seen on the car.
 - `android.hardware.AVMCamera` as a raw camera source outside AVC: its access control is not in the image; an isolated probe settles it.
 
 ## Contents
@@ -1948,6 +1948,25 @@ Changing a placement button while navigation is already projected returns the
 task without focusing it, recreates the virtual display, and projects the same
 task into the new geometry. Camera gradients are a separate layer and keep
 their already verified Mirrors parameters.
+
+Changing what goes on the display follows one rule (`NavigationChoicePolicy`,
+since 2026-10-08): a projection or a return in flight (`PROJECTING`,
+`RETURNING`) finishes under the choice that started it, and a new
+choice arriving meanwhile is refused, as a placement is. Otherwise whatever the
+outgoing choice has on the cluster comes off first, and if that return fails
+the choice stays with the application still there and the card asks to repeat
+the return. The projection's surface task carries the same package-and-token
+fence as launch discovery; a stale one moves nothing and gives back the map
+presentation, routing lease and transfer overlay unless a newer projection
+holds them. Returns, the health check and projection cleanup name the package
+the projection moved (`NavigationSession.projectedPackage`), never the current
+choice. Before this, a choice from the chooser page landing between
+`projectToCluster` and its surface task was stored and discovered as `READY`;
+the queued task then projected the old application under the new choice, and
+every return named the new package with the old task, which
+`ClusterProxyMain.enforceTask` refuses, so the application stayed on the
+cluster. `NavigationChoiceOrderTest` replays that executor order. Not run on
+the car.
 
 ### Any application, not six navigators
 

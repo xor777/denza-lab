@@ -88,7 +88,16 @@ data class NavigationSession(
     val message: String = "",
     val details: String? = null,
     val resolution: FeatureResolution? = null,
+    /** The application a projection moved onto the cluster, recorded when it got there. */
+    val projectedPackage: String? = null,
 ) {
+    /**
+     * The package every later command on the projected task names. The shell side refuses a task
+     * under any other package, so a return that named the current choice instead of what was
+     * projected could never succeed once the two differed.
+     */
+    fun returnPackage(selectedPackage: String): String = projectedPackage ?: selectedPackage
+
     val buttonLabel: String
         get() = if (target == NavigationTarget.DASHBOARD) dashboardLabel() else applicationLabel()
 
@@ -104,6 +113,44 @@ data class NavigationSession(
         NavigationPhase.OPENING, NavigationPhase.PROJECTING -> "Проверяю"
         else -> "На приборку"
     }
+}
+
+/**
+ * When the choice of what goes on the driver's display may change.
+ *
+ * Projection is two executor tasks: the first asks the cluster scene for a surface and marks the
+ * session PROJECTING, the second - queued by the surface callback - moves the task. A return is
+ * also followed by a queued settle step. A choice that landed in between used to be stored and
+ * discovered as READY, and the queued projection then put the old application on the cluster under
+ * the new choice, where the health check and every return named the wrong package. So the choice
+ * waits while anything is in flight, and changes only once the outgoing choice is off the cluster.
+ */
+internal object NavigationChoicePolicy {
+    private val IN_FLIGHT = setOf(
+        NavigationPhase.PROJECTING,
+        NavigationPhase.RETURNING,
+    )
+
+    /**
+     * Whether another choice may be taken now. OPENING is not in flight in this sense: its delayed
+     * discovery is fenced by package and token, and a new choice cancels it before anything moved.
+     */
+    fun admits(session: NavigationSession): Boolean = session.phase !in IN_FLIGHT
+
+    /**
+     * Whether the outgoing choice still has something on the cluster: a projection or the
+     * instruments, or an application whose return failed and left its display behind.
+     */
+    fun outgoingOnCluster(session: NavigationSession): Boolean =
+        session.phase == NavigationPhase.PROJECTED || session.virtualDisplayId != null
+
+    /**
+     * A surface arrived for a projection that is no longer wanted. Nothing has been moved yet, so
+     * the map presentation, the routing lease and the transfer overlay it took are given back -
+     * unless a newer projection is in flight and holds them now.
+     */
+    fun abandonedSurfaceReleasesScene(session: NavigationSession): Boolean =
+        session.phase != NavigationPhase.PROJECTING
 }
 
 internal enum class NavigationPrimaryAction {
