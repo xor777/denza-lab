@@ -673,7 +673,6 @@ class DashboardTilesTest {
                     DefaultAppChoice(
                         packageName = known.packageName,
                         label = known.fallbackLabel,
-                        icon = null,
                         selected = false,
                         known = true,
                         stock = false,

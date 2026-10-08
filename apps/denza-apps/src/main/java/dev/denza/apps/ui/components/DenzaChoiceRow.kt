@@ -1,6 +1,5 @@
 package dev.denza.apps.ui.components
 
-import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,25 +19,22 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.design.DenzaGlyph
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
 /**
- * One application on a row's value line: enough to draw it, and the key it is cached under.
+ * One application on a row's value line: its package, which its picture is held under, and its name.
  *
- * [glyph] stands in for [drawable] when the answer is not an application - this app's own
+ * [glyph] stands in for the picture when the answer is not an application - this app's own
  * instruments, which the chooser draws with their glyph and the row draws the same way.
  */
 data class DenzaChoiceIcon(
-    val key: Any,
+    val packageName: String,
     val label: String,
-    val drawable: Drawable?,
     val glyph: DenzaGlyph? = null,
 )
 
@@ -133,11 +128,8 @@ fun <T> DenzaChoiceGroup(
 /** An application on a value line: its own icon, or its initial on a square of white at 0.1. */
 @Composable
 private fun ChoiceIcon(icon: DenzaChoiceIcon) {
-    // Keyed by the package alone, for the reason [DenzaAppTile] gives: a Drawable is a fresh
-    // instance on every read of the package manager.
-    val bitmap = remember(icon.key) {
-        icon.drawable?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap()
-    }
+    // By the package, as [DenzaAppTile] draws it; this app's own instruments have a glyph instead.
+    val bitmap = rememberAppIcon(icon.packageName.takeIf { icon.glyph == null }, ICON_PX)
     val size = Sheet.Row.CHOICE_ICON
     val glyph = icon.glyph
     if (glyph != null) {

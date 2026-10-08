@@ -29,7 +29,6 @@ internal object NavigationAppChoices {
             NavigationAppChoice(
                 packageName = app.packageName,
                 label = app.label,
-                icon = app.icon,
                 selected = app.packageName == selectedPackage,
             )
         }
@@ -37,18 +36,18 @@ internal object NavigationAppChoices {
 
     /**
      * What is chosen, for the tile and the panel's row, without reading the whole catalog: one
-     * label and one icon from the package manager.
+     * label from the package manager, and its icon left in [AppIcons] for the row to draw.
      */
     fun chosen(context: Context, selectedPackage: String): NavigationAppChoice {
         if (NavigationAppPolicy.isDashboard(selectedPackage)) return instruments(selected = true)
         val packageManager = context.packageManager
         val info = runCatching { packageManager.getApplicationInfo(selectedPackage, 0) }.getOrNull()
+        if (info != null) AppIcons.load(context, selectedPackage)
         return NavigationAppChoice(
             packageName = selectedPackage,
             label = info?.let { packageManager.getApplicationLabel(it).toString() }
                 ?.takeIf(String::isNotBlank)
                 ?: selectedPackage,
-            icon = info?.let { runCatching { packageManager.getApplicationIcon(it) }.getOrNull() },
             selected = true,
         )
     }
@@ -56,7 +55,6 @@ internal object NavigationAppChoices {
     fun instruments(selected: Boolean) = NavigationAppChoice(
         packageName = NavigationAppPolicy.DASHBOARD_PACKAGE,
         label = NavigationAppPolicy.DASHBOARD_LABEL,
-        icon = null,
         selected = selected,
         instruments = true,
     )

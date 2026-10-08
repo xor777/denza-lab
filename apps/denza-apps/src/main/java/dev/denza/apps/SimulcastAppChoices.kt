@@ -24,7 +24,6 @@ internal object SimulcastAppChoices {
                 SimulcastAppChoice(
                     packageName = app.packageName,
                     label = app.label,
-                    icon = app.icon,
                     selected = false,
                 )
             }

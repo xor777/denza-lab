@@ -1,6 +1,5 @@
 package dev.denza.apps.ui.components
 
-import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,7 +18,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.geometry.Offset
@@ -29,7 +26,6 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.design.DenzaGlyph
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
@@ -50,14 +46,12 @@ fun DenzaAppTile(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    icon: Drawable? = null,
-    iconKey: Any? = label,
+    iconPackage: String? = null,
     enabled: Boolean = true,
     glyph: DenzaGlyph? = null,
 ) {
-    // Keyed by the package, not by the Drawable: the package manager hands out a fresh instance on
-    // every read, and keying on it re-rasterised every icon whenever the state was republished.
-    val bitmap = remember(iconKey) { icon?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap() }
+    // By the package: the state carries no pictures, and a republished state re-rasterises nothing.
+    val bitmap = rememberAppIcon(iconPackage, ICON_PX)
     val a = Sheet.Apps
     val dim = if (enabled) 1f else DISABLED
     Box(

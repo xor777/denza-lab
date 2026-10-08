@@ -121,9 +121,8 @@ internal fun DefaultAppsSheet(
                 icons = listOfNotNull(
                     defaultAppsRowChoice(roleState)?.let { choice ->
                         DenzaChoiceIcon(
-                            key = choice.packageName,
+                            packageName = choice.packageName,
                             label = choice.label,
-                            drawable = choice.icon,
                         )
                     },
                 ),
@@ -186,8 +185,7 @@ private fun ColumnScope.DefaultAppsChooserPage(
             label = choice.label,
             selected = choice.selected,
             onClick = { if (canSelect && !choice.selected) onSelect(choice.packageName) },
-            icon = choice.icon,
-            iconKey = choice.packageName,
+            iconPackage = choice.packageName,
             enabled = !dimmed,
         )
     }

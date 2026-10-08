@@ -101,8 +101,7 @@ private fun SimulcastAppTile(app: SimulcastAppChoice, onToggle: (String) -> Unit
         label = app.label,
         selected = app.selected,
         onClick = { onToggle(app.packageName) },
-        icon = app.icon,
-        iconKey = app.packageName,
+        iconPackage = app.packageName,
         // At the limit the unchosen go quiet. Pressing a seventh used to be accepted as a
         // gesture and answered with "Можно выбрать не больше 6" over the grid, which is the
         // screen letting the driver make a mistake so it can tell them off for it.
@@ -197,8 +196,7 @@ private fun NavigationChoiceTile(app: NavigationAppChoice, onSelect: (String) ->
         label = app.label,
         selected = app.selected,
         onClick = { onSelect(app.packageName) },
-        icon = app.icon,
-        iconKey = app.packageName,
+        iconPackage = app.packageName.takeUnless { app.instruments },
         glyph = if (app.instruments) DenzaIcons.InstrumentsGlyph else null,
     )
 }
@@ -211,9 +209,8 @@ internal fun navigationChoiceSection(choice: NavigationAppChoice): String =
  * The chosen answer on the panel's row: the application's own icon, or the instruments' glyph.
  */
 internal fun navigationChoiceIcon(choice: NavigationAppChoice): DenzaChoiceIcon = DenzaChoiceIcon(
-    key = choice.packageName,
+    packageName = choice.packageName,
     label = choice.label,
-    drawable = choice.icon,
     glyph = if (choice.instruments) DenzaIcons.InstrumentsGlyph else null,
 )
 
@@ -260,8 +257,7 @@ internal fun FseInstallerPickerDialog(
             label = app.label,
             selected = false,
             onClick = { onInstall(app.packageName) },
-            icon = app.icon,
-            iconKey = app.packageName,
+            iconPackage = app.packageName,
         )
     }
 }
