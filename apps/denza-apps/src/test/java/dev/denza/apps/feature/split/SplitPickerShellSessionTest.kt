@@ -327,9 +327,13 @@ class SplitPickerShellSessionTest {
      * собственном корне, чьи границы равны её собственным, - и побывавшая в панели, и не бывавшая.
      * Выселение обязано состояться и не обязано ничего перекраивать: продукт переносит задачу
      * живой и ни на чём не спотыкается.
+     *
+     * Здесь прошивка ресайз этой задачи молча отвергает, и границы у неё остаются панельными, что бы
+     * ни просил продукт. Это мир теста, а не его вывод, поэтому границы не проверяются: проверяется
+     * то, что от продукта зависит, - выселение состоялось, задача жива, сцена собрана.
      */
     @Test
-    fun anEvictedTaskLeavesThePaneAliveAndKeepsWhateverGeometryTheFirmwareGivesIt() {
+    fun anEvictedTaskTheFirmwareWillNotResizeStillLeavesThePaneAlive() {
         val fake = FakeShell().apply {
             area = 3
             preserveBoundsOnShellMove = true
@@ -342,11 +346,6 @@ class SplitPickerShellSessionTest {
         assertEquals(2, hosts.size)
         assertTrue("задача пользователя жива", fake.hasTask(41))
         assertEquals("и выселена", FULL_ROOT, fake.taskRoot(41))
-        assertEquals(
-            "границы остались прежними, и это никого не остановило",
-            SECONDARY_BOUNDS,
-            fake.taskBounds(41),
-        )
     }
 
     /**
@@ -358,7 +357,7 @@ class SplitPickerShellSessionTest {
      * увидел поверх обеих панелей. Ресайз задачи-ЛИСТА внутри `ivi_full` прошивка принимает в обе
      * стороны (то же измерение, задача 151), значит нормализация здесь - обязанность продукта.
      *
-     * Соседний [anEvictedTaskLeavesThePaneAliveAndKeepsWhateverGeometryTheFirmwareGivesIt] остаётся
+     * Соседний [anEvictedTaskTheFirmwareWillNotResizeStillLeavesThePaneAlive] остаётся
      * верным для другого мира: там ресайз молча отвергнут самой прошивкой, и это не стоит
      * пользователю сцены.
      */
