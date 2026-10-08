@@ -182,6 +182,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         if (event == null) {
             return;
         }
+        dev.denza.apps.feature.adb.AdbRestore.onWifiDialog(this, event);
         CharSequence eventPackage = event.getPackageName();
         int type = event.getEventType();
         if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && eventPackage != null) {

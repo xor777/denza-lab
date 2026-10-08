@@ -291,6 +291,7 @@ object AdbRescueCoordinator {
             }
             if (outcome == AdbCheckOutcome.TRUSTED) {
                 persistPending(app, pending = false)
+                AdbRestore.recordTrusted(app)
             }
             // Read as late as possible, so the flag that classifies the outcome is as fresh as
             // the outcome itself.
@@ -346,6 +347,7 @@ object AdbRescueCoordinator {
             }
             if (outcome == AdbRequestOutcome.ALREADY_TRUSTED) {
                 persistPending(app, pending = false)
+                AdbRestore.recordTrusted(app)
             }
             current = AdbRescuePolicy.afterRequest(current, outcome, failure)
             running.set(false)

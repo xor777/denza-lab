@@ -18,6 +18,8 @@ import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbAutostartRetryAction
 import dev.denza.apps.feature.adb.AdbAutostartRetryPolicy
 import dev.denza.apps.feature.adb.AdbPortRestore
+import dev.denza.apps.feature.adb.AdbRestore
+import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
@@ -172,6 +174,7 @@ data class DenzaUiState(
     val mirrorsProcessing: Boolean = true,
     val setupRunning: Boolean = false,
     val adbRescue: AdbRescueSnapshot = AdbRescueSnapshot(),
+    val adbRestore: AdbRestoreSnapshot = AdbRestoreSnapshot(),
     val defaultApps: DefaultAppsUiState = DefaultAppsUiState(),
     val systemLanguage: SystemLanguageSnapshot = SystemLanguageSnapshot(),
     val weatherEnabled: Boolean = true,
@@ -252,6 +255,7 @@ object DenzaAppRepository {
         val app = context.applicationContext
         appContext = app
         AdbRescueCoordinator.initialize(app)
+        AdbRestore.initialize(app)
         when (AdbAutostartRetryPolicy.action(AdbRescueCoordinator.snapshot().phase)) {
             AdbAutostartRetryAction.CHECK_ACCESS -> {
                 refresh()
@@ -284,7 +288,7 @@ object DenzaAppRepository {
             val splitJournal = SupportDiagnostics.splitJournal()
             SplitDiagnostics.rereadWork { refresh() }
             stateStore.update { current ->
-                current.behindAdbGate(adbRescue, technicalDetails, splitJournal)
+                current.behindAdbGate(adbRescue, technicalDetails, splitJournal).copy(adbRestore = AdbRestore.snapshot())
             }
             return
         }
@@ -382,6 +386,7 @@ object DenzaAppRepository {
                 weatherTemperature = weatherTemperature,
                 weatherUpdatedMillis = weatherUpdatedMillis,
                 adbRescue = adbRescue,
+                adbRestore = AdbRestore.snapshot(),
                 technicalDetails = technicalDetails,
                 splitJournal = splitJournal,
                 clusterCandidates = clusterCandidates,
@@ -1041,6 +1046,7 @@ object DenzaAppRepository {
     private fun initializeAdbGate(context: Context) {
         appContext = context.applicationContext
         AdbRescueCoordinator.initialize(context)
+        AdbRestore.initialize(context)
         // The three roles are an ordinary ContentResolver read; they owe the ADB phase nothing.
         refreshDefaultApps()
         when (AdbStartupGatePolicy.entryAction(AdbRescueCoordinator.snapshot().phase)) {
@@ -1057,7 +1063,11 @@ object DenzaAppRepository {
 
     private fun onAdbRescueChanged(context: Context) {
         if (AdbRescueCoordinator.snapshot().phase == AdbRescuePhase.TRUSTED) {
+            AdbRestore.recordTrusted(context)
             startAdbRuntime(context)
+        } else if (AdbRescueCoordinator.snapshot().phase in listOf(AdbRescuePhase.UNAVAILABLE, AdbRescuePhase.ERROR,
+                AdbRescuePhase.AUTHORIZATION_REQUIRED)) {
+            AdbRestore.trigger("recovery")
         }
         runtimeStep("ADB state refresh") { refresh() }
     }
@@ -1105,6 +1115,7 @@ object DenzaAppRepository {
             // waits for it or fails because of it.
             runtimeStep("adb port restore prepare") {
                 AdbPortRestore.prepare(app) { refresh() }
+                AdbRestore.trigger("watchdog")
             }
         } finally {
             adbRuntimePassRunning.set(false)
