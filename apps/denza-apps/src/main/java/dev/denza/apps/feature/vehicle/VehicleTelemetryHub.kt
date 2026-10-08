@@ -303,59 +303,17 @@ internal class VehicleTelemetryHub(context: Context) {
                 restoreOnce(parsed[VehicleSignal.ODOMETER_KM])
 
                 val now = SystemClock.elapsedRealtime()
-                val dtSeconds = clock.tick(now)
-                val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
-                // Sampled on every sweep. The engine's box is up for the slots this flag was
-                // true in: the rpm and generation ids used to decide that and one of them is not
-                // zero on an electric drive.
-                trace.sample(
+                val merged = VehicleAnsweredSweep.feed(
+                    parsed = parsed,
+                    cold = cold,
                     atMillis = now,
-                    engineRunning = engineRunning,
-                    generationKw = parsed[VehicleSignal.GENERATION_KW],
-                )
-                log.sample(
-                    odometerKm = parsed[VehicleSignal.ODOMETER_KM],
-                    powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
-                    dtSeconds = dtSeconds,
-                    // This sweep's own reading, out of the same batch as the power it decides the
-                    // fate of. A standing interval's energy is the trip's and not the road's, and
-                    // an absent reading counts as moving (contract §2.2).
-                    speedKmh = parsed[VehicleSignal.VEHICLE_SPEED],
-                )
-                ledger.sample(
-                    odometerKm = parsed[VehicleSignal.ODOMETER_KM],
-                    powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
-                    generationKw = parsed[VehicleSignal.GENERATION_KW],
-                    engineRunning = engineRunning,
-                    parked = parsed[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 },
-                    dtSeconds = dtSeconds,
+                    dtSeconds = clock.tick(now),
+                    log = log,
+                    ledger = ledger,
+                    trace = trace,
                 )
                 saveTrip(now)
 
-                // Cold values carry across a *hot* sweep — temperatures do not
-                // change in a second. Hot values never do: they are either fresh
-                // or absent, so the dashboard cannot show a stale kilowatt figure.
-                //
-                // What they do not carry across is a *cold* sweep: VehicleColdSweep.rebuild
-                // clears the map and refills it from what that sweep answered, so a temperature
-                // that stopped answering leaves the snapshot the way a power reading does. That
-                // is the invariant ContourScene's one staleness rule stands on, and it is why
-                // VehiclePoll.COLD's horizon is two of its own intervals rather than two seconds.
-                //
-                // A fresh map per sweep, deliberately. The snapshot published a moment ago is still
-                // being read by the panel's frame loop, so a map shared with the next one would
-                // change under a reader. This is four allocations a second against a panel that
-                // draws sixty times in that second: the cost worth chasing was never here.
-                val merged = LinkedHashMap<VehicleSignal, Double>(cold)
-                VehicleSignal.HOT.forEach { signal -> parsed[signal]?.let { merged[signal] = it } }
-
-                // The window and its chart are built once here, beside the rest of the snapshot.
-                // Both screens draw the same hundred points, and a chart built inside `onDraw`
-                // would be a hundred trailing means allocated sixty times a second over a quantity
-                // the car answers four times a second. The chart reads the log's whole retention
-                // rather than the window: its points are the window's own readings, and the ten
-                // readings behind the oldest of them are road the window no longer reaches.
-                //
                 // A shell that answered with nothing in it - every id a sentinel and no cold value
                 // carried - is a failed read like a timeout, not a closed shell: the bus is quiet,
                 // and VehicleLink decides when quiet has lasted long enough to say so.
@@ -367,15 +325,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     }
                 } else {
                     link.answered(now)
-                    val window = log.window
-                    snapshot = VehicleTelemetry(
-                        access = VehicleAccess.READY,
-                        values = merged,
-                        consumption = window,
-                        chart = ConsumptionChart.of(log.buckets),
-                        engineTrace = trace.snapshot(),
-                        trip = ledger.trip,
-                    )
+                    snapshot = VehicleAnsweredSweep.snapshot(merged, log, ledger, trace)
                 }
 
                 // Last, and out of the same map the panel is now reading: a recording of what the
@@ -630,6 +580,104 @@ internal class VehicleLink {
 
         private const val NEVER = Long.MIN_VALUE
     }
+}
+
+/**
+ * What one answered sweep means, from the ids it parsed to the snapshot both screens draw.
+ *
+ * The poll loop keeps the transport, the clock, the files and the link; the rest is here. It used to
+ * be inline in the loop, so the one place every energy figure on the cluster and the car page is put
+ * together - the load's sign, the park flag the trip is told, which list is the window and which the
+ * chart, which values carry - had no test, and `VehicleLogReplayTest` replayed a copy of it rather
+ * than it. A copy agrees with itself: a chart built from the window instead of the log's whole
+ * retention passed both. The hub and the replay run these lines now, and `VehicleAnsweredSweepTest`
+ * states what they decide.
+ */
+internal object VehicleAnsweredSweep {
+
+    /**
+     * Feeds one sweep to the trace, the log and the ledger, and returns the values the screens are
+     * shown: the cold ones [cold] carries and this sweep's hot ones. Empty when nothing answered.
+     */
+    fun feed(
+        parsed: Map<VehicleSignal, Double>,
+        cold: Map<VehicleSignal, Double>,
+        atMillis: Long,
+        dtSeconds: Double,
+        log: ConsumptionLog,
+        ledger: TripEnergyLedger,
+        trace: EngineTrace,
+    ): Map<VehicleSignal, Double> {
+        val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
+        // Sampled on every sweep. The engine's box is up for the slots this flag was true in: the
+        // rpm and generation ids used to decide that and one of them is not zero on an electric
+        // drive.
+        trace.sample(
+            atMillis = atMillis,
+            engineRunning = engineRunning,
+            generationKw = parsed[VehicleSignal.GENERATION_KW],
+        )
+        val load = VehicleConvention.load(parsed[VehicleSignal.POWER_KW])
+        log.sample(
+            odometerKm = parsed[VehicleSignal.ODOMETER_KM],
+            powerKw = load,
+            dtSeconds = dtSeconds,
+            // This sweep's own reading, out of the same batch as the power it decides the fate of.
+            // A standing interval's energy is the trip's and not the road's, and an absent reading
+            // counts as moving (contract §2.2).
+            speedKmh = parsed[VehicleSignal.VEHICLE_SPEED],
+        )
+        ledger.sample(
+            odometerKm = parsed[VehicleSignal.ODOMETER_KM],
+            powerKw = load,
+            generationKw = parsed[VehicleSignal.GENERATION_KW],
+            engineRunning = engineRunning,
+            parked = parsed[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 },
+            dtSeconds = dtSeconds,
+        )
+
+        // Cold values carry across a *hot* sweep — temperatures do not change in a second. Hot
+        // values never do: they are either fresh or absent, so the dashboard cannot show a stale
+        // kilowatt figure.
+        //
+        // What they do not carry across is a *cold* sweep: VehicleColdSweep.rebuild clears the map
+        // and refills it from what that sweep answered, so a temperature that stopped answering
+        // leaves the snapshot the way a power reading does. That is the invariant ContourScene's
+        // one staleness rule stands on, and it is why VehiclePoll.COLD's horizon is two of its own
+        // intervals rather than two seconds.
+        //
+        // A fresh map per sweep, deliberately. The snapshot published a moment ago is still being
+        // read by the panel's frame loop, so a map shared with the next one would change under a
+        // reader. This is four allocations a second against a panel that draws sixty times in that
+        // second: the cost worth chasing was never here.
+        val merged = LinkedHashMap<VehicleSignal, Double>(cold)
+        VehicleSignal.HOT.forEach { signal -> parsed[signal]?.let { merged[signal] = it } }
+        return merged
+    }
+
+    /**
+     * The snapshot of an answered sweep: its [values] and the history the records hold now.
+     *
+     * The window and its chart are built once here, beside the rest of the snapshot. Both screens
+     * draw the same hundred points, and a chart built inside `onDraw` would be a hundred trailing
+     * means allocated sixty times a second over a quantity the car answers four times a second. The
+     * chart reads the log's whole retention rather than the window: its points are the window's own
+     * readings, and the ten readings behind the oldest of them are road the window no longer
+     * reaches.
+     */
+    fun snapshot(
+        values: Map<VehicleSignal, Double>,
+        log: ConsumptionLog,
+        ledger: TripEnergyLedger,
+        trace: EngineTrace,
+    ): VehicleTelemetry = VehicleTelemetry(
+        access = VehicleAccess.READY,
+        values = values,
+        consumption = log.window,
+        chart = ConsumptionChart.of(log.buckets),
+        engineTrace = trace.snapshot(),
+        trip = ledger.trip,
+    )
 }
 
 /**
