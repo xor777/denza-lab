@@ -370,7 +370,7 @@ object DenzaAppRepository {
         val context = appContext ?: return
         SimulcastIntegration.setEnabled(context, enabled)
         if (!enabled) {
-            SimulcastIntegration.clearLastTargetPackage(context)
+            SimulcastIntegration.clearLastTargetPackage()
             SimulcastOverlayService.stopCurrent(context)
             refresh()
             return

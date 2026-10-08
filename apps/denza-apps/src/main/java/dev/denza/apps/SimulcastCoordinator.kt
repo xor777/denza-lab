@@ -81,7 +81,7 @@ object SimulcastCoordinator {
         overlayAllowed = hasOverlayPermission(context),
         accessibilityEnabled = isAccessibilityEnabled(context),
         accessibilityConnected = SimulcastAccessibilityService.isConnected(),
-        active = SimulcastIntegration.getLastTargetPackage(context) != null,
+        active = SimulcastIntegration.getLastTargetPackage() != null,
     )
 
     fun evaluate(environment: SimulcastEnvironment): FeatureSnapshot {

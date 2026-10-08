@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
         NavigationTransferOverlay.setMainActivityResumed(this, false)
         super.onPause()
         if (SimulcastIntegration.isEnabled(this) &&
-            SimulcastIntegration.getLastTargetPackage(this) != null
+            SimulcastIntegration.getLastTargetPackage() != null
         ) {
             SimulcastOverlayService.showActiveExit(this)
         }

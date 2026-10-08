@@ -20,7 +20,7 @@ ends.
 | A normal APK binds `DiShareControlService` by its action (a component-only bind gets null from `onBind()`, [Exported components](#exported-components)), registers as `packageName=com.byd.dishare` (tx `0x2`), and `start(screen_ivi, [screen_hud], app, com.byd.dishare)` (tx `0x6`) returns `{screen_hud=0, screen_ivi=0}` with the app on the HUD via a `BYD-Mirror` display | live | 2026-06-26 | [Direct start path](#direct-start-path) |
 | The product does the same: `DiShareProjectionBridge.java` registers, starts, reads state, stops and closes the UI as `com.byd.dishare` (tx `0x2`/`0x6`/`0x5`/`0x7`/`0xb`); `DiShareScreens.java` asks tx `0x4` | code | 2026-06-28 | [Direct control service transaction map](#direct-control-service-transaction-map) |
 | DiShare tells the API client that started a share when it stops being the mirror client: `IDiShareApiClient` tx 1 `true` during the start, `false` 0.1 s after the `605` on P→D (`captures/hud-pd-20260924T132255Z/dishare.log`) | live | 2026-09-24 | [End of a share](#end-of-a-share) |
-| The product's session (`DiShareShareSession.java`) ends on that `false` once it has stood 1.5 s with no `true`, or when DiShare's process dies; the bridge then removes its client and `SimulcastOverlayService.java` clears the target, hides the exit control and refreshes the tile. Every bind goes through `DiShareBinding.java`: unbound exactly once, also after `onServiceDisconnected`, and a reconnection when DiShare comes back is never delivered, so it cannot start a share again | code | 2026-10-08 | [Share session lifecycle](#share-session-lifecycle-2026-10-08) |
+| The product's session (`DiShareShareSession.java`) ends on that `false` once it has stood 1.5 s with no `true`, or when DiShare's process dies; the bridge then removes its client and `SimulcastOverlayService.java` clears the target, hides the exit control and refreshes the tile. The target lives in memory only (`SimulcastIntegration.java`). Every bind goes through `DiShareBinding.java`: unbound exactly once, also after `onServiceDisconnected`, and a reconnection when DiShare comes back is never delivered, so it cannot start a share again | code | 2026-10-08 | [Share session lifecycle](#share-session-lifecycle-2026-10-08) |
 | On the Z9GT `getScreens` reports `screen_hud`, `screen_fse` and `screen_ivi` (the source); rear, overhead and `screen_tv` receivers are implemented from the contract only | live | 2026-06-28 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
 | A drop target is a receiver DiShare reports available whose stock card is in the accessibility tree; `ScreenTarget.java` maps `screen_hud`→`ar_hud_screen`, `screen_fse`→`fse_screen`, `screen_rse_l`/`_r`→`left_rse_screen`/`right_rse_screen`, `screen_overhead` and `screen_tv`→`overhead_screen` | code | 2026-07-18 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
 | "Drop zones come from the decoded `window_share_layout_ivi_r` coordinates and the row is anchored to an 839 dp panel": both are the live node bounds of the receiver cards, `app_list` and `switch_share_app` (`SimulcastDialogGeometry.java`) | refuted | 2026-06-29 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
@@ -230,6 +230,12 @@ What the product does (`DiShareShareSession.java`, tested in `DiShareShareSessio
 - Tx 3 is decoded and logged as `share state=`, not used to end anything: the registration it
   rides on is replaced by every other `com.byd.dishare` registration, and it can describe the
   share that was there before ours.
+- The target being cast lives in memory for the life of the process (`SimulcastIntegration.java`),
+  not in preferences. By the firmware above, our process dying removes our client and its
+  `exitAll` stops the share, so a target an earlier process recorded named a share that was
+  gone, and it brought the exit control and a running tile back after every restart (APK
+  update, a killed process). That the share ends with our process has not been watched on the
+  car; it follows from `onClientRemoved`.
 
 ## Probe commands
 

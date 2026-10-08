@@ -6,8 +6,15 @@ import android.content.SharedPreferences;
 final class SimulcastIntegration {
     private static final String PREFS = "simulcast_integration";
     private static final String KEY_ENABLED = "enabled";
-    private static final String KEY_LAST_TARGET_PACKAGE = "last_target_package";
-    private static final String KEY_LAST_RECEIVER = "last_receiver";
+
+    /**
+     * The app this process is casting, in memory only. DiShare stops a share when the API client
+     * that started it dies while it is the mirror client ({@code onClientRemoved} →
+     * {@code exitAll}, dishare-api-notes.md "End of a share"), so a target recorded by an earlier
+     * process names a share that is already gone. Kept in preferences, as it was, it brought the
+     * exit control and a running tile back after every restart of the process.
+     */
+    private static volatile String lastTargetPackage;
 
     private SimulcastIntegration() {
     }
@@ -20,30 +27,16 @@ final class SimulcastIntegration {
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply();
     }
 
-    static String getLastTargetPackage(Context context) {
-        return prefs(context).getString(KEY_LAST_TARGET_PACKAGE, null);
+    static String getLastTargetPackage() {
+        return lastTargetPackage;
     }
 
-    static String getLastReceiver(Context context) {
-        return prefs(context).getString(KEY_LAST_RECEIVER, null);
+    static void setLastTargetPackage(String packageName) {
+        lastTargetPackage = packageName;
     }
 
-    static void setLastTargetPackage(Context context, String packageName) {
-        prefs(context).edit().putString(KEY_LAST_TARGET_PACKAGE, packageName).apply();
-    }
-
-    static void setLastTarget(Context context, String packageName, String receiver) {
-        prefs(context).edit()
-                .putString(KEY_LAST_TARGET_PACKAGE, packageName)
-                .putString(KEY_LAST_RECEIVER, receiver)
-                .apply();
-    }
-
-    static void clearLastTargetPackage(Context context) {
-        prefs(context).edit()
-                .remove(KEY_LAST_TARGET_PACKAGE)
-                .remove(KEY_LAST_RECEIVER)
-                .apply();
+    static void clearLastTargetPackage() {
+        lastTargetPackage = null;
     }
 
     private static SharedPreferences prefs(Context context) {

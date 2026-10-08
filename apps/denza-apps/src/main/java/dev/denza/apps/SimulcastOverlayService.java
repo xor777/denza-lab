@@ -150,7 +150,7 @@ public class SimulcastOverlayService extends Service {
             return;
         }
         stopBridge();
-        SimulcastIntegration.clearLastTargetPackage(this);
+        SimulcastIntegration.clearLastTargetPackage();
         hideActiveShareExit();
         SimulcastVideoSizeResolver.Resolution videoSize =
                 SimulcastVideoSizeResolver.resolve(this, receiver);
@@ -177,8 +177,7 @@ public class SimulcastOverlayService extends Service {
                         lease.release();
                         Log.i(TAG, packageName + " started "
                                 + DiShareProjectionBridge.bundleToString(result));
-                        SimulcastIntegration.setLastTarget(SimulcastOverlayService.this,
-                                packageName, receiver);
+                        SimulcastIntegration.setLastTargetPackage(packageName);
                         Toast.makeText(SimulcastOverlayService.this,
                                 "Запускаю " + label, Toast.LENGTH_SHORT).show();
                         closeDiShareDialog();
@@ -259,7 +258,7 @@ public class SimulcastOverlayService extends Service {
      * and the «Трансляция» tile no longer shows it running.
      */
     private void shareOver() {
-        SimulcastIntegration.clearLastTargetPackage(this);
+        SimulcastIntegration.clearLastTargetPackage();
         hideActiveShareExit();
         DenzaAppRepository.INSTANCE.refresh();
     }
@@ -282,7 +281,7 @@ public class SimulcastOverlayService extends Service {
 
     private void maybeShowActiveExit() {
         if (SimulcastIntegration.isEnabled(this)
-                && SimulcastIntegration.getLastTargetPackage(this) != null) {
+                && SimulcastIntegration.getLastTargetPackage() != null) {
             showActiveShareExit();
         } else {
             hideActiveShareExit();
@@ -290,7 +289,7 @@ public class SimulcastOverlayService extends Service {
     }
 
     private void showActiveShareExit() {
-        if (SimulcastIntegration.getLastTargetPackage(this) == null) {
+        if (SimulcastIntegration.getLastTargetPackage() == null) {
             hideActiveShareExit();
             return;
         }
