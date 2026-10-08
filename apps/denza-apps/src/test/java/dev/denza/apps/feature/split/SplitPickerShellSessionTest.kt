@@ -1670,14 +1670,28 @@ class SplitPickerShellSessionTest {
         val fake = FakeShell()
         val split = session(fake)
         val hosts = split.buildPickers()
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
         val expected = mapOf(
             SplitPane.PRIMARY to SplitPickerObservedPane(hosts.getValue(SplitPane.PRIMARY)),
-            SplitPane.SECONDARY to SplitPickerObservedPane(hosts.getValue(SplitPane.SECONDARY)),
+            SplitPane.SECONDARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                appTaskId = music.appTaskId,
+                packageName = music.packageName,
+            ),
         )
 
-        // Сигнатура краха 1.7.3: host жив в панельном root - его панель не схлопнута.
+        // Сигнатура краха 1.7.3: записанное приложение умерло, а host жив в панельном root - его
+        // панель не схлопнута, даже когда area называет её схлопнутой. Прежде приложения не было
+        // в записи вовсе, и «ушла панель, где пропало только приложение» не проверялось ничем.
+        fake.removeActivity(SECONDARY_ROOT, "$MUSIC.MainActivity")
         fake.area = 1
-        assertEquals(null, split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected).collapsed)
+        val crash = split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected)
+        assertEquals(null, crash.collapsed)
+        assertEquals("ни одна панель не покинула панельные корни целиком", crash.reason)
 
         // Обе панели покинули root'ы под НАКРЫТИЕМ - это конец сцены, и решает его
         // existence-проверка конца, а не collapse (правка W1 волны 9 сюда не дотягивается:
