@@ -2,8 +2,6 @@ package dev.denza.apps.feature.hud
 
 import java.util.Locale
 
-private const val DEFAULT_BACKGROUND_GUIDANCE_MAX_AGE_MS = 90_000L
-
 internal data class YandexNotificationGuidanceFields(
     val maneuverResourceName: String = "",
     val maneuverDescription: String = "",
@@ -25,24 +23,29 @@ internal data class YandexNotificationGuidancePatch(
     val remainingTimeText: String,
     val eta: String,
 ) {
-    fun mergeWith(previous: HudGuidance): HudGuidance {
-        val sameManeuver = maneuver == previous.maneuver
+    /**
+     * The notification's route, with whatever it leaves out taken from the last guidance the HUD
+     * showed. Without one (the HUD lost the route, or never had it) the notification stands alone:
+     * it names the maneuver and its distance, which is all a road packet needs.
+     */
+    fun mergeWith(previous: HudGuidance?): HudGuidance {
+        val sameManeuver = maneuver == previous?.maneuver
         return HudGuidance(
             maneuver = maneuver,
             roundaboutExitNumber = if (maneuver == HudManeuver.ROUNDABOUT) {
-                roundaboutExitNumber ?: previous.roundaboutExitNumber.takeIf { sameManeuver }
+                roundaboutExitNumber ?: previous?.roundaboutExitNumber.takeIf { sameManeuver }
             } else {
                 null
             },
             instruction = instruction,
             nextRoadName = nextRoadName.ifEmpty {
-                previous.nextRoadName.takeIf { sameManeuver }.orEmpty()
+                previous?.nextRoadName.takeIf { sameManeuver }.orEmpty()
             },
             maneuverDistanceMeters = maneuverDistanceMeters,
-            remainingDistanceMeters = remainingDistanceMeters ?: previous.remainingDistanceMeters,
-            remainingTimeSeconds = remainingTimeSeconds ?: previous.remainingTimeSeconds,
-            remainingTimeText = remainingTimeText.ifEmpty { previous.remainingTimeText },
-            eta = eta.ifEmpty { previous.eta },
+            remainingDistanceMeters = remainingDistanceMeters ?: previous?.remainingDistanceMeters,
+            remainingTimeSeconds = remainingTimeSeconds ?: previous?.remainingTimeSeconds,
+            remainingTimeText = remainingTimeText.ifEmpty { previous?.remainingTimeText.orEmpty() },
+            eta = eta.ifEmpty { previous?.eta.orEmpty() },
         )
     }
 }
@@ -146,52 +149,87 @@ internal object YandexNotificationGuidanceParser {
         .replace(Regex("\\s+"), " ")
 }
 
+/**
+ * The route Yandex's navigation notification describes, for while Yandex has no visible window.
+ *
+ * It is kept for as long as the notification that carried it still says so. Each post of that
+ * notification replaces it, a post of the same notification that no longer reads as a route (the
+ * plain `Навигатор запущен` after arrival, a collapsed or unreadable layout) ends it, and so does
+ * the notification's removal. Other Yandex notifications are not about the route and leave it
+ * alone.
+ *
+ * Beyond that it ages from the moment Yandex posted it, never from the moment it was read or sent
+ * again: past [maxAgeMs] it is gone even if the notification is still up and unchanged. How often
+ * Yandex reposts while driving is not recorded, so the age is the HUD's own lost-route grace, the
+ * time a route that vanished from the screen is kept ([HUD_LOST_ROUTE_GRACE_MS]).
+ */
 internal class HudNotificationGuidanceStore(
-    private val maxAgeMs: Long = DEFAULT_BACKGROUND_GUIDANCE_MAX_AGE_MS,
+    private val maxAgeMs: Long = HUD_LOST_ROUTE_GRACE_MS,
 ) {
+    private var notificationKey: String? = null
     private var patch: YandexNotificationGuidancePatch? = null
     private var capturedAtMs = 0L
 
+    /**
+     * A post of Yandex notification [key], with the fields read from it (null when nothing could
+     * be read). True when it describes a route.
+     */
     @Synchronized
-    fun update(value: YandexNotificationGuidancePatch, capturedAtMs: Long) {
-        patch = value
+    fun post(key: String, fields: YandexNotificationGuidanceFields?, capturedAtMs: Long): Boolean {
+        val route = fields?.let(YandexNotificationGuidanceParser::parse)
+        if (route == null) {
+            remove(key)
+            return false
+        }
+        notificationKey = key
+        patch = route
         this.capturedAtMs = capturedAtMs
+        return true
+    }
+
+    /** Notification [key] is gone; null means every Yandex notification is (listener lost). */
+    @Synchronized
+    fun remove(key: String?) {
+        if (key == null || key == notificationKey) {
+            notificationKey = null
+            patch = null
+            capturedAtMs = 0L
+        }
     }
 
     @Synchronized
-    fun clear() {
-        patch = null
-        capturedAtMs = 0L
-    }
-
-    @Synchronized
-    fun resolve(previous: HudGuidance?, nowMs: Long): HudGuidance? {
+    fun resolve(previous: HudGuidance?, nowMs: Long): HudGuidanceSample? {
         val current = patch ?: return null
-        val base = previous ?: return null
         if (nowMs < capturedAtMs || nowMs - capturedAtMs > maxAgeMs) {
             return null
         }
-        return current.mergeWith(base)
+        return HudGuidanceSample(current.mergeWith(previous), capturedAtMs)
     }
 }
 
 object HudNotificationGuidanceRuntime {
     private val store = HudNotificationGuidanceStore()
 
-    internal fun update(
-        fields: YandexNotificationGuidanceFields,
+    internal fun post(
+        key: String,
+        fields: YandexNotificationGuidanceFields?,
         capturedAtMs: Long,
-    ): Boolean {
-        val patch = YandexNotificationGuidanceParser.parse(fields) ?: return false
-        store.update(patch, capturedAtMs)
-        return true
-    }
+    ): Boolean = store.post(key, fields, capturedAtMs)
 
-    internal fun clear() {
-        store.clear()
+    internal fun remove(key: String?) {
+        store.remove(key)
     }
 
     @JvmStatic
-    fun resolve(previous: HudGuidance?, nowMs: Long): HudGuidance? =
+    fun resolve(previous: HudGuidance?, nowMs: Long): HudGuidanceSample? =
         store.resolve(previous, nowMs)
 }
+
+/**
+ * When Yandex posted a notification, on the uptime clock the HUD runs on. [postTimeMs] is the
+ * wall-clock `StatusBarNotification.postTime`, stamped on every post: a live post is now, while one
+ * re-read when the listener connects is as old as it is. A wall clock that stepped back cannot make
+ * a post younger than now.
+ */
+internal fun notificationCapturedAtMs(uptimeNowMs: Long, wallNowMs: Long, postTimeMs: Long): Long =
+    uptimeNowMs - (wallNowMs - postTimeMs).coerceAtLeast(0L)

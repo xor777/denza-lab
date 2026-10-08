@@ -199,6 +199,64 @@ object YandexGuidanceParser {
     )
 }
 
+/**
+ * How long the HUD keeps a route nobody re-confirmed: six seconds after the newest data either
+ * source captured (three until 2a3cfb1f).
+ */
+internal const val HUD_LOST_ROUTE_GRACE_MS = 6_000L
+
+/**
+ * One reading of the guidance and when its data was captured: a visible accessibility read when it
+ * was read, a background route when Yandex posted its notification. Reading or sending the same
+ * data again leaves [capturedAtMs] where it was.
+ */
+data class HudGuidanceSample(val guidance: HudGuidance, val capturedAtMs: Long)
+
+/** The background route, if there is a fresh one; [HudNotificationGuidanceRuntime.resolve]. */
+fun interface HudBackgroundGuidance {
+    fun resolve(previous: HudGuidance?, nowMs: Long): HudGuidanceSample?
+}
+
+/**
+ * Which guidance the HUD may show on a poll, and when its route is lost.
+ *
+ * Visible accessibility guidance wins; without it the background route stands in. Every reading is
+ * aged by its data, so the five-second heartbeat that re-sends a notification's route, and the polls
+ * that re-read it, do not make it younger. The route is lost [lostRouteGraceMs] after the newest
+ * data either source captured.
+ */
+class HudRouteFreshness @JvmOverloads constructor(
+    private val background: HudBackgroundGuidance,
+    private val lostRouteGraceMs: Long = HUD_LOST_ROUTE_GRACE_MS,
+) {
+    private var newestCaptureMs = 0L
+
+    /** True from the first reading until the route is lost or [reset]. */
+    var isHolding = false
+        private set
+
+    fun select(visible: HudGuidance?, previous: HudGuidance?, nowMs: Long): HudGuidanceSample? {
+        val sample = visible?.let { HudGuidanceSample(it, nowMs) }
+            ?: background.resolve(previous, nowMs)
+            ?: return null
+        newestCaptureMs = maxOf(newestCaptureMs, sample.capturedAtMs)
+        isHolding = true
+        return sample
+    }
+
+    /** True once, on the first poll without a reading after the grace has run out. */
+    fun routeLost(nowMs: Long): Boolean {
+        if (!isHolding || nowMs - newestCaptureMs < lostRouteGraceMs) return false
+        isHolding = false
+        return true
+    }
+
+    fun reset() {
+        newestCaptureMs = 0L
+        isHolding = false
+    }
+}
+
 /** Fail-closed remaining-route figures handed to the trip panel. */
 data class HudRemainingGuidance(val distanceMeters: Int?, val timeSeconds: Int?)
 

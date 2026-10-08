@@ -42,13 +42,13 @@ class YandexNotificationArtworkListener : NotificationListenerService() {
         val found = active.any(::process)
         if (!found) {
             HudNotificationArtworkRuntime.clear(null, "no-active-yandex-artwork")
-            HudNotificationGuidanceRuntime.clear()
+            HudNotificationGuidanceRuntime.remove(null)
         }
     }
 
     override fun onListenerDisconnected() {
         HudNotificationArtworkRuntime.clear(null, "listener-disconnected")
-        HudNotificationGuidanceRuntime.clear()
+        HudNotificationGuidanceRuntime.remove(null)
         HudNotificationArtworkRuntime.setListenerConnected(false)
         HudNotificationAccessCoordinator.ensureAccess(this) {
             if (
@@ -77,14 +77,14 @@ class YandexNotificationArtworkListener : NotificationListenerService() {
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         if (sbn?.packageName == YANDEX_PACKAGE) {
             HudNotificationArtworkRuntime.clear(sbn.key, "notification-removed")
-            HudNotificationGuidanceRuntime.clear()
+            HudNotificationGuidanceRuntime.remove(sbn.key)
         }
         super.onNotificationRemoved(sbn)
     }
 
     override fun onDestroy() {
         HudNotificationArtworkRuntime.clear(null, "listener-destroyed")
-        HudNotificationGuidanceRuntime.clear()
+        HudNotificationGuidanceRuntime.remove(null)
         HudNotificationArtworkRuntime.setListenerConnected(false)
         super.onDestroy()
     }
@@ -98,13 +98,18 @@ class YandexNotificationArtworkListener : NotificationListenerService() {
         }.getOrElse { error ->
             YandexArtworkExtraction(null, "extract:${error.shortName()}")
         }
-        val capturedAtMs = SystemClock.uptimeMillis()
-        val guidanceUpdated = result.guidanceFields?.let { fields ->
-            HudNotificationGuidanceRuntime.update(fields, capturedAtMs)
-        } == true
-        if (result.detail == "no-remote-views") {
-            HudNotificationGuidanceRuntime.clear()
-        }
+        val capturedAtMs = notificationCapturedAtMs(
+            uptimeNowMs = SystemClock.uptimeMillis(),
+            wallNowMs = System.currentTimeMillis(),
+            postTimeMs = sbn.postTime,
+        )
+        // Every post of the route's notification restates the route, or ends it when it no longer
+        // reads as one; a frozen figure is never left behind on the HUD.
+        val guidanceUpdated = HudNotificationGuidanceRuntime.post(
+            key = sbn.key,
+            fields = result.guidanceFields,
+            capturedAtMs = capturedAtMs,
+        )
         val png = result.png
         if (png == null) {
             HudNotificationArtworkRuntime.reject(sbn.key, result.detail)

@@ -47,7 +47,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - The firmware-model Mirrors contract in motion: only stationary runs (D, R, hazard) of 2026-09-23 are recorded; a moving drive with the `captures/mirrors-firmware-model/` capture settles it. AVC's floating `‹ ›` (view `5097`) while we hold the renderer is a crash path by the code and is not to be tried.
 - Any non-navigator projected on this firmware, `com.byd.avc` above all: one owning session, from a documented reset, with `logcat -b crash -v time` ([Any application, not six navigators](#any-application-not-six-navigators)).
 - Whether the camera-start trims of `44f02df5` are faster: the matched A/B protocol in [Acceleration candidates: skip unused camera-start work (2026-09-05)](#acceleration-candidates-skip-unused-camera-start-work-2026-09-05).
-- HUD field-28 IDs for sharp, U-turn, straight and roundabout (a parked ID sweep), the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
+- HUD field-28 IDs for sharp, U-turn, straight and roundabout (a parked ID sweep), the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check, which also has to measure how often Yandex reposts its notification while driving, against the six-second age) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
 - Navigation recovery paths not run live: selection change, launch-discovery timeout, command failure, lost ADB, APK restart; and the `Переносим…` overlay seen on the car.
 - `android.hardware.AVMCamera` as a raw camera source outside AVC: its access control is not in the image; an isolated probe settles it.
 
@@ -2251,10 +2251,20 @@ no visible accessibility window. Its named distance, road, remaining-distance,
 remaining-time, and arrival fields are read from the rendered `RemoteViews`;
 the maneuver resource name is read opportunistically from `RemoteViews`
 actions. Reflection failure is harmless: visible Accessibility guidance remains
-authoritative and unsupported background layouts still clear after a three
-second transition grace. A plain `Навигатор запущен` notification is never
-treated as an active route. Notification removal, listener loss, and stale
-background data clear the secondary state.
+authoritative. The background route belongs to the notification that carried
+it (`HudNotificationGuidanceStore`): each post of that notification restates
+it, and a post that no longer reads as a route ends it - a plain
+`Навигатор запущен`, a layout collapsed to no `RemoteViews`, an unreadable one
+- as do the notification's removal and listener loss. Other Yandex
+notifications leave it alone. The route ages from Yandex's post time
+(`StatusBarNotification.postTime`), never from when it was read or re-sent, and
+is fresh for six seconds, the HUD's lost-route grace below. How often Yandex
+reposts while driving is not recorded; the minimized-route check has to measure
+it, and if it is slower than six seconds while moving the background route will
+blink off between posts. With no visible route left to merge with (the HUD lost
+it), the notification's route stands alone.
+
+> **Superseded 2026-10-08:** this paragraph used to promise that unsupported background layouts clear "after a three second transition grace". The code never did: from 2026-07-24 (`7e60f95b`) to 2026-10-08 a background route lived 90 s, only a post with no `RemoteViews` cleared it, and every poll re-stamped it as fresh for the trip strip. A route-less post after arrival could leave a frozen distance on the HUD and the strip for about 96 s. Now the rule above holds, `YandexNotificationGuidanceTest` and `HudRouteFreshnessTest` reproduce the arrival and the heartbeat, and the age is six seconds from the post.
 
 The artwork and background-guidance paths are locally tested and built but
 still need a live minimized-route check on the car.
@@ -2427,9 +2437,14 @@ Denza Apps continued publishing the live right-turn update (`30 m`, `51 km`,
 projection while Yandex was shown on the instrument display; the crash buffer
 remained empty.
 
-Updates are deduplicated with a five-second heartbeat. If neither a valid
-visible route nor a fresh rich-notification route is found for three seconds,
-Denza Apps clears the road guidance. Disabling the switch clears, stops, and
+Updates are deduplicated with a five-second heartbeat. Every reading is aged by
+its data - a visible read when it is read, a background route when Yandex
+posted it - so the heartbeat re-sends a route without making it younger, for
+the HUD and for the trip strip (`HudGuidanceRuntime.remaining` drops a figure
+four seconds after its data). If neither source has captured a route for six
+seconds (`HUD_LOST_ROUTE_GRACE_MS`, `HudRouteFreshness`), Denza Apps clears the
+road guidance. Until 2026-10-08 this paragraph said three seconds; the code has
+used six since 2026-07-25 (`2a3cfb1f`). Disabling the switch clears, stops, and
 unbinds the stock service. Unknown maneuver text is never guessed as a straight
 arrow: text and distance may continue, but the directional image is omitted.
 

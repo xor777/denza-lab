@@ -15,7 +15,6 @@ public final class HudGuidanceAccessibilityMonitor {
     private static final String TAG = "DenzaHudGuidance";
     private static final long POLL_INTERVAL_MS = 350L;
     private static final long EVENT_REFRESH_DELAY_MS = 40L;
-    private static final long LOST_ROUTE_GRACE_MS = 6000L;
     private static final long HEARTBEAT_MS = 5000L;
     private static final long AR_HEARTBEAT_MS = 350L;
 
@@ -29,12 +28,12 @@ public final class HudGuidanceAccessibilityMonitor {
     private final HudSomeIpClient someIpClient;
     private final HudArLocationSource locationSource;
     private final HudArApproximationTracker arTracker = new HudArApproximationTracker();
+    private final HudRouteFreshness freshness =
+            new HudRouteFreshness(HudNotificationGuidanceRuntime::resolve);
     private final Runnable pollRunnable = this::poll;
     private final Runnable eventPollRunnable = this::poll;
     private final SingleFlightReadRunner<HudGuidance> readRunner;
     private boolean attached;
-    private boolean cleared = true;
-    private long lastSeenMs;
     private long lastPublishedMs;
     private HudGuidance lastGuidance;
     private HudVehiclePose latestPose;
@@ -115,11 +114,9 @@ public final class HudGuidanceAccessibilityMonitor {
         }
         long now = SystemClock.uptimeMillis();
         long nowElapsed = SystemClock.elapsedRealtime();
-        if (guidance == null) {
-            guidance = HudNotificationGuidanceRuntime.resolve(lastGuidance, now);
-        }
-        if (guidance != null) {
-            lastSeenMs = now;
+        HudGuidanceSample sample = freshness.select(guidance, lastGuidance, now);
+        if (sample != null) {
+            guidance = sample.getGuidance();
             HudNotificationArtworkRuntime.observe(guidance, now);
             boolean changed = !guidance.equals(lastGuidance);
             HudArGeometry arGeometry = arTracker.resolve(guidance, latestPose, nowElapsed);
@@ -132,11 +129,9 @@ public final class HudGuidanceAccessibilityMonitor {
                 lastPublishedMs = now;
                 lastArActive = arActive;
             }
-            cleared = false;
-            HudGuidanceRuntime.onGuidance(guidance, now);
-        } else if (!cleared && now - lastSeenMs >= LOST_ROUTE_GRACE_MS) {
+            HudGuidanceRuntime.onGuidance(guidance, sample.getCapturedAtMs());
+        } else if (freshness.routeLost(now)) {
             someIpClient.clear();
-            cleared = true;
             lastGuidance = null;
             arTracker.reset();
             lastArActive = false;
@@ -149,16 +144,15 @@ public final class HudGuidanceAccessibilityMonitor {
         handler.removeCallbacks(pollRunnable);
         handler.removeCallbacks(eventPollRunnable);
         readRunner.deactivate();
-        if (!cleared) {
+        if (freshness.isHolding()) {
             someIpClient.clear();
         }
         locationSource.stop();
         arTracker.reset();
         latestPose = null;
         someIpClient.shutdown();
-        cleared = true;
+        freshness.reset();
         lastGuidance = null;
-        lastSeenMs = 0L;
         lastPublishedMs = 0L;
         lastArActive = false;
         HudGuidanceRuntime.onStopped();
