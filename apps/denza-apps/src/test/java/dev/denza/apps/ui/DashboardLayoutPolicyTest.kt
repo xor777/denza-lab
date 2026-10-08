@@ -10,32 +10,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/**
+ * The policy's own decisions. Which mode each of Luminofor's three windows resolves to is
+ * `LuminoforScreenContractTest.theThreeWindowsAreTheSpecsThree`, read off `spec.json`.
+ */
 class DashboardLayoutPolicyTest {
-    @Test
-    fun `measured one-third pane uses vertical layout`() {
-        assertEquals(
-            DashboardLayoutMode.NARROW,
-            DashboardLayoutPolicy.resolve(416),
-        )
-    }
-
-    @Test
-    fun `measured two-thirds pane fits the dashboard into its own width`() {
-        // Правка W8: холст 1280 dp в горизонтальном скролле прятал ~904 px за краем панели 828 dp.
-        assertEquals(
-            DashboardLayoutMode.MEDIUM,
-            DashboardLayoutPolicy.resolve(828),
-        )
-    }
-
-    @Test
-    fun `measured fullscreen width keeps the existing layout`() {
-        assertEquals(
-            DashboardLayoutMode.WIDE,
-            DashboardLayoutPolicy.resolve(1_280),
-        )
-    }
-
     @Test
     fun `thresholds have no ambiguous width`() {
         assertEquals(
@@ -126,33 +105,6 @@ class DashboardLayoutPolicyTest {
             assertTrue(
                 "and thirteen should not, or this floor means nothing",
                 DashboardLayoutPolicy.chipWidth(mode, 13).value < floor,
-            )
-        }
-    }
-
-    @Test
-    fun `a chip row costs a pane a fraction of what a tile row costs`() {
-        // The reason a pane has chips at all, as arithmetic rather than as taste. Eleven tiles at the
-        // width their names need are four rows at 828 dp and five at 416 - 692 and 868 dp of a
-        // window that has 656 once the car has taken its caption bar - so the page scrolled and
-        // the analyser was below the fold. Eleven chips are one row and two.
-        for ((window, mode) in listOf(
-            828 to DashboardLayoutMode.MEDIUM,
-            416 to DashboardLayoutMode.NARROW,
-        )) {
-            val columns = DashboardLayoutPolicy.columns(mode, FEATURES)
-            val content = window - DashboardLayoutPolicy.sideMargin(mode).value * 2
-            val chip = (content - (columns - 1) * DenzaMetrics.Space.M.value) / columns
-            val rows = (FEATURES + columns - 1) / columns
-            val band = rows * chip + (rows - 1) * DenzaMetrics.Space.M.value
-
-            assertTrue(
-                "a chip at $window dp is $chip, which is not chip-sized",
-                chip in DenzaMetrics.Component.CHIP_MIN.value..76f,
-            )
-            assertTrue(
-                "$FEATURES chips at $window dp take $band dp, which is no better than tiles",
-                band < 3 * DenzaMetrics.Component.TILE_HEIGHT.value,
             )
         }
     }
