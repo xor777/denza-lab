@@ -9,9 +9,9 @@ import org.junit.Test
 class RuntimeRecoveryManifestContractTest {
     @Test
     fun `simulcast receiver is the single boot and package replacement owner`() {
-        val manifest = File("src/main/AndroidManifest.xml").readText()
-        val runtime = manifest.componentBlock("receiver", ".RuntimeRecoveryReceiver")
-        val weather = manifest.componentBlock("receiver", ".feature.weather.WeatherAdapterReceiver")
+        val manifest = appManifest()
+        val runtime = manifest.component("receiver", ".RuntimeRecoveryReceiver")
+        val weather = manifest.component("receiver", ".feature.weather.WeatherAdapterReceiver")
 
         assertEquals(1, Regex("android.intent.action.BOOT_COMPLETED").findAll(manifest).count())
         assertEquals(1, Regex("android.intent.action.MY_PACKAGE_REPLACED").findAll(manifest).count())
@@ -24,8 +24,8 @@ class RuntimeRecoveryManifestContractTest {
 
     @Test
     fun `bootstrap service is private and device acc permission is absent`() {
-        val manifest = File("src/main/AndroidManifest.xml").readText()
-        val service = manifest.componentBlock("service", ".RuntimeRecoveryService")
+        val manifest = appManifest()
+        val service = manifest.component("service", ".RuntimeRecoveryService")
 
         assertTrue(service.contains("android:exported=\"false\""))
         assertTrue(service.contains("android:foregroundServiceType=\"dataSync\""))
@@ -44,18 +44,5 @@ class RuntimeRecoveryManifestContractTest {
         assertTrue(autostart.contains("AdbRescueCoordinator.checkAccess"))
         assertFalse(autostart.contains("requestAuthorization"))
         assertFalse(autostart.contains("requestOnce"))
-    }
-
-    private fun String.componentBlock(kind: String, componentName: String): String {
-        val opening = checkNotNull(
-            Regex(
-                "<$kind\\s+[^>]*android:name=\\\"${Regex.escape(componentName)}\\\"[^>]*>",
-            ).find(this),
-        ) { "$kind $componentName is missing" }
-        if (opening.value.trimEnd().endsWith("/>")) return opening.value
-        val closing = "</$kind>"
-        val closeAt = indexOf(closing, opening.range.last + 1)
-        check(closeAt >= 0) { "$kind $componentName has no closing tag" }
-        return substring(opening.range.first, closeAt + closing.length)
     }
 }
