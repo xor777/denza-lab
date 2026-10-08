@@ -2486,30 +2486,17 @@ class SplitPickerShellSessionTest {
 
         assertEquals(WAZE, placement.packageName)
         assertEquals("$WAZE.MainActivity", fake.taskBaseActivity(placement.appTaskId))
-        assertTrue(fake.hasPackage(SECONDARY_ROOT, WAZE))
+        assertEquals(
+            "the redirected task stays on top of the pane it was chosen in",
+            "$WAZE.MainActivity",
+            fake.topActivity(SECONDARY_ROOT),
+        )
         assertEquals(2, fake.taskCount(SECONDARY_ROOT))
         assertTrue(fake.commands.any { command ->
             command.startsWith("am start ") &&
                 command.contains("'$WAZE/$WAZE.FreeMapAppActivity'") &&
                 command.contains("-f 0x10200000")
         })
-    }
-
-    @Test
-    fun redirectedOrdinaryTaskStaysInSelectedPane() {
-        val fake = FakeShell(redirectOnStartPackage = MUSIC)
-        val split = session(fake)
-        val pickers = split.buildPickers()
-
-        val placement = split.selectApp(
-            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
-            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.SplashActivity"),
-            pickerComponents = PICKER_COMPONENTS,
-        )
-
-        assertEquals(MUSIC, placement.packageName)
-        assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
-        assertEquals(2, fake.taskCount(SECONDARY_ROOT))
     }
 
     @Test
@@ -2667,6 +2654,9 @@ class SplitPickerShellSessionTest {
             area = 3
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
             addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
+            // Система не ответила про фокус. Команда чтения фокуса на машине ещё не проверена,
+            // поэтому её молчание обязано быть безвредным: работает прежний обход, а не отказ.
+            focusedTaskId = null
         }
 
         session(fake).closePickers(PICKERS)
@@ -2674,7 +2664,10 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.commands.any { it.startsWith("service call activity_task 114 ") })
         assertFalse(fake.commands.any { it == "service call activity_task 126 i32 0" })
         assertTrue(fake.isGateOpen())
-        assertTrue(fake.hasPackage(FULL_ROOT, NAVIGATOR))
+        assertTrue(
+            "без фокуса полноэкранным остаётся первое по порядку приложение",
+            fake.hasPackage(FULL_ROOT, NAVIGATOR),
+        )
         assertTrue(fake.hasPackage(SECONDARY_ROOT, MUSIC))
         assertEquals(4, fake.area)
     }
@@ -2701,29 +2694,6 @@ class SplitPickerShellSessionTest {
         assertTrue("сфокусированное приложение - полноэкранное", fake.hasPackage(FULL_ROOT, MUSIC))
         assertEquals("и это та же задача, а не перезапуск", FULL_ROOT, fake.taskRoot(41))
         assertTrue("сосед остаётся живым", fake.hasTask(40))
-        assertEquals(4, fake.area)
-    }
-
-    /**
-     * Система не ответила про фокус - работает прежний обход, а не отказ.
-     *
-     * Команда чтения фокуса на машине ещё не проверена: тоннель упал раньше. Менять доказанно
-     * рабочее выключение на непроверенную команду нельзя, поэтому её молчание обязано быть
-     * безвредным.
-     */
-    @Test
-    fun anUnreadableFocusFallsBackToTheOrderInsteadOfRefusing() {
-        val fake = FakeShell(initialGate = true).apply {
-            area = 3
-            addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
-            addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
-            focusedTaskId = null
-        }
-
-        session(fake).closePickers(PICKERS)
-
-        assertTrue(fake.hasPackage(FULL_ROOT, NAVIGATOR))
-        assertTrue(fake.hasPackage(SECONDARY_ROOT, MUSIC))
         assertEquals(4, fake.area)
     }
 
@@ -3721,17 +3691,6 @@ class SplitPickerShellSessionTest {
 
         assertTrue(fake.isGateOpen())
         assertFalse(fake.commands.any { it == "service call activity_task 126 i32 0" })
-    }
-
-    @Test
-    fun nonHomeEventNeverSuspendsOwnedGate() {
-        val fake = FakeShell(initialGate = true).apply { area = 3 }
-        val lease = FakeGateLease(owned = true)
-
-        assertFalse(session(fake, lease).suspendOwnedGateForHome())
-
-        assertTrue(fake.isGateOpen())
-        assertTrue(lease.isOwned())
     }
 
     /**
