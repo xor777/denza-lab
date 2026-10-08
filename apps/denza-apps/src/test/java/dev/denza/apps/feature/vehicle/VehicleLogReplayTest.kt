@@ -9,7 +9,8 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
- * A recorded drive, fed through the same log, chart, ledger and trace the hub uses.
+ * A recorded drive, fed through the hub's own sweep step (`VehicleAnsweredSweep`) - the same lines
+ * the hub runs, not a copy of them, which until 2026-10-08 it was.
  *
  * `docs/energy-display-contract.md` §7, «replay». Everything else in this package states a case and
  * asserts what the code should say about it; this asserts the things that are true **whatever the
@@ -50,15 +51,15 @@ class VehicleLogReplayTest {
         val rows = file.readLines().filter { it.isNotBlank() }.take(MAX_ROWS + 1)
         if (rows.size < 2) return
         val header = rows[0].split(',')
-        val time = header.indexOf("mono_s")
-        val power = header.indexOf("power_kw")
-        val odometer = header.indexOf("odometer_km")
-        val generation = header.indexOf("generation_kw")
-        val running = header.indexOf("engine_running")
-        // The recorder has written it since 2026-09-18; a file from before it replays as a car
-        // that never stood still, which is exactly what a missing read means (contract §2.2).
-        val speed = header.indexOf("speed_kmh")
-        if (time < 0 || power < 0 || odometer < 0 || running < 0) {
+        val time = header.indexOf(VehicleCaptureColumns.MONO)
+        // Every id either recorder wrote, looked up by its one spelling. A column a file lacks is an
+        // id that never answered - speed before 2026-09-18 replays as a car that never stood still,
+        // which is exactly what a missing read means (contract §2.2).
+        val columns = VehicleSignal.entries
+            .associateWith { signal -> header.indexOf(VehicleCaptureColumns.of(signal)) }
+            .filterValues { it >= 0 }
+        val needed = listOf(VehicleSignal.POWER_KW, VehicleSignal.ODOMETER_KM, VehicleSignal.ENGINE_RUNNING)
+        if (time < 0 || needed.any { it !in columns }) {
             error("${file.name} is not a vehicle log: its header is ${rows[0]}")
         }
 
@@ -78,42 +79,28 @@ class VehicleLogReplayTest {
             val mono = cells.getOrNull(time)?.toDoubleOrNull() ?: return@forEach
             val dt = if (previous.isNaN() || mono <= previous) 0.0 else mono - previous
             previous = mono
-            val odometerKm = cells.getOrNull(odometer)?.toDoubleOrNull()
-            val powerKw = VehicleConvention.load(cells.getOrNull(power)?.toDoubleOrNull())
-            val generationKw =
-                if (generation < 0) null else cells.getOrNull(generation)?.toDoubleOrNull()
-            val engineRunning = cells.getOrNull(running)?.toDoubleOrNull()?.let { it >= 1.0 }
-            val speedKmh = if (speed < 0) null else cells.getOrNull(speed)?.toDoubleOrNull()
+            // The row as a sweep parses it: every id that answered, and nothing for one that did not.
+            val parsed = columns.entries.mapNotNull { (signal, index) ->
+                cells.getOrNull(index)?.toDoubleOrNull()?.let { signal to it }
+            }.toMap()
+            val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
 
+            // The hub's own step, not a copy of it: the row's cold readings stand for what the last
+            // cold sweep left. The scene is stepped on every row - the engine box's invariant is
+            // about a frame - and the window is checked below only where a bucket closed.
             closed = false
-            log.sample(odometerKm, powerKw, dt, speedKmh)
-            trace.sample((mono * 1000.0).toLong(), engineRunning, generationKw)
-            ledger.sample(
-                odometerKm = odometerKm,
-                powerKw = powerKw,
-                generationKw = generationKw,
-                engineRunning = engineRunning,
-                parked = null,
+            val values = VehicleAnsweredSweep.feed(
+                parsed = parsed,
+                cold = parsed.filterKeys { it in VehicleSignal.COLD },
+                atMillis = (mono * 1000.0).toLong(),
                 dtSeconds = dt,
+                log = log,
+                ledger = ledger,
+                trace = trace,
             )
-
-            // The window is only rebuilt where it changed, which is where a bucket closed. The
-            // scene is stepped on every row regardless: the engine box's invariant is about a
-            // frame, and a frame the window did not change in is still a frame.
-            val window = if (closed) log.window else emptyList()
-            val all = if (closed) log.buckets else emptyList()
-            val snapshot = VehicleTelemetry(
-                access = VehicleAccess.READY,
-                values = engineRunning?.let {
-                    mapOf(VehicleSignal.ENGINE_RUNNING to if (it) 3.0 else 0.0)
-                } ?: emptyMap(),
-                consumption = window,
-                chart = ConsumptionChart.of(all),
-                engineTrace = trace.snapshot(),
-                trip = ledger.trip,
-            )
+            val snapshot = VehicleAnsweredSweep.snapshot(values, log, ledger, trace)
             scene.frame(snapshot, arrived = true, dt = dt.toFloat())
-            gave = gave || (generationKw ?: 0.0) > 0.0
+            gave = gave || (parsed[VehicleSignal.GENERATION_KW] ?: 0.0) > 0.0
             boxUp = boxUp || scene.stage.engineBox
 
             flagDownFor = if (engineRunning == true) 0.0 else flagDownFor + dt
@@ -125,9 +112,9 @@ class VehicleLogReplayTest {
             }
 
             if (!closed) return@forEach
-            checkRoad(file, mono, window, snapshot.chart)
-            checkFigure(file, mono, window, snapshot.consumptionMean)
-            checkPoints(file, mono, all, snapshot.chart)
+            checkRoad(file, mono, snapshot.consumption, snapshot.chart)
+            checkFigure(file, mono, snapshot.consumption, snapshot.consumptionMean)
+            checkPoints(file, mono, log.buckets, snapshot.chart)
         }
         // The box's invariant holds trivially over a drive whose box never came up, and over the
         // three newest drives (2026-09-22 to 24) it never did. A drive the engine gave in has to
