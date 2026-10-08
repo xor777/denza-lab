@@ -767,7 +767,7 @@ object DenzaAppRepository {
                 setRuntimeEnabled = SplitScreenCoordinator::setEnabled,
             )
         }.onSuccess {
-            refresh("split switch")
+            invalidate(StateSlice.SPLIT_SCREEN, "split switch")
         }.onFailure { error ->
             // The exception used to be `error.toString()` in `details`, which is a class name and a
             // stack frame put on the driver's screen. The screen gets the fact - the switch did not
@@ -1171,7 +1171,11 @@ object DenzaAppRepository {
         adbRuntimeStarted.set(true)
         try {
             runtimeStep("split initialize") {
-                SplitScreenCoordinator.initialize(app) { refresh("split") }
+                // A mark, not a read: it is made on the split's actor, and on a tap on the main
+                // thread before the waiting window draws.
+                SplitScreenCoordinator.initialize(app) {
+                    invalidate(StateSlice.SPLIT_SCREEN, "split")
+                }
             }
             runtimeStep("split reconcile") { reconcileSplitScreenToggle(app) }
             runtimeStep("navigation initialize") {

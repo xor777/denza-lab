@@ -340,7 +340,8 @@ internal class SplitCoordinatorCore(
     fun initialize(onStateChanged: () -> Unit) {
         this.onStateChanged = onStateChanged
         ready()
-        publish()
+        // The first reading is the dashboard's whether or not it differs from the default.
+        publish(always = true)
     }
 
     fun snapshot(): SplitScreenSession {
@@ -925,9 +926,20 @@ internal class SplitCoordinatorCore(
         publish()
     }
 
-    private fun publish() {
-        session = synchronized(stateLock) { sessionOf() }
-        onStateChanged?.invoke()
+    /**
+     * Tells the dashboard, when what it shows has moved.
+     *
+     * Every operation used to end here in the dashboard's whole recompute, synchronously - on the
+     * actor's worker after each operation, and on a tap on the main thread before the waiting
+     * window could draw - whether the session had changed or not. [onStateChanged] is now a mark
+     * the dashboard reads on its own thread, and it is made only for a session that differs.
+     */
+    private fun publish(always: Boolean = false) {
+        val changed = synchronized(stateLock) {
+            val next = sessionOf()
+            (next != session).also { session = next }
+        }
+        if (changed || always) onStateChanged?.invoke()
     }
 
     private fun sessionOf(): SplitScreenSession {
