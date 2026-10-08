@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.cluster.dashboard
 
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster
+import dev.denza.apps.feature.cluster.ClusterMapLayout
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,9 +14,9 @@ private fun full() = ClusterDashboardLayout(2560, 720, ClusterMapPlacement.FULL)
 /**
  * What the window is, before anything is drawn in it.
  *
- * Everything here is a fact about the panel the vehicle leaves us, read out of `ClusterMapLayout`'s
- * own shade numbers rather than restated - wherever that shade blacks the map out something stock
- * lives, and wherever it cuts a reveal we may draw. `ContourGeometryTest` is where the composition is
+ * Everything here is a fact about the panel the vehicle leaves us: `ClusterMapLayout`'s own shade
+ * numbers - wherever that shade blacks the map out something stock lives, and wherever it cuts a
+ * reveal we may draw - and the spec's copy of them. `ContourGeometryTest` is where the composition is
  * measured against these.
  */
 class ClusterDashboardLayoutTest {
@@ -31,43 +32,31 @@ class ClusterDashboardLayoutTest {
     }
 
     @Test
-    fun theKeepOutsComeFromTheSameNumbersAsTheMapShade() {
-        val layout = full()
-        // The shade clears by 272 px and its footer is 90 px solid over a 60 px fade.
-        assertEquals(272f / 720f, layout.stockTop, 1e-4f)
-        assertEquals(1f - 150f / 720f, layout.stockBottom, 1e-4f)
-    }
-
-    @Test
-    fun theApertureRadiiAreTheShadesOwnReveals() {
-        val layout = full()
-        assertEquals(614f / 2560f, layout.topLeftRevealX, 1e-6f)
-        assertEquals(512f / 2560f, layout.topRightRevealX, 1e-6f)
-        assertEquals(600f / 2560f, layout.bottomRevealX, 1e-6f)
-        assertEquals(330f / 720f, layout.bottomRevealY, 1e-6f)
-        assertEquals(1f - 120f / 720f, layout.bottomRevealCentreY, 1e-6f)
-    }
-
-    @Test
-    fun theLuminoforSpecsKeepOutsAreTheseInItsOwnUnits() {
-        // spec.json states the stock zones in the cluster's 1507.56 × 424 units; they are these
-        // five fractions of the panel, and a change to the shade moves the board or fails here.
-        val layout = full()
-        val w = Cluster.W
-        val h = Cluster.H
-        assertEquals(Cluster.STOCK_TOP, layout.stockTop * h, 1e-3f)
-        assertEquals(Cluster.STOCK_BOTTOM, layout.stockBottom * h, 1e-3f)
-        assertEquals(Cluster.LEFT_APERTURE_RX, layout.topLeftRevealX * w, 1e-3f)
-        assertEquals(Cluster.RIGHT_APERTURE_RX, layout.topRightRevealX * w, 1e-3f)
-        assertEquals(Cluster.PETAL_RX, layout.bottomRevealX * w, 1e-3f)
-        assertEquals(Cluster.PETAL_RY, layout.bottomRevealY * h, 1e-3f)
-        assertEquals(Cluster.PETAL_CY, layout.bottomRevealCentreY * h, 1e-3f)
+    fun theLuminoforSpecsKeepOutsAreTheMapShadesInItsOwnUnits() {
+        // spec.json states the stock zones in the cluster's 1507.56 × 424 units, and the map's
+        // shade - tuned on the car - states them in pixels. One set of zones: a change to the shade
+        // moves the board or fails here.
+        val map = ClusterMapLayout(2560, 720, ClusterMapPlacement.FULL)
+        val x = Cluster.W / 2560f
+        val y = Cluster.H / 720f
+        assertEquals(Cluster.STOCK_TOP, map.shadeTopRevealHeightPx * y, 1e-3f)
+        assertEquals(Cluster.STOCK_BOTTOM, (720 - map.shadeBottomSolidPx - map.shadeBottomFadePx) * y, 1e-3f)
+        assertEquals(Cluster.LEFT_APERTURE_RX, map.shadeTopLeftRevealRadiusPx * x, 1e-3f)
+        assertEquals(Cluster.RIGHT_APERTURE_RX, map.shadeTopRightRevealRadiusPx * x, 1e-3f)
+        assertEquals(Cluster.PETAL_RX, map.shadeBottomRevealRadiusPx * x, 1e-3f)
+        assertEquals(
+            Cluster.PETAL_RY,
+            map.shadeBottomRevealRadiusPx * map.shadeBottomRevealHeightPercent / 100f * y,
+            1e-3f,
+        )
+        assertEquals(Cluster.PETAL_CY, (720 - map.shadeBottomRevealCenterOffsetPx) * y, 1e-3f)
     }
 
     @Test
     fun thePanelLandsOnTheGlassAtTheScaleItsSizesWereMeasuredFor() {
         // 424 units into 720 pixels. Every size the spec gives the cluster is stated in those units,
         // and the factor is what turns a size into a number of arc minutes from the driver's seat.
-        assertEquals(1.70f, full().height / Cluster.H, 0.01f)
+        val panel = full().bounds
+        assertEquals(1.70f, (panel.bottom - panel.top) / Cluster.H, 0.01f)
     }
 }

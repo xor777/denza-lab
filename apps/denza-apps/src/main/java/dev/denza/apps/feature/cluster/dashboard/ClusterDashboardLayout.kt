@@ -11,16 +11,15 @@ import dev.denza.apps.feature.cluster.ClusterMapPlacement
  * on the evidence of the mirroring experiment in `docs/instrument-display-findings.md`, above us as
  * well. So a dashboard here is a set of islands, not a screen.
  *
- * The keep-outs are not invented for this feature. They are read out of [ClusterMapLayout]'s own
- * shade configuration - the numbers that were tuned on the car so a projected map would not cover
+ * The keep-outs are not invented for this feature. They are [ClusterMapLayout]'s own shade
+ * configuration - the numbers that were tuned on the car so a projected map would not cover
  * instrument data. Wherever that shade blacks the map out, something stock lives; wherever it cuts
- * a reveal, the map was allowed through and we may draw. Deriving them here rather than restating
- * them means the two cannot drift apart.
+ * a reveal, the map was allowed through and we may draw. The panel is laid out against the same
+ * zones in the cluster's own units (`cluster.stock` in the Luminofor spec), and
+ * `ClusterDashboardLayoutTest` holds the spec's numbers to the shade's.
  *
  * One honest limit: those numbers were tuned by eye against live captures, not measured. The exact
- * boundary still wants one capture of the physical cluster to confirm. If it moves inward we gain
- * room; nothing here breaks, because every block is placed against these values rather than
- * against the panel edge.
+ * boundary still wants one capture of the physical cluster to confirm.
  */
 data class ClusterDashboardLayout(
     val displayWidth: Int,
@@ -28,13 +27,8 @@ data class ClusterDashboardLayout(
     val placement: ClusterMapPlacement,
 ) {
 
-    private val map = ClusterMapLayout(displayWidth, displayHeight, placement)
-
     /** Where the dashboard sits on the panel. */
-    val bounds: ClusterBounds = map.surfaceBounds
-
-    val width: Int = bounds.right - bounds.left
-    val height: Int = bounds.bottom - bounds.top
+    val bounds: ClusterBounds = ClusterMapLayout(displayWidth, displayHeight, placement).surfaceBounds
 
     /**
      * Whether this placement is offered at all, and only `FULL` is.
@@ -53,44 +47,6 @@ data class ClusterDashboardLayout(
      * shipped, so the narrow composition was code with no caller and one more thing to keep true.
      */
     val supported: Boolean = placement == ClusterMapPlacement.FULL
-
-    /** Stock graphics occupy everything above this, except inside the top reveals. */
-    val stockTop: Float =
-        if (height <= 0) 0f else map.shadeTopRevealHeightPx.toFloat() / height
-
-    /** Stock graphics occupy everything below this, except inside the bottom reveal. */
-    val stockBottom: Float = if (height <= 0) {
-        1f
-    } else {
-        1f - (map.shadeBottomSolidPx + map.shadeBottomFadePx).toFloat() / height
-    }
-
-    /**
-     * The three apertures, as fractions of the panel.
-     *
-     * The two corners are quarter-ellipses anchored at `y = 0` with these as their horizontal radii
-     * and [stockTop] as their vertical one, and the petal is a half-ellipse centred at
-     * [bottomRevealCentreY]. The Luminofor spec states the same five numbers in the cluster's own
-     * units (`cluster.stock` in spec.json), and `ClusterDashboardLayoutTest` holds the two records
-     * together; `ContourGeometryTest` measures the panel against them.
-     */
-    val topLeftRevealX: Float =
-        if (width <= 0) 0f else map.shadeTopLeftRevealRadiusPx.toFloat() / width
-    val topRightRevealX: Float =
-        if (width <= 0) 0f else map.shadeTopRightRevealRadiusPx.toFloat() / width
-    val bottomRevealX: Float =
-        if (width <= 0) 0f else map.shadeBottomRevealRadiusPx.toFloat() / width
-    val bottomRevealY: Float = if (height <= 0) {
-        0f
-    } else {
-        map.shadeBottomRevealRadiusPx.toFloat() *
-            map.shadeBottomRevealHeightPercent / 100f / height
-    }
-    val bottomRevealCentreY: Float = if (height <= 0) {
-        1f
-    } else {
-        1f - map.shadeBottomRevealCenterOffsetPx.toFloat() / height
-    }
 
     // There was an `isClear(x, y)` here, answering whether a point falls inside the clear band or
     // one of the three apertures, and its own documentation said `ContourPlanTest` measured the
