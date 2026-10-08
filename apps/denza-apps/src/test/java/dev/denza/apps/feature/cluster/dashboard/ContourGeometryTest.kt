@@ -46,6 +46,8 @@ class ContourGeometryTest {
         // car page's chart is the head unit's spec block, and it climbs and drops as far as this.
         assertEquals(Head.Chart.UP_TO, Trace.UP_TO, 0f)
         assertEquals(Head.Chart.DOWN_TO, Trace.DOWN_TO, 0f)
+        assertEquals("as many points on the car page", Trace.POINTS, Head.Chart.POINTS)
+        assertEquals("on the same ticks", Trace.TICK, Head.Chart.TICK, 0f)
         assertEquals(60.0, SpecJson.num("cluster", "trace", "upTo"), 0.0)
         assertEquals(20.0, SpecJson.num("cluster", "trace", "downTo"), 0.0)
         assertEquals("a point per hundred metres of the window", ConsumptionChart.POINTS, Trace.POINTS)

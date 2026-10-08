@@ -35,19 +35,6 @@ class StripBoardContractTest {
         assertEquals(SpecJson.num("head", "one", "sound", "bars").toInt(), Head.One.Sound.BARS)
     }
 
-    /**
-     * One chart on both screens (`docs/energy-display-contract.md` §2.3): the car page's ceilings
-     * are the cluster trace's, and both are the ten kilometres' hundred points.
-     */
-    @Test
-    fun theChartIsTheContractsLadder() {
-        assertEquals(SpecJson.num("cluster", "trace", "upTo"), SpecJson.num("head", "chart", "upTo"), 0.0)
-        assertEquals(SpecJson.num("cluster", "trace", "downTo"), SpecJson.num("head", "chart", "downTo"), 0.0)
-        assertEquals(SpecJson.num("cluster", "trace", "points"), SpecJson.num("head", "chart", "points"), 0.0)
-        assertEquals(SpecJson.num("cluster", "trace", "tick"), SpecJson.num("head", "chart", "tick"), 0.0)
-        assertEquals(ConsumptionWindow.KM, 10.0, 0.0)
-    }
-
     // ------------------------------------------------------------------------------- fixtures
 
     private fun scene(id: String): Map<String, Any?> = SpecJson.fixture(id)
