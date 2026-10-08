@@ -26,32 +26,6 @@ import org.junit.Test
  */
 class ContourFrameBuilderTest {
 
-    private val step = 1f / 30f
-
-    /** The panel's three stateful parts and the frame they fill, stepped together as the view does. */
-    private inner class Panel {
-        val scene = ContourScene()
-        val motion = ContourMotion()
-        val builder = ContourFrameBuilder()
-        val frame = ContourFrame()
-        var clock = 0f
-
-        /** [seconds] of frames with [t] arriving three times a second, or never if [quiet]. */
-        fun run(t: VehicleTelemetry, seconds: Float, quiet: Boolean = false): ContourFrame {
-            var elapsed = 0f
-            var next = 0f
-            while (elapsed < seconds) {
-                val arrived = !quiet && elapsed >= next
-                if (arrived) next += 1f / 3f
-                scene.frame(t, arrived, step)
-                motion.step(scene.held(ContourValue.POWER), scene.held(ContourValue.RPM), step)
-                clock += step
-                elapsed += step
-            }
-            return builder.build(frame, t, motion, scene, clock)
-        }
-    }
-
     /** [n] hundred-metre buckets costing [kwh] each: 0.017 is 17 kWh/100 km. */
     private fun road(n: Int, kwh: Double = 0.017) =
         List(n) { ConsumptionSample(110.0 - (n - 1 - it) * 0.1, kwh, 0.1, 0.1) }
@@ -104,7 +78,7 @@ class ContourFrameBuilderTest {
 
     @Test
     fun theFirstSecondsAreTheSkeletonAndNothingElse() {
-        val frame = Panel().run(VehicleTelemetry(), 0.5f)
+        val frame = ContourPanel().run(VehicleTelemetry(), 0.5f)
         val board = board("cluster-waking")
         assertFalse(frame.unavailable)
         assertEquals("no beam", board["powerFresh"], frame.powerFresh)
@@ -130,7 +104,7 @@ class ContourFrameBuilderTest {
 
     @Test
     fun theCitysCarPrintsTheCityBoard() {
-        val frame = Panel().run(city(), 1.5f)
+        val frame = ContourPanel().run(city(), 1.5f)
         val board = board("cluster-city")
 
         assertTrue(frame.powerFresh)
@@ -169,7 +143,7 @@ class ContourFrameBuilderTest {
 
     @Test
     fun aWindowStillFillingNamesItsRoadAndGrowsFromTheRight() {
-        val frame = Panel().run(city(buckets = road(37)), 1f)
+        val frame = ContourPanel().run(city(buckets = road(37)), 1f)
         val board = board("cluster-filling")
         assertEquals(board["consumptionUnit"], frame.consumptionUnit)
         assertEquals((board["chart"] as List<*>).size, frame.chartCount)
@@ -184,7 +158,7 @@ class ContourFrameBuilderTest {
             engineKwh = 1.1,
             recoveredKwh = 3.1,
         )
-        val parked = Panel().run(
+        val parked = ContourPanel().run(
             city(
                 values = mapOf(VehicleSignal.POWER_KW to 1.0, VehicleSignal.GEARBOX_PARK to 1.0),
                 buckets = road(100, kwh = 0.0168),
@@ -202,7 +176,7 @@ class ContourFrameBuilderTest {
 
         // On the move the recuperation leaves and what the engine gave stays: the seats are the
         // contract's, «ДАЛ ДВС» on both and «● РЕКУПЕРАЦИЯ» on P alone (§2.4).
-        val moving = Panel().run(city(trip = trip), 1f)
+        val moving = ContourPanel().run(city(trip = trip), 1f)
         assertEquals(ContourReadout.CAPTION_ENGINE_GAVE, moving.gaveCaption)
         assertEquals("1,1", moving.gaveKwh)
         assertNull(moving.regenCaption)
@@ -220,7 +194,7 @@ class ContourFrameBuilderTest {
             ),
             trace = trace(120, running = true, generationKw = 14.0),
         )
-        val frame = Panel().run(running, 1f)
+        val frame = ContourPanel().run(running, 1f)
         val board = board("cluster-engine")
         assertTrue(frame.engineGiving)
         assertEquals(board["engineCaption"], frame.engineCaption)
@@ -238,7 +212,7 @@ class ContourFrameBuilderTest {
 
     @Test
     fun theEnginesSentenceClosesUpWhenItsFigureStopsArriving() {
-        val panel = Panel()
+        val panel = ContourPanel()
         val giving = city(
             values = mapOf(
                 VehicleSignal.ENGINE_RUNNING to 3.0,
@@ -260,7 +234,7 @@ class ContourFrameBuilderTest {
 
     @Test
     fun aHotCellCarriesItsOwnLevel() {
-        val frame = Panel().run(
+        val frame = ContourPanel().run(
             city(
                 values = mapOf(
                     VehicleSignal.PACK_TEMP_AVG to 36.0,
@@ -288,7 +262,7 @@ class ContourFrameBuilderTest {
     @Test
     fun theSpreadAppearsWithTheProblemAndInItsColour() {
         val board = board("cluster-spread")["spread"] as Map<*, *>
-        val frame = Panel().run(
+        val frame = ContourPanel().run(
             city(values = mapOf(VehicleSignal.CELL_MIN_MV to 3_300.0, VehicleSignal.CELL_MAX_MV to 3_332.0)),
             1f,
         )
@@ -297,7 +271,7 @@ class ContourFrameBuilderTest {
         assertEquals(board["unit"], frame.spreadUnit)
         assertEquals(ContourReadout.Level.WATCH, frame.spreadLevel)
 
-        val calm = Panel().run(
+        val calm = ContourPanel().run(
             city(values = mapOf(VehicleSignal.CELL_MIN_MV to 3_300.0, VehicleSignal.CELL_MAX_MV to 3_310.0)),
             1f,
         )
@@ -316,7 +290,7 @@ class ContourFrameBuilderTest {
                 VehicleSignal.CHARGE_MINUTES to 15.0,
             ),
         )
-        val frame = Panel().run(charging, 3f)
+        val frame = ContourPanel().run(charging, 3f)
         val board = board("cluster-charging")
         assertEquals(board["consumption"], frame.consumption)
         assertEquals(board["consumptionUnit"], frame.consumptionUnit)
@@ -328,7 +302,7 @@ class ContourFrameBuilderTest {
     @Test
     fun aClosedShellIsTheSkeletonAndItsReason() {
         val message = board("cluster-unavailable")["message"] as String
-        val frame = Panel().run(VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = message), 0.5f)
+        val frame = ContourPanel().run(VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = message), 0.5f)
         assertTrue(frame.unavailable)
         assertEquals(message, frame.message)
         assertFalse(ContourGeometry.flickers(frame))
@@ -338,7 +312,7 @@ class ContourFrameBuilderTest {
 
     @Test
     fun aStaleFigureLeavesAndItsCaptionStays() {
-        val panel = Panel()
+        val panel = ContourPanel()
         val t = city()
         panel.run(t, 1f)
         // Past the hot horizon and past the cold one: every figure has left, every caption stays.
@@ -368,20 +342,20 @@ class ContourFrameBuilderTest {
 
     @Test
     fun aCoastInsideTheNeutralZoneStaysInk() {
-        val panel = Panel()
+        val panel = ContourPanel()
         panel.run(city(values = mapOf(VehicleSignal.POWER_KW to -38.0)), 1f).let {
             assertTrue("a return is blue", it.into)
             assertEquals("38", it.heroFigure)
         }
         assertFalse(
             "two kilowatts back is inside the neutral zone",
-            Panel().run(city(values = mapOf(VehicleSignal.POWER_KW to -2.0)), 1f).into,
+            ContourPanel().run(city(values = mapOf(VehicleSignal.POWER_KW to -2.0)), 1f).into,
         )
     }
 
     @Test
     fun aRoadThatGaveBackMorePrintsItsMinusInBlue() {
-        val frame = Panel().run(city(buckets = road(100, kwh = -0.02)), 1f)
+        val frame = ContourPanel().run(city(buckets = road(100, kwh = -0.02)), 1f)
         assertEquals("-20", frame.consumption)
         assertEquals(ContourFrame.Tone.BLUE, frame.consumptionTone)
     }
@@ -390,7 +364,7 @@ class ContourFrameBuilderTest {
     fun aSteadyPanelReprintsNothing() {
         // Thirty frames a second over the vehicle's own instruments: a frame that changed nothing
         // hands back the very strings the last one did, so nothing was built to draw it.
-        val panel = Panel()
+        val panel = ContourPanel()
         val t = city(
             trip = TripEnergy(netKwh = 9.3, kilometres = 42.0, engineSeconds = 360.0, engineKwh = 1.1),
         )
