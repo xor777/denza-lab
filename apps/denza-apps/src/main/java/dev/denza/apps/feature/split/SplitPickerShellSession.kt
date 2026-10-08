@@ -20,7 +20,7 @@ internal class SplitPickerShellSession(
     shell: (String) -> String,
     private val apkPath: String,
     private val settle: (Long) -> Unit = Thread::sleep,
-    private val gateLeaseStore: SplitGateLeaseStore? = null,
+    private val gateLeaseStore: SplitGateLeaseStore,
     /**
      * The topology reads of the operation this session belongs to. The default is a private one,
      * which makes a stand-alone session share reads only within itself.
@@ -114,8 +114,7 @@ internal class SplitPickerShellSession(
     fun suspendOwnedGateForHome(
         displaced: () -> Boolean = { false },
     ): Boolean {
-        val store = gateLeaseStore ?: return false
-        if (!store.isOwned()) return false
+        if (!gateLeaseStore.isOwned()) return false
         var waited = 0L
         while (true) {
             if (suspendOwnedGateIfCovered()) return true
@@ -145,8 +144,7 @@ internal class SplitPickerShellSession(
      * @return whether this call is what suspended it.
      */
     fun suspendOwnedGateIfCovered(): Boolean {
-        val store = gateLeaseStore ?: return false
-        if (!store.isOwned()) return false
+        if (!gateLeaseStore.isOwned()) return false
         if (!sceneCovered()) return false
         callVoid("service call activity_task 126 i32 0")
         return true
@@ -169,8 +167,7 @@ internal class SplitPickerShellSession(
      * @return whether this call is what resumed it.
      */
     fun resumeOwnedGateIfVisible(): Boolean {
-        val store = gateLeaseStore ?: return false
-        if (!store.isOwned()) return false
+        if (!gateLeaseStore.isOwned()) return false
         if (sceneCovered()) return false
         callVoid("service call activity_task 126 i32 1")
         return true
@@ -3233,8 +3230,7 @@ internal class SplitPickerShellSession(
         // a constant capability answer, not the current mIsEnterSplit value. Only tx126 changes
         // the mutable gate, and it is idempotent in the firmware.
         callVoid("service call activity_task 126 i32 1")
-        val store = gateLeaseStore ?: return
-        if (!store.setOwned(true)) {
+        if (!gateLeaseStore.setOwned(true)) {
             runCatching { callVoid("service call activity_task 126 i32 0") }
             error("Не удалось сохранить владение split-gate")
         }
@@ -3248,10 +3244,9 @@ internal class SplitPickerShellSession(
      * @return whether this call is what closed it.
      */
     fun closeOwnedGate(): Boolean {
-        val store = gateLeaseStore ?: return false
-        if (!store.isOwned()) return false
+        if (!gateLeaseStore.isOwned()) return false
         callVoid("service call activity_task 126 i32 0")
-        check(store.setOwned(false)) { "Не удалось освободить split-gate" }
+        check(gateLeaseStore.setOwned(false)) { "Не удалось освободить split-gate" }
         return true
     }
 

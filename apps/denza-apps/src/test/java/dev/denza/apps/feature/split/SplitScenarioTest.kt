@@ -773,6 +773,7 @@ class SplitScenarioTest {
             apkPath = SPLIT_APK_PATH,
             settle = {},
             topology = topology,
+            gateLeaseStore = FakeGateLease(),
         )
 
         session.observePane(SplitPane.PRIMARY, PICKER_COMPONENTS)
