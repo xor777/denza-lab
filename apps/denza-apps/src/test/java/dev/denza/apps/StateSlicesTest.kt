@@ -4,6 +4,8 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.feature.adb.AdbRescuePhase
+import dev.denza.apps.feature.adb.AdbRescueSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.locale.SystemLanguageSnapshot
@@ -52,12 +54,36 @@ class StateSlicesTest {
         )
     }
 
+    /**
+     * The defect: a resume reads every slice, and one that threw - the split's launcher alias
+     * unknown to the package manager - took the whole read with it, so no tile moved.
+     */
+    @Test
+    fun `a slice that cannot be read is left out, and the others are still laid`() {
+        val failed = mutableListOf<StateSlice>()
+        val car = readingsOfOneCar()
+
+        val readings = readEach(
+            slices = listOf(StateSlice.MIRRORS, StateSlice.SPLIT_SCREEN, StateSlice.WEATHER),
+            read = { slice ->
+                if (slice == StateSlice.SPLIT_SCREEN) throw IllegalArgumentException("Unknown component")
+                car.single { it.slice == slice }
+            },
+            failed = { slice, _ -> failed += slice },
+        )
+
+        assertEquals(listOf(StateSlice.MIRRORS, StateSlice.WEATHER), readings.map(SliceReading::slice))
+        assertEquals(listOf(StateSlice.SPLIT_SCREEN), failed)
+        assertEquals(MirrorsPosition.CENTER, DenzaUiState().withReadings(readings).mirrorsPosition)
+    }
+
     /** One car's readings, built afresh on every call as a recompute would read them. */
     private fun readingsOfOneCar(): List<SliceReading> {
         val apps = listOf("ru.rutube.app" to "Rutube", "org.videolan.vlc" to "VLC").map { (pkg, label) ->
             SimulcastAppChoice(packageName = pkg, label = label, selected = true)
         }
         return listOf(
+            AdbAccessReading(AdbRescueSnapshot(phase = AdbRescuePhase.TRUSTED)),
             SimulcastReading(FeatureReducer.ready(FeatureId.SIMULCAST, active = false), apps, apps.size),
             MirrorsReading(
                 FeatureSnapshot(FeatureId.MIRRORS, desiredEnabled = true, status = FeatureStatus.READY),

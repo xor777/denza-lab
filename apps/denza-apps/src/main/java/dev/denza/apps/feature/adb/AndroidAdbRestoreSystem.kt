@@ -11,6 +11,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import dev.denza.apps.DenzaAppRepository
 import dev.denza.apps.SimulcastCoordinator
+import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.DenzaRuntimeCoordinator
 import dev.denza.disharebridge.LocalAdbClient
@@ -119,7 +120,7 @@ object AdbRestore {
         app = application
         manager = AdbRestoreManager(AndroidAdbRestoreSystem(application), AdbRestorePreferences(application),
             CoroutineScope(SupervisorJob() + Dispatchers.IO)) {
-                DenzaAppRepository.refresh("adb restore")
+                DenzaAppRepository.invalidate(StateSlice.ADB_ACCESS, "adb restore")
                 if (manager?.snapshot()?.state == AdbRestoreState.NotNeeded &&
                     AdbRescueCoordinator.snapshot().phase in listOf(AdbRescuePhase.UNAVAILABLE, AdbRescuePhase.ERROR,
                         AdbRescuePhase.AUTHORIZATION_REQUIRED, AdbRescuePhase.AWAITING_CONFIRMATION)) {

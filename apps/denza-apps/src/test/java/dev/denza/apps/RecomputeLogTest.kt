@@ -43,6 +43,22 @@ class RecomputeLogTest {
     }
 
     @Test
+    fun `a slice that could not be read is counted under the totals, the last one named`() {
+        val log = RecomputeLog()
+        log.record(atMs = 1_000L, trigger = "resume", thread = "denza-state", durationUs = 4_000L)
+        log.recordFailure(atMs = 1_000L, what = "SPLIT_SCREEN", error = "IllegalArgumentException: x")
+        log.recordFailure(atMs = 2_000L, what = "MIRRORS", error = "SecurityException: y")
+
+        val rows = log.rows(nowMs = 5_000L)
+
+        assertEquals(
+            TechnicalRow("Сбоев чтения", "2 · последний MIRRORS: SecurityException: y · 3 с назад"),
+            rows[2],
+        )
+        assertEquals("resume", rows[3].key)
+    }
+
+    @Test
     fun `durations read in the unit that says something`() {
         assertEquals("0,0 мс", RecomputeLog.duration(40L))
         assertEquals("0,4 мс", RecomputeLog.duration(400L))
