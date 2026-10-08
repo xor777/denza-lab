@@ -322,7 +322,7 @@ glance, by somebody who has never seen it and has no legend?**
 | | |
 | --- | --- |
 | the hero | instantaneous pack power in kilowatts, on the axis, at 88 with its unit at 34 - the one figure read on the move and the one place a unit has to be readable |
-| the band | that same reading as a bar across the whole clear width, zero in the middle, `EnergyScale`'s square root over 300 kW out and 100 kW back, with a peak hold |
+| the band | that same reading as a bar across the whole clear width, zero in the middle, a square root over 300 kW out and 100 kW back (`ContourGeometry.reach`), with a peak hold |
 | the glow | one pool of light centred on zero: hue is the direction, brightness is `0.18·√(P/120 kW)` by magnitude |
 | the left corner | «БАТАРЕЯ · В» over the traction voltage, at 52 |
 | the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip |

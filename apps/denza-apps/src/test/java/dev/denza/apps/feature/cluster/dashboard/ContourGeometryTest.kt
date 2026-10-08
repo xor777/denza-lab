@@ -1,6 +1,5 @@
 package dev.denza.apps.feature.cluster.dashboard
 
-import dev.denza.apps.design.instrument.EnergyScale
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Band
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineBox
@@ -78,12 +77,6 @@ class ContourGeometryTest {
         // square root over a hundred made it 0.37 and the owner called it flat twice.
         assertEquals(0.467f, (g.BOX_ZERO - g.boxY(14f)) / (g.BOX_ZERO - g.BOX_TOP), 1e-3f)
         assertEquals("clamped rather than open-topped", g.BOX_TOP, g.boxY(55f), 1e-4f)
-    }
-
-    @Test
-    fun theBandSweepsTheEnergyScalesTwoSpans() {
-        assertEquals(EnergyScale.FULL_DISCHARGE_KW, Band.OUT_KW, 0f)
-        assertEquals(EnergyScale.FULL_REGEN_KW, Band.IN_KW, 0f)
     }
 
     @Test

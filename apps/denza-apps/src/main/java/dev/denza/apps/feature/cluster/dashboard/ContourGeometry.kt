@@ -48,8 +48,8 @@ internal object ContourGeometry {
 
     /**
      * How far along the axis a reading reaches: a square root over 300 kW out and 100 kW back,
-     * clamped at the margins. The same two spans as `EnergyScale`, without its dead band: the
-     * follower is already snapped to zero under it, and the board draws what it is given.
+     * clamped at the margins. No dead band of its own: the follower is already snapped to zero under
+     * [ContourMotion.FLOOR_KW], and the board draws what it is given.
      */
     fun reach(kilowatts: Float): Float {
         val half = AXIS - Cluster.MARGIN

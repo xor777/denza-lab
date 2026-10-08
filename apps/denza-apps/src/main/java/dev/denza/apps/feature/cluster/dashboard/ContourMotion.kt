@@ -1,6 +1,5 @@
 package dev.denza.apps.feature.cluster.dashboard
 
-import dev.denza.apps.design.instrument.EnergyScale
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.roundToInt
@@ -89,9 +88,8 @@ internal class ContourFollower(
  *
  * The three rules against jitter:
  *
- *  1. **a dead band of half a kilowatt** at zero, which is [dev.denza.apps.design.instrument
- *     .EnergyScale.FLOOR_KW]. A parked car reports single-kilowatt noise and the band must not
- *     breathe with it;
+ *  1. **a dead band of half a kilowatt** at zero, which is [FLOOR_KW]. A parked car reports
+ *     single-kilowatt noise and the band must not breathe with it;
  *  2. **a neutral zone of three kilowatts** with three kilowatts of hysteresis around its own
  *     boundary, so the colour cannot change twice in a second on a coast (CRITIQUE M12);
  *  3. **rounding hysteresis of half a kilowatt** on the hero's figure, and the figure is rewritten
@@ -279,13 +277,14 @@ internal class ContourMotion {
         const val RPM_FALL_S = 0.400f
 
         /**
-         * The floor under which the band carries nothing, which is [EnergyScale]'s own.
+         * The floor under which the band carries nothing. The pack reports single-kilowatt
+         * resolution and never reads exactly zero at rest, so without it the band would breathe at
+         * a standstill.
          *
-         * It was restated here as a literal, which is two numbers that have to agree by hand: the
-         * band's geometry is scaled with one and the follower is snapped to zero with the other,
-         * and a panel where those differ has a band drawn off a reading it is not following.
+         * The follower is the one place it applies: the band's geometry ([ContourGeometry.reach])
+         * draws what it is given, and what it is given is already snapped to zero under this.
          */
-        const val FLOOR_KW = EnergyScale.FLOOR_KW
+        const val FLOOR_KW = 0.5f
 
         /** Inside this the panel carries no colour. */
         const val NEUTRAL_KW = 3f
