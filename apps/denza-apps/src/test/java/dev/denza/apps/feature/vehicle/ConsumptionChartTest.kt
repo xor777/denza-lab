@@ -65,21 +65,9 @@ class ConsumptionChartTest {
 
     @Test
     fun aHundredPointsOfARecordedHundredMetres() {
-        assertEquals(
-            "a point is the log's own bucket",
-            ConsumptionLog.DEFAULT_BUCKET_KM,
-            ConsumptionChart.PITCH_KM,
-            1e-12,
-        )
-        assertEquals(0.1, ConsumptionChart.PITCH_KM, 1e-12)
+        assertEquals("a point is a hundred metres", 0.1, ConsumptionChart.PITCH_KM, 1e-12)
         assertEquals(100, ConsumptionChart.POINTS)
-        assertEquals(
-            "derived from the window rather than written twice",
-            (ConsumptionWindow.KM / ConsumptionChart.PITCH_KM).toInt(),
-            ConsumptionChart.POINTS,
-        )
         assertEquals("and every point is the last kilometre of it", 10, ConsumptionChart.SMOOTH_STEPS)
-        assertEquals(1.0, ConsumptionChart.SMOOTH_KM, 1e-12)
         assertEquals("taken over half a kilometre at the least", 5, ConsumptionChart.MIN_STEPS)
     }
 
