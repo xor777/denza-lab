@@ -5,26 +5,18 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/**
+ * The DiShare receivers the share dialog may be driven to, by their protocol ids and card names.
+ *
+ * `SimulcastDialogGeometry` matches these against the dialog's own nodes, which an Android-free
+ * test cannot build, so the list itself is the boundary here: the ids are DiShare's keys, and a
+ * wrong one is a card the app never finds.
+ */
 class ScreenTargetTest {
     @Test
-    fun exposesOnlyVisibleAndRuntimeAvailableReceivers() {
-        val targets = ScreenTarget.availableTargets(
-            setOf("ar_hud_screen", "overhead_screen", "right_rse_screen"),
-            setOf("screen_hud", "screen_overhead", "screen_rse_l"),
-        )
-
-        assertEquals(setOf("screen_hud", "screen_overhead"), ScreenTarget.receiverIds(targets))
-    }
-
-    @Test
     fun neverTreatsIviAsReceiver() {
-        val targets = ScreenTarget.availableTargets(
-            setOf("central_screen", "ar_hud_screen"),
-            setOf("screen_ivi", "screen_hud"),
-        )
-
-        assertTrue(ScreenTarget.receiverIds(targets).contains("screen_hud"))
-        assertFalse(ScreenTarget.receiverIds(targets).contains("screen_ivi"))
+        // The head unit is the source: a dialog that offered it as a receiver would cast it to itself.
+        assertFalse(ScreenTarget.SUPPORTED.any { it.receiverId == "screen_ivi" })
     }
 
     @Test
@@ -39,11 +31,6 @@ class ScreenTargetTest {
 
     @Test
     fun mapsSingleRearTvReceiverToOverheadCard() {
-        val targets = ScreenTarget.availableTargets(
-            setOf("overhead_screen"),
-            setOf("screen_tv"),
-        )
-
-        assertEquals(setOf("screen_tv"), ScreenTarget.receiverIds(targets))
+        assertEquals("overhead_screen", ScreenTarget.SUPPORTED.single { it.receiverId == "screen_tv" }.viewResourceName)
     }
 }
