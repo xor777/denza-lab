@@ -7,12 +7,15 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
 import dev.denza.apps.DenzaAppRepository
+import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
@@ -35,7 +38,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
 
 class SideCameraMonitorService : Service() {
     private var executor: ScheduledExecutorService? = null
@@ -52,8 +54,9 @@ class SideCameraMonitorService : Service() {
     private val transitionGate = MirrorTransitionGate()
     private var transitionState = MirrorTransitionState()
     private val preemptInFlight = AtomicBoolean()
-    private var lastPublishedStatus: Pair<MirrorSide?, String>? = null
-    private val pendingPublication = AtomicReference<StatusPublication?>()
+    private val statusLock = Any()
+    private var lastStatus: Pair<MirrorSide?, String>? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var clusterDisplayId: Int? = null
     private var lastDisplayResolveMs = 0L
     private var lastShadowStatus = ""
@@ -153,6 +156,9 @@ class SideCameraMonitorService : Service() {
             preemptInFlight.set(false)
             setStatus(null, "monitor stopped")
         }
+        // A notification posted under the gate before it closed must not come back after the
+        // service is gone: it would stand as an orphan «Showing left mirror» until the next start.
+        mainHandler.removeCallbacksAndMessages(null)
         val signalLease = turnSignalLease
         turnSignalLease = null
         switchSubscription?.close()
@@ -189,6 +195,8 @@ class SideCameraMonitorService : Service() {
     private fun grantOverlayPermission() {
         try {
             adb.shell("cmd appops set '${packageName}' SYSTEM_ALERT_WINDOW allow")
+            // The projection reads the same grant.
+            DenzaAppRepository.invalidate(StateSlice.SIMULCAST, "overlay granted")
         } catch (error: Exception) {
             setStatus(null, "overlay access pending: ${shortError(error)}")
         }
@@ -226,8 +234,9 @@ class SideCameraMonitorService : Service() {
             applyTransition(stockSide, now, mode)
             releaseStaleClaimWhenIdle(detection)
         } catch (error: Exception) {
-            setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")
-            updateNotification("ADB access needs attention")
+            if (setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")) {
+                postNotification("ADB access needs attention")
+            }
         }
     }
 
@@ -362,7 +371,6 @@ class SideCameraMonitorService : Service() {
                         )
                     }
                 }
-                publishPending()
             }
             // The camera never depends on this feed, so losing it is a log line and nothing else.
             is VehicleSignalEventNotice.Unavailable -> Log.w(
@@ -396,7 +404,6 @@ class SideCameraMonitorService : Service() {
                 )
             }
         }
-        publishPending()
     }
 
     /**
@@ -445,7 +452,7 @@ class SideCameraMonitorService : Service() {
             "early teardown accepted; reason=$reason age=${acceptedAt - observedAtMs}ms" +
                 " commandGeneration=$commandGeneration runtime=${runtime.phase}",
         )
-        queuePublicationLocked()
+        publishLocked()
     }
 
     private fun resolveClusterDisplay(now: Long): Int? {
@@ -457,13 +464,15 @@ class SideCameraMonitorService : Service() {
                 clusterDisplayId = it
             }
             is ClusterDisplaySelection.NeedsVerification -> {
-                setStatus(null, "camera overlay display is ambiguous")
-                updateNotification("Camera display needs verification")
+                if (setStatus(null, "camera overlay display is ambiguous")) {
+                    postNotification("Camera display needs verification")
+                }
                 null
             }
             ClusterDisplaySelection.Missing -> {
-                setStatus(null, "camera overlay display not found")
-                updateNotification("Camera display not found")
+                if (setStatus(null, "camera overlay display not found")) {
+                    postNotification("Camera display not found")
+                }
                 null
             }
         }
@@ -475,7 +484,6 @@ class SideCameraMonitorService : Service() {
         mode: VehicleSignalState<TurnIndicatorMode>,
     ) {
         transitionGate.runIfRunning { applyTransitionLocked(stockSide, now, mode) }
-        publishPending()
     }
 
     private fun applyTransitionLocked(
@@ -519,7 +527,7 @@ class SideCameraMonitorService : Service() {
             }
             MirrorTransitionCommand.None -> Unit
         }
-        queuePublicationLocked()
+        publishLocked()
     }
 
     /** See [MirrorFrameWatch.stockTakesOver]: the last mode AVC reported decides it. */
@@ -553,54 +561,60 @@ class SideCameraMonitorService : Service() {
         }
     }
 
-    private class StatusPublication(
-        val side: MirrorSide?,
-        val details: String,
-        val notification: String,
-    )
-
-    /** Must run under [transitionGate]. Records the status to publish once the gate is released. */
-    private fun queuePublicationLocked() {
+    /**
+     * Must run under [transitionGate]. Publishes the transition's status if it changed.
+     *
+     * Under the gate on purpose: the status is a preferences write and a mark on the dashboard's
+     * mirrors slice, both a few microseconds, so the state the tile reads leaves the gate together
+     * with the transition. The notification is a binder call, and goes to the main thread instead.
+     */
+    private fun publishLocked() {
         val side = transitionState.side.takeIf { transitionState.phase == MirrorTransitionPhase.SHOWING }
         val details = transitionState.details.ifBlank {
             transitionState.phase.name.lowercase()
         }
-        val status = side to details
-        if (lastPublishedStatus == status) return
-        lastPublishedStatus = status
+        if (!setStatus(side, details)) return
         val mirror = transitionState.side?.name?.lowercase()
         val notification = when (transitionState.phase) {
             MirrorTransitionPhase.STARTING -> "Starting $mirror mirror"
             MirrorTransitionPhase.SHOWING -> "Showing $mirror mirror"
             MirrorTransitionPhase.IDLE -> "Mirrors are ready"
         }
-        pendingPublication.set(StatusPublication(side, details, notification))
-    }
-
-    /**
-     * Publishing refreshes the whole app repository, which is far too slow to do under the gate:
-     * a lever onset takes that gate to detach a surface within milliseconds. So it runs after the
-     * gate is released, on whichever thread queued it last.
-     */
-    private fun publishPending() {
-        val publication = pendingPublication.getAndSet(null) ?: return
-        setStatus(publication.side, publication.details)
-        updateNotification(publication.notification)
+        postNotification(notification)
     }
 
     private fun observedSide(): MirrorSide? = transitionGate.read {
         transitionState.side.takeIf { transitionState.phase == MirrorTransitionPhase.SHOWING }
     }
 
-    private fun setStatus(side: MirrorSide?, details: String) {
-        MirrorsSettings.setObserved(this, side, details)
-        DenzaAppRepository.refresh("mirrors")
+    /**
+     * Records the status runtime recovery and the dashboard read, once per change, and marks the
+     * mirrors' slice of the dashboard. False when it is the status already recorded: a monitor
+     * that keeps failing the same way (two polls a second while ADB is gone) writes it once.
+     */
+    private fun setStatus(side: MirrorSide?, details: String): Boolean {
+        synchronized(statusLock) {
+            val status = side to details
+            if (status == lastStatus) return false
+            lastStatus = status
+            MirrorsSettings.setObserved(this, side, details)
+        }
+        DenzaAppRepository.invalidate(StateSlice.MIRRORS, "mirrors")
+        return true
     }
 
     private fun ensureChannel() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Mirrors", NotificationManager.IMPORTANCE_LOW),
         )
+    }
+
+    /**
+     * The notification, updated on the main thread in the order the statuses were recorded, and
+     * only while the monitor runs: [stopMonitor] drops whatever is still queued.
+     */
+    private fun postNotification(text: String) {
+        mainHandler.post { if (transitionGate.isRunning) updateNotification(text) }
     }
 
     private fun updateNotification(text: String) {

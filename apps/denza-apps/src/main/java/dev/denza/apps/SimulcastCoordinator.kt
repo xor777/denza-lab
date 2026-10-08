@@ -183,15 +183,28 @@ object SimulcastCoordinator {
 
     fun repairAccess(context: Context, onComplete: (Throwable?) -> Unit) = repairAccess(context, { true }, onComplete)
 
+    /**
+     * Repairs the overlay grant and the accessibility service, once for every owner that asks while
+     * it runs.
+     *
+     * The steering wheel's row shows a repair under way ([isAccessibilityRepairRunning]), so its
+     * slice is marked as the repair starts and again once it has settled, before any owner hears
+     * the outcome. The projection and HUD guidance are not: each owner publishes its own outcome -
+     * «Восстанавливаю доступ» while it runs, the reason when it fails - and a read of the bare
+     * setting in between would put a generic «Повторите настройку доступа» over it. The service
+     * connecting or going marks them all ([DenzaAppRepository.accessibilityChanged]).
+     */
     internal fun repairAccess(context: Context, stillWanted: () -> Boolean, onComplete: (Throwable?) -> Unit) {
         if (!accessibilityRepair.join(onComplete, stillWanted)) return
+        DenzaAppRepository.invalidate(StateSlice.NAVIGATION, "access repair")
+        val settled = { DenzaAppRepository.invalidate(StateSlice.NAVIGATION, "access repaired") }
         try {
             executor.execute {
                 val failure = runCatching { repairAccessNow(context, accessibilityRepair::isStillWanted) }.exceptionOrNull()
-                accessibilityRepair.complete(failure)
+                accessibilityRepair.complete(failure, settled)
             }
         } catch (error: RuntimeException) {
-            accessibilityRepair.complete(error)
+            accessibilityRepair.complete(error, settled)
         }
     }
 

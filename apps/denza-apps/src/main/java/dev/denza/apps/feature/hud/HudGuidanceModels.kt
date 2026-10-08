@@ -278,9 +278,26 @@ object HudGuidanceRuntime {
     @Volatile
     private var updatedAtMs = 0L
 
+    @Volatile
+    private var activeObserver: (() -> Unit)? = null
+
+    /**
+     * Calls [observer] whenever guidance starts or stops - the one thing the «HUD Подсказки» tile
+     * shows of it. Not on every guidance sample: those come three times a second, and nothing on
+     * the dashboard draws them. Calling it again replaces the previous observer.
+     */
+    fun observeActive(observer: () -> Unit) {
+        activeObserver = observer
+    }
+
+    private fun setActive(value: Boolean) {
+        if (active == value) return
+        active = value
+        activeObserver?.invoke()
+    }
+
     @JvmStatic
     fun onGuidance(guidance: HudGuidance, capturedAtMs: Long) {
-        active = true
         remainingDistanceMeters = guidance.remainingDistanceMeters ?: -1
         remainingTimeSeconds = guidance.remainingTimeSeconds ?: -1
         updatedAtMs = capturedAtMs
@@ -290,20 +307,21 @@ object HudGuidanceRuntime {
             guidance.remainingDistanceMeters?.let { add("осталось ${it / 1000f} км") }
             if (guidance.eta.isNotEmpty()) add("прибытие ${guidance.eta}")
         }.joinToString(" · ")
+        setActive(true)
     }
 
     @JvmStatic
     fun onWaiting() {
-        active = false
         clearRemaining()
         details = "Ожидаю маршрут Яндекса"
+        setActive(false)
     }
 
     @JvmStatic
     fun onStopped() {
-        active = false
         clearRemaining()
         details = "Выключено"
+        setActive(false)
     }
 
     @JvmStatic

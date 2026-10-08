@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import dev.denza.apps.DenzaAppRepository
+import dev.denza.apps.StateSlice
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
 import dev.denza.apps.SimulcastCoordinator
@@ -90,7 +91,7 @@ class SpeakerCoverService : Service() {
         executor.shutdownNow()
         inFlight = 0
         SpeakerCoverRuntime.reporting = false
-        DenzaAppRepository.refresh("speakers")
+        DenzaAppRepository.invalidate(StateSlice.SPEAKER_COVERS, "speakers")
         super.onDestroy()
     }
 
@@ -119,7 +120,7 @@ class SpeakerCoverService : Service() {
             handler.post {
                 if (!destroyed && watching) mediaSessions.restart()
                 // Access may just have been granted, and the tile reads that from the settings.
-                DenzaAppRepository.refresh("speakers")
+                DenzaAppRepository.invalidate(StateSlice.SPEAKER_COVERS, "speakers")
             }
         }
     }
@@ -196,7 +197,7 @@ class SpeakerCoverService : Service() {
 
     private fun publishReporting() {
         SpeakerCoverRuntime.reporting = inFlight > 0
-        DenzaAppRepository.refresh("speakers")
+        DenzaAppRepository.invalidate(StateSlice.SPEAKER_COVERS, "speakers")
     }
 
     private fun createNotificationChannel() {

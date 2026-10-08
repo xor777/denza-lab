@@ -101,6 +101,7 @@ fun DenzaAppsRoot(
     onSetCloudWifiRetained: (Boolean) -> Unit,
     onSelectClusterDisplay: (Int?) -> Unit,
     onRefreshScreenDiagnostics: () -> Unit,
+    onSearchClusterDisplays: () -> Unit,
     onServiceReportVisible: (Boolean) -> Unit,
     onCheckAdbAccess: () -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
@@ -151,9 +152,9 @@ fun DenzaAppsRoot(
     LaunchedEffect(adbStartupOverlay.visible) {
         if (!adbStartupOverlay.visible) showAdbRecovery = false
     }
-    val openClusterPicker = remember(onRefreshScreenDiagnostics) {
+    val openClusterPicker = remember(onSearchClusterDisplays) {
         {
-            onRefreshScreenDiagnostics()
+            onSearchClusterDisplays()
             showClusterPicker = true
         }
     }
@@ -353,7 +354,7 @@ fun DenzaAppsRoot(
                         onSelectClusterDisplay(displayId)
                         showClusterPicker = false
                     },
-                    onRefresh = onRefreshScreenDiagnostics,
+                    onRefresh = onSearchClusterDisplays,
                     onDismiss = { showClusterPicker = false },
                 )
             }
@@ -641,7 +642,10 @@ private fun clusterDisplayName(index: Int, display: ClusterDisplayDescriptor): S
 
 private const val CLUSTER_AUTOMATIC_LABEL = "Определять автоматически"
 
-/** How often the picker asks the car again while it has nothing to offer. */
+/**
+ * How often the picker asks the car again while it has nothing to offer: a read of the displays,
+ * and nothing else of the dashboard.
+ */
 private const val CLUSTER_RESCAN_MS = 1_500L
 
 /**

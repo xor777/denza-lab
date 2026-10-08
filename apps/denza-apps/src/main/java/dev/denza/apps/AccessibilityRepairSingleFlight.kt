@@ -55,12 +55,17 @@ internal class AccessibilityRepairSingleFlight {
 
     fun isStillWanted(): Boolean = synchronized(lock) { wishes.any { it() } }
 
-    fun complete(failure: Throwable?) {
+    /**
+     * Ends the repair: [settled] runs once it no longer counts as running and before any owner's
+     * callback, so what reads the repair's state reads it settled and an owner's answer lands after.
+     */
+    fun complete(failure: Throwable?, settled: () -> Unit = {}) {
         val waiting = synchronized(lock) {
             running = false
             wishes.clear()
             callbacks.toList().also { callbacks.clear() }
         }
+        runCatching(settled)
         waiting.forEach { callback ->
             runCatching { callback(failure) }
         }

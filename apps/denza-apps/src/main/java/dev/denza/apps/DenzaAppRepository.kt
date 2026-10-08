@@ -1,8 +1,12 @@
 package dev.denza.apps
 
+import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.display.DisplayManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
@@ -239,6 +243,8 @@ object DenzaAppRepository {
     }
     private val adbRuntimeStarted = AtomicBoolean(false)
     private val adbRuntimePassRunning = AtomicBoolean(false)
+    private val displaysWatched = AtomicBoolean(false)
+    private val overlayGrantWatched = AtomicBoolean(false)
 
     /** How often an open «Технические сведения» is built again: its readings carry ages. */
     private const val SERVICE_REPORT_PERIOD_MS = 1_000L
@@ -340,6 +346,18 @@ object DenzaAppRepository {
     /** The slice behind a runtime feature's tile changed; see [StateSlice.of]. */
     fun invalidate(feature: FeatureId, cause: String) {
         StateSlice.of(feature)?.let { publisher.invalidate(it, cause) }
+    }
+
+    fun invalidate(slices: Set<StateSlice>, cause: String) {
+        publisher.invalidate(slices, cause)
+    }
+
+    /**
+     * This app's accessibility service connected, went away, or is being repaired: everything
+     * that reads it ([StateSlice.ACCESSIBILITY]) is read again.
+     */
+    fun accessibilityChanged(cause: String) {
+        publisher.invalidate(StateSlice.ACCESSIBILITY, cause)
     }
 
     /**
@@ -482,7 +500,7 @@ object DenzaAppRepository {
         if (!enabled) {
             SimulcastIntegration.clearLastTargetPackage()
             SimulcastOverlayService.stopCurrent(context)
-            refresh("simulcast switch")
+            invalidate(StateSlice.SIMULCAST, "simulcast switch")
             return
         }
         publisher.publish("simulcast switch") { current ->
@@ -647,7 +665,7 @@ object DenzaAppRepository {
         stateStore.update { current ->
             current.copy(appChoices = SimulcastAppChoices.withSelection(current.appChoices, selected))
         }
-        refresh("simulcast apps")
+        invalidate(StateSlice.SIMULCAST, "simulcast apps")
     }
 
     fun setMirrorsEnabled(enabled: Boolean) {
@@ -655,7 +673,7 @@ object DenzaAppRepository {
         MirrorsSettings.setEnabled(context, enabled)
         if (!enabled) {
             SideCameraMonitorService.stop(context)
-            refresh("mirrors switch")
+            invalidate(StateSlice.MIRRORS, "mirrors switch")
             return
         }
         publisher.publish("mirrors switch") { current ->
@@ -667,13 +685,13 @@ object DenzaAppRepository {
     fun setMirrorsPosition(position: MirrorsPosition) {
         val context = appContext ?: return
         MirrorsSettings.setPosition(context, position)
-        refresh("mirrors settings")
+        invalidate(StateSlice.MIRRORS, "mirrors settings")
     }
 
     fun setMirrorsProcessing(enabled: Boolean) {
         val context = appContext ?: return
         MirrorsSettings.setProcessingEnabled(context, enabled)
-        refresh("mirrors settings")
+        invalidate(StateSlice.MIRRORS, "mirrors settings")
     }
 
     fun previewMirrors() {
@@ -687,7 +705,11 @@ object DenzaAppRepository {
             )
             else -> Unit
         }
-        if (MirrorsSettings.isEnabled(context)) reconcileMirrors() else refresh("mirrors preview")
+        if (MirrorsSettings.isEnabled(context)) {
+            reconcileMirrors()
+        } else {
+            invalidate(StateSlice.MIRRORS, "mirrors preview")
+        }
     }
 
     fun performNavigationAction() {
@@ -707,7 +729,7 @@ object DenzaAppRepository {
         if (enabled) {
             reconcileNavigationSteeringWheelAccess(context)
         } else {
-            refresh("wheel switch")
+            invalidate(StateSlice.NAVIGATION, "wheel switch")
         }
     }
 
@@ -789,15 +811,17 @@ object DenzaAppRepository {
         HudGuidanceSettings.setEnabled(context, enabled)
         SimulcastAccessibilityService.requestHudGuidanceRefresh()
         if (!enabled) {
-            refresh("hud switch")
+            invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
         }
-        HudNotificationAccessCoordinator.ensureAccess(context) { refresh("hud access") }
+        HudNotificationAccessCoordinator.ensureAccess(context) {
+            invalidate(StateSlice.HUD_GUIDANCE, "hud access")
+        }
         publisher.publish("hud switch") { current ->
             current.copy(hudGuidance = FeatureReducer.starting(FeatureId.HUD_GUIDANCE))
         }
         if (!isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE)) {
-            refresh("hud switch")
+            invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
         }
         if (
@@ -805,13 +829,13 @@ object DenzaAppRepository {
             SimulcastAccessibilityService.isConnected()
         ) {
             SimulcastAccessibilityService.requestHudGuidanceRefresh()
-            refresh("hud switch")
+            invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
         }
         SimulcastCoordinator.repairAccess(context) { failure ->
             if (failure == null) {
                 SimulcastAccessibilityService.requestHudGuidanceRefresh()
-                refresh("hud switch")
+                invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             } else {
                 val problem = SimulcastCoordinator.setupProblem(failure)
                 val hudGuidance = FeatureReducer.needsAction(
@@ -839,7 +863,7 @@ object DenzaAppRepository {
         val context = appContext ?: return
         SpeakerCoverSettings.setEnabled(context, enabled)
         SpeakerCoverService.reconcile(context)
-        refresh("speakers switch")
+        invalidate(StateSlice.SPEAKER_COVERS, "speakers switch")
     }
 
     /**
@@ -865,7 +889,7 @@ object DenzaAppRepository {
     fun setCloudLinkEnabled(enabled: Boolean) {
         val context = appContext ?: return
         if (enabled) CloudLinkController.switchOn(context) else CloudLinkController.switchOff(context)
-        refresh("cloud switch")
+        invalidate(StateSlice.CLOUD_LINK, "cloud switch")
     }
 
     /** Keep client Wi-Fi on through sleep; written to the car and read back from it. */
@@ -932,17 +956,26 @@ object DenzaAppRepository {
                 durationMs = 2_200L,
             )
         }
-        refresh("cluster display")
+        invalidate(StateSlice.DISPLAYS, "cluster display")
         if (MirrorsSettings.isEnabled(context)) reconcileMirrors()
     }
 
+    /**
+     * What «Сервис» asks for when it opens: DiShare's screens, for the report, and the car's
+     * displays, for its «Приборный экран» row and page.
+     */
     fun refreshScreenDiagnostics() {
         val context = appContext ?: return
-        SimulcastScreenDiagnostics.refresh(context) {
-            // DiShare's screens are the report's; the displays are the instruments' picker's.
-            serviceReport.rebuildNow()
-            refresh("screen search")
-        }
+        searchClusterDisplays()
+        SimulcastScreenDiagnostics.refresh(context) { serviceReport.rebuildNow() }
+    }
+
+    /**
+     * Reads the car's displays again, and nothing else: the instruments' picker asks every 1.5 s
+     * while it has nothing to offer. It used to recompute the whole dashboard for it.
+     */
+    fun searchClusterDisplays() {
+        invalidate(StateSlice.CLUSTER_DISPLAY, "display search")
     }
 
     fun checkAdbAccess() {
@@ -977,7 +1010,12 @@ object DenzaAppRepository {
             DefaultAppsCatalogCache.ensureWatching(
                 context,
                 onPackage = { intent -> repairNavigationRole(context, intent) },
-            ) { refreshDefaultApps(force = false) }
+            ) {
+                refreshDefaultApps(force = false)
+                // DiShare, the navigator, the projection's row and the driver's-screen choice are
+                // all applications that can come and go.
+                invalidate(StateSlice.PACKAGES, "package changed")
+            }
             stateStore.update { current ->
                 current.copy(
                     defaultApps = current.defaultApps.copy(
@@ -1170,6 +1208,13 @@ object DenzaAppRepository {
         val app = context.applicationContext
         adbRuntimeStarted.set(true)
         try {
+            // The sources the slices read that nothing in this app writes, each its own step:
+            // one that cannot be registered leaves the others watched.
+            runtimeStep("display watch") { watchDisplays(app) }
+            runtimeStep("overlay grant watch") { watchOverlayGrant(app) }
+            runtimeStep("hud guidance watch") {
+                HudGuidanceRuntime.observeActive { invalidate(StateSlice.HUD_GUIDANCE, "hud guidance") }
+            }
             runtimeStep("split initialize") {
                 // A mark, not a read: it is made on the split's actor, and on a tap on the main
                 // thread before the waiting window draws.
@@ -1179,7 +1224,9 @@ object DenzaAppRepository {
             }
             runtimeStep("split reconcile") { reconcileSplitScreenToggle(app) }
             runtimeStep("navigation initialize") {
-                NavigationCoordinator.initialize(app) { refresh("navigation") }
+                NavigationCoordinator.initialize(app) {
+                    invalidate(StateSlice.NAVIGATION, "navigation")
+                }
             }
             runtimeStep("weather initialize") {
                 WeatherAdapterScheduler.ensureScheduled(app)
@@ -1211,12 +1258,57 @@ object DenzaAppRepository {
             // Off this thread, and it records a failure rather than raising it: the pass never
             // waits for it or fails because of it.
             runtimeStep("adb port restore prepare") {
-                AdbPortRestore.prepare(app) { refresh("port restore") }
+                AdbPortRestore.prepare(app) { serviceReport.rebuildNow() }
                 AdbRestore.trigger("watchdog")
             }
         } finally {
             adbRuntimePassRunning.set(false)
         }
+    }
+
+    /**
+     * The car's displays coming and going: where the mirrors draw and the instruments' screen
+     * choice ([StateSlice.DISPLAYS]). Once for the process, and counted as watched only once the
+     * listener is in, so a pass that failed to register it tries again.
+     */
+    private fun watchDisplays(context: Context) {
+        if (displaysWatched.get()) return
+        val displays = context.getSystemService(DisplayManager::class.java) ?: return
+        displays.registerDisplayListener(
+            object : DisplayManager.DisplayListener {
+                override fun onDisplayAdded(displayId: Int) =
+                    invalidate(StateSlice.DISPLAYS, "display added")
+
+                override fun onDisplayRemoved(displayId: Int) =
+                    invalidate(StateSlice.DISPLAYS, "display removed")
+
+                override fun onDisplayChanged(displayId: Int) = Unit
+            },
+            Handler(Looper.getMainLooper()),
+        )
+        displaysWatched.set(true)
+    }
+
+    /**
+     * This app's own overlay grant, which the projection reads: given by its features over ADB,
+     * taken away in Settings. Watching our own package's op needs no permission.
+     */
+    private fun watchOverlayGrant(context: Context) {
+        if (overlayGrantWatched.get()) return
+        val appOps = context.getSystemService(AppOpsManager::class.java) ?: return
+        val ownPackage = context.packageName
+        appOps.startWatchingMode(
+            AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW,
+            ownPackage,
+            object : AppOpsManager.OnOpChangedListener {
+                override fun onOpChanged(op: String?, packageName: String?) {
+                    if (packageName == ownPackage) {
+                        invalidate(StateSlice.SIMULCAST, "overlay changed")
+                    }
+                }
+            },
+        )
+        overlayGrantWatched.set(true)
     }
 
     private inline fun runtimeStep(name: String, block: () -> Unit) {
@@ -1230,13 +1322,13 @@ object DenzaAppRepository {
     private fun reconcileMirrors() {
         val context = appContext ?: return
         if (!MirrorsSettings.isEnabled(context)) {
-            refresh("mirrors")
+            invalidate(StateSlice.MIRRORS, "mirrors")
             return
         }
         when (val selection = ClusterDisplayResolver.resolveCameraOverlay(context)) {
             is ClusterDisplaySelection.Selected -> {
                 SideCameraMonitorService.start(context)
-                refresh("mirrors")
+                invalidate(StateSlice.MIRRORS, "mirrors")
             }
             else -> {
                 val mirrors = MirrorDisplayReadiness.snapshot(selection, active = false)
@@ -1248,12 +1340,16 @@ object DenzaAppRepository {
 
     private fun reconcileHudNotificationAccess(context: Context) {
         if (!HudGuidanceSettings.isEnabled(context)) return
-        HudNotificationAccessCoordinator.ensureAccess(context) { refresh("hud access") }
+        HudNotificationAccessCoordinator.ensureAccess(context) {
+            invalidate(StateSlice.HUD_GUIDANCE, "hud access")
+        }
     }
 
     private fun reconcileNavigationSteeringWheelAccess(context: Context) {
-        SteeringWheelNavigationAccessCoordinator.reconcile(context) { refresh("wheel access") }
-        refresh("wheel access")
+        SteeringWheelNavigationAccessCoordinator.reconcile(context) {
+            invalidate(StateSlice.NAVIGATION, "wheel access")
+        }
+        invalidate(StateSlice.NAVIGATION, "wheel access")
     }
 
     private fun reconcileSimulcast(
@@ -1271,7 +1367,7 @@ object DenzaAppRepository {
                     publisher.publish("simulcast") { current ->
                         current.copy(setupRunning = event.setupRunning)
                     }
-                    refresh("simulcast")
+                    invalidate(StateSlice.SIMULCAST, "simulcast")
                 }
                 is SimulcastReconcileEvent.Blocked -> {
                     val simulcast = SimulcastCoordinator.blockedSnapshot(event.blocker)
@@ -1300,7 +1396,7 @@ object DenzaAppRepository {
                     publisher.publish("simulcast") { current ->
                         current.copy(setupRunning = event.setupRunning)
                     }
-                    refresh("simulcast")
+                    invalidate(StateSlice.SIMULCAST, "simulcast")
                 }
                 is SimulcastReconcileEvent.RepairFailed -> {
                     val simulcast = FeatureReducer.needsAction(

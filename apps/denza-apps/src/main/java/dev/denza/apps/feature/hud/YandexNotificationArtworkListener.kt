@@ -22,6 +22,8 @@ import android.widget.ImageView
 import android.widget.RemoteViews
 import android.widget.TextView
 import androidx.core.graphics.createBitmap
+import dev.denza.apps.DenzaAppRepository
+import dev.denza.apps.StateSlice
 import java.io.ByteArrayOutputStream
 import java.lang.reflect.Field
 import java.util.Locale
@@ -50,6 +52,8 @@ class YandexNotificationArtworkListener : NotificationListenerService() {
         HudNotificationArtworkRuntime.clear(null, "listener-disconnected")
         HudNotificationGuidanceRuntime.remove(null)
         HudNotificationArtworkRuntime.setListenerConnected(false)
+        // The listener going away may be its access going away, which «Динамики» reads.
+        DenzaAppRepository.invalidate(StateSlice.SPEAKER_COVERS, "notification listener")
         HudNotificationAccessCoordinator.ensureAccess(this) {
             if (
                 HudGuidanceSettings.isEnabled(this) &&

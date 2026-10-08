@@ -53,6 +53,23 @@ enum class StateSlice {
             FeatureId.CLOUD_LINK -> CLOUD_LINK
             FeatureId.FSE_INSTALLER -> null
         }
+
+        /**
+         * What reads this app's accessibility service - its switch in Settings, its connection, a
+         * repair of it under way: the projection, HUD guidance and the steering-wheel button.
+         */
+        val ACCESSIBILITY: Set<StateSlice> = setOf(SIMULCAST, HUD_GUIDANCE, NAVIGATION)
+
+        /**
+         * What names or needs an installed application: the projection's row and DiShare, the
+         * navigator HUD guidance reads, the application the driver's screen shows - and the
+         * split's launcher icon, a component of this app whose change arrives as this package
+         * changing.
+         */
+        val PACKAGES: Set<StateSlice> = setOf(SIMULCAST, HUD_GUIDANCE, NAVIGATION, SPLIT_SCREEN)
+
+        /** What reads the car's displays: where the mirrors draw, the instruments' screen choice. */
+        val DISPLAYS: Set<StateSlice> = setOf(MIRRORS, CLUSTER_DISPLAY)
     }
 }
 
