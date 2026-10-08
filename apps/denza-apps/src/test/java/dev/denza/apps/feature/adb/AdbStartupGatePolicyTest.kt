@@ -8,6 +8,27 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AdbStartupGatePolicyTest {
+    @org.junit.Test
+    fun wifiWaitHasANeutralGateAndNoPointlessAction() {
+        val model = AdbStartupGatePolicy.overlay(AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE),
+            AdbRestoreSnapshot(state = AdbRestoreState.WaitingWifi))
+        org.junit.Assert.assertTrue(model.visible)
+        org.junit.Assert.assertEquals("Ожидание Wi-Fi", model.title)
+        org.junit.Assert.assertNull(model.primaryLabel)
+        org.junit.Assert.assertEquals(AdbStartupPrimaryAction.NONE, model.primaryAction)
+        org.junit.Assert.assertTrue(model.explainerAvailable)
+    }
+
+    @org.junit.Test
+    fun recoveryDoesNotCoverTrustedRuntimeAndTechnicalFailureStaysOutOfTheGate() {
+        val waiting = AdbRestoreSnapshot(state = AdbRestoreState.WaitingWifi)
+        org.junit.Assert.assertFalse(AdbStartupGatePolicy.overlay(
+            AdbRescueSnapshot(phase = AdbRescuePhase.TRUSTED), waiting).visible)
+        val failed = AdbStartupGatePolicy.overlay(AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE),
+            AdbRestoreSnapshot(state = AdbRestoreState.Failed("mDNS timeout", 1)))
+        org.junit.Assert.assertFalse(failed.message.contains("mDNS"))
+        org.junit.Assert.assertFalse(failed.title.contains("не удалось", true))
+    }
     @Test
     fun `fast passive check does not flash a startup overlay`() {
         assertFalse(

@@ -11,6 +11,9 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
+import dev.denza.apps.feature.adb.AdbRestoreSnapshot
+import dev.denza.apps.feature.adb.AdbRestoreState
+import dev.denza.apps.feature.adb.AdbRestoreWifi
 import dev.denza.apps.feature.adb.AdbStartupGatePolicy
 import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
@@ -57,6 +60,7 @@ internal object SheetFixtures {
                     "screen" -> ServicePage.SCREEN
                     "technical" -> ServicePage.TECHNICAL
                     "journal" -> ServicePage.JOURNAL
+                    "restore" -> ServicePage.RESTORE
                     else -> ServicePage.MAIN
                 },
                 // The board's `scroll: 'end'`: the page at the end of its scroll, where the report's
@@ -96,7 +100,8 @@ internal object SheetFixtures {
             systemSwitch = AdbSystemSwitch.valueOf(s.optString("systemSwitch", "UNKNOWN")),
         )
         AdbStartupOverlay(
-            model = AdbStartupGatePolicy.overlay(snapshot),
+            model = AdbStartupGatePolicy.overlay(snapshot, if (s.optString("restore") == "WaitingWifi")
+                AdbRestoreSnapshot(state = AdbRestoreState.WaitingWifi) else null),
             compact = compact,
             onPrimaryAction = {},
             onOpenRecovery = {},
@@ -115,6 +120,8 @@ internal object SheetFixtures {
         val technical = s.optJSONArray("technical") ?: JSONArray()
         val journal = s.optJSONArray("journal") ?: JSONArray()
         var state = DenzaUiState(
+            adbRestore = AdbRestoreSnapshot(state = AdbRestoreState.NotNeeded, lastTrigger = "startup",
+                lastOutcome = "not-needed", permissionHeld = true, wifi = AdbRestoreWifi("fixture", "wifi")),
             adbRescue = AdbRescueSnapshot(
                 phase = AdbRescuePhase.valueOf(s.optString("adbPhase", "TRUSTED")),
                 message = s.optString("adb"),

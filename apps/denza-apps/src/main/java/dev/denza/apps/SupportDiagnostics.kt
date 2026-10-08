@@ -12,6 +12,8 @@ import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbPortRestore
 import dev.denza.apps.feature.adb.AdbPortRestoreReport
+import dev.denza.apps.feature.adb.AdbRestore
+import dev.denza.apps.feature.adb.AdbRestoreReport
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.cloud.CloudLinkReport
 import dev.denza.apps.feature.cloud.CloudLinkDiagnostics
@@ -82,6 +84,7 @@ object SupportDiagnostics {
                 section("Облако", cloudRows(context)),
                 appSection(header),
                 section("Доступ к машине", accessRows()),
+                section(AdbRestoreReport.TITLE, AdbRestoreReport.rows(AdbRestore.snapshot()).map { (key, value) -> row(key, value) }),
                 section(AdbPortRestoreReport.TITLE, adbPortRestoreRows(context)),
                 section("Трансляция", simulcastRows(context, header)),
                 section("Зеркала", mirrorsRows(context, header)),

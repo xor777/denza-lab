@@ -79,7 +79,35 @@ object AdbStartupGatePolicy {
         -> AdbStartupEntryAction.NONE
     }
 
-    fun overlay(snapshot: AdbRescueSnapshot): AdbStartupOverlayModel = when (snapshot.phase) {
+    fun overlay(snapshot: AdbRescueSnapshot, restore: AdbRestoreSnapshot? = null): AdbStartupOverlayModel {
+        if (snapshot.phase != AdbRescuePhase.TRUSTED && restore?.enabled == true) {
+            when (restore.state) {
+                AdbRestoreState.WaitingWifi -> return AdbStartupOverlayModel(
+                    visible = true,
+                    title = "Ожидание Wi-Fi",
+                    message = "Нужен Wi-Fi для восстановления доступа",
+                    details = "Android восстанавливает беспроводную отладку при подключении к Wi-Fi",
+                    explainerAvailable = true,
+                )
+                AdbRestoreState.Connecting -> return AdbStartupOverlayModel(visible = false)
+                AdbRestoreState.NeedsDialog -> return AdbStartupOverlayModel(
+                    visible = true,
+                    title = "Подключение к сети",
+                    message = "Denza Apps подтверждает сетевой диалог автоматически. Если он остаётся на экране, отметьте «Always allow on this network» и нажмите ALLOW.",
+                    explainerAvailable = true,
+                )
+                is AdbRestoreState.Failed -> return AdbStartupOverlayModel(
+                    visible = true,
+                    title = "Восстановление доступа",
+                    message = "Ожидаем следующего подключения к Wi-Fi или пробуждения экрана",
+                    primaryLabel = "Проверить доступ",
+                    primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
+                    explainerAvailable = true,
+                )
+                else -> Unit
+            }
+        }
+        return when (snapshot.phase) {
         AdbRescuePhase.TRUSTED -> AdbStartupOverlayModel(visible = false)
         AdbRescuePhase.UNKNOWN,
         AdbRescuePhase.CHECKING,
@@ -134,6 +162,7 @@ object AdbStartupGatePolicy {
             primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
             explainerAvailable = true,
         )
+        }
     }
 
     /**

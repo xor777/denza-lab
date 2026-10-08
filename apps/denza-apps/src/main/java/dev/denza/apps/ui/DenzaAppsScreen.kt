@@ -141,7 +141,7 @@ fun DenzaAppsRoot(
             showDiagnostics = true
         }
     }
-    val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue)
+    val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue, uiState.adbRestore)
     val adbStartupBlocked = uiState.adbRescue.phase != AdbRescuePhase.TRUSTED
     // The recovery window belongs to the gate and cannot outlive it. Latched, it reopened itself:
     // the car answers, the gate goes, the flag stays true, and the next thing to block the app
@@ -333,6 +333,8 @@ fun DenzaAppsRoot(
                     onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
                     onDismiss = { showDiagnostics = false },
+                    onSetAdbRestoreEnabled = dev.denza.apps.feature.adb.AdbRestore::setEnabled,
+                    onOpenService = { dev.denza.apps.feature.adb.AdbRestore.trigger("settings") },
                 )
             }
             if (showClusterPicker) {

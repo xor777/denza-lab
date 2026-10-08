@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,6 +19,7 @@ import dev.denza.apps.SupportDiagnostics
 import dev.denza.apps.TechnicalReadings
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.feature.adb.AdbRescuePhase
+import dev.denza.apps.feature.adb.AdbRestoreReport
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.ui.components.DenzaChoiceGroup
 import dev.denza.apps.ui.components.DenzaChoiceRow
@@ -32,6 +34,7 @@ import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetFootnote
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.components.DenzaStatusLine
+import dev.denza.apps.ui.components.DenzaSwitchRow
 import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.dashboard.DashboardTile
 import dev.denza.apps.ui.dashboard.DashboardTiles
@@ -46,6 +49,7 @@ internal enum class ServicePage {
     SCREEN,
     TECHNICAL,
     JOURNAL,
+    RESTORE,
     ;
 
     /** The page the header's way back returns to. */
@@ -133,7 +137,10 @@ internal fun ServicePanel(
     firstPage: ServicePage = ServicePage.MAIN,
     firstPageAtEnd: Boolean = false,
     version: String = "Denza Apps ${BuildConfig.VERSION_NAME} · сборка ${BuildConfig.VERSION_CODE}",
+    onSetAdbRestoreEnabled: (Boolean) -> Unit = {},
+    onOpenService: () -> Unit = {},
 ) {
+    LaunchedEffect(Unit) { onOpenService() }
     var page by rememberSaveable { mutableStateOf(firstPage) }
     val back = { page = page.parent }
     // One place a page: the journal is opened from the bottom of a long report, and the report has
@@ -173,6 +180,15 @@ internal fun ServicePanel(
             ServicePage.JOURNAL -> {
                 DenzaSheetHeader(title = "Журнал работы", subtitle = JOURNAL_OF, onDismiss = onDismiss, onBack = back)
                 ReadingsPage(state.splitJournal)
+            }
+            ServicePage.RESTORE -> {
+                DenzaSheetHeader(title = AdbRestoreReport.TITLE, subtitle = "", onDismiss = onDismiss, onBack = back)
+                DenzaSwitchRow(title = AdbRestoreReport.TITLE, checked = state.adbRestore.enabled,
+                    onCheckedChange = onSetAdbRestoreEnabled)
+                DenzaNote(AdbRestoreReport.NOTE)
+                DenzaSection("Состояние") {
+                    DenzaChoiceGroup(AdbRestoreReport.rows(state.adbRestore)) { (key, value) -> DenzaPairRow(key, value) }
+                }
             }
         }
     }
@@ -231,8 +247,13 @@ private fun ServiceMain(
             }
         }
     }
-    DenzaChoiceGroup(listOf(ServicePage.SCREEN, ServicePage.TECHNICAL)) { target ->
+    DenzaChoiceGroup(listOf(ServicePage.RESTORE, ServicePage.SCREEN, ServicePage.TECHNICAL)) { target ->
         when (target) {
+            ServicePage.RESTORE -> DenzaChoiceRow(
+                title = AdbRestoreReport.TITLE,
+                value = "Автоматически после перезагрузки",
+                onClick = { onPage(target) },
+            )
             ServicePage.SCREEN -> DenzaChoiceRow(
                 title = "Приборный экран",
                 value = state.clusterDisplayLabel,

@@ -260,6 +260,7 @@
   // instruments' screen and the technical readings are pages, and the version is the foot.
   const SVC_VERSION = { t: 'footnote', text: 'Denza Apps 0.6.2 · сборка 53' };
   const SVC_MORE = { t: 'group', rows: [
+    { kind: 'choice', title: 'Восстановление ADB', summary: 'Автоматически после перезагрузки' },
     { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },
     { kind: 'choice', title: 'Технические сведения', summary: 'Версия, прошивка, состояние функций' }
   ] };
@@ -340,6 +341,18 @@
     // every scene of the panel carries the journal, so the debug build's row opens the page
     journal: SVC_JOURNAL };
   const service = {
+    restore: sheetOf(11, {
+      title: 'Восстановление ADB', back: true,
+      blocks: [
+        { t: 'switch', title: 'Восстановление ADB', on: true },
+        { t: 'note', text: 'Возвращает доступ после перезагрузки через Wi-Fi. Если доступ уже есть, восстановление не требуется.' },
+        ...techBlocks([
+          '[Состояние]', 'Состояние=not-needed', 'Триггер=startup', 'Последний исход=not-needed',
+          'TLS-порт=не найден', 'Wi-Fi=wifi', 'WRITE_SECURE_SETTINGS=выдано',
+          'Сетевой диалог=ещё не было', 'Повторы=в пределах бюджета'
+        ])
+      ]
+    }, Object.assign({}, svcState, { page: 'restore' })),
     ok: sheetOf(11, {
       title: 'Сервис',
       blocks: [{ t: 'group', rows: [{ title: 'Все функции работают' }, SVC_ACCESS] }, SVC_MORE],
@@ -405,6 +418,15 @@
     },
     state: { gate: 'AUTHORIZATION_REQUIRED', systemSwitch: 'ENABLED' }
   });
+  const wifiGate = Object.assign({}, head, {
+    modal: {
+      icon: TILES[11].icon, tone: 'idle', title: 'Ожидание Wi-Fi',
+      message: 'Нужен Wi-Fi для восстановления доступа',
+      details: 'Android восстанавливает беспроводную отладку при подключении к Wi-Fi',
+      quiet: [{ text: 'Что такое ADB' }]
+    },
+    state: { gate: 'UNAVAILABLE', restore: 'WaitingWifi' }
+  });
 
   // the cloud link: a switch whose reason is a warning, on two lines rather than cut short
   sheets.cloud = sheetOf(10, {
@@ -459,12 +481,15 @@
     'sheet-service-trouble':  [{ kind: 'sheet', mode: 'full' }, service.trouble],
     'sheet-service-access':   [{ kind: 'sheet', mode: 'full' }, service.access],
     'sheet-service-screen':   [{ kind: 'sheet', mode: 'full' }, service.screen],
+    'sheet-service-restore':  [{ kind: 'sheet', mode: 'full' }, service.restore],
+    'one-sheet-service-restore': [{ kind: 'sheet', mode: 'one' }, service.restore],
     'sheet-service-technical': [{ kind: 'sheet', mode: 'full' }, service.tech],
     'sheet-service-split':   [{ kind: 'sheet', mode: 'full' }, service.split],
     'sheet-service-journal': [{ kind: 'sheet', mode: 'full' }, service.journal],
     'one-sheet-service-trouble': [{ kind: 'sheet', mode: 'one' }, service.trouble],
     'modal-adb':       [{ kind: 'modal', mode: 'full' }, gate],
     'one-modal-adb':   [{ kind: 'modal', mode: 'one' }, gate],
+    'modal-adb-wifi':  [{ kind: 'modal', mode: 'full' }, wifiGate],
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],
     'one-sheet-cloud': [{ kind: 'sheet', mode: 'one' }, sheets.cloud],
     'one-sheet-cluster':   [{ kind: 'sheet', mode: 'one' }, sheets.cluster],
