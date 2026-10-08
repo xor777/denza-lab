@@ -204,6 +204,10 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+    // The real org.json on the test classpath, ahead of android.jar's stub, so code that builds or
+    // reads JSON - the stock weather widget's payload - can run in a unit test. The version the
+    // gateway's tests already use.
+    testImplementation("org.json:json:20250517")
 }
 
 /**
