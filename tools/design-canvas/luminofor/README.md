@@ -70,6 +70,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `sheet-service-split`, `sheet-service-journal` | the technical report scrolled to its end - the split's section and the row to its journal - and «Журнал работы»: a failed open step by step over the two operations before it |
 | `one-sheet-cluster`, `one-sheet-cast-apps` | the same panels filling a one-third pane |
 | `modal-adb`, `one-modal-adb` | the ADB gate asking for the car's permission |
+| `sheet-service-restore`, `one-sheet-service-restore`, `modal-adb-wifi` | automatic ADB restoration: its service page at two widths and the neutral Wi-Fi waiting gate |
 | `digits` | the wide figures, for the eye |
 
 ## How the app is held to it
