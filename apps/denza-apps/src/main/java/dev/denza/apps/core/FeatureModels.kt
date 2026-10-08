@@ -44,10 +44,7 @@ data class FeatureSnapshot(
     val message: String = "",
     val details: String? = null,
     val resolution: FeatureResolution? = null,
-) {
-    val isWorking: Boolean
-        get() = status == FeatureStatus.READY || status == FeatureStatus.ACTIVE
-}
+)
 
 /**
  * Pure transition helpers. A recoverable runtime failure never changes the user's

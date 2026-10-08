@@ -29,13 +29,6 @@ class FeatureModelsTest {
     }
 
     @Test
-    fun readyAndActiveAreWorkingStates() {
-        assertTrue(FeatureReducer.ready(FeatureId.NAVIGATION).isWorking)
-        assertTrue(FeatureReducer.ready(FeatureId.NAVIGATION, active = true).isWorking)
-        assertFalse(FeatureReducer.starting(FeatureId.NAVIGATION).isWorking)
-    }
-
-    @Test
     fun userActionDoesNotResetDesiredState() {
         val starting = FeatureReducer.starting(FeatureId.SIMULCAST)
 
