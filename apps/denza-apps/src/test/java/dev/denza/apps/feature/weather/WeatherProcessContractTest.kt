@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.weather
 
+import dev.denza.apps.between
 import java.io.File
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -32,14 +33,13 @@ class WeatherProcessContractTest {
     @Test
     fun theDashboardReadsTheRecordOnEveryRefreshAndEveryRun() {
         val repository = File("src/main/java/dev/denza/apps/DenzaAppRepository.kt").readText()
-        val refresh = repository.substringAfter("\n    fun refresh() {").substringBefore("\n    fun ")
+        val refresh = repository.between("\n    fun refresh() {", "\n    fun ")
         assertTrue(
             "DenzaAppRepository.refresh must read the weather record",
             "WeatherAdapterState.lastTemperature" in refresh &&
                 "WeatherAdapterState.lastSuccessMillis" in refresh,
         )
-        val runtime = repository.substringAfter("runtimeStep(\"weather initialize\")")
-            .substringBefore("runtimeStep(")
+        val runtime = repository.between("runtimeStep(\"weather initialize\")", "runtimeStep(")
         assertTrue(
             "the runtime must observe the weather record so the tile follows each run",
             "WeatherAdapterState.observe" in runtime,

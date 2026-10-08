@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster
 
+import dev.denza.apps.between
 import java.io.File
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -10,8 +11,8 @@ class CameraStartupNotificationContractTest {
     @Test fun noIntermediateNotificationOnTheSuccessfulCameraStartupPath() {
         val source = File("src/main/java/dev/denza/apps/feature/cluster/ClusterSceneService.kt").readText()
         assertFalse(source.contains("\"Camera display is ready\""))
-        val show = source.substringAfter("private fun showCamera(config:").substringBefore("private fun hideCamera(")
-        val success = show.substringAfter("try {").substringBefore("} catch")
+        val show = source.between("private fun showCamera(config:", "private fun hideCamera(")
+        val success = show.between("try {", "} catch")
         assertFalse(success.contains("updateNotification("))
         assertTrue("foreground-service obligation stays synchronous", source.contains("startForeground(NOTIFICATION_ID"))
     }

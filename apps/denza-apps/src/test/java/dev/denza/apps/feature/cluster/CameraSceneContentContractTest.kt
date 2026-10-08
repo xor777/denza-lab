@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster
 
+import dev.denza.apps.between
 import java.io.File
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -16,7 +17,7 @@ class CameraSceneContentContractTest {
     @Test fun presentationReceivesTheSelectedLayerInsteadOfAssumingBase() {
         assertTrue(block("private fun prepareBaseScene():").contains("cameraLayer = false"))
         assertTrue(block("private fun prepareCameraScene():").contains("cameraLayer = true"))
-        val creation = source.substringAfter("val shown = ClusterPresentation(").substringBefore(".also { it.show() }")
+        val creation = source.between("val shown = ClusterPresentation(", ".also { it.show() }")
         assertTrue("pass the actual selected layer", creation.contains("cameraLayer = cameraLayer"))
         assertTrue(source.contains("private val cameraLayer: Boolean"))
     }

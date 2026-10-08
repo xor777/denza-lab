@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.navigation
 
+import dev.denza.apps.between
 import java.io.File
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,10 +15,10 @@ class NavigationOneTapSourceContractTest {
 
     @Test
     fun primaryProjectionLaunchesAMissingTaskAndContinuesProjectionAfterDiscovery() {
-        val primary = source.section("fun performPrimaryAction()", "fun onClusterDisplaySelected()")
-        val project = source.section("private fun projectToCluster()", "private fun returnToCentralDisplay(")
-        val missingTask = project.substringAfter("if (taskId < 0)").substringBefore("if (session.taskId")
-        val discovery = source.section("private fun discoverLaunchedTask(", "private fun projectToCluster()")
+        val primary = source.between("fun performPrimaryAction()", "fun onClusterDisplaySelected()")
+        val project = source.between("private fun projectToCluster()", "private fun returnToCentralDisplay(")
+        val missingTask = project.between("if (taskId < 0)", "if (session.taskId")
+        val discovery = source.between("private fun discoverLaunchedTask(", "private fun projectToCluster()")
 
         assertTrue(primary.contains("NavigationPrimaryAction.PROJECT"))
         assertTrue(primary.contains("projectToCluster()"))
@@ -34,15 +35,12 @@ class NavigationOneTapSourceContractTest {
 
     @Test
     fun changingSelectionCancelsTheQueuedLaunchAndItsTransferState() {
-        val selection = source.section("fun selectPackage(packageName: String)", "fun performPrimaryAction()")
-        val cancellation = source.section("private fun cancelPendingLaunch()", "private fun beginTransfer(")
+        val selection = source.between("fun selectPackage(packageName: String)", "fun performPrimaryAction()")
+        val cancellation = source.between("private fun cancelPendingLaunch()", "private fun beginTransfer(")
 
         assertTrue(selection.contains("cancelPendingLaunch()"))
         assertTrue(cancellation.contains("launchFence.invalidate()"))
         assertTrue(cancellation.contains("splitRoutingLease.release()"))
         assertTrue(cancellation.contains("finishTransfer()"))
     }
-
-    private fun String.section(start: String, end: String): String =
-        substringAfter(start).substringBefore(end)
 }

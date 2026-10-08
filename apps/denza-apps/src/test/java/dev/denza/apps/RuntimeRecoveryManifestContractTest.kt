@@ -38,8 +38,7 @@ class RuntimeRecoveryManifestContractTest {
         val repository = File(
             "src/main/java/dev/denza/apps/DenzaAppRepository.kt",
         ).readText()
-        val autostart = repository.substringAfter("fun recoverAutostart(")
-            .substringBefore("\n    fun refresh()")
+        val autostart = repository.between("fun recoverAutostart(", "\n    fun refresh()")
 
         assertTrue(localAdb.contains("AuthorizationPolicy.PASSIVE"))
         assertTrue(autostart.contains("AdbRescueCoordinator.checkAccess"))

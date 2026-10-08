@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.navigation
 
+import dev.denza.apps.between
 import dev.denza.apps.feature.defaultapps.InstalledDefaultApp
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -92,8 +93,8 @@ class DriverScreenChoicesTest {
 
         // And the proxy asks the one rule before it finds a task or touches one.
         val proxy = sources.getValue(sources.keys.first())
-        val find = proxy.substringAfter("int findTask(String packageName) {").substringBefore("}")
-        val enforce = proxy.substringAfter("private void enforceTask(").substringBefore("for (")
+        val find = proxy.between("int findTask(String packageName) {", "}")
+        val enforce = proxy.between("private void enforceTask(", "for (")
         assertTrue(find.contains("isProjectable(packageName)"))
         assertTrue(enforce.contains("isProjectable(packageName)"))
         assertTrue(proxy.contains("ProjectablePackages.isProjectable(context.getPackageManager(), packageName)"))

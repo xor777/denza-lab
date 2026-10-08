@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster
 
+import dev.denza.apps.between
 import java.io.File
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -11,9 +12,10 @@ class CameraDisplayResolverWiringContractTest {
         val source = File(
             "src/main/java/dev/denza/apps/feature/cluster/ClusterDisplayResolver.kt",
         ).readText()
-        val wiring = source
-            .substringAfter("fun resolveCameraOverlay(context: Context)")
-            .substringBefore("internal fun <T> selectCameraOverlayFromLive")
+        val wiring = source.between(
+            "fun resolveCameraOverlay(context: Context)",
+            "internal fun <T> selectCameraOverlayFromLive",
+        )
 
         assertTrue(wiring.contains("selectCameraOverlayFromLive("))
         assertTrue(wiring.contains("getSystemService(DisplayManager::class.java)"))

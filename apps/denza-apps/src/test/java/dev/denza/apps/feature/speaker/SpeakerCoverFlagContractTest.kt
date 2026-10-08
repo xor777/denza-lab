@@ -2,6 +2,7 @@ package dev.denza.apps.feature.speaker
 
 import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -26,10 +27,18 @@ class SpeakerCoverFlagContractTest {
             "372244517", "372_244_517", "0x16300025", "AUDIO_RLSA_STATE_SET",
             "899678426", "899_678_426", "0x35A000DA", "AUDIO_SPEAKER_FLIP_SETTING_STATUS",
         )
-        val offenders = File("src/main/java/dev/denza/apps/feature/speaker")
-            .listFiles { file -> file.extension == "kt" }
-            .orEmpty()
+        val sources = File("src/main/java/dev/denza/apps/feature/speaker")
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
             .sortedBy { it.name }
+            .toList()
+        // An empty scan finds no offenders either: a moved package must fail here, not pass. The
+        // protocol is the feature's one writer to the car, so a scan without it scanned nothing.
+        assertTrue(
+            "the scan did not reach SpeakerCoverProtocol.kt: ${sources.map { it.name }}",
+            sources.any { it.name == "SpeakerCoverProtocol.kt" },
+        )
+        val offenders = sources
             .flatMap { file ->
                 val source = file.readText()
                 forbidden.filter { it in source }.map { "${file.name}: $it" }
