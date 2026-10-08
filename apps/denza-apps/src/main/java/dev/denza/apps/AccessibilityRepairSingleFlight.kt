@@ -35,12 +35,16 @@ internal object AccessibilitySettingsMutationLock {
 internal class AccessibilityRepairSingleFlight {
     private val lock = Any()
     private val callbacks = mutableListOf<(Throwable?) -> Unit>()
+    private val wishes = mutableListOf<() -> Boolean>()
 
     @Volatile
     private var running = false
 
-    fun join(callback: (Throwable?) -> Unit): Boolean = synchronized(lock) {
+    fun join(callback: (Throwable?) -> Unit): Boolean = join(callback, { true })
+
+    fun join(callback: (Throwable?) -> Unit, stillWanted: () -> Boolean): Boolean = synchronized(lock) {
         callbacks += callback
+        wishes += stillWanted
         if (running) {
             false
         } else {
@@ -49,9 +53,12 @@ internal class AccessibilityRepairSingleFlight {
         }
     }
 
+    fun isStillWanted(): Boolean = synchronized(lock) { wishes.any { it() } }
+
     fun complete(failure: Throwable?) {
         val waiting = synchronized(lock) {
             running = false
+            wishes.clear()
             callbacks.toList().also { callbacks.clear() }
         }
         waiting.forEach { callback ->

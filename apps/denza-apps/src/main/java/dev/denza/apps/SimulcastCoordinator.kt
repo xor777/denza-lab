@@ -181,11 +181,13 @@ object SimulcastCoordinator {
         }
     }
 
-    fun repairAccess(context: Context, onComplete: (Throwable?) -> Unit) {
-        if (!accessibilityRepair.join(onComplete)) return
+    fun repairAccess(context: Context, onComplete: (Throwable?) -> Unit) = repairAccess(context, { true }, onComplete)
+
+    internal fun repairAccess(context: Context, stillWanted: () -> Boolean, onComplete: (Throwable?) -> Unit) {
+        if (!accessibilityRepair.join(onComplete, stillWanted)) return
         try {
             executor.execute {
-                val failure = runCatching { repairAccessNow(context) }.exceptionOrNull()
+                val failure = runCatching { repairAccessNow(context, accessibilityRepair::isStillWanted) }.exceptionOrNull()
                 accessibilityRepair.complete(failure)
             }
         } catch (error: RuntimeException) {
@@ -217,16 +219,19 @@ object SimulcastCoordinator {
         return null
     }
 
-    private fun repairAccessNow(context: Context) {
+    private fun repairAccessNow(context: Context, stillWanted: () -> Boolean) {
+        if (!stillWanted()) return
         val adb = DenzaLocalAdb.client(context).openPersistentShell()
         try {
             val packageName = shellQuote(context.packageName)
+            if (!stillWanted()) return
             adb.shell("cmd appops set $packageName SYSTEM_ALERT_WINDOW allow")
             DenzaAccessibilityRepairController(
                 shell = adb::shell,
                 splitLeaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(context),
             ).repair(
                 ensureSplit = SplitScreenSettings.isEnabled(context),
+                stillWanted = stillWanted,
             )
         } finally {
             adb.close()

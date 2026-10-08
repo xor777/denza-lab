@@ -49,15 +49,17 @@ internal class DenzaAccessibilityRepairController(
 ) {
     private val settings = AccessibilityServiceSettings(shell)
 
-    fun repair(ensureSplit: Boolean) = AccessibilitySettingsMutationLock.withLock(
+    fun repair(ensureSplit: Boolean, stillWanted: () -> Boolean = { true }) = AccessibilitySettingsMutationLock.withLock(
         ensuresSplitAccess = ensureSplit,
     ) {
+        if (!stillWanted()) return@withLock
         val original = settings.read()
         val originalSplitOwned = splitLeaseStore.isOwned()
         val originalSplitVersion = splitLeaseStore.configurationVersion()
         try {
             settings.write(withoutDenzaServices(original), ensureAccessibilityEnabled = false)
             pause(ALL_SERVICES_UNBIND_MS)
+            check(stillWanted()) { "Accessibility preparation cancelled" }
 
             val simulcastOnly = SimulcastAccessibilityAccess.withServiceEntries(
                 withoutDenzaServices(settings.read()),
@@ -66,6 +68,7 @@ internal class DenzaAccessibilityRepairController(
 
             if (ensureSplit) {
                 pause(APP_WIDE_SERVICE_BIND_MS)
+                check(stillWanted()) { "Accessibility preparation cancelled" }
                 val both = SplitNativePickerAccessibilityAccess.withService(
                     SimulcastAccessibilityAccess.withServiceEntries(
                         withoutDenzaServices(settings.read()),
