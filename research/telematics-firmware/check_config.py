@@ -18,6 +18,10 @@ def decrypt(data,seed):
  key,iv=derive(seed);d=Cipher(algorithms.AES(key),modes.CBC(iv)).decryptor()
  padded=d.update(data)+d.finalize();p=PKCS7(128).unpadder()
  return p.update(padded)+p.finalize()
+def readable_config(archive=ARCHIVE):
+ # Config.xml in memory, for readers whose output directory has no Config-readable.xml yet.
+ with zipfile.ZipFile(archive) as z:data=z.read('Config.xml');metadata=z.read('metadata')
+ return decrypt(data,hashlib.md5(metadata).digest())
 if __name__=='__main__':
  with zipfile.ZipFile(ARCHIVE) as z:
   data=z.read('Config.xml');metadata=z.read('metadata')

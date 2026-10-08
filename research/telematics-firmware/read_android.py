@@ -1,7 +1,7 @@
 import io,os,struct,zipfile,hashlib,json,xml.etree.ElementTree as ET
 from pathlib import Path
 from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes
-from check_config import ARCHIVE,BASE,derive
+from check_config import ARCHIVE,BASE,derive,readable_config
 
 def package_seed(text):
  assert len(text)==38
@@ -19,7 +19,10 @@ class AndroidReader(io.RawIOBase):
   assert info.compress_type==0
   h=os.pread(self.f.fileno(),30,info.header_offset);assert h[:4]==b'PK\x03\x04'
   n,x=struct.unpack_from('<HH',h,26);self.offset=info.header_offset+30+n+x;self.cipher_size=info.file_size
-  r=ET.parse(BASE/'Config-readable.xml').getroot()
+  # check_config.py leaves Config-readable.xml in its output directory; any other directory works
+  # too, because the package key comes from the archive itself (docs/firmware-corpus.md).
+  cached=BASE/'Config-readable.xml'
+  r=ET.fromstring(cached.read_bytes() if cached.exists() else readable_config())
   text=next(e.text for e in r.iter('Package') if e.get('ModuleName')=='Android')
   self.key,self.iv=derive(package_seed(text))
   self.size=self.cipher_size;last=self._range(self.size-16,16)

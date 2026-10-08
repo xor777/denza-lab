@@ -103,6 +103,9 @@ class FsePayload:
 
 
 def main(argv):
+    if len(argv) < 2 or argv[0] in ('-h', '--help'):
+        print(__doc__)
+        return
     Partition, fields, one, StreamingExt4 = _import_readers()
     archive, command = argv[0], argv[1]
     payload = FsePayload(archive)
@@ -140,6 +143,7 @@ def main(argv):
         for path in argv[4:]:
             record = fs.copy(path, out_dir / argv[2] / path.lstrip('/'))
             record['partition'] = argv[2]
+            record['archive'] = Path(archive).name
             records.append(record)
             print(json.dumps(record), flush=True)
         manifest.write_text(json.dumps(records, indent=1))

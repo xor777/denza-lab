@@ -8,7 +8,10 @@ archive is never modified and nothing touches a car.
     python3 research/split-firmware/extract_system_files.py OUT_DIR /system/framework/services.jar ...
     python3 research/split-firmware/extract_system_files.py --list /system/framework
 
-Every copied file is appended to OUT_DIR/extraction.json with its size and SHA-256.
+Every copied file is appended to OUT_DIR/extraction.json with its size, SHA-256, partition and
+archive. The system partition is system-as-root, so `/system/framework/services.jar` lands at
+OUT_DIR/system/system/framework/services.jar. Before extracting, look it up:
+`python3 tools/firmware_corpus.py find services.jar` (docs/firmware-corpus.md).
 """
 import hashlib
 import json
@@ -16,7 +19,13 @@ import stat
 import sys
 from pathlib import Path
 
+if __name__ == '__main__' and (len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help')):
+    # Before the readers are imported: they need DENZA_FIRMWARE_ARCHIVE/OUTPUT at import time.
+    print(__doc__)
+    sys.exit(0)
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'telematics-firmware'))
+from check_config import ARCHIVE  # noqa: E402
 from current_payload import Partition, Payload  # noqa: E402
 from extract_cloud import Ext4, u16, u32  # noqa: E402
 
@@ -64,6 +73,8 @@ def main(argv):
     records = json.loads(manifest.read_text()) if manifest.exists() else []
     for path in argv[1:]:
         record = fs.copy(path, out_dir / 'system' / path.lstrip('/'))
+        record['partition'] = 'system'
+        record['archive'] = ARCHIVE.name
         records.append(record)
         print(json.dumps(record), flush=True)
     manifest.write_text(json.dumps(records, indent=1))
