@@ -8,10 +8,12 @@ directory; no car, updater, router or cloud connection is involved.
 ## Reproduce the extraction
 
 Python 3 with `cryptography` is required. Static disassembly additionally used
-`pyelftools` and `capstone`; neither is needed for the commands below.
+`pyelftools` and `capstone`; neither is needed for the commands below. All of
+them are in `research/requirements-firmware.txt` (`docs/firmware-corpus.md`).
+The archive moved from `~/Downloads` to `~/Dev/denza/firmware/` on 2026-10-07.
 
 ```sh
-export DENZA_FIRMWARE_ARCHIVE="$HOME/Downloads/Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip"
+export DENZA_FIRMWARE_ARCHIVE="$HOME/Dev/denza/firmware/Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip"
 export DENZA_FIRMWARE_OUTPUT="/absolute/path/to/a/separate/output-directory"
 python3 research/telematics-firmware/check_config.py
 python3 research/telematics-firmware/read_android.py

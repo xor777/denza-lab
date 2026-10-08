@@ -1,0 +1,7 @@
+# Python packages the firmware readers and binary analysis need (docs/firmware-corpus.md).
+#   python3 -m venv .venv-firmware && .venv-firmware/bin/pip install -r research/requirements-firmware.txt
+cryptography          # research/telematics-firmware: decrypting Config.xml and the Android package
+pyelftools            # ELF sections and symbols of the vendor .so files
+capstone              # AArch64 disassembly
+unicorn==2.1.4        # emulating single vendor functions (research/fse-firmware, telematics verifiers)
+pypcode==2.0.0        # MCU firmware disassembly

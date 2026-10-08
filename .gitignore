@@ -16,3 +16,4 @@ ops/ansible/.ansible/
 *.retry
 __pycache__/
 *.py[cod]
+.venv-firmware/

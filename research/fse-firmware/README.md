@@ -32,13 +32,14 @@ describes direct-drive variants, not this car's HUD.
 
 ## Reproduce the HAL inspection
 
-Python 3.9+ with `pyelftools` and `unicorn==2.1.4` is required. For example, use
-an isolated host environment:
+Python 3.9+ with `pyelftools` and `unicorn==2.1.4` is required; the shared
+environment from `research/requirements-firmware.txt` has both
+(`docs/firmware-corpus.md`, "Python environment"):
 
 ```sh
-python3 -m venv /tmp/denza-hud-hal-venv
-/tmp/denza-hud-hal-venv/bin/pip install pyelftools unicorn==2.1.4
-/tmp/denza-hud-hal-venv/bin/python research/fse-firmware/inspect_hud_hal.py \
+python3 -m venv .venv-firmware
+.venv-firmware/bin/pip install -r research/requirements-firmware.txt
+.venv-firmware/bin/python research/fse-firmware/inspect_hud_hal.py \
   captures/fse-hud-route-20260924/system/system/lib64/hw/auto.default.so \
   > /tmp/denza-hud-hal-report.json
 ```
@@ -77,7 +78,7 @@ the OTA is not proof that they are currently available or authorized on-car.
 With the same Python environment:
 
 ```sh
-/tmp/denza-hud-hal-venv/bin/python research/fse-firmware/inspect_cross_hud_route.py \
+.venv-firmware/bin/python research/fse-firmware/inspect_cross_hud_route.py \
   captures/fse-hud-access-20260924/system/system/lib64/libbydcrossservice.so \
   > /tmp/denza-cross-dispatch.json
 ```

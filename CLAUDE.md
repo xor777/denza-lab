@@ -61,28 +61,12 @@ Package paths are under `apps/denza-apps/src/main/java/dev/denza/apps/`.
 
 ## Firmware corpus (local, untracked)
 
-The owner's IVI OTA `Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip` and FSE OTA
-`Di5.1_FSE_42.1.8.2605219.1.42.2.3.2605250.2.zip` sit in `~/Downloads`. They have
-already been extracted and decompiled several times. Look before extracting again:
-
-- `captures/split-firmware-20260923/`, `hud-firmware-20260923/`,
-  `ambient-light-20260923/`, `speaker-firmware-20260923/`,
-  `washer-firmware-20260923/`, `adb-firmware-20261006/` (init/adbd/USB scripts
-  and BYD developer tools) — parts of the IVI OTA, with `jadx/` trees and,
-  where present, `extraction.json` / `files-*.txt` listings.
-  `captures/fse-firmware-20260924/` is the FSE OTA.
-  `reverse/*-jadx` holds older decompiles; `reverse/dishare-jadx` is an older
-  DiShare build than the car's.
-- Readers: `research/split-firmware/`, `research/telematics-firmware/`,
-  `research/fse-firmware/`. The first two take `DENZA_FIRMWARE_ARCHIVE` and
-  `DENZA_FIRMWARE_OUTPUT`; the output directory must contain
-  `Config-readable.xml`, which only `captures/telematics-20260923/readable-firmware/`
-  has.
-- Feature IDs: jadx cannot evaluate the `BYDAutoFeatureIds` initializer. The
-  resolved table is `captures/ambient-light-20260923/data/fids-canfd.tsv` (and
-  `fids-can-classic.tsv`, built by `resolve_clinit.py` beside them).
-- `rg` skips the git-ignored `captures/` and `reverse/`; search them with
-  `rg --no-ignore`.
+[docs/firmware-corpus.md](docs/firmware-corpus.md) — the owner's two OTAs (in
+`~/Dev/denza/firmware/`), everything already extracted and decompiled under `captures/` and
+`reverse/`, the readers, where new copies and decompiles go, and the Python environment
+(`.venv-firmware/`). Before extracting or decompiling anything, look it up:
+`python3 tools/firmware_corpus.py find <name>`. `rg` skips the git-ignored `captures/` and
+`reverse/`; search them with `rg --no-ignore`.
 
 ## Parked work
 
@@ -99,6 +83,7 @@ already been extracted and decompiled several times. Look before extracting agai
 - `grep` is ugrep; a missing file is a warning, not an error.
 - There is no `timeout` or `gtimeout`. Bound a command with
   `perl -e 'alarm shift; exec @ARGV' 20 <command>`.
+- A word that starts with `=` is expanded as a command path: `echo =====` fails; quote it.
 
 ## Modules
 

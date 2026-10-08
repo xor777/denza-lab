@@ -12,6 +12,7 @@ Documents".
 | `project-map.md` | Repo structure, app boundaries, build outputs, product direction. |
 | `feature-map.md` | Each dashboard tile and each surface that is not a tile, as the driver names it, mapped to its code, panel, runtime, settings, docs, Luminofor fixtures and tests; and the checklist for adding a tile. Held to the code by `FeatureMapContractTest`. |
 | `governance.md` | Rules for product/prototype/research changes and promotion. |
+| `firmware-corpus.md` | The owner's IVI and FSE OTA images: where they are, how to read them, what is already extracted and decompiled locally (`tools/firmware_corpus.py find`), where new copies go, the jadx traps, and the Python environment. |
 | `adb-authorization-recovery.md` | Denza Apps local-ADB startup gate, one-shot authorization flow, stuck-queue boundary, and acceptance status. |
 | `instrument-display-findings.md` | The driver's display: the instrument panel (Contour, drawn as Luminofor since 2026-09-23), Mirrors following the stock turn-signal camera, navigation projection, HUD turn-by-turn guidance, and open issues. |
 | `energy-display-contract.md` | Normative energy contract for the cluster's Contour and the head unit's car page: pack power's direction and words, the ten kilometres of recorded road behind the consumption figure, the hundred-point chart, the trip and the engine's box, and how each is proved. Owns those where it diverges from the findings or the canvas README. |
