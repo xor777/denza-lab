@@ -1,12 +1,13 @@
 package dev.denza.apps.feature.vehicle
 
 import dev.denza.apps.feature.cluster.dashboard.ContourFlow
+import dev.denza.apps.feature.cluster.dashboard.ContourFrame
+import dev.denza.apps.feature.cluster.dashboard.ContourPanel
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
 import dev.denza.apps.feature.trip.StripModel
 import dev.denza.apps.feature.trip.StripReadings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,18 +15,16 @@ import org.junit.Test
 /**
  * One quantity, one definition, one set of words, on both screens.
  *
- * `docs/energy-display-contract.md` §7: a cluster-side instance and a strip-side one are driven
- * from the same list of snapshots and have to agree - the same figure, the same window distance,
- * the same direction, and bin arrays that are equal element for element. They were not one
- * function before, and the car page printed «В БАТАРЕЮ» over «−25 кВт».
+ * `docs/energy-display-contract.md` §7: the same list of snapshots is run through the cluster as it
+ * draws - scene, followers and frame builder ([ContourPanel]) - and through the car page's own
+ * model ([StripReadings]), and what the two print has to agree: the power, the volts, the engine's
+ * cell, the trip, the consumption and its window, the hundred points. They were not one function
+ * before, and the car page printed «В БАТАРЕЮ» over «−25 кВт».
  *
- * **And the comparison is of what the two renderers actually consume.** It used to compare an
- * `EnergyReadouts` with an `EnergyReadouts`, which agree by construction over any input: what the
- * cluster and the car page read out of this object - the power figure with its charging
- * substitution, the engine's cell, the chart, the window, the consumption - is what is listed here,
- * so a field one screen stopped reading is a field this test stops covering, visibly. The window
- * goes one step further and is read off the car page's own model, as [StripReadings] writes it for
- * the chart's caption.
+ * **Until 2026-10-08 this compared an `EnergyReadouts` with an `EnergyReadouts`**, two instances
+ * of one deterministic class on the same input, which agree by construction; the comment above it
+ * already said it compared what the renderers consume. Of its seventeen assertions only the two that
+ * read the car page's model could fail, and the cluster's frame builder was not in it at all.
  */
 class EnergyReadoutsTest {
 
@@ -35,9 +34,11 @@ class EnergyReadoutsTest {
         buckets: List<ConsumptionSample> = emptyList(),
         trace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
         trip: TripEnergy = TripEnergy(),
+        volts: Double? = 549.0,
     ): VehicleTelemetry {
         val all = LinkedHashMap<VehicleSignal, Double>(values)
         if (powerKw != null) all[VehicleSignal.POWER_KW] = powerKw
+        if (volts != null) all[VehicleSignal.PACK_VOLT] = volts
         return VehicleTelemetry(
             access = VehicleAccess.READY,
             values = all,
@@ -74,8 +75,11 @@ class EnergyReadoutsTest {
         val pastCeiling = road(100).toMutableList().also { list ->
             for (index in 88 until 98) list[index] = list[index].copy(kwh = 0.3)
         }
+        // A trip both screens can print: forty-two kilometres, 9,3 kWh out of the pack.
+        val trip = TripEnergy(netKwh = 9.3, kilometres = 42.0)
+        val engineTrip = trip.copy(engineSeconds = 400.0)
         return listOf(
-            "electric drive" to snapshot(powerKw = 34.0, buckets = electric),
+            "electric drive" to snapshot(powerKw = 34.0, buckets = electric, trip = trip),
             "return" to snapshot(powerKw = -42.0, buckets = electric),
             "engine giving" to snapshot(
                 powerKw = -8.0,
@@ -86,7 +90,7 @@ class EnergyReadoutsTest {
                 ),
                 buckets = electric,
                 trace = trace(60, 8f),
-                trip = TripEnergy(engineSeconds = 400.0),
+                trip = engineTrip,
             ),
             "engine running and giving nothing" to snapshot(
                 powerKw = 34.0,
@@ -97,20 +101,20 @@ class EnergyReadoutsTest {
                 ),
                 buckets = electric,
                 trace = trace(60, 0f),
-                trip = TripEnergy(engineSeconds = 400.0),
+                trip = engineTrip,
             ),
             "engine just stopped" to snapshot(
                 powerKw = 34.0,
                 values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0),
                 buckets = electric,
                 trace = trace(60, 14f),
-                trip = TripEnergy(engineSeconds = 400.0),
+                trip = engineTrip,
             ),
             "engine ran yesterday" to snapshot(
                 powerKw = 34.0,
                 values = mapOf(VehicleSignal.ENGINE_RUNNING to 0.0),
                 buckets = electric,
-                trip = TripEnergy(engineSeconds = 400.0),
+                trip = engineTrip,
             ),
             "standing on P" to snapshot(
                 powerKw = 1.4,
@@ -127,7 +131,20 @@ class EnergyReadoutsTest {
                 ),
                 buckets = electric,
             ),
+            // The pack's own id reading nothing while a charger gives 7 kW: one event, which was
+            // 7 kW on one screen and 0 on the other before the substitution (§2.1).
+            "a charge the pack's own id reads as nothing" to snapshot(
+                powerKw = 0.0,
+                values = mapOf(
+                    VehicleSignal.GEARBOX_PARK to 1.0,
+                    VehicleSignal.CHARGE_GUN to 2.0,
+                    VehicleSignal.CHARGE_KW to 7.0,
+                    VehicleSignal.CHARGE_MINUTES to 35.0,
+                ),
+                buckets = electric,
+            ),
             "window filling" to snapshot(powerKw = 22.0, buckets = filling),
+            "a road that gave back more" to snapshot(powerKw = -20.0, buckets = road(100, kwh = -0.005)),
             "a seam in the record" to snapshot(powerKw = 22.0, buckets = seam),
             "a kilometre past the ceiling" to snapshot(powerKw = 128.0, buckets = pastCeiling),
             "link lost" to VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "нет"),
@@ -135,80 +152,101 @@ class EnergyReadoutsTest {
         )
     }
 
-    @Test
-    fun bothScreensSayTheSameThingAboutEverySnapshot() {
-        val cluster = EnergyReadouts()
-        val strip = EnergyReadouts()
-        val page = StripReadings()
-        val model = StripModel()
-        cases().forEach { (name, telemetry) ->
-            val parked = telemetry.parked == true
-            cluster.read(telemetry, parked)
-            strip.read(telemetry, parked)
-            page.car(model, telemetry)
+    /** One snapshot on both screens: the cluster's frame, [SETTLED] seconds into it, and the car page's model. */
+    private fun screens(telemetry: VehicleTelemetry): Pair<ContourFrame, StripModel> =
+        ContourPanel().run(telemetry, SETTLED) to StripModel().also { StripReadings().car(it, telemetry) }
 
-            // What the cluster's renderer reads: the band's colour and the hero's magnitude, the
-            // engine's corner, the petal's figure, its unit and its hundred points.
-            assertEquals("$name: direction", cluster.flow, strip.flow)
-            assertEquals("$name: word", cluster.word, strip.word)
-            assertEquals("$name: mark", cluster.mark, strip.mark)
-            assertEquals("$name: the power figure", cluster.powerFigure, strip.powerFigure)
-            assertEquals("$name: the consumption", cluster.consumptionFigure, strip.consumptionFigure)
-            assertEquals("$name: its sign", cluster.consumptionNegative, strip.consumptionNegative)
-            assertEquals("$name: the engine's figure", cluster.engineFigure, strip.engineFigure)
-            // And what the car page's reads, which is the same list in its own case.
-            assertEquals("$name: the engine's cell", cluster.engineCell, strip.engineCell)
-            assertEquals("$name: its reading", cluster.engineCellFigure, strip.engineCellFigure)
-            assertEquals("$name: the volts", cluster.voltsFigure, strip.voltsFigure)
-            // The Luminofor strip prints the same words in sentence case: one decision, two cases.
-            assertEquals(
-                "$name: the direction in the car page's case",
-                EnergyReadouts.sentence(cluster.word),
-                strip.wordSentence,
-            )
-            assertEquals(
-                "$name: the engine's heading, split into the car page's caption and unit",
-                words(cluster.engineCellTitle).sorted(),
-                (words(strip.engineCellCaption) + words(strip.engineCellUnit)).sorted(),
-            )
-            // The window is one string on both screens: the cluster's unit after the petal's
-            // figure, and the last run of the car page's chart caption - «Расход 16,9 кВт·ч/100 км
-            // · за 10 км». A closed car has no caption, so there is nothing of the page's to compare.
-            if (!model.closed) {
-                assertEquals("$name: the chart caption's window", cluster.window, model.spendWindow)
-                assertEquals("$name: and its figure", cluster.consumptionFigure, model.spendFigure)
+    @Test
+    fun bothScreensPrintTheSameThingAboutEverySnapshot() {
+        cases().forEach { (name, telemetry) ->
+            val (frame, model) = screens(telemetry)
+            assertEquals("$name: closed", frame.unavailable, model.closed)
+            if (model.closed) {
+                assertEquals("$name: and why", frame.message, model.message)
+                return@forEach
             }
-            assertEquals("$name: whether there is a chart at all", cluster.chart.isEmpty, strip.chart.isEmpty)
-            assertArrayEquals("$name: the points", cluster.chart.values, strip.chart.values)
-            assertEquals("$name: how far the run reaches", cluster.chart.span, strip.chart.span)
+
+            // The pack: the hero's settled magnitude and the strip's figure, which way it flows, the volts.
+            assertEquals("$name: the power", frame.heroFigure, model.power.figure)
+            // Blue is the band's on both screens - except where the car page's sentence names a
+            // source, which is blue whatever its magnitude (§2.1). The cluster prints no sentence, so
+            // a 2,4 kW charge is a neutral, white hero there under «● В батарею от зарядки» here.
+            if (!model.power.dot) assertEquals("$name: into the pack", frame.into, model.power.blue)
+            assertEquals("$name: the volts", frame.volts, model.volts.figure)
+
+            // The engine's cell: one heading laid out two ways - «ДВС · об/мин» on the cluster, «ДВС»
+            // over «… об/мин» on the car page - and one reading.
+            assertEquals("$name: whether the engine has a cell", frame.iceCaption != null, model.engine.present)
+            frame.iceCaption?.let { heading ->
+                assertEquals(
+                    "$name: the engine's heading",
+                    words(heading).sorted(),
+                    (words(model.engine.caption) + words(model.engine.unit.orEmpty())).sorted(),
+                )
+                assertEquals("$name: its reading", frame.iceFigure, model.engine.figure)
+            }
+
+            // The trip, wherever the cluster has not given its seat to the engine's box: one figure,
+            // and one phrase in two cases.
+            if (!frame.engineGiving) {
+                assertEquals("$name: whether there is a trip", frame.tripCaption != null, model.tripCell.present)
+                assertEquals("$name: the trip", frame.tripKwh, model.tripCell.figure)
+                assertEquals("$name: its road", frame.tripCaption?.lowercase(), model.tripCell.caption.takeIf { model.tripCell.present }?.lowercase())
+            }
+
+            // The figure over the chart and the road it is over, in the seat the charge countdown
+            // takes on the cluster while a charger has agreed.
+            if (frame.consumptionUnit != ContourReadout.UNIT_CHARGE_LEFT) {
+                assertEquals("$name: the consumption", frame.consumption, model.spendFigure)
+                assertEquals("$name: its window", frame.consumptionUnit, model.spendWindow)
+                // Grey while the engine runs, on the cluster alone (§2.5); otherwise blue is the minus.
+                if (frame.consumptionTone != ContourFrame.Tone.GREY) {
+                    assertEquals("$name: its minus", frame.consumptionTone == ContourFrame.Tone.BLUE, model.spendNegative)
+                }
+            }
+
+            // And the hundred points under it.
+            assertEquals("$name: how many points", model.chartCount, frame.chartCount)
+            assertArrayEquals("$name: the points", model.chart, frame.chart.copyOf(frame.chartCount))
         }
     }
 
     /**
      * Every case is *some* case: a test that agreed about nothing would pass the one above.
      *
-     * So the list has to reach every figure at least once, which is what stops a snapshot table
-     * quietly decaying into thirteen ways of saying "no data".
+     * So the list has to reach every reading the two screens are compared on at least once, which is
+     * what stops a snapshot table quietly decaying into fourteen ways of saying "no data".
      */
     @Test
-    fun theSnapshotsBetweenThemReachEveryFigureBothScreensDraw() {
-        val readouts = EnergyReadouts()
+    fun theSnapshotsBetweenThemReachEveryReadingBothScreensPrint() {
         val seen = mutableSetOf<String>()
         cases().forEach { (_, telemetry) ->
-            readouts.read(telemetry, telemetry.parked == true)
-            if (readouts.powerFigure != null) seen += "power"
-            if (readouts.consumptionFigure != null) seen += "consumption"
-            if (readouts.engineFigure != null) seen += "engine"
-            if (readouts.engineCell == EnergyReadouts.EngineCell.RPM) seen += "rpm"
-            if (readouts.engineCell == EnergyReadouts.EngineCell.MINUTES) seen += "minutes"
-            if (readouts.engineCell == EnergyReadouts.EngineCell.NONE) seen += "no cell"
-            if (!readouts.chart.isEmpty) seen += "chart"
-            if (readouts.mark) seen += "mark"
-            if (readouts.flow == ContourFlow.BACK) seen += "back"
-            if (readouts.flow == ContourFlow.OUT) seen += "out"
+            val (frame, model) = screens(telemetry)
+            if (model.closed) {
+                seen += "closed"
+                return@forEach
+            }
+            if (model.power.figure != null) seen += "power"
+            if (model.power.blue && !model.power.dot) seen += "into the pack"
+            if (model.volts.figure != null) seen += "volts"
+            when (model.engine.unit) {
+                EnergyReadouts.ENGINE_RPM_UNIT -> seen += "rpm"
+                EnergyReadouts.ENGINE_MINUTES_UNIT -> seen += "minutes"
+            }
+            if (!model.engine.present) seen += "no cell"
+            if (!frame.engineGiving && model.tripCell.present) seen += "trip"
+            if (frame.consumptionUnit != ContourReadout.UNIT_CHARGE_LEFT && model.spendFigure != null) {
+                seen += "consumption"
+                if (distance(model.spendWindow) != "10") seen += "a filling window"
+                if (model.spendNegative && frame.consumptionTone != ContourFrame.Tone.GREY) seen += "a minus"
+            }
+            if (model.chartCount > 0) seen += "chart"
         }
         assertEquals(
-            setOf("power", "consumption", "engine", "rpm", "minutes", "no cell", "chart", "mark", "back", "out"),
+            setOf(
+                "closed", "power", "into the pack", "volts", "rpm", "minutes", "no cell", "trip",
+                "consumption", "a filling window", "a minus", "chart",
+            ),
             seen,
         )
     }
@@ -632,13 +670,11 @@ class EnergyReadoutsTest {
         // Every filling width from the fifth reading to the full window, and a seam in the record.
         val widths = (ConsumptionChart.MIN_STEPS..100).toList() + listOf(137, 300)
         widths.forEach { n ->
-            val buckets = road(n)
-            readouts.read(snapshot(powerKw = 22.0, buckets = buckets), parked = false)
+            readouts.read(snapshot(powerKw = 22.0, buckets = road(n)), parked = false)
             assertEquals(
-                "$n readings: the unit's road is the chart's width",
-                ConsumptionWindow.coveredKm(buckets),
-                readouts.chart.span * ConsumptionChart.PITCH_KM,
-                1e-9,
+                "$n readings: the window names the chart's own road",
+                kilometres(readouts.chart.span),
+                distance(readouts.window),
             )
         }
         val seam = road(50).toMutableList().also { list ->
@@ -646,29 +682,19 @@ class EnergyReadoutsTest {
         }
         readouts.read(snapshot(powerKw = 22.0, buckets = seam), parked = false)
         assertEquals("forty readings", 40, readouts.chart.span)
-        assertEquals(
-            "and the unit says four kilometres, not five",
-            4.0,
-            ConsumptionWindow.coveredKm(seam),
-            1e-9,
-        )
-        assertEquals("4,0", distance(readouts.window))
-    }
-
-    @Test
-    fun aChartIsWhatTheSnapshotCarriesRatherThanSomethingBuiltHere() {
-        val buckets = road(100)
-        val telemetry = snapshot(powerKw = 34.0, buckets = buckets)
-        val readouts = EnergyReadouts()
-        readouts.read(telemetry, parked = false)
-        assertNotNull(readouts.chart)
-        assertEquals(ConsumptionChart.POINTS, readouts.chart.values.size)
-        assertArrayEquals("the hub's own array", telemetry.chart.values, readouts.chart.values)
+        assertEquals("and the window says four kilometres, not five", "4,0", distance(readouts.window))
     }
 
     /** A heading's words without its separator: what the two layouts of it must both say. */
     private fun words(text: String): List<String> =
         text.split(' ').filter { it.isNotEmpty() && it != "·" }
+
+    /**
+     * The road under [points] of chart, as a window prints it, worked out here rather than asked of
+     * the code: a point is a hundred metres, and a full window is a whole «10».
+     */
+    private fun kilometres(points: Int): String =
+        if (points >= ConsumptionChart.POINTS) "10" else "${points / 10},${points % 10}"
 
     /** The distance a window names: the last number in it, since «кВт·ч/100 км» carries one too. */
     private fun distance(window: String): String =
@@ -682,5 +708,13 @@ class EnergyReadoutsTest {
             if (a.isNaN() && b.isNaN()) continue
             assertEquals("$what at $index", a, b, 1e-6f)
         }
+    }
+
+    private companion object {
+        /**
+         * Long enough for the cluster to have heard every reading, for its followers to have
+         * arrived where the snapshot is, and for a charger to have been agreed with.
+         */
+        const val SETTLED = 3f
     }
 }

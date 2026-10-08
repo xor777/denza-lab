@@ -11,8 +11,9 @@ import kotlin.math.abs
  *
  * `docs/energy-display-contract.md` §1 and §7: **one quantity, one definition, one set of words, on
  * both screens.** The car page printed «В БАТАРЕЮ» over «−25 кВт» because the word and the sign
- * were decided in two places; there is one place now, and `EnergyReadoutsTest` feeds the same
- * snapshots to a cluster-side instance and a strip-side one and asserts they agree.
+ * were decided in two places; there is one place now, and `EnergyReadoutsTest` runs the same
+ * snapshots through the cluster's frame builder and the car page's readings and asserts that what
+ * the two print agrees.
  *
  * The two renderers own geometry and nothing else. Neither formats a number.
  *

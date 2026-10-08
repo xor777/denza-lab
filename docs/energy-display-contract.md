@@ -428,16 +428,28 @@ test.
   string and chart both screens draw: direction word, power figure and colour,
   consumption figure and colour, window caption, the hundred points, the engine's
   sentence. Both renderers call it and format nothing themselves.
-- **Cross-screen equality.** A test drives both surfaces' readouts from one list
-  of snapshots - electric drive, return, engine giving, engine running and
-  giving nothing, engine just stopped, standing, charging, filling window, a seam
-  in the record, a kilometre past 60, link lost - and asserts equal strings, equal
-  points and an equal span.
-- **The caption is the chart.** The same test asserts, at every filling width from
-  the fifth reading to the full window and across a seam, that the road
-  `ConsumptionWindow.coveredKm` names is the run's own width - `span × 0.1 km`.
-  «за 8,6 км» is 86 % of the box because the two are one number, not because they
-  were compared once.
+- **Cross-screen equality.** `EnergyReadoutsTest` runs one list of snapshots -
+  electric drive, return, engine giving, engine running and giving nothing,
+  engine just stopped, engine ran yesterday, standing, charging, a charge the
+  pack's own id reads as nothing, filling window, a road that gave back more, a
+  seam in the record, a kilometre past 60, link lost, a dropped read - through
+  the cluster as it draws (scene, followers, `ContourFrameBuilder`) and through
+  the car page's `StripReadings`, and asserts that what the two print agrees: the
+  power, the volts, the engine's cell, the trip, the consumption with its window
+  and its minus, and the hundred points. Where they differ by design it says so
+  and compares nothing: the cluster's countdown takes the consumption's seat
+  while charging, its consumption is grey while the engine runs, its engine box
+  takes the trip's place, and the car page's sentence that names a source is
+  blue whatever its magnitude while the cluster's hero keeps the band's colour.
+  A second test holds the list to reaching every one of those readings at least
+  once. (Until 2026-10-08 this paragraph described a test that compared two
+  `EnergyReadouts` instances on the same input, which agree by construction;
+  neither renderer was in it.)
+- **The caption is the chart.** The same file asserts, at every filling width
+  from the fifth reading to the full window and across a seam, that the road the
+  window string prints is the run's own width - a hundred metres a point, worked
+  out in the test. «за 8,6 км» is 86 % of the box because the two are one number,
+  not because they were compared once.
 - **Independent arithmetic.** The expected consumption figure and point values in
   those tests are computed in the test from the raw buckets - the readings picked
   out by the same half-known rule, the trailing ten of them summed - not through
