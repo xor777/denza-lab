@@ -90,7 +90,7 @@ class SpeakerCoverService : Service() {
         executor.shutdownNow()
         inFlight = 0
         SpeakerCoverRuntime.reporting = false
-        DenzaAppRepository.refresh()
+        DenzaAppRepository.refresh("speakers")
         super.onDestroy()
     }
 
@@ -119,7 +119,7 @@ class SpeakerCoverService : Service() {
             handler.post {
                 if (!destroyed && watching) mediaSessions.restart()
                 // Access may just have been granted, and the tile reads that from the settings.
-                DenzaAppRepository.refresh()
+                DenzaAppRepository.refresh("speakers")
             }
         }
     }
@@ -196,7 +196,7 @@ class SpeakerCoverService : Service() {
 
     private fun publishReporting() {
         SpeakerCoverRuntime.reporting = inFlight > 0
-        DenzaAppRepository.refresh()
+        DenzaAppRepository.refresh("speakers")
     }
 
     private fun createNotificationChannel() {

@@ -250,7 +250,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
         tearDownHudGuidance();
         tearDown();
-        DenzaAppRepository.INSTANCE.refresh();
+        DenzaAppRepository.INSTANCE.refresh("a11y");
         DenzaAppRepository.INSTANCE.recoverNavigationSteeringWheelAccess(this);
         return super.onUnbind(intent);
     }
@@ -268,7 +268,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
         tearDownHudGuidance();
         tearDown();
-        DenzaAppRepository.INSTANCE.refresh();
+        DenzaAppRepository.INSTANCE.refresh("a11y");
         DenzaAppRepository.INSTANCE.recoverNavigationSteeringWheelAccess(this);
         super.onDestroy();
     }

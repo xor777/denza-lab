@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         NavigationTransferOverlay.setMainActivityResumed(this, true)
-        DenzaAppRepository.refresh()
+        DenzaAppRepository.refresh("resume")
         DenzaAppRepository.refreshDefaultApps()
         DenzaAppRepository.refreshCloudLink()
         SimulcastOverlayService.hide(this)
