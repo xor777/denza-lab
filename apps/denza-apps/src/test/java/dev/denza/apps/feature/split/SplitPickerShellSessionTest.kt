@@ -2800,7 +2800,7 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun projectedTaskWhosePickerWasClosedReturnsFullscreenInItsRecordedPane() {
+    fun aRecordedTaskInItsPaneIsExpandedToFullscreenThere() {
         val fake = FakeShell()
         val split = session(fake)
         val pickers = split.buildPickers()
@@ -2821,19 +2821,45 @@ class SplitPickerShellSessionTest {
         assertTrue(fake.commands.any { it == "service call activity_task 114 i32 101" })
     }
 
+    /**
+     * Возвращается только записанная задача и только из своей панели (1.10.6, инвариант 4).
+     *
+     * Навигатор здесь жив и стоит в PRIMARY: отказывают сами проверки, а не отсутствие задачи.
+     * Прежде навигатор не запускался вовсе, и вызов возвращался, не найдя ничего: убери из
+     * проверки id или панель, и тест этого не видел.
+     */
     @Test
-    fun fullscreenReturnWithWrongTaskIdentityIsANoOp() {
+    fun fullscreenReturnRefusesALiveTaskOfAnotherIdentityOrPane() {
         val fake = FakeShell()
         val split = session(fake)
-        split.buildPickers()
-        val before = fake.commands.size
-
-        split.returnRecordedTaskFullscreen(SplitPane.PRIMARY, 999, NAVIGATOR)
-
-        assertEquals(3, fake.area)
-        assertFalse(
-            fake.commands.drop(before).any { it.startsWith("service call activity_task 114 ") },
+        val pickers = split.buildPickers()
+        val navigator = split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
         )
+
+        listOf(
+            "чужой id того же пакета" to Triple(SplitPane.PRIMARY, 999, NAVIGATOR),
+            "наш id под чужим пакетом" to Triple(SplitPane.PRIMARY, navigator.appTaskId, MUSIC),
+            "наша задача, но в другой панели" to
+                Triple(SplitPane.SECONDARY, navigator.appTaskId, NAVIGATOR),
+        ).forEach { (case, call) ->
+            val before = fake.commands.size
+
+            split.returnRecordedTaskFullscreen(call.first, call.second, call.third)
+
+            assertEquals(
+                "$case: ни раскрытия, ни переноса",
+                emptyList<String>(),
+                fake.commands.drop(before).filter { command ->
+                    command.startsWith("service call activity_task 114 ") ||
+                        command.startsWith("am stack move-task ")
+                },
+            )
+            assertEquals(case, 3, fake.area)
+            assertEquals(case, PRIMARY_ROOT, fake.taskRoot(navigator.appTaskId))
+        }
     }
 
     @Test
