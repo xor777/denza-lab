@@ -90,6 +90,10 @@ internal object MediaKeyDetail {
     /** A second DOWN while the first is unreleased: the interceptor never reaches a command. */
     const val ALREADY_DOWN = "already-down"
 
+    /** A policy decision as an entry carries it: the package it was about, then the reason. */
+    fun decision(decision: MediaResumeDecision): String =
+        decision.packageName?.let { "$it ${decision.reason}" } ?: decision.reason
+
     fun press(
         pending: String?,
         guard: MediaKeyGuard?,
@@ -185,8 +189,8 @@ object MediaKeyDiagnostics {
     }
 
     /**
-     * A decision reached after its press is over - a deferred pause completing, a reconnect ending.
-     * [handled] is true when a transport command or a directed media button actually went out.
+     * A decision reached after its press is over - a deferred pause completing.
+     * [handled] is true when a transport command actually went out.
      */
     @JvmStatic
     fun recordCompletion(detail: String, handled: Boolean) {

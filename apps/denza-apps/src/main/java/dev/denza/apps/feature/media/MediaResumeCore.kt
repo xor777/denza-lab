@@ -60,14 +60,7 @@ internal object MediaResumeReason {
     const val STALE_AFTER_PREPARATION = "stale-target-after-preparation"
     const val NO_TARGET = "no-target"
     const val STOCK_NO_HISTORY = "stock-no-history"
-    const val RESUME_IN_FLIGHT = "resume-in-flight"
-    const val RECONNECT_STARTED = "reconnect-started"
-    const val RECONNECT_PLAYED = "reconnect-played"
-    const val RECONNECT_FAILED = "reconnect-failed"
-    const val RECONNECT_TIMEOUT = "reconnect-timeout"
-    const val NO_BROWSER_SERVICE = "no-browser-service"
-    const val MEDIA_BUTTON_SENT = "media-button-sent"
-    const val NO_MEDIA_BUTTON_RECEIVER = "no-media-button-receiver"
+    const val STOCK_NO_LIVE_SESSION = "stock-no-live-session"
 }
 
 /** The package whose session was last seen actually playing, and the wall clock at that moment. */
@@ -101,11 +94,16 @@ internal interface MediaLastPlayedStore {
  * Play resolves in one order:
  *  1. something is playing right now - the wheel key is a toggle, so this is the pause path;
  *  2. a live session (in the active list or not) belongs to the last-played package - play it;
- *  3. no live session for that package - reconnect to it through the platform's browser contract;
+ *  3. no live session for that package - leave the press to the firmware;
  *  4. nothing ever played - leave the press to the firmware, which will open its own player.
  *
- * Only case 4 is a legitimate hand-over. Every other rejection on Play launches the stock media
- * center on this firmware, which is exactly the defect this policy exists to remove.
+ * Cases 3 and 4 are the only hand-overs on Play; any other refusal opens the stock media center on
+ * this firmware, which is exactly the defect this policy exists to remove. Case 3 is a product
+ * decision, not a gap: a player with no session left has been unloaded - by the car's sleep, a
+ * quickboot, every time it parks, or by the driver - so the car is back in its stock state and the
+ * stock answer is the right one. Nothing here starts a player's process, browser service,
+ * media-button receiver or activity; the vendor's self-start gate refuses a third-party app's bind
+ * and broadcast to a third-party player anyway.
  */
 internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
     private val targets = linkedMapOf<Any, Entry>()
@@ -158,17 +156,6 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
         }
     }
 
-    /** Takes over a session this policy obtained itself, which no active-session read reported yet. */
-    @Synchronized
-    fun adopt(target: MediaResumeTarget) {
-        val existing = targets[target.identity]
-        if (existing != null) {
-            existing.target = target
-            return
-        }
-        targets[target.identity] = Entry(target, ++sequence).apply { active = false }
-    }
-
     @Synchronized
     fun onPlayback(identity: Any, playback: MediaResumePlayback) {
         val entry = targets[identity] ?: return
@@ -198,9 +185,6 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
     fun perform(
         command: MediaResumeCommand,
         deferPause: (MediaResumeTarget, List<MediaResumeTarget>) -> Boolean = { _, _ -> false },
-        reconnect: (String) -> MediaResumeDecision = {
-            MediaResumeDecision(false, MediaResumeReason.NO_BROWSER_SERVICE, it)
-        },
     ): MediaResumeDecision {
         val snapshots = snapshots()
         var remembered = rememberedIdentity
@@ -234,10 +218,9 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
 
         val last = lastPlayedPackage()
             ?: return MediaResumeDecision(false, MediaResumeReason.STOCK_NO_HISTORY)
+        // The package is named so the report says whose session was missing; the press is not ours.
         val candidate = resolve(last, snapshots)
-            ?: return runCatching { reconnect(last) }.getOrElse {
-                MediaResumeDecision(false, MediaResumeReason.RECONNECT_FAILED, last)
-            }
+            ?: return MediaResumeDecision(false, MediaResumeReason.STOCK_NO_LIVE_SESSION, last)
         return play(candidate)
     }
 

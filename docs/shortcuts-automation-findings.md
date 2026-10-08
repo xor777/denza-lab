@@ -6,7 +6,7 @@ those actions at Denza Apps.
 
 ## Current state
 
-Updated 2026-10-03. What the stock Shortcuts/AutoVoice engine lets a third-party app launch, how
+Updated 2026-10-08. What the stock Shortcuts/AutoVoice engine lets a third-party app launch, how
 Denza Apps points the three stock default-app roles at chosen packages, and how the steering
 wheel's Play/Pause key is answered.
 
@@ -17,7 +17,7 @@ Everything else here is a dated findings journal.
 | Claim | Status | Since | Section |
 |---|---|---|---|
 | Wheel Play/Pause is keyed by **package**: the last package seen PLAYING is persisted in prefs `media_resume`, `last_played_package` (`last_played_at` is written, never read: no expiry) (`MediaResumeCore.kt`, `MediaLastPlayedPreferences.kt`) | code | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
-| Play resolves in order: something PLAYING → pause it; a live or dormant session of the last-played package → `play()` with no `ACTION_PLAY` gate; none → reconnect; no record → stock (`stock-no-history`) (`MediaResumeCore.perform`) | code | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
+| Play resolves in order: something PLAYING → pause it; a live or dormant session of the last-played package → `play()` with no `ACTION_PLAY` gate; none → the firmware (`stock-no-live-session`); no record → the firmware (`stock-no-history`) (`MediaResumeCore.perform`) | code | 2026-10-08 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | A session that leaves `getActiveSessions` stays commandable until `onSessionDestroyed`: this vehicle's `MediaSessionRecord` routes `play()` without reading `mIsActive` | firmware | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | The firmware's Play fallback (`MediaKeyHandler`) is the audio-focus owner's controller, else `com.byd.mediacenter`, so every Play we refuse opens the stock player | firmware | 2026-09-05 | [Why Pause can work while Play selects stock music](#why-pause-can-work-while-play-selects-stock-music) |
 | Z9GT wheel: play/pause arrives as `386`; next/previous arrive twice each, `307`/`308` and then the re-injected `87`/`88` | live | 2026-09-18 | [The press the preparation swallowed](#the-press-the-preparation-swallowed-and-what-the-car-taught-on-2026-09-18) |
@@ -26,7 +26,7 @@ Everything else here is a dated findings journal.
 | `MediaKeyExperiment.FOCUS_SURGERY = false`: no shell helper edits the audio-focus stack, a pause with paused predecessors is an ordinary pause, and a player paused under a video may resume when the video pauses | code | 2026-09-18 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | Focus-stack surgery as the answer to VK→Yandex auto-resume: worked on 2026-09-05, then threw on 6 of 7 presses, held each pause ~650 ms and once emptied the stack so the next press reached the stock player | refuted | 2026-09-18 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | BYD's self-start gate (`ActivityManagerService.isEnableFeature()` in `bindServiceLocked`, `startServiceLocked`, `BroadcastQueue`) refused the `MediaBrowser` bind and both `MEDIA_BUTTON` broadcasts to Yandex; nothing played (build 47) | live | 2026-09-18 | [The firmware's self-start gate](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) |
-| `MediaResumeReconnect.kt` still reports an accepted `media-button-sent` after a gate-dropped broadcast; none of that section's consequences is applied | code | 2026-09-18 | [The firmware's self-start gate](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) |
+| Nothing brings back a player the car unloaded: the reconnect (`MediaBrowser` bind, directed `MEDIA_BUTTON`) is deleted, a press with no live session of the last-played package is not consumed and the ring shows `✗ <package> stock-no-live-session`; starting the player's activity was rejected (owner's decision) | code | 2026-10-08 | [No resurrection after sleep](#no-resurrection-after-sleep-2026-10-08) |
 | "`ForegroundServiceStartNotAllowedException` inside Yandex loses the reconnect Play": the press never reaches Yandex, the gate drops it first | refuted | 2026-09-18 | [The firmware's self-start gate](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) |
 | "A checked switch in `com.byd.appstartmanagement` is the permissive state": checked is the deny bit (`getAppStartupData(uid) == 1`), new installs get `1`, every APK update re-blocks (split-screen-findings.md) | refuted | 2026-09-23 | [The firmware's self-start gate](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) |
 | Yandex Music 2026.07.2: `MusicBrowserService.onGetRoot` returns `null` to Denza Apps (caller allowlist); the exported `DebugMediaButtonReceiver` forwards `KEYCODE_MEDIA_PLAY` to the player service | firmware | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
@@ -46,11 +46,8 @@ Everything else here is a dated findings journal.
   package, the stock player included, as last-played (`MediaResumeCore.perform`, `markPlaying`).
   Settled by deciding which session the driver means and a ring capture with a video paused in the
   other pane.
-- Reconnect under the self-start gate: whether to record a refused bind as its own reason, and
-  whether starting the player's activity (its window appears) is acceptable. Settled by the owner's
-  decision, then acceptance step 3 on the Z9GT.
-- Acceptance steps 2 (our service restarted) and 5 (stock or Bluetooth as the last source) have no
-  recorded run. Settled by running them as written.
+- Acceptance steps 2 (our service restarted), 3 (the player unloaded, as rewritten 2026-10-08) and 5
+  (stock or Bluetooth as the last source) have no recorded run. Settled by running them as written.
 - Which codes the N9 wheel sends, `386` or `334`/`335`. Settled by an N9 support report taken after a
   few presses.
 - Next and previous in the same policy (the "second step"), and with it whether
@@ -64,7 +61,7 @@ Everything else here is a dated findings journal.
   active sessions, on a direct-role build. Settled by the Next validation runs.
 
 ## Contents
-- [Steering-wheel Play/Pause feasibility (2026-09-05)](#steering-wheel-playpause-feasibility-2026-09-05) — corpus key routing, the accessibility key filter, the VK/Yandex focus diagnosis, the normative resume contract and its 2026-09-18 live corrections.
+- [Steering-wheel Play/Pause feasibility (2026-09-05)](#steering-wheel-playpause-feasibility-2026-09-05) — corpus key routing, the accessibility key filter, the VK/Yandex focus diagnosis, the normative resume contract, its 2026-09-18 live corrections, and the 2026-10-08 decision to leave a player the car unloaded to the firmware.
 - [Evidence base for the role findings (2026-08-16 to 2026-08-27)](#evidence-base-for-the-role-findings-2026-08-16-to-2026-08-27) — what the August live passes and decompiles covered.
 - [Where the feature lives](#where-the-feature-lives) — `com.byd.autovoice/.DiyCommandActivity` and its GreenDAO storage.
 - [Trigger catalog (rich)](#trigger-catalog-rich) — the If-side conditions.
@@ -180,7 +177,7 @@ package after reboot. Preserve the stock call/mute and special vehicle-mode
 guards before any product promotion. A successful normal-UID key-consumption
 test and direct Yandex resume are the remaining feasibility gates.
 
-> **Superseded 2026-09-11:** both gates passed on the car on 2026-09-05, and "do not guess a package after reboot" is reversed: the persisted last-played package is resumed or reconnected — see [VK pause restored Yandex through transient audio focus (2026-09-05)](#vk-pause-restored-yandex-through-transient-audio-focus-2026-09-05) and [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
+> **Superseded 2026-09-11:** both gates passed on the car on 2026-09-05, and "do not guess a package after reboot" is reversed: the persisted last-played package is resumed or reconnected (since 2026-10-08 only resumed: a package with no live session is left to the firmware, see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08)) — see [VK pause restored Yandex through transient audio focus (2026-09-05)](#vk-pause-restored-yandex-through-transient-audio-focus-2026-09-05) and [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
 
 ### Minimal built-in slice requested by the owner
 
@@ -211,6 +208,8 @@ stock media center - which is what a second car (Denza N9, same DiLink build,
 0.6.1) reported. The rule in force is
 [Resume contract: the package, not the token](#resume-contract-the-package-not-the-token-2026-09-11)
 below; where the two disagree, that section wins.
+
+> **Superseded 2026-10-08:** the no-resurrection limit is back, by the owner's decision: a package with no live session, such as a player the car unloaded in its sleep, is left to the firmware — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
 
 `MediaButtonEnvironment` leaves calls and muted audio with the firmware using
 the public audio mode/stream mute state and available BYD mute/call accessors.
@@ -334,8 +333,10 @@ DiLink build, app release 0.6.1) the wheel pauses correctly and the next Play
 opens the stock player. That is not an N9 quirk. `MediaKeyHandler`'s Play
 policy is "the audio-focus owner's controller, else `com.byd.mediacenter`", so
 **every** press this policy refuses on Play starts the stock local player. Only
-one refusal is legitimate, and it is the one where the stock player is the right
-answer anyway.
+two refusals are legitimate, and in both the stock answer is the right one: no
+record at all, and - since 2026-10-08, by the owner's decision - no live session
+of the last-played package, which is what a car that slept leaves behind
+([No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08)).
 
 **Identity is the package.** A session token dies with the player's process,
 with our own accessibility service (an APK update or a quickboot is enough), and
@@ -353,6 +354,8 @@ parking the driver expects the same thing as after a red light. It is stored so
 that an expiry stays one comparison away in `MediaResumeCore.lastPlayedPackage`
 if a car ever argues for one. `MediaResumeCoreTest` pins the decision with
 "an old record is still honoured because there is no time limit".
+
+> **Superseded 2026-10-08:** the record still has no expiry, but after a night's parking it resolves nothing: the sleep unloads the player, and a package with no live session is left to the firmware. The record now only chooses among live sessions, for example after our own service restarted while the player kept running — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
 
 **A session that leaves the active list is dormant, not gone.**
 `getActiveSessions` is the platform's key-routing list, not a list of sessions
@@ -379,9 +382,15 @@ not tracked at all.
    it. There is no `ACTION_PLAY` gate: the platform does not enforce the
    advertised bits and some players only advertise `ACTION_PLAY_PAUSE`. A Play
    whose target already reports PLAYING dispatches nothing (`already-playing`);
-3. no live target for that package - reconnect, below;
+3. no live target for that package - the press is refused
+   (`stock-no-live-session`, naming the package) and goes to the firmware. A
+   package with no session left has been unloaded - by the car's sleep, a
+   quickboot, every time it parks, or by the driver - so the car is in its
+   stock state, and the owner decided on 2026-10-08 that the feature does not
+   intervene there; see
+   [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
+   Until that date this step reconnected, below;
 4. no record at all, a fresh install or cleared data - the press goes to stock.
-   This is the one case where the stock player is the right answer.
 
 Pause keeps its `ACTION_PAUSE` gate. That half was proven on the car, and a
 press it refuses reaches the firmware's pause handling, which is harmless. An
@@ -400,6 +409,8 @@ helper and its proxy stay in the tree until the second step - taking the wheel's
 next and previous keys into the same policy - decides what, if anything, of
 theirs is still wanted. The rule the owner chose fits one sentence: the key
 controls what is audible, and play brings back what was audible last.
+
+> **Superseded 2026-10-08:** the reconnect described from here to the end of "Why the second reconnect path is not defensive" is deleted (`MediaResumeReconnect.kt`, `MediaResumeCore.adopt`, the `reconnect-*`, `no-browser-service`, `media-button-sent`, `no-media-button-receiver` and `resume-in-flight` reasons); step 3 leaves the press to the firmware. On this firmware the self-start gate refused both halves on every press. The text stays as the record of what was tried — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
 
 **Reconnect (step 3)** uses the platform's own client contract, twice over, and
 names no package in code:
@@ -465,7 +476,7 @@ it is caught and logged - the press would then be silently lost, and the log
 would show `media-button-sent` for a Play that never happened. The above is
 static reading of a decompiled APK, not a live observation.
 
-> **Superseded 2026-09-18:** on the Z9GT (build 47) neither reconnect path reached Yandex: BYD's self-start gate refused the `MediaBrowser` bind and both `MEDIA_BUTTON` broadcasts, the controller still logged `media-button-sent`, and the foreground-service caveat is not the cause. `MediaResumeReconnect.kt` still takes both paths unchanged — see [The firmware's self-start gate blocks both reconnect paths (2026-09-18)](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18).
+> **Superseded 2026-09-18:** on the Z9GT (build 47) neither reconnect path reached Yandex: BYD's self-start gate refused the `MediaBrowser` bind and both `MEDIA_BUTTON` broadcasts, the controller still logged `media-button-sent`, and the foreground-service caveat is not the cause. `MediaResumeReconnect.kt` still takes both paths unchanged — see [The firmware's self-start gate blocks both reconnect paths (2026-09-18)](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18). Deleted on 2026-10-08 — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
 
 **Where the decisions come out.** Every accept and refusal leaves through
 `MediaResumeController.decide` as one `Log.i` line on tag `DenzaMediaResume`:
@@ -475,9 +486,10 @@ reason string: `play`, `play-transport`, `already-playing`, `pause`,
 `pause-deferred`, `pause-in-flight`, `pause-already-complete`,
 `pause-preparation`, `pause-transport`, `pause-unsupported`, `session-access`,
 `session-access-after-preparation`, `stale-target-after-preparation`,
-`no-target`, `stock-no-history`, `resume-in-flight`, `reconnect-started`,
-`reconnect-played`, `reconnect-failed`, `reconnect-timeout`,
-`no-browser-service`, `media-button-sent`, `no-media-button-receiver`.
+`no-target`, `stock-no-history`, `stock-no-live-session`. The reconnect's
+reasons (`resume-in-flight`, `reconnect-started`, `reconnect-played`,
+`reconnect-failed`, `reconnect-timeout`, `no-browser-service`,
+`media-button-sent`, `no-media-button-receiver`) left with it on 2026-10-08.
 
 Local validation: `:denza-apps:testDebugUnitTest`, `:denza-apps:assembleDebug`
 and `:denza-apps:lintDebug` passed; 1401 unit tests, 35 of them media tests, no
@@ -503,11 +515,15 @@ and read `media command …` beside `media key=… received`.
    the app so the accessibility service binds again, then press Play. Expect
    `play` addressed at `ru.yandex.music` - the old build could only answer
    `no-target` here, and the car would open the stock player.
+
+   > **Superseded 2026-10-08:** a new process knows only the sessions in the active list; a Yandex session that left it before the restart is not one of them, and that press reads `stock-no-live-session` and goes to the firmware.
 3. **The player's process gone.** Force-stop Yandex (or reboot the head unit)
    and press Play. Expect `no-browser-service` or `reconnect-failed` followed by
    `media-button-sent`, and Yandex actually starting. If the log says
    `media-button-sent` and nothing plays, the foreground-service restriction
    above is the suspect and the finding needs a live correction.
+
+   > **Superseded 2026-10-08:** with the reconnect deleted, expect `✗ ru.yandex.music stock-no-live-session` in «Последние нажатия» and the firmware answering the press, which by its Play fallback is the stock media center when no third-party player holds audio focus; Yandex does not start. The case that matters is the first press after the car slept — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
 4. **The VK handover of 2026-09-05 still holds.** Yandex playing, start VK
    Video (Yandex pauses), press the wheel: VK must pause and Yandex must **not**
    start. The focus-helper path is unchanged, but dormant sessions are now
@@ -586,6 +602,57 @@ the gate does not cover is starting the player's own activity, for which Denza
 Apps is already exempt from background-activity-launch limits through
 `SYSTEM_ALERT_WINDOW`, at the price of the player's window appearing.
 
+> **Superseded 2026-10-08:** none of the three will be applied. The reconnect path is deleted, so there is no refused bind or dropped broadcast left to report, and starting the player's activity is rejected by the owner's decision; a press with no live session goes to the firmware — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
+
+### No resurrection after sleep (2026-10-08)
+
+**The decision.** A player with no session left has been unloaded, and the
+everyday cause is the car itself: every sleep is a quickboot that force-stops
+third-party packages - `ru.yandex.music` among the 35 in the trace above, and
+Denza Apps too
+([split-screen-findings.md](split-screen-findings.md#every-sleep-of-the-car-force-stops-the-product-live-2026-09-23)).
+The car is then in its stock state, and by the owner's decision of 2026-10-08
+the wheel's Play/Pause is the firmware's until a player runs again. The feature
+commands sessions that exist; it does not start a player's process, browser
+service, media-button receiver or activity.
+
+**What the code does.** `MediaResumeCore.perform`, step 3: no live or dormant
+session of the last-played package returns `accepted=false`, reason
+`stock-no-live-session`, with that package named. `MediaResumeKeyInterceptor`
+then owns neither half of the press, so `MediaResumeController.onKeyEvent`
+returns false for the DOWN and the UP, `SimulcastAccessibilityService.onKeyEvent`
+falls through to `SteeringWheelKeyInterceptor` (which takes only `321`) and
+returns false, and the key continues to the firmware's `MediaKeyHandler` - the
+same route a `stock-no-history` press has always taken. The support report
+records it as `HH:mm:ss 386 ✗ ru.yandex.music stock-no-live-session`; `✗` on an
+entry with a key code means the press was not consumed. The `✓ media-button-sent`
+of 2026-09-18, for a press that reached nothing, can no longer be written.
+
+Deleted with it: `MediaResumeReconnect.kt` (the `MediaBrowser` bind and the
+directed `ACTION_MEDIA_BUTTON`), `MediaResumeCore.adopt`, the `reconnect`
+parameter of `perform`, the controller's reconnect-in-flight branch and the
+reasons `resume-in-flight`, `reconnect-started`, `reconnect-played`,
+`reconnect-failed`, `reconnect-timeout`, `no-browser-service`,
+`media-button-sent` and `no-media-button-receiver`. Unchanged: Pause, Play on a
+live or dormant session, and the last-played record, which still has no expiry
+and now only chooses among live sessions.
+
+**Rejected.** Starting the player's own activity (`getLaunchIntentForPackage`)
+is the one resurrection the self-start gate does not cover, and Denza Apps may
+start activities from the background through `SYSTEM_ALERT_WINDOW`. It was
+weighed and rejected as a product decision: it puts the player's window on
+screen on a car that has returned to its stock state.
+
+**What the car still has to show.** What the firmware does with the press:
+by its Play fallback, the audio-focus owner's controller, else
+`com.byd.mediacenter`. Android drops a focus request when its owner's process
+dies, so after a sleep the expected answer is the stock media center; that is
+expectation, not a run on this car.
+Acceptance step 3 above, rewritten, settles it. Once the driver opens the player
+by hand its new session belongs to the last-played package, and the next press
+resumes it directly (`MediaResumeCoreTest`, "a player opened again by hand is
+resumed by package").
+
 ### The press the preparation swallowed, and what the car taught on 2026-09-18
 
 Live on the Z9GT, builds 48 to 51, read from the support report because this
@@ -663,6 +730,8 @@ the filter's own words: `not-media` for a code we never intercept,
 entry with no key code is a decision reached after its press was over: a
 deferred pause completing, or a reconnect ending (`reconnect-played`,
 `reconnect-failed`, `reconnect-timeout`, `no-browser-service`).
+
+> **Superseded 2026-10-08:** the reconnect and its reasons are gone, and no directed media button goes out any more. A Play with no live session of the last-played package is `✗ <package> stock-no-live-session`, left to the firmware; an entry with no key code is now only a deferred pause completing, which does not run while `FOCUS_SURGERY` is false — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
 
 > **Superseded 2026-09-18:** the section has four lines, not three: `Режим медиакнопки=` (`MediaKeyExperiment.label`, `без правки фокуса` in the current build) follows `Кнопка play/pause=` — see `MediaKeyDiagnostics.kt`, `MediaKeyReport.lines`.
 

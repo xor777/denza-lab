@@ -231,14 +231,42 @@ class MediaKeyDiagnosticsTest {
     }
 
     /**
-     * A decision reached after its press - a deferred pause completing, a reconnect ending - has
-     * its own entry: there is no key code to name, and it says itself whether anything went out.
+     * The press after a sleep: the car unloaded the player, and our process with it, so only the
+     * record survives. The press goes to the firmware, and the ring must not claim it - until
+     * 2026-10-08 this line read `✓ media-button-sent` for a Play the vendor's gate had dropped.
+     */
+    @Test
+    fun `a press for a player the car unloaded is recorded as left to the firmware`() {
+        val core = MediaResumeCore(object : MediaLastPlayedStore {
+            override fun lastPlayed() = MediaLastPlayed("ru.yandex.music", 1L)
+
+            override fun remember(packageName: String) = Unit
+        })
+        val interceptor = MediaResumeKeyInterceptor()
+        val perform: (MediaResumeCommand) -> Boolean = { command ->
+            core.perform(command).also { MediaKeyDiagnostics.note(MediaKeyDetail.decision(it)) }.accepted
+        }
+
+        MediaKeyDiagnostics.noteGuard(MediaKeyGuard.ALLOWED)
+        val consumed = interceptor.onKeyEvent(386, 0, 0, true, perform)
+        MediaKeyDiagnostics.recordPress(386, media = true, allowed = true, listening = true, consumed = consumed)
+
+        assertFalse(consumed)
+        assertEquals(
+            "18:28:52 386 ✗ ru.yandex.music stock-no-live-session",
+            MediaKeyReport.presses(MediaKeyDiagnostics.snapshot(true, null).presses) { "18:28:52" },
+        )
+    }
+
+    /**
+     * A decision reached after its press - a deferred pause completing - has its own entry: there
+     * is no key code to name, and it says itself whether anything went out.
      */
     @Test
     fun `a decision after the press reports its own ending without a key code`() {
         MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo pause", handled = true)
         MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo pause-preparation", handled = false)
-        MediaKeyDiagnostics.recordCompletion("ru.yandex.music reconnect-timeout", handled = false)
+        MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo stale-target-after-preparation", handled = false)
 
         val presses = MediaKeyDiagnostics.snapshot(true, null).presses
 
@@ -247,7 +275,7 @@ class MediaKeyDiagnosticsTest {
             listOf(
                 "com.vk.vkvideo pause",
                 "com.vk.vkvideo pause-preparation",
-                "ru.yandex.music reconnect-timeout",
+                "com.vk.vkvideo stale-target-after-preparation",
             ),
             presses.map { it.detail },
         )
@@ -258,13 +286,13 @@ class MediaKeyDiagnosticsTest {
     @Test
     fun `a completion clears a note left behind by an unfinished press`() {
         MediaKeyDiagnostics.note("stale")
-        MediaKeyDiagnostics.recordCompletion("ru.yandex.music reconnect-played", handled = true)
+        MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo pause", handled = true)
         MediaKeyDiagnostics.noteGuard(MediaKeyGuard.ALLOWED)
         MediaKeyDiagnostics.recordPress(386, media = true, allowed = true, listening = true, consumed = false)
 
         val presses = MediaKeyDiagnostics.snapshot(true, null).presses
 
-        assertEquals(listOf("ru.yandex.music reconnect-played", "already-down"), presses.map { it.detail })
+        assertEquals(listOf("com.vk.vkvideo pause", "already-down"), presses.map { it.detail })
     }
 
     @Test

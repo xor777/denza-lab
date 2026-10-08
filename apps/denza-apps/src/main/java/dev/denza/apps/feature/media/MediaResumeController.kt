@@ -17,8 +17,9 @@ import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
  *
  * This is the Android half: it keeps a [MediaResumeTarget] per session token for as long as the
  * session lives, feeds the policy in [MediaResumeCore] and carries out what the policy decided -
- * a direct transport command, a deferred pause through the focus helper, or a reconnect to a
- * package that has no session left. The policy itself is pure and lives next door.
+ * a direct transport command or a deferred pause through the focus helper. A package with no
+ * session left is not brought back: that press is refused and goes to the firmware. The policy
+ * itself is pure and lives next door.
  *
  * The caller decides whether a new DOWN is safe to intercept. Once accepted, repeats and UP for
  * that press remain consumed even if the caller's guard changes before release.
@@ -33,12 +34,6 @@ class MediaResumeController @JvmOverloads constructor(
     private val accessComponent =
         ComponentName(app, YandexNotificationArtworkListener::class.java)
     private val core = MediaResumeCore(MediaLastPlayedPreferences(app))
-    private val reconnect = MediaResumeReconnect(
-        context = app,
-        handler = handler,
-        onOutcome = { decision -> decide(null, decision) },
-        onController = ::adopt,
-    )
     private val keyInterceptor = MediaResumeKeyInterceptor()
     private val sessions = LinkedHashMap<MediaSession.Token, AndroidTarget>()
     /** Sessions whose callback registration was refused; each is reported once, not per reconcile. */
@@ -77,7 +72,6 @@ class MediaResumeController @JvmOverloads constructor(
         }
         listening = false
         pauseOperation = null
-        reconnect.cancel()
         detachAll()
         keyInterceptor.reset()
     }
@@ -109,17 +103,12 @@ class MediaResumeController @JvmOverloads constructor(
                             reason = MediaResumeReason.PAUSE_IN_FLIGHT,
                         )
 
-                        reconnect.inFlight() -> MediaResumeDecision(
-                            accepted = true,
-                            reason = MediaResumeReason.RESUME_IN_FLIGHT,
-                        )
-
                         !refreshBeforeCommand() -> MediaResumeDecision(
                             accepted = false,
                             reason = MediaResumeReason.SESSION_ACCESS,
                         )
 
-                        else -> core.perform(command, ::deferPause, reconnect::start)
+                        else -> core.perform(command, ::deferPause)
                     },
                 )
             },
@@ -147,9 +136,9 @@ class MediaResumeController @JvmOverloads constructor(
     /**
      * The one place a media press is accepted or refused.
      *
-     * Every branch of the policy - the key path, the deferred pause completing later, a reconnect
-     * ending - ends here, so a press never disappears without a named reason in the log, and the
-     * support report's ring is fed from the same line.
+     * Every branch of the policy - the key path and the deferred pause completing later - ends
+     * here, so a press never disappears without a named reason in the log, and the support
+     * report's ring is fed from the same line.
      */
     private fun decide(keyCode: Int?, decision: MediaResumeDecision): Boolean {
         Log.i(
@@ -158,7 +147,7 @@ class MediaResumeController @JvmOverloads constructor(
                 "key=${keyCode ?: "-"} reason=${decision.reason} " +
                 "package=${decision.packageName ?: "-"}",
         )
-        val detail = decision.packageName?.let { "$it ${decision.reason}" } ?: decision.reason
+        val detail = MediaKeyDetail.decision(decision)
         if (keyCode != null) {
             MediaKeyDiagnostics.note(detail)
         } else {
@@ -248,25 +237,16 @@ class MediaResumeController @JvmOverloads constructor(
         core.reconcile(current.keys.mapNotNull(sessions::get))
     }
 
-    /** A session obtained by reconnecting joins the policy before the active list reports it. */
-    private fun adopt(controller: MediaController) {
-        if (!listening) return
-        val token = controller.sessionToken
-        val target = sessions[token] ?: track(token, controller) ?: return
-        core.adopt(target)
-    }
-
     /** A session we can command only once its callbacks are ours; a refused registration is not. */
-    private fun track(token: MediaSession.Token, controller: MediaController): AndroidTarget? {
+    private fun track(token: MediaSession.Token, controller: MediaController) {
         val target = AndroidTarget(controller)
         if (!target.attach()) {
             if (refusedCallbacks.add(token)) {
                 Log.i(TAG, "media session callback refused package=${controller.packageName}")
             }
-            return null
+            return
         }
         sessions[token] = target
-        return target
     }
 
     private fun remove(token: MediaSession.Token) {

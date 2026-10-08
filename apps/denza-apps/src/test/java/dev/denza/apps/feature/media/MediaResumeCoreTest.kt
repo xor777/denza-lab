@@ -223,8 +223,12 @@ class MediaResumeCoreTest {
         assertEquals(1, session.plays)
     }
 
+    /**
+     * Every sleep of the car (quickboot) unloads the player, and its session with it. That is the
+     * car's stock state, so the press is the firmware's: nothing is played and nothing is consumed.
+     */
     @Test
-    fun `a destroyed session is reconnected by package`() {
+    fun `a destroyed session leaves the press to the firmware and names the package`() {
         val core = core()
         val session = FakeTarget("yandex", MediaResumePlayback.PLAYING)
         core.reconcile(listOf(session))
@@ -232,36 +236,44 @@ class MediaResumeCoreTest {
 
         core.remove(session.identity)
 
-        val asked = mutableListOf<String>()
-        val decision = core.perform(MediaResumeCommand.PLAY, reconnect = { packageName ->
-            asked += packageName
-            MediaResumeDecision(true, MediaResumeReason.RECONNECT_STARTED, packageName)
-        })
-        assertTrue(decision.accepted)
-        assertEquals(MediaResumeReason.RECONNECT_STARTED, decision.reason)
-        assertEquals(listOf("yandex"), asked)
+        listOf(MediaResumeCommand.PLAY, MediaResumeCommand.TOGGLE).forEach { command ->
+            val decision = core.perform(command)
+            assertFalse(decision.accepted)
+            assertEquals(MediaResumeReason.STOCK_NO_LIVE_SESSION, decision.reason)
+            assertEquals("yandex", decision.packageName)
+        }
         assertEquals(0, session.plays)
     }
 
     @Test
-    fun `a live session is never reconnected`() {
+    fun `a player unloaded while it played leaves the next press to the firmware`() {
         val core = core()
         val session = FakeTarget("yandex", MediaResumePlayback.PLAYING)
         core.reconcile(listOf(session))
-        session.playback = MediaResumePlayback.PAUSED
-        core.reconcile(emptyList())
 
-        val asked = mutableListOf<String>()
-        assertTrue(core.performed(MediaResumeCommand.PLAY, reconnect = { packageName ->
-            asked += packageName
-            MediaResumeDecision(true, MediaResumeReason.RECONNECT_STARTED, packageName)
-        }))
-        assertEquals(emptyList<String>(), asked)
-        assertEquals(1, session.plays)
+        core.remove(session.identity)
+
+        val decision = core.perform(MediaResumeCommand.TOGGLE)
+        assertFalse(decision.accepted)
+        assertEquals(MediaResumeReason.STOCK_NO_LIVE_SESSION, decision.reason)
+        assertEquals(0, session.pauses)
+        assertEquals(0, session.plays)
+    }
+
+    /** Our own process dies with the same sleep; the record alone is not a session to command. */
+    @Test
+    fun `a record with no session after a restart leaves the press to the firmware`() {
+        val core = core(FakeStore("yandex"))
+
+        val decision = core.perform(MediaResumeCommand.TOGGLE)
+
+        assertFalse(decision.accepted)
+        assertEquals(MediaResumeReason.STOCK_NO_LIVE_SESSION, decision.reason)
+        assertEquals("yandex", decision.packageName)
     }
 
     @Test
-    fun `a live session of another package is never resumed or reconnected instead`() {
+    fun `a live session of another package is never resumed instead`() {
         val core = core()
         val gone = FakeTarget("gone", MediaResumePlayback.PLAYING, packageName = "yandex")
         val other = FakeTarget("other", MediaResumePlayback.PLAYING, packageName = "vk")
@@ -271,60 +283,43 @@ class MediaResumeCoreTest {
         gone.playback = MediaResumePlayback.PAUSED
         core.remove(gone.identity)
 
-        val asked = mutableListOf<String>()
-        core.perform(MediaResumeCommand.PLAY, reconnect = { packageName ->
-            asked += packageName
-            MediaResumeDecision(true, MediaResumeReason.RECONNECT_STARTED, packageName)
-        })
-        assertEquals(listOf("yandex"), asked)
-        assertEquals(0, other.plays)
-    }
-
-    @Test
-    fun `a refused reconnect leaves the press and invents no fallback`() {
-        val core = core()
-        val gone = FakeTarget("gone", MediaResumePlayback.PLAYING, packageName = "yandex")
-        val other = FakeTarget("other", MediaResumePlayback.PAUSED, packageName = "vk")
-        core.reconcile(listOf(gone, other))
-        core.remove(gone.identity)
-
-        val decision = core.perform(MediaResumeCommand.PLAY, reconnect = { packageName ->
-            MediaResumeDecision(false, MediaResumeReason.NO_BROWSER_SERVICE, packageName)
-        })
+        val decision = core.perform(MediaResumeCommand.PLAY)
         assertFalse(decision.accepted)
-        assertEquals(MediaResumeReason.NO_BROWSER_SERVICE, decision.reason)
+        assertEquals(MediaResumeReason.STOCK_NO_LIVE_SESSION, decision.reason)
+        assertEquals("yandex", decision.packageName)
         assertEquals(0, other.plays)
         assertEquals(0, gone.plays)
     }
 
+    /** Once the driver opens the player again, its new session is the last-played package's. */
     @Test
-    fun `a reconnect that throws is a failure and not a fallback`() {
+    fun `a player opened again by hand is resumed by package`() {
         val core = core()
-        val gone = FakeTarget("gone", MediaResumePlayback.PLAYING, packageName = "yandex")
-        val other = FakeTarget("other", MediaResumePlayback.PAUSED, packageName = "vk")
-        core.reconcile(listOf(gone, other))
-        core.remove(gone.identity)
+        val before = FakeTarget("before", MediaResumePlayback.PLAYING, packageName = "yandex")
+        core.reconcile(listOf(before))
+        before.playback = MediaResumePlayback.PAUSED
+        core.remove(before.identity)
+        assertFalse(core.performed(MediaResumeCommand.TOGGLE))
 
-        val decision = core.perform(MediaResumeCommand.PLAY, reconnect = { error("browser gone") })
-        assertFalse(decision.accepted)
-        assertEquals(MediaResumeReason.RECONNECT_FAILED, decision.reason)
-        assertEquals(0, other.plays)
+        val after = FakeTarget("after", MediaResumePlayback.PAUSED, packageName = "yandex")
+        core.reconcile(listOf(after))
+
+        val decision = core.perform(MediaResumeCommand.TOGGLE)
+        assertTrue(decision.accepted)
+        assertEquals(MediaResumeReason.PLAY, decision.reason)
+        assertEquals(1, after.plays)
+        assertEquals(0, before.plays)
     }
 
+    /** What `SimulcastAccessibilityService.onKeyEvent` gets back for both halves of that press. */
     @Test
-    fun `with nothing ever played no package is reconnected either`() {
-        val core = core()
-        val session = FakeTarget("yandex", MediaResumePlayback.PAUSED)
-        core.reconcile(listOf(session))
+    fun `the wheel key for an unloaded player is released untouched, down and up`() {
+        val core = core(FakeStore("yandex"))
+        val interceptor = MediaResumeKeyInterceptor()
+        val perform: (MediaResumeCommand) -> Boolean = { core.perform(it).accepted }
 
-        val asked = mutableListOf<String>()
-        val decision = core.perform(MediaResumeCommand.PLAY, reconnect = { packageName ->
-            asked += packageName
-            MediaResumeDecision(true, MediaResumeReason.RECONNECT_STARTED, packageName)
-        })
-        assertFalse(decision.accepted)
-        assertEquals(MediaResumeReason.STOCK_NO_HISTORY, decision.reason)
-        assertEquals(emptyList<String>(), asked)
+        assertFalse(interceptor.onKeyEvent(386, 0, 0, true, perform))
+        assertFalse(interceptor.onKeyEvent(386, 1, 0, true, perform))
     }
 
     @Test
@@ -530,10 +525,7 @@ class MediaResumeCoreTest {
     private fun MediaResumeCore.performed(
         command: MediaResumeCommand,
         deferPause: (MediaResumeTarget, List<MediaResumeTarget>) -> Boolean = { _, _ -> false },
-        reconnect: (String) -> MediaResumeDecision = {
-            MediaResumeDecision(false, MediaResumeReason.NO_BROWSER_SERVICE, it)
-        },
-    ): Boolean = perform(command, deferPause, reconnect).accepted
+    ): Boolean = perform(command, deferPause).accepted
 
     private class FakeStore(private var record: MediaLastPlayed? = null) : MediaLastPlayedStore {
         constructor(packageName: String) : this(MediaLastPlayed(packageName, 1L))
