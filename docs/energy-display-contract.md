@@ -474,7 +474,9 @@ test.
   the production helpers.
 - **Replay.** `captures/vehicle-log/*.csv` (the recorder's output, `speed_kmh`
   included, so the standing rule is replayed too) is fed through the hub's own
-  log, ledger and traces in a JVM test; the test asserts the invariants that do
+  sweep step, `VehicleAnsweredSweep` - the lines the poll loop runs, park flag
+  and all, not a copy of them as before 2026-10-08 - in a JVM test; the test
+  asserts the invariants that do
   not depend on what a signal means: the road under the chart is a point per
   reading bucket and equals the road the unit names, the figure equals energy over
   known road, every point equals the trailing ten readings computed a second time,
