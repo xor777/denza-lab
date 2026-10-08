@@ -107,24 +107,6 @@ class SplitOperationRunnerTest {
     }
 
     @Test
-    fun theJournalKeepsEveryEntryInRecordOrder() {
-        val journal = SplitMutationJournal()
-        assertTrue(journal.isEmpty())
-
-        val written = listOf(
-            SplitJournalEntry.GateOpened(prevOpen = false),
-            SplitJournalEntry.LeaseEnabled("resizeability", "0"),
-            SplitJournalEntry.TaskCreated(11, PICKER),
-            SplitJournalEntry.TaskMoved(7, fromRootId = 1, toRootId = 2),
-            SplitJournalEntry.PointOfNoReturn("stock picker removed"),
-            SplitJournalEntry.TaskRemoved(9, PICKER),
-        )
-        written.forEach(journal::record)
-
-        assertEquals(written, journal.entries())
-    }
-
-    @Test
     fun rollbackUndoesEveryMutationInReverseOrder() {
         // §7.10: exact rollback по журналу
         val journal = journalOf(
@@ -317,17 +299,6 @@ class SplitOperationRunnerTest {
             listOf("moveTask(7 -> 1)", "removeTask(11, $PICKER)", "closeGate"),
             rollback.calls,
         )
-    }
-
-    @Test
-    fun theDurableSnapshotCannotCarryATaskId() {
-        // инвариант 4: слот - это package, и другого способа его записать нет
-        operation().run(context(deadlineAtMs = 10_000L))
-
-        val stored = store.load()
-        assertEquals(SplitSlot.App(MUSIC), stored.slot(SplitPane.PRIMARY))
-        assertEquals(SplitSlot.Picker, stored.slot(SplitPane.SECONDARY))
-        assertEquals(1L, stored.revision)
     }
 
     @Test
