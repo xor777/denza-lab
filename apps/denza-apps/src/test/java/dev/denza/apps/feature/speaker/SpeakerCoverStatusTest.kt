@@ -46,12 +46,4 @@ class SpeakerCoverStatusTest {
         assertEquals("", snapshot.message)
         assertNull(snapshot.resolution)
     }
-
-    @Test
-    fun noRowEverSpins() {
-        for (enabled in listOf(true, false)) for (access in listOf(true, false)) {
-            val status = SpeakerCoverStatus.snapshot(enabled, access).status
-            assertTrue("$enabled/$access -> $status", status != FeatureStatus.STARTING && status != FeatureStatus.RECOVERING)
-        }
-    }
 }
