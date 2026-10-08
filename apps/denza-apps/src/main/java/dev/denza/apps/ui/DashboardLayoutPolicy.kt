@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
+import dev.denza.apps.feature.trip.StripGeometry
 import dev.denza.apps.feature.trip.TripPanelLayout
 
 /**
@@ -284,9 +285,11 @@ internal object DashboardLayoutPolicy {
         val room = height - topInset(mode) - featureBandHeight(mode, features, contentWidth) -
             bandGap(mode) - bottomMargin(mode)
         return if (chips(mode)) {
-            // A pane's strip takes the remainder, down to the height it stops being an instrument
-            // at. Below that the page scrolls rather than the analyser quietly getting shorter.
-            val floor = DenzaMetrics.Component.PANEL_HEIGHT_MIN
+            // A pane's strip takes the remainder, down to the least box both of its pages fit: the
+            // analyser keeps its field and the dots stay clear of the car page's chart. That was a
+            // constant of 300 here, 144 to 162 dp under it, so the band between drew the chart
+            // past the dots and the analyser into a sliver. Below it the page scrolls instead.
+            val floor = StripGeometry.minimumHeight(panel(mode)).dp
             DashboardPage(panelHeight = if (room > floor) room else floor, scrolls = room < floor - SLACK)
         } else {
             // The full screen's strip is a fixed shape whatever the height allows - handing it the

@@ -294,17 +294,9 @@ object DenzaMetrics {
          */
         val MODAL_WIDTH: Dp = 640.dp
 
-        /**
-         * How tall the narrow pane's strip is when nothing else has claimed the height.
-         *
-         * Kept only as the floor a `weight(1f)` cannot express. A pane's strip takes whatever the
-         * chips leave, which is the one arrangement that cannot be wrong: the first cut of these
-         * panes computed the remainder by hand, from 680, and the car takes 24 of that for the
-         * freeform caption bar - so the foot of the strip was drawn past the bottom edge of the
-         * window, exactly the failure the full screen's own panel height was introduced to fix.
-         */
-        val PANEL_HEIGHT_MIN: Dp = 300.dp
-
+        // The pane strip's floor was a 300 dp constant here. It is `StripGeometry.minimumHeight`
+        // now - the least box both of the strip's pages fit, read off the spec - which is the only
+        // floor that can know what the pages need.
     }
 
     /**

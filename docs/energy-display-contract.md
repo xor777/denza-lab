@@ -396,7 +396,10 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   shorter than the board's moves the analyser's floor and the page dots up and
   nothing else, and `StripGeometry.minimumHeight` is how far that can go before
   the dots meet the chart - `StripGeometryTest` holds every composition's box
-  above it. Content is never drawn past the pane.
+  above it. It is also the pane strip's floor in `DashboardLayoutPolicy.page`
+  (until 2026-10-08 a 300 dp constant, under both panes' least box): a window
+  too short for it scrolls the page rather than squeezing the strip, which
+  `DashboardLayoutPolicyTest` holds. Content is never drawn past the pane.
 - The cluster's geometry is the Luminofor triptych (`LuminoforSpec.Cluster`,
   `ContourGeometry`), approved 2026-09-23: the battery and its five temperatures
   left, the hero on the axis, the engine and the trip - or the engine's box -

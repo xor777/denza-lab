@@ -3,6 +3,7 @@ package dev.denza.apps.ui
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.feature.trip.StripGeometry
 import dev.denza.apps.feature.trip.TripPanelLayout
 import dev.denza.apps.ui.dashboard.DashboardTiles
 import org.junit.Assert.assertEquals
@@ -221,11 +222,45 @@ class DashboardLayoutPolicyTest {
             DashboardLayoutMode.NARROW, FEATURES, narrowContent, 400.dp,
         )
         assertEquals(
-            DenzaMetrics.Component.PANEL_HEIGHT_MIN.value,
+            StripGeometry.minimumHeight(TripPanelLayout.NARROW),
             shortPane.panelHeight.value,
             1e-3f,
         )
         assertEquals(true, shortPane.scrolls)
+    }
+
+    /**
+     * A pane's strip is never handed less than both of its pages fit.
+     *
+     * The floor was a constant of 300 dp while the strip's own pages need 444.4 (one third) and
+     * 462.3 (two thirds): the analyser's floor and the page dots rise with the box's foot, and
+     * under that height the dots land on the car page's chart and the analyser's field shrinks
+     * below the 80 dp it is read at. This test used to hold "a 400 dp window gives the strip 300"
+     * as correct, and any pane more than 41 dp (one third) or 81 dp (two thirds) shorter than
+     * today's would have drawn it.
+     */
+    @Test
+    fun `a pane strip never gets less than both of its pages fit`() {
+        for (mode in listOf(DashboardLayoutMode.NARROW, DashboardLayoutMode.MEDIUM)) {
+            val content = DashboardLayoutPolicy.windowWidth(mode) -
+                DashboardLayoutPolicy.sideMargin(mode).value * 2
+            val least = StripGeometry.minimumHeight(DashboardLayoutPolicy.panel(mode))
+            // What the rest of the page costs, read off a window with room to spare.
+            val window = WINDOW_DP - CAPTION_DP
+            val roomy = DashboardLayoutPolicy.page(mode, FEATURES, content, window.dp)
+            assertEquals("$mode: today's window has room", false, roomy.scrolls)
+            val rest = window - roomy.panelHeight.value
+            fun at(room: Float) = DashboardLayoutPolicy.page(mode, FEATURES, content, (room + rest).dp)
+
+            // Between the old constant and the pages' own least: the case the constant let through.
+            val between = at((300f + least) / 2)
+            assertEquals("$mode: the strip keeps its least box", least, between.panelHeight.value, 1e-3f)
+            assertEquals("$mode: and the page scrolls to show it", true, between.scrolls)
+
+            // Exactly that height fits, and a little more goes to the strip.
+            assertEquals("$mode at its least", false, at(least).scrolls)
+            assertEquals(least + 10f, at(least + 10f).panelHeight.value, 1e-3f)
+        }
     }
 
     @Test
