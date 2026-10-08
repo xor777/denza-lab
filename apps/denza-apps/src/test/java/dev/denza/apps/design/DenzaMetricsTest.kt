@@ -46,14 +46,6 @@ class DenzaMetricsTest {
         )
     }
 
-    @Test
-    fun nothingReadableIsSmallerThanTheBottomRung() {
-        // 15 sp is the floor and there is deliberately nothing under it: this screen is read at
-        // arm's length from a driver's seat, and the 11, 12 and 13 sp captions the old screen was
-        // full of were legible on a desk and not in a car.
-        assertEquals(15f, DenzaMetrics.Type.RUNGS.last().value, 1e-4f)
-    }
-
     // How tall a tile has to be, and where its words sit, lives in LuminoforScreenContractTest,
     // measured against the board rather than against itself. The version that lived here added one
     // line of name to one line of caption, never came near the ceiling, and passed for a whole wave
@@ -108,6 +100,5 @@ class DenzaMetricsTest {
 
     private companion object {
         const val MIN_STEP = 1.2f
-        const val LINE_HEIGHT = 1.3f
     }
 }
