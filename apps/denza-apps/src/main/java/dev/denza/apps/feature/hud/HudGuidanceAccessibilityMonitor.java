@@ -117,7 +117,7 @@ public final class HudGuidanceAccessibilityMonitor {
         HudGuidanceSample sample = freshness.select(guidance, lastGuidance, now);
         if (sample != null) {
             guidance = sample.getGuidance();
-            HudNotificationArtworkRuntime.observe(guidance, now);
+            HudNotificationArtworkRuntime.observe(guidance, sample.getCapturedAtMs());
             boolean changed = !guidance.equals(lastGuidance);
             HudArGeometry arGeometry = arTracker.resolve(guidance, latestPose, nowElapsed);
             boolean arActive = arGeometry != null;

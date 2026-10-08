@@ -2244,7 +2244,14 @@ On the tested Yandex build, the foreground notification can collapse to
 `contentView=null`, while moving Yandex fully into the background produces the
 rich navigation `RemoteViews`. Denza Apps therefore retains the last compatible
 notification artwork across a transient minimal notification. A maneuver change
-still invalidates old artwork and immediately uses the Canvas fallback.
+still invalidates old artwork and immediately uses the Canvas fallback: an
+artwork counts only if it was captured no earlier than the data that first
+showed the current maneuver (`HudNotificationArtworkStore`), and the Canvas
+icon stands in until Yandex posts again. In the background the guidance and the
+artwork come from one post and the maneuver is observed at that post's time, so
+the post's own artwork counts.
+
+> **Superseded 2026-10-08:** from 2026-07-24 (`5005f9aa`) to 2026-10-08 the code did not do what the sentence above says. It accepted artwork captured up to 1.5 s before the maneuver change (`MAX_ARTWORK_SKEW_MS`) and anchored the change at the poll time, so the last post of the previous maneuver could be drawn for the next one. `HudNotificationArtworkTest` now reproduces that case.
 
 The same rich notification is now a secondary guidance source while Yandex has
 no visible accessibility window. Its named distance, road, remaining-distance,

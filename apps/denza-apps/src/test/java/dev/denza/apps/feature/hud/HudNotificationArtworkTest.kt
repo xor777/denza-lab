@@ -29,7 +29,7 @@ class HudNotificationArtworkTest {
     fun freshArtworkIsSelected() {
         val store = HudNotificationArtworkStore(featureEnabled = { true })
         val png = byteArrayOf(4, 5, 6)
-        store.update("route", png, capturedAtMs = 9_000L)
+        store.update("route", png, capturedAtMs = 10_000L)
 
         assertArrayEquals(png, store.resolve(guidance(), nowMs = 10_000L))
         assertEquals(HudArtworkSource.NOTIFICATION, store.diagnostics().source)
@@ -39,7 +39,7 @@ class HudNotificationArtworkTest {
     fun distanceOnlyUpdateKeepsArtworkEligible() {
         val store = HudNotificationArtworkStore(featureEnabled = { true })
         val png = byteArrayOf(7, 8, 9)
-        store.update("route", png, capturedAtMs = 9_900L)
+        store.update("route", png, capturedAtMs = 10_000L)
         assertArrayEquals(png, store.resolve(guidance(distanceMeters = 120), nowMs = 10_000L))
 
         assertArrayEquals(
@@ -52,7 +52,7 @@ class HudNotificationArtworkTest {
     fun guidanceObservationAnchorsFreshnessBeforeDelayedHudConnection() {
         val store = HudNotificationArtworkStore(featureEnabled = { true })
         val png = byteArrayOf(8, 9, 10)
-        store.update("route", png, capturedAtMs = 9_000L)
+        store.update("route", png, capturedAtMs = 10_000L)
 
         store.observe(guidance(), nowMs = 10_000L)
 
@@ -63,7 +63,7 @@ class HudNotificationArtworkTest {
     fun changedManeuverRejectsOlderArtwork() {
         val store = HudNotificationArtworkStore(featureEnabled = { true })
         val png = byteArrayOf(10, 11, 12)
-        store.update("route", png, capturedAtMs = 9_900L)
+        store.update("route", png, capturedAtMs = 10_000L)
         assertArrayEquals(png, store.resolve(guidance(), nowMs = 10_000L))
 
         assertNull(
@@ -79,9 +79,56 @@ class HudNotificationArtworkTest {
     }
 
     @Test
+    fun artworkCapturedBeforeAManeuverChangeIsNeverDrawnForTheNewManeuver() {
+        val store = HudNotificationArtworkStore(featureEnabled = { true })
+        store.update("route", byteArrayOf(20), capturedAtMs = 10_000L)
+        assertArrayEquals(byteArrayOf(20), store.resolve(guidance(), nowMs = 10_000L))
+        // Yandex reposts the right turn half a second before the left turn shows up.
+        store.update("route", byteArrayOf(21), capturedAtMs = 11_500L)
+
+        store.observe(
+            guidance(maneuver = HudManeuver.LEFT, instruction = "Поверните налево"),
+            nowMs = 12_000L,
+        )
+
+        assertNull(
+            store.resolve(
+                guidance(maneuver = HudManeuver.LEFT, instruction = "Поверните налево"),
+                nowMs = 12_000L,
+            ),
+        )
+        assertEquals("stale-artwork", store.diagnostics().detail)
+    }
+
+    @Test
+    fun artworkFromBeforeTheFirstObservedManeuverWaitsForTheNextPost() {
+        val store = HudNotificationArtworkStore(featureEnabled = { true })
+        store.update("route", byteArrayOf(23), capturedAtMs = 9_000L)
+
+        assertNull(store.resolve(guidance(), nowMs = 10_000L))
+
+        store.update("route", byteArrayOf(24), capturedAtMs = 10_400L)
+        assertArrayEquals(byteArrayOf(24), store.resolve(guidance(), nowMs = 10_500L))
+    }
+
+    @Test
+    fun theNotificationThatAnnouncesAManeuverCarriesItsOwnArtwork() {
+        val store = HudNotificationArtworkStore(featureEnabled = { true })
+        store.observe(guidance(), nowMs = 10_000L)
+        val left = guidance(maneuver = HudManeuver.LEFT, instruction = "Поверните налево")
+
+        // In the background the guidance and the artwork come from the same post, and the
+        // maneuver is observed at that post's time.
+        store.update("route", byteArrayOf(22), capturedAtMs = 12_000L)
+        store.observe(left, nowMs = 12_000L)
+
+        assertArrayEquals(byteArrayOf(22), store.resolve(left, nowMs = 12_350L))
+    }
+
+    @Test
     fun notificationRemovalClearsArtwork() {
         val store = HudNotificationArtworkStore(featureEnabled = { true })
-        store.update("route", byteArrayOf(13), capturedAtMs = 9_900L)
+        store.update("route", byteArrayOf(13), capturedAtMs = 10_000L)
         assertArrayEquals(byteArrayOf(13), store.resolve(guidance(), nowMs = 10_000L))
 
         store.clear("route", "notification-removed")
@@ -95,7 +142,7 @@ class HudNotificationArtworkTest {
     fun transientExtractionFailureKeepsLastCompatibleArtwork() {
         val store = HudNotificationArtworkStore(featureEnabled = { true })
         val png = byteArrayOf(13, 14)
-        store.update("route", png, capturedAtMs = 9_900L)
+        store.update("route", png, capturedAtMs = 10_000L)
         assertArrayEquals(png, store.resolve(guidance(), nowMs = 10_000L))
 
         store.reject("route", "no-remote-views")

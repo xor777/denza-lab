@@ -3,7 +3,6 @@ package dev.denza.apps.feature.hud
 import java.util.Locale
 
 internal const val YANDEX_NOTIFICATION_ARTWORK_ENABLED = true
-private const val MAX_ARTWORK_SKEW_MS = 1_500L
 
 internal enum class HudArtworkSource {
     BUILT_IN,
@@ -59,6 +58,17 @@ internal object HudArtworkCandidatePolicy {
     }
 }
 
+/**
+ * The maneuver picture from Yandex's notification, for as long as it can only show the current
+ * maneuver.
+ *
+ * An artwork is used only if it was captured no earlier than the data that first showed the
+ * current maneuver. Older artwork may be the previous maneuver's picture - Yandex reposts the
+ * notification as the distance changes, so the last post before a turn is rarely far behind it -
+ * and the Canvas fallback stands in until Yandex posts again. In the background the guidance and
+ * the artwork come from the same post and are observed at its time, so that post's own artwork
+ * counts.
+ */
 internal class HudNotificationArtworkStore(
     private val featureEnabled: () -> Boolean,
 ) {
@@ -147,7 +157,7 @@ internal class HudNotificationArtworkStore(
             detail = "no-artwork"
             return null
         }
-        if (candidate.capturedAtMs < identityChangedAtMs - MAX_ARTWORK_SKEW_MS) {
+        if (candidate.capturedAtMs < identityChangedAtMs) {
             source = HudArtworkSource.BUILT_IN
             detail = "stale-artwork"
             return null
