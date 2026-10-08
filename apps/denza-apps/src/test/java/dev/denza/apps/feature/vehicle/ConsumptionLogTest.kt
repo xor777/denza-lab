@@ -297,23 +297,21 @@ class ConsumptionLogTest {
         assertEquals(log.buckets.last(), seen.last())
     }
 
+    /**
+     * The screens are handed the tail, and the journal keeps the rest.
+     *
+     * How far back the tail reaches - ten kilometres of readings, however long a bucket is - is
+     * `ConsumptionWindowTest`'s. What is this class's own is that [ConsumptionLog.window] is that
+     * tail of what it retains rather than all of it, which is what the snapshot carries.
+     */
     @Test
-    fun theWindowIsTenKilometresOfRoadEvenWhenBucketsAreLonger() {
+    fun theWindowIsTheTailOfTheRetainedRoad() {
         val log = ConsumptionLog()
-        var odometer = 100.0
-        // Three hundred metres a bucket: thirty-four of them are 10.2 km, and the window is the
-        // tail that reaches ten - which is thirty-four records, not a hundred.
-        log.sample(odometer, 20.0, 0.0)
-        repeat(40) {
-            odometer += 0.3
-            log.sample(odometer, 20.0, 6.0)
-        }
-        assertEquals(40, log.buckets.size)
-        val window = log.window
-        val road = window.sumOf { it.km }
-        assertTrue("the window holds ten kilometres: $road", road >= ConsumptionWindow.KM)
-        assertTrue("and not much more: $road", road < ConsumptionWindow.KM + 0.3 + 1e-9)
-        assertEquals(34, window.size)
+        log.drive(steps = 150, powerKw = 20.0)
+        assertEquals("fifteen kilometres retained", 150, log.buckets.size)
+        assertEquals("ten of them in the window", 100, log.window.size)
+        assertEquals("the newest ten", 105.1, log.window.first().odometerKm, 1e-6)
+        assertEquals(115.0, log.window.last().odometerKm, 1e-6)
     }
 
     @Test
