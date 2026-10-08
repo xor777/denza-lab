@@ -211,6 +211,13 @@ dependencies {
  * Luminofor boards and their spec, the debug build's fixtures, the split crew's board and
  * `docs/feature-map.md` are each held to the code by a test here (`LuminoforSpecContractTest`,
  * `ContourFixturesContractTest`, `SplitCrewBoardContractTest`, `FeatureMapContractTest`, ...).
+ *
+ * So are the files the unit tests read as text: the manifest (six manifest contracts), the
+ * strings the split crew's caption is held to, the Jura font the cluster's widths are measured
+ * in, the sources the wiring contracts cut sections out of - a comment moves their anchors too -
+ * the host recorder whose columns `VehicleCaptureTest` matches, and the recorded drives
+ * `VehicleLogReplayTest` replays. Until 2026-10-08 an edit to the manifest alone left the task
+ * up to date and the manifest contracts unrun.
  */
 tasks.withType<Test>().configureEach {
     inputs.files(
@@ -218,5 +225,11 @@ tasks.withType<Test>().configureEach {
         rootProject.fileTree("tools/design-canvas/split-crew"),
         fileTree("src/debug/assets/luminofor"),
         rootProject.file("docs/feature-map.md"),
+        file("src/main/AndroidManifest.xml"),
+        file("src/main/res/values/strings.xml"),
+        file("src/main/res/font/jura_medium.ttf"),
+        fileTree("src/main/java"),
+        rootProject.file("tools/vehicle_log.py"),
+        rootProject.fileTree("captures/vehicle-log") { include("*.csv") },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("contractSources")
 }
