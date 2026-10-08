@@ -73,6 +73,14 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   **Подтвердите доступ к ADB**.
 - Feature clients use `DenzaLocalAdb` in `PASSIVE` mode. They may sign a challenge with an
   existing key, but never submit that public key to Android's prompt queue.
+- A one-off `LocalAdbClient.shell` tries `127.0.0.1` first, then the unit's own IPv4 addresses
+  (wlan0's among them). They all reach the same adbd. The client moves to the next address only
+  while the command cannot have reached adbd: a refused connection, or a failed transport setup or
+  handshake. From the moment the OPEN carrying the command is written, any failure goes to the
+  caller, a read timeout included. Until 2026-10-08 a timeout after the OPEN sent the same command
+  to the next address. A slow `notify_nw`, radio-profile change or speaker report could then run
+  twice on a vendor controller that keeps state. The persistent shell already worked this way: it
+  tries addresses only while connecting and never sends a command again.
 - The key pair is stored in one atomic file protected by an OS file lock. The old
   `adb_auth` SharedPreferences pair is migrated without changing the identity. This prevents the
   main process and `:weather` process from racing to create different first-install keys.

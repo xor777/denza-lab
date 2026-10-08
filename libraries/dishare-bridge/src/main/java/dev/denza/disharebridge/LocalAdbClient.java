@@ -169,15 +169,47 @@ public final class LocalAdbClient {
         if (readTimeoutMs < 1) {
             throw new IllegalArgumentException("readTimeoutMs must be positive");
         }
+        return firstHostThatAnswers(
+                hosts, (host, sent) -> shell(host, command, readTimeoutMs, sent));
+    }
+
+    /** One host's attempt at one command. */
+    interface HostShell {
+        String run(String host, CommandSent sent) throws IOException, GeneralSecurityException;
+    }
+
+    /** Set the moment the command may have reached adbd; from then on it may already be running. */
+    static final class CommandSent {
+        boolean value;
+    }
+
+    /**
+     * Runs one command on the first host that takes it, and on no other once one may have.
+     *
+     * <p>The hosts are loopback and the unit's own addresses, all the same adbd, so trying the next
+     * is right only while nothing has reached it: a refused connection, a failed handshake. Once the
+     * OPEN carrying the command is on its way, a failure says nothing about whether the command
+     * ran. A read that timed out after a slow {@code cloudmanager} or {@code com.android.phone}
+     * Binder call means it probably did, and sending it to wlan0's address would run a
+     * {@code notify_nw}, a radio profile change or a speaker report a second time on a vendor
+     * controller that keeps state. That failure goes to the caller, which knows whether its command
+     * may be repeated.
+     */
+    static String firstHostThatAnswers(List<String> hosts, HostShell shell)
+            throws IOException, GeneralSecurityException {
         IOException lastIoFailure = null;
         GeneralSecurityException lastSecurityFailure = null;
         for (String host : hosts) {
+            CommandSent sent = new CommandSent();
             try {
-                return shell(host, command, readTimeoutMs);
+                return shell.run(host, sent);
             } catch (GeneralSecurityException e) {
+                if (sent.value) {
+                    throw e;
+                }
                 lastSecurityFailure = e;
             } catch (IOException e) {
-                if (isAuthorizationPending(e)) {
+                if (sent.value || isAuthorizationPending(e)) {
                     throw e;
                 }
                 lastIoFailure = e;
@@ -192,7 +224,7 @@ public final class LocalAdbClient {
         throw new IOException("No ADB hosts available");
     }
 
-    private String shell(String host, String command, int readTimeoutMs)
+    private String shell(String host, String command, int readTimeoutMs, CommandSent sent)
             throws IOException, GeneralSecurityException {
         Socket socket = new Socket();
         socket.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
@@ -201,7 +233,7 @@ public final class LocalAdbClient {
             InputStream input = socket.getInputStream();
             OutputStream output = socket.getOutputStream();
             connect(input, output);
-            return runShell(input, output, command);
+            return runShell(input, output, command, sent);
         } finally {
             socket.close();
         }
@@ -333,9 +365,15 @@ public final class LocalAdbClient {
                 : AuthChallengeAction.REPORT_PENDING;
     }
 
-    private String runShell(InputStream input, OutputStream output, String command)
-            throws IOException {
+    static String runShell(
+            InputStream input,
+            OutputStream output,
+            String command,
+            CommandSent sent) throws IOException {
         int localId = 1;
+        // Before the write, not after it: a write that fails halfway may still have handed adbd
+        // the whole OPEN.
+        sent.value = true;
         writeMessage(output, A_OPEN, localId, 0, ("shell:" + command + "\0").getBytes(
                 StandardCharsets.UTF_8));
         int remoteId = -1;
