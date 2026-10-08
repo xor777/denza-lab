@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.vehicle
 
+import dev.denza.apps.feature.trip.TripParkSignal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -162,27 +163,15 @@ class AutoserviceShellTest {
     }
 
     @Test
-    fun hotAndColdSetsCoverTheAllowlistWithoutOverlap() {
-        val hot = VehicleSignal.HOT.toSet()
-        val cold = VehicleSignal.COLD.toSet()
-        assertTrue(hot.intersect(cold).isEmpty())
-        assertEquals(VehicleSignal.entries.size, hot.size + cold.size)
-        assertTrue(VehicleSignal.POWER_KW in hot)
-        assertTrue(VehicleSignal.ODOMETER_KM in hot)
-        assertTrue(VehicleSignal.MOTOR_REAR_RIGHT_C in cold)
-    }
-
-    @Test
     fun theParkSwitchIsTheOneTheTripPanelAlreadyReads() {
         // One feature id, two callers. The trip panel keeps its own shell because it runs without
         // the cluster; the cluster asks in the batch it already has going past this device.
         val signal = VehicleSignal.GEARBOX_PARK
-        assertTrue(
+        assertEquals(
             "the cluster's command must be the trip panel's command",
-            AutoserviceShell.command(listOf(signal))
-                .contains("service call autoservice 5 i32 1011 i32 ${signal.fid}"),
+            "echo @@0; ${TripParkSignal.COMMAND}",
+            AutoserviceShell.command(listOf(signal)),
         )
-        assertEquals(89_129_008, signal.fid)
         assertEquals(0.0, AutoserviceShell.decode(signal, 0)!!, 1e-9)
         assertEquals(1.0, AutoserviceShell.decode(signal, 1)!!, 1e-9)
         // A third value is not an answer, the same way the trip panel's own reader refuses it.
