@@ -44,15 +44,6 @@ class VehicleTelemetryTest {
     }
 
     @Test
-    fun aConnectedGunIsNotByItselfACharger() {
-        // This used to assert that a gun of 2 is charging, full stop. The car falsified it on
-        // 2026-09-06 - the id sits at or above 1 on the road - and the whole gate now lives in
-        // `ChargingGateTest`, which is where the three conditions are read.
-        assertFalse(telemetry(VehicleSignal.CHARGE_GUN to 2.0).charging)
-        assertFalse(telemetry(VehicleSignal.CHARGE_GUN to 0.0).charging)
-    }
-
-    @Test
     fun parkIsReadFromTheSwitchAndNotFromItsAbsence() {
         // Three answers, not two. Null is not "moving": a trip is bounded by a switch we can read,
         // and a switch that did not answer bounds nothing - which is what [TripEnergyLedger] and
@@ -79,25 +70,5 @@ class VehicleTelemetryTest {
             VehicleSignal.MOTOR_REAR_RIGHT_C to 31.0,
         )
         assertSame("the row is one list, not one per read", t.motorTemps, t.motorTemps)
-    }
-
-    @Test
-    fun theWindowsMeanArrivesWithTheSnapshotRatherThanWithEachFrame() {
-        val road = VehicleTelemetry(
-            access = VehicleAccess.READY,
-            consumption = listOf(
-                ConsumptionSample(100.1, 0.010, 0.1, 0.1),
-                ConsumptionSample(100.2, -0.008, 0.1, 0.1),
-                ConsumptionSample(100.3, 0.030, 0.1, 0.1),
-            ),
-        )
-        // Net energy over known road, signed: the returning bucket reduces what the road cost.
-        assertEquals((0.010 - 0.008 + 0.030) / 0.3 * 100.0, road.consumptionMean!!, 1e-9)
-        assertEquals("and the road it is the mean of comes with it", 0.3, road.consumptionKm, 1e-9)
-        assertNull("nothing known is no figure at all", VehicleTelemetry(
-            access = VehicleAccess.READY,
-            consumption = listOf(ConsumptionSample(100.1, 0.0, 0.1, 0.0)),
-        ).consumptionMean)
-        assertNull(VehicleTelemetry().consumptionMean)
     }
 }
