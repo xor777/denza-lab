@@ -1467,13 +1467,17 @@ internal class FakePickerAccessLeaseStore : SplitNativePickerAccessLeaseStore {
  * The picker-access lease as this car really implements it - and therefore reentrant (live red P1.2).
  *
  * [FakeLease] is one shell write and nothing else, which is precisely why the suite stayed green
- * over a deterministic live failure: the real controller rebinds an accessibility service, and a
- * freshly bound service calls straight back into the coordinator, synchronously, from inside the
- * operation that took the lease. This one runs the production [SplitNativePickerAccessController]
- * against the shared firmware fixture and then makes that call back through [onServiceConnected].
+ * over a deterministic live failure: the real controller rebinds an accessibility service from
+ * inside the operation that took the lease. This one runs the production
+ * [SplitNativePickerAccessController] against the shared firmware fixture.
+ *
+ * The rebound service used to call straight back into the coordinator with a Home of its own
+ * making, which cancelled the open. It no longer reports anything but a stock picker it actually
+ * sees, and the coordinator has no Home entry for it to call at all: Home arrives as the firmware's
+ * signals. The `ReboundObserver` that stood in for the service here reported nothing in every
+ * test, so it went on 2026-10-08.
  */
 internal class ReentrantPickerAccessLease(
-    private val onServiceConnected: () -> Unit,
     private val leaseStore: FakePickerAccessLeaseStore = FakePickerAccessLeaseStore(),
 ) : SplitLeaseController {
     val enables = AtomicInteger()
@@ -1492,7 +1496,6 @@ internal class ReentrantPickerAccessLease(
         enables.incrementAndGet()
         controller(shell).enable()
         connected = true
-        onServiceConnected()
     }
 
     override fun restore(shell: (String) -> String) {
@@ -1510,20 +1513,6 @@ internal class ReentrantPickerAccessLease(
 
     private companion object {
         const val OWNED = "owned"
-    }
-}
-
-/**
- * What a freshly bound picker observer reports to the coordinator.
- *
- * It is `SplitNativePickerAccessibilityService.onServiceConnected` in one line: reconnecting an
- * observer is not an event on the screen (invariant 8), so nothing is reported unless the stock
- * picker really is in a visible window right now. Putting `core.homeVisible()` back in here is the
- * mutation that reproduces the live red chain of P1.2 - and it must fail the reentrant scenario.
- */
-internal object ReboundObserver {
-    fun report(core: SplitCoordinatorCore, stockPickerVisible: Boolean) {
-        if (stockPickerVisible) core.nativePickerVisible()
     }
 }
 
