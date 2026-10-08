@@ -1681,7 +1681,7 @@
   {
    "t": 1.3,
    "unavailable": true,
-   "message": "ADB-ключ не подтверждён · Помощь → Диагностика",
+   "message": "ADB-ключ не подтверждён · откройте Denza Apps",
    "power": 0,
    "peak": 0,
    "peakAge": 9,
@@ -6474,7 +6474,7 @@
    ],
    "consumptionCaption": "Расход 16,9 кВт·ч/100 км · за 10 км",
    "unavailable": true,
-   "message": "ADB-ключ не подтверждён · Помощь → Диагностика"
+   "message": "ADB-ключ не подтверждён · откройте Denza Apps"
   }
  ],
  "two-first": [
@@ -7541,7 +7541,7 @@
    ],
    "consumptionCaption": "Расход 16,9 кВт·ч/100 км · за 10 км",
    "unavailable": true,
-   "message": "ADB-ключ не подтверждён · Помощь → Диагностика"
+   "message": "ADB-ключ не подтверждён · откройте Denza Apps"
   }
  ],
  "two-sound": [

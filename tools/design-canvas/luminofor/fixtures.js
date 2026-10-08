@@ -105,7 +105,7 @@
     // the first seconds: nothing has answered yet, so there is nothing to caption - the axis alone
     waking: { t: 1.3, power: 0, peak: 0, peakAge: 9, powerFresh: false, powerKnown: false, heroUnit: false, temps: [], chart: [] },
     // no access to the car: the skeleton and the message in the petal's place, nothing else
-    unavailable: { t: 1.3, unavailable: true, message: 'ADB-ключ не подтверждён · Помощь → Диагностика', power: 0, peak: 0, peakAge: 9, chart: [] }
+    unavailable: { t: 1.3, unavailable: true, message: 'ADB-ключ не подтверждён · откройте Denza Apps', power: 0, peak: 0, peakAge: 9, chart: [] }
   };
 
   // what the head unit prints
@@ -156,7 +156,7 @@
     temps: temps([27, 26, 25, 25, 29])
   });
   // the shell closed to us
-  const headClosed = Object.assign({}, head, { unavailable: true, message: 'ADB-ключ не подтверждён · Помощь → Диагностика' });
+  const headClosed = Object.assign({}, head, { unavailable: true, message: 'ADB-ключ не подтверждён · откройте Denza Apps' });
 
   // A feature's settings over the dashboard it came from. `sheet` is what the panel draws, block by
   // block, in the words the app prints for the state the debug build's SheetFixtures builds from

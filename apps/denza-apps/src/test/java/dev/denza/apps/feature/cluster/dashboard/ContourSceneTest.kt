@@ -89,14 +89,14 @@ class ContourSceneTest {
         scene.frame(
             VehicleTelemetry(
                 access = VehicleAccess.UNAVAILABLE,
-                message = "ADB-ключ не подтверждён · Помощь → Диагностика",
+                message = "ADB-ключ не подтверждён · откройте Denza Apps",
             ),
             true,
             frame,
         )
 
         assertTrue(scene.stage.unavailable)
-        assertEquals("ADB-ключ не подтверждён · Помощь → Диагностика", scene.stage.message)
+        assertEquals("ADB-ключ не подтверждён · откройте Denza Apps", scene.stage.message)
     }
 
     @Test

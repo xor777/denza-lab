@@ -585,7 +585,7 @@ def closed_page():
     return f'''      <div class="page split">
         <div class="left" style="flex:{LEFT_SHARE}; min-width:0; justify-content:center;">
           <div class="cap">ПИТАНИЕ ОТ МАШИНЫ</div>
-          <div class="instruction">ADB-ключ не подтверждён · Помощь → Диагностика</div>
+          <div class="instruction">ADB-ключ не подтверждён · откройте Denza Apps</div>
         </div>
         <div class="vrule"></div>
         <div class="right">

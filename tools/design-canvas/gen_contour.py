@@ -2046,7 +2046,7 @@ STATES = [
         trip=dict(net=9.3, regen=3.1, ice=0.0, km=42),
         road=CALM_ROAD, petal='17')),
     ('Нет ADB-ключа · указание, что сделать — не сообщение об ошибке',
-     sc(kw=None, hint='ADB-ключ не подтверждён · Помощь → Диагностика')),
+     sc(kw=None, hint='ADB-ключ не подтверждён · откройте Denza Apps')),
 ]
 
 STATE_LABEL = 34.0

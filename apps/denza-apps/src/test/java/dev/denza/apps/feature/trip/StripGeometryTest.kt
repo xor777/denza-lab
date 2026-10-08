@@ -303,7 +303,7 @@ class StripGeometryTest {
      */
     @Test
     fun theClosedPagesInstructionFitsUnderItsCaption() {
-        val message = "ADB-ключ не подтверждён · Помощь → Диагностика"
+        val message = "ADB-ключ не подтверждён · откройте Denza Apps"
         for ((layout, value, size) in listOf(
             Triple(TripPanelLayout.WIDE, Head.Full.Strip.VALUE, Head.Full.Strip.TITLE_SIZE),
             Triple(TripPanelLayout.MEDIUM, Head.Two.Car.VALUE, Head.Two.Sound.TITLE_SIZE),

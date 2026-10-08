@@ -768,8 +768,10 @@ others:
 - **a charge** puts a countdown in the petal's seat, «2:15» over «до полной», and
   leaves the consumption history where it is;
 - **no ADB key** is the skeleton and one line at 18 in the petal, and it is an
-  instruction rather than an error: `ADB-ключ не подтверждён · Помощь →
-  Диагностика`.
+  instruction rather than an error: `ADB-ключ не подтверждён · откройте Denza
+  Apps`. Until 2026-10-08 it read `… · Помощь → Диагностика`, a path to a menu
+  the app does not have; opening the app with an unconfirmed key shows the ADB
+  gate and its button, which is what the line now sends the driver to.
 
 ### The instrument system underneath
 

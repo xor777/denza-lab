@@ -405,7 +405,7 @@ internal class VehicleTelemetryHub(context: Context) {
         const val FIRST_BACKOFF_MS = 4_000L
         const val MAX_BACKOFF_MS = 60_000L
 
-        const val AUTHORIZATION_REQUIRED = "ADB-ключ не подтверждён · Помощь → Диагностика"
+        const val AUTHORIZATION_REQUIRED = "ADB-ключ не подтверждён · откройте Denza Apps"
         const val NO_CHANNEL = "Нет связи с локальным ADB"
         const val NO_ANSWER = "Машина не ответила ни на один запрос"
     }
