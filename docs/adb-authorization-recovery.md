@@ -1,5 +1,34 @@
 # ADB Authorization Recovery
 
+## Current state
+
+Updated 2026-10-08. Static firmware evidence and local checks do not establish recovery on a
+currently inaccessible vehicle.
+
+| Claim | Status | Section |
+| --- | --- | --- |
+| The startup gate and healthy one-shot request work on the reference DiLink 5.1 car | live, 2026-08-18 | [Live result](#2026-08-18-live-result) |
+| Product queue recovery remains disabled pending vehicle acceptance | code | [Vehicle acceptance gate](#vehicle-acceptance-gate) |
+| The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| Dipilot rescue shows the passive shell result before clicks, then queue observations and click diagnostics; it approves requests by design | local tests/build; vehicle acceptance pending | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+
+## Contents
+
+- [Product behaviour](#product-behaviour)
+- [Explaining the channel, and reaching diagnostics past the gate](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26)
+- [Operator flow](#operator-flow)
+- [The second asker](#the-second-asker-adb-rescue-probe-built-and-run-2026-08-29)
+- [Stuck prompt queue](#stuck-prompt-queue)
+- [Live result](#2026-08-18-live-result)
+- [Vehicle acceptance gate](#vehicle-acceptance-gate)
+- [The two states are not actually distinguished](#the-two-states-are-not-actually-distinguished-reported-2026-08-26)
+- [The prompt is never drawn on this car](#the-prompt-is-never-drawn-on-this-car-live-2026-08-29)
+- [How ADB authorization actually works on DiLink 5.1](#how-adb-authorization-actually-works-on-dilink-51-corpus-2026-08-29)
+- [Port 5555 after a reboot](#port-5555-after-a-reboot-and-reopening-it-through-wireless-debugging-corpus-2026-10-06)
+- [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08)
+- [The persistent shell is a terminal](#the-persistent-shell-is-a-terminal-live-v31-2026-08-26)
+
 Status: startup gate and the healthy one-shot path exercised on DiLink 5.1 on 2026-08-18;
 deliberately stuck queue recovery is still pending.
 
@@ -544,6 +573,58 @@ None of this is built.
 
 The rule for the car follows from the preconditions: a build that holds the permission has to be
 on the car before such an OTA is installed.
+
+## Dipilot identity rescue (local review, 2026-10-08)
+
+`experiments/dipilot-adb-rescue` is an isolated APK, included only with `-Pexperiments`.
+The owner explicitly chose **approval**, including `alwaysAllow`, rather than rejecting queued
+requests. This does not change the product's disabled queue-recovery policy above.
+
+The probe's `DipilotIdentity` was compared with the static byte arrays in
+`com.byd.windowmanager.utils.adb.AdbClient` from
+`~/Dev/denza/firmware/BydDipilot7.32.apk`: both the private PKCS#8 DER and the complete Android
+public blob plus comment match. The single-class decompile is retained in
+`captures/dipilot-adb-rescue-20261008/AdbClient.java`; it contains key material and is untracked.
+No key material is printed in this document or in the probe's diagnostic log excerpts.
+
+The on-screen sequence is:
+
+1. Attempt a passive shell connection with the Dipilot identity, execute a control-string command,
+   and show **ДА** or **НЕТ** plus the failure reason before arming clicks. No public key is
+   submitted: possession of the private key alone does not make it trusted by the car.
+2. If that fails and the accessibility service is enabled, approve available ADB windows during a
+   bounded wait and recheck shell after clicks. An earlier window may belong to another key, so
+   the first accepted click alone does not stop the wait. Show whether the service actually
+   connected, how many scans/windows it saw, how many ADB windows had a button, and how many
+   `ACTION_CLICK` attempts Android accepted. These counters do not prove authorization.
+3. Once shell works, read all logcat buffers, including the native `adbd` tag. Show the latest
+   retained queue observation before and after approvals, with redacted log excerpts. A first
+   dispatched prompt counts as pending even without a second client. Missing logs and an
+   approval without a native empty-queue marker mean **НЕИЗВЕСТНО**, not an empty queue.
+4. Approve at most five requests with `service call adb 1 i32 1 s16 '<current public key>'`.
+   Verify Binder's exception code, then wait for a new confirmation or `no prompts to send`.
+   Confirmation timestamps distinguish duplicate requests for the same key; an answered or
+   drained historical request must not be reused. Accessibility clicks are disarmed during
+   Binder approvals and used as a bounded fallback when the current key cannot be read.
+5. Disarm clicks and repeat the passive shell check on a new connection. Report shell trust and
+   the queue independently. A retained empty marker says the queue was empty at that event;
+   it cannot rule out later requests whose logs were lost.
+
+Firmware evidence: `AdbService` enforces `MANAGE_DEBUGGING` on both approval and rejection;
+`AdbDebuggingManager` checks the supplied fingerprint against `mFingerprints`, posts the response
+asynchronously, and persists the key when `alwaysAllow` is true. A successful Binder reply therefore
+does not establish that the fingerprint matched or that the native queue advanced.
+`ActivityRecord.dump()` uses `Intent.toInsecureString()`, which normally prints only
+`(has extras)`, so the `dumpsys activity` fallback cannot be relied on to expose the current key.
+`AccessibilityController` populates visible windows and filters those that do not matter to
+accessibility; requesting all displays does not reveal every hidden window.
+
+Sources are the IVI 2605 corpus under `captures/split-firmware-20260923/jadx/services/` and
+`jadx/systemui/`, plus AOSP
+[adbd_auth.cpp](https://android.googlesource.com/platform/frameworks/native/+/refs/tags/aml_sta_331711010/libs/adbd_auth/adbd_auth.cpp),
+where both `AllowUsbDevice` and `DenyUsbDevice` advance one dispatched prompt. Active clients can
+continue adding requests, and a queue longer than the probe's bound can remain pending.
+No vehicle installation or recovery run was performed for this review.
 
 ## The persistent shell is a terminal (live v31, 2026-08-26)
 

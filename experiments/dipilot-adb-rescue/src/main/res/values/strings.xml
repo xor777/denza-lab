@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_description">Нажимает «Разрешить» на спрятанном запросе доступа к ADB, и только пока на экране спасателя идёт освобождение порта.</string>
+</resources>
