@@ -1,5 +1,6 @@
 package dev.denza.apps.ui.dashboard
 
+import dev.denza.apps.DenzaUiState
 import java.io.File
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,10 +25,9 @@ class FeatureMapContractTest {
         val missing = TileId.entries.filter { id -> headings.none { "`${id.name}`" in it } }
         assertTrue("tiles with no section in docs/feature-map.md: $missing", missing.isEmpty())
 
-        val shown = Regex("""name = "([^"]+)"""")
-            .findAll(File(main, "ui/dashboard/DashboardTiles.kt").readText())
-            .map { it.groupValues[1] }
-            .toList()
+        // The names the dashboard shows, asked of the dashboard: a pattern over its source found
+        // nothing to check the day the names stopped being written `name = "…"`.
+        val shown = DashboardTiles.of(DenzaUiState()).map { it.name }
         val unnamed = shown.filter { name -> headings.none { "«$name»" in it } }
         assertTrue("tile names the map does not use: $unnamed", unnamed.isEmpty())
     }

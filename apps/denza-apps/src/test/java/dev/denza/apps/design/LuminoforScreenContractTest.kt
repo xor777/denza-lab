@@ -2,6 +2,7 @@ package dev.denza.apps.design
 
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
+import dev.denza.apps.DenzaUiState
 import dev.denza.apps.design.luminofor.LuminoforSpec
 import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.design.luminofor.SpecJson
@@ -12,6 +13,7 @@ import dev.denza.apps.ui.DashboardLayoutMode
 import dev.denza.apps.ui.DashboardLayoutPolicy
 import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.components.TileFace
+import dev.denza.apps.ui.dashboard.DashboardTiles
 import kotlin.math.roundToInt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -286,6 +288,24 @@ class LuminoforScreenContractTest {
         assertEquals("disabled reads as dark", dark.plate, TileFace.of(DenzaTileTone.shown(DenzaTileTone.LIVE, false)).plate)
     }
 
+    /**
+     * Every board draws the dashboard's own tiles: as many, in its order, under its names.
+     *
+     * The debug build's `TileFixtures` lays the board's words over the registry's tiles, so a
+     * screenshot laid over a board cannot see a tile renamed on one side only - the app would
+     * print the board's name. This is where a rename, a new tile or a reordering has to land on
+     * both sides.
+     */
+    @Test
+    fun everyBoardDrawsTheDashboardsTiles() {
+        val names = DashboardTiles.of(DenzaUiState()).map { it.name }
+        val drawn = SpecJson.fixtures.keys.mapNotNull { id ->
+            (SpecJson.fixture(id)["tiles"] as List<*>?)?.let { tiles -> id to tiles.map { (it as Map<*, *>)["name"] } }
+        }
+        assertTrue("no board in fixtures.json draws the dashboard", drawn.isNotEmpty())
+        drawn.forEach { (id, tiles) -> assertEquals(id, names, tiles) }
+    }
+
     @Test
     fun theGroundIsTheBoardsBlack() {
         assertEquals(hex(str("colors", "background")), DenzaColors.Ground.toArgb())
@@ -307,7 +327,7 @@ class LuminoforScreenContractTest {
     private val board: String by lazy { SpecJson.read("luminofor/luminofor.js") }
 
     private companion object {
-        /** The features every board draws, and the dashboard's own count today. */
-        const val FEATURES = 12
+        /** The dashboard's tiles, counted off it; [everyBoardDrawsTheDashboardsTiles] holds the boards to the same list. */
+        val FEATURES = DashboardTiles.of(DenzaUiState()).size
     }
 }

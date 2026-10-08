@@ -1,8 +1,10 @@
 package dev.denza.apps.ui
 
 import androidx.compose.ui.unit.dp
+import dev.denza.apps.DenzaUiState
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.trip.TripPanelLayout
+import dev.denza.apps.ui.dashboard.DashboardTiles
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -239,8 +241,12 @@ class DashboardLayoutPolicyTest {
     }
 
     private companion object {
-        /** What the dashboard actually carries today; DashboardTilesTest owns the list itself. */
-        const val FEATURES = 12
+        /**
+         * What the dashboard carries, counted off the dashboard; DashboardTilesTest owns the list.
+         * It was the number 12 typed here until 2026-10-08, so a thirteenth tile went past the
+         * chip's floor without this file noticing.
+         */
+        val FEATURES = DashboardTiles.of(DenzaUiState()).size
 
         /** The app's window: what the car leaves it, measured. The page lays itself out inside. */
         const val WINDOW_DP = 680f
