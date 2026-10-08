@@ -242,6 +242,7 @@ internal class VehicleTelemetryHub(context: Context) {
         var coldDueAt = 0L
         var backoffMs = FIRST_BACKOFF_MS
         val cold = LinkedHashMap<VehicleSignal, Double>()
+        val link = VehicleLink()
         // A loop that has just started has never looked at the marker, and the minute between
         // checks would be a lie about a process that came up a moment ago.
         capture.recheck()
@@ -261,7 +262,17 @@ internal class VehicleTelemetryHub(context: Context) {
                 } catch (error: Exception) {
                     shell?.runCatching { close() }
                     shell = null
-                    publishUnavailable(error)
+                    val failure = if (error is LocalAdbClient.AuthorizationRequiredException) {
+                        VehicleReadFailure.AUTHORIZATION
+                    } else {
+                        VehicleReadFailure.CHANNEL
+                    }
+                    if (link.failed(failure, SystemClock.elapsedRealtime())) {
+                        publishUnavailable(failure, error)
+                    } else {
+                        Log.i(TAG, "Чтение машины сорвалось: ${error.javaClass.simpleName} ${error.message}")
+                        publishDropped(cold)
+                    }
                     // The timeout, this wait and the reconnect after it are time nobody watched.
                     clock.interrupted()
                     delay(backoffMs)
@@ -333,16 +344,28 @@ internal class VehicleTelemetryHub(context: Context) {
                 // the car answers four times a second. The chart reads the log's whole retention
                 // rather than the window: its points are the window's own readings, and the ten
                 // readings behind the oldest of them are road the window no longer reaches.
-                val window = log.window
-                snapshot = VehicleTelemetry(
-                    access = if (merged.isEmpty()) VehicleAccess.UNAVAILABLE else VehicleAccess.READY,
-                    message = if (merged.isEmpty()) NO_ANSWER else "",
-                    values = merged,
-                    consumption = window,
-                    chart = ConsumptionChart.of(log.buckets),
-                    engineTrace = trace.snapshot(),
-                    trip = ledger.trip,
-                )
+                //
+                // A shell that answered with nothing in it - every id a sentinel and no cold value
+                // carried - is a failed read like a timeout, not a closed shell: the bus is quiet,
+                // and VehicleLink decides when quiet has lasted long enough to say so.
+                if (merged.isEmpty()) {
+                    if (link.failed(VehicleReadFailure.NO_ANSWER, now)) {
+                        publishUnavailable(VehicleReadFailure.NO_ANSWER)
+                    } else {
+                        publishDropped(cold)
+                    }
+                } else {
+                    link.answered(now)
+                    val window = log.window
+                    snapshot = VehicleTelemetry(
+                        access = VehicleAccess.READY,
+                        values = merged,
+                        consumption = window,
+                        chart = ConsumptionChart.of(log.buckets),
+                        engineTrace = trace.snapshot(),
+                        trip = ledger.trip,
+                    )
+                }
 
                 // Last, and out of the same map the panel is now reading: a recording of what the
                 // screen showed, not of something computed beside it. It never throws and it never
@@ -359,13 +382,31 @@ internal class VehicleTelemetryHub(context: Context) {
         }
     }
 
-    private fun publishUnavailable(error: Throwable) {
-        val message = when (error) {
-            is LocalAdbClient.AuthorizationRequiredException -> AUTHORIZATION_REQUIRED
-            else -> NO_CHANNEL
+    /**
+     * A read failed and the link is not closed: the figures go, the captions and the history stay.
+     *
+     * See [VehicleDroppedRead]. Everything the hub holds is handed on for the reason it is in
+     * [publishUnavailable].
+     */
+    private fun publishDropped(cold: Map<VehicleSignal, Double>) {
+        snapshot = VehicleDroppedRead.snapshot(
+            previous = snapshot.access,
+            cold = cold,
+            consumption = log.window,
+            chart = ConsumptionChart.of(log.buckets),
+            engineTrace = trace.snapshot(),
+            trip = ledger.trip,
+        )
+    }
+
+    private fun publishUnavailable(failure: VehicleReadFailure, error: Throwable? = null) {
+        val message = when (failure) {
+            VehicleReadFailure.AUTHORIZATION -> AUTHORIZATION_REQUIRED
+            VehicleReadFailure.CHANNEL -> NO_CHANNEL
+            VehicleReadFailure.NO_ANSWER -> NO_ANSWER
         }
         if (snapshot.access != VehicleAccess.UNAVAILABLE || snapshot.message != message) {
-            Log.w(TAG, "Данные машины недоступны: ${error.javaClass.simpleName} ${error.message}")
+            Log.w(TAG, "Данные машины недоступны: $failure ${error?.javaClass?.simpleName} ${error?.message}")
         }
         // Everything the hub still holds goes with it. The engine trace used to be left out, so a
         // four-second backoff swapped the right shelf out of the box and back - defeating the
@@ -461,6 +502,111 @@ internal class VehicleSweepClock {
     fun interrupted() {
         lastAt = 0L
     }
+}
+
+/** Why a sweep brought nothing back. */
+internal enum class VehicleReadFailure {
+    /** The local ADB key is not confirmed. Nothing but the driver changes that. */
+    AUTHORIZATION,
+
+    /** The shell itself failed: a timeout, a refused connection, a socket reset. */
+    CHANNEL,
+
+    /** The shell answered and nothing in the answer was a reading. */
+    NO_ANSWER,
+}
+
+/**
+ * When failed reads stop being a dropped read and become a link closed to us.
+ *
+ * `docs/energy-display-contract.md` §4 has two states for this and the hub used to know one of them:
+ * any exception from the shell - a hot read's three-second timeout included - and any answer of
+ * nothing but sentinels went straight to [VehicleAccess.UNAVAILABLE]. Both screens then put a
+ * sentence where their instruments were for at least the four seconds of the first backoff, and
+ * came back - once per hiccup. A dropped read is the other state: the figures leave on their own
+ * horizons and the captions stay, which is what the Contour's one staleness rule already draws for
+ * a hub that has gone quiet.
+ *
+ * So the link is closed by one of two things. A missing key closes it at once: it is an instruction
+ * for the driver, and waiting would only delay it. Anything else closes it once the reads have
+ * failed [CLOSE_AFTER_FAILURES] times in a row **and** nothing has answered for [CLOSE_AFTER_MS].
+ * The count keeps a single failed read, however long its timeout, a dropped one - a cold read alone
+ * takes eight seconds to fail. The time keeps a quiet bus, which fails a sweep every hundred
+ * milliseconds, a dropped read for long enough that the panel has taken every live figure down by
+ * itself first. Once closed it stays closed until something answers.
+ */
+internal class VehicleLink {
+
+    /** The last answer, or the first failure when nothing has answered since the loop started. */
+    private var quietSince = NEVER
+    private var failures = 0
+    private var closed = false
+
+    fun answered(nowMillis: Long) {
+        quietSince = nowMillis
+        failures = 0
+        closed = false
+    }
+
+    /** Whether the link is closed after this failure; false while it is still a dropped read. */
+    fun failed(failure: VehicleReadFailure, nowMillis: Long): Boolean {
+        if (quietSince == NEVER) quietSince = nowMillis
+        failures++
+        if (failure == VehicleReadFailure.AUTHORIZATION ||
+            (failures >= CLOSE_AFTER_FAILURES && nowMillis - quietSince >= CLOSE_AFTER_MS)
+        ) {
+            closed = true
+        }
+        return closed
+    }
+
+    companion object {
+        /** A second failure in a row: for the shell that is the retry after the first backoff. */
+        const val CLOSE_AFTER_FAILURES = 2
+
+        /**
+         * Two hot horizons of silence ([VehiclePoll.HOT]). By then every live figure on the Contour
+         * has gone by its own rule and the link-lost picture has stood for a full horizon; the first
+         * backoff is this long too, so a shell that fails twice has always been quiet for it.
+         */
+        val CLOSE_AFTER_MS: Long = (VehiclePoll.HOT.staleSeconds * 2 * 1000).toLong()
+
+        private const val NEVER = Long.MIN_VALUE
+    }
+}
+
+/**
+ * What the hub publishes for a read that failed before the link is closed ([VehicleLink]).
+ *
+ * No hot value, because nothing answered; the cold values the last cold sweep left, because they
+ * carry across a sweep that did not ask for them as they always have; the history and the trip as
+ * the hub holds them; and [VehicleTelemetry.dropped], because to the Contour this is not a packet.
+ * Its ages keep running across it, so its figures leave on their own horizons exactly as they do for
+ * a hub that has stopped answering, while the car page, which reads each snapshot as it comes, loses
+ * its live figures at once and keeps its captions. Nothing said by the car before the failure is
+ * claimed as said after it.
+ *
+ * A panel that has heard nothing yet is still starting: a failure is not an answer.
+ */
+internal object VehicleDroppedRead {
+
+    fun snapshot(
+        previous: VehicleAccess,
+        cold: Map<VehicleSignal, Double>,
+        consumption: List<ConsumptionSample>,
+        chart: ConsumptionChartSnapshot,
+        engineTrace: EngineTraceSnapshot,
+        trip: TripEnergy,
+    ): VehicleTelemetry = VehicleTelemetry(
+        access = if (previous == VehicleAccess.STARTING) VehicleAccess.STARTING else VehicleAccess.READY,
+        // A copy: the loop's cold map is rebuilt in place by the next cold sweep, under a reader.
+        values = LinkedHashMap(cold),
+        consumption = consumption,
+        chart = chart,
+        engineTrace = engineTrace,
+        trip = trip,
+        dropped = true,
+    )
 }
 
 /**

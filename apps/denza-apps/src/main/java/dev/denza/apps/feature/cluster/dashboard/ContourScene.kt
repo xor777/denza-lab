@@ -175,11 +175,24 @@ internal class ContourScene {
      */
     private var engineOffFor = Float.MAX_VALUE
 
+    /**
+     * Whether the last packet said P, for the frames a dropped read stands in for it.
+     *
+     * A dropped read carries no hot value, the selector included, and a panel that read P off it
+     * would swap the parked arrangement out and back for every failed read on a standing car. A
+     * hub that stops answering hands the last packet back and keeps P that way; this is the same.
+     */
+    private var parkedAtPacket = false
+
     var stage: ContourStage = ContourStage()
         private set
 
     /**
      * One frame.
+     *
+     * A snapshot of a dropped read ([VehicleTelemetry.dropped]) is not a packet even when it has
+     * just arrived: nothing answered, so nothing is younger for it, and the ages run on exactly as
+     * they do while the hub hands the same snapshot back.
      *
      * @param telemetry the newest snapshot, fresh or not
      * @param arrived whether this is a snapshot the panel has not seen before
@@ -190,9 +203,10 @@ internal class ContourScene {
         packetAge = add(packetAge, step)
         engineOffFor = add(engineOffFor, step)
 
-        if (arrived && telemetry.access == VehicleAccess.READY) {
+        if (arrived && telemetry.access == VehicleAccess.READY && !telemetry.dropped) {
             everAnswered = true
             packetAge = 0f
+            parkedAtPacket = telemetry.parked == true
             ContourValue.entries.forEach { value ->
                 if (!present(telemetry, value)) {
                     // What the trip does not carry did not happen this trip, and a caption over
@@ -241,7 +255,7 @@ internal class ContourScene {
      * thing the renderer could reasonably want to ask.
      */
     private fun decide(t: VehicleTelemetry): ContourStage {
-        val parked = t.parked == true
+        val parked = if (t.dropped) parkedAtPacket else t.parked == true
         // The flag is a value, so it goes stale like one: a panel that has heard nothing for two
         // seconds does not get to keep saying the engine is turning.
         val engineRunning = held(ContourValue.ENGINE_FLAG) == FLAG_UP

@@ -5,6 +5,8 @@ import dev.denza.apps.feature.vehicle.ConsumptionSample
 import dev.denza.apps.feature.vehicle.EngineTrace
 import dev.denza.apps.feature.vehicle.TripEnergy
 import dev.denza.apps.feature.vehicle.VehicleAccess
+import dev.denza.apps.feature.vehicle.VehicleDroppedRead
+import dev.denza.apps.feature.vehicle.VehiclePoll
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import org.junit.Assert.assertEquals
@@ -147,6 +149,44 @@ class StripReadingsTest {
         readings.car(back, VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "нет"))
         readings.car(back, snapshot())
         assertFalse("the page comes back when the car does", back.closed)
+    }
+
+    /**
+     * A read the shell dropped is not a closed car (energy contract §4): the page keeps its
+     * captions, its chart and its trip, and loses the figures nothing answered for.
+     *
+     * One timed-out read used to replace the whole page with «Питание от машины» and a sentence
+     * for the four seconds of the backoff.
+     */
+    @Test
+    fun aDroppedReadIsTheLinkLostRatherThanAClosedCar() {
+        val answered = snapshot(
+            values = mapOf(
+                VehicleSignal.PACK_VOLT to 549.0,
+                VehicleSignal.PACK_TEMP_AVG to 28.0,
+            ),
+        )
+        val model = car(
+            VehicleDroppedRead.snapshot(
+                previous = answered.access,
+                cold = answered.values.filterKeys { it.poll == VehiclePoll.COLD },
+                consumption = answered.consumption,
+                chart = answered.chart,
+                engineTrace = answered.engineTrace,
+                trip = answered.trip,
+            ),
+        )
+
+        assertFalse(model.closed)
+        assertEquals("", model.message)
+        assertEquals("Батарея", model.power.caption)
+        assertNull("no live figure outlives the read", model.power.figure)
+        assertEquals("Напряжение", model.volts.caption)
+        assertNull(model.volts.figure)
+        assertEquals("28°", model.temps.first().figure)
+        assertEquals("9,3", model.tripCell.figure)
+        assertEquals("17", model.spendFigure)
+        assertSame(answered.chart.values, model.chart)
     }
 
     @Test

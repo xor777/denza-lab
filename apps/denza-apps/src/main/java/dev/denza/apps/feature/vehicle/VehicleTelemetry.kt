@@ -8,7 +8,14 @@ internal enum class VehicleAccess {
     /** At least one sweep answered. */
     READY,
 
-    /** The shell channel is closed to us; [VehicleTelemetry.message] says why. */
+    /**
+     * The shell channel is closed to us; [VehicleTelemetry.message] says why.
+     *
+     * Declared by [VehicleLink], not by any one failed read: a missing key closes it at once,
+     * anything else only once the reads have kept failing past the link's horizon. Before that a
+     * failed read is a dropped one ([VehicleTelemetry.dropped]), and the panel's own staleness
+     * rule takes the figures down.
+     */
     UNAVAILABLE,
 }
 
@@ -38,6 +45,16 @@ internal data class VehicleTelemetry(
     val engineTrace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
     /** What this trip has cost so far, integrated by [TripEnergyLedger]. */
     val trip: TripEnergy = TripEnergy(),
+    /**
+     * The read behind this snapshot failed, and the link is not closed yet ([VehicleLink]).
+     *
+     * Such a snapshot carries no hot value - nothing answered - and the cold values and the history
+     * as the last answered sweep left them ([VehicleDroppedRead]), so the car page loses its live
+     * figures and keeps its captions (`docs/energy-display-contract.md` §4, «link lost / a dropped
+     * read»). It is **not a packet**: the Contour's ages keep running across it, which is what takes
+     * the cluster's figures down on their own horizons.
+     */
+    val dropped: Boolean = false,
 ) {
 
     operator fun get(signal: VehicleSignal): Double? = values[signal]

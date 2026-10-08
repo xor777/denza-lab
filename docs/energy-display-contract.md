@@ -352,7 +352,14 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   the cluster the beam and its glow go with the power's figure, the glyphs stay
   without their degrees, and the ten kilometres stay with their unit where the
   last figure left it (`ContourFrame.consumptionHeld`, board `cluster-stale`); the
-  first seconds are the axis alone (`cluster-waking`);
+  first seconds are the axis alone (`cluster-waking`). A shell call that fails -
+  a timeout, a reset, an answer of nothing but sentinels - is this state, not the
+  closed one (2026-10-08; until then any one of them closed both screens for at
+  least the four seconds of the first backoff): the hub publishes a *dropped read*
+  (`VehicleDroppedRead`: no hot value, the cold ones carried, the history and the
+  trip kept, `VehicleTelemetry.dropped`), which the Contour does not count as a
+  packet, so its ages run on as for a hub gone quiet, and on which the car page
+  keeps its captions and loses its live figures at once;
 - **moving**: hero + band (cluster) / headline + figure (car page); the ten
   kilometre chart and its whole-kilowatt-hour figure; the trip's phrase; the
   engine's revolutions while it runs;
@@ -369,7 +376,9 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 - **closed to us** (the shell cannot read the car): the cluster draws its
   skeleton and the reason in the ten kilometres' place; the car page says
   «Питание от машины» on its caption line and the instruction under it, and
-  nothing else;
+  nothing else. `VehicleLink` declares it: at once for a missing ADB key, and
+  otherwise only once the reads have failed twice in a row and nothing has
+  answered for two hot horizons (4 s); an answer opens it again;
 - **a gap in the record**: nothing to see. The chart is shorter by the road
   nobody recorded, the points either side of it are neighbours, and the figure is
   the mean of what is known.

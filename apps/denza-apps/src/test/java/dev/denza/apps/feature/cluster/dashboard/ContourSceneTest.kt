@@ -4,6 +4,8 @@ import dev.denza.apps.feature.vehicle.ConsumptionSample
 import dev.denza.apps.feature.vehicle.EngineTrace
 import dev.denza.apps.feature.vehicle.TripEnergy
 import dev.denza.apps.feature.vehicle.VehicleAccess
+import dev.denza.apps.feature.vehicle.VehicleDroppedRead
+import dev.denza.apps.feature.vehicle.VehiclePoll
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import org.junit.Assert.assertEquals
@@ -536,5 +538,92 @@ class ContourSceneTest {
         // And it comes back the moment a packet does.
         run(scene, ready(), 0.5f)
         assertTrue(scene.fresh(ContourValue.POWER))
+    }
+
+    /** A failed read as the hub publishes it before the link is closed: see [VehicleDroppedRead]. */
+    private fun dropped(from: VehicleTelemetry) = VehicleDroppedRead.snapshot(
+        previous = from.access,
+        cold = from.values.filterKeys { it.poll == VehiclePoll.COLD },
+        consumption = from.consumption,
+        chart = from.chart,
+        engineTrace = from.engineTrace,
+        trip = from.trip,
+    )
+
+    /**
+     * A shell that dropped a read is the link lost, not the car closed (energy contract §4).
+     *
+     * One three-second timeout used to put the whole panel into its closed picture - the skeleton
+     * and a sentence - for at least the four seconds of the backoff. The hub publishes a dropped
+     * read now, and the panel draws exactly what it draws for a hub that has gone quiet.
+     */
+    @Test
+    fun aDroppedReadIsTheLinkLostRatherThanAClosedCar() {
+        val scene = ContourScene()
+        val driving = ready(
+            mapOf(
+                VehicleSignal.POWER_KW to 34.0,
+                VehicleSignal.PACK_VOLT to 552.0,
+                VehicleSignal.PACK_TEMP_AVG to 28.0,
+            ),
+        )
+        run(scene, driving, 1f)
+
+        // The failed reads keep arriving, and none of them is a packet.
+        run(scene, dropped(driving), 1f)
+        assertFalse(scene.stage.unavailable)
+        assertTrue("a second of quiet is not a loss", scene.fresh(ContourValue.POWER))
+
+        run(scene, dropped(driving), 1.5f)
+        assertFalse("still not a closed car", scene.stage.unavailable)
+        assertFalse(scene.fresh(ContourValue.POWER))
+        assertFalse(scene.fresh(ContourValue.VOLTS))
+        assertFalse("the trip's figures go on the packet's horizon too", scene.fresh(ContourValue.TRIP_NET))
+        assertTrue("and every caption stays", scene.known(ContourValue.POWER))
+        assertTrue(scene.known(ContourValue.VOLTS))
+        assertTrue(scene.known(ContourValue.TRIP_NET))
+        assertTrue("a temperature goes on its own cadence's horizon", scene.fresh(ContourValue.PACK_TEMP))
+
+        run(scene, driving, 0.5f)
+        assertTrue("and it all comes back with a packet", scene.fresh(ContourValue.POWER))
+    }
+
+    @Test
+    fun aDroppedReadDoesNotPutTheEnginesBoxBack() {
+        val trace = EngineTrace()
+        repeat(20) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 14.0) }
+        val scene = ContourScene()
+        val generating = running(trace)
+        run(scene, generating, 1f)
+        assertTrue(scene.stage.engineBox)
+
+        // A failed read every few seconds, which is the backoff's rhythm. Were a dropped read a
+        // packet, each one would raise the box for another two seconds of the ten it holds.
+        var elapsed = 0f
+        var gone = false
+        while (elapsed < 12f) {
+            val arrived = elapsed % 3f < frame
+            scene.frame(dropped(generating), arrived, frame)
+            if (!scene.stage.engineBox) gone = true
+            assertFalse("the box came back at $elapsed s", gone && scene.stage.engineBox)
+            elapsed += frame
+        }
+        assertTrue(gone)
+    }
+
+    @Test
+    fun aDroppedReadKeepsTheArrangementOfAStandingCar() {
+        val scene = ContourScene()
+        val standing = ready(mapOf(VehicleSignal.POWER_KW to 1.4, VehicleSignal.GEARBOX_PARK to 1.0))
+        run(scene, standing, 1f)
+        assertTrue(scene.stage.parked)
+
+        // The selector is a hot value and a dropped read carries none, which is not the car
+        // leaving P: the seat and the tenth stay as they do for a hub that has gone quiet.
+        run(scene, dropped(standing), 3f)
+        assertTrue(scene.stage.parked)
+
+        run(scene, ready(mapOf(VehicleSignal.POWER_KW to 20.0)), 0.5f)
+        assertFalse("a packet without P is a car that left it", scene.stage.parked)
     }
 }

@@ -8,7 +8,7 @@ live-car evidence is current through 2026-09-04.
 
 ## Current state
 
-Updated 2026-10-03. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
+Updated 2026-10-08. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
 
 Owned elsewhere: what an energy figure means, its words and its chart - [energy-display-contract.md](energy-display-contract.md) (normative, wins over this page); the panel's drawing, boards and `compare.py` - [tools/design-canvas/luminofor/README.md](../tools/design-canvas/luminofor/README.md) (normative); the HUD as a display - [hud-projection-findings.md](hud-projection-findings.md); the turn-signal CAN events - [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
 
@@ -21,6 +21,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22) and `GENERATION_KW` the engine's charge into the pack, zero while the engine drives the wheels (2026-09-24); so the engine's box stands only while the engine charges and leaves 10 s after `ENGINE_RUNNING` drops | live | 2026-09-24 | [What still waits for the car](#what-still-waits-for-the-car), [Why the engine's box does not flicker](#why-the-engines-box-does-not-flicker) |
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
 | `VehicleTelemetryHub.kt` polls for three `VehicleWatcher`s: `CLUSTER`, `STRIP` and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-09-22 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
+| A failed shell read is a dropped read (`VehicleDroppedRead`, the link-lost picture), not the closed one: `VehicleLink` closes the screens at once only for a missing ADB key, otherwise after two failures in a row and 4 s without an answer | code | 2026-10-08 | [Telemetry ownership](#telemetry-ownership) |
 | Mirrors follow AVC's own inputs (`MirrorTransitionReducer.kt`): show side X while AVC's card of X is built and the lamps flash X (FID `0x38A0002C`: `2`/`3` left, `4`/`5` right); close at once when the lamps leave X, the card ends, or the raw lever FID `0x1330002C` has an onset toward the other side | code | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | While Mirrors are on they own the stock choice: each monitor start writes choice `1` (both images on the head unit) and keeps the owner's value in `stock_turn_camera_before`; turning Mirrors off gives it back if `1` is still set (`SideCameraMonitorService.kt`, `MirrorsSettings.kt`) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | `com.byd.avc/.AutoVideoService` (action `com.byd.action.AVCSERVICE`, no permission, no caller check) answers a Messenger: `what=35` gives the mode in `arg2` (`5095` left, `5096`/`5099` right, `5000` idle), `what=1011` replies `1012` with the choice (`0` left on the meter, `1` head unit, `2` full-screen, `3` off), `what=1013` writes it, `what=52` closes the PIP (read, not run); an app UID binds in 23 ms and gets answers in 6-11 ms on AVC's main thread, so it is asked once per transition, never polled | live | 2026-09-23 | [The stock turn-signal camera, read from the firmware (2026-09-23)](#the-stock-turn-signal-camera-read-from-the-firmware-2026-09-23) |
@@ -1029,6 +1030,20 @@ that kept them forever. That changed with the Contour and it is what makes its o
 staleness rule mean anything: a value is removed two seconds after its last
 sample, so "absent from the snapshot" has to mean the same thing on a signal
 answering three times a second and on one answering every ten.
+
+**A failed read is a dropped read, not a closed car** (2026-10-08). Until then
+every exception from the shell - a hot read's three-second timeout included -
+and every answer made of sentinels alone published `VehicleAccess.UNAVAILABLE`,
+so one hiccup replaced the Contour and the car page with their closed picture for
+at least the four seconds of the first backoff. `VehicleLink`
+(`VehicleTelemetryHub.kt`) now closes the link at once only for a missing ADB key;
+any other failure closes it once the reads have failed twice in a row and nothing
+has answered for two hot horizons (`VehiclePoll.HOT`, 4 s). Before that the hub
+publishes `VehicleDroppedRead`: no hot value, the cold map carried, the history
+and the trip kept, `dropped = true`. `ContourScene` does not take it for a packet,
+so the panel draws the link-lost picture of energy contract §4 on its own
+horizons and keeps P from the last packet; the car page shows its captions without
+live figures. How often the car's shell drops a read is not measured.
 
 The tank joined the cold set on 2026-08-25: `FUEL_PERCENT` (`0x4A507040`),
 `FUEL_RANGE_KM` (`0x4A504038`) and, briefly, `FUEL_LOW` (`0x4A507027`). The first
