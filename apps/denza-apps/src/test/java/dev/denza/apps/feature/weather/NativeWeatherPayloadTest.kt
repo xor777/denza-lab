@@ -67,6 +67,32 @@ class NativeWeatherPayloadTest {
         assertSun(MOSCOW, MOSCOW_LAT, MOSCOW_LON, "2026-12-21", sunrise = "08:59", sunset = "15:58")
     }
 
+    /**
+     * Wherever the car is, a day's sunrise and sunset fall on that day and in that order.
+     *
+     * The far east meets its sunrise while UTC is still on the day before, and the west its sunset
+     * when UTC has moved on to the next one.
+     */
+    @Test
+    fun aDaysSunriseAndSunsetFallOnThatDayEverywhere() {
+        val places = listOf(
+            Triple(ZoneId.of("Europe/Kaliningrad"), 54.71, 20.51),
+            Triple(MOSCOW, MOSCOW_LAT, MOSCOW_LON),
+            Triple(ZoneId.of("Asia/Novosibirsk"), 55.03, 82.92),
+            Triple(ZoneId.of("Asia/Vladivostok"), 43.12, 131.89),
+            Triple(ZoneId.of("America/Los_Angeles"), 34.05, -118.24),
+        )
+        for ((zone, lat, lon) in places) {
+            for (day in listOf("2026-03-20", "2026-06-21", "2026-12-21")) {
+                val (sunrise, sunset) = sun(zone, lat, lon, day)
+                val date = LocalDate.parse(day)
+                assertEquals("$zone $day: sunrise $sunrise", date, sunrise.toLocalDate())
+                assertEquals("$zone $day: sunset $sunset", date, sunset.toLocalDate())
+                assertTrue("$zone $day: $sunrise before $sunset", sunrise.isBefore(sunset))
+            }
+        }
+    }
+
     private fun assertSun(zone: ZoneId, lat: Double, lon: Double, day: String, sunrise: String, sunset: String) {
         val (rise, set) = sun(zone, lat, lon, day)
         assertMinutes("$day sunrise", LocalTime.parse(sunrise), rise.toLocalTime())

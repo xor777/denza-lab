@@ -9,6 +9,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 import kotlin.math.acos
 import kotlin.math.asin
@@ -408,12 +409,26 @@ internal object NativeWeatherPayload {
             ): SolarTimes {
                 val sunrise = solarEvent(date, latitude, longitude, true)
                     ?.atZone(zoneId)
+                    ?.onDate(date)
                     ?: date.atTime(LocalTime.of(6, 0)).atZone(zoneId)
                 val sunset = solarEvent(date, latitude, longitude, false)
                     ?.atZone(zoneId)
+                    ?.onDate(date)
                     ?: date.atTime(LocalTime.of(18, 0)).atZone(zoneId)
                 return SolarTimes(sunrise, sunset)
             }
+
+            /**
+             * The event's time of day, on [date].
+             *
+             * [solarEvent] answers in UTC hours folded into one day and puts them on [date]'s UTC
+             * midnight. Where the local day starts well before or after UTC's, that instant is on the
+             * neighbouring local day: Novosibirsk's 04:48 sunrise of 21 June is 21:48 UTC on the 20th,
+             * and it came back as the 22nd, so the widget had today's sunrise tomorrow. The time of day
+             * was right all along, so only the day is put back.
+             */
+            private fun ZonedDateTime.onDate(date: LocalDate): ZonedDateTime =
+                plusDays(ChronoUnit.DAYS.between(toLocalDate(), date))
 
             private fun solarEvent(
                 date: LocalDate,
