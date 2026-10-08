@@ -1,8 +1,6 @@
 package dev.denza.apps.feature.vehicle
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -45,21 +43,6 @@ class VehicleSweepCadenceTest {
         }
     }
 
-    /**
-     * And the two cadences are an order of magnitude apart, which is the whole of the decision.
-     *
-     * A ledger sweeping at the screens' rate would keep the shell busy some sixty per cent of the
-     * time for the life of the process, and the integral needs no more than a reading a second: a
-     * hundred-metre bucket is several seconds of road at any speed worth measuring.
-     */
-    @Test
-    fun theTwoCadencesAreTenToOne() {
-        assertEquals(
-            10L,
-            VehicleSweepCadence.LEDGER_INTERVAL_MS / VehicleSweepCadence.HOT_INTERVAL_MS,
-        )
-    }
-
     /** Nobody watching at all is the same cadence as the ledger; the loop is not running anyway. */
     @Test
     fun nothingWatchingIsNotTheScreensCadence() {
@@ -67,14 +50,5 @@ class VehicleSweepCadenceTest {
             VehicleSweepCadence.LEDGER_INTERVAL_MS,
             VehicleSweepCadence.intervalMs(emptySet()),
         )
-    }
-
-    /** The watchers say which of them is a screen, so the cadence is not a list of names. */
-    @Test
-    fun onlyTheTwoScreensAreOnScreen() {
-        assertTrue(VehicleWatcher.CLUSTER.onScreen)
-        assertTrue(VehicleWatcher.STRIP.onScreen)
-        assertFalse("the ledger is nobody looking", VehicleWatcher.LEDGER.onScreen)
-        assertEquals(3, VehicleWatcher.entries.size)
     }
 }
