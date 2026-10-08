@@ -1015,8 +1015,8 @@ object DenzaAppRepository {
         // The three roles are an ordinary ContentResolver read; they owe the ADB phase nothing.
         refreshDefaultApps()
         when (AdbStartupGatePolicy.entryAction(AdbRescueCoordinator.snapshot().phase)) {
-            // UNKNOWN is the one automatic startup probe. All other unresolved outcomes stay
-            // latched until the user explicitly presses a button in the blocking overlay.
+            // A passive look in every unsettled phase: it never submits the key, so an approval
+            // that landed while the process was dead is found here rather than never.
             AdbStartupEntryAction.CHECK_ACCESS -> {
                 refresh()
                 checkAdbAccess()
