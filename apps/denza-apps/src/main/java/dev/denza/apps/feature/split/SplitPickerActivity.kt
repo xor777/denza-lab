@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Parcel
 import android.os.ResultReceiver
+import android.os.SystemClock
 import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -87,9 +88,18 @@ class SplitPickerActivity : ComponentActivity() {
     /**
      * Правка W9 (v20 D4): чей запуск сейчас в полёте. Селект на этой машине занимает 3-4.7 с, и
      * пикер обязан показывать честное ожидание (1.13.2): крутилку на выбранной плитке и
-     * пригашенную сетку - тап не выглядит проигнорированным. Сбрасывается итогом операции.
+     * пригашенную сетку - тап не выглядит проигнорированным. Сбрасывается итогом операции, а если
+     * итог не пришёл (основной процесс умер посреди выбора) - пределом ожидания [wait] (1.5.9).
      */
     private var busyPackage by mutableStateOf<String?>(null)
+
+    /** Which selection is being waited for, and until when; [busy] and [busyPackage] show it. */
+    private val wait = SplitPickerWait()
+
+    /** Ends a wait the answer never came for, at its limit. */
+    private val waitExpiry = Runnable {
+        if (wait.expire(SystemClock.uptimeMillis())) showWait()
+    }
     // U6, 1.13.2: a picker that comes back to an already-scanned catalog shows the apps at once.
     // "Загружаю приложения…" is honest only while there is genuinely nothing to show yet.
     private var apps by mutableStateOf(SplitPickerAppCatalog.cached().orEmpty())
@@ -132,29 +142,23 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     /**
-     * The only thing this picker needs to hear back: the selection is over (U5).
+     * The only thing this picker needs to hear back: selection [waitId] is over (U5).
      *
      * Whatever became of it, this pane is usable - either its app is on screen above the picker,
      * or the picker itself is, with the whole catalogue and a live tap. Nothing about a launch
-     * that did not happen is worth a sentence, so the grid simply comes back to life.
-     */
-    private val resultReceiver by lazy {
-        object : ResultReceiver(Handler(mainLooper)) {
-            override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
-                busy = false
-                busyPackage = null
-            }
-        }
-    }
-
-    /**
+     * that did not happen is worth a sentence, so the grid simply comes back to life. One receiver
+     * per selection, so an answer that arrives after its wait expired ends nothing newer.
+     *
      * A Parcel round-trip produces the framework ResultReceiver proxy, so the provider boundary
      * never needs to deserialize the anonymous receiver implementation.
      */
-    private val remoteResultReceiver by lazy {
+    private fun remoteResultReceiver(waitId: Int): ResultReceiver {
+        val local = object : ResultReceiver(lifecycleHandler) {
+            override fun onReceiveResult(resultCode: Int, resultData: Bundle?) = endWait(waitId)
+        }
         val parcel = Parcel.obtain()
-        try {
-            resultReceiver.writeToParcel(parcel, 0)
+        return try {
+            local.writeToParcel(parcel, 0)
             parcel.setDataPosition(0)
             ResultReceiver.CREATOR.createFromParcel(parcel)
         } finally {
@@ -200,6 +204,8 @@ class SplitPickerActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         revealed = true
+        // The timer ends a wait with no answer; a picker that comes back to the screen checks too.
+        if (wait.expire(SystemClock.uptimeMillis())) showWait()
         lifecycleHandler.removeCallbacks(stoppedReporter)
         stoppedTaskId = null
         // A picker can resume with the same Activity instance after its covered app was dismissed.
@@ -223,6 +229,11 @@ class SplitPickerActivity : ComponentActivity() {
             lifecycleHandler.removeCallbacks(stoppedReporter)
             lifecycleHandler.postDelayed(stoppedReporter, PICKER_HIDDEN_SETTLE_MS)
         }
+    }
+
+    override fun onDestroy() {
+        lifecycleHandler.removeCallbacks(waitExpiry)
+        super.onDestroy()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -282,21 +293,30 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     private fun select(packageName: String) {
-        if (busy) return
-        busy = true
-        busyPackage = packageName
+        val waitId = wait.begin(packageName, SystemClock.uptimeMillis()) ?: return
+        showWait()
+        lifecycleHandler.removeCallbacks(waitExpiry)
+        lifecycleHandler.postDelayed(waitExpiry, SplitPickerWait.LIMIT_MS)
         val delivered = sendCommand(
             method = SplitCommandContract.METHOD_SELECT,
             extras = Bundle().apply {
                 putInt(SplitCommandContract.EXTRA_PICKER_TASK_ID, taskId)
                 putString(SplitCommandContract.EXTRA_PACKAGE_NAME, packageName)
-                putParcelable(SplitCommandContract.EXTRA_RESULT_RECEIVER, remoteResultReceiver)
+                putParcelable(SplitCommandContract.EXTRA_RESULT_RECEIVER, remoteResultReceiver(waitId))
             },
         )
-        if (!delivered) {
-            busy = false
-            busyPackage = null
-        }
+        if (!delivered) endWait(waitId)
+    }
+
+    private fun endWait(waitId: Int) {
+        if (!wait.answered(waitId)) return
+        lifecycleHandler.removeCallbacks(waitExpiry)
+        showWait()
+    }
+
+    private fun showWait() {
+        busyPackage = wait.packageName
+        busy = busyPackage != null
     }
 
     /**

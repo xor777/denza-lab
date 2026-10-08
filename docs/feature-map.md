@@ -102,7 +102,7 @@ Opens two apps side by side on the central screen through the firmware's own spl
 - **Settings:** `SplitLauncherIconController` (the switch is the launcher alias's enabled state); `SplitScreenSettings` (key `denza_split_screen`: toggle snapshot, firmware values to restore).
 - **Docs:** `docs/split-screen-product-contract.md` (normative), `docs/split-screen-findings.md`.
 - **Luminofor:** none: no sheet fixture; shared tile face. The waiting animation has its own board, `tools/design-canvas/split-crew/split-crew.html` (`SplitCrewScene`).
-- **Tests:** `SplitScreenToggleControllerTest`, `SplitCoordinatorCoreTest`, `SplitAutomatonTest`, `SplitScenarioTest`, `SplitOperationRunnerTest`, `SplitPickerGridTest`, `SplitCrewBoardContractTest`, `SplitWorkJournalTest`.
+- **Tests:** `SplitScreenToggleControllerTest`, `SplitCoordinatorCoreTest`, `SplitAutomatonTest`, `SplitScenarioTest`, `SplitOperationRunnerTest`, `SplitPickerGridTest`, `SplitPickerWaitTest`, `SplitCrewBoardContractTest`, `SplitWorkJournalTest`.
 
 ### «HUD Подсказки» — `HUD`
 
