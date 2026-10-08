@@ -194,6 +194,10 @@ data class DenzaUiState(
     /** The screen the app would pick by itself, named as the page names it; null when it cannot. */
     val clusterDisplayAutomatic: String? = null,
     val appPickerVisible: Boolean = false,
+    /**
+     * Everything «Что транслировать» offers, read when its page opens rather than on every
+     * recompute - the car's launcher catalog, and nothing but that page draws it.
+     */
     val appChoices: List<SimulcastAppChoice> = emptyList(),
     val fseInstallerPickerVisible: Boolean = false,
     val fseInstallApps: List<FseInstallApp> = emptyList(),
@@ -225,6 +229,14 @@ object DenzaAppRepository {
     private const val TAG = "DenzaApps.Repository"
     private val executor = Executors.newSingleThreadExecutor()
     private val defaultAppsExecutor = Executors.newSingleThreadExecutor()
+
+    /**
+     * Where the choosers read the launcher catalog: off the main thread, and not behind a
+     * passenger install on [executor], which can take minutes.
+     */
+    private val catalogExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "denza-catalog").apply { isDaemon = true }
+    }
     private val adbRuntimeStarted = AtomicBoolean(false)
     private val adbRuntimePassRunning = AtomicBoolean(false)
     private val defaultAppsHydrated = AtomicBoolean(false)
@@ -323,7 +335,6 @@ object DenzaAppRepository {
         )
         val navigationPlacements = NavigationPlacementPolicy.offered(navigationPackage)
         val navigationAppChoice = NavigationAppChoices.chosen(context, navigationPackage)
-        val appChoices = loadAppChoices(context)
         val splitScreen = splitScreenSnapshot(
             launcherVisible = splitLauncherVisible,
             session = splitScreenSession,
@@ -382,11 +393,6 @@ object DenzaAppRepository {
                 navigationPlacements = navigationPlacements,
                 navigationAppLabel = navigationAppChoice.label,
                 navigationAppChoice = navigationAppChoice,
-                // Loaded here rather than when a picker asks for it. The projection panel offers
-                // this list inline, and a panel that says "which applications" over an empty space
-                // until some other flow happens to have run is a panel that lies about what it is
-                // for.
-                appChoices = appChoices,
                 splitScreen = splitScreen,
                 hudGuidance = hudGuidance,
                 speakerCovers = speakerCovers,
@@ -450,14 +456,9 @@ object DenzaAppRepository {
     }
 
     fun showAppPicker() {
-        val context = appContext ?: return
-        val appChoices = loadAppChoices(context)
-        stateStore.update { current ->
-            current.copy(
-                appPickerVisible = true,
-                appChoices = appChoices,
-            )
-        }
+        appContext ?: return
+        stateStore.update { current -> current.copy(appPickerVisible = true) }
+        refreshAppChoices()
     }
 
     fun hideAppPicker() {
@@ -465,17 +466,41 @@ object DenzaAppRepository {
     }
 
     /**
-     * Sweep the car for applications without opening anything.
+     * Read the car for «Что транслировать» without opening anything, off the main thread.
      *
      * The chooser inside the projection panel is a page of that panel rather than a window of its
      * own, so it has nothing for [showAppPicker]'s `appPickerVisible` to raise - and raising it
      * anyway would put the whole-sheet picker on top of the page showing the same list. Reading is
-     * the half both doors share; which surface appears is the caller's business.
+     * the half both doors share; which surface appears is the caller's business. Until the first
+     * read lands the page says it is looking; after that it shows the last list while it reads.
      */
     fun refreshAppChoices() {
         val context = appContext ?: return
-        val appChoices = loadAppChoices(context)
-        stateStore.update { current -> current.copy(appChoices = appChoices) }
+        catalogExecutor.execute { publishAppChoices(context) }
+    }
+
+    private fun publishAppChoices(context: Context) {
+        val installed = runCatching { DefaultAppsCatalogCache.installed(context) }
+            .onFailure { Log.w(TAG, "Launcher catalog unavailable for the projection", it) }
+            .getOrNull() ?: return
+        val choices = SimulcastAppChoices.of(
+            installed = installed,
+            ownPackage = context.packageName,
+            selected = SimulcastApps.getSelected(context),
+        )
+        stateStore.update { current ->
+            // A press on the page moves its marks the moment it lands, and a list read before that
+            // press must not put them back: once the page holds a list, its marks are the choice.
+            val marked = if (current.appChoices.isEmpty()) {
+                choices
+            } else {
+                SimulcastAppChoices.withSelection(
+                    choices,
+                    SimulcastAppChoices.selected(current.appChoices),
+                )
+            }
+            current.copy(appChoices = marked)
+        }
     }
 
     fun showFseInstallerPicker() {
@@ -534,9 +559,18 @@ object DenzaAppRepository {
         }
     }
 
+    /**
+     * One tile of «Что транслировать» pressed: the stored row changes and the page's marks move.
+     *
+     * Nothing is read from the package manager. The page already holds what the car offers, so the
+     * stored row is kept to what it offers - an entry it no longer lists has left the car - and the
+     * marks are the same tiles with their flags moved, not the catalog swept again.
+     */
     fun toggleAppSelection(packageName: String) {
         val context = appContext ?: return
-        val selected = SimulcastApps.getSelected(context).toMutableList()
+        val offered = stateStore.snapshot().state.appChoices
+            .mapTo(HashSet(), SimulcastAppChoice::packageName)
+        val selected = SimulcastApps.getStored(context).filter { it in offered }.toMutableList()
         if (packageName in selected) {
             selected.remove(packageName)
         } else if (selected.size >= SimulcastApps.MAX_SELECTED) {
@@ -548,11 +582,10 @@ object DenzaAppRepository {
             selected.add(packageName)
         }
         SimulcastApps.setSelected(context, selected)
-        refresh("simulcast apps")
-        val appChoices = loadAppChoices(context)
         stateStore.update { current ->
-            current.copy(appChoices = appChoices)
+            current.copy(appChoices = SimulcastAppChoices.withSelection(current.appChoices, selected))
         }
+        refresh("simulcast apps")
     }
 
     fun setMirrorsEnabled(enabled: Boolean) {
@@ -627,25 +660,21 @@ object DenzaAppRepository {
     }
 
     fun showNavigationAppPicker() {
-        val context = appContext ?: return
-        val selected = NavigationCoordinator.selectedPackage()
-        val choices = NavigationAppChoices.all(context, selected)
-        stateStore.update { current ->
-            current.copy(
-                navigationAppChoices = choices,
-                navigationPickerVisible = true,
-            )
-        }
+        appContext ?: return
+        stateStore.update { current -> current.copy(navigationPickerVisible = true) }
+        refreshNavigationAppChoices()
     }
 
     /**
-     * Read the car for «Что показывать» without opening a window: the panel's own page asks for
-     * this when it opens, the way the projection's page does.
+     * Read the car for «Что показывать» without opening a window, off the main thread: the panel's
+     * own page asks for this when it opens, the way the projection's page does.
      */
     fun refreshNavigationAppChoices() {
         val context = appContext ?: return
-        val choices = NavigationAppChoices.all(context, NavigationCoordinator.selectedPackage())
-        stateStore.update { current -> current.copy(navigationAppChoices = choices) }
+        catalogExecutor.execute {
+            val choices = NavigationAppChoices.all(context, NavigationCoordinator.selectedPackage())
+            stateStore.update { current -> current.copy(navigationAppChoices = choices) }
+        }
     }
 
     fun hideNavigationAppPicker() {
@@ -2041,42 +2070,6 @@ object DenzaAppRepository {
 
     private fun supportDiagnostics(context: Context): String =
         SupportDiagnostics.build(context, stateStore.snapshot().state.fseInstaller)
-
-    private fun loadAppChoices(context: Context): List<SimulcastAppChoice> {
-        val selected = SimulcastApps.getSelected(context)
-        return loadLaunchableAppChoices(context, selected)
-    }
-
-    private fun loadLaunchableAppChoices(
-        context: Context,
-        selected: Collection<String>,
-    ): List<SimulcastAppChoice> {
-        val selectedOrder = selected.withIndex().associate { it.value to it.index }
-        // Room for one more, or not. The picker greys what a full selection cannot take rather
-        // than accepting the tap and printing the rule afterwards.
-        val roomLeft = selectedOrder.size < SimulcastApps.MAX_SELECTED
-        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val seen = HashSet<String>()
-        return context.packageManager.queryIntentActivities(launcherIntent, 0)
-            .mapNotNull { info ->
-                val packageName = info.activityInfo?.packageName ?: return@mapNotNull null
-                if (packageName == context.packageName || !seen.add(packageName)) return@mapNotNull null
-                val isSelected = packageName in selectedOrder
-                SimulcastAppChoice(
-                    packageName = packageName,
-                    label = info.loadLabel(context.packageManager).toString(),
-                    icon = runCatching { info.loadIcon(context.packageManager) }.getOrNull(),
-                    selected = isSelected,
-                    // Taking one off the list is always allowed; putting one on is not.
-                    selectable = isSelected || roomLeft,
-                )
-            }
-            // By name alone. The chosen used to lead, and the list was rebuilt on every toggle, so
-            // the tile the driver had just pressed left from under the finger and reappeared at
-            // the top. The mark on the tile already says which are chosen; a fixed order is what
-            // lets the eye find the same tile twice.
-            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, SimulcastAppChoice::label))
-    }
 
     private fun selectedAppChoices(context: Context): List<SimulcastAppChoice> =
         SimulcastApps.getSelected(context).map { packageName ->

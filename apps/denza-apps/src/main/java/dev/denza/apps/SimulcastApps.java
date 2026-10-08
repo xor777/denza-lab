@@ -53,6 +53,25 @@ final class SimulcastApps {
         return out;
     }
 
+    /**
+     * The stored order as it was written, without asking the package manager about each entry or
+     * seeding the defaults: for a press on the chooser, which already holds what the car offers.
+     */
+    static List<String> getStored(Context context) {
+        String raw = prefs(context).getString(KEY_SELECTED, null);
+        List<String> out = new ArrayList<>();
+        if (raw == null) {
+            return out;
+        }
+        for (String pkg : raw.split("\n")) {
+            String trimmed = pkg.trim();
+            if (!trimmed.isEmpty() && !out.contains(trimmed)) {
+                out.add(trimmed);
+            }
+        }
+        return out;
+    }
+
     static void setSelected(Context context, List<String> packages) {
         StringBuilder builder = new StringBuilder();
         for (String pkg : packages) {
