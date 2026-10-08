@@ -52,6 +52,10 @@ class ClusterSceneService : Service() {
     }
 
     private val handler = Handler(Looper.getMainLooper())
+    private val diagnosticHides = DiagnosticHideTimers(
+        postDelayed = { task, delayMs -> handler.postDelayed(task, delayMs) },
+        remove = { task -> handler.removeCallbacks(task) },
+    )
     private val cameraReadyNotification = CameraReadyNotification(
         post = { task -> handler.post { task() } },
         isCurrentReady = { generation ->
@@ -202,7 +206,10 @@ class ClusterSceneService : Service() {
             return
         }
         try {
-            handler.removeCallbacksAndMessages(null)
+            // The camera replaces this layer's diagnostic (ClusterPresentation.showCamera hides
+            // it), so this layer's pending hide goes with it. Nothing else on the handler is the
+            // camera's to drop: the base layer's hide is still due over the instruments.
+            diagnosticHides.cancel(cameraLayer = true)
             scene.showCamera(config, commandGeneration)
         } catch (error: RuntimeException) {
             Log.e(TAG, "Unable to start camera renderer", error)
@@ -337,8 +344,9 @@ class ClusterSceneService : Service() {
         val scene = if (cameraOverlay) prepareCameraScene() else prepareBaseScene()
         scene ?: return
         scene.showDiagnostic(position, visible)
-        handler.removeCallbacksAndMessages(null)
-        handler.postDelayed({ scene.hideDiagnostic() }, durationMs.coerceIn(250L, 5_000L))
+        diagnosticHides.schedule(cameraOverlay, durationMs.coerceIn(250L, 5_000L)) {
+            scene.hideDiagnostic()
+        }
     }
 
     private fun onAvcReady(commandGeneration: Long, details: String) {
