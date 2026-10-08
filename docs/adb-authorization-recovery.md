@@ -540,8 +540,8 @@ Owners describe a restore that uses Android's own wireless debugging to ask adbd
 `tcpip:5555`. Every step is stock AOSP on this image:
 
 1. While classic ADB still works, the app grants itself `WRITE_SECURE_SETTINGS` with
-   `pm grant` over its own shell. The manifest must request the permission; Denza Apps does not
-   request it today.
+   `pm grant` over its own shell. The manifest must request the permission. Denza Apps has done
+   both since 2026-10-08 (`AdbPortRestore`, below); until then it did not request it.
 2. After the reboot it writes `Settings.Global.adb_wifi_enabled = 1`. `AdbService` and
    `AdbDebuggingManager` are unmodified (`AdbDebuggingManager` handler case 11, about lines
    838–858, and `verifyWifiNetwork` at 1115). With no Wi-Fi the setting is put back to 0. On a
@@ -584,16 +584,30 @@ the permission was granted.
 | 2606 closes 5555 after a reboot | open | owners' reports only |
 | The wireless-debugging path and its dialog are stock on 2605 | firmware | `AdbDebuggingManager`, `WifiDebuggingActivity` |
 | Denza Apps reaches adbd only over classic 5555 and has no reopening path | code | `LocalAdbClient.PORT` |
+| Denza Apps requests `WRITE_SECURE_SETTINGS` and grants it to itself over its trusted shell on every runtime pass where it is missing | code | `AndroidManifest.xml`, `AdbPortRestore.prepare` |
+| That self-grant succeeds on this car | open | «Восстановление порта ADB» on the service page, after one trusted runtime pass |
 
 On a 2606-class build, the product would need four things:
 
-- A `WRITE_SECURE_SETTINGS` request in the manifest, granted while 5555 still answers.
+- A `WRITE_SECURE_SETTINGS` request in the manifest, granted while 5555 still answers. Built
+  2026-10-08, see below.
 - An STLS client and mDNS discovery added to `LocalAdbClient`.
 - A third accessibility job for the network dialog. Simulcast and the split picker already run
   accessibility services.
 - A gate state for "no Wi-Fi yet".
 
-None of this is built.
+Only the first is built (2026-10-08); the other three are not.
+
+On every runtime pass that has a trusted shell, `DenzaAppRepository.startAdbRuntime` hands
+`AdbPortRestore.prepare` one job on its own thread. If `checkSelfPermission` says the permission is
+missing, it sends `pm grant dev.denza.apps android.permission.WRITE_SECURE_SETTINGS` over a
+persistent shell and checks again. Nothing else is written. A held permission is left alone. A
+refusal or a transport failure is recorded and never raised, so it cannot fail the pass.
+**Сервис → Технические сведения** shows the result in a section of its own, **Восстановление
+порта ADB**. Its `WRITE_SECURE_SETTINGS` row is read live and says how the permission came to be
+held, or why it is not: *выдано*, *выдано приложением*, *не выдано: <what `pm` said>*, or *не
+выдано, ждёт доступа к ADB* before any trusted pass. The section is a model of its own
+(`AdbPortRestoreState`, `AdbPortRestoreReport`), so a later restore can add its rows to it.
 
 The rule for the car follows from the preconditions: a build that holds the permission has to be
 on the car before such an OTA is installed.

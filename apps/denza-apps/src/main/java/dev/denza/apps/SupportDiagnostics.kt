@@ -10,6 +10,8 @@ import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
+import dev.denza.apps.feature.adb.AdbPortRestore
+import dev.denza.apps.feature.adb.AdbPortRestoreReport
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.cloud.CloudLinkReport
 import dev.denza.apps.feature.cloud.CloudLinkDiagnostics
@@ -80,6 +82,7 @@ object SupportDiagnostics {
                 section("Облако", cloudRows(context)),
                 appSection(header),
                 section("Доступ к машине", accessRows()),
+                section(AdbPortRestoreReport.TITLE, adbPortRestoreRows(context)),
                 section("Трансляция", simulcastRows(context, header)),
                 section("Зеркала", mirrorsRows(context, header)),
                 section("Экран водителя", driverScreenRows(context)),
@@ -167,6 +170,14 @@ object SupportDiagnostics {
             row("Восстановление очереди", AdbRescueCoordinator.QUEUE_RECOVERY_STATUS),
         )
     }
+
+    // Whether the permission is held is asked now, not remembered: it can be granted or revoked
+    // from outside this process.
+    private fun adbPortRestoreRows(context: Context): List<TechnicalRow> =
+        AdbPortRestoreReport.rows(
+            permissionHeld = AdbPortRestore.isPermissionHeld(context),
+            state = AdbPortRestore.state(),
+        ).map { (key, value) -> row(key, value) }
 
     private fun simulcastRows(context: Context, header: SupportDiagnosticsHeader): List<TechnicalRow> =
         listOf(
