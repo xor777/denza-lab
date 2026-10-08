@@ -153,11 +153,12 @@ any work that depends on undocumented firmware behavior.
 
 - The decompiled framework/SystemUI corpus from this exact vehicle, plus
   read-only dumps from the car, are the primary source for firmware behavior.
-  A live install is a hypothesis test, not an exploration tool. `CLAUDE.md`,
-  "Firmware corpus", lists the OTA archives, the extractions and decompiles
-  already in `captures/` and `reverse/`, and the readers. Reuse them before
-  extracting again. Write agent reports into the capture directory rather than
-  a session scratchpad, which does not outlive the session.
+  A live install is a hypothesis test, not an exploration tool.
+  `docs/firmware-corpus.md` lists the OTA archives, the readers, and where new
+  copies and decompiles go; `python3 tools/firmware_corpus.py find <name>`
+  shows what is already extracted or decompiled, and from which build. Reuse
+  it before extracting again. Write agent reports into the capture directory
+  rather than a session scratchpad, which does not outlive the session.
 - Vendor controllers (SmartMulti, DiShare, and similar) are stateful automatons
   with persistent memory: settings keys, runtime registration lists, remembered
   pairs, launcher databases. Before designing against one, write its state
@@ -285,6 +286,12 @@ any work that depends on undocumented firmware behavior.
 ## Git Hygiene
 
 - Keep unrelated product changes and research changes in separate commits.
+- Do not leave work uncommitted across sessions. Before a session stops, commit
+  what it changed, by path, even unfinished: a `wip(<area>): checkpoint …`
+  commit is fine, and a stash is not, because other sessions share this tree.
+  The HUD/FSE work of 2026-09-24 stayed uncommitted for nine days; every agent
+  in a worktree saw the 2026-09-23 state, and the committed `CLAUDE.md` kept a
+  claim the car had refuted.
 - Put code parked for later under `research/` and document it.
 - If a feature is not working, mark it as blocked or experimental in docs before pushing.
 - Run at least the relevant Gradle build before publishing code changes:
