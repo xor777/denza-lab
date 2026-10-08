@@ -1866,6 +1866,93 @@ class SplitScenarioTest {
         assertFalse(car.store.load().enabled)
     }
 
+    /**
+     * Contract 1.2, U4: switching off is the user's decision and lands even when the teardown does
+     * not. A teardown that threw (live v33: the firmware kept split after the switch) used to roll
+     * the whole off back - the borrowed settings stayed borrowed, and the function stayed on in
+     * memory and in the store with its icon already gone.
+     */
+    @Test
+    fun aToggleOffWhoseTeardownFailsStillGoesOffAndGivesTheLeasesBack() {
+        val car = car(
+            FakeShell(initialGate = true).apply {
+                liveProductScene(withApps = true)
+                setGlobal(RESIZE_KEY, "0")
+                setGlobal(ACCESS_KEY, "0")
+            },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true, slots = APP_PAIR),
+            leases = listOf(
+                FakeLease(SplitLeaseKind.RESIZEABILITY, RESIZE_KEY),
+                FakeLease(SplitLeaseKind.PICKER_ACCESS, ACCESS_KEY),
+            ),
+        )
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        check(car.fake.globalValue(RESIZE_KEY) == "1" && car.fake.globalValue(ACCESS_KEY) == "1") {
+            "the open did not borrow the settings"
+        }
+
+        car.shells.failOn("am stack list")
+        core.setEnabled(false)
+        car.barrier()
+
+        assertFalse("off in the store", car.store.load().enabled)
+        assertFalse("and in memory", core.currentState().enabled)
+        assertEquals("resizeability given back", "0", car.fake.globalValue(RESIZE_KEY))
+        assertEquals("the observer given back", "0", car.fake.globalValue(ACCESS_KEY))
+        assertEquals("the selection survives the toggle (1.3.2)", APP_PAIR, car.store.load().slots)
+        assertTrue(
+            "the failed teardown is a line of the ring, not a rollback",
+            car.diagnostics.any { it.startsWith("toggle-off teardown failed") },
+        )
+        assertTrue(car.diagnostics.any { it.startsWith("disable outcome=committed") })
+    }
+
+    /**
+     * Contract §4: an on does not cut an off short. `ENABLE` ran with `DISABLE`'s priority and so
+     * cancelled the teardown in flight - after its point of no return, with the leases still
+     * borrowed. Now the off finishes and the on follows it.
+     */
+    @Test
+    fun offThenOnDuringTheTeardownLetsTheTeardownFinish() {
+        val car = car(
+            FakeShell(initialGate = true).apply {
+                liveProductScene(withApps = true)
+                focusedTaskId = SECONDARY_APP_TASK
+                setGlobal(RESIZE_KEY, "0")
+            },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true, slots = APP_PAIR),
+            leases = listOf(FakeLease(SplitLeaseKind.RESIZEABILITY, RESIZE_KEY)),
+        )
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.diagnostics.clear()
+
+        car.shells.blockAt("am stack list")
+        core.setEnabled(false)
+        assertTrue("the teardown never started", car.shells.awaitBlocked())
+        core.setEnabled(true)
+        car.shells.release()
+        car.barrier()
+
+        assertEquals(
+            listOf("disable outcome=committed", "enable outcome=committed"),
+            car.diagnostics.filter { " outcome=" in it }.map { it.substringBefore(" reason=") },
+        )
+        assertFalse("our pickers are gone", car.fake.hasTask(PRIMARY_PICKER_TASK))
+        assertFalse(car.fake.hasTask(SECONDARY_PICKER_TASK))
+        assertTrue("the focused app is fullscreen", car.fake.hasPackage(FULL_ROOT, MUSIC))
+        assertEquals("resizeability given back", "0", car.fake.globalValue(RESIZE_KEY))
+        assertTrue("and the function is on again", car.store.load().enabled)
+        assertEquals(APP_PAIR, car.store.load().slots)
+    }
+
     @Test
     fun twoSelectionsInDifferentPanesBothLand() {
         // сценарий §11.29, контракт 1.5.5: два SELECT в разные панели не конфликтуют

@@ -132,6 +132,16 @@ internal enum class SplitInputPriority {
     DISABLE,
 
     /**
+     * Toggle on: one store write and no command (1.2.1), so it cancels nothing.
+     *
+     * It ran with [DISABLE]'s priority until 2026-10-08 and so preempted everything that one does,
+     * an in-flight `DISABLE` included: a quick off-then-on cut the teardown after its point of no
+     * return and left the borrowed settings borrowed. It still runs ahead of every other input, so
+     * the open of a press that turned the toggle on finds it on (1.2.8).
+     */
+    ENABLE,
+
+    /**
      * A confirmed Home: cancels the scene work the user just walked away from.
      *
      * Never the explicit `OPEN` below it (contract 4.2): that one is the action the user asked

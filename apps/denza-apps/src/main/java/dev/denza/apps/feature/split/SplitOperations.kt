@@ -719,12 +719,15 @@ internal class SplitOperationLifecycle(
 
 // region toggle
 
-/** Contract 1.2.1: enabling writes one snapshot and sends nothing to the car. */
+/**
+ * Contract 1.2.1: enabling writes one snapshot and sends nothing to the car. It has its own
+ * priority, which preempts nothing: an off still in flight finishes its teardown first.
+ */
 internal class EnableOperation(
     work: SplitOperationWorkspace,
 ) : SplitCoreOperation<Unit>(
     label = SplitCoordinatorCore.ENABLE_LABEL,
-    priority = SplitInputPriority.DISABLE,
+    priority = SplitInputPriority.ENABLE,
     durationMs = TOGGLE_BUDGET_MS,
     joinKey = SplitCoordinatorCore.ENABLE_LABEL,
     coalesceKey = null,
@@ -741,6 +744,11 @@ internal class EnableOperation(
  * Contract 1.2.2-1.2.6. The automaton decides which teardown the live scene needs; the recipe
  * performs it, keeping the focused app fullscreen and the neighbour alive, and the gate is closed
  * only if this product opened it. The selection survives (1.3.2).
+ *
+ * Switching off is the user's decision, and it lands even when the teardown does not: a recipe
+ * that fails is a line of the ring, the leases are given back regardless, and the function is
+ * committed off. Only the fence may still stop it - an operation that lost its token commits
+ * nothing (invariant 10).
  */
 internal class DisableOperation(
     work: SplitOperationWorkspace,
@@ -764,18 +772,28 @@ internal class DisableOperation(
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {
         if (plan) {
             pointOfNoReturn(op, "toggle-off removes the product pickers")
-            work.split(op).closePickers(SPLIT_PICKER_COMPONENTS)
+            // A teardown that threw used to roll the whole off back: the leases below were never
+            // given back, nothing was committed, and the function stayed on in memory and in the
+            // store with its icon already gone (live v33: the firmware kept split after the switch).
+            bestEffort("teardown") { work.split(op).closePickers(SPLIT_PICKER_COMPONENTS) }
         }
         // Independent of the scene, and independent of each other: every restore is a no-op unless
-        // this product still owns that lease, so a toggle-off with nothing borrowed stays silent.
-        val failures = mutableListOf<Throwable>()
-        work.leases.forEach { lease ->
-            runCatching { lease.restore(shell) }.exceptionOrNull()?.let(failures::add)
-        }
+        // this product still owns that lease, so a toggle-off with nothing borrowed stays silent. A
+        // restore that failed keeps its lease recorded as ours, and the next session adopts it.
+        work.leases.forEach { lease -> bestEffort("lease ${lease.kind}") { lease.restore(shell) } }
         liveScene = emptyMap()
-        failures.firstOrNull()?.let { first ->
-            failures.drop(1).forEach(first::addSuppressed)
-            throw first
+    }
+
+    /** Runs one step of the teardown; a failure is logged, a lost token still ends the operation. */
+    private fun bestEffort(step: String, action: () -> Unit) {
+        try {
+            action()
+        } catch (cancelled: SplitOperationCancelled) {
+            throw cancelled
+        } catch (interrupted: InterruptedException) {
+            throw interrupted
+        } catch (failure: Throwable) {
+            work.log("toggle-off $step failed, the function goes off anyway: ${failure.message ?: failure}")
         }
     }
 
