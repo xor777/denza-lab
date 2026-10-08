@@ -534,6 +534,11 @@ settles the first question, and it should be taken before any OTA:
 adb shell 'getprop | grep -iE "adb|wiress|usb.config"'
 ```
 
+Since 2026-10-08 the product reads the deciding values itself, with no host ADB. Each runtime pass
+with a trusted shell reads them, and **Сервис → Технические сведения → Восстановление порта ADB**
+shows them; see [Consequences for the product](#consequences-for-the-product). A screenshot of
+that section taken after a full reboot answers the first question for that car.
+
 ### Reopening 5555 through wireless debugging
 
 Owners describe a restore that uses Android's own wireless debugging to ask adbd for
@@ -580,7 +585,8 @@ the permission was granted.
 | Claim | Status | Where |
 | --- | --- | --- |
 | 2605 opens 5555 through `sys.connect.adb.wiress`, written only by BYD's developer tools | firmware | `init.rc:1685`, `LogControlAndTestToolsActivity:389–391` |
-| Who sets it, or `persist.adb.tcp.port`, after a full reboot on 2605 | open | getprop above |
+| Who sets it, or `persist.adb.tcp.port`, after a full reboot on 2605 | open | getprop above, or «Восстановление порта ADB» on the service page |
+| Denza Apps reads `persist.adb.tcp.port`, `service.adb.tcp.port`, `sys.connect.adb.wiress`, `persist.sys.adb.wiress.enable` and `adb_wifi_enabled` over its trusted shell once per runtime pass, read-only, and shows them on the service page | code | `AdbPortReadout`, `AdbPortRestoreReport` |
 | 2606 closes 5555 after a reboot | open | owners' reports only |
 | The wireless-debugging path and its dialog are stock on 2605 | firmware | `AdbDebuggingManager`, `WifiDebuggingActivity` |
 | Denza Apps reaches adbd only over classic 5555 and has no reopening path | code | `LocalAdbClient.PORT` |
@@ -601,13 +607,20 @@ Only the first is built (2026-10-08); the other three are not.
 On every runtime pass that has a trusted shell, `DenzaAppRepository.startAdbRuntime` hands
 `AdbPortRestore.prepare` one job on its own thread. If `checkSelfPermission` says the permission is
 missing, it sends `pm grant dev.denza.apps android.permission.WRITE_SECURE_SETTINGS` over a
-persistent shell and checks again. Nothing else is written. A held permission is left alone. A
-refusal or a transport failure is recorded and never raised, so it cannot fail the pass.
+persistent shell and checks again. Nothing else is written. A held permission is left alone.
+Then, on the same shell, one read-only command (`AdbPortReadout.COMMAND`) reads
+`persist.adb.tcp.port`, `service.adb.tcp.port`, `sys.connect.adb.wiress` and
+`persist.sys.adb.wiress.enable` with `getprop`, and `adb_wifi_enabled` with `settings get global`.
+The answer is kept in memory until the next pass. A refusal or a transport failure in either step
+is recorded and never raised, so it cannot fail the pass, and one failing step does not skip the
+other. A failed read keeps the last answer and says when it was taken.
 **Сервис → Технические сведения** shows the result in a section of its own, **Восстановление
 порта ADB**. Its `WRITE_SECURE_SETTINGS` row is read live and says how the permission came to be
 held, or why it is not: *выдано*, *выдано приложением*, *не выдано: <what `pm` said>*, or *не
-выдано, ждёт доступа к ADB* before any trusted pass. The section is a model of its own
-(`AdbPortRestoreState`, `AdbPortRestoreReport`), so a later restore can add its rows to it.
+выдано, ждёт доступа к ADB* before any trusted pass. Under it are the five values, *не задано*
+for an unset one and *—* before anything was read, and **Прочитано**: how long ago, or the
+failure. The section is a model of its own (`AdbPortRestoreState`, `AdbPortReadout`,
+`AdbPortRestoreReport`), so a later restore can add its rows to it.
 
 The rule for the car follows from the preconditions: a build that holds the permission has to be
 on the car before such an OTA is installed.
