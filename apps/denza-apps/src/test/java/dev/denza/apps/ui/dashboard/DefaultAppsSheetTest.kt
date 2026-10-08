@@ -229,7 +229,6 @@ class DefaultAppsSheetTest {
     private fun choice(): DefaultAppChoice = DefaultAppChoice(
         packageName = "ru.yandex.music",
         label = "Яндекс Музыка",
-        icon = null,
         selected = false,
         known = true,
         stock = false,

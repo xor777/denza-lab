@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
+import dev.denza.apps.AppIcons
 
 /** Process-wide launcher catalog, invalidated by package changes and explicit refreshes. */
 internal object DefaultAppsCatalogCache {
@@ -37,6 +38,10 @@ internal object DefaultAppsCatalogCache {
         val loaded = DefaultAppsCatalog.discover(context.applicationContext)
         synchronized(cacheLock) {
             if (generation == started) {
+                // The pictures go where the screen draws them from, so no chooser reads them
+                // again - and only from a read no package change has overtaken, or a picture the
+                // change has just dropped would come back.
+                loaded.forEach { app -> AppIcons.put(app.packageName, app.icon) }
                 cachedInstalled = loaded
                 cachedLaunchable = loaded.mapTo(linkedSetOf(), InstalledDefaultApp::packageName)
             }
@@ -73,6 +78,7 @@ internal object DefaultAppsCatalogCache {
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     if (intent == null || intent.action !in PACKAGE_CHANGE_ACTIONS) return
+                    intent.data?.schemeSpecificPart?.let(AppIcons::forget)
                     onPackage(intent)
                     invalidate()
                     onChanged()

@@ -3,7 +3,6 @@ package dev.denza.apps
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import android.util.Log
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
@@ -89,10 +88,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 const val SIMULCAST_MAX_SELECTED: Int = SimulcastApps.MAX_SELECTED
 
+/**
+ * One application on «Что транслировать». No picture: the screen draws it by [packageName] from
+ * [AppIcons], so two readings of the same car are equal states.
+ */
 data class SimulcastAppChoice(
     val packageName: String,
     val label: String,
-    val icon: Drawable?,
     val selected: Boolean,
     /**
      * Whether pressing this tile would change anything.
@@ -114,7 +116,6 @@ data class SimulcastAppChoice(
 data class NavigationAppChoice(
     val packageName: String,
     val label: String,
-    val icon: Drawable?,
     val selected: Boolean,
     val instruments: Boolean = false,
 )
@@ -316,106 +317,106 @@ object DenzaAppRepository {
             }
             return
         }
-        val snapshot = SimulcastCoordinator.evaluate(SimulcastCoordinator.inspect(context))
-        val navigationSession = NavigationCoordinator.snapshot()
-        val navigationPackage = NavigationCoordinator.selectedPackage()
-        val steeringWheelAccess = SteeringWheelNavigationAccessCoordinator.inspect(context)
-        val splitLauncherVisible = SplitLauncherIconController.isVisible(context)
-        val splitScreenSession = SplitScreenCoordinator.snapshot()
-        val selectedApps = selectedAppChoices(context)
-        val mirrors = evaluateMirrors(context)
-        val selectedAppCount = SimulcastApps.selectedCount(context)
-        val mirrorsPosition = MirrorsSettings.position(context)
-        val mirrorsProcessing = MirrorsSettings.processingEnabled(context)
-        val navigationSteeringWheelButtonRepairing =
-            steeringWheelAccess.desired && SteeringWheelNavigationAccessCoordinator.isRepairing()
-        val navigationPlacement = NavigationPlacementPolicy.resolve(
-            navigationPackage,
-            NavigationCoordinator.placement(),
-        )
-        val navigationPlacements = NavigationPlacementPolicy.offered(navigationPackage)
-        val navigationAppChoice = NavigationAppChoices.chosen(context, navigationPackage)
-        val splitScreen = splitScreenSnapshot(
-            launcherVisible = splitLauncherVisible,
-            session = splitScreenSession,
-        )
-        val hudGuidance = evaluateHudGuidance(context)
-        val speakerCovers = SpeakerCoverStatus.snapshot(
-            enabled = SpeakerCoverSettings.isEnabled(context),
-            sessionsObservable = HudNotificationAccessCoordinator.isAccessEnabled(context),
-        )
-        val speakerCoversReporting = SpeakerCoverRuntime.reporting
-        // The last reading, never a fresh one: this runs on whatever thread asked for a redraw,
-        // and the car is asked on the cloud link's own thread.
-        val cloudCar = CloudLinkRuntime.car
-        val cloudLink = CloudLinkRuntime.snapshot(
-            enabled = CloudLinkSettings.isEnabled(context),
-            network = CloudNetwork.usable(context),
-            pendingDisable = CloudLinkSettings.pendingDisable(context),
-            nowMs = android.os.SystemClock.elapsedRealtime(),
-        )
-        val cloudLinkBusy = CloudLinkRuntime.busy
+        val readings = StateSlice.entries.map { slice -> readSlice(context, slice) }
         val technicalDetails = supportDiagnostics(context)
         // What the split's journal said when last read; if the files moved since, they are read
         // again on the journal's own thread and this runs once more with what they say now.
         val splitJournal = SupportDiagnostics.splitJournal()
         SplitDiagnostics.rereadWork { refresh("split journal") }
-        val clusterCandidates = ClusterDisplayResolver.candidates(context)
-        val clusterDisplayLabel = clusterDisplayLabel(context, clusterCandidates)
-        val clusterDisplayOverride = ClusterDisplayResolver.overrideId(context)
-        val clusterDisplayAutomatic = clusterDisplayName(
-            ClusterDisplayResolver.select(clusterCandidates),
-            clusterCandidates,
-        )
-        val weatherEnabled = WeatherAdapterState.enabled(context)
-        val weatherTemperature = WeatherAdapterState.lastTemperature(context)
-        val weatherUpdatedMillis = WeatherAdapterState.lastSuccessMillis(context)
         stateStore.update { current ->
-            current.copy(
-                simulcast = snapshot,
-                mirrors = mirrors,
-                selectedAppCount = selectedAppCount,
-                selectedAppLabels = selectedApps.map(SimulcastAppChoice::label),
-                selectedApps = selectedApps,
-                mirrorsPosition = mirrorsPosition,
-                mirrorsProcessing = mirrorsProcessing,
-                navigation = navigationSnapshot(
-                    navigationSession.phase,
-                    navigationSession.message,
-                    navigationSession.details,
-                    navigationSession.resolution,
-                ),
-                navigationButtonLabel = navigationSession.buttonLabel,
-                navigationSteeringWheelButton = steeringWheelAccess.desired,
-                navigationSteeringWheelButtonReady = steeringWheelAccess.ready,
-                navigationSteeringWheelButtonRepairing = navigationSteeringWheelButtonRepairing,
-                navigationPlacement = navigationPlacement,
-                navigationPlacements = navigationPlacements,
-                navigationAppLabel = navigationAppChoice.label,
-                navigationAppChoice = navigationAppChoice,
-                splitScreen = splitScreen,
-                hudGuidance = hudGuidance,
-                speakerCovers = speakerCovers,
-                speakerCoversReporting = speakerCoversReporting,
-                cloudLink = cloudLink,
-                cloudWifiRetained = cloudCar?.wifiRetained,
-                cloudLinkBusy = cloudLinkBusy,
-                weatherEnabled = weatherEnabled,
-                weatherTemperature = weatherTemperature,
-                weatherUpdatedMillis = weatherUpdatedMillis,
+            current.withReadings(readings).copy(
                 adbRescue = adbRescue,
                 adbRestore = AdbRestore.snapshot(),
                 technicalDetails = technicalDetails,
                 splitJournal = splitJournal,
-                clusterCandidates = clusterCandidates,
-                clusterDisplayLabel = clusterDisplayLabel,
-                clusterDisplayOverride = clusterDisplayOverride,
-                clusterDisplayAutomatic = clusterDisplayAutomatic,
             )
         }
-        // The system language is a tile on the main screen, so it is read like every other tile's
-        // state. It is one call to [Locale.getDefault] and asks the car nothing.
-        refreshSystemLanguage()
+    }
+
+    /**
+     * One slice of the state, read from the car's settings and from what the features hold -
+     * nothing here waits on the shell. Plain values: two reads of the same car are equal.
+     */
+    private fun readSlice(context: Context, slice: StateSlice): SliceReading = when (slice) {
+        StateSlice.SIMULCAST -> {
+            val selectedApps = selectedAppChoices(context)
+            SimulcastReading(
+                snapshot = SimulcastCoordinator.evaluate(SimulcastCoordinator.inspect(context)),
+                selectedApps = selectedApps,
+                selectedAppCount = selectedApps.size,
+            )
+        }
+        StateSlice.MIRRORS -> MirrorsReading(
+            snapshot = evaluateMirrors(context),
+            position = MirrorsSettings.position(context),
+            processing = MirrorsSettings.processingEnabled(context),
+        )
+        StateSlice.NAVIGATION -> {
+            val session = NavigationCoordinator.snapshot()
+            val selectedPackage = NavigationCoordinator.selectedPackage()
+            val steeringWheelAccess = SteeringWheelNavigationAccessCoordinator.inspect(context)
+            NavigationReading(
+                snapshot = navigationSnapshot(
+                    session.phase,
+                    session.message,
+                    session.details,
+                    session.resolution,
+                ),
+                buttonLabel = session.buttonLabel,
+                steeringWheelButton = steeringWheelAccess.desired,
+                steeringWheelButtonReady = steeringWheelAccess.ready,
+                steeringWheelButtonRepairing = steeringWheelAccess.desired &&
+                    SteeringWheelNavigationAccessCoordinator.isRepairing(),
+                placement = NavigationPlacementPolicy.resolve(
+                    selectedPackage,
+                    NavigationCoordinator.placement(),
+                ),
+                placements = NavigationPlacementPolicy.offered(selectedPackage),
+                appChoice = NavigationAppChoices.chosen(context, selectedPackage),
+            )
+        }
+        StateSlice.SPLIT_SCREEN -> SplitScreenReading(
+            splitScreenSnapshot(
+                launcherVisible = SplitLauncherIconController.isVisible(context),
+                session = SplitScreenCoordinator.snapshot(),
+            ),
+        )
+        StateSlice.HUD_GUIDANCE -> HudGuidanceReading(evaluateHudGuidance(context))
+        StateSlice.SPEAKER_COVERS -> SpeakerCoversReading(
+            snapshot = SpeakerCoverStatus.snapshot(
+                enabled = SpeakerCoverSettings.isEnabled(context),
+                sessionsObservable = HudNotificationAccessCoordinator.isAccessEnabled(context),
+            ),
+            reporting = SpeakerCoverRuntime.reporting,
+        )
+        // The last reading, never a fresh one: the car is asked on the cloud link's own thread.
+        StateSlice.CLOUD_LINK -> CloudLinkReading(
+            snapshot = CloudLinkRuntime.snapshot(
+                enabled = CloudLinkSettings.isEnabled(context),
+                network = CloudNetwork.usable(context),
+                pendingDisable = CloudLinkSettings.pendingDisable(context),
+                nowMs = android.os.SystemClock.elapsedRealtime(),
+            ),
+            wifiRetained = CloudLinkRuntime.car?.wifiRetained,
+            busy = CloudLinkRuntime.busy,
+        )
+        StateSlice.CLUSTER_DISPLAY -> {
+            val candidates = ClusterDisplayResolver.candidates(context)
+            ClusterDisplayReading(
+                candidates = candidates,
+                label = clusterDisplayLabel(context, candidates),
+                override = ClusterDisplayResolver.overrideId(context),
+                automatic = clusterDisplayName(ClusterDisplayResolver.select(candidates), candidates),
+            )
+        }
+        StateSlice.WEATHER -> WeatherReading(
+            enabled = WeatherAdapterState.enabled(context),
+            temperature = WeatherAdapterState.lastTemperature(context),
+            updatedMillis = WeatherAdapterState.lastSuccessMillis(context),
+        )
+        // A tile on the main screen, read like every other tile's state: one call to
+        // [Locale.getDefault], and the car is asked nothing.
+        StateSlice.SYSTEM_LANGUAGE -> SystemLanguageReading(SystemLanguage.read())
     }
 
     fun setSimulcastEnabled(enabled: Boolean) {
@@ -506,6 +507,10 @@ object DenzaAppRepository {
     fun showFseInstallerPicker() {
         val context = appContext ?: return
         val installedApps = FseAppInstaller.installedApps(context)
+        // The pictures are read with the list, as they always were, so the chooser opens drawn.
+        installedApps.filter(FseInstallApp::installable).forEach { app ->
+            AppIcons.load(context, app.packageName)
+        }
         stateStore.update { current ->
             current.copy(
                 fseInstallerPickerVisible = true,
@@ -2071,16 +2076,17 @@ object DenzaAppRepository {
     private fun supportDiagnostics(context: Context): String =
         SupportDiagnostics.build(context, stateStore.snapshot().state.fseInstaller)
 
+    /** The panel row's applications: names read here, pictures left in [AppIcons] for the row. */
     private fun selectedAppChoices(context: Context): List<SimulcastAppChoice> =
         SimulcastApps.getSelected(context).map { packageName ->
             val info = runCatching {
                 context.packageManager.getApplicationInfo(packageName, 0)
             }.getOrNull()
+            if (info != null) AppIcons.load(context, packageName)
             SimulcastAppChoice(
                 packageName = packageName,
                 label = info?.let { context.packageManager.getApplicationLabel(it).toString() }
                     ?: packageName,
-                icon = info?.let { runCatching { context.packageManager.getApplicationIcon(it) }.getOrNull() },
                 selected = true,
             )
         }

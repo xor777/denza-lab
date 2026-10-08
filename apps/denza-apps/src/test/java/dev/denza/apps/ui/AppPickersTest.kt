@@ -71,12 +71,11 @@ class AppPickersTest {
         val instruments = NavigationAppChoice(
             packageName = "dev.denza.apps",
             label = "Приборы",
-            icon = null,
             selected = false,
             instruments = true,
         )
         val apps = listOf("Apple Music", "VLC", "Навигатор").map { label ->
-            NavigationAppChoice(packageName = "pkg.$label", label = label, icon = null, selected = false)
+            NavigationAppChoice(packageName = "pkg.$label", label = label, selected = false)
         }
 
         val runs = runsOf(listOf(instruments) + apps, ::navigationChoiceSection)
@@ -101,7 +100,6 @@ class AppPickersTest {
     private fun app(packageName: String, label: String): SimulcastAppChoice = SimulcastAppChoice(
         packageName = packageName,
         label = label,
-        icon = null,
         selected = true,
     )
 
@@ -109,7 +107,6 @@ class AppPickersTest {
         FseInstallApp(
             packageName = packageName,
             label = label,
-            icon = null,
             versionName = "1.0",
             apkSizeBytes = 1L,
             installable = installable,

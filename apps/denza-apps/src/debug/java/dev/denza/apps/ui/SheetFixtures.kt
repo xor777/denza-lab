@@ -155,7 +155,7 @@ internal object SheetFixtures {
             val choices = (0 until nav.length()).map { i ->
                 val o = nav.getJSONObject(i)
                 NavigationAppChoice(
-                    "fixture.navigation.$i", o.getString("name"), null,
+                    "fixture.navigation.$i", o.getString("name"),
                     o.optBoolean("selected", false), instruments = o.optBoolean("instruments", false),
                 )
             }
@@ -179,7 +179,7 @@ internal object SheetFixtures {
         }
         if (s.has("simulcast")) {
             val apps = names(s.getJSONArray("apps")).mapIndexed { i, (label, selected) ->
-                SimulcastAppChoice("fixture.cast.$i", label, null, selected, true)
+                SimulcastAppChoice("fixture.cast.$i", label, selected, true)
             }
             state = state.copy(
                 simulcast = snapshot(FeatureId.SIMULCAST, s.getBoolean("simulcast"), s),
@@ -222,7 +222,7 @@ internal object SheetFixtures {
                         role = role,
                         selectedPackageName = pkg,
                         selectedLabel = label,
-                        choices = listOf(DefaultAppChoice(pkg, label, null, true, known = true, stock = false)),
+                        choices = listOf(DefaultAppChoice(pkg, label, true, known = true, stock = false)),
                         status = DefaultAppRoleStatus.READY,
                         providerConfirmed = true,
                     )

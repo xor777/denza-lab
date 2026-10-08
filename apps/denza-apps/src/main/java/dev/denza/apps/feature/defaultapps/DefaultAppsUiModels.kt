@@ -1,11 +1,9 @@
 package dev.denza.apps.feature.defaultapps
 
-import android.graphics.drawable.Drawable
-
+/** One application a role can hold. Its picture is drawn by package from [dev.denza.apps.AppIcons]. */
 data class DefaultAppChoice(
     val packageName: String,
     val label: String,
-    val icon: Drawable?,
     val selected: Boolean,
     val known: Boolean,
     val stock: Boolean,

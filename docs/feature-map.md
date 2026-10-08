@@ -29,7 +29,10 @@ tile through them.
 - `FeatureSheet` (`ui/dashboard/FeatureSheets.kt`) — the panel a long press opens: one private
   `…Sheet` function per tile, the paragraph in `helpOf`, the button in `panelAction`.
 - `DenzaAppRepository` and its `DenzaUiState` (`DenzaAppRepository.kt`) — the state every tile
-  reads and the setters every callback ends in; `MainActivity` binds the callbacks to it and
+  reads and the setters every callback ends in. A recompute reads the state slice by slice
+  (`StateSlice`, one `SliceReading` each, in `StateSlices.kt`) into plain values: an application
+  is named by its package and drawn from `AppIcons` (`rememberAppIcon`), so two reads of the same
+  car are equal and publish nothing; `MainActivity` binds the callbacks to it and
   `DenzaAppsRoot` (`ui/DenzaAppsScreen.kt`) threads them to the dashboard and decides which panel
   a long press opens.
 

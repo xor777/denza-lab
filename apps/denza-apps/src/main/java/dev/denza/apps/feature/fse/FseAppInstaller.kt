@@ -6,7 +6,6 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
-import android.graphics.drawable.Drawable
 import android.util.Base64
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
@@ -20,10 +19,14 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * One application the passenger chooser offers. Its picture is drawn by package from
+ * [dev.denza.apps.AppIcons], by the rule every chooser draws by: its launcher activity's icon, as
+ * the home screen shows it.
+ */
 data class FseInstallApp(
     val packageName: String,
     val label: String,
-    val icon: Drawable?,
     val versionName: String,
     val apkSizeBytes: Long,
     val installable: Boolean,
@@ -136,7 +139,6 @@ object FseAppInstaller {
     )
 
     fun installedApps(context: Context): List<FseInstallApp> {
-        val manager = context.packageManager
         return installedPackageCandidates(context)
             .map { candidate ->
                 val source = File(candidate.applicationInfo.sourceDir.orEmpty())
@@ -150,7 +152,6 @@ object FseAppInstaller {
                 FseInstallApp(
                     packageName = candidate.packageName,
                     label = candidate.label,
-                    icon = runCatching { candidate.resolveInfo.loadIcon(manager) }.getOrNull(),
                     versionName = candidate.packageInfo.versionName.orEmpty(),
                     apkSizeBytes = source.length(),
                     installable = reason.isEmpty(),

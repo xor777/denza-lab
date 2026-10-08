@@ -9,9 +9,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaMetrics
@@ -402,7 +404,7 @@ private fun simulcastSheet(
             title = "Что транслировать",
             value = simulcastChoiceValue(state.selectedApps),
             icons = state.selectedApps.map { app ->
-                DenzaChoiceIcon(key = app.packageName, label = app.label, drawable = app.icon)
+                DenzaChoiceIcon(packageName = app.packageName, label = app.label)
             },
             onClick = onChoose,
         )
@@ -489,14 +491,25 @@ private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
         checked = state.weatherEnabled,
         onCheckedChange = actions.onSetWeatherEnabled,
     )
+    // The age moves with the clock, not with the state: a run lands every ten minutes, and a panel
+    // that waited for one to redraw would say «5 минут назад» for ten.
+    val now by produceState(System.currentTimeMillis()) {
+        while (true) {
+            delay(WEATHER_AGE_TICK_MS)
+            value = System.currentTimeMillis()
+        }
+    }
     if (state.weatherEnabled && state.weatherUpdatedMillis > 0L) {
         DenzaStatusLine(
             text = "Отдано виджету " +
-                DashboardTiles.ago(System.currentTimeMillis() - state.weatherUpdatedMillis),
+                DashboardTiles.ago(now - state.weatherUpdatedMillis),
             tone = DenzaTileTone.IDLE,
         )
     }
 }
+
+/** How often an open weather panel reads the clock again for its «… назад». */
+private const val WEATHER_AGE_TICK_MS = 30_000L
 
 /**
  * The switch, and the one button that answers whether or not the switch is on.

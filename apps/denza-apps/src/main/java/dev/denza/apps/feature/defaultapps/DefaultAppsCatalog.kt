@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.ResolveInfo
 import android.graphics.drawable.Drawable
+import dev.denza.apps.AppIconSource
+import dev.denza.apps.iconOf
 
 /**
  * One package that AutoVoice can open through PackageManager's normal MAIN lookup.
@@ -40,32 +42,42 @@ internal object DefaultAppsCatalog {
      * Mirrors `getLaunchIntentForPackage`: MAIN+INFO first, then MAIN+LAUNCHER.
      *
      * Disabled, suspended and no-longer-installed packages are excluded. Multiple activities of
-     * one package collapse into one app entry; the application label/icon are used so an INFO
-     * helper activity cannot rename the package in this picker.
+     * one package collapse into one app entry; the application label is used so an INFO helper
+     * activity cannot rename the package in this picker. The icon follows [iconOf], the rule every
+     * chooser draws by: the launcher activity's, as the home screen shows it, else the
+     * application's.
      */
     @Suppress("DEPRECATION")
     fun discover(context: Context): List<InstalledDefaultApp> {
         val packageManager = context.packageManager
         val byPackage = linkedMapOf<String, ResolveInfo>()
-        val onLauncher = hashSetOf<String>()
+        val onLauncher = linkedMapOf<String, ResolveInfo>()
         listOf(Intent.CATEGORY_INFO, Intent.CATEGORY_LAUNCHER).forEach { category ->
             val intent = Intent(Intent.ACTION_MAIN).addCategory(category)
             packageManager.queryIntentActivities(intent, 0).forEach { resolveInfo ->
                 if (!isEligible(resolveInfo)) return@forEach
                 val packageName = checkNotNull(resolveInfo.activityInfo).packageName
                 byPackage.putIfAbsent(packageName, resolveInfo)
-                if (category == Intent.CATEGORY_LAUNCHER) onLauncher += packageName
+                if (category == Intent.CATEGORY_LAUNCHER) onLauncher.putIfAbsent(packageName, resolveInfo)
             }
         }
 
         return byPackage.map { (packageName, resolveInfo) ->
             val application = checkNotNull(resolveInfo.activityInfo?.applicationInfo)
+            // The rule asked of what this read already holds: no further call per package.
+            val icons = object : AppIconSource<Drawable> {
+                override fun launcherIcon(packageName: String): Drawable? =
+                    onLauncher[packageName]?.let { runCatching { it.loadIcon(packageManager) }.getOrNull() }
+
+                override fun applicationIcon(packageName: String): Drawable? =
+                    runCatching { packageManager.getApplicationIcon(application) }.getOrNull()
+            }
             InstalledDefaultApp(
                 packageName = packageName,
                 label = runCatching {
                     packageManager.getApplicationLabel(application).toString()
                 }.getOrNull().orEmpty().ifBlank { packageName },
-                icon = runCatching { packageManager.getApplicationIcon(application) }.getOrNull(),
+                icon = icons.iconOf(packageName),
                 launcher = packageName in onLauncher,
             )
         }
@@ -87,7 +99,6 @@ internal object DefaultAppsCatalog {
                 DefaultAppChoice(
                     packageName = app.packageName,
                     label = app.label.ifBlank { fallbackLabel(role, app.packageName) },
-                    icon = app.icon,
                     selected = app.packageName == selectedPackageName,
                     known = app.packageName in knownOrder,
                     stock = app.packageName == role.stockPackageName,
