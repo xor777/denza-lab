@@ -612,6 +612,11 @@ object DenzaAppRepository {
 
     fun setSplitScreenEnabled(enabled: Boolean) {
         val context = appContext ?: return
+        applySplitScreenToggle(context, enabled)
+    }
+
+    /** The toggle's one path: launcher icon, runtime and firmware signals together. */
+    private fun applySplitScreenToggle(context: Context, enabled: Boolean): Boolean =
         runCatching {
             SplitScreenToggleController.setEnabled(
                 enabled = enabled,
@@ -637,8 +642,7 @@ object DenzaAppRepository {
                     ),
                 )
             }
-        }
-    }
+        }.isSuccess
 
     fun setHudGuidanceEnabled(enabled: Boolean) {
         val context = appContext ?: return
@@ -927,15 +931,26 @@ object DenzaAppRepository {
      *
      * Not a second way of doing it - literally the same entry activity, so the flow a driver gets
      * from the tile is the flow they get from the desktop, and there is one of it to keep working.
+     *
+     * A press while the toggle is off turns the function on first, by the toggle's own path, and
+     * then opens (contract 1.2.8): the tile is a door the desktop icon is not, and an open behind a
+     * switch that stayed off used to leave the function half on.
      */
     fun launchSplitScreen() {
         val context = appContext ?: return
-        runCatching {
-            context.startActivity(
-                Intent(context, SplitLauncherEntryActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-        }
+        SplitScreenToggleController.launch(
+            launcherVisible = runCatching { SplitLauncherIconController.isVisible(context) }
+                .getOrDefault(false),
+            enable = { applySplitScreenToggle(context, enabled = true) },
+            open = {
+                runCatching {
+                    context.startActivity(
+                        Intent(context, SplitLauncherEntryActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+            },
+        )
     }
 
     /**

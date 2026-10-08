@@ -162,6 +162,60 @@ class SplitFirmwareSignalsTest {
         assertTrue(car.commands().isEmpty())
     }
 
+    /**
+     * U4, К 1.9: the signals move with the toggle, in the core - whoever turned it. An off stops the
+     * listening at once, before its teardown has even run; an on starts it again.
+     */
+    @Test
+    fun theToggleArmsAndDisarmsTheSignals() {
+        val car = car()
+        val signals = RecordingSignals()
+        val core = car.core(SplitDurable(enabled = true), signals = signals)
+        core.initialize {}
+        assertTrue("a cold start with the toggle on listens", signals.armed)
+
+        val hold = car.hold()
+        core.setEnabled(false)
+        assertFalse("off is silent before its teardown runs", signals.armed)
+        hold.release()
+        car.barrier()
+
+        core.setEnabled(true)
+        assertTrue(signals.armed)
+        car.barrier()
+        assertTrue(core.currentState().enabled)
+    }
+
+    @Test
+    fun aColdStartWithTheToggleOffDoesNotListen() {
+        val car = car()
+        val signals = RecordingSignals()
+        val core = car.core(SplitDurable(enabled = false, slots = APP_PAIR), signals = signals)
+
+        core.initialize {}
+        car.barrier()
+
+        assertFalse(signals.armed)
+        assertEquals(0, signals.arms)
+    }
+
+    /**
+     * К 1.11: every sleep force-stops the product while our gate survives it, so a cold start reads
+     * the area once and hands a covered one over as if it had been pushed - our gate is suspended.
+     */
+    @Test
+    fun aColdStartOverACoveredAreaSuspendsTheGateItStillOwns() {
+        val car = car(FakeShell(initialGate = true).apply { area = 0 })
+        car.gateLease.setOwned(true)
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR), signals = RecordingSignals())
+
+        core.initialize {}
+        car.barrier()
+
+        assertEquals("одна транзакция в процессе", listOf(false), car.fake.binderGateFlips)
+        assertFalse(car.fake.isGateOpen())
+    }
+
     @Test
     fun aGateThisSessionDoesNotOwnIsNotClosedAhead() {
         val car = car(FakeShell(initialGate = true).apply { stockSplitOfSomeoneElse() })

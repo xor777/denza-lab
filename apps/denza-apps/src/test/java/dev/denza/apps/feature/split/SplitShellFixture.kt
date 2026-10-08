@@ -91,6 +91,34 @@ internal class FakeGateLease(
     }
 }
 
+/** The firmware signals of one process: whether they are being listened to right now, and how often. */
+internal class RecordingSignals : SplitSignalPort {
+    @Volatile
+    var armed: Boolean = false
+        private set
+
+    @Volatile
+    var arms: Int = 0
+        private set
+
+    /** What the core would hear from the firmware; set by [arm], dropped by [disarm]. */
+    @Volatile
+    var onHomeKey: (() -> Unit)? = null
+        private set
+
+    override fun arm(onHomeKey: () -> Unit, onArea: (Int) -> Unit): Boolean {
+        armed = true
+        arms += 1
+        this.onHomeKey = onHomeKey
+        return true
+    }
+
+    override fun disarm() {
+        armed = false
+        onHomeKey = null
+    }
+}
+
 internal class FakeShell(
     initialGate: Boolean = false,
     firstTaskId: Int = 100,
@@ -1105,6 +1133,8 @@ internal class SplitCarFixture(
         readArea: () -> Int? = { fake.area },
         /** The BYD transactions an operation answers in-process; by default none, all over ADB. */
         inProcessCalls: SplitInProcessCalls = SplitInProcessCalls.NONE,
+        /** Home and the area as this process hears them; by default nobody listens. */
+        signals: SplitSignalPort = SplitSignalPort.NONE,
         /**
          * Runs on the worker as each diagnostic line is recorded.
          *
@@ -1135,6 +1165,7 @@ internal class SplitCarFixture(
             gate = gate,
             readArea = readArea,
             inProcessCalls = inProcessCalls,
+            signals = signals,
         ).also { core -> built = core }
     }
 

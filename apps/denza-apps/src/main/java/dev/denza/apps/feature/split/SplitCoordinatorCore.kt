@@ -131,6 +131,30 @@ internal fun interface SplitGateSwitch {
 }
 
 /**
+ * The firmware's Home key and area push, heard in this process (К 1.9) while the toggle is on (U4).
+ *
+ * The core switches it, because the toggle is the core's: whatever turns the function on or off -
+ * the panel's switch, a press on the tile while it is off (1.2.8), the repair of a persisted
+ * mismatch - arms or disarms it by the same move, and a cold start with the toggle on arms it once.
+ * [arm] says whether anything listens at all: only the main process can, and the firmware keeps
+ * one callback per process.
+ */
+internal interface SplitSignalPort {
+    fun arm(onHomeKey: () -> Unit, onArea: (Int) -> Unit): Boolean
+
+    fun disarm()
+
+    companion object {
+        /** Nothing listens: a process that is not the main one, or a test that does not care. */
+        val NONE = object : SplitSignalPort {
+            override fun arm(onHomeKey: () -> Unit, onArea: (Int) -> Unit): Boolean = false
+
+            override fun disarm() = Unit
+        }
+    }
+}
+
+/**
  * What an explicit action of the user ended as, in the only terms a surface may act on (U5).
  *
  * The product has no channel for telling the user that something inside it failed: after a tap the
@@ -258,8 +282,19 @@ internal class SplitCoordinatorCore(
     private val readArea: () -> Int? = { null },
     /** The BYD split transactions every operation sends from this process, not over ADB. */
     private val inProcessCalls: SplitInProcessCalls = SplitInProcessCalls.NONE,
+    /** Home and the area from the firmware, armed and disarmed with the toggle (К 1.9, U4). */
+    private val signals: SplitSignalPort = SplitSignalPort.NONE,
 ) {
     private val stateLock = Any()
+
+    /**
+     * Orders the toggle's decisions with the signals they arm or disarm, so two of them racing from
+     * two threads cannot leave the signals listening behind an off.
+     */
+    private val toggleLock = Any()
+
+    /** The last word of the toggle in this process; `null` until one is said (guarded by [toggleLock]). */
+    private var toggledTo: Boolean? = null
     private val recheckLock = Any()
     private val residentLock = Any()
     private val gateCheckLock = Any()
@@ -319,37 +354,58 @@ internal class SplitCoordinatorCore(
      * An accessibility service can reach the product before the repository has initialised it, and
      * a coordinator that answered such an event from a default state would act as if the toggle
      * were off. Loading is a preferences read: it is not a mutation and never becomes one.
+     *
+     * A toggle found on arms the firmware signals, once, unless the toggle has already spoken in
+     * this process (К 1.9, К 1.11).
      */
     private fun ready() {
-        synchronized(stateLock) {
+        val enabled = synchronized(stateLock) {
             if (loaded) return
             loaded = true
             val durable = store.load()
             state = SplitState(enabled = durable.enabled, slots = durable.slots)
             session = sessionOf()
+            durable.enabled
+        }
+        if (!enabled) return
+        synchronized(toggleLock) {
+            if (toggledTo == null) armSignals(handOverCoveredArea = true)
         }
     }
 
-    /** Contract 1.2: enabling only arms the product, disabling ends the scene and keeps the pair. */
+    /**
+     * Contract 1.2: enabling only arms the product, disabling ends the scene and keeps the pair.
+     *
+     * This is the toggle's one way in, and the firmware signals move with it here rather than in
+     * whoever called: an enable that left them unarmed had the product on with no early gate after
+     * Home (1.9.2), and an off that left them armed would still be listening (U4).
+     */
     fun setEnabled(enabled: Boolean) {
         ready()
-        if (enabled) {
-            submitEnable()
-            return
+        synchronized(toggleLock) {
+            toggledTo = enabled
+            if (enabled) {
+                armSignals(handOverCoveredArea = false)
+                submitEnable()
+                return
+            }
+            signals.disarm()
+            markBusy(DISABLE_LABEL, enabled = false, message = "Закрываю разделение экрана")
+            submit { work -> DisableOperation(work) }
         }
-        markBusy(DISABLE_LABEL, enabled = false, message = "Закрываю разделение экрана")
-        submit { work -> DisableOperation(work) }
     }
 
     /**
      * Contract 1.3. One tap is one cancellable `OPEN` with one waiting window; a second tap joins
      * the live one and gets its outcome instead of a premature success (1.3.7, K4).
+     *
+     * It does not turn the function on. Whoever opens while the toggle is off turns it on first,
+     * through [setEnabled] (1.2.8); an open that still finds it off is refused by the operation
+     * itself and changes nothing (invariant 1). The enable that precedes it is queued ahead of it,
+     * so the toggle and the open of one press arrive in that order.
      */
     fun openPickerSession(onComplete: (SplitActionResult) -> Unit = {}) {
         ready()
-        // The launcher entry only exists while the toggle is on, so a tap on it is also the
-        // authoritative repair of a persisted mismatch. It is a store write and nothing else.
-        if (!currentState().enabled) submitEnable()
         val joined = synchronized(stateLock) { openTicket?.takeUnless(SplitTicket::isComplete) }
         if (joined != null) {
             joined.onComplete { outcome -> report(onComplete, outcome) }
@@ -532,6 +588,24 @@ internal class SplitCoordinatorCore(
         } else {
             dividerResized()
         }
+    }
+
+    /**
+     * Starts hearing Home and the area; the caller holds [toggleLock].
+     *
+     * The push carries no first value, and a process that starts is exactly the moment the gate may
+     * have been left open by one that died - every sleep of the car force-stops this package while
+     * the gate survives in `system_server` (findings, "Every sleep of the car force-stops the
+     * product"). So a cold start reads the area once, and a covered one is handed over as if it had
+     * just been pushed: that is the gate duty of К 1.11 and nothing else. A visible world is left to
+     * the hints that arrive anyway; a cold start does not go and reconcile it by itself (K7). A
+     * toggle turned on has no such inheritance - the off before it closed our gate - so it only
+     * listens.
+     */
+    private fun armSignals(handOverCoveredArea: Boolean) {
+        val listening = signals.arm(onHomeKey = ::homeKeyPressed, onArea = ::areaChanged)
+        if (!listening || !handOverCoveredArea) return
+        runCatching(readArea).getOrNull()?.takeIf { area -> area.isCoveredArea() }?.let(::areaChanged)
     }
 
     /**

@@ -123,6 +123,111 @@ class SplitCoordinatorCoreTest {
 
     // endregion
 
+    // region 1.2.8 - a press on the tile while the toggle is off
+
+    /**
+     * 1.2.8: the press turns the function on by the toggle's own path - launcher icon, runtime and
+     * firmware signals together - and then opens.
+     *
+     * Before, the open wrote `enabled` into the store by itself: the icon stayed hidden, the tile
+     * said «Выключено» over a scene, nobody listened to Home, and the next start of the process
+     * read the hidden icon and turned the function off again.
+     */
+    @Test
+    fun aTilePressWhileOffTurnsTheToggleOnAndThenOpens() {
+        val car = car(FakeShell())
+        val signals = RecordingSignals()
+        val core = car.core(SplitDurable(enabled = false), signals = signals)
+        core.initialize {}
+        var launcherVisible = false
+
+        SplitScreenToggleController.launch(
+            launcherVisible = launcherVisible,
+            enable = {
+                SplitScreenToggleController.setEnabled(
+                    enabled = true,
+                    launcherVisible = { launcherVisible },
+                    setLauncherVisible = { visible -> launcherVisible = visible },
+                    setRuntimeEnabled = core::setEnabled,
+                )
+                true
+            },
+            open = { core.openPickerSession() },
+        )
+        car.barrier()
+
+        assertTrue("the launcher icon is the toggle, and it is on", launcherVisible)
+        assertTrue("the runtime under it is on", car.store.load().enabled)
+        assertTrue("and Home is heard (К 1.9)", signals.armed)
+        assertEquals(
+            "the toggle first, then the open",
+            listOf("enable outcome=committed", "open outcome=committed"),
+            terminals(car),
+        )
+        assertEquals(1, car.overlay.begun.get())
+        assertEquals("the scene is up", 3, car.fake.area)
+
+        // The next start of the process makes its repair from the icon, and finds none to make.
+        val restartedCar = car(FakeShell())
+        val restartedSignals = RecordingSignals()
+        val restarted = restartedCar.core(car.store.load(), signals = restartedSignals)
+        restarted.initialize {}
+        SplitScreenToggleController.reconcile(
+            launcherVisible = launcherVisible,
+            runtimeEnabled = restartedCar.store.load().enabled,
+            setRuntimeEnabled = restarted::setEnabled,
+        )
+        restartedCar.barrier()
+
+        assertTrue("the function stays on", restartedCar.store.load().enabled)
+        assertEquals(0, restartedCar.store.commits)
+        assertEquals(SplitScreenPhase.ACTIVE, restarted.snapshot().phase)
+        assertTrue("and a cold start listens again", restartedSignals.armed)
+    }
+
+    /** An enable that did not take opens nothing: no window, no command, no store write. */
+    @Test
+    fun aTilePressWhoseEnableFailedOpensNothing() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = false))
+        core.initialize {}
+
+        SplitScreenToggleController.launch(
+            launcherVisible = false,
+            enable = { false },
+            open = { core.openPickerSession() },
+        )
+        car.barrier()
+
+        assertEquals(0, car.overlay.begun.get())
+        assertEquals(emptyList<String>(), car.commands())
+        assertEquals(0, car.store.commits)
+    }
+
+    /**
+     * Invariant 1: the open itself never turns the function on. It used to repair a persisted
+     * mismatch by a store write of its own, which is how the tile got a function that was on in the
+     * store and off everywhere else.
+     */
+    @Test
+    fun anOpenWhileOffIsRefusedAndTurnsNothingOn() {
+        val car = car(FakeShell())
+        val signals = RecordingSignals()
+        val core = car.core(SplitDurable(enabled = false), signals = signals)
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertFalse(car.store.load().enabled)
+        assertEquals(0, car.store.commits)
+        assertEquals(emptyList<String>(), car.mutations())
+        assertFalse("nobody listens to a function that is off (U4)", signals.armed)
+        assertEquals(listOf("open outcome=failed"), terminals(car))
+    }
+
+    // endregion
+
     // region passive hints without a scene
 
     @Test
@@ -518,6 +623,11 @@ class SplitCoordinatorCoreTest {
     // endregion
 
     private fun car(fake: FakeShell): SplitCarFixture = SplitCarFixture(fake).also(cars::add)
+
+    /** The one terminal line each operation a person asked for ends with, without its timing. */
+    private fun terminals(car: SplitCarFixture): List<String> =
+        car.diagnostics.filter { line -> " outcome=" in line }
+            .map { line -> line.substringBefore(" reason=") }
 
     /** One ADB transport: what it was asked, and whether it was ever really closed. */
     private class CountingTransport(private val onClose: (CountingTransport) -> Unit) :

@@ -276,7 +276,8 @@ class SplitWorkJournalTest {
         car.barrier()
         core.setEnabled(false)
         car.barrier()
-        // The launcher entry on a car whose toggle is off: the enable first, then the open.
+        // The tile on a car whose toggle is off: the toggle first, then the open (1.2.8).
+        core.setEnabled(true)
         core.openPickerSession()
         car.barrier()
 

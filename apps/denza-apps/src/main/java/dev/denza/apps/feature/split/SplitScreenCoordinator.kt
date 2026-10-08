@@ -103,12 +103,27 @@ object SplitScreenCoordinator {
         )
     }
 
-    /** Opens the explicit two-picker product flow from its launcher icon. */
+    /**
+     * Opens the explicit two-picker product flow, from its launcher icon or from the hub's tile.
+     *
+     * The launcher icon is the toggle (1.2). An entry reached while the runtime under it says
+     * otherwise - a store an older build or an interrupted switch left behind, or a core that did not
+     * exist yet when the hub turned the toggle on - is first brought into line by the toggle's own
+     * path, the same repair a starting process makes, so the signals move with it (1.2.8). It used
+     * to be a store write inside the open, which left the function on with nobody listening to Home.
+     */
     internal fun openPickerSession(
         context: Context,
         onComplete: (SplitActionResult) -> Unit = {},
     ) {
-        core(context).openPickerSession(onComplete)
+        val app = context.applicationContext
+        val live = core(app)
+        SplitScreenToggleController.reconcile(
+            launcherVisible = SplitLauncherIconController.isVisible(app),
+            runtimeEnabled = SplitScreenSettings.isEnabled(app),
+            setRuntimeEnabled = live::setEnabled,
+        )
+        live.openPickerSession(onComplete)
     }
 
     /** A picker tap has an exact pane and therefore needs no foreground inference. */
@@ -173,41 +188,31 @@ object SplitScreenCoordinator {
         core?.completeNavigationReturn(plan, taskId, packageName)
     }
 
+    /** The toggle's runtime half; the core arms and disarms the firmware signals with it. */
     fun setEnabled(enabled: Boolean) {
-        val live = core ?: return
-        live.setEnabled(enabled)
-        if (enabled) armSignals(live) else signals?.disarm()
+        core?.setEnabled(enabled)
     }
 
     private fun core(context: Context): SplitCoordinatorCore {
         core?.let { return it }
-        val built = synchronized(lock) {
+        return synchronized(lock) {
             core?.let { return it }
             build(context.applicationContext).also { fresh -> core = fresh }
         }
-        if (SplitScreenSettings.isEnabled(context.applicationContext)) armSignals(built)
-        return built
     }
 
     /**
      * Home and the split area, heard from the firmware in this process while the toggle is on
      * (К 1.9, U4). Only the main process listens: the pickers live in `:picker` and reach the
      * coordinator through [SplitCommandProvider], and the firmware keeps one callback per process.
-     *
-     * The push carries no first value, and a process that starts is exactly the moment the gate may
-     * have been left open by one that died - every sleep of the car force-stops this package while
-     * the gate survives in `system_server` (findings, "Every sleep of the car force-stops the
-     * product"). So the area is read once, and a covered one is handed over as if it had just been
-     * pushed: that is the gate duty of К 1.11 and nothing else. A visible world is left to the hints
-     * that arrive anyway; a cold start does not go and reconcile it by itself (K7).
      */
-    private fun armSignals(live: SplitCoordinatorCore) {
-        val listening = signals ?: return
-        listening.arm(
-            onHomeKey = live::homeKeyPressed,
-            onArea = live::areaChanged,
-        )
-        listening.readArea()?.takeIf { area -> area == 0 || area == 4 }?.let(live::areaChanged)
+    private class AndroidSplitSignals(private val heard: SplitFirmwareSignals) : SplitSignalPort {
+        override fun arm(onHomeKey: () -> Unit, onArea: (Int) -> Unit): Boolean {
+            heard.arm(onHomeKey = onHomeKey, onArea = onArea)
+            return true
+        }
+
+        override fun disarm() = heard.disarm()
     }
 
     private fun build(app: Context): SplitCoordinatorCore {
@@ -241,6 +246,7 @@ object SplitScreenCoordinator {
             gate = BinderSplitGateSwitch,
             readArea = { heard?.readArea() },
             inProcessCalls = SplitInProcessFirmware(ActivityTaskBinder),
+            signals = heard?.let(::AndroidSplitSignals) ?: SplitSignalPort.NONE,
         )
     }
 
