@@ -135,7 +135,8 @@ final class AdbKeyStore {
         return text.toString().toUpperCase(java.util.Locale.US);
     }
 
-    private KeyPair keyPair() throws GeneralSecurityException {
+    // Wireless ADB must present this exact identity, never a second TLS-only key.
+    synchronized KeyPair keyPair() throws GeneralSecurityException {
         synchronized (KEY_PAIR_LOCK) {
             if (cachedKeyPair != null) {
                 return cachedKeyPair;
