@@ -449,6 +449,10 @@ test.
   reading bucket and equals the road the unit names, the figure equals energy over
   known road, every point equals the trailing ten readings computed a second time,
   no point is ever a `NaN`, and the engine's box is never up with the flag down.
+  It replays the three newest drives and the newest one the engine gave in, and a
+  drive the engine gave in has to raise the box at least once, or the last
+  invariant would hold over nothing. With no drive on the machine it is skipped,
+  not passed; the drives are inputs of the test task, so a new one reruns it.
 - **The boards.** `LuminoforSpecContractTest` holds every number in
   `spec.json` to `LuminoforSpec`; `StripBoardContractTest` holds the board's
   inline numbers and scenes to the strip's renderers, including one ceiling and

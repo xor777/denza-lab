@@ -5,6 +5,7 @@ import java.io.File
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -22,10 +23,10 @@ import org.junit.Test
  *  - the engine's box is never up with the running flag down past its own hold.
  *
  * `tools/vehicle_log.py` writes the files, into `captures/vehicle-log/` (git-ignored, so this test
- * runs against whatever the machine has). **It passes with nothing there**, which is the state it
- * was written in: the drive that closes the contract's open items - the engine running at speed -
- * has not been recorded yet, and a test that failed for the absence of a capture would be a test
- * nobody could run.
+ * runs against whatever the machine has). **It is skipped with nothing there**, which is the state
+ * it was written in: a test that failed for the absence of a capture would be a test nobody could
+ * run. Skipped rather than passed, since 2026-10-08: a clean checkout used to count a replay that
+ * never ran as one that held.
  *
  * ### And its work is bounded, because the captures are not
  *
@@ -41,7 +42,7 @@ class VehicleLogReplayTest {
     @Test
     fun everyRecordedDriveSatisfiesTheInvariantsThatDoNotDependOnMeaning() {
         val logs = captures()
-        if (logs.isEmpty()) return
+        assumeTrue("no recorded drive in captures/vehicle-log", logs.isNotEmpty())
         logs.forEach { replay(it) }
     }
 
@@ -68,6 +69,8 @@ class VehicleLogReplayTest {
         val scene = ContourScene()
         var previous = Double.NaN
         var flagDownFor = Double.MAX_VALUE
+        var gave = false
+        var boxUp = false
 
         rows.drop(1).forEach { line ->
             val cells = line.split(',')
@@ -110,6 +113,8 @@ class VehicleLogReplayTest {
                 trip = ledger.trip,
             )
             scene.frame(snapshot, arrived = true, dt = dt.toFloat())
+            gave = gave || (generationKw ?: 0.0) > 0.0
+            boxUp = boxUp || scene.stage.engineBox
 
             flagDownFor = if (engineRunning == true) 0.0 else flagDownFor + dt
             if (flagDownFor > ContourScene.ENGINE_HOLD_SECONDS + 1.0) {
@@ -124,6 +129,10 @@ class VehicleLogReplayTest {
             checkFigure(file, mono, window, snapshot.consumptionMean)
             checkPoints(file, mono, all, snapshot.chart)
         }
+        // The box's invariant holds trivially over a drive whose box never came up, and over the
+        // three newest drives (2026-09-22 to 24) it never did. A drive the engine gave in has to
+        // raise it.
+        if (gave) assertTrue("${file.name}: the engine gave and its box never came up", boxUp)
     }
 
     /**
@@ -238,17 +247,32 @@ class VehicleLogReplayTest {
         }
     }
 
-    /** The recorder's own directory, at the repository root, if there is anything in it. */
+    /**
+     * The recorder's own directory, at the repository root: its newest drives, and the newest drive
+     * the engine gave in wherever that falls.
+     *
+     * The newest by name alone left the engine box's invariant with nothing to hold: none of the
+     * three newest drives (2026-09-22 to 24) had the engine give, and the one that did
+     * (2026-09-18) had sorted out of reach.
+     */
     private fun captures(): List<File> {
         val root = generateSequence(File(requireNotNull(System.getProperty("user.dir")) { "user.dir" })) {
             it.parentFile
         }.firstOrNull { File(it, "tools/design-canvas").isDirectory } ?: return emptyList()
         val directory = File(root, "captures/vehicle-log")
         if (!directory.isDirectory) return emptyList()
-        return directory.listFiles { file -> file.isFile && file.name.endsWith(".csv") }
+        val drives = directory.listFiles { file -> file.isFile && file.name.endsWith(".csv") }
             ?.sortedBy { it.name }
-            ?.takeLast(MAX_FILES)
-            ?: emptyList()
+            ?: return emptyList()
+        return (drives.takeLast(MAX_FILES) + listOfNotNull(drives.lastOrNull(::engineGave))).distinct()
+    }
+
+    /** Whether the engine gave anywhere in the rows [replay] reads of [file]. */
+    private fun engineGave(file: File): Boolean = file.useLines { lines ->
+        val rows = lines.filter { it.isNotBlank() }.take(MAX_ROWS + 1).iterator()
+        val generation = if (rows.hasNext()) rows.next().split(',').indexOf("generation_kw") else -1
+        generation >= 0 &&
+            rows.asSequence().any { (it.split(',').getOrNull(generation)?.toDoubleOrNull() ?: 0.0) > 0.0 }
     }
 
     private companion object {
