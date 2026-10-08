@@ -64,13 +64,68 @@ class SplitCrewBoardContractTest {
         same("NARROW_RIGHT", SplitCrewScene.NARROW_RIGHT)
     }
 
+    /**
+     * The page's `cubicBezier(x1, y1, x2, y2)` named [name], built from the page's own control
+     * points with the scene's solver - the solver itself is held by [theEasing].
+     */
+    private fun pageEasing(name: String): SplitCrewScene.CubicBezier {
+        val m = Regex("""const $name = cubicBezier\(([^)]+)\);""").find(page)
+            ?: error("split-crew.html declares no $name easing")
+        val (x1, y1, x2, y2) = m.groupValues[1].split(",").map { it.trim().toDouble() }
+        return SplitCrewScene.CubicBezier(x1, y1, x2, y2)
+    }
+
+    /** One line of the page's `dividerAt`: until [until] ms into the cycle, `leg(a, b, t0, d)`. */
+    private data class DividerStep(val until: Double, val a: Double, val b: Double, val t0: Double, val d: Double)
+
+    /**
+     * The page's `dividerAt` against [SplitCrewScene.dividerAt], every 10 ms over two cycles.
+     *
+     * The page's body is read as its own lines - `if (u < N) return leg(A, B, t0, d);`, a hold
+     * `if (u < N) return NAME;` (a leg from NAME to itself), the last `return leg(...);` - and
+     * evaluated with the page's numbers and the page's `standard`. A leg, a hold or a boundary
+     * that moves on either side fails here.
+     */
     @Test
     fun theDividersClock() {
         same("T_MOVE", SplitCrewScene.T_MOVE)
         same("CYCLE", SplitCrewScene.CYCLE)
-        assertTrue(page.contains("if (u < 900) return leg(CX, NARROW_LEFT, 0, 900);"))
-        assertTrue(page.contains("if (u < 2900) return leg(NARROW_LEFT, NARROW_RIGHT, 1100, 1800);"))
-        assertTrue(page.contains("return leg(NARROW_RIGHT, CX, 3100, 900);"))
+        val body = page.substringAfter("function dividerAt(t) {").substringBefore("\n  }")
+        assertTrue(body.contains("if (t < T_MOVE) return CX;"))
+        assertTrue(body.contains("const u = (t - T_MOVE) % CYCLE;"))
+        val legDeclaration = "const leg = (a, b, t0, d) => a + (b - a) * standard(clamp01((u - t0) / d));"
+        assertTrue(body.contains(legDeclaration))
+        val line = Regex("""(?:if \(u < (\d+)\) )?return (?:leg\((\w+), (\w+), (\d+), (\d+)\)|(\w+));""")
+        val steps = line.findAll(body.substringAfter(legDeclaration)).map { m ->
+            val until = m.groupValues[1].toDoubleOrNull() ?: Double.POSITIVE_INFINITY
+            val hold = m.groupValues[6]
+            if (hold.isNotEmpty()) {
+                DividerStep(until, js(hold), js(hold), 0.0, 1.0)
+            } else {
+                DividerStep(
+                    until,
+                    js(m.groupValues[2]),
+                    js(m.groupValues[3]),
+                    m.groupValues[4].toDouble(),
+                    m.groupValues[5].toDouble(),
+                )
+            }
+        }.toList()
+        assertEquals("three legs and two holds", 5, steps.size)
+        val standard = pageEasing("standard")
+
+        var t = 0.0
+        while (t <= js("T_MOVE") + 2 * js("CYCLE")) {
+            val expected = if (t < js("T_MOVE")) {
+                js("CX")
+            } else {
+                val u = (t - js("T_MOVE")) % js("CYCLE")
+                val s = steps.first { u < it.until }
+                s.a + (s.b - s.a) * standard(SplitCrewScene.clamp01((u - s.t0) / s.d))
+            }
+            assertEquals("the divider at $t ms", expected, SplitCrewScene.dividerAt(t), 1e-9)
+            t += 10.0
+        }
     }
 
     @Test
@@ -186,10 +241,21 @@ class SplitCrewBoardContractTest {
         assertTrue(strings.contains("<string name=\"split_launch_overlay_text\">$caption</string>"))
     }
 
+    /**
+     * The page's two easings are the scene's: each curve built from the page's control points
+     * answers what [SplitCrewScene.standard] and [SplitCrewScene.decelerate] answer, at every
+     * hundredth of the way. The solver is the page's too - the same bisection, as many steps.
+     */
     @Test
     fun theEasing() {
-        assertTrue(page.contains("const standard = cubicBezier(0.4, 0, 0.2, 1);"))
-        assertTrue(page.contains("const decelerate = cubicBezier(0.05, 0.7, 0.1, 1);"))
         assertTrue(page.contains("for (let i = 0; i < ${SplitCrewScene.BISECTIONS}; i++)"))
+        val easings = mapOf("standard" to SplitCrewScene.standard, "decelerate" to SplitCrewScene.decelerate)
+        easings.forEach { (name, scene) ->
+            val board = pageEasing(name)
+            for (i in 0..100) {
+                val x = i / 100.0
+                assertEquals("$name at $x", board(x), scene(x), 0.0)
+            }
+        }
     }
 }
