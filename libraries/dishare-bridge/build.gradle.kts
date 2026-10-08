@@ -12,5 +12,6 @@ android {
 }
 
 dependencies {
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
     testImplementation("junit:junit:4.13.2")
 }

@@ -115,6 +115,10 @@ android {
         compose = true
     }
 
+    packaging {
+        resources.merges += setOf("META-INF/LICENSE.md", "META-INF/NOTICE.md")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
