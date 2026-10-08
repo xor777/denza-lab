@@ -53,13 +53,4 @@ object SimulcastRuntimeDiagnostics {
         appliedRelayouts = appliedRelayouts.get(),
         semanticWindowRebuilds = semanticWindowRebuilds.get(),
     )
-
-    internal fun resetForTest() {
-        rootsFound.set(0)
-        rootsMissing.set(0)
-        geometryParseMisses.set(0)
-        unstableSamples.set(0)
-        appliedRelayouts.set(0)
-        semanticWindowRebuilds.set(0)
-    }
 }
