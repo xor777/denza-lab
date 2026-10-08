@@ -68,20 +68,34 @@ class SupportDiagnosticsTest {
         )
     }
 
+    /**
+     * Строка анализатора, разобранная так, как её разбирает отчёт: на вход идёт то, что напечатал
+     * `spectrumLabel`, а не строка, написанная здесь руками, - иначе разделитель, сменившийся с одной
+     * стороны, не виден с другой.
+     *
+     * И отчёт спрашивает хаб, а не строит его: панель могли ни разу не открыть.
+     */
     @Test
     fun `the analyser's line is one reading a row, and a closed panel one row saying so`() {
-        val rows = SupportDiagnostics.spectrumRows("разрешение=есть; захват=запрошен; кадр=40 мс назад")
+        val rows = SupportDiagnostics.spectrumRows(
+            SupportDiagnostics.spectrumLabel(
+                spectrum(effectEnabled = false, lastFailure = "эффект сессии 0 занят другим владельцем"),
+            ),
+        )
         assertEquals(
             listOf(
                 TechnicalRow("разрешение", "есть"),
                 TechnicalRow("захват", "запрошен"),
+                TechnicalRow("привязан", "да"),
+                TechnicalRow("эффект", "ВЫКЛЮЧЕН"),
                 TechnicalRow("кадр", "40 мс назад"),
+                TechnicalRow("ошибка", "эффект сессии 0 занят другим владельцем"),
             ),
             rows,
         )
         assertEquals(
             listOf(TechnicalRow("Состояние", "панель не открывалась")),
-            SupportDiagnostics.spectrumRows("панель не открывалась"),
+            SupportDiagnostics.spectrumRows(SupportDiagnostics.spectrumLabel(null)),
         )
     }
 
@@ -114,12 +128,6 @@ class SupportDiagnosticsTest {
             3,
             setOf(quietCar, takenEffect, neverDelivered).size,
         )
-    }
-
-    /** Отчёт спрашивает хаб, а не строит его: панель могли ни разу не открыть. */
-    @Test
-    fun `the spectrum line says so when the panel was never opened`() {
-        assertEquals("панель не открывалась", SupportDiagnostics.spectrumLabel(null))
     }
 
     /**
