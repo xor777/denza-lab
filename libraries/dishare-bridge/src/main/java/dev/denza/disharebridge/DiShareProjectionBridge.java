@@ -26,6 +26,15 @@ public final class DiShareProjectionBridge {
         void onFailed(String message);
 
         void onStopped(String message);
+
+        /**
+         * DiShare ended a started share on its own side: the receiver went away (605 when the
+         * HUD becomes unavailable on P→D), the stock exit control, another app shared in its
+         * place, or DiShare's process died. On the main thread, at most once, never after
+         * {@link #onStopped}; the bridge has already let go of DiShare.
+         */
+        default void onEnded(String message) {
+        }
     }
 
     private static final String TAG = "DenzaDiShareBridge";
@@ -52,18 +61,58 @@ public final class DiShareProjectionBridge {
     private static final int SOURCE_VIDEO_HEIGHT = 1440;
     private static final int TARGET_VIDEO_WIDTH = 1024;
     private static final int TARGET_VIDEO_HEIGHT = 576;
+    /**
+     * How long tx 1 {@code false} has to stand before the share counts as ended
+     * ({@link DiShareShareSession}). On the car the start took 0.3 s and the flag followed the
+     * 605 by 0.1 s, so a re-cast's teardown and new share land well inside it.
+     */
+    private static final long END_SETTLE_MS = 1500L;
 
     private final Context context;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final ApiClientBinder apiClient = new ApiClientBinder();
-    private final DiShareListenerBinder listener = new DiShareListenerBinder();
+    private final ApiClientBinder apiClient = new ApiClientBinder(new ApiClientBinder.Listener() {
+        @Override
+        public void onMirrorClient(final boolean current) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    onMirrorClientChanged(current);
+                }
+            });
+        }
+    });
+    private final DiShareListenerBinder listener = new DiShareListenerBinder(
+            new DiShareListenerBinder.Listener() {
+                @Override
+                public void onShareState(final DiShareState state) {
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            log("share state=" + state);
+                        }
+                    });
+                }
+            });
+    private final DiShareShareSession session = new DiShareShareSession();
+    private final Runnable timeout = new Runnable() {
+        @Override
+        public void run() {
+            fail("timeout");
+        }
+    };
+    private final Runnable settleEnd = new Runnable() {
+        @Override
+        public void run() {
+            if (session.settled()) {
+                end("DiShare no longer shares " + targetPackage);
+            }
+        }
+    };
     private final String targetPackage;
     private final Callback callback;
 
     private DiShareBinding apiBinding;
     private DiShareBinding controlBinding;
-    private boolean started;
-    private boolean failed;
     private boolean sourceOnly;
     private boolean copyCurrentShareTarget;
     private List<String> receiverOverride;
@@ -80,8 +129,8 @@ public final class DiShareProjectionBridge {
                 if (sourceOnly) {
                     Bundle result = new Bundle();
                     result.putInt("source_only", 0);
-                    started = true;
-                    handler.removeCallbacksAndMessages(null);
+                    session.started();
+                    handler.removeCallbacks(timeout);
                     callback.onStarted(result);
                 } else {
                     bindControl();
@@ -94,10 +143,15 @@ public final class DiShareProjectionBridge {
         @Override
         public void onDisconnected() {
             log("api disconnected");
-            // DiShare died. Before the start finished that is a failed start. A started share
-            // keeps the binding until stop() releases it; DiShareBinding never hands a
-            // reconnection back, so DiShare coming back does not run the start a second time.
-            fail("api disconnected");
+            // DiShare died. Before the start finished that is a failed start; after it the share
+            // is gone with DiShare's process. Either way the binding is released, and
+            // DiShareBinding never hands a reconnection back, so DiShare coming back does not
+            // run the start a second time.
+            if (session.phase() == DiShareShareSession.Phase.STARTING) {
+                fail("api disconnected");
+            } else if (session.dishareLost()) {
+                end("DiShare disconnected");
+            }
         }
     };
 
@@ -109,9 +163,10 @@ public final class DiShareProjectionBridge {
                 registerControlClient();
                 Bundle result = startShare();
                 if (isSuccessfulResult(result)) {
-                    started = true;
+                    // Only the timeout: tx 1 from this very start is already queued behind us.
+                    session.started();
                     unbindControl();
-                    handler.removeCallbacksAndMessages(null);
+                    handler.removeCallbacks(timeout);
                     callback.onStarted(result);
                 } else {
                     fail("start returned " + bundleToString(result));
@@ -147,7 +202,7 @@ public final class DiShareProjectionBridge {
     }
 
     public boolean isStarted() {
-        return started;
+        return session.phase() == DiShareShareSession.Phase.ACTIVE;
     }
 
     public void start() {
@@ -191,6 +246,8 @@ public final class DiShareProjectionBridge {
     private void start(boolean sourceOnly, boolean copyCurrentShareTarget,
             List<String> receiverOverride, int videoWidth, int videoHeight,
             Rect videoBounds) {
+        cleanup();
+        session.starting();
         if (targetPackage == null || targetPackage.trim().isEmpty()) {
             fail("target package is empty");
             return;
@@ -201,9 +258,6 @@ public final class DiShareProjectionBridge {
         this.targetVideoWidth = sanitizeVideoDimension(videoWidth);
         this.targetVideoHeight = sanitizeVideoDimension(videoHeight);
         this.targetVideoBounds = sanitizeVideoBounds(videoBounds);
-        cleanup();
-        this.failed = false;
-        this.started = false;
         log("start target=" + targetPackage
                 + " copyCurrentShareTarget=" + copyCurrentShareTarget
                 + " video=" + targetVideoWidth + "x" + targetVideoHeight
@@ -220,16 +274,12 @@ public final class DiShareProjectionBridge {
             fail("bind api returned false");
             return;
         }
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                fail("timeout");
-            }
-        }, 5000L);
+        handler.postDelayed(timeout, 5000L);
     }
 
     public void stop() {
         handler.removeCallbacksAndMessages(null);
+        session.stopped();
         String stopResult = "stopped";
         try {
             if (apiBinder() != null) {
@@ -242,8 +292,34 @@ public final class DiShareProjectionBridge {
             stopResult = "stop warning: " + shortError(e);
         }
         cleanup();
-        started = false;
         callback.onStopped(stopResult);
+    }
+
+    private void onMirrorClientChanged(boolean current) {
+        log("api active=" + current);
+        if (session.mirrorClientChanged(current)) {
+            handler.removeCallbacks(settleEnd);
+            handler.postDelayed(settleEnd, END_SETTLE_MS);
+        }
+    }
+
+    /**
+     * DiShare ended the share. Our client stopped being its mirror client when it sent tx 1
+     * {@code false}, and no {@code true} followed, so removing the client finishes nothing; it
+     * only drops the source record a later share of the same app could otherwise be routed to.
+     * After DiShare died there is no client left and nothing is sent.
+     */
+    private void end(String reason) {
+        log("ended: " + reason);
+        try {
+            if (apiBinder() != null) {
+                callRemoveClient();
+            }
+        } catch (RuntimeException e) {
+            log("remove client warning: " + shortError(e));
+        }
+        cleanup();
+        callback.onEnded(reason);
     }
 
     private void createApiSource() {
@@ -462,10 +538,9 @@ public final class DiShareProjectionBridge {
     }
 
     private void fail(String message) {
-        if (failed || started) {
+        if (!session.failed()) {
             return;
         }
-        failed = true;
         cleanup();
         log("failed " + message);
         callback.onFailed(message);
@@ -867,8 +942,21 @@ public final class DiShareProjectionBridge {
         }
     }
 
+    /**
+     * {@code IDiShareApiClient}, which DiShare calls oneway. Tx 1 {@code y(boolean)}: whether this
+     * client is the current mirror client, i.e. the app being shared is the one it registered
+     * ({@code DiShareApiServiceImpl.updateMirrorClient}).
+     */
     private static final class ApiClientBinder extends Binder {
-        ApiClientBinder() {
+        interface Listener {
+            /** On a binder thread. */
+            void onMirrorClient(boolean current);
+        }
+
+        private final Listener listener;
+
+        ApiClientBinder(Listener listener) {
+            this.listener = listener;
             attachInterface(null, API_CLIENT_DESCRIPTOR);
         }
 
@@ -881,15 +969,34 @@ public final class DiShareProjectionBridge {
             }
             if (code == 1) {
                 data.enforceInterface(API_CLIENT_DESCRIPTOR);
-                Log.i(TAG, "api active=" + (data.readInt() != 0));
+                listener.onMirrorClient(data.readInt() != 0);
                 return true;
             }
             return super.onTransact(code, data, reply, flags);
         }
     }
 
+    /**
+     * {@code IDiShareListener}, called oneway: tx 2 {@code onScreensChanged(List)}, tx 3
+     * {@code onShareStateChanged(DiShareState)} (null when no share runs), tx 4 {@code boolean}.
+     * DiShare keeps one such listener per registered package name, and every registration as
+     * {@code com.byd.dishare} replaces the last, so tx 3 is logged, not trusted as this share's
+     * end; that is tx 1's job.
+     */
     private static final class DiShareListenerBinder extends Binder {
+        interface Listener {
+            /** On a binder thread. */
+            void onShareState(DiShareState state);
+        }
+
+        private final Listener listener;
+
         DiShareListenerBinder() {
+            this(null);
+        }
+
+        DiShareListenerBinder(Listener listener) {
+            this.listener = listener;
             attachInterface(null, LISTENER_DESCRIPTOR);
         }
 
@@ -900,7 +1007,15 @@ public final class DiShareProjectionBridge {
                 reply.writeString(LISTENER_DESCRIPTOR);
                 return true;
             }
-            if (code == 2 || code == 3 || code == 4) {
+            if (code == 3) {
+                data.enforceInterface(LISTENER_DESCRIPTOR);
+                if (listener != null) {
+                    listener.onShareState(
+                            data.readInt() != 0 ? DiShareState.readFrom(data) : null);
+                }
+                return true;
+            }
+            if (code == 2 || code == 4) {
                 data.enforceInterface(LISTENER_DESCRIPTOR);
                 return true;
             }

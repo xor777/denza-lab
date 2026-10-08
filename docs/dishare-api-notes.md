@@ -17,10 +17,10 @@ ends.
 | Claim | Status | Since | Section |
 |---|---|---|---|
 | The IVI firmware ships `com.byd.dishare` `1.5.1.1.1b1f648`; this doc's first reverse pass used the June pull `1.5.1.1.23102ef`; the FSE runs its own `1.5.1.1.afb8f06` (live read 2026-09-24, hud-projection-findings.md) | firmware | 2026-08-14 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
-| Bind `com.byd.dishare.control.DiShareControlService` (`IDiShareControl`) by its action: a component-only bind reaches the service, but `onBind()` returns null | live | 2026-06-26 | [Exported components](#exported-components) |
-| A normal APK registers as `packageName=com.byd.dishare` (tx `0x2`), and `start(screen_ivi, [screen_hud], app, com.byd.dishare)` (tx `0x6`) returns `{screen_hud=0, screen_ivi=0}` with the app on the HUD via a `BYD-Mirror` display | live | 2026-06-26 | [Direct start path](#direct-start-path) |
+| A normal APK binds `DiShareControlService` by its action (a component-only bind gets null from `onBind()`, [Exported components](#exported-components)), registers as `packageName=com.byd.dishare` (tx `0x2`), and `start(screen_ivi, [screen_hud], app, com.byd.dishare)` (tx `0x6`) returns `{screen_hud=0, screen_ivi=0}` with the app on the HUD via a `BYD-Mirror` display | live | 2026-06-26 | [Direct start path](#direct-start-path) |
 | The product does the same: `DiShareProjectionBridge.java` registers, starts, reads state, stops and closes the UI as `com.byd.dishare` (tx `0x2`/`0x6`/`0x5`/`0x7`/`0xb`); `DiShareScreens.java` asks tx `0x4` | code | 2026-06-28 | [Direct control service transaction map](#direct-control-service-transaction-map) |
-| Every bind to DiShare goes through `DiShareBinding.java`: unbound exactly once, also after `onServiceDisconnected`, and a reconnection when DiShare comes back is never delivered, so it cannot start a share again | code | 2026-10-08 | [Share session lifecycle](#share-session-lifecycle-2026-10-08) |
+| DiShare tells the API client that started a share when it stops being the mirror client: `IDiShareApiClient` tx 1 `true` during the start, `false` 0.1 s after the `605` on P→D (`captures/hud-pd-20260924T132255Z/dishare.log`) | live | 2026-09-24 | [End of a share](#end-of-a-share) |
+| The product's session (`DiShareShareSession.java`) ends on that `false` once it has stood 1.5 s with no `true`, or when DiShare's process dies; the bridge then removes its client and `SimulcastOverlayService.java` clears the target, hides the exit control and refreshes the tile. Every bind goes through `DiShareBinding.java`: unbound exactly once, also after `onServiceDisconnected`, and a reconnection when DiShare comes back is never delivered, so it cannot start a share again | code | 2026-10-08 | [Share session lifecycle](#share-session-lifecycle-2026-10-08) |
 | On the Z9GT `getScreens` reports `screen_hud`, `screen_fse` and `screen_ivi` (the source); rear, overhead and `screen_tv` receivers are implemented from the contract only | live | 2026-06-28 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
 | A drop target is a receiver DiShare reports available whose stock card is in the accessibility tree; `ScreenTarget.java` maps `screen_hud`→`ar_hud_screen`, `screen_fse`→`fse_screen`, `screen_rse_l`/`_r`→`left_rse_screen`/`right_rse_screen`, `screen_overhead` and `screen_tv`→`overhead_screen` | code | 2026-07-18 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
 | "Drop zones come from the decoded `window_share_layout_ivi_r` coordinates and the row is anchored to an 839 dp panel": both are the live node bounds of the receiver cards, `app_list` and `switch_share_app` (`SimulcastDialogGeometry.java`) | refuted | 2026-06-29 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
@@ -57,12 +57,16 @@ ends.
   [Stock-owned non-AIDL candidate](#stock-owned-non-aidl-candidate-2026-07-18).
 - HUD video while driving: an input that survives P→D, which DiShare's does not
   (hud-projection-findings.md).
+- The product's end of a share on the car: cast to the HUD, shift P→D, and the exit control
+  and the tile's running state go within about two seconds; the stock exit control and a
+  same-app re-cast to another screen must give `ended` and no `ended` respectively in the
+  `DenzaDiShareBridge` log.
 
 ## Contents
 - [Exported components](#exported-components) — DiShare's services, binder descriptors, the action-only bind.
 - [Direct control service transaction map](#direct-control-service-transaction-map) — `IDiShareControl` transaction codes and return parcelables.
 - [Direct start path](#direct-start-path) — what `start` checks, and the first live HUD share as `com.byd.dishare`.
-- [Share session lifecycle (2026-10-08)](#share-session-lifecycle-2026-10-08) — how the product binds to DiShare and lets go.
+- [Share session lifecycle (2026-10-08)](#share-session-lifecycle-2026-10-08) — how the product binds to DiShare, learns that its share ended, and lets go.
 - [Probe commands](#probe-commands) — the legacy raw-Binder probe activity and its extras.
 - [Historical Simulcast App Change alias path](#historical-simulcast-app-change-alias-path) — the archived alias APKs, where the native row's metadata lives, the native-list follow-up.
 - [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) — the accessibility row and drop layer, dialog lifecycle, centered aspect-fit, receivers, share size.
@@ -161,7 +165,8 @@ Dynamic result from the car:
 
 ## Share session lifecycle (2026-10-08)
 
-How the product holds its bindings to DiShare and lets go of them.
+How the product holds its bindings to DiShare, learns that a share it started is over, and
+lets go of both.
 
 ### Bindings
 
@@ -178,6 +183,53 @@ rules live in `DiShareBindingState.java` and are tested there.
   once; only the first connection reaches the owner, and none after release.
 - A disconnect while a start or a one-shot call is in flight fails it at once rather than at the
   timeout. `DiShareScreens` delivers exactly one of `onScreens`/`onFailed`.
+
+### End of a share
+
+Before this change the bridge logged DiShare's callbacks and dropped them, and "a share is
+running" was only the product's own `last_target_package`, cleared by its own stop or next start.
+A share DiShare ended itself, such as the `605` on P→D in
+[hud-projection-findings.md](hud-projection-findings.md) §14.9, left the red exit control on the
+driver's screen and the tile showing the cast as running.
+
+From the IVI firmware (`captures/hud-firmware-20260923/jadx/DiShare`):
+
+- `IDiShareApiClient` (`r/d/o/f/d0.java`) has one oneway call, tx 1 `y(boolean)`.
+  `DiShareApiServiceImpl.updateMirrorClient` (`r/d/o/f/y.java`, `N0`) calls it with `true` on the
+  client whose registered app became the shared app and `false` on the client that stops being
+  that, on every "mirror app changed" event: the share ended (mirror app `null`) or another app
+  took its place. It clears the client's mirror flag before sending `false`.
+- API service calls (tx 1 create client, tx 7 remove client, tx 10 finish) are posted to DiShare's
+  main thread, and creating a client reports the current mirror app to it at once
+  (`onClientCreated` → `N0`). A re-cast of the same app can therefore deliver the previous
+  share's `true`, its teardown's `false`, then the new share's `true`.
+- Removing a client, or the client's binder dying, calls `onClientRemoved` → `x.j()`, which runs
+  `exitAll` while the client is still the mirror client. Removing a client that already got its
+  `false` finishes nothing.
+- `IDiShareListener` (`r/d/o/c.java`): tx 2 screens, tx 3 `onShareStateChanged(DiShareState)`
+  (`null` when no share runs), tx 4 a boolean. `DiShareControlImpl` (`r/d/o/j/i0.java`) keeps one
+  listener per registered package name, so every registration as `com.byd.dishare` (the
+  product's stopper and UI closer, the next start) replaces the previous one.
+
+Live, 2026-09-24 (`captures/hud-pd-20260924T132255Z/`): `api active=true` 48 ms before the start
+returned, `api active=false` 112 ms after DiShare removed the HUD receiver with `605`; the stock
+log shows `updateMirrorClient: null` and then `DiShareControlImpl: onShareStateChanged= null`.
+
+What the product does (`DiShareShareSession.java`, tested in `DiShareShareSessionTest`):
+
+- Tx 1 hops to the main thread. A `false` after a `true`, with the session started, arms a
+  1.5 s settle; a `true` calls it off. When it runs out the session has ended. The settle is
+  what keeps a same-app re-cast from ending, and from removing a client DiShare again counts as
+  its mirror client, which would stop the new share.
+- DiShare's process dying (the API binding disconnects) ends a started share at once: the
+  `BYD-Mirror` display lived in that process. While starting it is a failed start.
+- On the end the bridge removes its client (API tx 7, the call its stop already makes, and which
+  the 2026-09-24 run made 24 s after this kind of end), releases its bindings and reports
+  `onEnded`. `SimulcastOverlayService.java` then does what its own stop does: clears the
+  target, hides the exit control and refreshes the tile.
+- Tx 3 is decoded and logged as `share state=`, not used to end anything: the registration it
+  rides on is replaced by every other `com.byd.dishare` registration, and it can describe the
+  share that was there before ours.
 
 ## Probe commands
 

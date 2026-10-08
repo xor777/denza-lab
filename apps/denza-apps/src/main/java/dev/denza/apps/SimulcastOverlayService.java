@@ -200,6 +200,16 @@ public class SimulcastOverlayService extends Service {
                         lease.release();
                         Log.i(TAG, packageName + " stopped " + message);
                     }
+
+                    @Override
+                    public void onEnded(String message) {
+                        // DiShare ended the share on its side (605 when the receiver goes away,
+                        // its own exit, a restart). Only the active bridge can get here: one we
+                        // stopped or replaced never calls back.
+                        Log.i(TAG, packageName + " ended by DiShare: " + message);
+                        activeBridge = null;
+                        shareOver();
+                    }
                 });
         activeBridge.startToReceiver(receiver,
                 videoSize.getVideoWidth(), videoSize.getVideoHeight(),
@@ -211,8 +221,7 @@ public class SimulcastOverlayService extends Service {
         TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
         if (activeBridge != null) {
             stopBridge();
-            SimulcastIntegration.clearLastTargetPackage(this);
-            hideActiveShareExit();
+            shareOver();
             Toast.makeText(this, "Simulcast завершен", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -238,12 +247,21 @@ public class SimulcastOverlayService extends Service {
                     @Override
                     public void onStopped(String message) {
                         TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
-                        SimulcastIntegration.clearLastTargetPackage(SimulcastOverlayService.this);
-                        hideActiveShareExit();
+                        shareOver();
                         Toast.makeText(SimulcastOverlayService.this,
                                 "Simulcast завершен", Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    /**
+     * The share is over, by our exit or on DiShare's side: no target to stop, no exit control,
+     * and the «Трансляция» tile no longer shows it running.
+     */
+    private void shareOver() {
+        SimulcastIntegration.clearLastTargetPackage(this);
+        hideActiveShareExit();
+        DenzaAppRepository.INSTANCE.refresh();
     }
 
     private void stopBridge() {
