@@ -14,14 +14,29 @@ object SpecJson {
 
     val spec: Map<String, Any?> by lazy { parse(read("luminofor/spec.json")) as Map<String, Any?> }
 
-    fun read(name: String): String {
+    /**
+     * The boards' scenes by board id, as the debug build carries them: `luminofor/fixtures.json`,
+     * which `shot.py --fixtures` exports from `fixtures.js`. Each is a `[board, fixture]` pair.
+     */
+    val fixtures: Map<String, Any?> by lazy {
+        parse(find("apps/denza-apps/src/debug/assets/luminofor/fixtures.json").readText()) as Map<String, Any?>
+    }
+
+    /** The fixture of board [id]: the second element of its `[board, fixture]` pair. */
+    fun fixture(id: String): Map<String, Any?> =
+        (fixtures[id] as? List<*>)?.get(1) as? Map<String, Any?> ?: error("$id is not in fixtures.json")
+
+    fun read(name: String): String = find("tools/design-canvas/$name").readText()
+
+    /** [path] from the repository's root, found by walking up from the working directory. */
+    private fun find(path: String): File {
         var dir: File? = File(System.getProperty("user.dir")).absoluteFile
         while (dir != null) {
-            val f = File(dir, "tools/design-canvas/$name")
-            if (f.isFile) return f.readText()
+            val f = File(dir, path)
+            if (f.isFile) return f
             dir = dir.parentFile
         }
-        error("tools/design-canvas/$name not found above ${System.getProperty("user.dir")}")
+        error("$path not found above ${System.getProperty("user.dir")}")
     }
 
     /** `at("cluster", "grid", "axis")` -> the value there. */

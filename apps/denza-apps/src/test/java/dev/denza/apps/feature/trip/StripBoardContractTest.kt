@@ -5,7 +5,6 @@ import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import dev.denza.apps.feature.vehicle.EnergyReadouts
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -51,15 +50,7 @@ class StripBoardContractTest {
 
     // ------------------------------------------------------------------------------- fixtures
 
-    private val fixtures: Map<String, Any?> by lazy {
-        @Suppress("UNCHECKED_CAST")
-        SpecJson.parse(fixturesFile().readText()) as Map<String, Any?>
-    }
-
-    private fun scene(id: String): Map<String, Any?> {
-        @Suppress("UNCHECKED_CAST")
-        return (fixtures[id] as List<Any?>)[1] as Map<String, Any?>
-    }
+    private fun scene(id: String): Map<String, Any?> = SpecJson.fixture(id)
 
     @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.obj(key: String) = this[key] as Map<String, Any?>
@@ -213,21 +204,5 @@ class StripBoardContractTest {
 
         assertDrawn("a column's least height", "h = Math.max(${js(SpectrumRenderer.MIN_HEIGHT)}, lv[si] * fh)")
         assertDrawn("a pane's sampling", "const si = Math.round(i * (NN - 1) / Math.max(1, n - 1))")
-    }
-
-    private companion object {
-        /** The debug build's copy of the board's scenes, which `shot.py --fixtures` writes. */
-        fun fixturesFile(): File {
-            val start = requireNotNull(System.getProperty("user.dir")) { "user.dir is unavailable" }
-            var dir: File? = File(start).absoluteFile
-            while (dir != null) {
-                val file = File(dir, "apps/denza-apps/src/debug/assets/luminofor/fixtures.json")
-                if (file.isFile) return file
-                val local = File(dir, "src/debug/assets/luminofor/fixtures.json")
-                if (local.isFile) return local
-                dir = dir.parentFile
-            }
-            error("fixtures.json not found above $start")
-        }
     }
 }

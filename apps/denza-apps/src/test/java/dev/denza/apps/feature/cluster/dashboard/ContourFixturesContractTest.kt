@@ -3,9 +3,7 @@ package dev.denza.apps.feature.cluster.dashboard
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.WideDigits
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
-import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -24,28 +22,33 @@ import org.junit.Test
  */
 class ContourFixturesContractTest {
 
-    private val boards = listOf(
-        "cluster-city", "cluster-launch", "cluster-regen", "cluster-engine", "cluster-hot",
-        "cluster-park", "cluster-charging", "cluster-spread", "cluster-filling", "cluster-unavailable",
-    )
-
-    @Test
-    fun everyClusterSceneIsExported() {
-        boards.forEach { assertNotNull("$it is in fixtures.json", all[it]) }
-    }
+    /**
+     * Every cluster scene `fixtures.js` draws, read off the file rather than listed here: the list
+     * this replaced had ten of the twelve, and the stale and waking boards' words were held to
+     * nothing. An empty list would agree with anything, so it may not be.
+     */
+    private val boards = SpecJson.fixtures.keys.filter { it.startsWith("cluster-") }
+        .also { check(it.isNotEmpty()) { "no cluster-* scene in fixtures.json" } }
 
     @Test
     fun theBoardsCaptionsAreTheAppsWords() {
-        boards.map { it to fixture(it) }.filter { it.second["unavailable"] != true }.forEach { (id, f) ->
+        // The waking and the closed panel print no captions at all: ContourFrameBuilderTest holds
+        // those two to their boards. Every other scene prints the same five.
+        boards.map { it to fixture(it) }.filter { it.second["batteryCaption"] != null }.forEach { (id, f) ->
             assertEquals(id, ContourReadout.TITLE_PACK, f["batteryCaption"])
             assertEquals(id, ContourReadout.UNIT_KWH, f["tripUnit"])
             assertTrue(
                 "$id: «${f["iceCaption"]}»",
                 f["iceCaption"] in setOf(ContourReadout.TITLE_ENGINE_MINUTES, ContourReadout.TITLE_ENGINE_RPM),
             )
+            // A stale trip loses its kilometres and the separator with them.
             assertEquals(
                 id,
-                "42 ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_TRIP}",
+                if (f["tripKwh"] == null) {
+                    ContourReadout.CAPTION_TRIP_ALONE
+                } else {
+                    "42 ${ContourReadout.UNIT_KM} ${ContourReadout.CAPTION_TRIP}"
+                },
                 f["tripCaption"],
             )
             if (f["parked"] == true) {
@@ -101,7 +104,8 @@ class ContourFixturesContractTest {
         val drawable = SpecJson.at("digits", "glyphs") as Map<*, *>
         boards.map(::fixture).forEach { f ->
             val figures = listOfNotNull(f["volts"], f["tripKwh"], f["iceFigure"], f["consumption"], f["gaveKwh"], f["regenKwh"]) +
-                (f["temps"] as List<*>? ?: emptyList<Any>()).map { (it as Map<*, *>)["value"] }
+                // A stale cell keeps its glyph and prints no figure.
+                (f["temps"] as List<*>? ?: emptyList<Any>()).mapNotNull { (it as Map<*, *>)["value"] }
             figures.map { it as String }.forEach { figure ->
                 assertTrue("«$figure»", figure.all { drawable.containsKey(it.toString()) })
                 assertTrue(WideDigits.width(figure, 52f) > 0f)
@@ -109,27 +113,5 @@ class ContourFixturesContractTest {
         }
     }
 
-    companion object {
-        private val all: Map<String, Any?> by lazy {
-            @Suppress("UNCHECKED_CAST")
-            SpecJson.parse(locate().readText()) as Map<String, Any?>
-        }
-
-        /** The fixture of board [id]: the second element of its `[board, fixture]` pair. */
-        @Suppress("UNCHECKED_CAST")
-        fun fixture(id: String): Map<String, Any?> =
-            (all[id] as? List<*>)?.get(1) as? Map<String, Any?> ?: error("$id is not in fixtures.json")
-
-        private fun locate(): File {
-            var dir: File? = File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
-            while (dir != null) {
-                listOf(
-                    "src/debug/assets/luminofor/fixtures.json",
-                    "apps/denza-apps/src/debug/assets/luminofor/fixtures.json",
-                ).map { File(dir, it) }.firstOrNull { it.isFile }?.let { return it }
-                dir = dir.parentFile
-            }
-            error("fixtures.json not found above ${System.getProperty("user.dir")}")
-        }
-    }
+    private fun fixture(id: String): Map<String, Any?> = SpecJson.fixture(id)
 }

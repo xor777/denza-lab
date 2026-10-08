@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.vehicle.ConsumptionChart
 import dev.denza.apps.feature.vehicle.ConsumptionSample
 import dev.denza.apps.feature.vehicle.EngineTrace
@@ -97,24 +98,31 @@ class ContourFrameBuilderTest {
         )
     }
 
-    private fun board(id: String): Map<String, Any?> = ContourFixturesContractTest.fixture(id)
+    private fun board(id: String): Map<String, Any?> = SpecJson.fixture(id)
 
     // ---------------------------------------------------------------- the skeleton
 
     @Test
     fun theFirstSecondsAreTheSkeletonAndNothingElse() {
         val frame = Panel().run(VehicleTelemetry(), 0.5f)
+        val board = board("cluster-waking")
         assertFalse(frame.unavailable)
-        assertFalse("no beam", frame.powerFresh)
-        assertFalse("no unit before the first reading", frame.heroUnit)
+        assertEquals("no beam", board["powerFresh"], frame.powerFresh)
+        assertEquals("no unit before the first reading", board["heroUnit"], frame.heroUnit)
         assertNull(frame.heroFigure)
-        assertNull(frame.batteryCaption)
-        assertTrue("no glyphs", frame.temps.none { it.shown })
-        assertNull(frame.iceCaption)
-        assertNull(frame.tripCaption)
-        assertEquals(0, frame.chartCount)
-        assertNull(frame.consumption)
-        assertNull(frame.consumptionUnit)
+        assertEquals("no glyphs", (board["temps"] as List<*>).size, frame.temps.count { it.shown })
+        assertEquals((board["chart"] as List<*>).size, frame.chartCount)
+        // No word on either side: the board draws none of them and the frame carries none.
+        mapOf(
+            "batteryCaption" to frame.batteryCaption,
+            "iceCaption" to frame.iceCaption,
+            "tripCaption" to frame.tripCaption,
+            "consumption" to frame.consumption,
+            "consumptionUnit" to frame.consumptionUnit,
+        ).forEach { (key, word) ->
+            assertNull("the board's $key", board[key])
+            assertNull("the frame's $key", word)
+        }
         assertFalse(ContourGeometry.flickers(frame))
     }
 
@@ -335,17 +343,26 @@ class ContourFrameBuilderTest {
         panel.run(t, 1f)
         // Past the hot horizon and past the cold one: every figure has left, every caption stays.
         val frame = panel.run(t, 30f, quiet = true)
-        assertFalse("the band leaves", frame.powerFresh)
+        val board = board("cluster-stale")
+        assertEquals("the band leaves", board["powerFresh"], frame.powerFresh)
         assertNull(frame.heroFigure)
         assertTrue("its unit stays", frame.heroUnit)
+        assertNull(board["volts"])
         assertNull(frame.volts)
-        assertEquals(ContourReadout.TITLE_PACK, frame.batteryCaption)
+        assertEquals(board["batteryCaption"], frame.batteryCaption)
+        val temps = board["temps"] as List<*>
+        assertEquals(temps.size, frame.temps.size)
+        assertTrue(temps.all { (it as Map<*, *>)["value"] == null })
         assertTrue(frame.temps.all { it.shown && it.value == null })
+        assertNull(board["tripKwh"])
         assertNull(frame.tripKwh)
-        assertEquals("the kilometres leave with the separator", ContourReadout.CAPTION_TRIP_ALONE, frame.tripCaption)
+        assertEquals("the kilometres leave with the separator", board["tripCaption"], frame.tripCaption)
+        assertEquals(board["tripUnit"], frame.tripUnit)
+        assertEquals(board["iceCaption"], frame.iceCaption)
+        assertNull(board["consumption"])
         assertNull(frame.consumption)
-        assertEquals(ContourReadout.UNIT_PER_100KM, frame.consumptionUnit)
-        assertEquals("closed road is still road", 100, frame.chartCount)
+        assertEquals(board["consumptionUnit"], frame.consumptionUnit)
+        assertEquals("closed road is still road", (board["chart"] as List<*>).size, frame.chartCount)
         assertFalse(ContourGeometry.flickers(frame))
     }
 
