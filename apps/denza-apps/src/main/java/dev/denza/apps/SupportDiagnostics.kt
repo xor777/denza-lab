@@ -177,6 +177,7 @@ object SupportDiagnostics {
         AdbPortRestoreReport.rows(
             permissionHeld = AdbPortRestore.isPermissionHeld(context),
             state = AdbPortRestore.state(),
+            nowMs = SystemClock.elapsedRealtime(),
         ).map { (key, value) -> row(key, value) }
 
     private fun simulcastRows(context: Context, header: SupportDiagnosticsHeader): List<TechnicalRow> =
