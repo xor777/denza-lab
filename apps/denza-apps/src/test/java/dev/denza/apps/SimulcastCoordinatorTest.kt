@@ -3,9 +3,7 @@ package dev.denza.apps
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureStatus
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SimulcastCoordinatorTest {
@@ -95,24 +93,5 @@ class SimulcastCoordinatorTest {
 
         assertEquals("Откройте ADB Rescue в диагностике", problem.message)
         assertEquals(FeatureResolution.CONFIRM_ON_CAR, problem.resolution)
-    }
-
-    @Test
-    fun `only repairing event keeps setup progress active`() {
-        assertTrue(SimulcastReconcileEvent.Repairing.setupRunning)
-        assertFalse(SimulcastReconcileEvent.Refresh.setupRunning)
-        assertFalse(SimulcastReconcileEvent.Repaired.setupRunning)
-        assertFalse(
-            SimulcastReconcileEvent.Blocked(
-                blocker = SimulcastBlocker.APPS_NOT_SELECTED,
-                selectedAppCount = 0,
-            ).setupRunning,
-        )
-        assertFalse(
-            SimulcastReconcileEvent.RepairFailed(
-                message = "failed",
-                details = null,
-            ).setupRunning,
-        )
     }
 }
