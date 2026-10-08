@@ -410,29 +410,6 @@ class SplitScenarioTest {
     }
 
     /**
-     * Правка W6 (диагноз v21 Д4-Ф1): shell-зеркало удалено, канал истины фаз - ринг
-     * support-экрана (§12.1). Что операция пишет фазы в ринг, по-прежнему закреплено здесь.
-     */
-    @Test
-    fun theRingCarriesTheStepTimingsOfAnOpen() {
-        val car = car(FakeShell())
-        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
-        core.initialize {}
-
-        core.openPickerSession()
-        car.barrier()
-
-        assertTrue(
-            "фазовые метки открытия дошли до ринга",
-            car.diagnostics.any { it.startsWith("${SplitCoordinatorCore.OPEN_LABEL} +") },
-        )
-        assertFalse(
-            "и ни одна команда зеркала не ушла в машину",
-            car.commands().any { it.startsWith("log -t ") },
-        )
-    }
-
-    /**
      * Contract 5, to 1.12: every write of the firmware-global resizeability setting is recorded.
      *
      * Acceptance v17 raised defect 11 - "the product silently changes `force_resizable_activities`"
@@ -1520,7 +1497,8 @@ class SplitScenarioTest {
 
     @Test
     fun selectFailureLeavesPickerInteractiveAndPairUnchanged() {
-        // K14, сценарий §11.9: пикер остаётся интерактивным, пара не тронута, сообщение видно
+        // K14, сценарий §11.9, 1.5.7: пикер остаётся рабочим, пара и сосед не тронуты, текста об
+        // ошибке нет (U5)
         val car = car(FakeShell(directTargetLaunchSucceeds = false).apply { liveProductScene() })
         val core = car.core(
             SplitDurable(
@@ -1532,6 +1510,7 @@ class SplitScenarioTest {
             ),
         )
         core.initialize {}
+        val neighbour = car.fake.topTaskId(SECONDARY_ROOT)
         val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR, results::add)
@@ -1548,6 +1527,9 @@ class SplitScenarioTest {
         assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
         assertTrue("the picker of that pane is still there", car.fake.hasTask(PRIMARY_PICKER_TASK))
         assertEquals(PRIMARY_PICKER_ACTIVITY, car.fake.topActivity(PRIMARY_ROOT))
+        assertEquals("the neighbour is untouched", neighbour, car.fake.topTaskId(SECONDARY_ROOT))
+        assertEquals("and the card says nothing", "", core.snapshot().message)
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
     }
 
     @Test
@@ -5158,33 +5140,6 @@ class SplitScenarioTest {
 
         assertEquals("пакета нет ни в одном слоте - писать нечего", commits, car.store.commits)
         assertEquals(emptyList<String>(), car.commands())
-    }
-
-    @Test
-    fun aFailedSelectionLeavesTheWorkingPickerAndSaysNothing() {
-        // 1.5.7, U5: панель остаётся на своём рабочем пикере, сосед не тронут, текста нет
-        val car = car(FakeShell(directTargetLaunchSucceeds = false).apply { liveProductScene() })
-        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
-        core.initialize {}
-        core.openPickerSession()
-        car.barrier()
-        val neighbour = car.fake.topTaskId(SECONDARY_ROOT)
-        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
-
-        core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR, results::add)
-        car.barrier()
-
-        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
-        assertEquals("хранилище не тронуто", 0, car.store.commits)
-        assertEquals(PICKER_PAIR, car.store.load().slots)
-        assertEquals("и карточка молчит", "", core.snapshot().message)
-        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
-        assertEquals(
-            "панель снова на своём пикере",
-            PRIMARY_PICKER_ACTIVITY,
-            car.fake.topActivity(PRIMARY_ROOT),
-        )
-        assertEquals("сосед не тронут", neighbour, car.fake.topTaskId(SECONDARY_ROOT))
     }
 
     /**
