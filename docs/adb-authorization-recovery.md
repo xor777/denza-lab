@@ -12,6 +12,7 @@ currently inaccessible vehicle.
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Dipilot rescue shows the passive shell result before clicks, then queue observations and click diagnostics; it approves requests by design | local tests/build; vehicle acceptance pending | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
 
 ## Contents
@@ -27,6 +28,7 @@ currently inaccessible vehicle.
 - [The prompt is never drawn on this car](#the-prompt-is-never-drawn-on-this-car-live-2026-08-29)
 - [How ADB authorization actually works on DiLink 5.1](#how-adb-authorization-actually-works-on-dilink-51-corpus-2026-08-29)
 - [Port 5555 after a reboot](#port-5555-after-a-reboot-and-reopening-it-through-wireless-debugging-corpus-2026-10-06)
+- [Autonomous restore](#autonomous-restore-implementation-2026-10-08)
 - [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08)
 - [The persistent shell is a terminal](#the-persistent-shell-is-a-terminal-live-v31-2026-08-26)
 
@@ -498,13 +500,13 @@ factory tooling. Nothing in the decompiled corpus outside SystemUI so much as me
 
 Owners on the forum report that IVI builds from mid-2026 (version strings with «2606») leave
 port 5555 closed after every reboot of the head unit, so anything that reaches adbd over TCP
-stops until ADB is opened again by hand. Nobody has seen this on this project's car, which runs
+needs a restoration path after boot. Nobody has seen this on this project's car, which runs
 `Di5.1_34.1.33.2605218`, and the 2606 OTA is not in the corpus. What follows is read from the
 2605 image, with the files under `captures/adb-firmware-20261006/`.
 
 It matters to the product directly: `LocalAdbClient` talks only to `127.0.0.1:5555`
 (`PORT = 5555`), classic protocol, no TLS. On a build that closes that port, every feature
-behind the startup gate stops after each reboot, and nothing in Denza Apps can reopen it.
+behind the startup gate stops after each reboot. Until the restoration implementation below, Denza Apps had no reopening path.
 
 ### What opens 5555 on the 2605 image
 
@@ -604,20 +606,13 @@ the permission was granted.
 | Denza Apps reads `persist.adb.tcp.port`, `service.adb.tcp.port`, `sys.connect.adb.wiress`, `persist.sys.adb.wiress.enable` and `adb_wifi_enabled` over its trusted shell once per runtime pass, read-only, and shows them on the service page | code | `AdbPortReadout`, `AdbPortRestoreReport` |
 | 2606 closes 5555 after a reboot | open | owners' reports only |
 | The wireless-debugging path and its dialog are stock on 2605 | firmware | `AdbDebuggingManager`, `WifiDebuggingActivity` |
-| Denza Apps reaches adbd only over classic 5555 and has no reopening path | code | `LocalAdbClient.PORT` |
+| Feature clients still use classic 5555; the restore manager can reopen it over STLS using the same identity | code, vehicle acceptance pending | `LocalAdbClient.PORT`, `LocalAdbTlsClient`, `AdbRestoreManager` |
 | Denza Apps requests `WRITE_SECURE_SETTINGS` and grants it to itself over its trusted shell on every runtime pass where it is missing | code | `AndroidManifest.xml`, `AdbPortRestore.prepare` |
 | That self-grant succeeds on this car | open | «Восстановление порта ADB» on the service page, after one trusted runtime pass |
 
-On a 2606-class build, the product would need four things:
-
-- A `WRITE_SECURE_SETTINGS` request in the manifest, granted while 5555 still answers. Built
-  2026-10-08, see below.
-- An STLS client and mDNS discovery added to `LocalAdbClient`.
-- A third accessibility job for the network dialog. Simulcast and the split picker already run
-  accessibility services.
-- A gate state for "no Wi-Fi yet".
-
-Only the first is built (2026-10-08); the other three are not.
+The four parts (permission preparation, STLS/discovery, the network-dialog accessibility rider,
+and the Wi-Fi waiting gate) are implemented locally as of 2026-10-08. The wire handshake,
+SystemUI click and boot behavior remain pending on the car; no 2606 image has been added.
 
 On every runtime pass that has a trusted shell, `DenzaAppRepository.startAdbRuntime` hands
 `AdbPortRestore.prepare` one job on its own thread. If `checkSelfPermission` says the permission is
@@ -639,6 +634,80 @@ failure. The section is a model of its own (`AdbPortRestoreState`, `AdbPortReado
 
 The rule for the car follows from the preconditions: a build that holds the permission has to be
 on the car before such an OTA is installed.
+
+## Autonomous restore implementation (2026-10-08)
+
+Status: local implementation and tests; **vehicle acceptance pending**. This is the stock AOSP
+wireless-debugging path, implemented independently. It does not write BYD's wireless properties,
+clear authorization queues/keys, pair a new key or send anything to the camera package.
+
+`AdbRestoreManager` owns a pure `AdbRestoreSystem` seam. `AndroidAdbRestoreSystem` supplies passive
+classic shell probes, Settings, property reading, local Wi-Fi, `AdbTlsDiscovery`, the shared
+accessibility repair and normal runtime recovery. `LocalAdbTlsClient` in `:dishare-bridge`
+presents the exact `AdbKeyStore` RSA identity in a cached self-signed certificate. BouncyCastle
+1.86 builds only that envelope with an explicit local provider; it is never globally registered.
+The protocol follows [AOSP's STLS constants](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/adb.h),
+with TLS 1.3 and no public-key request or pairing. All destinations must match loopback or a local
+interface, checked both when resolving mDNS and before connecting.
+
+The function defaults to ON (`adb_restore`, `adb_restore_enabled=true`). Successful classic or
+Rescue checks persist `trusted_before`; this is historical evidence, not a guarantee against
+key expiry. The first real passive classic probe wins: when it succeeds the state is `NotNeeded`,
+no `adb_wifi_enabled=1` is written, and permission/accessibility preparation happens while the
+trusted shell is still available. `AdbPortRestore.ensurePermission` and the existing preparation
+pass share a grant lock, so the missing permission is not concurrently granted by two owners.
+A bound accessibility service is left alone. An unbound one joins `SimulcastCoordinator.repairAccess`
+and its existing ordered transaction; transient failures get two more attempts, 15 seconds apart,
+with a generation guard before queued writes. Other features' requests still own their shared repair.
+
+When classic access is absent, restoration needs prior trust, the permission, Android 11+, and
+connected Wi-Fi (internet validation is unnecessary). Missing trust/permission is `NeedsActivation`,
+missing Wi-Fi is `WaitingWifi`. A changed network is checked at every asynchronous boundary. The
+manager writes `adb_wifi_enabled=1`, waits 1.5 seconds and treats a system rollback as `NeedsDialog`.
+A fresh rollback starts delays 2/5/10/15 seconds (then 15), at most five minutes on that network.
+Settings writes within that wave have a 15-second interval; passive hints honor the persisted
+10-minute cooldown. A suppressed write cannot create a new wave. An exhausted network waits for a
+new network, confirmed success or the explicit `settings` hint. The network/time and outcome/time
+pairs are stored atomically.
+
+`SimulcastAccessibilityService` hosts `WifiDebuggingDialogAutoAllow`. It accepts only the SystemUI
+`WifiDebuggingActivity` and the exact event window, follows the event source to its root, or uses
+that `windowId` in `service.windows` when the source is missing. It finds Allow before changing a
+checkbox, checks actual `ACTION_CLICK` results and allows once if the checkbox is absent/refused.
+There is at most one pending 300-ms layout retry per window, and the wish is checked again before
+each click. No other SystemUI authorization dialog is touched. Checkbox/button IDs still need
+confirmation in a live window dump.
+
+A valid `service.adb.tls.port` is tried before mDNS. The resolver queues services and resolves
+serially, filters remote addresses and stops its discovery registration once on every completion
+or cancellation. TLS requests `tcpip:5555`; EOF after OPEN is an expected restart outcome, never
+success by itself. The manager polls a real passive classic shell once a second for 15 seconds,
+then rejoins `DenzaAppRepository`/`DenzaRuntimeCoordinator` recovery on `Restored`. The feature
+helpers remain owned by their existing runtimes; there is no new generic daemon.
+
+Main-process start, connected Wi-Fi/capability changes, Wi-Fi loss, `SCREEN_ON`/`USER_PRESENT`,
+failed passive recovery checks and trusted runtime preparation provide hints. Hints coalesce,
+attempts serialize, and OFF persists first, increments the generation, cancels the attempt/wave
+and writes `adb_wifi_enabled=0` when permitted. A stale attempt cannot write it back to 1 or
+restart the runtime. Opening «Сервис» sends the explicit cooldown-resetting `settings` hint.
+«Сервис → Восстановление ADB» provides the switch and the same neutral readings as
+`SupportDiagnostics`; the existing port-property section is retained. `WaitingWifi` has a neutral
+gate with no ineffective action; technical failures stay in the report. Luminofor has full/narrow
+restore-page fixtures and a Wi-Fi gate fixture.
+
+The remaining acceptance must identify the same-signed APK by hash and start from the documented
+baseline. First prove on 2605 that live classic access leaves `adb_wifi_enabled` unchanged and no
+network dialog appears. Only a separately owned run may then close 5555: verify the real STLS
+handshake, property/mDNS, exact SystemUI IDs/clicks, hotspot BSSID changes, restored feature
+runtimes, OFF during a dialog/discovery, and the crash buffer. Local fake-system tests and emulator
+board comparisons do not establish these car-side behaviors or anything about 2606.
+
+Local validation on 2026-10-08: 1711 Denza Apps tests, 53 bridge tests and 14 Car ADB Gateway tests
+passed; both product debug APKs built. Seven service/gate boards were rendered against the API-35
+emulator (2560×1600, 320 dpi). The new full/narrow restore page compared at 1.14%/2.67% moved
+pixels (mean 1.30/2.33 levels), and the Wi-Fi gate at 0.60% (mean 0.88). Visual inspection of the
+overlays found aligned rows and controls; residue is text antialiasing and the emulator's gesture
+bar. Screenshots and validation metadata live in `captures/adb-restore-20261008/` (untracked).
 
 ## Dipilot identity rescue (local review, 2026-10-08)
 
