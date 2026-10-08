@@ -310,7 +310,6 @@ public final class LocalAdbClient {
                 AuthChallengeAction action = authChallengeAction(
                         authorizationPolicy,
                         explicitRequest,
-                        false,
                         explicitRequest || AUTH_PROMPT_GATE.tryAcquire(System.nanoTime()));
                 if (action == AuthChallengeAction.REQUIRE_EXPLICIT_REQUEST) {
                     throw new AuthorizationRequiredException();
@@ -330,7 +329,14 @@ public final class LocalAdbClient {
         }
     }
 
-    private static IOException authorizationPending() {
+    /**
+     * The one failure a request still waiting on the head unit's prompt is reported with.
+     *
+     * <p>Outside this library it is recognised by its message: Simulcast, the FSE installer and
+     * navigation in Denza Apps and the gateway's provisioner each look for "authorization pending"
+     * in it, ignoring case, so the words are a contract and not a wording.
+     */
+    static IOException authorizationPending() {
         return new IOException("ADB authorization pending; confirm the ADB request");
     }
 
@@ -346,14 +352,14 @@ public final class LocalAdbClient {
         REPORT_PENDING
     }
 
+    /**
+     * What the first challenge is answered with. A second challenge, after the key went, is
+     * {@link #connect}'s own: it reports the request pending and never sends the key twice.
+     */
     static AuthChallengeAction authChallengeAction(
             AuthorizationPolicy policy,
             boolean explicitRequest,
-            boolean publicKeySent,
             boolean promptGateAcquired) {
-        if (publicKeySent) {
-            return AuthChallengeAction.REPORT_PENDING;
-        }
         if (explicitRequest) {
             return AuthChallengeAction.SEND_PUBLIC_KEY;
         }
