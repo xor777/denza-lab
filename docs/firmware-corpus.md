@@ -17,7 +17,7 @@ Updated 2026-10-08. What a session needs before it opens either archive.
 | Both archives sit in `~/Dev/denza/firmware/`, not `~/Downloads` (moved 2026-10-07) | live | 2026-10-07 | [Archives](#archives) |
 | `python3 tools/firmware_corpus.py find <name>` lists every copy, decompile and partition-listing line of a file; the index has 345 entries: 205 copied files, 68 jadx trees, 64 loose APKs/JARs, 8 listings | code | 2026-10-08 | [Looking before extracting](#looking-before-extracting) |
 | `reverse/dishare-jadx` is DiShare `1.5.1.1.23102ef` pulled from the car before the OTA; the OTA's own DiShare is a different APK (SHA-256 `ffc548…` IVI, `ef1d35…` FSE) | firmware | 2026-10-08 | [What is already there](#what-is-already-there) |
-| Already duplicated: 21 copies of identical files (1.97 GB) and repeated decompiles — DiCarServer 3.2.0-beta.1 three times, MapHelper 1.0.6 and AutoVideo twice | code | 2026-10-08 | [What is already there](#what-is-already-there) |
+| The 14 loose APKs and JARs that were byte-identical to another copy (1.97 GB) are APFS clones of it since 2026-10-08: every path stays, none takes space of its own. Repeated decompiles remain: DiCarServer 3.2.0-beta.1 three times, MapHelper 1.0.6 and AutoVideo twice | code | 2026-10-08 | [What is already there](#what-is-already-there) |
 | The IVI system partition is system-as-root: `/system/framework/services.jar` lands at `<out>/system/system/framework/services.jar` | code | 2026-09-23 | [Reading an archive](#reading-an-archive) |
 | "The output directory must contain `Config-readable.xml`" (CLAUDE.md until 2026-10-08): the readers now decrypt it from the archive when it is missing | refuted | 2026-10-08 | [Reading an archive](#reading-an-archive) |
 | Copies record their partition and archive in `extraction.json` since 2026-10-08; older copies are attributed by directory name | code | 2026-10-08 | [Reading an archive](#reading-an-archive) |
@@ -26,8 +26,8 @@ Updated 2026-10-08. What a session needs before it opens either archive.
 | One Python environment, `.venv-firmware/` from `research/requirements-firmware.txt`, replaces three temporary ones under `/tmp` | code | 2026-10-08 | [Python environment](#python-environment) |
 
 **Open questions**
-- Delete the duplicate copies (1.97 GB) and the repeated decompiles? Docs cite some of their
-  paths, so deleting needs a citation check first; the owner's call.
+- The repeated decompiles (DiCarServer three times, MapHelper and AutoVideo twice) differ in
+  whether resources were decoded, and docs cite their paths; they stay until a citation check.
 - Other IVI partitions (vendor, product) have no tracked copy script: `extract_system_files.py`
   reads only `system`. Add a partition argument when one is next needed.
 
@@ -111,7 +111,8 @@ copy to `<out>/extraction.json` with size, SHA-256, partition and archive. A cop
 
 - **Copies:** `captures/firmware/<build>/`, one directory per build, never a topic directory or a
   session scratchpad. The September topic directories stay where they are, because docs cite
-  their paths; the index finds them.
+  their paths; the index finds them. When a file is needed somewhere it already exists, clone it
+  (`cp -c`, APFS): the path is new, the space is not.
 - **Decompiles:** `captures/firmware/<build>/jadx/<Name>/`, with resources.
 - **Reports** an agent writes about what it read: `captures/<topic>-<date>/reports/`, beside the
   evidence. A scratchpad does not outlive its session; one turn-signal session's three reports
