@@ -51,7 +51,7 @@ internal fun AppPickerDialog(
         key = SimulcastAppChoice::packageName,
         compact = compactLayout,
         onDismiss = onDismiss,
-        emptyText = "Приложения не найдены",
+        emptyText = APP_CHOICES_LOADING,
         // Choosing several has no closing tap of its own, so the page needs a way out that reads
         // as "finished" rather than as "abandoned". The single-choice pickers below have none:
         // there, the tap that chooses is the tap that closes.
@@ -91,7 +91,7 @@ internal fun ColumnScope.SimulcastAppChooser(
         compact = compact,
         onDismiss = onDismiss,
         onBack = onBack,
-        emptyText = "Приложения не найдены",
+        emptyText = APP_CHOICES_LOADING,
     ) { app -> SimulcastAppTile(app = app, onToggle = onToggle) }
 }
 
@@ -151,7 +151,7 @@ internal fun NavigationPickerDialog(
         key = NavigationAppChoice::packageName,
         compact = compactLayout,
         onDismiss = onDismiss,
-        emptyText = NAVIGATION_CHOICES_LOADING,
+        emptyText = APP_CHOICES_LOADING,
         section = ::navigationChoiceSection,
     ) { app -> NavigationChoiceTile(app, onSelect) }
 }
@@ -186,7 +186,7 @@ internal fun ColumnScope.NavigationAppChooser(
         compact = compact,
         onDismiss = onDismiss,
         onBack = onBack,
-        emptyText = NAVIGATION_CHOICES_LOADING,
+        emptyText = APP_CHOICES_LOADING,
         section = ::navigationChoiceSection,
     ) { app -> NavigationChoiceTile(app, onSelect) }
 }
@@ -224,10 +224,11 @@ internal const val NAVIGATION_INSTRUMENTS_SECTION = "Функции прибор
 internal const val NAVIGATION_APPLICATIONS_SECTION = "Приложения"
 
 /**
- * The instruments are always there, so the page is empty only for the moment before the car's
- * catalog is read; a wait, not a verdict.
+ * What a chooser of the car's applications says before the car's catalog is read: it is read off
+ * the main thread when the page opens, so the page is empty only for that moment - a wait, not a
+ * verdict. «Что показывать» always has the instruments, so it shows this only on its first open.
  */
-private const val NAVIGATION_CHOICES_LOADING = "Ищем приложения…"
+private const val APP_CHOICES_LOADING = "Ищем приложения…"
 
 /**
  * Which application to put across on the passenger's screen.

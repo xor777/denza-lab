@@ -6,11 +6,17 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.ResolveInfo
 import android.graphics.drawable.Drawable
 
-/** One package that AutoVoice can open through PackageManager's normal MAIN lookup. */
+/**
+ * One package that AutoVoice can open through PackageManager's normal MAIN lookup.
+ *
+ * [launcher] says whether the car's launcher shows it (MAIN+LAUNCHER) rather than only the MAIN+INFO
+ * lookup: the projection offers what the launcher shows, and reads it from this same catalog.
+ */
 internal data class InstalledDefaultApp(
     val packageName: String,
     val label: String,
     val icon: Drawable?,
+    val launcher: Boolean = true,
 )
 
 /** Android discovery and deterministic presentation of default-app candidates. */
@@ -41,14 +47,14 @@ internal object DefaultAppsCatalog {
     fun discover(context: Context): List<InstalledDefaultApp> {
         val packageManager = context.packageManager
         val byPackage = linkedMapOf<String, ResolveInfo>()
+        val onLauncher = hashSetOf<String>()
         listOf(Intent.CATEGORY_INFO, Intent.CATEGORY_LAUNCHER).forEach { category ->
             val intent = Intent(Intent.ACTION_MAIN).addCategory(category)
             packageManager.queryIntentActivities(intent, 0).forEach { resolveInfo ->
                 if (!isEligible(resolveInfo)) return@forEach
-                byPackage.putIfAbsent(
-                    checkNotNull(resolveInfo.activityInfo).packageName,
-                    resolveInfo,
-                )
+                val packageName = checkNotNull(resolveInfo.activityInfo).packageName
+                byPackage.putIfAbsent(packageName, resolveInfo)
+                if (category == Intent.CATEGORY_LAUNCHER) onLauncher += packageName
             }
         }
 
@@ -60,6 +66,7 @@ internal object DefaultAppsCatalog {
                     packageManager.getApplicationLabel(application).toString()
                 }.getOrNull().orEmpty().ifBlank { packageName },
                 icon = runCatching { packageManager.getApplicationIcon(application) }.getOrNull(),
+                launcher = packageName in onLauncher,
             )
         }
     }
