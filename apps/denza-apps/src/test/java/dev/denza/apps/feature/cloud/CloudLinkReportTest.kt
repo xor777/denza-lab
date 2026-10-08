@@ -30,8 +30,25 @@ class CloudLinkReportTest {
             nextReadyAtMs = null,
         ),
         busy: Boolean = false,
+        automaticFailure: String? = null,
     ): Map<String, String> =
-        CloudLinkReport.rows(enabled, tile, failure, network, car, readAtMs, adapter, busy, NOW).toMap()
+        CloudLinkReport.rows(
+            enabled, tile, failure, network, car, readAtMs, adapter, busy, NOW,
+            automaticFailure = automaticFailure,
+        ).toMap()
+
+    /** The press's refusal and the adapter's own failed pass clear differently, so both are told. */
+    @Test
+    fun `a failed pass of the adapter's own is on the page beside a refused press`() {
+        assertEquals(
+            "автоматика: Нет ответа: IOException",
+            rows(automaticFailure = "Нет ответа: IOException")["Отказ"],
+        )
+        assertEquals(
+            "Не включилось; автоматика: Нет ответа: IOException",
+            rows(failure = "Не включилось", automaticFailure = "Нет ответа: IOException")["Отказ"],
+        )
+    }
 
     @Test
     fun `a connected link reads every fact the app has, on one screen`() {

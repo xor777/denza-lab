@@ -32,6 +32,7 @@ object CloudLinkController {
         val app = context.applicationContext
         explicit(app) {
             cancelFollowUps()
+            CloudLinkRuntime.failures = CloudLinkRuntime.failures.pressStarted()
             CloudLinkRuntime.registrationFailure = null
             CloudLinkRuntime.registrationNotBeforeEpochMs = System.currentTimeMillis()
             CloudLinkSettings.save(app, CloudLinkSettings.request(app).request(enabled))
@@ -116,12 +117,15 @@ object CloudLinkController {
             if (steps.isNotEmpty()) {
                 record(app, "$reason steps=$steps")
                 attempt(app, steps, lossOnly = !network && CloudStep.AnnounceGone in steps)
-                CloudLinkRuntime.failure = null
-            } else if (car.connected == true) {
-                CloudLinkRuntime.failure = null
             }
+            // A pass that read the car and did what it planned answers any pass that failed
+            // before it - with nothing to send as much as with something.
+            CloudLinkRuntime.failures = CloudLinkRuntime.failures.passCompleted(
+                operated = steps.isNotEmpty(),
+                connected = car.connected == true,
+            )
         } catch (error: Exception) {
-            CloudLinkRuntime.failure = failure(error)
+            CloudLinkRuntime.failures = CloudLinkRuntime.failures.passFailed(failure(error))
             recordError(app, reason, error)
         } finally {
             publish(app)
@@ -148,7 +152,7 @@ object CloudLinkController {
         operations(app).run(steps)
         val request = CloudLinkSettings.request(app).disabled(read(app))
         CloudLinkSettings.save(app, request)
-        CloudLinkRuntime.failure = null
+        CloudLinkRuntime.failures = CloudLinkRuntime.failures.disableConfirmed()
         record(app, "disable confirmed pendingDisable=false")
         CloudLinkService.reconcile(app)
         return true
@@ -162,9 +166,9 @@ object CloudLinkController {
         executor.execute {
             try {
                 check(block()) { "Операция не подтвердилась" }
-                CloudLinkRuntime.failure = null
+                CloudLinkRuntime.failures = CloudLinkRuntime.failures.pressTaken()
             } catch (error: Exception) {
-                CloudLinkRuntime.failure = failure(error)
+                CloudLinkRuntime.failures = CloudLinkRuntime.failures.pressRefused(failure(error))
                 recordError(app, "explicit", error)
             } finally {
                 CloudLinkRuntime.busy = pressesInFlight.decrementAndGet() > 0

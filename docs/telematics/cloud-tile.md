@@ -18,6 +18,7 @@ Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-f
   - [Build-58 follow-up: fresh native registration replies with code 3, 2026-09-24](#build-58-follow-up-fresh-native-registration-replies-with-code-3-2026-09-24)
   - [Additional build-58 report: repeated code 3, changed PID and ICCID shape, 2026-09-24](#additional-build-58-report-repeated-code-3-changed-pid-and-iccid-shape-2026-09-24)
   - [Build 60 hotfix: stale-reading flash on re-enable, 2026-09-24](#build-60-hotfix-stale-reading-flash-on-re-enable-2026-09-24)
+  - [Automatic failures clear with the next working pass, 2026-10-08](#automatic-failures-clear-with-the-next-working-pass-2026-10-08)
   - [Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24](#build-59-confirmed-application-fixes-and-cache-refresh-investigation-2026-09-24)
   - [Offline identity preparation and command 211 reproduction, 2026-09-24](#offline-identity-preparation-and-command-211-reproduction-2026-09-24)
   - [R-SIM terminology and configurable ICCID, 2026-09-24](#r-sim-terminology-and-configurable-iccid-2026-09-24)
@@ -983,6 +984,40 @@ the replacement APK keeps version `0.7.0-alpha.1`, code `60`, the existing relea
 description and tag; distinguish it by APK SHA-256 in the diagnostic report.
 Release/build evidence lives under
 `captures/releases/denza-apps-v0.7.0-alpha.1/fresh-reading-fix/`.
+
+### Automatic failures clear with the next working pass, 2026-10-08
+
+Found by a read-only code review; code change, not yet on any car.
+
+The controller kept one failure field for two different things. A press the
+car did not take and a failed automatic pass (the periodic reading, a status
+broadcast, a follow-up after `4`, a network edge) both wrote it, and an
+automatic pass cleared it only when it sent something or read TCP=1. A car on
+Wi-Fi waiting out the 5–60 minute backoff without a connection - the usual
+state of a car whose 211 is answered with code 3 - therefore kept a coral tile
+with a transport class name («Нет ответа: IOException») after a single ADB
+timeout, although the next reading 15 s later succeeded. The tile stayed so
+until the next `4` or TCP=1: up to an hour.
+
+`CloudLinkFailures` now keeps them apart:
+
+- **Press failure:** written by an explicit on, off or Wi-Fi-retention press
+  that did not complete. It stays until a press is taken, an automatic pass's
+  own write goes through, TCP reads 1, or an off is confirmed. It is shown with
+  the switch on or off, as before.
+- **Automatic failure:** written by an automatic pass that threw. It clears
+  with the next automatic pass that reads the car and carries out its plan,
+  including a plan with nothing to send. A new on/off press clears it, and a
+  confirmed off clears both. It is shown only while the switch is on and ranks
+  below a press failure.
+
+Lasting trouble keeps its own lower-priority states: «Нет свежих данных»,
+«Профиль изменился», a fresh 211 rejection, «Нет связи с облаком». No polling,
+retry, backoff or vehicle write changed, and the tile's wording is unchanged.
+The «Отказ» row of «Сервис» shows both, the automatic one prefixed
+«автоматика:», and the exported report adds `automaticFailure=` beside
+`failure=`. `CloudLinkFailuresTest` drives the transitions with the real
+`CloudLinkCore` backoff.
 
 ### Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24
 

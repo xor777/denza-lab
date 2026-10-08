@@ -35,9 +35,14 @@ object CloudLinkReport {
         adapter: Adapter?,
         busy: Boolean,
         nowMs: Long,
+        automaticFailure: String? = null,
     ): List<Pair<String, String>> = listOf(
         "Связь" to "${if (enabled) "включена" else "выключена"}, плитка «$tile»",
-        "Отказ" to (failure ?: "нет"),
+        // The press's refusal and the adapter's own failed pass share the row, told apart, so a
+        // screenshot says which of the two is on the tile and which clears with the next pass.
+        "Отказ" to listOfNotNull(failure, automaticFailure?.let { "автоматика: $it" })
+            .joinToString("; ")
+            .ifEmpty { "нет" },
         "Сеть" to "${network.kind.label}, интернет ${if (network.validated) "проверен" else "не проверен"}",
         "Wi-Fi / сотовая" to "${yesNo(network.wifi)} / ${yesNo(network.cellular)}",
         "SIM" to sim(network.simOperator),

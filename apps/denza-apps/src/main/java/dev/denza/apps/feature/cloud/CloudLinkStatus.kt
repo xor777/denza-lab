@@ -59,9 +59,9 @@ object CloudLinkRuntime {
     @Volatile
     var busy: Boolean = false
 
-    /** The driver's last press that the car did not take, in the tile's words; null once one does. */
+    /** The driver's last press the car did not take, and the adapter's last pass that failed. */
     @Volatile
-    var failure: String? = null
+    internal var failures: CloudLinkFailures = CloudLinkFailures()
 
     /** What the adapter believes about the gate and its clocks, for the service report. */
     @Volatile
@@ -80,9 +80,10 @@ object CloudLinkRuntime {
     fun readingFailed(nowMs: Long): Boolean = readFailure != null ||
         readAtMs?.let { nowMs - it !in 0..90_000L } == true
 
-    fun snapshot(enabled: Boolean, network: Boolean, pendingDisable: Boolean, nowMs: Long): FeatureSnapshot =
-        CloudLinkStatus.snapshot(
-            enabled, car, network, failure,
+    fun snapshot(enabled: Boolean, network: Boolean, pendingDisable: Boolean, nowMs: Long): FeatureSnapshot {
+        val failed = failures
+        return CloudLinkStatus.snapshot(
+            enabled, car, network, failed.press,
             readingFailed = readingFailed(nowMs),
             awaitingFreshRead = busy && readFailure == null,
             pendingDisable = pendingDisable && !busy,
@@ -90,7 +91,9 @@ object CloudLinkRuntime {
             profileDrift = car?.let { !it.wifiProfile && !it.cellular && it.connected == false } == true &&
                 adapter?.let { it.attempts > 0 && it.gate == "UNKNOWN" } == true,
             registrationFailure = registrationFailure?.message(car, nowMs),
+            automaticFailure = failed.automatic,
         )
+    }
 }
 
 /** The kind of internet the car is on, as far as the cloud link is concerned. */
@@ -169,6 +172,10 @@ data class CloudNetworkReading(
  * | READY    | switched on, no usable internet to translate           | «Нет интернета» |
  * | STARTING | switched on, on internet, not connected (yet)          | «Подключается»  |
  * | ERROR    | the driver's last press was not taken by the car       | the failure     |
+ * | ERROR    | on, and the adapter's own last pass did not complete   | the failure     |
+ *
+ * The two failures are kept apart ([CloudLinkFailures]): a refused press stands until a press or
+ * the car's state answers it, while a failed pass goes with the next pass that works.
  *
  * READY is on and healthy: the adapter has nothing to do until internet comes back, as the mirrors
  * have nothing to do until a turn signal. STARTING may last - the client retries on its own and the
@@ -199,6 +206,7 @@ object CloudLinkStatus {
         profileDrift: Boolean = false,
         registrationFailure: String? = null,
         awaitingFreshRead: Boolean = false,
+        automaticFailure: String? = null,
     ): FeatureSnapshot {
         val base = if (enabled) {
             FeatureReducer.starting(FeatureId.CLOUD_LINK)
@@ -209,6 +217,9 @@ object CloudLinkStatus {
             pendingDisable -> base.copy(status = FeatureStatus.ERROR, message = "Выключение не завершено")
             failure != null -> base.copy(status = FeatureStatus.ERROR, message = failure)
             !enabled -> base
+            // The adapter's own pass matters only while the link is on, and only until the next
+            // pass that works; a refused press outranks it.
+            automaticFailure != null -> base.copy(status = FeatureStatus.ERROR, message = automaticFailure)
             // Off stops polling. On after a long pause must wait for its bounded operation's
             // fresh read, not flash an error or claim success from the expired TCP snapshot.
             // An actual read/operation failure still wins, and idle stale readings still fail.

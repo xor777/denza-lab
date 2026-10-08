@@ -9,7 +9,7 @@ class CloudLinkStatusTest {
     @Before @After fun resetRuntime() {
         CloudLinkRuntime.car = null
         CloudLinkRuntime.busy = false
-        CloudLinkRuntime.failure = null
+        CloudLinkRuntime.failures = CloudLinkFailures()
         CloudLinkRuntime.adapter = null
         CloudLinkRuntime.readAtMs = null
         CloudLinkRuntime.readFailure = null
@@ -48,7 +48,7 @@ class CloudLinkStatusTest {
         CloudLinkRuntime.readFailure = "Чтение не удалось"
         CloudLinkRuntime.busy = true
         assertEquals("Нет свежих данных", words())
-        CloudLinkRuntime.failure = "Выключение не завершено"
+        CloudLinkRuntime.failures = CloudLinkFailures(press = "Выключение не завершено")
         assertEquals("Выключение не завершено", words())
     }
 

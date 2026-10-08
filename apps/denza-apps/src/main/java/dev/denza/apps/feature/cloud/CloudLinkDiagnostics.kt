@@ -157,7 +157,11 @@ internal object CloudLinkDiagnostics {
             appendLine("Firmware: ${Build.FINGERPRINT}")
             appendLine("Model: ${Build.MODEL}")
             appendLine("request=${CloudLinkSettings.request(context)}")
-            appendLine("failure=${CloudLinkRuntime.failure} readFailure=${CloudLinkRuntime.readFailure}")
+            val failures = CloudLinkRuntime.failures
+            appendLine(
+                "failure=${failures.press} automaticFailure=${failures.automatic} " +
+                    "readFailure=${CloudLinkRuntime.readFailure}",
+            )
             appendLine("readAgeMs=${CloudLinkRuntime.readAtMs?.let { SystemClock.elapsedRealtime() - it }}")
             appendLine("adapter=${CloudLinkRuntime.adapter}")
             appendLine("Latest controlled state: $lastState")

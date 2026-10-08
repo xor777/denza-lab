@@ -126,6 +126,7 @@ object SupportDiagnostics {
         val enabled = CloudLinkSettings.isEnabled(context)
         val network = CloudNetwork.reading(context)
         val car = CloudLinkRuntime.car
+        val failures = CloudLinkRuntime.failures
         val tile = CloudLinkStatus.words(
             CloudLinkRuntime.snapshot(
                 enabled = enabled,
@@ -137,13 +138,14 @@ object SupportDiagnostics {
         return CloudLinkReport.rows(
             enabled = enabled,
             tile = tile,
-            failure = CloudLinkRuntime.failure,
+            failure = failures.press,
             network = network,
             car = car,
             readAtMs = CloudLinkRuntime.readAtMs,
             adapter = CloudLinkRuntime.adapter,
             busy = CloudLinkRuntime.busy,
             nowMs = SystemClock.elapsedRealtime(),
+            automaticFailure = failures.automatic,
         ).map { (key, value) -> row(key, value) } + listOf(
             row("Чтение", CloudLinkRuntime.readFailure ?: if (CloudLinkRuntime.readingFailed(SystemClock.elapsedRealtime())) "устарело" else "актуально"),
             row("Ожидает выключения", yesNo(CloudLinkSettings.pendingDisable(context))),
