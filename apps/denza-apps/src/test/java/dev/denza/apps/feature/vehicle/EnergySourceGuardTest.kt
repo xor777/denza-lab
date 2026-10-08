@@ -80,8 +80,10 @@ class EnergySourceGuardTest {
         /**
          * Every way a renderer could print a number of its own.
          *
-         * `ContourReadout`'s formatters and Java's, which is what every hand-rolled figure in this
-         * app has been. What stays legitimately is the *words*: `ContourReadout.UNIT_KW`, its
+         * `ContourReadout`'s formatters and the platform's, which is what every hand-rolled figure in
+         * this app has been. The platform's is one entry for both spellings of it: Java's
+         * `String.format(` and Kotlin's `"%.1f".format(`, which the ban once let through because it
+         * named the class. What stays legitimately is the *words*: `ContourReadout.UNIT_KW`, its
          * degree sign, the thermal thresholds a temperature's colour is judged against. None of
          * those is a number a snapshot decides, which is why the ban is on the call rather than on
          * the class - a renderer reading a constant is reading the one record of it, and a
@@ -92,7 +94,7 @@ class EnergySourceGuardTest {
             "ContourReadout.tenth(",
             "ContourReadout.consumption(",
             "ContourReadout.perHundredKm(",
-            "String.format(",
+            ".format(",
         )
     }
 }
