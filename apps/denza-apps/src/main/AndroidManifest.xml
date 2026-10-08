@@ -26,6 +26,13 @@
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
+    <!-- Never granted at install. The app grants it to itself with `pm grant` over its own trusted
+         ADB shell (feature/adb/AdbPortRestore.kt), while port 5555 still answers: reopening that
+         port through wireless debugging after a reboot needs it, and on a build that has already
+         closed the port it can no longer be granted. See docs/adb-authorization-recovery.md. -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".DenzaAppsApplication"

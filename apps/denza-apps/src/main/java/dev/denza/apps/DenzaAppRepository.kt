@@ -17,6 +17,7 @@ import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbAutostartRetryAction
 import dev.denza.apps.feature.adb.AdbAutostartRetryPolicy
+import dev.denza.apps.feature.adb.AdbPortRestore
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
@@ -1099,6 +1100,11 @@ object DenzaAppRepository {
             runtimeStep("cloud link reconcile") {
                 CloudLinkService.reconcile(app)
                 CloudLinkController.refresh(app)
+            }
+            // Off this thread, and it records a failure rather than raising it: the pass never
+            // waits for it or fails because of it.
+            runtimeStep("adb port restore prepare") {
+                AdbPortRestore.prepare(app) { refresh() }
             }
         } finally {
             adbRuntimePassRunning.set(false)
