@@ -259,12 +259,20 @@ class SplitCoordinatorCoreTest {
         val car = car(FakeShell(initialGate = true).apply { stockSplitOfSomeoneElse() })
         val core = car.core(SplitDurable(enabled = false))
         core.initialize {}
+        // A lease of ours still on the gate: without it the Home hint is dropped for having nothing
+        // to suspend before it is ever an operation, and the toggle's own guard in HomeOperation -
+        // the one a Home queued just ahead of an off meets - went untested behind that one.
+        car.gateLease.setOwned(true)
 
         repeat(50) { core.dividerResized() }
         core.homeVisible()
         core.nativePickerVisible()
         car.barrier()
 
+        assertTrue(
+            "the Home hint got past the coordinator's own guards",
+            car.diagnostics.none { it.startsWith("home hint dropped:") },
+        )
         assertEquals(0, car.shells.opened.get())
         assertEquals(emptyList<String>(), car.commands())
     }

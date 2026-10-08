@@ -760,7 +760,14 @@ class SplitScenarioTest {
         assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
     }
 
-    /** But a settle pause is a promise that the car moved, so what follows it is read again. */
+    /**
+     * But a settle pause is a promise that the car moved, so what follows it is read again.
+     *
+     * Through a recipe that pauses: the divider reconcile reads the area - a topology read, which
+     * keeps the cache - waits for the divider to settle, and reads the scene, so nothing but the
+     * pause stands between the two reads. Until 2026-10-08 this test invalidated the cache itself
+     * and would have passed with the invalidation gone from `pause`.
+     */
     @Test
     fun aSettlePauseEndsTheSharedTopologyRead() {
         val topology = SplitTopologyCache()
@@ -777,12 +784,11 @@ class SplitScenarioTest {
 
         session.observePane(SplitPane.PRIMARY, PICKER_COMPONENTS)
         session.observePane(SplitPane.SECONDARY, PICKER_COMPONENTS)
-        assertEquals(1, reads)
+        assertEquals("one read shared by both panes", 1, reads)
 
-        topology.invalidate()
-        session.observePane(SplitPane.PRIMARY, PICKER_COMPONENTS)
+        session.reconcileDividerResize(PICKER_COMPONENTS, previousPanes = emptyMap())
 
-        assertEquals(2, reads)
+        assertEquals("the scene after the settle is read again", 2, reads)
     }
 
     // endregion
@@ -2824,8 +2830,11 @@ class SplitScenarioTest {
     fun aConfirmedHomeOverADeadMemberArmsTheDeferredCleanup() {
         val (car, core) = wideBackWorld()
 
-        // Взведённый повтор прошлого отказа - тот самый, который сабмит Home снимает.
-        car.shells.failOn("am stack list")
+        // Взведённый повтор прошлого отказа - тот самый, который сабмит Home снимает. Отказ - на
+        // первом же чтении area: сверка, успевшая его прочесть, сама подтверждает накрытие, и
+        // Home-хинт после неё отбрасывается как уже подтверждённый. Так этот тест и проходил до
+        // 2026-10-08 - не вызывая Home вовсе.
+        car.shells.failOn("service call activity_task 30")
         core.pickerHidden(PRIMARY_PICKER_TASK)
         car.barrier()
         assertEquals(1, car.clock.pendingTimers())
@@ -2846,11 +2855,12 @@ class SplitScenarioTest {
             car.clock.pendingTimers(),
         )
         assertTrue(
-            "и след решения в ринге - от того, кто накрытие подтвердил",
-            car.diagnostics.any {
-                it.startsWith("home confirmed: одна отложенная сверка") ||
-                    it.startsWith("gate подвешен сверкой")
-            },
+            "Home дошёл до операции",
+            car.diagnostics.none { it.startsWith(HOME_HINT_DROPPED) },
+        )
+        assertTrue(
+            "и след решения в ринге - от Home, который накрытие подтвердил",
+            car.diagnostics.any { it.startsWith("home confirmed: одна отложенная сверка") },
         )
         assertFalse("gate накрытой сцены подвешен в любом случае", car.fake.isGateOpen())
 
@@ -3588,47 +3598,6 @@ class SplitScenarioTest {
     }
 
     /**
-     * Диагноз v33 (2026-08-26, живьём): Home-хинт может не прийти ВООБЩЕ, и тогда подвеска gate
-     * не начиналась - из восьми обычных Home над живой парой accessibility-событие лаунчера
-     * пришло дважды. `HomeOperation` в остальных шести не запускалась, gate оставался открытым
-     * (перечитан открытым через 65 с), и следующий обычный тап по приложению в доке прошивка
-     * втягивала в split вторым окном - против 1.9.2.
-     *
-     * Здесь воспроизведён именно потерянный хинт: `homeVisible()` не вызывается ни разу, приходит
-     * только оконный шторм, который на машине приходил ВСЕГДА (2-3 сверки в первую секунду после
-     * Home). Начатое продуктом дело обязано доиграться само.
-     */
-    @Test
-    fun aLostHomeHintIsStillFinishedByTheNextReconcile() {
-        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
-        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
-        car.gateLease.setOwned(true)
-        core.initialize {}
-        core.openPickerSession()
-        car.barrier()
-        car.clearCommands()
-
-        // Home нажат, экран накрыт - и ни одного хинта Home о нём.
-        car.fake.area = 0
-        core.dividerResized()
-        car.barrier()
-
-        assertFalse("gate снят с накрытой сцены", car.fake.isGateOpen())
-        assertTrue(
-            "аренда остаётся: следующий явный запуск откроет gate снова",
-            car.gateLease.isOwned(),
-        )
-        assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
-        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
-        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
-        assertEquals(
-            "и ни одной задачи живой пары не тронуто - только подвеска gate",
-            listOf("service call activity_task 126 i32 0"),
-            car.mutations(),
-        )
-    }
-
-    /**
      * Живая гонка 2026-09-18, 19:51:52-19:51:53. Home в 19:51:52.39; оконный хинт запустил сверку
      * примерно на +0,85 с, и её ПЕРВОЕ чтение area увидело 0. Дальше сверка потратила семь
      * обращений на рецепты схлопывания и существования и только в самом конце перечитала area ради
@@ -3640,6 +3609,13 @@ class SplitScenarioTest {
      * Здесь измеряется ровно это: подвеска стоит ПЕРВЫМ делом сверки, до адопции и до любого
      * рецепта, и стоит ровно одно чтение area (К 1.12 - полномочие подвески всегда прочитанная
      * area, а не событие).
+     *
+     * И это же потерянный хинт диагноза v33 (2026-08-26, живьём): Home-хинт может не прийти
+     * ВООБЩЕ - из восьми обычных Home над живой парой accessibility-событие лаунчера пришло дважды,
+     * `HomeOperation` в остальных шести не запускалась, gate оставался открытым, и следующий тап
+     * по приложению в доке прошивка втягивала в split вторым окном. `homeVisible()` здесь не
+     * вызывается ни разу, приходит только оконный шторм, который на машине приходил всегда.
+     * (До 2026-10-08 это был отдельный тест с той же подготовкой строка в строку.)
      */
     @Test
     fun theReconcileSuspendsTheGateOnItsFirstAreaReadBeforeAnyRecipe() {
@@ -3679,6 +3655,12 @@ class SplitScenarioTest {
             car.mutations(),
         )
         assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+        assertTrue(
+            "аренда остаётся: следующий явный запуск откроет gate снова",
+            car.gateLease.isOwned(),
+        )
     }
 
     /**
@@ -3747,8 +3729,10 @@ class SplitScenarioTest {
     }
 
     /**
-     * Доигранная подвеска доигрывается ровно один раз: накрытая сцена больше не спрашивает машину
-     * про area, сколько бы оконного шторма ни пришло следом (U1, никаких повторных мутаций).
+     * Доигранная подвеска доигрывается ровно один раз: сколько бы оконного шторма ни пришло следом,
+     * повторной транзакции gate нет (U1, никаких повторных мутаций). Записанное накрытие отвечает
+     * подвеске на первой строке, не спрашивая машину; сколько area читают остальные рецепты
+     * сверки - их дело, и тест этого не считает.
      */
     @Test
     fun theFinishedGateSuspensionIsNotRepeatedByEveryFurtherReconcile() {
@@ -3770,11 +3754,6 @@ class SplitScenarioTest {
         }
 
         assertEquals("ни одной повторной подвески", emptyList<String>(), car.mutations())
-        assertEquals(
-            "и ни одного лишнего вопроса про area от самой подвески",
-            emptyList<String>(),
-            car.commands().filter { it == "service call activity_task 126 i32 0" },
-        )
     }
 
     /**
@@ -3978,6 +3957,10 @@ class SplitScenarioTest {
      * Видимый мир, который продукту не принадлежит, - чужой сплит на area 3 - сверка не трогает
      * никак: открыть его gate не за что (сцена не доказана), а закрывать нечего (мир не накрыт).
      * Подвеска наступает ровно тогда, когда мир накрыт (1.9.2, 1.12).
+     *
+     * Ложное открытие возможно только после подвески: до неё gate и так открыт. До 2026-10-08 тест
+     * кончался на подвеске, и возобновление над недоказанной сценой он бы не увидел - третья фаза
+     * ниже снимает накрытие и снова показывает чужой сплит.
      */
     @Test
     fun aForeignVisibleWorldNeverOpensTheGateOfARestartedProcess() {
@@ -4017,6 +4000,21 @@ class SplitScenarioTest {
             car.commands().filter { it.startsWith("service call activity_task 126 ") },
         )
         assertTrue(car.gateLease.isOwned())
+
+        // Накрытие снято, и на экране снова чужой сплит: подвешенный gate возобновлять не за что.
+        car.fake.area = 3
+        repeat(3) {
+            core.dividerResized()
+            car.barrier()
+        }
+
+        assertFalse("чужой видимый мир не возобновляет подвешенный gate", car.fake.isGateOpen())
+        assertEquals(
+            "ни одной транзакции gate сверх подвески",
+            listOf(GATE_CLOSE),
+            car.commands().filter { it.startsWith("service call activity_task 126 ") },
+        )
+        assertEquals(listOf(GATE_CLOSE), car.mutations())
     }
 
     /**
@@ -4123,9 +4121,14 @@ class SplitScenarioTest {
      * Одна area, назвавшая выжившего, ничего не закрывает сама по себе - закрывает только уход
      * записанных задач панели из ОБОИХ панельных корней (правка W1 волны 9). Живая сцена под
      * переходной area остаётся живой, и выбор пользователя цел.
+     *
+     * Area приходит пушем прошивки (tx120), и видимая area на простаивающем акторе - подсказка
+     * топологии для сверки, которая только и решает о схлопывании. До 2026-10-08 тест подавал её
+     * через Home, а HomeOperation слотов не пишет вовсе (fa45c754, b1a1e3dc): закрытие по одной
+     * area он бы не заметил.
      */
     @Test
-    fun aHomeOverALiveSceneNeverClosesAPaneOnAreaAlone() {
+    fun anAreaAloneNeverClosesAPaneOfALiveScene() {
         val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         car.gateLease.setOwned(true)
@@ -4136,7 +4139,7 @@ class SplitScenarioTest {
 
         // Обе панели целы, но area на такт показывает одного выжившего.
         car.fake.area = 1
-        core.homeVisible()
+        core.areaChanged(1)
         car.barrier()
 
         assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
