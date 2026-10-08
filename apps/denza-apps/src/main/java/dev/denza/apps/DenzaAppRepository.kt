@@ -219,8 +219,10 @@ data class DenzaUiState(
  * holds, and none of it needs the shell. Kept the way the tiles are, it used to be blank behind the
  * gate's seven-tap door on a fresh process, exactly when an owner opens it to send a screenshot.
  */
-internal fun DenzaUiState.behindAdbGate(adbRescue: AdbRescueSnapshot): DenzaUiState =
-    copy(adbRescue = adbRescue)
+internal fun DenzaUiState.behindAdbGate(
+    adbRescue: AdbRescueSnapshot,
+    adbRestore: AdbRestoreSnapshot = this.adbRestore,
+): DenzaUiState = copy(adbRescue = adbRescue, adbRestore = adbRestore)
 
 /** Android-facing state owner shared by the Compose shell and runtime services. */
 object DenzaAppRepository {
@@ -262,6 +264,18 @@ object DenzaAppRepository {
     private val stateStore = DenzaUiStateStore()
     val state: StateFlow<DenzaUiState> = stateStore.state
 
+    /** The one writer of the features' slices of [state]; see [DenzaStatePublisher]. */
+    private val publisher = DenzaStatePublisher(
+        store = stateStore,
+        executor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "denza-state").apply { isDaemon = true }
+        },
+        read = ::readSlices,
+        log = StateRecomputes.log,
+        elapsedMs = android.os.SystemClock::elapsedRealtime,
+        onError = { cause, error -> Log.w(TAG, "state publication failed: $cause", error) },
+    )
+
     private val defaultAppsRepositoryLock = Any()
 
     @Volatile
@@ -302,37 +316,58 @@ object DenzaAppRepository {
         }
     }
 
+    /**
+     * Every slice of the state is read again, soon, on the publisher's thread - never on the
+     * caller's, and never before this returns.
+     *
+     * The rare paths that cannot say what changed: the activity coming back, the runtime starting.
+     * Everything else names its slice ([invalidate]).
+     */
     fun refresh() {
         refresh(trigger = "refresh")
     }
 
-    /**
-     * Rebuilds the dashboard's state from every feature, and records it under [trigger] for
-     * «Сервис» → «Технические сведения» ([StateRecomputes]).
-     */
+    /** As [refresh], recorded under [trigger] for «Сервис» → «Технические сведения». */
     fun refresh(trigger: String) {
-        StateRecomputes.measure(trigger) { recompute() }
+        publisher.invalidateAll(trigger)
     }
 
-    private fun recompute() {
-        val context = appContext ?: return
-        val adbRescue = AdbRescueCoordinator.snapshot()
-        if (adbRescue.phase != AdbRescuePhase.TRUSTED || !adbRuntimeStarted.get()) {
+    /** [slice] changed because of [cause]: it alone is read again, on the publisher's thread. */
+    fun invalidate(slice: StateSlice, cause: String) {
+        publisher.invalidate(slice, cause)
+    }
+
+    /** The slice behind a runtime feature's tile changed; see [StateSlice.of]. */
+    fun invalidate(feature: FeatureId, cause: String) {
+        StateSlice.of(feature)?.let { publisher.invalidate(it, cause) }
+    }
+
+    /**
+     * Reads [slices] on the publisher's thread and says what they change. The car's ADB answer is
+     * read every time: behind the gate it is all that is published.
+     */
+    private fun readSlices(slices: Set<StateSlice>): ((DenzaUiState) -> DenzaUiState)? {
+        val context = appContext ?: return null
+        val access = AdbAccessReading(AdbRescueCoordinator.snapshot(), AdbRestore.snapshot())
+        if (access.adbRescue.phase != AdbRescuePhase.TRUSTED || !adbRuntimeStarted.get()) {
             // Keep the last healthy dashboard (or its neutral first-launch defaults) behind the
             // startup overlay. Individual feature probes must not turn a missing global ADB
-            // prerequisite into a wall of unrelated errors.
-            stateStore.update { current ->
-                current.behindAdbGate(adbRescue).copy(adbRestore = AdbRestore.snapshot())
-            }
-            return
+            // prerequisite into a wall of unrelated errors. The runtime's start reads every slice.
+            return { current -> current.behindAdbGate(access.adbRescue, access.adbRestore) }
         }
-        val readings = StateSlice.entries.map { slice -> readSlice(context, slice) }
-        stateStore.update { current ->
-            current.withReadings(readings).copy(
-                adbRescue = adbRescue,
-                adbRestore = AdbRestore.snapshot(),
-            )
-        }
+        val readings = listOf(access) + readEach(
+            slices = slices.filter { it != StateSlice.ADB_ACCESS },
+            read = { slice -> readSlice(context, slice) },
+            failed = { slice, error ->
+                Log.w(TAG, "state slice $slice could not be read", error)
+                StateRecomputes.log.recordFailure(
+                    atMs = android.os.SystemClock.elapsedRealtime(),
+                    what = slice.name,
+                    error = "${error.javaClass.simpleName}: ${error.message.orEmpty()}".take(160),
+                )
+            },
+        )
+        return { current -> current.withReadings(readings) }
     }
 
     /**
@@ -359,6 +394,7 @@ object DenzaAppRepository {
      * nothing here waits on the shell. Plain values: two reads of the same car are equal.
      */
     private fun readSlice(context: Context, slice: StateSlice): SliceReading = when (slice) {
+        StateSlice.ADB_ACCESS -> AdbAccessReading(AdbRescueCoordinator.snapshot(), AdbRestore.snapshot())
         StateSlice.SIMULCAST -> {
             val selectedApps = selectedAppChoices(context)
             SimulcastReading(
@@ -449,7 +485,7 @@ object DenzaAppRepository {
             refresh("simulcast switch")
             return
         }
-        stateStore.update { current ->
+        publisher.publish("simulcast switch") { current ->
             current.copy(simulcast = FeatureReducer.starting(FeatureId.SIMULCAST))
         }
         reconcileSimulcast(repairMissingSetup = true)
@@ -470,7 +506,7 @@ object DenzaAppRepository {
         )
         if (launch == null) {
             val blocked = SimulcastCoordinator.blockedSnapshot(SimulcastBlocker.DISHARE_UNAVAILABLE)
-            stateStore.update { current -> current.copy(simulcast = blocked) }
+            publisher.publish("simulcast launch") { current -> current.copy(simulcast = blocked) }
             return
         }
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -622,7 +658,7 @@ object DenzaAppRepository {
             refresh("mirrors switch")
             return
         }
-        stateStore.update { current ->
+        publisher.publish("mirrors switch") { current ->
             current.copy(mirrors = FeatureReducer.starting(FeatureId.MIRRORS))
         }
         reconcileMirrors()
@@ -738,7 +774,7 @@ object DenzaAppRepository {
             // take - in the words of the tile it belongs to; the exception goes where exceptions
             // are read.
             Log.w(TAG, "Split screen toggle to $enabled failed", error)
-            stateStore.update { current ->
+            publisher.publish("split switch") { current ->
                 current.copy(
                     splitScreen = FeatureReducer.failed(
                         previous = current.splitScreen.copy(desiredEnabled = enabled),
@@ -757,7 +793,7 @@ object DenzaAppRepository {
             return
         }
         HudNotificationAccessCoordinator.ensureAccess(context) { refresh("hud access") }
-        stateStore.update { current ->
+        publisher.publish("hud switch") { current ->
             current.copy(hudGuidance = FeatureReducer.starting(FeatureId.HUD_GUIDANCE))
         }
         if (!isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE)) {
@@ -784,7 +820,7 @@ object DenzaAppRepository {
                     failure.toString(),
                     problem.resolution,
                 )
-                stateStore.update { current -> current.copy(hudGuidance = hudGuidance) }
+                publisher.publish("hud access") { current -> current.copy(hudGuidance = hudGuidance) }
                 serviceReport.rebuildNow()
             }
         }
@@ -922,7 +958,7 @@ object DenzaAppRepository {
     fun allowNewAdbAuthorizationAttempt() {
         val context = appContext ?: return
         AdbRescueCoordinator.allowNewAttempt(context) {
-            refresh("adb attempt")
+            invalidate(StateSlice.ADB_ACCESS, "adb attempt")
             checkAdbAccess()
         }
     }
@@ -1023,13 +1059,14 @@ object DenzaAppRepository {
     /**
      * What language the car is speaking, read straight.
      *
-     * No coordinator, no executor and no claim: this is [Locale.getDefault], which cannot fail and
-     * cannot be refused. The machinery the old per-application override needed - a permission
-     * granted over ADB, a running flag, an ABA-safe compare, two shapes of failure - all belonged
-     * to writing somebody else's locale, and nothing here writes anything.
+     * No coordinator and no claim: this is [Locale.getDefault], which cannot fail and cannot be
+     * refused, read as the [StateSlice.SYSTEM_LANGUAGE] slice on the publisher's thread. The
+     * machinery the old per-application override needed - a permission granted over ADB, a running
+     * flag, an ABA-safe compare, two shapes of failure - all belonged to writing somebody else's
+     * locale, and nothing here writes anything.
      */
     fun refreshSystemLanguage() {
-        stateStore.update { current -> current.copy(systemLanguage = SystemLanguage.read()) }
+        invalidate(StateSlice.SYSTEM_LANGUAGE, "language")
     }
 
     /**
@@ -1071,7 +1108,7 @@ object DenzaAppRepository {
         WeatherAdapterState.setEnabled(context, enabled)
         if (enabled) WeatherAdapterScheduler.ensureScheduled(context)
         else WeatherAdapterScheduler.cancel(context)
-        stateStore.update { current -> current.copy(weatherEnabled = enabled) }
+        publisher.publish("weather switch") { current -> current.copy(weatherEnabled = enabled) }
     }
 
     /**
@@ -1079,22 +1116,12 @@ object DenzaAppRepository {
      *
      * The forecast is fetched every ten minutes by [WeatherAdapterService], which writes the
      * temperature and the time of the last success as it goes; the tile and the panel read them
-     * from here. Called by [refresh] and, through [WeatherAdapterState.observe], by every run as
-     * it records - until 2026-10-06 only the runtime start read them, so the tile kept the
-     * temperature of the moment the process came up.
+     * from here: the [StateSlice.WEATHER] slice, read with every [refresh] and, through
+     * [WeatherAdapterState.observe], after every run as it records - until 2026-10-06 only the
+     * runtime start read them, so the tile kept the temperature of the moment the process came up.
      */
     fun refreshWeather() {
-        val context = appContext ?: return
-        val enabled = WeatherAdapterState.enabled(context)
-        val temperature = WeatherAdapterState.lastTemperature(context)
-        val updatedMillis = WeatherAdapterState.lastSuccessMillis(context)
-        stateStore.update { current ->
-            current.copy(
-                weatherEnabled = enabled,
-                weatherTemperature = temperature,
-                weatherUpdatedMillis = updatedMillis,
-            )
-        }
+        invalidate(StateSlice.WEATHER, "weather")
     }
 
     /**
@@ -1135,7 +1162,7 @@ object DenzaAppRepository {
                 AdbRescuePhase.AUTHORIZATION_REQUIRED)) {
             AdbRestore.trigger("recovery")
         }
-        runtimeStep("ADB state refresh") { refresh("adb access") }
+        runtimeStep("ADB state refresh") { invalidate(StateSlice.ADB_ACCESS, "adb access") }
     }
 
     private fun startAdbRuntime(context: Context) {
@@ -1209,7 +1236,7 @@ object DenzaAppRepository {
             }
             else -> {
                 val mirrors = MirrorDisplayReadiness.snapshot(selection, active = false)
-                stateStore.update { current -> current.copy(mirrors = mirrors) }
+                publisher.publish("mirrors") { current -> current.copy(mirrors = mirrors) }
                 serviceReport.rebuildNow()
             }
         }
@@ -1237,14 +1264,14 @@ object DenzaAppRepository {
         ) { event ->
             when (event) {
                 SimulcastReconcileEvent.Refresh -> {
-                    stateStore.update { current ->
+                    publisher.publish("simulcast") { current ->
                         current.copy(setupRunning = event.setupRunning)
                     }
                     refresh("simulcast")
                 }
                 is SimulcastReconcileEvent.Blocked -> {
                     val simulcast = SimulcastCoordinator.blockedSnapshot(event.blocker)
-                    stateStore.update { current ->
+                    publisher.publish("simulcast") { current ->
                         current.copy(
                             setupRunning = event.setupRunning,
                             simulcast = simulcast,
@@ -1258,7 +1285,7 @@ object DenzaAppRepository {
                         FeatureReducer.starting(FeatureId.SIMULCAST),
                         "Восстанавливаю доступ",
                     )
-                    stateStore.update { current ->
+                    publisher.publish("simulcast") { current ->
                         current.copy(
                             setupRunning = event.setupRunning,
                             simulcast = simulcast,
@@ -1266,7 +1293,7 @@ object DenzaAppRepository {
                     }
                 }
                 SimulcastReconcileEvent.Repaired -> {
-                    stateStore.update { current ->
+                    publisher.publish("simulcast") { current ->
                         current.copy(setupRunning = event.setupRunning)
                     }
                     refresh("simulcast")
@@ -1278,7 +1305,7 @@ object DenzaAppRepository {
                         event.details,
                         event.resolution,
                     )
-                    stateStore.update { current ->
+                    publisher.publish("simulcast") { current ->
                         current.copy(
                             setupRunning = event.setupRunning,
                             simulcast = simulcast,

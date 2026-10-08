@@ -1,6 +1,9 @@
 package dev.denza.apps
 
+import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureSnapshot
+import dev.denza.apps.feature.adb.AdbRescueSnapshot
+import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.locale.SystemLanguageSnapshot
@@ -14,7 +17,13 @@ import dev.denza.apps.feature.mirrors.MirrorsPosition
  * [SliceReading]s, which are plain values, and lays them onto the state; two readings of the same
  * car are equal, so laying them again publishes nothing.
  */
-internal enum class StateSlice {
+enum class StateSlice {
+    /**
+     * The car's answer to this app's ADB key, and the automatic restore of it. Read with every
+     * slice, because it decides whether the others are published at all: behind the gate the tiles
+     * keep their last state.
+     */
+    ADB_ACCESS,
     SIMULCAST,
     MIRRORS,
     NAVIGATION,
@@ -27,6 +36,24 @@ internal enum class StateSlice {
     CLUSTER_DISPLAY,
     WEATHER,
     SYSTEM_LANGUAGE,
+    ;
+
+    companion object {
+        /**
+         * The slice a runtime feature's tile reads, or null for the one that is not read at all:
+         * the passenger install publishes its own progress as it goes.
+         */
+        fun of(feature: FeatureId): StateSlice? = when (feature) {
+            FeatureId.SIMULCAST -> SIMULCAST
+            FeatureId.MIRRORS -> MIRRORS
+            FeatureId.NAVIGATION -> NAVIGATION
+            FeatureId.SPLIT_SCREEN -> SPLIT_SCREEN
+            FeatureId.HUD_GUIDANCE -> HUD_GUIDANCE
+            FeatureId.SPEAKER_COVERS -> SPEAKER_COVERS
+            FeatureId.CLOUD_LINK -> CLOUD_LINK
+            FeatureId.FSE_INSTALLER -> null
+        }
+    }
 }
 
 /** What one slice read, ready to be laid onto the state. Values only, so equal reads are equal. */
@@ -34,6 +61,16 @@ internal sealed interface SliceReading {
     val slice: StateSlice
 
     fun applyTo(state: DenzaUiState): DenzaUiState
+}
+
+/** The car's answer to the key, and where the automatic ADB restore stands: both shown at the gate. */
+internal data class AdbAccessReading(
+    val adbRescue: AdbRescueSnapshot,
+    val adbRestore: AdbRestoreSnapshot = AdbRestoreSnapshot(),
+) : SliceReading {
+    override val slice get() = StateSlice.ADB_ACCESS
+
+    override fun applyTo(state: DenzaUiState) = state.copy(adbRescue = adbRescue, adbRestore = adbRestore)
 }
 
 internal data class SimulcastReading(
@@ -162,6 +199,24 @@ internal data class SystemLanguageReading(val snapshot: SystemLanguageSnapshot) 
     override val slice get() = StateSlice.SYSTEM_LANGUAGE
 
     override fun applyTo(state: DenzaUiState) = state.copy(systemLanguage = snapshot)
+}
+
+/**
+ * Reads [slices] one at a time through [read]. A slice that throws is left out and handed to
+ * [failed]; the others are read and laid all the same, so one broken source - a component the
+ * package manager no longer knows, a store that will not load - cannot hold every tile back.
+ */
+internal fun readEach(
+    slices: Collection<StateSlice>,
+    read: (StateSlice) -> SliceReading,
+    failed: (StateSlice, RuntimeException) -> Unit,
+): List<SliceReading> = slices.mapNotNull { slice ->
+    try {
+        read(slice)
+    } catch (error: RuntimeException) {
+        failed(slice, error)
+        null
+    }
 }
 
 /** [readings] laid onto the state in order. */

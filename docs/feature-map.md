@@ -13,7 +13,7 @@ in the same commit as the rename.
 
 ## Shared plumbing
 
-Every tile goes through the same five places, named once here; each section below follows one
+Every tile goes through the same six places, named once here; each section below follows one
 tile through them.
 
 - `TileId` (`ui/dashboard/TileId.kt`) — the tile's identity and `TileId.feature`, the
@@ -29,12 +29,22 @@ tile through them.
 - `FeatureSheet` (`ui/dashboard/FeatureSheets.kt`) — the panel a long press opens: one private
   `…Sheet` function per tile, the paragraph in `helpOf`, the button in `panelAction`.
 - `DenzaAppRepository` and its `DenzaUiState` (`DenzaAppRepository.kt`) — the state every tile
-  reads and the setters every callback ends in. A recompute reads the state slice by slice
-  (`StateSlice`, one `SliceReading` each, in `StateSlices.kt`) into plain values: an application
-  is named by its package and drawn from `AppIcons` (`rememberAppIcon`), so two reads of the same
-  car are equal and publish nothing; `MainActivity` binds the callbacks to it and
+  reads and the setters every callback ends in; `MainActivity` binds the callbacks to it and
   `DenzaAppsRoot` (`ui/DenzaAppsScreen.kt`) threads them to the dashboard and decides which panel
   a long press opens.
+- `DenzaStatePublisher` (`DenzaStatePublisher.kt`) — the one writer of the features' part of
+  `DenzaUiState`. The state is read slice by slice (`StateSlice`, one `SliceReading` each, in
+  `StateSlices.kt`, read by `DenzaAppRepository.readSlice`) into plain values: an application is
+  named by its package and drawn from `AppIcons` (`rememberAppIcon`), so two reads of the same car
+  are equal and publish nothing. A feature whose state changed marks its slice and returns at once:
+  `DenzaAppRepository.invalidate`, with the `StateSlice` or the `FeatureId` behind the tile
+  (`StateSlice.of`). Marks that arrive before the read are folded into one; reads run one at a time
+  on the publisher's own thread and each is committed before the next, so an older read never
+  lands over a newer one. A state that is not a reading — a switch's «starting» — goes through
+  `DenzaStatePublisher.publish` on the same queue, so no read taken before it can put the old state
+  back. `DenzaAppRepository.refresh` marks every slice, for the paths that cannot say what changed:
+  the activity's resume and the runtime's start. Every read is counted in «Сервис» → «Технические
+  сведения» → «Пересчёт состояния» (`StateRecomputes`).
 
 ## Which tile is which
 
@@ -127,7 +137,7 @@ Repeats Yandex Navigator's turn-by-turn hints (manoeuvre, distance) on the winds
 
 The car's own weather widget keeps getting a fresh forecast for where the car is; nothing of ours draws weather.
 
-- **Tile:** `DashboardTiles.weather`; no runtime feature (`TileId.feature` is null); state `DenzaUiState.weatherEnabled`, `DenzaUiState.weatherTemperature`, `DenzaUiState.weatherUpdatedMillis` — copied from `WeatherAdapterState` by `DenzaAppRepository.refresh` and by `DenzaAppRepository.refreshWeather`, which `WeatherAdapterState.observe` calls after every run.
+- **Tile:** `DashboardTiles.weather`; no runtime feature (`TileId.feature` is null); state `DenzaUiState.weatherEnabled`, `DenzaUiState.weatherTemperature`, `DenzaUiState.weatherUpdatedMillis` — read from `WeatherAdapterState` as the `StateSlice.WEATHER` slice: on every `DenzaAppRepository.refresh`, and through `DenzaAppRepository.refreshWeather`, which `WeatherAdapterState.observe` calls after every run. The switch publishes its own position at once (`DenzaStatePublisher.publish`).
 - **Press / long press:** always `TileAction.TOGGLE`: `DashboardBody` → `DashboardPress.perform` → `DashboardPress.toggle` → `DashboardActions.onSetWeatherEnabled` (bound in `MainActivity`, handed down by `DenzaAppsRoot`) → `DenzaAppRepository.setWeatherEnabled` → `WeatherAdapterState.setEnabled` + `WeatherAdapterScheduler.ensureScheduled` / `WeatherAdapterScheduler.cancel`. Long press: `DashboardActions.onOpenSettings` → `DenzaAppsRoot` → `FeatureSheet`.
 - **Panel:** `weatherSheet` (switch «Данные для виджета», age line via `DashboardTiles.ago`) in `apps/denza-apps/src/main/java/dev/denza/apps/ui/dashboard/FeatureSheets.kt`, inside `FeatureSheet`; paragraph from `helpOf`; no footer button (`panelAction`).
 - **Runtime:** `feature/weather/` — `WeatherAdapterScheduler` (AlarmManager every 10 min, `WeatherAdapterConfig`), `WeatherAdapterReceiver` (manifest receiver for the alarm), `WeatherAdapterService` (manifest foreground service, in the app's own process since 2026-10-06) → `WeatherAdapterController` (`WeatherLocationSource`, `AndroidWeatherGeocoder`, `MetNorwayClient`, `NativeWeatherPayload`) → `NativeWeatherStore` writes the stock weather provider. `SimulcastAccessibilityService.onAccessibilityEvent` calls `WeatherAdapterScheduler.onNativeWeatherVisible` when the stock weather app comes up.
@@ -153,7 +163,7 @@ The motorised speaker covers come up for music the car does not report itself (t
 
 The tile names the language the whole car speaks, and a press opens the car's own hidden list of forty languages, which applies the choice system-wide without a reboot.
 
-- **Tile:** `DashboardTiles.locale`; no runtime feature; state `DenzaUiState.systemLanguage` (`SystemLanguageSnapshot`, read by `DenzaAppRepository.refreshSystemLanguage` from `DenzaAppRepository.refresh` and whenever «Сервис» opens).
+- **Tile:** `DashboardTiles.locale`; no runtime feature; state `DenzaUiState.systemLanguage` (`SystemLanguageSnapshot`, the `StateSlice.SYSTEM_LANGUAGE` slice: read on every `DenzaAppRepository.refresh` and, through `DenzaAppRepository.refreshSystemLanguage`, whenever «Сервис» opens).
 - **Press / long press:** `DashboardPress.perform` (`TileAction.LANGUAGE_PICK`) → `DashboardActions.onOpenSystemLanguage` → `DenzaAppRepository.openSystemLanguage` → `SystemLanguage.open` (intent `SystemLanguage.PICKER_ACTION`). Long press: `DashboardActions.onOpenSettings` → `FeatureSheet`, whose button «Выбрать язык» is the same press (`primaryLabel`).
 - **Panel:** `FeatureSheet` in `apps/denza-apps/src/main/java/dev/denza/apps/ui/dashboard/FeatureSheets.kt` with no body of its own: header, paragraph from `helpOf`, footer button.
 - **Runtime:** `feature/locale/` — `SystemLanguage` (object: opens the firmware picker, names the current system locale). No service, no manifest entry, nothing written by this app.
@@ -285,28 +295,36 @@ The «Облако» tile (commit c1875b0b, 21 files) is the worked example. In 
 
 1. **Identity.** An entry in `TileId` and its branch in `TileId.feature`; a `FeatureId` in
    `core/FeatureModels.kt` when the tile drives a runtime feature.
-2. **State.** The feature's fields in `DenzaUiState`, its setters and refresh in
-   `DenzaAppRepository`, and the `FeatureId` → snapshot branch in `DashboardPress.snapshotOf`.
-3. **Tile.** A `TileIcon` entry, a builder in `DashboardTiles` listed in `DashboardTiles.of`, the
+2. **State.** The feature's fields in `DenzaUiState`; a `StateSlice` (and its branch in
+   `StateSlice.of` for a `FeatureId`) with a `SliceReading` that lays those fields, read in
+   `DenzaAppRepository.readSlice`; its setters in `DenzaAppRepository`, which publish a transient
+   state through `DenzaStatePublisher.publish` rather than writing it; and the `FeatureId` →
+   snapshot branch in `DashboardPress.snapshotOf`.
+3. **Invalidation.** Every place that changes what the slice reads — a setter, the feature's own
+   thread, a callback from the car — calls `DenzaAppRepository.invalidate` with that slice once it
+   has written. Nothing else re-reads it: a writer without a mark leaves the tile frozen until the
+   next resume.
+4. **Tile.** A `TileIcon` entry, a builder in `DashboardTiles` listed in `DashboardTiles.of`, the
    glyph in `DenzaIcons` (`design/DenzaIcons.kt`) and its branch in `tileGlyph`
    (`ui/dashboard/DashboardGrid.kt`).
-4. **Gestures.** A callback field in `DashboardActions`; the short press in `DashboardPress.perform`
+5. **Gestures.** A callback field in `DashboardActions`; the short press in `DashboardPress.perform`
    and its `toggle`, `resolve` and `retry` branches.
-5. **Panel.** A `…Sheet` function and its branch in `FeatureSheet`, the paragraph in `helpOf`, the
+6. **Panel.** A `…Sheet` function and its branch in `FeatureSheet`, the paragraph in `helpOf`, the
    button in `panelAction`.
-6. **Wiring.** The callbacks threaded through `DenzaAppsRoot` (`ui/DenzaAppsScreen.kt`) and bound
-   to the repository in `MainActivity`, with a refresh in `MainActivity.onResume` when the state is
-   read from the car.
-7. **Runtime.** The feature's package (for example `feature/cloud/`) and any service or permission
+7. **Wiring.** The callbacks threaded through `DenzaAppsRoot` (`ui/DenzaAppsScreen.kt`) and bound
+   to the repository in `MainActivity`; `MainActivity.onResume` reads every slice again
+   (`DenzaAppRepository.refresh`), and a state the car keeps behind the shell gets its own read on
+   resume (as `DenzaAppRepository.refreshCloudLink`).
+8. **Runtime.** The feature's package (for example `feature/cloud/`) and any service or permission
    in `apps/denza-apps/src/main/AndroidManifest.xml`.
-8. **Board.** The chip in `tools/design-canvas/luminofor/fixtures.js`; the rows in
+9. **Board.** The chip in `tools/design-canvas/luminofor/fixtures.js`; the rows in
    `tools/design-canvas/luminofor/luminofor.js` when the count changes them; the panel fixtures
    in `apps/denza-apps/src/debug/assets/luminofor/fixtures.json`. Render with
    `tools/design-canvas/luminofor/shot.py` and lay the debug build over it with
    `tools/design-canvas/luminofor/compare.py` (`tools/design-canvas/luminofor/README.md`).
-9. **Tests.** The tile count `FEATURES` in `DashboardLayoutPolicyTest` and
+10. **Tests.** The tile count `FEATURES` in `DashboardLayoutPolicyTest` and
    `LuminoforScreenContractTest`; press and state in `DashboardTilesTest`, plus a focused test of
    the feature's own press (for example `CloudTilePressTest`); `StripBoardContractTest` when the
    strip moves; a section on this page for `FeatureMapContractTest`.
-10. **Docs.** A row in `docs/project-map.md`, a row in CLAUDE.md's "Read before touching" when the
+11. **Docs.** A row in `docs/project-map.md`, a row in CLAUDE.md's "Read before touching" when the
     feature has its own doc, and that doc's Current state table.

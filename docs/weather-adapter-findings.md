@@ -157,8 +157,10 @@ caches a file per process and writes the whole cached copy back, so:
 
 The separate process bought nothing: the alarm's receiver has always run in the main process,
 so every run woke it anyway. Since 2026-10-06 the service runs in the app's own process, the
-preferences have one copy, `DenzaAppRepository.refresh` reads the record, and the runtime
-observes it (`WeatherAdapterState.observe`) so the tile follows each run as it is recorded.
+preferences have one copy, every `DenzaAppRepository.refresh` reads the record (since
+2026-10-08 as the weather slice of the state, `StateSlice.WEATHER`), and the runtime observes it
+(`WeatherAdapterState.observe`) and marks that slice, so the tile follows each run as it is
+recorded.
 `WeatherProcessContractTest` holds both.
 
 ## Boundaries

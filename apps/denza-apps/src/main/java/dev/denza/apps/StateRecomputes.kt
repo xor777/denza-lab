@@ -29,6 +29,9 @@ internal class RecomputeLog(private val capacity: Int = CAPACITY) {
     private var totalUs = 0L
     private var mainTotalUs = 0L
     private var longestUs = 0L
+    private var failures = 0L
+    private var lastFailure: String? = null
+    private var lastFailureAtMs = 0L
 
     fun record(atMs: Long, trigger: String, thread: String, durationUs: Long) {
         val entry = Entry(atMs, trigger, thread, durationUs.coerceAtLeast(0L))
@@ -46,6 +49,18 @@ internal class RecomputeLog(private val capacity: Int = CAPACITY) {
     }
 
     /**
+     * A slice that could not be read: [what] and the error. The rest of that read was published
+     * all the same; this is where the one left out is still seen.
+     */
+    fun recordFailure(atMs: Long, what: String, error: String) {
+        synchronized(lock) {
+            failures += 1
+            lastFailure = "$what: $error"
+            lastFailureAtMs = atMs
+        }
+    }
+
+    /**
      * The section's rows: the totals since the process started, then the newest recomputes first.
      */
     fun rows(nowMs: Long, shown: Int = SHOWN): List<TechnicalRow> = synchronized(lock) {
@@ -59,12 +74,20 @@ internal class RecomputeLog(private val capacity: Int = CAPACITY) {
                         "в среднем ${duration(totalUs / count)} · самый долгий ${duration(longestUs)}",
                 ),
             )
+            lastFailure?.let { failure ->
+                add(
+                    TechnicalRow(
+                        "Сбоев чтения",
+                        "$failures · последний $failure · ${ago(nowMs, lastFailureAtMs)}",
+                    ),
+                )
+            }
             recent.reversed().take(shown).forEach { entry ->
                 add(
                     TechnicalRow(
                         entry.trigger,
                         "${duration(entry.durationUs)} · ${entry.thread} · " +
-                            "${((nowMs - entry.atMs).coerceAtLeast(0L) / 1_000L)} с назад",
+                            ago(nowMs, entry.atMs),
                     ),
                 )
             }
@@ -84,29 +107,20 @@ internal class RecomputeLog(private val capacity: Int = CAPACITY) {
         }
 
         private fun tenths(value: Long): String = "${value / 10L},${value % 10L}"
+
+        private fun ago(nowMs: Long, atMs: Long): String =
+            "${((nowMs - atMs).coerceAtLeast(0L) / 1_000L)} с назад"
     }
 }
 
-/** The process's one [RecomputeLog], and the clock it is read against. */
+/**
+ * The process's one [RecomputeLog], and the clock it is read against. [DenzaStatePublisher] records
+ * every read it makes here, under what asked for it.
+ */
 internal object StateRecomputes {
     val log = RecomputeLog()
 
     const val SECTION = "Пересчёт состояния"
-
-    /** Runs [block] and records it under [trigger], on the thread that ran it. */
-    inline fun <T> measure(trigger: String, block: () -> T): T {
-        val started = System.nanoTime()
-        try {
-            return block()
-        } finally {
-            log.record(
-                atMs = SystemClock.elapsedRealtime(),
-                trigger = trigger,
-                thread = Thread.currentThread().name,
-                durationUs = (System.nanoTime() - started) / 1_000L,
-            )
-        }
-    }
 
     fun rows(): List<TechnicalRow> = log.rows(SystemClock.elapsedRealtime())
 }
