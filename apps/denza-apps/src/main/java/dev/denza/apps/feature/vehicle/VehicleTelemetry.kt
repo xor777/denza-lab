@@ -121,10 +121,6 @@ internal data class VehicleTelemetry(
         values[VehicleSignal.MOTOR_REAR_RIGHT_C],
     )
 
-    val hottestMotorC: Double? = motorTemps.fold(null as Double?) { hottest, reading ->
-        if (reading != null && (hottest == null || reading > hottest)) reading else hottest
-    }
-
     /**
      * The window's own consumption, worked out once here rather than per frame.
      *
