@@ -27,6 +27,7 @@ class SplitPickerShellSessionTest {
             },
             apkPath = "/tmp/denza-apps.apk",
             settle = {},
+            gateLeaseStore = FakeGateLease(),
         )
     }
 
@@ -106,6 +107,7 @@ class SplitPickerShellSessionTest {
             },
             apkPath = "/tmp/denza-apps.apk",
             settle = { pauses += 1 },
+            gateLeaseStore = FakeGateLease(),
         )
 
         assertTrue(session.awaitNativePickerCommit())
@@ -134,6 +136,7 @@ class SplitPickerShellSessionTest {
             },
             apkPath = "/tmp/denza-apps.apk",
             settle = {},
+            gateLeaseStore = FakeGateLease(),
         )
 
         assertFalse(session.awaitNativePickerCommit())
@@ -158,6 +161,7 @@ class SplitPickerShellSessionTest {
             },
             apkPath = "/tmp/denza-apps.apk",
             settle = { pauses += 1 },
+            gateLeaseStore = FakeGateLease(),
         )
 
         assertFalse(session.awaitNativePickerCommit())
@@ -186,6 +190,7 @@ class SplitPickerShellSessionTest {
             },
             apkPath = "/tmp/denza-apps.apk",
             settle = { pauses += 1 },
+            gateLeaseStore = FakeGateLease(),
         )
 
         assertFalse(session.awaitNativePickerCommit())
@@ -214,6 +219,7 @@ class SplitPickerShellSessionTest {
             },
             apkPath = "/tmp/denza-apps.apk",
             settle = {},
+            gateLeaseStore = FakeGateLease(),
         )
 
         assertTrue(session.awaitNativePickerCommit())
@@ -1033,6 +1039,7 @@ class SplitPickerShellSessionTest {
             shell = fake::shell,
             apkPath = "/data/app/dev.denza.apps/base.apk",
             settle = { millis -> settled += millis },
+            gateLeaseStore = FakeGateLease(),
         )
         val previous = mapOf(
             SplitPane.PRIMARY to SplitPickerObservedPane(hostTaskId = 60),
@@ -1069,6 +1076,7 @@ class SplitPickerShellSessionTest {
             shell = fake::shell,
             apkPath = "/data/app/dev.denza.apps/base.apk",
             settle = { millis -> settled += millis },
+            gateLeaseStore = FakeGateLease(),
         )
         fake.area = 3
 

@@ -208,6 +208,7 @@ class SplitOperationBudgetTest {
             apkPath = SPLIT_APK_PATH,
             settle = {},
             parsed = { elapsed -> parses += elapsed },
+            gateLeaseStore = FakeGateLease(),
         )
 
         session.livingTaskIds()
