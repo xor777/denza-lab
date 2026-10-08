@@ -35,7 +35,8 @@ Everything else here is a dated findings journal.
 | `content://com.byd.autovoice/PersonBean` is exported with no permission or caller check: app-UID `query` 2.3 ms, `update` 3.1 ms, shell `content query` 1.21 s; a `ContentObserver` saw no change | live | 2026-09-03 | [App-UID ContentResolver access](#app-uid-contentresolver-access-live-proven-2026-09-03) |
 | `DefaultAppRoleRepository.kt` reads and writes `DEFAULT_MAP_SWITCH`, `MUSIC_SWITCH`, `VIDEO_SWITCH` through `ContentResolver` (`SETTING=?`; conditional `SETTING=? AND VALUE=?` matching exactly one row); each role holds the chosen app's real package; no ADB, no proxy | code | 2026-09-04 | [App-UID ContentResolver access](#app-uid-contentresolver-access-live-proven-2026-09-03) |
 | Single-package navigation proxy (`DEFAULT_MAP_SWITCH=dev.denza.apps` plus a trampoline): AutoVoice "open app" and the map role both arrive as `getLaunchIntentForPackage(dev.denza.apps)` with `MAIN + INFO` and `FROM=com.byd.autovoice`; retired in build 42 | refuted | 2026-09-03 | [Retired single-package navigation proxy](#retired-single-package-navigation-proxy-experiment-2026-09-03) |
-| AutoVoice's `AppReceiver` resets `DEFAULT_MAP_SWITCH` to stock on `PACKAGE_REMOVED` without reading `EXTRA_REPLACING`, so a Store update of the chosen navigator drops the role; the product does not repair it | firmware | 2026-09-03 | [Retired single-package navigation proxy](#retired-single-package-navigation-proxy-experiment-2026-09-03) |
+| AutoVoice's `AppReceiver` resets `DEFAULT_MAP_SWITCH` to stock on `PACKAGE_REMOVED` without reading `EXTRA_REPLACING`, so a Store update of the chosen navigator drops the role | firmware | 2026-09-03 | [Retired single-package navigation proxy](#retired-single-package-navigation-proxy-experiment-2026-09-03) |
+| While Denza Apps is running it puts the navigator back after such an update: armed when the package it last confirmed in the role is removed with `EXTRA_REPLACING`, restored on `PACKAGE_ADDED`/`PACKAGE_REPLACED` by a write conditional on the stock map; a stopped app does not repair it (`NavigationRoleRepair.kt`) | code | 2026-10-08 | [Navigation role repaired after a Store update](#navigation-role-repaired-after-a-store-update-while-denza-apps-runs-2026-10-08) |
 | Shortcuts actions that honour the roles: map `102000` (导航 → 地图 → 打开), music **Continue playing** runtime `129003`, video **Open video** runtime `131500` (static `131501`) | live | 2026-08-27 | [Role switches](#role-switches-live-2026-08-22-rechecked-2026-08-27) |
 | "Music → Open music follows `MUSIC_SWITCH`": live runtime `129136` opened `com.byd.mediacenter`; use Continue playing | refuted | 2026-08-27 | [Music — static open path versus the live launch action](#music--static-open-path-versus-the-live-launch-action) |
 | The Then catalog is compiled in (`DiyChoiceScence5_1.initLevel1()`), `101000` offers five BYD names, and `IOTProvider` insert admits only `com.byd.iotmanager`/`com.byd.mediacenter`: no arbitrary app per rule | firmware | 2026-08-22 | [Product shape](#product-shape-inject-into-autovoice-do-not-daemonize-denza-apps) |
@@ -52,9 +53,11 @@ Everything else here is a dated findings journal.
   few presses.
 - Next and previous in the same policy (the "second step"), and with it whether
   `MediaFocusPauseBridge` and its shell proxy are deleted.
-- Role recovery after a Store update: whether a stopped Denza Apps receives `PACKAGE_REMOVED`,
+- Role recovery after a Store update with Denza Apps stopped: whether it receives `PACKAGE_REMOVED`,
   `PACKAGE_ADDED` and `PACKAGE_REPLACED` with `EXTRA_REPLACING`, under the self-start deny bit
-  (split-screen-findings.md). Settled by the isolated package-event probe in Next validation.
+  (split-screen-findings.md). Settled by the isolated package-event probe in Next validation. The
+  running-app repair has no live run yet: settled by a Store update of the chosen navigator with
+  the app open and a `DEFAULT_MAP_SWITCH` readback.
 - Any app per rule: a persist path for a `101000` + label `DiyCommandBean`; the next bounded probe is
   the `IOTProvider` caller gate, invalid JSON only.
 - Shortcuts `102000` with Denza Apps force-stopped, and `129003`/`131500` from cold state and with
@@ -72,7 +75,7 @@ Everything else here is a dated findings journal.
 - [Masquerading as a Chinese app does not win the role](#masquerading-as-a-chinese-app-does-not-win-the-role) — why a fake Gaode/NetEase package changes nothing.
 - [Registration APIs and adjacent paths](#registration-apis-and-adjacent-paths) — PersonBean, `setDefaultApp`, `FUNCTION_UPDATE`, voice by label.
 - [Two independent map-role switches](#two-independent-map-role-switches) — `DEFAULT_MAP_SWITCH` against `byd_map_package`.
-- [Product shape: inject into AutoVoice, do not daemonize Denza Apps](#product-shape-inject-into-autovoice-do-not-daemonize-denza-apps) — the «Приложения» panel, the retired proxy, app-UID PersonBean access.
+- [Product shape: inject into AutoVoice, do not daemonize Denza Apps](#product-shape-inject-into-autovoice-do-not-daemonize-denza-apps) — the «Приложения» panel, the retired proxy, the navigation repair after a Store update, app-UID PersonBean access.
 - [Russia-oriented launch strategy](#russia-oriented-launch-strategy) — which Shortcuts action to use per role.
 - [Restore-wrapped live probe](#restore-wrapped-live-probe) — `tools/default_app_role_probe.sh`, and never key `321`.
 - [Cost to weigh before taking the role](#cost-to-weigh-before-taking-the-role) — what each role is shared with.
@@ -1167,6 +1170,8 @@ most three always-on targets, not an arbitrary app per rule. Updating a selected
 application can currently make AutoVoice fall back to stock; update recovery is
 deliberately deferred rather than hidden behind a package proxy.
 
+> **Superseded 2026-10-08:** the navigation role is repaired after an update that lands while Denza Apps is running; music and video, and an update while the app is stopped, are still not repaired — see [Navigation role repaired after a Store update while Denza Apps runs (2026-10-08)](#navigation-role-repaired-after-a-store-update-while-denza-apps-runs-2026-10-08).
+
 First-run selection is handled once per role after a successful provider read.
 An untouched stock value may be replaced with the first installed known app,
 but the update predicate also requires the value to still be stock, so a
@@ -1245,6 +1250,37 @@ The proposed second stage is recovery, not indirection:
 Do not poll `autoservice` from a Denza Apps service as the product
 Shortcuts replacement. That reintroduces the "must already be running"
 constraint the stock engine does not have.
+
+### Navigation role repaired after a Store update while Denza Apps runs (2026-10-08)
+
+Code change from a read-only review; not installed on a car, no live run.
+
+Step 3 of the plan above is implemented for the navigation role only, inside
+the running process, without the step-1 probe and without a durable journal.
+`DefaultAppsCatalogCache` already holds a dynamic package receiver for as long
+as the process lives (registered by the first default-apps refresh, which the
+repository's startup runs). It now passes each broadcast to
+`NavigationRoleRepair` before it starts its own refresh:
+
+- `PACKAGE_REMOVED` with `EXTRA_REPLACING=true` **arms** the repair when the
+  package is the one this app last confirmed in `DEFAULT_MAP_SWITCH`
+  (`DefaultAppsSettings.confirmedSelection`) and is not the stock map. The
+  remembered pick alone is not used: it survives the Shortcuts switch being
+  turned off, and an update must not undo that.
+- `PACKAGE_ADDED` with `EXTRA_REPLACING=true` of the armed package writes it back
+  with `setIfCurrent(expected = com.byd.launchermap)` on the default-apps
+  thread. A role holding anything other than the stock map is left alone. If
+  that write finds the navigator still in place (AutoVoice's reset not yet
+  applied), `PACKAGE_REPLACED` tries once more and the repair is disarmed.
+- `PACKAGE_REMOVED` without `EXTRA_REPLACING` disarms it: an uninstalled
+  navigator stays reset.
+
+Not covered: an update while Denza Apps is not running (the open question
+above), the music and video roles, and the remove/install gap itself, during
+which voice and Shortcuts still open the stock map. One residual case remains.
+If the driver sets the stock map in the stock settings and Denza Apps does not
+read PersonBean before the navigator's next update, that update puts the
+navigator back. `NavigationRoleRepairTest` holds the decision.
 
 ### App-UID ContentResolver access (live-proven 2026-09-03)
 
@@ -1445,7 +1481,10 @@ records `byd_map_package` and the package-scoped
 - Re-run split open, picker selection, collapse/reopen, and reboot restore; the
   package's `MAIN + INFO` entry belongs to `SplitPickerActivity` again.
 - Defer Store-update acceptance until the separate package-event probe and
-  recovery design are implemented.
+  recovery design are implemented. (2026-10-08: the in-process navigation
+  repair is implemented; its acceptance is a Store update of the chosen
+  navigator with Denza Apps running, then a `DEFAULT_MAP_SWITCH` readback and
+  Shortcuts `102000` — see [Navigation role repaired after a Store update while Denza Apps runs (2026-10-08)](#navigation-role-repaired-after-a-store-update-while-denza-apps-runs-2026-10-08).)
 - Verify cold-start first-choice initialization on a clean product preference
   state without overwriting a pre-existing non-stock PersonBean choice.
 - Per-rule any-app still needs a persist path for `101000`+label

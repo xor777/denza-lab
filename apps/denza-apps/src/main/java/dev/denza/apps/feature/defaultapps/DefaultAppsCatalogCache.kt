@@ -56,13 +56,24 @@ internal object DefaultAppsCatalogCache {
         }
     }
 
-    fun ensureWatching(context: Context, onChanged: () -> Unit) {
+    /**
+     * Watches package changes for as long as the process lives.
+     *
+     * [onPackage] sees each broadcast before [onChanged] is told, so it reads what the app knew of
+     * the roles before the refresh that [onChanged] starts can read them again.
+     */
+    fun ensureWatching(
+        context: Context,
+        onPackage: (Intent) -> Unit = {},
+        onChanged: () -> Unit,
+    ) {
         synchronized(watcherLock) {
             if (watching) return
             val app = context.applicationContext
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
-                    if (intent?.action !in PACKAGE_CHANGE_ACTIONS) return
+                    if (intent == null || intent.action !in PACKAGE_CHANGE_ACTIONS) return
+                    onPackage(intent)
                     invalidate()
                     onChanged()
                 }

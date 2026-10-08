@@ -32,6 +32,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppsPolicy
 import dev.denza.apps.feature.defaultapps.DefaultAppsSettings
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
 import dev.denza.apps.feature.defaultapps.InstalledDefaultApp
+import dev.denza.apps.feature.defaultapps.NavigationRoleRepair
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.fse.FseInstallResult
@@ -204,6 +205,8 @@ object DenzaAppRepository {
     private val defaultAppsHydrated = AtomicBoolean(false)
     private val defaultAppsRefreshRequested = AtomicBoolean(false)
     private val defaultAppsRefreshRunning = AtomicBoolean(false)
+    private val navigationRoleRepair =
+        NavigationRoleRepair(DefaultAppRole.NAVIGATION.stockPackageName)
     private val stateStore = DenzaUiStateStore()
     val state: StateFlow<DenzaUiState> = stateStore.state
 
@@ -835,7 +838,10 @@ object DenzaAppRepository {
         if (force) DefaultAppsCatalogCache.invalidate()
 
         if (defaultAppsHydrated.compareAndSet(false, true)) {
-            DefaultAppsCatalogCache.ensureWatching(context) { refreshDefaultApps(force = false) }
+            DefaultAppsCatalogCache.ensureWatching(
+                context,
+                onPackage = { intent -> repairNavigationRole(context, intent) },
+            ) { refreshDefaultApps(force = false) }
             stateStore.update { current ->
                 current.copy(
                     defaultApps = current.defaultApps.copy(
@@ -1280,6 +1286,43 @@ object DenzaAppRepository {
             runtimeEnabled = SplitScreenSettings.isEnabled(context),
             setRuntimeEnabled = SplitScreenCoordinator::setEnabled,
         )
+    }
+
+    /**
+     * A Store update of the chosen navigator, answered by putting it back into the map role.
+     *
+     * Called on the main thread from the package receiver, before that receiver starts the refresh,
+     * so [NavigationRoleRepair] is handed what this app last confirmed in the role rather than the
+     * stock map AutoVoice may already have written. The write itself goes to the default-apps
+     * thread ahead of that refresh, which then reads back whatever it left.
+     */
+    private fun repairNavigationRole(context: Context, intent: Intent) {
+        val event = NavigationRoleRepair.eventOf(intent.action) ?: return
+        val packageName = intent.data?.schemeSpecificPart?.takeIf(String::isNotBlank) ?: return
+        val role = DefaultAppRole.NAVIGATION
+        val restore = navigationRoleRepair.on(
+            event = event,
+            packageName = packageName,
+            replacing = intent.getBooleanExtra(Intent.EXTRA_REPLACING, false),
+            held = DefaultAppsSettings.confirmedSelection(context, role)?.selectedPackageName,
+        ) ?: return
+        defaultAppsExecutor.execute {
+            runCatching {
+                runBlocking {
+                    // Only over the stock map: anything else in the role is somebody's choice.
+                    defaultAppRoleRepository(context).setIfCurrent(
+                        role = role,
+                        expectedCurrentPackageName = role.stockPackageName,
+                        packageName = restore,
+                    )
+                }
+            }.onSuccess {
+                navigationRoleRepair.restored(restore)
+                Log.i(TAG, "${role.roleKey} restored to $restore after its update")
+            }.onFailure { error ->
+                Log.i(TAG, "${role.roleKey} not restored to $restore after its update", error)
+            }
+        }
     }
 
     /** At most one provider refresh runs and one newer request waits behind it. */
