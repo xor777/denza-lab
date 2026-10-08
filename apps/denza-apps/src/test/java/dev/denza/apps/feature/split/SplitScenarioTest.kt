@@ -59,7 +59,7 @@ class SplitScenarioTest {
 
         val hold = scene.hold()
         living.selectApp(PRIMARY_PICKER_TASK, WAZE, selected::add)
-        living.homeVisible()
+        living.homeKeyPressed()
         hold.release()
         scene.barrier()
 
@@ -80,7 +80,7 @@ class SplitScenarioTest {
         opening.shells.blockAt(GATE_OPEN)
         core.openPickerSession(results::add)
         assertTrue(opening.shells.awaitBlocked())
-        core.homeVisible()
+        core.homeKeyPressed()
         // И даже Home, дошедший до актора мимо координатора, не отбирает у него право мутировать.
         val home = homeThatReachedTheActor(opening)
         opening.shells.release()
@@ -263,7 +263,7 @@ class SplitScenarioTest {
         car.shells.blockAt(GATE_OPEN)
         core.openPickerSession(results::add)
         assertTrue(car.shells.awaitBlocked())
-        repeat(ECHOES) { core.homeVisible() }
+        repeat(ECHOES) { core.homeKeyPressed() }
         val home = homeThatReachedTheActor(car)
         car.shells.release()
         car.barrier()
@@ -1064,7 +1064,7 @@ class SplitScenarioTest {
         val living = car.fake.taskIds(PRIMARY_ROOT) + car.fake.taskIds(SECONDARY_ROOT)
         assertEquals(4, living.size)
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         assertFalse("Home приостановил наш gate (1.9.1)", car.fake.isGateOpen())
         assertTrue("но аренда осталась нашей", car.gateLease.isOwned())
@@ -1118,7 +1118,7 @@ class SplitScenarioTest {
         val appS = car.fake.taskIds(SECONDARY_ROOT).last()
 
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
 
         // Что сделала прошивка (ground-v18 A): одна панель выброшена в Tda целиком с бордерами,
@@ -1168,7 +1168,7 @@ class SplitScenarioTest {
         val appS = car.fake.taskIds(SECONDARY_ROOT).last()
 
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         // Home вынес широкую панель; узкая, куда вернулся навигатор, осталась, а прошивка держит
         // одиночный режим.
@@ -1222,7 +1222,7 @@ class SplitScenarioTest {
         val pickerS = car.fake.taskIds(SECONDARY_ROOT).first()
         val appS = car.fake.taskIds(SECONDARY_ROOT).last()
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         // Home выбросил широкую панель из её контейнера (removeIviStack), живой.
         car.fake.detachTask(pickerS)
@@ -1428,7 +1428,7 @@ class SplitScenarioTest {
         car.shells.blockAt(GATE_OPEN)
         core.selectApp(PRIMARY_PICKER_TASK, WAZE, results::add)
         assertTrue(car.shells.awaitBlocked())
-        core.homeVisible()
+        core.homeKeyPressed()
         car.shells.release()
         car.barrier()
 
@@ -1491,7 +1491,7 @@ class SplitScenarioTest {
         car.shells.blockAt("dumpsys input")
         core.nativePickerVisible()
         assertTrue(car.shells.awaitBlocked())
-        core.homeVisible()
+        core.homeKeyPressed()
         car.shells.release()
         car.barrier()
 
@@ -2384,7 +2384,7 @@ class SplitScenarioTest {
 
         // Home накрыл пару: сцена жива-скрыта (1.9.1, инвариант 5).
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         val commits = car.store.commits
         car.clearCommands()
@@ -2455,7 +2455,7 @@ class SplitScenarioTest {
         car.barrier()
 
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         car.clearCommands()
 
@@ -2502,7 +2502,7 @@ class SplitScenarioTest {
         car.barrier()
 
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         val commits = car.store.commits
         car.clearCommands()
@@ -2704,7 +2704,7 @@ class SplitScenarioTest {
         // правка W2 (в редакции волны 8), взводит уборочную сверку отложенным каналом: член
         // сцены мёртв, а hidden-хинт умершего пикера может не прийти вовсе. Таймер повтора
         // дожидается уборки.
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         assertFalse(car.fake.isGateOpen())
         car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
@@ -2728,7 +2728,7 @@ class SplitScenarioTest {
         car.clearCommands()
         val hold = car.hold()
         core.pickerHidden(PRIMARY_PICKER_TASK)
-        repeat(ECHOES) { core.homeVisible() }
+        repeat(ECHOES) { core.homeKeyPressed() }
         hold.release()
         car.barrier()
         assertEquals("шторм над убранным миром ничего не трогает", emptyList<String>(), car.mutations())
@@ -2832,7 +2832,11 @@ class SplitScenarioTest {
         car.barrier()
         assertEquals(1, car.clock.pendingTimers())
 
-        core.homeVisible()
+        core.homeKeyPressed()
+        car.barrier()
+        // The key closed the gate ahead and checks it a second later; over a covered world the
+        // check finds the cover and leaves the rest to Home, so it is let run before counting.
+        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
         car.barrier()
         // Второй barrier дренирует всё, что Home мог бы подать мгновенно: до волны 8 здесь
         // уже не было сироты, теперь мир не читается в зубы teardown-а до таймера повтора.
@@ -2936,7 +2940,7 @@ class SplitScenarioTest {
         assertTrue(car.shells.awaitBlocked())
 
         // Home вытесняет её (§4) - и раньше хоронил уборку навсегда.
-        core.homeVisible()
+        core.homeKeyPressed()
         car.shells.release()
         car.barrier()
         assertTrue("сирота ещё жив: уборку отменили", car.fake.hasTask(SECONDARY_PICKER_TASK))
@@ -3061,7 +3065,7 @@ class SplitScenarioTest {
         car.fake.stretchPanelRoot(PRIMARY_ROOT, baseKeepsPanelBounds = true)
         // ...и Home накрыл экран прежде, чем хоть одна сверка успела посмотреть.
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         core.dividerResized()
         car.barrier()
@@ -3132,7 +3136,7 @@ class SplitScenarioTest {
         // контейнер и растянут на весь экран. Затем Home накрыл экран.
         car.fake.collapseIntoWide(SECONDARY_ROOT)
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         core.dividerResized()
         car.barrier()
@@ -3253,7 +3257,7 @@ class SplitScenarioTest {
 
         car.fake.collapseIntoWide(SECONDARY_ROOT)
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
 
         assertEquals(
@@ -3356,7 +3360,11 @@ class SplitScenarioTest {
         car.fake.area = 0
 
         // Ни dividerResized, ни pickerHidden: продукту о жесте никто не сказал.
-        core.homeVisible()
+        core.homeKeyPressed()
+        car.barrier()
+        // The key closed the gate ahead and checks it a second later; over a covered world the
+        // check finds the cover and leaves the rest to Home, so it is let run before counting.
+        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
         car.barrier()
 
         assertEquals(
@@ -3405,7 +3413,7 @@ class SplitScenarioTest {
         car.fake.stretchPanelRoot(PRIMARY_ROOT, baseKeepsPanelBounds = true)
         car.fake.area = 1
 
-        // Ни homeVisible, ни dividerResized: сразу плитка.
+        // Ни Home, ни dividerResized: сразу плитка.
         core.openPickerSession()
         car.barrier()
 
@@ -3452,7 +3460,11 @@ class SplitScenarioTest {
         car.fake.detachTask(SECONDARY_APP_TASK)
         car.fake.stretchPanelRoot(PRIMARY_ROOT, baseKeepsPanelBounds = true)
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
+        car.barrier()
+        // The key closed the gate ahead and checks it a second later; over a covered world the
+        // check finds the cover and leaves the rest to Home, so it is let run before counting.
+        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
         car.barrier()
 
         assertEquals(
@@ -3559,7 +3571,7 @@ class SplitScenarioTest {
 
         repeat(6) {
             car.fake.area = 0
-            core.homeVisible()
+            core.homeKeyPressed()
             car.barrier()
             core.dividerResized()
             car.barrier()
@@ -3606,8 +3618,8 @@ class SplitScenarioTest {
      * И это же потерянный хинт диагноза v33 (2026-08-26, живьём): Home-хинт может не прийти
      * ВООБЩЕ - из восьми обычных Home над живой парой accessibility-событие лаунчера пришло дважды,
      * `HomeOperation` в остальных шести не запускалась, gate оставался открытым, и следующий тап
-     * по приложению в доке прошивка втягивала в split вторым окном. `homeVisible()` здесь не
-     * вызывается ни разу, приходит только оконный шторм, который на машине приходил всегда.
+     * по приложению в доке прошивка втягивала в split вторым окном. Home здесь не приходит ни
+     * клавишей, ни хинтом, приходит только оконный шторм, который на машине приходил всегда.
      * (До 2026-10-08 это был отдельный тест с той же подготовкой строка в строку.)
      */
     @Test
@@ -4085,7 +4097,7 @@ class SplitScenarioTest {
         core.openPickerSession()
         car.barrier()
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         assertFalse("Home подвесил gate", car.fake.isGateOpen())
         car.clearCommands()
@@ -4162,7 +4174,7 @@ class SplitScenarioTest {
         assertEquals(SplitSlot.Closed, car.store.load().slot(SplitPane.SECONDARY))
 
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
 
         car.clearCommands()
@@ -4244,7 +4256,7 @@ class SplitScenarioTest {
 
         // И следующий open даёт в этой панели пикер, а не воскрешение (1.3.4, 1.8.2).
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         car.clearCommands()
         core.openPickerSession()
@@ -4754,6 +4766,11 @@ class SplitScenarioTest {
      * не молчание. Закрыть gate при накрытой сцене обязан продукт; при открытом gate прошивка
      * сама втягивает следующий split-способный запуск в широкую панель, и эта строка -
      * единственный след, по которому причина читается с support-экрана.
+     *
+     * Home без накрытия приходит одним путём - клавишей, которую прошивка проглотила (К 1.9):
+     * клавиша закрывает gate на опережение, и через секунду её проверка, прочитав видимую area,
+     * возвращает его. До 2026-10-08 тест звал `homeVisible()` в обход клавиши - пути, которого в
+     * продукте нет.
      */
     @Test
     fun anUnconfirmedHomeSuspendWritesARingLineInsteadOfSilence() {
@@ -4764,15 +4781,17 @@ class SplitScenarioTest {
         core.openPickerSession()
         car.barrier()
 
-        // Оконный хинт Home пришёл, а area так и не стала 0: мир завис на живом сплите.
-        core.homeVisible()
+        // Клавиша Home нажата, а area так и не стала 0: прошивка Home проглотила.
+        core.homeKeyPressed()
         car.barrier()
 
         assertTrue(
             "исчерпание ретраев названо в ринге",
             car.diagnostics.any { it.startsWith("home suspend unconfirmed:") },
         )
-        assertTrue("gate не закрыт вслепую", car.fake.isGateOpen())
+        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
+        car.barrier()
+        assertTrue("gate, закрытый на опережение, возвращён над видимой сценой", car.fake.isGateOpen())
         assertTrue("и аренда не потеряна", car.gateLease.isOwned())
     }
 
@@ -4788,7 +4807,7 @@ class SplitScenarioTest {
         car.clearCommands()
 
         car.shells.blockAt(SPLIT_AREA_QUERY)
-        core.homeVisible()
+        core.homeKeyPressed()
         assertTrue(car.shells.awaitBlocked())
         core.openPickerSession()
         car.shells.release()
@@ -4912,7 +4931,7 @@ class SplitScenarioTest {
 
         // Home накрыл сцену, и прошивка выбросила пикерную панель из её корня целиком.
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         car.fake.detachTask(pickerP)
         car.clearCommands()
@@ -4969,7 +4988,7 @@ class SplitScenarioTest {
         )
 
         car.fake.area = 0
-        core.homeVisible()
+        core.homeKeyPressed()
         car.barrier()
         (pickers + apps).forEach(car.fake::detachTask)
         car.clearCommands()
@@ -5056,7 +5075,11 @@ class SplitScenarioTest {
         car.fake.area = 0
         car.clearCommands()
 
-        core.homeVisible()
+        core.homeKeyPressed()
+        car.barrier()
+        // The key closed the gate ahead and checks it a second later; over a covered world the
+        // check finds the cover and leaves the rest to Home, so it is let run before counting.
+        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
         car.barrier()
         assertFalse("gate приостановлен Home-ом как обычно", car.fake.isGateOpen())
         assertEquals(

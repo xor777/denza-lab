@@ -493,7 +493,7 @@ internal class SplitCoordinatorCore(
      * «одна транзакция на одно накрытие» обязана держаться на обоих каналах, а не только на том,
      * который успел записать сцену.
      */
-    fun homeVisible() {
+    private fun homeVisible() {
         ready()
         val openInFlight = synchronized(stateLock) { openTicket?.isComplete == false }
         if (openInFlight) {
