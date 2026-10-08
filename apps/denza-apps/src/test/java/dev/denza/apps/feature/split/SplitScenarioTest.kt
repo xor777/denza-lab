@@ -1298,6 +1298,7 @@ class SplitScenarioTest {
         // Пересборка при этом не разрушительна: приложения на местах, и их никто не перезапускал.
         assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
         assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+        assertEquals("ни одного запуска поверх живого приложения (U2)", 0, appLaunches(car))
         assertEquals(APP_PAIR, car.store.load().slots)
     }
 
