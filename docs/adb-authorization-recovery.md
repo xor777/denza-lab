@@ -12,6 +12,7 @@ currently inaccessible vehicle.
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Dipilot rescue shows the passive shell result before clicks, then queue observations and click diagnostics; it approves requests by design | local tests/build; vehicle acceptance pending | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
 
 ## Contents
 
@@ -558,15 +559,29 @@ Owners describe a restore that uses Android's own wireless debugging to ask adbd
    `ACTION_CLICK` is not a touch, so a service can press it. *Always allow on this network*
    stores the BSSID, and a phone hotspot gets a new BSSID each time it starts, so on a hotspot
    the dialog comes back after every reboot.
-4. The TLS port is in `service.adb.tls.port`, which an app may not be able to read, or it can
-   be found over mDNS as `_adb-tls-connect._tcp`. Only an advertisement from one of the unit's
-   own addresses counts.
+4. Try the valid port in `service.adb.tls.port` first. If it is missing or the connection does
+   not restore 5555, discover `_adb-tls-connect._tcp` over mDNS. Only an advertisement from one
+   of the unit's own addresses counts; advertisements queued behind a remote host must still be
+   resolved. Local Wi-Fi does not need validated internet access.
 5. Connect to that port: `CNXN`, adbd answers `STLS`, then TLS 1.3 with a self-signed
    certificate around the app's RSA key. adbd checks that key against `adb_keys`
    (`adbd_tls_verify_cert`), the same file that *Always allow* on the classic prompt writes.
    No pairing code is needed.
 6. Open `tcpip:5555`. adbd sets `service.adb.tcp.port` and restarts, and the reply may come
    back as EOF. Success is the classic port answering again, not the reply.
+
+*Always allow* in the classic dialog writes a user key to `/data/misc/adb/adb_keys`; it does
+not promote it to a system key. In this image `AdbDebuggingManager.AdbKeyStore` reads system
+keys from `/adb_keys` (`SYSTEM_KEY_FILE`, lines 1431–1447), while `isKeyAuthorized` (1756–1768)
+applies `adb_allowed_connection_time` to user keys (one week by default, unlimited only when
+that setting is zero). A persisted “trusted before” flag is therefore only a prerequisite for
+trying restoration. After a long idle period the same certificate may be refused; the product
+must not silently pair a new identity or claim that remembered trust is current authorization.
+
+The positive button is the stock alert's `android:id/button1`. The framework resource for the
+checkbox is `android:id/alwaysUse` (`com.android.internal.R.id.alwaysUse = 0x01020239`); a Java
+class name is not a resource package. Decompiled framework resource aliases are unreliable,
+so exact accessibility IDs and actual clicks still need a window dump on the car.
 
 **This keeps ADB open; it does not open it.** Every one of these preconditions has to hold:
 
