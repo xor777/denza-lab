@@ -56,15 +56,26 @@ object AdbStartupGatePolicy {
             "официального диагностического компьютера. Пожалуйста, обратитесь в сервис " +
             "для разблокировки доступа к ADB."
 
+    /**
+     * What opening the app does about access: a passive look in every phase that is not settled.
+     *
+     * Only UNKNOWN used to be checked, and that left a hole exactly where it hurt. A request the
+     * owner approved, with «always allow», on a car that then slept before «Я подтвердил —
+     * проверить» was pressed, brought every later process up in AWAITING_CONFIRMATION, and nothing
+     * ever looked again: the key was trusted and no feature started. A passive check signs with the
+     * key it has and never submits it, so it costs no prompt and no attempt. It is skipped only
+     * while a check or the request is already in flight.
+     */
     fun entryAction(phase: AdbRescuePhase): AdbStartupEntryAction = when (phase) {
-        AdbRescuePhase.UNKNOWN -> AdbStartupEntryAction.CHECK_ACCESS
         AdbRescuePhase.TRUSTED -> AdbStartupEntryAction.START_RUNTIME
-        AdbRescuePhase.CHECKING,
+        AdbRescuePhase.UNKNOWN,
         AdbRescuePhase.AUTHORIZATION_REQUIRED,
-        AdbRescuePhase.REQUESTING,
         AdbRescuePhase.AWAITING_CONFIRMATION,
         AdbRescuePhase.UNAVAILABLE,
         AdbRescuePhase.ERROR,
+        -> AdbStartupEntryAction.CHECK_ACCESS
+        AdbRescuePhase.CHECKING,
+        AdbRescuePhase.REQUESTING,
         -> AdbStartupEntryAction.NONE
     }
 
@@ -148,18 +159,24 @@ object AdbStartupGatePolicy {
     }
 }
 
-/** A bounded autoload retry may repeat passive checks, but never requests a new ADB key. */
+/**
+ * A bounded autoload retry may repeat passive checks, but never requests a new ADB key.
+ *
+ * AWAITING_CONFIRMATION is checked because an approval can land at any moment, and every sleep
+ * kills the process: a wake is the only time a car with no one at the screen gets to notice it. A
+ * plain refusal (AUTHORIZATION_REQUIRED) is not: nothing was submitted, so nothing can approve it.
+ */
 object AdbAutostartRetryPolicy {
     fun action(phase: AdbRescuePhase): AdbAutostartRetryAction = when (phase) {
         AdbRescuePhase.UNKNOWN,
         AdbRescuePhase.UNAVAILABLE,
         AdbRescuePhase.ERROR,
+        AdbRescuePhase.AWAITING_CONFIRMATION,
         -> AdbAutostartRetryAction.CHECK_ACCESS
         AdbRescuePhase.TRUSTED -> AdbAutostartRetryAction.START_RUNTIME
         AdbRescuePhase.CHECKING,
         AdbRescuePhase.AUTHORIZATION_REQUIRED,
         AdbRescuePhase.REQUESTING,
-        AdbRescuePhase.AWAITING_CONFIRMATION,
         -> AdbAutostartRetryAction.NONE
     }
 }

@@ -18,14 +18,26 @@ class AdbStartupGatePolicyTest {
     }
 
     @Test
-    fun `unavailable startup does not trigger another internal probe`() {
+    fun `opening the app looks again in every unsettled phase, never over a check or a request`() {
+        listOf(
+            AdbRescuePhase.UNKNOWN,
+            AdbRescuePhase.AUTHORIZATION_REQUIRED,
+            AdbRescuePhase.AWAITING_CONFIRMATION,
+            AdbRescuePhase.UNAVAILABLE,
+            AdbRescuePhase.ERROR,
+        ).forEach { phase ->
+            assertEquals(
+                phase.name,
+                AdbStartupEntryAction.CHECK_ACCESS,
+                AdbStartupGatePolicy.entryAction(phase),
+            )
+        }
+        listOf(AdbRescuePhase.CHECKING, AdbRescuePhase.REQUESTING).forEach { phase ->
+            assertEquals(phase.name, AdbStartupEntryAction.NONE, AdbStartupGatePolicy.entryAction(phase))
+        }
         assertEquals(
-            AdbStartupEntryAction.NONE,
-            AdbStartupGatePolicy.entryAction(AdbRescuePhase.UNAVAILABLE),
-        )
-        assertEquals(
-            AdbStartupEntryAction.NONE,
-            AdbStartupGatePolicy.entryAction(AdbRescuePhase.AUTHORIZATION_REQUIRED),
+            AdbStartupEntryAction.START_RUNTIME,
+            AdbStartupGatePolicy.entryAction(AdbRescuePhase.TRUSTED),
         )
     }
 
@@ -35,6 +47,7 @@ class AdbStartupGatePolicyTest {
             AdbRescuePhase.UNKNOWN,
             AdbRescuePhase.UNAVAILABLE,
             AdbRescuePhase.ERROR,
+            AdbRescuePhase.AWAITING_CONFIRMATION,
         ).forEach { phase ->
             assertEquals(
                 phase.name,
@@ -47,7 +60,6 @@ class AdbStartupGatePolicyTest {
             AdbRescuePhase.CHECKING,
             AdbRescuePhase.AUTHORIZATION_REQUIRED,
             AdbRescuePhase.REQUESTING,
-            AdbRescuePhase.AWAITING_CONFIRMATION,
         ).forEach { phase ->
             assertEquals(
                 phase.name,
@@ -113,8 +125,9 @@ class AdbStartupGatePolicyTest {
         assertEquals(AdbStartupPrimaryAction.CHECK_ACCESS, model.primaryAction)
         assertFalse(model.recoveryAvailable)
         assertFalse(checked.canRequest)
+        // Opening the app looks again, passively; it never turns into a request.
         assertEquals(
-            AdbStartupEntryAction.NONE,
+            AdbStartupEntryAction.CHECK_ACCESS,
             AdbStartupGatePolicy.entryAction(checked.phase),
         )
     }
@@ -260,6 +273,72 @@ class AdbStartupGatePolicyTest {
         assertEquals(
             AdbRescuePolicy.SYSTEM_SWITCH_ON_DETAIL,
             AdbStartupGatePolicy.overlay(noisy).details,
+        )
+    }
+
+    /**
+     * The defect: the owner approved the one request with «always allow», and the car slept before
+     * «Я подтвердил — проверить» was pressed. Every later process came up waiting for that press,
+     * and no wake, no screen-on and no opening of the app ever looked, although the key was trusted.
+     */
+    @Test
+    fun `a restart with an approved but unchecked request reaches the runtime on its own`() {
+        val restarted = AdbRescuePolicy.initial(
+            requestPending = true,
+            attemptCount = 1,
+            lastAttemptAtMillis = 1_000L,
+        )
+        assertEquals(AdbRescuePhase.AWAITING_CONFIRMATION, restarted.phase)
+
+        // The wake's autoload looks, and so does opening the app.
+        assertEquals(
+            AdbAutostartRetryAction.CHECK_ACCESS,
+            AdbAutostartRetryPolicy.action(restarted.phase),
+        )
+        assertEquals(
+            AdbStartupEntryAction.CHECK_ACCESS,
+            AdbStartupGatePolicy.entryAction(restarted.phase),
+        )
+
+        // adbd now answers the signed token with CNXN.
+        val checked = AdbRescuePolicy.afterCheck(
+            AdbRescuePolicy.checking(restarted),
+            AdbCheckOutcome.TRUSTED,
+            AdbSystemSwitch.ENABLED,
+        )
+
+        assertEquals(AdbRescuePhase.TRUSTED, checked.phase)
+        assertFalse(checked.requestPending)
+        assertEquals(1, checked.attemptCount)
+        assertEquals(
+            AdbAutostartRetryAction.START_RUNTIME,
+            AdbAutostartRetryPolicy.action(checked.phase),
+        )
+        assertFalse(AdbStartupGatePolicy.overlay(checked).visible)
+    }
+
+    @Test
+    fun `a request still unanswered is looked at again and never sent again`() {
+        val restarted = AdbRescuePolicy.initial(
+            requestPending = true,
+            attemptCount = 1,
+            lastAttemptAtMillis = 1_000L,
+        )
+
+        val checked = AdbRescuePolicy.afterCheck(
+            AdbRescuePolicy.checking(restarted),
+            AdbCheckOutcome.AUTHORIZATION_REQUIRED,
+            AdbSystemSwitch.ENABLED,
+        )
+
+        assertEquals(AdbRescuePhase.AWAITING_CONFIRMATION, checked.phase)
+        assertTrue(checked.requestPending)
+        assertEquals(1, checked.attemptCount)
+        assertFalse(checked.canRequest)
+        // The next wake looks again; still a look, not a request.
+        assertEquals(
+            AdbAutostartRetryAction.CHECK_ACCESS,
+            AdbAutostartRetryPolicy.action(checked.phase),
         )
     }
 

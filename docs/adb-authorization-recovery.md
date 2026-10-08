@@ -65,8 +65,16 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   (live 2026-09-23). After each installed build the switch has to be turned off again.
 - Autoload owns one finite readiness window: passive probes happen at 0, 4, 8, 16, and 32 seconds
   after cycle start. `UNAVAILABLE` and `ERROR` may repeat a passive check inside that window because
-  car services can still be coming up; an authorization refusal never submits a key automatically.
-  Outside this window only an explicit user action can start another probe or the one-shot request.
+  car services can still be coming up. `AWAITING_CONFIRMATION` repeats one because an approval can
+  land at any moment. A plain refusal (`AUTHORIZATION_REQUIRED`) is not repeated: nothing was
+  submitted, so nothing can approve it. No refusal ever submits a key automatically.
+  Outside this window, opening the app (and the accessibility service connecting) runs one passive
+  check in every phase that is not `TRUSTED`, unless a check or the request is already in flight.
+  Only an explicit user action sends the one-shot request (`AdbStartupGatePolicy.entryAction`,
+  `AdbAutostartRetryPolicy.action`). Until 2026-10-08 only `UNKNOWN` was checked on opening, and
+  autoload skipped `AWAITING_CONFIRMATION`. A request approved with *Always allow* on a car that
+  slept before **Я подтвердил — проверить** was pressed left every later process waiting for that
+  press: the key was trusted and no feature started.
   This is startup convergence, not resurrection after Android `force-stop`.
 - A refused/timeout/no-route endpoint is shown as **ADB недоступен** with the service-only
   instruction. A successful ADB handshake with an untrusted Denza Apps key is shown separately as
@@ -135,7 +143,8 @@ screen where they mean something to whoever is reading them.
 3. If **Подтвердите доступ к ADB** is shown, press **Запросить доступ** once. The compact
    **Восстановление ADB** panel exposes the same one-shot action and status.
 4. Approve the Android dialog on the vehicle, then press **Я подтвердил — проверить** or
-   **Проверить доступ**.
+   **Проверить доступ**. If the car sleeps or the app is closed before that, the next wake or the
+   next opening of the app checks on its own.
 5. If no dialog appears, do not repeatedly rearm the request. Preserve the pending state and use
    the stuck-queue procedure below when a separately trusted transport is available.
 
