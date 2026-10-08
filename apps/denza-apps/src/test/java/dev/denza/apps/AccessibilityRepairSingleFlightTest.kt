@@ -14,6 +14,39 @@ import kotlin.concurrent.thread
 
 class AccessibilityRepairSingleFlightTest {
     @Test
+    fun restoreCancelledBeforeItsQueuedRepairWritesNothing() {
+        val shell = FakeAccessibilitySettings(listOf("com.other/.Observer"))
+        DenzaAccessibilityRepairController(shell::run, FakeSplitAccessLease(false, 0), pause = {})
+            .repair(ensureSplit = false, stillWanted = { false })
+        assertTrue(shell.writes.isEmpty())
+    }
+
+    @Test
+    fun cancellingDuringUnbindRestoresTheOriginalEntries() {
+        val original = listOf("com.other/.Observer", SimulcastAccessibilityAccess.COMPONENT)
+        val shell = FakeAccessibilitySettings(original)
+        var wanted = true
+        try {
+            DenzaAccessibilityRepairController(shell::run, FakeSplitAccessLease(false, 0), pause = { wanted = false })
+                .repair(ensureSplit = false, stillWanted = { wanted })
+            org.junit.Assert.fail("cancelled repair continued")
+        } catch (_: IllegalStateException) { }
+        assertEquals(listOf(listOf("com.other/.Observer"), original), shell.writes)
+        assertEquals(original, shell.services)
+    }
+    @Test
+    fun cancelledRestoreDoesNotCancelAnotherFeaturesRepair() {
+        val flight = AccessibilityRepairSingleFlight()
+        var restoreWanted = true
+        assertTrue(flight.join({}, { restoreWanted }))
+        restoreWanted = false
+        assertFalse(flight.isStillWanted())
+        assertFalse(flight.join({}))
+        assertTrue(flight.isStillWanted())
+        flight.complete(null)
+        assertFalse(flight.isStillWanted())
+    }
+    @Test
     fun sharedRepairRestoresAppObserverThenSplitObserverLast() {
         val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
         val voice = "com.byd.autovoice/.SceneSayService"

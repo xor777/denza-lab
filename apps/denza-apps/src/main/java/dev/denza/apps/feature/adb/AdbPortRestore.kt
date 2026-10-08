@@ -18,8 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * for an app that already holds WRITE_SECURE_SETTINGS, and that permission can only be granted
  * while the old port still answers (docs/adb-authorization-recovery.md, "Port 5555 after a reboot,
  * and reopening it through wireless debugging"). So the part that has to be in place before such an
- * update lives here and runs on every runtime pass with a trusted shell. Nothing here reopens the
- * port yet.
+ * update lives here and runs on every runtime pass with a trusted shell. AdbRestoreManager uses
+ * this same grant boundary, then reopens the port through stock wireless debugging when needed.
  */
 
 /** What this process did about [Manifest.permission.WRITE_SECURE_SETTINGS]. */
@@ -131,7 +131,7 @@ internal object AdbPortRestorePass {
         state.copy(readFailure = failureLabel(error))
     }
 
-    private fun grant(
+    internal fun grant(
         packageName: String,
         isHeld: () -> Boolean,
         shell: (String) -> String,
@@ -222,6 +222,7 @@ object AdbPortRestore {
 
     private val executor = Executors.newSingleThreadExecutor()
     private val running = AtomicBoolean(false)
+    private val permissionLock = Any()
 
     @Volatile
     private var current = AdbPortRestoreState()
@@ -230,6 +231,17 @@ object AdbPortRestore {
 
     fun isPermissionHeld(context: Context): Boolean =
         context.checkSelfPermission(AdbPortRestorePass.PERMISSION) == PackageManager.PERMISSION_GRANTED
+
+    /** The restore attempt and runtime preparation share one idempotent grant transaction. */
+    internal fun ensurePermission(context: Context, abandoned: () -> Boolean) = synchronized(permissionLock) {
+        if (abandoned()) return@synchronized
+        current = AdbPortRestorePass.grant(context.packageName,
+            { isPermissionHeld(context) },
+            { command ->
+                check(!abandoned()) { "Permission preparation cancelled" }
+                DenzaLocalAdb.client(context).shell(command, COMMAND_TIMEOUT_MS)
+            }, current)
+    }
 
     /**
      * One pass, for a caller that already holds a trusted key; a pass already running absorbs this
@@ -242,13 +254,13 @@ object AdbPortRestore {
             try {
                 val session = DenzaLocalAdb.client(app).openPersistentShell()
                 try {
-                    current = AdbPortRestorePass.run(
+                    synchronized(permissionLock) { current = AdbPortRestorePass.run(
                         packageName = app.packageName,
                         isHeld = { isPermissionHeld(app) },
                         shell = { command -> session.shell(command, COMMAND_TIMEOUT_MS) },
                         previous = current,
                         now = SystemClock::elapsedRealtime,
-                    )
+                    ) }
                 } finally {
                     session.close()
                 }
