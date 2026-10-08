@@ -31,20 +31,37 @@ class BehindAdbGateTest {
 
     /**
      * The defect: a fresh process behind the gate published the gate's phase and nothing else, so
-     * the technical page opened through the explainer's seven taps parsed an empty string.
+     * the technical page opened through the explainer's seven taps parsed an empty string. The
+     * report is now built because the panel is open, and the gate has no say in that.
      */
     @Test
     fun `behind the gate the service page has its report and its journal`() {
-        val gated = DenzaUiState().behindAdbGate(
-            AdbRescueSnapshot(
-                phase = AdbRescuePhase.AWAITING_CONFIRMATION,
-                requestPending = true,
-                systemSwitch = AdbSystemSwitch.ENABLED,
-            ),
-            report,
-            journal,
+        val store = DenzaUiStateStore()
+        store.update {
+            it.behindAdbGate(
+                AdbRescueSnapshot(
+                    phase = AdbRescuePhase.AWAITING_CONFIRMATION,
+                    requestPending = true,
+                    systemSwitch = AdbSystemSwitch.ENABLED,
+                ),
+            )
+        }
+        val clock = ManualReportClock()
+        val serviceReport = ServiceReport(
+            clock = clock,
+            periodMs = 1_000L,
+            build = { ServiceReport.Pages(report, journal) },
+            publish = { pages ->
+                store.update {
+                    it.copy(technicalDetails = pages.technicalDetails, splitJournal = pages.splitJournal)
+                }
+            },
         )
 
+        serviceReport.setOpen(true)
+        clock.runPending()
+
+        val gated = store.state.value
         assertEquals(
             listOf("Приложение", "Доступ к машине"),
             TechnicalReadings.parse(gated.technicalDetails).map { it.title },
@@ -60,11 +77,16 @@ class BehindAdbGateTest {
             desiredEnabled = true,
             status = FeatureStatus.ACTIVE,
         )
-        val healthy = DenzaUiState(mirrors = mirrorsRunning, selectedAppCount = 3)
+        val healthy = DenzaUiState(
+            mirrors = mirrorsRunning,
+            selectedAppCount = 3,
+            technicalDetails = report,
+            splitJournal = journal,
+        )
 
-        val gated = healthy.behindAdbGate(AdbRescueSnapshot(phase = AdbRescuePhase.ERROR), report, journal)
+        val gated = healthy.behindAdbGate(AdbRescueSnapshot(phase = AdbRescuePhase.ERROR))
 
-        assertEquals(healthy.copy(adbRescue = gated.adbRescue, technicalDetails = report, splitJournal = journal), gated)
+        assertEquals(healthy.copy(adbRescue = gated.adbRescue), gated)
         assertEquals(mirrorsRunning, gated.mirrors)
         assertEquals(3, gated.selectedAppCount)
     }
