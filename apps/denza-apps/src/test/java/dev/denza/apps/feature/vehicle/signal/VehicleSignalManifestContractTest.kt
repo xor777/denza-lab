@@ -1,13 +1,13 @@
 package dev.denza.apps.feature.vehicle.signal
 
-import java.io.File
+import dev.denza.apps.appManifest
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class VehicleSignalManifestContractTest {
     @Test
     fun signalHubAddsNoBydPermissionOrExportedEventComponent() {
-        val manifest = File("src/main/AndroidManifest.xml").readText()
+        val manifest = appManifest()
 
         assertFalse(manifest.contains("BYDAUTO_"))
         assertFalse(manifest.contains("can_msg_event"))

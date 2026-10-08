@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.weather
 
+import dev.denza.apps.appManifest
 import dev.denza.apps.between
+import dev.denza.apps.component
 import java.io.File
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -19,11 +21,7 @@ class WeatherProcessContractTest {
 
     @Test
     fun theServiceRunsInTheAppsOwnProcess() {
-        val manifest = File("src/main/AndroidManifest.xml").readText()
-        val service = checkNotNull(
-            Regex("""<service\s+[^>]*android:name="\.feature\.weather\.WeatherAdapterService"[^>]*>""")
-                .find(manifest),
-        ) { "WeatherAdapterService is missing from the manifest" }.value
+        val service = appManifest().component("service", ".feature.weather.WeatherAdapterService")
         assertFalse(
             "WeatherAdapterService must not run in a process of its own: $service",
             "android:process" in service,

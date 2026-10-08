@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.appManifest
+import dev.denza.apps.component
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -84,11 +86,7 @@ class SplitPickerVisibilityPolicyTest {
      */
     @Test
     fun theManifestStillDeclaresThePaneActivityTheCatalogResolvesUsTo() {
-        val manifest = java.io.File("src/main/AndroidManifest.xml").readText()
-        val declaration = Regex("<activity[^>]*android:name=\"\\.MainActivity\"[^>]*/?>")
-            .find(manifest)
-        assertTrue("манифест больше не объявляет .MainActivity", declaration != null)
-        val activity = declaration!!.value
+        val activity = appManifest().component("activity", ".MainActivity")
         assertTrue(
             "MainActivity перестала быть exported",
             activity.contains("android:exported=\"true\""),
