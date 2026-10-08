@@ -106,6 +106,9 @@ object SupportDiagnostics {
                 section("Анализатор спектра", spectrumRows(spectrumLabel(context))),
                 section("Экран справа", fseRows(fseInstaller)),
                 section("Экраны Android", displayRows(displays)),
+                // How often the dashboard's state was rebuilt, how long each took and on which
+                // thread: the before-and-after of making that cheaper, read off a photo.
+                section(StateRecomputes.SECTION, StateRecomputes.rows()),
             ),
         )
     }

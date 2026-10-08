@@ -594,7 +594,7 @@ class SideCameraMonitorService : Service() {
 
     private fun setStatus(side: MirrorSide?, details: String) {
         MirrorsSettings.setObserved(this, side, details)
-        DenzaAppRepository.refresh()
+        DenzaAppRepository.refresh("mirrors")
     }
 
     private fun ensureChannel() {

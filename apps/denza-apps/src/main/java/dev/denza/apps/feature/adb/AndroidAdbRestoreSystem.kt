@@ -119,7 +119,7 @@ object AdbRestore {
         app = application
         manager = AdbRestoreManager(AndroidAdbRestoreSystem(application), AdbRestorePreferences(application),
             CoroutineScope(SupervisorJob() + Dispatchers.IO)) {
-                DenzaAppRepository.refresh()
+                DenzaAppRepository.refresh("adb restore")
                 if (manager?.snapshot()?.state == AdbRestoreState.NotNeeded &&
                     AdbRescueCoordinator.snapshot().phase in listOf(AdbRescuePhase.UNAVAILABLE, AdbRescuePhase.ERROR,
                         AdbRescuePhase.AUTHORIZATION_REQUIRED, AdbRescuePhase.AWAITING_CONFIRMATION)) {

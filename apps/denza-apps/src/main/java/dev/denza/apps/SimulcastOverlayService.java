@@ -260,7 +260,7 @@ public class SimulcastOverlayService extends Service {
     private void shareOver() {
         SimulcastIntegration.clearLastTargetPackage();
         hideActiveShareExit();
-        DenzaAppRepository.INSTANCE.refresh();
+        DenzaAppRepository.INSTANCE.refresh("share over");
     }
 
     private void stopBridge() {
