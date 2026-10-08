@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import dev.denza.apps.core.DenzaRuntimeCoordinator
 import dev.denza.apps.core.RuntimeStartCause
 import dev.denza.apps.feature.split.SplitDiagnostics
+import dev.denza.apps.feature.adb.AdbRestore
 import dev.denza.apps.feature.vehicle.VehicleSession
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -20,6 +21,8 @@ class DenzaAppsApplication : Application() {
         SplitDiagnostics.attach(this, Application.getProcessName())
         if (!DenzaProcessPolicy.shouldBootstrap(packageName, Application.getProcessName())) return
         ScreenOnRuntimeRecovery.register(this)
+        AdbRestore.initialize(this)
+        AdbRestore.trigger("process-start")
         // The road is recorded whether or not anyone looks (the energy display contract, §2.7).
         // The claim lasts for the life of the process and there is nothing to release; while no
         // screen holds one of its own the hub sweeps once a second instead of ten times.
@@ -48,6 +51,7 @@ internal object ScreenOnRuntimeRecovery {
         override fun onReceive(context: Context, intent: Intent?) {
             if (ScreenOnRecoveryPolicy.shouldRecover(intent?.action)) {
                 DenzaRuntimeCoordinator.bootstrap(context, RuntimeStartCause.SCREEN_ON)
+                AdbRestore.trigger("screen-on")
             }
         }
     }
@@ -58,7 +62,7 @@ internal object ScreenOnRuntimeRecovery {
             ContextCompat.registerReceiver(
                 context.applicationContext,
                 receiver,
-                IntentFilter(Intent.ACTION_SCREEN_ON),
+                IntentFilter(Intent.ACTION_SCREEN_ON).apply { addAction(Intent.ACTION_USER_PRESENT) },
                 ContextCompat.RECEIVER_NOT_EXPORTED,
             )
         }.onFailure { error ->
@@ -69,5 +73,5 @@ internal object ScreenOnRuntimeRecovery {
 }
 
 internal object ScreenOnRecoveryPolicy {
-    fun shouldRecover(action: String?): Boolean = action == Intent.ACTION_SCREEN_ON
+    fun shouldRecover(action: String?): Boolean = action == Intent.ACTION_SCREEN_ON || action == Intent.ACTION_USER_PRESENT
 }
