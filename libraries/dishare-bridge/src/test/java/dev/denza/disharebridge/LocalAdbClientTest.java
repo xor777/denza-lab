@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -25,14 +26,26 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
 public final class LocalAdbClientTest {
+    /**
+     * The failure the handshake reports a waiting prompt with is the one every caller recognises.
+     *
+     * <p>It used to build its own exception with the message typed out again, so a reworded
+     * {@code authorizationPending()} would have left this green and the four callers outside the
+     * library that read the message would have stopped recognising it.
+     */
     @Test
-    public void authorizationPendingStopsHostFallback() {
-        assertTrue(LocalAdbClient.isAuthorizationPending(
-                new IOException("ADB authorization pending; confirm the ADB request")));
+    public void thePendingFailureIsTheOneEveryCallerRecognises() {
+        IOException pending = LocalAdbClient.authorizationPending();
+        assertTrue(LocalAdbClient.isAuthorizationPending(pending));
+        assertTrue("the words the callers outside the library look for: " + pending.getMessage(),
+                pending.getMessage().toLowerCase(Locale.ROOT).contains("authorization pending"));
         assertTrue(LocalAdbClient.isAuthorizationPending(
                 new LocalAdbClient.AuthorizationRequiredException()));
         assertFalse(LocalAdbClient.isAuthorizationPending(
@@ -114,20 +127,26 @@ public final class LocalAdbClientTest {
 
     @Test
     public void aPendingAuthorizationStillStopsAtTheFirstHost() throws Exception {
-        List<String> asked = new ArrayList<>();
-        try {
-            LocalAdbClient.firstHostThatAnswers(
-                    Arrays.asList("127.0.0.1", "192.168.43.20"),
-                    (host, sent) -> {
-                        asked.add(host);
-                        throw new LocalAdbClient.AuthorizationRequiredException();
-                    });
-            fail("a refused key was retried on another address");
-        } catch (LocalAdbClient.AuthorizationRequiredException expected) {
-            // Same adbd, same key, same answer: asking again only adds a prompt.
-        }
+        // Both ways the handshake says "not yet": no request may be sent, and one is waiting.
+        for (IOException refusal : Arrays.asList(
+                new LocalAdbClient.AuthorizationRequiredException(),
+                LocalAdbClient.authorizationPending())) {
+            List<String> asked = new ArrayList<>();
+            try {
+                LocalAdbClient.firstHostThatAnswers(
+                        Arrays.asList("127.0.0.1", "192.168.43.20"),
+                        (host, sent) -> {
+                            asked.add(host);
+                            throw refusal;
+                        });
+                fail("a refused key was retried on another address: " + refusal.getMessage());
+            } catch (IOException expected) {
+                // Same adbd, same key, same answer: asking again only adds a prompt.
+                assertSame(refusal, expected);
+            }
 
-        assertEquals(Arrays.asList("127.0.0.1"), asked);
+            assertEquals(refusal.getMessage(), Arrays.asList("127.0.0.1"), asked);
+        }
     }
 
     /** Hands out its bytes, then times out the way a socket with SO_TIMEOUT does. */
@@ -164,24 +183,23 @@ public final class LocalAdbClientTest {
                 LocalAdbClient.authChallengeAction(
                         LocalAdbClient.AuthorizationPolicy.PASSIVE,
                         false,
-                        false,
                         true));
     }
 
+    /**
+     * The button's request sends the key even from a passive client.
+     *
+     * <p>That it sends it once is {@code connect}'s loop, not this decision: a key that went makes
+     * the next challenge a pending report. Its second half here passed a "key already sent" flag
+     * that production only ever passed as {@code false}, so it tested a branch nothing reached; the
+     * flag and the branch are gone, and the loop has no JVM test without an adbd on port 5555.
+     */
     @Test
-    public void explicitRequestCanSubmitExactlyOnePublicKey() {
+    public void anExplicitRequestSendsTheKeyEvenFromAPassiveClient() {
         assertEquals(
                 LocalAdbClient.AuthChallengeAction.SEND_PUBLIC_KEY,
                 LocalAdbClient.authChallengeAction(
                         LocalAdbClient.AuthorizationPolicy.PASSIVE,
-                        true,
-                        false,
-                        true));
-        assertEquals(
-                LocalAdbClient.AuthChallengeAction.REPORT_PENDING,
-                LocalAdbClient.authChallengeAction(
-                        LocalAdbClient.AuthorizationPolicy.PASSIVE,
-                        true,
                         true,
                         true));
     }
@@ -535,8 +553,12 @@ public final class LocalAdbClientTest {
     public void timeSpentWaitingForTheSessionIsBookedApartFromTheCar() throws Exception {
         Object lock = new Object();
         LocalAdbClient.ShellSpend spend = new LocalAdbClient.ShellSpend();
+        // The holder says when it has the lock: a fixed sleep here raced the holder's start on a
+        // loaded machine, and a command that found the lock free booked no wait at all.
+        CountDownLatch held = new CountDownLatch(1);
         Thread holder = new Thread(() -> {
             synchronized (lock) {
+                held.countDown();
                 try {
                     Thread.sleep(120);
                 } catch (InterruptedException interrupted) {
@@ -545,7 +567,7 @@ public final class LocalAdbClientTest {
             }
         });
         holder.start();
-        Thread.sleep(30);
+        assertTrue("the holder took the lock", held.await(5, TimeUnit.SECONDS));
 
         String answer = LocalAdbClient.timed(lock, spend, spent -> {
             spent[0] = 7_000_000L;
