@@ -27,25 +27,29 @@ class SplitOperationBudgetTest {
      *
      * Сюда входят только те операции, к которым потолок применим. `EDGE` ждёт палец пользователя,
      * `RECONCILE` фоновая и её никто не ждёт - у обеих в коде написано, почему они снаружи.
+     * Навигационные `NavPrepareOperation` (20 с) и `NavCompleteOperation` (35 с) тоже снаружи, но
+     * почему - в коде не записано (аудит тестов 2026-10-08): открытый вопрос, а не решение.
+     *
+     * Бюджет читается у самих операций. До 2026-10-08 тест проверял отдельную карту бюджетов,
+     * которую не читал никто, кроме него: `OpenOperation` с `durationMs = 15_000L` его бы не
+     * уронила. Убрать операцию из списка ниже - такой же способ «пройти» проверку, как и поднять
+     * потолок, поэтому список назван здесь целиком.
      */
     @Test
-    fun everyUserVisibleOperationFitsTheContractCeiling() {
-        USER_VISIBLE_BUDGETS_MS.forEach { (label, budget) ->
+    fun everyOperationAUserWaitsForFitsTheContractCeiling() {
+        val work = workspace(commandMs = 0L)
+        listOf(
+            EnableOperation(work),
+            DisableOperation(work),
+            OpenOperation(work),
+            SelectOperation(work, pickerTaskId = 1, target = launchTargetOf("ru.yandex.music")),
+            HomeOperation(work),
+        ).forEach { operation ->
             assertTrue(
-                "$label: бюджет $budget мс выше потолка $USER_VISIBLE_CEILING_MS мс (§1.13)",
-                budget <= USER_VISIBLE_CEILING_MS,
+                "${operation.label}: бюджет ${operation.durationMs} мс выше потолка $USER_VISIBLE_CEILING_MS мс (§1.13)",
+                operation.durationMs <= USER_VISIBLE_CEILING_MS,
             )
         }
-    }
-
-    @Test
-    fun theCeilingCoversEveryOperationAUserWaitsFor() {
-        // Инвариант против тихого сужения: убрать операцию из набора - такой же способ «пройти»
-        // проверку выше, как и поднять потолок.
-        assertEquals(
-            setOf("toggle", "open", "select", "home"),
-            USER_VISIBLE_BUDGETS_MS.keys,
-        )
     }
 
     @Test

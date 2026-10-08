@@ -2374,14 +2374,6 @@ private val ALL_LEASES = setOf(
     SplitLeaseKind.PICKER_ACCESS,
     SplitLeaseKind.SMART_MULTI,
 )
-/** Операции, к которым применим потолок §1.13, вместе с их бюджетами. */
-internal val USER_VISIBLE_BUDGETS_MS = mapOf(
-    "toggle" to TOGGLE_BUDGET_MS,
-    "open" to OPEN_BUDGET_MS,
-    "select" to SELECT_BUDGET_MS,
-    "home" to HOME_BUDGET_MS,
-)
-
 private const val SELECT_JOIN_PREFIX = "select-"
 private const val PACKAGE_REMOVED_COALESCE_PREFIX = "package-removed-"
 /**
