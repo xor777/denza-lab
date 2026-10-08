@@ -88,8 +88,7 @@ class HudArApproximationTest {
         }
         listOf(
             HudManeuver.UNKNOWN,
-            HudManeuver.ROUNDABOUT_LEFT,
-            HudManeuver.ROUNDABOUT_RIGHT,
+            HudManeuver.ROUNDABOUT,
         ).forEach { maneuver ->
             assertNull(HudArApproximationTracker().resolve(guidance(maneuver), pose(), NOW))
         }

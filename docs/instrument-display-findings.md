@@ -47,7 +47,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - The firmware-model Mirrors contract in motion: only stationary runs (D, R, hazard) of 2026-09-23 are recorded; a moving drive with the `captures/mirrors-firmware-model/` capture settles it. AVC's floating `‹ ›` (view `5097`) while we hold the renderer is a crash path by the code and is not to be tried.
 - Any non-navigator projected on this firmware, `com.byd.avc` above all: one owning session, from a documented reset, with `logcat -b crash -v time` ([Any application, not six navigators](#any-application-not-six-navigators)).
 - Whether the camera-start trims of `44f02df5` are faster: the matched A/B protocol in [Acceleration candidates: skip unused camera-start work (2026-09-05)](#acceleration-candidates-skip-unused-camera-start-work-2026-09-05).
-- HUD field-28 IDs for sharp, U-turn, straight and roundabout (a parked ID sweep), and the notification artwork and background guidance (a minimized-route check) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
+- HUD field-28 IDs for sharp, U-turn, straight and roundabout (a parked ID sweep), the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
 - Navigation recovery paths not run live: selection change, launch-discovery timeout, command failure, lost ADB, APK restart; and the `Переносим…` overlay seen on the car.
 - `android.hardware.AVMCamera` as a raw camera source outside AVC: its access control is not in the image; an isolated probe settles it.
 
@@ -2402,6 +2402,8 @@ This is an ordinal aid rather than claimed road geometry because Yandex does
 not provide an exit angle in this path. Local tests and the APK build pass for
 exits 1, 2, 3, 4, and 7. On-device visual confirmation of the dynamic artwork
 and live-road verification on a real roundabout are still pending.
+
+> **Superseded 2026-10-08:** from 2026-07-20 to 2026-10-08 the right/straight/left order held only for an instruction that said "right". Every other roundabout (`На кольце N-й съезд`, `Въезжайте на круговое движение`, a notification resource containing `roundabout`) was parsed as `ROUNDABOUT_LEFT`, and `HudSomeIpClient.shouldMirrorIcon` mirrored it: a leftover from the clockwise arc of `ddd88671`, which `9a80269a` redrew counter-clockwise without dropping the mirror. Exit 3 was drawn on the right and exit 1 on the left. There is now one `HudManeuver.ROUNDABOUT` (field 28 sent `25` for both variants anyway), drawn counter-clockwise and never mirrored; `YandexGuidanceParserTest` checks the side of the target-exit arrow tip (`HudSomeIpClient.arrowTip`) for the instructions a driver gets. The corrected picture has not been looked at on the glass.
 
 On 2026-07-19 the live Yandex route exposed `56 km`, ETA `19:34`, `53 min`, a
 right turn in `20 m`, current speed `0`, and speed limit `20`. Denza Apps bound

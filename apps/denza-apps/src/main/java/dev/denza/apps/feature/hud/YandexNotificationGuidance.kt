@@ -29,7 +29,7 @@ internal data class YandexNotificationGuidancePatch(
         val sameManeuver = maneuver == previous.maneuver
         return HudGuidance(
             maneuver = maneuver,
-            roundaboutExitNumber = if (maneuver.isRoundabout()) {
+            roundaboutExitNumber = if (maneuver == HudManeuver.ROUNDABOUT) {
                 roundaboutExitNumber ?: previous.roundaboutExitNumber.takeIf { sameManeuver }
             } else {
                 null
@@ -63,7 +63,7 @@ internal object YandexNotificationGuidanceParser {
             fields.title,
             fields.description,
         ).joinToString(" ")
-        val exitNumber = if (maneuver.isRoundabout()) {
+        val exitNumber = if (maneuver == HudManeuver.ROUNDABOUT) {
             YandexGuidanceParser.parseRoundaboutExitNumber("", combinedInstruction)
         } else {
             null
@@ -99,7 +99,7 @@ internal object YandexNotificationGuidanceParser {
                 value.contains("exit_left") -> HudManeuver.SLIGHT_LEFT
             value.contains("slight_right") || value.contains("fork_right") ||
                 value.contains("exit_right") -> HudManeuver.SLIGHT_RIGHT
-            value.contains("roundabout") -> HudManeuver.ROUNDABOUT_LEFT
+            value.contains("roundabout") -> HudManeuver.ROUNDABOUT
             value.contains("straight") || value.contains("go_ahead") ->
                 HudManeuver.STRAIGHT
             value.contains("left") -> HudManeuver.LEFT
@@ -136,9 +136,7 @@ internal object YandexNotificationGuidanceParser {
         HudManeuver.SHARP_RIGHT -> "Резкий поворот направо"
         HudManeuver.U_TURN_LEFT -> "Развернитесь налево"
         HudManeuver.U_TURN_RIGHT -> "Развернитесь направо"
-        HudManeuver.ROUNDABOUT_LEFT,
-        HudManeuver.ROUNDABOUT_RIGHT,
-        -> roundaboutExitNumber?.let { "На кольце $it-й съезд" }
+        HudManeuver.ROUNDABOUT -> roundaboutExitNumber?.let { "На кольце $it-й съезд" }
             ?: "Въезжайте на круговое движение"
         HudManeuver.UNKNOWN -> ""
     }
@@ -197,6 +195,3 @@ object HudNotificationGuidanceRuntime {
     fun resolve(previous: HudGuidance?, nowMs: Long): HudGuidance? =
         store.resolve(previous, nowMs)
 }
-
-private fun HudManeuver.isRoundabout(): Boolean =
-    this == HudManeuver.ROUNDABOUT_LEFT || this == HudManeuver.ROUNDABOUT_RIGHT

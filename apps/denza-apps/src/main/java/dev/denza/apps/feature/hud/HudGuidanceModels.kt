@@ -10,6 +10,10 @@ import kotlin.math.roundToInt
  * 5 slight right, 7 sharp left, 8 sharp right, 9/10 U-turn left/right,
  * 11 straight, 25 counter-clockwise roundabout. Roundabouts do not encode
  * the exit number here.
+ *
+ * There is one [ROUNDABOUT]: traffic here keeps right, so every roundabout
+ * turns counter-clockwise, and a "left" or "right" in its instruction names
+ * the exit, which travels as [HudGuidance.roundaboutExitNumber].
  */
 enum class HudManeuver(val stockId: Int) {
     UNKNOWN(0),
@@ -22,8 +26,7 @@ enum class HudManeuver(val stockId: Int) {
     SHARP_RIGHT(8),
     U_TURN_LEFT(9),
     U_TURN_RIGHT(10),
-    ROUNDABOUT_LEFT(25),
-    ROUNDABOUT_RIGHT(25),
+    ROUNDABOUT(25),
 }
 
 data class HudGuidance(
@@ -58,7 +61,7 @@ object YandexGuidanceParser {
         val maneuver = parseManeuver(cleanInstruction)
         return HudGuidance(
             maneuver = maneuver,
-            roundaboutExitNumber = if (maneuver.isRoundabout()) {
+            roundaboutExitNumber = if (maneuver == HudManeuver.ROUNDABOUT) {
                 parseRoundaboutExitNumber(roundaboutExitNumber.clean(), cleanInstruction)
             } else {
                 null
@@ -94,8 +97,7 @@ object YandexGuidanceParser {
             value.contains("bear ") || value.contains("fork") || value.contains("merge")
 
         return when {
-            roundabout && right -> HudManeuver.ROUNDABOUT_RIGHT
-            roundabout -> HudManeuver.ROUNDABOUT_LEFT
+            roundabout -> HudManeuver.ROUNDABOUT
             uTurn && right -> HudManeuver.U_TURN_RIGHT
             uTurn -> HudManeuver.U_TURN_LEFT
             sharp && left -> HudManeuver.SHARP_LEFT
@@ -160,9 +162,6 @@ object YandexGuidanceParser {
         }
         return null
     }
-
-    private fun HudManeuver.isRoundabout(): Boolean =
-        this == HudManeuver.ROUNDABOUT_LEFT || this == HudManeuver.ROUNDABOUT_RIGHT
 
     private fun String?.clean(): String = this.orEmpty()
         .replace('\u00a0', ' ')

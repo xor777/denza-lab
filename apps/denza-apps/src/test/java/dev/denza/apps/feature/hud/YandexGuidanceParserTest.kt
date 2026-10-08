@@ -1,7 +1,6 @@
 package dev.denza.apps.feature.hud
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -34,7 +33,7 @@ class YandexGuidanceParserTest {
         assertEquals(HudManeuver.SLIGHT_LEFT, YandexGuidanceParser.parseManeuver("Keep left at the fork"))
         assertEquals(HudManeuver.SHARP_RIGHT, YandexGuidanceParser.parseManeuver("Make a sharp right turn"))
         assertEquals(HudManeuver.U_TURN_LEFT, YandexGuidanceParser.parseManeuver("Make a U-turn"))
-        assertEquals(HudManeuver.ROUNDABOUT_LEFT, YandexGuidanceParser.parseManeuver("Enter the roundabout"))
+        assertEquals(HudManeuver.ROUNDABOUT, YandexGuidanceParser.parseManeuver("Enter the roundabout"))
         assertEquals(1_609, YandexGuidanceParser.parseDistance("1", "mi"))
         assertEquals(30, YandexGuidanceParser.parseDistance("100", "ft"))
     }
@@ -44,9 +43,9 @@ class YandexGuidanceParserTest {
         assertEquals(HudManeuver.U_TURN_LEFT, YandexGuidanceParser.parseManeuver("Развернитесь"))
         assertEquals(HudManeuver.U_TURN_RIGHT, YandexGuidanceParser.parseManeuver("Разворот направо"))
         assertEquals(HudManeuver.U_TURN_LEFT, YandexGuidanceParser.parseManeuver("Make a U‑turn"))
-        assertEquals(HudManeuver.ROUNDABOUT_LEFT, YandexGuidanceParser.parseManeuver("Въезжайте на круговое движение"))
-        assertEquals(HudManeuver.ROUNDABOUT_LEFT, YandexGuidanceParser.parseManeuver("На кольце второй съезд"))
-        assertEquals(HudManeuver.ROUNDABOUT_RIGHT, YandexGuidanceParser.parseManeuver("At the roundabout, exit right"))
+        assertEquals(HudManeuver.ROUNDABOUT, YandexGuidanceParser.parseManeuver("Въезжайте на круговое движение"))
+        assertEquals(HudManeuver.ROUNDABOUT, YandexGuidanceParser.parseManeuver("На кольце второй съезд"))
+        assertEquals(HudManeuver.ROUNDABOUT, YandexGuidanceParser.parseManeuver("At the roundabout, exit right"))
         assertEquals(HudManeuver.SLIGHT_LEFT, YandexGuidanceParser.parseManeuver("Держитесь слева"))
         assertEquals(HudManeuver.SLIGHT_LEFT, YandexGuidanceParser.parseManeuver("Плавный левый поворот"))
         assertEquals(HudManeuver.SHARP_RIGHT, YandexGuidanceParser.parseManeuver("Резкий правый поворот"))
@@ -108,22 +107,66 @@ class YandexGuidanceParserTest {
     }
 
     @Test
-    fun mirrorsOnlyIconsWhoseBaseArtworkFacesTheOtherWay() {
-        val mirrored = setOf(
-            HudManeuver.LEFT,
-            HudManeuver.SLIGHT_LEFT,
-            HudManeuver.SHARP_LEFT,
-            HudManeuver.U_TURN_RIGHT,
-            HudManeuver.ROUNDABOUT_LEFT,
+    fun theRoundaboutTargetExitIsDrawnWhereARightHandTrafficDriverLeavesTheCircle() {
+        // Exits count counter-clockwise from the entry at the bottom: the first leaves to the
+        // right, the second straight ahead, the third to the left.
+        val first = roundaboutTip("На кольце первый съезд")
+        val second = roundaboutTip("На кольце второй съезд")
+        val third = roundaboutTip("На круговом движении 3-й съезд")
+        val thirdFromTheExitView = roundaboutTip("Въезжайте на круговое движение", exitView = "3")
+
+        assertTrue("exit 1 at x=${first[0]}", first[0] > ICON_CENTRE_X + 40f)
+        assertEquals("exit 2 at x=${second[0]}", ICON_CENTRE_X, second[0], 1f)
+        assertTrue("exit 2 at y=${second[1]}", second[1] < 45f)
+        assertTrue("exit 3 at x=${third[0]}", third[0] < ICON_CENTRE_X - 40f)
+        assertTrue("exit 3 at x=${thirdFromTheExitView[0]}", thirdFromTheExitView[0] < ICON_CENTRE_X - 40f)
+    }
+
+    @Test
+    fun aRoundaboutFromTheNotificationIsDrawnTheSameWayRound() {
+        val patch = requireNotNull(
+            YandexNotificationGuidanceParser.parse(
+                YandexNotificationGuidanceFields(
+                    maneuverResourceName = "notification_roundabout_sdl",
+                    maneuverDescription = "На кольце 3-й съезд",
+                    title = "300 м",
+                ),
+            ),
         )
 
-        HudManeuver.entries.forEach { maneuver ->
-            if (maneuver in mirrored) {
-                assertTrue(maneuver.name, HudSomeIpClient.shouldMirrorIcon(maneuver))
-            } else {
-                assertFalse(maneuver.name, HudSomeIpClient.shouldMirrorIcon(maneuver))
-            }
+        val tip = requireNotNull(HudSomeIpClient.arrowTip(patch.maneuver, patch.roundaboutExitNumber))
+
+        assertEquals(3, patch.roundaboutExitNumber)
+        assertTrue("exit 3 at x=${tip[0]}", tip[0] < ICON_CENTRE_X - 40f)
+    }
+
+    @Test
+    fun everyTurnArrowPointsToTheSideItsInstructionNames() {
+        val leftward = listOf(
+            "Поверните налево",
+            "Держитесь левее",
+            "Резкий левый поворот",
+            "Развернитесь",
+        )
+        val rightward = listOf(
+            "Поверните направо",
+            "Держитесь правее",
+            "Резкий правый поворот",
+            "Разворот направо",
+        )
+
+        leftward.forEach { instruction ->
+            val tip = tip(instruction)
+            assertTrue("$instruction at x=${tip[0]}", tip[0] < ICON_CENTRE_X - 20f)
         }
+        rightward.forEach { instruction ->
+            val tip = tip(instruction)
+            assertTrue("$instruction at x=${tip[0]}", tip[0] > ICON_CENTRE_X + 20f)
+        }
+        val straight = tip("Продолжайте прямо")
+        assertEquals(ICON_CENTRE_X, straight[0], 1f)
+        assertTrue(straight[1] < 45f)
+        assertNull(HudSomeIpClient.arrowTip(HudManeuver.UNKNOWN, null))
     }
 
     @Test
@@ -173,5 +216,33 @@ class YandexGuidanceParserTest {
                 remainingDistanceMeters = 5_600,
             )),
         )
+    }
+
+    private fun tip(instruction: String): FloatArray {
+        val maneuver = YandexGuidanceParser.parseManeuver(instruction)
+        return requireNotNull(HudSomeIpClient.arrowTip(maneuver, null)) { instruction }
+    }
+
+    private fun roundaboutTip(instruction: String, exitView: String = ""): FloatArray {
+        val guidance = requireNotNull(
+            YandexGuidanceParser.parse(
+                instruction = instruction,
+                nextRoadName = "",
+                maneuverDistance = "300",
+                maneuverUnit = "м",
+                remainingDistance = "",
+                remainingTime = "",
+                eta = "",
+                roundaboutExitNumber = exitView,
+            ),
+        )
+        return requireNotNull(
+            HudSomeIpClient.arrowTip(guidance.maneuver, guidance.roundaboutExitNumber),
+        ) { instruction }
+    }
+
+    private companion object {
+        /** The icon is 192 px square. */
+        const val ICON_CENTRE_X = 96f
     }
 }

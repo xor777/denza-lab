@@ -17,8 +17,7 @@ class HudManeuverStockIdTest {
             HudManeuver.U_TURN_LEFT to 9,
             HudManeuver.U_TURN_RIGHT to 10,
             HudManeuver.STRAIGHT to 11,
-            HudManeuver.ROUNDABOUT_LEFT to 25,
-            HudManeuver.ROUNDABOUT_RIGHT to 25,
+            HudManeuver.ROUNDABOUT to 25,
         )
         assertEquals(expected.keys, HudManeuver.values().toSet())
         expected.forEach { (maneuver, id) ->

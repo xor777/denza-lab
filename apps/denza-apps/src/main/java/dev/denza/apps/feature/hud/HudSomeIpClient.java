@@ -41,6 +41,10 @@ final class HudSomeIpClient {
     private final Context context;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private static final int MAX_SCHEMATIC_ROUNDABOUT_EXIT = 12;
+    private static final int ICON_SIZE = 192;
+    private static final float ROUNDABOUT_CENTER_X = 96f;
+    private static final float ROUNDABOUT_CENTER_Y = 90f;
+    private static final float ROUNDABOUT_TIP_RADIUS = 89f;
     private final Map<String, byte[]> iconCache = new HashMap<>();
     private final Runnable shutdownRunnable = this::stopAndUnbind;
     private final Runnable recoveryRunnable = () -> {
@@ -383,11 +387,11 @@ final class HudSomeIpClient {
     }
 
     static byte[] renderIcon(HudManeuver maneuver, Integer roundaboutExitNumber) {
-        if (maneuver == HudManeuver.UNKNOWN) {
+        float[] tip = baseArrowTip(maneuver, roundaboutExitNumber);
+        if (tip == null) {
             return new byte[0];
         }
-        final int size = 192;
-        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Bitmap bitmap = Bitmap.createBitmap(ICON_SIZE, ICON_SIZE, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         paint.setColor(Color.WHITE);
@@ -396,13 +400,12 @@ final class HudSomeIpClient {
         paint.setStrokeCap(Paint.Cap.ROUND);
         paint.setStrokeJoin(Paint.Join.ROUND);
 
-        boolean mirror = shouldMirrorIcon(maneuver);
-        if (mirror) {
-            canvas.scale(-1f, 1f, size / 2f, size / 2f);
+        if (shouldMirrorIcon(maneuver)) {
+            canvas.scale(-1f, 1f, ICON_SIZE / 2f, ICON_SIZE / 2f);
         }
         if (maneuver == HudManeuver.STRAIGHT) {
             canvas.drawLine(96f, 164f, 96f, 38f, paint);
-            drawArrow(canvas, paint, 96f, 28f, -90f);
+            drawArrow(canvas, paint, tip[0], tip[1], -90f);
         } else if (maneuver == HudManeuver.U_TURN_LEFT || maneuver == HudManeuver.U_TURN_RIGHT) {
             Path path = new Path();
             path.moveTo(132f, 164f);
@@ -410,12 +413,12 @@ final class HudSomeIpClient {
             path.cubicTo(132f, 34f, 58f, 34f, 58f, 78f);
             path.lineTo(58f, 116f);
             canvas.drawPath(path, paint);
-            drawArrow(canvas, paint, 58f, 126f, 90f);
-        } else if (maneuver == HudManeuver.ROUNDABOUT_LEFT || maneuver == HudManeuver.ROUNDABOUT_RIGHT) {
-            canvas.drawCircle(96f, 90f, 48f, paint);
+            drawArrow(canvas, paint, tip[0], tip[1], 90f);
+        } else if (maneuver == HudManeuver.ROUNDABOUT) {
+            canvas.drawCircle(ROUNDABOUT_CENTER_X, ROUNDABOUT_CENTER_Y, 48f, paint);
             canvas.drawLine(96f, 164f, 96f, 138f, paint);
             drawPassedRoundaboutExits(canvas, paint, roundaboutExitNumber);
-            drawRoundaboutTargetExit(canvas, paint, roundaboutExitNumber);
+            drawRoundaboutTargetExit(canvas, paint, roundaboutExitNumber, tip);
         } else if (maneuver == HudManeuver.SLIGHT_LEFT || maneuver == HudManeuver.SLIGHT_RIGHT) {
             Path path = new Path();
             path.moveTo(64f, 164f);
@@ -423,7 +426,7 @@ final class HudSomeIpClient {
             path.cubicTo(64f, 86f, 82f, 72f, 104f, 60f);
             path.lineTo(142f, 40f);
             canvas.drawPath(path, paint);
-            drawArrow(canvas, paint, 150f, 36f, -28f);
+            drawArrow(canvas, paint, tip[0], tip[1], -28f);
         } else {
             Path path = new Path();
             path.moveTo(56f, 164f);
@@ -431,13 +434,49 @@ final class HudSomeIpClient {
             path.cubicTo(56f, 64f, 76f, 50f, 104f, 50f);
             path.lineTo(144f, 50f);
             canvas.drawPath(path, paint);
-            drawArrow(canvas, paint, 154f, 50f, 0f);
+            drawArrow(canvas, paint, tip[0], tip[1], 0f);
         }
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, output);
         bitmap.recycle();
         return output.toByteArray();
+    }
+
+    /**
+     * Where the tip of the maneuver arrow lands on the finished icon, as {x, y} in icon pixels with
+     * the origin at the top left, after the mirroring {@link #renderIcon} applies; null when the
+     * icon has no arrow. {@link #renderIcon} draws every arrow at {@link #baseArrowTip}, so the side
+     * this reports is the side the driver sees.
+     */
+    static float[] arrowTip(HudManeuver maneuver, Integer roundaboutExitNumber) {
+        float[] tip = baseArrowTip(maneuver, roundaboutExitNumber);
+        if (tip != null && shouldMirrorIcon(maneuver)) {
+            tip[0] = ICON_SIZE - tip[0];
+        }
+        return tip;
+    }
+
+    /** The arrow tip in drawing coordinates, before the canvas is mirrored. */
+    private static float[] baseArrowTip(HudManeuver maneuver, Integer roundaboutExitNumber) {
+        switch (maneuver) {
+            case UNKNOWN:
+                return null;
+            case STRAIGHT:
+                return new float[] {96f, 28f};
+            case U_TURN_LEFT:
+            case U_TURN_RIGHT:
+                return new float[] {58f, 126f};
+            case SLIGHT_LEFT:
+            case SLIGHT_RIGHT:
+                return new float[] {150f, 36f};
+            case ROUNDABOUT:
+                return roundaboutPoint(
+                        roundaboutTargetExitAngle(roundaboutExitNumber),
+                        ROUNDABOUT_TIP_RADIUS);
+            default:
+                return new float[] {154f, 50f};
+        }
     }
 
     private static void drawPassedRoundaboutExits(
@@ -450,59 +489,45 @@ final class HudSomeIpClient {
         }
         Paint branchPaint = new Paint(maneuverPaint);
         branchPaint.setStrokeWidth(exitNumber != null && exitNumber > 8 ? 7f : 9f);
-        final float centerX = 96f;
-        final float centerY = 90f;
-        final float innerRadius = 52f;
-        final float outerRadius = 72f;
         int schematicExitNumber = passedExits + 1;
         for (int index = 1; index <= passedExits; index++) {
             float angle = schematicRoundaboutExitAngle(schematicExitNumber, index);
-            double radians = Math.toRadians(angle);
-            float cosine = (float) Math.cos(radians);
-            float sine = (float) Math.sin(radians);
-            canvas.drawLine(
-                    centerX + innerRadius * cosine,
-                    centerY + innerRadius * sine,
-                    centerX + outerRadius * cosine,
-                    centerY + outerRadius * sine,
-                    branchPaint);
+            float[] inner = roundaboutPoint(angle, 52f);
+            float[] outer = roundaboutPoint(angle, 72f);
+            canvas.drawLine(inner[0], inner[1], outer[0], outer[1], branchPaint);
         }
     }
 
     private static void drawRoundaboutTargetExit(
             Canvas canvas,
             Paint maneuverPaint,
-            Integer exitNumber) {
+            Integer exitNumber,
+            float[] tip) {
+        float angle = roundaboutTargetExitAngle(exitNumber);
+        float[] base = roundaboutPoint(angle, 48f);
+        float[] shaft = roundaboutPoint(angle, 81f);
+        Paint targetExitPaint = new Paint(maneuverPaint);
+        targetExitPaint.setStrokeWidth(15f);
+        canvas.drawLine(base[0], base[1], shaft[0], shaft[1], targetExitPaint);
+        drawArrow(canvas, targetExitPaint, tip[0], tip[1], angle, 22f, 19f);
+    }
+
+    /** The target exit's direction on the schematic, in canvas degrees (0 = right, -90 = up). */
+    private static float roundaboutTargetExitAngle(Integer exitNumber) {
         int schematicExitNumber = exitNumber == null || exitNumber < 1
                 ? 0
                 : Math.min(exitNumber, MAX_SCHEMATIC_ROUNDABOUT_EXIT);
-        float angle = schematicExitNumber == 0
+        return schematicExitNumber == 0
                 ? -42f
                 : schematicRoundaboutExitAngle(schematicExitNumber, schematicExitNumber);
-        double radians = Math.toRadians(angle);
-        float cosine = (float) Math.cos(radians);
-        float sine = (float) Math.sin(radians);
-        final float centerX = 96f;
-        final float centerY = 90f;
-        final float innerRadius = 48f;
-        final float shaftRadius = 81f;
-        final float tipRadius = 89f;
-        Paint targetExitPaint = new Paint(maneuverPaint);
-        targetExitPaint.setStrokeWidth(15f);
-        canvas.drawLine(
-                centerX + innerRadius * cosine,
-                centerY + innerRadius * sine,
-                centerX + shaftRadius * cosine,
-                centerY + shaftRadius * sine,
-                targetExitPaint);
-        drawArrow(
-                canvas,
-                targetExitPaint,
-                centerX + tipRadius * cosine,
-                centerY + tipRadius * sine,
-                angle,
-                22f,
-                19f);
+    }
+
+    private static float[] roundaboutPoint(float angleDegrees, float radius) {
+        double radians = Math.toRadians(angleDegrees);
+        return new float[] {
+                ROUNDABOUT_CENTER_X + radius * (float) Math.cos(radians),
+                ROUNDABOUT_CENTER_Y + radius * (float) Math.sin(radians),
+        };
     }
 
     static int schematicPassedExitCount(Integer exitNumber) {
@@ -525,12 +550,16 @@ final class HudSomeIpClient {
         return -245f * (boundedExitIndex - 1) / (boundedExitNumber - 1);
     }
 
-    static boolean shouldMirrorIcon(HudManeuver maneuver) {
+    /**
+     * The turn and slight artwork is drawn to the right and the U-turn to the left, so their other
+     * side is the mirror image. The roundabout is not: it is drawn counter-clockwise, exit 1 to the
+     * right, 2 ahead, 3 to the left, which is the only way round a roundabout turns here.
+     */
+    private static boolean shouldMirrorIcon(HudManeuver maneuver) {
         return maneuver == HudManeuver.LEFT
                 || maneuver == HudManeuver.SLIGHT_LEFT
                 || maneuver == HudManeuver.SHARP_LEFT
-                || maneuver == HudManeuver.U_TURN_RIGHT
-                || maneuver == HudManeuver.ROUNDABOUT_LEFT;
+                || maneuver == HudManeuver.U_TURN_RIGHT;
     }
 
     private static void drawArrow(Canvas canvas, Paint paint, float x, float y, float angleDegrees) {
