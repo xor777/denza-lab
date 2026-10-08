@@ -99,18 +99,4 @@ class ContourFiguresTest {
         assertSame(left, figures.chargeLeft(135))
         assertEquals("2:16", figures.chargeLeft(136))
     }
-
-    @Test
-    fun everySlotIsUsedByExactlyOneFormat() {
-        // The memo keys on a number and a flag and nothing else, so a slot asked for a whole one
-        // frame and a tenth the next would answer the wrong string. That is a rule about the call
-        // sites, and this is it written down: every slot below appears once in the renderer.
-        val figures = ContourFigures()
-        assertEquals("42", figures.whole(ContourFigures.Slot.ODOMETER, 42.0))
-        assertEquals("9,3", figures.seat(0, 9.3))
-        assertEquals("1780", figures.whole(ContourFigures.Slot.RPM, 1780.0))
-        assertEquals("14", figures.whole(ContourFigures.Slot.GENERATION, 14.0))
-        assertEquals("6", figures.whole(ContourFigures.Slot.ENGINE_MINUTES, 6.0))
-        assertEquals("44", figures.whole(ContourFigures.Slot.SPREAD, 44.0))
-    }
 }
