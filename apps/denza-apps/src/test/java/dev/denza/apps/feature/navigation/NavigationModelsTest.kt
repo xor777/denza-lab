@@ -21,7 +21,6 @@ class NavigationModelsTest {
             NavigationPhase.OPENING,
             NavigationPhase.PROJECTING,
             NavigationPhase.RETURNING,
-            NavigationPhase.RECOVERING,
         ).forEach { phase ->
             assertNull(
                 NavigationPrimaryActionPolicy.action(
@@ -258,26 +257,6 @@ class NavigationModelsTest {
     }
 
     @Test
-    fun proxyDeathNeverCreatesAnAutostartSession() {
-        val recovered = NavigationRecovery.proxyLost(NavigationSession())
-        assertEquals(NavigationPhase.READY, recovered.phase)
-        assertNull(recovered.virtualDisplayId)
-    }
-
-    @Test
-    fun projectedTaskMovesToRecoveringWhenProxyDies() {
-        val recovered = NavigationRecovery.proxyLost(
-            NavigationSession(
-                phase = NavigationPhase.PROJECTED,
-                taskId = 12,
-                virtualDisplayId = 8,
-            ),
-        )
-        assertEquals(NavigationPhase.RECOVERING, recovered.phase)
-        assertEquals(12, recovered.taskId)
-    }
-
-    @Test
     fun userResolutionDoesNotChangeTheExistingPrimaryLabel() {
         val session = NavigationSession(
             phase = NavigationPhase.NEEDS_ACTION,
@@ -288,21 +267,6 @@ class NavigationModelsTest {
 
         assertEquals(FeatureResolution.SELECT_CLUSTER_DISPLAY, session.resolution)
         assertEquals("На приборку", session.buttonLabel)
-    }
-
-    @Test
-    fun recoveryClearsAStaleUserResolution() {
-        val recovered = NavigationRecovery.proxyLost(
-            NavigationSession(
-                phase = NavigationPhase.PROJECTED,
-                taskId = 12,
-                virtualDisplayId = 8,
-                resolution = FeatureResolution.RETRY,
-            ),
-        )
-
-        assertEquals(NavigationPhase.RECOVERING, recovered.phase)
-        assertNull(recovered.resolution)
     }
 
     @Test

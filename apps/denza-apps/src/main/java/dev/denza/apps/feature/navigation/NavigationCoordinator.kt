@@ -100,8 +100,7 @@ object NavigationCoordinator {
             if (
                 session.phase == NavigationPhase.OPENING ||
                 session.phase == NavigationPhase.PROJECTING ||
-                session.phase == NavigationPhase.RETURNING ||
-                session.phase == NavigationPhase.RECOVERING
+                session.phase == NavigationPhase.RETURNING
             ) {
                 return@execute
             }

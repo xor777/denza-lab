@@ -77,7 +77,6 @@ enum class NavigationPhase {
     PROJECTING,
     PROJECTED,
     RETURNING,
-    RECOVERING,
     NEEDS_ACTION,
 }
 
@@ -102,8 +101,7 @@ data class NavigationSession(
 
     private fun applicationLabel(): String = when (phase) {
         NavigationPhase.PROJECTED, NavigationPhase.RETURNING -> "Вернуть"
-        NavigationPhase.OPENING, NavigationPhase.PROJECTING, NavigationPhase.RECOVERING ->
-            "Проверяю"
+        NavigationPhase.OPENING, NavigationPhase.PROJECTING -> "Проверяю"
         else -> "На приборку"
     }
 }
@@ -144,7 +142,6 @@ internal object NavigationPrimaryActionPolicy {
             NavigationPhase.OPENING,
             NavigationPhase.PROJECTING,
             NavigationPhase.RETURNING,
-            NavigationPhase.RECOVERING,
             NavigationPhase.PROJECTED,
             -> null
         }
@@ -170,18 +167,6 @@ object NavigationRecovery {
     fun shouldRetryAfterClusterSelection(session: NavigationSession): Boolean =
         session.phase == NavigationPhase.NEEDS_ACTION &&
             session.resolution == FeatureResolution.SELECT_CLUSTER_DISPLAY
-
-    fun proxyLost(session: NavigationSession): NavigationSession =
-        if (session.phase == NavigationPhase.PROJECTED || session.virtualDisplayId != null) {
-            session.copy(
-                phase = NavigationPhase.RECOVERING,
-                message = "Безопасно возвращаю приложение",
-                details = "shell proxy disconnected",
-                resolution = null,
-            )
-        } else {
-            NavigationSession(message = "Соединение восстановится при запуске")
-        }
 }
 
 internal sealed interface NavigationProjectionHealthDecision {

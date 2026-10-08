@@ -1217,7 +1217,6 @@ object DenzaAppRepository {
             NavigationPhase.RETURNING,
             -> FeatureStatus.STARTING
             NavigationPhase.PROJECTED -> FeatureStatus.ACTIVE
-            NavigationPhase.RECOVERING -> FeatureStatus.RECOVERING
             NavigationPhase.NEEDS_ACTION -> FeatureStatus.NEEDS_ACTION
         }
         return FeatureSnapshot(
