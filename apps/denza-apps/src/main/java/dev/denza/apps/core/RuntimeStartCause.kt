@@ -41,7 +41,4 @@ internal class RuntimeRecoveryCycleState {
 
 internal object RuntimeRecoveryServicePolicy {
     const val MAX_DURATION_MILLIS = 60_000L
-
-    fun shouldStop(recovered: Boolean, elapsedMillis: Long): Boolean =
-        recovered || elapsedMillis >= MAX_DURATION_MILLIS
 }

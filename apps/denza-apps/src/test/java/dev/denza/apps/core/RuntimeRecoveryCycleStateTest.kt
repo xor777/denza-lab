@@ -28,21 +28,4 @@ class RuntimeRecoveryCycleStateTest {
         assertTrue(next.started)
         assertNotEquals(application.generation, next.generation)
     }
-
-    @Test
-    fun `bootstrap service stops on recovery or timeout only`() {
-        assertTrue(RuntimeRecoveryServicePolicy.shouldStop(recovered = true, elapsedMillis = 1L))
-        assertTrue(
-            RuntimeRecoveryServicePolicy.shouldStop(
-                recovered = false,
-                elapsedMillis = 60_000L,
-            ),
-        )
-        assertFalse(
-            RuntimeRecoveryServicePolicy.shouldStop(
-                recovered = false,
-                elapsedMillis = 59_999L,
-            ),
-        )
-    }
 }
