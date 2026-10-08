@@ -289,14 +289,15 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     }
 
     static void requestMediaResumeRefresh() {
-        SimulcastAccessibilityService service = instance;
-        if (service == null) return;
-        service.handler.post(() -> {
-            if (instance == service && service.mediaResumeController != null) {
-                if (service.mediaFocusPauseBridge != null) service.mediaFocusPauseBridge.warm();
-                service.mediaResumeController.start();
-            }
-        });
+        ServiceInstanceHop.post(() -> instance, SimulcastAccessibilityService::postToMain,
+                service -> {
+                    if (service.mediaResumeController != null) {
+                        if (service.mediaFocusPauseBridge != null) {
+                            service.mediaFocusPauseBridge.warm();
+                        }
+                        service.mediaResumeController.start();
+                    }
+                });
     }
 
     private void tearDownMediaResume() {
@@ -307,15 +308,23 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         mediaButtonEnvironment = null;
     }
 
+    /**
+     * The HUD monitor's state belongs to the main thread, and this is also called from the access
+     * repair's executor (DenzaAppRepository.setHudGuidanceEnabled after a repair), so it hops there
+     * like {@link #requestMediaResumeRefresh()}.
+     */
     static void requestHudGuidanceRefresh() {
-        SimulcastAccessibilityService service = instance;
-        if (service == null) {
-            return;
-        }
-        HudGuidanceAccessibilityMonitor monitor = service.hudGuidanceMonitor;
-        if (monitor != null) {
-            monitor.onSettingChanged();
-        }
+        ServiceInstanceHop.post(() -> instance, SimulcastAccessibilityService::postToMain,
+                service -> {
+                    HudGuidanceAccessibilityMonitor monitor = service.hudGuidanceMonitor;
+                    if (monitor != null) {
+                        monitor.onSettingChanged();
+                    }
+                });
+    }
+
+    private static void postToMain(SimulcastAccessibilityService service, Runnable call) {
+        service.handler.post(call);
     }
 
     private void tearDownHudGuidance() {
