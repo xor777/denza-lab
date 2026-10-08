@@ -314,6 +314,12 @@ the hub the cadence is the screens' own 100 ms, as now. Unavailable answers back
 off as they do now, so a car asleep costs the backoff and nothing else. The trip's
 ledger (§2.4) is fed by the same sweep and stops losing road for the same reason.
 
+A screen that claims the hub ends whatever backoff it finds and gets its attempt
+at once (`VehicleBackoff.wake`, 2026-10-08). With `LEDGER` the loop never stops,
+so a new claim no longer starts a fresh loop, and from 2026-09-18 until then a
+screen brought up after a run of failures waited out the rest of a backoff of up
+to a minute, on its last snapshot, after the car had come back.
+
 ## 3. Words
 
 | where | says | never |

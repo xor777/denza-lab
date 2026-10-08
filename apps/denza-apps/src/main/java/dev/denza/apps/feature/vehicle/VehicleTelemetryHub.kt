@@ -10,10 +10,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Polls the native `autoservice` allowlist over the local ADB shell and
@@ -34,7 +36,9 @@ import kotlinx.coroutines.sync.Mutex
  * readings a second. Temperatures, cell voltages, the charging estimate and the
  * generation state join it every ten seconds. Splitting the hot set finer would
  * buy nothing — a one-call batch costs almost what a five-call batch costs. The
- * loop runs only while the cluster dashboard is visible.
+ * loop runs for the life of the process ([VehicleWatcher.LEDGER]); who is watching
+ * sets the cadence ([VehicleSweepCadence]), and a watcher that appears cuts a
+ * backoff short ([VehicleBackoff]).
  *
  * Threading: the loop runs on [Dispatchers.IO] and only ever writes [snapshot];
  * the renderer reads it from the main thread. [VehiclePollLoopGate] also keeps a
@@ -129,6 +133,9 @@ internal class VehicleTelemetryHub(context: Context) {
     @Volatile
     private var forceCold = false
 
+    /** The loop's wait after a failed read; [setActive] wakes it from the views' thread. */
+    private val backoff = VehicleBackoff()
+
     private var job: Job? = null
     private val loopGate = VehiclePollLoopGate()
 
@@ -221,7 +228,10 @@ internal class VehicleTelemetryHub(context: Context) {
      *
      * [VehicleWatcher.LEDGER] is claimed at the application's start and never released, so the
      * loop is always running and the cadence is what changes when a screen comes and goes
-     * ([VehicleSweepCadence]).
+     * ([VehicleSweepCadence]). For the same reason [start] finds the loop running and does
+     * nothing, so the attempt the new consumer is owed has to come from [VehicleBackoff.wake]:
+     * a loop asleep in a backoff after a run of failures would otherwise leave the screen on its
+     * last snapshot for up to a minute after the car had come back.
      */
     fun setActive(watcher: VehicleWatcher, value: Boolean) {
         val changed = if (value) watchers.add(watcher) else watchers.remove(watcher)
@@ -231,6 +241,7 @@ internal class VehicleTelemetryHub(context: Context) {
         if (value) {
             forceCold = true
             start()
+            backoff.wake()
         } else if (!polling) {
             stop()
         }
@@ -240,7 +251,8 @@ internal class VehicleTelemetryHub(context: Context) {
         var shell: LocalAdbClient.PersistentShellSession? = null
         val clock = VehicleSweepClock()
         var coldDueAt = 0L
-        var backoffMs = FIRST_BACKOFF_MS
+        // A new loop owes nobody a wait, and a wake left over from before it is spent.
+        backoff.reset()
         val cold = LinkedHashMap<VehicleSignal, Double>()
         val link = VehicleLink()
         // A loop that has just started has never looked at the marker, and the minute between
@@ -275,12 +287,11 @@ internal class VehicleTelemetryHub(context: Context) {
                     }
                     // The timeout, this wait and the reconnect after it are time nobody watched.
                     clock.interrupted()
-                    delay(backoffMs)
-                    backoffMs = (backoffMs * 2).coerceAtMost(MAX_BACKOFF_MS)
+                    backoff.await()
                     continue
                 }
 
-                backoffMs = FIRST_BACKOFF_MS
+                backoff.reset()
                 val parsed = AutoserviceShell.parse(output, batch)
 
                 if (includeCold) {
@@ -443,9 +454,6 @@ internal class VehicleTelemetryHub(context: Context) {
         const val HOT_TIMEOUT_MS = 3_000
         const val COLD_TIMEOUT_MS = 8_000
 
-        const val FIRST_BACKOFF_MS = 4_000L
-        const val MAX_BACKOFF_MS = 60_000L
-
         const val AUTHORIZATION_REQUIRED = "ADB-ключ не подтверждён · откройте Denza Apps"
         const val NO_CHANNEL = "Нет связи с локальным ADB"
         const val NO_ANSWER = "Машина не ответила ни на один запрос"
@@ -501,6 +509,54 @@ internal class VehicleSweepClock {
     /** Time nobody was watching. The next sweep starts a new interval rather than closing this one. */
     fun interrupted() {
         lastAt = 0L
+    }
+}
+
+/**
+ * The wait after a failed read, and the one thing allowed to cut it short: somebody starting to
+ * watch.
+ *
+ * Doubling from [FIRST_MS] to [MAX_MS], so a car asleep costs a shell round trip a minute. Until
+ * [VehicleWatcher.LEDGER] that wait never met a screen: the loop ran only while one was watching,
+ * and a screen that appeared started a fresh loop with an attempt at once. Since 2026-09-18 the
+ * loop lives as long as the process, and a screen that appeared after a run of failures - adbd
+ * not up yet at boot, the key not confirmed until the driver did it - found the loop asleep for
+ * up to a minute after the car had come back, with nothing on the panel to say why.
+ *
+ * So [wake] ends the current wait and the next one starts again from [FIRST_MS]. A wake that
+ * arrives while no wait is running is kept for the next one - the read in flight may be failing -
+ * and spent by [reset] if that read answers instead, so a screen that appeared during a good
+ * stretch does not cut a backoff minutes later.
+ */
+internal class VehicleBackoff {
+
+    private val wakes = Channel<Unit>(Channel.CONFLATED)
+
+    /** How long the next failed read waits. */
+    var nextMs: Long = FIRST_MS
+        private set
+
+    /** Waits out [nextMs], or less if somebody starts watching; whether it was cut short. */
+    suspend fun await(): Boolean {
+        val woken = withTimeoutOrNull(nextMs) { wakes.receive() } != null
+        nextMs = if (woken) FIRST_MS else (nextMs * 2).coerceAtMost(MAX_MS)
+        return woken
+    }
+
+    /** A read answered, or the loop is new: the next failure waits [FIRST_MS] and no wake is owed. */
+    fun reset() {
+        nextMs = FIRST_MS
+        wakes.tryReceive()
+    }
+
+    /** Somebody has just started watching. Any thread. */
+    fun wake() {
+        wakes.trySend(Unit)
+    }
+
+    companion object {
+        const val FIRST_MS = 4_000L
+        const val MAX_MS = 60_000L
     }
 }
 
@@ -567,7 +623,8 @@ internal class VehicleLink {
         /**
          * Two hot horizons of silence ([VehiclePoll.HOT]). By then every live figure on the Contour
          * has gone by its own rule and the link-lost picture has stood for a full horizon; the first
-         * backoff is this long too, so a shell that fails twice has always been quiet for it.
+         * backoff ([VehicleBackoff.FIRST_MS]) is this long too, so a shell left to its backoff is
+         * closed by its second failure, and one a new screen woke early is not closed sooner.
          */
         val CLOSE_AFTER_MS: Long = (VehiclePoll.HOT.staleSeconds * 2 * 1000).toLong()
 

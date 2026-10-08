@@ -21,7 +21,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22) and `GENERATION_KW` the engine's charge into the pack, zero while the engine drives the wheels (2026-09-24); so the engine's box stands only while the engine charges and leaves 10 s after `ENGINE_RUNNING` drops | live | 2026-09-24 | [What still waits for the car](#what-still-waits-for-the-car), [Why the engine's box does not flicker](#why-the-engines-box-does-not-flicker) |
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
 | `VehicleTelemetryHub.kt` polls for three `VehicleWatcher`s: `CLUSTER`, `STRIP` and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-09-22 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
-| A failed shell read is a dropped read (`VehicleDroppedRead`, the link-lost picture), not the closed one: `VehicleLink` closes the screens at once only for a missing ADB key, otherwise after two failures in a row and 4 s without an answer | code | 2026-10-08 | [Telemetry ownership](#telemetry-ownership) |
+| A failed shell read is a dropped read (`VehicleDroppedRead`, the link-lost picture), not the closed one: `VehicleLink` closes the screens at once only for a missing ADB key, otherwise after two failures in a row and 4 s without an answer; a screen that starts watching ends the backoff (`VehicleBackoff.wake`) | code | 2026-10-08 | [Telemetry ownership](#telemetry-ownership) |
 | Mirrors follow AVC's own inputs (`MirrorTransitionReducer.kt`): show side X while AVC's card of X is built and the lamps flash X (FID `0x38A0002C`: `2`/`3` left, `4`/`5` right); close at once when the lamps leave X, the card ends, or the raw lever FID `0x1330002C` has an onset toward the other side | code | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | While Mirrors are on they own the stock choice: each monitor start writes choice `1` (both images on the head unit) and keeps the owner's value in `stock_turn_camera_before`; turning Mirrors off gives it back if `1` is still set (`SideCameraMonitorService.kt`, `MirrorsSettings.kt`) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | `com.byd.avc/.AutoVideoService` (action `com.byd.action.AVCSERVICE`, no permission, no caller check) answers a Messenger: `what=35` gives the mode in `arg2` (`5095` left, `5096`/`5099` right, `5000` idle), `what=1011` replies `1012` with the choice (`0` left on the meter, `1` head unit, `2` full-screen, `3` off), `what=1013` writes it, `what=52` closes the PIP (read, not run); an app UID binds in 23 ms and gets answers in 6-11 ms on AVC's main thread, so it is asked once per transition, never polled | live | 2026-09-23 | [The stock turn-signal camera, read from the firmware (2026-09-23)](#the-stock-turn-signal-camera-read-from-the-firmware-2026-09-23) |
@@ -1044,6 +1044,13 @@ and the trip kept, `dropped = true`. `ContourScene` does not take it for a packe
 so the panel draws the link-lost picture of energy contract §4 on its own
 horizons and keeps P from the last packet; the car page shows its captions without
 live figures. How often the car's shell drops a read is not measured.
+
+**A screen that appears cuts the backoff short** (2026-10-08). The wait after a
+failed read doubles from 4 s to 60 s. Since `LEDGER` (2026-09-18) the loop never
+stops, so `setActive` for `CLUSTER` or `STRIP` found it running and only changed
+the cadence: a panel brought up after a run of failures waited out the rest of
+the backoff. `VehicleBackoff.wake` now ends the wait, the attempt is made at once
+with a cold sweep, and the next wait starts again from 4 s.
 
 The tank joined the cold set on 2026-08-25: `FUEL_PERCENT` (`0x4A507040`),
 `FUEL_RANGE_KM` (`0x4A504038`) and, briefly, `FUEL_LOW` (`0x4A507027`). The first
