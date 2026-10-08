@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
                     onSetCloudWifiRetained = DenzaAppRepository::setCloudWifiRetained,
                     onSelectClusterDisplay = DenzaAppRepository::selectClusterDisplay,
                     onRefreshScreenDiagnostics = DenzaAppRepository::refreshScreenDiagnostics,
+                    onSearchClusterDisplays = DenzaAppRepository::searchClusterDisplays,
                     onServiceReportVisible = DenzaAppRepository::setServiceReportOpen,
                     onCheckAdbAccess = DenzaAppRepository::checkAdbAccess,
                     onRequestAdbAuthorizationOnce =

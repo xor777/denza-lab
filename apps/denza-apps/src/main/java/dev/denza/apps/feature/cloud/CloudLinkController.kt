@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.DenzaAppRepository
+import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
@@ -162,7 +163,8 @@ object CloudLinkController {
         pressesInFlight.incrementAndGet()
         CloudLinkRuntime.busy = true
         // Core is worker-owned; the caller publishes only the atomic busy flag.
-        runCatching { DenzaAppRepository.refresh("cloud") }.onFailure { Log.w(TAG, "publish busy failed", it) }
+        runCatching { DenzaAppRepository.invalidate(StateSlice.CLOUD_LINK, "cloud busy") }
+            .onFailure { Log.w(TAG, "publish busy failed", it) }
         executor.execute {
             try {
                 check(block()) { "Операция не подтвердилась" }
@@ -258,7 +260,8 @@ object CloudLinkController {
             runCatching { CloudLinkDiagnostics.export(app) }
                 .onFailure { Log.w(TAG, "export failed", it) }
         }
-        runCatching { DenzaAppRepository.refresh("cloud") }.onFailure { Log.w(TAG, "publish failed", it) }
+        runCatching { DenzaAppRepository.invalidate(StateSlice.CLOUD_LINK, "cloud") }
+            .onFailure { Log.w(TAG, "publish failed", it) }
     }
 
     private fun record(app: Context, message: String) {

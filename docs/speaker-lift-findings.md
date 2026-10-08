@@ -443,6 +443,12 @@ below.
 
 #### The panel disables its buttons while a command is in flight
 
+> **Superseded:** the commanding phase, `DenzaUiState.speakerCoversCommanding` and
+> «Опустить» are gone. Contract v2 left one button, «Поднять», greyed by
+> `DenzaUiState.speakerCoversReporting` while a report is on the wire; and since
+> 2026-10-08 the service marks the speakers' slice of the state
+> (`StateSlice.SPEAKER_COVERS`) instead of calling `refresh()`. Kept as history.
+
 `FeatureSheet`'s sheet-wide `busy` comes from `FeatureSnapshot.status`, and with
 the toggle off `SpeakerCoverRuntime.featureSnapshot` returns `disabled(...)`
 before it ever looks at the phase — correct for the tile, wrong for the two
@@ -1943,7 +1949,8 @@ every window of every app and every stock session found playing at start bought
 a flicker for a decision that came back «no».
 
 No other feature does this. HUD, Mirrors and Simulcast compute their status in
-`refresh()` from the switch and the preconditions; the stock language, the one
+`refresh()` (since 2026-10-08, in their own slices, `StateSlice`) from the switch and
+the preconditions; the stock language, the one
 other feature with a shell action behind a control, keeps a Boolean `running`
 that greys the control and never touches the tile. The speaker feature now does
 the same:

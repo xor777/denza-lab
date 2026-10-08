@@ -5,6 +5,8 @@ import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import dev.denza.apps.DenzaAppRepository
+import dev.denza.apps.StateSlice
 import dev.denza.apps.TaskMoveLease
 import dev.denza.apps.TaskMoveOwner
 import dev.denza.apps.TaskMoveOwnership
@@ -247,6 +249,8 @@ object NavigationCoordinator {
             DenzaLocalAdb.client(app).shell(
                 "cmd appops set ${app.packageName} SYSTEM_ALERT_WINDOW allow",
             )
+            // The projection reads the same grant.
+            DenzaAppRepository.invalidate(StateSlice.SIMULCAST, "overlay granted")
         } catch (error: Exception) {
             val problem = friendlyProxyProblem(error)
             update(
@@ -468,6 +472,8 @@ object NavigationCoordinator {
             DenzaLocalAdb.client(app).shell(
                 "cmd appops set ${app.packageName} SYSTEM_ALERT_WINDOW allow",
             )
+            // The projection reads the same grant.
+            DenzaAppRepository.invalidate(StateSlice.SIMULCAST, "overlay granted")
         } catch (error: Exception) {
             val problem = friendlyProxyProblem(error)
             update(

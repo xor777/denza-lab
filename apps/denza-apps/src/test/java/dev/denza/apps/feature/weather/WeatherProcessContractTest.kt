@@ -28,15 +28,15 @@ class WeatherProcessContractTest {
         )
     }
 
+    /**
+     * That every refresh reads the record is behaviour now, held elsewhere: the tile is laid by the
+     * weather slice (`TileSliceContractTest`) and a refresh reads every slice
+     * (`DenzaStatePublisherTest`). What is left here is the wiring no JVM test can run - the
+     * runtime start registering the observer that marks the slice after each run.
+     */
     @Test
-    fun theDashboardReadsTheRecordOnEveryRefreshAndEveryRun() {
+    fun theRuntimeObservesTheRecordSoTheTileFollowsEveryRun() {
         val repository = File("src/main/java/dev/denza/apps/DenzaAppRepository.kt").readText()
-        val refresh = repository.between("\n    private fun readSlice(", "\n    fun ")
-        assertTrue(
-            "DenzaAppRepository.refresh must read the weather record",
-            "WeatherAdapterState.lastTemperature" in refresh &&
-                "WeatherAdapterState.lastSuccessMillis" in refresh,
-        )
         val runtime = repository.between("runtimeStep(\"weather initialize\")", "runtimeStep(")
         assertTrue(
             "the runtime must observe the weather record so the tile follows each run",
