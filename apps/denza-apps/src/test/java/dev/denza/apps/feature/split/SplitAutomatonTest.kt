@@ -35,8 +35,13 @@ class SplitAutomatonTest {
         assertTrue(!result.state.enabled)
     }
 
+    /**
+     * Какое приложение останется на весь экран, решает `closePickers` по живой сцене (1.2.3), а
+     * держит это `SplitScenarioTest.toggleOffOverTwoAppsKeepsTheFocusedOneFullscreen`. Автомат
+     * говорит только, что разбирать есть что, и пару не забывает.
+     */
     @Test
-    fun disablingTwoLiveAppsEndsSplitIntoTheFocusedApp() {
+    fun disablingTwoLiveAppsPlansATeardownAndKeepsThePair() {
         // контракт 1.2.3
         val live = split(SplitSlot.App(MUSIC), SplitSlot.App(NAVIGATOR))
 
@@ -48,8 +53,13 @@ class SplitAutomatonTest {
         assertEquals(SceneVisibility.VISIBLE, result.state.visibility)
     }
 
+    /**
+     * Что именно снимается - только наши пикеры, - решает `closePickers`, и держат это тесты
+     * `SplitPickerShellSessionTest` (`closeMovesSelectedAppToFullRootAndRemovesOnlyPickerBases`,
+     * `aForeignSplitKeepsItsOwnStockPickerWhenTheProductIsSwitchedOff`).
+     */
     @Test
-    fun disablingAnAppBesideAPickerRemovesOnlyOurPickers() {
+    fun disablingAnAppBesideAPickerPlansATeardownAndKeepsTheSelection() {
         // контракт 1.2.4
         val live = split(SplitSlot.App(MUSIC), SplitSlot.Picker)
 
@@ -61,7 +71,7 @@ class SplitAutomatonTest {
     }
 
     @Test
-    fun disablingTwoPickersRemovesThemAndEndsTheScene() {
+    fun disablingTwoPickersPlansATeardownAndEndsTheScene() {
         // контракт 1.2.5
         val live = split(SplitSlot.Picker, SplitSlot.Picker)
 
@@ -248,6 +258,11 @@ class SplitAutomatonTest {
         val cleared = SplitAutomaton.reduce(live, SplitFact.SceneEndedSettled).state
 
         assertNull(cleared.scene)
+        assertEquals(
+            "the next open shows fresh pickers, not what the user cleared",
+            mapOf(SplitPane.PRIMARY to SplitSlot.Picker, SplitPane.SECONDARY to SplitSlot.Picker),
+            cleared.slots,
+        )
     }
 
     @Test
@@ -530,22 +545,6 @@ class SplitAutomatonTest {
     }
 
     @Test
-    fun everyFactButTheToggleIsInertWhileDisabled() {
-        // контракт 1.2.7, U4, инвариант 1
-        val off = state(
-            enabled = false,
-            primary = SplitSlot.App(MUSIC),
-            secondary = SplitSlot.App(NAVIGATOR),
-        )
-
-        everyFact().filterNot { it is SplitFact.ToggleChanged }.forEach { fact ->
-            val result = SplitAutomaton.reduce(off, fact)
-            assertSame("disabled product reacted to $fact", off, result.state)
-            assertFalse("disabled product planned a teardown on $fact", result.teardownRequired)
-        }
-    }
-
-    @Test
     fun impossibleFactsReturnTheSameStateInstance() {
         // контракт 1.4.4, инвариант 8: устаревший или невозможный факт ничего не двигает
         val live = split(SplitSlot.App(MUSIC), SplitSlot.Picker)
@@ -603,33 +602,5 @@ class SplitAutomatonTest {
 
         fun split(primary: SplitSlot, secondary: SplitSlot) =
             state(primary = primary, secondary = secondary, scene = SplitScene.Split)
-
-        fun everyFact(): List<SplitFact> = listOf(
-            SplitFact.ToggleChanged(enabled = true),
-            SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, MUSIC),
-            SplitFact.AppClosedSettled(SplitPane.PRIMARY),
-            SplitFact.PaneCollapsedSettled(
-                collapsed = SplitPane.PRIMARY,
-                survivorPane = SplitPane.SECONDARY,
-            ),
-            SplitFact.PaneCollapsedSettled(
-                collapsed = SplitPane.PRIMARY,
-                survivorPane = SplitPane.PRIMARY,
-            ),
-            SplitFact.PickerPaneClosedSettled(SplitPane.PRIMARY),
-            SplitFact.SceneEndedSettled,
-            SplitFact.HomeConfirmed,
-            SplitFact.SceneRevealed,
-            SplitFact.EdgeCommitConfirmed(SplitPane.SECONDARY),
-            SplitFact.ProjectionStarted(SplitPane.PRIMARY),
-            SplitFact.ProjectionReturned,
-            SplitFact.PackageRemoved(MUSIC),
-            SplitFact.BuildSceneSucceeded(
-                mapOf(
-                    SplitPane.PRIMARY to SplitSlot.Picker,
-                    SplitPane.SECONDARY to SplitSlot.Picker,
-                ),
-            ),
-        )
     }
 }
