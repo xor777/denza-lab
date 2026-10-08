@@ -53,6 +53,9 @@ if (providers.gradleProperty("experiments").isPresent) {
     include(":adb-rescue-probe")
     project(":adb-rescue-probe").projectDir = file("experiments/adb-rescue-probe")
 
+    include(":dipilot-adb-rescue")
+    project(":dipilot-adb-rescue").projectDir = file("experiments/dipilot-adb-rescue")
+
     include(":personbean-provider-probe")
     project(":personbean-provider-probe").projectDir =
         file("experiments/personbean-provider-probe")
