@@ -5418,9 +5418,9 @@ class SplitScenarioTest {
      * оказывается в полноэкранном корне поверх всего.
      *
      * Хелпер намеренно переиспользуемый: подключение его к остальным сценариям - отдельная работа.
-     * Она упрётся в [SplitPickerShellSessionTest.anEvictedTaskLeavesThePaneAliveAndKeepsWhateverGeometryTheFirmwareGivesIt],
-     * который сегодня утверждает ровно обратное как норму - и утверждает справедливо ровно для
-     * ФОНОВОЙ чужой задачи, но не для ВИДИМОЙ.
+     * Она упрётся в мир [SplitPickerShellSessionTest.anEvictedTaskTheFirmwareWillNotResizeStillLeavesThePaneAlive]:
+     * там прошивка отвергает ресайз ФОНОВОЙ чужой задачи, и чужие границы та уносит не по вине
+     * продукта.
      *
      * Считаются только три корня, о которых продукт вообще говорит. `DETACHED_ROOT` пропущен по
      * прямому измерению (ground-v18): отвязанная задача живёт в собственном корне, чьи границы
