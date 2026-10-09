@@ -10,7 +10,6 @@ import android.os.Looper
 import android.util.Log
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
-import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.core.FeatureWords
@@ -42,7 +41,7 @@ import dev.denza.apps.feature.defaultapps.InstalledDefaultApp
 import dev.denza.apps.feature.defaultapps.NavigationRoleRepair
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.fse.FseInstallApp
-import dev.denza.apps.feature.fse.FseInstallResult
+import dev.denza.apps.feature.fse.FseInstallStatus
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudGuidanceStatus
@@ -61,7 +60,6 @@ import dev.denza.apps.feature.mirrors.MirrorsSettings
 import dev.denza.apps.feature.mirrors.SideCameraMonitorService
 import dev.denza.apps.feature.navigation.NavigationCoordinator
 import dev.denza.apps.feature.navigation.NavigationAppPolicy
-import dev.denza.apps.feature.navigation.NavigationPhase
 import dev.denza.apps.feature.navigation.NavigationPlacementPolicy
 import dev.denza.apps.feature.navigation.NavigationSettings
 import dev.denza.apps.feature.navigation.SteeringWheelNavigationAccessCoordinator
@@ -430,12 +428,7 @@ object DenzaAppRepository {
             val selectedPackage = NavigationCoordinator.selectedPackage()
             val steeringWheelAccess = SteeringWheelNavigationAccessCoordinator.inspect(context)
             NavigationReading(
-                snapshot = navigationSnapshot(
-                    session.phase,
-                    session.message,
-                    session.details,
-                    session.resolution,
-                ),
+                snapshot = session.snapshot(),
                 buttonLabel = session.buttonLabel,
                 steeringWheelButton = steeringWheelAccess.desired,
                 steeringWheelButtonReady = steeringWheelAccess.ready,
@@ -611,29 +604,10 @@ object DenzaAppRepository {
         }
         executor.execute {
             val result = FseAppInstaller.install(context, packageName) { message ->
-                val progress = FeatureSnapshot(
-                    id = FeatureId.FSE_INSTALLER,
-                    desiredEnabled = false,
-                    status = FeatureStatus.STARTING,
-                    message = message,
-                )
+                val progress = FseInstallStatus.progress(message)
                 stateStore.update { current -> current.copy(fseInstaller = progress) }
             }
-            val completed = when (result) {
-                is FseInstallResult.Installed -> FeatureSnapshot(
-                    id = FeatureId.FSE_INSTALLER,
-                    desiredEnabled = false,
-                    status = FeatureStatus.READY,
-                    message = result.app.label,
-                )
-                is FseInstallResult.Failed -> FeatureSnapshot(
-                    id = FeatureId.FSE_INSTALLER,
-                    desiredEnabled = false,
-                    status = FeatureStatus.ERROR,
-                    message = result.message,
-                    details = result.details,
-                )
-            }
+            val completed = FseInstallStatus.of(result)
             stateStore.update { current -> current.copy(fseInstaller = completed) }
         }
     }
@@ -1426,31 +1400,6 @@ object DenzaAppRepository {
             accessibilityConnected = SimulcastAccessibilityService.isConnected(),
             active = HudGuidanceRuntime.isActive(),
             details = HudGuidanceRuntime::details,
-        )
-    }
-
-    private fun navigationSnapshot(
-        phase: NavigationPhase,
-        message: String,
-        details: String?,
-        resolution: FeatureResolution?,
-    ): FeatureSnapshot {
-        val status = when (phase) {
-            NavigationPhase.READY -> FeatureStatus.READY
-            NavigationPhase.OPENING,
-            NavigationPhase.PROJECTING,
-            NavigationPhase.RETURNING,
-            -> FeatureStatus.STARTING
-            NavigationPhase.PROJECTED -> FeatureStatus.ACTIVE
-            NavigationPhase.NEEDS_ACTION -> FeatureStatus.NEEDS_ACTION
-        }
-        return FeatureSnapshot(
-            id = FeatureId.NAVIGATION,
-            desiredEnabled = phase == NavigationPhase.PROJECTED,
-            status = status,
-            message = message,
-            details = details,
-            resolution = resolution,
         )
     }
 

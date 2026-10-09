@@ -165,7 +165,7 @@ class NavigationModelsTest {
         val waiting = NavigationSession(
             target = NavigationTarget.DASHBOARD,
             phase = NavigationPhase.NEEDS_ACTION,
-            message = "Выберите приборный экран",
+            message = "Экран не выбран",
             resolution = FeatureResolution.SELECT_CLUSTER_DISPLAY,
         )
 
@@ -225,7 +225,7 @@ class NavigationModelsTest {
         val session = NavigationSession(
             phase = NavigationPhase.NEEDS_ACTION,
             taskId = 12,
-            message = "Выберите приборный экран",
+            message = "Экран не выбран",
             resolution = FeatureResolution.SELECT_CLUSTER_DISPLAY,
         )
 

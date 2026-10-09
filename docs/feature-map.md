@@ -99,7 +99,7 @@ Puts one thing on the instrument cluster behind the wheel (this app's own instru
 - **Settings:** `NavigationSettings` (key `denza_navigation`: chosen package, placement, ★ button); `ClusterDisplayResolver` (key `denza_cluster`: hand-picked cluster display).
 - **Docs:** `docs/energy-display-contract.md` (normative for the Contour's figures), `tools/design-canvas/luminofor/README.md` (normative for the Contour's look), `docs/instrument-display-findings.md` ("Navigation projection", "App-owned instrument dashboard").
 - **Luminofor:** fixtures `sheet-cluster`, `one-sheet-cluster`, `sheet-driver-apps`, `one-sheet-driver-apps` in `apps/denza-apps/src/debug/assets/luminofor/fixtures.json`. The Contour itself has fixtures `cluster-city`, `cluster-park`, `cluster-charging`, `cluster-unavailable` and eight more cluster-… keys, drawn by `drawCluster` in `tools/design-canvas/luminofor/luminofor.js`.
-- **Tests:** `DriverScreenChoicesTest`, `NavigationModelsTest`, `NavigationChoiceOrderTest`, `NavigationOneTapSourceContractTest`, `NavigationProxyClientTest`, `ClusterProxyMainTest`, `SteeringWheelNavigationButtonTest`, `ClusterDisplayResolverTest`, `ContourFixturesContractTest`.
+- **Tests:** `DriverScreenChoicesTest`, `NavigationModelsTest`, `NavigationChoiceOrderTest`, `NavigationOneTapSourceContractTest`, `NavigationProxyClientTest`, `ClusterProxyMainTest`, `SteeringWheelNavigationButtonTest`, `ClusterDisplayResolverTest`, `ContourFixturesContractTest`, `NavigationWordsTest`.
 
 ### «Трансляция» — `SIMULCAST`
 
@@ -147,11 +147,11 @@ Repeats Yandex Navigator's turn-by-turn hints (manoeuvre, distance) on the winds
 - **Tile:** `DashboardTiles.hud`; feature `FeatureId.HUD_GUIDANCE`; state `DenzaUiState.hudGuidance`, the `StateSlice.HUD_GUIDANCE` slice. Marked by its switch and access steps, by `HudGuidanceRuntime` itself when guidance starts or stops (not on every sample), with `StateSlice.ACCESSIBILITY` and with `StateSlice.PACKAGES` (the navigator installed or removed).
 - **Press / long press:** `DashboardPress.perform` → `TileAction.TOGGLE` → `DashboardPress.toggle` → `DashboardActions.onToggleHudGuidance` (bound in `MainActivity.onCreate`) → `DenzaAppRepository.setHudGuidanceEnabled` → `HudGuidanceSettings.setEnabled` and `SimulcastAccessibilityService.requestHudGuidanceRefresh`. Access comes through `HudNotificationAccessCoordinator.ensureAccess` and `SimulcastCoordinator.repairAccess`. Retry: `DashboardPress.retry` → `DashboardActions.onToggleHudGuidance`. With the navigator missing (unavailable), the press is `DashboardActions.onOpenSettings`. Long press: `DashboardActions.onOpenSettings` → `FeatureSheet`.
 - **Panel:** `hudSheet` in `ui/dashboard/FeatureSheets.kt`: one switch, «Подсказки на проекции», and no footer button.
-- **Runtime:** `feature/hud/` has no service of its own. `HudGuidanceAccessibilityMonitor` runs inside `SimulcastAccessibilityService` (manifest). It reads Yandex through `YandexGuidanceAccessibilityReader` and `YandexNotificationArtworkListener` (a manifest notification listener), parses with `YandexGuidanceParser` and sends over SOME/IP with `HudSomeIpClient`. State is kept in `HudGuidanceRuntime` and `HudArApproximationTracker`; `HudRouteFreshness` decides, poll by poll, which source the HUD shows and when its route is lost. The tile snapshot comes from `DenzaAppRepository.evaluateHudGuidance`.
+- **Runtime:** `feature/hud/` has no service of its own. `HudGuidanceAccessibilityMonitor` runs inside `SimulcastAccessibilityService` (manifest). It reads Yandex through `YandexGuidanceAccessibilityReader` and `YandexNotificationArtworkListener` (a manifest notification listener), parses with `YandexGuidanceParser` and sends over SOME/IP with `HudSomeIpClient`. State is kept in `HudGuidanceRuntime` and `HudArApproximationTracker`; `HudRouteFreshness` decides, poll by poll, which source the HUD shows and when its route is lost. The tile snapshot is `HudGuidanceStatus.snapshot`, which `DenzaAppRepository.evaluateHudGuidance` feeds.
 - **Settings:** `HudGuidanceSettings` (key `denza_hud_guidance`: on/off; navigator fixed to Yandex).
 - **Docs:** `docs/instrument-display-findings.md` ("HUD turn-by-turn guidance"), `docs/hud-projection-findings.md` (the HUD as a display, which is not this tile).
 - **Luminofor:** none: no sheet fixture; shared tile face.
-- **Tests:** `YandexGuidanceParserTest`, `YandexNotificationGuidanceTest`, `HudRouteFreshnessTest`, `HudManeuverStockIdTest`, `HudSomeIpRuntimeTest`, `HudArApproximationTest`, `HudNotificationAccessTest`, `HudNotificationArtworkTest`, `SingleFlightReadRunnerTest`.
+- **Tests:** `YandexGuidanceParserTest`, `YandexNotificationGuidanceTest`, `HudRouteFreshnessTest`, `HudManeuverStockIdTest`, `HudSomeIpRuntimeTest`, `HudArApproximationTest`, `HudNotificationAccessTest`, `HudNotificationArtworkTest`, `SingleFlightReadRunnerTest`, `HudGuidanceStatusTest`.
 
 ### «Погода» — `WEATHER`
 
@@ -203,7 +203,7 @@ Copies an app installed on the head unit to the front passenger's own computer (
 - **Settings:** none. The last result lives only in `DenzaUiState.fseInstaller`.
 - **Docs:** `docs/fse-app-installation.md`, `research/fse-firmware/README.md`.
 - **Luminofor:** none: no fixture for the chooser; shared tile face.
-- **Tests:** `FseAppInstallerTest`, `AppPickersTest`, `DashboardTilesTest`.
+- **Tests:** `FseAppInstallerTest`, `AppPickersTest`, `DashboardTilesTest`, `TileCaptionContractTest`.
 
 ### «Shortcuts» — `DEFAULT_APPS`
 
@@ -271,7 +271,7 @@ One door to what is wrong right now, the app's access to the car, the instrument
 - **Surface:** `ui/DenzaAppsScreen.kt` (overlay and recovery dialog), `ui/AdbExplainerSheet.kt`, `feature/adb/`, `adb/DenzaLocalAdb.kt`.
 - **Docs:** `docs/adb-authorization-recovery.md`.
 - **Luminofor:** fixtures `modal-adb`, `one-modal-adb`, `modal-adb-wifi` (the gate), `main-car-closed`, `one-car-closed` (the strip without access), `cluster-unavailable` (the instruments without access); drawn by `drawModal` in `tools/design-canvas/luminofor/luminofor.js`.
-- **Tests:** `AdbStartupGatePolicyTest`, `AdbRescuePolicyTest`, `AdbExplainerTest`, `AdbSystemSwitchTest`, `AdbPortRestoreTest`, `LocalAdbClientTest`.
+- **Tests:** `AdbStartupGatePolicyTest`, `AdbRescuePolicyTest`, `AdbExplainerTest`, `AdbSystemSwitchTest`, `AdbPortRestoreTest`, `LocalAdbClientTest`, `AdbProblemTest`.
 
 ### ADB restoration after reboot
 

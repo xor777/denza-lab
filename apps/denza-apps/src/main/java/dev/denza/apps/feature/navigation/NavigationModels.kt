@@ -1,7 +1,10 @@
 package dev.denza.apps.feature.navigation
 
 import dev.denza.apps.BuildConfig
+import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
+import dev.denza.apps.core.FeatureSnapshot
+import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 
 /**
@@ -100,6 +103,24 @@ data class NavigationSession(
 
     val buttonLabel: String
         get() = if (target == NavigationTarget.DASHBOARD) dashboardLabel() else applicationLabel()
+
+    /** The driver's-screen tile's snapshot: on the cluster is the one state it is "on" in. */
+    fun snapshot(): FeatureSnapshot = FeatureSnapshot(
+        id = FeatureId.NAVIGATION,
+        desiredEnabled = phase == NavigationPhase.PROJECTED,
+        status = when (phase) {
+            NavigationPhase.READY -> FeatureStatus.READY
+            NavigationPhase.OPENING,
+            NavigationPhase.PROJECTING,
+            NavigationPhase.RETURNING,
+            -> FeatureStatus.STARTING
+            NavigationPhase.PROJECTED -> FeatureStatus.ACTIVE
+            NavigationPhase.NEEDS_ACTION -> FeatureStatus.NEEDS_ACTION
+        },
+        message = message,
+        details = details,
+        resolution = resolution,
+    )
 
     /**
      * The dashboard is not returned anywhere - it is put on the panel or taken off it - and it has
