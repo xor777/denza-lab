@@ -194,8 +194,6 @@ internal class SplitSelect(
         else -> error("Пикер больше не находится в рабочем окне")
     }
 
-    // region the world's reads the operations ask for
-
     /**
      * Запуск цели с live-proven promote в выбранный root - и подтверждением ПО ФАКТУ (правка W4
      * волны 7, контракт 1.5.3). Прошивка кладёт split-способный собственный пакет по СВОИМ
