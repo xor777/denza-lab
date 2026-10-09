@@ -573,6 +573,7 @@ object DenzaAppRepository {
 
     fun showFseInstallerPicker() {
         val context = appContext ?: return
+        if (FseInstallStatus.installing(stateStore.snapshot().state.fseInstaller)) return
         val installedApps = FseAppInstaller.installedApps(context)
         // The pictures are read with the list, as they always were, so the chooser opens drawn.
         installedApps.filter(FseInstallApp::installable).forEach { app ->
@@ -2127,12 +2128,7 @@ object DenzaAppRepository {
         while (true) {
             val snapshot = stateStore.snapshot()
             val current = snapshot.state
-            if (
-                current.fseInstaller.status == FeatureStatus.STARTING ||
-                current.fseInstaller.status == FeatureStatus.RECOVERING
-            ) {
-                return FseInstallClaim.BUSY
-            }
+            if (FseInstallStatus.installing(current.fseInstaller)) return FseInstallClaim.BUSY
 
             val app = current.fseInstallApps.firstOrNull { it.packageName == packageName }
             // A package that cannot be sent across is already drawn as unpressable, so reaching
