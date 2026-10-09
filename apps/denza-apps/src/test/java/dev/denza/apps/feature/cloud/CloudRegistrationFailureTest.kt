@@ -45,7 +45,8 @@ class CloudRegistrationFailureTest {
         val repeated = CloudRegistrationFailure.latest(capture, 0, epoch + 30_000, 40_000)!!
         assertEquals(first.expiresAtMs, repeated.expiresAtMs)
         val message = first.message(car, 10_000)
-        assertEquals(message, CloudLinkStatus.words(CloudLinkStatus.snapshot(true, car, true, null, registrationFailure = message)))
+        // The code is the report's; the tile says the link is not up.
+        assertEquals("Нет связи", CloudLinkStatus.words(CloudLinkStatus.snapshot(true, car, true, null, registrationFailure = message)))
         assertEquals("На связи", CloudLinkStatus.words(CloudLinkStatus.snapshot(true, car.copy(connected = true), false, null, registrationFailure = message)))
     }
 }

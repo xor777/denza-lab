@@ -159,7 +159,8 @@ internal object CloudLinkDiagnostics {
             appendLine("request=${CloudLinkSettings.request(context)}")
             val failures = CloudLinkRuntime.failures
             appendLine(
-                "failure=${failures.press} automaticFailure=${failures.automatic} " +
+                "failure=${failures.press?.report} automaticFailure=${failures.automatic?.report} " +
+                    "setting=${failures.setting} " +
                     "readFailure=${CloudLinkRuntime.readFailure}",
             )
             appendLine("readAgeMs=${CloudLinkRuntime.readAtMs?.let { SystemClock.elapsedRealtime() - it }}")

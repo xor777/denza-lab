@@ -10,6 +10,7 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.core.FeatureWords
 
 /**
  * The driver's wish, and nothing else.
@@ -175,14 +176,20 @@ data class CloudNetworkReading(
  * The tile's status, read from the wish and the last reading - never from what the controller is
  * doing this second.
  *
- * | status   | when                                                   | tile            |
- * | -------- | ------------------------------------------------------ | --------------- |
- * | OFF      | switched off                                           | «Выключено»     |
- * | ACTIVE   | the stock client holds its connection                  | «На связи»      |
- * | READY    | switched on, no usable internet to translate           | «Нет интернета» |
- * | STARTING | switched on, on internet, not connected (yet)          | «Подключается»  |
- * | ERROR    | the driver's last press was not taken by the car       | the failure     |
- * | ERROR    | on, and the adapter's own last pass did not complete   | the failure     |
+ * | status   | when                                                               | tile                |
+ * | -------- | ------------------------------------------------------------------ | ------------------- |
+ * | OFF      | switched off                                                       | «Выключено»         |
+ * | ACTIVE   | the stock client holds its connection                              | «На связи»          |
+ * | READY    | switched on, no usable internet to translate                       | «Нет интернета»     |
+ * | STARTING | switched on, on internet, not connected (yet)                      | «Подключается»      |
+ * | ERROR    | the driver's last press was not taken by the car                   | «Не включилось» / «Не выключилось» |
+ * | ERROR    | the car could not be read, or its reading is old                   | «Нет свежих данных» |
+ * | ERROR    | on and on internet, and the link did not come up                   | «Нет связи»         |
+ *
+ * That is the whole vocabulary. The tile used to print the controller's own words - exception
+ * class names, «Не прочитано с машины: TCP, профиль, флаг APN1…», «Облако отклонило регистрацию
+ * (код 3)», a bare «Check failed.» - while the boards and the doc said «Не включилось». The reasons
+ * are kept, in [CloudFailure.detail] and the registration's code, for the report.
  *
  * The two failures are kept apart ([CloudLinkFailures]): a refused press stands until a press or
  * the car's state answers it, while a failed pass goes with the next pass that works.
@@ -193,6 +200,12 @@ data class CloudNetworkReading(
  * true, as weather is before its first forecast.
  */
 object CloudLinkStatus {
+    /** Nothing the app knows about the car is fresh. */
+    const val STALE = "Нет свежих данных"
+
+    /** On, on internet, and the link is not up - stalled, refused, or the profile taken away. */
+    const val NO_LINK = "Нет связи"
+
     /**
      * The tile's words for a snapshot - here rather than on the tile so the service report says the
      * link's state in the same words the tile does, from the one place they are written.
@@ -201,7 +214,7 @@ object CloudLinkStatus {
         FeatureStatus.OFF -> "Выключено"
         FeatureStatus.ACTIVE -> "На связи"
         FeatureStatus.READY -> snapshot.message.ifBlank { "Нет интернета" }
-        FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE -> snapshot.message.ifBlank { "Не переключилось" }
+        FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE -> snapshot.message.ifBlank { FeatureWords.REFUSED }
         else -> "Подключается"
     }
 
@@ -209,37 +222,40 @@ object CloudLinkStatus {
         enabled: Boolean,
         car: CloudCarState?,
         network: Boolean,
-        failure: String?,
+        failure: CloudFailure?,
         readingFailed: Boolean = false,
         pendingDisable: Boolean = false,
         stalled: Boolean = false,
         profileDrift: Boolean = false,
         registrationFailure: String? = null,
         awaitingFreshRead: Boolean = false,
-        automaticFailure: String? = null,
+        automaticFailure: CloudFailure? = null,
     ): FeatureSnapshot {
         val base = if (enabled) {
             FeatureReducer.starting(FeatureId.CLOUD_LINK)
         } else {
             FeatureReducer.disabled(FeatureId.CLOUD_LINK)
         }
+        fun error(words: String) = base.copy(status = FeatureStatus.ERROR, message = words)
         return when {
-            pendingDisable -> base.copy(status = FeatureStatus.ERROR, message = "Выключение не завершено")
-            failure != null -> base.copy(status = FeatureStatus.ERROR, message = failure)
+            pendingDisable -> error(CloudFailure.Kind.OFF_REFUSED.words)
+            failure != null -> error(failure.words)
             !enabled -> base
             // The adapter's own pass matters only while the link is on, and only until the next
-            // pass that works; a refused press outranks it.
-            automaticFailure != null -> base.copy(status = FeatureStatus.ERROR, message = automaticFailure)
+            // pass that works; a refused press outranks it. One that could not read the car leaves
+            // nothing fresh to say, as an old reading does.
+            automaticFailure?.kind == CloudFailure.Kind.NOT_READ -> error(STALE)
             // Off stops polling. On after a long pause must wait for its bounded operation's
             // fresh read, not flash an error or claim success from the expired TCP snapshot.
             // An actual read/operation failure still wins, and idle stale readings still fail.
-            readingFailed -> if (awaitingFreshRead) base else
-                base.copy(status = FeatureStatus.ERROR, message = "Нет свежих данных")
+            readingFailed -> if (awaitingFreshRead) base else error(STALE)
             car?.connected == true -> FeatureReducer.ready(FeatureId.CLOUD_LINK, active = true)
             !network -> FeatureReducer.ready(FeatureId.CLOUD_LINK)
-            profileDrift -> base.copy(status = FeatureStatus.ERROR, message = "Профиль изменился")
-            registrationFailure != null -> base.copy(status = FeatureStatus.ERROR, message = registrationFailure)
-            stalled -> base.copy(status = FeatureStatus.ERROR, message = "Нет связи с облаком")
+            // A pass that read the car and could not finish, a profile somebody else changed, a
+            // registration the cloud refused, a link that stayed down past the settle: on, on
+            // internet, and no link. The reasons are the report's.
+            automaticFailure != null || profileDrift || registrationFailure != null || stalled ->
+                error(NO_LINK)
             else -> base
         }
     }

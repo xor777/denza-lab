@@ -19,6 +19,7 @@ Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-f
   - [Additional build-58 report: repeated code 3, changed PID and ICCID shape, 2026-09-24](#additional-build-58-report-repeated-code-3-changed-pid-and-iccid-shape-2026-09-24)
   - [Build 60 hotfix: stale-reading flash on re-enable, 2026-09-24](#build-60-hotfix-stale-reading-flash-on-re-enable-2026-09-24)
   - [Automatic failures clear with the next working pass, 2026-10-08](#automatic-failures-clear-with-the-next-working-pass-2026-10-08)
+  - [The tile's fixed vocabulary, 2026-10-09](#the-tiles-fixed-vocabulary-2026-10-09)
   - [Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24](#build-59-confirmed-application-fixes-and-cache-refresh-investigation-2026-09-24)
   - [Offline identity preparation and command 211 reproduction, 2026-09-24](#offline-identity-preparation-and-command-211-reproduction-2026-09-24)
   - [R-SIM terminology and configurable ICCID, 2026-09-24](#r-sim-terminology-and-configurable-iccid-2026-09-24)
@@ -174,6 +175,8 @@ waiting, not a fault), «Подключается» (working), or the press the 
 включилось» / «Не выключилось». Pressing a refused tile asks for the same
 thing again rather than reversing it. A refusal clears as soon as the link is
 seen up by any path.
+
+> **Superseded 2026-10-09:** the code did not say «Не включилось» / «Не выключилось»; it printed the controller's own reason. The tile now has a fixed vocabulary of eight words — see [The tile's fixed vocabulary, 2026-10-09](#the-tiles-fixed-vocabulary-2026-10-09).
 
 Lifecycle: ACC-off terminates the app. While parked, the link belongs to the
 stock client, and the Wi-Fi switch decides whether it stays reachable. On wake
@@ -360,6 +363,8 @@ distinct from `CloudLinkRuntime.busy`, which greys both settings switches while
 an explicit command runs. The reported spinner does not distinguish the two.
 
 > **Superseded 2026-09-24:** build 55 ends the indefinite spinner: after the 90-second settle an unconnected client shows «Нет связи с облаком» (`CloudLinkStatus.kt`) while bounded recovery continues — see [Build 55 recovery fixes and owner-car timing checks, 2026-09-24](#build-55-recovery-fixes-and-owner-car-timing-checks-2026-09-24).
+
+> **Superseded 2026-10-09:** that state reads «Нет связи» — see [The tile's fixed vocabulary, 2026-10-09](#the-tiles-fixed-vocabulary-2026-10-09).
 
 **Off/on remains a hypothesis to capture, not a diagnosed native fault.** Off
 sends -5, waits one second and restores the build profile; on re-reads TCP and
@@ -1014,10 +1019,46 @@ until the next `4` or TCP=1: up to an hour.
 Lasting trouble keeps its own lower-priority states: «Нет свежих данных»,
 «Профиль изменился», a fresh 211 rejection, «Нет связи с облаком». No polling,
 retry, backoff or vehicle write changed, and the tile's wording is unchanged.
+
+> **Superseded 2026-10-09:** the failures keep their reasons for the report and the tile says one of a fixed set of words; «Профиль изменился», the 211 rejection and «Нет связи с облаком» all read «Нет связи», a failed pass reads «Нет свежих данных» or «Нет связи» — see [The tile's fixed vocabulary, 2026-10-09](#the-tiles-fixed-vocabulary-2026-10-09).
 The «Отказ» row of «Сервис» shows both, the automatic one prefixed
 «автоматика:», and the exported report adds `automaticFailure=` beside
 `failure=`. `CloudLinkFailuresTest` drives the transitions with the real
 `CloudLinkCore` backoff.
+
+### The tile's fixed vocabulary, 2026-10-09
+
+Code change, not yet on any car.
+
+The tile printed whatever the controller caught. A refused press showed the
+exception's own words - an `IllegalStateException`'s message or «Нет ответа:
+<class>» - and so did a failed automatic pass: «Нет ответа:
+SocketTimeoutException», «Не прочитано с машины: TCP, профиль, флаг APN1, APN1
+(чтение не завершено)», «Команда облачному сервису отклонена (4)», and from the
+bare `check` in `CloudLinkOperations.setProfile` the English «Check failed.».
+«Облако отклонило регистрацию (код 3)» (36 characters) and «Нет связи с
+облаком» (19) ran past the tile's 17. The boards and this page said «Не
+включилось»; the tests handed that string in by hand.
+
+Now each failure is a `CloudFailure`: a kind, which is the tile's word, and
+the reason, which only the «Отказ» row of «Сервис» and the exported report
+carry (`CloudFailure.report`, «<word>: <reason>»). The whole vocabulary:
+
+| Tile | When |
+| --- | --- |
+| «Выключено» | switched off |
+| «На связи» | TCP 1 - also when the adapter's last pass read the car and then failed at something else |
+| «Нет интернета» | on, no usable internet |
+| «Подключается» | on, on internet, not connected yet |
+| «Не включилось» / «Не выключилось» | a press the car did not take, by its direction; a pending disable is «Не выключилось» |
+| «Нет свежих данных» | the car could not be read (a failed pass that never got its reading, or a reading older than 90 s) |
+| «Нет связи» | on and on internet with no link: a pass that read the car and could not finish, the profile changed by somebody else, a fresh 211 rejection, or no TCP after the 90 s settle |
+
+A refused «Держать Wi-Fi включенным» is no longer the link's refused press: the
+panel's switch reads the car's value back, which is the answer, and the reason
+goes to the «Отказ» row as «Wi-Fi во сне: …». The 211 rejection's code goes
+there too. `CloudLinkFailuresTest` holds that no reason reaches the tile, and
+`TileCaptionContractTest` holds every word to the tile's budget.
 
 ### Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24
 

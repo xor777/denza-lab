@@ -36,11 +36,19 @@ object CloudLinkReport {
         busy: Boolean,
         nowMs: Long,
         automaticFailure: String? = null,
+        setting: String? = null,
+        registration: String? = null,
     ): List<Pair<String, String>> = listOf(
         "Связь" to "${if (enabled) "включена" else "выключена"}, плитка «$tile»",
         // The press's refusal and the adapter's own failed pass share the row, told apart, so a
-        // screenshot says which of the two is on the tile and which clears with the next pass.
-        "Отказ" to listOfNotNull(failure, automaticFailure?.let { "автоматика: $it" })
+        // screenshot says which of the two is on the tile and which clears with the next pass. The
+        // reasons are here and only here: the tile says one of its few words for each.
+        "Отказ" to listOfNotNull(
+            failure,
+            automaticFailure?.let { "автоматика: $it" },
+            setting?.let { "Wi-Fi во сне: $it" },
+            registration,
+        )
             .joinToString("; ")
             .ifEmpty { "нет" },
         "Сеть" to "${network.kind.label}, интернет ${if (network.validated) "проверен" else "не проверен"}",

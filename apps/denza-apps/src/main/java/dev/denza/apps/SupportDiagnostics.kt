@@ -147,14 +147,16 @@ object SupportDiagnostics {
         return CloudLinkReport.rows(
             enabled = enabled,
             tile = tile,
-            failure = failures.press,
+            failure = failures.press?.report,
             network = network,
             car = car,
             readAtMs = CloudLinkRuntime.readAtMs,
             adapter = CloudLinkRuntime.adapter,
             busy = CloudLinkRuntime.busy,
             nowMs = SystemClock.elapsedRealtime(),
-            automaticFailure = failures.automatic,
+            automaticFailure = failures.automatic?.report,
+            setting = failures.setting,
+            registration = CloudLinkRuntime.registrationFailure?.message(car, SystemClock.elapsedRealtime()),
         ).map { (key, value) -> row(key, value) } + listOf(
             row("Чтение", CloudLinkRuntime.readFailure ?: if (CloudLinkRuntime.readingFailed(SystemClock.elapsedRealtime())) "устарело" else "актуально"),
             row("Ожидает выключения", yesNo(CloudLinkSettings.pendingDisable(context))),

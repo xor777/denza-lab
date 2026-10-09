@@ -71,8 +71,8 @@ class CloudLinkRecoveryTest {
         val old = adapted.copy(connected = true)
         assertEquals("Нет свежих данных", CloudLinkStatus.words(CloudLinkStatus.snapshot(true, old, true, null, readingFailed = true)))
         assertEquals("На связи", CloudLinkStatus.words(CloudLinkStatus.snapshot(true, old, false, null)))
-        assertEquals("Выключение не завершено", CloudLinkStatus.words(CloudLinkStatus.snapshot(false, old, true, null, pendingDisable = true)))
-        assertEquals("Нет связи с облаком", CloudLinkStatus.words(CloudLinkStatus.snapshot(true, adapted, true, null, stalled = true)))
+        assertEquals("Не выключилось", CloudLinkStatus.words(CloudLinkStatus.snapshot(false, old, true, null, pendingDisable = true)))
+        assertEquals("Нет связи", CloudLinkStatus.words(CloudLinkStatus.snapshot(true, adapted, true, null, stalled = true)))
     }
 
     private inner class Boundary {

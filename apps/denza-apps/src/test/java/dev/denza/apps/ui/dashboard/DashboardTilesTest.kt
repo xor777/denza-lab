@@ -6,6 +6,7 @@ import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.cloud.CloudCarState
+import dev.denza.apps.feature.cloud.CloudFailure
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppChoice
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
@@ -540,7 +541,7 @@ class DashboardTilesTest {
      */
     @Test
     fun theCloudTileReadsTheLinkNotTheSwitch() {
-        fun cloud(enabled: Boolean, car: CloudCarState?, network: Boolean, failure: String? = null) =
+        fun cloud(enabled: Boolean, car: CloudCarState?, network: Boolean, failure: CloudFailure? = null) =
             DenzaUiState(cloudLink = CloudLinkStatus.snapshot(enabled, car, network, failure))
                 .tile(TileId.CLOUD)
 
@@ -580,7 +581,7 @@ class DashboardTilesTest {
                 enabled = true,
                 car = CloudCarState(connected = false),
                 network = true,
-                failure = "Не включилось",
+                failure = CloudFailure.refused(true, "Операция не подтвердилась"),
             ),
         )
         assertEquals("Не включилось", refused.tile(TileId.CLOUD).state)
