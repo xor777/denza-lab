@@ -114,9 +114,10 @@ internal class VehicleTelemetryHub(context: Context) {
      * last would have stopped the poll under the one still drawing.
      *
      * Mutated from the main thread by the views that own the claims; the loop reads [polling],
-     * which is why that one is volatile and the set is not.
+     * which is why that one is volatile and the set is not. What a claim coming or going asks of
+     * the loop is decided by [VehicleClaims], and only carried out here.
      */
-    private val watchers = HashSet<VehicleWatcher>()
+    private val claims = VehicleClaims()
 
     @Volatile
     private var polling = false
@@ -222,9 +223,12 @@ internal class VehicleTelemetryHub(context: Context) {
     /**
      * Called by each consumer as it appears and goes.
      *
-     * A consumer that has just appeared asks for a full cold sweep immediately rather than
+     * A screen that has just appeared asks for a full cold sweep immediately rather than
      * leaving slow-changing rows dashed for ten seconds - it costs one longer batch, and it is
-     * what makes a page that has just been swiped to arrive with its temperatures on it.
+     * what makes a page that has just been swiped to arrive with its temperatures on it. A claim
+     * that draws nothing ([VehicleWatcher.onScreen] false) has no cold row to wait for: the trip
+     * clock reads only the park switch, which is hot and in every sweep, and the ledger's claim
+     * starts a loop whose first sweep is a cold one anyway.
      *
      * [VehicleWatcher.LEDGER] is claimed at the application's start and never released, so the
      * loop is always running and the cadence is what changes when a screen comes and goes
@@ -234,17 +238,15 @@ internal class VehicleTelemetryHub(context: Context) {
      * last snapshot for up to a minute after the car had come back.
      */
     fun setActive(watcher: VehicleWatcher, value: Boolean) {
-        val changed = if (value) watchers.add(watcher) else watchers.remove(watcher)
-        if (!changed) return
-        polling = watchers.isNotEmpty()
-        sweepMs = VehicleSweepCadence.intervalMs(watchers)
-        if (value) {
-            forceCold = true
+        val change = claims.set(watcher, value) ?: return
+        polling = change.polling
+        sweepMs = change.sweepMs
+        if (change.coldAtOnce) forceCold = true
+        if (change.wake) {
             start()
             backoff.wake()
-        } else if (!polling) {
-            stop()
         }
+        if (change.stop) stop()
     }
 
     private suspend fun CoroutineScope.pollLoop() {
@@ -741,13 +743,13 @@ internal class VehiclePollLoopGate {
 }
 
 /**
- * The three things that ask this car for numbers.
+ * The four things that ask this car for numbers.
  *
  * They are named rather than counted because they are not interchangeable: the cluster's claim
  * lasts as long as the driver's display is showing our panel, the strip's lasts only while its
- * second page is on screen, and the ledger's lasts as long as the process. A reference count would
- * have told the hub how many claims there are and nothing about what to do when one of them
- * misbehaves - or about how fast to sweep for it.
+ * second page is on screen, the trip clock's while the strip runs at all, and the ledger's lasts as
+ * long as the process. A reference count would have told the hub how many claims there are and
+ * nothing about what to do when one of them misbehaves - or about how fast to sweep for it.
  */
 internal enum class VehicleWatcher(
     /** Whether somebody is looking at these numbers, which is what sets the cadence. */
@@ -758,6 +760,19 @@ internal enum class VehicleWatcher(
 
     /** The head unit's strip, while it is drawing the car's page. */
     STRIP(onScreen = true),
+
+    /**
+     * The head unit's trip clock, while the strip runs on either page: a trip ends on P, and the
+     * clock reads P from this hub's sweep ([VehicleSignal.GEARBOX_PARK], hot, so in every sweep).
+     *
+     * Until 2026-10-09 the clock polled the same id itself, once a second over a shell of its own,
+     * beside this loop reading it anyway. Not a screen as far as cadence goes: the clock wants P
+     * about once a second, which is the ledger's own cadence, and the strip's car page holds
+     * [STRIP] when it wants four readings a second. Claimed beside [LEDGER] rather than left to it,
+     * so the clock's need is stated where the loop can see it, and so a strip that comes up ends a
+     * backoff it finds ([VehicleBackoff.wake]), as the clock's own reader used to start with a read.
+     */
+    TRIP(onScreen = false),
 
     /**
      * The road, recorded whether or not anyone looks.
@@ -771,6 +786,43 @@ internal enum class VehicleWatcher(
      * Claimed by `DenzaAppsApplication` at start and never released.
      */
     LEDGER(onScreen = false),
+}
+
+/**
+ * Who holds a claim on the hub, and what one claim coming or going asks of its loop.
+ *
+ * Out of [VehicleTelemetryHub.setActive], which only carries the answer out, because the hub cannot
+ * be built off the car and these are the rules a claim lives by: the loop polls while anybody
+ * holds one, at the cadence of who holds them ([VehicleSweepCadence]); a claim that arrives ends a
+ * backoff it finds and, if it is a screen, is owed a cold sweep at once; the last one to go stops
+ * the loop. Main thread only, like the views that make the claims.
+ */
+internal class VehicleClaims {
+    private val watchers = HashSet<VehicleWatcher>()
+
+    /** What the loop is to do now; null when the claim already stood as asked. */
+    fun set(watcher: VehicleWatcher, value: Boolean): Change? {
+        val changed = if (value) watchers.add(watcher) else watchers.remove(watcher)
+        if (!changed) return null
+        return Change(
+            polling = watchers.isNotEmpty(),
+            sweepMs = VehicleSweepCadence.intervalMs(watchers),
+            coldAtOnce = value && VehicleSweepCadence.coldAtOnce(watcher),
+            wake = value,
+            stop = !value && watchers.isEmpty(),
+        )
+    }
+
+    data class Change(
+        val polling: Boolean,
+        val sweepMs: Long,
+        /** A full cold sweep at once, rather than at the next ten-second mark. */
+        val coldAtOnce: Boolean,
+        /** Start the loop if it is not running, and end a backoff it is waiting out. */
+        val wake: Boolean,
+        /** Nobody is left: stop the loop. */
+        val stop: Boolean,
+    )
 }
 
 /**
@@ -804,6 +856,13 @@ internal object VehicleSweepCadence {
 
     fun intervalMs(watchers: Set<VehicleWatcher>): Long =
         if (watchers.any { it.onScreen }) HOT_INTERVAL_MS else LEDGER_INTERVAL_MS
+
+    /**
+     * Whether a claim that has just appeared is owed a cold sweep at once: a screen, which has
+     * temperatures to show and would otherwise dash them for ten seconds. See
+     * [VehicleTelemetryHub.setActive].
+     */
+    fun coldAtOnce(watcher: VehicleWatcher): Boolean = watcher.onScreen
 }
 
 /**

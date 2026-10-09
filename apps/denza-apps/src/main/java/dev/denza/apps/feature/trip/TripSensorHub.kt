@@ -14,6 +14,7 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.core.app.ActivityCompat
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
+import dev.denza.apps.feature.vehicle.VehicleSession
 import java.util.TimeZone
 
 /**
@@ -24,7 +25,8 @@ import java.util.TimeZone
  * The hub (and its engine) is process-scoped via [TripSession]: `stop()`
  * unregisters location updates but deliberately KEEPS the engine, so recreating the
  * panel does not reset an active drive. The live-proven park switch ends the trip;
- * the engine's movement gate decides when the next one actually starts.
+ * the engine's movement gate decides when the next one actually starts. The switch is
+ * read by the vehicle hub, in the sweep it makes anyway ([TripParkFeed]).
  *
  * Only product-usable sources are wired here (see docs/vehicle-data-findings.md):
  * The standard GNSS provider runs at ~1 Hz and the app's existing validated Yandex guidance via
@@ -35,12 +37,20 @@ class TripSensorHub(context: Context) : LocationListener {
     private val appContext = context.applicationContext
     private val locationManager = appContext.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
     private val handler = Handler(Looper.getMainLooper())
-    private val parkState = TripParkStateSource(appContext) { parked ->
-        engine.onParkState(parked, SystemClock.elapsedRealtime())
-    }
+    private val vehicle = VehicleSession.hub(appContext)
 
     /** Process-lifetime owner; its trip values reset on confirmed P. Main-thread only. */
     val engine = TripEngine()
+
+    /** P from the vehicle hub's sweep, under the strip's claim on it, `VehicleWatcher.TRIP`. */
+    private val park = TripParkFeed(
+        engine = engine,
+        telemetry = { vehicle.snapshot },
+        claim = vehicle::setActive,
+        clock = SystemClock::elapsedRealtime,
+        schedule = { block, delayMs -> handler.postDelayed(block, delayMs) },
+        unschedule = handler::removeCallbacks,
+    )
 
     /**
      * The panel's audio capture. Process-scoped like the engine, but unlike the
@@ -69,7 +79,7 @@ class TripSensorHub(context: Context) : LocationListener {
         running = true
         hostContext = host
         ensureLocationAccess()
-        parkState.start()
+        park.start()
         spectrum.start(appContext, this)
         nowPlaying.start(appContext)
     }
@@ -79,14 +89,18 @@ class TripSensorHub(context: Context) : LocationListener {
         running = false
         hostContext = null
         runCatching { locationManager?.removeUpdates(this) }
-        parkState.stop()
+        park.stop()
         spectrum.stop(this)
         nowPlaying.stop()
     }
 
-    /** Drive time-based derivations (the trip clock, the sun's next event) each rendered frame. */
+    /**
+     * Drive time-based derivations (the trip clock, the sun's next event) each rendered frame, after
+     * handing on whatever the vehicle hub has read of the selector since the last one.
+     */
     fun tick() {
         val now = SystemClock.elapsedRealtime()
+        park.feed()
         engine.onTick(now)
         pollGuidance(now)
     }
@@ -166,6 +180,8 @@ class TripSensorHub(context: Context) : LocationListener {
 
     override fun onLocationChanged(location: Location) {
         if (!running) return
+        // The fix decides whether a trip starts, and P closes that gate: it decides on P as read now.
+        park.feed()
         val now = SystemClock.elapsedRealtime()
         val wall = System.currentTimeMillis()
         val tzOffsetMinutes = TimeZone.getDefault().getOffset(wall) / 60_000

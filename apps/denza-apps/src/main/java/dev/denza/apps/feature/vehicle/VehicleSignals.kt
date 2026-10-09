@@ -150,19 +150,19 @@ internal enum class VehicleSignal(
     /**
      * Whether the selector is in P, which is what bounds a trip.
      *
-     * Not a new discovery and not a new channel: this is the same device and feature id the trip
-     * panel has read since it shipped - `dev.denza.apps.feature.trip.TripParkSignal`, whose command
-     * is `service call autoservice 5 i32 1011 i32 89129008` and whose `89129008` is the `0x5500030`
-     * written here. That reader keeps its own shell because the trip panel runs on the head unit
-     * without the cluster; the cluster already has a batch going past this device four times a
-     * second, so it asks in that batch rather than opening a second session. One id, two callers,
-     * one proven decoding: `0` out of P, `1` in P, anything else not an answer.
+     * Not a new discovery: this is the device and feature id the trip panel read since it shipped,
+     * `service call autoservice 5 i32 1011 i32 89129008`, whose `89129008` is the `0x5500030` written
+     * here. One proven decoding: `0` out of P, `1` in P, anything else not an answer.
      *
-     * Two things read it on the cluster. [TripEnergyLedger] is bounded by it - without it a trip
-     * would have to be guessed from a stationary odometer, which cannot tell a car parked for the
-     * night from one at a long traffic light - and the panel itself reads it through
-     * `VehicleTelemetry.parked`, which is what puts a third cell on the right shelf and a decimal
-     * place on the petal's figure while the car is standing.
+     * This sweep is the only reader. The trip panel used to keep a shell of its own for it
+     * (`TripParkSignal`, until 2026-10-09), polled once a second beside a loop that already read it;
+     * its clock now takes `VehicleTelemetry.parked` from this hub under [VehicleWatcher.TRIP].
+     *
+     * Three things read it. [TripEnergyLedger] is bounded by it - without it a trip would have to be
+     * guessed from a stationary odometer, which cannot tell a car parked for the night from one at a
+     * long traffic light; the panels read it through `VehicleTelemetry.parked`, which is what puts a
+     * third cell on the right shelf and a decimal place on the petal's figure while the car is
+     * standing; and the head unit's trip clock ends its trip on it (`TripParkFeed`).
      */
     GEARBOX_PARK(1011, 0x5500030, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.SWITCH),
 

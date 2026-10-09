@@ -7,7 +7,7 @@ identified through static inspection.
 
 ## Current state
 
-Updated 2026-10-03. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
+Updated 2026-10-09. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -17,7 +17,7 @@ Updated 2026-10-03. Which vehicle signals Denza Apps can read on this head unit,
 | Transacts `10`/`12` with `i32`-only parcels SIGSEGV'd `/system/bin/autoservice`; the product sends only `5`/`7` and never `6` (`VehicleSignals.kt`, `VehicleTransact`) | code | 2026-08-22 | [Binder](#binder) |
 | Device ids: `1000` AC, `1001` bodywork, `1006` energy, `1009` charging, `1011` gearbox, `1012` engine, `1013` speed, `1014` statistic/BMS, `1039` GB (motors, bus V), `1061` big data | live | 2026-08-22 | [Binder](#binder) |
 | Every `BYDAutoFeatureIds` constant, resolved for this car: untracked `captures/ambient-light-20260923/data/fids-canfd.tsv` (and `fids-can-classic.tsv`), tab-separated `<class or TOP>`, `<NAME>`, `<signed decimal>`, built by `resolve_clinit.py` because jadx cannot evaluate the static initializer; look ids up there, not by hand | firmware | 2026-09-23 | [autoservice FID protocol](#autoservice-fid-protocol) |
-| The product polls 8 hot ids (pack power, pack V, odometer, park, speed, rpm, engine running, generation) every 100 ms while the cluster or the strip's car page is up and every 1 s otherwise, plus 12 cold ids every 10 s; readings expire after 2 s / 25 s (`VehicleSignals.kt`, `VehicleTelemetryHub.kt`) | code | 2026-09-18 | [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) |
+| The product polls 8 hot ids (pack power, pack V, odometer, park, speed, rpm, engine running, generation) every 100 ms while the cluster or the strip's car page is up and every 1 s otherwise, plus 12 cold ids every 10 s; readings expire after 2 s / 25 s. That sweep is the only reader of the park switch: the strip's trip clock takes it from there under `VehicleWatcher.TRIP` (`VehicleSignals.kt`, `VehicleTelemetryHub.kt`, `TripParkFeed.kt`) | code | 2026-10-09 | [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) |
 | Pack power `0x14400020` (dev 1012, catalog `ENGINE_POWER`) is positive out of the pack, on a charger and in motion (`VehicleConvention.POWER_POSITIVE_IS_DISCHARGE`) | live | 2026-09-22 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
 | `GENERATION_KW` `0x2610001F` (dev 1006) is the engine's charge into the pack: 8–10 kW generating in P, `0` while the engine drives the wheels; `0x2ED00010` (catalog `ENGINE_CHARGE_POWER`) is pack power, not generation | live | 2026-09-24 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
 | `ENGINE_RUNNING` `0x10D00038`: `0` stopped, `1` cranking, `3` running; the product tests `≥ 1` (`VehicleTelemetry.kt`) | live | 2026-09-18 | [Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster) |
@@ -600,6 +600,8 @@ movement after P to the next one — and the panel itself through
 `VehicleTelemetry.parked`, which is what puts a third cell on the right shelf and
 a decimal place on the petal's figure while the car is standing.
 
+> **Superseded 2026-10-09:** the hub's sweep is the only reader of this id. The strip's trip clock polled it once a second over a shell session of its own (`TripParkSignal`, `TripParkStateSource`, both deleted) beside a hub that read it anyway; it now takes `VehicleTelemetry.parked` from that sweep through `TripParkFeed`, under the claim `VehicleWatcher.TRIP` — see [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27).
+
 Open: no FID on this firmware reproduced the third-party “rear motor 40 °C”
 card; `STATISTIC_INSTANTANEOUS_CURRENT` scale unknown. Next action: one
 moving-drive capture of current, pack power, and rear-motor FIDs, then stop
@@ -649,6 +651,8 @@ always rendered over the latest **10 km**; no saved head-unit selector is
 consulted.
 
 > **Superseded 2026-09-18:** there are three watchers, not two: `VehicleWatcher.LEDGER` is claimed at application start and never released, so the hub always polls - every 100 ms while the cluster or the strip is on screen, every 1 s otherwise (`VehicleSweepCadence`). It reads 8 hot signals (`VEHICLE_SPEED` joined on 2026-09-18) and 12 cold ones, not seven and thirty (`VehicleSignals.kt`) — see [energy contract §2.7](energy-display-contract.md#27-the-road-is-recorded-whether-or-not-anyone-looks).
+
+> **Superseded 2026-10-09:** there are four watchers. `VehicleWatcher.TRIP` is held while the strip runs, on either page, because its trip clock reads the park switch from this sweep instead of a shell of its own. It is not a screen: it leaves the cadence at the ledger's second, and unlike a screen it is not owed a cold sweep when it appears (`VehicleSweepCadence.coldAtOnce`); like any new claim it ends a backoff it finds — see [energy contract §2.7](energy-display-contract.md#27-the-road-is-recorded-whether-or-not-anyone-looks).
 
 Both screens draw one chart from that window and no extra signals:
 `ConsumptionChart` bins the closed buckets the hub already keeps into twenty

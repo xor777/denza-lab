@@ -327,6 +327,13 @@ so a new claim no longer starts a fresh loop, and from 2026-09-18 until then a
 screen brought up after a run of failures waited out the rest of a backoff of up
 to a minute, on its last snapshot, after the car had come back.
 
+A claim that draws nothing leaves the cadence at the ledger's second and is not
+owed a cold sweep when it appears (`VehicleSweepCadence.coldAtOnce`): the ledger's
+own, and since 2026-10-09 `VehicleWatcher.TRIP`, held while the head unit's strip
+runs. The strip's trip clock ends its trip on the park switch this sweep reads,
+instead of polling the same id over a second shell, so both screens and the clock
+answer one reading of P. Like any new claim it ends a backoff it finds.
+
 ## 3. Words
 
 | where | says | never |
