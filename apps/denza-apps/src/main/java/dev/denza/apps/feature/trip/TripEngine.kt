@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.trip
 
+import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 /**
  * Process-lifetime state behind the visible trip panel.
@@ -31,12 +33,15 @@ class TripEngine {
     private var guidanceTime: Int? = null
     private var guidanceValid = false
 
-    private var sun = SunInfo(true, "", -1L)
+    private var sun = SunInfo(true, "")
     private var lastLat = 0.0
     private var lastLon = 0.0
     private var lastTz = 0
     private var lastWallMs = 0L
     private var haveSun = false
+
+    /** The frame-clock instant before which [sun] cannot change; see [solarBoundary]. */
+    private var sunValidUntilElapsedMs = Long.MAX_VALUE
 
     fun onLocation(
         nowElapsedMs: Long,
@@ -73,7 +78,7 @@ class TripEngine {
         lastLon = longitude
         lastTz = tzOffsetMinutes
         lastWallMs = wallMs
-        updateSun()
+        updateSun(nowElapsedMs)
     }
 
     fun onGuidance(distanceMeters: Int?, timeSeconds: Int?, valid: Boolean, nowElapsedMs: Long) {
@@ -87,9 +92,13 @@ class TripEngine {
         }
     }
 
+    /**
+     * Every rendered frame. The sun is recomputed only once its next event, or local midnight, has
+     * come: between those the label cannot change, and the strip asks thirty times a second.
+     */
     fun onTick(nowElapsedMs: Long) {
         advance(nowElapsedMs)
-        if (haveSun) updateSunCountdown(nowElapsedMs)
+        if (haveSun && sunClock(nowElapsedMs) >= sunValidUntilElapsedMs) updateSun(nowElapsedMs)
     }
 
     /**
@@ -144,50 +153,47 @@ class TripEngine {
         gnss = GnssTripAccumulator()
     }
 
-    private fun updateSun() {
+    /**
+     * The sun at [nowElapsedMs], read off the last fix's wall clock carried forward on the frame
+     * clock; a frame stamped before that fix counts as the fix's own moment.
+     */
+    private fun updateSun(nowElapsedMs: Long) {
         haveSun = true
-        val local = SolarMath.toLocalTime(lastWallMs, lastTz)
-        val boundary = solarBoundary(local)
-        sun = SunInfo(
-            nextIsSunset = boundary.nextIsSunset,
-            nextEventLabel = boundary.label,
-            countdownSeconds = boundary.countdownSeconds,
-        )
+        val at = sunClock(nowElapsedMs)
+        val boundary = solarBoundary(SolarMath.toLocalTime(lastWallMs + (at - lastFixMs), lastTz))
+        sun = SunInfo(nextIsSunset = boundary.nextIsSunset, nextEventLabel = boundary.label)
+        sunValidUntilElapsedMs = at + boundary.validForMs
     }
 
-    private fun updateSunCountdown(nowElapsedMs: Long) {
-        val approxWall = lastWallMs + (nowElapsedMs - lastFixMs).coerceAtLeast(0L)
-        val local = SolarMath.toLocalTime(approxWall, lastTz)
-        val boundary = solarBoundary(local)
-        sun = sun.copy(
-            nextIsSunset = boundary.nextIsSunset,
-            nextEventLabel = boundary.label,
-            countdownSeconds = boundary.countdownSeconds,
-        )
-    }
+    private fun sunClock(nowElapsedMs: Long): Long = maxOf(nowElapsedMs, lastFixMs)
 
     private data class SolarBoundary(
         val nextIsSunset: Boolean,
         val label: String,
-        val countdownSeconds: Long,
+        /**
+         * How long this answer stands. Within one local day it can change only when the clock
+         * passes the sunrise or the sunset ahead of it, and the day itself ends at midnight.
+         */
+        val validForMs: Long,
     )
 
     private fun solarBoundary(local: SolarMath.LocalTime): SolarBoundary {
         val today = SolarMath.daylight(local.date, lastLat, lastLon, lastTz)
-        if (!today.hasEvents) {
-            return SolarBoundary(nextIsSunset = today.alwaysUp, label = "", countdownSeconds = -1L)
-        }
         val now = local.minutesOfDay
+        val untilMidnight = millisUntil(MINUTES_PER_DAY, now)
+        if (!today.hasEvents) {
+            return SolarBoundary(nextIsSunset = today.alwaysUp, label = "", validForMs = untilMidnight)
+        }
         return when {
             now < today.sunriseMinutes -> SolarBoundary(
                 nextIsSunset = false,
                 label = minutesToClock(today.sunriseMinutes),
-                countdownSeconds = ((today.sunriseMinutes - now) * 60.0).toLong(),
+                validForMs = minOf(millisUntil(today.sunriseMinutes, now), untilMidnight),
             )
             now < today.sunsetMinutes -> SolarBoundary(
                 nextIsSunset = true,
                 label = minutesToClock(today.sunsetMinutes),
-                countdownSeconds = ((today.sunsetMinutes - now) * 60.0).toLong(),
+                validForMs = minOf(millisUntil(today.sunsetMinutes, now), untilMidnight),
             )
             else -> {
                 val tomorrow = SolarMath.daylight(
@@ -200,11 +206,16 @@ class TripEngine {
                 SolarBoundary(
                     nextIsSunset = false,
                     label = minutesToClock(target),
-                    countdownSeconds = (((1440.0 - now) + target) * 60.0).toLong(),
+                    validForMs = untilMidnight,
                 )
             }
         }
     }
+
+    /** Whole milliseconds from [now] to the first one at or past [target], both in minutes of day. */
+    private fun millisUntil(target: Double, now: Double): Long =
+        (ceil(target * MILLIS_PER_MINUTE).toLong() - (now * MILLIS_PER_MINUTE).roundToLong())
+            .coerceAtLeast(1L)
 
     private fun daysOf(local: SolarMath.LocalTime): Long {
         var year = local.date.year.toLong()
@@ -238,6 +249,8 @@ class TripEngine {
     companion object {
         const val TRIP_START_SPEED = 2.0
         const val TRIP_START_SUSTAIN_SECONDS = 3.0
+        private const val MINUTES_PER_DAY = 1440.0
+        private const val MILLIS_PER_MINUTE = 60_000.0
 
         fun minutesToClock(minutes: Double): String {
             var normalized = ((minutes.roundToInt() % 1440) + 1440) % 1440
