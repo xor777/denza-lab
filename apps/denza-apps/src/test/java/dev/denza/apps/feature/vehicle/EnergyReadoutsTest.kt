@@ -404,8 +404,8 @@ class EnergyReadoutsTest {
     /**
      * While the charger has agreed, `P` is the charger's own kilowatts on both screens.
      *
-     * `docs/energy-display-contract.md` §2.1. The pack's id reads zero or a small load on a car
-     * standing on a charger, so the cluster substituted `−|CHARGE_KW|` for the band and the car
+     * `docs/energy-display-contract.md` §2.1. The pack's id reads zero, or less than the charger
+     * delivers, on a car standing on a charger, so the cluster substituted `−|CHARGE_KW|` for the band and the car
      * page printed the raw id: 7 kW on one screen and 0 on the other, for one event.
      */
     @Test

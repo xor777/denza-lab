@@ -38,7 +38,7 @@ Updated 2026-10-03. Which vehicle signals Denza Apps can read on this head unit,
 
 **Open questions**
 - What `STATISTIC_INSTANTANEOUS_CURRENT` (raw `35721`) and the third-party "rear motor 40 °C" card are: a drive recorded with the current and rear-motor ids, which `tools/vehicle_log.py` does not record yet.
-- Whether a DC stop (`CHARGE_GUN` = `3`) should read as charging: the owner's word and a second recorded DC stop ([energy contract §8](energy-display-contract.md#8-open-and-what-closes-each)).
+- Whether a DC stop (`CHARGE_GUN` = `3`) should read as charging: a recorded stop at a charger known to be DC ([energy contract §8](energy-display-contract.md#8-open-and-what-closes-each)).
 - The pack's real capacity: the owner's paperwork or one full charge session.
 - Traction-voltage sag under load: `pack_volt` read across a full-throttle pull (the 2026-09-24 recording has the column; not analysed here).
 - Which physical signal is the washer level: an authoritative sensor-to-ECU definition, or a controlled two-state capture with `tools/raw_can_turn_probe.sh`.

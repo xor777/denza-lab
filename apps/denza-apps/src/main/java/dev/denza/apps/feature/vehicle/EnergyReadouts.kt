@@ -372,9 +372,10 @@ internal class EnergyReadouts {
          * Pack power as both screens read it, which is the one place the charger's substitution is.
          *
          * `docs/energy-display-contract.md` §2.1: while the charger has agreed, `P` is
-         * `−|CHARGE_KW|`. The pack's own id reads zero or a small load on a car standing on a
-         * charger - the board electronics - and a band that drew *that* while «В БАТАРЕЮ ОТ
-         * ЗАРЯДКИ» stood over it was two readings of one event. The cluster substituted and the
+         * `−|CHARGE_KW|`. The pack's own id reads zero, or less than the charger delivers, on a
+         * car standing on a charger - the board electronics take their share first - and a band
+         * that drew *that* while «В БАТАРЕЮ ОТ ЗАРЯДКИ» stood over it was two readings of one
+         * event. The cluster substituted and the
          * car page did not, so the same charge was 7 kW on one screen and 0 on the other.
          */
         fun packKilowatts(t: VehicleTelemetry): Double? {

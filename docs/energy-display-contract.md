@@ -53,12 +53,19 @@ The car page printed «В БАТАРЕЮ» over «−25 кВт» because the wor
 were decided in two places; there is one place now.
 
 **While the charger has agreed (`VehicleTelemetry.charging`), `P` is
-`−|CHARGE_KW|` on both screens.** The pack's own id reads zero or a small load on
-a car standing on a charger - the board electronics - so the two would otherwise
-be one event drawn twice: the cluster substituted and the car page printed the
+`−|CHARGE_KW|` on both screens.** The pack's own id reads zero, or less than the
+charger delivers, on a car standing on a charger - the board electronics take
+their share first - so the two would otherwise be one event drawn twice: the cluster substituted and the car page printed the
 raw id, and the same charge was 7 kW on one screen and 0 on the other. The
 substitution is `EnergyReadouts.packKilowatts`, and it is the only place either
 screen decides what the pack is doing.
+
+*Corrected 2026-10-09:* this paragraph said the id reads «zero or a small load»
+on a charger. No recording shows a load: over both charges recorded on
+2026-09-22 (`vehicle-20260922-171228.csv` and `vehicle-20260922-172447-car.csv`,
+about 2,800 rows with the AC charger delivering) it read −3 to 0 kW, never above
+zero. `VehicleTelemetry.charging` requires exactly that (`loadKw ≤ 0`), and a
+load would have kept the gate shut.
 
 **Drawn in the Luminofor palette (2026-09-23).** The neutral row's `MUTED` is
 retired on both screens: a pack with no direction is named by its word and drawn
@@ -508,7 +515,7 @@ test.
 
 | open | closes with |
 | --- | --- |
-| whether a DC charge (`CHARGE_GUN` = 3) reads «● В БАТАРЕЮ ОТ ЗАРЯДКИ» | the owner's word, and a second DC stop recorded |
+| whether a DC charge (`CHARGE_GUN` = 3) reads «● В БАТАРЕЮ ОТ ЗАРЯДКИ» | a recorded stop at a charger known to be DC (the owner does not recall what the 2026-09-22 stop was, asked 2026-10-09) |
 | the stock zones' true edges | the grid photograph |
 
 **Closed by the first recorded drive, 2026-09-22** -
@@ -552,8 +559,9 @@ charger's own figure - read 24.6…25 over the same minutes. `VehicleTelemetry.
 charging` is the AC gun (`2`) alone, so the car page said «В БАТАРЕЮ» over the
 true −50 kW of `POWER_KW`, which is honest. What a DC stop must not do is
 substitute `CHARGE_KW`: it would print 25 over a 50 kW charge. The word
-«ОТ ЗАРЯДКИ» for gun `3` is a one-line change once the owner says the stop was a
-DC charger and a second stop agrees.
+«ОТ ЗАРЯДКИ» for gun `3` is a one-line change once a stop at a charger known to be
+DC is recorded and agrees. The owner does not recall what this one was (asked
+2026-10-09), so it cannot be that stop.
 
 The first three want a drive and a drive wants no laptop, so since 2026-09-22 the
 car can record the sweep itself: a marker file turns `VehicleCapture` on, it
