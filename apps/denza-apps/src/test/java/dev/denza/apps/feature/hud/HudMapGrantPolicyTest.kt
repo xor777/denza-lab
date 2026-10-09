@@ -27,7 +27,18 @@ class HudMapGrantPolicyTest {
     @Test
     fun aLiveCaptureOrOneUnderWayIsLeftAlone() {
         assertEquals(NOTHING, decide(live = true))
-        assertEquals(NOTHING, decide(inFlight = true))
+        assertEquals(NOTHING, decide(inFlight = true, lastAttemptMs = now - 1_000L))
+        assertEquals(NOTHING, decide(trigger = SWITCH, inFlight = true, lastAttemptMs = now - 5_000L))
+    }
+
+    @Test
+    fun aRequestWhoseAnswerNeverCameIsAskedAgainAfterItsRetry() {
+        val stuckAt = now - HudMapGrantPolicy.IN_FLIGHT_MS
+        assertEquals(REQUEST, decide(trigger = SWITCH, inFlight = true, lastAttemptMs = stuckAt))
+        assertEquals(NOTHING, decide(trigger = SWITCH, inFlight = true, lastAttemptMs = stuckAt + 1))
+        // A resume still keeps its minute from that attempt.
+        assertEquals(NOTHING, decide(inFlight = true, lastAttemptMs = stuckAt))
+        assertEquals(REQUEST, decide(inFlight = true, lastAttemptMs = now - HudMapGrantPolicy.RESUME_RETRY_MS))
     }
 
     @Test

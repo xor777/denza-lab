@@ -48,10 +48,15 @@ enum class HudMapGrantReason(val words: String) {
  * A request that failed is not repeated on every resume: a split pane resumes its Activity each
  * time it is focused, and the grant would loop. A resume asks again [RESUME_RETRY_MS] after the
  * last attempt; a press of the switch is the driver asking and goes after [SWITCH_RETRY_MS].
+ *
+ * A request under way holds off the next one only for [IN_FLIGHT_MS]: SystemUI answers in under a
+ * second, and an answer that never came - the result lost with the Activity, the service that takes
+ * the token never started - would otherwise keep the map without a capture until the process died.
  */
 object HudMapGrantPolicy {
     const val RESUME_RETRY_MS = 60_000L
     const val SWITCH_RETRY_MS = 3_000L
+    const val IN_FLIGHT_MS = 10_000L
 
     fun decide(
         trigger: HudMapGrantTrigger,
@@ -66,7 +71,8 @@ object HudMapGrantPolicy {
         if (!hintsOn || !mapOn) {
             return if (live || inFlight) HudMapGrantAction.RELEASE else HudMapGrantAction.NOTHING
         }
-        if (live || inFlight) return HudMapGrantAction.NOTHING
+        val asking = inFlight && lastAttemptMs != null && nowMs - lastAttemptMs < IN_FLIGHT_MS
+        if (live || asking) return HudMapGrantAction.NOTHING
         val wait = when (trigger) {
             HudMapGrantTrigger.SWITCH -> SWITCH_RETRY_MS
             HudMapGrantTrigger.RESUME -> RESUME_RETRY_MS
