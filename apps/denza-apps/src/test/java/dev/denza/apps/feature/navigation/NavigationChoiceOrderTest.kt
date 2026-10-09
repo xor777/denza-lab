@@ -67,7 +67,7 @@ class NavigationChoiceOrderTest {
                 // returnToCentralDisplay's failure: the session is copied, display and all.
                 session = session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Повторите возврат приложения",
+                    message = "Не вернулось",
                 )
             }
         }

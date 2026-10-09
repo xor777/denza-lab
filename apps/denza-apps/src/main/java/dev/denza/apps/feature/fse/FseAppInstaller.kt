@@ -9,6 +9,9 @@ import android.util.Base64
 import android.util.Log
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.core.FeatureId
+import dev.denza.apps.core.FeatureSnapshot
+import dev.denza.apps.core.FeatureStatus
 import dev.denza.disharebridge.LocalAdbClient
 import org.json.JSONObject
 import java.io.File
@@ -35,7 +38,97 @@ data class FseInstallApp(
 
 sealed interface FseInstallResult {
     data class Installed(val app: FseInstallApp) : FseInstallResult
-    data class Failed(val message: String, val details: String? = null) : FseInstallResult
+    data class Failed(val failure: FseInstallFailure, val details: String? = null) : FseInstallResult {
+        /** The tile's caption. */
+        val message: String get() = failure.words
+    }
+}
+
+/** The «Экран справа» tile while an install runs and once it has ended. */
+object FseInstallStatus {
+    /** Running: the tile's caption is the install's own words, [FseInstallStep]'s. */
+    fun progress(words: String): FeatureSnapshot = FeatureSnapshot(
+        id = FeatureId.FSE_INSTALLER,
+        desiredEnabled = false,
+        status = FeatureStatus.STARTING,
+        message = words,
+    )
+
+    fun of(result: FseInstallResult): FeatureSnapshot = when (result) {
+        is FseInstallResult.Installed -> FeatureSnapshot(
+            id = FeatureId.FSE_INSTALLER,
+            desiredEnabled = false,
+            status = FeatureStatus.READY,
+            message = result.app.label,
+        )
+        is FseInstallResult.Failed -> FeatureSnapshot(
+            id = FeatureId.FSE_INSTALLER,
+            desiredEnabled = false,
+            status = FeatureStatus.ERROR,
+            message = result.message,
+            details = result.details,
+        )
+    }
+}
+
+/**
+ * Where an install stopped, in the few words the «Экран справа» tile has room for.
+ *
+ * These are the tile's caption, and they used to be written as instructions to somebody standing at
+ * a desk: «Откройте ADB Rescue в диагностике» named a screen that no longer exists under that name,
+ * and «Подтвердите ADB-ключ на экране автомобиля» is a sentence and a half on a tile that elides at
+ * one line. A tile says what state a thing is in; what to do about it is the press, which reopens
+ * the chooser. Every failure an install can end in is one of these, so the list is the whole of
+ * what the tile can say.
+ */
+enum class FseInstallFailure(val words: String) {
+    /** Guards: the chooser draws what cannot go across as unpressable, so the car changed under it. */
+    NOT_FOUND("Не найдено"),
+    NOT_TRANSFERABLE("Не переносится"),
+    UNREADABLE("Не прочиталось"),
+
+    /** No answer from the passenger screen within its timeout; the staged files are kept. */
+    NO_ANSWER("Экран не ответил"),
+
+    /** The passenger screen answered with a code that is not a success. */
+    DECLINED("Экран отклонил"),
+    NOT_COPIED("Не скопировалось"),
+
+    /** The channel's own failure, as on every tile ([AdbProblem]). */
+    NO_ACCESS(AdbProblem.WORDS),
+    NO_SCREEN("Экран не найден"),
+    NOT_INSTALLED("Не установилось"),
+    ;
+
+    companion object {
+        /**
+         * What an exception the install threw is. The copy's own failure is named first, whatever
+         * stopped it: a copy that died half-way is what the driver is looking at.
+         */
+        fun of(error: Exception): FseInstallFailure = when {
+            error.message.orEmpty().contains("APK copy", ignoreCase = true) -> NOT_COPIED
+            AdbProblem.of(error) != null -> NO_ACCESS
+            error.message.orEmpty().contains("not mounted", ignoreCase = true) -> NO_SCREEN
+            else -> NOT_INSTALLED
+        }
+    }
+}
+
+/**
+ * What an install is doing, as the tile says it while it runs - the tile's caption is the
+ * install's own words until it ends, so they are held to its 17 characters. «Подготавливаю
+ * Яндекс Навигатор» was 30.
+ */
+enum class FseInstallStep(val words: String) {
+    CHECKING("Проверка экрана"),
+    PREPARING("Подготовка"),
+    INSTALLING("Установка"),
+    ;
+
+    companion object {
+        /** The copy, the one step that can say how far it has got. */
+        fun copying(percent: Int): String = "Копирование: $percent%"
+    }
 }
 
 private const val FSE_INSTALL_RESULT_SUCCESS = 1
@@ -96,19 +189,19 @@ object FseAppInstaller {
         // (a split package, an unreadable source) stays in [FseInstallApp.unavailableReason] and
         // in the log.
         val app = installedApps(context).firstOrNull { it.packageName == packageName }
-            ?: return FseInstallResult.Failed("Не найдено")
+            ?: return FseInstallResult.Failed(FseInstallFailure.NOT_FOUND)
         if (!app.installable) {
             Log.w(TAG, "FSE install refused for $packageName: ${app.unavailableReason}")
-            return FseInstallResult.Failed("Не переносится")
+            return FseInstallResult.Failed(FseInstallFailure.NOT_TRANSFERABLE)
         }
 
         val manager = context.packageManager
         val packageInfo = runCatching { manager.getPackageInfo(packageName, 0) }.getOrNull()
-            ?: return FseInstallResult.Failed("Не прочиталось")
+            ?: return FseInstallResult.Failed(FseInstallFailure.UNREADABLE)
         val sourcePath = packageInfo.applicationInfo?.sourceDir
-            ?: return FseInstallResult.Failed("APK не найден")
+            ?: return FseInstallResult.Failed(FseInstallFailure.NOT_TRANSFERABLE)
         if (!packageInfo.applicationInfo?.splitSourceDirs.isNullOrEmpty()) {
-            return FseInstallResult.Failed("Не переносится")
+            return FseInstallResult.Failed(FseInstallFailure.NOT_TRANSFERABLE)
         }
 
         val requestId = requestId()
@@ -119,11 +212,11 @@ object FseAppInstaller {
         var installSent = false
 
         return try {
-            onProgress("Проверяю пассажирский экран")
+            onProgress(FseInstallStep.CHECKING.words)
             requireFseStorage(adb)
             cleanupAbandonedStages(adb)
 
-            onProgress("Подготавливаю ${app.label}")
+            onProgress(FseInstallStep.PREPARING.words)
             val config = installConfig(packageInfo, requestId)
             val encodedConfig = Base64.encodeToString(
                 config.toString().toByteArray(StandardCharsets.UTF_8),
@@ -142,7 +235,7 @@ object FseAppInstaller {
                 onProgress = onProgress,
             )
 
-            onProgress("Устанавливаю ${app.label}")
+            onProgress(FseInstallStep.INSTALLING.words)
             val message = JSONObject()
                 .put("fromDevice", IVI_DEVICE_ID)
                 .put("toDevice", FSE_DEVICE_ID)
@@ -173,13 +266,13 @@ object FseAppInstaller {
                 // sentences; the staging path and the vendor's result code go to `details`, which
                 // only the service panel reads.
                 null -> FseInstallResult.Failed(
-                    "Экран не ответил",
+                    FseInstallFailure.NO_ANSWER,
                     "staged=$iviRoot; requestId=$requestId",
                 )
                 else -> {
                     cleanup(adb, iviRoot)
                     FseInstallResult.Failed(
-                        "Экран отклонил",
+                        FseInstallFailure.DECLINED,
                         "result=$installResult; requestId=$requestId",
                     )
                 }
@@ -187,7 +280,7 @@ object FseAppInstaller {
         } catch (error: Exception) {
             if (!installSent) cleanup(adb, iviRoot)
             Log.w(TAG, "FSE install of $packageName failed requestId=$requestId", error)
-            FseInstallResult.Failed(friendlyError(error), error.toString())
+            FseInstallResult.Failed(FseInstallFailure.of(error), error.toString())
         } finally {
             adb.close()
         }
@@ -217,7 +310,7 @@ object FseAppInstaller {
         if (expectedBytes <= 0L) throw IllegalStateException("APK copy size is unknown")
         try {
             adb.shell("rm -f ${quote(targetPath)}; : > ${quote(targetPath)}")
-            onProgress("Копирование: 0%")
+            onProgress(FseInstallStep.copying(0))
             val blockCount = (expectedBytes + COPY_BLOCK_BYTES - 1L) / COPY_BLOCK_BYTES
             repeat(blockCount.toInt()) { block ->
                 val result = adb.shell(
@@ -231,7 +324,7 @@ object FseAppInstaller {
                 }
                 val copiedBytes = minOf((block + 1L) * COPY_BLOCK_BYTES, expectedBytes)
                 val percent = (copiedBytes * 100L / expectedBytes).toInt()
-                onProgress("Копирование: $percent%")
+                onProgress(FseInstallStep.copying(percent))
             }
             val actualBytes = adb.shell("stat -c %s ${quote(targetPath)}").trim().toLongOrNull()
             if (actualBytes != expectedBytes) {
@@ -297,26 +390,6 @@ object FseAppInstaller {
                     applicationInfo = applicationInfo,
                 )
             }
-    }
-
-    /**
-     * Where the install stopped, in the four words a tile has room for.
-     *
-     * These strings are the caption of the "Экран справа" tile, and they used to be written as
-     * instructions to somebody standing at a desk: "Откройте ADB Rescue в диагностике" named a
-     * screen that no longer exists under that name - it is the "Сервис" tile and a button reading
-     * "Восстановить ADB" - and "Подтвердите ADB-ключ на экране автомобиля" is a sentence and a half
-     * printed on a tile that elides at one line. A tile says what state a thing is in; what to do
-     * about it is the press, which reopens the chooser, and the panel behind the long press.
-     *
-     * The copy's own failure is named first, whatever stopped it: a copy that died half-way is what
-     * the driver is looking at. The channel's failures read as they do on every tile ([AdbProblem]).
-     */
-    private fun friendlyError(error: Exception): String = when {
-        error.message.orEmpty().contains("APK copy", ignoreCase = true) -> "Не скопировалось"
-        AdbProblem.of(error) != null -> AdbProblem.WORDS
-        error.message.orEmpty().contains("not mounted", ignoreCase = true) -> "Экран не найден"
-        else -> "Не установилось"
     }
 
     private fun requestId(): Int =

@@ -10,7 +10,6 @@ import dev.denza.apps.StateSlice
 import dev.denza.apps.TaskMoveLease
 import dev.denza.apps.TaskMoveOwner
 import dev.denza.apps.TaskMoveOwnership
-import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
@@ -226,20 +225,12 @@ object NavigationCoordinator {
         val app = context ?: return
         val selected = ClusterDisplayResolver.resolve(app)
         if (selected !is ClusterDisplaySelection.Selected) {
-            val needsSelection = selected is ClusterDisplaySelection.NeedsVerification
+            val problem = NavigationWords.display(selected)
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = if (needsSelection) {
-                        "Выберите приборный экран"
-                    } else {
-                        "Повторите поиск приборного экрана"
-                    },
-                    resolution = if (needsSelection) {
-                        FeatureResolution.SELECT_CLUSTER_DISPLAY
-                    } else {
-                        FeatureResolution.RETRY
-                    },
+                    message = problem.message,
+                    resolution = problem.resolution,
                 ),
             )
             return
@@ -253,7 +244,7 @@ object NavigationCoordinator {
             // The projection reads the same grant.
             StateMarks.mark(StateSlice.SIMULCAST, "overlay granted")
         } catch (error: Exception) {
-            val problem = proxyProblem(error)
+            val problem = NavigationWords.failed(NavigationStep.OPEN, error)
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -298,8 +289,8 @@ object NavigationCoordinator {
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Выберите, что показывать",
-                    resolution = FeatureResolution.SELECT_NAVIGATION_APP,
+                    message = NavigationWords.notChosen.message,
+                    resolution = NavigationWords.notChosen.resolution,
                 ),
             )
             return
@@ -308,7 +299,7 @@ object NavigationCoordinator {
             val task = NavigationProxyClient.findTask(app, packageName)
             update(NavigationSession(taskId = task.takeIf { it >= 0 }))
         } catch (error: Exception) {
-            val problem = proxyProblem(error)
+            val problem = NavigationWords.failed(NavigationStep.PROJECT, error)
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -332,8 +323,8 @@ object NavigationCoordinator {
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Выберите, что показывать",
-                    resolution = FeatureResolution.SELECT_NAVIGATION_APP,
+                    message = NavigationWords.notChosen.message,
+                    resolution = NavigationWords.notChosen.resolution,
                 ),
             )
             finishTransfer()
@@ -361,7 +352,7 @@ object NavigationCoordinator {
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Повторите запуск приложения",
+                    message = NavigationStep.OPEN.words,
                     details = error.toString(),
                     resolution = FeatureResolution.RETRY,
                 ),
@@ -399,7 +390,7 @@ object NavigationCoordinator {
                 update(
                     NavigationSession(
                         phase = NavigationPhase.NEEDS_ACTION,
-                        message = "Дождитесь запуска приложения и повторите",
+                        message = NavigationStep.OPEN.words,
                         resolution = FeatureResolution.RETRY,
                     ),
                 )
@@ -408,7 +399,7 @@ object NavigationCoordinator {
         } catch (error: Exception) {
             pendingProjectionAfterOpen = false
             splitRoutingLease.release()
-            val problem = proxyProblem(error)
+            val problem = NavigationWords.failed(NavigationStep.OPEN, error)
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -429,7 +420,7 @@ object NavigationCoordinator {
         val taskId = try {
             NavigationProxyClient.findTask(app, packageName)
         } catch (error: Exception) {
-            val problem = proxyProblem(error)
+            val problem = NavigationWords.failed(NavigationStep.PROJECT, error)
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -443,27 +434,19 @@ object NavigationCoordinator {
         }
         if (taskId < 0) {
             pendingProjectionAfterOpen = true
-            update(NavigationSession(message = "Повторно открываю приложение"))
+            update(NavigationSession())
             openSelectedApp()
             return
         }
         if (session.taskId != taskId) update(session.copy(taskId = taskId))
         val selected = ClusterDisplayResolver.resolve(app)
         if (selected !is ClusterDisplaySelection.Selected) {
-            val needsSelection = selected is ClusterDisplaySelection.NeedsVerification
+            val problem = NavigationWords.display(selected)
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = if (needsSelection) {
-                        "Выберите приборный экран"
-                    } else {
-                        "Повторите поиск приборного экрана"
-                    },
-                    resolution = if (needsSelection) {
-                        FeatureResolution.SELECT_CLUSTER_DISPLAY
-                    } else {
-                        FeatureResolution.RETRY
-                    },
+                    message = problem.message,
+                    resolution = problem.resolution,
                 ),
             )
             finishTransfer()
@@ -476,7 +459,7 @@ object NavigationCoordinator {
             // The projection reads the same grant.
             StateMarks.mark(StateSlice.SIMULCAST, "overlay granted")
         } catch (error: Exception) {
-            val problem = proxyProblem(error)
+            val problem = NavigationWords.failed(NavigationStep.PROJECT, error)
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -654,7 +637,7 @@ object NavigationCoordinator {
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Повторите возврат приложения",
+                    message = NavigationStep.RETURN.words,
                     details = error.toString(),
                     resolution = FeatureResolution.RETRY,
                 ),
@@ -729,7 +712,7 @@ object NavigationCoordinator {
         val liveTask = try {
             NavigationProxyClient.findTask(app, packageName)
         } catch (error: Exception) {
-            val problem = proxyProblem(error)
+            val problem = NavigationWords.failed(NavigationStep.RETURN, error)
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -759,7 +742,7 @@ object NavigationCoordinator {
             return
         }
         pendingProjectionAfterOpen = reprojectAfterReturn
-        update(NavigationSession(message = "Повторно открываю приложение"))
+        update(NavigationSession())
         openSelectedApp()
     }
 
@@ -904,9 +887,9 @@ object NavigationCoordinator {
                     taskId = taskId,
                     virtualDisplayId = ownedDisplayId,
                     projectedPackage = packageName,
-                    message = "Приложение осталось на приборке; повторите возврат",
+                    // Still projected, so the tile reads it as on the cluster and the press
+                    // returns it; there is nothing for a caption to add. The cause is in details.
                     details = error.toString(),
-                    resolution = FeatureResolution.RETRY,
                 ),
             )
             finishTransfer()
@@ -923,7 +906,7 @@ object NavigationCoordinator {
             NavigationSession(
                 phase = NavigationPhase.NEEDS_ACTION,
                 taskId = taskId,
-                message = "Повторите перенос приложения",
+                message = NavigationStep.PROJECT.words,
                 details = error.toString(),
                 resolution = FeatureResolution.RETRY,
             ),
@@ -963,23 +946,6 @@ object NavigationCoordinator {
 
     private fun finishTransfer() {
         context?.let { NavigationTransferOverlay.setTransferActive(it, false) }
-    }
-
-    private data class NavigationProblem(
-        val message: String,
-        val resolution: FeatureResolution,
-    )
-
-    /**
-     * What a failed proxy, appops or shell call says on the tile.
-     *
-     * The channel's own failures say what they say on every tile that uses it ([AdbProblem]) and
-     * the press goes and looks; anything else failed at this step.
-     */
-    private fun proxyProblem(error: Exception): NavigationProblem {
-        val channel = AdbProblem.of(error)
-            ?: return NavigationProblem("Повторите подключение", FeatureResolution.RETRY)
-        return NavigationProblem(AdbProblem.WORDS, channel.resolution)
     }
 }
 

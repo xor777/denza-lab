@@ -252,6 +252,14 @@ timeout, the UI reports the missing confirmation and leaves the current staging
 path and request ID in diagnostics. The next installation removes that abandoned
 directory before creating its own, so repeated failures cannot accumulate APKs.
 
+The «Экран справа» tile says where an install is in a few words, held to the tile's 17
+characters (`FseInstallStep`, `FseInstallFailure` in `FseAppInstaller.kt`): «Проверка экрана»,
+«Подготовка», «Копирование: N%», «Установка» while it runs; then the application's name, or one
+state - «Не скопировалось», «Экран не ответил», «Экран отклонил», «Нет доступа» (the local ADB
+channel, read by type), «Экран не найден», «Не установилось». The exception, the staging path and
+the vendor's result code go to the technical report only. Until 2026-10-09 the progress lines named
+the application («Подготавливаю Яндекс Навигатор») and ran past the tile.
+
 ### Split-package report (removed)
 
 The support screen used to list every split APK file of every installable
