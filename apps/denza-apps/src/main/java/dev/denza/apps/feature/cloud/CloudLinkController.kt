@@ -3,7 +3,7 @@ package dev.denza.apps.feature.cloud
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
-import dev.denza.apps.DenzaAppRepository
+import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
 import java.util.concurrent.Executors
@@ -161,10 +161,9 @@ object CloudLinkController {
 
     private fun explicit(app: Context, block: () -> Boolean) {
         pressesInFlight.incrementAndGet()
+        // Core is worker-owned; the caller publishes only the atomic busy flag, whose write marks
+        // the cloud's slice.
         CloudLinkRuntime.busy = true
-        // Core is worker-owned; the caller publishes only the atomic busy flag.
-        runCatching { DenzaAppRepository.invalidate(StateSlice.CLOUD_LINK, "cloud busy") }
-            .onFailure { Log.w(TAG, "publish busy failed", it) }
         executor.execute {
             try {
                 check(block()) { "Операция не подтвердилась" }
@@ -248,7 +247,13 @@ object CloudLinkController {
         tick = executor.schedule({ automatic(app, "tick") }, delay, TimeUnit.MILLISECONDS)
     }
 
-    private fun publish(app: Context? = null) {
+    /**
+     * What the worker learnt, handed to the dashboard: the adapter's state, the report on disk
+     * when [app] is given, and a mark on the cloud's slice. Every pass ends here, ticks included,
+     * which also moves the readings that age with the clock. Internal for the test that holds it to
+     * its mark.
+     */
+    internal fun publish(app: Context? = null) {
         CloudLinkRuntime.adapter = CloudLinkReport.Adapter(
             core.gate.name, core.attempts, core.lastReadyAt, core.disconnectedSince, core.nextReadyAt,
         )
@@ -260,8 +265,7 @@ object CloudLinkController {
             runCatching { CloudLinkDiagnostics.export(app) }
                 .onFailure { Log.w(TAG, "export failed", it) }
         }
-        runCatching { DenzaAppRepository.invalidate(StateSlice.CLOUD_LINK, "cloud") }
-            .onFailure { Log.w(TAG, "publish failed", it) }
+        StateMarks.mark(StateSlice.CLOUD_LINK, "cloud")
     }
 
     private fun record(app: Context, message: String) {

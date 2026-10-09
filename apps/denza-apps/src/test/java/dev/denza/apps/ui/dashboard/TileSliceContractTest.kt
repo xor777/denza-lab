@@ -30,13 +30,17 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Test
 
 /**
- * No tile can freeze: what a tile shows is laid by a slice that is read again when it is marked.
+ * Every tile reads what a slice lays, so marking that slice moves it.
  *
  * Until wave 1 every event recomputed the whole dashboard, so a tile whose feature never said it
  * had changed was still redrawn by somebody else's event. Now a feature marks its own slice, and a
  * tile reading a field no slice lays would show its first value forever. This holds every tile to
- * one of two answers: its slice lays exactly what it reads - so marking that slice moves it - or it
- * is published by its own path and is named here as such.
+ * one of two answers: its slice lays exactly what it reads, or it is published by its own path and
+ * is named here as such.
+ *
+ * Half of "no tile freezes", not all of it: the other half is that every writer marks, which this
+ * cannot see. `StateMarksTest` holds the writers that run on the JVM; the rest are listed in
+ * docs/feature-map.md, "Shared plumbing".
  */
 class TileSliceContractTest {
 

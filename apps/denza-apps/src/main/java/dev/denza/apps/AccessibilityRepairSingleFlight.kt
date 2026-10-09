@@ -42,30 +42,42 @@ internal class AccessibilityRepairSingleFlight {
 
     fun join(callback: (Throwable?) -> Unit): Boolean = join(callback, { true })
 
-    fun join(callback: (Throwable?) -> Unit, stillWanted: () -> Boolean): Boolean = synchronized(lock) {
-        callbacks += callback
-        wishes += stillWanted
-        if (running) {
-            false
-        } else {
-            running = true
-            true
+    /**
+     * Joins the repair under way, or starts one (true). A repair starting marks the slice that
+     * shows it - the steering wheel's row reads [isRunning].
+     */
+    fun join(callback: (Throwable?) -> Unit, stillWanted: () -> Boolean): Boolean {
+        val starting = synchronized(lock) {
+            callbacks += callback
+            wishes += stillWanted
+            if (running) {
+                false
+            } else {
+                running = true
+                true
+            }
         }
+        if (starting) StateMarks.mark(StateSlice.NAVIGATION, "access repair")
+        return starting
     }
 
     fun isStillWanted(): Boolean = synchronized(lock) { wishes.any { it() } }
 
     /**
-     * Ends the repair: [settled] runs once it no longer counts as running and before any owner's
-     * callback, so what reads the repair's state reads it settled and an owner's answer lands after.
+     * Ends the repair. The slice that shows it is marked once it no longer counts as running and
+     * before any owner's callback, so the read finds it settled and an owner's answer lands after.
+     * The projection and HUD guidance are not marked here: each owner publishes its own outcome -
+     * «Восстанавливаю доступ» while it runs, the reason when it fails - and a read of the bare
+     * setting in between would put a generic «Повторите настройку доступа» over it. The service
+     * connecting or going marks them all ([StateMarks.accessibilityChanged]).
      */
-    fun complete(failure: Throwable?, settled: () -> Unit = {}) {
+    fun complete(failure: Throwable?) {
         val waiting = synchronized(lock) {
             running = false
             wishes.clear()
             callbacks.toList().also { callbacks.clear() }
         }
-        runCatching(settled)
+        StateMarks.mark(StateSlice.NAVIGATION, "access repaired")
         waiting.forEach { callback ->
             runCatching { callback(failure) }
         }

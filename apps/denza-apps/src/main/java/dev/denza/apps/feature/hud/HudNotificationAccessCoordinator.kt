@@ -3,7 +3,7 @@ package dev.denza.apps.feature.hud
 import android.content.ComponentName
 import android.content.Context
 import android.provider.Settings
-import dev.denza.apps.DenzaAppRepository
+import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
 import java.util.concurrent.Executors
@@ -140,7 +140,7 @@ object HudNotificationAccessCoordinator {
             repairRunning.set(false)
             // «Динамики» reads whether the listener is enabled; it is read again before any
             // owner hears the outcome.
-            DenzaAppRepository.invalidate(StateSlice.SPEAKER_COVERS, "notification access")
+            StateMarks.mark(StateSlice.SPEAKER_COVERS, "notification access")
             val callbacks = synchronized(callbackLock) {
                 pendingCallbacks.toList().also { pendingCallbacks.clear() }
             }

@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.telephony.TelephonyManager
+import dev.denza.apps.StateMarks
+import dev.denza.apps.StateSlice
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
@@ -48,16 +50,24 @@ object CloudLinkSettings {
  * What the screen may know about the link without asking the car: the last reading, whether a
  * switch is on the wire, and a press that did not take.
  *
- * Written by [CloudLinkController] on its own thread, read by `DenzaAppRepository.refresh`, which
+ * Written by [CloudLinkController] on its own thread, read by the dashboard's cloud slice, which
  * must never wait on a shell.
  */
 object CloudLinkRuntime {
     @Volatile
     var car: CloudCarState? = null
 
-    /** A switch is being written; both of the panel's switches grey until the car answers. */
+    /**
+     * A switch is being written; both of the panel's switches grey until the car answers. Set on
+     * the caller's thread before the worker starts, so the write itself marks the cloud's slice.
+     */
     @Volatile
     var busy: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            StateMarks.mark(StateSlice.CLOUD_LINK, "cloud busy")
+        }
 
     /** The driver's last press the car did not take, and the adapter's last pass that failed. */
     @Volatile

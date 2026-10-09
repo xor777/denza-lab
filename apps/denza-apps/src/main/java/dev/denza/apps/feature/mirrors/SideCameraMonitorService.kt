@@ -14,7 +14,7 @@ import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
-import dev.denza.apps.DenzaAppRepository
+import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
@@ -196,7 +196,7 @@ class SideCameraMonitorService : Service() {
         try {
             adb.shell("cmd appops set '${packageName}' SYSTEM_ALERT_WINDOW allow")
             // The projection reads the same grant.
-            DenzaAppRepository.invalidate(StateSlice.SIMULCAST, "overlay granted")
+            StateMarks.mark(StateSlice.SIMULCAST, "overlay granted")
         } catch (error: Exception) {
             setStatus(null, "overlay access pending: ${shortError(error)}")
         }
@@ -599,7 +599,7 @@ class SideCameraMonitorService : Service() {
             lastStatus = status
             MirrorsSettings.setObserved(this, side, details)
         }
-        DenzaAppRepository.invalidate(StateSlice.MIRRORS, "mirrors")
+        StateMarks.mark(StateSlice.MIRRORS, "mirrors")
         return true
     }
 
