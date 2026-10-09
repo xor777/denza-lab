@@ -21,22 +21,6 @@ import androidx.annotation.StringRes
 internal object VehicleProgressOverlayStyle {
     val backgroundColor: Int = 0xFF343942.toInt()
     val foregroundColor: Int = 0xE6FFFFFF.toInt()
-
-    /**
-     * What a blocking wait shows the user when its owner brings no backdrop of its own (contract
-     * 1.13.2, "ожидание честное").
-     *
-     * The shield used to take the input and nothing else: it was fully transparent, so the car went
-     * on showing every intermediate window underneath it - the firmware's own remembered companion
-     * flashing up, a half-built pane, an empty picker where an app is about to be. That is dirty
-     * waiting, and dirty waiting is red at any duration. So the scrim is opaque: a top-to-bottom
-     * gradient in the app's own dark palette, with the card centred on it.
-     *
-     * The split shield no longer shows it. Since 2026-09-23 it draws «Бригада»
-     * (`feature/split/SplitCrewView`) as its backdrop, which is opaque the same way - black over the
-     * whole display before a line is drawn - and carries the card's words as its caption.
-     */
-    val scrimGradient: IntArray = intArrayOf(0xFF161A21.toInt(), 0xFF0B0E13.toInt())
     const val cornerRadiusDp = 8
     const val horizontalPaddingDp = 16
     const val verticalPaddingDp = 10
@@ -60,11 +44,13 @@ internal enum class VehicleProgressOverlayInputMode {
  * @param onUnavailable told once, with the reason, when this window cannot be shown at all - the
  * permission is gone or WindowManager refused it. A wait the user cannot see is exactly the silent
  * failure U5 forbids, so the owner of the overlay gets to say so on a surface that does work.
- * @param backdrop what a [VehicleProgressOverlayInputMode.BLOCK_SCREEN] shield shows instead of the
- * scrim and the card: a view the shield hosts over the whole display, given the text the card would
- * have shown. It draws the wait itself, so it has to be opaque (1.13.2), and it is the window's
- * accessibility node. The window, its flags, the input it takes and the way it comes down are the
- * same with or without one. A pass-through window is only ever the card.
+ * @param backdrop what a [VehicleProgressOverlayInputMode.BLOCK_SCREEN] shield shows: a view the
+ * shield hosts over the whole display, given the text the card would have shown. It draws the wait
+ * itself, so it has to be opaque (contract 1.13.2, "ожидание честное") - a transparent shield once
+ * let the car show every intermediate window under it - and it is the window's accessibility node.
+ * A blocking shield always has one and a pass-through window never does: that window is only ever
+ * the card. The only shield is the split's, whose backdrop is «Бригада» (`SplitCrewView`); the
+ * scrim-and-card shield for an owner without a backdrop was deleted on 2026-10-09, having had none.
  */
 internal class VehicleProgressOverlay(
     @param:StringRes private val textRes: Int,
@@ -74,8 +60,8 @@ internal class VehicleProgressOverlay(
     private val backdrop: ((Context, CharSequence) -> View)? = null,
 ) {
     init {
-        require(backdrop == null || inputMode == VehicleProgressOverlayInputMode.BLOCK_SCREEN) {
-            "$windowTitle: only a blocking shield has a backdrop"
+        require((backdrop != null) == (inputMode == VehicleProgressOverlayInputMode.BLOCK_SCREEN)) {
+            "$windowTitle: a blocking shield draws its own backdrop, and only a blocking shield does"
         }
     }
 
@@ -215,35 +201,18 @@ internal class VehicleProgressOverlay(
     }
 
     private fun createWindowView(context: Context): View {
-        if (inputMode == VehicleProgressOverlayInputMode.PASS_THROUGH) return createCard(context)
+        val scene = backdrop ?: return createCard(context)
         return TouchShieldFrameLayout(context).apply {
             isClickable = true
             isFocusable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            val scene = backdrop
-            if (scene != null) {
-                // The owner draws the whole wait: its view is the screen, and the node a screen
-                // reader finds in the card's place. The shield around it still takes every touch.
-                addView(
-                    scene(context, context.getText(textRes)),
-                    FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                    ),
-                )
-                return@apply
-            }
-            // 1.13.2: while the wait runs, the only thing on screen is the wait.
-            background = GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                VehicleProgressOverlayStyle.scrimGradient,
-            )
+            // The owner draws the whole wait: its view is the screen, and the node a screen reader
+            // finds in the card's place. The shield around it still takes every touch.
             addView(
-                createCard(context),
+                scene(context, context.getText(textRes)),
                 FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    Gravity.CENTER,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
                 ),
             )
         }
