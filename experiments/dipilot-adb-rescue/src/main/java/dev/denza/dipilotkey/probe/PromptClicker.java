@@ -33,6 +33,7 @@ public final class PromptClicker extends AccessibilityService {
 
     private static volatile PromptClicker instance;
     private static volatile boolean armed;
+    private static volatile long deadline;
     private static final AtomicInteger clicks = new AtomicInteger();
     private static final AtomicInteger attempts = new AtomicInteger();
     private static final AtomicInteger scans = new AtomicInteger();
@@ -45,7 +46,7 @@ public final class PromptClicker extends AccessibilityService {
     private final Runnable scan = new Runnable() {
         @Override
         public void run() {
-            if (!armed || clicks.get() >= PromptDecision.MAX_CLICKS) {
+            if (!active()) {
                 return;
             }
             try {
@@ -54,7 +55,7 @@ public final class PromptClicker extends AccessibilityService {
                 note = "Проверка окон не удалась: " + error.getClass().getSimpleName();
                 // A window can go away between the list and the click. The next pass retries.
             }
-            if (armed && clicks.get() < PromptDecision.MAX_CLICKS) {
+            if (active()) {
                 handler.postDelayed(this, SCAN_INTERVAL_MS);
             }
         }
@@ -73,7 +74,8 @@ public final class PromptClicker extends AccessibilityService {
         }
     }
 
-    static void arm() {
+    static void arm(long budgetMs) {
+        deadline = SystemClock.uptimeMillis() + budgetMs;
         armed = true;
         PromptClicker current = instance;
         if (current != null) {
@@ -83,6 +85,11 @@ public final class PromptClicker extends AccessibilityService {
 
     static void disarm() {
         armed = false;
+    }
+
+    private static boolean active() {
+        return armed && SystemClock.uptimeMillis() < deadline
+                && clicks.get() < PromptDecision.MAX_CLICKS;
     }
 
     static int clicks() {
@@ -114,6 +121,10 @@ public final class PromptClicker extends AccessibilityService {
     }
 
     static boolean enabled(Context context) {
+        if (Settings.Secure.getInt(context.getContentResolver(),
+                Settings.Secure.ACCESSIBILITY_ENABLED, 0) != 1) {
+            return false;
+        }
         String services = Settings.Secure.getString(
                 context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         if (services == null || services.isEmpty()) {
@@ -173,7 +184,7 @@ public final class PromptClicker extends AccessibilityService {
     }
 
     private void scanOnce() {
-        if (!armed || clicks.get() >= PromptDecision.MAX_CLICKS) {
+        if (!active()) {
             return;
         }
         SparseArray<List<AccessibilityWindowInfo>> byDisplay = getWindowsOnAllDisplays();
@@ -225,7 +236,7 @@ public final class PromptClicker extends AccessibilityService {
             if (recent(window.getId())) {
                 return false;
             }
-            if (!armed || clicks.get() >= PromptDecision.MAX_CLICKS) {
+            if (!active()) {
                 return false;
             }
             if (decision.checkIndex >= 0) {
@@ -233,6 +244,9 @@ public final class PromptClicker extends AccessibilityService {
                     note = "галочка «Всегда разрешать» не нажалась";
                     return false;
                 }
+            }
+            if (!active()) {
+                return false;
             }
             attempts.incrementAndGet();
             boolean clicked = owned.get(decision.clickIndex)

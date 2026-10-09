@@ -1,10 +1,9 @@
 package dev.denza.dipilotkey.probe;
 
 import android.app.Activity;
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -17,44 +16,50 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * One screen. It connects as BydDipilot and approves the ADB prompts whose windows are hidden.
- */
+/** One explicit action, with a continuation after manual service setup if shell cannot enable it. */
 public final class RescueActivity extends Activity {
+    private static final String PENDING_SETTINGS = "pending_service_settings";
+    // Present in this vehicle's Settings framework, but hidden from the public Android SDK.
+    private static final String ACCESSIBILITY_DETAILS = "android.settings.ACCESSIBILITY_DETAILS_SETTINGS";
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
 
     private TextView report;
-    private Button free;
-    private Button service;
-    private Button copy;
+    private Button restore;
+    private SharedPreferences preferences;
     private boolean busy;
-    private boolean autoRan;
-    private boolean sawServiceOff;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        preferences = getSharedPreferences("rescue", MODE_PRIVATE);
         setContentView(buildLayout());
+        if (savedInstanceState != null) {
+            report.setText(savedInstanceState.getCharSequence("report", report.getText()));
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        boolean enabled = PromptClicker.enabled(this);
-        if (!autoRan) {
-            autoRan = true;
-            sawServiceOff = !enabled;
-            runRescue();
-        } else if (sawServiceOff && enabled && !busy) {
-            sawServiceOff = false;
-            runRescue();
+        if (!busy && preferences.getBoolean(PENDING_SETTINGS, false)
+                && PromptClicker.enabled(this)) {
+            // Consume the continuation before running; a failure must not reopen Settings in a loop.
+            runRescue(false);
+        } else if (preferences.getBoolean(PENDING_SETTINGS, false)) {
+            report.setText("Ожидаю включения службы «Ключ Dipilot». После включения вернитесь "
+                    + "сюда — восстановление продолжится автоматически.\n\n" + report.getText());
         }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle state) {
+        state.putCharSequence("report", report.getText());
+        super.onSaveInstanceState(state);
     }
 
     @Override
@@ -71,12 +76,11 @@ public final class RescueActivity extends Activity {
         int pad = dp(12);
         root.setPadding(pad, pad, pad, pad);
 
-        LinearLayout buttons = new LinearLayout(this);
-        buttons.setOrientation(LinearLayout.HORIZONTAL);
-        free = addButton(buttons, "Освободить порт", v -> runRescue());
-        service = addButton(buttons, "Включить нажатия", v -> openAccessibilitySettings());
-        copy = addButton(buttons, "Скопировать", v -> copyReport());
-        root.addView(buttons, new LinearLayout.LayoutParams(
+        restore = new Button(this);
+        restore.setText("Восстановить ADB");
+        restore.setAllCaps(false);
+        restore.setOnClickListener(v -> runRescue(true));
+        root.addView(restore, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         report = new TextView(this);
@@ -85,7 +89,9 @@ public final class RescueActivity extends Activity {
         report.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
         report.setTextIsSelectable(true);
         report.setPadding(0, dp(12), 0, 0);
-        report.setText("Ключ Dipilot. Освобождаю порт…");
+        report.setText("Ключ Dipilot · 0.2.0\nНажмите «Восстановить ADB». Сначала проверю shell, "
+                + "затем подготовлю службу нажатий, проверю окна и очередь.\n"
+                + "Отчёт можно выделить и скопировать долгим нажатием.");
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(report);
@@ -94,70 +100,74 @@ public final class RescueActivity extends Activity {
         return root;
     }
 
-    private Button addButton(LinearLayout row, String label, android.view.View.OnClickListener click) {
-        Button button = new Button(this);
-        button.setText(label);
-        button.setAllCaps(false);
-        button.setOnClickListener(click);
-        LinearLayout.LayoutParams params =
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        params.setMarginEnd(dp(6));
-        row.addView(button, params);
-        return button;
-    }
-
-    private void runRescue() {
+    private void runRescue(boolean mayOpenSettings) {
+        if (busy) {
+            return;
+        }
+        preferences.edit().remove(PENDING_SETTINGS).apply();
         setBusy(true);
         report.setText("Подключаюсь ключом Dipilot…");
         worker.execute(() -> {
-            String text;
+            PortRescue.Result result;
+            String[] lastSnapshot = {""};
             try {
-                text = new PortRescue(RescueActivity.this).rescue(snapshot -> main.post(() -> {
-                    if (!isDestroyed()) {
-                        report.setText(snapshot);
-                    }
-                }));
-            } catch (Throwable error) {
+                result = new PortRescue(RescueActivity.this).run(snapshot -> {
+                    lastSnapshot[0] = snapshot;
+                    main.post(() -> {
+                        if (!isDestroyed()) {
+                            report.setText(snapshot);
+                        }
+                    });
+                });
+            } catch (Exception error) {
                 PromptClicker.disarm();
                 String message = error.getMessage();
-                text = "Shell: НЕ ПРОВЕРЕН — подготовка клиента не удалась.\nСбой: "
-                        + error.getClass().getSimpleName()
-                        + (message == null ? "" : " " + QueueDrain.redact(message));
+                result = new PortRescue.Result(
+                        (lastSnapshot[0].isEmpty()
+                                ? "Shell: НЕ ПРОВЕРЕН — подготовка клиента не удалась.\n"
+                                : lastSnapshot[0])
+                                + "\nВосстановление прервано. Сбой: "
+                                + error.getClass().getSimpleName()
+                                + (message == null ? "" : " " + QueueDrain.redact(message)), false);
             }
-            String result = text;
+            PortRescue.Result completed = result;
             main.post(() -> {
                 if (!isDestroyed()) {
-                    report.setText(result);
+                    report.setText(completed.report);
                     setBusy(false);
+                    if (completed.needsServiceSettings && mayOpenSettings) {
+                        // Persist before leaving the app, including a process death in Settings.
+                        preferences.edit().putBoolean(PENDING_SETTINGS, true).apply();
+                        openAccessibilitySettings();
+                    } else if (completed.needsServiceSettings) {
+                        report.append("\nСлужба по-прежнему недоступна. Проверьте её настройки "
+                                + "и нажмите «Восстановить ADB» ещё раз.\n");
+                    }
                 }
             });
         });
     }
 
     private void openAccessibilitySettings() {
-        Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        Intent details = new Intent(ACCESSIBILITY_DETAILS)
+                .putExtra(Intent.EXTRA_COMPONENT_NAME, new ComponentName(this, PromptClicker.class));
         try {
-            startActivity(intent);
+            startActivity(details);
         } catch (Exception unavailable) {
-            report.setText("Экран специальных возможностей не открылся ("
-                    + unavailable.getClass().getSimpleName() + ").\n\n" + report.getText());
-        }
-    }
-
-    private void copyReport() {
-        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clipboard != null) {
-            clipboard.setPrimaryClip(ClipData.newPlainText("Ключ Dipilot", report.getText()));
-            Toast.makeText(this, "Отчёт скопирован", Toast.LENGTH_SHORT).show();
+            try {
+                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            } catch (Exception fallbackUnavailable) {
+                report.append("\nНастройки не открылись ("
+                        + fallbackUnavailable.getClass().getSimpleName()
+                        + "). Откройте специальные возможности и включите «Ключ Dipilot» вручную.\n");
+            }
         }
     }
 
     private void setBusy(boolean busy) {
         this.busy = busy;
-        free.setEnabled(!busy);
-        service.setEnabled(!busy);
-        copy.setEnabled(!busy);
+        restore.setEnabled(!busy);
+        restore.setText(busy ? "Восстанавливаю…" : "Восстановить ADB");
     }
 
     private int dp(int value) {
