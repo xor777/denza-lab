@@ -3,6 +3,8 @@ package dev.denza.apps;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.util.Objects;
+
 final class SimulcastIntegration {
     private static final String PREFS = "simulcast_integration";
     private static final String KEY_ENABLED = "enabled";
@@ -31,12 +33,25 @@ final class SimulcastIntegration {
         return lastTargetPackage;
     }
 
+    /**
+     * A share started on [packageName]. The «Трансляция» tile shows a running share, so the write
+     * marks its slice; nothing else tells it.
+     */
     static void setLastTargetPackage(String packageName) {
-        lastTargetPackage = packageName;
+        replaceLastTargetPackage(packageName, "share started");
     }
 
+    /** No share any more: ended by us or by DiShare, or replaced by the next one. */
     static void clearLastTargetPackage() {
-        lastTargetPackage = null;
+        replaceLastTargetPackage(null, "share over");
+    }
+
+    private static synchronized void replaceLastTargetPackage(String packageName, String cause) {
+        if (Objects.equals(lastTargetPackage, packageName)) {
+            return;
+        }
+        lastTargetPackage = packageName;
+        StateMarks.INSTANCE.mark(StateSlice.SIMULCAST, cause);
     }
 
     private static SharedPreferences prefs(Context context) {

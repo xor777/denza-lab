@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import dev.denza.apps.AppIcons
+import dev.denza.apps.StateMarks
+import dev.denza.apps.StateSlice
 
 /** Process-wide launcher catalog, invalidated by package changes and explicit refreshes. */
 internal object DefaultAppsCatalogCache {
@@ -53,12 +55,18 @@ internal object DefaultAppsCatalogCache {
         cachedInstalled
     }
 
+    /**
+     * The car's applications may have changed. Everything on the dashboard that names or needs an
+     * installed application is marked to be read again ([StateSlice.PACKAGES]): DiShare, the
+     * navigator, the projection's row, the driver's-screen choice and the split's launcher icon.
+     */
     fun invalidate() {
         synchronized(cacheLock) {
             generation += 1L
             cachedLaunchable = null
             cachedInstalled = null
         }
+        StateMarks.mark(StateSlice.PACKAGES, "package changed")
     }
 
     /**

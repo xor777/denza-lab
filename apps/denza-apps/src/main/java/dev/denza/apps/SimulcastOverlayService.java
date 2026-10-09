@@ -151,7 +151,6 @@ public class SimulcastOverlayService extends Service {
         }
         stopBridge();
         SimulcastIntegration.clearLastTargetPackage();
-        DenzaAppRepository.INSTANCE.invalidate(StateSlice.SIMULCAST, "share target");
         hideActiveShareExit();
         SimulcastVideoSizeResolver.Resolution videoSize =
                 SimulcastVideoSizeResolver.resolve(this, receiver);
@@ -178,10 +177,8 @@ public class SimulcastOverlayService extends Service {
                         lease.release();
                         Log.i(TAG, packageName + " started "
                                 + DiShareProjectionBridge.bundleToString(result));
+                        // Marks the «Трансляция» tile as running, as part of the write.
                         SimulcastIntegration.setLastTargetPackage(packageName);
-                        // The tile says the projection is running; it is told, not left to
-                        // whatever reads the dashboard next.
-                        DenzaAppRepository.INSTANCE.invalidate(StateSlice.SIMULCAST, "share started");
                         Toast.makeText(SimulcastOverlayService.this,
                                 "Запускаю " + label, Toast.LENGTH_SHORT).show();
                         closeDiShareDialog();
@@ -264,7 +261,6 @@ public class SimulcastOverlayService extends Service {
     private void shareOver() {
         SimulcastIntegration.clearLastTargetPackage();
         hideActiveShareExit();
-        DenzaAppRepository.INSTANCE.invalidate(StateSlice.SIMULCAST, "share over");
     }
 
     private void stopBridge() {

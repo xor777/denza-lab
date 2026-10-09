@@ -282,6 +282,11 @@ object DenzaAppRepository {
         onError = { cause, error -> Log.w(TAG, "state publication failed: $cause", error) },
     )
 
+    init {
+        // Every writer outside this object marks through StateMarks; from here on they land here.
+        StateMarks.connect { slices, cause -> publisher.invalidate(slices, cause) }
+    }
+
     private val defaultAppsRepositoryLock = Any()
 
     @Volatile
@@ -350,14 +355,6 @@ object DenzaAppRepository {
 
     fun invalidate(slices: Set<StateSlice>, cause: String) {
         publisher.invalidate(slices, cause)
-    }
-
-    /**
-     * This app's accessibility service connected, went away, or is being repaired: everything
-     * that reads it ([StateSlice.ACCESSIBILITY]) is read again.
-     */
-    fun accessibilityChanged(cause: String) {
-        publisher.invalidate(StateSlice.ACCESSIBILITY, cause)
     }
 
     /**
@@ -1010,12 +1007,7 @@ object DenzaAppRepository {
             DefaultAppsCatalogCache.ensureWatching(
                 context,
                 onPackage = { intent -> repairNavigationRole(context, intent) },
-            ) {
-                refreshDefaultApps(force = false)
-                // DiShare, the navigator, the projection's row and the driver's-screen choice are
-                // all applications that can come and go.
-                invalidate(StateSlice.PACKAGES, "package changed")
-            }
+            ) { refreshDefaultApps(force = false) }
             stateStore.update { current ->
                 current.copy(
                     defaultApps = current.defaultApps.copy(
@@ -1212,9 +1204,6 @@ object DenzaAppRepository {
             // one that cannot be registered leaves the others watched.
             runtimeStep("display watch") { watchDisplays(app) }
             runtimeStep("overlay grant watch") { watchOverlayGrant(app) }
-            runtimeStep("hud guidance watch") {
-                HudGuidanceRuntime.observeActive { invalidate(StateSlice.HUD_GUIDANCE, "hud guidance") }
-            }
             runtimeStep("split initialize") {
                 // A mark, not a read: it is made on the split's actor, and on a tap on the main
                 // thread before the waiting window draws.

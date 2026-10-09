@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.hud
 
+import dev.denza.apps.StateMarks
+import dev.denza.apps.StateSlice
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -278,22 +280,15 @@ object HudGuidanceRuntime {
     @Volatile
     private var updatedAtMs = 0L
 
-    @Volatile
-    private var activeObserver: (() -> Unit)? = null
-
     /**
-     * Calls [observer] whenever guidance starts or stops - the one thing the «HUD Подсказки» tile
-     * shows of it. Not on every guidance sample: those come three times a second, and nothing on
-     * the dashboard draws them. Calling it again replaces the previous observer.
+     * Guidance starting or stopping - the one thing the «HUD Подсказки» tile shows of it - marks
+     * its slice of the dashboard. Not every guidance sample: those come three times a second, and
+     * nothing on the dashboard draws them.
      */
-    fun observeActive(observer: () -> Unit) {
-        activeObserver = observer
-    }
-
     private fun setActive(value: Boolean) {
         if (active == value) return
         active = value
-        activeObserver?.invoke()
+        StateMarks.mark(StateSlice.HUD_GUIDANCE, if (value) "hud guidance" else "hud guidance stopped")
     }
 
     @JvmStatic

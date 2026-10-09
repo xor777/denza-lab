@@ -37,18 +37,34 @@ tile through them.
   `StateSlices.kt`, read by `DenzaAppRepository.readSlice`) into plain values: an application is
   named by its package and drawn from `AppIcons` (`rememberAppIcon`), so two reads of the same car
   are equal and publish nothing. A feature whose state changed marks its slice and returns at once:
-  `DenzaAppRepository.invalidate`, with the `StateSlice` or the `FeatureId` behind the tile
-  (`StateSlice.of`). Marks that arrive before the read are folded into one; reads run one at a time
+  `StateMarks.mark` from a feature, `DenzaAppRepository.invalidate` inside the repository, with the
+  `StateSlice` (or the `FeatureId` behind the tile, `StateSlice.of`). Where the slice reads a plain
+  field, the mark is in the field's setter, so the write cannot happen without it. Marks that arrive before the read are folded into one; reads run one at a time
   on the publisher's own thread and each is committed before the next, so an older read never
   lands over a newer one. A state that is not a reading — a switch's «starting» — goes through
   `DenzaStatePublisher.publish` on the same queue, so no read taken before it can put the old state
   back. `DenzaAppRepository.refresh` marks every slice, for the paths that cannot say what changed:
   the activity's resume, the gate's first look when the app starts or recovers after a reboot, and
   the runtime's start. Every read is counted in «Сервис» → «Технические
-  сведения» → «Пересчёт состояния» (`StateRecomputes`). Held by `DenzaStatePublisherTest` (order,
-  folding, no lost or rolled-back state), `StateSlicesTest` (equal reads, equal states) and
-  `TileSliceContractTest` (every tile is moved by the slice it reads, or is named as publishing
-  itself).
+  сведения» → «Пересчёт состояния» (`StateRecomputes`), and a slice that throws is left out of
+  its read and counted there, while the others are still laid (`readEach`).
+  What the tests hold: `DenzaStatePublisherTest` the order, the folding and that no state is lost
+  or rolled back; `StateSlicesTest` that equal reads are equal states and that no two slices lay
+  one field; `TileSliceContractTest` that every tile is moved by the slice it reads, or is named as
+  publishing itself; `StateMarksTest` that the writers that run on the JVM mark their slice as they
+  write - a share starting or ending (`SimulcastIntegration`), a speaker report
+  (`SpeakerCoverRuntime.reporting`), the cloud link's passes and presses
+  (`CloudLinkController.publish`, `CloudLinkRuntime.busy`), a package change
+  (`DefaultAppsCatalogCache.invalidate`), HUD guidance starting or stopping (`HudGuidanceRuntime`)
+  and an accessibility repair (`AccessibilityRepairSingleFlight`); and `SplitSessionPublicationTest`
+  the split's. No test sees the marks that need Android to run. They are kept by their code alone
+  and, if one were lost, the next resume would still show the truth: the mirrors' monitor
+  (`SideCameraMonitorService`), the accessibility service connecting or going
+  (`SimulcastAccessibilityService`), notification access (`HudNotificationAccessCoordinator`,
+  `YandexNotificationArtworkListener`), the automatic ADB restore (`AdbRestore`), the navigation
+  coordinator's and the wheel button's callbacks, the switches' setters, the overlay grant and the
+  display watchers (`DenzaAppRepository.watchOverlayGrant`, `DenzaAppRepository.watchDisplays`),
+  and the weather observer (`WeatherProcessContractTest` checks its wiring as text).
 
 ## Which tile is which
 
@@ -89,7 +105,7 @@ Puts one thing on the instrument cluster behind the wheel (this app's own instru
 
 Casts apps to the car's other screens (passenger, rear) through the stock DiShare share dialog, which this app redraws to offer the up to six apps chosen here.
 
-- **Tile:** `DashboardTiles.simulcast`; feature `FeatureId.SIMULCAST`; state `DenzaUiState.simulcast` (plus `DenzaUiState.selectedApps`, `DenzaUiState.selectedAppCount`), the `StateSlice.SIMULCAST` slice. Marked by its switch and its row, by `SimulcastOverlayService` when a share starts, is replaced or ends, by `SimulcastCoordinator.reconcile` (its `Refresh` and `Repaired` events mark the slice; `Repairing`, `Blocked` and `RepairFailed` publish their own state through `DenzaStatePublisher.publish`), by this app's overlay grant changing - granted by any of its features or taken away in Settings, watched by `DenzaAppRepository.watchOverlayGrant` - with `StateSlice.ACCESSIBILITY` (the accessibility service connected or gone) and with `StateSlice.PACKAGES` (a package installed, replaced or removed).
+- **Tile:** `DashboardTiles.simulcast`; feature `FeatureId.SIMULCAST`; state `DenzaUiState.simulcast` (plus `DenzaUiState.selectedApps`, `DenzaUiState.selectedAppCount`), the `StateSlice.SIMULCAST` slice. Marked by its switch and its row, by `SimulcastIntegration` as the share `SimulcastOverlayService` starts, replaces or ends is written, by `SimulcastCoordinator.reconcile` (its `Refresh` and `Repaired` events mark the slice; `Repairing`, `Blocked` and `RepairFailed` publish their own state through `DenzaStatePublisher.publish`), by this app's overlay grant changing - granted by any of its features or taken away in Settings, watched by `DenzaAppRepository.watchOverlayGrant` - with `StateSlice.ACCESSIBILITY` (the accessibility service connected or gone) and with `StateSlice.PACKAGES` (a package installed, replaced or removed).
 - **Press / long press:** `DashboardPress.perform`. While the feature is on, the press is `TileAction.SIMULCAST_LAUNCH` → `DashboardActions.onLaunchSimulcast` (bound in `MainActivity.onCreate`) → `DenzaAppRepository.launchSimulcast` → `SimulcastCoordinator.reconcile`, then it opens the stock DiShare app (`SimulcastCoordinator.DISHARE_PACKAGE`). While it is off, the press is `TileAction.TOGGLE` → `DashboardActions.onToggleSimulcast` → `DenzaAppRepository.setSimulcastEnabled`. Waiting on `FeatureResolution.SELECT_APPS`: `DashboardActions.onChooseApps` → `DenzaAppRepository.showAppPicker` (`AppPickerDialog`). Retry: `DashboardActions.onRepairSimulcast` → `DenzaAppRepository.repairSimulcast`. Long press: `DashboardActions.onOpenSettings` → `FeatureSheet`.
 - **Panel:** `simulcastSheet` in `ui/dashboard/FeatureSheets.kt` (switch «Поддержка трансляции», row «Что транслировать», footer «Запустить»). Its page is `SimulcastAppChooser` in `ui/AppPickers.kt`: it loads through `DashboardActions.onLoadAppChoices` → `DenzaAppRepository.refreshAppChoices`, off the main thread, from the launcher catalog `DefaultAppsCatalogCache` that «Что показывать» and the default-app roles share (`SimulcastAppChoices` keeps what the launcher shows), and toggles apps through `DenzaAppRepository.toggleAppSelection`, which moves the marks without reading the package manager.
 - **Runtime:** This lives in the root package, not in `feature/simulcast/`. `SimulcastAccessibilityService` is a manifest accessibility service: it watches DiShare's dialog and redraws its app row, and it also hosts HUD guidance and the ★ wheel key. `SimulcastOverlayService` is a manifest service that starts the cast through `DiShareProjectionBridge`, draws the exit control, and drops both when DiShare ends the share on its side (`DiShareShareSession`). `SimulcastCoordinator` does setup and access repair; `SimulcastWindowReconciler` is also here. `feature/simulcast/` holds `SimulcastVideoSizeResolver` and `ScreenTarget`; DiShare itself sits in `libraries/dishare-bridge/` (`DiShareProjectionBridge`, `DiShareScreens`, and `DiShareBinding` under both).
@@ -128,7 +144,7 @@ Opens two apps side by side on the central screen through the firmware's own spl
 
 Repeats Yandex Navigator's turn-by-turn hints (manoeuvre, distance) on the windscreen head-up display by reading the navigator, not by projecting a picture.
 
-- **Tile:** `DashboardTiles.hud`; feature `FeatureId.HUD_GUIDANCE`; state `DenzaUiState.hudGuidance`, the `StateSlice.HUD_GUIDANCE` slice. Marked by its switch and access steps, by `HudGuidanceRuntime.observeActive` when guidance starts or stops (not on every sample), with `StateSlice.ACCESSIBILITY` and with `StateSlice.PACKAGES` (the navigator installed or removed).
+- **Tile:** `DashboardTiles.hud`; feature `FeatureId.HUD_GUIDANCE`; state `DenzaUiState.hudGuidance`, the `StateSlice.HUD_GUIDANCE` slice. Marked by its switch and access steps, by `HudGuidanceRuntime` itself when guidance starts or stops (not on every sample), with `StateSlice.ACCESSIBILITY` and with `StateSlice.PACKAGES` (the navigator installed or removed).
 - **Press / long press:** `DashboardPress.perform` → `TileAction.TOGGLE` → `DashboardPress.toggle` → `DashboardActions.onToggleHudGuidance` (bound in `MainActivity.onCreate`) → `DenzaAppRepository.setHudGuidanceEnabled` → `HudGuidanceSettings.setEnabled` and `SimulcastAccessibilityService.requestHudGuidanceRefresh`. Access comes through `HudNotificationAccessCoordinator.ensureAccess` and `SimulcastCoordinator.repairAccess`. Retry: `DashboardPress.retry` → `DashboardActions.onToggleHudGuidance`. With the navigator missing (unavailable), the press is `DashboardActions.onOpenSettings`. Long press: `DashboardActions.onOpenSettings` → `FeatureSheet`.
 - **Panel:** `hudSheet` in `ui/dashboard/FeatureSheets.kt`: one switch, «Подсказки на проекции», and no footer button.
 - **Runtime:** `feature/hud/` has no service of its own. `HudGuidanceAccessibilityMonitor` runs inside `SimulcastAccessibilityService` (manifest). It reads Yandex through `YandexGuidanceAccessibilityReader` and `YandexNotificationArtworkListener` (a manifest notification listener), parses with `YandexGuidanceParser` and sends over SOME/IP with `HudSomeIpClient`. State is kept in `HudGuidanceRuntime` and `HudArApproximationTracker`; `HudRouteFreshness` decides, poll by poll, which source the HUD shows and when its route is lost. The tile snapshot comes from `DenzaAppRepository.evaluateHudGuidance`.
@@ -154,7 +170,7 @@ The car's own weather widget keeps getting a fresh forecast for where the car is
 
 The motorised speaker covers come up for music the car does not report itself (third-party players), and «Поднять» brings them up on demand; only the car puts them away.
 
-- **Tile:** `DashboardTiles.speakers`; feature `FeatureId.SPEAKER_COVERS`; state `DenzaUiState.speakerCovers` (built by `SpeakerCoverStatus.snapshot` in the `StateSlice.SPEAKER_COVERS` slice, needs notification access `HudNotificationAccessCoordinator.isAccessEnabled`) and `DenzaUiState.speakerCoversReporting` (from `SpeakerCoverRuntime.reporting`). Marked by its switch, by `SpeakerCoverService` whenever a report goes out or lands, and when notification access is repaired or its listener disconnects.
+- **Tile:** `DashboardTiles.speakers`; feature `FeatureId.SPEAKER_COVERS`; state `DenzaUiState.speakerCovers` (built by `SpeakerCoverStatus.snapshot` in the `StateSlice.SPEAKER_COVERS` slice, needs notification access `HudNotificationAccessCoordinator.isAccessEnabled`) and `DenzaUiState.speakerCoversReporting` (from `SpeakerCoverRuntime.reporting`). Marked by its switch, by `SpeakerCoverRuntime.reporting` changing as a report goes out or lands, and when notification access is repaired or its listener disconnects.
 - **Press / long press:** `DashboardPress.perform` → `DashboardPress.toggle` (or `DashboardPress.retry` while it waits) → `DashboardActions.onToggleSpeakerCovers` → `DenzaAppRepository.setSpeakerCoversEnabled` → `SpeakerCoverSettings.setEnabled` + `SpeakerCoverService.reconcile`. Long press → `FeatureSheet`; its «Поднять» → `DashboardActions.onRaiseSpeakerCovers` → `DenzaAppRepository.raiseSpeakerCovers` → `SpeakerCoverService.raise`.
 - **Panel:** `speakerSheet` (switch «Автоуправление динамиками», button «Поднять»; help lists `SpeakerCoverApps.EXAMPLES`) in `apps/denza-apps/src/main/java/dev/denza/apps/ui/dashboard/FeatureSheets.kt`.
 - **Runtime:** `feature/speaker/` — `SpeakerCoverService` (manifest-declared foreground service, started by `SpeakerCoverService.reconcile` from `DenzaAppRepository.startAdbRuntime`) hears players through `SpeakerMediaSessionObserver` and `SpeakerCoverService.onForegroundPackage` (called by `SimulcastAccessibilityService`), asks `SpeakerCoverPolicy`, and reports once through `SpeakerCoverTransport` (`SpeakerCoverProtocol.reportPlayingCommand` over `DenzaLocalAdb`); `SpeakerCoverReporting` and `SpeakerCoverApps` say which players the car already covers. Nothing is written to the car's own auto-lift setting.
@@ -206,7 +222,7 @@ The car's own navigation, music and video Shortcuts commands open the driver's c
 
 The car's stock cloud client gets online over ordinary internet (Wi-Fi, or mobile data from a local SIM), so the official Denza phone app sees the car's charge and range.
 
-- **Tile:** `DashboardTiles.cloud`; feature `FeatureId.CLOUD_LINK`; state `DenzaUiState.cloudLink` (from `CloudLinkRuntime.snapshot` in the `StateSlice.CLOUD_LINK` slice; words `CloudLinkStatus.words`), `DenzaUiState.cloudLinkBusy`, `DenzaUiState.cloudWifiRetained`. `CloudLinkController` marks the slice on every press and every publication of its worker, ticks included, which also carries the readings that age with the clock.
+- **Tile:** `DashboardTiles.cloud`; feature `FeatureId.CLOUD_LINK`; state `DenzaUiState.cloudLink` (from `CloudLinkRuntime.snapshot` in the `StateSlice.CLOUD_LINK` slice; words `CloudLinkStatus.words`), `DenzaUiState.cloudLinkBusy`, `DenzaUiState.cloudWifiRetained`. `CloudLinkController` marks the slice on every press (`CloudLinkRuntime.busy`) and every publication of its worker (`CloudLinkController.publish`), ticks included, which also carries the readings that age with the clock.
 - **Press / long press:** `DashboardPress.perform` (ignored while `DenzaUiState.cloudLinkBusy`) → `DashboardPress.toggle` (after a refusal it asks the same wish again) → `DashboardActions.onToggleCloudLink` → `DenzaAppRepository.setCloudLinkEnabled` → `CloudLinkController.switchOn` / `CloudLinkController.switchOff`. Long press → `FeatureSheet`; second switch → `DashboardActions.onSetCloudWifiRetained` → `DenzaAppRepository.setCloudWifiRetained` → `CloudLinkController.setWifiRetained`.
 - **Panel:** `cloudSheet` (switches «Поддерживать связь с облаком», «Держать Wi-Fi включенным») in `apps/denza-apps/src/main/java/dev/denza/apps/ui/dashboard/FeatureSheets.kt`.
 - **Runtime:** `feature/cloud/` — `CloudLinkService` (manifest-declared foreground service that holds the adapter and watches the default network; `CloudLinkService.reconcile` from `DenzaAppRepository.startAdbRuntime`), `CloudLinkController` (reads the car, runs steps; `CloudLinkController.refresh` from `DenzaAppRepository.refreshCloudLink` on resume), `CloudLinkCore` (pure policy), `CloudLinkFailures` (a refused press against a failed automatic pass, and what clears each), `CloudLinkProtocol` (shell commands to the stock client), `CloudNetwork` (usable internet), `CloudLinkDiagnostics` and `CloudLinkReport` (exported report, the «Облако» section of «Сервис»).
@@ -305,9 +321,10 @@ The «Облако» tile (commit c1875b0b, 21 files) is the worked example. In 
    state through `DenzaStatePublisher.publish` rather than writing it; and the `FeatureId` →
    snapshot branch in `DashboardPress.snapshotOf`.
 3. **Invalidation.** Every place that changes what the slice reads — a setter, the feature's own
-   thread, a callback from the car — calls `DenzaAppRepository.invalidate` with that slice once it
-   has written. Nothing else re-reads it: a writer without a mark leaves the tile frozen until the
-   next resume.
+   thread, a callback from the car — marks that slice once it has written: `StateMarks.mark`, in
+   the setter of the field when the slice reads a plain field. Nothing else re-reads it: a writer
+   without a mark leaves the tile frozen until the next resume. Where the writer runs on the JVM,
+   add its case to `StateMarksTest`.
 4. **Tile.** A `TileIcon` entry, a builder in `DashboardTiles` listed in `DashboardTiles.of`, the
    glyph in `DenzaIcons` (`design/DenzaIcons.kt`) and its branch in `tileGlyph`
    (`ui/dashboard/DashboardGrid.kt`).

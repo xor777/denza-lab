@@ -171,7 +171,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
         Log.i(TAG, "service connected");
         // The projection, HUD guidance and the wheel button read whether this service is connected.
-        DenzaAppRepository.INSTANCE.accessibilityChanged("a11y connected");
+        StateMarks.INSTANCE.accessibilityChanged("a11y connected");
         // The system can recreate this long-lived process without reopening MainActivity
         // (notably after an APK replacement). Recover desired runtimes here so a persisted
         // split toggle never remains visually on while its router is absent.
@@ -252,7 +252,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
         tearDownHudGuidance();
         tearDown();
-        DenzaAppRepository.INSTANCE.accessibilityChanged("a11y gone");
+        StateMarks.INSTANCE.accessibilityChanged("a11y gone");
         DenzaAppRepository.INSTANCE.recoverNavigationSteeringWheelAccess(this);
         return super.onUnbind(intent);
     }
@@ -270,7 +270,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
         tearDownHudGuidance();
         tearDown();
-        DenzaAppRepository.INSTANCE.accessibilityChanged("a11y gone");
+        StateMarks.INSTANCE.accessibilityChanged("a11y gone");
         DenzaAppRepository.INSTANCE.recoverNavigationSteeringWheelAccess(this);
         super.onDestroy();
     }
