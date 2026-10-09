@@ -29,9 +29,7 @@ class MainActivity : ComponentActivity() {
                     onNavigationSteeringWheelButton =
                         DenzaAppRepository::setNavigationSteeringWheelButton,
                     onNavigationPlacement = DenzaAppRepository::setNavigationPlacement,
-                    onChooseNavigationApp = DenzaAppRepository::showNavigationAppPicker,
                     onLoadNavigationAppChoices = DenzaAppRepository::refreshNavigationAppChoices,
-                    onCloseNavigationPicker = DenzaAppRepository::hideNavigationAppPicker,
                     onSelectNavigationApp = DenzaAppRepository::selectNavigationApp,
                     onToggleSplitScreen = DenzaAppRepository::setSplitScreenEnabled,
                     onLaunchSplitScreen = DenzaAppRepository::launchSplitScreen,
@@ -58,12 +56,9 @@ class MainActivity : ComponentActivity() {
                     onRefreshDefaultApps = DenzaAppRepository.defaultApps::refresh,
                     onSetDefaultAppsEnabled = DenzaAppRepository.defaultApps::setEnabled,
                     onSelectDefaultApp = DenzaAppRepository.defaultApps::select,
-                    onChooseApps = DenzaAppRepository::showAppPicker,
                     onLoadAppChoices = DenzaAppRepository::refreshAppChoices,
-                    onCloseAppPicker = DenzaAppRepository::hideAppPicker,
                     onToggleApp = DenzaAppRepository::toggleAppSelection,
-                    onChooseFseApp = DenzaAppRepository::showFseInstallerPicker,
-                    onCloseFseInstallerPicker = DenzaAppRepository::hideFseInstallerPicker,
+                    onLoadFseApps = DenzaAppRepository::refreshFseInstallApps,
                     onInstallFseApp = DenzaAppRepository::installOnPassengerScreen,
                 )
             },

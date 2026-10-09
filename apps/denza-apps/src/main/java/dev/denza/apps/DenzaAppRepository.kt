@@ -176,7 +176,6 @@ data class DenzaUiState(
      * it is the car's whole launcher catalog, icons and all, and nothing but that page draws it.
      */
     val navigationAppChoices: List<NavigationAppChoice> = emptyList(),
-    val navigationPickerVisible: Boolean = false,
     val selectedAppCount: Int = 0,
     val selectedAppLabels: List<String> = emptyList(),
     val selectedApps: List<SimulcastAppChoice> = emptyList(),
@@ -208,13 +207,12 @@ data class DenzaUiState(
     val clusterDisplayOverride: Int? = null,
     /** The screen the app would pick by itself, named as the page names it; null when it cannot. */
     val clusterDisplayAutomatic: String? = null,
-    val appPickerVisible: Boolean = false,
     /**
      * Everything «Что транслировать» offers, read when its page opens rather than on every
      * recompute - the car's launcher catalog, and nothing but that page draws it.
      */
     val appChoices: List<SimulcastAppChoice> = emptyList(),
-    val fseInstallerPickerVisible: Boolean = false,
+    /** What «Экран справа» offers, read when its chooser opens (`refreshFseInstallApps`). */
     val fseInstallApps: List<FseInstallApp> = emptyList(),
 )
 
@@ -529,24 +527,13 @@ object DenzaAppRepository {
         context.startActivity(launch)
     }
 
-    fun showAppPicker() {
-        appContext ?: return
-        stateStore.update { current -> current.copy(appPickerVisible = true) }
-        refreshAppChoices()
-    }
-
-    fun hideAppPicker() {
-        stateStore.update { current -> current.copy(appPickerVisible = false) }
-    }
-
     /**
      * Read the car for «Что транслировать» without opening anything, off the main thread.
      *
-     * The chooser inside the projection panel is a page of that panel rather than a window of its
-     * own, so it has nothing for [showAppPicker]'s `appPickerVisible` to raise - and raising it
-     * anyway would put the whole-sheet picker on top of the page showing the same list. Reading is
-     * the half both doors share; which surface appears is the caller's business. Until the first
-     * read lands the page says it is looking; after that it shows the last list while it reads.
+     * Two surfaces show the list - the page inside the projection panel and the whole-sheet window
+     * a tile waiting on a choice opens - and which one appears is the screen's business: each asks
+     * for this as it opens. Until the first read lands the page says it is looking; after that it
+     * shows the last list while it reads.
      */
     fun refreshAppChoices() {
         val context = appContext ?: return
@@ -577,35 +564,37 @@ object DenzaAppRepository {
         }
     }
 
-    fun showFseInstallerPicker() {
-        val context = appContext ?: return
-        if (FseInstallStatus.installing(stateStore.snapshot().state.fseInstaller)) return
+    /**
+     * Read what «Экран справа» can offer, before its chooser opens; false when it must not open -
+     * an install is already under way - and the screen leaves it shut.
+     *
+     * On the caller's thread, as it always was: the chooser opens drawn, list and pictures both.
+     */
+    fun refreshFseInstallApps(): Boolean {
+        val context = appContext ?: return false
+        if (FseInstallStatus.installing(stateStore.snapshot().state.fseInstaller)) return false
         val installedApps = FseAppInstaller.installedApps(context)
         // The pictures are read with the list, as they always were, so the chooser opens drawn.
         installedApps.filter(FseInstallApp::installable).forEach { app ->
             AppIcons.load(context, app.packageName)
         }
-        stateStore.update { current ->
-            current.copy(
-                fseInstallerPickerVisible = true,
-                fseInstallApps = installedApps,
-            )
-        }
+        stateStore.update { current -> current.copy(fseInstallApps = installedApps) }
+        return true
     }
 
-    fun hideFseInstallerPicker() {
-        stateStore.update { current -> current.copy(fseInstallerPickerVisible = false) }
-    }
-
-    fun installOnPassengerScreen(packageName: String) {
-        val context = appContext ?: return
+    /**
+     * One application pressed in the chooser; true when its install has started and the chooser
+     * closes, false when the chooser stays.
+     */
+    fun installOnPassengerScreen(packageName: String): Boolean {
+        val context = appContext ?: return false
         when (claimFseInstall(packageName)) {
-            FseInstallClaim.BUSY -> return
+            FseInstallClaim.BUSY -> return false
             // The list the picker was drawn from no longer matches the car. Re-read it and leave
             // the picker standing: a working chooser is the answer, not a note about the old one.
             FseInstallClaim.STALE -> {
-                showFseInstallerPicker()
-                return
+                refreshFseInstallApps()
+                return false
             }
             FseInstallClaim.START -> Unit
         }
@@ -617,6 +606,7 @@ object DenzaAppRepository {
             val completed = FseInstallStatus.of(result)
             stateStore.update { current -> current.copy(fseInstaller = completed) }
         }
+        return true
     }
 
     /**
@@ -723,12 +713,6 @@ object DenzaAppRepository {
         NavigationCoordinator.selectPlacement(placement)
     }
 
-    fun showNavigationAppPicker() {
-        appContext ?: return
-        stateStore.update { current -> current.copy(navigationPickerVisible = true) }
-        refreshNavigationAppChoices()
-    }
-
     /**
      * Read the car for «Что показывать» without opening a window, off the main thread: the panel's
      * own page asks for this when it opens, the way the projection's page does.
@@ -741,15 +725,15 @@ object DenzaAppRepository {
         }
     }
 
-    fun hideNavigationAppPicker() {
-        stateStore.update { current -> current.copy(navigationPickerVisible = false) }
-    }
-
-    fun selectNavigationApp(packageName: String) {
-        val context = appContext ?: return
-        if (!NavigationSettings.isOffered(context, packageName)) return
-        stateStore.update { current -> current.copy(navigationPickerVisible = false) }
+    /**
+     * One answer chosen on «Что показывать»; false when the car no longer offers it, and a window
+     * showing the choice stays open over the list it was drawn from.
+     */
+    fun selectNavigationApp(packageName: String): Boolean {
+        val context = appContext ?: return false
+        if (!NavigationSettings.isOffered(context, packageName)) return false
         NavigationCoordinator.selectPackage(packageName)
+        return true
     }
 
     fun setSplitScreenEnabled(enabled: Boolean) {
@@ -1389,7 +1373,6 @@ object DenzaAppRepository {
             if (app == null || !app.installable) return FseInstallClaim.STALE
 
             val updated = current.copy(
-                fseInstallerPickerVisible = false,
                 fseInstaller = FeatureSnapshot(
                     id = FeatureId.FSE_INSTALLER,
                     desiredEnabled = false,

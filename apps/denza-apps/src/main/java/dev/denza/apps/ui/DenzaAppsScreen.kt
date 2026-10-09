@@ -80,10 +80,8 @@ fun DenzaAppsRoot(
     onNavigationAction: () -> Unit,
     onNavigationSteeringWheelButton: (Boolean) -> Unit,
     onNavigationPlacement: (ClusterMapPlacement) -> Unit,
-    onChooseNavigationApp: () -> Unit,
     onLoadNavigationAppChoices: () -> Unit,
-    onCloseNavigationPicker: () -> Unit,
-    onSelectNavigationApp: (String) -> Unit,
+    onSelectNavigationApp: (String) -> Boolean,
     onToggleSplitScreen: (Boolean) -> Unit,
     onLaunchSplitScreen: () -> Unit,
     onSetWeatherEnabled: (Boolean) -> Unit,
@@ -102,16 +100,13 @@ fun DenzaAppsRoot(
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onRefreshSystemLanguage: () -> Unit,
     onOpenSystemLanguage: () -> Unit,
-    onChooseApps: () -> Unit,
     onLoadAppChoices: () -> Unit,
-    onCloseAppPicker: () -> Unit,
     onToggleApp: (String) -> Unit,
     onRefreshDefaultApps: (Boolean) -> Unit,
     onSetDefaultAppsEnabled: (Boolean) -> Unit,
     onSelectDefaultApp: (DefaultAppRole, String) -> Unit,
-    onChooseFseApp: () -> Unit,
-    onCloseFseInstallerPicker: () -> Unit,
-    onInstallFseApp: (String) -> Unit,
+    onLoadFseApps: () -> Boolean,
+    onInstallFseApp: (String) -> Boolean,
 ) {
     val uiState by state.collectAsState()
     // Saved rather than merely remembered. The split path of this firmware recreates the activity
@@ -122,6 +117,12 @@ fun DenzaAppsRoot(
     var showAdbRecovery by rememberSaveable { mutableStateOf(false) }
     var showAdbExplainer by rememberSaveable { mutableStateOf(false) }
     var settingsFor by rememberSaveable { mutableStateOf<TileId?>(null) }
+    // The three whole-sheet choosers a tile opens when its feature waits on a choice. Windows of
+    // this screen, so they are kept here with the panels, saved as the panels are; they used to be
+    // flags in the repository's state, beside what the car said.
+    var choosingApps by rememberSaveable { mutableStateOf(false) }
+    var choosingNavigationApp by rememberSaveable { mutableStateOf(false) }
+    var choosingFseApp by rememberSaveable { mutableStateOf(false) }
     // Service used to be seven quick taps on an undisclosed part of the screen, with no affordance
     // and nothing to tell you it had happened. A live run found the other half of that bargain: a
     // tap that misses the secret door now lands on a tile, and an odd number of them switched the
@@ -152,7 +153,17 @@ fun DenzaAppsRoot(
             showClusterPicker = true
         }
     }
-    val openSettings = remember(onRefreshDefaultApps, onChooseFseApp, openService) {
+    // Each list is read as its window opens (see the windows below); these only open them.
+    val openAppPicker = remember { { choosingApps = true } }
+    val openNavigationPicker = remember { { choosingNavigationApp = true } }
+    // The passenger's list is read first, on this thread, so the chooser opens drawn - and not at
+    // all while an install is under way.
+    val openFseChooser = remember(onLoadFseApps) {
+        {
+            if (onLoadFseApps()) choosingFseApp = true
+        }
+    }
+    val openSettings = remember(onRefreshDefaultApps, openFseChooser, openService) {
         { id: TileId ->
             when (id) {
                 // «Сервис» had a panel of one sentence and a blue «Открыть сервис» in front of
@@ -167,7 +178,7 @@ fun DenzaAppsRoot(
                 // opened the chooser the tile's own press opens, so a long press and a short
                 // press on one tile led to two screens, one of them empty. Both open the chooser
                 // now, and the sentence went with it - see [FseInstallerPickerDialog].
-                TileId.PASSENGER -> onChooseFseApp()
+                TileId.PASSENGER -> openFseChooser()
                 else -> {
                     settingsFor = id
                 }
@@ -186,7 +197,7 @@ fun DenzaAppsRoot(
         onToggleSimulcast,
         onLaunchSimulcast,
         onRepairSimulcast,
-        onChooseApps,
+        openAppPicker,
         onLoadAppChoices,
         onToggleApp,
         onToggleMirrors,
@@ -196,7 +207,7 @@ fun DenzaAppsRoot(
         onNavigationAction,
         onNavigationPlacement,
         onNavigationSteeringWheelButton,
-        onChooseNavigationApp,
+        openNavigationPicker,
         onLoadNavigationAppChoices,
         onSelectNavigationApp,
         onToggleSplitScreen,
@@ -209,7 +220,7 @@ fun DenzaAppsRoot(
         onSetCloudWifiRetained,
         onOpenSystemLanguage,
         onSetDefaultAppsEnabled,
-        onChooseFseApp,
+        openFseChooser,
         openClusterPicker,
         openService,
         openSettings,
@@ -219,7 +230,7 @@ fun DenzaAppsRoot(
             onToggleSimulcast = onToggleSimulcast,
             onLaunchSimulcast = onLaunchSimulcast,
             onRepairSimulcast = onRepairSimulcast,
-            onChooseApps = onChooseApps,
+            onChooseApps = openAppPicker,
             onLoadAppChoices = onLoadAppChoices,
             onToggleApp = onToggleApp,
             onToggleMirrors = onToggleMirrors,
@@ -229,9 +240,9 @@ fun DenzaAppsRoot(
             onNavigationAction = onNavigationAction,
             onNavigationPlacement = onNavigationPlacement,
             onNavigationSteeringWheelButton = onNavigationSteeringWheelButton,
-            onChooseNavigationApp = onChooseNavigationApp,
+            onChooseNavigationApp = openNavigationPicker,
             onLoadNavigationAppChoices = onLoadNavigationAppChoices,
-            onSelectNavigationApp = onSelectNavigationApp,
+            onSelectNavigationApp = { packageName -> onSelectNavigationApp(packageName) },
             onToggleSplitScreen = onToggleSplitScreen,
             onLaunchSplitScreen = onLaunchSplitScreen,
             onSetWeatherEnabled = onSetWeatherEnabled,
@@ -242,7 +253,7 @@ fun DenzaAppsRoot(
             onSetCloudWifiRetained = onSetCloudWifiRetained,
             onOpenSystemLanguage = onOpenSystemLanguage,
             onSetDefaultAppsEnabled = onSetDefaultAppsEnabled,
-            onChooseFseApp = onChooseFseApp,
+            onChooseFseApp = openFseChooser,
             onOpenClusterPicker = openClusterPicker,
             onOpenService = openService,
             onOpenSettings = openSettings,
@@ -354,29 +365,44 @@ fun DenzaAppsRoot(
                     onDismiss = { showClusterPicker = false },
                 )
             }
-            if (uiState.appPickerVisible) {
+            // A chooser reads its list as it opens, and again when it comes back open with this
+            // screen: a process the system recreated has lost the list it was showing.
+            if (choosingApps) {
+                LaunchedEffect(Unit) { onLoadAppChoices() }
                 AppPickerDialog(
                     apps = uiState.appChoices,
                     compactLayout = compactLayout,
                     selectedCount = uiState.selectedAppCount,
                     onToggle = onToggleApp,
-                    onDismiss = onCloseAppPicker,
+                    onDismiss = { choosingApps = false },
                 )
             }
-            if (uiState.navigationPickerVisible) {
+            if (choosingNavigationApp) {
+                LaunchedEffect(Unit) { onLoadNavigationAppChoices() }
                 NavigationPickerDialog(
                     apps = uiState.navigationAppChoices,
                     compactLayout = compactLayout,
-                    onSelect = onSelectNavigationApp,
-                    onDismiss = onCloseNavigationPicker,
+                    // One at a time: the choice the car takes closes the window.
+                    onSelect = { packageName ->
+                        if (onSelectNavigationApp(packageName)) choosingNavigationApp = false
+                    },
+                    onDismiss = { choosingNavigationApp = false },
                 )
             }
-            if (uiState.fseInstallerPickerVisible) {
+            if (choosingFseApp) {
+                // Opened by [openFseChooser], the list is already read. Brought back open with a
+                // new process it is empty, and an empty list here says «Приложения не найдены».
+                LaunchedEffect(Unit) {
+                    if (uiState.fseInstallApps.isEmpty() && !onLoadFseApps()) choosingFseApp = false
+                }
                 FseInstallerPickerDialog(
                     apps = uiState.fseInstallApps,
                     compactLayout = compactLayout,
-                    onInstall = onInstallFseApp,
-                    onDismiss = onCloseFseInstallerPicker,
+                    // An install that starts closes the chooser; a stale tap leaves it, re-read.
+                    onInstall = { packageName ->
+                        if (onInstallFseApp(packageName)) choosingFseApp = false
+                    },
+                    onDismiss = { choosingFseApp = false },
                 )
             }
             if (adbStartupOverlay.visible) {
