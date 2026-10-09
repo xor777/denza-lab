@@ -6,7 +6,7 @@ those actions at Denza Apps.
 
 ## Current state
 
-Updated 2026-10-08. What the stock Shortcuts/AutoVoice engine lets a third-party app launch, how
+Updated 2026-10-09. What the stock Shortcuts/AutoVoice engine lets a third-party app launch, how
 Denza Apps points the three stock default-app roles at chosen packages, and how the steering
 wheel's Play/Pause key is answered.
 
@@ -23,7 +23,7 @@ Everything else here is a dated findings journal.
 | Z9GT wheel: play/pause arrives as `386`; next/previous arrive twice each, `307`/`308` and then the re-injected `87`/`88` | live | 2026-09-18 | [The press the preparation swallowed](#the-press-the-preparation-swallowed-and-what-the-car-taught-on-2026-09-18) |
 | `SimulcastAccessibilityService.onKeyEvent` takes `126`/`127`/`85`/`386` and consumes a whole down/up only when the policy accepts it; `334`/`335` keep the stock route (`MediaResumeCore.kt`, `MediaResumeKeyInterceptor`) | code | 2026-09-05 | [Minimal built-in slice](#minimal-built-in-slice-requested-by-the-owner) |
 | Direct `MediaController` pause/play of VK Video and Yandex Music from the physical key, operator-confirmed on build `5d85e806…` | live | 2026-09-05 | [VK pause restored Yandex](#vk-pause-restored-yandex-through-transient-audio-focus-2026-09-05) |
-| `MediaKeyExperiment.FOCUS_SURGERY = false`: no shell helper edits the audio-focus stack, a pause with paused predecessors is an ordinary pause, and a player paused under a video may resume when the video pauses | code | 2026-09-18 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
+| No shell helper edits the audio-focus stack: a pause with paused predecessors is an ordinary pause, and a player paused under a video may resume when the video pauses. The helper, switched off on 2026-09-18 (`FOCUS_SURGERY = false`), was moved out of the product to `research/media-focus/` on 2026-10-09 by the owner's decision, with its flag, the deferred-pause path and the APK's `media-focus-pause-proxy.jar` (`MediaResumeCore.kt`, `MediaKeyExperiment.kt`) | code | 2026-10-09 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | Focus-stack surgery as the answer to VK→Yandex auto-resume: worked on 2026-09-05, then threw on 6 of 7 presses, held each pause ~650 ms and once emptied the stack so the next press reached the stock player | refuted | 2026-09-18 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | BYD's self-start gate (`ActivityManagerService.isEnableFeature()` in `bindServiceLocked`, `startServiceLocked`, `BroadcastQueue`) refused the `MediaBrowser` bind and both `MEDIA_BUTTON` broadcasts to Yandex; nothing played (build 47) | live | 2026-09-18 | [The firmware's self-start gate](#the-firmwares-self-start-gate-blocks-both-reconnect-paths-2026-09-18) |
 | Nothing brings back a player the car unloaded: the reconnect (`MediaBrowser` bind, directed `MEDIA_BUTTON`) is deleted, a press with no live session of the last-played package is not consumed and the ring shows `✗ <package> stock-no-live-session`; starting the player's activity was rejected (owner's decision) | code | 2026-10-08 | [No resurrection after sleep](#no-resurrection-after-sleep-2026-10-08) |
@@ -51,8 +51,9 @@ Everything else here is a dated findings journal.
   (stock or Bluetooth as the last source) have no recorded run. Settled by running them as written.
 - Which codes the N9 wheel sends, `386` or `334`/`335`. Settled by an N9 support report taken after a
   few presses.
-- Next and previous in the same policy (the "second step"), and with it whether
-  `MediaFocusPauseBridge` and its shell proxy are deleted.
+- Next and previous in the same policy (the "second step"). Whether the focus helper is deleted is
+  no longer part of it: the owner had it moved to `research/media-focus/` on 2026-10-09, whose
+  README says how to bring it back. Settled by a design of the second step.
 - Role recovery after a Store update with Denza Apps stopped: whether it receives `PACKAGE_REMOVED`,
   `PACKAGE_ADDED` and `PACKAGE_REPLACED` with `EXTRA_REPLACING`, under the self-start deny bit
   (split-screen-findings.md). Settled by the isolated package-event probe in Next validation. The
@@ -241,6 +242,8 @@ acceptance result.
 
 ### VK pause restored Yandex through transient audio focus (2026-09-05)
 
+> **Superseded 2026-10-09:** the helper is no longer in the product at all: `MediaFocusPauseBridge`, `MediaFocusPauseProxyMain` and `MediaPausePreparation` moved to [`research/media-focus/`](../research/media-focus/README.md) by the owner's decision, and the deferred pause, its reasons and the packed `media-focus-pause-proxy.jar` left the APK with them.
+
 > **Superseded 2026-09-18:** the diagnosis stands, but the focus-stack helper this section introduces is switched off (`MediaKeyExperiment.FOCUS_SURGERY = false`; `SimulcastAccessibilityService.java` no longer builds `MediaFocusPauseBridge`). A pause with paused predecessors is an ordinary pause, and a player paused under a video may resume when the video pauses — see "A pause is a pause" in [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
 
 The operator reproduced: Yandex playing -> VK Video playing (Yandex pauses) ->
@@ -379,6 +382,8 @@ not tracked at all.
    the pause path, unchanged: remembered-playing preference, paused predecessors
    that once played, deferred pause through `MediaFocusPauseBridge`;
 
+   > **Superseded 2026-10-09:** the deferred pause is gone from the code, not only switched off: `MediaResumeCore.perform` has no `deferPause`, and the bridge lives in [`research/media-focus/`](../research/media-focus/README.md).
+
    > **Superseded 2026-09-18:** the deferred pause no longer runs: `SimulcastAccessibilityService.java` builds no `MediaFocusPauseBridge` while `MediaKeyExperiment.FOCUS_SURGERY` is false, so every pause is dispatched directly — see "A pause is a pause" below in [Resume contract: the package, not the token (2026-09-11)](#resume-contract-the-package-not-the-token-2026-09-11).
 
 2. a live target, active or dormant, for the last-played package - `play()` on
@@ -412,6 +417,8 @@ helper and its proxy stay in the tree until the second step - taking the wheel's
 next and previous keys into the same policy - decides what, if anything, of
 theirs is still wanted. The rule the owner chose fits one sentence: the key
 controls what is audible, and play brings back what was audible last.
+
+> **Superseded 2026-10-09:** they did not wait for the second step. By the owner's decision the bridge, the helper, `MediaPausePreparation` and the `FOCUS_SURGERY` flag moved to [`research/media-focus/`](../research/media-focus/README.md), whose README says what it would take to bring them back; the product keeps only `MediaKeyExperiment.INTERCEPT_KEYS`.
 
 > **Superseded 2026-10-08:** the reconnect described from here to the end of "Why the second reconnect path is not defensive" is deleted (`MediaResumeReconnect.kt`, `MediaResumeCore.adopt`, the `reconnect-*`, `no-browser-service`, `media-button-sent`, `no-media-button-receiver` and `resume-in-flight` reasons); step 3 leaves the press to the firmware. On this firmware the self-start gate refused both halves on every press. The text stays as the record of what was tried — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
 
@@ -493,6 +500,8 @@ reason string: `play`, `play-transport`, `already-playing`, `pause`,
 reasons (`resume-in-flight`, `reconnect-started`, `reconnect-played`,
 `reconnect-failed`, `reconnect-timeout`, `no-browser-service`,
 `media-button-sent`, `no-media-button-receiver`) left with it on 2026-10-08.
+
+> **Superseded 2026-10-09:** `pause-deferred`, `pause-in-flight`, `pause-already-complete`, `pause-preparation`, `session-access-after-preparation` and `stale-target-after-preparation` left with the deferred pause, which moved to [`research/media-focus/`](../research/media-focus/README.md). The vocabulary is `play`, `play-transport`, `already-playing`, `pause`, `pause-transport`, `pause-unsupported`, `session-access`, `no-target`, `stock-no-history`, `stock-no-live-session`.
 
 Local validation: `:denza-apps:testDebugUnitTest`, `:denza-apps:assembleDebug`
 and `:denza-apps:lintDebug` passed; 1401 unit tests, 35 of them media tests, no
@@ -733,6 +742,8 @@ the filter's own words: `not-media` for a code we never intercept,
 entry with no key code is a decision reached after its press was over: a
 deferred pause completing, or a reconnect ending (`reconnect-played`,
 `reconnect-failed`, `reconnect-timeout`, `no-browser-service`).
+
+> **Superseded 2026-10-09:** every entry carries its key code now. The deferred pause, the only decision left that ended after its press, moved to [`research/media-focus/`](../research/media-focus/README.md), and `MediaKeyDiagnostics.recordCompletion` went with it.
 
 > **Superseded 2026-10-08:** the reconnect and its reasons are gone, and no directed media button goes out any more. A Play with no live session of the last-played package is `✗ <package> stock-no-live-session`, left to the firmware; an entry with no key code is now only a deferred pause completing, which does not run while `FOCUS_SURGERY` is false — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
 

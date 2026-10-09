@@ -57,7 +57,6 @@ class MediaKeyDiagnosticsTest {
                 MediaKeyPress(1L, 386, true, "ru.yandex.music play"),
                 MediaKeyPress(2L, 386, false, "no-target"),
                 MediaKeyPress(3L, 334, false, "not-media"),
-                MediaKeyPress(4L, null, false, "pause-preparation"),
             ),
             STAMP,
         )
@@ -65,8 +64,7 @@ class MediaKeyDiagnosticsTest {
         assertEquals(
             "12:03:41 386 ✓ ru.yandex.music play; " +
                 "12:05:02 386 ✗ no-target; " +
-                "12:05:10 334 ✗ not-media; " +
-                "12:05:11 ✗ pause-preparation",
+                "12:05:10 334 ✗ not-media",
             rendered,
         )
     }
@@ -256,43 +254,6 @@ class MediaKeyDiagnosticsTest {
             "18:28:52 386 ✗ ru.yandex.music stock-no-live-session",
             MediaKeyReport.presses(MediaKeyDiagnostics.snapshot(true, null).presses) { "18:28:52" },
         )
-    }
-
-    /**
-     * A decision reached after its press - a deferred pause completing - has its own entry: there
-     * is no key code to name, and it says itself whether anything went out.
-     */
-    @Test
-    fun `a decision after the press reports its own ending without a key code`() {
-        MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo pause", handled = true)
-        MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo pause-preparation", handled = false)
-        MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo stale-target-after-preparation", handled = false)
-
-        val presses = MediaKeyDiagnostics.snapshot(true, null).presses
-
-        assertEquals(listOf(null, null, null), presses.map { it.keyCode })
-        assertEquals(
-            listOf(
-                "com.vk.vkvideo pause",
-                "com.vk.vkvideo pause-preparation",
-                "com.vk.vkvideo stale-target-after-preparation",
-            ),
-            presses.map { it.detail },
-        )
-        assertEquals(listOf(true, false, false), presses.map { it.handled })
-    }
-
-    /** What a press noted is its own; a later completion never borrows it. */
-    @Test
-    fun `a completion clears a note left behind by an unfinished press`() {
-        MediaKeyDiagnostics.note("stale")
-        MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo pause", handled = true)
-        MediaKeyDiagnostics.noteGuard(MediaKeyGuard.ALLOWED)
-        MediaKeyDiagnostics.recordPress(386, media = true, allowed = true, listening = true, consumed = false)
-
-        val presses = MediaKeyDiagnostics.snapshot(true, null).presses
-
-        assertEquals(listOf("com.vk.vkvideo pause", "already-down"), presses.map { it.detail })
     }
 
     @Test

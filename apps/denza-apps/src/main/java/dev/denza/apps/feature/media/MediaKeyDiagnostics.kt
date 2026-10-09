@@ -37,15 +37,10 @@ enum class MediaKeyState(val label: String) {
     SERVICE_ABSENT("сервис не подключён"),
 }
 
-/**
- * One initial DOWN, or one ending of a deferred pause.
- *
- * [keyCode] is null for the latter: a pause that completes after its press is over has no key of
- * its own, and naming the press's code there would be a guess.
- */
+/** One initial DOWN. */
 data class MediaKeyPress(
     val atEpochMillis: Long,
-    val keyCode: Int?,
+    val keyCode: Int,
     /** True when we took it: the press was consumed, or a transport command went out. */
     val handled: Boolean,
     val detail: String,
@@ -130,7 +125,7 @@ object MediaKeyReport {
         return entries.joinToString("; ") { entry ->
             buildString {
                 append(stamp(entry.atEpochMillis))
-                entry.keyCode?.let { append(' ').append(it) }
+                append(' ').append(entry.keyCode)
                 append(' ').append(if (entry.handled) "✓" else "✗")
                 append(' ').append(entry.detail)
             }
@@ -186,19 +181,6 @@ object MediaKeyDiagnostics {
                 .also { pendingDetail = null; pendingGuard = null }
         }
         ring.add(MediaKeyPress(System.currentTimeMillis(), keyCode, consumed, detail))
-    }
-
-    /**
-     * A decision reached after its press is over - a deferred pause completing.
-     * [handled] is true when a transport command actually went out.
-     */
-    @JvmStatic
-    fun recordCompletion(detail: String, handled: Boolean) {
-        synchronized(lock) {
-            pendingDetail = null
-            pendingGuard = null
-        }
-        ring.add(MediaKeyPress(System.currentTimeMillis(), null, handled, detail))
     }
 
     /**

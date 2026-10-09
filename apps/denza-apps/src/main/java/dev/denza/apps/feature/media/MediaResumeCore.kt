@@ -49,15 +49,9 @@ internal object MediaResumeReason {
     const val PLAY_TRANSPORT = "play-transport"
     const val ALREADY_PLAYING = "already-playing"
     const val PAUSE = "pause"
-    const val PAUSE_DEFERRED = "pause-deferred"
-    const val PAUSE_IN_FLIGHT = "pause-in-flight"
-    const val PAUSE_COMPLETE = "pause-already-complete"
-    const val PAUSE_PREPARATION = "pause-preparation"
     const val PAUSE_TRANSPORT = "pause-transport"
     const val PAUSE_UNSUPPORTED = "pause-unsupported"
     const val SESSION_ACCESS = "session-access"
-    const val SESSION_ACCESS_AFTER_PREPARATION = "session-access-after-preparation"
-    const val STALE_AFTER_PREPARATION = "stale-target-after-preparation"
     const val NO_TARGET = "no-target"
     const val STOCK_NO_HISTORY = "stock-no-history"
     const val STOCK_NO_LIVE_SESSION = "stock-no-live-session"
@@ -182,10 +176,7 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
     fun lastPlayed(): String? = lastPlayedPackage()
 
     @Synchronized
-    fun perform(
-        command: MediaResumeCommand,
-        deferPause: (MediaResumeTarget, List<MediaResumeTarget>) -> Boolean = { _, _ -> false },
-    ): MediaResumeDecision {
+    fun perform(command: MediaResumeCommand): MediaResumeDecision {
         val snapshots = snapshots()
         var remembered = rememberedIdentity
         if (
@@ -206,7 +197,7 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
             return if (command == MediaResumeCommand.PLAY) {
                 MediaResumeDecision(true, MediaResumeReason.ALREADY_PLAYING, playing.entry.packageName)
             } else {
-                pause(playing, snapshots, deferPause)
+                pause(playing)
             }
         }
 
@@ -224,40 +215,6 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
         return play(candidate)
     }
 
-    /** Completes an accepted asynchronous pause only if the exact planned target is still current. */
-    @Synchronized
-    fun completeDeferredPause(planned: MediaResumeTarget): DeferredPauseCompletion {
-        if (targets[planned.identity]?.target !== planned) return DeferredPauseCompletion.STALE
-        if (!runCatching(planned::isLive).getOrDefault(false)) {
-            return DeferredPauseCompletion.STALE
-        }
-
-        val snapshots = snapshots()
-        val plannedSnapshot = snapshots.firstOrNull { it.entry.target === planned }
-            ?: return DeferredPauseCompletion.STALE
-        if (plannedSnapshot.playback == MediaResumePlayback.PAUSED) {
-            return DeferredPauseCompletion.ALREADY_PAUSED
-        }
-        if (plannedSnapshot.playback != MediaResumePlayback.PLAYING) {
-            return DeferredPauseCompletion.STALE
-        }
-
-        val remembered = rememberedIdentity
-        val playing = snapshots.firstOrNull {
-            it.entry.identity == remembered && it.playback == MediaResumePlayback.PLAYING
-        } ?: snapshots.firstOrNull { it.playback == MediaResumePlayback.PLAYING }
-        if (playing?.entry?.target !== planned) return DeferredPauseCompletion.STALE
-        if (!runCatching(planned::canPause).getOrDefault(false)) {
-            return DeferredPauseCompletion.STALE
-        }
-
-        return if (runCatching(planned::pause).isSuccess) {
-            DeferredPauseCompletion.DISPATCHED
-        } else {
-            DeferredPauseCompletion.FAILED
-        }
-    }
-
     @Synchronized
     fun clear() {
         targets.clear()
@@ -267,15 +224,12 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
     /**
      * The pause half of the toggle, unchanged since it was proven on the car.
      *
-     * A playing session whose predecessors are paused and were playing themselves cannot simply be
-     * paused: the predecessor's transient focus loss would end and it would start instead. Those
-     * presses go to [deferPause], which owns them from that moment on.
+     * A session paused while earlier players wait under it in the focus stack is paused like any
+     * other. One of those may then take its focus back and resume by itself, which is the
+     * platform's own rule; the helper that edited the stack to prevent it is parked in
+     * `research/media-focus/`, see [MediaKeyExperiment].
      */
-    private fun pause(
-        selected: TargetSnapshot,
-        snapshots: List<TargetSnapshot>,
-        deferPause: (MediaResumeTarget, List<MediaResumeTarget>) -> Boolean,
-    ): MediaResumeDecision {
+    private fun pause(selected: TargetSnapshot): MediaResumeDecision {
         val target = selected.entry.target
         val refused = MediaResumeDecision(false, MediaResumeReason.NO_TARGET, selected.entry.packageName)
         if (selected.entry.identity !in targets) return refused
@@ -290,23 +244,6 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
 
         markPlaying(selected.entry)
         rememberedIdentity = selected.entry.identity
-
-        val predecessors = snapshots.mapNotNull { snapshot ->
-            snapshot.entry.target.takeIf {
-                snapshot.entry.identity != selected.entry.identity &&
-                    snapshot.entry.played &&
-                    snapshot.playback == MediaResumePlayback.PAUSED &&
-                    runCatching(it::isLive).getOrDefault(false)
-            }
-        }
-        // A preparation that is accepted owns the press from here. One that is refused, or absent,
-        // or throws, changes nothing about what the driver asked for: the pause goes out below,
-        // exactly as it would with no predecessor at all. Until 2026-09-18 a refusal handed the
-        // press back to the firmware and a failure after acceptance lost it outright; both made
-        // the same key do different things on different days, which is the one thing it must not.
-        if (predecessors.isNotEmpty() && runCatching { deferPause(target, predecessors) }.getOrDefault(false)) {
-            return MediaResumeDecision(true, MediaResumeReason.PAUSE_DEFERRED, selected.entry.packageName)
-        }
 
         val dispatched = runCatching(target::pause).isSuccess
         return MediaResumeDecision(
@@ -358,13 +295,11 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
         runCatching { store.lastPlayed() }.getOrNull()?.packageName?.takeIf(String::isNotBlank)
 
     private fun markPlaying(entry: Entry) {
-        entry.played = true
         entry.playingOrder = ++sequence
         runCatching { store.remember(entry.packageName) }
     }
 
     private fun forget(entry: Entry) {
-        entry.played = false
         if (rememberedIdentity == entry.identity) rememberedIdentity = null
     }
 
@@ -378,7 +313,6 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
         val addedOrder: Long,
     ) {
         var active = true
-        var played = false
         var playingOrder = 0L
 
         val identity: Any get() = target.identity
@@ -389,13 +323,6 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
         val entry: Entry,
         val playback: MediaResumePlayback,
     )
-}
-
-internal enum class DeferredPauseCompletion {
-    DISPATCHED,
-    ALREADY_PAUSED,
-    STALE,
-    FAILED,
 }
 
 /** Owns a complete press only when the direct media command was accepted. */
