@@ -142,4 +142,74 @@ class TripEngineTest {
         assertEquals(-1, engine.remainingMeters())
         assertEquals(-1, engine.remainingSeconds())
     }
+
+    /**
+     * The strip names the next sun event, and that name has to turn at the event itself even when
+     * no fix arrives - the car parked in a garage at sunset still shows tomorrow's sunrise after it.
+     */
+    @Test
+    fun sunEventTurnsAtSunsetOnTheFrameClockAlone() {
+        val engine = TripEngine()
+        val sunset = localWallMs(SUMMER_DAY, SolarMath.daylight(SUMMER_DAY, 55.0, 37.0, MSK).sunsetMinutes)
+        val tomorrow = SolarMath.CivilDate(2026, 6, 22)
+        val sunrise = TripEngine.minutesToClock(SolarMath.daylight(tomorrow, 55.0, 37.0, MSK).sunriseMinutes)
+        val sunsetLabel =
+            TripEngine.minutesToClock(SolarMath.daylight(SUMMER_DAY, 55.0, 37.0, MSK).sunsetMinutes)
+
+        engine.sunFix(nowElapsedMs = 0L, wallMs = sunset - 60_000L)
+        assertEquals(true to sunsetLabel, engine.sunView())
+
+        engine.onTick(59_000L)
+        assertEquals(true to sunsetLabel, engine.sunView())
+
+        engine.onTick(61_000L)
+        assertEquals(false to sunrise, engine.sunView())
+    }
+
+    /** Before sunrise the next event is today's sunrise, and it turns into today's sunset. */
+    @Test
+    fun sunEventTurnsAtSunriseOnTheFrameClockAlone() {
+        val engine = TripEngine()
+        val today = SolarMath.daylight(SUMMER_DAY, 55.0, 37.0, MSK)
+        val sunrise = localWallMs(SUMMER_DAY, today.sunriseMinutes)
+
+        engine.sunFix(nowElapsedMs = 1_000L, wallMs = sunrise - 2_000L)
+        assertEquals(
+            false to TripEngine.minutesToClock(today.sunriseMinutes),
+            engine.sunView(),
+        )
+
+        engine.onTick(1_000L + 2_500L)
+        assertEquals(
+            true to TripEngine.minutesToClock(today.sunsetMinutes),
+            engine.sunView(),
+        )
+    }
+
+    private fun TripEngine.sunFix(nowElapsedMs: Long, wallMs: Long) = onLocation(
+        nowElapsedMs = nowElapsedMs,
+        wallMs = wallMs,
+        tzOffsetMinutes = MSK,
+        latitude = 55.0,
+        longitude = 37.0,
+        altitude = 0.0,
+        hasAltitude = false,
+        verticalAccuracyMeters = 5.0,
+        hasVerticalAccuracy = true,
+        speed = 0.0,
+    )
+
+    private fun TripEngine.sunView(): Pair<Boolean, String> =
+        sunInfo().let { it.nextIsSunset to it.nextEventLabel }
+
+    /** The UTC instant of [minutes] past local midnight of [date] at [MSK]. */
+    private fun localWallMs(date: SolarMath.CivilDate, minutes: Double): Long {
+        val days = java.time.LocalDate.of(date.year, date.month, date.day).toEpochDay()
+        return days * 86_400_000L - MSK * 60_000L + (minutes * 60_000.0).toLong()
+    }
+
+    private companion object {
+        const val MSK = 180
+        val SUMMER_DAY = SolarMath.CivilDate(2026, 6, 21)
+    }
 }

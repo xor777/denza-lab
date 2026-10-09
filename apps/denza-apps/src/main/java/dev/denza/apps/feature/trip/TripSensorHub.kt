@@ -84,7 +84,7 @@ class TripSensorHub(context: Context) : LocationListener {
         nowPlaying.stop()
     }
 
-    /** Drive time-based derivations (countdown, timers) each rendered frame. */
+    /** Drive time-based derivations (the trip clock, the sun's next event) each rendered frame. */
     fun tick() {
         val now = SystemClock.elapsedRealtime()
         engine.onTick(now)
