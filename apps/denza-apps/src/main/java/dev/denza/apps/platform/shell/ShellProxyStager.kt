@@ -19,6 +19,7 @@ import java.util.Base64
 internal enum class ShellProxyJar(val asset: String, val fileName: String) {
     SPLIT_TASK("split-task-proxy.jar", "denza-split-proxy"),
     VEHICLE_SIGNAL("vehicle-signal-proxy.jar", "denza-vehicle-signal"),
+    NAVIGATION("navigation-proxy.jar", "denza-nav-proxy"),
 }
 
 /** The car will not take the jar: the asset is unreadable or empty, or the copy fails its hash. */
@@ -48,8 +49,8 @@ internal class ShellProxyRefused(message: String, cause: Throwable? = null) :
  *
  * Failing throws: [ShellProxyRefused] when the car has answered and the answer is no, anything else
  * when the link did not carry the question. What a caller does then is its own policy: the split
- * loads the class from the APK instead ([ShellProxyClasspath]); the turn-signal listener stays off,
- * and checks the hash again at its next start.
+ * and navigation load the class from the APK instead ([ShellProxyClasspath]); the turn-signal
+ * listener stays off, and checks the hash again at its next start.
  */
 internal class ShellProxyStager(
     val helper: ShellProxyJar,

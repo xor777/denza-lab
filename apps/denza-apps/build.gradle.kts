@@ -20,11 +20,23 @@ plugins {
  * depend on nothing but the platform, so this task needs no build-order relationship with the
  * application's compilation, and the jar cannot silently pick up anything else: a reference to any
  * other application class fails the compile.
+ *
+ * One application class is visible, and only to the compiler: `BuildConfig`, with
+ * `APPLICATION_ID` alone, written here from the variant. A helper that must know this app's own
+ * package - navigation's proxy refuses to move this app's tasks - reads the same constant the app
+ * does; javac copies a constant into the class that uses it, and `-implicit:none` keeps the stub
+ * out of the jar.
  */
 abstract class PackShellProxy : DefaultTask() {
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val sources: ConfigurableFileCollection
+
+    @get:Input
+    abstract val applicationId: Property<String>
+
+    @get:Input
+    abstract val buildConfigPackage: Property<String>
 
     @get:InputFiles
     abstract val androidJar: ConfigurableFileCollection
@@ -49,6 +61,16 @@ abstract class PackShellProxy : DefaultTask() {
         val classes = temporaryDir.resolve("classes")
         classes.deleteRecursively()
         classes.mkdirs()
+        val stubs = temporaryDir.resolve("stubs")
+        stubs.deleteRecursively()
+        stubs.resolve(buildConfigPackage.get().replace('.', '/')).apply { mkdirs() }
+            .resolve("BuildConfig.java")
+            .writeText(
+                "package ${buildConfigPackage.get()};\n\n" +
+                    "public final class BuildConfig {\n" +
+                    "    public static final String APPLICATION_ID = \"${applicationId.get()}\";\n" +
+                    "}\n",
+            )
         val platform = androidJar.files.joinToString(File.pathSeparator)
         val compiler = requireNotNull(ToolProvider.getSystemJavaCompiler()) {
             "Gradle must run on a JDK to pack a shell proxy"
@@ -62,6 +84,9 @@ abstract class PackShellProxy : DefaultTask() {
             "-nowarn",
             "-classpath",
             platform,
+            "-sourcepath",
+            stubs.absolutePath,
+            "-implicit:none",
             "-d",
             classes.absolutePath,
             *sources.files.map(File::getAbsolutePath).sorted().toTypedArray(),
@@ -141,6 +166,8 @@ android {
                             layout.projectDirectory.file("src/main/java/dev/denza/apps/$file"),
                         )
                     }
+                    applicationId.set(variant.applicationId)
+                    buildConfigPackage.set(variant.namespace)
                     androidJar.from(platform)
                     sdkDirectory.set(sdk)
                     minApi.set(33)
@@ -160,6 +187,12 @@ android {
                 "VehicleSignalProxy",
                 "vehicle-signal-proxy.jar",
                 "feature/vehicle/signal/TargetedBydLightEventProxyMain.java",
+            )
+            packShellProxy(
+                "NavigationProxy",
+                "navigation-proxy.jar",
+                "feature/navigation/ClusterProxyMain.java",
+                "feature/navigation/ProjectablePackages.java",
             )
         }
     }

@@ -2878,7 +2878,8 @@ postcondition - would have stayed on the car under the old name and gone on
 removing tasks as the shell user.
 
 The staging is now `ShellProxyStager` in `platform/shell/`, shared with the
-turn-signal listener. The copy is `/data/local/tmp/denza-split-proxy-<sha256>.jar`.
+turn-signal listener and navigation's cluster proxy. The copy is
+`/data/local/tmp/denza-split-proxy-<sha256>.jar`.
 Every call first deletes the other files that start `denza-split-proxy-` - the
 versionCode-named copies of earlier builds among them, at the first open after
 this build is installed - and then hashes the current one, in one round trip,
