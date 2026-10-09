@@ -51,7 +51,8 @@ tile through them.
   `DenzaStatePublisher.publish` on the same queue, so no read taken before it can put the old state
   back. A tile no slice reads writes its own part of the state through a `StateCell`
   (`core/StateCell.kt`, made by `DenzaUiStateStore.cell`), which is that part and nothing else,
-  with the store's claims (`StateCell.decide`): the default applications (`DefaultAppsRuntime`). `DenzaAppRepository.refresh` marks every slice, for the paths that cannot say what changed:
+  with the store's claims (`StateCell.decide`): the default applications (`DefaultAppsRuntime`)
+  and the passenger install (`FseInstallRuntime`). `DenzaAppRepository.refresh` marks every slice, for the paths that cannot say what changed:
   the activity's resume, the gate's first look when the app starts or recovers after a reboot, and
   the runtime's start. Every read is counted in «Сервис» → «Технические
   сведения» → «Пересчёт состояния» (`StateRecomputes`), and a slice that throws is left out of
@@ -205,13 +206,13 @@ The tile names the language the whole car speaks, and a press opens the car's ow
 Copies an app installed on the head unit to the front passenger's own computer (the FSE) and installs it there, so there is nothing to switch on, only an app to choose.
 
 - **Tile:** `DashboardTiles.passenger`; feature `FeatureId.FSE_INSTALLER`; state `DenzaUiState.fseInstaller` (plus `DenzaUiState.fseInstallApps`); whether the chooser is open is the root's, not the state's.
-- **Press / long press:** Both gestures open the chooser, never a panel. Press: `DashboardPress.perform` → `TileAction.PASSENGER_INSTALL` → `DashboardActions.onChooseFseApp`. Long press: `DashboardActions.onOpenSettings` → `DenzaAppsRoot`, which sends it on to `DashboardActions.onChooseFseApp`. From there: `DenzaAppsRoot` reads the list first (`DenzaAppRepository.refreshFseInstallApps`, bound in `MainActivity.onCreate`; false while an install runs, and the chooser stays shut), then opens `FseInstallerPickerDialog` → `DenzaAppRepository.installOnPassengerScreen`, which closes it once the install has started → `FseAppInstaller.install`. Retry: `DashboardPress.retry` → `DashboardActions.onChooseFseApp`.
+- **Press / long press:** Both gestures open the chooser, never a panel. Press: `DashboardPress.perform` → `TileAction.PASSENGER_INSTALL` → `DashboardActions.onChooseFseApp`. Long press: `DashboardActions.onOpenSettings` → `DenzaAppsRoot`, which sends it on to `DashboardActions.onChooseFseApp`. From there: `DenzaAppsRoot` reads the list first (`FseInstallRuntime.refreshApps`, bound in `MainActivity.onCreate`; false while an install runs, and the chooser stays shut), then opens `FseInstallerPickerDialog` → `FseInstallRuntime.install`, which closes it once the install has started → `FseAppInstaller.install`. Retry: `DashboardPress.retry` → `DashboardActions.onChooseFseApp`.
 - **Panel:** none. `FseInstallerPickerDialog` in `ui/AppPickers.kt` is the whole UI; its list comes from `FseAppInstaller.installedApps` and is filtered by `fseChooserApps`. The branch for this tile in `FeatureSheet` can never be reached.
-- **Runtime:** `feature/fse/`: `FseAppInstaller` (an object; nothing in the manifest). It copies the APK over local ADB (`DenzaLocalAdb`) and asks the FSE to install it over the vendor cross-device channel; `FseCrossResponseSession` and `FseInstallResponseWaiter` wait for the answer. It runs on the `DenzaAppRepository` executor and is guarded by `DenzaAppRepository.claimFseInstall`.
+- **Runtime:** `feature/fse/`: `FseAppInstaller` (an object; nothing in the manifest). It copies the APK over local ADB (`DenzaLocalAdb`) and asks the FSE to install it over the vendor cross-device channel; `FseCrossResponseSession` and `FseInstallResponseWaiter` wait for the answer. `FseInstallRuntime` (held by `DenzaAppRepository.fseInstall`) runs it on a thread of its own, one at a time (`FseInstallRuntime.claim`), and writes the tile's two fields (`FseInstallState`) through its `StateCell`; no slice reads them.
 - **Settings:** none. The last result lives only in `DenzaUiState.fseInstaller`.
 - **Docs:** `docs/fse-app-installation.md`, `research/fse-firmware/README.md`.
 - **Luminofor:** none: no fixture for the chooser; shared tile face.
-- **Tests:** `FseAppInstallerTest`, `AppPickersTest`, `DashboardTilesTest`, `TileCaptionContractTest`.
+- **Tests:** `FseAppInstallerTest`, `FseInstallRuntimeTest`, `AppPickersTest`, `DashboardTilesTest`, `TileCaptionContractTest`.
 
 ### «Shortcuts» — `DEFAULT_APPS`
 
