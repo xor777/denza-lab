@@ -28,8 +28,14 @@ public final class SimulcastIntegration {
         return prefs(context).getBoolean(KEY_ENABLED, false);
     }
 
+    /**
+     * The switch. The overlay does not look at the windows for events while the switch is off and
+     * it has nothing on screen, so it is told at once: switched on over a dialog already open, it
+     * draws without waiting for the next event; switched off, it takes its row down.
+     */
     public static void setEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply();
+        SimulcastOverlayRider.requestRefresh();
     }
 
     public static String getLastTargetPackage() {

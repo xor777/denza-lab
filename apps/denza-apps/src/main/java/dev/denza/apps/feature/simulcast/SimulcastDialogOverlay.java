@@ -59,7 +59,7 @@ import java.util.Set;
  * container (not the scrolling stock icons), so our row does not jump when the
  * native list scrolls.
  */
-public final class SimulcastDialogOverlay {
+public final class SimulcastDialogOverlay implements DialogOverlay {
     private static final String TAG = "DenzaSimulcastA11y";
     private static final String DISHARE_PKG = "com.byd.dishare";
 
@@ -139,6 +139,7 @@ public final class SimulcastDialogOverlay {
     }
 
     /** The service is going: no refresh is left queued, the exit control comes back, every window goes. */
+    @Override
     public void detach() {
         attached = false;
         handler.removeCallbacks(refreshRunnable);
@@ -147,9 +148,25 @@ public final class SimulcastDialogOverlay {
         tearDown();
     }
 
+    @Override
     public void scheduleRefresh() {
         handler.removeCallbacks(refreshRunnable);
         handler.postDelayed(refreshRunnable, REFRESH_DELAY_MS);
+    }
+
+    /**
+     * Nothing of ours to show or to finish: no dialog seen or in its close grace, no gesture, no
+     * window up or still to remove, and the exit control not held hidden. A refresh of an idle
+     * overlay with the projection switched off only walks every window to find nothing to do.
+     */
+    @Override
+    public boolean isIdle() {
+        return !dialogObserved
+                && !dragging
+                && drawView == null
+                && !windowOperationsPending
+                && (windowReconciler == null || !windowReconciler.hasAppliedWindows())
+                && !dialogVisibilityTracker.isOpen();
     }
 
     private void refreshSafely() {

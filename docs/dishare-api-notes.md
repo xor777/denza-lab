@@ -31,6 +31,7 @@ ends.
 | "An aspect-matched share size removes a 16:10 receiver's black bar": DiShare clamps the request back to 16:9 (`2560x1600` asked, `2560x1440` `BYD-Mirror` made); the product centres the frame instead | refuted | 2026-08-14 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
 | Debug builds only: `SimulcastDebugReceiver`, guarded by `android.permission.DUMP`, takes `dev.denza.apps.START_SIMULCAST_TARGET` (`targetPackage`, `receiver`) and `STOP_SIMULCAST_TARGET` (`apps/denza-apps/src/debug/AndroidManifest.xml`) | code | 2026-08-20 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
 | Dialog lifecycle comes from the accessibility service with a 320 ms disappearance grace, never from `action.byd.dishare.DIALOG_HOME`/`DIALOG_LAUNCHER`/`DIALOG_CLOSE`; the outgoing `DIALOG_CLOSE` is package-scoped to `com.byd.dishare` (`SimulcastDialogOverlay.java`, `SimulcastOverlayService.java`) | code | 2026-08-27 | [Dialog lifecycle trust boundary](#dialog-lifecycle-trust-boundary) |
+| The overlay rides on the app's shared accessibility service (`SimulcastOverlayRider.kt`). With «Трансляция» switched off and nothing of the overlay's on screen or to finish, a window event starts no walk of the windows, so the «Счётчики окон» row stops counting; switching it on or off starts one at once (`SimulcastIntegration.setEnabled`), so a dialog already open is drawn without waiting for an event | code | 2026-10-09 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
 | Self-repair over local ADB grants `SYSTEM_ALERT_WINDOW` and enables `SimulcastAccessibilityService` (`AccessibilityRepair.kt`, `SimulcastCoordinator.kt` until 2026-10-09); `LocalAdbClient.java` tries `127.0.0.1:5555`, then the car's non-loopback IPv4 addresses | code | 2026-06-30 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
 | DiShare video to `screen_hud` ends with exit `605` when HUD availability `0x38B00036` falls 2→1 on P→D at 0 km/h, and does not come back in P (hud-projection-findings.md) | live | 2026-09-24 | [hud-projection-findings.md](hud-projection-findings.md) |
 | Generated frames and Camera2 ids `0`/`1` stream to the HUD through DiShare; ids `2` and `10`, which AVC uses, throw for a normal app UID, and AVC `initDisplay` into the DiShare encoder surface gives a black HUD | live | 2026-06-26 | [HUD camera streaming findings](#hud-camera-streaming-findings) |
@@ -442,6 +443,14 @@ Current no-root custom drag approach:
    - `dev.denza.apps.STOP_SIMULCAST_TARGET`
    The user still opens Simulcast and drags a visible app icon; Denza Apps has no
    global Start/Stop control.
+
+Since 2026-10-09 the overlay is one rider of the app's shared accessibility service
+(`SimulcastOverlayRider`, see feature-map.md, "The accessibility service and what rides on it").
+A window event of any app starts a refresh - a walk of every window, on the main thread the wheel
+keys share - only while «Трансляция» is on or the overlay still has something on screen or to
+finish: a row, a gesture, a close grace, an exit control held hidden. Switching it on or off starts
+one at once, so a dialog already open is drawn without waiting for the next event, and a switch
+turned off takes the row down.
 
 ### Dialog lifecycle trust boundary
 
