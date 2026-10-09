@@ -60,6 +60,24 @@ class ConsumptionWindowTest {
         assertEquals(ConsumptionChart.of(all).span * ConsumptionChart.PITCH_KM, ConsumptionWindow.coveredKm(all), 1e-9)
     }
 
+    /**
+     * A reading stands for its whole road under the unit, and its known share is the figure's alone
+     * (contract §2.6, since 2026-10-09).
+     *
+     * A bucket that lost one power read of six is a reading over five sixths of its road. The unit
+     * counts its hundred metres, as the chart's pitch does, and the figure divides its energy by the
+     * road that energy was measured over. Summing known road under the unit printed «за 8,3 км»
+     * under a full chart of such buckets.
+     */
+    @Test
+    fun theUnitCountsAReadingsRoadAndTheFigureItsKnownRoad() {
+        val known = 0.1 * 5.0 / 6.0
+        val partly = List(100) { ConsumptionSample(100.0 + (it + 1) * 0.1, 0.02, 0.1, known) }
+        assertEquals("all of them are readings", 100, partly.count { it.known })
+        assertEquals(10.0, ConsumptionWindow.coveredKm(partly), 1e-9)
+        assertEquals(ConsumptionChart.of(partly).span * ConsumptionChart.PITCH_KM, ConsumptionWindow.coveredKm(partly), 1e-9)
+        assertEquals(100 * 0.02 / (100 * known) * 100.0, ConsumptionWindow.mean(partly)!!, 1e-9)
+    }
 
     /**
      * And it is measured in **recorded** road: what is not a reading carries none of it.
