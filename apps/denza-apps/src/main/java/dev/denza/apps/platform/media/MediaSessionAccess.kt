@@ -1,4 +1,4 @@
-package dev.denza.apps.feature.hud
+package dev.denza.apps.platform.media
 
 import android.content.ComponentName
 import android.content.Context
@@ -9,26 +9,26 @@ import dev.denza.apps.adb.DenzaLocalAdb
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal enum class HudNotificationAccessRepairResult {
+internal enum class MediaSessionAccessRepairResult {
     ALREADY_ENABLED,
     GRANTED,
 }
 
-internal class HudNotificationAccessRepair(
+internal class MediaSessionAccessRepair(
     private val isEnabled: () -> Boolean,
     private val grant: () -> Unit,
 ) {
-    fun ensure(): HudNotificationAccessRepairResult {
+    fun ensure(): MediaSessionAccessRepairResult {
         if (isEnabled()) {
-            return HudNotificationAccessRepairResult.ALREADY_ENABLED
+            return MediaSessionAccessRepairResult.ALREADY_ENABLED
         }
         grant()
         check(isEnabled()) { "Notification listener access was not enabled" }
-        return HudNotificationAccessRepairResult.GRANTED
+        return MediaSessionAccessRepairResult.GRANTED
     }
 }
 
-internal object HudNotificationAccessPolicy {
+internal object MediaSessionAccessPolicy {
     fun isEnabled(
         enabledListeners: String?,
         packageName: String,
@@ -54,20 +54,40 @@ internal object HudNotificationAccessPolicy {
         "'${value.replace("'", "'\"'\"'")}'"
 }
 
-internal enum class HudNotificationAccessPhase {
+internal enum class MediaSessionAccessPhase {
     IDLE,
     REPAIRING,
     ENABLED,
     FAILED,
 }
 
-internal data class HudNotificationAccessDiagnostics(
+internal data class MediaSessionAccessDiagnostics(
     val accessEnabled: Boolean,
-    val phase: HudNotificationAccessPhase,
+    val phase: MediaSessionAccessPhase,
     val lastFailure: String?,
 )
 
-object HudNotificationAccessCoordinator {
+/**
+ * The app's access to other apps' media sessions, and its repair.
+ *
+ * `MediaSessionManager` answers a caller that names an **enabled notification listener** of its
+ * own, and this app has exactly one: [LISTENER_CLASS], declared in the HUD package because the HUD's
+ * turn arrows were the first thing to need it. The wheel's Play/Pause key, the speaker covers and the
+ * strip's track line all read sessions through that grant, and the HUD reads notifications through
+ * it, so the grant and its repair live here rather than in any one of them. Each asks; none owns it.
+ *
+ * The repair is one idempotent `cmd notification allow_listener` over the local ADB shell, run once
+ * at a time however many owners ask, and every asker hears the outcome.
+ */
+object MediaSessionAccess {
+    /**
+     * The listener's fully-qualified class name, which is what the car records in
+     * `enabled_notification_listeners`. Renaming or moving that class loses the grant on every car
+     * until the repair runs again, so it is named here as the string the car holds, and
+     * `MediaSessionAccessTest` holds the class to it.
+     */
+    const val LISTENER_CLASS = "dev.denza.apps.feature.hud.YandexNotificationArtworkListener"
+
     private const val ENABLED_NOTIFICATION_LISTENERS = "enabled_notification_listeners"
     private val executor = Executors.newSingleThreadExecutor()
     private val repairRunning = AtomicBoolean(false)
@@ -75,35 +95,35 @@ object HudNotificationAccessCoordinator {
     private val pendingCallbacks = mutableListOf<() -> Unit>()
 
     @Volatile
-    private var phase = HudNotificationAccessPhase.IDLE
+    private var phase = MediaSessionAccessPhase.IDLE
 
     @Volatile
     private var lastFailure: String? = null
 
-    fun ensureAccess(context: Context, onComplete: (() -> Unit)? = null) {
-        val app = context.applicationContext
-        if (
-            !YANDEX_NOTIFICATION_ARTWORK_ENABLED ||
-            !HudGuidanceSettings.isEnabled(app)
-        ) {
-            phase = HudNotificationAccessPhase.IDLE
-            onComplete?.invoke()
-            return
-        }
-        ensureListenerAccess(app, onComplete)
-    }
+    /** The component every `MediaSessionManager` call names. */
+    fun component(context: Context): ComponentName =
+        ComponentName(context.packageName, LISTENER_CLASS)
 
     /**
-     * The same enabled listener is also the app's token for MediaSessionManager.
-     * Speaker automation needs that access even when HUD guidance itself is off.
+     * Makes sure the listener is enabled, repairing it if not; [onComplete] runs once the answer is
+     * known - at once when it already was, else on the repair's thread.
      */
-    fun ensureMediaSessionAccess(context: Context, onComplete: (() -> Unit)? = null) {
+    fun ensure(context: Context, onComplete: (() -> Unit)? = null) {
         ensureListenerAccess(context.applicationContext, onComplete)
     }
 
+    /**
+     * An owner that does not want the listener at all just now - the HUD with guidance off. Nothing
+     * is repaired, and the report's repair row reads idle.
+     */
+    fun notWanted(onComplete: (() -> Unit)? = null) {
+        phase = MediaSessionAccessPhase.IDLE
+        onComplete?.invoke()
+    }
+
     private fun ensureListenerAccess(context: Context, onComplete: (() -> Unit)?) {
-        if (isAccessEnabled(context)) {
-            phase = HudNotificationAccessPhase.ENABLED
+        if (isEnabled(context)) {
+            phase = MediaSessionAccessPhase.ENABLED
             lastFailure = null
             onComplete?.invoke()
             return
@@ -115,15 +135,15 @@ object HudNotificationAccessCoordinator {
             return
         }
 
-        phase = HudNotificationAccessPhase.REPAIRING
+        phase = MediaSessionAccessPhase.REPAIRING
         executor.execute {
             val result = runCatching {
-                val component = listenerComponent(context)
-                HudNotificationAccessRepair(
-                    isEnabled = { isAccessEnabled(context) },
+                val component = component(context)
+                MediaSessionAccessRepair(
+                    isEnabled = { isEnabled(context) },
                     grant = {
                         DenzaLocalAdb.client(context).shell(
-                            HudNotificationAccessPolicy.allowCommand(
+                            MediaSessionAccessPolicy.allowCommand(
                                 component.flattenToString(),
                             ),
                         )
@@ -131,10 +151,10 @@ object HudNotificationAccessCoordinator {
                 ).ensure()
             }
             if (result.isSuccess) {
-                phase = HudNotificationAccessPhase.ENABLED
+                phase = MediaSessionAccessPhase.ENABLED
                 lastFailure = null
             } else {
-                phase = HudNotificationAccessPhase.FAILED
+                phase = MediaSessionAccessPhase.FAILED
                 lastFailure = result.exceptionOrNull()?.toString()
             }
             repairRunning.set(false)
@@ -148,28 +168,25 @@ object HudNotificationAccessCoordinator {
         }
     }
 
-    fun isAccessEnabled(context: Context): Boolean {
-        val component = listenerComponent(context)
+    fun isEnabled(context: Context): Boolean {
+        val component = component(context)
         val enabled = runCatching {
             Settings.Secure.getString(
                 context.contentResolver,
                 ENABLED_NOTIFICATION_LISTENERS,
             )
         }.getOrNull()
-        return HudNotificationAccessPolicy.isEnabled(
+        return MediaSessionAccessPolicy.isEnabled(
             enabledListeners = enabled,
             packageName = component.packageName,
             className = component.className,
         )
     }
 
-    internal fun diagnostics(context: Context): HudNotificationAccessDiagnostics =
-        HudNotificationAccessDiagnostics(
-            accessEnabled = isAccessEnabled(context),
+    internal fun diagnostics(context: Context): MediaSessionAccessDiagnostics =
+        MediaSessionAccessDiagnostics(
+            accessEnabled = isEnabled(context),
             phase = phase,
             lastFailure = lastFailure,
         )
-
-    private fun listenerComponent(context: Context): ComponentName =
-        ComponentName(context, YandexNotificationArtworkListener::class.java)
 }

@@ -46,7 +46,7 @@ import dev.denza.apps.feature.fse.FseInstallStatus
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudGuidanceStatus
-import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
+import dev.denza.apps.feature.hud.HudNotificationAccess
 import dev.denza.apps.feature.cloud.CloudLinkController
 import dev.denza.apps.feature.cloud.CloudLinkRuntime
 import dev.denza.apps.feature.cloud.CloudLinkService
@@ -78,6 +78,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverStatus
 import dev.denza.apps.feature.split.SplitLauncherEntryActivity
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import dev.denza.apps.feature.weather.WeatherAdapterState
+import dev.denza.apps.platform.media.MediaSessionAccess
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Executors
@@ -453,7 +454,7 @@ object DenzaAppRepository {
         StateSlice.SPEAKER_COVERS -> SpeakerCoversReading(
             snapshot = SpeakerCoverStatus.snapshot(
                 enabled = SpeakerCoverSettings.isEnabled(context),
-                sessionsObservable = HudNotificationAccessCoordinator.isAccessEnabled(context),
+                sessionsObservable = MediaSessionAccess.isEnabled(context),
             ),
             reporting = SpeakerCoverRuntime.reporting,
         )
@@ -789,7 +790,7 @@ object DenzaAppRepository {
             invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
         }
-        HudNotificationAccessCoordinator.ensureAccess(context) {
+        HudNotificationAccess.ensure(context) {
             invalidate(StateSlice.HUD_GUIDANCE, "hud access")
         }
         publisher.publish("hud switch") { current ->
@@ -1228,7 +1229,7 @@ object DenzaAppRepository {
                 reconcileSimulcast(repairMissingSetup = true)
             }
             runtimeStep("media button access") {
-                HudNotificationAccessCoordinator.ensureMediaSessionAccess(app) {
+                MediaSessionAccess.ensure(app) {
                     SimulcastAccessibilityService.requestMediaResumeRefresh()
                 }
             }
@@ -1326,7 +1327,7 @@ object DenzaAppRepository {
 
     private fun reconcileHudNotificationAccess(context: Context) {
         if (!HudGuidanceSettings.isEnabled(context)) return
-        HudNotificationAccessCoordinator.ensureAccess(context) {
+        HudNotificationAccess.ensure(context) {
             invalidate(StateSlice.HUD_GUIDANCE, "hud access")
         }
     }

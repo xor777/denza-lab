@@ -9,8 +9,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Self-heals the trip panel's location permission the same way the HUD self-heals
- * notification access (see feature/hud/HudNotificationAccessCoordinator): on panel
+ * Self-heals the trip panel's location permission the same way the app self-heals
+ * notification access (see platform/media/MediaSessionAccess): on panel
  * start, if ACCESS_FINE_LOCATION is not granted it runs `pm grant` over the local
  * ADB channel via [LocalAdbClient]. It is fail-closed and non-blocking — the panel
  * comes up in IMU-only mode meanwhile and picks up GNSS once the grant lands. If
