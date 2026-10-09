@@ -405,8 +405,14 @@ internal class VehicleTelemetryHub(context: Context) {
         const val COLD_TIMEOUT_MS = 8_000
 
         const val AUTHORIZATION_REQUIRED = "ADB-ключ не подтверждён · откройте Denza Apps"
-        const val NO_CHANNEL = "Нет связи с локальным ADB"
-        const val NO_ANSWER = "Машина не ответила ни на один запрос"
+
+        /**
+         * The two the panel says when the link is closed for anything but the key: a state each,
+         * in the driver's words. They were «Нет связи с локальным ADB» - the app's own plumbing on
+         * the cluster - and «Машина не ответила ни на один запрос».
+         */
+        const val NO_CHANNEL = "Нет связи с машиной"
+        const val NO_ANSWER = "Машина не отвечает"
     }
 }
 

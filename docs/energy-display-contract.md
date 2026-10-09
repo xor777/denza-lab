@@ -384,7 +384,11 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
   «Питание от машины» on its caption line and the instruction under it, and
   nothing else. `VehicleLink` declares it: at once for a missing ADB key, and
   otherwise only once the reads have failed twice in a row and nothing has
-  answered for two hot horizons (4 s); an answer opens it again;
+  answered for two hot horizons (4 s); an answer opens it again. The reason is a
+  state in the driver's words: «ADB-ключ не подтверждён · откройте Denza Apps»
+  for the key, «Нет связи с машиной» for a shell that fails, «Машина не отвечает»
+  for one that answers only sentinels (`VehicleTelemetryHub`; until 2026-10-09
+  «Нет связи с локальным ADB» and «Машина не ответила ни на один запрос»);
 - **a gap in the record**: nothing to see. The chart is shorter by the road
   nobody recorded, the points either side of it are neighbours, and the figure is
   the mean of what is known.
