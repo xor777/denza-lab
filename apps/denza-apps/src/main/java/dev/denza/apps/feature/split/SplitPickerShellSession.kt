@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.split
 
 import dev.denza.apps.platform.shell.ServiceCallParcel
+import dev.denza.apps.platform.shell.classpathAssignment
+import dev.denza.apps.platform.shell.helperNotLoaded
 import dev.denza.apps.platform.shell.shellQuote
 
 /**
@@ -2939,9 +2941,12 @@ internal class SplitPickerShellSession(
         }
         val classpath = proxyClasspath.entry(::shell)
         val output = shell(
-            "CLASSPATH=${shellQuote(classpath)} app_process /system/bin " +
+            "${classpathAssignment(classpath, apkPath)} app_process /system/bin " +
                 "--nice-name=denza_split_cmd $SPLIT_PROXY_CLASS remove-task $arguments",
-        ).also(::validateOutput)
+        )
+        // The class did not load from the kept jar: the next removal asks the car again.
+        if (helperNotLoaded(output)) proxyClasspath.forget()
+        validateOutput(output)
         val removed = parseRemovals(output)
         val refused = tasks.filterNot { task -> removed[task.id] == true }
         if (refused.isNotEmpty()) {

@@ -46,7 +46,8 @@ internal class SplitResidentRequest private constructor(
                 if (code in READ_TRANSACTIONS) return SplitResidentRequest("call-int $call", false)
                 return null
             }
-            if (command.startsWith(CLASSPATH_PREFIX) && REMOVE_MARKER in command) {
+            val oneShot = CLASSPATH_PREFIXES.any { prefix -> command.startsWith(prefix) }
+            if (oneShot && REMOVE_MARKER in command) {
                 val tail = command.substringAfter(REMOVE_MARKER)
                 if (tail.isNotBlank()) return SplitResidentRequest("remove-task $tail", true)
             }
@@ -55,7 +56,8 @@ internal class SplitResidentRequest private constructor(
 
         private const val WORLD_COMMAND = "am stack list"
         private const val TRANSACTION_PREFIX = "service call activity_task "
-        private const val CLASSPATH_PREFIX = "CLASSPATH="
+        /** The APK as the classpath, or a staged jar named with the APK behind it. */
+        private val CLASSPATH_PREFIXES = listOf("CLASSPATH=", "c=")
         private val REMOVE_MARKER =
             "--nice-name=denza_split_cmd ${SplitTaskProxyMain::class.java.name} remove-task "
 

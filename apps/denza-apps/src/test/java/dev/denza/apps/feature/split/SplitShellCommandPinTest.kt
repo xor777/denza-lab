@@ -90,12 +90,79 @@ class SplitShellCommandPinTest {
 
     @Test
     fun theResidentHelperIsStartedWithThisCommand() {
+        // From the APK, letter for letter what it always was.
         assertEquals(
-            "CLASSPATH='/data/local/tmp/denza-split-proxy-60.jar' exec app_process /system/bin " +
+            "CLASSPATH='/data/app/dev.denza.apps/base.apk' exec app_process /system/bin " +
                 "--nice-name=denza_split_serve dev.denza.apps.feature.split.SplitTaskProxyMain " +
                 "serve 5f3a",
-            splitServeCommand("/data/local/tmp/denza-split-proxy-60.jar", "5f3a"),
+            splitServeCommand(SPLIT_APK_PATH, SPLIT_APK_PATH, "5f3a"),
         )
+        // From the staged jar, with the APK behind it should the jar have gone.
+        assertEquals(
+            "c='$JAR'; [ -r \"\$c\" ] || c='/data/app/dev.denza.apps/base.apk'; " +
+                "CLASSPATH=\"\$c\" exec app_process /system/bin " +
+                "--nice-name=denza_split_serve dev.denza.apps.feature.split.SplitTaskProxyMain " +
+                "serve 5f3a",
+            splitServeCommand(JAR, SPLIT_APK_PATH, "5f3a"),
+        )
+    }
+
+    /** A removal from the staged jar names the APK behind it, and the resident still serves it. */
+    @Test
+    fun aRemovalFromTheStagedJarFallsBackToTheApkAndIsStillServed() {
+        val commands = mutableListOf<String>()
+        val rollback = SplitShellRollbackExecutor(
+            shell = { command -> commands += command; "DENZA_SPLIT_RESULT:42=true" },
+            gateLeaseStore = FakeGateLease(),
+            leases = emptyList(),
+            apkPath = SPLIT_APK_PATH,
+            clock = FixedClock,
+            proxyClasspath = SplitProxyClasspath { JAR },
+        )
+
+        rollback.removeTask(42, "ru.yandex.music/.main.MainActivity")
+
+        assertEquals(
+            listOf(
+                "c='$JAR'; [ -r \"\$c\" ] || c='/data/app/dev.denza.apps/base.apk'; " +
+                    "CLASSPATH=\"\$c\" app_process /system/bin " +
+                    "--nice-name=denza_split_cmd dev.denza.apps.feature.split.SplitTaskProxyMain " +
+                    "remove-task 42 'ru.yandex.music' '.main.MainActivity' '-' '-'",
+            ),
+            commands,
+        )
+        assertEquals(
+            "remove-task 42 'ru.yandex.music' '.main.MainActivity' '-' '-'",
+            SplitResidentRequest.of(commands.single())?.line,
+        )
+    }
+
+    /** A class that did not load from the kept jar makes the next removal ask the car again. */
+    @Test
+    fun aProxyThatDidNotLoadIsForgotten() {
+        var forgotten = 0
+        val classpath = object : SplitProxyClasspath {
+            override fun entry(shell: (String) -> String): String = JAR
+
+            override fun forget() {
+                forgotten += 1
+            }
+        }
+        val rollback = SplitShellRollbackExecutor(
+            shell = {
+                "java.lang.ClassNotFoundException: " +
+                    "dev.denza.apps.feature.split.SplitTaskProxyMain"
+            },
+            gateLeaseStore = FakeGateLease(),
+            leases = emptyList(),
+            apkPath = SPLIT_APK_PATH,
+            clock = FixedClock,
+            proxyClasspath = classpath,
+        )
+
+        runCatching { rollback.removeTask(42, "ru.yandex.music/.main.MainActivity") }
+
+        assertEquals(1, forgotten)
     }
 
     /** How an `activity_task` int read is read: the second word, after a zero status. */
@@ -183,5 +250,9 @@ class SplitShellCommandPinTest {
 
         override fun schedule(delayMs: Long, action: () -> Unit): SplitCancellable =
             error("a rollback schedules nothing")
+    }
+
+    private companion object {
+        val JAR = "/data/local/tmp/denza-split-proxy-${"ab".repeat(32)}.jar"
     }
 }

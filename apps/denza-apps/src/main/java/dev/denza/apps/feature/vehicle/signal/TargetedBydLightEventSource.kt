@@ -2,6 +2,7 @@ package dev.denza.apps.feature.vehicle.signal
 
 import android.os.SystemClock
 import android.util.Log
+import dev.denza.apps.platform.shell.ShellProxyStager
 import dev.denza.apps.platform.shell.shellQuote
 import dev.denza.disharebridge.LocalAdbClient
 import java.io.IOException
@@ -228,7 +229,7 @@ internal class AdbTurnSignalEventChannel(
     private val session: LocalAdbClient.ResidentSession,
     private val bootstrap: () -> LocalAdbClient.PersistentShellSession,
     private val nonce: String,
-    private val classpath: TurnSignalProxyClasspath,
+    private val stager: ShellProxyStager,
     requestedKeys: Set<VehicleSignalKey<*>>,
 ) : TurnSignalEventChannel {
     @Volatile private var closed = false
@@ -250,7 +251,7 @@ internal class AdbTurnSignalEventChannel(
             throw IOException("turn-signal event channel closed during bootstrap")
         }
         val entry = try {
-            classpath.entry(bootstrapSession::shell)
+            stager.stage(bootstrapSession::shell)
         } finally {
             if (activeBootstrap === bootstrapSession) activeBootstrap = null
             bootstrapSession.close()

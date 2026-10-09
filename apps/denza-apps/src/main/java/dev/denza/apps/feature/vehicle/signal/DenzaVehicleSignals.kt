@@ -5,6 +5,8 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.platform.shell.ShellProxyJar
+import dev.denza.apps.platform.shell.ShellProxyStager
 
 /** Main-process composition root. Secondary Denza Apps processes may not create car transports. */
 internal object DenzaVehicleSignals {
@@ -23,8 +25,10 @@ internal object DenzaVehicleSignals {
 
     private fun create(app: Context): VehicleSignalHub {
         val client = DenzaLocalAdb.client(app)
-        val classpath = TurnSignalProxyClasspath(
-            jar = { app.assets.open(TurnSignalProxyClasspath.ASSET).use { it.readBytes() } },
+        // Staging failure disables the listener; it never falls back to loading the whole APK.
+        val stager = ShellProxyStager(
+            helper = ShellProxyJar.VEHICLE_SIGNAL,
+            jar = { app.assets.open(ShellProxyJar.VEHICLE_SIGNAL.asset).use { it.readBytes() } },
             log = { Log.i(TAG, it) },
         )
         val source = TargetedBydLightEventSource(
@@ -33,7 +37,7 @@ internal object DenzaVehicleSignals {
                     session = client.openResidentSession(nonce),
                     bootstrap = client::openPersistentShell,
                     nonce = nonce,
-                    classpath = classpath,
+                    stager = stager,
                     requestedKeys = requestedKeys,
                 )
             },
