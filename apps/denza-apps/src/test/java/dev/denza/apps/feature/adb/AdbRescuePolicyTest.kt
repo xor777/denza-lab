@@ -76,6 +76,31 @@ class AdbRescuePolicyTest {
         assertTrue(failed.requestPending)
         assertFalse(failed.canRequest)
         assertTrue(failed.canResetAttempt)
+        // The panel and the recovery dialog print the note; the class name is the technical page's.
+        assertEquals(AdbRescuePolicy.SYSTEM_SWITCH_ON_DETAIL, failed.details)
+        assertEquals("ConnectException", failed.lastFailure)
+    }
+
+    /**
+     * What the access row and the recovery dialog say about a car that does not answer or answered
+     * oddly: a state and the switch's reading, never an exception's name.
+     */
+    @Test
+    fun `a failed check says a state and the switch, and keeps the failure's name for the report`() {
+        val start = AdbRescuePolicy.initial(false, 0, 0L)
+        val silent = AdbRescuePolicy.afterCheck(start, AdbCheckOutcome.UNAVAILABLE, AdbSystemSwitch.UNKNOWN, "SocketTimeoutException")
+        assertEquals("Нет связи с машиной", silent.message)
+        assertEquals(AdbRescuePolicy.SYSTEM_SWITCH_UNREADABLE_DETAIL, silent.details)
+        assertEquals("SocketTimeoutException", silent.lastFailure)
+
+        val odd = AdbRescuePolicy.afterCheck(start, AdbCheckOutcome.ERROR, AdbSystemSwitch.ENABLED, "неожиданный ответ на проверку")
+        assertEquals("Доступ не подтверждён", odd.message)
+        assertEquals(AdbRescuePolicy.SYSTEM_SWITCH_ON_DETAIL, odd.details)
+
+        for (snapshot in listOf(silent, odd, AdbRescuePolicy.checking(start), AdbRescuePolicy.systemSwitchOff(start))) {
+            val shown = listOfNotNull(snapshot.message, snapshot.details).joinToString(" ")
+            assertFalse(shown, Regex("[A-Za-z]{3,}").containsMatchIn(shown.replace("ADB", "")))
+        }
     }
 
     @Test

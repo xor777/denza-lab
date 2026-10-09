@@ -2,13 +2,14 @@
 
 ## Current state
 
-Updated 2026-10-08. Static firmware evidence and local checks do not establish recovery on a
+Updated 2026-10-09. Static firmware evidence and local checks do not establish recovery on a
 currently inaccessible vehicle.
 
 | Claim | Status | Section |
 | --- | --- | --- |
 | The startup gate and healthy one-shot request work on the reference DiLink 5.1 car | live, 2026-08-18 | [Live result](#2026-08-18-live-result) |
 | Product queue recovery remains disabled pending vehicle acceptance | code | [Vehicle acceptance gate](#vehicle-acceptance-gate) |
+| The access row and the recovery dialog say a state and the switch reading; exception names are only the «Последний сбой» row of «Технические сведения» | code, 2026-10-09 | [Explaining the channel](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26) |
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Dipilot rescue shows the passive shell result before clicks, then queue observations and click diagnostics; it approves requests by design | local tests/build; vehicle acceptance pending | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
@@ -146,6 +147,15 @@ the instruction. It carries a classification and never a failure label: a disabl
 outright because it is a reading, an unreadable flag stays silent because absence of evidence is
 not evidence of an off switch, and exception names like `ConnectException` stay on the service
 screen where they mean something to whoever is reading them.
+
+> **Superseded 2026-10-09:** exception names no longer stand on the service panel's access row or
+> in the gate's «Восстановить ADB» dialog, which both print the note under the message. The note is
+> the switch reading there too (`AdbRescuePolicy.switchReading`), the message a state («Нет связи с
+> машиной», «Доступ не подтверждён»), and the name is the «Последний сбой» row of «Технические
+> сведения» (`AdbRescueSnapshot.lastFailure`). The gate's ERROR screen reads «Доступ не
+> подтверждён» / «Машина не ответила на проверку» over «Проверить снова». A failed «Разрешить
+> новую попытку» keeps the phase it had and says «Новая попытка не разрешена»; it used to set
+> ERROR and put up that screen although nothing was checked.
 
 ## Operator flow
 

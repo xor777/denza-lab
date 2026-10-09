@@ -175,6 +175,9 @@ object SupportDiagnostics {
             row("Отладка ADB в машине", adbSwitchLabel(adbRescue.systemSwitch)),
             row("Запрос ждёт ответа", yesNo(adbRescue.requestPending)),
             row("Отправлено запросов", adbRescue.attemptCount.toString()),
+            // The failure's own name - `ConnectException` and the like - is read here and only
+            // here; the access row on the panel says the state and what the car said about its switch.
+            row("Последний сбой", adbRescue.lastFailure ?: "нет"),
             row("Восстановление очереди", AdbRescueCoordinator.QUEUE_RECOVERY_STATUS),
         )
     }

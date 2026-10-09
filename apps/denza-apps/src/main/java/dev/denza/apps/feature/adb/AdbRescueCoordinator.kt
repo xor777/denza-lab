@@ -28,6 +28,12 @@ data class AdbRescueSnapshot(
     val lastAttemptAtMillis: Long = 0L,
     /** What the last reading of Android's own switch said, and therefore what decided the phase. */
     val systemSwitch: AdbSystemSwitch = AdbSystemSwitch.UNKNOWN,
+    /**
+     * The last failure's own name - `ConnectException`, an unexpected reply - for «Технические
+     * сведения» alone. It used to be [details], which the service panel and the gate's recovery
+     * dialog print under the message, so a class name stood on the panel the driver opens.
+     */
+    val lastFailure: String? = null,
 ) {
     // The single request is also a slot in Android's prompt queue. Never offer to spend it where
     // the system has already said no prompt can be drawn.
@@ -75,6 +81,16 @@ internal object AdbRescuePolicy {
     const val SYSTEM_SWITCH_UNREADABLE_DETAIL =
         "Состояние отладки по ADB прочитать не удалось"
 
+    /** The reading of the switch, as the gate and the access row both say it. */
+    fun switchReading(systemSwitch: AdbSystemSwitch): String = when (systemSwitch) {
+        AdbSystemSwitch.DISABLED -> SYSTEM_SWITCH_OFF_DETAIL
+        AdbSystemSwitch.ENABLED -> SYSTEM_SWITCH_ON_DETAIL
+        AdbSystemSwitch.UNKNOWN -> SYSTEM_SWITCH_UNREADABLE_DETAIL
+    }
+
+    /** The access row's words for a car whose adbd does not answer, or whose switch is off. */
+    const val NO_LINK = "Нет связи с машиной"
+
     /**
      * Whether the single attempt may be spent, given a switch read at the moment of the press.
      *
@@ -92,7 +108,7 @@ internal object AdbRescuePolicy {
      */
     fun systemSwitchOff(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.UNAVAILABLE,
-        message = "Локальный ADB сейчас недоступен",
+        message = NO_LINK,
         details = SYSTEM_SWITCH_OFF_DETAIL,
         systemSwitch = AdbSystemSwitch.DISABLED,
     )
@@ -119,8 +135,8 @@ internal object AdbRescuePolicy {
 
     fun checking(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.CHECKING,
-        message = "Проверяю существующий доступ…",
-        details = "Публичный ключ не отправляется",
+        message = "Проверяю доступ…",
+        details = null,
     )
 
     fun afterCheck(
@@ -160,15 +176,19 @@ internal object AdbRescuePolicy {
                     )
                 }
             }
+            // The note under the message is what the car said about its switch, as on the gate; the
+            // failure's own name is the technical page's.
             AdbCheckOutcome.UNAVAILABLE -> base.copy(
                 phase = AdbRescuePhase.UNAVAILABLE,
-                message = "Локальный ADB сейчас недоступен",
-                details = failure,
+                message = NO_LINK,
+                details = switchReading(systemSwitch),
+                lastFailure = failure,
             )
             AdbCheckOutcome.ERROR -> base.copy(
                 phase = AdbRescuePhase.ERROR,
-                message = "Не удалось проверить ADB",
-                details = failure,
+                message = "Доступ не подтверждён",
+                details = switchReading(systemSwitch),
+                lastFailure = failure,
             )
         }
     }
@@ -207,19 +227,21 @@ internal object AdbRescuePolicy {
         AdbRequestOutcome.UNAVAILABLE -> previous.copy(
             phase = AdbRescuePhase.UNAVAILABLE,
             message = "Отправка запроса не подтверждена",
-            details = failure,
+            details = switchReading(previous.systemSwitch),
+            lastFailure = failure,
         )
         AdbRequestOutcome.ERROR -> previous.copy(
             phase = AdbRescuePhase.ERROR,
             message = "Отправка запроса не подтверждена",
-            details = failure,
+            details = switchReading(previous.systemSwitch),
+            lastFailure = failure,
         )
     }
 
     fun resetAttempt(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
         phase = AdbRescuePhase.UNKNOWN,
         message = "Новая попытка разрешена вручную",
-        details = "Сначала проверьте доступ; системная очередь этим не очищается",
+        details = "Сначала проверьте доступ",
         requestPending = false,
     )
 }
@@ -275,7 +297,7 @@ object AdbRescueCoordinator {
                 if (output.contains(CHECK_MARKER)) {
                     AdbCheckOutcome.TRUSTED to null
                 } else {
-                    AdbCheckOutcome.ERROR to "Неожиданный ответ shell"
+                    AdbCheckOutcome.ERROR to "неожиданный ответ на проверку"
                 }
             } catch (_: LocalAdbClient.AuthorizationRequiredException) {
                 AdbCheckOutcome.AUTHORIZATION_REQUIRED to null
@@ -319,8 +341,9 @@ object AdbRescueCoordinator {
             running.set(false)
             current = before.copy(
                 phase = AdbRescuePhase.ERROR,
-                message = "Не удалось сохранить one-shot состояние",
-                details = "Запрос не отправлен",
+                message = "Запрос не отправлен",
+                details = null,
+                lastFailure = "запрос не записан в настройки",
             )
             onChanged()
             return
@@ -360,9 +383,11 @@ object AdbRescueCoordinator {
         }
         val app = context.applicationContext
         if (!persistPending(app, pending = false)) {
+            // The phase stays where it was: nothing was checked, and ERROR would put up the gate's
+            // «check failed» screen over a car whose access did not change.
             current = current.copy(
-                phase = AdbRescuePhase.ERROR,
-                message = "Не удалось разблокировать новую попытку",
+                message = "Новая попытка не разрешена",
+                lastFailure = "попытка не записана в настройки",
             )
         } else {
             current = AdbRescuePolicy.resetAttempt(current)

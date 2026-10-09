@@ -153,10 +153,12 @@ object AdbStartupGatePolicy {
             recoveryAvailable = true,
             explainerAvailable = true,
         )
+        // A state, and the button under it is the check again. «Не удалось проверить ADB» over
+        // «Повторите проверку доступа» was a failure and an instruction the button already is.
         AdbRescuePhase.ERROR -> AdbStartupOverlayModel(
             visible = true,
-            title = "Не удалось проверить ADB",
-            message = "Повторите проверку доступа",
+            title = "Доступ не подтверждён",
+            message = "Машина не ответила на проверку",
             details = systemSwitchReading(snapshot.systemSwitch),
             primaryLabel = "Проверить снова",
             primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
@@ -181,11 +183,8 @@ object AdbStartupGatePolicy {
      *
      * Ни одна из трёх строк ничего не советует: это показание, не диагноз и не отказ.
      */
-    private fun systemSwitchReading(systemSwitch: AdbSystemSwitch): String = when (systemSwitch) {
-        AdbSystemSwitch.DISABLED -> AdbRescuePolicy.SYSTEM_SWITCH_OFF_DETAIL
-        AdbSystemSwitch.ENABLED -> AdbRescuePolicy.SYSTEM_SWITCH_ON_DETAIL
-        AdbSystemSwitch.UNKNOWN -> AdbRescuePolicy.SYSTEM_SWITCH_UNREADABLE_DETAIL
-    }
+    private fun systemSwitchReading(systemSwitch: AdbSystemSwitch): String =
+        AdbRescuePolicy.switchReading(systemSwitch)
 }
 
 /**
