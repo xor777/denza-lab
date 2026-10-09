@@ -20,6 +20,11 @@ final class SimulcastDialogVisibilityTracker {
 
     private boolean open;
 
+    /** The dialog was confirmed open and not yet confirmed closed: the exit control is held hidden. */
+    boolean isOpen() {
+        return open;
+    }
+
     Command observe(Observation observation) {
         if (observation == Observation.OPEN) {
             if (open) {
