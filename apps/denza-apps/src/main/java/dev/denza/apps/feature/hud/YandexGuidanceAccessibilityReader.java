@@ -73,6 +73,10 @@ final class YandexGuidanceAccessibilityReader {
         String roundaboutExitNumber = firstNonEmpty(
                 text(root, "exit_number_text"),
                 description(root, "exit_number_text"));
+        // The speed sign: a bare number while Yandex knows the road's limit, absent otherwise.
+        String speedLimit = firstNonEmpty(
+                text(root, "text_speedlimit"),
+                description(root, "text_speedlimit"));
         return YandexGuidanceParser.parse(
                 instruction,
                 nextRoadName,
@@ -81,7 +85,8 @@ final class YandexGuidanceAccessibilityReader {
                 remainingDistance,
                 remainingTime,
                 eta,
-                roundaboutExitNumber);
+                roundaboutExitNumber,
+                speedLimit);
     }
 
     private static String firstNonEmpty(String... values) {

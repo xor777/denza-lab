@@ -37,6 +37,17 @@ final class HudSomeIpClient {
     private static final long TOPIC_HUD_ROAD = 1127042368241665L;
     private static final long SHUTDOWN_DELAY_MS = 350L;
     private static final long RECOVERY_DELAY_MS = 1000L;
+    /**
+     * Field 2 as the stock navigator sends it: {@code 2}, and {@code 1} only while its own junction
+     * picture is up, which this app never draws. Until 2026-10-09 it carried a sequence number.
+     */
+    private static final int STOCK_COUNTER = 2;
+    /**
+     * The road topic reaches the HUD over UDP, so one lost clear would leave the last arrow on the
+     * glass. The clear goes out three times, 120 ms apart, all before {@link #SHUTDOWN_DELAY_MS}.
+     */
+    private static final int CLEAR_SENDS = 3;
+    private static final long CLEAR_REPEAT_MS = 120L;
 
     private final Context context;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -47,6 +58,7 @@ final class HudSomeIpClient {
     private static final float ROUNDABOUT_TIP_RADIUS = 89f;
     private final Map<String, byte[]> iconCache = new HashMap<>();
     private final Runnable shutdownRunnable = this::stopAndUnbind;
+    private final Runnable clearRepeatRunnable = this::repeatClear;
     private final Runnable recoveryRunnable = () -> {
         recoveryScheduled = false;
         recoverConnection();
@@ -57,7 +69,7 @@ final class HudSomeIpClient {
     private boolean recoveryScheduled;
     private HudGuidance pending;
     private HudArGeometry pendingArGeometry;
-    private int counter;
+    private int clearSendsLeft;
     private String lastPublishedKey;
 
     private final ServiceConnection connection = new ServiceConnection() {
@@ -99,6 +111,7 @@ final class HudSomeIpClient {
 
     void publish(HudGuidance guidance, HudArGeometry arGeometry) {
         handler.removeCallbacks(shutdownRunnable);
+        cancelClearRepeats();
         pending = guidance;
         pendingArGeometry = arGeometry;
         ensureConnected();
@@ -113,12 +126,35 @@ final class HudSomeIpClient {
         pending = null;
         pendingArGeometry = null;
         cancelRecovery();
+        cancelClearRepeats();
         if (serviceStarted) {
-            int result = fire(TOPIC_HUD_ROAD, buildPayload(true, null, ++counter));
-            HudSomeIpRuntime.onFireResult(result);
-            Log.i(TAG, "clear ret=" + result);
+            clearSendsLeft = CLEAR_SENDS;
+            sendClear();
         }
         HudSomeIpRuntime.onIdle();
+    }
+
+    private void sendClear() {
+        clearSendsLeft--;
+        int result = fire(TOPIC_HUD_ROAD, buildPayload(true, null));
+        HudSomeIpRuntime.onFireResult(result);
+        Log.i(TAG, "clear ret=" + result + " left=" + clearSendsLeft);
+        if (clearSendsLeft > 0) {
+            handler.postDelayed(clearRepeatRunnable, CLEAR_REPEAT_MS);
+        }
+    }
+
+    private void repeatClear() {
+        if (!serviceStarted || pending != null || clearSendsLeft <= 0) {
+            clearSendsLeft = 0;
+            return;
+        }
+        sendClear();
+    }
+
+    private void cancelClearRepeats() {
+        handler.removeCallbacks(clearRepeatRunnable);
+        clearSendsLeft = 0;
     }
 
     void shutdown() {
@@ -205,7 +241,7 @@ final class HudSomeIpClient {
             }
         }
         int result = fire(TOPIC_HUD_ROAD,
-                buildPayload(false, guidance, ++counter, icon, arGeometry));
+                buildPayload(false, guidance, icon, arGeometry));
         HudSomeIpRuntime.onFireResult(result);
         if (result == 0) {
             // One line per manoeuvre, not per poll. Distance, ETA and the road name change on
@@ -213,13 +249,14 @@ final class HudSomeIpClient {
             // and pushed everything else, including AVC crashes, out of the ring.
             String publishedKey = guidance.getManeuver().name()
                     + ":" + guidance.getRoundaboutExitNumber()
-                    + ":" + (arGeometry != null);
+                    + ":" + (arGeometry != null)
+                    + ":" + guidance.getSpeedLimitKmh();
             if (!publishedKey.equals(lastPublishedKey)) {
                 lastPublishedKey = publishedKey;
                 Log.i(TAG, "publishing " + guidance.getManeuver()
                         + " roundaboutExit=" + guidance.getRoundaboutExitNumber()
                         + " ar=" + (arGeometry != null)
-                        + " seq=" + counter);
+                        + " speedLimit=" + guidance.getSpeedLimitKmh());
             }
         } else {
             lastPublishedKey = null;
@@ -297,6 +334,7 @@ final class HudSomeIpClient {
 
     private void stopAndUnbind() {
         cancelRecovery();
+        cancelClearRepeats();
         IBinder service = binder;
         if (serviceStarted && service != null) {
             Parcel data = Parcel.obtain();
@@ -327,18 +365,17 @@ final class HudSomeIpClient {
         HudSomeIpRuntime.onIdle("Сессия HUD остановлена");
     }
 
-    private static byte[] buildPayload(boolean clear, HudGuidance guidance, int counter) {
-        return buildPayload(clear, guidance, counter, null, null);
+    private static byte[] buildPayload(boolean clear, HudGuidance guidance) {
+        return buildPayload(clear, guidance, null, null);
     }
 
     private static byte[] buildPayload(
             boolean clear,
             HudGuidance guidance,
-            int counter,
             byte[] icon,
             HudArGeometry arGeometry) {
         ByteArrayOutputStream message = new ByteArrayOutputStream(256 + (icon == null ? 0 : icon.length));
-        intField(message, 2, counter);
+        intField(message, 2, STOCK_COUNTER);
         intField(message, 16, clear ? 1 : 2);
         if (!clear && guidance != null) {
             if (guidance.getRemainingDistanceMeters() != null) {
@@ -350,6 +387,10 @@ final class HudSomeIpClient {
             bytesField(message, 8, icon);
             intField(message, 9, guidance.getManeuverDistanceMeters());
             stringField(message, 10, guidance.getNextRoadName());
+            if (guidance.getSpeedLimitKmh() != null) {
+                // currentMaxSpeedLimit, km/h, as the stock navigator fills it.
+                intField(message, 11, guidance.getSpeedLimitKmh());
+            }
             stringField(message, 26, routeDistance(guidance));
             stringField(message, 27, guidance.getRemainingTimeText());
             intField(message, 28, guidance.getManeuver().getStockId());
@@ -368,7 +409,11 @@ final class HudSomeIpClient {
     }
 
     static byte[] buildPayloadForTest(HudGuidance guidance, HudArGeometry arGeometry) {
-        return buildPayload(false, guidance, 1, null, arGeometry);
+        return buildPayload(false, guidance, null, arGeometry);
+    }
+
+    static byte[] buildClearPayloadForTest() {
+        return buildPayload(true, null);
     }
 
     static String routeDistance(HudGuidance guidance) {

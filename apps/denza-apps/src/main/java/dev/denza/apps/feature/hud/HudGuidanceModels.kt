@@ -41,6 +41,12 @@ data class HudGuidance(
     val remainingTimeSeconds: Int?,
     val remainingTimeText: String,
     val eta: String,
+    /**
+     * The limit Yandex shows on its speed sign right now, km/h; null when it shows none. Only a
+     * visible read carries it: the notification has no sign, and a limit is never carried over
+     * from an earlier reading.
+     */
+    val speedLimitKmh: Int? = null,
 )
 
 /** Pure conversion from Yandex's accessible labels into the stock HUD model. */
@@ -55,6 +61,7 @@ object YandexGuidanceParser {
         remainingTime: String?,
         eta: String?,
         roundaboutExitNumber: String? = null,
+        speedLimit: String? = null,
     ): HudGuidance? {
         val cleanInstruction = instruction.clean()
         if (cleanInstruction.isEmpty()) return null
@@ -75,7 +82,20 @@ object YandexGuidanceParser {
             remainingTimeSeconds = parseDurationSeconds(remainingTime.clean()),
             remainingTimeText = remainingTime.clean(),
             eta = eta.clean(),
+            speedLimitKmh = parseSpeedLimit(speedLimit.clean()),
         )
+    }
+
+    /**
+     * The number on Yandex's speed sign (`text_speedlimit`), which it prints bare: `60`. Anything
+     * that is not a posted limit - empty, a word, a unit other than km/h, a value off the 5 km/h
+     * grid or above [MAX_SPEED_LIMIT_KMH] - is no limit at all, never a guess.
+     */
+    @JvmStatic
+    fun parseSpeedLimit(value: String): Int? {
+        val match = SPEED_LIMIT.matchEntire(value.clean().lowercase(Locale.ROOT)) ?: return null
+        val kmh = match.groupValues[1].toIntOrNull() ?: return null
+        return kmh.takeIf { it in MIN_SPEED_LIMIT_KMH..MAX_SPEED_LIMIT_KMH && it % 5 == 0 }
     }
 
     @JvmStatic
@@ -170,6 +190,9 @@ object YandexGuidanceParser {
         .trim()
         .replace(WHITESPACE, " ")
 
+    private const val MIN_SPEED_LIMIT_KMH = 5
+    private const val MAX_SPEED_LIMIT_KMH = 150
+    private val SPEED_LIMIT = Regex("([0-9]{1,3})(?:\\s*(?:км/ч|km/h))?")
     private val NUMBER = Regex("[0-9]+(?:[.,][0-9]+)?")
     private val POSITIVE_INTEGER = Regex("(?:^|[^0-9])([0-9]+)(?=$|[^0-9])")
     private val HOURS = Regex("([0-9]+)\\s*(?:ч|час(?:а|ов)?|h|hr|hrs|hour|hours)(?=\\s|$)")
@@ -301,6 +324,7 @@ object HudGuidanceRuntime {
             add("${guidance.maneuverDistanceMeters} м")
             guidance.remainingDistanceMeters?.let { add("осталось ${it / 1000f} км") }
             if (guidance.eta.isNotEmpty()) add("прибытие ${guidance.eta}")
+            guidance.speedLimitKmh?.let { add("знак $it") }
         }.joinToString(" · ")
         setActive(true)
     }
