@@ -255,4 +255,9 @@ tasks.withType<Test>().configureEach {
         rootProject.file("tools/vehicle_log.py"),
         rootProject.fileTree("captures/vehicle-log") { include("*.csv") },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("contractSources")
+    // The split's command log (SplitCommandLog in the tests): off unless -PsplitCommandLog=<file>
+    // names the file the fake car's commands of every split test are written to.
+    providers.gradleProperty("splitCommandLog").orNull?.let { file ->
+        systemProperty("denza.splitCommandLog", file)
+    }
 }
