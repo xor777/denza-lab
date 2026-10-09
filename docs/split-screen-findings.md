@@ -2025,6 +2025,8 @@ return's fullscreen branch settles `HomeConfirmed` for a scene that is on
 screen. `revision` in the durable snapshot is written and never read. None of
 these changes what the user sees.
 
+> **Superseded 2026-10-09:** `revision` is gone from `SplitDurable`; the `split_state_v2` format keeps its field, written `0` and checked only as a number, so older snapshots still read (`SplitStore.kt`).
+
 ## A narrated live session, mapped to the logs (2026-09-18)
 
 The owner could not reproduce his sense that the split had become less stable

@@ -1315,7 +1315,6 @@ class SplitScenarioTest {
         assertEquals("one operation, one write", 1, car.store.commits)
         val committed = car.store.load()
         assertEquals(SplitSlot.App(NAVIGATOR), committed.slot(SplitPane.PRIMARY))
-        assertEquals(1L, committed.revision)
 
         car.store.accept = false
         val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())

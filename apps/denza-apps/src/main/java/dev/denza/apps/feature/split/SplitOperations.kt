@@ -529,11 +529,7 @@ internal abstract class SplitCoreOperation<P>(
     /** Step 8: one snapshot, one commit, and only when the durable projection really moved. */
     override fun durable(plan: P, current: SplitDurable): SplitDurable? {
         if (working.enabled == current.enabled && working.slots == current.slots) return null
-        return current.copy(
-            enabled = working.enabled,
-            slots = working.slots,
-            revision = current.revision + 1,
-        )
+        return current.copy(enabled = working.enabled, slots = working.slots)
     }
 
     /**
