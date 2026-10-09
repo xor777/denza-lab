@@ -43,6 +43,7 @@ import dev.denza.apps.feature.defaultapps.NavigationRoleRepair
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.fse.FseInstallStatus
+import dev.denza.apps.feature.hud.HudGuidanceRider
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudGuidanceStatus
@@ -55,6 +56,7 @@ import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cloud.CloudNetwork
 import dev.denza.apps.feature.locale.SystemLanguage
 import dev.denza.apps.feature.locale.SystemLanguageSnapshot
+import dev.denza.apps.feature.media.MediaKeyRider
 import dev.denza.apps.feature.mirrors.MirrorDisplayReadiness
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
@@ -86,6 +88,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverStatus
 import dev.denza.apps.feature.split.SplitLauncherEntryActivity
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import dev.denza.apps.feature.weather.WeatherAdapterState
+import dev.denza.apps.platform.accessibility.AccessibilityHost
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
 import dev.denza.apps.platform.media.MediaSessionAccess
 import kotlinx.coroutines.flow.StateFlow
@@ -794,7 +797,7 @@ object DenzaAppRepository {
     fun setHudGuidanceEnabled(enabled: Boolean) {
         val context = appContext ?: return
         HudGuidanceSettings.setEnabled(context, enabled)
-        SimulcastAccessibilityService.requestHudGuidanceRefresh()
+        HudGuidanceRider.requestRefresh()
         if (!enabled) {
             invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
@@ -811,15 +814,15 @@ object DenzaAppRepository {
         }
         if (
             SimulcastCoordinator.isAccessibilityEnabled(context) &&
-            SimulcastAccessibilityService.isConnected()
+            AccessibilityHost.isConnected()
         ) {
-            SimulcastAccessibilityService.requestHudGuidanceRefresh()
+            HudGuidanceRider.requestRefresh()
             invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
         }
         AccessibilityRepair.repair(context) { failure ->
             if (failure == null) {
-                SimulcastAccessibilityService.requestHudGuidanceRefresh()
+                HudGuidanceRider.requestRefresh()
                 invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             } else {
                 val problem = SimulcastCoordinator.setupProblem(failure)
@@ -1239,7 +1242,7 @@ object DenzaAppRepository {
             }
             runtimeStep("media button access") {
                 MediaSessionAccess.ensure(app) {
-                    SimulcastAccessibilityService.requestMediaResumeRefresh()
+                    MediaKeyRider.requestRefresh()
                 }
             }
             runtimeStep("mirrors reconcile") {
@@ -1428,7 +1431,7 @@ object DenzaAppRepository {
             navigatorInstalled = enabled &&
                 isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE),
             accessibilityEnabled = enabled && SimulcastCoordinator.isAccessibilityEnabled(context),
-            accessibilityConnected = SimulcastAccessibilityService.isConnected(),
+            accessibilityConnected = AccessibilityHost.isConnected(),
             active = HudGuidanceRuntime.isActive(),
             details = HudGuidanceRuntime::details,
         )

@@ -18,13 +18,24 @@ import dev.denza.apps.platform.media.MediaSessionHub
  * The caller decides whether a new DOWN is safe to intercept. Once accepted, repeats and UP for
  * that press remain consumed even if the caller's guard changes before release.
  */
-class MediaResumeController(context: Context) {
-    private val app = context.applicationContext
-    private val core = MediaResumeCore(MediaLastPlayedPreferences(app))
+class MediaResumeController internal constructor(
+    private val core: MediaResumeCore,
+    private val sessions: MediaResumeSessions,
+    /** One line of the key's log; `Log.i` under `DenzaMediaResume` in the product. */
+    private val log: (String) -> Unit,
+) {
+    constructor(context: Context) : this(
+        MediaResumeCore(MediaLastPlayedPreferences(context.applicationContext)),
+        context.applicationContext,
+    )
+
+    private constructor(core: MediaResumeCore, app: Context) : this(
+        core,
+        MediaResumeSessions(MediaSessionHub.get(app), core) { message, error -> Log.i(TAG, message, error) },
+        { message -> Log.i(TAG, message) },
+    )
+
     private val keyInterceptor = MediaResumeKeyInterceptor()
-    private val sessions = MediaResumeSessions(MediaSessionHub.get(app), core) { message, error ->
-        Log.i(TAG, message, error)
-    }
 
     /** Subscribes once; called again after an access repair, it has the hub listen if it does not. */
     fun start() {
@@ -42,53 +53,66 @@ class MediaResumeController(context: Context) {
     /** The persisted last-played package - what a Play press resolves from. No token leaves here. */
     fun rememberedPackage(): String? = core.lastPlayed()
 
-    fun onKeyEvent(event: KeyEvent, allowNewPress: Boolean): Boolean {
+    /**
+     * One key: its code, `KeyEvent.ACTION_DOWN` or `ACTION_UP` and its repeat count. True consumes
+     * it. The answer is final once the interceptor gives it: the log line and the support report's
+     * ring after it only tell about it, and a throw in them must not hand a press already answered
+     * to the firmware as well.
+     */
+    fun onKeyEvent(keyCode: Int, action: Int, repeatCount: Int, allowNewPress: Boolean): Boolean {
         val listening = isListening()
-        val relevantInitialDown =
-            MediaResumeKeyInterceptor.commandFor(event.keyCode) != null &&
-                event.action == KeyEvent.ACTION_DOWN &&
-                event.repeatCount == 0
         val consumed = keyInterceptor.onKeyEvent(
-            keyCode = event.keyCode,
-            action = event.action,
-            repeatCount = event.repeatCount,
+            keyCode = keyCode,
+            action = action,
+            repeatCount = repeatCount,
             allowNewPress = allowNewPress && listening,
-            perform = { command -> decide(event.keyCode, sessions.press(command)) },
+            perform = { command -> decide(keyCode, sessions.press(command)) },
         )
-        if (relevantInitialDown) {
-            Log.i(
-                TAG,
-                "media key=${event.keyCode} received allow=$allowNewPress consumed=$consumed",
-            )
+        runCatching { tell(keyCode, action, repeatCount, allowNewPress, listening, consumed) }
+        return consumed
+    }
+
+    private fun tell(
+        keyCode: Int,
+        action: Int,
+        repeatCount: Int,
+        allowNewPress: Boolean,
+        listening: Boolean,
+        consumed: Boolean,
+    ) {
+        val initialDown = action == KeyEvent.ACTION_DOWN && repeatCount == 0
+        if (initialDown && MediaResumeKeyInterceptor.commandFor(keyCode) != null) {
+            log("media key=$keyCode received allow=$allowNewPress consumed=$consumed")
         }
         // Every code, not only the four we intercept: a wheel that emits 334 and a wheel that
         // emits nothing look the same from a car whose logcat we cannot read.
-        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+        if (initialDown) {
             MediaKeyDiagnostics.recordPress(
-                keyCode = event.keyCode,
-                media = MediaResumeKeyInterceptor.commandFor(event.keyCode) != null,
+                keyCode = keyCode,
+                media = MediaResumeKeyInterceptor.commandFor(keyCode) != null,
                 allowed = allowNewPress,
                 listening = listening,
                 consumed = consumed,
             )
         }
-        return consumed
     }
 
     /**
      * The one place a media press is accepted or refused.
      *
      * Every branch of the policy ends here, so a press never disappears without a named reason in
-     * the log, and the support report's ring is fed from the same line.
+     * the log, and the support report's ring is fed from the same line. The policy has decided, and
+     * its command has gone out, before either: neither may undo the answer by throwing.
      */
     private fun decide(keyCode: Int, decision: MediaResumeDecision): Boolean {
-        Log.i(
-            TAG,
-            "media command ${if (decision.accepted) "accepted" else "skipped"} " +
-                "key=$keyCode reason=${decision.reason} " +
-                "package=${decision.packageName ?: "-"}",
-        )
-        MediaKeyDiagnostics.note(MediaKeyDetail.decision(decision))
+        runCatching {
+            log(
+                "media command ${if (decision.accepted) "accepted" else "skipped"} " +
+                    "key=$keyCode reason=${decision.reason} " +
+                    "package=${decision.packageName ?: "-"}",
+            )
+            MediaKeyDiagnostics.note(MediaKeyDetail.decision(decision))
+        }
         return decision.accepted
     }
 

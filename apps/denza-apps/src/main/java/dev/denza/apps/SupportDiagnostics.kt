@@ -22,6 +22,7 @@ import dev.denza.apps.feature.cloud.CloudLinkSettings
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cloud.CloudNetwork
 import dev.denza.apps.feature.cloud.CloudNetworkKind
+import dev.denza.apps.feature.media.MediaKeyRider
 import dev.denza.apps.feature.simulcast.SimulcastApps
 import dev.denza.apps.feature.simulcast.SimulcastCoordinator
 import dev.denza.apps.feature.simulcast.SimulcastIntegration
@@ -32,6 +33,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
+import dev.denza.apps.platform.accessibility.AccessibilityHost
 import dev.denza.apps.platform.media.MediaSessionAccess
 import dev.denza.apps.feature.hud.HudNotificationArtworkRuntime
 import dev.denza.apps.feature.hud.HudSomeIpRuntime
@@ -102,7 +104,7 @@ object SupportDiagnostics {
                 // `Log.i` under `DenzaMediaResume`, which this firmware silences with a global
                 // `log.tag=M`, and that owner has no host ADB. Whether we hear the key, which
                 // session we remember, and what became of the last dozen presses.
-                mediaKeySection(MediaKeyReport.lines(SimulcastAccessibilityService.mediaKeySnapshot())),
+                mediaKeySection(MediaKeyReport.lines(MediaKeyRider.snapshot())),
                 section("Динамики", listOf(row("Отчёт о воспроизведении", yesNo(SpeakerCoverRuntime.reporting)))),
                 // Анализатор питается тем же захватом, что и автоматика крышек, и когда захвата нет,
                 // обе функции молчат одинаково. На экране про это не пишется ни слова (U5), поэтому
@@ -204,7 +206,7 @@ object SupportDiagnostics {
             row("DiShare установлен", yesNo(isInstalled(context.packageManager, SimulcastCoordinator.DISHARE_PACKAGE))),
             row("Доступ поверх окон", yesNo(SimulcastCoordinator.hasOverlayPermission(context))),
             row("Управление интерфейсом", yesNo(SimulcastCoordinator.isAccessibilityEnabled(context))),
-            row("Служба трансляции подключена", yesNo(SimulcastAccessibilityService.isConnected())),
+            row("Служба трансляции подключена", yesNo(AccessibilityHost.isConnected())),
         ) + SimulcastScreenDiagnostics.diagnosticLines().map(TechnicalReadings::row) +
             row("Счётчики окон", simulcastCounters(header.simulcastRuntime))
 

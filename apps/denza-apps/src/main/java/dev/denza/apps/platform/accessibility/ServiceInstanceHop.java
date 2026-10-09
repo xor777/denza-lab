@@ -1,13 +1,13 @@
-package dev.denza.apps;
+package dev.denza.apps.platform.accessibility;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
  * Carries a call from any thread onto a bound service's own thread, and runs it only if that
- * instance is still the bound one when the call gets there. The static hooks of
- * {@link SimulcastAccessibilityService} are called from the access repair's executor and from the
- * UI, while what rides on the service (the HUD monitor, the media key) is owned by the main thread.
+ * instance is still the bound one when the call gets there. The riders' hooks
+ * ({@link AccessibilityHost#post}) are called from the access repair's executor and from the UI,
+ * while what rides on the service (the HUD monitor, the media key) is owned by the main thread.
  */
 final class ServiceInstanceHop {
     interface Poster<S> {
