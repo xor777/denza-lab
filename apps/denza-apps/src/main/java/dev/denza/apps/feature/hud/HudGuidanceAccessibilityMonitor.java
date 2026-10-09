@@ -26,6 +26,7 @@ public final class HudGuidanceAccessibilityMonitor {
         return thread;
     });
     private final HudSomeIpClient someIpClient;
+    private final HudNativeSpeedLimitRunner speedLimit;
     private final HudArLocationSource locationSource;
     private final HudArApproximationTracker arTracker = new HudArApproximationTracker();
     private final HudRouteFreshness freshness =
@@ -42,6 +43,7 @@ public final class HudGuidanceAccessibilityMonitor {
     public HudGuidanceAccessibilityMonitor(AccessibilityService service) {
         this.service = service;
         this.someIpClient = new HudSomeIpClient(service);
+        this.speedLimit = new HudNativeSpeedLimitRunner(service);
         this.locationSource = new HudArLocationSource(service, pose -> latestPose = pose);
         this.readRunner = new SingleFlightReadRunner<>(
                 readerExecutor,
@@ -65,6 +67,7 @@ public final class HudGuidanceAccessibilityMonitor {
         arTracker.reset();
         latestPose = null;
         someIpClient.shutdown();
+        speedLimit.shutdown();
         HudGuidanceRuntime.onStopped();
     }
 
@@ -130,7 +133,10 @@ public final class HudGuidanceAccessibilityMonitor {
                 lastArActive = arActive;
             }
             HudGuidanceRuntime.onGuidance(guidance, sample.getCapturedAtMs());
+            // Only a visible read carries the sign; a background route leaves the car's sign alone.
+            speedLimit.setTarget(guidance.getSpeedLimitKmh());
         } else if (freshness.routeLost(now)) {
+            speedLimit.setTarget(null);
             someIpClient.clear();
             lastGuidance = null;
             arTracker.reset();
@@ -151,6 +157,7 @@ public final class HudGuidanceAccessibilityMonitor {
         arTracker.reset();
         latestPose = null;
         someIpClient.shutdown();
+        speedLimit.setTarget(null);
         freshness.reset();
         lastGuidance = null;
         lastPublishedMs = 0L;

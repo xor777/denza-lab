@@ -1763,6 +1763,7 @@ JSON (24) and destination (25). It uses field 2 as a flag, `2` normally and `1`
 while its junction image is shown (`d.java:137`, `:473-476`). Denza Apps writes
 an incrementing sequence number there (`HudSomeIpClient`, `:113`, `:204`, `:337`);
 the HUD tolerates it on the live car, but the value is outside the stock domain.
+> **Superseded 2026-10-09:** Denza Apps now sends the stock `2` in field 2 and field 11 with Yandex's limit — see [instrument-display-findings.md](instrument-display-findings.md#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09).
 
 **Unused camera-on-HUD signals.** `SETTING_AVM_SCREEN_PROJECTION_CONFIGURATION`
 `0x34C00008` (HUD side, with feedback `0x34C00009`),

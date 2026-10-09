@@ -38,7 +38,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | One tap launches a missing task on display `0` and projects it (900 ms, then at most five checks 700 ms apart); missing-task launch, return and warm re-projection passed with Yandex Navigator | live | 2026-09-05 | [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
 | A navigator allowlist: six packages (the Morphe Google Maps build `app.morphe.android.apps.maps` added 2026-09-11, `d66c61ab`) in `NavigationAppPolicy` and `ClusterProxyMain.ALLOWED_PACKAGES`; removed 2026-09-23 by the owner's decision, and `DriverScreenChoicesTest` fails if any of the six reappears | refuted | 2026-09-23 | [Any application, not six navigators](#any-application-not-six-navigators) |
 | HUD guidance reads Yandex's accessibility nodes (and its notification `RemoteViews`) and sends `HudRoadInfoNotifyStruct` to `SomeIpServerService`, service `3097367205183488`, topic `1127042368241665` (`HudSomeIpClient.java`); field 28 uses the recovered HUD icon table, live-verified for left, right and both slights | live | 2026-09-03 | [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
-| The stock navigator fills the same packet with speed limit (11), section control (13-15), camera (17/18), lanes (5, 7, 29), road class (6) and reroute (16 = `3`); its field-28 table matches ours for turns, slights, sharp, U-turn and straight, uses `13`/`15`/`18`/`20`/`22`/`24` for roundabouts and never `25`-`44`; it also writes the limit to ADAS (`0x4CA00040`, cleared with `0`) | firmware | 2026-10-09 | [The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09) |
+| The road packet follows the stock navigator read from the firmware: field 2 is its `2`, the clear goes out three times (`HudSomeIpClient.java`), field 11 carries the limit on Yandex's sign (`text_speedlimit`), and the same limit goes to the car's own sign through the stock map input, `0x4CA00050` = 7, `0x4CA00040` = limit, `0x4CA00050` = 6, checked against ADAS `0x2D500020`, never cleared (`HudNativeSpeedLimit.kt`); the stock field-28 table matches ours for turns, sharp, U-turn and straight and uses `13` for a roundabout, never `25`-`44` | code | 2026-10-09 | [The car's speed sign from Yandex](#the-cars-speed-sign-from-yandex-2026-10-09), [The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09) |
 | A cluster DVR view from Android camera `0`: its delivered orientation flips with vendor state no app can read; behind `ClusterDvrFlag` from 2026-08-14 (`55190633`), renderer and flag deleted 2026-08-26 (`4233dd15`) | refuted | 2026-08-26 | [DVR Camera2 source: verified renderer, product path retired](#dvr-camera2-source-verified-renderer-product-path-retired) |
 | Other dead ends: `IWindowManager.mirrorDisplay` copies (the stock card stays above, the right copy carries stock controls), DiShare HUD camera (protected AVC frames black), the stock cluster projection Binder (package list, left card for `com.byd.avc` only), ADAS cameras (no video endpoint), the AVC surround source (a wide-angle parking view, not long-range vision) | refuted | 2026-07-25 | [Failed or research-only paths](#failed-or-research-only-paths), [AVC surround-view source](#avc-surround-view-source) |
 
@@ -48,7 +48,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - The firmware-model Mirrors contract in motion: only stationary runs (D, R, hazard) of 2026-09-23 are recorded; a moving drive with the `captures/mirrors-firmware-model/` capture settles it. AVC's floating `‹ ›` (view `5097`) while we hold the renderer is a crash path by the code and is not to be tried.
 - Any non-navigator projected on this firmware, `com.byd.avc` above all: one owning session, from a documented reset, with `logcat -b crash -v time` ([Any application, not six navigators](#any-application-not-six-navigators)).
 - Whether the camera-start trims of `44f02df5` are faster: the matched A/B protocol in [Acceleration candidates: skip unused camera-start work (2026-09-05)](#acceleration-candidates-skip-unused-camera-start-work-2026-09-05).
-- What the glass draws for field 11 alone, a sign in field 7 with field 6 = `6`, fields 17/18 and 23, field 9 below 11 m, and field-28 IDs for sharp, U-turn, straight and roundabout (`13` against `25`-`34`): one parked sweep with `:hud-frames-probe` ([The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09)); Yandex's `text_speedlimit` on this car's build (an accessibility dump while driving); the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check, which also has to measure how often Yandex reposts its notification while driving, against the six-second age) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
+- What the glass draws for field 11 alone, a sign in field 7 with field 6 = `6`, fields 17/18 and 23, field 9 below 11 m, and field-28 IDs for sharp, U-turn, straight and roundabout (`13` against `25`-`34`): one parked sweep with `:hud-frames-probe` ([The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09)); the car's sign fed from Yandex (`text_speedlimit`, the Setting writes and their ADAS readback): one drive under posted limits ([The car's speed sign from Yandex](#the-cars-speed-sign-from-yandex-2026-10-09)); the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check, which also has to measure how often Yandex reposts its notification while driving, against the six-second age) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
 - Navigation recovery paths not run live: selection change (the choice rule of 2026-10-08 included), launch-discovery timeout, command failure, lost ADB, APK restart; and the `Переносим…` overlay seen on the car.
 - `android.hardware.AVMCamera` as a raw camera source outside AVC: its access control is not in the image; an isolated probe settles it.
 
@@ -2589,20 +2589,84 @@ it has been tried on this car:
   clear packets 120 ms apart before `stopService`. The other resends every
   300 ms and holds a route for 90 s without updates (its changelog lists a
   distance left on the glass after a cancelled route). Denza Apps sends on
-  change with a five-second heartbeat, ages by data (six seconds) and sends one
-  clear.
+  change with a five-second heartbeat, ages by data (six seconds) and, since
+  2026-10-09, sends the clear three times 120 ms apart.
 
 **Still to do.**
-- Dump Yandex's accessibility tree on this car while driving under a posted
-  limit and near a camera, to confirm `text_speedlimit` and find any camera
-  view.
+- Confirm `text_speedlimit` on this car's Yandex build: the product reads it
+  since 2026-10-09, and «Сервис» → HUD → «Данные» shows `знак N` when it
+  arrives. Dump the tree near a camera to find a camera view.
 - In one parked session, owned by one person from a documented reset, extend
   `:hud-frames-probe` to show what the glass draws for: field 11 alone; field 7
   sign with field 6 = `6`; fields 17/18; field 23; field 28 = `4`, `7`-`10`,
   `12`, `13`, `15`, `18`, `20`, `22`, `24`, `25`-`34`, `45`-`49`; field 9 =
   `0`, `5`, `11`; field 16 = `3`.
-- The owner decides on the ADAS setter. It is a vehicle input, not a display,
-  and it outlives the route.
+- The owner decided on the ADAS setter on 2026-10-09: it is the product's way
+  to show the limit, see the next section.
+
+### The car's speed sign from Yandex (2026-10-09)
+
+Status: in the product (`HudNativeSpeedLimit.kt`), tested on the JVM, not yet
+run on the car.
+
+The owner made the car's own speed sign the main use of Yandex's limit. On this
+car the stock map has no data, so the sign rests on the car's own sources, and
+in the owner's driving it jumps about. The owner judges the car's speed-limit
+assistance cautious enough to be given a navigation limit.
+
+- **Source.** `text_speedlimit` in the visible Yandex window (text, else
+  content description). `YandexGuidanceParser.parseSpeedLimit` takes a bare
+  number or `N км/ч` from 5 to 150 on the 5 km/h grid; anything else is no
+  limit. Only a visible read carries it: the notification has no sign,
+  `YandexNotificationGuidancePatch.mergeWith` drops an earlier one, and a
+  background route gives no target.
+- **HUD packet.** Field 11 carries the limit when there is one, as the stock
+  navigator fills `currentMaxSpeedLimit`. What the glass draws for it is not
+  known.
+- **The car's sign.** `HudNativeSpeedLimitRunner` runs
+  `HudNativeSpeedLimitEngine` on its own thread through the local ADB shell,
+  because the app UID is refused at the Setting layer:
+  - while Yandex shows a supported limit (5-130), it reads
+    `ADAS_SLA_OUTPUT_SPEED_LIMIT` once a second
+    (`service call autoservice 5 i32 1038 i32 760217632`; transact 7 if 5
+    answers `-10013`); the car shows limit L as raw `L / 5 + 1`;
+  - a car already showing the limit is left alone;
+  - a different sign that stays different for 1 s gets one shell trip of
+    three `setInt` calls on device `1023`, 100 ms apart:
+    `SETTING_RODE_TYPE_SET` = 7, `SETTING_SPEED_LIMIT_SET` = the limit,
+    `SETTING_RODE_TYPE_SET` = 6;
+  - the write counts when a read shows it within 3 s (reads every 300 ms
+    meanwhile). Otherwise it is tried once more, 10 s after the first, and
+    then left until the limit or the car's sign changes;
+  - if the car leaves a value it had taken (its camera read a sign), the
+    limit is written again after 6 s;
+  - no limit means no reads and no writes. Nothing is cleared, neither at the
+    end of a route nor when Yandex hides its sign.
+- **Where the order comes from.** Owners of Sea Lion 06/07 report the value
+  taken with road type 7, the limit, then road type 6, checked by the same ADAS
+  read. The stock navigator does it differently: it writes the road type when
+  the road class changes, writes the limit on every change, and writes `0` when
+  navigation stops. Nobody has explained the 7→6 toggle, and nobody knows what
+  road type 6 (city expressway in the AutoNavi table) changes in the car's
+  assistance.
+- **Why there is no clear.** A sender that cleared at the end of a route took
+  the clear out two days later, because the car can still apply a value it had
+  accepted. If the live check finds the car keeping a stale sign after a route,
+  try the stock `0` first.
+- **Cost.** Each read is one shell call, about 135 ms (`VehicleSweepCadence`):
+  one a second while a limit stands, about three a second for 3 s after a
+  write.
+
+**Live check, still to do.** With a route under a posted limit:
+
+1. «Данные» in «Сервис» shows `знак N`.
+2. `logcat -s DenzaHudSpeedLimit` shows `observed-match`, or `write` followed
+   by `confirmed`.
+3. The cluster and HUD sign show Yandex's value. Note what the glass draws for
+   field 11.
+4. Past a sign the camera reads differently, see which value wins and whether
+   the six-second rewrite holds.
+5. After the route ends, note which sign the car keeps.
 
 ## Central IVI split routing
 
