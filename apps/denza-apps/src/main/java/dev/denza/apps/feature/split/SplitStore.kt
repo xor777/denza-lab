@@ -3,8 +3,7 @@ package dev.denza.apps.feature.split
 import android.content.SharedPreferences
 
 /**
- * The single durable snapshot of the product (contract section 6) and the one-shot migration that
- * retires the keys of the previous generations.
+ * The single durable snapshot of the product (contract section 6).
  *
  * One snapshot is one write: the split of state across an automaton store and a separate "last
  * pair" is exactly what made the two diverge (section 8.1), so there is one key, one commit and one
@@ -56,66 +55,25 @@ internal interface SplitStateStore {
  * all - [SplitSlot] cannot express one (invariant 4). Everything else - another version, a missing
  * field, an unknown escape - is corruption rather than a state, and corruption resolves to
  * [SAFE_DEFAULT] without an exception: an unreadable snapshot must fail towards "disabled, nothing
- * remembered", which is failing towards U4.
+ * remembered", which is failing towards U4. An absent key - a fresh install - reads the same way and
+ * writes nothing.
  *
- * ### One-shot migration
- *
- * Absence of the key is the trigger, presence of the key is the stop condition, so the old keys are
- * read exactly once and are then removed by the very commit that writes the new snapshot. A
- * rejected commit leaves them in place on purpose: the next load migrates again instead of losing
- * the remembered pair.
+ * The keys of the generations before 2026-08-23 were converted by a one-shot migration on the first
+ * load of every build from then on; every release since 0.6.0-alpha carried it, and it was removed on
+ * 2026-10-09. Those keys are never read.
  */
 internal class PreferencesSplitStateStore(
     private val preferences: SharedPreferences,
 ) : SplitStateStore {
 
-    override fun load(): SplitDurable {
-        if (!preferences.contains(KEY_STATE)) return migrate()
-        return decode(string(KEY_STATE)) ?: SAFE_DEFAULT
-    }
+    override fun load(): SplitDurable = decode(string(KEY_STATE)) ?: SAFE_DEFAULT
 
     override fun commit(next: SplitDurable): Boolean =
         preferences.edit().putString(KEY_STATE, encode(next)).commit()
 
-    /**
-     * Converts the keys of the previous generations into one snapshot and deletes them.
-     *
-     * Only packages and kinds are read. The stored task ids are ignored by construction: there is
-     * nowhere in [SplitDurable] to put them (invariant 4), so a reboot cannot make the product act
-     * on someone else's numbers.
-     */
-    private fun migrate(): SplitDurable {
-        val migrated = SplitDurable(
-            enabled = boolean(LEGACY_ENABLED),
-            slots = SplitPane.entries.associateWith(::migratedSlot),
-            revision = 0L,
-        )
-        val editor = preferences.edit().putString(KEY_STATE, encode(migrated))
-        LEGACY_KEYS.forEach(editor::remove)
-        // A rejected commit is not an error to report but a migration to repeat: the old keys are
-        // still there, so the next load reads the same pair again.
-        editor.commit()
-        return migrated
-    }
-
-    /**
-     * The remembered pair, not the old automaton store, is the durable source of a selection: the
-     * automaton cleared its slots on Home while the pair survived it, and the pair is what 1.3.2
-     * promises to restore.
-     */
-    private fun migratedSlot(pane: SplitPane): SplitSlot {
-        val remembered = string(lastPackageKey(pane))?.takeIf(String::isNotBlank)
-        if (remembered != null) return SplitSlot.App(remembered)
-        val kind = string("${statePrefix(pane)}_$LEGACY_KIND_SUFFIX")
-        return if (kind == LEGACY_CLOSED_KIND) SplitSlot.Closed else SplitSlot.Picker
-    }
-
     /** A value of another type is corruption too, and corruption never throws out of the store. */
     private fun string(key: String): String? =
         runCatching { preferences.getString(key, null) }.getOrNull()
-
-    private fun boolean(key: String): Boolean =
-        runCatching { preferences.getBoolean(key, false) }.getOrDefault(false)
 
     internal companion object {
         const val KEY_STATE = "split_state_v2"
@@ -131,44 +89,9 @@ internal class PreferencesSplitStateStore(
         private const val TRUE = "1"
         private const val FALSE = "0"
 
-        private const val LEGACY_ENABLED = "policy_enabled_v2"
-        private const val LEGACY_PRESENT = "picker_state_present_v1"
-        private const val LEGACY_ARMED = "picker_state_armed_v1"
-        private const val LEGACY_PHASE = "picker_state_phase_v1"
-        private const val LEGACY_KIND_SUFFIX = "kind"
-        private const val LEGACY_CLOSED_KIND = "CLOSED"
-
-        private val LEGACY_SLOT_SUFFIXES = listOf(
-            LEGACY_KIND_SUFFIX,
-            // Task ids. Listed only so that the migration deletes them; never read (invariant 4).
-            "host",
-            "app",
-            "package",
-            "projected_closed",
-            "attach_attempts",
-        )
-
         /**
-         * Everything the migration removes, and nothing else. The lease keys
-         * (`force_resizable_original`, `picker_gate_owned_v1`, `picker_access_*`) and the notice
-         * are absent on purpose: they belong to stores this one does not own, and deleting them
-         * would leak firmware-wide settings the product still has to restore.
-         */
-        private val LEGACY_KEYS: List<String> = buildList {
-            add(LEGACY_ENABLED)
-            add(LEGACY_PRESENT)
-            add(LEGACY_ARMED)
-            add(LEGACY_PHASE)
-            SplitPane.entries.forEach { pane ->
-                add(lastPackageKey(pane))
-                LEGACY_SLOT_SUFFIXES.forEach { suffix -> add("${statePrefix(pane)}_$suffix") }
-            }
-        }
-
-        /**
-         * What an unreadable store resolves to, and what a device with no old keys migrates to:
-         * the product is off and remembers no selection, so the first tap simply offers two
-         * pickers (1.3.3).
+         * What an absent or unreadable store resolves to: the product is off and remembers no
+         * selection, so the first tap simply offers two pickers (1.3.3).
          */
         val SAFE_DEFAULT = SplitDurable(
             enabled = false,
@@ -271,11 +194,5 @@ internal class PreferencesSplitStateStore(
             fields += field.toString()
             return fields
         }
-
-        private fun statePrefix(pane: SplitPane): String =
-            "picker_state_${pane.name.lowercase()}_v1"
-
-        private fun lastPackageKey(pane: SplitPane): String =
-            "picker_last_${pane.name.lowercase()}_package_v1"
     }
 }
