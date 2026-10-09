@@ -25,6 +25,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.ui.dashboard.DashboardActions
+import dev.denza.apps.ui.dashboard.IdleActions
 import dev.denza.apps.ui.dashboard.DefaultAppsSheet
 import dev.denza.apps.ui.dashboard.FeatureSheet
 import dev.denza.apps.ui.dashboard.TileId
@@ -237,13 +238,8 @@ internal object SheetFixtures {
     }
 
     private val NOOP = DashboardActions(
-        onToggleSimulcast = {}, onLaunchSimulcast = {}, onRepairSimulcast = {}, onChooseApps = {},
-        onLoadAppChoices = {}, onToggleApp = {}, onToggleMirrors = {}, onMirrorsPosition = {},
-        onMirrorsProcessing = {}, onPreviewMirrors = {}, onNavigationAction = {}, onNavigationPlacement = {},
-        onNavigationSteeringWheelButton = {}, onChooseNavigationApp = {}, onSelectNavigationApp = {},
-        onToggleSplitScreen = {}, onLaunchSplitScreen = {}, onSetWeatherEnabled = {}, onToggleHudGuidance = {},
-        onToggleSpeakerCovers = {}, onRaiseSpeakerCovers = {}, onOpenSystemLanguage = {},
-        onSetDefaultAppsEnabled = {}, onChooseFseApp = {}, onOpenClusterPicker = {}, onOpenService = {},
-        onOpenSettings = {}, onLoadNavigationAppChoices = {}, onToggleCloudLink = {}, onSetCloudWifiRetained = {},
+        app = IdleActions(),
+        onChooseApps = {}, onChooseNavigationApp = {}, onChooseFseApp = {},
+        onOpenClusterPicker = {}, onOpenService = {}, onOpenSettings = {},
     )
 }

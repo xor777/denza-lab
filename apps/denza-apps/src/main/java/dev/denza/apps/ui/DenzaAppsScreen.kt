@@ -47,9 +47,6 @@ import dev.denza.apps.feature.adb.AdbStartupOverlayModel
 import dev.denza.apps.feature.adb.AdbStartupPrimaryAction
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
-import dev.denza.apps.feature.cluster.ClusterMapPlacement
-import dev.denza.apps.feature.defaultapps.DefaultAppRole
-import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.ui.components.DenzaModalCard
 import dev.denza.apps.ui.components.DenzaModalDialog
 import dev.denza.apps.ui.components.DenzaNote
@@ -58,6 +55,7 @@ import dev.denza.apps.ui.components.DenzaSecondaryButton
 import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.dashboard.DashboardActions
+import dev.denza.apps.ui.dashboard.DenzaActions
 import dev.denza.apps.ui.dashboard.DashboardPress
 import dev.denza.apps.ui.dashboard.DashboardTiles
 import dev.denza.apps.ui.dashboard.DefaultAppsSheet
@@ -67,46 +65,18 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * The dashboard and every window over it: [state] as the app publishes it, and [actions], what the
+ * app can be asked to do - one object, built once by `MainActivity`.
+ *
+ * The windows themselves are this function's: which panel a long press opens, the choosers, the
+ * gate's recovery, «Сервис». Their flags are saved with the screen, so the split's pane changes,
+ * which recreate the activity, leave them as they were.
+ */
 @Composable
 fun DenzaAppsRoot(
     state: StateFlow<DenzaUiState>,
-    onToggleSimulcast: (Boolean) -> Unit,
-    onLaunchSimulcast: () -> Unit,
-    onRepairSimulcast: () -> Unit,
-    onToggleMirrors: (Boolean) -> Unit,
-    onMirrorsPosition: (MirrorsPosition) -> Unit,
-    onMirrorsProcessing: (Boolean) -> Unit,
-    onPreviewMirrors: () -> Unit,
-    onNavigationAction: () -> Unit,
-    onNavigationSteeringWheelButton: (Boolean) -> Unit,
-    onNavigationPlacement: (ClusterMapPlacement) -> Unit,
-    onLoadNavigationAppChoices: () -> Unit,
-    onSelectNavigationApp: (String) -> Boolean,
-    onToggleSplitScreen: (Boolean) -> Unit,
-    onLaunchSplitScreen: () -> Unit,
-    onSetWeatherEnabled: (Boolean) -> Unit,
-    onToggleHudGuidance: (Boolean) -> Unit,
-    onToggleSpeakerCovers: (Boolean) -> Unit,
-    onRaiseSpeakerCovers: () -> Unit,
-    onToggleCloudLink: (Boolean) -> Unit,
-    onSetCloudWifiRetained: (Boolean) -> Unit,
-    onSelectClusterDisplay: (Int?) -> Unit,
-    onRefreshScreenDiagnostics: () -> Unit,
-    onSearchClusterDisplays: () -> Unit,
-    onServiceReportVisible: (Boolean) -> Unit,
-    onCheckAdbAccess: () -> Unit,
-    onCheckAdbAccessThen: (onTrusted: () -> Unit) -> Unit,
-    onRequestAdbAuthorizationOnce: () -> Unit,
-    onAllowNewAdbAuthorizationAttempt: () -> Unit,
-    onRefreshSystemLanguage: () -> Unit,
-    onOpenSystemLanguage: () -> Unit,
-    onLoadAppChoices: () -> Unit,
-    onToggleApp: (String) -> Unit,
-    onRefreshDefaultApps: (Boolean) -> Unit,
-    onSetDefaultAppsEnabled: (Boolean) -> Unit,
-    onSelectDefaultApp: (DefaultAppRole, String) -> Unit,
-    onLoadFseApps: () -> Boolean,
-    onInstallFseApp: (String) -> Boolean,
+    actions: DenzaActions,
 ) {
     val uiState by state.collectAsState()
     // Saved rather than merely remembered. The split path of this firmware recreates the activity
@@ -123,22 +93,6 @@ fun DenzaAppsRoot(
     var choosingApps by rememberSaveable { mutableStateOf(false) }
     var choosingNavigationApp by rememberSaveable { mutableStateOf(false) }
     var choosingFseApp by rememberSaveable { mutableStateOf(false) }
-    // Service used to be seven quick taps on an undisclosed part of the screen, with no affordance
-    // and nothing to tell you it had happened. A live run found the other half of that bargain: a
-    // tap that misses the secret door now lands on a tile, and an odd number of them switched the
-    // mirrors off in silence. It is a tile of its own, and the strip below is only a strip again.
-    //
-    // The taps came back for one case and only one: the ADB gate covers the dashboard, so it covers
-    // the service tile, and that is precisely when the readings are wanted. They live on the title
-    // of [AdbExplainerSheet], which is a window with no other controls in it - a tap that is not the
-    // seventh has nothing to hit.
-    val openService = remember(onRefreshScreenDiagnostics, onRefreshSystemLanguage) {
-        {
-            onRefreshScreenDiagnostics()
-            onRefreshSystemLanguage()
-            showDiagnostics = true
-        }
-    }
     val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue, uiState.adbRestore)
     val adbStartupBlocked = uiState.adbRescue.phase != AdbRescuePhase.TRUSTED
     // The recovery window belongs to the gate and cannot outlive it. Latched, it reopened itself:
@@ -147,117 +101,65 @@ fun DenzaAppsRoot(
     LaunchedEffect(adbStartupOverlay.visible) {
         if (!adbStartupOverlay.visible) showAdbRecovery = false
     }
-    val openClusterPicker = remember(onSearchClusterDisplays) {
-        {
-            onSearchClusterDisplays()
-            showClusterPicker = true
-        }
-    }
-    // Each list is read as its window opens (see the windows below); these only open them.
-    val openAppPicker = remember { { choosingApps = true } }
-    val openNavigationPicker = remember { { choosingNavigationApp = true } }
-    // The passenger's list is read first, on this thread, so the chooser opens drawn - and not at
-    // all while an install is under way.
-    val openFseChooser = remember(onLoadFseApps) {
-        {
-            if (onLoadFseApps()) choosingFseApp = true
-        }
-    }
-    val openSettings = remember(onRefreshDefaultApps, openFseChooser, openService) {
-        { id: TileId ->
-            when (id) {
-                // «Сервис» had a panel of one sentence and a blue «Открыть сервис» in front of
-                // the service itself - a door to a door. Both gestures open the service now.
-                TileId.SERVICE -> openService()
-                // Opening the tile asks the car only if the last read has gone stale.
-                TileId.DEFAULT_APPS -> {
-                    onRefreshDefaultApps(false)
-                    settingsFor = id
-                }
-                // «Экран справа» has no settings. Its panel held one sentence and a button that
-                // opened the chooser the tile's own press opens, so a long press and a short
-                // press on one tile led to two screens, one of them empty. Both open the chooser
-                // now, and the sentence went with it - see [FseInstallerPickerDialog].
-                TileId.PASSENGER -> openFseChooser()
-                else -> {
-                    settingsFor = id
-                }
-            }
-        }
-    }
-    // The callbacks this function still takes, gathered once so a tile and its settings
-    // sheet can be handed the whole vocabulary instead of a hand-picked subset each.
+    // The app's actions and this screen's own doors, as one vocabulary for a tile and its panel.
     //
-    // Held across frames, and the three local lambdas above are held with it. A data class of
-    // twenty-six lambdas is a new object on every recomposition, so every tile, every chip and
-    // every settings panel was being handed a parameter that had changed - which is the one thing
-    // that makes Compose redraw a subtree it did not need to touch. The keys are the callbacks
-    // themselves: this rebuilds when the activity hands down a different one, and not otherwise.
-    val dashboardActions = remember(
-        onToggleSimulcast,
-        onLaunchSimulcast,
-        onRepairSimulcast,
-        openAppPicker,
-        onLoadAppChoices,
-        onToggleApp,
-        onToggleMirrors,
-        onMirrorsPosition,
-        onMirrorsProcessing,
-        onPreviewMirrors,
-        onNavigationAction,
-        onNavigationPlacement,
-        onNavigationSteeringWheelButton,
-        openNavigationPicker,
-        onLoadNavigationAppChoices,
-        onSelectNavigationApp,
-        onToggleSplitScreen,
-        onLaunchSplitScreen,
-        onSetWeatherEnabled,
-        onToggleHudGuidance,
-        onToggleSpeakerCovers,
-        onRaiseSpeakerCovers,
-        onToggleCloudLink,
-        onSetCloudWifiRetained,
-        onOpenSystemLanguage,
-        onSetDefaultAppsEnabled,
-        openFseChooser,
-        openClusterPicker,
-        openService,
-        openSettings,
-        onCheckAdbAccessThen,
-    ) {
+    // Held across frames under the one key it has: the object the activity built. The doors only
+    // set this function's saved flags, which are the same state objects for as long as it is
+    // composed, so they need no key of their own. A [DashboardActions] built afresh on every
+    // recomposition would hand every tile, every chip and every panel a parameter that had changed
+    // - which is the one thing that makes Compose redraw a subtree it did not need to touch.
+    val dashboardActions = remember(actions) {
+        // Service used to be seven quick taps on an undisclosed part of the screen, with no
+        // affordance and nothing to tell you it had happened. A live run found the other half of
+        // that bargain: a tap that misses the secret door now lands on a tile, and an odd number of
+        // them switched the mirrors off in silence. It is a tile of its own, and the strip below is
+        // only a strip again.
+        //
+        // The taps came back for one case and only one: the ADB gate covers the dashboard, so it
+        // covers the service tile, and that is precisely when the readings are wanted. They live on
+        // the title of [AdbExplainerSheet], which is a window with no other controls in it - a tap
+        // that is not the seventh has nothing to hit.
+        val openService = {
+            actions.onRefreshScreenDiagnostics()
+            actions.onRefreshSystemLanguage()
+            showDiagnostics = true
+        }
+        // The passenger's list is read first, on this thread, so the chooser opens drawn - and not
+        // at all while an install is under way.
+        val openFseChooser = {
+            if (actions.onLoadFseApps()) choosingFseApp = true
+        }
         DashboardActions(
-            onToggleSimulcast = onToggleSimulcast,
-            onLaunchSimulcast = onLaunchSimulcast,
-            onRepairSimulcast = onRepairSimulcast,
-            onChooseApps = openAppPicker,
-            onLoadAppChoices = onLoadAppChoices,
-            onToggleApp = onToggleApp,
-            onToggleMirrors = onToggleMirrors,
-            onMirrorsPosition = onMirrorsPosition,
-            onMirrorsProcessing = onMirrorsProcessing,
-            onPreviewMirrors = onPreviewMirrors,
-            onNavigationAction = onNavigationAction,
-            onNavigationPlacement = onNavigationPlacement,
-            onNavigationSteeringWheelButton = onNavigationSteeringWheelButton,
-            onChooseNavigationApp = openNavigationPicker,
-            onLoadNavigationAppChoices = onLoadNavigationAppChoices,
-            onSelectNavigationApp = { packageName -> onSelectNavigationApp(packageName) },
-            onToggleSplitScreen = onToggleSplitScreen,
-            onLaunchSplitScreen = onLaunchSplitScreen,
-            onSetWeatherEnabled = onSetWeatherEnabled,
-            onToggleHudGuidance = onToggleHudGuidance,
-            onToggleSpeakerCovers = onToggleSpeakerCovers,
-            onRaiseSpeakerCovers = onRaiseSpeakerCovers,
-            onToggleCloudLink = onToggleCloudLink,
-            onSetCloudWifiRetained = onSetCloudWifiRetained,
-            onOpenSystemLanguage = onOpenSystemLanguage,
-            onSetDefaultAppsEnabled = onSetDefaultAppsEnabled,
+            app = actions,
+            // Each of these lists is read as its window opens (see the windows below).
+            onChooseApps = { choosingApps = true },
+            onChooseNavigationApp = { choosingNavigationApp = true },
             onChooseFseApp = openFseChooser,
-            onOpenClusterPicker = openClusterPicker,
+            onOpenClusterPicker = {
+                actions.onSearchClusterDisplays()
+                showClusterPicker = true
+            },
             onOpenService = openService,
-            onOpenSettings = openSettings,
-            onCheckAdbAccess = onCheckAdbAccessThen,
+            onOpenSettings = { id: TileId ->
+                when (id) {
+                    // «Сервис» had a panel of one sentence and a blue «Открыть сервис» in front of
+                    // the service itself - a door to a door. Both gestures open the service now.
+                    TileId.SERVICE -> openService()
+                    // Opening the tile asks the car only if the last read has gone stale.
+                    TileId.DEFAULT_APPS -> {
+                        actions.onRefreshDefaultApps(false)
+                        settingsFor = id
+                    }
+                    // «Экран справа» has no settings. Its panel held one sentence and a button that
+                    // opened the chooser the tile's own press opens, so a long press and a short
+                    // press on one tile led to two screens, one of them empty. Both open the
+                    // chooser now, and the sentence went with it - see [FseInstallerPickerDialog].
+                    TileId.PASSENGER -> openFseChooser()
+                    else -> {
+                        settingsFor = id
+                    }
+                }
+            },
         )
     }
 
@@ -313,9 +215,9 @@ fun DenzaAppsRoot(
                     DefaultAppsSheet(
                         state = uiState.defaultApps,
                         compact = compactLayout,
-                        onRefresh = { onRefreshDefaultApps(true) },
-                        onSelect = onSelectDefaultApp,
-                        onSetEnabled = onSetDefaultAppsEnabled,
+                        onRefresh = { actions.onRefreshDefaultApps(true) },
+                        onSelect = actions.onSelectDefaultApp,
+                        onSetEnabled = actions.onSetDefaultAppsEnabled,
                         onDismiss = { settingsFor = null },
                     )
                 } else {
@@ -332,8 +234,8 @@ fun DenzaAppsRoot(
                 // The report and the split's journal are built while the panel stands on a
                 // started screen, and not at all otherwise.
                 LifecycleStartEffect(Unit) {
-                    onServiceReportVisible(true)
-                    onStopOrDispose { onServiceReportVisible(false) }
+                    actions.onServiceReportVisible(true)
+                    onStopOrDispose { actions.onServiceReportVisible(false) }
                 }
                 ServicePanel(
                     state = uiState,
@@ -342,15 +244,15 @@ fun DenzaAppsRoot(
                     // long press on its tile would: the service says what, the panel fixes it.
                     onOpenFeature = { id ->
                         showDiagnostics = false
-                        openSettings(id)
+                        dashboardActions.onOpenSettings(id)
                     },
-                    onSelectClusterDisplay = onSelectClusterDisplay,
-                    onCheckAdbAccess = onCheckAdbAccess,
-                    onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
-                    onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+                    onSelectClusterDisplay = actions.onSelectClusterDisplay,
+                    onCheckAdbAccess = actions.onCheckAdbAccess,
+                    onRequestAdbAuthorizationOnce = actions.onRequestAdbAuthorizationOnce,
+                    onAllowNewAdbAuthorizationAttempt = actions.onAllowNewAdbAuthorizationAttempt,
                     onDismiss = { showDiagnostics = false },
-                    onSetAdbRestoreEnabled = dev.denza.apps.feature.adb.AdbRestore::setEnabled,
-                    onOpenService = { dev.denza.apps.feature.adb.AdbRestore.trigger("settings") },
+                    onSetAdbRestoreEnabled = actions.onSetAdbRestoreEnabled,
+                    onOpenService = actions.onServiceOpened,
                 )
             }
             if (showClusterPicker) {
@@ -358,33 +260,33 @@ fun DenzaAppsRoot(
                     displays = uiState.clusterCandidates,
                     compactLayout = compactLayout,
                     onSelect = { displayId ->
-                        onSelectClusterDisplay(displayId)
+                        actions.onSelectClusterDisplay(displayId)
                         showClusterPicker = false
                     },
-                    onRefresh = onSearchClusterDisplays,
+                    onRefresh = actions.onSearchClusterDisplays,
                     onDismiss = { showClusterPicker = false },
                 )
             }
             // A chooser reads its list as it opens, and again when it comes back open with this
             // screen: a process the system recreated has lost the list it was showing.
             if (choosingApps) {
-                LaunchedEffect(Unit) { onLoadAppChoices() }
+                LaunchedEffect(Unit) { actions.onLoadAppChoices() }
                 AppPickerDialog(
                     apps = uiState.appChoices,
                     compactLayout = compactLayout,
                     selectedCount = uiState.selectedAppCount,
-                    onToggle = onToggleApp,
+                    onToggle = actions.onToggleApp,
                     onDismiss = { choosingApps = false },
                 )
             }
             if (choosingNavigationApp) {
-                LaunchedEffect(Unit) { onLoadNavigationAppChoices() }
+                LaunchedEffect(Unit) { actions.onLoadNavigationAppChoices() }
                 NavigationPickerDialog(
                     apps = uiState.navigationAppChoices,
                     compactLayout = compactLayout,
                     // One at a time: the choice the car takes closes the window.
                     onSelect = { packageName ->
-                        if (onSelectNavigationApp(packageName)) choosingNavigationApp = false
+                        if (actions.onSelectNavigationApp(packageName)) choosingNavigationApp = false
                     },
                     onDismiss = { choosingNavigationApp = false },
                 )
@@ -393,14 +295,14 @@ fun DenzaAppsRoot(
                 // Opened by [openFseChooser], the list is already read. Brought back open with a
                 // new process it is empty, and an empty list here says «Приложения не найдены».
                 LaunchedEffect(Unit) {
-                    if (uiState.fseInstallApps.isEmpty() && !onLoadFseApps()) choosingFseApp = false
+                    if (uiState.fseInstallApps.isEmpty() && !actions.onLoadFseApps()) choosingFseApp = false
                 }
                 FseInstallerPickerDialog(
                     apps = uiState.fseInstallApps,
                     compactLayout = compactLayout,
                     // An install that starts closes the chooser; a stale tap leaves it, re-read.
                     onInstall = { packageName ->
-                        if (onInstallFseApp(packageName)) choosingFseApp = false
+                        if (actions.onInstallFseApp(packageName)) choosingFseApp = false
                     },
                     onDismiss = { choosingFseApp = false },
                 )
@@ -412,9 +314,9 @@ fun DenzaAppsRoot(
                     onPrimaryAction = {
                         when (adbStartupOverlay.primaryAction) {
                             AdbStartupPrimaryAction.NONE -> Unit
-                            AdbStartupPrimaryAction.CHECK_ACCESS -> onCheckAdbAccess()
+                            AdbStartupPrimaryAction.CHECK_ACCESS -> actions.onCheckAdbAccess()
                             AdbStartupPrimaryAction.REQUEST_AUTHORIZATION ->
-                                onRequestAdbAuthorizationOnce()
+                                actions.onRequestAdbAuthorizationOnce()
                         }
                     },
                     onOpenRecovery = { showAdbRecovery = true },
@@ -428,7 +330,7 @@ fun DenzaAppsRoot(
             if (showAdbExplainer) {
                 AdbExplainerSheet(
                     compact = compactLayout,
-                    onOpenService = openService,
+                    onOpenService = dashboardActions.onOpenService,
                     onDismiss = { showAdbExplainer = false },
                 )
             }
@@ -450,9 +352,9 @@ fun DenzaAppsRoot(
                 AdbRecoveryDialog(
                     state = uiState,
                     compact = compactLayout,
-                    onCheckAdbAccess = onCheckAdbAccess,
-                    onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
-                    onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+                    onCheckAdbAccess = actions.onCheckAdbAccess,
+                    onRequestAdbAuthorizationOnce = actions.onRequestAdbAuthorizationOnce,
+                    onAllowNewAdbAuthorizationAttempt = actions.onAllowNewAdbAuthorizationAttempt,
                     onDismiss = { showAdbRecovery = false },
                 )
             }

@@ -76,39 +76,21 @@ class AccessPressTest {
     }
 
     private val actions = DashboardActions(
-        onToggleSimulcast = {},
-        onLaunchSimulcast = {},
-        onRepairSimulcast = { calls += "repair simulcast" },
+        app = object : IdleActions() {
+            override val onRepairSimulcast: () -> Unit = { calls += "repair simulcast" }
+            override val onNavigationAction: () -> Unit = { calls += "navigation" }
+            override val onToggleHudGuidance: (Boolean) -> Unit =
+                { calls += if (it) "hud on" else "hud off" }
+            override val onCheckAdbAccessThen: (() -> Unit) -> Unit = { onTrusted ->
+                calls += "check"
+                if (trusted) onTrusted()
+            }
+        },
         onChooseApps = {},
-        onLoadAppChoices = {},
-        onToggleApp = {},
-        onToggleMirrors = {},
-        onMirrorsPosition = {},
-        onMirrorsProcessing = {},
-        onPreviewMirrors = {},
-        onNavigationAction = { calls += "navigation" },
-        onNavigationPlacement = {},
-        onNavigationSteeringWheelButton = {},
         onChooseNavigationApp = {},
-        onLoadNavigationAppChoices = {},
-        onSelectNavigationApp = {},
-        onToggleSplitScreen = {},
-        onLaunchSplitScreen = {},
-        onSetWeatherEnabled = {},
-        onToggleHudGuidance = { calls += if (it) "hud on" else "hud off" },
-        onToggleSpeakerCovers = {},
-        onRaiseSpeakerCovers = {},
-        onToggleCloudLink = {},
-        onSetCloudWifiRetained = {},
-        onOpenSystemLanguage = {},
-        onSetDefaultAppsEnabled = {},
         onChooseFseApp = { calls += "chooser" },
         onOpenClusterPicker = {},
         onOpenService = {},
         onOpenSettings = {},
-        onCheckAdbAccess = { onTrusted ->
-            calls += "check"
-            if (trusted) onTrusted()
-        },
     )
 }

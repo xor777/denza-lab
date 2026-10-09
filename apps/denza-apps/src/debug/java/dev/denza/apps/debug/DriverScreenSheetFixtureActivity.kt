@@ -20,6 +20,7 @@ import dev.denza.apps.design.DenzaTheme
 import dev.denza.apps.feature.navigation.NavigationAppPolicy
 import dev.denza.apps.feature.navigation.NavigationPlacementPolicy
 import dev.denza.apps.ui.dashboard.DashboardActions
+import dev.denza.apps.ui.dashboard.IdleActions
 import dev.denza.apps.ui.dashboard.FeatureSheet
 import dev.denza.apps.ui.dashboard.TileId
 
@@ -68,32 +69,14 @@ class DriverScreenSheetFixtureActivity : ComponentActivity() {
     }
 
     private fun actions(onSelect: (String) -> Unit) = DashboardActions(
-        onToggleSimulcast = {},
-        onLaunchSimulcast = {},
-        onRepairSimulcast = {},
+        app = object : IdleActions() {
+            override val onSelectNavigationApp: (String) -> Boolean = { packageName ->
+                onSelect(packageName)
+                true
+            }
+        },
         onChooseApps = {},
-        onLoadAppChoices = {},
-        onToggleApp = {},
-        onToggleMirrors = {},
-        onMirrorsPosition = {},
-        onMirrorsProcessing = {},
-        onPreviewMirrors = {},
-        onNavigationAction = {},
-        onNavigationPlacement = {},
-        onNavigationSteeringWheelButton = {},
         onChooseNavigationApp = {},
-        onLoadNavigationAppChoices = {},
-        onSelectNavigationApp = onSelect,
-        onToggleSplitScreen = {},
-        onLaunchSplitScreen = {},
-        onSetWeatherEnabled = {},
-        onToggleHudGuidance = {},
-        onToggleSpeakerCovers = {},
-        onRaiseSpeakerCovers = {},
-        onToggleCloudLink = {},
-        onSetCloudWifiRetained = {},
-        onOpenSystemLanguage = {},
-        onSetDefaultAppsEnabled = {},
         onChooseFseApp = {},
         onOpenClusterPicker = {},
         onOpenService = {},
