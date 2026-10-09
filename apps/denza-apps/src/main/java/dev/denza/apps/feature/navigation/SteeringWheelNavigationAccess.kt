@@ -1,15 +1,14 @@
 package dev.denza.apps.feature.navigation
 
 import android.content.Context
-import dev.denza.apps.feature.simulcast.SimulcastCoordinator
+import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
 
 data class SteeringWheelNavigationAccess(
     val desired: Boolean,
-    val serviceEnabled: Boolean,
-    val serviceConnected: Boolean,
+    val service: AccessibilityHealth,
 ) {
-    val ready: Boolean = desired && serviceEnabled && serviceConnected
+    val ready: Boolean = desired && service.ready()
 }
 
 object SteeringWheelNavigationAccessPolicy {
@@ -22,8 +21,7 @@ object SteeringWheelNavigationAccessCoordinator {
     fun inspect(context: Context): SteeringWheelNavigationAccess =
         SteeringWheelNavigationAccess(
             desired = NavigationSettings.steeringWheelButtonEnabled(context),
-            serviceEnabled = SimulcastCoordinator.isAccessibilityEnabled(context),
-            serviceConnected = SimulcastCoordinator.isAccessibilityConnected(),
+            service = AccessibilityHealth.read(context),
         )
 
     fun reconcile(context: Context, onComplete: (Throwable?) -> Unit) {

@@ -88,6 +88,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverStatus
 import dev.denza.apps.feature.split.SplitLauncherEntryActivity
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import dev.denza.apps.feature.weather.WeatherAdapterState
+import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.accessibility.AccessibilityHost
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
 import dev.denza.apps.platform.media.MediaSessionAccess
@@ -812,10 +813,7 @@ object DenzaAppRepository {
             invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
         }
-        if (
-            SimulcastCoordinator.isAccessibilityEnabled(context) &&
-            AccessibilityHost.isConnected()
-        ) {
+        if (AccessibilityHealth.read(context).ready()) {
             HudGuidanceRider.requestRefresh()
             invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
@@ -1430,7 +1428,7 @@ object DenzaAppRepository {
             enabled = enabled,
             navigatorInstalled = enabled &&
                 isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE),
-            accessibilityEnabled = enabled && SimulcastCoordinator.isAccessibilityEnabled(context),
+            accessibilityEnabled = enabled && AccessibilityHealth.read(context).enabled,
             accessibilityConnected = AccessibilityHost.isConnected(),
             active = HudGuidanceRuntime.isActive(),
             details = HudGuidanceRuntime::details,

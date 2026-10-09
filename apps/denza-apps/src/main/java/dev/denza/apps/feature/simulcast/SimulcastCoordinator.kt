@@ -2,7 +2,6 @@ package dev.denza.apps.feature.simulcast
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.provider.Settings
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.OverlayGrant
 import dev.denza.apps.core.FeatureId
@@ -11,20 +10,18 @@ import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.core.FeatureWords
-import dev.denza.apps.platform.accessibility.AccessibilityHost
+import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
-import dev.denza.apps.platform.accessibility.SharedAccessibilityAccess
 
 data class SimulcastEnvironment(
     val desired: Boolean,
     val blocker: SimulcastBlocker? = null,
     val overlayAllowed: Boolean,
-    val accessibilityEnabled: Boolean,
-    val accessibilityConnected: Boolean,
+    val accessibility: AccessibilityHealth,
     val active: Boolean,
 ) {
-    val needsSetup: Boolean =
-        !overlayAllowed || !accessibilityEnabled || !accessibilityConnected
+    /** The shared service's one check, with the projection's own extra need: the overlay grant. */
+    val needsSetup: Boolean = !accessibility.ready(extra = overlayAllowed)
 }
 
 enum class SimulcastBlocker {
@@ -79,8 +76,7 @@ object SimulcastCoordinator {
         desired = SimulcastIntegration.isEnabled(context),
         blocker = blocker(context),
         overlayAllowed = hasOverlayPermission(context),
-        accessibilityEnabled = isAccessibilityEnabled(context),
-        accessibilityConnected = AccessibilityHost.isConnected(),
+        accessibility = AccessibilityHealth.read(context),
         active = SimulcastIntegration.getLastTargetPackage() != null,
     )
 
@@ -91,7 +87,7 @@ object SimulcastCoordinator {
         environment.blocker?.let { blocker ->
             return blockedSnapshot(blocker)
         }
-        if (!environment.overlayAllowed || !environment.accessibilityEnabled) {
+        if (!environment.overlayAllowed || !environment.accessibility.enabled) {
             // The press repairs it: [AccessibilityRepair.repair] grants the overlay and enables the service.
             return FeatureReducer.needsAction(
                 FeatureReducer.starting(FeatureId.SIMULCAST),
@@ -99,7 +95,7 @@ object SimulcastCoordinator {
                 resolution = FeatureResolution.RETRY,
             )
         }
-        if (!environment.accessibilityConnected) {
+        if (!environment.accessibility.connected) {
             return FeatureReducer.recovering(
                 FeatureReducer.starting(FeatureId.SIMULCAST),
                 "Восстанавливаю трансляцию",
@@ -159,7 +155,7 @@ object SimulcastCoordinator {
             val latestEnvironment = inspect(context)
             val repaired = failure == null &&
                 latestEnvironment.overlayAllowed &&
-                latestEnvironment.accessibilityEnabled
+                latestEnvironment.accessibility.enabled
             if (!latestEnvironment.desired) {
                 onEvent(SimulcastReconcileEvent.Refresh)
             } else if (latestEnvironment.blocker != null) {
@@ -186,16 +182,6 @@ object SimulcastCoordinator {
     }
 
     fun hasOverlayPermission(context: Context): Boolean = OverlayGrant.held(context)
-
-    fun isAccessibilityEnabled(context: Context): Boolean {
-        val setting = Settings.Secure.getString(
-            context.contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-        )
-        return SharedAccessibilityAccess.isEnabled(setting)
-    }
-
-    fun isAccessibilityConnected(): Boolean = AccessibilityHost.isConnected()
 
     private fun blocker(context: Context): SimulcastBlocker? {
         if (!isInstalled(context.packageManager, DISHARE_PACKAGE)) {

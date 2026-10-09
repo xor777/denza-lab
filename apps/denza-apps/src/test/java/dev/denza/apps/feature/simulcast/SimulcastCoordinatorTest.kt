@@ -2,6 +2,7 @@ package dev.denza.apps.feature.simulcast
 
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.disharebridge.AdbFailures
 import java.net.SocketTimeoutException
 import org.junit.Assert.assertEquals
@@ -15,8 +16,7 @@ class SimulcastCoordinatorTest {
             SimulcastEnvironment(
                 desired = true,
                 overlayAllowed = true,
-                accessibilityEnabled = true,
-                accessibilityConnected = true,
+                accessibility = AccessibilityHealth(enabled = true, connected = true),
                 active = true,
             ),
         )
@@ -31,8 +31,7 @@ class SimulcastCoordinatorTest {
                 desired = true,
                 blocker = SimulcastBlocker.APPS_NOT_SELECTED,
                 overlayAllowed = false,
-                accessibilityEnabled = false,
-                accessibilityConnected = false,
+                accessibility = AccessibilityHealth(enabled = false, connected = false),
                 active = false,
             ),
         )
@@ -49,8 +48,7 @@ class SimulcastCoordinatorTest {
                 desired = true,
                 blocker = SimulcastBlocker.DISHARE_UNAVAILABLE,
                 overlayAllowed = false,
-                accessibilityEnabled = false,
-                accessibilityConnected = false,
+                accessibility = AccessibilityHealth(enabled = false, connected = false),
                 active = false,
             ),
         )
@@ -67,8 +65,7 @@ class SimulcastCoordinatorTest {
             SimulcastEnvironment(
                 desired = true,
                 overlayAllowed = false,
-                accessibilityEnabled = false,
-                accessibilityConnected = false,
+                accessibility = AccessibilityHealth(enabled = false, connected = false),
                 active = false,
             ),
         )
