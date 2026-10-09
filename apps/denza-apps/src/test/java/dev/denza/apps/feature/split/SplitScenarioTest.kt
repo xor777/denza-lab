@@ -2284,8 +2284,12 @@ class SplitScenarioTest {
         }
         car.fake.area = 4
         car.clearCommands()
+        // The storm comes while the worker is busy, so every hint coalesces into one queued
+        // reconcile: the same on every run, where a free worker raced the coalescing.
+        val hold = car.hold()
         repeat(20) { core.dividerResized() }
         core.pickerVisible(hostTaskId = null)
+        hold.release()
         car.barrier()
 
         assertEquals("под пустой сценой подсказки ничего не двигают", emptyList<String>(), car.mutations())
@@ -2609,7 +2613,11 @@ class SplitScenarioTest {
         // The firmware took the whole scene down and went Home.
         listOf(PRIMARY_ROOT, SECONDARY_ROOT).forEach(car.fake::dismissPane)
         car.fake.area = 0
+        // The storm comes while the worker is busy, so every hint coalesces into one queued
+        // reconcile: the same on every run, where a free worker raced the coalescing.
+        val storm = car.hold()
         repeat(10) { core.dividerResized() }
+        storm.release()
         car.barrier()
 
         assertEquals(
@@ -2629,7 +2637,9 @@ class SplitScenarioTest {
         assertEquals("one settled fact, one commit", commits + 1, car.store.commits)
 
         car.clearCommands()
+        val laterStorm = car.hold()
         repeat(10) { core.dividerResized() }
+        laterStorm.release()
         car.barrier()
         // A later hint may still look - a pair is remembered, so a scene of ours could be back on
         // screen - but looking is all it may ever do (invariant 8, 1.4.4).
@@ -5023,7 +5033,11 @@ class SplitScenarioTest {
         car.fake.addTask(FULL_ROOT, FOREIGN_TASK, FOREIGN, "$FOREIGN.MainActivity")
         car.fake.area = 4
         car.clearCommands()
+        // The storm comes while the worker is busy, so every hint coalesces into one queued
+        // reconcile: the same on every run, where a free worker raced the coalescing.
+        val hold = car.hold()
         repeat(5) { core.dividerResized() }
+        hold.release()
         car.barrier()
         core.pickerVisible(hostTaskId = null)
         car.barrier()
