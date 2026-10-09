@@ -87,6 +87,25 @@ public final class LocalAdbClient {
         }
     }
 
+    /**
+     * A key request is waiting on the head unit's own prompt.
+     *
+     * <p>A type so that Denza Apps can tell it apart without reading words. The words stay exactly
+     * as they were: the gateway's provisioner still looks for "authorization pending" in them.
+     */
+    public static final class AuthorizationPendingException extends IOException {
+        AuthorizationPendingException() {
+            super("ADB authorization pending; confirm the ADB request");
+        }
+    }
+
+    /** No address of the unit took a connection: adbd is not there to talk to. */
+    public static final class NoHostsException extends IOException {
+        NoHostsException() {
+            super("No ADB hosts available");
+        }
+    }
+
     public LocalAdbClient(Context context) {
         this(context, null, AuthorizationPolicy.AUTOMATIC);
     }
@@ -145,7 +164,7 @@ public final class LocalAdbClient {
         if (lastIoFailure != null) {
             throw lastIoFailure;
         }
-        throw new IOException("No ADB hosts available");
+        throw new NoHostsException();
     }
 
     /**
@@ -221,7 +240,7 @@ public final class LocalAdbClient {
         if (lastIoFailure != null) {
             throw lastIoFailure;
         }
-        throw new IOException("No ADB hosts available");
+        throw new NoHostsException();
     }
 
     private String shell(String host, String command, int readTimeoutMs, CommandSent sent)
@@ -332,16 +351,17 @@ public final class LocalAdbClient {
     /**
      * The one failure a request still waiting on the head unit's prompt is reported with.
      *
-     * <p>Outside this library it is recognised by its message: Simulcast, the FSE installer and
-     * navigation in Denza Apps and the gateway's provisioner each look for "authorization pending"
-     * in it, ignoring case, so the words are a contract and not a wording.
+     * <p>Denza Apps recognises it by its type ({@link AuthorizationPendingException}). The
+     * gateway's provisioner still looks for "authorization pending" in its message, ignoring case,
+     * so the words are a contract and not a wording.
      */
     static IOException authorizationPending() {
-        return new IOException("ADB authorization pending; confirm the ADB request");
+        return new AuthorizationPendingException();
     }
 
     static boolean isAuthorizationPending(IOException error) {
         return error instanceof AuthorizationRequiredException
+                || error instanceof AuthorizationPendingException
                 || (error.getMessage() != null
                 && error.getMessage().contains("ADB authorization pending"));
     }
@@ -734,7 +754,7 @@ public final class LocalAdbClient {
             if (lastIoFailure != null) {
                 throw lastIoFailure;
             }
-            throw new IOException("No ADB hosts available");
+            throw new NoHostsException();
         }
 
         /** One request, one answer. Any failure at all closes the channel; the caller falls back. */
@@ -1024,7 +1044,7 @@ public final class LocalAdbClient {
             if (lastIoFailure != null) {
                 throw lastIoFailure;
             }
-            throw new IOException("No ADB hosts available");
+            throw new NoHostsException();
         }
 
         private void waitForReconnectWindow() throws InterruptedIOException {
