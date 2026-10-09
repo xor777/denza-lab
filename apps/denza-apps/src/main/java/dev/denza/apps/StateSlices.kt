@@ -2,12 +2,14 @@ package dev.denza.apps
 
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureSnapshot
+import dev.denza.apps.core.SliceFeature
+import dev.denza.apps.core.SliceHandle
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
 import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
-import dev.denza.apps.feature.locale.SystemLanguageSnapshot
 import dev.denza.apps.feature.mirrors.MirrorsPosition
+import dev.denza.apps.feature.weather.WeatherSnapshot
 
 /**
  * The parts of the dashboard's state that are read from the car as a whole.
@@ -198,24 +200,71 @@ internal data class ClusterDisplayReading(
     )
 }
 
-internal data class WeatherReading(
-    val enabled: Boolean,
-    val temperature: Int?,
-    val updatedMillis: Long,
-) : SliceReading {
-    override val slice get() = StateSlice.WEATHER
+/**
+ * Where a [SliceFeature]'s value lies in [DenzaUiState]: [get] reads it off the state's fields and
+ * [set] lays it back on them. One per such feature, in [FeatureSlices].
+ *
+ * The feature never sees the state, only its value; this is the one place that knows both - what
+ * a [SliceReading] class of its own does for each slice the repository still reads.
+ */
+internal class FeatureSlice<S : Any>(
+    val slice: StateSlice,
+    private val get: (DenzaUiState) -> S,
+    private val set: (DenzaUiState, S) -> DenzaUiState,
+) {
+    /** [value] as a reading of [slice]: equal values are equal readings, and lay the same state. */
+    fun reading(value: S): SliceReading = FeatureReading(slice, value, set)
 
-    override fun applyTo(state: DenzaUiState) = state.copy(
-        weatherEnabled = enabled,
-        weatherTemperature = temperature,
-        weatherUpdatedMillis = updatedMillis,
-    )
+    /** The feature's own way to its slice, through [publisher]: see [SliceHandle]. */
+    fun handle(publisher: DenzaStatePublisher): SliceHandle<S> = object : SliceHandle<S> {
+        override fun mark(cause: String) = publisher.invalidate(slice, cause)
+
+        override fun publish(cause: String, transform: (S) -> S) =
+            publisher.publish(cause) { state -> set(state, transform(get(state))) }
+    }
 }
 
-internal data class SystemLanguageReading(val snapshot: SystemLanguageSnapshot) : SliceReading {
-    override val slice get() = StateSlice.SYSTEM_LANGUAGE
+/** A [FeatureSlice]'s reading. Equal by what was read, never by where it is laid. */
+private class FeatureReading<S : Any>(
+    override val slice: StateSlice,
+    val value: S,
+    private val lay: (DenzaUiState, S) -> DenzaUiState,
+) : SliceReading {
+    override fun applyTo(state: DenzaUiState): DenzaUiState = lay(state, value)
 
-    override fun applyTo(state: DenzaUiState) = state.copy(systemLanguage = snapshot)
+    override fun equals(other: Any?): Boolean =
+        other is FeatureReading<*> && other.slice == slice && other.value == value
+
+    override fun hashCode(): Int = 31 * slice.hashCode() + value.hashCode()
+
+    override fun toString(): String = "FeatureReading($slice, $value)"
+}
+
+/** The slices a [SliceFeature] reads, and where each lays its value. */
+internal object FeatureSlices {
+    val WEATHER = FeatureSlice(
+        slice = StateSlice.WEATHER,
+        get = { state ->
+            WeatherSnapshot(
+                enabled = state.weatherEnabled,
+                temperature = state.weatherTemperature,
+                updatedMillis = state.weatherUpdatedMillis,
+            )
+        },
+        set = { state, weather ->
+            state.copy(
+                weatherEnabled = weather.enabled,
+                weatherTemperature = weather.temperature,
+                weatherUpdatedMillis = weather.updatedMillis,
+            )
+        },
+    )
+
+    val SYSTEM_LANGUAGE = FeatureSlice(
+        slice = StateSlice.SYSTEM_LANGUAGE,
+        get = DenzaUiState::systemLanguage,
+        set = { state, language -> state.copy(systemLanguage = language) },
+    )
 }
 
 /**

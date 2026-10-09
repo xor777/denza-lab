@@ -7,7 +7,7 @@ availability and returned fields still need a live-car check.
 
 ## Current state
 
-Updated 2026-10-06. How Denza Apps feeds the car's own weather widget a forecast it can show in
+Updated 2026-10-09. How Denza Apps feeds the car's own weather widget a forecast it can show in
 Russia, and what the «Погода» tile reads back.
 
 | Claim | Status | Since | Section |
@@ -16,7 +16,7 @@ Russia, and what the «Погода» tile reads back.
 | MET Norway Locationforecast, mapped to the stock weather IDs, fills every native field but AQI | live | 2026-08-14 | [Product implementation](#product-implementation) |
 | A run every ten minutes (`setAndAllowWhileIdle`, may be deferred while the car sleeps), plus on opening the stock weather app and on app start | code | 2026-08-14 | [Product implementation](#product-implementation) |
 | The «Погода» tile switches the adapter; on by default, off cancels the alarm and nothing is fetched (`WeatherAdapterState`, `WeatherAdapterService`) | code | 2026-08-26 | [Product implementation](#product-implementation) |
-| The service runs in the app's own process, and the tile follows each run (`DenzaAppRepository.refreshWeather`, `WeatherAdapterState.observe`) | code | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
+| The service runs in the app's own process, and the tile follows each run (`WeatherFeature.refresh`, `WeatherAdapterState.observe`; `DenzaAppRepository.refreshWeather` until 2026-10-09) | code | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
 | "The adapter runs in a short-lived `:weather` process": it did until 2026-10-06, and sharing preferences with the main process left the tile on the process start's temperature | refuted | 2026-10-06 | [The tile read a stale temperature](#the-tile-read-a-stale-temperature-2026-10-06) |
 | Android `Geocoder` city labels on the car | open | 2026-08-22 | [Boundaries](#boundaries) |
 

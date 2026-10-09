@@ -62,7 +62,13 @@ tile through them.
   back. A tile no slice reads writes its own part of the state through a `StateCell`
   (`core/StateCell.kt`, made by `DenzaUiStateStore.cell`), which is that part and nothing else,
   with the store's claims (`StateCell.decide`): the default applications (`DefaultAppsRuntime`)
-  and the passenger install (`FseInstallRuntime`). `DenzaAppRepository.refresh` marks every slice, for the paths that cannot say what changed:
+  and the passenger install (`FseInstallRuntime`). A read tile is moving to one more shape, a
+  `SliceFeature` (`core/SliceFeature.kt`): its state one value read by the feature itself
+  (`SliceFeature.read`), laid on its fields by its `FeatureSlice` in `FeatureSlices`
+  (`StateSlices.kt`), started with the runtime (`SliceFeature.start`), and marked or published
+  through its `SliceHandle` - so neither its reading nor its commands are in the repository.
+  «Погода» (`WeatherFeature`) and «Язык системы» (`SystemLanguageFeature`) are in it; the other
+  slices are still read in `DenzaAppRepository.readSlice`. `DenzaAppRepository.refresh` marks every slice, for the paths that cannot say what changed:
   the activity's resume, the gate's first look when the app starts or recovers after a reboot, and
   the runtime's start. Every read is counted in «Сервис» → «Технические
   сведения» → «Пересчёт состояния» (`StateRecomputes`), and a slice that throws is left out of
@@ -176,14 +182,14 @@ Repeats Yandex Navigator's turn-by-turn hints (manoeuvre, distance) on the winds
 
 The car's own weather widget keeps getting a fresh forecast for where the car is; nothing of ours draws weather.
 
-- **Tile:** `DashboardTiles.weather`; no runtime feature (`TileId.feature` is null); state `DenzaUiState.weatherEnabled`, `DenzaUiState.weatherTemperature`, `DenzaUiState.weatherUpdatedMillis` — read from `WeatherAdapterState` as the `StateSlice.WEATHER` slice: on every `DenzaAppRepository.refresh`, and through `DenzaAppRepository.refreshWeather`, which `WeatherAdapterState.observe` calls after every run. The switch publishes its own position at once (`DenzaStatePublisher.publish`).
-- **Press / long press:** always `TileAction.TOGGLE`: `DashboardBody` → `DashboardPress.perform` → `DashboardPress.toggle` → `DashboardActions.onSetWeatherEnabled` (answered by `AppActions`, handed down by `DenzaAppsRoot`) → `DenzaAppRepository.setWeatherEnabled` → `WeatherAdapterState.setEnabled` + `WeatherAdapterScheduler.ensureScheduled` / `WeatherAdapterScheduler.cancel`. Long press: `DashboardActions.onOpenSettings` → `DenzaAppsRoot` → `FeatureSheet`.
+- **Tile:** `DashboardTiles.weather`; no runtime feature (`TileId.feature` is null); state `DenzaUiState.weatherEnabled`, `DenzaUiState.weatherTemperature`, `DenzaUiState.weatherUpdatedMillis` — a `SliceFeature`: `WeatherFeature.read` reads them from `WeatherAdapterState` as one `WeatherSnapshot`, laid on the three fields by `FeatureSlices.WEATHER`, as the `StateSlice.WEATHER` slice: on every `DenzaAppRepository.refresh`, and through `WeatherFeature.refresh`, which `WeatherAdapterState.observe` calls after every run (registered by `WeatherFeature.start` in the runtime's start). The switch publishes its own position at once, through the publisher's queue (`SliceHandle.publish`).
+- **Press / long press:** always `TileAction.TOGGLE`: `DashboardBody` → `DashboardPress.perform` → `DashboardPress.toggle` → `DashboardActions.onSetWeatherEnabled` (answered by `AppActions`, handed down by `DenzaAppsRoot`) → `WeatherFeature.setEnabled` (held by `DenzaAppRepository.weather`) → `WeatherAdapterState.setEnabled` + `WeatherAdapterScheduler.ensureScheduled` / `WeatherAdapterScheduler.cancel`. Long press: `DashboardActions.onOpenSettings` → `DenzaAppsRoot` → `FeatureSheet`.
 - **Panel:** `weatherSheet` (switch «Данные для виджета», age line via `DashboardTiles.ago`) in `apps/denza-apps/src/main/java/dev/denza/apps/ui/dashboard/FeatureSheets.kt`, inside `FeatureSheet`; paragraph from `helpOf`; no footer button (`panelAction`).
-- **Runtime:** `feature/weather/` — `WeatherAdapterScheduler` (AlarmManager every 10 min, `WeatherAdapterConfig`), `WeatherAdapterReceiver` (manifest receiver for the alarm), `WeatherAdapterService` (manifest foreground service, in the app's own process since 2026-10-06) → `WeatherAdapterController` (`WeatherLocationSource`, `AndroidWeatherGeocoder`, `MetNorwayClient`, `NativeWeatherPayload`) → `NativeWeatherStore` writes the stock weather provider. `NativeWeatherRider`, on the shared accessibility service, calls `WeatherAdapterScheduler.onNativeWeatherVisible` when the stock weather app comes up.
+- **Runtime:** `feature/weather/` — `WeatherFeature` (the tile's slice, its start and its switch), `WeatherAdapterScheduler` (AlarmManager every 10 min, `WeatherAdapterConfig`), `WeatherAdapterReceiver` (manifest receiver for the alarm), `WeatherAdapterService` (manifest foreground service, in the app's own process since 2026-10-06) → `WeatherAdapterController` (`WeatherLocationSource`, `AndroidWeatherGeocoder`, `MetNorwayClient`, `NativeWeatherPayload`) → `NativeWeatherStore` writes the stock weather provider. `NativeWeatherRider`, on the shared accessibility service, calls `WeatherAdapterScheduler.onNativeWeatherVisible` when the stock weather app comes up.
 - **Settings:** `WeatherAdapterState` (switch, default on; last temperature; last success; next alarm).
 - **Docs:** `docs/weather-adapter-findings.md`.
 - **Luminofor:** fixtures: none for the panel (no weather sheet board); the tile face is on `main-sound` and every other head board — shared tile face.
-- **Tests:** `WeatherProcessContractTest`, `DashboardTilesTest`, `WeatherForecastCachePolicyTest`, `WeatherCodeMapperTest`, `WeatherLocationLabelTest`, `RuntimeRecoveryManifestContractTest`, `DenzaProcessPolicyTest`.
+- **Tests:** `WeatherProcessContractTest`, `FeatureSlicesTest`, `DashboardTilesTest`, `WeatherForecastCachePolicyTest`, `WeatherCodeMapperTest`, `WeatherLocationLabelTest`, `RuntimeRecoveryManifestContractTest`, `DenzaProcessPolicyTest`.
 
 ### «Динамики» — `SPEAKERS`
 
@@ -202,14 +208,14 @@ The motorised speaker covers come up for music the car does not report itself (t
 
 The tile names the language the whole car speaks, and a press opens the car's own hidden list of forty languages, which applies the choice system-wide without a reboot.
 
-- **Tile:** `DashboardTiles.locale`; no runtime feature; state `DenzaUiState.systemLanguage` (`SystemLanguageSnapshot`, the `StateSlice.SYSTEM_LANGUAGE` slice: read on every `DenzaAppRepository.refresh` and, through `DenzaAppRepository.refreshSystemLanguage`, whenever «Сервис» opens).
-- **Press / long press:** `DashboardPress.perform` (`TileAction.LANGUAGE_PICK`) → `DashboardActions.onOpenSystemLanguage` → `DenzaAppRepository.openSystemLanguage` → `SystemLanguage.open` (intent `SystemLanguage.PICKER_ACTION`). Long press: `DashboardActions.onOpenSettings` → `FeatureSheet`, whose button «Выбрать язык» is the same press (`primaryLabel`).
+- **Tile:** `DashboardTiles.locale`; no runtime feature; state `DenzaUiState.systemLanguage` (`SystemLanguageSnapshot`) — a `SliceFeature`: `SystemLanguageFeature.read`, laid by `FeatureSlices.SYSTEM_LANGUAGE` as the `StateSlice.SYSTEM_LANGUAGE` slice: read on every `DenzaAppRepository.refresh` and, through `SystemLanguageFeature.refresh`, whenever «Сервис» opens.
+- **Press / long press:** `DashboardPress.perform` (`TileAction.LANGUAGE_PICK`) → `DashboardActions.onOpenSystemLanguage` → `SystemLanguageFeature.open` (held by `DenzaAppRepository.systemLanguage`) → `SystemLanguage.open` (intent `SystemLanguage.PICKER_ACTION`). Long press: `DashboardActions.onOpenSettings` → `FeatureSheet`, whose button «Выбрать язык» is the same press (`primaryLabel`).
 - **Panel:** `FeatureSheet` in `apps/denza-apps/src/main/java/dev/denza/apps/ui/dashboard/FeatureSheets.kt` with no body of its own: header, paragraph from `helpOf`, footer button.
-- **Runtime:** `feature/locale/` — `SystemLanguage` (object: opens the firmware picker, names the current system locale). No service, no manifest entry, nothing written by this app.
+- **Runtime:** `feature/locale/` — `SystemLanguageFeature` (the tile's slice and its two commands) over `SystemLanguage` (object: opens the firmware picker, names the current system locale). No service, no manifest entry, nothing written by this app.
 - **Settings:** none (the car's system locale is the state).
 - **Docs:** `docs/system-language.md`.
 - **Luminofor:** fixtures `sheet-locale`; shared tile face and shared sheet drawing.
-- **Tests:** `SystemLanguageTest`, `DashboardTilesTest`, `DenzaUiStateStoreTest`.
+- **Tests:** `SystemLanguageTest`, `FeatureSlicesTest`, `DashboardTilesTest`, `DenzaUiStateStoreTest`.
 
 ### «Экран справа» — `PASSENGER`
 
@@ -255,7 +261,7 @@ The car's stock cloud client gets online over ordinary internet (Wi-Fi, or mobil
 One door to what is wrong right now, the app's access to the car, the instruments' screen choice, and the technical readings an owner screenshots for support.
 
 - **Tile:** `DashboardTiles.service` (built last from the other eleven; its count is `DashboardTiles.attentionTiles`); no runtime feature; state `DenzaUiState.technicalDetails`, `DenzaUiState.splitJournal`, `DenzaUiState.adbRescue`, `DenzaUiState.adbRestore`, `DenzaUiState.clusterDisplayLabel`.
-- **Press / long press:** both open the same panel: `DashboardActions.onOpenService` (`TileAction.SERVICE_OPEN`) or `DashboardActions.onOpenSettings` → `DenzaAppsRoot` (calls `DenzaAppRepository.refreshScreenDiagnostics` and `DenzaAppRepository.refreshSystemLanguage`) → `ServicePanel`. While the ADB gate is up, seven taps on the title of `AdbExplainerSheet` (`ServiceEntryTaps`) open it instead. A trouble row opens that tile's own panel.
+- **Press / long press:** both open the same panel: `DashboardActions.onOpenService` (`TileAction.SERVICE_OPEN`) or `DashboardActions.onOpenSettings` → `DenzaAppsRoot` (calls `DenzaAppRepository.refreshScreenDiagnostics` and `SystemLanguageFeature.refresh`) → `ServicePanel`. While the ADB gate is up, seven taps on the title of `AdbExplainerSheet` (`ServiceEntryTaps`) open it instead. A trouble row opens that tile's own panel.
 - **Panel:** `ServicePanel` in `apps/denza-apps/src/main/java/dev/denza/apps/ui/ServicePanel.kt` — pages `ServicePage` (`ServiceMain`, `ServiceScreenPage`, `ServiceTechnicalPage`, `ReadingsPage`), decisions in `ServiceModel`. Access buttons → `DenzaAppRepository.checkAdbAccess`, `DenzaAppRepository.requestAdbAuthorizationOnce`, `DenzaAppRepository.allowNewAdbAuthorizationAttempt`; «Приборный экран» → `DenzaAppRepository.selectClusterDisplay`. «Восстановление ADB» (`ServicePage.RESTORE`) → `AdbRestore.setEnabled`; opening the service calls `AdbRestore.trigger("settings")`.
 - **Runtime:** no service; the report and the split's journal are built only while the panel stands: `DenzaAppsRoot` opens them with `DenzaAppRepository.setServiceReportOpen` and `ServiceReport` builds them on its own thread at once and every second, behind the ADB gate too (a recompute behind the gate publishes only `behindAdbGate` and the restore state). `SupportDiagnostics.build` renders the report with `TechnicalReadings.render`, read back by `TechnicalReadings.parse`. Sections come from feature code: `CloudLinkReport.rows`, `AdbRestoreReport.rows`, `AdbPortRestoreReport.rows`, `MediaKeyReport.lines` (`MediaKeyRider.snapshot`, ring in `MediaKeyDiagnostics`), `SupportDiagnostics.splitJournal`, and the last section, «Пересчёт состояния», from `StateRecomputes` (`RecomputeLog`: how many times the dashboard state was rebuilt, how long each took and on which thread).
 - **Settings:** «Восстановление ADB» is on by default (`AdbRestorePreferences`, `adb_restore`, `adb_restore_enabled`); «Приборный экран» stores its override with `ClusterDisplayResolver.saveOverride`.
@@ -330,26 +336,37 @@ One door to what is wrong right now, the app's access to the car, the instrument
 
 ## Adding a tile
 
-The «Облако» tile (commit c1875b0b, 21 files) is the worked example. In order:
+The «Облако» tile (commit c1875b0b, 21 files) walked every step before 2026-10-09, when the tile's
+state still went through `DenzaAppRepository` and its callbacks through five files. In the shape
+below its reading and its commands are the feature's own (`SliceFeature`), and its actions are one
+member and one answer; «Погода» (`WeatherFeature`) is the example of that shape. In order:
 
 1. **Identity.** An entry in `TileId` and its branch in `TileId.feature`; a `FeatureId` in
    `core/FeatureModels.kt` when the tile drives a runtime feature.
 2. **State.** The feature's fields in `DenzaUiState`; a `StateSlice` (and its branch in
-   `StateSlice.of` for a `FeatureId`) with a `SliceReading` that lays those fields, read in
-   `DenzaAppRepository.readSlice`; its setters in `DenzaAppRepository`, which publish a transient
-   state through `DenzaStatePublisher.publish` rather than writing it; and the `FeatureId` →
-   snapshot branch in `DashboardPress.snapshotOf`.
-3. **Invalidation.** Every place that changes what the slice reads — a setter, the feature's own
-   thread, a callback from the car — marks that slice once it has written: `StateMarks.mark`, in
-   the setter of the field when the slice reads a plain field. Nothing else re-reads it: a writer
-   without a mark leaves the tile frozen until the next resume. Where the writer runs on the JVM,
-   add its case to `StateMarksTest`.
+   `StateSlice.of` for a `FeatureId`); and the `FeatureId` → snapshot branch in
+   `DashboardPress.snapshotOf`. Then the feature itself, as a `SliceFeature` in its package:
+   `SliceFeature.read` returns its state as one value;
+   `SliceFeature.start` registers what it watches; its commands are its own methods, which publish
+   a transient state through `SliceHandle.publish` rather than writing it. In the root package, a
+   `FeatureSlice` in `FeatureSlices` that lays the value on the fields; in `DenzaAppRepository`,
+   the feature held with its handle (as `DenzaAppRepository.weather`), its line in
+   `DenzaAppRepository.readSlice` and, if it starts anything, its step in the runtime's start.
+   A tile that publishes itself rather than being read takes a `StateCell` instead
+   (`DefaultAppsRuntime`).
+3. **Invalidation.** Every place that changes what the slice reads — a command, the feature's own
+   thread, a callback from the car — marks that slice once it has written: `SliceHandle.mark`
+   from a `SliceFeature`, `StateMarks.mark` from anywhere else, in the setter of the field when
+   the slice reads a plain field. Nothing else re-reads it: a writer without a mark leaves the tile
+   frozen until the next resume. Where the writer runs on the JVM, add its case to
+   `StateMarksTest`, or to `FeatureSlicesTest` for a `SliceFeature`.
 4. **Tile.** A `TileIcon` entry, a builder in `DashboardTiles` listed in `DashboardTiles.of`, the
    glyph in `DenzaIcons` (`design/DenzaIcons.kt`) and its branch in `tileGlyph`
    (`ui/dashboard/DashboardGrid.kt`).
-5. **Gestures.** A member of `DenzaActions` and its answer in `AppActions` - the compiler asks for
-   both, and `IdleActions` answers it for the tests and the debug fixtures; the short press in
-   `DashboardPress.perform` and its `toggle`, `resolve` and `retry` branches.
+5. **Gestures.** A member of `DenzaActions` and its answer in `AppActions`, which calls the
+   feature's command - the compiler asks for both, and `IdleActions` answers it for the tests and
+   the debug fixtures; the short press in `DashboardPress.perform` and its `toggle`, `resolve` and
+   `retry` branches.
 6. **Panel.** A `…Sheet` function and its branch in `FeatureSheet`, the paragraph in `helpOf`, the
    button in `panelAction`.
 7. **Resume.** Nothing to thread through the screen: `DenzaAppsRoot` takes the one `DenzaActions`

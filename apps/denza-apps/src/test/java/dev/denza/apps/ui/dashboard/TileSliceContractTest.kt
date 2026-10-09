@@ -4,6 +4,7 @@ import dev.denza.apps.AdbAccessReading
 import dev.denza.apps.ClusterDisplayReading
 import dev.denza.apps.CloudLinkReading
 import dev.denza.apps.DenzaUiState
+import dev.denza.apps.FeatureSlices
 import dev.denza.apps.HudGuidanceReading
 import dev.denza.apps.MirrorsReading
 import dev.denza.apps.NavigationAppChoice
@@ -13,8 +14,6 @@ import dev.denza.apps.SliceReading
 import dev.denza.apps.SpeakerCoversReading
 import dev.denza.apps.SplitScreenReading
 import dev.denza.apps.StateSlice
-import dev.denza.apps.SystemLanguageReading
-import dev.denza.apps.WeatherReading
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
@@ -24,6 +23,7 @@ import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.locale.SystemLanguageSnapshot
 import dev.denza.apps.feature.mirrors.MirrorsPosition
+import dev.denza.apps.feature.weather.WeatherSnapshot
 import dev.denza.apps.withReadings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -144,7 +144,10 @@ class TileSliceContractTest {
             override = 2,
             automatic = "Экран 1",
         )
-        StateSlice.WEATHER -> WeatherReading(enabled = true, temperature = -7, updatedMillis = 1_000L)
-        StateSlice.SYSTEM_LANGUAGE -> SystemLanguageReading(SystemLanguageSnapshot(name = "Қазақ тілі"))
+        StateSlice.WEATHER -> FeatureSlices.WEATHER.reading(
+            WeatherSnapshot(enabled = true, temperature = -7, updatedMillis = 1_000L),
+        )
+        StateSlice.SYSTEM_LANGUAGE ->
+            FeatureSlices.SYSTEM_LANGUAGE.reading(SystemLanguageSnapshot(name = "Қазақ тілі"))
     }
 }

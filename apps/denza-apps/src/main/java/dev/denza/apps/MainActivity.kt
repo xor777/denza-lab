@@ -89,7 +89,7 @@ internal object AppActions : DenzaActions {
     override val onLaunchSplitScreen: () -> Unit = { DenzaAppRepository.launchSplitScreen() }
 
     override val onSetWeatherEnabled: (Boolean) -> Unit =
-        { enabled -> DenzaAppRepository.setWeatherEnabled(enabled) }
+        { enabled -> DenzaAppRepository.weather.setEnabled(enabled) }
 
     override val onToggleHudGuidance: (Boolean) -> Unit =
         { enabled -> DenzaAppRepository.setHudGuidanceEnabled(enabled) }
@@ -103,8 +103,8 @@ internal object AppActions : DenzaActions {
     override val onSetCloudWifiRetained: (Boolean) -> Unit =
         { retain -> DenzaAppRepository.setCloudWifiRetained(retain) }
 
-    override val onRefreshSystemLanguage: () -> Unit = { DenzaAppRepository.refreshSystemLanguage() }
-    override val onOpenSystemLanguage: () -> Unit = { DenzaAppRepository.openSystemLanguage() }
+    override val onRefreshSystemLanguage: () -> Unit = { DenzaAppRepository.systemLanguage.refresh() }
+    override val onOpenSystemLanguage: () -> Unit = { DenzaAppRepository.systemLanguage.open() }
 
     override val onRefreshDefaultApps: (Boolean) -> Unit =
         { force -> DenzaAppRepository.defaultApps.refresh(force) }
