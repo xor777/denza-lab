@@ -81,13 +81,7 @@ internal class WeatherAdapterController(context: Context) {
             SHELL_TIMEOUT_MILLIS,
         ).trim()
         if (currentProxy == ownedProxy) {
-            adb.shell(
-                "settings delete global http_proxy; " +
-                    "settings delete global global_http_proxy_host; " +
-                    "settings delete global global_http_proxy_port; " +
-                    "settings delete global global_http_proxy_exclusion_list",
-                SHELL_TIMEOUT_MILLIS,
-            )
+            adb.shell(LEGACY_PROXY_CLEAR_COMMAND, SHELL_TIMEOUT_MILLIS)
             val after = adb.shell(
                 "settings get global http_proxy",
                 SHELL_TIMEOUT_MILLIS,
@@ -104,12 +98,19 @@ internal class WeatherAdapterController(context: Context) {
         Log.i(TAG, message)
     }
 
-    private companion object {
-        const val TAG = "DenzaWeatherAdapter"
-        const val NATIVE_PACKAGE = "com.byd.weatherdata"
-        const val NATIVE_SERVICE_CLASS = "com.byd.weatherdata.service.RequestService"
-        const val NATIVE_REFRESH_ACTION = "com.byd.weatherdata.action.THIRD_REFRESH"
-        const val SHELL_TIMEOUT_MILLIS = 5_000
-        const val OBSERVER_REGISTRATION_MILLIS = 350L
+    internal companion object {
+        /** The four global proxy keys the spike wrote, removed in one shell trip. */
+        val LEGACY_PROXY_CLEAR_COMMAND: String =
+            "settings delete global http_proxy; " +
+                "settings delete global global_http_proxy_host; " +
+                "settings delete global global_http_proxy_port; " +
+                "settings delete global global_http_proxy_exclusion_list"
+
+        private const val TAG = "DenzaWeatherAdapter"
+        private const val NATIVE_PACKAGE = "com.byd.weatherdata"
+        private const val NATIVE_SERVICE_CLASS = "com.byd.weatherdata.service.RequestService"
+        private const val NATIVE_REFRESH_ACTION = "com.byd.weatherdata.action.THIRD_REFRESH"
+        private const val SHELL_TIMEOUT_MILLIS = 5_000
+        private const val OBSERVER_REGISTRATION_MILLIS = 350L
     }
 }

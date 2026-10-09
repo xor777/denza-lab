@@ -238,10 +238,7 @@ object FseAppInstaller {
                 config.toString().toByteArray(StandardCharsets.UTF_8),
                 Base64.NO_WRAP,
             )
-            adb.shell(
-                "mkdir -p ${quote("$iviRoot/wallpaper")} && " +
-                    "echo ${quote(encodedConfig)} | base64 -d > ${quote("$iviRoot/config.json")}",
-            )
+            adb.shell(stageConfigCommand(iviRoot, encodedConfig))
 
             copyApk(
                 adb = adb,
@@ -325,14 +322,12 @@ object FseAppInstaller {
     ) {
         if (expectedBytes <= 0L) throw IllegalStateException("APK copy size is unknown")
         try {
-            adb.shell("rm -f ${quote(targetPath)}; : > ${quote(targetPath)}")
+            adb.shell(truncateCommand(targetPath))
             onProgress(FseInstallStep.copying(0))
             val blockCount = (expectedBytes + COPY_BLOCK_BYTES - 1L) / COPY_BLOCK_BYTES
             repeat(blockCount.toInt()) { block ->
                 val result = adb.shell(
-                    "dd if=${quote(sourcePath)} of=${quote(targetPath)} " +
-                        "bs=$COPY_BLOCK_BYTES skip=$block seek=$block count=1 conv=notrunc " +
-                        ">/dev/null 2>&1; echo \$?",
+                    copyBlockCommand(sourcePath, targetPath, block),
                     COPY_READ_TIMEOUT_MS,
                 ).trim()
                 if (result.lineSequence().lastOrNull() != "0") {
@@ -342,7 +337,7 @@ object FseAppInstaller {
                 val percent = (copiedBytes * 100L / expectedBytes).toInt()
                 onProgress(FseInstallStep.copying(percent))
             }
-            val actualBytes = adb.shell("stat -c %s ${quote(targetPath)}").trim().toLongOrNull()
+            val actualBytes = adb.shell(sizeCommand(targetPath)).trim().toLongOrNull()
             if (actualBytes != expectedBytes) {
                 throw IllegalStateException("size expected=$expectedBytes actual=$actualBytes")
             }
@@ -363,7 +358,7 @@ object FseAppInstaller {
         iviRoot: String,
     ) {
         runCatching {
-            adb.shell("rm -rf ${quote(iviRoot)}")
+            adb.shell(removeStageCommand(iviRoot))
         }
     }
 
@@ -412,6 +407,24 @@ object FseAppInstaller {
         1_000_000_000 + ((System.currentTimeMillis() / 1_000L) % 900_000_000L).toInt()
 
     internal fun quote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
+
+    /** The request's staging folder and its `config.json`, written in one shell trip. */
+    internal fun stageConfigCommand(iviRoot: String, encodedConfig: String): String =
+        "mkdir -p ${quote("$iviRoot/wallpaper")} && " +
+            "echo ${quote(encodedConfig)} | base64 -d > ${quote("$iviRoot/config.json")}"
+
+    internal fun truncateCommand(targetPath: String): String =
+        "rm -f ${quote(targetPath)}; : > ${quote(targetPath)}"
+
+    /** One [COPY_BLOCK_BYTES] block of the APK, written in place; it answers `dd`'s exit status. */
+    internal fun copyBlockCommand(sourcePath: String, targetPath: String, block: Int): String =
+        "dd if=${quote(sourcePath)} of=${quote(targetPath)} " +
+            "bs=$COPY_BLOCK_BYTES skip=$block seek=$block count=1 conv=notrunc " +
+            ">/dev/null 2>&1; echo \$?"
+
+    internal fun sizeCommand(targetPath: String): String = "stat -c %s ${quote(targetPath)}"
+
+    internal fun removeStageCommand(iviRoot: String): String = "rm -rf ${quote(iviRoot)}"
 
     internal fun abandonedStageCleanupCommand(): String =
         "for path in /storage/FFFF-FFFC/denza-apps-install-*; do " +

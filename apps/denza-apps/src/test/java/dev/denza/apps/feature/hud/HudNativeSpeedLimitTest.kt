@@ -65,6 +65,27 @@ class HudNativeSpeedLimitTest {
         assertEquals(HudNativeSpeedLimitProtocol.Read.Failed, HudNativeSpeedLimitProtocol.parseRead(""))
     }
 
+    /** A one-word reply is a status alone: -10013 still says so, anything else is no value. */
+    @Test
+    fun aOneWordOrNullReadIsNotAValue() {
+        assertEquals(
+            HudNativeSpeedLimitProtocol.Read.WrongTransact,
+            HudNativeSpeedLimitProtocol.parseRead("Result: Parcel(ffffd8e3    '....')"),
+        )
+        assertEquals(
+            HudNativeSpeedLimitProtocol.Read.Failed,
+            HudNativeSpeedLimitProtocol.parseRead("Result: Parcel(00000000    '....')"),
+        )
+        assertEquals(
+            HudNativeSpeedLimitProtocol.Read.Failed,
+            HudNativeSpeedLimitProtocol.parseRead("Result: Parcel(NULL)"),
+        )
+        assertEquals(
+            HudNativeSpeedLimitProtocol.Read.Failed,
+            HudNativeSpeedLimitProtocol.parseRead("Result: Parcel(00000000 fffffff6   '........')"),
+        )
+    }
+
     @Test
     fun aWriteCountsOnlyWhenAllThreeCallsAnswered() {
         val answer = "Result: Parcel(00000001    '....')"
@@ -78,6 +99,11 @@ class HudNativeSpeedLimitTest {
             ),
         )
         assertFalse(HudNativeSpeedLimitProtocol.writeAnswered(""))
+        assertFalse(
+            HudNativeSpeedLimitProtocol.writeAnswered(
+                "@@0\n$answer\n@@1\nResult: Parcel(NULL)\n@@2\n$answer\n",
+            ),
+        )
     }
 
     // --- when to write ---

@@ -46,6 +46,18 @@ internal enum class SplitTaskMoveOwnership {
     PREEMPTS,
 }
 
+/**
+ * How the resident helper is started: the same thin jar and the same class the one-shot path runs.
+ *
+ * `exec` is what makes the helper the shell of its stream rather than a child of it, so closing
+ * that stream is what ends it, with nothing left to reap on the car.
+ */
+internal fun splitServeCommand(classpath: String, nonce: String): String {
+    val quoted = classpath.replace("'", "'\\''")
+    return "CLASSPATH='$quoted' exec app_process /system/bin " +
+        "--nice-name=denza_split_serve ${SplitTaskProxyMain::class.java.name} serve $nonce"
+}
+
 /** Everything one operation is allowed to touch, built fresh for each one and closed after it. */
 internal class SplitOperationWorkspace(
     private val shellFactory: SplitShellFactory,
@@ -170,17 +182,9 @@ internal class SplitOperationWorkspace(
         }
     }
 
-    /**
-     * How the helper is started: the same thin jar and the same class the one-shot path runs.
-     *
-     * `exec` is what makes the helper the shell of its stream rather than a child of it, so
-     * closing that stream is what ends it, with nothing left to reap on the car.
-     */
-    private fun residentLaunchCommand(nonce: String): String {
-        val classpath = proxyClasspath.entry(::send).replace("'", "'\\''")
-        return "CLASSPATH='$classpath' exec app_process /system/bin " +
-            "--nice-name=denza_split_serve ${SplitTaskProxyMain::class.java.name} serve $nonce"
-    }
+    /** How the helper is started ([splitServeCommand]), with the classpath staged on demand. */
+    private fun residentLaunchCommand(nonce: String): String =
+        splitServeCommand(proxyClasspath.entry(::send), nonce)
 
     private fun record(elapsedMs: Long) {
         synchronized(budgetLock) {

@@ -30,7 +30,7 @@ object NavigationProxyClient {
     @Volatile private var adbShell: LocalAdbClient.PersistentShellSession? = null
 
     fun findTask(context: Context, packageName: String): Int =
-        intResult(run(context, "find-task", packageName))
+        intResult(run(context, findTaskWords(packageName)))
 
     fun projectTask(
         context: Context,
@@ -43,13 +43,7 @@ object NavigationProxyClient {
     ): Boolean = booleanResult(
         run(
             context,
-            "project-task",
-            packageName,
-            taskId.toString(),
-            projectionRootTaskId.toString(),
-            displayId.toString(),
-            width.toString(),
-            height.toString(),
+            projectTaskWords(packageName, taskId, projectionRootTaskId, displayId, width, height),
         ),
     )
 
@@ -60,15 +54,7 @@ object NavigationProxyClient {
         origin: NavigationProjectionOrigin,
         focusNavigation: Boolean,
     ): Boolean = booleanResult(
-        run(
-            context,
-            if (focusNavigation) "return-task" else "restore-task",
-            packageName,
-            taskId.toString(),
-            origin.sourceRootTaskId.toString(),
-            origin.companionTaskId.toString(),
-            origin.companionRootTaskId.toString(),
-        ),
+        run(context, returnTaskWords(packageName, taskId, origin, focusNavigation)),
     )
 
     fun projectionOrigin(
@@ -76,7 +62,7 @@ object NavigationProxyClient {
         packageName: String,
         taskId: Int,
     ): NavigationProjectionOrigin = projectionOriginValue(
-        run(context, "projection-origin", packageName, taskId.toString()),
+        run(context, projectionOriginWords(packageName, taskId)),
     )
 
     internal fun projectionOriginValue(output: String): NavigationProjectionOrigin {
@@ -114,10 +100,10 @@ object NavigationProxyClient {
     }
 
     fun createProjectionRoot(context: Context, displayId: Int): Int =
-        intResult(run(context, "create-root", displayId.toString()))
+        intResult(run(context, createRootWords(displayId)))
 
     fun taskDisplayId(context: Context, packageName: String, taskId: Int): Int =
-        intResult(run(context, "task-display", packageName, taskId.toString()))
+        intResult(run(context, taskDisplayWords(packageName, taskId)))
 
     fun currentVirtualDisplayId(): Int? = synchronized(lock) {
         virtualDisplay?.display?.displayId
@@ -140,11 +126,8 @@ object NavigationProxyClient {
         }
     }
 
-    private fun run(context: Context, operation: String, vararg arguments: String): String {
-        val apk = shellQuote(context.applicationInfo.sourceDir)
-        val args = (listOf(operation) + arguments).joinToString(" ") { shellQuote(it) }
-        val command = "CLASSPATH=$apk app_process /system/bin --nice-name=denza_nav_cmd " +
-            "$MAIN_CLASS $args"
+    private fun run(context: Context, words: List<String>): String {
+        val command = commandLine(context.applicationInfo.sourceDir, words)
         val shell = synchronized(shellLock) {
             adbShell ?: DenzaLocalAdb.client(context)
                 .openPersistentShell()
@@ -152,6 +135,57 @@ object NavigationProxyClient {
         }
         return shell.shell(command)
     }
+
+    // The words of each fixed operation, in the order and the count ClusterProxyMain.main reads
+    // them: an operation, then its arguments, every one of them a separate shell word.
+
+    internal fun findTaskWords(packageName: String): List<String> =
+        listOf("find-task", packageName)
+
+    internal fun projectTaskWords(
+        packageName: String,
+        taskId: Int,
+        projectionRootTaskId: Int,
+        displayId: Int,
+        width: Int,
+        height: Int,
+    ): List<String> = listOf(
+        "project-task",
+        packageName,
+        taskId.toString(),
+        projectionRootTaskId.toString(),
+        displayId.toString(),
+        width.toString(),
+        height.toString(),
+    )
+
+    internal fun returnTaskWords(
+        packageName: String,
+        taskId: Int,
+        origin: NavigationProjectionOrigin,
+        focusNavigation: Boolean,
+    ): List<String> = listOf(
+        if (focusNavigation) "return-task" else "restore-task",
+        packageName,
+        taskId.toString(),
+        origin.sourceRootTaskId.toString(),
+        origin.companionTaskId.toString(),
+        origin.companionRootTaskId.toString(),
+    )
+
+    internal fun projectionOriginWords(packageName: String, taskId: Int): List<String> =
+        listOf("projection-origin", packageName, taskId.toString())
+
+    internal fun createRootWords(displayId: Int): List<String> =
+        listOf("create-root", displayId.toString())
+
+    internal fun taskDisplayWords(packageName: String, taskId: Int): List<String> =
+        listOf("task-display", packageName, taskId.toString())
+
+    /** One one-shot start of [ClusterProxyMain] from [classpath], every word quoted on its own. */
+    internal fun commandLine(classpath: String, words: List<String>): String =
+        "CLASSPATH=${shellQuote(classpath)} app_process /system/bin --nice-name=denza_nav_cmd " +
+            "$MAIN_CLASS ${words.joinToString(" ") { shellQuote(it) }}"
 
     internal fun resultValue(output: String): String = output.lineSequence()
         .map(String::trim)
