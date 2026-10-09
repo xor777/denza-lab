@@ -27,7 +27,6 @@ internal class MetNorwayClient(context: Context) {
     private val cacheFile = AtomicFile(File(context.filesDir, "weather/met-forecast.json"))
     private val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    @Synchronized
     fun forecast(latitude: Double, longitude: Double): JSONObject {
         require(latitude in -90.0..90.0) { "Invalid latitude" }
         require(longitude in -180.0..180.0) { "Invalid longitude" }
