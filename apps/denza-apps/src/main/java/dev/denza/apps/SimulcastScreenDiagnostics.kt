@@ -49,6 +49,12 @@ object SimulcastScreenDiagnostics {
     @Volatile
     private var castUpdatedAtMs = 0L
 
+    @Volatile
+    private var outcomeStatus: String? = null
+
+    @Volatile
+    private var outcomeUpdatedAtMs = 0L
+
     fun refresh(context: Context, onChanged: () -> Unit) {
         if (!queryRunning.compareAndSet(false, true)) return
         queryStatus = "запрос выполняется"
@@ -135,6 +141,20 @@ object SimulcastScreenDiagnostics {
         castUpdatedAtMs = System.currentTimeMillis()
     }
 
+    /**
+     * How the last start or exit of a share went, with DiShare's own reply when it refused.
+     *
+     * This is where that reply lives now. It used to be a toast over the stock dialog - «Simulcast
+     * не запустил VK Видео: start returned {screen_hud=605}» - which told the driver nothing they
+     * could act on, in the projection's internal name. The dialog stays open with our row rebuilt,
+     * which is the working choice; the reason is for whoever reads the technical page.
+     */
+    @JvmStatic
+    fun recordCastOutcome(outcome: String) {
+        outcomeStatus = outcome
+        outcomeUpdatedAtMs = System.currentTimeMillis()
+    }
+
     fun diagnosticLines(nowMs: Long = System.currentTimeMillis()): List<String> = buildList {
         add("DiShare getScreens=$queryStatus${ageSuffix(screenUpdatedAtMs, nowMs)}")
         if (screenRecords.isEmpty() && screenUpdatedAtMs > 0L && !queryStatus.startsWith("ошибка")) {
@@ -152,6 +172,7 @@ object SimulcastScreenDiagnostics {
         add("Узлы Simulcast=$layoutStatus${ageSuffix(layoutUpdatedAtMs, nowMs)}")
         addAll(targetLines)
         castStatus?.let { add(it + ageSuffix(castUpdatedAtMs, nowMs)) }
+        outcomeStatus?.let { add("Последний исход=$it${ageSuffix(outcomeUpdatedAtMs, nowMs)}") }
     }
 
     private fun Rect.diagnosticString(): String = "[$left,$top][$right,$bottom]"
