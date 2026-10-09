@@ -78,6 +78,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverStatus
 import dev.denza.apps.feature.split.SplitLauncherEntryActivity
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import dev.denza.apps.feature.weather.WeatherAdapterState
+import dev.denza.apps.platform.accessibility.AccessibilityRepair
 import dev.denza.apps.platform.media.MediaSessionAccess
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
@@ -808,7 +809,7 @@ object DenzaAppRepository {
             invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
         }
-        SimulcastCoordinator.repairAccess(context) { failure ->
+        AccessibilityRepair.repair(context) { failure ->
             if (failure == null) {
                 SimulcastAccessibilityService.requestHudGuidanceRefresh()
                 invalidate(StateSlice.HUD_GUIDANCE, "hud switch")

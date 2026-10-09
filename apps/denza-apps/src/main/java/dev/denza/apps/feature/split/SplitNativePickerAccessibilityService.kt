@@ -4,8 +4,8 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import dev.denza.apps.AccessibilityServiceSettings
-import dev.denza.apps.AccessibilitySettingsMutationLock
+import dev.denza.apps.platform.accessibility.AccessibilityServiceSettings
+import dev.denza.apps.platform.accessibility.AccessibilitySettingsMutationLock
 
 /**
  * What a window event of the split observer is about.

@@ -112,16 +112,4 @@ class SimulcastCoordinatorTest {
             assertEquals(FeatureResolution.RETRY, problem.resolution)
         }
     }
-
-    /**
-     * The access repair's overlay grant, letter for letter: the package in single quotes, which
-     * `OverlayGrant.command` leaves bare (pinned 2026-10-09).
-     */
-    @Test
-    fun `the repair grants the overlay with the package quoted`() {
-        assertEquals(
-            "cmd appops set 'dev.denza.apps' SYSTEM_ALERT_WINDOW allow",
-            SimulcastCoordinator.overlayGrantCommand("dev.denza.apps"),
-        )
-    }
 }

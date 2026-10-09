@@ -7,6 +7,7 @@ import dev.denza.apps.feature.hud.HudGuidance
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudManeuver
 import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
+import dev.denza.apps.platform.accessibility.AccessibilityRepairSingleFlight
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before

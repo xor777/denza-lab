@@ -2,6 +2,7 @@ package dev.denza.apps.feature.navigation
 
 import android.content.Context
 import dev.denza.apps.SimulcastCoordinator
+import dev.denza.apps.platform.accessibility.AccessibilityRepair
 
 data class SteeringWheelNavigationAccess(
     val desired: Boolean,
@@ -30,8 +31,8 @@ object SteeringWheelNavigationAccessCoordinator {
             onComplete(null)
             return
         }
-        SimulcastCoordinator.repairAccess(context, onComplete)
+        AccessibilityRepair.repair(context, onComplete)
     }
 
-    fun isRepairing(): Boolean = SimulcastCoordinator.isAccessibilityRepairRunning()
+    fun isRepairing(): Boolean = AccessibilityRepair.isRunning()
 }
