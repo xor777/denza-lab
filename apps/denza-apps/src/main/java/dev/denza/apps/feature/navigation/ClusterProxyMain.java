@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * One-shot shell-UID task command. It intentionally exposes only fixed
@@ -116,9 +117,20 @@ public final class ClusterProxyMain {
 
     static final class Commands {
         private final Context context;
+        private final Predicate<String> projectable;
 
         Commands(Context context) {
+            this(context, packageName ->
+                    ProjectablePackages.isProjectable(context.getPackageManager(), packageName));
+        }
+
+        /**
+         * With the rule passed in, so a JVM test can hold every command to asking it before it
+         * reads or touches a task - which it cannot do with the shell's system context.
+         */
+        Commands(Context context, Predicate<String> projectable) {
             this.context = context;
+            this.projectable = projectable;
         }
 
         int findTask(String packageName) {
@@ -430,7 +442,7 @@ public final class ClusterProxyMain {
         }
 
         private boolean isProjectable(String packageName) {
-            return ProjectablePackages.isProjectable(context.getPackageManager(), packageName);
+            return projectable.test(packageName);
         }
 
         private int displayIdOf(ActivityManager.RunningTaskInfo task) {
