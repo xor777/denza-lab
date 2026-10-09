@@ -22,6 +22,10 @@ import java.io.File
  * hidden under another window. A frame still on its way when the loop stops is dropped on the main
  * thread, so it can never land after the black one.
  *
+ * While frames are going, the last one is sent again every [REPEAT_MS] that no new one came, as the
+ * stock navigator repeats its last frame once a second: a mirrored screen that does not change
+ * delivers no frames, and the HUD is not left waiting on a picture that is simply still.
+ *
  * Main-thread calls; [shutdown] ends the thread, and the runner is not used after it.
  */
 internal class HudMapRunner(
@@ -37,6 +41,10 @@ internal class HudMapRunner(
     }
 
     private val main = Handler(Looper.getMainLooper())
+    private val repeat = Runnable { repeatLast() }
+
+    /** The frame on the glass, for [repeatLast]; main thread. */
+    private var lastPayload: ByteArray? = null
     private val capture = HudMapCapture(captureDirectory, SystemClock::uptimeMillis)
     private var thread: HandlerThread? = null
     private var worker: Handler? = null
@@ -82,6 +90,7 @@ internal class HudMapRunner(
             showing = false
             failureLogged = false
             framesThisRun = 0
+            HudMapRuntime.onRunStarted()
             (pipeline ?: HudMapPipeline(capture).also { pipeline = it }).reset()
             source.start(worker, sink)
         }
@@ -120,6 +129,7 @@ internal class HudMapRunner(
             pipeline?.close()
             pipeline = null
         }
+        forgetLast()
         publisher.blank()
         setState(state)
     }
@@ -148,12 +158,13 @@ internal class HudMapRunner(
                 HudMapRuntime.onFrame(
                     SystemClock.uptimeMillis() - started,
                     result.anchor,
+                    startedAtMs = started,
                     warmingUp = ++framesThisRun <= WARM_UP_FRAMES,
                 )
                 showing = true
                 setState(HudMapState.SENDING)
                 main.post {
-                    if (made == generation && active) publisher.publish(result.payload)
+                    if (made == generation && active) send(result.payload)
                 }
             }
         }
@@ -166,10 +177,32 @@ internal class HudMapRunner(
         if (showing) {
             showing = false
             main.post {
-                if (made == generation && active) publisher.blank()
+                if (made == generation && active) {
+                    forgetLast()
+                    publisher.blank()
+                }
             }
         }
         setState(state, by)
+    }
+
+    /** Main thread: a new frame, and the clock for its repeat starts again. */
+    private fun send(payload: ByteArray) {
+        lastPayload = payload
+        publisher.publish(payload)
+        main.removeCallbacks(repeat)
+        main.postDelayed(repeat, REPEAT_MS)
+    }
+
+    private fun repeatLast() {
+        val payload = lastPayload ?: return
+        if (!active) return
+        send(payload)
+    }
+
+    private fun forgetLast() {
+        lastPayload = null
+        main.removeCallbacks(repeat)
     }
 
     /** One log line per change of state, from either thread; never one per frame. */
@@ -186,5 +219,8 @@ internal class HudMapRunner(
 
         /** Frames of a run kept out of the mean frame time ([HudMapRuntime.onFrame]). */
         const val WARM_UP_FRAMES = 3
+
+        /** The stock navigator's own repeat of its last frame. */
+        const val REPEAT_MS = 1_000L
     }
 }

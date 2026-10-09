@@ -3,6 +3,7 @@ package dev.denza.apps
 import dev.denza.apps.feature.cluster.CameraRuntimePhase
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.hud.HudMapAnchorSource
+import dev.denza.apps.feature.hud.HudMapGrantReason
 import dev.denza.apps.feature.hud.HudMapSnapshot
 import dev.denza.apps.feature.hud.HudMapState
 import dev.denza.apps.feature.media.MediaKeyPress
@@ -223,20 +224,22 @@ class SupportDiagnosticsTest {
     }
 
     /**
-     * Карта на проекции: где стоит окно - с окном, которое закрыло вырезку, - и сколько стоит кадр,
-     * по которому будут судить следующий, более быстрый источник.
+     * Карта на проекции: где стоит окно - с окном, которое закрыло вырезку, - есть ли захват экрана и
+     * почему нет, сколько стоит кадр и сколько их в секунду.
      */
     @Test
-    fun `the map rows say where the window stands, what covers it and what a frame costs`() {
+    fun `the map rows say where the window stands, why there is no capture and what a frame costs`() {
         val rows = SupportDiagnostics.hudMapRows(
             enabled = true,
             map = HudMapSnapshot(
                 state = HudMapState.COVERED,
-                source = "скриншот специальных возможностей, 350 мс",
+                source = "MediaProjection, 83 мс",
+                grant = HudMapGrantReason.LIVE,
                 framesSent = 120,
-                captureFailures = mapOf(3 to 2L, 4 to 1L),
+                captureFailures = mapOf("display" to 2L, "buffer" to 1L),
                 lastFrameMs = 18,
                 meanFrameMs = 21,
+                framesPerSecond = 11.84,
                 anchor = HudMapAnchorSource.DETECTED,
                 coveredBy = "Камера, тип 2, [1600,700][2400,1300]",
                 lastFireResult = 0,
@@ -246,20 +249,30 @@ class SupportDiagnosticsTest {
         assertEquals(
             listOf(
                 TechnicalRow("Карта", "да, covered, под окном Камера, тип 2, [1600,700][2400,1300]"),
+                TechnicalRow("Карта, захват экрана", "есть"),
                 TechnicalRow(
                     "Карта, кадры",
-                    "отправлено 120, кадр 18 мс, в среднем 21 мс, стрелка detected, fire 0, " +
-                        "отказы захвата 3×2 4×1, источник скриншот специальных возможностей, 350 мс",
+                    "отправлено 120, кадр 18 мс, в среднем 21 мс, 11.8 к/с, стрелка detected, fire 0, " +
+                        "отказы захвата display×2 buffer×1, источник MediaProjection, 83 мс",
                 ),
             ),
             rows,
         )
+        val idle = SupportDiagnostics.hudMapRows(
+            enabled = true,
+            map = HudMapSnapshot(state = HudMapState.NO_GRANT, grant = HudMapGrantReason.NO_ADB),
+        )
+        assertEquals(TechnicalRow("Карта", "да, no-grant"), idle[0])
+        assertEquals(
+            TechnicalRow("Карта, захват экрана", "нет разрешения на захват экрана, и ADB недоступен, чтобы его дать"),
+            idle[1],
+        )
         assertEquals(
             TechnicalRow(
                 "Карта, кадры",
-                "отправлено 0, кадр — мс, в среднем — мс, fire —, отказы захвата нет, источник —",
+                "отправлено 0, кадр — мс, в среднем — мс, — к/с, fire —, отказы захвата нет, источник —",
             ),
-            SupportDiagnostics.hudMapRows(enabled = false, map = HudMapSnapshot())[1],
+            idle[2],
         )
     }
 

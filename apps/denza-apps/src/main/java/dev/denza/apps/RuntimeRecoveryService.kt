@@ -94,7 +94,8 @@ class RuntimeRecoveryService : Service() {
         private const val ACTION_RECOVER = "dev.denza.apps.action.RUNTIME_RECOVERY"
         private const val EXTRA_CAUSE = "runtime_start_cause"
         private const val CHANNEL_ID = "denza_runtime_recovery"
-        private const val NOTIFICATION_ID = 18_890
+        /** Shared with the map's capture service (`HudMapProjectionService`): one entry, not two. */
+        internal const val NOTIFICATION_ID = 18_890
 
         @JvmStatic
         @JvmName("start")

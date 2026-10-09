@@ -10,6 +10,9 @@ enum class HudMapState {
     /** On, and no Yandex route is held: the HUD shows no map window without one. */
     WAITING_ROUTE,
 
+    /** A route is held and no screen capture is live: «нет разрешения на захват экрана». */
+    NO_GRANT,
+
     /** A route is held and Yandex is not on the source's screen: minimised, closed or elsewhere. */
     NOT_ON_SCREEN,
 
@@ -18,23 +21,24 @@ enum class HudMapState {
 
     /** Frames are going to the map window. */
     SENDING,
-
-    /** The source cannot capture at all - the service lacks the screenshot capability. */
-    NO_CAPABILITY,
 }
 
 /** What «Сервис» shows of the map window. No frame and no place is kept here. */
 data class HudMapSnapshot(
     val state: HudMapState = HudMapState.OFF,
     val source: String = "",
+    /** Whether a screen capture is live, and if not, why. */
+    val grant: HudMapGrantReason = HudMapGrantReason.OFF,
     val framesSent: Long = 0,
-    /** Frames the source asked for and did not get, by the source's own failure code. */
-    val captureFailures: Map<Int, Long> = emptyMap(),
+    /** Frames the source could not take, by what failed. */
+    val captureFailures: Map<String, Long> = emptyMap(),
     /** Frames the pipeline threw on. */
     val processingFailures: Long = 0,
     /** Milliseconds the pipeline spent on the last frame, and its running mean. */
     val lastFrameMs: Long? = null,
     val meanFrameMs: Long? = null,
+    /** Frames made per second, from the running mean of the time between their starts. */
+    val framesPerSecond: Double? = null,
     val anchor: HudMapAnchorSource? = null,
     val coveredBy: String? = null,
     val lastFireResult: Int? = null,
@@ -48,7 +52,7 @@ data class HudMapSnapshot(
 object HudMapRuntime {
     private val framesSent = AtomicLong()
     private val processingFailures = AtomicLong()
-    private val captureFailures = LinkedHashMap<Int, Long>()
+    private val captureFailures = LinkedHashMap<String, Long>()
 
     @Volatile
     private var state = HudMapState.OFF
@@ -57,10 +61,19 @@ object HudMapRuntime {
     private var source = ""
 
     @Volatile
+    private var grant = HudMapGrantReason.OFF
+
+    @Volatile
     private var lastFrameMs: Long? = null
 
     @Volatile
     private var meanFrameMs: Double? = null
+
+    @Volatile
+    private var lastStartedAt: Long? = null
+
+    @Volatile
+    private var meanIntervalMs: Double? = null
 
     @Volatile
     private var anchor: HudMapAnchorSource? = null
@@ -93,20 +106,46 @@ object HudMapRuntime {
         source = name
     }
 
+    /** The screen-capture grant moved; true when it changed, which is when the caller logs it. */
+    @JvmStatic
+    @Synchronized
+    fun onGrant(reason: HudMapGrantReason): Boolean {
+        val changed = reason != grant
+        grant = reason
+        return changed
+    }
+
+    @JvmStatic
+    fun grant(): HudMapGrantReason = grant
+
     /**
-     * A frame made in [ms], its cursor from [anchorSource]. A [warmingUp] frame - the first few of
-     * a run, which pay for the renderer and the compiler - stays out of the mean: on the emulator
-     * the first one took 0.5-0.9 s against 20-30 ms after.
+     * A frame begun at [startedAtMs] and made in [ms], its cursor from [anchorSource]. A [warmingUp]
+     * frame - the first few of a run, which pay for the renderer and the compiler - stays out of the
+     * means: on the emulator the first one took 0.5-0.9 s against 20-30 ms after.
      */
     @JvmStatic
     @JvmOverloads
     @Synchronized
-    fun onFrame(ms: Long, anchorSource: HudMapAnchorSource, warmingUp: Boolean = false) {
+    fun onFrame(ms: Long, anchorSource: HudMapAnchorSource, startedAtMs: Long, warmingUp: Boolean = false) {
         lastFrameMs = ms
         anchor = anchorSource
+        val previous = lastStartedAt
+        lastStartedAt = startedAtMs
         if (warmingUp) return
         val mean = meanFrameMs
         meanFrameMs = if (mean == null) ms.toDouble() else mean + (ms - mean) * MEAN_WEIGHT
+        if (previous != null && startedAtMs > previous) {
+            val interval = (startedAtMs - previous).toDouble()
+            val meanInterval = meanIntervalMs
+            meanIntervalMs = if (meanInterval == null) interval else meanInterval + (interval - meanInterval) * MEAN_WEIGHT
+        }
+    }
+
+    /** A run of the source began: the next frame's interval is not measured from the last run's. */
+    @JvmStatic
+    @Synchronized
+    fun onRunStarted() {
+        lastStartedAt = null
     }
 
     /** The stock service's answer to a frame of the map window. */
@@ -118,8 +157,8 @@ object HudMapRuntime {
 
     @JvmStatic
     @Synchronized
-    fun onCaptureFailure(code: Int) {
-        captureFailures[code] = (captureFailures[code] ?: 0L) + 1
+    fun onCaptureFailure(what: String) {
+        captureFailures[what] = (captureFailures[what] ?: 0L) + 1
     }
 
     @JvmStatic
@@ -131,11 +170,13 @@ object HudMapRuntime {
     fun snapshot(): HudMapSnapshot = HudMapSnapshot(
         state = state,
         source = source,
+        grant = grant,
         framesSent = framesSent.get(),
         captureFailures = captureFailures.toMap(),
         processingFailures = processingFailures.get(),
         lastFrameMs = lastFrameMs,
         meanFrameMs = meanFrameMs?.let { Math.round(it) },
+        framesPerSecond = meanIntervalMs?.takeIf { it > 0 }?.let { 1000.0 / it },
         anchor = anchor,
         coveredBy = coveredBy,
         lastFireResult = lastFireResult,
@@ -148,13 +189,16 @@ object HudMapRuntime {
         captureFailures.clear()
         state = HudMapState.OFF
         source = ""
+        grant = HudMapGrantReason.OFF
         lastFrameMs = null
         meanFrameMs = null
+        lastStartedAt = null
+        meanIntervalMs = null
         anchor = null
         coveredBy = null
         lastFireResult = null
     }
 
-    /** How much one frame moves the running mean: about the last twenty frames. */
+    /** How much one frame moves the running means: about the last twenty frames. */
     private const val MEAN_WEIGHT = 0.05
 }

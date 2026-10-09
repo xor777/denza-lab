@@ -19,6 +19,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- The map's screen capture. Unknown to Android 13, where the type needs only
+         FOREGROUND_SERVICE; declared for the day the target moves past it. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- QUERY_ALL_PACKAGES lets the app picker list every installed app on any car
          and resolve icons/labels for the chosen casting apps; a fixed <queries>
@@ -156,6 +159,12 @@
             android:name=".RuntimeRecoveryService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Holds the map's MediaProjection token: the firmware stops a projection whose uid has
+             no foreground service of this type (MediaProjectionManagerService). -->
+        <service
+            android:name=".feature.hud.HudMapProjectionService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
         <receiver
             android:name=".feature.weather.WeatherAdapterReceiver"
             android:enabled="true"

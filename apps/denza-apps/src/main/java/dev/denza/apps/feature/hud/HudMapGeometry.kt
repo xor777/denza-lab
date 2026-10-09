@@ -31,13 +31,6 @@ object HudMapGeometry {
     const val MAP_WIDTH = 300
     const val MAP_HEIGHT = 180
 
-    /**
-     * The cut is drawn at twice the frame and halved on the CPU: a 2×2 mean reduces a main-screen
-     * cut (×0.26) with less shimmer on thin roads than one bilinear pass.
-     */
-    const val RENDER_WIDTH = MAP_WIDTH * 2
-    const val RENDER_HEIGHT = MAP_HEIGHT * 2
-
     /** The cut's width in Yandex's dp; its height follows the frame's 5:3. */
     const val CROP_WIDTH_DP = 576f
 

@@ -57,7 +57,7 @@ public final class HudGuidanceAccessibilityMonitor {
                 this::onReadFinished);
         // The map's frames ride on the hints' session; both calls arrive on the main thread.
         this.mapRunner = new HudMapRunner(
-                new HudMapScreenshotSource(service),
+                new HudMapProjectionSource(service),
                 new HudMapRunner.Publisher() {
                     @Override
                     public void publish(byte[] payload) {

@@ -54,6 +54,7 @@ import dev.denza.apps.feature.split.SplitWorkJournal
 import dev.denza.apps.feature.split.SplitWorkOperation
 import dev.denza.apps.feature.trip.SpectrumSource
 import dev.denza.apps.feature.trip.TripSession
+import java.util.Locale
 
 data class SupportDiagnosticsHeader(
     val versionName: String,
@@ -325,8 +326,9 @@ object SupportDiagnostics {
     }
 
     /**
-     * The map window in two rows: the switch and where the window stands, then what the frames
-     * cost and what failed - the per-frame time is the number a faster source is judged by.
+     * The map window in three rows: the switch and where the window stands; the screen capture and,
+     * without one, why - the one place that says it, since the panel does not; then what the frames
+     * cost, how many a second came, and what failed.
      */
     internal fun hudMapRows(enabled: Boolean, map: HudMapSnapshot): List<TechnicalRow> = listOf(
         row(
@@ -337,14 +339,16 @@ object SupportDiagnostics {
                 map.coveredBy?.let { add("под окном $it") }
             }.joinToString(", "),
         ),
+        row("Карта, захват экрана", map.grant.words),
         row(
             "Карта, кадры",
             buildList {
                 add("отправлено ${map.framesSent}")
                 add("кадр ${map.lastFrameMs ?: "—"} мс, в среднем ${map.meanFrameMs ?: "—"} мс")
+                add("${map.framesPerSecond?.let { String.format(Locale.ROOT, "%.1f", it) } ?: "—"} к/с")
                 map.anchor?.let { add("стрелка ${it.name.lowercase()}") }
                 add("fire ${map.lastFireResult ?: "—"}")
-                val failures = map.captureFailures.entries.joinToString(" ") { (code, count) -> "$code×$count" }
+                val failures = map.captureFailures.entries.joinToString(" ") { (what, count) -> "$what×$count" }
                 add("отказы захвата ${failures.ifEmpty { "нет" }}")
                 if (map.processingFailures > 0) add("ошибки обработки ${map.processingFailures}")
                 add("источник ${map.source.ifEmpty { "—" }}")

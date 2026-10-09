@@ -9,10 +9,9 @@ import android.os.Handler
  *
  * The pipeline behind it - the cursor, the cut, the key, the PNG and the send ([HudMapPipeline],
  * [HudMapRunner]) - does not know how the picture was taken, and a source does not know what is
- * done with it. The first source is the accessibility service's screenshot of the main screen
- * ([HudMapScreenshotSource]), which the firmware holds under 3 frames a second; the map window
- * wants 10 or more, so a faster source takes its place without the pipeline changing. The pace is
- * the source's alone: it delivers when it has a frame, and nothing downstream assumes an interval.
+ * done with it. The main screen's source is a MediaProjection mirror ([HudMapProjectionSource]); the
+ * instruments' display will be another. The pace is the source's alone: it delivers when it has a
+ * frame, and nothing downstream assumes an interval.
  *
  * Every call to a source, and every call it makes back, is on the one thread whose [Handler] it is
  * started with.
@@ -49,9 +48,9 @@ interface HudMapFrameSink {
 
     /**
      * No frame, and why: [HudMapState.NOT_ON_SCREEN] while Yandex is not where the source looks,
-     * [HudMapState.NO_CAPABILITY] when the source cannot capture at all. A frame the source asked
-     * for and did not get once is not a gap: it counts in [HudMapRuntime.onCaptureFailure], and the
-     * map window keeps its last frame.
+     * [HudMapState.NO_GRANT] while it has nothing to capture with. A frame the source could not take
+     * once is not a gap: it counts in [HudMapRuntime.onCaptureFailure], and the map window keeps its
+     * last frame.
      */
     fun onGap(state: HudMapState)
 }

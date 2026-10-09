@@ -96,28 +96,3 @@ class HudMapKey {
     }
 }
 
-/** Pixel shuffles of the map pipeline, on plain `IntArray`s. */
-object HudMapPixels {
-    /**
-     * Halves [width]×[height] ARGB pixels into [out] by the mean of each 2×2 block; an odd last
-     * row or column is dropped. Every pixel of [out] comes out opaque.
-     */
-    fun halve(pixels: IntArray, width: Int, height: Int, out: IntArray) {
-        val outWidth = width / 2
-        val outHeight = height / 2
-        require(out.size >= outWidth * outHeight) { "${out.size} pixels for $outWidth×$outHeight" }
-        for (y in 0 until outHeight) {
-            val row = 2 * y * width
-            for (x in 0 until outWidth) {
-                val a = pixels[row + 2 * x]
-                val b = pixels[row + 2 * x + 1]
-                val c = pixels[row + width + 2 * x]
-                val d = pixels[row + width + 2 * x + 1]
-                val red = ((a shr 16 and 0xFF) + (b shr 16 and 0xFF) + (c shr 16 and 0xFF) + (d shr 16 and 0xFF) + 2) shr 2
-                val green = ((a shr 8 and 0xFF) + (b shr 8 and 0xFF) + (c shr 8 and 0xFF) + (d shr 8 and 0xFF) + 2) shr 2
-                val blue = ((a and 0xFF) + (b and 0xFF) + (c and 0xFF) + (d and 0xFF) + 2) shr 2
-                out[y * outWidth + x] = (0xFF shl 24) or (red shl 16) or (green shl 8) or blue
-            }
-        }
-    }
-}

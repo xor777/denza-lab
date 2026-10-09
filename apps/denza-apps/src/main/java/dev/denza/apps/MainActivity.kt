@@ -1,12 +1,15 @@
 package dev.denza.apps
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import dev.denza.apps.feature.adb.AdbRestore
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
+import dev.denza.apps.feature.hud.HudMapGrant
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.navigation.NavigationTransferOverlay
 import dev.denza.apps.feature.simulcast.SimulcastIntegration
@@ -15,6 +18,15 @@ import dev.denza.apps.ui.DenzaAppsRoot
 import dev.denza.apps.ui.dashboard.DenzaActions
 
 class MainActivity : ComponentActivity() {
+    /**
+     * The map's screen capture is asked for from here, for a result: SystemUI names the caller by
+     * `getCallingPackage()` and answers at once when op 46 is allowed ([HudMapGrant]).
+     */
+    private val captureConsent = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        HudMapGrant.onConsentResult(this, it.resultCode, it.data)
+    }
+    private val askForCapture: (Intent) -> Unit = { intent -> captureConsent.launch(intent) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -32,9 +44,12 @@ class MainActivity : ComponentActivity() {
         DenzaAppRepository.refresh("resume")
         DenzaAppRepository.defaultApps.refresh()
         DenzaAppRepository.refreshCloudLink()
+        // Hints and map on and no capture live: the one moment, besides the switch, it is asked for.
+        HudMapGrant.attach(this, askForCapture)
     }
 
     override fun onPause() {
+        HudMapGrant.detach(askForCapture)
         NavigationTransferOverlay.setMainActivityResumed(this, false)
         super.onPause()
         if (SimulcastIntegration.isEnabled(this) &&

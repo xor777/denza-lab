@@ -3,7 +3,7 @@ package dev.denza.apps.feature.hud
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** The ground goes black, what stands off it stays, and the shuffles around it. */
+/** The ground goes black, and what stands off it stays. */
 class HudMapKeyTest {
 
     @Test
@@ -55,21 +55,6 @@ class HudMapKeyTest {
         key.ground(IntArray(100) { WHITE })
 
         assertEquals(BLACK, key.ground(IntArray(100) { BLACK }))
-    }
-
-    @Test
-    fun halvingTakesTheMeanOfEachTwoByTwo() {
-        val pixels = intArrayOf(
-            0xFF000000.toInt(), 0xFF040404.toInt(), WHITE, WHITE,
-            0xFF080808.toInt(), 0xFF0C0C0C.toInt(), WHITE, BLACK,
-        )
-        val out = IntArray(2)
-
-        HudMapPixels.halve(pixels, 4, 2, out)
-
-        assertEquals(0xFF060606.toInt(), out[0])
-        // (3 × 255 + 0 + 2) / 4, rounded down.
-        assertEquals(0xFFBFBFBF.toInt(), out[1])
     }
 
     private companion object {

@@ -38,6 +38,8 @@ import dev.denza.apps.feature.hud.HudGuidanceRider
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudGuidanceStatus
+import dev.denza.apps.feature.hud.HudMapGrant
+import dev.denza.apps.feature.hud.HudMapGrantTrigger
 import dev.denza.apps.feature.hud.HudNotificationAccess
 import dev.denza.apps.feature.cloud.CloudLinkController
 import dev.denza.apps.feature.cloud.CloudLinkRuntime
@@ -771,6 +773,9 @@ object DenzaAppRepository {
         val context = appContext ?: return
         HudGuidanceSettings.setEnabled(context, enabled)
         HudGuidanceRider.requestRefresh()
+        // The map rides on the hints: off releases its screen capture, on asks for it if the map
+        // is on - the panel or the tile is on screen, so our Activity can ask.
+        HudMapGrant.evaluate(context, HudMapGrantTrigger.SWITCH)
         if (!enabled) {
             invalidate(StateSlice.HUD_GUIDANCE, "hud switch")
             return
@@ -809,14 +814,17 @@ object DenzaAppRepository {
     }
 
     /**
-     * The map window beside the speed. Only the wish is stored here: the monitor reads it on its
-     * next poll and starts or empties the window itself, and it runs only while the hints hold a
-     * Yandex route, which is why nothing else needs to be repaired or asked for.
+     * The map window beside the speed. The wish is stored here and the monitor reads it on its next
+     * poll, starting or emptying the window itself while the hints hold a Yandex route. The one
+     * thing asked for is the screen capture the map is copied with ([HudMapGrant]): now, while the
+     * panel with the switch is open, or on the next resume of our Activity.
      */
     fun setHudMapEnabled(enabled: Boolean) {
         val context = appContext ?: return
         HudGuidanceSettings.setMapEnabled(context, enabled)
         HudGuidanceRider.requestRefresh()
+        // On asks for the screen capture while the panel is open; off releases it at once.
+        HudMapGrant.evaluate(context, HudMapGrantTrigger.SWITCH)
         invalidate(StateSlice.HUD_GUIDANCE, "hud map switch")
     }
 

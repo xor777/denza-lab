@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/** What «Сервис» reads of the map window: one transition per change, counts by code, the frame cost. */
+/** What «Сервис» reads of the map window: one transition per change, the grant, failures, the frames' cost and rate. */
 class HudMapRuntimeTest {
     @Before
     fun reset() = HudMapRuntime.resetForTest()
@@ -37,18 +37,18 @@ class HudMapRuntimeTest {
     }
 
     @Test
-    fun captureFailuresAreCountedByCode() {
-        HudMapRuntime.onCaptureFailure(3)
-        HudMapRuntime.onCaptureFailure(3)
-        HudMapRuntime.onCaptureFailure(4)
+    fun captureFailuresAreCountedByWhatFailed() {
+        HudMapRuntime.onCaptureFailure("display")
+        HudMapRuntime.onCaptureFailure("display")
+        HudMapRuntime.onCaptureFailure("buffer")
 
-        assertEquals(mapOf(3 to 2L, 4 to 1L), HudMapRuntime.snapshot().captureFailures)
+        assertEquals(mapOf("display" to 2L, "buffer" to 1L), HudMapRuntime.snapshot().captureFailures)
     }
 
     @Test
     fun theFrameCostKeepsTheLastAndARunningMean() {
-        HudMapRuntime.onFrame(20, HudMapAnchorSource.DETECTED)
-        HudMapRuntime.onFrame(40, HudMapAnchorSource.REMEMBERED)
+        HudMapRuntime.onFrame(20, HudMapAnchorSource.DETECTED, startedAtMs = 1_000)
+        HudMapRuntime.onFrame(40, HudMapAnchorSource.REMEMBERED, startedAtMs = 1_083)
 
         val snapshot = HudMapRuntime.snapshot()
         assertEquals(40L, snapshot.lastFrameMs)
@@ -59,12 +59,33 @@ class HudMapRuntimeTest {
 
     @Test
     fun warmUpFramesShowAsTheLastButStayOutOfTheMean() {
-        HudMapRuntime.onFrame(900, HudMapAnchorSource.DEFAULT, warmingUp = true)
+        HudMapRuntime.onFrame(900, HudMapAnchorSource.DEFAULT, startedAtMs = 1_000, warmingUp = true)
         assertEquals(900L, HudMapRuntime.snapshot().lastFrameMs)
         assertNull(HudMapRuntime.snapshot().meanFrameMs)
 
-        HudMapRuntime.onFrame(25, HudMapAnchorSource.DETECTED)
+        HudMapRuntime.onFrame(25, HudMapAnchorSource.DETECTED, startedAtMs = 2_000)
 
         assertEquals(25L, HudMapRuntime.snapshot().meanFrameMs)
+    }
+
+    @Test
+    fun theRateIsFromTheTimeBetweenFrameStartsAndANewRunDoesNotCountTheGap() {
+        HudMapRuntime.onFrame(20, HudMapAnchorSource.DETECTED, startedAtMs = 1_000)
+        assertNull(HudMapRuntime.snapshot().framesPerSecond)
+        HudMapRuntime.onFrame(20, HudMapAnchorSource.DETECTED, startedAtMs = 1_100)
+        assertEquals(10.0, HudMapRuntime.snapshot().framesPerSecond!!, 0.001)
+
+        // A minute without a route, then a new run: its first frame is no 60 s interval.
+        HudMapRuntime.onRunStarted()
+        HudMapRuntime.onFrame(20, HudMapAnchorSource.DETECTED, startedAtMs = 61_100)
+        assertEquals(10.0, HudMapRuntime.snapshot().framesPerSecond!!, 0.001)
+    }
+
+    @Test
+    fun theGrantReportsAChangeOnce() {
+        assertEquals(HudMapGrantReason.OFF, HudMapRuntime.snapshot().grant)
+        assertTrue(HudMapRuntime.onGrant(HudMapGrantReason.NO_ADB))
+        assertFalse(HudMapRuntime.onGrant(HudMapGrantReason.NO_ADB))
+        assertEquals(HudMapGrantReason.NO_ADB, HudMapRuntime.snapshot().grant)
     }
 }

@@ -163,7 +163,6 @@ object ClusterDisplayResolver {
         @Suppress("DEPRECATION")
         display.getRealMetrics(metrics)
         val normalizedName = display.name.orEmpty()
-        val lowerName = normalizedName.lowercase(Locale.ROOT)
         return ClusterDisplayDescriptor(
             id = display.displayId,
             name = normalizedName,
@@ -175,11 +174,21 @@ object ClusterDisplayResolver {
             // supply a trusted value; names and real metrics remain authoritative.
             type = displayType(display),
             flags = display.flags,
-            isOwnVirtualDisplay = lowerName.startsWith("denza apps") ||
-                lowerName.startsWith("denza_cluster") ||
-                lowerName.startsWith("denza navigation"),
+            isOwnVirtualDisplay = isOwnDisplayName(normalizedName),
         )
     }
+
+    /**
+     * Whether a display of this name is one this app made: the scene's, the navigator's
+     * («Denza Navigation») and the HUD map's mirror («Denza HUD Map»). They are never the
+     * instruments' screen, and are not offered as one.
+     */
+    internal fun isOwnDisplayName(name: String): Boolean {
+        val lower = name.lowercase(Locale.ROOT)
+        return OWN_DISPLAY_PREFIXES.any(lower::startsWith)
+    }
+
+    private val OWN_DISPLAY_PREFIXES = listOf("denza apps", "denza_cluster", "denza navigation", "denza hud map")
 
     // Display#getType is read-only enrichment on the fixed IVI framework; all
     // selection logic retains public name/metrics fallbacks if reflection fails.

@@ -1,10 +1,24 @@
 package dev.denza.apps.feature.cluster
 
+import dev.denza.apps.feature.hud.HudMapProjectionSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ClusterDisplayResolverTest {
+    /**
+     * The HUD map's mirror is 1280×800 and virtual: by size alone it is a screen one could pick for
+     * the instruments, and it would be offered while a route runs. It is known as ours by name.
+     */
+    @Test
+    fun theAppsOwnDisplaysAreKnownByNameTheHudMapsMirrorAmongThem() {
+        assertTrue(ClusterDisplayResolver.isOwnDisplayName(HudMapProjectionSource.DISPLAY_NAME))
+        assertTrue(ClusterDisplayResolver.isOwnDisplayName("Denza Navigation"))
+        assertTrue(ClusterDisplayResolver.isOwnDisplayName("denza_cluster_scene"))
+        assertEquals(false, ClusterDisplayResolver.isOwnDisplayName(ClusterDisplayResolver.KNOWN_DENZA_DISPLAY))
+        assertEquals(false, ClusterDisplayResolver.isOwnDisplayName("HUD"))
+    }
+
     @Test
     fun exactKnownDisplayWinsOverRearAndOtherVirtualDisplays() {
         val cluster = candidate(4, ClusterDisplayResolver.KNOWN_DENZA_DISPLAY, 1920, 720)
