@@ -1961,10 +1961,9 @@ existing SMB share.
 
 > **Superseded 2026-09-24:** the FSE OTA was read instead; FSE DiShare has no gear/speed check either, and the rule shows as `0x38B00036` dropping to `1` in D at standstill ([14.3](#hud-availability-chain), [14.9](#hud-pd-live)); its source (HAL input, MCU or HUD controller) is still open ([14.12](#hud-hal-input-route)).
 
-**What "custom pictures on the HUD" means elsewhere.** BYDMate
-([README](https://github.com/AndyShaman/BYDMate/blob/main/README.en.md)) puts
-Yandex Navigator guidance on the factory HUD over "the HUD's own factory
-channel": maneuver icon, distance, street, arrival time, speed limit, and a
+**What "custom pictures on the HUD" means elsewhere.** A third-party app puts
+Yandex Navigator guidance on the factory HUD over the stock HUD channel:
+maneuver icon, distance, street, arrival time, speed limit, and a
 speed-camera icon in place of the arrow. That is the `0x8001` road packet with
 an app-drawn picture in field 8, the same path Denza Apps already uses. It is
 not a map or video.

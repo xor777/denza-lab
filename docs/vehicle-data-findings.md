@@ -427,8 +427,8 @@ the session). Read-only `service call` only: no APK install, no `app_process`,
 no writes, `dumpsys autoservice` returns empty.
 
 **Result: working** for shell UID. **Blocked** for a normal app UID. Same
-Binder third-party dashboards use (BYDMate `AutoserviceClient`, EV Pro
-local-ADB layer, OpenBYD privileged proxy). OpenBYD's `app_process` +
+Binder third-party dashboards use (an `AutoserviceClient` client, a local-ADB
+layer, a privileged `app_process` proxy). Such a proxy's `app_process` +
 `BydContextWrapper.checkPermission()==0` is unnecessary for reads: a one-shot
 `service call` from shell is enough.
 
@@ -537,10 +537,10 @@ Cell delta has no FID: compute max − min locally.
 | Cell voltage V = int / 1000 | 3313 → 3.313 V |
 | 12V = float volts | `0x415ccccd` → 13.80 |
 | SOC % = float (also int twin) | 43.0 |
-| Odometer km = int / 10 | 118927 → 11892.7 km (BYDMate convention, plausible) |
+| Odometer km = int / 10 | 118927 → 11892.7 km (a third-party dashboard's convention, plausible) |
 | ~~Remaining energy kWh = int / 10~~ **falsified 2026-08-22** | `0x44700028` is the BMS state of charge in tenths of a percent: `432` against a 43 % display, `616` against a 62 % display. The "43.2 / 0.43 ≈ 100 kWh pack" inference was circular — a state of charge divided by itself always lands near 100. The owner puts this pack under 40 kWh, and the stock home widget reports 23.2 kWh/100 km over 50 km, which fits a ~38 kWh plug-in hybrid, not a 100 kWh EV |
 | Tyre pressure bar = int / 100 | 287 → 2.87 bar |
-| Charge gun 2 = AC connected | BYDMate table; SOC rose during the session |
+| Charge gun 2 = AC connected | a third-party dashboard's table; SOC rose during the session |
 | Pack V cross-check | 166 cells × 3.315 V ≈ 550 V = `CHARGING_CHARGE_BATTERY_VOLT` |
 
 Unproven — do not label in a UI until a moving capture: `STATISTIC_INSTANTANEOUS_CURRENT`

@@ -37,7 +37,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | Placements on the 2560x720 cluster: Full at `272 dpi`, Center `Rect(768, 0 - 1791, 720)` at `320 dpi`, Left `Rect(0, 0 - 1023, 609)`, Right `Rect(1537, 95 - 2560, 619)`; Waze renders in Full and Right and stays black in Center and Left | live | 2026-08-19 | [Navigation projection](#navigation-projection), [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
 | One tap launches a missing task on display `0` and projects it (900 ms, then at most five checks 700 ms apart); missing-task launch, return and warm re-projection passed with Yandex Navigator | live | 2026-09-05 | [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
 | A navigator allowlist: six packages (the Morphe Google Maps build `app.morphe.android.apps.maps` added 2026-09-11, `d66c61ab`) in `NavigationAppPolicy` and `ClusterProxyMain.ALLOWED_PACKAGES`; removed 2026-09-23 by the owner's decision, and `DriverScreenChoicesTest` fails if any of the six reappears | refuted | 2026-09-23 | [Any application, not six navigators](#any-application-not-six-navigators) |
-| HUD guidance reads Yandex's accessibility nodes (and its notification `RemoteViews`) and sends `HudRoadInfoNotifyStruct` to `SomeIpServerService`, service `3097367205183488`, topic `1127042368241665` (`HudSomeIpClient.java`); field 28 uses the OpenBYD icon table, live-verified for left, right and both slights | live | 2026-09-03 | [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
+| HUD guidance reads Yandex's accessibility nodes (and its notification `RemoteViews`) and sends `HudRoadInfoNotifyStruct` to `SomeIpServerService`, service `3097367205183488`, topic `1127042368241665` (`HudSomeIpClient.java`); field 28 uses the recovered HUD icon table, live-verified for left, right and both slights | live | 2026-09-03 | [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
 | The stock navigator fills the same packet with speed limit (11), section control (13-15), camera (17/18), lanes (5, 7, 29), road class (6) and reroute (16 = `3`); its field-28 table matches ours for turns, slights, sharp, U-turn and straight, uses `13`/`15`/`18`/`20`/`22`/`24` for roundabouts and never `25`-`44`; it also writes the limit to ADAS (`0x4CA00040`, cleared with `0`) | firmware | 2026-10-09 | [The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09) |
 | A cluster DVR view from Android camera `0`: its delivered orientation flips with vendor state no app can read; behind `ClusterDvrFlag` from 2026-08-14 (`55190633`), renderer and flag deleted 2026-08-26 (`4233dd15`) | refuted | 2026-08-26 | [DVR Camera2 source: verified renderer, product path retired](#dvr-camera2-source-verified-renderer-product-path-retired) |
 | Other dead ends: `IWindowManager.mirrorDisplay` copies (the stock card stays above, the right copy carries stock controls), DiShare HUD camera (protected AVC frames black), the stock cluster projection Binder (package list, left card for `com.byd.avc` only), ADAS cameras (no video endpoint), the AVC surround source (a wide-angle parking view, not long-range vision) | refuted | 2026-07-25 | [Failed or research-only paths](#failed-or-research-only-paths), [AVC surround-view source](#avc-surround-view-source) |
@@ -60,7 +60,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - [Navigation projection](#navigation-projection) — placements, any application since 2026-09-23, task topology and capture method, one-tap launch, transfer overlay, steering-wheel key, teardown rules.
 - [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) — Yandex guidance to the stock SOME/IP road topic, the AR arrow approximation, field-28 maneuver IDs, the stock packet field by field and other senders' findings (2026-10-09).
 - [Central IVI split routing](#central-ivi-split-routing) — the retired router, kept for the stock `byd-freeform` substrate it measured.
-- [OpenBYD research boundary](#openbyd-research-boundary) — what `com.sr.openbyd` taught and what was not copied.
+- [Third-party projection app: research boundary](#third-party-projection-app-research-boundary) — what an inspected third-party projection app taught and what was not copied.
 - [Recorded car runs and escalation alerts](#recorded-car-runs-and-escalation-alerts) — 2026-07 acceptance runs by APK hash, open hardware checks, the `com.byd.avc` crash procedure.
 - [Failed or research-only paths](#failed-or-research-only-paths) — the dead ends in one list.
 - [Front-camera source evaluation (2026-07-25)](#front-camera-source-evaluation-2026-07-25) — the AVC surround source, the retired DVR renderer, the ADAS cameras.
@@ -2392,14 +2392,14 @@ reproduces the drive. The trade-off is intentional: on strongly curved
 approaches AR now drops to the compact packet more often instead of drawing a
 semantically wrong bend. The live re-check is recorded in the next paragraph.
 
-> **Superseded 2026-09-03:** the nose cone was not the fix. The wrong-side arrow came from the field-28 maneuver-ID table; with the table recovered from OpenBYD the slight exits render on the commanded side, and the nose cone stays only as a geometry safety net (next paragraph).
+> **Superseded 2026-09-03:** the nose cone was not the fix. The wrong-side arrow came from the field-28 maneuver-ID table; with the table recovered from a third-party app the slight exits render on the commanded side, and the nose cone stays only as a geometry safety net (next paragraph).
 
 On 2026-09-03 the live re-check reported the same failure after the nose-cone
 fix, while the flat maneuver PNG was always correct. That points away from
 parsing and geometry and at field 28 (`recommendedDrivingDirectionsId`). The
 original ID table (left 1, right 2, straight 3, slight 5/7, sharp 9/11, U-turn
 45/13, roundabout 46/47) had no recorded source, and only 1/2 agree with the
-empirically named HUD icon table recovered from OpenBYD: 1 left, 2 right, 3/4
+empirically named HUD icon table recovered from a third-party app: 1 left, 2 right, 3/4
 slight left, 5/6 slight right, 7 sharp left, 8 sharp right, 9/10 U-turn
 left/right, 11/12 straight, 13/14 detour right/left, 15-24 roundabout exit
 variants, 25-34 counter-clockwise roundabout 1-10, 35-44 clockwise roundabout
@@ -2668,9 +2668,9 @@ without entering either stock split pane. 2GIS exits its process
 during display changes, so navigation revalidates the task and reopens it on the
 central display when Android removes the old task.
 
-## OpenBYD research boundary
+## Third-party projection app: research boundary
 
-The locally inspected APK is `com.sr.openbyd`, version `1.0` (version code `1`),
+The locally inspected third-party APK is version `1.0` (version code `1`),
 SHA-256
 `6eac698da9be9009ae14b9c53acaef070fad160b53286350e27ede08c2fc9669`.
 It moves application tasks to a virtual display from a shell process. Its
@@ -2680,7 +2680,7 @@ contained no project license. We used it only to understand the approach and
 copied no decompiled code into Denza Apps.
 
 Denza Mirrors remains the hardware-tested reference for camera geometry and
-central placement. OpenBYD is supporting research evidence.
+central placement. The third-party app is supporting research evidence.
 
 ## Recorded car runs and escalation alerts
 

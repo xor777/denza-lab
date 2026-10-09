@@ -131,8 +131,8 @@ The product contract is deliberately small:
    to its existing task, fails with an app-specific two-window message without
    deleting or adopting the first window.
 
-The exact framework/SystemUI corpus from this vehicle, rather than OpenBYD,
-defines the design. `CustomDividerActivity`,
+The exact framework/SystemUI corpus from this vehicle, rather than a
+third-party app, defines the design. `CustomDividerActivity`,
 `CustomDividerSecondaryActivity`, `DividerUtils`, and `StageCoordinator` show
 the same picker-under-app stack model and keep split alive while a picker base
 remains. The public `StatusBarManager` methods are not used: the exact
@@ -1039,7 +1039,7 @@ The corpus used for this contract is `/system/framework/services.jar` SHA-256
 `23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019`
 and `/system/framework/framework.jar` SHA-256
 `aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c`.
-OpenBYD remains reference material only.
+Third-party apps remain reference material only.
 
 ### Acceptance reset
 
@@ -1158,7 +1158,7 @@ working route is:
    `am task resize` so both apps receive a configuration change and rebuild
    their layouts for the panes.
 
-The recovered DiLink 6/OpenBYD category route was originally rejected for
+The recovered DiLink 6 category route was originally rejected for
 arbitrary third-party app launches because this firmware ignored it or produced
 duplicate fullscreen tasks. That result still applies to the former router; it
 does not apply to the exact resizeable Denza picker components, whose direct
