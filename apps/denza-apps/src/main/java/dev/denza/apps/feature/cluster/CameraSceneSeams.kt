@@ -41,6 +41,27 @@ internal interface CameraRendererEvents {
     fun onFirstFrame(details: String)
 }
 
+/** What a camera layer's renderer reports, tagged with the Show it belongs to. */
+internal interface AvcEvents {
+    fun onAvcReady(commandGeneration: Long, details: String)
+
+    fun onAvcFailure(commandGeneration: Long, details: String)
+
+    fun onAvcFirstFrame(commandGeneration: Long, details: String)
+}
+
+/** Where the scene finds its displays and opens a presentation on one: the service. */
+internal interface SceneLayers {
+    /** The camera overlay's resolver for the camera layer, the instruments' for the base. */
+    fun resolve(cameraLayer: Boolean): ClusterDisplaySelection
+
+    /**
+     * Shows a new presentation on [displayId] and returns its layer, or null when the display is
+     * gone or the window could not be shown. [events] hears the layer's renderer.
+     */
+    fun open(displayId: Int, cameraLayer: Boolean, events: AvcEvents): SceneLayer?
+}
+
 /** One presentation's window and views, as its camera and diagnostic lifecycle drives them. */
 internal interface SceneLayerViews {
     /** Takes the window down (`Presentation.dismiss` itself); the TextureView goes with it. */
