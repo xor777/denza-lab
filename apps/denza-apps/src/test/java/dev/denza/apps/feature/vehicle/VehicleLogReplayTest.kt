@@ -17,7 +17,8 @@ import org.junit.Test
  * signals turn out to mean**, over whatever the car actually did:
  *
  *  - the road under the chart is the road the log recorded - a point per reading bucket of it, and
- *    the same road the unit beside the figure names;
+ *    the same road the unit beside the figure names - and every reading is one odometer tick, which
+ *    is what lets a pitch per point be that road (contract §2.6, since 2026-10-09);
  *  - the figure is energy over known road, and nothing else;
  *  - every point is the trailing ten readings, none of them is a `NaN`, and nothing is drawn from
  *    fewer than five;
@@ -144,6 +145,16 @@ class VehicleLogReplayTest {
             "${file.name} at $at s: the window holds $recorded km in $readings readings",
             recorded >= readings * ConsumptionChart.PITCH_KM - 1e-6,
         )
+        // A step of more than one tick is not a reading, so no reading is longer than a pitch.
+        window.forEach { bucket ->
+            if (!bucket.known) return@forEach
+            assertEquals(
+                "${file.name} at $at s: a reading of ${bucket.km} km",
+                ConsumptionChart.PITCH_KM,
+                bucket.km,
+                1e-6,
+            )
+        }
 
         // Under five readings nothing is drawn at all (§2.3, «Filling»): every file starts a fresh
         // log, so the first four hundred metres of every capture are the floor, not a lost point.

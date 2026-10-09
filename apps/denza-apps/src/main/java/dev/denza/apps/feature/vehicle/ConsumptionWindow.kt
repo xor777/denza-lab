@@ -8,10 +8,12 @@ package dev.denza.apps.feature.vehicle
  *
  * ### The window is ten kilometres of recorded road
  *
- * `docs/energy-display-contract.md` §2.2 and §2.6. Not a hundred records - a bucket is not always a
- * hundred metres, and an odometer step no tick can explain closes one bucket carrying that whole
- * step - and not ten kilometres of odometer either. It is the newest buckets that are **readings**,
- * taken back until their road sums to [KM], whatever the odometer says about the road between them.
+ * `docs/energy-display-contract.md` §2.2 and §2.6. Not a hundred records - a bucket that is not a
+ * reading is a record with no road on this axis - and not ten kilometres of odometer either. It is
+ * the newest buckets that are **readings**, taken back until their road sums to [KM], whatever the
+ * odometer says about the road between them. A reading is one odometer tick: a step of more than
+ * one closes one bucket of that road and is not a reading (until 2026-10-09 it was, and carried its
+ * whole 0.2-0.3 km into this walk on one point of the chart).
  *
  * **The odometer floor is gone.** It bounded the walk at `lastKm − KM` so that a journal restored
  * twenty kilometres behind the car, or the buckets from before a re-anchor, left the window. That
