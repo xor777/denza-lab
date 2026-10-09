@@ -15,6 +15,7 @@ import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.DenzaRuntimeCoordinator
+import dev.denza.apps.platform.accessibility.AccessibilityRepair
 import dev.denza.disharebridge.LocalAdbClient
 import dev.denza.disharebridge.LocalAdbTlsClient
 import kotlinx.coroutines.CoroutineScope
@@ -82,7 +83,7 @@ internal class AndroidAdbRestoreSystem(context: Context) : AdbRestoreSystem {
                 if (abandoned() || SimulcastCoordinator.isAccessibilityConnected()) return
                 try {
                     suspendCancellableCoroutine<Unit> { continuation ->
-                        SimulcastCoordinator.repairAccess(app, onComplete = { failure ->
+                        AccessibilityRepair.repair(app, onComplete = { failure ->
                             if (continuation.isActive) {
                                 if (failure == null) continuation.resume(Unit)
                                 else continuation.resumeWithException(failure)

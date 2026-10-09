@@ -1,5 +1,7 @@
-package dev.denza.apps
+package dev.denza.apps.platform.accessibility
 
+import dev.denza.apps.StateMarks
+import dev.denza.apps.StateSlice
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 

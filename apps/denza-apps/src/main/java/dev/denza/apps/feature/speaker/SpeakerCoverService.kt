@@ -18,6 +18,7 @@ import dev.denza.apps.StateSlice
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
 import dev.denza.apps.SimulcastCoordinator
+import dev.denza.apps.platform.accessibility.AccessibilityRepair
 import dev.denza.apps.platform.media.MediaSessionAccess
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -111,7 +112,7 @@ class SpeakerCoverService : Service() {
 
     private fun ensureObserverAccess() {
         if (!SimulcastCoordinator.isAccessibilityEnabled(this)) {
-            SimulcastCoordinator.repairAccess(this) { failure ->
+            AccessibilityRepair.repair(this) { failure ->
                 if (failure != null) Log.i(TAG, "foreground-app observer unavailable", failure)
             }
         }

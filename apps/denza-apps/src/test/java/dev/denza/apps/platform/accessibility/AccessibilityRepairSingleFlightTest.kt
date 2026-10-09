@@ -1,4 +1,4 @@
-package dev.denza.apps
+package dev.denza.apps.platform.accessibility
 
 import dev.denza.apps.feature.split.SplitNativePickerAccessController
 import dev.denza.apps.feature.split.SplitNativePickerAccessLeaseStore
@@ -23,7 +23,7 @@ class AccessibilityRepairSingleFlightTest {
 
     @Test
     fun cancellingDuringUnbindRestoresTheOriginalEntries() {
-        val original = listOf("com.other/.Observer", SimulcastAccessibilityAccess.COMPONENT)
+        val original = listOf("com.other/.Observer", SharedAccessibilityAccess.COMPONENT)
         val shell = FakeAccessibilitySettings(original)
         var wanted = true
         try {
@@ -50,7 +50,7 @@ class AccessibilityRepairSingleFlightTest {
     fun sharedRepairRestoresAppObserverThenSplitObserverLast() {
         val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
         val voice = "com.byd.autovoice/.SceneSayService"
-        val simulcast = SimulcastAccessibilityAccess.COMPONENT
+        val simulcast = SharedAccessibilityAccess.COMPONENT
         val split = SplitNativePickerAccessibilityAccess.COMPONENT
         val shell = FakeAccessibilitySettings(listOf(system, voice, split, simulcast))
         val lease = FakeSplitAccessLease(owned = true, configurationVersion = 5)
@@ -79,7 +79,7 @@ class AccessibilityRepairSingleFlightTest {
     @Test
     fun sharedRepairDoesNotRestoreSplitWhenFeatureIsDisabled() {
         val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
-        val simulcast = SimulcastAccessibilityAccess.COMPONENT
+        val simulcast = SharedAccessibilityAccess.COMPONENT
         val split = SplitNativePickerAccessibilityAccess.COMPONENT
         val shell = FakeAccessibilitySettings(listOf(system, split, simulcast))
         val lease = FakeSplitAccessLease(owned = true, configurationVersion = 6)
@@ -116,7 +116,7 @@ class AccessibilityRepairSingleFlightTest {
         ).repair(ensureSplit = false)
 
         assertEquals(
-            listOf(system, voice, SimulcastAccessibilityAccess.COMPONENT),
+            listOf(system, voice, SharedAccessibilityAccess.COMPONENT),
             shell.services,
         )
     }
@@ -178,7 +178,7 @@ class AccessibilityRepairSingleFlightTest {
     @Test
     fun thePickerLeaseDoesNotWaitOutARepairThatEnablesItsService() {
         val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
-        val simulcast = SimulcastAccessibilityAccess.COMPONENT
+        val simulcast = SharedAccessibilityAccess.COMPONENT
         val split = SplitNativePickerAccessibilityAccess.COMPONENT
         val repairShell = FakeAccessibilitySettings(listOf(system, simulcast, split))
         val leaseShell = FakeAccessibilitySettings(listOf(system, simulcast, split))

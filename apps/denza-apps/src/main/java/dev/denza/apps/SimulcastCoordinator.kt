@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
 import dev.denza.apps.adb.AdbProblem
-import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.adb.OverlayGrant
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
@@ -12,9 +11,8 @@ import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.core.FeatureWords
-import dev.denza.apps.feature.split.SplitScreenSettings
-import dev.denza.apps.platform.shell.shellQuote
-import java.util.concurrent.Executors
+import dev.denza.apps.platform.accessibility.AccessibilityRepair
+import dev.denza.apps.platform.accessibility.SharedAccessibilityAccess
 
 data class SimulcastEnvironment(
     val desired: Boolean,
@@ -75,8 +73,6 @@ sealed interface SimulcastReconcileEvent {
  */
 object SimulcastCoordinator {
     const val DISHARE_PACKAGE = "com.byd.dishare"
-    private val executor = Executors.newSingleThreadExecutor()
-    private val accessibilityRepair = AccessibilityRepairSingleFlight()
 
     fun inspect(context: Context): SimulcastEnvironment = SimulcastEnvironment(
         desired = SimulcastIntegration.isEnabled(context),
@@ -95,7 +91,7 @@ object SimulcastCoordinator {
             return blockedSnapshot(blocker)
         }
         if (!environment.overlayAllowed || !environment.accessibilityEnabled) {
-            // The press repairs it: [repairAccess] grants the overlay and enables the service.
+            // The press repairs it: [AccessibilityRepair.repair] grants the overlay and enables the service.
             return FeatureReducer.needsAction(
                 FeatureReducer.starting(FeatureId.SIMULCAST),
                 FeatureWords.NO_ACCESS,
@@ -158,7 +154,7 @@ object SimulcastCoordinator {
             return
         }
         onEvent(SimulcastReconcileEvent.Repairing)
-        repairAccess(context) { failure ->
+        AccessibilityRepair.repair(context) { failure ->
             val latestEnvironment = inspect(context)
             val repaired = failure == null &&
                 latestEnvironment.overlayAllowed &&
@@ -188,27 +184,6 @@ object SimulcastCoordinator {
         }
     }
 
-    fun repairAccess(context: Context, onComplete: (Throwable?) -> Unit) = repairAccess(context, { true }, onComplete)
-
-    /**
-     * Repairs the overlay grant and the accessibility service, once for every owner that asks while
-     * it runs. [AccessibilityRepairSingleFlight] marks the steering wheel's row as a repair starts
-     * and settles.
-     */
-    internal fun repairAccess(context: Context, stillWanted: () -> Boolean, onComplete: (Throwable?) -> Unit) {
-        if (!accessibilityRepair.join(onComplete, stillWanted)) return
-        try {
-            executor.execute {
-                val failure = runCatching { repairAccessNow(context, accessibilityRepair::isStillWanted) }.exceptionOrNull()
-                accessibilityRepair.complete(failure)
-            }
-        } catch (error: RuntimeException) {
-            accessibilityRepair.complete(error)
-        }
-    }
-
-    fun isAccessibilityRepairRunning(): Boolean = accessibilityRepair.isRunning()
-
     fun hasOverlayPermission(context: Context): Boolean = OverlayGrant.held(context)
 
     fun isAccessibilityEnabled(context: Context): Boolean {
@@ -216,7 +191,7 @@ object SimulcastCoordinator {
             context.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
         )
-        return SimulcastAccessibilityAccess.isEnabled(setting)
+        return SharedAccessibilityAccess.isEnabled(setting)
     }
 
     fun isAccessibilityConnected(): Boolean = SimulcastAccessibilityService.isConnected()
@@ -230,32 +205,6 @@ object SimulcastCoordinator {
         }
         return null
     }
-
-    private fun repairAccessNow(context: Context, stillWanted: () -> Boolean) {
-        if (!stillWanted()) return
-        val adb = DenzaLocalAdb.client(context).openPersistentShell()
-        try {
-            if (!stillWanted()) return
-            adb.shell(overlayGrantCommand(context.packageName))
-            DenzaAccessibilityRepairController(
-                shell = adb::shell,
-                splitLeaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(context),
-            ).repair(
-                ensureSplit = SplitScreenSettings.isEnabled(context),
-                stillWanted = stillWanted,
-            )
-        } finally {
-            adb.close()
-        }
-    }
-
-    /**
-     * The overlay grant the repair sends first. The package goes in quotes, as this repair has
-     * always sent it; `ShellGrants.appop` and [OverlayGrant.command] leave it bare - the same word
-     * to the shell, other bytes.
-     */
-    internal fun overlayGrantCommand(packageName: String): String =
-        "cmd appops set ${shellQuote(packageName)} SYSTEM_ALERT_WINDOW allow"
 
     /**
      * What a repair that did not take says on the tile - the projection's and the HUD's, which

@@ -1,6 +1,6 @@
-package dev.denza.apps
+package dev.denza.apps.platform.accessibility
 
-internal object SimulcastAccessibilityAccess {
+internal object SharedAccessibilityAccess {
     const val COMPONENT = "dev.denza.apps/dev.denza.apps.SimulcastAccessibilityService"
 
     private val aliases = setOf(

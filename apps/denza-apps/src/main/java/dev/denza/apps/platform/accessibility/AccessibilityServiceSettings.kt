@@ -1,4 +1,4 @@
-package dev.denza.apps
+package dev.denza.apps.platform.accessibility
 
 import dev.denza.apps.feature.split.SplitNativePickerAccessibilityAccess
 import dev.denza.apps.feature.split.SplitNativePickerAccessLeaseStore
@@ -61,7 +61,7 @@ internal class DenzaAccessibilityRepairController(
             pause(ALL_SERVICES_UNBIND_MS)
             check(stillWanted()) { "Accessibility preparation cancelled" }
 
-            val simulcastOnly = SimulcastAccessibilityAccess.withServiceEntries(
+            val simulcastOnly = SharedAccessibilityAccess.withServiceEntries(
                 withoutDenzaServices(settings.read()),
             )
             settings.write(simulcastOnly, ensureAccessibilityEnabled = true)
@@ -70,7 +70,7 @@ internal class DenzaAccessibilityRepairController(
                 pause(APP_WIDE_SERVICE_BIND_MS)
                 check(stillWanted()) { "Accessibility preparation cancelled" }
                 val both = SplitNativePickerAccessibilityAccess.withService(
-                    SimulcastAccessibilityAccess.withServiceEntries(
+                    SharedAccessibilityAccess.withServiceEntries(
                         withoutDenzaServices(settings.read()),
                     ),
                 )
@@ -79,7 +79,7 @@ internal class DenzaAccessibilityRepairController(
             }
 
             val repaired = settings.read()
-            check(SimulcastAccessibilityAccess.isEnabledEntries(repaired)) {
+            check(SharedAccessibilityAccess.isEnabledEntries(repaired)) {
                 "Система не включила общее наблюдение Denza Apps"
             }
             check(!ensureSplit || SplitNativePickerAccessibilityAccess.isEnabled(repaired)) {
@@ -107,7 +107,7 @@ internal class DenzaAccessibilityRepairController(
 
     private fun withoutDenzaServices(entries: List<String>): List<String> =
         SplitNativePickerAccessibilityAccess.withoutService(
-            SimulcastAccessibilityAccess.withoutServiceEntries(entries),
+            SharedAccessibilityAccess.withoutServiceEntries(entries),
         )
 
     private companion object {
