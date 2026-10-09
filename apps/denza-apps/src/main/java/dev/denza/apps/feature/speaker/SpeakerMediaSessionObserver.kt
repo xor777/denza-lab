@@ -1,101 +1,101 @@
 package dev.denza.apps.feature.speaker
 
-import android.content.ComponentName
 import android.content.Context
-import android.media.session.MediaController
-import android.media.session.MediaSession
-import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
-import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
+import dev.denza.apps.platform.media.MediaSessionChange
+import dev.denza.apps.platform.media.MediaSessionHub
+import dev.denza.apps.platform.media.MediaSessionSubscriber
+import dev.denza.apps.platform.media.MediaSessions
 
-/** Watches every active session; the trip strip deliberately follows only one. */
+/**
+ * Hears every active session that plays; the trip strip deliberately follows only one.
+ *
+ * The sessions come from the process's [MediaSessionHub]; what counts as playing for the covers is
+ * decided here, by [SpeakerPlayback].
+ */
 internal class SpeakerMediaSessionObserver(
-    context: Context,
+    private val hub: MediaSessionHub,
     private val onPlaying: (String) -> Unit,
 ) {
-    private val app = context.applicationContext
-    private val handler = Handler(Looper.getMainLooper())
-    private val manager = app.getSystemService(MediaSessionManager::class.java)
-    private val listenerComponent = ComponentName(app, YandexNotificationArtworkListener::class.java)
-    private val controllers = LinkedHashMap<MediaSession.Token, ObservedController>()
+    constructor(context: Context, onPlaying: (String) -> Unit) :
+        this(MediaSessionHub.get(context), onPlaying)
+
+    private val playback = SpeakerPlayback()
     private var listening = false
 
-    private val sessionsChanged = MediaSessionManager.OnActiveSessionsChangedListener(::reconcile)
-
-    fun start() {
-        if (listening || manager == null) return
-        val result = runCatching {
-            manager.addOnActiveSessionsChangedListener(sessionsChanged, listenerComponent, handler)
-            listening = true
-            reconcile(manager.getActiveSessions(listenerComponent))
-        }
-        if (result.isFailure) {
-            runCatching { manager.removeOnActiveSessionsChangedListener(sessionsChanged) }
-            listening = false
-            Log.i(TAG, "media-session access unavailable", result.exceptionOrNull())
-        }
+    private val subscriber = MediaSessionSubscriber { sessions, change ->
+        playback.playing(sessions, change).forEach(onPlaying)
     }
 
+    /**
+     * Subscribing hands over the active sessions at once, so a player already going is heard here,
+     * as it always was when the observer started. A hub that is not listening - no access when it
+     * was first asked, or access lost since - is asked to listen again.
+     */
+    fun start() {
+        if (listening) return
+        listening = true
+        playback.reset()
+        hub.subscribe(subscriber)
+    }
+
+    /** After an access repair: the sessions again, as a fresh start would have read them. */
     fun restart() {
         stop()
         start()
     }
 
     fun stop() {
-        if (listening) {
-            runCatching { manager?.removeOnActiveSessionsChangedListener(sessionsChanged) }
-        }
+        if (listening) hub.unsubscribe(subscriber)
         listening = false
-        controllers.values.forEach { it.detach() }
-        controllers.clear()
+    }
+}
+
+/**
+ * What the covers count as playing, out of what the hub reports.
+ *
+ * Only the active list is the covers' business: the observer used to let go of a session the moment
+ * it left that list, and a dormant session reporting PLAYING is not one the car is routing. So a read
+ * of the list names every active session that plays, in the platform's order, and a playback report
+ * names its session only when that session is active and the report is PLAYING. Each name is a
+ * trigger, not a state: [SpeakerCoverService] decides whether it is worth a report.
+ *
+ * A read of the list that changes nothing about the active sessions - the same sessions in the same
+ * order in the same states as the covers last heard - names nobody. This firmware pushes the list on
+ * every session created or destroyed, active or not (`MediaSessionService.destroySessionLocked`), so
+ * a paused player in the background dying, or one opening a session it has not activated yet, would
+ * otherwise re-report whatever was playing once the service's repeat guard had run out. A report is
+ * a write to the car, and nothing started playing.
+ */
+internal class SpeakerPlayback {
+    /** The active sessions and their states as last heard; null before the first list. */
+    private var lastActive: List<Pair<Any, Int?>>? = null
+
+    /** A new subscription hears its first list in full, as switching the feature on always did. */
+    fun reset() {
+        lastActive = null
     }
 
-    private fun reconcile(active: List<MediaController>?) {
-        val current = active.orEmpty().associateBy { it.sessionToken }
-        val removed = controllers.keys.filterNot(current::containsKey)
-        removed.forEach { token -> controllers.remove(token)?.detach() }
-        current.forEach { (token, controller) ->
-            if (token !in controllers) {
-                controllers[token] = ObservedController(controller).also { it.attach() }
+    fun playing(sessions: MediaSessions, change: MediaSessionChange): List<String> {
+        val active = sessions.active.map { it.token to it.playbackState }
+        val unchanged = active == lastActive
+        lastActive = active
+        return when (change) {
+            MediaSessionChange.ListRead -> if (unchanged) {
+                emptyList()
             } else {
-                controllers[token]?.readState()
+                sessions.active
+                    .filter { it.playbackState == PlaybackState.STATE_PLAYING }
+                    .map { it.packageName }
             }
+
+            is MediaSessionChange.Playback -> listOfNotNull(
+                sessions[change.token]
+                    ?.takeIf { it.active && it.playbackState == PlaybackState.STATE_PLAYING }
+                    ?.packageName,
+            )
+
+            is MediaSessionChange.Metadata -> emptyList()
         }
-    }
-
-    private inner class ObservedController(
-        private val controller: MediaController,
-    ) {
-        private val callback = object : MediaController.Callback() {
-            override fun onPlaybackStateChanged(state: PlaybackState?) = readState(state)
-            override fun onSessionDestroyed() = refresh()
-        }
-
-        fun attach() {
-            controller.registerCallback(callback, handler)
-            readState()
-        }
-
-        fun detach() {
-            runCatching { controller.unregisterCallback(callback) }
-        }
-
-        fun readState(state: PlaybackState? = controller.playbackState) {
-            if (state?.state == PlaybackState.STATE_PLAYING) {
-                onPlaying(controller.packageName)
-            }
-        }
-    }
-
-    private fun refresh() {
-        val service = manager ?: return
-        runCatching { reconcile(service.getActiveSessions(listenerComponent)) }
-    }
-
-    private companion object {
-        const val TAG = "DenzaSpeakerSessions"
     }
 }
