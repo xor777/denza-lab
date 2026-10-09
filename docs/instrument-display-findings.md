@@ -108,9 +108,18 @@ The call sequences those classes make - what com.byd.avc sees from this app -
 are pinned by `CameraSceneControllerTest` against the recording fakes in
 `RecordingCameraScene.kt`: Show, Hide, Show during teardown, AVC refusing while
 STARTING, a display that changed, the service destroyed mid-teardown, Shows
-racing a Hide, a turn signal during a diagnostic preview, and the logcat lines
-`tools/analyze_mirrors_startup.py` reads. Two of the pinned paths are recorded
-as they stand, not endorsed:
+racing a Hide, each of the five ways of letting go (the monitor's preempt, its
+sync hide, the Hide intent, stop, onDestroy) leaving a Show issued before it
+stale, a turn signal during a diagnostic preview, and the logcat lines
+`tools/analyze_mirrors_startup.py` reads. `ClusterPresentationGlueTest` runs
+the presentation's own glue on the unit tests' android.jar: any dismiss,
+the platform's on display removal included, goes through its layer, and only
+the layer's window removal reaches `Dialog.dismiss`; the renderer's adapters
+pass each call and event to its own counterpart. Not covered: real
+concurrency between main and `denza-avc-teardown` (the fake runs that thread
+only when told), the check against two teardowns at once (no sequence of calls
+reaches it), and the Android adapters for the handler, looper, clock and log.
+Two of the pinned paths are recorded as they stand, not endorsed:
 
 - Two Shows that are both current with no Hide between restart AVC on the
   window that is still up: `freeDisplay` runs on the main thread with our
@@ -1898,7 +1907,7 @@ and no errors. All mutants were restored before the final checks. This proves
 the checks reject those wiring mistakes; it does not prove real Android view
 creation behavior or performance.
 
-> **Superseded 2026-10-09:** the source-wiring checks are gone with the text they read. The camera layer's stack without the map surface, shade and dashboard, and the base layer's map-shade-dashboard order, are `SceneView.stackFor` (`SceneLayer.kt`), which the presentation's `onCreate` builds from, held by `CameraSceneLayersTest`; that each layer is resolved and opened as itself and that maps and dashboards reach only the base layer are held over the scene's calls there too; `prepareScene` is `CameraSceneController.Scene`'s. The startup-notification check went the same way: the scene has no notification to post, and `CameraSceneControllerTest` pins every call of a Show.
+> **Superseded 2026-10-09:** the source-wiring checks are gone with the text they read. The camera layer's stack without the map surface, shade and dashboard, and the base layer's whole stack in order, are `SceneView.stackFor` (`SceneLayer.kt`), held by `CameraSceneLayersTest`; that a presentation builds the stack of its own layer kind is `ClusterPresentation.buildViews`, held by `ClusterPresentationGlueTest`. `onCreate` calls `buildViews`, and that one call is read, not run: `onCreate` starts in the framework's `Dialog.onCreate`, which the unit tests' android.jar refuses. That each layer is resolved and opened as itself and that maps and dashboards reach only the base layer are held over the scene's calls in `CameraSceneLayersTest`; `prepareScene` is `CameraSceneController.Scene`'s. The startup-notification check went the same way: the scene has no notification to post, and `CameraSceneControllerTest` pins every call of a Show.
 
 The resolver's initial test source did not compile against the base because its
 live-selection seam did not exist; that is compile-only RED evidence, not a

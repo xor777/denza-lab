@@ -155,7 +155,7 @@ While a turn signal blinks, that side's camera appears on the instrument cluster
 - **Settings:** `MirrorsSettings` (key `mirrors`: on, position, processing, earlier stock choice).
 - **Docs:** `docs/instrument-display-findings.md` ("Mirrors behavior preserved in Denza Apps", "The firmware-model contract"), `docs/vehicle-data-findings.md` (the turn-lamp FID).
 - **Luminofor:** fixtures `sheet-mirrors`, `sheet-broken` (the error state) in `apps/denza-apps/src/debug/assets/luminofor/fixtures.json`; shared tile face.
-- **Tests:** `MirrorTransitionGateTest`, `MirrorTransitionReducerTest`, `MirrorTurnSignalShadowTest`, `MirrorSwitchPreemptionTest`, `MirrorStockChoicePolicyTest`, `MirrorDisplayReadinessTest`, `SideCameraWindowDetectorTest`, `CameraSceneControllerTest` (what AVC sees, call by call), `CameraSceneLayersTest`.
+- **Tests:** `MirrorTransitionGateTest`, `MirrorTransitionReducerTest`, `MirrorTurnSignalShadowTest`, `MirrorSwitchPreemptionTest`, `MirrorStockChoicePolicyTest`, `MirrorDisplayReadinessTest`, `SideCameraWindowDetectorTest`, `CameraSceneControllerTest` (what AVC sees, call by call), `CameraSceneLayersTest`, `ClusterPresentationGlueTest`.
 
 ### «Разделение» — `SPLIT`
 
