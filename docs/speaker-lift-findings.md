@@ -15,7 +15,7 @@ restart (below).
 
 ## Current state
 
-Updated 2026-10-03. What raises the Devialet speaker covers on the Z9GT and the N9, what Denza Apps writes to make it happen, and which levers are dead.
+Updated 2026-10-09. What raises the Devialet speaker covers on the Z9GT and the N9, what Denza Apps writes to make it happen, and which levers are dead.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -24,6 +24,7 @@ Updated 2026-10-03. What raises the Devialet speaker covers on the Z9GT and the 
 | The report is one-way: `2` (PAUSED) does not retract. The car lowers the covers itself at power-off and after an idle (about 30 min on the N9, hours on the Z9GT); there is no "close now" | live | 2026-09-03 | [The report is one-way](#the-report-is-one-way-and-that-settles-the-product-shape) |
 | The app never reads or writes `AUDIO_RLSA_STATE_SET` (`0x16300025`) or its echo `0x35A000DA`; `SpeakerCoverFlagContractTest` fails the build if the speaker package names either | code | 2026-09-04 | [The rule](#the-rule) |
 | With the switch on it reports when a player the car does not speak for starts playing, or when such a player from the eager list comes to the foreground; «Поднять» always reports (`SpeakerCoverPolicy.kt`, `SpeakerCoverApps.kt`); a playback report is sent again once after 1.2 s, and the same player not again for 60 s (`SpeakerCoverService.kt`) | code | 2026-09-04 | [The product, in one screen](#the-product-in-one-screen-1) |
+| Sessions come from the process's one `MediaSessionHub`; a read of the active list that changes nothing about it (same sessions, order and states) names nobody. This firmware pushes the list on every session created or destroyed, active or not (`MediaSessionService.destroySessionLocked`), so a paused background player dying used to re-report what played once the 60 s guard ran out (`SpeakerMediaSessionObserver.kt`) | code | 2026-10-09 | [The product, in one screen](#the-product-in-one-screen-1) |
 | The car reports by itself for `MediaTaskManager`'s whitelist (`com.byd.mediacenter`, `com.byd.videoplay*`, QQ Music, NetEase, Ximalaya, `bubei.tingshu.hd`) and filter (`android`, telecom, Bluetooth); the app's copy is `SpeakerCoverReporting.kt`, to re-read after a firmware update | code | 2026-09-03 | [Who the app reports for](#who-the-app-reports-for) |
 | Why Yandex never raises them: for any other focus owner the stock `MediaController` sends source `26` and `PAUSED` 500 ms after it takes focus | firmware | 2026-09-03 | [Why Yandex playback never raises the covers](#why-yandex-playback-never-raises-the-covers-corpus-2026-09-03) |
 | The report is refused from the app UID (`20004`, `BYDAUTO_INSTRUMENT_SET`) even though `ICarMediaService` is reachable from it; the shell UID is accepted | live | 2026-09-03 | [It is a shell write, not an app-UID one](#it-is-a-shell-write-not-an-app-uid-one) |
