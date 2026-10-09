@@ -29,10 +29,10 @@ enum class AdbProblem(
     val report: String,
 ) {
     /** The car does not trust this key, a request is still waiting on its prompt, or the key cannot sign. */
-    NO_ACCESS(FeatureResolution.CONFIRM_ON_CAR, "нет доступа"),
+    NO_ACCESS(FeatureResolution.CHECK_ACCESS, "нет доступа"),
 
     /** adbd does not answer: the connection is refused, times out, or there is no address to try. */
-    NO_LINK(FeatureResolution.RETRY, "нет связи"),
+    NO_LINK(FeatureResolution.CHECK_ACCESS, "нет связи"),
     ;
 
     companion object {

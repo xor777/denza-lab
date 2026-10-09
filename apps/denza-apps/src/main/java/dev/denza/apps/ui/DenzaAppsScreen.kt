@@ -104,6 +104,7 @@ fun DenzaAppsRoot(
     onSearchClusterDisplays: () -> Unit,
     onServiceReportVisible: (Boolean) -> Unit,
     onCheckAdbAccess: () -> Unit,
+    onCheckAdbAccessThen: (onTrusted: () -> Unit) -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onRefreshSystemLanguage: () -> Unit,
@@ -219,6 +220,7 @@ fun DenzaAppsRoot(
         openClusterPicker,
         openService,
         openSettings,
+        onCheckAdbAccessThen,
     ) {
         DashboardActions(
             onToggleSimulcast = onToggleSimulcast,
@@ -251,6 +253,7 @@ fun DenzaAppsRoot(
             onOpenClusterPicker = openClusterPicker,
             onOpenService = openService,
             onOpenSettings = openSettings,
+            onCheckAdbAccess = onCheckAdbAccessThen,
         )
     }
 

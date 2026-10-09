@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
                     onSearchClusterDisplays = DenzaAppRepository::searchClusterDisplays,
                     onServiceReportVisible = DenzaAppRepository::setServiceReportOpen,
                     onCheckAdbAccess = DenzaAppRepository::checkAdbAccess,
+                    onCheckAdbAccessThen = DenzaAppRepository::checkAdbAccessThen,
                     onRequestAdbAuthorizationOnce =
                         DenzaAppRepository::requestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt =

@@ -48,7 +48,7 @@ class FeatureModelsTest {
         val needsAction = FeatureReducer.needsAction(
             FeatureReducer.starting(FeatureId.SIMULCAST),
             "Подтвердите запрос",
-            resolution = FeatureResolution.CONFIRM_ON_CAR,
+            resolution = FeatureResolution.CHECK_ACCESS,
         )
 
         val result = FeatureReducer.recovering(needsAction, "Восстанавливаю")

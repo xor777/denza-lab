@@ -9,6 +9,7 @@ currently inaccessible vehicle.
 | --- | --- | --- |
 | The startup gate and healthy one-shot request work on the reference DiLink 5.1 car | live, 2026-08-18 | [Live result](#2026-08-18-live-result) |
 | Product queue recovery remains disabled pending vehicle acceptance | code | [Vehicle acceptance gate](#vehicle-acceptance-gate) |
+| A feature tile whose call failed on the channel says «Нет доступа» and its press runs the passive check: the feature retries if the car still trusts the app, and the startup gate comes up if it does not (`FeatureResolution.CHECK_ACCESS`, `AdbProblem`) | code, 2026-10-09 | [Product behaviour](#product-behaviour) |
 | The access row and the recovery dialog say a state and the switch reading; exception names are only the «Последний сбой» row of «Технические сведения» | code, 2026-10-09 | [Explaining the channel](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26) |
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Dipilot rescue shows the passive shell result before clicks, then queue observations and click diagnostics; it approves requests by design | local tests/build; vehicle acceptance pending | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
@@ -72,6 +73,12 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   car services can still be coming up. `AWAITING_CONFIRMATION` repeats one because an approval can
   land at any moment. A plain refusal (`AUTHORIZATION_REQUIRED`) is not repeated: nothing was
   submitted, so nothing can approve it. No refusal ever submits a key automatically.
+- A feature whose call fails on the channel while the app runs - an untrusted key, a pending
+  request, a refused or silent adbd (`AdbProblem`, by type) - says «Нет доступа» on its tile, and
+  the press runs one passive check (`DenzaAppRepository.checkAdbAccessThen`). A car that still
+  trusts the app gets the feature retried; one that does not leaves `TRUSTED`, and the startup gate
+  comes up over the dashboard. The press never submits a key (since 2026-10-09; it used to retry
+  the feature under the gate's words «Подтвердите запрос…» or «Включите отладку USB…»).
   Outside this window, opening the app (and the accessibility service connecting) runs one passive
   check in every phase that is not `TRUSTED`, unless a check or the request is already in flight.
   Only an explicit user action sends the one-shot request (`AdbStartupGatePolicy.entryAction`,
