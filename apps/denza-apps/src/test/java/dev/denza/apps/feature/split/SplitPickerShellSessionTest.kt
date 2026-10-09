@@ -3780,6 +3780,395 @@ class SplitPickerShellSessionTest {
         assertFalse(lease.isOwned())
     }
 
+    // region recipe branches pinned before the session was cut into units
+
+    /**
+     * A truly empty scene: the firmware creates both pickers as ordinary fullscreen tasks, the
+     * build moves those exact tasks into the panel roots, and an area that still is not balanced
+     * is revealed by one synthetic divider drag and then polled for, slice by slice.
+     */
+    @Test
+    fun anEmptySceneIsReparentedIntoTheRootsAndRevealedByTheSyntheticDrag() {
+        val fake = FakeShell(pickersStartFullscreen = true).apply {
+            area = 0
+            // The read after the reparent sees no split yet, and the first two reads after the
+            // drag are the firmware still on its way there.
+            areaReadAnswers += listOf(0, 0, 0)
+        }
+        val pauses = mutableListOf<Long>()
+
+        val built = session(fake, settle = pauses::add).buildScene(PICKERS, emptyMap())
+
+        assertEquals(mapOf(SplitPane.PRIMARY to 100, SplitPane.SECONDARY to 101), built.hostIds())
+        assertEquals(emptySet<SplitPane>(), built.failed)
+        assertEquals(
+            listOf(
+                "service call activity_task 126 i32 1",
+                "service call activity_task 125 s16 '$SPLIT_HOST_PACKAGE'",
+                "am start -a android.intent.action.MAIN " +
+                    "-c byd.intent.category.START_IVI_PRIMARY -n '$PRIMARY_PICKER' -f 0x18010000",
+                "am start -a android.intent.action.MAIN " +
+                    "-c byd.intent.category.START_IVI_SECOND -n '$SECONDARY_PICKER' -f 0x18010000",
+                "am stack move-task 100 $PRIMARY_ROOT true",
+                "am stack move-task 101 $SECONDARY_ROOT true",
+                "input swipe 50 800 856 800 400",
+            ),
+            fake.commands.filterNot(SplitTopologyCache::isTopologyRead),
+        )
+        assertEquals("the area is polled in 100 ms slices", listOf(100L, 100L), pauses)
+        assertEquals(3, fake.area)
+        // Every read too: the `am stack list` right after the two moves is what waits the
+        // reparent out, and the first area read comes only after it.
+        assertEquals(
+            listOf(
+                GATE_OPEN,
+                LIST_OUR_PACKAGE,
+                ROOT_OF_PRIMARY,
+                ROOT_OF_SECONDARY,
+                STACK,
+                START_PRIMARY_PICKER,
+                STACK,
+                START_SECONDARY_PICKER,
+                STACK,
+                "am stack move-task 100 $PRIMARY_ROOT true",
+                "am stack move-task 101 $SECONDARY_ROOT true",
+                STACK,
+                AREA,
+                "dumpsys input",
+                "dumpsys input",
+                "input swipe 50 800 856 800 400",
+                AREA,
+                AREA,
+                AREA,
+                STACK,
+                AREA,
+            ),
+            fake.commands,
+        )
+    }
+
+    /**
+     * The one restore that cannot be batched: the same package in both panes. Each pane is
+     * launched and promoted on its own, and the second launch asks for an independent task
+     * (1.5.2) - the first one keeps the task the package already had.
+     */
+    @Test
+    fun aPairOfOnePackageIsRestoredOnePaneAtATimeAndTheSecondAsItsOwnTask() {
+        val fake = FakeShell()
+        val pauses = mutableListOf<Long>()
+
+        val built = session(fake, settle = pauses::add).buildScene(
+            PICKERS,
+            mapOf(
+                SplitPane.PRIMARY to launchTargetOf(MUSIC),
+                SplitPane.SECONDARY to launchTargetOf(MUSIC),
+            ),
+        )
+
+        assertEquals(emptySet<SplitPane>(), built.failed)
+        val primaryApp = built.panes.getValue(SplitPane.PRIMARY).appTaskId!!
+        val secondaryApp = built.panes.getValue(SplitPane.SECONDARY).appTaskId!!
+        assertTrue("two windows, two tasks", primaryApp != secondaryApp)
+        assertEquals(PRIMARY_ROOT, fake.taskRoot(primaryApp))
+        assertEquals(SECONDARY_ROOT, fake.taskRoot(secondaryApp))
+        val target = "'$MUSIC/$MUSIC.MainActivity'"
+        assertEquals(
+            listOf(
+                "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER " +
+                    "-c byd.intent.category.START_IVI_PRIMARY -n $target -f 0x10200000",
+                "am stack move-task $primaryApp $PRIMARY_ROOT true",
+                "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER " +
+                    "-c byd.intent.category.START_IVI_SECOND -n $target -f 0x18200000",
+                "am stack move-task $secondaryApp $SECONDARY_ROOT true",
+            ),
+            fake.commands.filter { command ->
+                (command.startsWith("am start ") && command.contains(MUSIC)) ||
+                    command.startsWith("am stack move-task $primaryApp ") ||
+                    command.startsWith("am stack move-task $secondaryApp ")
+            },
+        )
+        assertEquals(
+            listOf(
+                GATE_OPEN,
+                LIST_OUR_PACKAGE,
+                "service call activity_task 125 s16 '$MUSIC'",
+                "service call activity_task 125 s16 '$MUSIC'",
+                START_PRIMARY_PICKER,
+                START_SECONDARY_PICKER,
+                "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER " +
+                    "-c byd.intent.category.START_IVI_PRIMARY -n $target -f 0x10200000",
+                "am stack move-task $primaryApp $PRIMARY_ROOT true",
+                "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER " +
+                    "-c byd.intent.category.START_IVI_SECOND -n $target -f 0x18200000",
+                "am stack move-task $secondaryApp $SECONDARY_ROOT true",
+            ),
+            fake.commands.filterNot(SplitTopologyCache::isTopologyRead),
+        )
+        assertEquals("no blind settle anywhere on this path", emptyList<Long>(), pauses)
+    }
+
+    /**
+     * The edge recipe over a stock picker that is still there after our picker started in its
+     * pane: our picker is attached, and the stock window is removed by its exact identity.
+     */
+    @Test
+    fun anEdgeAttachRemovesTheStockPickerItsOwnStartDidNotReplace() {
+        val fake = FakeShell(stockHostOutlivesOurPicker = true).apply {
+            area = 3
+            addTask(PRIMARY_ROOT, 40, STOCK_PICKER_PACKAGE, STOCK_PICKER_ACTIVITY)
+            addTask(SECONDARY_ROOT, 41, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+            addTask(SECONDARY_ROOT, 42, MUSIC, "$MUSIC.MainActivity")
+        }
+        val pauses = mutableListOf<Long>()
+
+        val picker = session(fake, settle = pauses::add)
+            .attachPicker(SplitPane.PRIMARY, hostTaskId = 40, pickerComponent = PRIMARY_PICKER)
+
+        assertEquals(100, picker)
+        assertFalse("the stock picker is gone", fake.hasTask(40))
+        assertEquals(listOf(100), fake.taskIds(PRIMARY_ROOT))
+        assertEquals(
+            listOf(
+                "am start -a android.intent.action.MAIN " +
+                    "-c byd.intent.category.START_IVI_PRIMARY -n '$PRIMARY_PICKER' -f 0x18010000",
+                "CLASSPATH='$SPLIT_APK_PATH' app_process /system/bin " +
+                    "--nice-name=denza_split_cmd dev.denza.apps.feature.split.SplitTaskProxyMain remove-task " +
+                    "40 '$STOCK_PICKER_PACKAGE' '$STOCK_PICKER_ACTIVITY' '-' '-'",
+            ),
+            fake.commands.filterNot(SplitTopologyCache::isTopologyRead),
+        )
+        assertEquals("picker settle, removal settle, attach settle", listOf(150L, 120L, 120L), pauses)
+    }
+
+    /** A gate the product cannot record as its own is closed again at once, and nothing follows. */
+    @Test
+    fun aGateLeaseThatCannotBeSavedClosesTheGateItJustOpenedAndStops() {
+        val fake = FakeShell().apply { liveProductScene() }
+        val unsaved = object : SplitGateLeaseStore {
+            override fun isOwned(): Boolean = false
+
+            override fun setOwned(owned: Boolean): Boolean = false
+        }
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            session(fake, unsaved).selectApp(
+                pickerTaskId = PRIMARY_PICKER_TASK,
+                target = launchTargetOf(NAVIGATOR),
+                pickerComponents = PICKER_COMPONENTS,
+            )
+        }
+
+        assertEquals("Не удалось сохранить владение split-gate", error.message)
+        assertEquals(
+            listOf("service call activity_task 126 i32 1", "service call activity_task 126 i32 0"),
+            fake.commands,
+        )
+        assertFalse(fake.isGateOpen())
+    }
+
+    /** A launch the firmware swallows is looked for within the discovery budget, and no longer. */
+    @Test
+    fun aPickerTheFirmwareSwallowsEndsTheBuildAfterTheDiscoveryBudget() {
+        val fake = FakeShell().apply { swallowLaunchOf += SPLIT_HOST_PACKAGE }
+        val pauses = mutableListOf<Long>()
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            session(fake, settle = pauses::add).buildPickers()
+        }
+
+        assertEquals("Запущенная задача не появилась в ActivityTaskManager", error.message)
+        assertEquals("twelve reads, eleven pauses between them", List(11) { 100L }, pauses)
+        assertEquals(1, fake.commands.count { it.startsWith("am start ") })
+        assertEquals(
+            listOf(GATE_OPEN, LIST_OUR_PACKAGE, START_PRIMARY_PICKER),
+            fake.commands.filterNot(SplitTopologyCache::isTopologyRead),
+        )
+    }
+
+    /** The user pressed Home while the teardown was in flight: the scene ending there is accepted. */
+    @Test
+    fun aTeardownThatEndsOnHomeIsAccepted() {
+        val fake = FakeShell(initialGate = true).apply {
+            liveProductScene(withApps = true)
+            focusedTaskId = SECONDARY_APP_TASK
+            areaReadAnswers += 0
+        }
+        val pauses = mutableListOf<Long>()
+
+        session(fake, settle = pauses::add).closePickers(PICKERS)
+
+        assertEquals(FULL_ROOT, fake.taskRoot(SECONDARY_APP_TASK))
+        assertFalse(fake.hasTask(PRIMARY_PICKER_TASK))
+        assertFalse(fake.hasTask(SECONDARY_PICKER_TASK))
+        assertEquals(
+            listOf(
+                "am stack move-task $SECONDARY_APP_TASK $FULL_ROOT true",
+                removeBothPickers(PRIMARY_PICKER_TASK, SECONDARY_PICKER_TASK),
+            ),
+            fake.commands.filterNot(SplitTopologyCache::isTopologyRead),
+        )
+        assertEquals("exit settle, removal settle", listOf(650L, 120L), pauses)
+    }
+
+    /** A firmware that keeps the split after the teardown is a failure, not an off. */
+    @Test
+    fun aTeardownTheFirmwareAnswersWithASplitStillOnScreenFails() {
+        val fake = FakeShell(initialGate = true).apply {
+            liveProductScene(withApps = true)
+            focusedTaskId = SECONDARY_APP_TASK
+            areaReadAnswers += 3
+        }
+        val pauses = mutableListOf<Long>()
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            session(fake, settle = pauses::add).closePickers(PICKERS)
+        }
+
+        assertEquals("Прошивка сохранила split после выключения: area=3", error.message)
+        assertEquals(
+            listOf(
+                "am stack move-task $SECONDARY_APP_TASK $FULL_ROOT true",
+                removeBothPickers(PRIMARY_PICKER_TASK, SECONDARY_PICKER_TASK),
+            ),
+            fake.commands.filterNot(SplitTopologyCache::isTopologyRead),
+        )
+        assertEquals("exit settle, removal settle", listOf(650L, 120L), pauses)
+    }
+
+    /**
+     * A navigation return over two occupied panes from a root that is not a pane has nowhere to
+     * land: the plan is fullscreen, and nothing is sent to make room.
+     */
+    @Test
+    fun aNavigationReturnWithNoVacancyAndNoPaneOfOriginIsFullscreen() {
+        val fake = FakeShell().apply { liveProductScene(withApps = true) }
+
+        val plan = session(fake).prepareNavigationReturn(
+            originalRootTaskId = FULL_ROOT,
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertTrue(plan.fullscreen)
+        assertEquals(null, plan.pane)
+        assertEquals(null, plan.hostTaskId)
+        assertEquals(FULL_ROOT, plan.rootTaskId)
+        assertEquals(emptyList<String>(), fake.commands.filterNot(SplitTopologyCache::isTopologyRead))
+    }
+
+    /** The pane of origin holds no picker of ours: the return goes fullscreen instead. */
+    @Test
+    fun aNavigationReturnIntoAPaneWithoutItsPickerIsFullscreen() {
+        val fake = FakeShell().apply {
+            area = 3
+            addTask(PRIMARY_ROOT, PRIMARY_APP_TASK, NAVIGATOR, "$NAVIGATOR.MainActivity")
+            addTask(SECONDARY_ROOT, SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+            addTask(SECONDARY_ROOT, SECONDARY_APP_TASK, MUSIC, "$MUSIC.MainActivity")
+        }
+
+        val plan = session(fake).prepareNavigationReturn(
+            originalRootTaskId = PRIMARY_ROOT,
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertTrue(plan.fullscreen)
+        assertEquals(SplitPane.PRIMARY, plan.pane)
+        assertEquals(null, plan.hostTaskId)
+        assertEquals(emptyList<String>(), fake.commands.filterNot(SplitTopologyCache::isTopologyRead))
+    }
+
+    /**
+     * One representative session, everything it sends and every pause, in order: two pickers built
+     * on an empty world, an app selected into the wide pane, the gate suspended under Home, and the
+     * toggle going off. Any change to what reaches the car on this path shows up here line by line,
+     * reads included, so a refactor of the recipes can be checked against it.
+     */
+    @Test
+    fun anOpenASelectionAHomeAndATeardownSendExactlyThisLog() {
+        val fake = FakeShell()
+        fakes += fake
+        val log = mutableListOf<String>()
+        val topology = SplitTopologyCache()
+        fake.carChanged += topology::invalidate
+        val lease = FakeGateLease()
+        val session = SplitPickerShellSession(
+            shell = { command -> log += command; fake.shell(command) },
+            apkPath = SPLIT_APK_PATH,
+            settle = { millis -> log += "pause $millis" },
+            gateLeaseStore = lease,
+            topology = topology,
+        )
+
+        val pickers = session.buildPickers()
+        session.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = launchTargetOf(MUSIC),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        fake.area = 0
+        assertTrue(session.suspendOwnedGateForHome())
+        fake.area = 3
+        session.closePickers(PICKERS)
+
+        val music = "'$MUSIC/$MUSIC.MainActivity'"
+        assertEquals(
+            listOf(
+                // The open: the gate, our package, the roots, two pickers.
+                GATE_OPEN,
+                LIST_OUR_PACKAGE,
+                ROOT_OF_PRIMARY,
+                ROOT_OF_SECONDARY,
+                STACK,
+                START_PRIMARY_PICKER,
+                STACK,
+                START_SECONDARY_PICKER,
+                STACK,
+                AREA,
+                AREA,
+                // The selection: the gate, the app listed, launched, promoted, proven twice.
+                GATE_OPEN,
+                ROOT_OF_PRIMARY,
+                ROOT_OF_SECONDARY,
+                STACK,
+                AREA,
+                "service call activity_task 125 s16 '$MUSIC'",
+                "service call activity_task 112 s16 '$MUSIC'",
+                STACK,
+                "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER " +
+                    "-c byd.intent.category.START_IVI_SECOND -n $music -f 0x10200000",
+                "pause 250",
+                STACK,
+                "am stack move-task 102 $SECONDARY_ROOT true",
+                STACK,
+                "pause 120",
+                STACK,
+                AREA,
+                "pause 100",
+                STACK,
+                AREA,
+                // Home: the cover read, the gate suspended.
+                AREA,
+                "service call activity_task 126 i32 0",
+                // The toggle off: focus, the gate closed, the app fullscreen, the pickers gone.
+                STACK,
+                "dumpsys activity activities | grep mFocusedApp",
+                "service call activity_task 126 i32 0",
+                ROOT_OF_FULL,
+                "am stack move-task 102 $FULL_ROOT true",
+                STACK,
+                "pause 650",
+                STACK,
+                removeBothPickers(100, 101, top = true),
+                "pause 120",
+                STACK,
+                ROOT_OF_FULL,
+                AREA,
+            ),
+            log,
+        )
+    }
+
+    // endregion
+
     /**
      * Production always hands the session a gate lease, because the gate is firmware-global and the
      * only rule that may close it is "we opened it". A test that wants to prove the product keeps
@@ -3788,6 +4177,7 @@ class SplitPickerShellSessionTest {
     private fun session(
         fake: FakeShell,
         gateLeaseStore: SplitGateLeaseStore = FakeGateLease(),
+        settle: (Long) -> Unit = {},
     ): SplitPickerShellSession {
         fakes += fake
         // One session shares its two topology reads for as long as nothing could have moved a
@@ -3798,7 +4188,7 @@ class SplitPickerShellSessionTest {
         return SplitPickerShellSession(
             shell = fake::shell,
             apkPath = "/data/app/dev.denza.apps/base.apk",
-            settle = {},
+            settle = settle,
             gateLeaseStore = gateLeaseStore,
             topology = topology,
         )
@@ -3807,8 +4197,28 @@ class SplitPickerShellSessionTest {
     private fun intParcel(value: Int): String =
         "Result: Parcel(00000000 ${"%08x".format(value)} '........')"
 
+    /** The one proxy call that removes two of our picker bases, as the teardown sends it. */
+    private fun removeBothPickers(first: Int, second: Int, top: Boolean = false): String {
+        val picker = "'$SPLIT_HOST_PACKAGE' '$SPLIT_PICKER_ACTIVITY'"
+        val firstTop = if (top) picker else "'-' '-'"
+        return "CLASSPATH='$SPLIT_APK_PATH' app_process /system/bin " +
+            "--nice-name=denza_split_cmd dev.denza.apps.feature.split.SplitTaskProxyMain " +
+            "remove-task $first $picker $firstTop $second $picker $picker"
+    }
+
     private companion object {
         /** Сирота правки W5: собственный пикер, всплывший после before-снапшота закрытия. */
         const val LATE_ORPHAN_TASK = 555
+        const val STACK = "am stack list"
+        const val AREA = "service call activity_task 30"
+        const val GATE_OPEN = "service call activity_task 126 i32 1"
+        const val ROOT_OF_PRIMARY = "service call activity_task 118 i32 1"
+        const val ROOT_OF_SECONDARY = "service call activity_task 118 i32 2"
+        const val ROOT_OF_FULL = "service call activity_task 118 i32 4"
+        const val LIST_OUR_PACKAGE = "service call activity_task 125 s16 '$SPLIT_HOST_PACKAGE'"
+        const val START_PRIMARY_PICKER = "am start -a android.intent.action.MAIN " +
+            "-c byd.intent.category.START_IVI_PRIMARY -n '$PRIMARY_PICKER' -f 0x18010000"
+        const val START_SECONDARY_PICKER = "am start -a android.intent.action.MAIN " +
+            "-c byd.intent.category.START_IVI_SECOND -n '$SECONDARY_PICKER' -f 0x18010000"
     }
 }

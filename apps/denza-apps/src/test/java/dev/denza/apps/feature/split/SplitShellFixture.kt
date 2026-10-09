@@ -180,6 +180,17 @@ internal class FakeShell(
      */
     private val primaryPaneBounds: SplitBounds = PRIMARY_BOUNDS,
     private val secondaryPaneBounds: SplitBounds = SECONDARY_BOUNDS,
+    /**
+     * A truly empty scene: the pane category of our picker's start places nothing, and the task
+     * comes up as an ordinary fullscreen one in the full IVI root, the area untouched. It is the
+     * world `buildScene` reparents its pickers out of and reveals with the synthetic drag.
+     */
+    private val pickersStartFullscreen: Boolean = false,
+    /**
+     * The stock picker or bootstrap of a pane outlives the start of our picker in that pane, so
+     * the edge recipe has to remove it by its exact identity (`attachPicker`).
+     */
+    private val stockHostOutlivesOurPicker: Boolean = false,
 ) {
     data class Task(
         val id: Int,
@@ -633,6 +644,7 @@ internal class FakeShell(
                 // recipe follows a launch with `promoteTask` (split-screen-findings, live).
                 val pickerRoot = when {
                     component !in PICKERS.values -> null
+                    pickersStartFullscreen -> null
                     command.contains("byd.intent.category.START_IVI_PRIMARY") -> PRIMARY_ROOT
                     command.contains("byd.intent.category.START_IVI_SECOND") -> SECONDARY_ROOT
                     else -> null
@@ -643,10 +655,12 @@ internal class FakeShell(
                     } else if (area != fullArea(pickerRoot)) {
                         area = 3
                     }
-                    tasks.removeAll {
-                        it.rootId == pickerRoot &&
-                            (it.packageName == STOCK_PICKER_PACKAGE ||
-                                it.packageName == STOCK_BOOTSTRAP_PACKAGE)
+                    if (!stockHostOutlivesOurPicker) {
+                        tasks.removeAll {
+                            it.rootId == pickerRoot &&
+                                (it.packageName == STOCK_PICKER_PACKAGE ||
+                                    it.packageName == STOCK_BOOTSTRAP_PACKAGE)
+                        }
                     }
                 }
                 if (
