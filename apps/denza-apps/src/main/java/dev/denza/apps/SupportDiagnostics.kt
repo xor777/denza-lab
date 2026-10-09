@@ -308,9 +308,9 @@ object SupportDiagnostics {
     internal fun spectrumRows(label: String): List<TechnicalRow> =
         if ('=' in label) label.split("; ").map(TechnicalReadings::row) else listOf(row("Состояние", label))
 
-    // And the other wall: `FseAppInstaller.diagnosticLines` names every split APK file of every
-    // installable application, one line each, sizes and all. That is a question about one install,
-    // asked once, and it was being answered on every open.
+    // And the other wall: a row for every split APK file of every installable application, sizes
+    // and all, was here until 2026-08-26. That is a question about one install, asked once, and it
+    // was being answered on every open; the code behind it went on 2026-10-09.
     private fun fseRows(fseInstaller: FeatureSnapshot): List<TechnicalRow> = buildList {
         add(row("Установка", fseInstaller.message.ifBlank { fseInstaller.status.name.lowercase() }))
         fseInstaller.details?.let { add(row("Подробно", it)) }

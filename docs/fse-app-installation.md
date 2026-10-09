@@ -252,22 +252,15 @@ timeout, the UI reports the missing confirmation and leaves the current staging
 path and request ID in diagnostics. The next installation removes that abandoned
 directory before creating its own, so repeated failures cannot accumulate APKs.
 
-### Passive split-package diagnostics
+### Split-package report (removed)
 
-The hidden support screen reports the installed APK layout without using ADB or
-contacting the passenger screen. Open it with seven quick taps on the
-**Трансляция** card header. Its `FSE APK layouts` row gives the candidate/split/
-monolithic totals. Each split package then has three rows containing:
-
-- package, label, version, launcher split, base filename and base file state;
-- `PackageInfo.splitNames` in the order Android reported them;
-- the corresponding split filenames, byte sizes, and `missing` or
-  `not-readable` states.
-
-This is intended for remote vehicle reports where shell access is unavailable.
-A screenshot is enough to distinguish real configuration/ABI splits from an OEM
-PackageManager mismatch. The report is passive: it does not relax the installer
-gate or attempt a base-only installation.
+The support screen used to list every split APK file of every installable
+application (`FSE APK layouts`, three rows a package) so that a screenshot could
+tell real configuration/ABI splits from an OEM PackageManager mismatch. It was
+taken off the screen on 2026-08-26 (`6e3b40a8`): it answered a question about one
+install on every open. The code behind it was deleted on 2026-10-09; git history
+keeps it. A split package still carries **Split APK пока не поддерживается** on
+its application record.
 
 ## Known limitations and cleanup
 
