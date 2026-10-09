@@ -83,15 +83,16 @@ class CloudLinkReportTest {
         assertEquals("ещё не было", r["Прочитано"])
     }
 
+    /** Mobile data is no network for the link, and the page still says it was there and whose SIM. */
     @Test
-    fun `operator metadata does not turn validated mobile internet into no network`() {
+    fun `mobile internet is shown but is not the link's network`() {
         val roaming = CloudNetworkReading(validated = true, wifi = false, cellular = true, simOperator = "46001")
         val r = rows(network = roaming)
         assertEquals("46001, MCC 460", r["SIM"])
-        assertEquals("мобильный, интернет проверен", r["Сеть"])
+        assertEquals("нет, интернет проверен", r["Сеть"])
         assertEquals("нет / да", r["Wi-Fi / сотовая"])
         val local = CloudNetworkReading(validated = true, wifi = false, cellular = true, simOperator = "25001")
-        assertEquals("мобильный, интернет проверен", rows(network = local)["Сеть"])
+        assertEquals("нет, интернет проверен", rows(network = local)["Сеть"])
         assertEquals("25001", rows(network = local)["SIM"])
     }
 
