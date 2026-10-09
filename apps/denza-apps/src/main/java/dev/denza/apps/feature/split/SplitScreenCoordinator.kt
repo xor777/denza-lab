@@ -10,6 +10,9 @@ import android.provider.Settings
 import android.util.Log
 import dev.denza.apps.TaskMoveOwnership
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.platform.shell.ShellProxyClasspath
+import dev.denza.apps.platform.shell.ShellProxyJar
+import dev.denza.apps.platform.shell.ShellProxyStager
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -253,21 +256,22 @@ object SplitScreenCoordinator {
     /**
      * The one-class jar the build packs, staged where the shell user can read it (1.13.3).
      *
-     * The version tag is what makes an update stage a fresh copy: a jar named after the version
-     * that produced it can never be the previous build's proxy, and the previous build's copies are
-     * swept away when a new one is written.
+     * Named and checked by its SHA-256 ([ShellProxyStager]), so a build that changes the proxy
+     * stages a fresh copy whatever its version or length; the APK stays the fallback.
      */
-    @Suppress("DEPRECATION")
     private fun stagedProxy(app: Context): SplitProxyClasspath {
-        val version = runCatching {
-            app.packageManager.getPackageInfo(app.packageName, 0).longVersionCode.toString()
-        }.getOrDefault("unknown")
-        return SplitStagedProxyDex(
-            apkPath = app.applicationInfo.sourceDir,
-            versionTag = version,
-            jar = { app.assets.open(SplitStagedProxyDex.ASSET).use { it.readBytes() } },
-            log = { message -> Log.i(TAG, message) },
+        val log: (String) -> Unit = { message -> Log.i(TAG, message) }
+        val stager = ShellProxyStager(
+            helper = ShellProxyJar.SPLIT_TASK,
+            jar = { app.assets.open(ShellProxyJar.SPLIT_TASK.asset).use { it.readBytes() } },
+            log = log,
         )
+        val classpath = ShellProxyClasspath(stager, apkPath = app.applicationInfo.sourceDir, log = log)
+        return object : SplitProxyClasspath {
+            override fun entry(shell: (String) -> String): String = classpath.entry(shell)
+
+            override fun forget() = classpath.forget()
+        }
     }
 
     /**

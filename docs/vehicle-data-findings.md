@@ -1645,7 +1645,17 @@ from 500 ms to 60 s. A quick initial snapshot cannot reset that history; reset
 requires a healthy sampled connection lasting at least 15 seconds.
 
 The listener is packed as a dedicated thin jar, addressed and verified by its
-SHA-256 rather than by APK version or file size. The earlier 6,181-byte revision
+SHA-256 rather than by APK version or file size. Since 2026-10-09 it is staged by
+`ShellProxyStager` (`platform/shell/`), the same code as the split's task proxy,
+which also deletes the listener's other copies (`denza-vehicle-signal-*` under
+any other hash) in the round trip that checks the current one; until then every
+build that changed the listener left its old copy in `/data/local/tmp`. The jar
+now travels in pieces of at most 8 KiB of command line (the single line of
+2026-09-04 below, about 10.2 KB with its frame, is the longest this shell has
+been proven to carry), and the copy is checked by its hash before it is moved
+into place. A staging failure still keeps the listener off; it never loads the
+APK, and the next start checks the hash again. The
+earlier 6,181-byte revision
 was run passively from its exact built asset: it returned two initial `OFF`
 snapshots, measured `0.0%` idle CPU and `54,738 KB` total PSS, and had accumulated
 `0.49 s` of process CPU after startup. Closing its ADB stream removed the helper

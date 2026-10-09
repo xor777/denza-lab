@@ -10,7 +10,7 @@ a plain fullscreen picker.
 
 ## Current state
 
-Updated 2026-10-08. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
+Updated 2026-10-09. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -27,6 +27,7 @@ Updated 2026-10-08. Where this journal and the normative [split-screen-product-c
 | tx30 area: 0 Home, 3 split on screen, 1 narrow survivor, 2 wide survivor, 4 an app in the full container on top. It is computed from the order of four roots, not their contents, so area 3 does not prove two populated panes | live | 2026-08-24 | [Panel containers are permanent](#panel-containers-are-permanent-the-live-tx30-map-2026-08-24-diagnosis), [Home, read end to end](#home-read-end-to-end) |
 | Home and the area are heard in process with no permission: `CLOSE_SYSTEM_DIALOGS` `reason=homekey` arrives 9 ms after key-up, the tx120 area push (`UnionActivityManager.registerScreenAreaInfoForMultiListener`) 0.1 s after it; `SplitFirmwareSignals.kt` registers both and `SplitCoordinatorCore.homeKeyPressed` closes our gate. Live: gate closed at +16 ms, a dock launch at +393 ms went fullscreen | live | 2026-09-23 | [The three calls, live from an app UID](#the-three-calls-live-from-an-app-uid-2026-09-23), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
 | tx30/112/118/125/126 are transacted from the app process (`SplitInProcessCalls.kt`, `BinderSplitGateSwitch`); the world read (`am stack list`), moves, focus and `remove-task` (`SplitTaskProxyMain.java`) still need the shell | code | 2026-09-23 | [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
+| The shell-UID task proxy runs from its own jar, staged as `/data/local/tmp/denza-split-proxy-<sha256>.jar` and verified by its SHA-256 by the shared `ShellProxyStager.kt`, which deletes every other copy of it on each call; a car that refuses the file loads the class from the APK, as before the jar existed, and so does a command whose jar has gone since | code | 2026-10-09 | [The task proxy's jar, staged by its hash](#the-task-proxys-jar-staged-by-its-hash-code-2026-10-09) |
 | Other transactions: tx115 `enterSplitMode` restores the remembered pair (the product never calls it); tx114 `changeSplitScreenMode` 101/102 expand one pane and 100 does nothing; tx116 swaps; tx117 `closeApplication(pkg)` closes a pane's top app natively; tx124 needs the caller's Activity token | firmware | 2026-09-23 | [The divider and the stock picker](#the-divider-and-the-stock-picker-read-end-to-end), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16), [Product direction](#product-direction-explicit-two-picker-session) |
 | Home moves the wide and full containers' tasks out, under Home and outside any container; the narrow container keeps its tasks; a return after Home is always a re-placement of the wide pane | firmware | 2026-09-23 | [Home, read end to end](#home-read-end-to-end) |
 | A picker stranded outside the pane roots (the wide one after Home, the closed pane's after a collapse) is killed by `RecentTasks.trimInactiveRecentTasks` at the first task new to recents, usually our own trampoline; the open never takes it back and launches a fresh one (`SplitPickerShellSession.kt`) | code | 2026-09-23 | [Why the wide picker dies, and who kills it](#why-the-wide-picker-dies-and-who-kills-it), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
@@ -74,6 +75,7 @@ Updated 2026-10-08. Where this journal and the normative [split-screen-product-c
 - [Review of the control logic (code, 2026-09-11; checked live 2026-09-18)](#review-of-the-control-logic-code-2026-09-11-checked-live-2026-09-18) — dead host code removed, gate resumption, an eviction raises the scene, the hub listed through tx125.
 - [A narrated live session, mapped to the logs (2026-09-18)](#a-narrated-live-session-mapped-to-the-logs-2026-09-18) — six narrated minutes: one dead app under cover, the single-pane read-back, the survivor's pane, the Home→dock race and its first step.
 - [The firmware read whole: reconstruction from the OTA image (2026-09-23)](#the-firmware-read-whole-reconstruction-from-the-ota-image-2026-09-23) — the whole OTA corpus (area push, unguarded transactions, detent map, placement, Home, the trim, sleep and wake, self-start) and what the product does with each; the journal and service page (09-24); a cold open against the accessibility repair.
+- [The task proxy's jar, staged by its hash (code, 2026-10-09)](#the-task-proxys-jar-staged-by-its-hash-code-2026-10-09) — `denza-split-proxy-<sha256>.jar`, verified by hash, every other copy deleted; the same stager as the turn-signal listener's.
 
 ## Product direction: explicit two-picker session
 
@@ -1096,6 +1098,11 @@ through the shell that is open anyway, sweeping older copies away. Every failure
 path falls back to `CLASSPATH=<apk>`, the previous behaviour. An acceptance
 baseline should therefore expect that file to appear, and a full reset may
 delete it: it is re-staged on demand.
+
+> **Superseded 2026-10-09:** the jar is named and verified by its SHA-256, not by
+> versionCode and size, and every other copy is deleted on each call, not only
+> when a new one is written; the APK fallback is unchanged — see
+> [The task proxy's jar, staged by its hash](#the-task-proxys-jar-staged-by-its-hash-code-2026-10-09).
 
 The `DenzaSplitScreen` tag is also mirrored through `log -t` at the end of any
 operation that had a shell open and still owned its token, because this
@@ -2857,3 +2864,44 @@ first (the hub started 1.5 s before the tap), where the lease step took 156 ms
 instead of 4.86 s and the picker's service connected 1.6 s after the scene was
 placed. What is left of a cold open is contention: its shell calls and the
 recovery's run at once.
+
+## The task proxy's jar, staged by its hash (code, 2026-10-09)
+
+Since 2026-08-23 the shell-UID task proxy has run from a jar of its own rather
+than from the APK ([What a session now borrows and gives
+back](#what-a-session-now-borrows-and-gives-back-2026-08-23-code)). The copy on
+the car was named `denza-split-proxy-<versionCode>.jar` and a copy was taken as
+current when `wc -c` gave the asset's length. The owner installs builds
+without raising versionCode (builds are told apart by `lastUpdateTime`), so a
+proxy that changed and kept its length - another transaction code, a changed
+postcondition - would have stayed on the car under the old name and gone on
+removing tasks as the shell user.
+
+The staging is now `ShellProxyStager` in `platform/shell/`, shared with the
+turn-signal listener. The copy is `/data/local/tmp/denza-split-proxy-<sha256>.jar`.
+Every call first deletes the other files that start `denza-split-proxy-` - the
+versionCode-named copies of earlier builds among them, at the first open after
+this build is installed - and then hashes the current one, in one round trip,
+so an open that finds its jar in place pays what it paid before. A missing jar
+travels as base64 in pieces of at most 8 KiB of command line, under the
+10.2 KB the persistent shell has carried (the listener's staging of
+2026-09-04), into a part file of the caller's own; the last piece checks the
+part's SHA-256 in the shell and only then moves it into place with `mv`, and
+the app checks the placed copy once more. A name therefore never holds other
+bytes, and two callers staging at once both end with a verified copy.
+
+A refusal by the car - the file does not verify - loads the class from the
+APK, and after three of them the APK stays for the rest of the process
+(`ShellProxyClasspath`). A link that did not answer, or an authorization still
+pending, costs only that call the APK; it is no answer about the file. The
+staged path is kept for the process, and the file can go meanwhile, so every
+command names it as `c='<jar>'; [ -r "$c" ] || c='<apk>'; CLASSPATH="$c"
+app_process ...`: mksh's builtin `[` costs no process, and a vanished jar costs
+that command the APK's slow start rather than a class that cannot be loaded. A
+removal whose answer says the class could not be loaded drops the kept path,
+and the next one asks the car again.
+
+What an acceptance run should expect: one `denza-split-proxy-<64 hex>.jar` in
+`/data/local/tmp`, a new name whenever the proxy's bytes change, and no
+`denza-split-proxy-<number>.jar` left after the first open. Not yet run on the
+car.
