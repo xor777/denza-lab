@@ -21,13 +21,10 @@ private val CLOSED_PANES: Map<SplitPane, SplitSlot> =
  * Task and root ids cannot appear here by construction: a pane is a [SplitSlot], and
  * [SplitSlot.App] carries a package name only (invariant 4). Operations, overlay leases, projection
  * and hints are equally absent: they are not durable facts.
- *
- * @param revision revision of the last fully completed operation.
  */
 internal data class SplitDurable(
     val enabled: Boolean = false,
     val slots: Map<SplitPane, SplitSlot> = CLOSED_PANES,
-    val revision: Long = 0L,
 ) {
     fun slot(pane: SplitPane): SplitSlot = slots[pane] ?: SplitSlot.Closed
 }
@@ -50,7 +47,9 @@ internal interface SplitStateStore {
  * ```
  *
  * `<enabled>` is `1` or `0`, `<revision>` a decimal `Long`, and a pane is `C` (closed), `P`
- * (picker) or `A:<package>`. Inside a package `\` becomes `\\` and `|` becomes `\p`, which makes
+ * (picker) or `A:<package>`. The revision counted completed operations until 2026-10-09, when it
+ * was found written on every commit and never read; it is written `0` now and checked as a number
+ * on load, so a snapshot from either side of that change reads on the other. Inside a package `\` becomes `\\` and `|` becomes `\p`, which makes
  * the round trip total for every string a package name could ever be. A task id has no encoding at
  * all - [SplitSlot] cannot express one (invariant 4). Everything else - another version, a missing
  * field, an unknown escape - is corruption rather than a state, and corruption resolves to
@@ -88,6 +87,7 @@ internal class PreferencesSplitStateStore(
         private const val APP_PREFIX = "A:"
         private const val TRUE = "1"
         private const val FALSE = "0"
+        private const val REVISION = "0"
 
         /**
          * What an absent or unreadable store resolves to: the product is off and remembers no
@@ -96,13 +96,12 @@ internal class PreferencesSplitStateStore(
         val SAFE_DEFAULT = SplitDurable(
             enabled = false,
             slots = SplitPane.entries.associateWith { SplitSlot.Picker },
-            revision = 0L,
         )
 
         fun encode(snapshot: SplitDurable): String = listOf(
             VERSION,
             if (snapshot.enabled) TRUE else FALSE,
-            snapshot.revision.toString(),
+            REVISION,
             encodeSlot(snapshot.slot(SplitPane.PRIMARY)),
             encodeSlot(snapshot.slot(SplitPane.SECONDARY)),
         ).joinToString(FIELD.toString())
@@ -115,13 +114,12 @@ internal class PreferencesSplitStateStore(
                 FALSE -> false
                 else -> return null
             }
-            val revision = fields[2].toLongOrNull() ?: return null
+            if (fields[2].toLongOrNull() == null) return null
             val primary = decodeSlot(fields[3]) ?: return null
             val secondary = decodeSlot(fields[4]) ?: return null
             return SplitDurable(
                 enabled = enabled,
                 slots = mapOf(SplitPane.PRIMARY to primary, SplitPane.SECONDARY to secondary),
-                revision = revision,
             )
         }
 

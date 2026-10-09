@@ -628,7 +628,6 @@ class SplitOperationRunnerTest {
                 SplitPane.PRIMARY to SplitSlot.App(plan),
                 SplitPane.SECONDARY to SplitSlot.Picker,
             ),
-            revision = current.revision + 1,
         )
     }
 
@@ -651,7 +650,6 @@ class SplitOperationRunnerTest {
                 SplitPane.PRIMARY to SplitSlot.App(MUSIC),
                 SplitPane.SECONDARY to SplitSlot.Picker,
             ),
-            revision = 1L,
         )
     }
 }

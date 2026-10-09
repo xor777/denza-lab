@@ -17,21 +17,17 @@ class SplitStoreTest {
 
     @Test
     fun everyShapeOfASnapshotSurvivesTheRoundTrip() {
-        // §6: durable - это тумблер, два слота и revision, и ничего сверх того
+        // §6: durable - это тумблер и два слота, и ничего сверх того
         val snapshots = listOf(
             SplitDurable(),
             SplitDurable(enabled = true, slots = slots(SplitSlot.Picker, SplitSlot.Picker)),
             SplitDurable(slots = slots(SplitSlot.Closed, SplitSlot.Picker)),
             SplitDurable(slots = slots(SplitSlot.Picker, SplitSlot.Closed)),
-            SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Closed), revision = 1L),
+            SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Closed)),
             SplitDurable(slots = slots(SplitSlot.Closed, SplitSlot.App(MUSIC))),
             SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker)),
             SplitDurable(slots = slots(SplitSlot.Picker, SplitSlot.App(MAPS))),
-            SplitDurable(
-                enabled = true,
-                slots = slots(SplitSlot.App(MUSIC), SplitSlot.App(MAPS)),
-                revision = Long.MAX_VALUE,
-            ),
+            SplitDurable(enabled = true, slots = slots(SplitSlot.App(MUSIC), SplitSlot.App(MAPS))),
         )
 
         snapshots.forEach { snapshot ->
@@ -45,7 +41,6 @@ class SplitStoreTest {
         val both = SplitDurable(
             enabled = true,
             slots = slots(SplitSlot.App(MUSIC), SplitSlot.App(MUSIC)),
-            revision = 4L,
         )
 
         val loaded = roundTrip(both)
@@ -77,7 +72,6 @@ class SplitStoreTest {
             val snapshot = SplitDurable(
                 enabled = true,
                 slots = slots(SplitSlot.App(packageName), SplitSlot.App(packageName)),
-                revision = 2L,
             )
             assertEquals("round trip of <$packageName>", snapshot, roundTrip(snapshot))
         }
@@ -93,16 +87,26 @@ class SplitStoreTest {
             SplitDurable(
                 enabled = true,
                 slots = slots(SplitSlot.App("ru.yandex.music"), SplitSlot.Picker),
-                revision = 7L,
             ),
         )
-        assertEquals("2|1|7|A:ru.yandex.music|P", preferences.snapshot()[STATE])
+        assertEquals("2|1|0|A:ru.yandex.music|P", preferences.snapshot()[STATE])
 
         store.commit(SplitDurable(slots = slots(SplitSlot.Closed, SplitSlot.Picker)))
         assertEquals("2|0|0|C|P", preferences.snapshot()[STATE])
 
         store.commit(SplitDurable(slots = slots(SplitSlot.App("a|b\\c"), SplitSlot.Closed)))
         assertEquals("2|0|0|A:a\\pb\\\\c|C", preferences.snapshot()[STATE])
+    }
+
+    @Test
+    fun aSnapshotThatStillCountsItsRevisionReadsTheSame() {
+        // до 2026-10-09 третье поле считало операции; такой снимок читается как прежде
+        val preferences = InMemorySharedPreferences(mapOf(STATE to "2|1|7|A:ru.yandex.music|P"))
+
+        assertEquals(
+            SplitDurable(enabled = true, slots = slots(SplitSlot.App("ru.yandex.music"), SplitSlot.Picker)),
+            PreferencesSplitStateStore(preferences).load(),
+        )
     }
 
     @Test
@@ -169,8 +173,8 @@ class SplitStoreTest {
         assertTrue(store.commit(SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker))))
         assertEquals(1, preferences.commits)
 
-        assertTrue(store.commit(SplitDurable(revision = 2L)))
-        assertTrue(store.commit(SplitDurable(revision = 3L)))
+        assertTrue(store.commit(SplitDurable(enabled = true)))
+        assertTrue(store.commit(SplitDurable()))
         assertEquals(3, preferences.commits)
 
         store.load()
@@ -183,16 +187,16 @@ class SplitStoreTest {
         // §7.8: отказ записи - это отказ операции, а не половина состояния
         val preferences = InMemorySharedPreferences()
         val store = PreferencesSplitStateStore(preferences)
-        store.commit(SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker), revision = 1L))
+        store.commit(SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker)))
         val before = preferences.snapshot()
 
         preferences.accept = false
-        val committed = store.commit(SplitDurable(slots = slots(SplitSlot.Closed, SplitSlot.Closed), revision = 2L))
+        val committed = store.commit(SplitDurable(slots = slots(SplitSlot.Closed, SplitSlot.Closed)))
 
         assertFalse(committed)
         assertEquals(before, preferences.snapshot())
         assertEquals(
-            SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker), revision = 1L),
+            SplitDurable(slots = slots(SplitSlot.App(MUSIC), SplitSlot.Picker)),
             store.load(),
         )
     }
@@ -209,7 +213,6 @@ class SplitStoreTest {
     private fun safeDefault(): SplitDurable = SplitDurable(
         enabled = false,
         slots = slots(SplitSlot.Picker, SplitSlot.Picker),
-        revision = 0L,
     )
 
     /**
