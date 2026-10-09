@@ -116,15 +116,13 @@ object DenzaMetrics {
     }
 
     /**
-     * One border weight, and one stroke for icons.
+     * The stroke for icons.
      *
-     * Selection is carried by fill and ink, never by a thicker edge - a border that thickens on
-     * selection moves everything beside it by a pixel, and the eye reads the movement rather than
-     * the selection.
+     * Borders are 1 dp wherever they are drawn, and selection is carried by fill and ink, never by
+     * a thicker edge - a border that thickens on selection moves everything beside it by a pixel,
+     * and the eye reads the movement rather than the selection.
      */
     object Stroke {
-        val HAIRLINE: Dp = 1.dp
-
         /**
          * An icon's stroke, in units of its own 24-unit grid - Luminofor's `head.icon.stroke`.
          *
@@ -164,9 +162,6 @@ object DenzaMetrics {
 
     /** Sizes that belong to one component rather than to the ladders. */
     object Component {
-        /** The dashboard tile, Luminofor's `head.full.tiles.height`. */
-        val TILE_HEIGHT: Dp = LuminoforSpec.Head.Full.Tiles.HEIGHT.dp
-
         /**
          * The tile's icon, at the size the board draws it - and the size a panel header's glyph is
          * built at, because every [DenzaIcons] vector is declared at this size.
@@ -234,11 +229,6 @@ object DenzaMetrics {
         const val CHIP_ROWS_NARROW: Int = 2
 
         /**
-         * An application offered for choosing: 12 + 44 + 8 + one line of 15 + 12, off the board.
-         */
-        val APP_TILE: Dp = 96.dp
-
-        /**
          * An application's icon on the value line of a row that opens a chooser.
          *
          * Sized to the line of text it stands in rather than to the ladder: the row answers a
@@ -261,38 +251,13 @@ object DenzaMetrics {
          * does. Two scrolls inside one another is what this number used to paper over: the roles'
          * grid opened four rows into itself because the page it was nested in had kept its offset.
          *
-         * Five whole rows of [APP_TILE] with [Space.S] between them is 512; this is that plus a
+         * Five whole rows of [LuminoforSpec.Sheet.Apps.TILE] with [Space.S] between them is 512; this is that plus a
          * glimpse of the sixth, which is the only thing on the panel saying there is a sixth.
          */
         val PICKER_HEIGHT: Dp = 540.dp
 
-        /**
-         * The settings panel, measured off `Config.dc.html`.
-         *
-         * It hangs off the right edge for the whole height rather than sitting in the middle of
-         * the screen. A dialog in the centre covers the tile it belongs to and every other tile
-         * equally; a panel at the edge leaves the dashboard visible beside it, so the thing being
-         * configured stays in sight while it is configured.
-         */
-        val SHEET_WIDTH: Dp = 480.dp
-
         /** A panel's one full-width action. */
         val PRIMARY_HEIGHT: Dp = LuminoforSpec.Sheet.Button.HEIGHT.dp
-
-        /**
-         * A centred modal, for the two windows that cannot be a panel at the edge.
-         *
-         * The settings panel is the app's surface and it hangs off the right edge, which is right
-         * for it and wrong for the ADB gate: the gate exists to say that nothing behind it can be
-         * used yet, and a surface leaving the dashboard beside it says the opposite. So those keep
-         * the centre - and stop each picking their own width. They were 0.72 and 0.68 of the
-         * screen, which is two guesses that happen to look alike at 1280 and are 30 dp apart in a
-         * pane, and the pane is where the difference shows.
-         *
-         * Half the full screen, and a ceiling rather than a share: in a pane the modal fills the
-         * width it is given, because 0.72 of 416 dp is a card with 40 dp of prose in it.
-         */
-        val MODAL_WIDTH: Dp = 640.dp
 
         // The pane strip's floor was a 300 dp constant here. It is `StripGeometry.minimumHeight`
         // now - the least box both of the strip's pages fit, read off the spec - which is the only

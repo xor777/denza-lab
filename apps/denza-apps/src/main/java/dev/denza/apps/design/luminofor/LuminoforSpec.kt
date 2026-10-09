@@ -16,9 +16,6 @@ object LuminoforSpec {
 
     class Light(val halo: Int, val core: Int)
 
-    /** Everything on both screens is added, not painted over: `lighter` on the board, PLUS here. */
-    const val COMPOSITING_ADDITIVE: Boolean = true
-
     const val BACKGROUND: Int = 0xFF000000.toInt()
 
     object ClusterInk {
@@ -37,13 +34,11 @@ object LuminoforSpec {
         const val CARD_ON: Int = 0xFF2C2B33.toInt()
         const val CARD_OFF: Int = 0xFF17161B.toInt()
         const val CROWN: Int = 0xF2C8E4FF.toInt()
-        const val HANDLE: Int = 0x59FFFFFF
         const val DOT_ON: Int = 0xFFFFFFFF.toInt()
         const val DOT_OFF: Int = 0x47FFFFFF
     }
 
     object Type {
-        const val CLUSTER_WEIGHT: Int = 500
         const val HEAD_WEIGHT: Int = 400
         const val HEAD_STRONG: Int = 500
     }
@@ -303,7 +298,6 @@ object LuminoforSpec {
         object Apps {
             const val TILE: Float = 96f
             const val COLUMNS: Int = 4
-            const val NAVIGATION_COLUMNS: Int = 3
             const val RADIUS: Float = 14f
             const val ICON: Float = 44f
             const val NAME_SIZE: Float = 14f
@@ -341,14 +335,6 @@ object LuminoforSpec {
             const val SIZE: Float = 14f
             const val ALPHA: Float = 0.4f
             const val GAP: Float = 12f
-        }
-
-        object Reading {
-            const val LABEL_SIZE: Float = 14f
-            const val LABEL_ALPHA: Float = 0.54f
-            const val VALUE_SIZE: Float = 18f
-            const val VALUE_ALPHA: Float = 0.9f
-            const val GAP: Float = 2f
         }
 
         object Modal {
@@ -514,12 +500,6 @@ object LuminoforSpec {
             }
 
             const val DOTS_Y: Float = 660f
-        }
-
-        object Handle {
-            const val WIDTH: Float = 44f
-            const val HEIGHT: Float = 4f
-            const val TOP: Float = 9f
         }
 
         object Reading {

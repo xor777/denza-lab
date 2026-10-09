@@ -283,8 +283,8 @@ fun DenzaSheetFootnote(text: String, modifier: Modifier = Modifier) {
  * What it takes away from its two callers is the width. They had 0.72 and 0.68 of the screen -
  * indistinguishable at 1280 dp, 30 dp apart in a pane - and the pane is where a fraction of the
  * window stops being a design at all: 0.68 of 416 leaves 40 dp of prose between two 48 dp margins.
- * So the width is [DenzaMetrics.Component.MODAL_WIDTH] as a ceiling, and in a pane the card simply
- * fills what it is given.
+ * So the width is the board's [Sheet.Modal.WIDTH] as a ceiling, and in a pane the card simply fills
+ * what it is given.
  *
  * [onScrimTouch] is null for the gate: its scrim swallows the touch rather than answering it,
  * because there is nothing behind the gate to reach.

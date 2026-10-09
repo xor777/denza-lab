@@ -1,7 +1,6 @@
 {
   "about": "Luminofor: the normative numbers for the head-unit dashboard, its two panes, the strip's two pages and the cluster's Contour. luminofor.js draws every board from this file; the Kotlin contract tests read the same file. Units: the head unit is laid out in dp on 1280 x 680 (panes 828 x 680 and 416 x 680), the cluster in its own virtual units on 1507.5556 x 424 mapped onto the 2560 x 720 cluster display. Colours are [halo, core]: the halo tints glow, the core is what a stroke or a fill actually is.",
 
-  "compositing": "additive",
 
   "colors": {
     "cluster": {
@@ -27,7 +26,7 @@
   },
 
   "type": {
-    "cluster": { "family": "Jura", "weight": 500 },
+    "cluster": { "family": "Jura" },
     "head":    { "family": "Roboto", "weight": 400, "strong": 500 }
   },
 
@@ -140,16 +139,15 @@
     "pair": { "minHeight": 40, "padY": 10, "size": 16, "keyAlpha": 0.9, "valueAlpha": 0.54, "gap": 16, "step": 20 },
     "plate": { "color": "#2C2B33", "radius": 12, "hairlineAlpha": 0.08, "hairlineInset": 16 },
     "roboto": { "ascent": 0.928, "descent": 0.244, "centre": 0.342 },
-    "row": { "single": [64, 38], "twoLine": [72, 30, 52], "withIcons": [80, 30, 42, 59], "minHeight": 64, "padX": 16, "titleSize": 18, "titleAlpha": 0.9, "summarySize": 14, "summaryAlpha": 0.54, "summaryStep": 20, "lineGap": 4, "chevron": 20, "choiceIcon": 24, "choiceGap": 8 },
+    "row": { "single": [64, 38], "twoLine": [72, 30, 52], "withIcons": [80, 30, 42, 59], "minHeight": 64, "padX": 16, "titleSize": 18, "titleAlpha": 0.9, "summarySize": 14, "summaryAlpha": 0.54, "summaryStep": 20, "chevron": 20, "choiceIcon": 24, "choiceGap": 8 },
     "label": { "size": 15, "alpha": 0.54, "gap": 10 },
     "switch": { "width": 48, "height": 28, "thumb": 22, "on": "#3388FF", "off": "#DEE5F0", "offAlpha": 0.2, "thumbColor": "#F8F9FA", "disabledAlpha": 0.5 },
     "segmented": { "height": 48, "radius": 10, "pad": 4, "trackAlpha": 0.1, "pillAlpha": 0.8, "onTextAlpha": 0.8, "offTextAlpha": 0.85, "size": 16 },
-    "apps": { "tile": 96, "columns": 4, "navigationColumns": 3, "radius": 14, "icon": 44, "nameSize": 14, "nameAlpha": 0.9, "gap": 12, "badge": 20, "badgeColor": "#1677D9", "badgeInset": 6 },
+    "apps": { "tile": 96, "columns": 4, "radius": 14, "icon": 44, "nameSize": 14, "nameAlpha": 0.9, "gap": 12, "badge": 20, "badgeColor": "#1677D9", "badgeInset": 6 },
     "note": { "size": 15, "alpha": 0.54, "leading": 1.466667 },
     "status": { "size": 15, "leading": 1.466667 },
     "button": { "height": 56, "radius": 12, "primary": "#296DCC", "disabledAlpha": 0.5, "size": 18, "secondaryAlpha": 0.06, "secondaryHeight": 48, "secondarySize": 16 },
     "footnote": { "size": 14, "alpha": 0.4, "gap": 12 },
-    "reading": { "labelSize": 14, "labelAlpha": 0.54, "valueSize": 18, "valueAlpha": 0.9, "gap": 2 },
     "modal": { "width": 560, "radius": 18, "pad": 28, "gap": 18, "icon": 32, "iconGap": 16, "titleSize": 24, "compactTitleSize": 20, "textSize": 16, "textAlpha": 0.7 }
   },
   "head": {
