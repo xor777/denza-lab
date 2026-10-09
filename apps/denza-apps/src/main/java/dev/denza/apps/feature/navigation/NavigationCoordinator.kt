@@ -45,6 +45,79 @@ internal class NavigationLaunchFence {
         attempt.token == token && attempt.packageName == selectedPackage
 }
 
+/** What one look for a launched application's task found ([NavigationOneTap.discover]). */
+internal sealed interface NavigationDiscovery {
+    /** A newer launch or another choice owns the selection now: this look is dropped unasked. */
+    data object Stale : NavigationDiscovery
+
+    /** No task yet: look again on [NavigationLaunchWait]'s schedule, the request kept. */
+    data object NotYet : NavigationDiscovery
+
+    /** The launch has its task, and the press that opened it asked for the driver's display. */
+    data class Project(val taskId: Int) : NavigationDiscovery
+
+    /** The launch has its task and it stays on the central screen. */
+    data class Settle(val taskId: Int) : NavigationDiscovery
+}
+
+/**
+ * One press from a navigator that is not running to that navigator on the driver's display.
+ *
+ * A projection that finds no task opens the application on the central screen and asks to be
+ * carried on to the cluster once the launch has a task; a return that finds the task gone opens it
+ * again with the same request when it was going to project again. The request belongs to the
+ * launch that carries it: another choice voids the launch and the request with it, and a launch
+ * that ends without a task drops it. [NavigationCoordinator] does the opening, the looking and the
+ * moving; this decides what follows each of them, which is what a JVM test can hold.
+ */
+internal class NavigationOneTap {
+    private val fence = NavigationLaunchFence()
+    private var projectAfterOpen = false
+
+    /** The next launch is opened, and carried on to the cluster once it has a task if [project]. */
+    fun open(project: Boolean) {
+        projectAfterOpen = project
+    }
+
+    /** A launch of [packageName] starts; the looks for its task carry the attempt. */
+    fun begin(packageName: String): NavigationLaunchAttempt = fence.begin(packageName)
+
+    /**
+     * One look for [attempt]'s task, through [findTask], which is asked only while the attempt is
+     * still the one the selection waits for, and asked for the package the attempt launched.
+     * A task found answers the request once: the next look of the same launch settles.
+     */
+    fun discover(
+        attempt: NavigationLaunchAttempt,
+        selectedPackage: String,
+        findTask: (packageName: String) -> Int,
+    ): NavigationDiscovery {
+        if (!fence.accepts(attempt, selectedPackage)) return NavigationDiscovery.Stale
+        val task = findTask(attempt.packageName)
+        if (task < 0) return NavigationDiscovery.NotYet
+        if (!projectAfterOpen) return NavigationDiscovery.Settle(task)
+        projectAfterOpen = false
+        return NavigationDiscovery.Project(task)
+    }
+
+    /** The launch ended without a task - it failed, or the wait ran out: nothing is carried on. */
+    fun abandon() {
+        projectAfterOpen = false
+    }
+
+    /**
+     * Another choice voids the queued launch and what it was to carry.
+     *
+     * @return whether a launch was in flight ([phase] is [NavigationPhase.OPENING]), whose lease on
+     *   task moves and whose transfer cover the caller lets go
+     */
+    fun cancel(phase: NavigationPhase): Boolean {
+        projectAfterOpen = false
+        fence.invalidate()
+        return phase == NavigationPhase.OPENING
+    }
+}
+
 // The stored value is normalized to applicationContext during initialization.
 @SuppressLint("StaticFieldLeak")
 object NavigationCoordinator {
@@ -60,11 +133,10 @@ object NavigationCoordinator {
     @Volatile private var selectedPackage = NavigationAppPolicy.DASHBOARD_PACKAGE
     @Volatile private var selectedPlacement = ClusterMapPlacement.FULL
     @Volatile private var dashboardOnCluster = false
-    private var pendingProjectionAfterOpen = false
     private var projectedOrigin: NavigationProjectionOrigin? = null
     /** The last uncertain health reading that reached logcat, as (actual display, confirmations). */
     private var lastUncertainLogged: Pair<Int, Int>? = null
-    private val launchFence = NavigationLaunchFence()
+    private val oneTap = NavigationOneTap()
     private val projectionFence = NavigationLaunchFence()
     private val projectionHealth = NavigationProjectionHealthTracker()
     private val primaryActionPending = AtomicBoolean(false)
@@ -310,10 +382,10 @@ object NavigationCoordinator {
         TaskMoveOwnership.pulse(TaskMoveOwner.NAVIGATION)
         val app = context ?: return
         val packageName = selectedPackage
-        val launchAttempt = launchFence.begin(packageName)
+        val launchAttempt = oneTap.begin(packageName)
         val launch = app.packageManager.getLaunchIntentForPackage(packageName)
         if (launch == null) {
-            pendingProjectionAfterOpen = false
+            oneTap.abandon()
             splitRoutingLease.release()
             update(
                 NavigationSession(
@@ -343,7 +415,7 @@ object NavigationCoordinator {
                 TimeUnit.MILLISECONDS,
             )
         } catch (error: RuntimeException) {
-            pendingProjectionAfterOpen = false
+            oneTap.abandon()
             splitRoutingLease.release()
             update(
                 session.copy(
@@ -373,39 +445,43 @@ object NavigationCoordinator {
         previousPauseMs: Long?,
     ) {
         val app = context ?: return
-        if (!launchFence.accepts(launchAttempt, selectedPackage)) return
         val packageName = launchAttempt.packageName
         try {
-            val task = NavigationProxyClient.findTask(app, packageName)
-            if (task >= 0) {
-                update(NavigationSession(taskId = task))
-                if (pendingProjectionAfterOpen) {
-                    pendingProjectionAfterOpen = false
+            val found = oneTap.discover(launchAttempt, selectedPackage) {
+                NavigationProxyClient.findTask(app, it)
+            }
+            when (found) {
+                NavigationDiscovery.Stale -> return
+                is NavigationDiscovery.Project -> {
+                    update(NavigationSession(taskId = found.taskId))
                     projectToCluster()
-                } else {
+                }
+                is NavigationDiscovery.Settle -> {
+                    update(NavigationSession(taskId = found.taskId))
                     finishTransfer()
                 }
-            } else {
-                val pause = NavigationLaunchWait.next(
-                    elapsedMs = SystemClock.elapsedRealtime() - launchedAt,
-                    previousPauseMs = previousPauseMs,
-                )
-                if (pause != null) {
-                    executor.schedule(
-                        { discoverLaunchedTask(launchAttempt, launchedAt, pause) },
-                        pause,
-                        TimeUnit.MILLISECONDS,
+                NavigationDiscovery.NotYet -> {
+                    val pause = NavigationLaunchWait.next(
+                        elapsedMs = SystemClock.elapsedRealtime() - launchedAt,
+                        previousPauseMs = previousPauseMs,
                     )
-                } else {
-                    Log.w(TAG, "launched $packageName has no task after ${NavigationLaunchWait.DEADLINE_MS} ms")
-                    pendingProjectionAfterOpen = false
-                    splitRoutingLease.release()
-                    update(NavigationSession(details = "запуск не найден за ${NavigationLaunchWait.DEADLINE_MS / 1000} с"))
-                    finishTransfer()
+                    if (pause != null) {
+                        executor.schedule(
+                            { discoverLaunchedTask(launchAttempt, launchedAt, pause) },
+                            pause,
+                            TimeUnit.MILLISECONDS,
+                        )
+                    } else {
+                        Log.w(TAG, "launched $packageName has no task after ${NavigationLaunchWait.DEADLINE_MS} ms")
+                        oneTap.abandon()
+                        splitRoutingLease.release()
+                        update(NavigationSession(details = "запуск не найден за ${NavigationLaunchWait.DEADLINE_MS / 1000} с"))
+                        finishTransfer()
+                    }
                 }
             }
         } catch (error: Exception) {
-            pendingProjectionAfterOpen = false
+            oneTap.abandon()
             splitRoutingLease.release()
             val problem = NavigationWords.failed(NavigationStep.OPEN, error)
             update(
@@ -441,7 +517,7 @@ object NavigationCoordinator {
             return
         }
         if (taskId < 0) {
-            pendingProjectionAfterOpen = true
+            oneTap.open(project = true)
             update(NavigationSession())
             openSelectedApp()
             return
@@ -745,7 +821,7 @@ object NavigationCoordinator {
             finishTransfer()
             return
         }
-        pendingProjectionAfterOpen = reprojectAfterReturn
+        oneTap.open(project = reprojectAfterReturn)
         update(NavigationSession())
         openSelectedApp()
     }
@@ -935,10 +1011,7 @@ object NavigationCoordinator {
     }
 
     private fun cancelPendingLaunch() {
-        val launchInProgress = session.phase == NavigationPhase.OPENING
-        pendingProjectionAfterOpen = false
-        launchFence.invalidate()
-        if (launchInProgress) {
+        if (oneTap.cancel(session.phase)) {
             splitRoutingLease.release()
             finishTransfer()
         }
