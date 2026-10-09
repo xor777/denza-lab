@@ -6,6 +6,7 @@ import android.os.HandlerThread
 import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.platform.shell.ServiceCallParcel
 
 /**
  * The car's own speed sign, fed with the limit Yandex shows.
@@ -47,8 +48,6 @@ internal object HudNativeSpeedLimitProtocol {
     /** -10013: the call went to the wrong transact. Like -10011 (not here), never a value. */
     private const val WRONG_TRANSACT = 0xFFFFD8E3.toInt()
 
-    private val PARCEL = Regex("""Parcel\(([0-9a-fA-F]{8})(?:\s+([0-9a-fA-F]{8}))?""")
-
     /** The values the setting takes: 5 to 130 km/h on the 5 km/h grid. */
     fun supported(limitKmh: Int): Boolean = limitKmh in 5..130 && limitKmh % 5 == 0
 
@@ -81,9 +80,7 @@ internal object HudNativeSpeedLimitProtocol {
 
     /** A read answers `Parcel(00000000 0000000d ...)`: status, then the value. */
     fun parseRead(output: String): Read {
-        val match = PARCEL.find(output) ?: return Read.Failed
-        val words = match.groupValues.drop(1).filter { it.isNotEmpty() }
-            .map { it.toLong(16).toInt() }
+        val words = ServiceCallParcel.oneLineWords(output)?.take(2) ?: return Read.Failed
         return when {
             words.any { it == WRONG_TRANSACT } -> Read.WrongTransact
             words.size < 2 -> Read.Failed
@@ -105,8 +102,8 @@ internal object HudNativeSpeedLimitProtocol {
             if (line.startsWith(MARKER)) {
                 index = line.removePrefix(MARKER).toIntOrNull() ?: -1
             } else if (index in answered.indices && !answered[index]) {
-                val match = PARCEL.find(line) ?: return@forEach
-                answered[index] = match.groupValues[1].toLong(16).toInt() >= 0
+                val status = ServiceCallParcel.words(line)?.firstOrNull() ?: return@forEach
+                answered[index] = status >= 0
             }
         }
         return answered.all { it }

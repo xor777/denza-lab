@@ -127,6 +127,24 @@ class SplitShellCommandPinTest {
         }
     }
 
+    /**
+     * A multi-line reply (an exception's message) reads as it always has: read whole, its first
+     * offset `0x00000000` passes for a zero status, so a void call takes it for success. A known
+     * misreading, pinned 2026-10-09 so that changing it is a decision of its own; the product sends
+     * these transactions in process first and the shell is the fallback.
+     */
+    @Test
+    fun aMultiLineReplyReadsAsItAlwaysHas() {
+        assertEquals(
+            true,
+            suspends(
+                "Result: Parcel(\n" +
+                    "  0x00000000: ffffffff 0000004a 00740041 00650074 '....J...A.t.t.e.'\n" +
+                    "  0x00000010: 0070006d 00200074 006f0074 00720020 'm.p.t. .t.o. .r.')",
+            ),
+        )
+    }
+
     /** True or false as the session read area 3; null when it refused the reply. */
     private fun readsBalanced(reply: String): Boolean? = runCatching {
         SplitPickerShellSession(

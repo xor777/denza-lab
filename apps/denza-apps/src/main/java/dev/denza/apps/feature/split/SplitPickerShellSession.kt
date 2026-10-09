@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.platform.shell.ServiceCallParcel
 import dev.denza.apps.platform.shell.shellQuote
 
 /**
@@ -3321,22 +3322,20 @@ internal class SplitPickerShellSession(
     private fun callInt(command: String): Int {
         val output = shell(command).also(::validateOutput)
         return measured {
-            val parcel = PARCEL_PATTERN.find(output)?.groupValues?.get(1)
+            val words = ServiceCallParcel.words(output)
                 ?: error("Некорректный ответ activity_task")
-            val words = WORD_PATTERN.findAll(parcel).map { it.value }.toList()
-            check(words.size >= 2 && words[0].toLong(16) == 0L) {
+            check(words.size >= 2 && words[0] == 0) {
                 "Ошибка activity_task: ${output.trim()}"
             }
-            words[1].toLong(16).toInt()
+            words[1]
         }
     }
 
     private fun callVoid(command: String) {
         val output = shell(command).also(::validateOutput)
-        val parcel = PARCEL_PATTERN.find(output)?.groupValues?.get(1)
+        val words = ServiceCallParcel.words(output)
             ?: error("Некорректный ответ activity_task")
-        val words = WORD_PATTERN.findAll(parcel).map { it.value }.toList()
-        check(words.isNotEmpty() && words[0].toLong(16) == 0L) {
+        check(words.isNotEmpty() && words[0] == 0) {
             "Ошибка activity_task: ${output.trim()}"
         }
     }
@@ -3587,8 +3586,6 @@ internal class SplitPickerShellSession(
         const val STOCK_BOOTSTRAP_ACTIVITY = "com.byd.sr.MainActivity"
         const val SPLIT_PROXY_CLASS = "dev.denza.apps.feature.split.SplitTaskProxyMain"
         const val SPLIT_PROXY_RESULT_PREFIX = "DENZA_SPLIT_RESULT:"
-        val PARCEL_PATTERN = Regex("Parcel\\(([^']+)")
-        val WORD_PATTERN = Regex("[0-9a-fA-F]{8}")
         /** `mFocusedApp=ActivityRecord{a81ee00 u0 dev.denza.apps/.MainActivity} t332}` */
         val FOCUSED_TASK_PATTERN = Regex("mFocusedApp=ActivityRecord\\{[^}]*\\}\\s+t([0-9]+)\\}")
 

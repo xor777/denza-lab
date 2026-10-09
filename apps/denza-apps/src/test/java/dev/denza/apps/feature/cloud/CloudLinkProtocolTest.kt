@@ -248,6 +248,23 @@ class CloudLinkProtocolTest {
         assertNull(CloudLinkProtocol.tcpConnected("service: Service cloudmanager does not exist"))
     }
 
+    /**
+     * A multi-line reply (an exception's message) reads as it always has: its first offset passes
+     * for a zero status and the exception code for the value, so the client reads as not
+     * connected. Pinned 2026-10-09 so that a change to it is a decision, not a side effect.
+     */
+    @Test
+    fun aMultiLineReplyReadsAsItAlwaysHas() {
+        assertEquals(
+            false,
+            CloudLinkProtocol.tcpConnected(
+                "Result: Parcel(\n" +
+                    "  0x00000000: ffffffff 0000004a 00740041 00650074 '....J...A.t.t.e.'\n" +
+                    "  0x00000010: 0070006d 00200074 006f0074 00720020 'm.p.t. .t.o. .r.')",
+            ),
+        )
+    }
+
     @Test
     fun theWritesAreTheOnesTheLiveRunSent() {
         assertEquals(

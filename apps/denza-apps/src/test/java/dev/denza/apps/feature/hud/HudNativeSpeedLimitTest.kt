@@ -86,6 +86,22 @@ class HudNativeSpeedLimitTest {
         )
     }
 
+    /**
+     * The multi-line form of a long reply never matched the read's own expression, whatever its
+     * words: no value. Its first offset, `0x00000000`, must not pass for a status.
+     */
+    @Test
+    fun aMultiLineReplyIsNoValue() {
+        assertEquals(
+            HudNativeSpeedLimitProtocol.Read.Failed,
+            HudNativeSpeedLimitProtocol.parseRead(
+                "Result: Parcel(\n" +
+                    "  0x00000000: 00000000 0000000d 00000000 00000000 '................'\n" +
+                    "  0x00000010: 00000000                            '....')\n",
+            ),
+        )
+    }
+
     @Test
     fun aWriteCountsOnlyWhenAllThreeCallsAnswered() {
         val answer = "Result: Parcel(00000001    '....')"
