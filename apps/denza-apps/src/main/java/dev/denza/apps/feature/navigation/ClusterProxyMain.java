@@ -80,24 +80,6 @@ public final class ClusterProxyMain {
                 requireCount(args, 2);
                 result(commands.createProjectionRoot(integer(args[1])));
                 return;
-            case "move-task":
-                requireCount(args, 4);
-                result(commands.moveTask(args[1], integer(args[2]), integer(args[3])));
-                return;
-            case "set-bounds":
-                requireCount(args, 7);
-                result(commands.setTaskBounds(
-                        args[1], integer(args[2]), integer(args[3]), integer(args[4]),
-                        integer(args[5]), integer(args[6])));
-                return;
-            case "focus-task":
-                requireCount(args, 3);
-                result(commands.focusTask(args[1], integer(args[2])));
-                return;
-            case "background-task":
-                requireCount(args, 3);
-                result(commands.backgroundTask(args[1], integer(args[2])));
-                return;
             case "task-display":
                 requireCount(args, 3);
                 result(commands.taskDisplayId(args[1], integer(args[2])));
