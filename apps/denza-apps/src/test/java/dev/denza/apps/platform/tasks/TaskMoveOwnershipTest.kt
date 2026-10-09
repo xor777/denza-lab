@@ -1,4 +1,4 @@
-package dev.denza.apps
+package dev.denza.apps.platform.tasks
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

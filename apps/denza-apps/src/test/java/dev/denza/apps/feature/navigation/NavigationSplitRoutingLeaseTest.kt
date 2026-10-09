@@ -1,7 +1,7 @@
 package dev.denza.apps.feature.navigation
 
-import dev.denza.apps.TaskMoveOwner
-import dev.denza.apps.TaskMoveOwnership
+import dev.denza.apps.platform.tasks.TaskMoveOwner
+import dev.denza.apps.platform.tasks.TaskMoveOwnership
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

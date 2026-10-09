@@ -6,9 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import android.util.Log
-import dev.denza.apps.TaskMoveLease
-import dev.denza.apps.TaskMoveOwner
-import dev.denza.apps.TaskMoveOwnership
 import dev.denza.apps.adb.OverlayGrant
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
@@ -18,6 +15,9 @@ import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.cluster.MapSurfaceConsumer
 import dev.denza.apps.feature.split.SplitNavigationReturnPlan
 import dev.denza.apps.feature.split.SplitScreenCoordinator
+import dev.denza.apps.platform.tasks.TaskMoveLease
+import dev.denza.apps.platform.tasks.TaskMoveOwner
+import dev.denza.apps.platform.tasks.TaskMoveOwnership
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean

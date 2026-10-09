@@ -1,6 +1,6 @@
 package dev.denza.apps.feature.split
 
-import dev.denza.apps.TaskMoveOwnership
+import dev.denza.apps.platform.tasks.TaskMoveOwnership
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
