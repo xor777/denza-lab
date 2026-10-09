@@ -56,7 +56,7 @@ class GnssTripAccumulatorTest {
     }
 
     @Test
-    fun accumulatesClimbOnARealHillAndSmoothsAltitude() {
+    fun smoothsAltitudeAndRaisesTheVariometerOnARealHill() {
         val accumulator = GnssTripAccumulator()
         accumulator.fix(speed = 10.0, alt = 100.0, hasAlt = true)
         var previous = accumulator.smoothedAltitude
@@ -70,7 +70,6 @@ class GnssTripAccumulatorTest {
             assertTrue(accumulator.smoothedAltitude >= previous)
             previous = accumulator.smoothedAltitude
         }
-        assertTrue("climb=${accumulator.tripClimbMeters}", accumulator.tripClimbMeters > 100.0)
         assertTrue("vario=${accumulator.variometer}", accumulator.variometer > 0.0)
     }
 
@@ -82,24 +81,6 @@ class GnssTripAccumulatorTest {
             accumulator.fix(speed = 10.0, alt = 500.0 - (index + 1) * 8.0, hasAlt = true)
         }
         assertTrue("vario=${accumulator.variometer}", accumulator.variometer < 0.0)
-        assertEquals(0.0, accumulator.tripClimbMeters, 1e-9)
-    }
-
-    @Test
-    fun climbStairStepIgnoresRandomWalkButKeepsRealHills() {
-        val accumulator = GnssTripAccumulator()
-        accumulator.fix(speed = 10.0, alt = 100.0, hasAlt = true)
-        repeat(40) { index ->
-            val altitude = 100.0 + if (index % 2 == 0) 2.0 else -2.0
-            accumulator.fix(speed = 10.0, alt = altitude, hasAlt = true)
-        }
-        assertEquals(0.0, accumulator.tripClimbMeters, 1e-9)
-
-        repeat(10) { index ->
-            accumulator.fix(speed = 10.0, alt = 100.0 + (index + 1) * 5.0, hasAlt = true)
-        }
-        repeat(10) { accumulator.fix(speed = 10.0, alt = 150.0, hasAlt = true) }
-        assertTrue("climb=${accumulator.tripClimbMeters}", accumulator.tripClimbMeters in 40.0..51.0)
     }
 
     @Test
@@ -136,13 +117,11 @@ class GnssTripAccumulatorTest {
             accumulator.fix(speed = 10.0, alt = 100.0 + (index + 1) * 2.0, hasAlt = true)
         }
         val altitudeBeforeStop = accumulator.smoothedAltitude
-        val climbBeforeStop = accumulator.tripClimbMeters
         repeat(60) { index ->
             val wander = 110.0 + if (index % 2 == 0) 12.0 else -12.0
             accumulator.fix(speed = 0.2, alt = wander, hasAlt = true)
         }
         assertEquals(altitudeBeforeStop, accumulator.smoothedAltitude, 1e-9)
-        assertEquals(climbBeforeStop, accumulator.tripClimbMeters, 1e-9)
         assertEquals(0.0, accumulator.variometer, 0.01)
     }
 
@@ -151,12 +130,10 @@ class GnssTripAccumulatorTest {
         val accumulator = GnssTripAccumulator()
         accumulator.fix(speed = 10.0, alt = 100.0, hasAlt = true)
         accumulator.fix(speed = 10.0, alt = 100.0, hasAlt = true)
-        val climbBeforeStop = accumulator.tripClimbMeters
         repeat(30) { accumulator.fix(speed = 0.0, alt = 112.0, hasAlt = true) }
         accumulator.fix(speed = 8.0, alt = 112.0, hasAlt = true)
         assertEquals(112.0, accumulator.smoothedAltitude, 1e-9)
-        assertEquals(climbBeforeStop, accumulator.tripClimbMeters, 1e-9)
         repeat(10) { accumulator.fix(speed = 8.0, alt = 112.0, hasAlt = true) }
-        assertEquals(climbBeforeStop, accumulator.tripClimbMeters, 1e-9)
+        assertEquals(0.0, accumulator.variometer, 0.01)
     }
 }

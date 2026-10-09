@@ -10,7 +10,7 @@ import android.os.Looper
 import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
 
 /**
- * What the car is playing, and the means to control it.
+ * What the car is playing: the title, the artist and whether it plays, for the strip to print.
  *
  * Reads the active [android.media.session.MediaSession] through
  * [MediaSessionManager], which needs notification-listener access — the app
@@ -80,19 +80,6 @@ class NowPlayingSource {
         title = null
         artist = null
         playing = false
-    }
-
-    fun toggle() {
-        val transport = controller?.transportControls ?: return
-        if (playing) transport.pause() else transport.play()
-    }
-
-    fun next() {
-        controller?.transportControls?.skipToNext()
-    }
-
-    fun previous() {
-        controller?.transportControls?.skipToPrevious()
     }
 
     private fun refresh() {

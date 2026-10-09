@@ -10,9 +10,9 @@ import kotlin.math.sqrt
 /**
  * Derives the visible trip distance and altitude figures from ~1 Hz GNSS fixes.
  *
- * Parked fixes cannot add distance or climb. Altitude is accuracy-gated and held
- * while stopped; resuming movement re-anchors the smoother so parked GPS drift
- * cannot become phantom climb. Nothing is persisted.
+ * Parked fixes cannot add distance. Altitude is accuracy-gated and held while
+ * stopped; resuming movement re-anchors the smoother so parked GPS drift cannot
+ * become a phantom rise on the variometer. Nothing is persisted.
  */
 class GnssTripAccumulator(
     private val altitudeTau: Double = 4.0,
@@ -20,7 +20,6 @@ class GnssTripAccumulator(
     private val stopSpeed: Double = 0.5,
     private val climbFreezeSpeed: Double = 1.0,
     private val varioFreezeTau: Double = 1.5,
-    private val climbStepMeters: Double = 3.0,
     private val maxVerticalAccuracyMeters: Double = 20.0,
     private val seedConsistencyFixes: Int = 3,
     private val seedConsistencyBandMeters: Double = 15.0,
@@ -31,8 +30,6 @@ class GnssTripAccumulator(
 
     var distanceMeters: Double = 0.0
         private set
-    var tripClimbMeters: Double = 0.0
-        private set
 
     private var altitudeSeeded = false
     var smoothedAltitude: Double = 0.0
@@ -41,7 +38,6 @@ class GnssTripAccumulator(
     var variometer: Double = 0.0
         private set
 
-    private var restPointAltitude = 0.0
     private var pendingReanchor = false
     private var pendingSeedAltitude = 0.0
     private var pendingSeedCount = 0
@@ -78,7 +74,6 @@ class GnssTripAccumulator(
             } else if (movingForClimb) {
                 if (pendingReanchor) {
                     smoothedAltitude = altitude
-                    restPointAltitude = altitude
                     pendingReanchor = false
                 } else {
                     val previousAltitude = smoothedAltitude
@@ -87,7 +82,6 @@ class GnssTripAccumulator(
                     val rate = if (step > 0) (smoothedAltitude - previousAltitude) / step else 0.0
                     val varioFactor = 1.0 - exp(-step / varioTau)
                     variometer += (rate - variometer) * varioFactor
-                    stairStep(accumulate)
                 }
             }
         }
@@ -109,18 +103,7 @@ class GnssTripAccumulator(
         }
         altitudeSeeded = true
         smoothedAltitude = altitude
-        restPointAltitude = altitude
         pendingReanchor = false
-    }
-
-    private fun stairStep(accumulate: Boolean) {
-        if (smoothedAltitude < restPointAltitude) {
-            restPointAltitude = smoothedAltitude
-        } else if (smoothedAltitude - restPointAltitude >= climbStepMeters) {
-            val gain = smoothedAltitude - restPointAltitude
-            restPointAltitude = smoothedAltitude
-            if (accumulate) tripClimbMeters += gain
-        }
     }
 
     companion object {
