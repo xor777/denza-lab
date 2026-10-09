@@ -194,6 +194,9 @@ internal class FakeShell(
 
     val commands = mutableListOf<String>()
 
+    /** Where [SplitCommandLog] records this car, when it records at all. */
+    private val commandLogCar = SplitCommandLog.carName()
+
     /**
      * Every command this car did not understand, in order.
      *
@@ -418,6 +421,7 @@ internal class FakeShell(
 
     /** tx126 sent by the app process itself ([SplitGateSwitch]): same firmware gate, no command. */
     fun flipGateInProcess(open: Boolean) {
+        SplitCommandLog.record(commandLogCar, "binder gate open=$open")
         synchronized(this) {
             binderGateFlips += open
             gate = open
@@ -566,6 +570,7 @@ internal class FakeShell(
 
     fun shell(command: String): String {
         commands += command
+        SplitCommandLog.record(commandLogCar, command)
         return when {
             command == "service call activity_task 123" ->
                 intParcel(if (capabilityAlwaysTrue || gate) 1 else 0)
