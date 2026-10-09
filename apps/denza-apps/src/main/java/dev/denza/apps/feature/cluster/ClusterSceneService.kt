@@ -241,25 +241,7 @@ class ClusterSceneService : Service() {
             // Base and camera already have separate presentations/displays. Do not construct or
             // attach an unused map SurfaceView, shade and dashboard container for every turn.
             // The camera still creates a fresh window/texture only on Show; no idle prewarming.
-            if (!cameraLayer) createBaseLayers(root)
-
-            cameraFrame = FrameLayout(context).apply {
-                setBackgroundColor(Color.BLACK)
-                clipChildren = true
-                clipToPadding = true
-                visibility = View.GONE
-            }
-            cameraTexture = TextureView(context).apply { isOpaque = true }
-            cameraFrame.addView(cameraTexture, matchParent(Gravity.CENTER))
-            cameraEdgeShade = EdgeShadeView(context)
-            cameraFrame.addView(cameraEdgeShade, matchParent())
-            root.addView(cameraFrame, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
-
-            diagnosticLayer = FrameLayout(context).apply {
-                setBackgroundColor(Color.TRANSPARENT)
-                visibility = View.GONE
-            }
-            root.addView(diagnosticLayer, matchParent())
+            SceneView.stackFor(cameraLayer).forEach { view -> addSceneView(root, view) }
             setContentView(root)
 
             layer.attach(
@@ -267,28 +249,52 @@ class ClusterSceneService : Service() {
             )
         }
 
-        private fun createBaseLayers(root: FrameLayout) {
-            mapSurface = SurfaceView(context).apply {
-                setZOrderOnTop(false)
-                visibility = View.INVISIBLE
-                holder.addCallback(mapSurfaceCallback)
+        /** Builds [view] and adds it on top of what [root] holds; [SceneView] says the order. */
+        private fun addSceneView(root: FrameLayout, view: SceneView) {
+            when (view) {
+                SceneView.MAP_SURFACE -> {
+                    mapSurface = SurfaceView(context).apply {
+                        setZOrderOnTop(false)
+                        visibility = View.INVISIBLE
+                        holder.addCallback(mapSurfaceCallback)
+                    }
+                    root.addView(mapSurface, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
+                }
+                SceneView.MAP_SHADE -> {
+                    mapShade = ProjectionEdgeShadeView(context).apply { visibility = View.INVISIBLE }
+                    root.addView(mapShade, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
+                }
+                SceneView.DASHBOARD -> {
+                    dashboardLayer = FrameLayout(context).apply {
+                        setBackgroundColor(Color.TRANSPARENT)
+                        visibility = View.GONE
+                    }
+                    root.addView(
+                        dashboardLayer,
+                        FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START),
+                    )
+                }
+                SceneView.CAMERA -> {
+                    cameraFrame = FrameLayout(context).apply {
+                        setBackgroundColor(Color.BLACK)
+                        clipChildren = true
+                        clipToPadding = true
+                        visibility = View.GONE
+                    }
+                    cameraTexture = TextureView(context).apply { isOpaque = true }
+                    cameraFrame.addView(cameraTexture, matchParent(Gravity.CENTER))
+                    cameraEdgeShade = EdgeShadeView(context)
+                    cameraFrame.addView(cameraEdgeShade, matchParent())
+                    root.addView(cameraFrame, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
+                }
+                SceneView.DIAGNOSTIC -> {
+                    diagnosticLayer = FrameLayout(context).apply {
+                        setBackgroundColor(Color.TRANSPARENT)
+                        visibility = View.GONE
+                    }
+                    root.addView(diagnosticLayer, matchParent())
+                }
             }
-            root.addView(mapSurface, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
-            mapShade = ProjectionEdgeShadeView(context).apply { visibility = View.INVISIBLE }
-            root.addView(mapShade, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
-
-            // After the shade on purpose. The shade darkens whatever is beneath it so a projected
-            // map cannot cover instrument data; the dashboard needs no such protection because it
-            // places its own blocks off the stock graphics to begin with, and darkening it twice
-            // would only cost contrast.
-            dashboardLayer = FrameLayout(context).apply {
-                setBackgroundColor(Color.TRANSPARENT)
-                visibility = View.GONE
-            }
-            root.addView(
-                dashboardLayer,
-                FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START),
-            )
         }
 
         override fun dismiss() {

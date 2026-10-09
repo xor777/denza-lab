@@ -1898,6 +1898,8 @@ and no errors. All mutants were restored before the final checks. This proves
 the checks reject those wiring mistakes; it does not prove real Android view
 creation behavior or performance.
 
+> **Superseded 2026-10-09:** the source-wiring checks are gone with the text they read. The camera layer's stack without the map surface, shade and dashboard, and the base layer's map-shade-dashboard order, are `SceneView.stackFor` (`SceneLayer.kt`), which the presentation's `onCreate` builds from, held by `CameraSceneLayersTest`; that each layer is resolved and opened as itself and that maps and dashboards reach only the base layer are held over the scene's calls there too; `prepareScene` is `CameraSceneController.Scene`'s. The startup-notification check went the same way: the scene has no notification to post, and `CameraSceneControllerTest` pins every call of a Show.
+
 The resolver's initial test source did not compile against the base because its
 live-selection seam did not exist; that is compile-only RED evidence, not a
 behavioral failure. Final targeted resolver checks passed 13/13. Four compiling
