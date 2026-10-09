@@ -2,6 +2,9 @@ package dev.denza.apps
 
 import dev.denza.apps.feature.cluster.CameraRuntimePhase
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
+import dev.denza.apps.feature.hud.HudMapAnchorSource
+import dev.denza.apps.feature.hud.HudMapSnapshot
+import dev.denza.apps.feature.hud.HudMapState
 import dev.denza.apps.feature.media.MediaKeyPress
 import dev.denza.apps.feature.media.MediaKeyReport
 import dev.denza.apps.feature.media.MediaKeySnapshot
@@ -216,6 +219,47 @@ class SupportDiagnosticsTest {
         assertEquals(
             listOf(TechnicalSection(null, listOf(TechnicalRow("Операции", "пока не было")))),
             TechnicalReadings.parse(SupportDiagnostics.splitJournal(emptyList())),
+        )
+    }
+
+    /**
+     * Карта на проекции: где стоит окно - с окном, которое закрыло вырезку, - и сколько стоит кадр,
+     * по которому будут судить следующий, более быстрый источник.
+     */
+    @Test
+    fun `the map rows say where the window stands, what covers it and what a frame costs`() {
+        val rows = SupportDiagnostics.hudMapRows(
+            enabled = true,
+            map = HudMapSnapshot(
+                state = HudMapState.COVERED,
+                source = "скриншот специальных возможностей, 350 мс",
+                framesSent = 120,
+                captureFailures = mapOf(3 to 2L, 4 to 1L),
+                lastFrameMs = 18,
+                meanFrameMs = 21,
+                anchor = HudMapAnchorSource.DETECTED,
+                coveredBy = "Камера, тип 2, [1600,700][2400,1300]",
+                lastFireResult = 0,
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                TechnicalRow("Карта", "да, covered, под окном Камера, тип 2, [1600,700][2400,1300]"),
+                TechnicalRow(
+                    "Карта, кадры",
+                    "отправлено 120, кадр 18 мс, в среднем 21 мс, стрелка detected, fire 0, " +
+                        "отказы захвата 3×2 4×1, источник скриншот специальных возможностей, 350 мс",
+                ),
+            ),
+            rows,
+        )
+        assertEquals(
+            TechnicalRow(
+                "Карта, кадры",
+                "отправлено 0, кадр — мс, в среднем — мс, fire —, отказы захвата нет, источник —",
+            ),
+            SupportDiagnostics.hudMapRows(enabled = false, map = HudMapSnapshot())[1],
         )
     }
 

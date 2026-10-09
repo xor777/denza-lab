@@ -17,6 +17,10 @@ class HudGuidanceRider : AccessibilityRider {
     override val eventTypes: Int = AccessibilityEvent.TYPES_ALL_MASK
 
     override fun onConnected(service: AccessibilityService) {
+        // A second connect with no going between - the system re-initialising an instance it had
+        // marked crashed, seen on the emulator on 2026-10-09 - must not leave the first monitor
+        // polling, sending and capturing beside the new one.
+        monitor?.detach()
         // Kept before it attaches, so a monitor whose attach throws is still detached on going.
         val monitor = HudGuidanceAccessibilityMonitor(service)
         this.monitor = monitor

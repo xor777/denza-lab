@@ -7,10 +7,14 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 
+import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Polls the visible Yandex guidance model and publishes only fresh, validated instructions. */
+/**
+ * Polls the visible Yandex guidance model and publishes only fresh, validated instructions, and
+ * runs the map window ({@link HudMapRunner}) while a route is held and its switch is on.
+ */
 public final class HudGuidanceAccessibilityMonitor {
     private static final String TAG = "DenzaHudGuidance";
     private static final long POLL_INTERVAL_MS = 350L;
@@ -34,6 +38,7 @@ public final class HudGuidanceAccessibilityMonitor {
     private final Runnable pollRunnable = this::poll;
     private final Runnable eventPollRunnable = this::poll;
     private final SingleFlightReadRunner<HudGuidance> readRunner;
+    private final HudMapRunner mapRunner;
     private boolean attached;
     private long lastPublishedMs;
     private HudGuidance lastGuidance;
@@ -50,6 +55,21 @@ public final class HudGuidanceAccessibilityMonitor {
                 runnable -> handler.post(runnable),
                 () -> YandexGuidanceAccessibilityReader.read(service),
                 this::onReadFinished);
+        // The map's frames ride on the hints' session; both calls arrive on the main thread.
+        this.mapRunner = new HudMapRunner(
+                new HudMapScreenshotSource(service),
+                new HudMapRunner.Publisher() {
+                    @Override
+                    public void publish(byte[] payload) {
+                        someIpClient.publishMap(payload);
+                    }
+
+                    @Override
+                    public void blank() {
+                        someIpClient.clearMap(HudMapPng.getBlankPayload());
+                    }
+                },
+                new File(service.getFilesDir(), HudMapCapture.DIRECTORY));
     }
 
     public void attach() {
@@ -66,6 +86,8 @@ public final class HudGuidanceAccessibilityMonitor {
         locationSource.stop();
         arTracker.reset();
         latestPose = null;
+        // The map's black frame goes before the session's stop, and its thread ends here.
+        mapRunner.shutdown();
         someIpClient.shutdown();
         speedLimit.shutdown();
         HudGuidanceRuntime.onStopped();
@@ -92,7 +114,20 @@ public final class HudGuidanceAccessibilityMonitor {
             clearAndStop();
             return;
         }
-        HudGuidanceRuntime.onWaiting();
+        // The map switch moved, or the hints came on. Off empties the window now; on waits for
+        // the next poll that holds a route.
+        if (HudGuidanceSettings.INSTANCE.isMapEnabled(service)) {
+            if (!freshness.isHolding()) {
+                mapRunner.pause(true);
+            }
+        } else {
+            mapRunner.stop();
+        }
+        // A refresh while a route is shown - the map switch, an access repair - leaves the hints
+        // as they are rather than saying «waiting» for one poll.
+        if (!HudGuidanceRuntime.isActive()) {
+            HudGuidanceRuntime.onWaiting();
+        }
         locationSource.start();
         readRunner.activate();
         schedule(0L);
@@ -135,8 +170,13 @@ public final class HudGuidanceAccessibilityMonitor {
             HudGuidanceRuntime.onGuidance(guidance, sample.getCapturedAtMs());
             // Only a visible read carries the sign; a background route leaves the car's sign alone.
             speedLimit.setTarget(guidance.getSpeedLimitKmh());
+            // After the publish, which starts the session the map's frames ride on. A route read
+            // from the notification has no Yandex on the screen; the map source finds that itself.
+            mapRunner.run(HudGuidanceSettings.INSTANCE.isMapEnabled(service));
         } else if (freshness.routeLost(now)) {
             speedLimit.setTarget(null);
+            // The map's black frame before the road clear, while the session still holds.
+            mapRunner.pause(HudGuidanceSettings.INSTANCE.isMapEnabled(service));
             someIpClient.clear();
             lastGuidance = null;
             arTracker.reset();
@@ -150,6 +190,7 @@ public final class HudGuidanceAccessibilityMonitor {
         handler.removeCallbacks(pollRunnable);
         handler.removeCallbacks(eventPollRunnable);
         readRunner.deactivate();
+        mapRunner.stop();
         if (freshness.isHolding()) {
             someIpClient.clear();
         }

@@ -6,6 +6,7 @@ import android.content.Context
 object HudGuidanceSettings {
     private const val PREFS = "denza_hud_guidance"
     private const val ENABLED = "enabled"
+    private const val MAP = "map"
 
     /**
      * The one navigator whose guidance the windscreen repeats.
@@ -25,6 +26,22 @@ object HudGuidanceSettings {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * «Карта на проекции»: a crop of Yandex's map in the HUD's map window while a route is held.
+     * Its own value beside the hints' switch, off until the driver turns it on; the tile's press
+     * moves the hints and never this.
+     */
+    fun isMapEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(MAP, false)
+
+    @SuppressLint("UseKtx")
+    fun setMapEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(MAP, enabled)
             .apply()
     }
 }

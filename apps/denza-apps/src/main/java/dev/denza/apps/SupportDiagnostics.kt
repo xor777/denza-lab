@@ -35,6 +35,8 @@ import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.media.MediaSessionAccess
+import dev.denza.apps.feature.hud.HudMapRuntime
+import dev.denza.apps.feature.hud.HudMapSnapshot
 import dev.denza.apps.feature.hud.HudNotificationArtworkRuntime
 import dev.denza.apps.feature.hud.HudSomeIpRuntime
 import dev.denza.apps.feature.media.MediaKeyReport
@@ -319,7 +321,36 @@ object SupportDiagnostics {
         )
         add(row("Доставка, подробно", delivery.detail))
         add(row("Данные", HudGuidanceRuntime.details()))
+        addAll(hudMapRows(HudGuidanceSettings.isMapEnabled(context), HudMapRuntime.snapshot()))
     }
+
+    /**
+     * The map window in two rows: the switch and where the window stands, then what the frames
+     * cost and what failed - the per-frame time is the number a faster source is judged by.
+     */
+    internal fun hudMapRows(enabled: Boolean, map: HudMapSnapshot): List<TechnicalRow> = listOf(
+        row(
+            "Карта",
+            buildList {
+                add(yesNo(enabled))
+                add(map.state.name.lowercase().replace('_', '-'))
+                map.coveredBy?.let { add("под окном $it") }
+            }.joinToString(", "),
+        ),
+        row(
+            "Карта, кадры",
+            buildList {
+                add("отправлено ${map.framesSent}")
+                add("кадр ${map.lastFrameMs ?: "—"} мс, в среднем ${map.meanFrameMs ?: "—"} мс")
+                map.anchor?.let { add("стрелка ${it.name.lowercase()}") }
+                add("fire ${map.lastFireResult ?: "—"}")
+                val failures = map.captureFailures.entries.joinToString(" ") { (code, count) -> "$code×$count" }
+                add("отказы захвата ${failures.ifEmpty { "нет" }}")
+                if (map.processingFailures > 0) add("ошибки обработки ${map.processingFailures}")
+                add("источник ${map.source.ifEmpty { "—" }}")
+            }.joinToString(", "),
+        ),
+    )
 
     /** The analyser's line, one reading a row; the panel that never opened is one row saying so. */
     internal fun spectrumRows(label: String): List<TechnicalRow> =

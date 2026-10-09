@@ -23,7 +23,11 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-/** Product wrapper around the stock SOME/IP road-guidance endpoint verified by the HUD probe. */
+/**
+ * Product wrapper around the stock SOME/IP road-guidance endpoint verified by the HUD probe: the
+ * road packet {@code 0x8001} the hints send, and the map window's event {@code 0x8003}, which
+ * rides on the same session.
+ */
 final class HudSomeIpClient {
     private static final String TAG = "DenzaHudGuidance";
     private static final String DESCRIPTOR = "ts.car.someip.sdk.ISomeIpServerInterface";
@@ -35,6 +39,8 @@ final class HudSomeIpClient {
     private static final int TX_FIRE = 6;
     private static final long SVC_HUD_NAVI = 3097367205183488L;
     private static final long TOPIC_HUD_ROAD = 1127042368241665L;
+    /** Event 0x8003, {@code HudNavigationmap{1: Base64 PNG}}: the map window beside the speed. */
+    private static final long TOPIC_HUD_MAP = 1127042368241667L;
     private static final long SHUTDOWN_DELAY_MS = 350L;
     private static final long RECOVERY_DELAY_MS = 1000L;
     /**
@@ -59,6 +65,7 @@ final class HudSomeIpClient {
     private final Map<String, byte[]> iconCache = new HashMap<>();
     private final Runnable shutdownRunnable = this::stopAndUnbind;
     private final Runnable clearRepeatRunnable = this::repeatClear;
+    private final Runnable blankMapRepeatRunnable = this::repeatBlankMap;
     private final Runnable recoveryRunnable = () -> {
         recoveryScheduled = false;
         recoverConnection();
@@ -70,6 +77,8 @@ final class HudSomeIpClient {
     private HudGuidance pending;
     private HudArGeometry pendingArGeometry;
     private int clearSendsLeft;
+    private byte[] blankMapPayload;
+    private int blankMapSendsLeft;
     private String lastPublishedKey;
 
     private final ServiceConnection connection = new ServiceConnection() {
@@ -155,6 +164,59 @@ final class HudSomeIpClient {
     private void cancelClearRepeats() {
         handler.removeCallbacks(clearRepeatRunnable);
         clearSendsLeft = 0;
+    }
+
+    /**
+     * A frame of the map window, already a payload ({@link #mapPayload}). It rides on the session
+     * the hints started: with none started it is dropped, never a reason to start one - the HUD
+     * shows the map window only beside a road packet that says a route is on. A frame ends the
+     * black frames of an earlier {@link #clearMap} still to go.
+     */
+    void publishMap(byte[] payload) {
+        cancelBlankMapRepeats();
+        if (!serviceStarted || binder == null) {
+            return;
+        }
+        HudMapRuntime.onFireResult(fire(TOPIC_HUD_MAP, payload));
+    }
+
+    /**
+     * Empties the map window with {@code blankPayload}, a black frame, three times 120 ms apart:
+     * the event reaches the HUD over UDP like the road clear, and one lost black frame would leave
+     * the last map on the glass. All three go before {@link #SHUTDOWN_DELAY_MS}, so a shutdown
+     * right after still sends them. Nothing goes without a started session.
+     */
+    void clearMap(byte[] blankPayload) {
+        cancelBlankMapRepeats();
+        if (!serviceStarted) {
+            return;
+        }
+        blankMapPayload = blankPayload;
+        blankMapSendsLeft = CLEAR_SENDS;
+        sendBlankMap();
+    }
+
+    private void sendBlankMap() {
+        blankMapSendsLeft--;
+        int result = fire(TOPIC_HUD_MAP, blankMapPayload);
+        HudMapRuntime.onFireResult(result);
+        Log.i(TAG, "blank map ret=" + result + " left=" + blankMapSendsLeft);
+        if (blankMapSendsLeft > 0) {
+            handler.postDelayed(blankMapRepeatRunnable, CLEAR_REPEAT_MS);
+        }
+    }
+
+    private void repeatBlankMap() {
+        if (!serviceStarted || blankMapSendsLeft <= 0) {
+            blankMapSendsLeft = 0;
+            return;
+        }
+        sendBlankMap();
+    }
+
+    private void cancelBlankMapRepeats() {
+        handler.removeCallbacks(blankMapRepeatRunnable);
+        blankMapSendsLeft = 0;
     }
 
     void shutdown() {
@@ -335,6 +397,7 @@ final class HudSomeIpClient {
     private void stopAndUnbind() {
         cancelRecovery();
         cancelClearRepeats();
+        cancelBlankMapRepeats();
         IBinder service = binder;
         if (serviceStarted && service != null) {
             Parcel data = Parcel.obtain();
@@ -414,6 +477,18 @@ final class HudSomeIpClient {
 
     static byte[] buildClearPayloadForTest() {
         return buildPayload(true, null);
+    }
+
+    /**
+     * {@code HudNavigationmap{1: Base64(png)}} exactly as the stock navigator sends it: field 1 as
+     * a string, Base64 without line breaks, and no envelope around the message - unlike the road
+     * packet, which is field 1 of an outer message.
+     */
+    static byte[] mapPayload(byte[] png) {
+        byte[] text = java.util.Base64.getEncoder().encode(png);
+        ByteArrayOutputStream message = new ByteArrayOutputStream(text.length + 8);
+        bytesField(message, 1, text);
+        return message.toByteArray();
     }
 
     static String routeDistance(HudGuidance guidance) {
