@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
@@ -341,9 +342,10 @@ object NavigationCoordinator {
             launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             val options = ActivityOptions.makeBasic().setLaunchDisplayId(0)
             app.startActivity(launch, options.toBundle())
+            val launchedAt = SystemClock.elapsedRealtime()
             executor.schedule(
-                { discoverLaunchedTask(launchAttempt, 5) },
-                900L,
+                { discoverLaunchedTask(launchAttempt, launchedAt, previousPauseMs = null) },
+                NavigationLaunchWait.FIRST_MS,
                 TimeUnit.MILLISECONDS,
             )
         } catch (error: RuntimeException) {
@@ -361,9 +363,20 @@ object NavigationCoordinator {
         }
     }
 
+    /**
+     * Looks for the task a launch made, on [NavigationLaunchWait]'s schedule.
+     *
+     * A cold start of a heavy navigator, or any app on a loaded head unit, can take longer than the
+     * four seconds this used to wait - each look is an `app_process` of its own - and the tile then
+     * asked the driver to «Дождитесь запуска приложения и повторите». It waits itself now, the tile
+     * working all the while, and when the deadline passes it settles with no words: the application
+     * is open on the central screen, which is a result the driver can see, and the press is there to
+     * put it on the cluster.
+     */
     private fun discoverLaunchedTask(
         launchAttempt: NavigationLaunchAttempt,
-        attemptsRemaining: Int,
+        launchedAt: Long,
+        previousPauseMs: Long?,
     ) {
         val app = context ?: return
         if (!launchFence.accepts(launchAttempt, selectedPackage)) return
@@ -378,23 +391,24 @@ object NavigationCoordinator {
                 } else {
                     finishTransfer()
                 }
-            } else if (attemptsRemaining > 0) {
-                executor.schedule(
-                    { discoverLaunchedTask(launchAttempt, attemptsRemaining - 1) },
-                    700L,
-                    TimeUnit.MILLISECONDS,
-                )
             } else {
-                pendingProjectionAfterOpen = false
-                splitRoutingLease.release()
-                update(
-                    NavigationSession(
-                        phase = NavigationPhase.NEEDS_ACTION,
-                        message = NavigationStep.OPEN.words,
-                        resolution = FeatureResolution.RETRY,
-                    ),
+                val pause = NavigationLaunchWait.next(
+                    elapsedMs = SystemClock.elapsedRealtime() - launchedAt,
+                    previousPauseMs = previousPauseMs,
                 )
-                finishTransfer()
+                if (pause != null) {
+                    executor.schedule(
+                        { discoverLaunchedTask(launchAttempt, launchedAt, pause) },
+                        pause,
+                        TimeUnit.MILLISECONDS,
+                    )
+                } else {
+                    Log.w(TAG, "launched $packageName has no task after ${NavigationLaunchWait.DEADLINE_MS} ms")
+                    pendingProjectionAfterOpen = false
+                    splitRoutingLease.release()
+                    update(NavigationSession(details = "запуск не найден за ${NavigationLaunchWait.DEADLINE_MS / 1000} с"))
+                    finishTransfer()
+                }
             }
         } catch (error: Exception) {
             pendingProjectionAfterOpen = false

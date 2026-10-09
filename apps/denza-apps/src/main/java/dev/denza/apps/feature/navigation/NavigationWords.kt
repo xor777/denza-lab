@@ -53,3 +53,27 @@ internal object NavigationWords {
         return NavigationProblem(AdbProblem.WORDS, channel.resolution)
     }
 }
+
+/**
+ * How long a launched application is waited for before the press settles without it.
+ *
+ * Looks back off from 0.7 s to 1.5 s - each is an `app_process` - against one deadline of 15 s from
+ * the launch, measured from the clock rather than counted in looks, so a slow look does not stretch
+ * the wait. It was five looks 0.7 s apart after a first at 0.9 s, about four seconds in all.
+ */
+internal object NavigationLaunchWait {
+    const val FIRST_MS = 900L
+    const val DEADLINE_MS = 15_000L
+    private const val START_MS = 700L
+    private const val LONGEST_MS = 1_500L
+
+    /**
+     * The pause before the next look, [elapsedMs] after the launch and [previousPauseMs] after the
+     * last pause; null when the deadline has passed and the launch is settled without its task.
+     */
+    fun next(elapsedMs: Long, previousPauseMs: Long?): Long? {
+        if (elapsedMs >= DEADLINE_MS) return null
+        val pause = previousPauseMs?.let { minOf(LONGEST_MS, it * 3 / 2) } ?: START_MS
+        return minOf(pause, DEADLINE_MS - elapsedMs)
+    }
+}
