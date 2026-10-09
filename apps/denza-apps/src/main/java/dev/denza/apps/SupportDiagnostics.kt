@@ -206,8 +206,10 @@ object SupportDiagnostics {
             row("Выбрано приложений", SimulcastApps.selectedCount(context).toString()),
             row("DiShare установлен", yesNo(isInstalled(context.packageManager, SimulcastCoordinator.DISHARE_PACKAGE))),
             row("Доступ поверх окон", yesNo(SimulcastCoordinator.hasOverlayPermission(context))),
+            // The shared accessibility service, which every rider needs and not the projection
+            // alone: here because the projection was the first to ride on it.
             row("Управление интерфейсом", yesNo(accessibility.enabled)),
-            row("Служба трансляции подключена", yesNo(accessibility.connected)),
+            row("Служба доступности подключена", yesNo(accessibility.connected)),
         ) + SimulcastScreenDiagnostics.diagnosticLines().map(TechnicalReadings::row) +
             row("Счётчики окон", simulcastCounters(header.simulcastRuntime))
     }
