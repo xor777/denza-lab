@@ -1,6 +1,7 @@
 package dev.denza.apps.adb
 
 import dev.denza.apps.core.FeatureResolution
+import dev.denza.apps.core.FeatureWords
 import dev.denza.disharebridge.LocalAdbClient
 import java.io.IOException
 import java.net.ConnectException
@@ -36,7 +37,7 @@ enum class AdbProblem(
 
     companion object {
         /** The one caption a feature tile shows for either kind. */
-        const val WORDS = "Нет доступа"
+        const val WORDS = FeatureWords.NO_ACCESS
 
         /**
          * The problem [error] is, looking down its chain of causes; null when it is not the

@@ -35,7 +35,7 @@ class MirrorDisplayReadinessTest {
 
         assertEquals(FeatureStatus.NEEDS_ACTION, snapshot.status)
         assertEquals(FeatureResolution.RETRY, snapshot.resolution)
-        assertEquals("Повторите поиск экрана камер", snapshot.message)
+        assertEquals("Экран не найден", snapshot.message)
     }
 
     @Test

@@ -36,7 +36,7 @@ class ServiceModelTest {
             trusted.copy(
                 hudGuidance = FeatureReducer.needsAction(
                     FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
-                    "Повторите настройку доступа",
+                    "Нет доступа",
                     resolution = FeatureResolution.RETRY,
                 ),
                 cloudLink = FeatureSnapshot(FeatureId.CLOUD_LINK, true, FeatureStatus.ERROR, message = "Не включилось"),
@@ -45,7 +45,7 @@ class ServiceModelTest {
         assertEquals("2 функции ждут", model.status)
         assertEquals(DenzaTileTone.ATTENTION, model.statusTone)
         assertEquals(listOf(TileId.HUD, TileId.CLOUD), model.trouble.map { it.id })
-        assertEquals(listOf("Повторите настройку доступа", "Не включилось"), model.trouble.map { it.state })
+        assertEquals(listOf("Нет доступа", "Не включилось"), model.trouble.map { it.state })
         assertEquals(listOf(DenzaTileTone.ATTENTION, DenzaTileTone.BROKEN), model.trouble.map { it.tone })
         assertFalse(model.accessActions)
     }

@@ -67,8 +67,8 @@ internal class AccessibilityRepairSingleFlight {
      * Ends the repair. The slice that shows it is marked once it no longer counts as running and
      * before any owner's callback, so the read finds it settled and an owner's answer lands after.
      * The projection and HUD guidance are not marked here: each owner publishes its own outcome -
-     * «Восстанавливаю доступ» while it runs, the reason when it fails - and a read of the bare
-     * setting in between would put a generic «Повторите настройку доступа» over it. The service
+     * «Восстанавливаю доступ» while it runs, its outcome when it fails - and a read of the bare
+     * setting in between would put the setting's own outcome over it, with its own press. The service
      * connecting or going marks them all ([StateMarks.accessibilityChanged]).
      */
     fun complete(failure: Throwable?) {

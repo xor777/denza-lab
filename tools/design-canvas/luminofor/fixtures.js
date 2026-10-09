@@ -244,14 +244,14 @@
     broken: sheetOf(2, {
       title: 'Зеркала',
       blocks: [
-        { t: 'status', tone: 'broken', text: 'Камеры не отвечают: штатный вид занял видеопоток' },
+        { t: 'status', tone: 'broken', text: 'Не переключилось' },
         { t: 'switch', title: 'Зеркала', on: true },
         { t: 'section', label: 'Где показывать', body: { t: 'segmented', labels: ['По сторонам', 'По центру'], selected: 0 } },
         { t: 'switch', title: 'Улучшение изображения', on: false },
         { t: 'note', text: 'Когда включён поворотник, на экране появляется камера с этой стороны и пропадает вместе с ним. «По центру» показывает обе камеры одну над другой.' }
       ],
       footer: [{ t: 'button', text: 'Проверить камеры' }]
-    }, { tile: 'MIRRORS', mirrors: true, position: 'SIDES', processing: false, error: 'Камеры не отвечают: штатный вид занял видеопоток' }),
+    }, { tile: 'MIRRORS', mirrors: true, position: 'SIDES', processing: false, error: 'Не переключилось' }),
   };
 
   // The service panel answers one question - what is wrong - and keeps the rest a row away. On a
@@ -363,7 +363,7 @@
       blocks: [
         { t: 'status', tone: 'attention', text: '2 функции ждут' },
         { t: 'group', rows: [
-          { kind: 'choice', title: 'HUD Подсказки', summary: 'Повторите настройку доступа', tone: 'attention' },
+          { kind: 'choice', title: 'HUD Подсказки', summary: 'Нет доступа', tone: 'attention' },
           { kind: 'choice', title: 'Облако', summary: 'Не включилось', tone: 'broken' },
           SVC_ACCESS
         ] },

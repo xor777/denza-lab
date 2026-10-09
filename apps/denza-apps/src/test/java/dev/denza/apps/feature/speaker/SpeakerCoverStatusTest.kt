@@ -33,7 +33,7 @@ class SpeakerCoverStatusTest {
         assertEquals(FeatureId.SPEAKER_COVERS, snapshot.id)
         assertEquals(FeatureStatus.NEEDS_ACTION, snapshot.status)
         assertTrue(snapshot.desiredEnabled)
-        assertEquals("Повторите настройку доступа", snapshot.message)
+        assertEquals("Нет доступа", snapshot.message)
         assertEquals(FeatureResolution.RETRY, snapshot.resolution)
     }
 

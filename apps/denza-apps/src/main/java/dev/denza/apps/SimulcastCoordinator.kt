@@ -10,6 +10,7 @@ import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.core.FeatureWords
 import dev.denza.apps.feature.split.SplitScreenSettings
 import java.util.concurrent.Executors
 
@@ -92,9 +93,10 @@ object SimulcastCoordinator {
             return blockedSnapshot(blocker)
         }
         if (!environment.overlayAllowed || !environment.accessibilityEnabled) {
+            // The press repairs it: [repairAccess] grants the overlay and enables the service.
             return FeatureReducer.needsAction(
                 FeatureReducer.starting(FeatureId.SIMULCAST),
-                "Повторите настройку доступа",
+                FeatureWords.NO_ACCESS,
                 resolution = FeatureResolution.RETRY,
             )
         }
@@ -108,15 +110,18 @@ object SimulcastCoordinator {
     }
 
     fun blockedSnapshot(blocker: SimulcastBlocker): FeatureSnapshot = when (blocker) {
+        // No words of its own: the tile's own «Недоступно» says it, and the panel the press opens
+        // says what the projection is. «Трансляция недоступна на этой системе» was 37 characters
+        // on a line that holds 17.
         SimulcastBlocker.DISHARE_UNAVAILABLE -> FeatureSnapshot(
             id = FeatureId.SIMULCAST,
             desiredEnabled = true,
             status = FeatureStatus.UNAVAILABLE,
-            message = "Трансляция недоступна на этой системе",
         )
+        // A state, and the press opens the choice it is waiting on.
         SimulcastBlocker.APPS_NOT_SELECTED -> FeatureReducer.needsAction(
             FeatureReducer.starting(FeatureId.SIMULCAST),
-            "Выберите приложения для трансляции",
+            FeatureWords.NOT_CHOSEN,
             resolution = FeatureResolution.SELECT_APPS,
         )
     }
@@ -247,25 +252,16 @@ object SimulcastCoordinator {
      * What a repair that did not take says on the tile - the projection's and the HUD's, which
      * borrows this repair.
      *
-     * The channel's own failures read as they do on every tile ([AdbProblem]); they used to be
-     * found by words in the message, two of them sending the driver to «ADB Rescue» and to the
-     * car's USB settings.
+     * Whatever stopped it, the app has no access to what the feature needs, and the tile says that.
+     * The channel's own failures used to be found by words in the message, two of them sending the
+     * driver to «ADB Rescue» and to the car's USB settings; a repair that finished and still left the
+     * service off asked the driver to confirm a prompt that did not exist. What differs is the
+     * press: the channel's failures go and look at the channel ([AdbProblem]); the rest repair again.
      */
-    fun setupProblem(error: Throwable?): SimulcastSetupProblem {
-        if (error == null) {
-            return SimulcastSetupProblem(
-                message = "Подтвердите запрос на экране автомобиля",
-                resolution = FeatureResolution.CONFIRM_ON_CAR,
-            )
-        }
-        AdbProblem.of(error)?.let { channel ->
-            return SimulcastSetupProblem(message = AdbProblem.WORDS, resolution = channel.resolution)
-        }
-        return SimulcastSetupProblem(
-            message = "Не удалось восстановить доступ",
-            resolution = FeatureResolution.RETRY,
-        )
-    }
+    fun setupProblem(error: Throwable?): SimulcastSetupProblem = SimulcastSetupProblem(
+        message = FeatureWords.NO_ACCESS,
+        resolution = AdbProblem.of(error)?.resolution ?: FeatureResolution.RETRY,
+    )
 
     private fun isInstalled(packageManager: PackageManager, packageName: String): Boolean = try {
         packageManager.getApplicationInfo(packageName, 0)

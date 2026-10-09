@@ -13,6 +13,7 @@ import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.core.FeatureWords
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
@@ -44,6 +45,7 @@ import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.fse.FseInstallResult
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
+import dev.denza.apps.feature.hud.HudGuidanceStatus
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
 import dev.denza.apps.feature.cloud.CloudLinkController
 import dev.denza.apps.feature.cloud.CloudLinkRuntime
@@ -797,7 +799,7 @@ object DenzaAppRepository {
                 current.copy(
                     splitScreen = FeatureReducer.failed(
                         previous = current.splitScreen.copy(desiredEnabled = enabled),
-                        message = if (enabled) "Не включилось" else "Не выключилось",
+                        message = FeatureWords.refused(enabled),
                     ),
                 )
             }
@@ -1415,34 +1417,16 @@ object DenzaAppRepository {
     }
 
     private fun evaluateHudGuidance(context: Context): FeatureSnapshot {
-        if (!HudGuidanceSettings.isEnabled(context)) {
-            return FeatureReducer.disabled(FeatureId.HUD_GUIDANCE)
-        }
-        if (!isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE)) {
-            return FeatureSnapshot(
-                id = FeatureId.HUD_GUIDANCE,
-                desiredEnabled = true,
-                status = FeatureStatus.UNAVAILABLE,
-                message = "Яндекс Навигатор не найден",
-            )
-        }
-        if (!SimulcastCoordinator.isAccessibilityEnabled(context)) {
-            return FeatureReducer.needsAction(
-                FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
-                "Повторите настройку доступа",
-                resolution = FeatureResolution.RETRY,
-            )
-        }
-        if (!SimulcastAccessibilityService.isConnected()) {
-            return FeatureReducer.recovering(
-                FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
-                "Подключаю подсказки",
-            )
-        }
-        return FeatureReducer.ready(
-            FeatureId.HUD_GUIDANCE,
+        val enabled = HudGuidanceSettings.isEnabled(context)
+        return HudGuidanceStatus.snapshot(
+            enabled = enabled,
+            navigatorInstalled = enabled &&
+                isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE),
+            accessibilityEnabled = enabled && SimulcastCoordinator.isAccessibilityEnabled(context),
+            accessibilityConnected = SimulcastAccessibilityService.isConnected(),
             active = HudGuidanceRuntime.isActive(),
-        ).copy(details = HudGuidanceRuntime.details())
+            details = HudGuidanceRuntime::details,
+        )
     }
 
     private fun navigationSnapshot(
