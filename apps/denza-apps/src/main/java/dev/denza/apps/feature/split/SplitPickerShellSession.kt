@@ -5,7 +5,6 @@ import dev.denza.apps.feature.split.SplitWorld.Companion.APP_PLACEMENT_CONFIRM_I
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_BALANCED_SPLIT
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_FULL_IVI
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_HOME
-import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_POLL_INTERVAL_MS
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_PRIMARY_FULL
 import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_SECONDARY_FULL
 import dev.denza.apps.feature.split.SplitWorld.Companion.EXIT_SETTLE_MS
@@ -35,7 +34,7 @@ internal class SplitPickerShellSession(
     shell: (String) -> String,
     apkPath: String,
     settle: (Long) -> Unit = Thread::sleep,
-    private val gateLeaseStore: SplitGateLeaseStore,
+    gateLeaseStore: SplitGateLeaseStore,
     /** The topology reads of the operation this session belongs to ([SplitWorld]). */
     topology: SplitTopologyCache = SplitTopologyCache(),
     /** Where the shell-UID proxy is loaded from; the APK is the always-valid fallback. */
@@ -45,6 +44,7 @@ internal class SplitPickerShellSession(
 ) {
     private val world = SplitWorld(shell, settle, topology, parsed)
     private val commands = SplitTaskCommands(world, apkPath, proxyClasspath)
+    private val gate = SplitGate(world, gateLeaseStore)
 
     /**
      * Waits read-only while the user is dragging the native divider.
@@ -82,86 +82,6 @@ internal class SplitPickerShellSession(
     fun nativePickerMutationAllowed(): Boolean =
         world.callInt("service call activity_task 30") == AREA_BALANCED_SPLIT &&
             !hasActivePointer(world.shell("dumpsys input"))
-
-    /**
-     * Closes only the split gate owned by this product after Home is authoritative.
-     *
-     * DiLink retains a separate global "last split pair" and otherwise resurrects that OEM pair
-     * when the user launches either remembered member from Home. Keep the lease so the next
-     * explicit Split Screen launch can reopen the gate, but never touch a gate we did not acquire.
-     *
-     * Правка W5 (1.9.3, диагноз v21 Д3-Б): закрыть gate при накрытой сцене - обязанность
-     * продукта, надёжно: при открытом gate прошивка сама втягивает split-способный пакет в
-     * широкую панель. Прежние шесть проб по 100 мс сдавались тихо; подтверждение накрытия теперь
-     * ретраится до [HOME_CONFIRM_BUDGET_MS], а [displaced] отдаёт воркер пользовательскому вводу
-     * немедленно - явное действие не ждёт фоновый шум (§4).
-     *
-     * Правка W3 волны 7: подтверждение - предикат накрытия ([SplitWorld.sceneCovered]: area 0 ИЛИ 4), не
-     * строгое ==0. Карта tx30 живьём (2026-08-25): в переходном грязном мире area дребезжит
-     * 0↔4 - чужое fullscreen-окно поверх накрывает сцену так же честно, как Home (1.11.5), а
-     * жёсткое ==0 сжигало весь бюджет над честно накрытой сценой и оставляло gate открытым.
-     */
-    fun suspendOwnedGateForHome(
-        displaced: () -> Boolean = { false },
-    ): Boolean {
-        if (!gateLeaseStore.isOwned()) return false
-        var waited = 0L
-        while (true) {
-            if (suspendOwnedGateIfCovered()) return true
-            if (waited >= HOME_CONFIRM_BUDGET_MS || displaced()) return false
-            val slice = minOf(AREA_POLL_INTERVAL_MS, HOME_CONFIRM_BUDGET_MS - waited)
-            world.pause(slice)
-            waited += slice
-        }
-    }
-
-    /**
-     * One read, one decision, no waiting: the same suspension as [suspendOwnedGateForHome], for a
-     * caller that already has a reason to look at the world and no right to block in it.
-     *
-     * Правка волны 17 (живой диагноз v33, 2026-08-26). Подвеска gate висела на ОДНОМ триггере -
-     * accessibility-событии пакета лаунчера, - и живой прогон показал, что событие приходит не
-     * всегда: из восьми обычных Home над живой сценой хинт пришёл дважды, а в шести случаях
-     * `HomeOperation` не запускалась ВООБЩЕ, gate оставался открытым (проверено через 65 с после
-     * Home), и следующий обычный запуск из дока прошивка втягивала в split - против 1.9.2. При
-     * этом на каждый Home приходили TYPE_WINDOWS_CHANGED, то есть сверка мир перечитывала и
-     * накрытие ВИДЕЛА (`collapse: area=0` в живом ринге), но про gate не знала.
-     *
-     * Полномочие мутации здесь то же, что и всегда: не событие, а прочитанная area 0/4
-     * ([SplitWorld.sceneCovered], 1.9.1, 1.11.5). Никакого нового канала и никакого таймерного цикла: это
-     * один вопрос машине внутри уже запланированного чтения.
-     *
-     * @return whether this call is what suspended it.
-     */
-    fun suspendOwnedGateIfCovered(): Boolean {
-        if (!gateLeaseStore.isOwned()) return false
-        if (!world.sceneCovered()) return false
-        world.callVoid("service call activity_task 126 i32 0")
-        return true
-    }
-
-    /**
-     * The mirror of [suspendOwnedGateIfCovered]: one read, one decision, no waiting.
-     *
-     * A suspension has exactly two ways back before this existed - the explicit open and the
-     * explicit tap in a picker, both of which run [ensureGateOpen]. A scene covered by something
-     * other than Home comes back by itself: the call ends, the camera goes away, the notification's
-     * app is closed with Back, and the pair the user left is on the screen again with the gate the
-     * product closed under the cover still closed. `startIviWindow` then answers every new task and
-     * every move-to-front of a pane member with `startFullWindow` (findings, "which panel a task
-     * lands in"), which is a member of the scene escaping to fullscreen with nobody having asked.
-     *
-     * Mutation authority is the same as the suspension's: a read area, never an event. Only a gate
-     * this product holds the lease for, and only over a scene the area calls visible (1/2/3).
-     *
-     * @return whether this call is what resumed it.
-     */
-    fun resumeOwnedGateIfVisible(): Boolean {
-        if (!gateLeaseStore.isOwned()) return false
-        if (world.sceneCovered()) return false
-        world.callVoid("service call activity_task 126 i32 1")
-        return true
-    }
 
     /**
      * Какую задачу система считает сфокусированной, если её вообще можно спросить.
@@ -931,7 +851,7 @@ internal class SplitPickerShellSession(
             // pair, gone again by the time of this tap), and the tap is the explicit resumption of
             // the session either way (to 1.12). Only the lease that suspended it may reopen it: a
             // gate this session never opened is not its to open, and not its to close later.
-            resumeOwnedGateIfVisible()
+            gate.resumeOwnedGateIfVisible()
             return existing
         }
         check(area == AREA_FULL_IVI || area == AREA_HOME) {
@@ -940,7 +860,7 @@ internal class SplitPickerShellSession(
         // Contract 5, to 1.12: raising a covered scene of ours is the explicit resumption of this
         // session, and Home suspends exactly the gate this session opened (1.9.1) - without this
         // the return from Home would raise a scene the firmware is no longer holding open.
-        ensureGateOpen()
+        gate.ensureGateOpen()
 
         val focusTaskId = SplitPane.entries.asSequence()
             .mapNotNull { pane -> existing[pane]?.appTaskId }
@@ -1012,7 +932,7 @@ internal class SplitPickerShellSession(
             "Нужны оба split-пикера"
         }
         // Phase 1 - the preamble, once for the whole scene.
-        ensureGateOpen()
+        gate.ensureGateOpen()
         commands.listOwnPackageForTheDivider()
         val failed = mutableSetOf<SplitPane>()
         val wanted = mutableMapOf<SplitPane, SplitLaunchTarget>()
@@ -1529,7 +1449,7 @@ internal class SplitPickerShellSession(
         target: SplitLaunchTarget,
         pickerComponents: Set<String>,
     ): SplitPickerPlacement {
-        ensureGateOpen()
+        gate.ensureGateOpen()
         val roots = world.nativeRootIds()
         val before = world.snapshot()
         val pane = SplitPane.entries.firstOrNull { candidate ->
@@ -2437,7 +2357,7 @@ internal class SplitPickerShellSession(
         val foreground = focused
             ?: visibleRoots.mapNotNull(SplitRootTask::resolvedTopTask).firstOrNull(eligible)
 
-        closeOwnedGate()
+        gate.closeOwnedGate()
 
         if (foreground != null) {
             val fullRootId = world.fullIviRootTaskId()
@@ -2829,31 +2749,6 @@ internal class SplitPickerShellSession(
         return true
     }
 
-    private fun ensureGateOpen() {
-        // On this DiLink 5.1 build tx123 is `isCanSplit()`: for the BYD platform branch it is
-        // a constant capability answer, not the current mIsEnterSplit value. Only tx126 changes
-        // the mutable gate, and it is idempotent in the firmware.
-        world.callVoid("service call activity_task 126 i32 1")
-        if (!gateLeaseStore.setOwned(true)) {
-            runCatching { world.callVoid("service call activity_task 126 i32 0") }
-            error("Не удалось сохранить владение split-gate")
-        }
-    }
-
-    /**
-     * The gate is firmware-global, so it is closed by exactly one rule: we opened it, therefore we
-     * close it (contract, to 1.12; invariant 1). A gate that was already open when our session
-     * started, or that belongs to a stock split the user built themselves, is left alone.
-     *
-     * @return whether this call is what closed it.
-     */
-    fun closeOwnedGate(): Boolean {
-        if (!gateLeaseStore.isOwned()) return false
-        world.callVoid("service call activity_task 126 i32 0")
-        check(gateLeaseStore.setOwned(false)) { "Не удалось освободить split-gate" }
-        return true
-    }
-
     /**
      * The exact recorded app of a pane, alive on the main display outside every panel root
      * (правка B1). The proof mirrors [resolveExpectedCoveredApp]: the persisted task id, the
@@ -2936,6 +2831,19 @@ internal class SplitPickerShellSession(
 
     // endregion
 
+    // region the gate the operations drive themselves ([SplitGate])
+
+    fun suspendOwnedGateForHome(displaced: () -> Boolean = { false }): Boolean =
+        gate.suspendOwnedGateForHome(displaced)
+
+    fun suspendOwnedGateIfCovered(): Boolean = gate.suspendOwnedGateIfCovered()
+
+    fun resumeOwnedGateIfVisible(): Boolean = gate.resumeOwnedGateIfVisible()
+
+    fun closeOwnedGate(): Boolean = gate.closeOwnedGate()
+
+    // endregion
+
     private companion object {
         /** The areas of the firmware's single-pane modes, 101 and 102: one pane, no split. */
         val SINGLE_PANE_AREAS = setOf(AREA_PRIMARY_FULL, AREA_SECONDARY_FULL)
@@ -2958,12 +2866,6 @@ internal class SplitPickerShellSession(
         // through that firmware transition without drawing a window over the user's gesture.
         const val NATIVE_PICKER_RELEASED_SAMPLES = 10
         const val NATIVE_PICKER_CANCELLED_SAMPLES = 5
-        /**
-         * Правка W5: сколько suspend ждёт подтверждения area==0. Тихая сдача после 6×100 мс
-         * оставляла gate открытым над накрытой сценой (v21 Д3, уверенность «gate был открыт»
-         * ~0.8) - и прошивка честно втягивала следующий запуск в широкую панель.
-         */
-        const val HOME_CONFIRM_BUDGET_MS = 3_000L
         const val DIVIDER_RECONCILE_SETTLE_MS = 1_500L
 
         /**
