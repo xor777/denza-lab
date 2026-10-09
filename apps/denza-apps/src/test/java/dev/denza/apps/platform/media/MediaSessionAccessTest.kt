@@ -1,38 +1,53 @@
-package dev.denza.apps.feature.hud
+package dev.denza.apps.platform.media
 
+import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class HudNotificationAccessTest {
+class MediaSessionAccessTest {
+    /**
+     * The car holds the listener by this name in `enabled_notification_listeners`. The class may not
+     * move or be renamed without the grant going with it, and the platform names it as a string so
+     * that it need not reach into the HUD package for it.
+     */
+    @Test
+    fun theListenerIsTheClassTheCarHoldsByName() {
+        assertEquals(
+            "dev.denza.apps.feature.hud.YandexNotificationArtworkListener",
+            MediaSessionAccess.LISTENER_CLASS,
+        )
+        assertEquals(MediaSessionAccess.LISTENER_CLASS, YandexNotificationArtworkListener::class.java.name)
+    }
+
     @Test
     fun alreadyEnabledAccessSkipsGrant() {
         var grantCalls = 0
-        val repair = HudNotificationAccessRepair(
+        val repair = MediaSessionAccessRepair(
             isEnabled = { true },
             grant = { grantCalls += 1 },
         )
 
-        assertEquals(HudNotificationAccessRepairResult.ALREADY_ENABLED, repair.ensure())
+        assertEquals(MediaSessionAccessRepairResult.ALREADY_ENABLED, repair.ensure())
         assertEquals(0, grantCalls)
     }
 
     @Test
     fun missingAccessIsGrantedAndVerified() {
         var enabled = false
-        val repair = HudNotificationAccessRepair(
+        val repair = MediaSessionAccessRepair(
             isEnabled = { enabled },
             grant = { enabled = true },
         )
 
-        assertEquals(HudNotificationAccessRepairResult.GRANTED, repair.ensure())
+        assertEquals(MediaSessionAccessRepairResult.GRANTED, repair.ensure())
         assertTrue(enabled)
     }
 
     @Test(expected = IllegalStateException::class)
     fun grantThatDoesNotChangeAccessFailsClosed() {
-        HudNotificationAccessRepair(
+        MediaSessionAccessRepair(
             isEnabled = { false },
             grant = {},
         ).ensure()
@@ -44,21 +59,21 @@ class HudNotificationAccessTest {
         val className = "dev.denza.apps.feature.hud.YandexNotificationArtworkListener"
 
         assertTrue(
-            HudNotificationAccessPolicy.isEnabled(
+            MediaSessionAccessPolicy.isEnabled(
                 "other.pkg/other.Listener:$packageName/$className",
                 packageName,
                 className,
             ),
         )
         assertTrue(
-            HudNotificationAccessPolicy.isEnabled(
+            MediaSessionAccessPolicy.isEnabled(
                 "$packageName/.feature.hud.YandexNotificationArtworkListener",
                 packageName,
                 className,
             ),
         )
         assertFalse(
-            HudNotificationAccessPolicy.isEnabled(
+            MediaSessionAccessPolicy.isEnabled(
                 "$packageName/.feature.hud.OtherListener",
                 packageName,
                 className,
@@ -71,7 +86,7 @@ class HudNotificationAccessTest {
         assertEquals(
             "cmd notification allow_listener " +
                 "'dev.denza.apps/dev.denza.apps.feature.hud.YandexNotificationArtworkListener'",
-            HudNotificationAccessPolicy.allowCommand(
+            MediaSessionAccessPolicy.allowCommand(
                 "dev.denza.apps/" +
                     "dev.denza.apps.feature.hud.YandexNotificationArtworkListener",
             ),

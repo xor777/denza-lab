@@ -26,7 +26,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
-import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
+import dev.denza.apps.platform.media.MediaSessionAccess
 import dev.denza.apps.feature.hud.HudNotificationArtworkRuntime
 import dev.denza.apps.feature.hud.HudSomeIpRuntime
 import dev.denza.apps.feature.media.MediaKeyReport
@@ -287,7 +287,7 @@ object SupportDiagnostics {
 
     private fun hudRows(context: Context): List<TechnicalRow> = buildList {
         add(row("Подсказки", yesNo(HudGuidanceSettings.isEnabled(context))))
-        val access = HudNotificationAccessCoordinator.diagnostics(context)
+        val access = MediaSessionAccess.diagnostics(context)
         add(row("Доступ к уведомлениям", yesNo(access.accessEnabled)))
         add(row("Восстановление доступа", access.phase.name.lowercase().replace('_', '-')))
         access.lastFailure?.let { add(row("Последняя ошибка доступа", it)) }

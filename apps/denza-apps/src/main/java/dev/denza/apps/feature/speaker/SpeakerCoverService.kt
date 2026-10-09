@@ -18,7 +18,7 @@ import dev.denza.apps.StateSlice
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
 import dev.denza.apps.SimulcastCoordinator
-import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
+import dev.denza.apps.platform.media.MediaSessionAccess
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -115,7 +115,7 @@ class SpeakerCoverService : Service() {
                 if (failure != null) Log.i(TAG, "foreground-app observer unavailable", failure)
             }
         }
-        HudNotificationAccessCoordinator.ensureMediaSessionAccess(this) {
+        MediaSessionAccess.ensure(this) {
             handler.post {
                 if (!destroyed && watching) mediaSessions.restart()
                 // Access may just have been granted, and the tile reads that from the settings.
