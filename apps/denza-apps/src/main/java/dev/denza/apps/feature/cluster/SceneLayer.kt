@@ -5,6 +5,37 @@ import dev.denza.apps.feature.mirrors.MirrorSide
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 
 /**
+ * The views a presentation stacks, bottom first; `ClusterPresentation.onCreate` builds them in
+ * this order and nothing else.
+ *
+ * The dashboard comes after the shade on purpose. The shade darkens whatever is beneath it so a
+ * projected map cannot cover instrument data; the dashboard needs no such protection because it
+ * places its own blocks off the stock graphics to begin with, and darkening it twice would only
+ * cost contrast. The camera covers the instruments and the diagnostic panels cover everything.
+ */
+internal enum class SceneView {
+    MAP_SURFACE,
+    MAP_SHADE,
+    DASHBOARD,
+    CAMERA,
+    DIAGNOSTIC,
+    ;
+
+    companion object {
+        private val CAMERA_LAYER = listOf(CAMERA, DIAGNOSTIC)
+        private val BASE_LAYER = listOf(MAP_SURFACE, MAP_SHADE, DASHBOARD, CAMERA, DIAGNOSTIC)
+
+        /**
+         * A camera layer builds no map surface, shade or dashboard: it never shows them, and
+         * building them was paid on every turn signal (44f02df5). The base layer still builds a
+         * camera frame and renderer it never starts; that is left as it is.
+         */
+        fun stackFor(cameraLayer: Boolean): List<SceneView> =
+            if (cameraLayer) CAMERA_LAYER else BASE_LAYER
+    }
+}
+
+/**
  * One presentation of the driver's-display scene - the base layer or the camera layer - without
  * Android: when its AVC camera starts and stops, and the order its window, the renderer's Surface
  * and vendor freeDisplay are let go in.
