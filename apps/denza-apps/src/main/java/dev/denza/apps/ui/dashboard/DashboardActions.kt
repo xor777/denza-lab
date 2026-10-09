@@ -50,7 +50,12 @@ interface DenzaActions {
     /** Read the car for «Что показывать» as a chooser of it opens. */
     val onLoadNavigationAppChoices: () -> Unit
 
-    /** One answer chosen; true when the car took it, and a window showing the choice closes. */
+    /**
+     * One answer chosen. True when it was taken to be carried out, and a window showing the choice
+     * closes; false when the car no longer offers it or nothing has started to carry it out yet, and
+     * the window stays. Taken is not done: a choice arriving while a projection or a return is in
+     * flight is refused afterwards, and the tile keeps the choice it had.
+     */
     val onSelectNavigationApp: (String) -> Boolean
 
     /** The instruments' screen chosen by hand, or null to let the app decide again. */

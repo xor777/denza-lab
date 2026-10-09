@@ -161,6 +161,14 @@ object NavigationCoordinator {
 
     fun selectedPackage(): String = selectedPackage
 
+    /**
+     * The chosen package, for a reader that may come before [initialize]: until then this holds
+     * only its default - the instruments - and the driver's choice is still where it was [stored].
+     * A chooser brought back with the screen after the process died reads it in that window.
+     */
+    fun selectedPackage(stored: () -> String): String =
+        if (initialized) selectedPackage else stored()
+
     fun placement(): ClusterMapPlacement = selectedPlacement
 
     fun selectPlacement(placement: ClusterMapPlacement) {
@@ -190,9 +198,17 @@ object NavigationCoordinator {
         }
     }
 
-    fun selectPackage(packageName: String) {
-        val app = context ?: return
-        if (!NavigationSettings.isOffered(app, packageName)) return
+    /**
+     * The driver chose [packageName] for the driver's screen.
+     *
+     * @return whether the choice was taken to be carried out: false before [initialize] - nothing
+     *   would carry it - and for a package the car no longer offers. Taken is not done: a choice
+     *   arriving while a projection or a return is in flight is refused on this coordinator's
+     *   thread, and the tile keeps the choice it had.
+     */
+    fun selectPackage(packageName: String): Boolean {
+        val app = context ?: return false
+        if (!NavigationSettings.isOffered(app, packageName)) return false
         executor.execute {
             if (selectedPackage == packageName) {
                 onStateChanged?.invoke()
@@ -225,6 +241,7 @@ object NavigationCoordinator {
             selectedPackage = packageName
             discoverTask()
         }
+        return true
     }
 
     fun performPrimaryAction(): Boolean {
