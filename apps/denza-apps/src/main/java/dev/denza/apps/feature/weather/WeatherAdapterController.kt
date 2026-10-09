@@ -12,9 +12,10 @@ internal class WeatherAdapterController(context: Context) {
     private val appContext = context.applicationContext
     private val nativeStore = NativeWeatherStore(appContext)
 
-    fun refresh(): Result {
+    /** One refresh, start to end; how it went is recorded in [WeatherAdapterState], not returned. */
+    fun refresh() {
         WeatherAdapterState.recordAttempt(appContext)
-        return try {
+        try {
             cleanupLegacyOwnedProxy()
             val coordinates = WeatherLocationSource(appContext).resolve()
             val locationLabel = AndroidWeatherGeocoder(appContext).resolve(
@@ -38,10 +39,10 @@ internal class WeatherAdapterController(context: Context) {
             ensureNativeRefreshObserver()
             nativeStore.replace(payload)
             notifyNativeConsumers()
-            finish(Result(true, "updated native weather (${coordinates.source})"))
+            finish(true, "updated native weather (${coordinates.source})")
         } catch (failure: Exception) {
             Log.i(TAG, "weather refresh failed", failure)
-            finish(Result(false, failure.message ?: failure.javaClass.simpleName))
+            finish(false, failure.message ?: failure.javaClass.simpleName)
         }
     }
 
@@ -98,16 +99,10 @@ internal class WeatherAdapterController(context: Context) {
         WeatherAdapterState.setOwnedProxy(appContext, null)
     }
 
-    private fun finish(result: Result): Result {
-        WeatherAdapterState.recordResult(appContext, result.success, result.message)
-        Log.i(TAG, result.message)
-        return result
+    private fun finish(success: Boolean, message: String) {
+        WeatherAdapterState.recordResult(appContext, success, message)
+        Log.i(TAG, message)
     }
-
-    data class Result(
-        val success: Boolean,
-        val message: String,
-    )
 
     private companion object {
         const val TAG = "DenzaWeatherAdapter"

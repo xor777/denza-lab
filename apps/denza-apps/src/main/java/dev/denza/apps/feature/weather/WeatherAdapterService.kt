@@ -87,7 +87,6 @@ class WeatherAdapterService : Service() {
         const val ACTION_REFRESH = "dev.denza.apps.action.WEATHER_REFRESH"
         const val EXTRA_REASON = "reason"
         const val REASON_PERIODIC = "periodic"
-        const val REASON_RECOVERY = "recovery"
         const val REASON_NATIVE_APP_VISIBLE = "native-app-visible"
 
         private const val TAG = "DenzaWeatherService"
