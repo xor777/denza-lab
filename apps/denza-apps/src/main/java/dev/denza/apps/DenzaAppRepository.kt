@@ -37,6 +37,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppsCatalogCache
 import dev.denza.apps.feature.defaultapps.DefaultAppsPolicy
 import dev.denza.apps.feature.defaultapps.DefaultAppsSettings
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
+import dev.denza.apps.feature.defaultapps.DefaultAppsWords
 import dev.denza.apps.feature.defaultapps.InstalledDefaultApp
 import dev.denza.apps.feature.defaultapps.NavigationRoleRepair
 import dev.denza.apps.feature.fse.FseAppInstaller
@@ -1507,7 +1508,7 @@ object DenzaAppRepository {
                 runDefaultAppsRefresh(context)
             } catch (error: Exception) {
                 publishDefaultAppsUnavailable(
-                    defaultAppsFailure("Не удалось обновить приложения", error),
+                    defaultAppsFailure(DefaultAppsWords.UNREAD, "refresh", error),
                 )
             } finally {
                 defaultAppsRefreshRunning.set(false)
@@ -1522,7 +1523,7 @@ object DenzaAppRepository {
         val launchable = runCatching { DefaultAppsCatalogCache.launchablePackages(context) }
             .getOrElse { error ->
                 publishDefaultAppsUnavailable(
-                    defaultAppsFailure("Не удалось прочитать список приложений", error),
+                    defaultAppsFailure(DefaultAppsWords.UNREAD, "catalog read", error),
                 )
                 return
             }
@@ -1575,7 +1576,7 @@ object DenzaAppRepository {
     private fun publishDefaultAppChoices(context: Context) {
         val installed = runCatching { DefaultAppsCatalogCache.installed(context) }
             .getOrElse { error ->
-                defaultAppsFailure("Не удалось прочитать список приложений", error)
+                defaultAppsFailure(DefaultAppsWords.UNREAD, "catalog read", error)
                 return
             }
         DefaultAppRole.entries.forEach { role ->
@@ -1688,14 +1689,11 @@ object DenzaAppRepository {
                 launchable = launchable,
                 installed = installed,
                 providerConfirmed = confirmedPackage != null,
-                message = defaultAppsFailure(
-                    when {
-                        writeAttempted -> "Не удалось завершить автоматический выбор"
-                        observedPackage != null -> "Не удалось завершить инициализацию"
-                        else -> "Не удалось прочитать настройку"
-                    },
-                    error,
-                ),
+                message = when {
+                    writeAttempted -> defaultAppsFailure(DefaultAppsWords.UNSAVED, "automatic choice", error)
+                    observedPackage != null -> defaultAppsFailure(DefaultAppsWords.UNREAD, "initialization", error)
+                    else -> defaultAppsFailure(DefaultAppsWords.UNREAD, "setting read", error)
+                },
             )
         }
     }
@@ -1713,7 +1711,7 @@ object DenzaAppRepository {
                     role,
                     abandonedDefaultAppWrite(
                         role,
-                        defaultAppsFailure("Не удалось прочитать список приложений", error),
+                        defaultAppsFailure(DefaultAppsWords.UNREAD, "catalog read", error),
                     ),
                 )
                 return
@@ -1726,7 +1724,7 @@ object DenzaAppRepository {
                 role,
                 abandonedDefaultAppWrite(
                     role,
-                    defaultAppsFailure("Не удалось проверить приложение", error),
+                    defaultAppsFailure(DefaultAppsWords.UNREAD, "launchable check", error),
                 ),
             )
             return
@@ -1743,7 +1741,7 @@ object DenzaAppRepository {
                     launchable = launchable,
                     installed = installed,
                     providerConfirmed = false,
-                    message = "Приложение больше не установлено или не запускается",
+                    message = DefaultAppsWords.GONE,
                 ),
             )
             if (installed == null) scheduleDefaultAppChoices(context)
@@ -1803,7 +1801,7 @@ object DenzaAppRepository {
                     launchable = launchable,
                     installed = installed,
                     providerConfirmed = confirmedPackage != null,
-                    message = defaultAppsFailure("Не удалось сохранить выбор", error),
+                    message = defaultAppsFailure(DefaultAppsWords.UNSAVED, "write", error),
                 )
             },
         )
@@ -1848,7 +1846,7 @@ object DenzaAppRepository {
                 launchable = launchable,
                 installed = installed,
                 providerConfirmed = true,
-                message = "Выбранное приложение не установлено или не запускается",
+                message = DefaultAppsWords.GONE,
             )
         }
         // Whatever the car is confirmed to be running for this role is what switching the
@@ -1970,7 +1968,7 @@ object DenzaAppRepository {
         val remembered = DefaultAppsSettings.rememberedPick(context, role)
         val launchable = runCatching { DefaultAppsCatalogCache.launchablePackages(context) }
             .getOrElse { error ->
-                defaultAppsFailure("Не удалось прочитать список приложений", error)
+                defaultAppsFailure(DefaultAppsWords.UNREAD, "catalog read", error)
                 return null
             }
         if (remembered != null && remembered in launchable) return remembered
@@ -1986,7 +1984,7 @@ object DenzaAppRepository {
     ) {
         val launchable = runCatching { DefaultAppsCatalogCache.launchablePackages(context) }
             .getOrElse { error ->
-                val message = defaultAppsFailure("Не удалось прочитать список приложений", error)
+                val message = defaultAppsFailure(DefaultAppsWords.UNREAD, "catalog read", error)
                 targets.keys.forEach { role ->
                     finishDefaultAppRole(role, abandonedDefaultAppWrite(role, message))
                 }
@@ -2003,7 +2001,7 @@ object DenzaAppRepository {
             } else {
                 abandonedDefaultAppWrite(
                     role,
-                    "Приложение больше не установлено или не запускается",
+                    DefaultAppsWords.GONE,
                 )
             }
             finishDefaultAppRole(role, completed)
@@ -2019,7 +2017,7 @@ object DenzaAppRepository {
         val launchablePackages = runCatching {
             DefaultAppsCatalogCache.launchablePackages(context)
         }.getOrElse { error ->
-            defaultAppsFailure("Не удалось прочитать список приложений", error)
+            defaultAppsFailure(DefaultAppsWords.UNREAD, "catalog read", error)
             emptySet()
         }
         while (true) {
@@ -2044,7 +2042,7 @@ object DenzaAppRepository {
             } else {
                 roleState.copy(
                     status = DefaultAppRoleStatus.ERROR,
-                    message = "Приложение больше не доступно",
+                    message = DefaultAppsWords.GONE,
                     pendingPackageName = null,
                 )
             }
@@ -2107,12 +2105,12 @@ object DenzaAppRepository {
      * everything below it down the panel, and the last thing it does is convince the reader the
      * app is broken in a way they are expected to understand.
      *
-     * The prefix already says the thing that matters. The exception goes to logcat, which is where
-     * the person who can act on it is looking.
+     * The row says which way it fell short ([DefaultAppsWords]); the step and the exception go to
+     * logcat, which is where the person who can act on them is looking.
      */
-    private fun defaultAppsFailure(prefix: String, error: Throwable): String {
-        Log.w(TAG, "$prefix (default applications)", error)
-        return prefix
+    private fun defaultAppsFailure(words: String, step: String, error: Throwable): String {
+        Log.w(TAG, "default applications: $step failed", error)
+        return words
     }
 
     /**
