@@ -13,6 +13,7 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.core.FeatureWords
 import dev.denza.apps.feature.split.SplitScreenSettings
+import dev.denza.apps.platform.shell.shellQuote
 import java.util.concurrent.Executors
 
 data class SimulcastEnvironment(
@@ -248,7 +249,11 @@ object SimulcastCoordinator {
         }
     }
 
-    /** The overlay grant the repair sends first: the package quoted, unlike [OverlayGrant.command]. */
+    /**
+     * The overlay grant the repair sends first. The package goes in quotes, as this repair has
+     * always sent it; `ShellGrants.appop` and [OverlayGrant.command] leave it bare - the same word
+     * to the shell, other bytes.
+     */
     internal fun overlayGrantCommand(packageName: String): String =
         "cmd appops set ${shellQuote(packageName)} SYSTEM_ALERT_WINDOW allow"
 
@@ -273,6 +278,4 @@ object SimulcastCoordinator {
     } catch (_: PackageManager.NameNotFoundException) {
         false
     }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 }

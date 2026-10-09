@@ -2,6 +2,7 @@ package dev.denza.apps
 
 import dev.denza.apps.feature.split.SplitNativePickerAccessibilityAccess
 import dev.denza.apps.feature.split.SplitNativePickerAccessLeaseStore
+import dev.denza.apps.platform.shell.ShellGrants
 
 /** Single shell boundary for the shared enabled_accessibility_services setting. */
 internal class AccessibilityServiceSettings(
@@ -20,9 +21,10 @@ internal class AccessibilityServiceSettings(
     fun write(entries: List<String>, ensureAccessibilityEnabled: Boolean) {
         val value = entries.distinct().joinToString(":")
         val command = buildString {
-            append("settings put secure enabled_accessibility_services ${shellQuote(value)}")
+            append(ShellGrants.settingsPut("secure", "enabled_accessibility_services", value))
             if (ensureAccessibilityEnabled) {
-                append("; settings put secure accessibility_enabled 1")
+                append("; ")
+                append(ShellGrants.settingsPut("secure", "accessibility_enabled", "1"))
             }
         }
         val output = shell(command)
@@ -31,8 +33,6 @@ internal class AccessibilityServiceSettings(
                 !output.contains("Exception", ignoreCase = true),
         ) { output.trim().ifBlank { "settings command failed" } }
     }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
 }
 
 /**
