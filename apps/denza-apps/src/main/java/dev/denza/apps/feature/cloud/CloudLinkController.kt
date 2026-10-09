@@ -31,7 +31,11 @@ object CloudLinkController {
 
     private fun switch(context: Context, enabled: Boolean) {
         val app = context.applicationContext
-        explicit(app) {
+        explicit(
+            app,
+            taken = { it.pressTaken() },
+            refused = { failures, detail -> failures.pressRefused(CloudFailure.refused(enabled, detail)) },
+        ) {
             cancelFollowUps()
             CloudLinkRuntime.failures = CloudLinkRuntime.failures.pressStarted()
             CloudLinkRuntime.registrationFailure = null
@@ -48,9 +52,18 @@ object CloudLinkController {
         }
     }
 
+    /**
+     * The car's own Wi-Fi-in-sleep setting. A refusal is the report's and not the tile's: the panel's
+     * switch reads the car's value back, which is the answer, and «Не включилось» on the link's tile
+     * would be about a different switch.
+     */
     fun setWifiRetained(context: Context, retain: Boolean) {
         val app = context.applicationContext
-        explicit(app) {
+        explicit(
+            app,
+            taken = { it.settingTaken() },
+            refused = { failures, detail -> failures.settingRefused(detail) },
+        ) {
             shell(app, CloudLinkProtocol.wifiRetentionCommand(retain))
             check(read(app).wifiRetained == retain) { "Настройка Wi-Fi не подтвердилась" }
             record(app, "wifiRetention=$retain confirmed")
@@ -104,11 +117,15 @@ object CloudLinkController {
     }
 
     private fun automatic(app: Context, reason: String, returned: Boolean = false, lost: Boolean = false) {
+        // Whether this pass got as far as reading the car: a pass that could not has nothing fresh
+        // to say, one that could and then failed did not get the link where it planned.
+        var readTheCar = false
         try {
             if (!CloudLinkSettings.needsService(app)) return
             if (!finishDisable(app)) return
             if (!CloudLinkSettings.isEnabled(app)) return
             val car = read(app)
+            readTheCar = true
             val network = CloudNetwork.usable(app)
             val steps = when {
                 returned -> core.networkReturned(car, now(), network)
@@ -126,7 +143,8 @@ object CloudLinkController {
                 connected = car.connected == true,
             )
         } catch (error: Exception) {
-            CloudLinkRuntime.failures = CloudLinkRuntime.failures.passFailed(failure(error))
+            val kind = if (readTheCar) CloudFailure.Kind.NOT_DONE else CloudFailure.Kind.NOT_READ
+            CloudLinkRuntime.failures = CloudLinkRuntime.failures.passFailed(CloudFailure(kind, failure(error)))
             recordError(app, reason, error)
         } finally {
             publish(app)
@@ -159,7 +177,12 @@ object CloudLinkController {
         return true
     }
 
-    private fun explicit(app: Context, block: () -> Boolean) {
+    private fun explicit(
+        app: Context,
+        taken: (CloudLinkFailures) -> CloudLinkFailures,
+        refused: (CloudLinkFailures, String) -> CloudLinkFailures,
+        block: () -> Boolean,
+    ) {
         pressesInFlight.incrementAndGet()
         // Core is worker-owned; the caller publishes only the atomic busy flag, whose write marks
         // the cloud's slice.
@@ -167,9 +190,9 @@ object CloudLinkController {
         executor.execute {
             try {
                 check(block()) { "Операция не подтвердилась" }
-                CloudLinkRuntime.failures = CloudLinkRuntime.failures.pressTaken()
+                CloudLinkRuntime.failures = taken(CloudLinkRuntime.failures)
             } catch (error: Exception) {
-                CloudLinkRuntime.failures = CloudLinkRuntime.failures.pressRefused(failure(error))
+                CloudLinkRuntime.failures = refused(CloudLinkRuntime.failures, failure(error))
                 recordError(app, "explicit", error)
             } finally {
                 CloudLinkRuntime.busy = pressesInFlight.decrementAndGet() > 0
@@ -280,6 +303,7 @@ object CloudLinkController {
         record(app, "$stage failed ${failure(error)}")
     }
 
+    /** The reason, for the report and the exported diagnostics; never the tile's words. */
     private fun failure(error: Throwable): String =
         if (error is IllegalStateException) error.message.orEmpty().take(160) else "Нет ответа: ${error.javaClass.simpleName}"
 

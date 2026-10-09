@@ -48,8 +48,8 @@ class CloudLinkStatusTest {
         CloudLinkRuntime.readFailure = "Чтение не удалось"
         CloudLinkRuntime.busy = true
         assertEquals("Нет свежих данных", words())
-        CloudLinkRuntime.failures = CloudLinkFailures(press = "Выключение не завершено")
-        assertEquals("Выключение не завершено", words())
+        CloudLinkRuntime.failures = CloudLinkFailures(press = CloudFailure.refused(false, "Выключение не завершено"))
+        assertEquals("Не выключилось", words())
     }
 
     @Test fun ordinaryPollingKeepsTheNinetySecondFreshnessLimit() {

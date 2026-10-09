@@ -9,6 +9,9 @@ import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.core.FeatureWords
+import dev.denza.apps.feature.cloud.CloudCarState
+import dev.denza.apps.feature.cloud.CloudFailure
+import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
@@ -153,6 +156,24 @@ class TileCaptionContractTest {
             )
         }
         add("weather:waiting" to DenzaUiState(weatherEnabled = true))
+        // Облако: every flag its status reads, with every kind of failure it keeps.
+        val failures = listOf<CloudFailure?>(null) + CloudFailure.Kind.entries.map { CloudFailure(it, "Check failed.") }
+        for (enabled in BOOLS) for (connected in listOf(null, false, true)) for (network in BOOLS)
+            for (press in failures) for (pass in failures) for (flag in 0..5) {
+                val snapshot = CloudLinkStatus.snapshot(
+                    enabled = enabled,
+                    car = CloudCarState(connected = connected),
+                    network = network,
+                    failure = press,
+                    readingFailed = flag == 1,
+                    pendingDisable = flag == 2,
+                    stalled = flag == 3,
+                    profileDrift = flag == 4,
+                    registrationFailure = "Облако отклонило регистрацию (код 3)".takeIf { flag == 5 },
+                    automaticFailure = pass,
+                )
+                add("cloud:status" to DenzaUiState(cloudLink = snapshot))
+            }
     }
 
     private fun simulcastEnvironments(): List<SimulcastEnvironment> = buildList {
@@ -181,7 +202,7 @@ class TileCaptionContractTest {
 
         val PRODUCERS = setOf(
             "simulcast", "hud", "speakers", "mirrors", "navigation", "fse", "split", "shortcuts",
-            "fallbacks", "weather",
+            "fallbacks", "weather", "cloud",
         )
 
         val DISPLAY = ClusterDisplayDescriptor(2, "ClusterDisplay", 1920, 720, 160, 0, 0)

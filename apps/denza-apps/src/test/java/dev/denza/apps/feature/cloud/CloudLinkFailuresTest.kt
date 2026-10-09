@@ -3,6 +3,7 @@ package dev.denza.apps.feature.cloud
 import dev.denza.apps.core.FeatureStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -49,10 +50,10 @@ class CloudLinkFailuresTest {
         core.readySent(0)
         var failures = CloudLinkFailures().pressStarted().pressTaken()
 
-        // 100 s: the read times out.
-        failures = failures.passFailed("Нет ответа: IOException")
+        // 100 s: the read times out. The tile says the state; the reason is the report's.
+        failures = failures.passFailed(notRead)
         assertEquals(FeatureStatus.ERROR, tile(failures).status)
-        assertEquals("Нет ответа: IOException", CloudLinkStatus.words(tile(failures)))
+        assertEquals("Нет свежих данных", CloudLinkStatus.words(tile(failures)))
 
         // 115 s: the car answers; past the settle, inside the backoff, so nothing is sent.
         val steps = core.reconcile(waiting, network = true, nowMs = 115_000)
@@ -67,10 +68,10 @@ class CloudLinkFailuresTest {
     /** A refused press is the driver's, and a pass with nothing to send says nothing about it. */
     @Test
     fun aRefusedPressStandsUntilThePressOrTheCarAnswersIt() {
-        val refused = CloudLinkFailures().pressStarted().pressRefused("Не включилось")
+        val refused = CloudLinkFailures().pressStarted().pressRefused(onRefused)
 
         val idle = refused.passCompleted(operated = false, connected = false)
-        assertEquals("Не включилось", idle.press)
+        assertEquals(onRefused, idle.press)
         assertEquals("Не включилось", CloudLinkStatus.words(tile(idle)))
 
         // The car got where the press was going: the adapter's own «ready» went through, or the
@@ -81,35 +82,74 @@ class CloudLinkFailuresTest {
         // Or the driver asked again and the car took it.
         assertNull(refused.pressStarted().pressTaken().press)
         // A failed pass does not clear it either.
-        assertEquals("Не включилось", refused.passFailed("Нет ответа: IOException").press)
+        assertEquals(onRefused, refused.passFailed(notRead).press)
     }
 
     /** Off and on again is a new episode; a pass that failed in the old one is not news. */
     @Test
     fun aPressForgetsWhatTheAdapterTrippedOverBeforeIt() {
-        val tripped = CloudLinkFailures().passFailed("Нет ответа: IOException")
+        val tripped = CloudLinkFailures().passFailed(notRead)
         assertNull(tripped.pressStarted().automatic)
     }
 
     @Test
     fun aConfirmedOffOwesNothing() {
-        val both = CloudLinkFailures(press = "Не выключилось", automatic = "Нет ответа: IOException")
+        val both = CloudLinkFailures(press = CloudFailure.refused(false, "x"), automatic = notRead)
         assertEquals(CloudLinkFailures(), both.disableConfirmed())
     }
 
     /** The adapter's own pass matters only while the link is on; a refused press outranks it. */
     @Test
     fun theTileShowsThePressFirstAndAPassOnlyWhileOn() {
-        val pass = CloudLinkFailures(automatic = "Нет ответа: IOException")
+        val pass = CloudLinkFailures(automatic = notRead)
         assertEquals("Выключено", CloudLinkStatus.words(tile(pass, enabled = false)))
         assertEquals(FeatureStatus.ERROR, tile(pass).status)
 
-        val both = pass.pressRefused("Не включилось")
+        val both = pass.pressRefused(onRefused)
         assertEquals("Не включилось", CloudLinkStatus.words(tile(both)))
         // A press refused on the way off is still shown with the switch off.
         assertEquals(
             "Не выключилось",
-            CloudLinkStatus.words(tile(CloudLinkFailures(press = "Не выключилось"), enabled = false)),
+            CloudLinkStatus.words(tile(CloudLinkFailures(press = CloudFailure.refused(false, "x")), enabled = false)),
         )
     }
+
+    /**
+     * What the controller caught never reaches the tile: it used to print «Нет ответа:
+     * SocketTimeoutException», «Не прочитано с машины: TCP, профиль, флаг APN1…» and, from a bare
+     * `check`, «Check failed.». The kind says the words; the reason is kept for the report.
+     */
+    @Test
+    fun noReasonTheControllerCaughtReachesTheTile() {
+        val reasons = listOf(
+            "Нет ответа: SocketTimeoutException",
+            "Не прочитано с машины: TCP, профиль, флаг APN1, APN1 (чтение не завершено)",
+            "Check failed.",
+            "Команда облачному сервису отклонена (4)",
+            "Выключение не завершено",
+        )
+        val words = setOf("Не включилось", "Не выключилось", "Нет свежих данных", "Нет связи")
+        for (reason in reasons) for (kind in CloudFailure.Kind.entries) {
+            val failure = CloudFailure(kind, reason)
+            for (failures in listOf(CloudLinkFailures(press = failure), CloudLinkFailures(automatic = failure))) {
+                val said = CloudLinkStatus.words(tile(failures))
+                assertTrue("$kind/$reason said «$said»", said in words)
+            }
+            assertTrue(failure.report.endsWith(reason))
+        }
+    }
+
+    /** A pass that read the car and could not finish does not deny a link the car holds. */
+    @Test
+    fun aPassThatCouldNotFinishLeavesAConnectedLinkConnected() {
+        val connected = waiting.copy(connected = true)
+        val notDone = CloudLinkFailures(automatic = CloudFailure(CloudFailure.Kind.NOT_DONE, "x"))
+        assertEquals("На связи", CloudLinkStatus.words(tile(notDone, car = connected)))
+        assertEquals("Нет связи", CloudLinkStatus.words(tile(notDone)))
+        // One that could not read it has nothing fresh to say, whatever the last reading was.
+        assertEquals("Нет свежих данных", CloudLinkStatus.words(tile(CloudLinkFailures(automatic = notRead), car = connected)))
+    }
+
+    private val notRead = CloudFailure(CloudFailure.Kind.NOT_READ, "Нет ответа: IOException")
+    private val onRefused = CloudFailure.refused(true, "Операция не подтвердилась")
 }

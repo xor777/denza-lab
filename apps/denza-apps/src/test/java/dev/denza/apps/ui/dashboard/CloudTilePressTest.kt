@@ -2,6 +2,7 @@ package dev.denza.apps.ui.dashboard
 
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.feature.cloud.CloudCarState
+import dev.denza.apps.feature.cloud.CloudFailure
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -34,12 +35,12 @@ class CloudTilePressTest {
 
     @Test
     fun aPressOnARefusalAsksForTheSameThingAgain() {
-        press(state(enabled = true, failure = "Не включилось"))
-        press(state(enabled = false, failure = "Не выключилось"))
+        press(state(enabled = true, failure = CloudFailure.refused(true, "x")))
+        press(state(enabled = false, failure = CloudFailure.refused(false, "x")))
         assertEquals(listOf(true, false), asked)
     }
 
-    private fun state(enabled: Boolean, failure: String?) = DenzaUiState(
+    private fun state(enabled: Boolean, failure: CloudFailure?) = DenzaUiState(
         cloudLink = CloudLinkStatus.snapshot(enabled, CloudCarState(connected = false), network = true, failure),
     )
 
