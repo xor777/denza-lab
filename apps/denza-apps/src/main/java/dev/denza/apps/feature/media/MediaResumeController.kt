@@ -1,81 +1,49 @@
 package dev.denza.apps.feature.media
 
-import android.content.ComponentName
 import android.content.Context
-import android.media.session.MediaController
-import android.media.session.MediaSession
-import android.media.session.MediaSessionManager
-import android.media.session.PlaybackState
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
-import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
+import dev.denza.apps.platform.media.MediaSessionHub
 
 /**
  * The steering wheel's play/pause key, answered directly instead of by the firmware's routing.
  *
- * This is the Android half: it keeps a [MediaResumeTarget] per session token for as long as the
- * session lives, feeds the policy in [MediaResumeCore] and carries out what the policy decided -
- * a direct transport command. A package with no session left is not brought back: that press is
- * refused and goes to the firmware. The policy itself is pure and lives next door.
+ * This is the Android half: the key filter, the log and the support report around
+ * [MediaResumeSessions], which subscribes to the process's [MediaSessionHub], keeps a
+ * [MediaResumeTarget] per session for as long as the session lives and asks the policy in
+ * [MediaResumeCore] for every press; what the policy decided goes out as a direct transport command.
+ * A package with no session left is not brought back: that press is refused and goes to the
+ * firmware. The policy itself is pure and lives next door.
  *
  * The caller decides whether a new DOWN is safe to intercept. Once accepted, repeats and UP for
  * that press remain consumed even if the caller's guard changes before release.
  */
 class MediaResumeController(context: Context) {
     private val app = context.applicationContext
-    private val handler = Handler(Looper.getMainLooper())
-    private val manager = app.getSystemService(MediaSessionManager::class.java)
-    private val accessComponent =
-        ComponentName(app, YandexNotificationArtworkListener::class.java)
     private val core = MediaResumeCore(MediaLastPlayedPreferences(app))
     private val keyInterceptor = MediaResumeKeyInterceptor()
-    private val sessions = LinkedHashMap<MediaSession.Token, AndroidTarget>()
-    /** Sessions whose callback registration was refused; each is reported once, not per reconcile. */
-    private val refusedCallbacks = HashSet<MediaSession.Token>()
+    private val sessions = MediaResumeSessions(MediaSessionHub.get(app), core) { message, error ->
+        Log.i(TAG, message, error)
+    }
 
-    // Written on the main looper, read by the support report from whatever thread built it.
-    @Volatile
-    private var listening = false
-
-    private val sessionsChanged =
-        MediaSessionManager.OnActiveSessionsChangedListener(::reconcile)
-
+    /** Subscribes once; called again after an access repair, it has the hub listen if it does not. */
     fun start() {
-        if (listening || manager == null) return
-        runCatching {
-            manager.addOnActiveSessionsChangedListener(
-                sessionsChanged,
-                accessComponent,
-                handler,
-            )
-            listening = true
-            reconcile(manager.getActiveSessions(accessComponent))
-        }.onFailure { error ->
-            runCatching { manager.removeOnActiveSessionsChangedListener(sessionsChanged) }
-            listening = false
-            detachAll()
-            Log.i(TAG, "media-session access unavailable", error)
-        }
+        sessions.start()
     }
 
     fun stop() {
-        if (listening) {
-            runCatching { manager?.removeOnActiveSessionsChangedListener(sessionsChanged) }
-        }
-        listening = false
-        detachAll()
+        sessions.stop()
         keyInterceptor.reset()
     }
 
     /** The flag the filter itself uses, so the support report cannot disagree with it. */
-    fun isListening(): Boolean = listening
+    fun isListening(): Boolean = sessions.isListening
 
     /** The persisted last-played package - what a Play press resolves from. No token leaves here. */
     fun rememberedPackage(): String? = core.lastPlayed()
 
     fun onKeyEvent(event: KeyEvent, allowNewPress: Boolean): Boolean {
+        val listening = isListening()
         val relevantInitialDown =
             MediaResumeKeyInterceptor.commandFor(event.keyCode) != null &&
                 event.action == KeyEvent.ACTION_DOWN &&
@@ -85,16 +53,7 @@ class MediaResumeController(context: Context) {
             action = event.action,
             repeatCount = event.repeatCount,
             allowNewPress = allowNewPress && listening,
-            perform = { command ->
-                decide(
-                    event.keyCode,
-                    if (refreshBeforeCommand()) {
-                        core.perform(command)
-                    } else {
-                        MediaResumeDecision(accepted = false, reason = MediaResumeReason.SESSION_ACCESS)
-                    },
-                )
-            },
+            perform = { command -> decide(event.keyCode, sessions.press(command)) },
         )
         if (relevantInitialDown) {
             Log.i(
@@ -131,139 +90,6 @@ class MediaResumeController(context: Context) {
         )
         MediaKeyDiagnostics.note(MediaKeyDetail.decision(decision))
         return decision.accepted
-    }
-
-    /**
-     * Leaving the active list is not death. Only [AndroidTarget.onSessionDestroyed] drops a
-     * session here, so a player that deactivates its session on pause stays addressable.
-     */
-    private fun reconcile(active: List<MediaController>?) {
-        if (!listening) return
-        val current = active.orEmpty().associateBy { it.sessionToken }
-        current.forEach { (token, controller) ->
-            if (token !in sessions) track(token, controller)
-        }
-        refusedCallbacks.retainAll(current.keys)
-        core.reconcile(current.keys.mapNotNull(sessions::get))
-    }
-
-    /** A session we can command only once its callbacks are ours; a refused registration is not. */
-    private fun track(token: MediaSession.Token, controller: MediaController) {
-        val target = AndroidTarget(controller)
-        if (!target.attach()) {
-            if (refusedCallbacks.add(token)) {
-                Log.i(TAG, "media session callback refused package=${controller.packageName}")
-            }
-            return
-        }
-        sessions[token] = target
-    }
-
-    private fun remove(token: MediaSession.Token) {
-        sessions.remove(token)?.detach()
-        core.remove(token)
-    }
-
-    private fun detachAll() {
-        sessions.values.forEach(AndroidTarget::detach)
-        sessions.clear()
-        refusedCallbacks.clear()
-        core.clear()
-    }
-
-    private inner class AndroidTarget(
-        private val controller: MediaController,
-    ) : MediaResumeTarget {
-        override val identity: Any = controller.sessionToken
-        override val packageName: String = controller.packageName
-        @Volatile
-        private var destroyed = false
-
-        private val callback = object : MediaController.Callback() {
-            override fun onPlaybackStateChanged(state: PlaybackState?) {
-                if (!isCurrent()) return
-                core.onPlayback(identity, state.toResumePlayback())
-            }
-
-            override fun onSessionDestroyed() {
-                if (!isCurrent()) return
-                destroyed = true
-                val token = controller.sessionToken
-                remove(token)
-                refresh()
-            }
-        }
-
-        fun attach(): Boolean {
-            destroyed = false
-            return runCatching { controller.registerCallback(callback, handler) }.isSuccess
-        }
-
-        fun detach() {
-            destroyed = true
-            runCatching { controller.unregisterCallback(callback) }
-        }
-
-        override fun playback(): MediaResumePlayback =
-            controller.playbackState.toResumePlayback()
-
-        override fun isLive(): Boolean = !destroyed
-
-        /**
-         * Pause keeps its advertised-action gate. It is the half of the toggle that was proven on
-         * the car, and a press this gate refuses goes to the firmware, which pauses harmlessly.
-         * Play has no equivalent gate: there the firmware opens its own player instead.
-         */
-        override fun canPause(): Boolean {
-            val actions = controller.playbackState?.actions ?: return false
-            return actions and PlaybackState.ACTION_PAUSE != 0L
-        }
-
-        override fun play() {
-            controller.transportControls.play()
-            Log.i(TAG, "direct media command package=${controller.packageName} command=play")
-        }
-
-        override fun pause() {
-            controller.transportControls.pause()
-            Log.i(TAG, "direct media command package=${controller.packageName} command=pause")
-        }
-
-        private fun isCurrent(): Boolean =
-            listening && sessions[controller.sessionToken] === this
-    }
-
-    private fun PlaybackState?.toResumePlayback(): MediaResumePlayback = when (this?.state) {
-        PlaybackState.STATE_PLAYING -> MediaResumePlayback.PLAYING
-        PlaybackState.STATE_PAUSED -> MediaResumePlayback.PAUSED
-        PlaybackState.STATE_NONE,
-        PlaybackState.STATE_STOPPED,
-        PlaybackState.STATE_ERROR,
-        null,
-        -> MediaResumePlayback.ENDED
-        else -> MediaResumePlayback.TRANSITIONAL
-    }
-
-    private fun refresh() {
-        if (!listening) return
-        val service = manager ?: return
-        runCatching { reconcile(service.getActiveSessions(accessComponent)) }
-            .onFailure { Log.i(TAG, "could not refresh media sessions", it) }
-    }
-
-    /** Reconciliation is part of accepting a DOWN, so a failed read leaves it to stock routing. */
-    private fun refreshBeforeCommand(): Boolean {
-        if (!listening) return false
-        val service = manager ?: return false
-        return runCatching {
-            reconcile(service.getActiveSessions(accessComponent))
-        }.fold(
-            onSuccess = { listening },
-            onFailure = { error ->
-                Log.i(TAG, "could not validate media sessions", error)
-                false
-            },
-        )
     }
 
     private companion object {
