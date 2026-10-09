@@ -39,5 +39,22 @@ class SpeakerCoverProtocolTest {
         assertFalse(SpeakerCoverProtocol.accepted("Result: Parcel(00000001 00000002   '........')"))
         assertFalse(SpeakerCoverProtocol.accepted(""))
         assertFalse(SpeakerCoverProtocol.accepted("Permission not granted"))
+        assertFalse(SpeakerCoverProtocol.accepted("Result: Parcel(NULL)"))
+    }
+
+    /**
+     * The multi-line form of a long reply (an exception's message) is no acknowledgement either,
+     * even when it begins with a 1: read whole, its offset is one more word. Pinned 2026-10-09
+     * before the reply moved to the shared reader.
+     */
+    @Test
+    fun aMultiLineReplyIsNotAnAcknowledgement() {
+        assertFalse(
+            SpeakerCoverProtocol.accepted(
+                "Result: Parcel(\n" +
+                    "  0x00000000: 00000001 0000004a 00740041 00650074 '....J...A.t.t.e.'\n" +
+                    "  0x00000010: 0070006d 00200074 006f0074 00720020 'm.p.t. .t.o. .r.')",
+            ),
+        )
     }
 }
