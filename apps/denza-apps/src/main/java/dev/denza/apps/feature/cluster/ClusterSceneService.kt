@@ -113,6 +113,7 @@ class ClusterSceneService : Service() {
             val shown = ClusterPresentation(
                 this,
                 display,
+                displayId,
                 events,
                 cameraLayer = cameraLayer,
                 teardownThread = vendorTeardown,

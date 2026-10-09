@@ -25,10 +25,17 @@ import dev.denza.apps.feature.mirrors.MirrorsPosition
 /**
  * One window of the scene on a driver's display: the views [SceneView] stacks, laid out and shown
  * as its [SceneLayer] asks. The layer, not this class, decides when AVC is started and let go.
+ *
+ * What stays here is glue, held by ClusterPresentationGlueTest: a dismiss from anyone - the
+ * platform's own on display removal included - goes through [layer], and only the layer's
+ * [removeWindow] reaches Dialog.dismiss; [buildViews] stacks this layer kind's views; the two
+ * adapters route each renderer call and event to its own counterpart. [displayId] is the id
+ * DisplayManager was asked for, the one [display] carries.
  */
 internal class ClusterPresentation(
     context: Context,
     display: Display,
+    displayId: Int,
     events: AvcEvents,
     private val cameraLayer: Boolean,
     teardownThread: TeardownThread,
@@ -36,7 +43,7 @@ internal class ClusterPresentation(
     log: SceneLog,
 ) : Presentation(context, display), SceneLayerViews {
     /** This presentation's lifecycle, without Android: what the scene holds. */
-    val layer = SceneLayer(display.displayId, this, events, teardownThread, clock, log)
+    val layer = SceneLayer(displayId, this, events, teardownThread, clock, log)
     lateinit var mapSurface: SurfaceView
         private set
     private lateinit var mapShade: ProjectionEdgeShadeView
@@ -81,12 +88,16 @@ internal class ClusterPresentation(
         // Base and camera already have separate presentations/displays. Do not construct or
         // attach an unused map SurfaceView, shade and dashboard container for every turn.
         // The camera still creates a fresh window/texture only on Show; no idle prewarming.
-        SceneView.stackFor(cameraLayer).forEach { view -> addSceneView(root, view) }
+        buildViews { view -> addSceneView(root, view) }
         setContentView(root)
 
-        layer.attach(
-            AvcCameraRenderer(context, cameraTexture, layer.asAvcListener()).asCameraRenderer(),
-        )
+        val avc = AvcCameraRenderer(context, cameraTexture, layer.asAvcListener())
+        layer.attach(cameraRendererOf(avc::start, avc::stop, avc::hasLocalSurfaceHandle))
+    }
+
+    /** Hands [add] this layer's views bottom first, as [SceneView.stackFor] stacks its kind. */
+    internal fun buildViews(add: (SceneView) -> Unit) {
+        SceneView.stackFor(cameraLayer).forEach(add)
     }
 
     /** Builds [view] and adds it on top of what [root] holds; [SceneView] says the order. */
@@ -358,19 +369,22 @@ internal class ClusterPresentation(
         )
 }
 
-private fun AvcCameraRenderer.asCameraRenderer(): CameraRenderer {
-    val avc = this
-    return object : CameraRenderer {
-        override fun start(viewpoint: Int, processingEnabled: Boolean) =
-            avc.start(viewpoint, processingEnabled)
+/** The renderer seam over AvcCameraRenderer's own three calls, which onCreate hands it. */
+internal fun cameraRendererOf(
+    startRenderer: (viewpoint: Int, processingEnabled: Boolean) -> Unit,
+    stopRenderer: () -> Unit,
+    holdsLocalSurface: () -> Boolean,
+): CameraRenderer = object : CameraRenderer {
+    override fun start(viewpoint: Int, processingEnabled: Boolean) =
+        startRenderer(viewpoint, processingEnabled)
 
-        override fun stop() = avc.stop()
+    override fun stop() = stopRenderer()
 
-        override fun hasLocalSurfaceHandle(): Boolean = avc.hasLocalSurfaceHandle()
-    }
+    override fun hasLocalSurfaceHandle(): Boolean = holdsLocalSurface()
 }
 
-private fun CameraRendererEvents.asAvcListener(): AvcCameraRenderer.Listener {
+/** AvcCameraRenderer's listener, each event passed to its own counterpart in [this]. */
+internal fun CameraRendererEvents.asAvcListener(): AvcCameraRenderer.Listener {
     val events = this
     return object : AvcCameraRenderer.Listener {
         override fun onReady(details: String) = events.onReady(details)
