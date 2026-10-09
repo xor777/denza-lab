@@ -83,4 +83,29 @@ class FseAppInstallerTest {
         assertFalse(command.contains("/storage/FFFF-FFFC/*"))
         assertFalse(command.contains("/storage/FFFF-FFFC/denza-install-*"))
     }
+
+    /**
+     * Every command the copy sends, letter for letter (pinned 2026-10-09, before the quoting moved
+     * to the shared shell layer).
+     */
+    @Test
+    fun theStagingCommandsAreExactlyThese() {
+        val root = "/storage/FFFF-FFFC/denza-apps-install-1000123456"
+        val apk = "/data/app/~~Q2x9Fh_k-3Lw==/ru.example.app-Vb7_k2==/base.apk"
+        val target = "$root/wallpaper/Application.apk"
+
+        assertEquals(
+            "mkdir -p '$root/wallpaper' && echo 'eyJ3YWxscGFwZXJfdHlwZSI6MTR9' | base64 -d > " +
+                "'$root/config.json'",
+            FseAppInstaller.stageConfigCommand(root, "eyJ3YWxscGFwZXJfdHlwZSI6MTR9"),
+        )
+        assertEquals("rm -f '$target'; : > '$target'", FseAppInstaller.truncateCommand(target))
+        assertEquals(
+            "dd if='$apk' of='$target' bs=4194304 skip=3 seek=3 count=1 conv=notrunc " +
+                ">/dev/null 2>&1; echo \$?",
+            FseAppInstaller.copyBlockCommand(apk, target, 3),
+        )
+        assertEquals("stat -c %s '$target'", FseAppInstaller.sizeCommand(target))
+        assertEquals("rm -rf '$root'", FseAppInstaller.removeStageCommand(root))
+    }
 }

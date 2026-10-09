@@ -255,12 +255,7 @@ internal class AdbTurnSignalEventChannel(
             bootstrapSession.close()
         }
         if (closed) throw IOException("turn-signal event channel closed during bootstrap")
-        session.start(
-            "CLASSPATH='${entry.replace("'", "'\\''")}' exec app_process /system/bin " +
-                "--nice-name=denza_vehicle_signals " +
-                "${TargetedBydLightEventProxyMain::class.java.name} serve $nonce $signalMask",
-            START_TIMEOUT_MS,
-        )
+        session.start(launchCommand(entry, nonce, signalMask), START_TIMEOUT_MS)
     }
 
     override fun next(waitMs: Int): String =
@@ -272,11 +267,17 @@ internal class AdbTurnSignalEventChannel(
         session.close()
     }
 
-    private companion object {
-        const val START_TIMEOUT_MS = 3_500
-        const val RESPONSE_GRACE_MS = 1_500
-        const val WATCH_SWITCH = 1
-        const val WATCH_MODE = 2
-        const val WATCH_ALL = WATCH_SWITCH or WATCH_MODE
+    internal companion object {
+        /** The listener as the shell of its own stream, loaded from the staged [entry]. */
+        fun launchCommand(entry: String, nonce: String, signalMask: Int): String =
+            "CLASSPATH='${entry.replace("'", "'\\''")}' exec app_process /system/bin " +
+                "--nice-name=denza_vehicle_signals " +
+                "${TargetedBydLightEventProxyMain::class.java.name} serve $nonce $signalMask"
+
+        private const val START_TIMEOUT_MS = 3_500
+        private const val RESPONSE_GRACE_MS = 1_500
+        private const val WATCH_SWITCH = 1
+        private const val WATCH_MODE = 2
+        private const val WATCH_ALL = WATCH_SWITCH or WATCH_MODE
     }
 }

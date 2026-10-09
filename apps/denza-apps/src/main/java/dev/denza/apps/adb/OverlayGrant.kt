@@ -21,10 +21,11 @@ object OverlayGrant {
     /** Grants it if it is not held; throws what the shell throws. */
     fun ensure(context: Context) {
         if (held(context)) return
-        DenzaLocalAdb.client(context).shell(
-            "cmd appops set ${context.packageName} SYSTEM_ALERT_WINDOW allow",
-        )
+        DenzaLocalAdb.client(context).shell(command(context.packageName))
         // The projection reads the same grant.
         StateMarks.mark(StateSlice.SIMULCAST, "overlay granted")
     }
+
+    internal fun command(packageName: String): String =
+        "cmd appops set $packageName SYSTEM_ALERT_WINDOW allow"
 }

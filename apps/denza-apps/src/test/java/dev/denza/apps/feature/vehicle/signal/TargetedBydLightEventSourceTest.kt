@@ -154,6 +154,21 @@ class TargetedBydLightEventSourceTest {
         source.stop()
     }
 
+    /** The listener's start, letter for letter (pinned 2026-10-09). */
+    @Test
+    fun theListenerIsStartedWithThisCommand() {
+        assertEquals(
+            "CLASSPATH='/data/local/tmp/denza-vehicle-signal-1ca3.jar' exec app_process " +
+                "/system/bin --nice-name=denza_vehicle_signals " +
+                "dev.denza.apps.feature.vehicle.signal.TargetedBydLightEventProxyMain serve 9e0f 3",
+            AdbTurnSignalEventChannel.launchCommand(
+                "/data/local/tmp/denza-vehicle-signal-1ca3.jar",
+                "9e0f",
+                3,
+            ),
+        )
+    }
+
     private fun authorizationRequired(): LocalAdbClient.AuthorizationRequiredException {
         val constructor = LocalAdbClient.AuthorizationRequiredException::class.java
             .getDeclaredConstructor()

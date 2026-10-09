@@ -184,4 +184,29 @@ class AutoserviceShellTest {
         val command = AutoserviceShell.command(VehicleSignal.entries.toList())
         assertFalse(command.contains("autoservice 6 "))
     }
+
+    /**
+     * Only a status and a value on the reply's own line answer a call: a one-word reply, a `NULL`
+     * parcel and the multi-line form leave the signal unanswered, and a later two-word line under
+     * the same marker still answers it.
+     */
+    @Test
+    fun onlyATwoWordParcelOnItsOwnLineAnswers() {
+        val batch = listOf(VehicleSignal.POWER_KW, VehicleSignal.PACK_VOLT, VehicleSignal.CHARGE_KW)
+        val output = """
+            @@0
+            Result: Parcel(ffffd8e5    '....')
+            Result: Parcel(00000000 0000002b   '........')
+            @@1
+            Result: Parcel(NULL)
+            @@2
+            Result: Parcel(
+              0x00000000: 00000000 422c0000                   '..,.....')
+        """.trimIndent()
+
+        val values = AutoserviceShell.parse(output, batch)
+
+        assertEquals(setOf(VehicleSignal.POWER_KW), values.keys)
+        assertEquals(43.0, values.getValue(VehicleSignal.POWER_KW), 1e-9)
+    }
 }
