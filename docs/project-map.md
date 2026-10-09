@@ -189,7 +189,7 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 
 | Component | Status |
 | --- | --- |
-| `DiShareProjectionBridge` | Active raw binder wrapper for DiShare API/control services. Callers pass the share video size and optional target-view bounds per cast; Denza Apps uses the bounds for centered aspect-fit. Video or bounds dimensions outside `180..4096` fall back to the legacy safe paths. |
+| `DiShareProjectionBridge` | Active raw binder wrapper for DiShare API/control services. Callers pass the share video size and optional target-view bounds per cast; Denza Apps uses the bounds for centered aspect-fit. Video or bounds dimensions outside `180..4096` fall back to the legacy safe paths. `start`, `startSourceOnly`, `startLikeCurrentShare` and `isStarted` serve only the parked `research/simulcast-aliases/` launcher. |
 | `DiShareScreens` | Screen-discovery wrapper for `getScreens` (available receivers). |
 | `LocalAdbClient`, `AdbKeyStore` | Shared `adbd` shell client with explicit automatic/passive authorization policy and a one-shot request API. The ADB identity is stored atomically under a cross-process file lock with migration from the legacy preferences. Tries loopback first, then local non-loopback IPv4 addresses because some firmwares expose ADB on WLAN but not `127.0.0.1`. See [adb-authorization-recovery.md](adb-authorization-recovery.md). |
 
