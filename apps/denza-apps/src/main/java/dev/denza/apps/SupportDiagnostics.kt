@@ -33,7 +33,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
-import dev.denza.apps.platform.accessibility.AccessibilityHost
+import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.media.MediaSessionAccess
 import dev.denza.apps.feature.hud.HudNotificationArtworkRuntime
 import dev.denza.apps.feature.hud.HudSomeIpRuntime
@@ -199,16 +199,18 @@ object SupportDiagnostics {
             nowMs = SystemClock.elapsedRealtime(),
         ).map { (key, value) -> row(key, value) }
 
-    private fun simulcastRows(context: Context, header: SupportDiagnosticsHeader): List<TechnicalRow> =
-        listOf(
+    private fun simulcastRows(context: Context, header: SupportDiagnosticsHeader): List<TechnicalRow> {
+        val accessibility = AccessibilityHealth.read(context)
+        return listOf(
             row("Включена", yesNo(SimulcastIntegration.isEnabled(context))),
             row("Выбрано приложений", SimulcastApps.selectedCount(context).toString()),
             row("DiShare установлен", yesNo(isInstalled(context.packageManager, SimulcastCoordinator.DISHARE_PACKAGE))),
             row("Доступ поверх окон", yesNo(SimulcastCoordinator.hasOverlayPermission(context))),
-            row("Управление интерфейсом", yesNo(SimulcastCoordinator.isAccessibilityEnabled(context))),
-            row("Служба трансляции подключена", yesNo(AccessibilityHost.isConnected())),
+            row("Управление интерфейсом", yesNo(accessibility.enabled)),
+            row("Служба трансляции подключена", yesNo(accessibility.connected)),
         ) + SimulcastScreenDiagnostics.diagnosticLines().map(TechnicalReadings::row) +
             row("Счётчики окон", simulcastCounters(header.simulcastRuntime))
+    }
 
     internal fun simulcastCounters(counters: SimulcastRuntimeSnapshot): String =
         "найдено ${counters.rootsFound}, потеряно ${counters.rootsMissing}, " +

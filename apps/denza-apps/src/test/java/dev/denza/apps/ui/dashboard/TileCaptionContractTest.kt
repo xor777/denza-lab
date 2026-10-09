@@ -29,6 +29,7 @@ import dev.denza.apps.feature.navigation.NavigationSession
 import dev.denza.apps.feature.navigation.NavigationStep
 import dev.denza.apps.feature.navigation.NavigationWords
 import dev.denza.apps.feature.speaker.SpeakerCoverStatus
+import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.disharebridge.AdbFailures
 import java.io.IOException
@@ -184,8 +185,7 @@ class TileCaptionContractTest {
                         desired = true,
                         blocker = blocker,
                         overlayAllowed = overlay,
-                        accessibilityEnabled = service,
-                        accessibilityConnected = connected,
+                        accessibility = AccessibilityHealth(enabled = service, connected = connected),
                         active = false,
                     ),
                 )

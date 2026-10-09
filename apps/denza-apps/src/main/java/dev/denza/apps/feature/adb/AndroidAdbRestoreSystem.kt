@@ -10,11 +10,11 @@ import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
 import dev.denza.apps.DenzaAppRepository
-import dev.denza.apps.feature.simulcast.SimulcastCoordinator
 import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.DenzaRuntimeCoordinator
+import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
 import dev.denza.disharebridge.LocalAdbClient
 import dev.denza.disharebridge.LocalAdbTlsClient
@@ -72,15 +72,15 @@ internal class AndroidAdbRestoreSystem(context: Context) : AdbRestoreSystem {
     }
     override suspend fun ensureAccessibilityForDialog(abandoned: () -> Boolean) {
         if (abandoned()) return
-        if (SimulcastCoordinator.isAccessibilityConnected()) return
+        if (AccessibilityHealth.read(app).ready()) return
         if (!accessibilityPrepared.compareAndSet(false, true)) return
         // Prepare even when no casting app is selected. Join the existing single-flight repair,
         // respecting the split service's ownership and preserving other accessibility entries.
-        // A bound service is never churned. Transient boot failures get two bounded retries;
+        // A ready service - switched on and bound - is never churned. Transient boot failures get two bounded retries;
         // callback bursts cannot create another preparation wave in this process.
         try {
             repeat(3) { index ->
-                if (abandoned() || SimulcastCoordinator.isAccessibilityConnected()) return
+                if (abandoned() || AccessibilityHealth.read(app).ready()) return
                 try {
                     suspendCancellableCoroutine<Unit> { continuation ->
                         AccessibilityRepair.repair(app, onComplete = { failure ->

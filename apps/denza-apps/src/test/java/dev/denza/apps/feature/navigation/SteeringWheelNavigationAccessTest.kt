@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.navigation
 
+import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -9,8 +10,7 @@ class SteeringWheelNavigationAccessTest {
     fun disabledToggleNeverRepairsOrReportsReady() {
         val access = SteeringWheelNavigationAccess(
             desired = false,
-            serviceEnabled = false,
-            serviceConnected = false,
+            service = AccessibilityHealth(enabled = false, connected = false),
         )
 
         assertFalse(access.ready)
@@ -20,9 +20,9 @@ class SteeringWheelNavigationAccessTest {
     @Test
     fun enabledToggleRepairsEveryMissingAccessibilityGate() {
         listOf(
-            SteeringWheelNavigationAccess(true, false, false),
-            SteeringWheelNavigationAccess(true, false, true),
-            SteeringWheelNavigationAccess(true, true, false),
+            SteeringWheelNavigationAccess(true, AccessibilityHealth(enabled = false, connected = false)),
+            SteeringWheelNavigationAccess(true, AccessibilityHealth(enabled = false, connected = true)),
+            SteeringWheelNavigationAccess(true, AccessibilityHealth(enabled = true, connected = false)),
         ).forEach { access ->
             assertFalse(access.ready)
             assertTrue(SteeringWheelNavigationAccessPolicy.shouldRepair(access))
@@ -33,8 +33,7 @@ class SteeringWheelNavigationAccessTest {
     fun enabledToggleIsReadyOnlyWhenServiceIsEnabledAndConnected() {
         val access = SteeringWheelNavigationAccess(
             desired = true,
-            serviceEnabled = true,
-            serviceConnected = true,
+            service = AccessibilityHealth(enabled = true, connected = true),
         )
 
         assertTrue(access.ready)
