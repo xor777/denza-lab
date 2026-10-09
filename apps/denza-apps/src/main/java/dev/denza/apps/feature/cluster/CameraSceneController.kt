@@ -26,9 +26,6 @@ internal class CameraSceneController(
 
     @Volatile private var active: Scene? = null
 
-    @Volatile var lastCameraDetails: String = ""
-        private set
-
     fun runtimeSnapshot(): CameraRuntimeSnapshot = cameraRuntime.snapshot()
 
     /** The generation a Show intent carries; any later Hide or Show makes it stale. */
@@ -317,7 +314,6 @@ internal class CameraSceneController(
             }
             val runtime = cameraRuntime.snapshot()
             if (runtime.phase != CameraRuntimePhase.STARTING) return
-            lastCameraDetails = details
             log.i(
                 "AVC ready; generation=$commandGeneration side=${runtime.side} details=$details",
             )
@@ -339,7 +335,6 @@ internal class CameraSceneController(
                 runtime.phase != CameraRuntimePhase.STARTING &&
                 runtime.phase != CameraRuntimePhase.READY
             ) return
-            lastCameraDetails = details
             log.w(
                 "AVC failure; generation=$commandGeneration side=${runtime.side} details=$details",
             )
