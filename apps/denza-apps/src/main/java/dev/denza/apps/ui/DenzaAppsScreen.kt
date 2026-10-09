@@ -7,7 +7,6 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.ui.components.glyphStroke
 import dev.denza.apps.ui.components.WorkingRing
 import dev.denza.apps.ui.components.NamedGlyph
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -18,13 +17,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.LifecycleStartEffect
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 import dev.denza.apps.ui.components.SheetInk
@@ -61,7 +55,6 @@ import dev.denza.apps.ui.components.DenzaModalDialog
 import dev.denza.apps.ui.components.DenzaNote
 import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.ui.components.DenzaSecondaryButton
-import dev.denza.apps.ui.components.DenzaSection
 import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.dashboard.DashboardActions
