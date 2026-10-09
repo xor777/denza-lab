@@ -3,7 +3,6 @@ package dev.denza.apps;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -19,7 +18,6 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.Toast;
 
 import dev.denza.apps.feature.simulcast.SimulcastVideoBoundsResolver;
 import dev.denza.apps.feature.simulcast.SimulcastVideoSizeResolver;
@@ -99,7 +97,7 @@ public class SimulcastOverlayService extends Service {
             String packageName = intent.getStringExtra(EXTRA_TARGET_PACKAGE);
             String receiver = intent.getStringExtra(EXTRA_RECEIVER);
             if (packageName != null && !packageName.trim().isEmpty()) {
-                startTargetByPackage(packageName.trim(), resolveLabel(packageName.trim()),
+                startTargetByPackage(packageName.trim(),
                         receiver == null || receiver.trim().isEmpty()
                                 ? "screen_hud" : receiver.trim());
             }
@@ -136,8 +134,7 @@ public class SimulcastOverlayService extends Service {
         super.onDestroy();
     }
 
-    private void startTargetByPackage(final String packageName, final String label,
-            final String receiver) {
+    private void startTargetByPackage(final String packageName, final String receiver) {
         // Обратная гарантия пункта 7 аудита. Запуск проекции - это перестройка того же дерева
         // задач, которое перестраивает split, и пока совместное владение не доказано, вторая
         // функция отказывается закрыто: ничего не двигает, экран остаётся рабочим, и объяснять
@@ -179,8 +176,10 @@ public class SimulcastOverlayService extends Service {
                                 + DiShareProjectionBridge.bundleToString(result));
                         // Marks the «Трансляция» tile as running, as part of the write.
                         SimulcastIntegration.setLastTargetPackage(packageName);
-                        Toast.makeText(SimulcastOverlayService.this,
-                                "Запускаю " + label, Toast.LENGTH_SHORT).show();
+                        SimulcastScreenDiagnostics.recordCastOutcome(
+                                "запуск " + packageName + ": запущено");
+                        // No toast: the stock dialog closing and the exit control appearing are
+                        // the start, on the screen the driver is looking at.
                         closeDiShareDialog();
                         showActiveShareExit();
                     }
@@ -189,9 +188,10 @@ public class SimulcastOverlayService extends Service {
                     public void onFailed(String message) {
                         lease.release();
                         Log.w(TAG, packageName + " failed " + message);
-                        Toast.makeText(SimulcastOverlayService.this,
-                                "Simulcast не запустил " + label + ": " + message,
-                                Toast.LENGTH_LONG).show();
+                        // The stock dialog stays open with our row rebuilt: a working choice, and
+                        // no sentence over it. DiShare's reply is for the technical page.
+                        SimulcastScreenDiagnostics.recordCastOutcome(
+                                "запуск " + packageName + ": не запустилось (" + message + ")");
                         activeBridge = null;
                     }
 
@@ -222,7 +222,8 @@ public class SimulcastOverlayService extends Service {
         if (activeBridge != null) {
             stopBridge();
             shareOver();
-            Toast.makeText(this, "Simulcast завершен", Toast.LENGTH_SHORT).show();
+            // The exit control going away is the answer; no toast.
+            SimulcastScreenDiagnostics.recordCastOutcome("выход: завершено");
             return;
         }
         DiShareProjectionBridge.stopCurrentShare(getApplicationContext(),
@@ -240,16 +241,17 @@ public class SimulcastOverlayService extends Service {
                     public void onFailed(String message) {
                         TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
                         Log.w(TAG, "stop current failed " + message);
-                        Toast.makeText(SimulcastOverlayService.this,
-                                "Simulcast не завершился: " + message, Toast.LENGTH_LONG).show();
+                        // The exit control stays, so the share is visibly still on and the press
+                        // can be made again; the reply is the technical page's.
+                        SimulcastScreenDiagnostics.recordCastOutcome(
+                                "выход: не завершилось (" + message + ")");
                     }
 
                     @Override
                     public void onStopped(String message) {
                         TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
                         shareOver();
-                        Toast.makeText(SimulcastOverlayService.this,
-                                "Simulcast завершен", Toast.LENGTH_SHORT).show();
+                        SimulcastScreenDiagnostics.recordCastOutcome("выход: завершено");
                     }
                 });
     }
@@ -267,15 +269,6 @@ public class SimulcastOverlayService extends Service {
         if (activeBridge != null) {
             activeBridge.stop();
             activeBridge = null;
-        }
-    }
-
-    private String resolveLabel(String packageName) {
-        try {
-            PackageManager pm = getPackageManager();
-            return pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString();
-        } catch (PackageManager.NameNotFoundException e) {
-            return packageName;
         }
     }
 

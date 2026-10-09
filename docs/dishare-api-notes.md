@@ -10,7 +10,7 @@ create a virtual display named `BYD-Mirror` and move Bilibili to it.
 
 ## Current state
 
-Updated 2026-10-08. How a normal APK drives DiShare (Simulcast) on this car, how Denza Apps
+Updated 2026-10-09. How a normal APK drives DiShare (Simulcast) on this car, how Denza Apps
 draws and casts over the stock Simulcast screen, and which camera/HUD streaming routes are dead
 ends.
 
@@ -21,6 +21,7 @@ ends.
 | The product does the same: `DiShareProjectionBridge.java` registers, starts, reads state, stops and closes the UI as `com.byd.dishare` (tx `0x2`/`0x6`/`0x5`/`0x7`/`0xb`); `DiShareScreens.java` asks tx `0x4` | code | 2026-06-28 | [Direct control service transaction map](#direct-control-service-transaction-map) |
 | DiShare tells the API client that started a share when it stops being the mirror client: `IDiShareApiClient` tx 1 `true` during the start, `false` 0.1 s after the `605` on P→D (`captures/hud-pd-20260924T132255Z/dishare.log`) | live | 2026-09-24 | [End of a share](#end-of-a-share) |
 | The product's session (`DiShareShareSession.java`) ends on that `false` once it has stood 1.5 s with no `true`, or when DiShare's process dies; the bridge then removes its client and `SimulcastOverlayService.java` clears the target, hides the exit control and refreshes the tile. The target lives in memory only (`SimulcastIntegration.java`). Every bind goes through `DiShareBinding.java`: unbound exactly once, also after `onServiceDisconnected`, and a reconnection when DiShare comes back is never delivered, so it cannot start a share again | code | 2026-10-08 | [Share session lifecycle](#share-session-lifecycle-2026-10-08) |
+| A start or exit is answered on screen only by the stock dialog closing and the exit control appearing or going; a refused start keeps the dialog and our row, and DiShare's reply is the «Последний исход» row of «Технические сведения», never a toast (`SimulcastOverlayService.java`, `SimulcastScreenDiagnostics.recordCastOutcome`) | code | 2026-10-09 | [End of a share](#end-of-a-share) |
 | On the Z9GT `getScreens` reports `screen_hud`, `screen_fse` and `screen_ivi` (the source); rear, overhead and `screen_tv` receivers are implemented from the contract only | live | 2026-06-28 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
 | A drop target is a receiver DiShare reports available whose stock card is in the accessibility tree; `ScreenTarget.java` maps `screen_hud`→`ar_hud_screen`, `screen_fse`→`fse_screen`, `screen_rse_l`/`_r`→`left_rse_screen`/`right_rse_screen`, `screen_overhead` and `screen_tv`→`overhead_screen` | code | 2026-07-18 | [Multi-screen receiver contract](#multi-screen-receiver-contract-2026-07-18) |
 | "Drop zones come from the decoded `window_share_layout_ivi_r` coordinates and the row is anchored to an 839 dp panel": both are the live node bounds of the receiver cards, `app_list` and `switch_share_app` (`SimulcastDialogGeometry.java`) | refuted | 2026-06-29 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
@@ -227,6 +228,12 @@ What the product does (`DiShareShareSession.java`, tested in `DiShareShareSessio
   the 2026-09-24 run made 24 s after this kind of end), releases its bindings and reports
   `onEnded`. `SimulcastOverlayService.java` then does what its own stop does: clears the
   target, hides the exit control and refreshes the tile.
+- Nothing toasts (since 2026-10-09). A start DiShare refuses or times out leaves the stock dialog
+  open with our row rebuilt - the working choice - and DiShare's reply goes to the «Последний
+  исход» row of «Технические сведения» (`SimulcastScreenDiagnostics.recordCastOutcome`); a start,
+  an exit and a failed exit go there too. The toasts said «Simulcast не запустил <app>: start
+  returned {screen_hud=605}» over the dialog, and «Simulcast завершен» after the exit control had
+  already gone.
 - Tx 3 is decoded and logged as `share state=`, not used to end anything: the registration it
   rides on is replaced by every other `com.byd.dishare` registration, and it can describe the
   share that was there before ours.
