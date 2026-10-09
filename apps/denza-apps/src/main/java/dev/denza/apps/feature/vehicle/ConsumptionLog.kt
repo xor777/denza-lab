@@ -24,6 +24,18 @@ package dev.denza.apps.feature.vehicle
  * figure, out of the road the unit names, and off the chart's axis, where its neighbours close up
  * behind it rather than a hole being drawn for it.
  *
+ * ### Known road is the share of the bucket's moving time that had power
+ *
+ * Contract §2.6, since 2026-10-09. The odometer steps in whole tenths of a kilometre, which is the
+ * bucket, so a bucket's whole road arrives in the one poll that closes it and the polls before it
+ * carry none. Known road used to be the road of the intervals that had power, which on that input
+ * is all of the bucket or none of it, decided by the closing poll alone: a dropped power read in
+ * the middle of a bucket lost its energy and left the bucket a full reading - an underestimate - and
+ * one on the closing poll threw away a bucket whose every other second was known. The odometer
+ * cannot say how much road an interval covered; the time it took can. So the bucket's known road is
+ * its road times the share of its **moving** time that had power, and standing time is in neither
+ * side of that share, because its energy is the trip's and not the road's.
+ *
  * ### A step of more than one tick is not a reading
  *
  * Contract §2.6, since 2026-10-09. A step of more than one tick in one interval is road nobody
@@ -43,8 +55,8 @@ package dev.denza.apps.feature.vehicle
  * @param kwh the signed integral of pack power over it; negative where the road gave energy back
  * @param km the road it covers - never the record count, because one bucket can carry a longer
  *   odometer step than one tick (and is then not a reading)
- * @param knownKm how much of that road the energy is known over, and none of it after a step of
- *   more than one tick
+ * @param knownKm how much of that road the energy is known over: [km] times the share of the
+ *   bucket's moving time that had a power reading, and none of it after a step of more than one tick
  */
 internal data class ConsumptionSample(
     val odometerKm: Double,
@@ -89,8 +101,9 @@ internal class ConsumptionLog(
     /** What a reading of the road is worth, which is not this class's own arithmetic. */
     private val odometer = OdometerGate()
     private var pendingKm = 0.0
-    private var pendingKnownKm = 0.0
     private var pendingKwh = 0.0
+    private var pendingMovingSeconds = 0.0
+    private var pendingKnownSeconds = 0.0
     private var pendingOverran = false
 
     /** Closed buckets, oldest first. All of them - the journal's own thirty kilometres. */
@@ -120,8 +133,9 @@ internal class ConsumptionLog(
     /**
      * @param odometerKm the vehicle odometer; null while the read failed
      * @param powerKw pack power, positive out of the battery; null makes the interval's energy
-     *   unknown rather than zero
-     * @param dtSeconds real time since the previous sample
+     *   unknown rather than zero, and its time a part of the bucket nobody measured
+     * @param dtSeconds real time since the previous sample; the share of a bucket's moving time
+     *   that had power is what its known road is
      * @param speedKmh the car's own speed; at or below [STANDING_KMH] the interval's energy is the
      *   trip's and not the road's, and **null counts as moving** because a missing read is not a
      *   stop
@@ -163,13 +177,23 @@ internal class ConsumptionLog(
         pendingKm += km
         // More than one tick in one interval is road nobody watched being covered (§2.6).
         if (km > DEFAULT_BUCKET_KM + KM_EPSILON) pendingOverran = true
-        if (knows) {
-            pendingKnownKm += km
-            if (moving) pendingKwh += powerKw!! * dtSeconds / 3600.0
+        // The road arrives in the poll that closes the bucket, so what the bucket knows is measured
+        // in the time it took, and only in the time it moved: a stop is the trip's, with or without
+        // a power reading.
+        if (moving && dtSeconds > 0.0) {
+            pendingMovingSeconds += dtSeconds
+            if (knows) {
+                pendingKnownSeconds += dtSeconds
+                pendingKwh += powerKw!! * dtSeconds / 3600.0
+            }
         }
         if (pendingKm >= DEFAULT_BUCKET_KM - KM_EPSILON) {
-            val knownKm = if (pendingOverran) 0.0 else pendingKnownKm
-            val sample = ConsumptionSample(reading, pendingKwh, pendingKm, knownKm)
+            val sample = ConsumptionSample(
+                reading,
+                pendingKwh,
+                pendingKm,
+                knownRoad(pendingKm, pendingMovingSeconds, pendingKnownSeconds, pendingOverran),
+            )
             closed.addLast(sample)
             while (closed.size > capacity) closed.removeFirst()
             dropOpenWork()
@@ -216,12 +240,30 @@ internal class ConsumptionLog(
 
     private fun dropOpenWork() {
         pendingKm = 0.0
-        pendingKnownKm = 0.0
         pendingKwh = 0.0
+        pendingMovingSeconds = 0.0
+        pendingKnownSeconds = 0.0
         pendingOverran = false
     }
 
     companion object {
+        /**
+         * A closing bucket's known road (contract §2.6): its road times the share of its moving
+         * time that had power.
+         *
+         * None of it after a step of more than one tick, which is road nobody watched, and none of
+         * it for a bucket that never moved by its speed readings, which has no time to measure the
+         * share over and no energy filed against its road. A bucket known in every moving second
+         * gets its road back exactly: the two sums are the same additions in the same order.
+         */
+        private fun knownRoad(
+            km: Double,
+            movingSeconds: Double,
+            knownSeconds: Double,
+            overran: Boolean,
+        ): Double =
+            if (overran || movingSeconds <= 0.0) 0.0 else km * (knownSeconds / movingSeconds)
+
         /**
          * One odometer tick per bucket, which is as fine as this car can be asked.
          *

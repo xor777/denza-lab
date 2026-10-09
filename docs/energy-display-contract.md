@@ -124,8 +124,15 @@ The window is the last `ConsumptionWindow.KM` = 10 km of **recorded road**: the
 newest closed buckets that are readings (§2.6), taken back until their road sums
 to ten kilometres, whatever the odometer says about the road between them. The
 unit names it: «кВт·ч/100 км · за 10 км» once ten kilometres of readings are in
-the log, and «· за 3,7 км» while it is still filling - the *known* road, not the
-bucket count. The car page prints the same unit in one sentence over its chart,
+the log, and «· за 3,7 км» while it is still filling - the road of the readings,
+a hundred metres each (§2.6), not every bucket's.
+
+> **Superseded 2026-10-09:** the unit used to name the readings' *known* road.
+> It names their road: a reading stands for its whole hundred metres, so the
+> unit is the chart's width whatever share of each reading was watched — see
+> [§2.6](#26-unknown-energy).
+
+The car page prints the same unit in one sentence over its chart,
 «Расход 16,9 кВт·ч/100 км · за 10 км» (since the Luminofor strip, 2026-09-23; it
 used to set «ЗА 10 КМ» in capitals under its own figure), and never rounds a
 filling window to a whole number.
@@ -284,13 +291,38 @@ none. Either way it is one drive and one decision, not a series of patches.
 ### 2.6 Unknown energy
 
 An interval with no power reading, or longer than `OdometerGate.MAX_GAP_SECONDS`,
-contributes **unknown** energy over its road. The log carries, per bucket, the
-road and the road with known energy; the bucket's value is energy over known
-road, and a bucket with less than half its road known is **not a reading**. A
-bucket that is not a reading is out of everything - out of the figure's sum, out
-of the road the unit names, off the chart's axis - which is what makes «за 3,7 км»
-a promise about the number beside it and about the chart beside that. Restart
-continuity keeps working through the journal, which carries the road per bucket.
+contributes **unknown** energy. The log carries, per bucket, the road and the
+road with known energy; the bucket's value is energy over known road, and a
+bucket with less than half its road known is **not a reading**. A bucket that is
+not a reading is out of everything - out of the figure's sum, out of the road the
+unit names, off the chart's axis - which is what makes «за 3,7 км» a promise
+about the number beside it and about the chart beside that. Restart continuity
+keeps working through the journal, which carries the road per bucket.
+
+**A bucket's known road is its road times the share of its moving time that had
+power** (2026-10-09): `knownKm = km × known seconds / moving seconds`, over the
+intervals that are moving by §2.2's rule, an interval being known when it had a
+power reading and was no longer than `MAX_GAP_SECONDS`. Standing time is in
+neither side of the share - its energy is the trip's, with or without a power
+answer - and a bucket with no moving time knows none of its road. The odometer
+steps in whole tenths, which is the bucket, so a bucket's road arrives in the one
+poll that closes it; the time the road took is the only measure of how much of it
+was watched.
+
+> **Superseded 2026-10-09:** an interval used to contribute unknown energy "over
+> its road", so known road was the road of the intervals that had power. On this
+> odometer that is all of a bucket or none of it, decided by the closing poll: a
+> power read dropped inside a bucket lost its energy from a bucket that stayed a
+> full reading, an underestimate, and one dropped on the closing poll threw away
+> a bucket whose other seconds were known. The rule above replaces it; the drives
+> recorded by then have no moving row without power and replay to the same
+> figures.
+
+**A reading stands for its whole road.** The walk to ten kilometres (§2.2), the
+unit and the chart count a reading's road - one tick, a hundred metres - and only
+the figure divides by its known road. So «за 3,7 км» is thirty-seven readings
+whatever share of each was watched, and the chart beside it is thirty-seven
+points.
 
 **An odometer step longer than one bucket closes one bucket of that road, and it
 is not a reading**: none of its road is known, because nobody watched it being
@@ -399,7 +431,8 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 - **charging**: the cluster's petal figure becomes the countdown; the car page's
   headline says «ОТ ЗАРЯДКИ» and the chart stays;
 - **window filling**: the chart grows from its right edge, the unit names the
-  known road, and the two are one number - thirty-seven points and «за 3,7 км»;
+  readings' road (§2.6), and the two are one number - thirty-seven points and
+  «за 3,7 км»;
 - **closed to us** (the shell cannot read the car): the cluster draws its
   skeleton and the reason in the ten kilometres' place; the car page says
   «Питание от машины» on its caption line and the instruction under it, and
@@ -492,7 +525,10 @@ test.
   from the fifth reading to the full window and across a seam, that the road the
   window string prints is the run's own width - a hundred metres a point, worked
   out in the test. «за 8,6 км» is 86 % of the box because the two are one number,
-  not because they were compared once.
+  not because they were compared once. `ConsumptionLogTest` asserts the same on
+  the car's own ticks with a power read dropped in every bucket and a two-tick
+  step every kilometre, and `ConsumptionWindowTest` over readings known for five
+  sixths of their road (2026-10-09).
 - **Independent arithmetic.** The expected consumption figure and point values in
   those tests are computed in the test from the raw buckets - the readings picked
   out by the same half-known rule, the trailing ten of them summed - not through
@@ -525,7 +561,8 @@ test.
 - **Mutations** on the arithmetic (§2.2, §2.3, §2.6) before the merge, as on
   every wave before: the smoothing, its floor, the skipping of non-readings, the
   window's ten kilometres, the standing threshold and the null-speed rule; since
-  2026-10-09 also the multi-tick step.
+  2026-10-09 also the moving-time share, standing time kept out of it, the
+  multi-tick step and the unit counting a reading's road.
 
 ## 8. Open, and what closes each
 

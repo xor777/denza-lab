@@ -66,18 +66,25 @@ internal object ConsumptionWindow {
     /**
      * How much road the figure is actually the mean of, which is what the unit names.
      *
-     * The *known* road of the buckets that are **in** the figure, which is one reading bucket per
-     * point of [ConsumptionChart] - so the road the unit names and the width of the chart above it
-     * are one statement. A bucket that answered for forty of its hundred metres is not a reading:
-     * it is out of the mean, out of the unit and off the axis alike, and counting its scrap in one
-     * of the three made «за 3,7 км» a promise about road the number beside it was never taken over.
+     * The road of the buckets that are **in** the figure, which is one reading bucket per point of
+     * [ConsumptionChart] - so the road the unit names and the width of the chart above it are one
+     * statement. A bucket that answered for forty of its hundred metres is not a reading: it is out
+     * of the mean, out of the unit and off the axis alike, and counting its scrap in one of the three
+     * made «за 3,7 км» a promise about road the number beside it was never taken over.
+     *
+     * **A reading's road, not its known road** (contract §2.6, since 2026-10-09). A reading stands
+     * for its whole hundred metres on every axis: the walk to [KM] counts it whole and the chart
+     * gives it a whole pitch, so the unit does too. Its known road is the share of its moving time
+     * that had power, which is what the figure divides by and nothing else; until known road was a
+     * share, the two sums were one, and summing the known road here would print «за 9,8 км» under a
+     * full chart the first time a power read dropped inside a bucket.
      */
     fun coveredKm(all: List<ConsumptionSample>): Double {
         val window = raw(all)
         var km = 0.0
         for (index in window.indices) {
             val bucket = window[index]
-            if (bucket.known) km += bucket.knownKm
+            if (bucket.known) km += bucket.km
         }
         return km
     }

@@ -8,10 +8,11 @@ import org.junit.Test
 /**
  * What one closed bucket is worth, and what it refuses to claim.
  *
- * Every expected number here is worked out from the raw samples in the test - energy is `Σ P·dt`
- * and road is the odometer's own difference - rather than through the production helpers. That is
- * `docs/energy-display-contract.md` §7's «independent arithmetic», and it is what makes a sign flip
- * or a dropped guard fail rather than agree with itself.
+ * Every expected number here is worked out from the raw samples in the test - energy is `Σ P·dt`,
+ * road is the odometer's own difference, and known road is that road times the seconds that
+ * answered over the seconds the car moved, counted here - rather than through the production
+ * helpers. That is `docs/energy-display-contract.md` §7's «independent arithmetic», and it is what
+ * makes a sign flip or a dropped guard fail rather than agree with itself.
  */
 class ConsumptionLogTest {
 
@@ -164,77 +165,14 @@ class ConsumptionLogTest {
         assertEquals("and the trip has all of it", energy(6.0, 30.0), ledger.trip.netKwh, 1e-9)
     }
 
-    @Test
-    fun unknownEnergyOverAGapBecomesAHoleRatherThanAZero() {
-        val log = ConsumptionLog()
-        log.sample(100.0, 30.0, 0.0)
-        // The dashboard was away for four minutes; the odometer moved, and the energy for that
-        // road was never sampled. Zero would be a reading; unknown is the truth.
-        log.sample(100.4, 30.0, 240.0)
-        val bucket = log.buckets.single()
-        assertEquals("the road is still the road", 0.4, bucket.km, 1e-9)
-        assertEquals("and none of it is known", 0.0, bucket.knownKm, 1e-9)
-        assertEquals(0.0, bucket.kwh, 1e-12)
-        assertFalse(bucket.known)
-        assertTrue("a hole, not a zero", bucket.value.isNaN())
-    }
-
-    @Test
-    fun aMissingPowerReadingLeavesItsOwnRoadUnknown() {
-        val log = ConsumptionLog()
-        log.sample(100.0, 20.0, 0.0)
-        // Half the bucket answered, half did not, and the bucket says so.
-        log.sample(100.05, 20.0, 3.0)
-        log.sample(100.1, null, 3.0)
-        val bucket = log.buckets.single()
-        assertEquals(0.1, bucket.km, 1e-9)
-        assertEquals(0.05, bucket.knownKm, 1e-9)
-        assertEquals(energy(20.0, 3.0), bucket.kwh, 1e-12)
-        // Exactly half is still a reading; the figure is over the road it is known for.
-        assertTrue(bucket.known)
-        assertEquals(energy(20.0, 3.0) / 0.05 * 100.0, bucket.value, 1e-9)
-    }
-
-    @Test
-    fun aBucketMostlyUnknownIsAHole() {
-        val log = ConsumptionLog()
-        log.sample(100.0, 20.0, 0.0)
-        log.sample(100.02, 20.0, 1.2)
-        log.sample(100.1, null, 4.8)
-        val bucket = log.buckets.single()
-        assertEquals(0.02, bucket.knownKm, 1e-9)
-        assertFalse("a fifth of the road is not half of it", bucket.known)
-        assertTrue(bucket.value.isNaN())
-    }
-
-    /**
-     * And the boundary is a half, which is where it is decided rather than near it.
-     *
-     * A third known is a hole and a half is a reading; a rule loose enough to accept a third would
-     * print a figure over road most of which nobody watched, which is the defect the known road
-     * exists to prevent, one step milder.
-     */
-    @Test
-    fun theHalfIsTheBoundaryAndAThirdIsAlreadyAHole() {
-        fun bucket(knownSeconds: Double): ConsumptionSample {
-            val log = ConsumptionLog()
-            log.sample(100.0, 20.0, 0.0)
-            log.sample(100.0 + knownSeconds / 60.0, 20.0, knownSeconds)
-            log.sample(100.1, null, 6.0 - knownSeconds)
-            return log.buckets.single()
-        }
-        // 0.1 km at one kilometre a minute: three seconds is half the bucket, two is a third.
-        assertEquals(0.05, bucket(3.0).knownKm, 1e-9)
-        assertTrue("exactly half is a reading", bucket(3.0).known)
-        assertEquals(0.0333, bucket(2.0).knownKm, 1e-3)
-        assertFalse("a third is not", bucket(2.0).known)
-        assertTrue(bucket(2.0).value.isNaN())
-    }
-
     /**
      * The odometer the way the car reports it: whole tenths of a kilometre, decoded from an integer
      * count, so the hundred metres of a bucket arrive in the one poll that closes it and the polls
-     * before it carry none.
+     * before it carry none. Every test of what a bucket *knows* is written on this input.
+     *
+     * The tests this replaced (until 2026-10-09) stood the half-known rule on fractional odometers
+     * - 100.02, 100.05 - that this car never produces, and on the one input it does produce the rule
+     * was decided by the closing poll alone (contract §2.6).
      */
     private class Car(val log: ConsumptionLog = ConsumptionLog()) {
         private var tenths = 1000
@@ -257,6 +195,141 @@ class ConsumptionLogTest {
             powers.forEachIndexed { index, power -> poll(power, ticks = if (index == powers.lastIndex) 1 else 0) }
             return log.buckets.last()
         }
+    }
+
+    /**
+     * The road arrives on the closing poll, and the energy is every moving second before it.
+     *
+     * Six polls a second apart is 60 km/h; the odometer stands through five of them and steps on the
+     * sixth. Nothing about this bucket is fractional, which is what every bucket on this car is like.
+     */
+    @Test
+    fun aBucketsRoadArrivesInThePollThatClosesIt() {
+        val car = Car()
+        val bucket = car.bucket(20.0, 20.0, 20.0, 20.0, 20.0, 20.0)
+        assertEquals(1, car.log.buckets.size)
+        assertEquals("one tick", 0.1, bucket.km, 1e-9)
+        assertEquals("all of it known", 0.1, bucket.knownKm, 1e-12)
+        assertEquals("six seconds at 20 kW", energy(20.0, 6.0), bucket.kwh, 1e-12)
+        assertEquals(33.333, bucket.value, 0.001)
+    }
+
+    /**
+     * A power read that drops inside a bucket is a second nobody measured, not a second that cost
+     * nothing.
+     *
+     * Until 2026-10-09 the bucket's known road was the road of the polls that had power, and on this
+     * odometer that is the closing poll's: the dropped second's energy went missing and the bucket
+     * stayed a full reading of 0.1 km, five sixths of what the road cost. Known road is the share of
+     * the moving time that had power now, so the bucket is a reading over five sixths of its road and
+     * prints what the road cost.
+     */
+    @Test
+    fun aDroppedPowerReadInsideABucketIsUnknownTimeRatherThanLostEnergy() {
+        val bucket = Car().bucket(20.0, 20.0, null, 20.0, 20.0, 20.0)
+        assertEquals(0.1, bucket.km, 1e-9)
+        assertEquals("five of six moving seconds known", 0.1 * 5.0 / 6.0, bucket.knownKm, 1e-12)
+        assertEquals("the energy of the seconds that answered", energy(20.0, 5.0), bucket.kwh, 1e-12)
+        assertTrue(bucket.known)
+        assertEquals("what the road cost, not five sixths of it", energy(20.0, 6.0) / 0.1 * 100.0, bucket.value, 1e-9)
+    }
+
+    /**
+     * And one on the closing poll no longer throws the bucket away.
+     *
+     * It used to: the closing poll was the only one carrying road, so a missing power read there made
+     * all of the bucket's road unknown, whatever its other five seconds had measured.
+     */
+    @Test
+    fun aClosingPollWithoutPowerNoLongerThrowsTheBucketAway() {
+        val bucket = Car().bucket(20.0, 20.0, 20.0, 20.0, 20.0, null)
+        assertEquals(0.1 * 5.0 / 6.0, bucket.knownKm, 1e-12)
+        assertTrue("a reading", bucket.known)
+        assertEquals(energy(20.0, 6.0) / 0.1 * 100.0, bucket.value, 1e-9)
+    }
+
+    /**
+     * The half is the boundary, on the car's own ticks: three seconds of six is a reading, two is not.
+     *
+     * A rule loose enough to accept a third would print a figure over road most of which nobody
+     * watched, which is the defect the known road exists to prevent, one step milder.
+     */
+    @Test
+    fun theHalfIsTheBoundaryAndAThirdIsAlreadyAHole() {
+        val half = Car().bucket(20.0, null, 20.0, null, 20.0, null)
+        assertEquals(0.1 * 3.0 / 6.0, half.knownKm, 1e-12)
+        assertTrue("exactly half is a reading", half.known)
+        assertEquals(energy(20.0, 3.0) / (0.1 * 3.0 / 6.0) * 100.0, half.value, 1e-9)
+
+        val third = Car().bucket(null, 20.0, null, null, 20.0, null)
+        assertEquals(0.1 * 2.0 / 6.0, third.knownKm, 1e-12)
+        assertFalse("a third is not", third.known)
+        assertTrue(third.value.isNaN())
+    }
+
+    /**
+     * A gap longer than the cadence is unknown time, whatever the power read at its end said.
+     *
+     * Four minutes with the dashboard away in slow traffic, one tick: the bucket watched four of its
+     * two hundred and forty-four moving seconds, and that is not a reading - a hole, not a zero.
+     */
+    @Test
+    fun aGapLongerThanTheCadenceIsUnknownTime() {
+        val car = Car()
+        repeat(4) { car.poll(30.0) }
+        car.poll(30.0, dt = 240.0, ticks = 1)
+        val away = car.log.buckets.single()
+        assertEquals("the road is still the road", 0.1, away.km, 1e-9)
+        assertEquals("four seconds of 244", 0.1 * 4.0 / 244.0, away.knownKm, 1e-12)
+        assertEquals("and only their energy", energy(30.0, 4.0), away.kwh, 1e-12)
+        assertFalse(away.known)
+        assertTrue("a hole, not a zero", away.value.isNaN())
+
+        // Ten seconds of a forty-second bucket is a quarter of it unknown: still a reading, over the
+        // three quarters that were measured.
+        val slow = Car()
+        repeat(15) { slow.poll(12.0) }
+        slow.poll(12.0, dt = 10.0)
+        repeat(15) { slow.poll(12.0) }
+        slow.poll(12.0, ticks = 1)
+        val bucket = slow.log.buckets.single()
+        assertEquals(0.1 * 31.0 / 41.0, bucket.knownKm, 1e-12)
+        assertTrue(bucket.known)
+        assertEquals(energy(12.0, 31.0) / (0.1 * 31.0 / 41.0) * 100.0, bucket.value, 1e-9)
+    }
+
+    /**
+     * A stop is in neither side of the share: the light's minute without a power answer costs the
+     * bucket nothing, because standing energy is the trip's and not the road's (contract §2.2).
+     */
+    @Test
+    fun aStopWithoutAPowerAnswerCostsTheBucketNothing() {
+        val car = Car()
+        repeat(3) { car.poll(15.0) }
+        repeat(60) { car.poll(null, speedKmh = 0.0) }
+        repeat(2) { car.poll(15.0) }
+        car.poll(15.0, ticks = 1)
+        val bucket = car.log.buckets.single()
+        assertEquals("every moving second answered", 0.1, bucket.knownKm, 1e-12)
+        assertEquals(energy(15.0, 6.0), bucket.kwh, 1e-12)
+    }
+
+    /**
+     * A bucket whose speed never read above standing has no moving time to measure a share over, and
+     * no energy filed against its road: it knows none of that road.
+     *
+     * It used to be a reading of nothing - zero energy over a hundred metres - which is an invented
+     * zero, the thing the known road exists to refuse.
+     */
+    @Test
+    fun aBucketThatNeverMovedByItsSpeedKnowsNoneOfItsRoad() {
+        val car = Car()
+        repeat(5) { car.poll(6.0, speedKmh = 0.0) }
+        car.poll(6.0, ticks = 1, speedKmh = 0.0)
+        val bucket = car.log.buckets.single()
+        assertEquals(0.0, bucket.kwh, 1e-12)
+        assertEquals(0.0, bucket.knownKm, 1e-12)
+        assertFalse(bucket.known)
     }
 
     /**
@@ -285,20 +358,22 @@ class ConsumptionLogTest {
     }
 
     /**
-     * §7, «the caption is the chart», across long steps: a two-tick step every kilometre leaves the
-     * unit naming the chart's own width.
+     * §7, «the caption is the chart», on the car's own ticks: a dropped read in every bucket and a
+     * two-tick step every tenth leave the unit naming the chart's own width, and the figure what the
+     * road cost.
      *
-     * Before 2026-10-09 a two-tick step was one point and two hundred metres of the unit's road, so
-     * the chart and the unit no longer counted the same readings.
+     * Before 2026-10-09 the first printed five sixths of what the road cost, and the second drew a
+     * two-tick step as one point and two hundred metres of the unit's road, so the chart and the
+     * unit no longer counted the same readings.
      */
     @Test
-    fun longStepsLeaveTheUnitTheChartsWidth() {
+    fun droppedReadsAndLongStepsLeaveTheUnitTheChartsWidth() {
         val car = Car()
         repeat(120) { index ->
             if (index % 10 == 9) {
                 car.poll(25.0, dt = 6.0, ticks = 2)
             } else {
-                car.bucket(25.0, 25.0, 25.0, 25.0, 25.0, 25.0)
+                car.bucket(25.0, 25.0, null, 25.0, 25.0, 25.0)
             }
         }
         val window = car.log.window
@@ -306,7 +381,7 @@ class ConsumptionLogTest {
         assertEquals("a hundred readings", 100, window.count { it.known })
         assertEquals("ten kilometres of them", 10.0, ConsumptionWindow.coveredKm(window), 1e-9)
         assertEquals("which is the chart's width", chart.span * ConsumptionChart.PITCH_KM, ConsumptionWindow.coveredKm(window), 1e-9)
-        assertEquals(energy(25.0, 6.0) / 0.1 * 100.0, ConsumptionWindow.mean(window)!!, 1e-9)
+        assertEquals("and the figure is what the road cost", energy(25.0, 6.0) / 0.1 * 100.0, ConsumptionWindow.mean(window)!!, 1e-9)
     }
 
     @Test
