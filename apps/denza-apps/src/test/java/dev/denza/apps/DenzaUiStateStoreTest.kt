@@ -1,5 +1,6 @@
 package dev.denza.apps
 
+import dev.denza.apps.core.Decision
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -85,5 +86,61 @@ class DenzaUiStateStoreTest {
             releaseStaleCommit.countDown()
             executor.shutdownNow()
         }
+    }
+
+    @Test
+    fun aCellWritesItsOwnFieldsAndLeavesTheRestAsTheyStand() {
+        val store = DenzaUiStateStore()
+        val weather = store.cell(
+            get = { state: DenzaUiState -> state.weatherEnabled },
+            set = { state, enabled -> state.copy(weatherEnabled = enabled) },
+        )
+        store.update { it.copy(cloudLinkBusy = true) }
+
+        weather.update { !it }
+
+        assertFalse(weather.value)
+        assertFalse(store.state.value.weatherEnabled)
+        assertTrue("a cell's write kept another field", store.state.value.cloudLinkBusy)
+        assertFalse(weather.updateIf(predicate = { it }, transform = { true }))
+        assertFalse(store.state.value.weatherEnabled)
+    }
+
+    /**
+     * A claim decided over a state somebody has since written is decided again over the new one:
+     * the default applications' «APPLYING» and the passenger install's «busy» depend on it.
+     */
+    @Test
+    fun aCellDecidesAgainWhenAWriteLandsBetweenItsDecisionAndItsCommit() {
+        val store = DenzaUiStateStore()
+        val busy = store.cell(
+            get = { state: DenzaUiState -> state.cloudLinkBusy },
+            set = { state, value -> state.copy(cloudLinkBusy = value) },
+        )
+        var decisions = 0
+
+        val claimed = busy.decide { current ->
+            decisions += 1
+            // Another writer takes the cell after this decision is made, the first time only.
+            if (decisions == 1) store.update { it.copy(cloudLinkBusy = true) }
+            if (current) Decision.none(false) else Decision(true, true)
+        }
+
+        assertFalse("the claim was granted over a value it never saw", claimed)
+        assertEquals(2, decisions)
+        assertTrue(store.state.value.cloudLinkBusy)
+    }
+
+    @Test
+    fun aDecisionWithNothingToWriteWritesNothing() {
+        val store = DenzaUiStateStore()
+        val before = store.snapshot()
+        val cell = store.cell(
+            get = { state: DenzaUiState -> state.weatherEnabled },
+            set = { state, value -> state.copy(weatherEnabled = value) },
+        )
+
+        assertEquals("answer", cell.decide { Decision.none("answer") })
+        assertSame(before, store.snapshot())
     }
 }
