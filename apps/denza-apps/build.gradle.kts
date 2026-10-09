@@ -15,13 +15,16 @@ plugins {
  * call, measured at 1.36 s each on the car. Packing each platform-only entry point separately
  * keeps that classpath small and prevents application code from silently entering the shell side.
  *
- * Each is compiled here rather than taken from the variant's own class output on purpose: it
- * depends on nothing but the platform, so this task needs no build-order relationship with the
- * application's compilation, and the jar cannot silently pick up anything else.
+ * Each is compiled here rather than taken from the variant's own class output on purpose: its
+ * [sources] - the entry point, the shared `ShellProxyBootstrap` and whatever else is named for it -
+ * depend on nothing but the platform, so this task needs no build-order relationship with the
+ * application's compilation, and the jar cannot silently pick up anything else: a reference to any
+ * other application class fails the compile.
  */
 abstract class PackShellProxy : DefaultTask() {
-    @get:InputFile
-    abstract val source: RegularFileProperty
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sources: ConfigurableFileCollection
 
     @get:InputFiles
     abstract val androidJar: ConfigurableFileCollection
@@ -61,9 +64,9 @@ abstract class PackShellProxy : DefaultTask() {
             platform,
             "-d",
             classes.absolutePath,
-            source.get().asFile.absolutePath,
+            *sources.files.map(File::getAbsolutePath).sorted().toTypedArray(),
         )
-        check(compiled == 0) { "could not compile ${source.get().asFile.name}" }
+        check(compiled == 0) { "could not compile ${sources.files.map(File::getName)}" }
 
         val output = outputDirectory.get().asFile
         output.mkdirs()
@@ -127,40 +130,36 @@ android {
             variant.outputs.forEach { output ->
                 output.outputFileName.set("denza-apps.apk")
             }
-            val packSplit = tasks.register<PackShellProxy>(
-                "pack${variant.name.replaceFirstChar(Char::titlecase)}SplitTaskProxy",
-            ) {
-                source.set(
-                    layout.projectDirectory.file(
-                        "src/main/java/dev/denza/apps/feature/split/SplitTaskProxyMain.java",
-                    ),
+            // Each helper jar is its entry point, the shared bootstrap, and nothing else unless named
+            // here. The asset names are the ones ShellProxyJar (platform/shell) stages.
+            fun packShellProxy(name: String, archive: String, vararg files: String) {
+                val pack = tasks.register<PackShellProxy>(
+                    "pack${variant.name.replaceFirstChar(Char::titlecase)}$name",
+                ) {
+                    (files.toList() + "platform/shell/ShellProxyBootstrap.java").forEach { file ->
+                        sources.from(
+                            layout.projectDirectory.file("src/main/java/dev/denza/apps/$file"),
+                        )
+                    }
+                    androidJar.from(platform)
+                    sdkDirectory.set(sdk)
+                    minApi.set(33)
+                    archiveName.set(archive)
+                }
+                variant.sources.assets?.addGeneratedSourceDirectory(
+                    pack,
+                    PackShellProxy::outputDirectory,
                 )
-                androidJar.from(platform)
-                sdkDirectory.set(sdk)
-                minApi.set(33)
-                archiveName.set("split-task-proxy.jar")
             }
-            variant.sources.assets?.addGeneratedSourceDirectory(
-                packSplit,
-                PackShellProxy::outputDirectory,
+            packShellProxy(
+                "SplitTaskProxy",
+                "split-task-proxy.jar",
+                "feature/split/SplitTaskProxyMain.java",
             )
-            val packSignals = tasks.register<PackShellProxy>(
-                "pack${variant.name.replaceFirstChar(Char::titlecase)}VehicleSignalProxy",
-            ) {
-                source.set(
-                    layout.projectDirectory.file(
-                        "src/main/java/dev/denza/apps/feature/vehicle/signal/" +
-                            "TargetedBydLightEventProxyMain.java",
-                    ),
-                )
-                androidJar.from(platform)
-                sdkDirectory.set(sdk)
-                minApi.set(33)
-                archiveName.set("vehicle-signal-proxy.jar")
-            }
-            variant.sources.assets?.addGeneratedSourceDirectory(
-                packSignals,
-                PackShellProxy::outputDirectory,
+            packShellProxy(
+                "VehicleSignalProxy",
+                "vehicle-signal-proxy.jar",
+                "feature/vehicle/signal/TargetedBydLightEventProxyMain.java",
             )
         }
     }
