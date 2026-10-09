@@ -234,9 +234,8 @@ object SimulcastCoordinator {
         if (!stillWanted()) return
         val adb = DenzaLocalAdb.client(context).openPersistentShell()
         try {
-            val packageName = shellQuote(context.packageName)
             if (!stillWanted()) return
-            adb.shell("cmd appops set $packageName SYSTEM_ALERT_WINDOW allow")
+            adb.shell(overlayGrantCommand(context.packageName))
             DenzaAccessibilityRepairController(
                 shell = adb::shell,
                 splitLeaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(context),
@@ -248,6 +247,10 @@ object SimulcastCoordinator {
             adb.close()
         }
     }
+
+    /** The overlay grant the repair sends first: the package quoted, unlike [OverlayGrant.command]. */
+    internal fun overlayGrantCommand(packageName: String): String =
+        "cmd appops set ${shellQuote(packageName)} SYSTEM_ALERT_WINDOW allow"
 
     /**
      * What a repair that did not take says on the tile - the projection's and the HUD's, which
