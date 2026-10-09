@@ -142,7 +142,7 @@ class MediaResumeCoreTest {
 
     @Test
     fun `an old record is still honoured because there is no time limit`() {
-        val core = core(FakeStore(MediaLastPlayed("yandex", atMillis = 1L)))
+        val core = core(FakeStore(MediaLastPlayed("yandex")))
         val session = FakeTarget("token", MediaResumePlayback.PAUSED, packageName = "yandex")
         core.reconcile(listOf(session))
 
@@ -410,16 +410,15 @@ class MediaResumeCoreTest {
         perform(command).accepted
 
     private class FakeStore(private var record: MediaLastPlayed? = null) : MediaLastPlayedStore {
-        constructor(packageName: String) : this(MediaLastPlayed(packageName, 1L))
+        constructor(packageName: String) : this(MediaLastPlayed(packageName))
 
-        private var clock = 1L
         val writes = mutableListOf<String>()
 
         override fun lastPlayed(): MediaLastPlayed? = record
 
         override fun remember(packageName: String) {
             writes += packageName
-            record = MediaLastPlayed(packageName, ++clock)
+            record = MediaLastPlayed(packageName)
         }
     }
 
