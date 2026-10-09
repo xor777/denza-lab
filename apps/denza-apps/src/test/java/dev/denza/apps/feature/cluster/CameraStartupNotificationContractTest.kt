@@ -9,11 +9,13 @@ import org.junit.Test
 /** Structural integration check: successful camera setup has no intermediate notify Binder calls. */
 class CameraStartupNotificationContractTest {
     @Test fun noIntermediateNotificationOnTheSuccessfulCameraStartupPath() {
-        val source = File("src/main/java/dev/denza/apps/feature/cluster/ClusterSceneService.kt").readText()
-        assertFalse(source.contains("\"Camera display is ready\""))
-        val show = source.between("private fun showCamera(config:", "private fun hideCamera(")
+        val service = File("src/main/java/dev/denza/apps/feature/cluster/ClusterSceneService.kt").readText()
+        val controller = File("src/main/java/dev/denza/apps/feature/cluster/CameraSceneController.kt").readText()
+        assertFalse(service.contains("\"Camera display is ready\""))
+        assertFalse(controller.contains("\"Camera display is ready\""))
+        val show = controller.between("private fun showCamera(config:", "fun hideCamera(")
         val success = show.between("try {", "} catch")
         assertFalse(success.contains("updateNotification("))
-        assertTrue("foreground-service obligation stays synchronous", source.contains("startForeground(NOTIFICATION_ID"))
+        assertTrue("foreground-service obligation stays synchronous", service.contains("startForeground(NOTIFICATION_ID"))
     }
 }

@@ -12,18 +12,24 @@ import org.junit.Test
  * callers. Actual layout, first-frame timing and display behavior require the car.
  */
 class CameraSceneContentContractTest {
-    private val source = File("src/main/java/dev/denza/apps/feature/cluster/ClusterSceneService.kt").readText()
+    private val service = File("src/main/java/dev/denza/apps/feature/cluster/ClusterSceneService.kt").readText()
+    private val controller = File("src/main/java/dev/denza/apps/feature/cluster/CameraSceneController.kt").readText()
+    private val layer = File("src/main/java/dev/denza/apps/feature/cluster/SceneLayer.kt").readText()
 
     @Test fun presentationReceivesTheSelectedLayerInsteadOfAssumingBase() {
-        assertTrue(block("private fun prepareBaseScene():").contains("cameraLayer = false"))
-        assertTrue(block("private fun prepareCameraScene():").contains("cameraLayer = true"))
-        val creation = source.between("val shown = ClusterPresentation(", ".also { it.show() }")
+        assertTrue(controller.block("fun prepareBaseScene():").contains("cameraLayer = false"))
+        assertTrue(controller.block("private fun prepareCameraScene():").contains("cameraLayer = true"))
+        assertTrue(
+            "the scene opens the layer it selected",
+            controller.block("private fun prepareScene(").contains("layers.open(selection.display.id, cameraLayer, this)"),
+        )
+        val creation = service.between("val shown = ClusterPresentation(", ".also { it.show() }")
         assertTrue("pass the actual selected layer", creation.contains("cameraLayer = cameraLayer"))
-        assertTrue(source.contains("private val cameraLayer: Boolean"))
+        assertTrue(service.contains("private val cameraLayer: Boolean"))
     }
 
     @Test fun cameraCreationDoesNotAllocateTheUnusedMapAndDashboardLayers() {
-        val create = block("override fun onCreate(savedInstanceState:")
+        val create = service.block("override fun onCreate(savedInstanceState:")
         assertTrue("base setup must be skipped for cameras", create.contains("if (!cameraLayer) createBaseLayers(root)"))
         assertFalse(create.contains("SurfaceView(context)"))
         assertFalse(create.contains("ProjectionEdgeShadeView(context)"))
@@ -32,11 +38,11 @@ class CameraSceneContentContractTest {
         assertTrue(create.contains("cameraTexture = TextureView(context)"))
         assertTrue(create.contains("cameraEdgeShade = EdgeShadeView(context)"))
         assertTrue(create.contains("diagnosticLayer = FrameLayout(context)"))
-        assertTrue(create.contains("renderer = AvcCameraRenderer("))
+        assertTrue(create.contains("AvcCameraRenderer(context, cameraTexture"))
     }
 
     @Test fun baseCreationKeepsMapCallbackAndTheOriginalLayerOrder() {
-        val create = block("private fun createBaseLayers(")
+        val create = service.block("private fun createBaseLayers(")
         val surface = create.indexOf("root.addView(mapSurface,")
         val shade = create.indexOf("root.addView(mapShade,")
         val dashboard = create.indexOf("dashboardLayer,", shade)
@@ -48,24 +54,24 @@ class CameraSceneContentContractTest {
     }
 
     @Test fun onlyTheBasePresentationCanReachBaseOnlyFields() {
-        assertTrue(block("private fun showMap(placement:").contains("prepareBaseScene()"))
-        assertTrue(block("private fun showDashboard(placement:").contains("prepareBaseScene()"))
-        assertTrue(block("private fun hideMap()").contains("basePresentation?.hideMap()"))
-        assertTrue(block("private fun hideDashboard()").contains("basePresentation?.hideDashboard()"))
-        assertFalse(block("        fun showCamera(config:").contains("mapSurface"))
-        assertFalse(block("fun showDiagnostic(position:").contains("mapSurface"))
+        assertTrue(service.block("private fun showMap(placement:").contains("prepareBaseScene()"))
+        assertTrue(controller.block("fun showDashboard(placement:").contains("prepareBaseScene()"))
+        assertTrue(controller.block("fun hideMap()").contains("basePresentation?.hideMap()"))
+        assertTrue(controller.block("fun hideDashboard()").contains("basePresentation?.hideDashboard()"))
+        assertFalse(layer.block("fun showCamera(config:").contains("mapSurface"))
+        assertFalse(layer.block("fun showDiagnostic(position:").contains("mapSurface"))
     }
 
     /** Balanced braces for these fixed method bodies; deliberately not a general Kotlin parser. */
-    private fun block(marker: String): String {
-        val start = source.indexOf(marker)
+    private fun String.block(marker: String): String {
+        val start = indexOf(marker)
         assertTrue("missing method: $marker", start >= 0)
-        val open = source.indexOf('{', start)
+        val open = indexOf('{', start)
         var depth = 0
-        for (index in open until source.length) {
-            when (source[index]) {
+        for (index in open until length) {
+            when (this[index]) {
                 '{' -> depth++
-                '}' -> if (--depth == 0) return source.substring(open + 1, index)
+                '}' -> if (--depth == 0) return substring(open + 1, index)
             }
         }
         error("unterminated method: $marker")

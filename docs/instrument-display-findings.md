@@ -14,7 +14,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
-| One `ClusterSceneService` owns two presentations: the base layer (a projected application's `SurfaceView`, or this app's instruments) on `shared_fission_bg_XDJAScreenProjection_0`, the camera `TextureView` on `shared_fission_bg_XDJAScreenProjection_1`; `ClusterDisplayResolver.kt` picks them by name evidence and never guesses a numeric display id | code | 2026-07-18 | [Product architecture](#product-architecture) |
+| One `ClusterSceneService` owns two presentations: the base layer (a projected application's `SurfaceView`, or this app's instruments) on `shared_fission_bg_XDJAScreenProjection_0`, the camera `TextureView` on `shared_fission_bg_XDJAScreenProjection_1`; `ClusterDisplayResolver.kt` picks them by name evidence and never guesses a numeric display id. Since 2026-10-09 the service is Android glue: `CameraSceneController.kt` decides which Show starts a camera and when a layer is torn down, `SceneLayer.kt` lets AVC go (window, then `freeDisplay` on `denza-avc-teardown`), both behind `CameraSceneSeams.kt` | code | 2026-07-18 | [Product architecture](#product-architecture) |
 | The driver's display shows one thing at a time: `Приборы` (this app's instruments, the default and the fallback, `FULL` only) or any application with a launch intent except this app and HOME (`ProjectablePackages.java`, asked again in `ClusterProxyMain.java` before every task mutation); there is no package list | code | 2026-09-23 | [How the driver reaches it](#how-the-driver-reaches-it), [Any application, not six navigators](#any-application-not-six-navigators) |
 | The instruments are the Luminofor triptych: `ClusterDashboardRenderer.kt` is the board ported onto `LightPen`, its anchors are `ContourGeometry.kt` on `LuminoforSpec`, the Kotlin copy of `spec.json`; a `View` on the base presentation, with no virtual display and no shell command | code | 2026-09-23 | [App-owned instrument dashboard](#app-owned-instrument-dashboard), [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23) |
 | Luminofor reached the car with main `001940ae` (APK `cd4c97de`) at 17:31 on 2026-09-23; the Contour before it was on the car from 2026-09-05 (build 44) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23), [What still waits for the car](#what-still-waits-for-the-car) |
@@ -80,6 +80,18 @@ matching the two-layer Denza display composition verified on the car:
   renderer no longer ships in Denza Apps;
 - camera diagnostics use the same overlay display and appear after the user
   presses **Проверить камеры** or chooses a display in hidden diagnostics.
+
+Since 2026-10-09 the service only turns intents into calls, keeps its
+notification and opens presentations. The decisions are in plain classes a unit
+test can drive: `CameraSceneController` lives as long as the process and owns
+the command fence, the camera runtime and the teardown barrier, which must
+outlive a service instance destroyed mid-teardown; each service instance gets
+its own `CameraSceneController.Scene` holding that instance's two layers.
+`SceneLayer` is one presentation's lifecycle without Android: the camera start,
+and the teardown that takes the window down, notes the local surface gone and
+posts `freeDisplay` to the `denza-avc-teardown` thread. What they touch - the
+renderer, the presentation's views, the handler, the main looper, the teardown
+thread, the clock and the log - is named in `CameraSceneSeams.kt`.
 
 > **Superseded 2026-09-23:** the base layer is not Yandex Navigator's alone: it hosts any application `ProjectablePackages` admits, or this app's own instruments drawn as a `View` with no virtual display (since 2026-08-25) — see [Any application, not six navigators](#any-application-not-six-navigators) and [App-owned instrument dashboard](#app-owned-instrument-dashboard).
 
