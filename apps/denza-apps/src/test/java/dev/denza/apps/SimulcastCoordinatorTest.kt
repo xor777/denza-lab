@@ -2,6 +2,8 @@ package dev.denza.apps
 
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.disharebridge.AdbFailures
+import java.net.SocketTimeoutException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -75,23 +77,33 @@ class SimulcastCoordinatorTest {
         assertEquals(FeatureResolution.RETRY, blocked.resolution)
     }
 
+    /**
+     * The channel's failures, the real ones the library throws, read as one word on the tile.
+     * They used to be found by words in the message and sent the driver to «ADB Rescue».
+     */
     @Test
-    fun `authorization prompt has an external confirmation resolution`() {
-        val problem = SimulcastCoordinator.setupProblem(
-            IllegalStateException("authorization pending"),
-        )
-
-        assertEquals("Подтвердите запрос на экране автомобиля", problem.message)
-        assertEquals(FeatureResolution.CONFIRM_ON_CAR, problem.resolution)
+    fun `a key the car does not trust reads as no access`() {
+        for (failure in listOf(AdbFailures.authorizationPending(), AdbFailures.authorizationRequired())) {
+            val problem = SimulcastCoordinator.setupProblem(failure)
+            assertEquals("Нет доступа", problem.message)
+            assertEquals(FeatureResolution.CONFIRM_ON_CAR, problem.resolution)
+        }
     }
 
     @Test
-    fun `passive authorization failure points to ADB Rescue`() {
-        val problem = SimulcastCoordinator.setupProblem(
-            IllegalStateException("ADB authorization required; no request was sent"),
-        )
+    fun `an adbd that does not answer reads the same on the tile`() {
+        val problem = SimulcastCoordinator.setupProblem(SocketTimeoutException("Read timed out"))
 
-        assertEquals("Откройте ADB Rescue в диагностике", problem.message)
-        assertEquals(FeatureResolution.CONFIRM_ON_CAR, problem.resolution)
+        assertEquals("Нет доступа", problem.message)
+        assertEquals(FeatureResolution.RETRY, problem.resolution)
+    }
+
+    /** Words that only look like the channel's are not read as it any more. */
+    @Test
+    fun `a failure of the repair itself keeps its own words`() {
+        val problem = SimulcastCoordinator.setupProblem(IllegalStateException("authorization pending"))
+
+        assertEquals("Не удалось восстановить доступ", problem.message)
+        assertEquals(FeatureResolution.RETRY, problem.resolution)
     }
 }

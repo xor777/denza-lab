@@ -3,6 +3,7 @@ package dev.denza.apps
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
+import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
@@ -10,7 +11,6 @@ import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.split.SplitScreenSettings
-import java.security.GeneralSecurityException
 import java.util.concurrent.Executors
 
 data class SimulcastEnvironment(
@@ -243,6 +243,14 @@ object SimulcastCoordinator {
         }
     }
 
+    /**
+     * What a repair that did not take says on the tile - the projection's and the HUD's, which
+     * borrows this repair.
+     *
+     * The channel's own failures read as they do on every tile ([AdbProblem]); they used to be
+     * found by words in the message, two of them sending the driver to «ADB Rescue» and to the
+     * car's USB settings.
+     */
     fun setupProblem(error: Throwable?): SimulcastSetupProblem {
         if (error == null) {
             return SimulcastSetupProblem(
@@ -250,40 +258,13 @@ object SimulcastCoordinator {
                 resolution = FeatureResolution.CONFIRM_ON_CAR,
             )
         }
-        val message = error.message.orEmpty()
-        return when {
-            message.contains("authorization required", ignoreCase = true) ->
-                SimulcastSetupProblem(
-                    message = "Откройте ADB Rescue в диагностике",
-                    resolution = FeatureResolution.CONFIRM_ON_CAR,
-                )
-            message.contains("authorization pending", ignoreCase = true) ->
-                SimulcastSetupProblem(
-                    message = "Подтвердите запрос на экране автомобиля",
-                    resolution = FeatureResolution.CONFIRM_ON_CAR,
-                )
-            message.contains("refused", ignoreCase = true) ->
-                SimulcastSetupProblem(
-                    message = "Включите отладку USB в настройках автомобиля",
-                    resolution = FeatureResolution.ENABLE_CAR_DEBUGGING,
-                )
-            message.contains("timeout", ignoreCase = true) ||
-                message.contains("timed out", ignoreCase = true) ->
-                SimulcastSetupProblem(
-                    message = "Система автомобиля не отвечает",
-                    resolution = FeatureResolution.RETRY,
-                )
-            error is GeneralSecurityException ->
-                SimulcastSetupProblem(
-                    message = "Не удалось подготовить безопасный доступ",
-                    resolution = FeatureResolution.RETRY,
-                )
-            else ->
-                SimulcastSetupProblem(
-                    message = "Не удалось восстановить доступ",
-                    resolution = FeatureResolution.RETRY,
-                )
+        AdbProblem.of(error)?.let { channel ->
+            return SimulcastSetupProblem(message = AdbProblem.WORDS, resolution = channel.resolution)
         }
+        return SimulcastSetupProblem(
+            message = "Не удалось восстановить доступ",
+            resolution = FeatureResolution.RETRY,
+        )
     }
 
     private fun isInstalled(packageManager: PackageManager, packageName: String): Boolean = try {
