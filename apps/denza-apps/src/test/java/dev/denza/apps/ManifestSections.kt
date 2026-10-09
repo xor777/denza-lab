@@ -2,7 +2,14 @@ package dev.denza.apps
 
 import java.io.File
 
-/** The app's own manifest, for the contract tests that read it rather than a copy of it. */
+/**
+ * The app's own manifest, for the contract tests that read it rather than a copy of it.
+ *
+ * Read as text on purpose: a declaration is what the platform reads, so the text is the contract,
+ * and no JVM test can ask a package manager what it made of it. That is the line between these
+ * tests and the ones that read Kotlin sources, which hold code to strings where its behaviour is
+ * the contract and are replaced by behavioural tests as the code allows.
+ */
 internal fun appManifest(): String = File("src/main/AndroidManifest.xml").readText()
 
 /**
