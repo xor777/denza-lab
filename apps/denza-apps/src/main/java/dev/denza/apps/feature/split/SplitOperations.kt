@@ -3,6 +3,7 @@ package dev.denza.apps.feature.split
 import dev.denza.apps.TaskMoveLease
 import dev.denza.apps.TaskMoveOwner
 import dev.denza.apps.TaskMoveOwnership
+import dev.denza.apps.platform.shell.shellQuote
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -52,11 +53,9 @@ internal enum class SplitTaskMoveOwnership {
  * `exec` is what makes the helper the shell of its stream rather than a child of it, so closing
  * that stream is what ends it, with nothing left to reap on the car.
  */
-internal fun splitServeCommand(classpath: String, nonce: String): String {
-    val quoted = classpath.replace("'", "'\\''")
-    return "CLASSPATH='$quoted' exec app_process /system/bin " +
+internal fun splitServeCommand(classpath: String, nonce: String): String =
+    "CLASSPATH=${shellQuote(classpath)} exec app_process /system/bin " +
         "--nice-name=denza_split_serve ${SplitTaskProxyMain::class.java.name} serve $nonce"
-}
 
 /** Everything one operation is allowed to touch, built fresh for each one and closed after it. */
 internal class SplitOperationWorkspace(
@@ -389,9 +388,9 @@ internal class SplitShellRollbackExecutor(
         }
         val classpath = proxyClasspath.entry(::budgeted)
         val output = budgeted(
-            "CLASSPATH=${quoted(classpath)} app_process /system/bin " +
+            "CLASSPATH=${shellQuote(classpath)} app_process /system/bin " +
                 "--nice-name=denza_split_cmd ${SplitTaskProxyMain::class.java.name} " +
-                "remove-task $taskId ${quoted(packageName)} ${quoted(activityName)} '-' '-'",
+                "remove-task $taskId ${shellQuote(packageName)} ${shellQuote(activityName)} '-' '-'",
         )
         val removed = output.lineSequence()
             .map(String::trim)
@@ -409,8 +408,6 @@ internal class SplitShellRollbackExecutor(
         check(clock.nowMs() <= deadline) { "rollback budget spent before: $command" }
         return shell(command)
     }
-
-    private fun quoted(value: String): String = "'${value.replace("'", "'\\''")}'"
 
     private companion object {
         const val TASK_PROXY_RESULT_PREFIX = "DENZA_SPLIT_RESULT:"

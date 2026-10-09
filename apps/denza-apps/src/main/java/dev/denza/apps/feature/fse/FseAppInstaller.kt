@@ -13,6 +13,7 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.platform.shell.shellQuote
 import dev.denza.disharebridge.LocalAdbClient
 import org.json.JSONObject
 import java.io.File
@@ -406,25 +407,23 @@ object FseAppInstaller {
     private fun requestId(): Int =
         1_000_000_000 + ((System.currentTimeMillis() / 1_000L) % 900_000_000L).toInt()
 
-    internal fun quote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
-
     /** The request's staging folder and its `config.json`, written in one shell trip. */
     internal fun stageConfigCommand(iviRoot: String, encodedConfig: String): String =
-        "mkdir -p ${quote("$iviRoot/wallpaper")} && " +
-            "echo ${quote(encodedConfig)} | base64 -d > ${quote("$iviRoot/config.json")}"
+        "mkdir -p ${shellQuote("$iviRoot/wallpaper")} && " +
+            "echo ${shellQuote(encodedConfig)} | base64 -d > ${shellQuote("$iviRoot/config.json")}"
 
     internal fun truncateCommand(targetPath: String): String =
-        "rm -f ${quote(targetPath)}; : > ${quote(targetPath)}"
+        "rm -f ${shellQuote(targetPath)}; : > ${shellQuote(targetPath)}"
 
     /** One [COPY_BLOCK_BYTES] block of the APK, written in place; it answers `dd`'s exit status. */
     internal fun copyBlockCommand(sourcePath: String, targetPath: String, block: Int): String =
-        "dd if=${quote(sourcePath)} of=${quote(targetPath)} " +
+        "dd if=${shellQuote(sourcePath)} of=${shellQuote(targetPath)} " +
             "bs=$COPY_BLOCK_BYTES skip=$block seek=$block count=1 conv=notrunc " +
             ">/dev/null 2>&1; echo \$?"
 
-    internal fun sizeCommand(targetPath: String): String = "stat -c %s ${quote(targetPath)}"
+    internal fun sizeCommand(targetPath: String): String = "stat -c %s ${shellQuote(targetPath)}"
 
-    internal fun removeStageCommand(iviRoot: String): String = "rm -rf ${quote(iviRoot)}"
+    internal fun removeStageCommand(iviRoot: String): String = "rm -rf ${shellQuote(iviRoot)}"
 
     internal fun abandonedStageCleanupCommand(): String =
         "for path in /storage/FFFF-FFFC/denza-apps-install-*; do " +
