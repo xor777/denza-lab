@@ -28,50 +28,32 @@ internal class SplitTeardown(
         val mainDisplayTasks = before.roots
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap(SplitRootTask::tasks)
-        // Чей это split, и почему это решается не по id.
-        //
-        // Штатный пикер в панели - наш артефакт ровно тогда, когда сцена наша: прошивка сама
-        // занимает им освободившуюся панель НАШЕЙ сцены, и не убрать его значит оставить
-        // пользователю штатный пикер в скрытом корне после выключения. Но ровно такая же задача -
-        // это чужой split, собранный пользователем штатными средствами, и его выключение нашего
-        // тумблера сносить не должно.
-        //
-        // Совпадением id эти два случая не различить: id штатного пикера мы не владеем никогда - в
-        // записанной сцене лежит id НАШЕГО пикера ([SplitOwnedScene.readOwnedSession], [SplitNavReturn.verifyNavigationReturnedOnce]),
-        // - поэтому правило «удалять только по записанному id» вырождается в «не удалять никогда».
-        // Доказательство берётся не с пикера, а со сцены: жива ли на главном экране хоть одна
-        // задача нашей точной identity (package + activity). Чужой split такую задачу содержать не
-        // может, а панель, занятая прошивкой в нашей сцене, - вторая наша панель ещё жива.
-        //
-        // Сторона отказа безопасная: если от нашей сцены не осталось ничего, штатный пикер живёт.
+        // A stock picker in a pane is ours to remove exactly when the scene is ours: the firmware
+        // fills a vacated pane of our scene with it, and leaving it would leave the user a stock
+        // picker in a hidden root after the off. The same task can also belong to a split the user
+        // built with the stock tools, which our toggle must not take down. Its id cannot tell the
+        // two apart - a recorded scene holds the ids of our pickers, never a stock one - so the
+        // proof is the scene's: a task of our exact picker identity still alive on the main
+        // display. A foreign split cannot hold one. With nothing of our scene left, the stock
+        // picker stays.
         val sceneIsOurs = mainDisplayTasks.any { task -> task.isDenzaPickerBase() }
-        // `com.byd.sr` здесь не трогается вовсе. Вставленный прошивкой bootstrap снимается там, где
-        // продукт знает его id и только что видел его своими глазами: [SplitEdge.attachPicker] →
-        // [SplitEdge.removeBootstrapIfPresent], сразу после запуска своего пикера в эту панель. К выключению
-        // такого доказательства нет, а пакет настоящий, пользовательский; полноэкранный
-        // `com.byd.sr` при этом не проходит [eligible], то есть его нельзя было бы даже опознать
-        // как то приложение, ради которого сцена разбирается.
+        // `com.byd.sr` is never touched here. The bootstrap the firmware inserts is removed where
+        // the product knows its id and has just seen it, in SplitEdge.attachPicker right after its
+        // own picker started in that pane. A teardown has no such proof, the package is a real
+        // user app, and a fullscreen `com.byd.sr` does not pass `eligible` below anyway.
         val pickerTasks = mainDisplayTasks
             .filter { task ->
                 (task.isStockSplitPicker() && sceneIsOurs) ||
                     pickerComponents.values.any { component -> task.matchesComponent(component) }
             }
         val pickerTaskIds = pickerTasks.mapTo(mutableSetOf(), SplitTask::id)
-        // `am stack list` orders roots by z-order, not by product ownership. A visible picker
-        // may therefore be reported before the real application in the peer pane. Do not turn
-        // that into "no foreground"; keep walking visible root tops until an actual user task
-        // is found.
-        // Кого пользователь считал открытым - вопрос к системе, а не к порядку контейнеров.
-        //
-        // Порядок root'ов в `am stack list` - это z-order, что комментарий ниже и говорит. Живьём
-        // (2026-08-27) он в обычных сценах идёт следом за фокусом, поэтому догадка обычно
-        // угадывает; но угадывать и знать - разное, а полноэкранным остаётся ровно одно
-        // приложение, и ошибка здесь видна пользователю сразу (1.2.3).
-        //
-        // Чтение необязательное. Команда живьём ещё не проверена (тоннель к машине упал раньше,
-        // чем до неё дошло), и незачем менять доказанно рабочее выключение на непроверенную
-        // команду: не ответила или назвала кого-то, кого мы и так не берём, - работает прежний
-        // обход, и причина уходит в журнал.
+        // The app that stays fullscreen is the one the system calls focused ([focusedTaskId];
+        // findings, "The focus read, proven on the product's own channel"): exactly one app is
+        // left, and the user sees a wrong guess at once (1.2.3). The order of `am stack list` is
+        // z-order, which usually follows focus but is not it, so it is only the fallback when the
+        // read answers nothing usable: walk the visible root tops until a real user task is
+        // found - a visible picker reported before the app of the peer pane is not "no
+        // foreground".
         val eligible = { task: SplitTask ->
             task.id !in pickerTaskIds &&
                 !task.isDenzaPickerBase() &&
@@ -110,12 +92,11 @@ internal class SplitTeardown(
             },
         )
 
-        // Правка W5 волны 7 (приёмочный пропуск DISABLE-sweep): безусловный финальный проход -
-        // СВОИ пикеры по exact identity на всём main display, независимо от того, что успело
-        // попасть в [pickerTasks] до перемещения foreground. Грязный мир с множественными
-        // сиротами добавляет их между снапшотом `before` и уборкой выше, и порядок гонки решал,
-        // выживет ли огрызок. Identity собственного постоянного пикера ([isDenzaPickerBase]) не
-        // может назвать чужую задачу, поэтому проход безусловен.
+        // A last pass that asks nothing: our own pickers by exact identity anywhere on the main
+        // display, whatever reached `pickerTasks` before the foreground moved. An orphan that
+        // appears between the first snapshot and the removal above would otherwise survive or
+        // not by the order of a race; our picker's identity ([isDenzaPickerBase]) cannot name
+        // anyone else's task.
         commands.removeTasksSafely(
             world.snapshot().roots.asSequence()
                 .filter { it.displayId == MAIN_DISPLAY_ID }
@@ -160,19 +141,16 @@ internal class SplitTeardown(
     }
 
     /**
-     * Какую задачу система считает сфокусированной, если её вообще можно спросить.
+     * The task the system calls focused, when it can be asked at all.
      *
-     * `dumpsys window` на этой прошивке отвечает `mCurrentFocus=null` и `mFocusedApp=null` - поле,
-     * к которому тянется рука первым, здесь пустое (замерено 2026-08-27). Единственный непустой
-     * ответ даёт `dumpsys activity activities`, и он ходит за пальцем: тап в узкую панель называл
-     * задачу музыки, в широкую - навигатора, обратно - снова музыки.
+     * `dumpsys window` answers `mCurrentFocus=null` and `mFocusedApp=null` on this firmware; the
+     * one read that names the focus is `dumpsys activity activities`, and it follows the finger
+     * from pane to pane (findings, "Where focus actually is"). `topResumedActivity` does not
+     * serve: each root has its own, so it names a container's top, not the one focus of the screen.
      *
-     * `topResumedActivity` для этого не годится: он есть у каждого корня отдельно, то есть
-     * описывает вершину контейнера, а не единственный фокус экрана.
-     *
-     * Вывод сужается grep'ом на самой машине: полный дамп большой, а [SplitWorld.validateOutput] отвергает
-     * любой вывод со словом «Exception» - в дампе всех активностей оно может встретиться по совсем
-     * постороннему поводу. Ничего не бросает: не прочиталось - значит не прочиталось.
+     * The output is narrowed by `grep` on the car: the full dump is large, and
+     * [SplitWorld.validateOutput] rejects any output containing "Exception", which a dump of every
+     * activity may carry for unrelated reasons. It throws nothing: an unread focus is `null`.
      */
     private fun focusedTaskId(): Int? = runCatching {
         val dump = world.shell("dumpsys activity activities | grep mFocusedApp")

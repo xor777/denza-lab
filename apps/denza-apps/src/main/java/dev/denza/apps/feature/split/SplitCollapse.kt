@@ -39,11 +39,10 @@ internal class SplitCollapse(
         pickerComponents: Set<String>,
         previousPanes: Map<SplitPane, SplitPickerObservedPane>,
     ): Map<SplitPane, SplitPickerLivePane>? {
-        // Правка W1 (v20 D1): area читается ДО паузы. Над накрытой сценой - Home (0) или чужое
-        // fullscreen-окно (4) - дивайдера нет и settle ждать нечего: оконные эхо жеста возврата
-        // рождали этот реконсил над area 0, слепая pause(1500) держала единственного воркера, и
-        // следующий OPEN стоял за ним ~2 с очереди. Существование накрытой сцены проверяет
-        // вызывающий (инвариант 5); дивайдерный settle остаётся неизменным для живых area.
+        // The area is read BEFORE the pause. Over a covered scene - Home (0) or a fullscreen
+        // window (4) - there is no divider and no settle to wait for, and the single worker is not
+        // held for nothing while an open waits behind it. Whether a covered scene still exists is
+        // the caller's question (invariant 5); visible areas keep the divider's settle.
         val area = world.callInt("service call activity_task 30")
         if (area == AREA_HOME || area == AREA_FULL_IVI) return null
         world.pause(DIVIDER_RECONCILE_SETTLE_MS)
@@ -123,21 +122,17 @@ internal class SplitCollapse(
     }
 
     /**
-     * Adopts the one owned root left by a native edge collapse, with the reason it refused
-     * (правка W4, U5).
+     * Adopts the one owned root left by a native edge collapse, with the reason it refused (U5):
+     * every fail-closed predicate names itself, so a refusal during the firmware's two-pass
+     * teardown says which one disagreed.
      *
      * Area 1/2 identifies the surviving native pane, but not the previous logical owner. DiLink
      * may move the surviving app across the two native roots and detach both permanent picker
      * bases while it collapses the divider. Match the survivor by exact recorded task identities,
      * reattach only that app's exact picker base when necessary, and require the other native root
      * to be empty. BYD may retain the dismissed tasks as detached hidden roots; the coordinator
-     * removes only those exact recorded artifacts after adoption.
-     * This is deliberately separate from [SplitOwnedScene.existingOwnedSession], whose callers require an intact
-     * two-root scene.
-     *
-     * Диагноз v21 жил на полной тишине этих веток: во время двухпроходного teardown каждый
-     * fail-closed предикат отказывал честно, и ни одна строка нигде не говорила, который. Команды
-     * рецепта не изменены - имена получили только `null`-ветки.
+     * removes only those exact recorded artifacts after adoption. This is deliberately separate
+     * from [SplitOwnedScene.existingOwnedSession], whose callers require an intact two-root scene.
      */
     fun readCollapsedSession(
         pickerComponents: Set<String>,
@@ -269,7 +264,9 @@ internal class SplitCollapse(
         val error = IllegalStateException(
             "Split изменился после возврата picker ${survivorExpected.hostTaskId}",
         )
-        runCatching { commands.moveTask(survivorExpected.hostTaskId, rollbackRootId, toTop = false) }
+        runCatching {
+            commands.moveTask(survivorExpected.hostTaskId, rollbackRootId, toTop = false)
+        }
             .onFailure(error::addSuppressed)
         throw error
     }
@@ -309,37 +306,31 @@ internal class SplitCollapse(
     }
 
     /**
-     * Which recorded pane a native collapse closed, proven by existence alone (правка W1, 1.8.2,
-     * диагноз v21 Д1). Read-only.
+     * Which recorded pane a native collapse closed, proven by existence alone (1.8.2). Read-only.
      *
-     * Прошивочный «Release to close» отвязывает задачи живыми, не убивая, и во время его
-     * двухпроходного teardown полный постусловный набор [settledCollapsedPane] честно
-     * недоказуем - тот набор остаётся воротами физического reattach выжившего пикера
-     * ([readCollapsedSession]), но не воротами чистки памяти. Сам факт схлопывания доказывается
-     * существованием: при area 1/2 и записанной двухпанельной сцене схлопнута панель, чьи
-     * записанные задачи - host И app, по exact identity - отсутствуют в ОБОИХ панельных root.
-     * Выживший - другая панель.
+     * The firmware's "Release to close" detaches tasks alive, and during its two-pass teardown the
+     * full postcondition of [settledCollapsedPane] cannot honestly be proven: that set stays the
+     * gate of physically reattaching the survivor's picker ([readCollapsedSession]), not of
+     * forgetting a selection. The collapse itself is proven by existence: at area 1/2 over a
+     * recorded two-pane scene, a pane whose recorded tasks - host AND app, by exact identity - are
+     * missing from BOTH panel roots has been closed.
      *
-     * Сигнатура отличает схлопывание от краха 1.7.3: у краха host-пикер жив в панельном root и
-     * отсутствует только app - такая панель не схлопнута, это путь APP→PICKER. Панель без
-     * записанного app схлопнута, когда отсутствует её host.
+     * That signature tells a collapse from the crash of 1.7.3, where the host picker lives in its
+     * root and only the app is gone - that pane is not collapsed, it goes APP→PICKER. A pane with
+     * no recorded app is collapsed when its host is gone.
      *
-     * Правка W1 волны 9 (приёмка v24, Д1): КАКАЯ панель схлопнута, решает area, и только она.
-     * Карта tx30 (findings) называет выжившую панель поимённо - AREA_PRIMARY_FULL это PRIMARY,
-     * AREA_SECONDARY_FULL это SECONDARY, - а схлопнута другая. Существование остаётся условием
-     * факта («панель ушла из панельных корней целиком»), но не источником имени: имя, взятое из
-     * `absent`, врало бы о мире ровно там, где два чтения расходятся.
+     * WHICH pane collapsed is the area's word alone: the tx30 map names the survivor - area 1 is
+     * PRIMARY, area 2 SECONDARY - and the other one is closed. Existence is the condition of the
+     * fact, not the source of the name. So at area 1/2 there are three answers. Both panes left
+     * the roots: the area names the survivor (a narrow survivor that went fullscreen with the
+     * death of its picker base leaves the panel roots too). One left, and it is the one the area
+     * calls closed: the same fact, confirmed. One left, but the area calls it the SURVIVOR: two
+     * reads of one world disagree (a transient beat, a task of the closed pane lingering in a
+     * root), and the answer is a refusal - closing a slot on it would forget the user's choice,
+     * and the delayed retry reads the world again.
      *
-     * Отсюда три ответа при area 1/2. Ушли обе - выжившую назвала area: живая геометрия дефекта,
-     * где схлопывается широкая SECOND справа, а выжившая узкая уходит fullscreen вместе со
-     * смертью своей пикер-базы, - её приложение стоит уже в полноэкранном корне, и из панельных
-     * корней пропадают обе. Ушла одна, и это названная area схлопнутая, - тот же факт с
-     * подтверждением. Ушла одна, но area называет её ВЫЖИВШЕЙ, - противоречие (переходный такт,
-     * задержавшаяся в корне задача схлопнутой панели), и ответ на него fail-closed: закрыть по
-     * нему слот значило бы забыть выбор пользователя, а перечитает мир отложенный повтор.
-     *
-     * Конец сцены здесь ни при чём: он живёт под накрытием (area 0/4), а до этих строк накрытие
-     * не доходит вовсе.
+     * The end of a scene has nothing to do with this: it lives under a cover (area 0/4), which
+     * never reaches these lines.
      */
     fun readCollapsedPaneByExistence(
         pickerComponents: Set<String>,
@@ -376,10 +367,9 @@ internal class SplitCollapse(
             } == true
             !hostPresent && !appPresent
         }
-        // Схлопнутую панель называет area, и только она: existence подтверждает этот ответ, а не
-        // заменяет его. Панель, покинувшая корни, но названная area ВЫЖИВШЕЙ, - противоречие двух
-        // чтений одного мира (переходный такт, задержавшаяся в корне задача схлопнутой панели), и
-        // ответ на него - отказ: закрыть по нему слот значило бы забыть выбор пользователя.
+        // The area alone names the collapsed pane; existence confirms that answer, it does not
+        // replace it. A pane gone from the roots that the area calls the SURVIVOR is two reads
+        // disagreeing, and the answer is a refusal (see the KDoc).
         val collapsedByArea = survivorByArea.other()
         return when {
             absent.isEmpty() -> SplitCollapsedPaneRead(
@@ -404,45 +394,31 @@ internal class SplitCollapse(
 
     /**
      * The collapse proof that outlives the cover: the panel containers keep the geometry the
-     * firmware gave them (диагноз волны 12, живой протокол 2026-08-25).
+     * firmware gave them.
      *
-     * Оба прежних доказательства начинают с `area` и слепы при 0/4, а окно, в котором area держит
-     * 1/2, живьём длится меньше секунды: свайп схлопывания отвечает area 3→2 через ~0.8 с, Home
-     * уводит её в 0 через ~0.2 с после касания. Сверка, чей рецепт начинается со слепой паузы
-     * [DIVIDER_RECONCILE_SETTLE_MS], в это окно не смотрит ни разу - и выбор пользователя
-     * теряется навсегда (v27 A1-A6, 5 из 5).
+     * Both other proofs start from the `area` and are blind at 0/4, and the area holds 1/2 for
+     * less than a second: a collapsing swipe answers 3→2 after about 0.8 s, and Home takes it to 0
+     * about 0.2 s after the touch. A reconcile that starts with the divider's settle
+     * ([DIVIDER_RECONCILE_SETTLE_MS]) never looks inside that window.
      *
-     * Прошивка, однако, оставляет след, которого накрытие не стирает: схлопывание РАСТЯГИВАЕТ
-     * панельный контейнер выжившего на весь экран и оставляет его таким. Измерено на этой машине:
-     * - схлопнуто, затем Home: корни (tx118) `[1704,112][2536,1472]` и `[0,0][2560,1600]`, оба
-     *   пусты; пикер-база выжившего жива на весь экран, база закрытой панели мертва или осталась
-     *   панельного размера;
-     * - обычный Home над живой парой: `[1704,112][2536,1472]` и `[24,112][1680,1472]` - ни один
-     *   корень не вложен в другой. Ложное закрытие строго хуже пропущенного, и вложенность
-     *   корней здесь - обязательное первое слово прошивки, а не догадка продукта.
+     * The firmware leaves a trace the cover does not erase: a collapse STRETCHES the survivor's
+     * panel container over the whole screen and leaves it so. Measured on this car:
+     * - collapsed, then Home: roots (tx118) `[1704,112][2536,1472]` and `[0,0][2560,1600]`;
+     * - an ordinary Home over a live pair: `[1704,112][2536,1472]` and `[24,112][1680,1472]`, no
+     *   root inside the other.
+     * A false close is strictly worse than a missed one, so the nesting of the roots is the
+     * firmware's mandatory first word here, not a guess of the product's.
      *
-     * Выжившую панель называет НЕ `area`: на этой прошивке схлопывание всегда отвечает area=2 и
-     * переносит выжившего в контейнер SECONDARY, какой бы стороной он ни был до жеста (живьём:
-     * обе стороны дивайдера, обе назвали SECONDARY). Называет её exact identity ОКНА, которое
-     * прошивка растянула, - и закрытой панель признаётся только тогда, когда её записанные задачи
-     * покинули оба панельных корня. Read-only.
+     * The surviving pane is NOT named by the `area`: on this firmware a collapse always answers
+     * area 2 and moves the survivor into the SECONDARY container, from either side of the divider.
+     * It is named by the exact identity of the WINDOW the firmware stretched - the pane's app, or
+     * its picker base when the pane has no app ([isRecordedWindowOf]); with an app, the base keeps
+     * its panel bounds under the cover. A pane counts as closed only when its recorded tasks have
+     * left both panel roots. Read-only.
      *
-     * Правка волны 13 (П1, приёмка v28: 4 из 4 схлопываний SECONDARY не доказаны): растягивается
-     * ОКНО панели, а не её база. У панели с приложением это приложение, и её база остаётся на
-     * панельных границах - `v28-targeted` A1 под Home: базы `[24,112][856,1472]` и
-     * `[880,112][2536,1472]`, приложение выжившего t520 `[0,0][2560,1600]` в растянутом корне
-     * `[0,0][2560,1600]`. Волна 12 искала на растянутых границах базу и потому не находила там
-     * никого никогда. У панели БЕЗ приложения окно - сама база, и она растягивается: v25-B(iii),
-     * база выжившего t569 `[0,0][2560,1600] visible=true` при базе закрытой панели t570 на
-     * панельных `[880,112][2536,1472]` (1.8.2: «выживший-пикер - тоже нормальный случай»).
-     * Свежее схлопывание до накрытия растягивает в корне и то и другое (`21-after-dragL`), так
-     * что признак «окно панели на границах растянутого корня» верен в обоих измеренных мирах.
-     *
-     * Правка 2026-09-18 (решение владельца, раздел 5 «К 1.8»): чтение отдаёт ОБА имени. `collapsed`
-     * - логическая панель, чей выбор закрыт (`survivor.other()`), `survivorPane` - растянутый
-     * контейнер, то есть панель, в которой выживший физически остался. Раньше продукт знал только
-     * первое и селил выжившего по старой метке: живьём 18:55 музыка узкой панели после закрытия
-     * широкой возвращалась в узкую, хотя прошивка оставила её в широкой.
+     * The read returns BOTH names: `collapsed` is the logical pane whose selection is closed
+     * (`survivor.other()`), `survivorPane` the stretched container, the pane where the survivor
+     * physically stayed (contract section 5, "К 1.8").
      */
     fun collapsedPaneByPanelBounds(
         pickerComponents: Set<String>,
@@ -498,17 +474,17 @@ internal class SplitCollapse(
         } else {
             "приложение выжившего растянуто на весь экран"
         }
-        // Выжившего называет растянутый КОНТЕЙНЕР, а не прежняя метка: он и есть та панель, в
-        // которой прошивка оставила выжившего (решение владельца 2026-09-18).
+        // The stretched CONTAINER names the survivor's pane, not its old label: it is the pane
+        // the firmware left the survivor in (contract section 5, "К 1.8").
         return SplitCollapsedPaneRead(collapsed, stretched, "collapsed: $proof")
     }
 
     /**
-     * Записанное ОКНО панели: её приложение, а если приложения в записи нет - её пикер-база.
+     * The pane's recorded WINDOW: its application, or its picker base when no app is recorded.
      *
-     * Это единственное, что прошивка растягивает на схлопывании (правка волны 13, П1), и
-     * доказывается оно тем же exact identity, что и везде: task id плюс пакет для приложения,
-     * task id плюс собственный компонент для базы (инвариант 3, 4).
+     * It is the one thing the firmware stretches on a collapse, proven by the same exact identity
+     * as everywhere: task id plus package for an app, task id plus our own component for a base
+     * (invariants 3, 4).
      */
     private fun SplitTask.isRecordedWindowOf(
         expected: SplitPickerObservedPane,
@@ -523,8 +499,8 @@ internal class SplitCollapse(
     }
 
     /**
-     * Записанная сцена, по которой вообще можно судить о мире: у каждой панели есть база, а
-     * приложение записано либо целиком (задача И пакет), либо никак (правка W4, U5).
+     * A recorded scene the world can be judged by at all: every pane has a base, and an app is
+     * recorded either whole (task AND package) or not at all (U5).
      */
     private fun Map<SplitPane, SplitPickerObservedPane>.isCompleteTwoPaneRecord(): Boolean =
         values.none { expected ->
@@ -540,7 +516,7 @@ internal class SplitCollapse(
 }
 
 /**
- * What one read of a collapsed owned session concluded, and why (правка W4).
+ * What one read of a collapsed owned session concluded, and why.
  *
  * [reason] names the fail-closed predicate that refused - a diagnostic line, never a user-facing
  * message - so an unproven collapse says which gate disagreed instead of a silent `null` (U5).
@@ -553,10 +529,10 @@ internal class SplitCollapseRead(
 /**
  * The existence proof's edition of [SplitCollapseRead]: which pane fell, or why it is unknown.
  *
- * [collapsed] - ЛОГИЧЕСКАЯ панель, чей выбор закрыт; [survivorPane] - ФИЗИЧЕСКАЯ панель, в которой
- * прошивка оставила выжившего, и она непуста ровно тогда, когда непуст [collapsed]. На этой
- * прошивке они не обязаны быть противоположны: схлопывание переносит выжившего в контейнер
- * SECONDARY с любой стороны (решение владельца 2026-09-18, раздел 5 «К 1.8»).
+ * [collapsed] is the LOGICAL pane whose selection is closed; [survivorPane] is the PHYSICAL pane
+ * the firmware left the survivor in, set exactly when [collapsed] is. On this firmware they need
+ * not be opposite: a collapse moves the survivor into the SECONDARY container from either side
+ * (contract section 5, "К 1.8").
  */
 internal class SplitCollapsedPaneRead(
     val collapsed: SplitPane?,

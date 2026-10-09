@@ -1383,7 +1383,7 @@ class SplitPickerShellSessionTest {
 
     /**
      * Сосед с НАШЕЙ базой - это двухпанельная сцена, за которой area не успела, и такой мир
-     * принадлежит [SplitPickerShellSession.readOwnedSession], а не чтению выбора.
+     * принадлежит [SplitOwnedScene.readOwnedSession], а не чтению выбора.
      */
     @Test
     fun theSelectionReadRefusesWhileTheOtherRootStillHoldsOurBase() {
@@ -1400,7 +1400,7 @@ class SplitPickerShellSessionTest {
 
     /**
      * Накрытый мир (Home, чужое fullscreen-окно) чтению выбора не принадлежит: там верхнюю задачу
-     * панели не видно, и её правила - правила [SplitPickerShellSession.readOwnedSession].
+     * панели не видно, и её правила - правила [SplitOwnedScene.readOwnedSession].
      */
     @Test
     fun theSelectionReadRefusesACoveredWorld() {

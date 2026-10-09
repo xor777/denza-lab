@@ -3112,7 +3112,7 @@ class SplitScenarioTest {
      * закрытая получает свежий пикер.
      *
      * Доказывает это здесь чтение по границам панельных корней
-     * ([SplitPickerShellSession.collapsedPaneByPanelBounds]): Home накрыл экран, area ушла в 0, и
+     * ([SplitCollapse.collapsedPaneByPanelBounds]): Home накрыл экран, area ушла в 0, и
      * оба чтения по area слепы.
      */
     @Test
@@ -3194,7 +3194,7 @@ class SplitScenarioTest {
 
     /**
      * Тот же жест, но подсказка успела до накрытия: area держится 2, и схлопывание доказывает
-     * физическая адопция ([SplitPickerShellSession.readCollapsedSession]) - она называет корень
+     * физическая адопция ([SplitCollapse.readCollapsedSession]) - она называет корень
      * выжившего, а владельца его постоянной базы находит по exact identity записи.
      *
      * Ответ обязан быть тем же самым: путь доказательства не решает, в какой панели живёт выживший

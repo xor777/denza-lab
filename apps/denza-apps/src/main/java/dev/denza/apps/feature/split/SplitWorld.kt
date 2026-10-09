@@ -12,7 +12,8 @@ import dev.denza.apps.platform.shell.ServiceCallParcel
  * build, the selection, the collapse, the navigation return, the edge and the teardown - ask, and
  * this is the one place that turns a question into a command and an answer into the model
  * ([SplitTaskSnapshot], [SplitTopologyCache]). The identity predicates below the class are the
- * other half of reading the world: which task is ours, which is the firmware's, which is the user's.
+ * other half of reading the world: which task is ours, which is the firmware's, and which is the
+ * user's.
  */
 internal class SplitWorld(
     shell: (String) -> String,
@@ -138,9 +139,9 @@ internal class SplitWorld(
     /**
      * Waits for the firmware's own split area to reach a state, and not one slice longer.
      *
-     * The recipes used to sleep out a whole settle before looking even once, which on a transition
-     * the firmware had already finished was the user waiting for nothing at all (1.13). The budget
-     * and the mutation that precedes it are unchanged; what is gone is the sleeping through it.
+     * It looks first and sleeps only between looks, in [AREA_POLL_INTERVAL_MS] slices up to
+     * [budgetMs]: a transition the firmware has already finished costs one read, not a settle the
+     * user waits out for nothing (1.13).
      */
     fun awaitArea(budgetMs: Long, matches: (Int) -> Boolean): Boolean {
         var waited = 0L
@@ -167,10 +168,10 @@ internal class SplitWorld(
     }
 
     /**
-     * Polls the whole topology until [matches] agrees, within the discovery budget (правка A3).
+     * Polls the whole topology until [matches] agrees, within the discovery budget.
      *
-     * It replaces the blind settle a mutation used to sleep out: the first read usually already
-     * agrees - `am stack move-task` reparents synchronously on this firmware - and then the read
+     * A mutation is waited out by condition, not by a blind settle: the first read usually already
+     * agrees - `am stack move-task` reparents synchronously on this firmware - and the read then
      * doubles, through the shared topology cache, as the next phase's snapshot. A timeout is not
      * an error here: the recipes that use it end in their own postcondition, which is the honest
      * judge of whether the car really settled.
@@ -268,10 +269,10 @@ internal fun SplitRootTask.resolveExpectedCoveredApp(
 }
 
 /**
- * Инвариант 3: package сам по себе identity не доказывает. Собственные компоненты продукта -
- * постоянные пикеры и штатный bootstrap - не могут быть «найденным приложением», даже когда
- * запускается пакет самого продукта (U3). Живая мина v20 P1.2: при self-restore matcher по
- * одному пакету предпочёл бы свежесозданный пикер пре-существующему таску хаба.
+ * Invariant 3: a package alone proves no identity. The product's own components - the permanent
+ * pickers and the stock bootstrap - are never "the application found", even when the package being
+ * launched is the product's own (U3): matched by package alone, a freshly created picker would be
+ * taken for the hub's existing task.
  */
 internal fun SplitTask.isOwnSplitComponent(): Boolean =
     isDenzaPickerBase() || isNativeSplitBootstrap()

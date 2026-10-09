@@ -45,8 +45,8 @@ internal class SplitTaskCommands(
         pickerComponent: String,
         excludedTaskIds: Set<Int>,
     ): SplitTask {
-        // No settle prefix: the await below is already a poll, and the blind pause in front of it
-        // was the user waiting out a launch the firmware may have finished (1.13, правка A3).
+        // No settle before the poll: the await below already polls, and a blind pause in front of
+        // it would be the user waiting out a launch the firmware may have finished (1.13).
         startPickerInPane(pane, pickerComponent)
         return world.awaitTaskMatching { task ->
             task.id !in excludedTaskIds &&
@@ -78,9 +78,8 @@ internal class SplitTaskCommands(
      * [secondInstance] is the only thing that decides whether `FLAG_ACTIVITY_MULTIPLE_TASK` is set,
      * and it is true for exactly one situation: the same package being opened a second time while
      * the other pane still holds it (1.5.2). Everywhere else the flag is absent, so the firmware
-     * hands back the task the package already has - the whole point of a restore, which used to
-     * start a fresh copy behind a splash screen and leave the playing one orphaned outside the
-     * panes (acceptance v17: music #44 -> #66 -> #81).
+     * hands back the task the package already has: a restore keeps the app that is playing rather
+     * than starting a fresh copy behind a splash screen and orphaning the old one (U2).
      */
     fun startTargetInPane(
         pane: SplitPane,
@@ -106,11 +105,11 @@ internal class SplitTaskCommands(
      * The divider's detent map is decided by exactly that list: `isDefaultSecondActivity()` asks
      * whether the package of the wide container's focus task is in `mPrimaryActivityList` (or is
      * the stock list), and nothing else - not the manifest marker, not tx112 (findings, "The
-     * divider's detent map, read"). Asking tx112 first and listing only on "no" left every app that
-     * declares `BYD_SUPPORT_SPLIT_ACTIVITY=1` itself outside the list, with "Release to close
-     * window" in the wide pane - the hub's defect of 2026-09-11, for anybody's app. The same list
-     * makes a package split-capable for placement (`startIviWindow` → `isSupportSplit(task)`), so
-     * this is also what keeps a pane app's own next screen in its pane.
+     * divider's detent map, read"). An app that declares `BYD_SUPPORT_SPLIT_ACTIVITY=1` itself is
+     * split-capable for tx112 and still outside the list, with "Release to close window" in the
+     * wide pane, so the list is extended whatever tx112 says. The same list makes a package
+     * split-capable for placement (`startIviWindow` → `isSupportSplit(task)`), so this is also what
+     * keeps a pane app's own next screen in its pane.
      *
      * tx125 appends only what the list does not already hold (`setPrimaryListApp`), so a repeat is
      * free for the firmware; every call still reaches the ring as "allowlist extended" (1.12). The
@@ -126,24 +125,17 @@ internal class SplitTaskCommands(
     }
 
     /**
-     * Наш собственный пакет - в runtime-список прошивки, безусловно, один раз на сборку.
+     * Our own package into the firmware's runtime split list, unconditionally, once per build.
      *
-     * Здесь стояло `ensureSupported(SPLIT_HOST_PACKAGE)`, и для нашего пакета это было чтение,
-     * которое всегда отвечало «да»: манифест несёт `BYD_SUPPORT_SPLIT_ACTIVITY=1`, tx112 верна по
-     * построению, и tx125 не звалась никогда (живьём 2026-08-28: tx112 = 1, себя в список не
-     * вписываем). Карту детентов дивайдера при этом решает НЕ манифест, а членство пакета
-     * широкой панели в runtime-списке (`isDefaultSecondActivity`, изолирующий эксперимент
-     * dock-split-v19): навигатор, вписанный сюда через tx125, получает полную карту - ужать,
-     * расширить, закрыть; хаб, «уже поддерживаемый» по манифесту, - урезанную, где всё правее
-     * середины «Release to close window». Метка, делающая нас split-способными, лишала нас
-     * прописки в списке, от которого зависит дивайдер.
+     * Our manifest carries `BYD_SUPPORT_SPLIT_ACTIVITY=1`, so tx112 says yes for us by construction
+     * - and the divider's detent map is not decided by the manifest but by the wide pane's package
+     * being in the runtime list ([ensureSupported]; findings, "The divider's detent map, read"):
+     * listed, the hub in the wide pane gets the full map; merely manifest-capable, it gets the
+     * reduced one where everything right of the middle is "Release to close window". The same list
+     * makes the package split-capable for placement (`isSupportSplit(task)`).
      *
-     * Путь размещения список тоже читает: `startIviWindow` делит экран, когда `isSupportSplit(task)`,
-     * а та первым делом смотрит runtime-список (OTA 2026-09-23; прежнее «не читает вовсе» по корпусу
-     * 2026-08-28 было неверно). Так что эта транзакция и делает пакет split-способным для размещения,
-     * и даёт ему полную карту детентов; tx112 для нас и так `1`. Она стоит один round trip, как стоило чтение, которое она заменила, и
-     * попадает в ринг строкой «allowlist extended» (1.12): след живёт до перезагрузки, как и у
-     * любого выбранного приложения. Проверка tx112 после неё не нужна - манифест наш.
+     * It costs one round trip and reaches the ring as "allowlist extended" (1.12); the trace lasts
+     * until a reboot, like that of any selected app. No tx112 check follows: the manifest is ours.
      */
     fun listOwnPackageForTheDivider() {
         world.callVoid("service call activity_task 125 s16 ${shellQuote(SPLIT_HOST_PACKAGE)}")
@@ -194,12 +186,12 @@ internal class SplitTaskCommands(
     /**
      * Removes exactly these tasks, in this order, with one invocation of the proxy.
      *
-     * The removals themselves are the same exact-identity calls they have always been; what changed
-     * is that a recipe clearing several tasks no longer starts `app_process` several times. Loading
-     * the proxy dominates the cost of a removal by an order of magnitude, so a batch of three used
-     * to be three whole class loads and three settle pauses for work the firmware does at once.
+     * Each removal is an exact-identity call (task id, base component, and the top component when
+     * the task is the top); loading the proxy dominates the cost of a removal by an order of
+     * magnitude, so a recipe clearing several tasks starts `app_process` once and settles once.
+     *
+     * @return whether any of them was actually removed.
      */
-    /** @return whether any of them was actually removed. */
     fun removeTasksSafely(tasks: List<SplitTask>): Boolean {
         if (tasks.isEmpty()) return false
         val arguments = tasks.joinToString(" ") { task ->
@@ -248,26 +240,16 @@ internal class SplitTaskCommands(
         .toMap()
 
     /**
-     * Правка W3 волны 8: выселение чужого из панельного корня - живьём, в полноэкранный IVI root
-     * (примечание контракта под 1.5, инвариант 3). Команда - то же live-proven семейство
-     * `am stack move-task ... false`, которым borrowed-ветка [discardFailedRestoration] возвращала
-     * пре-существовавший таск; новых команд у выселения нет.
+     * Moves a user's task out of a panel root, alive, into the full IVI root (contract, note under
+     * 1.5; invariant 3), with the same `am stack move-task ... false` that returns a borrowed task.
      *
-     * Имя «in background» было ЛОЖЬЮ и удалено (живое измерение 2026-08-28): `am stack move-task
-     * <id> 4 false` не убирает задачу в фон - она остаётся в корне 4 со `visible=true`. Это та же
-     * машинная правда волны 10 «корень 4 фоновых задач не держит», прочитанная с другой стороны:
-     * выселенное окно не уезжает, оно ОСТАЁТСЯ ВИДИМЫМ. Значит его границы обязаны быть границами
-     * его корня - иначе оно накрывает всю сцену чужой геометрией (дефект 2026-08-27:
-     * `dev.denza.apps` шириной панели 832 px в полноэкранном корне 4 поверх обеих панелей).
-     *
-     * Прежний вывод «геометрия выселенной задачи принадлежит прошивке, спорить нечем» верен только
-     * для задачи, уехавшей в СОБСТВЕННЫЙ корень (`RootTask id=<taskId>`): там границы корня и есть
-     * границы задачи, приводить нечего. Для задачи-ЛИСТА внутри `ivi_full` ресайз принимается в обе
-     * стороны (живое измерение 2026-08-28, задача 151: `am task resize` в панельные 832 px и
-     * обратно в полноэкранные - оба раза принят). Поэтому нормализация здесь - тот же
-     * [normalizeTaskToRoot], а не новый механизм, и она молчалива: пакет, чью геометрию прошивка
-     * не отдаёт (live v20 P1.2, `resizeableActivity="false"`), не должен стоить пользователю всей
-     * сцены. Первый эшелон против этого дефекта - не выселение, а [recordSettledPanes].
+     * The move does not send the task to the background: root 4 holds no background tasks, and
+     * an evicted task stays there `visible=true`. So its bounds are made its new root's bounds
+     * ([normalizeTaskToRoot]; a leaf inside `ivi_full` accepts a resize either way), or it would
+     * cover the whole scene with a pane's geometry, and the scene is raised back over it. Both are
+     * quiet: a package whose geometry the firmware will not give up (`resizeableActivity="false"`)
+     * must not cost the user the whole scene. The first defence against an app landing in the
+     * wrong pane is the build's own record of where it landed, not this eviction.
      *
      * @return whether anything actually had to leave.
      */
@@ -282,18 +264,15 @@ internal class SplitTaskCommands(
     }
 
     /**
-     * Та же машинная правда, дочитанная до конца: раз выселенное окно остаётся видимым, оно
-     * встаёт ПОВЕРХ сцены (инцидент владельца 2026-08-27, `dev.denza.apps` во весь экран над обеими
-     * панелями), и area отвечает 4. Выселение без этого шага - рецепт, чьё постусловие (area 3)
-     * не может сойтись по построению: следом стоял откат «Нативный split не активировался», а
-     * пользователь смотрел на выселенное окно. Живьём это и есть «приложение вдруг на весь
-     * экран» после тапа в пикере или по кнопке.
+     * An evicted task stays visible, so it lands over the scene and the area answers 4; without
+     * this step the recipe's own postcondition (area 3) could not hold, and the user would be
+     * looking at the evicted window.
      *
-     * Сцену поднимает тот же live-proven `am task focus`, которым reveal возвращает накрытую пару
-     * поверх чужого полноэкранного окна (1.9.4, приёмка v24 A1: VLC/Brave поверх, 25-60 с). Фокус
-     * идёт на ВЕРХНЮЮ задачу панели: порядок в корне он не меняет, а панельные контейнеры возвращает
-     * на передний план. Читается одна area: сцена, которую выселение не накрыло, не стоит ни одной
-     * команды. Постусловие рецепта судит само - здесь ожидание не бросает.
+     * The scene is raised with the same `am task focus` that brings a covered pair back over a
+     * fullscreen window (1.9.4), aimed at the top task of a pane: it does not reorder the root, it
+     * brings the panel containers back to the front. One area read decides: a scene the eviction
+     * did not cover costs no command. The recipe's postcondition is the judge, so the wait here
+     * does not throw.
      */
     private fun raiseSceneOverTheEvicted() {
         if (world.callInt("service call activity_task 30") != AREA_FULL_IVI) return
@@ -301,9 +280,8 @@ internal class SplitTaskCommands(
         val state = world.snapshot()
         val top = SplitPane.entries.firstNotNullOfOrNull { pane ->
             val root = state.root(roots.getValue(pane)) ?: return@firstNotNullOfOrNull null
-            // Под накрытием `am stack list` прячет всех детей панели; верхнюю тогда называет
-            // компонент корня, а если и его нет - порядок, в котором прошивка перечисляет детей
-            // (снизу вверх).
+            // Under a cover `am stack list` hides every child of a pane; then the root's component
+            // names the top, and failing that the order the firmware lists children in (bottom up).
             (root.resolvedTopTask() ?: root.resolvedCoveredTopTask() ?: root.tasks.lastOrNull())
                 ?.takeUnless { task -> task.isEmptyRootMarker() }
         } ?: return
@@ -312,11 +290,11 @@ internal class SplitTaskCommands(
     }
 
     /**
-     * Инвариант геометрии для того, что сцена больше не держит: ни одна выселенная задача не
-     * остаётся с границами, не равными границам корня, в котором она оказалась.
+     * The geometry invariant for what the scene no longer holds: no evicted task keeps bounds
+     * other than those of the root it landed in.
      *
-     * Одно чтение на всё выселение называет, кто где приземлился; задача в собственном корне уже
-     * равна ему и не стоит ни одной команды.
+     * One read for the whole eviction names who landed where; a task in a root of its own already
+     * equals it and costs no command.
      */
     private fun normalizeEvictedTasksToTheirRoots(taskIds: Set<Int>) {
         val landed = world.snapshot()
@@ -332,23 +310,16 @@ internal class SplitTaskCommands(
     }
 
     /**
-     * Тот же проход для одной панели - его платит и выбор приложения (правка волны 13, П3).
+     * A pane is its picker base and at most one application: whatever else the given roots hold
+     * leaves them, by the rule of invariant 3 - our own components and tasks this operation
+     * provably created ([preexistingTaskIds] does not hold them) are removed, a user's task is
+     * evicted alive ([evictToFullRoot]). The firmware brings into a pane more than was asked for:
+     * a tap on a package with two living tasks can bring both. The usual case sends no command.
      *
-     * Прошивка приводит в панель не только то, что попросили: живьём (v28) тап по пакету с двумя
-     * живыми задачами привёл в корень обе. Панель - это её пикер-база и не больше одного
-     * приложения, поэтому лишнее уходит по тому же правилу, что и у сборки: своё и созданное
-     * этой операцией удаляется, задача пользователя уезжает живой в полноэкранный корень
-     * (инвариант 3, U2). Ни одной команды в обычном случае: лишнего нет - выхода нет.
-     *
-     * [residentByRoot] - приложение, которое каждая из этих панелей показывает. Его вторая живая
-     * задача лишней не бывает (1.5.2, правка волны 14): прошивка привела её сюда сама, сверху всё
-     * равно стоит то же самое приложение, и панель на экране правильная. Считать её лишней стоило
-     * волне 13 приёмки v29 - см. [selectApp].
-     *
-     * Правка 2026-09-04: то же правило для обеих панелей сборки, а не только для одной панели
-     * выбора. Путь ВОССТАНОВЛЕНИЯ этого аргумента не передавал вовсе, и вторая задача пакета
-     * уезжала в полноэкранный корень 4 - тот самый, что фоновых задач не держит: окно вставало
-     * поверх всей сцены (инцидент владельца 2026-08-27, предсказан и отложен в волне 15).
+     * [residentByRoot] names the application each of these panes shows. A second living task of
+     * that package is never surplus (1.5.2): the firmware brought it there itself, the same
+     * application is on top either way, and evicting a visible window to root 4 would put it over
+     * the whole scene. The build passes it for both panes, the selection for its one.
      */
     fun sweepRootsToBaseAndApp(
         keepByRoot: Map<Int, Set<Int>>,

@@ -488,16 +488,15 @@ private fun SplitPickerScreen(
                 .fillMaxSize()
                 .background(if (nativeBackgroundBlur) NativeBlurOverlay else FallbackBackground),
         ) {
-            // Правка W4 волны 8 (v23 Д3): колонки решает сам констрейнт ширины - панельные виды
-            // пиксельно неизменны, fullscreen перестал рисовать половину себя пустыми полями.
+            // The width constraint alone decides the columns: the panes' layout stays the same
+            // pixel for pixel, and a fullscreen picker does not draw half of itself as margins.
             val columnCount = splitPickerGridColumnCount(maxWidth.value)
-            // Правка W7 волны 7. Contract scenario 16: панель рисует свои декорации сама, и её
-            // окно честно сообщает НУЛЕВОЙ статусбарный inset - нативный drag control BYD висит
-            // ПОВЕРХ панели, не двигая её. Один statusBarsPadding() (f166d42) прижимал заголовок
-            // к самому верху, где он сливался с drag control («раньше было не так»: до f166d42
-            // стоял жёсткий top=42dp). Зазор - максимум из реального inset (полноэкранный пикер,
-            // оставленный Back'ом, 1.6.3: жёсткие 42dp там резали заголовок) и собственного
-            // воздуха панели, вместе с top-паддингом заголовка дающего прежние 42 dp.
+            // Contract scenario 16: the pane draws its own decorations, and its window reports a
+            // ZERO status-bar inset - BYD's native drag control hangs OVER the pane without moving
+            // it. A plain statusBarsPadding() pressed the header against the very top, into the
+            // drag control, and a fixed top of 42dp cut the header of a fullscreen picker left by
+            // Back (1.6.3). The gap is the larger of the real inset and the pane's own air, which
+            // with the header's top padding gives 42 dp in a pane.
             val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             Column(
                 modifier = Modifier
@@ -505,12 +504,9 @@ private fun SplitPickerScreen(
                     .padding(top = maxOf(statusBarInset, HeaderMinTopClearance)),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Правка W7(б): заголовок один и тот же и в покое, и во время запуска. Строка
-                // «Открываю …» дублировала крутилку на выбранной плитке и пригашение сетки -
-                // владелец: «как будто бы лишняя» - и дёргала верхнюю зону панели.
-                // Правка волны 11 (U5): и один и тот же во всех остальных случаях тоже. Заголовок
-                // панели носил тексты отказов - «Не удалось открыть приложение в этом окне»,
-                // «разрешите показ поверх других окон» - поверх работающего списка приложений.
+                // One header, the same at rest, during a launch and in every other case: a launch
+                // is shown by the spinner on the chosen tile and the dimmed grid, and a refusal
+                // is never a text over a working list of apps (U5).
                 Text(
                     modifier = Modifier
                         .fillMaxWidth()

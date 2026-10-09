@@ -29,6 +29,12 @@ internal class SplitGate(
     private val world: SplitWorld,
     private val gateLeaseStore: SplitGateLeaseStore,
 ) {
+    /**
+     * Opens the gate and takes the lease for it, whatever the gate was before: the gate's previous
+     * state cannot be read on this firmware (below), so the lease is always taken, and a toggle-off
+     * or the end of a scene leaves the gate closed. A lease that cannot be recorded closes the gate
+     * again at once and fails the recipe.
+     */
     fun ensureGateOpen() {
         // On this DiLink 5.1 build tx123 is `isCanSplit()`: for the BYD platform branch it is
         // a constant capability answer, not the current mIsEnterSplit value. Only tx126 changes
@@ -41,22 +47,17 @@ internal class SplitGate(
     }
 
     /**
-     * Closes only the split gate owned by this product after Home is authoritative.
+     * Suspends the gate this product owns once a read area confirms that Home covered the scene.
      *
-     * DiLink retains a separate global "last split pair" and otherwise resurrects that OEM pair
-     * when the user launches either remembered member from Home. Keep the lease so the next
-     * explicit Split Screen launch can reopen the gate, but never touch a gate we did not acquire.
+     * While the gate is open the firmware pulls the next split-capable start into the wide pane,
+     * and DiLink resurrects its remembered pair when either member is launched from Home, so a
+     * covered scene needs its gate closed (1.9.2, 1.9.3). The lease stays, so the next explicit
+     * open reopens the gate; a gate we did not acquire is never touched.
      *
-     * Правка W5 (1.9.3, диагноз v21 Д3-Б): закрыть gate при накрытой сцене - обязанность
-     * продукта, надёжно: при открытом gate прошивка сама втягивает split-способный пакет в
-     * широкую панель. Прежние шесть проб по 100 мс сдавались тихо; подтверждение накрытия теперь
-     * ретраится до [HOME_CONFIRM_BUDGET_MS], а [displaced] отдаёт воркер пользовательскому вводу
-     * немедленно - явное действие не ждёт фоновый шум (§4).
-     *
-     * Правка W3 волны 7: подтверждение - предикат накрытия ([SplitWorld.sceneCovered]: area 0 ИЛИ 4), не
-     * строгое ==0. Карта tx30 живьём (2026-08-25): в переходном грязном мире area дребезжит
-     * 0↔4 - чужое fullscreen-окно поверх накрывает сцену так же честно, как Home (1.11.5), а
-     * жёсткое ==0 сжигало весь бюджет над честно накрытой сценой и оставляло gate открытым.
+     * The cover is [SplitWorld.sceneCovered] - area 0 or 4: in a transient world the area flips
+     * between the two, and a fullscreen window covers the scene as honestly as Home does (1.11.5).
+     * It is polled up to [HOME_CONFIRM_BUDGET_MS], and [displaced] gives the worker to a waiting
+     * user request at once: an explicit action does not wait for background work (§4).
      */
     fun suspendOwnedGateForHome(
         displaced: () -> Boolean = { false },
@@ -74,19 +75,12 @@ internal class SplitGate(
 
     /**
      * One read, one decision, no waiting: the same suspension as [suspendOwnedGateForHome], for a
-     * caller that already has a reason to look at the world and no right to block in it.
+     * caller that already has a reason to look at the world and no right to block in it: the
+     * reconcile, so that the gate follows a cover even when no Home input ran (1.9.2; findings,
+     * "The Home hint arrives twice in eight").
      *
-     * Правка волны 17 (живой диагноз v33, 2026-08-26). Подвеска gate висела на ОДНОМ триггере -
-     * accessibility-событии пакета лаунчера, - и живой прогон показал, что событие приходит не
-     * всегда: из восьми обычных Home над живой сценой хинт пришёл дважды, а в шести случаях
-     * `HomeOperation` не запускалась ВООБЩЕ, gate оставался открытым (проверено через 65 с после
-     * Home), и следующий обычный запуск из дока прошивка втягивала в split - против 1.9.2. При
-     * этом на каждый Home приходили TYPE_WINDOWS_CHANGED, то есть сверка мир перечитывала и
-     * накрытие ВИДЕЛА (`collapse: area=0` в живом ринге), но про gate не знала.
-     *
-     * Полномочие мутации здесь то же, что и всегда: не событие, а прочитанная area 0/4
-     * ([SplitWorld.sceneCovered], 1.9.1, 1.11.5). Никакого нового канала и никакого таймерного цикла: это
-     * один вопрос машине внутри уже запланированного чтения.
+     * The authority is the same as the suspension's: a read area 0/4 ([SplitWorld.sceneCovered],
+     * 1.9.1, 1.11.5), never an event, and one question inside a read already planned.
      *
      * @return whether this call is what suspended it.
      */
@@ -100,13 +94,13 @@ internal class SplitGate(
     /**
      * The mirror of [suspendOwnedGateIfCovered]: one read, one decision, no waiting.
      *
-     * A suspension has exactly two ways back before this existed - the explicit open and the
-     * explicit tap in a picker, both of which run [ensureGateOpen]. A scene covered by something
-     * other than Home comes back by itself: the call ends, the camera goes away, the notification's
-     * app is closed with Back, and the pair the user left is on the screen again with the gate the
-     * product closed under the cover still closed. `startIviWindow` then answers every new task and
-     * every move-to-front of a pane member with `startFullWindow` (findings, "which panel a task
-     * lands in"), which is a member of the scene escaping to fullscreen with nobody having asked.
+     * The explicit open and a tap in a picker reopen a suspended gate through [ensureGateOpen]. A
+     * scene covered by something other than Home also comes back by itself - the call ends, the
+     * camera goes away, the notification's app is closed with Back - with the gate the product
+     * closed under the cover still closed, and then an activity start into a pane member's task
+     * goes to `startFullWindow` (findings, "Placement, read end to end"): a member of the scene
+     * escaping to fullscreen with nobody having asked. This reopens it when the reconcile or a
+     * reveal reads the scene visible again.
      *
      * Mutation authority is the same as the suspension's: a read area, never an event. Only a gate
      * this product holds the lease for, and only over a scene the area calls visible (1/2/3).
@@ -136,9 +130,8 @@ internal class SplitGate(
 
     private companion object {
         /**
-         * Правка W5: сколько suspend ждёт подтверждения area==0. Тихая сдача после 6×100 мс
-         * оставляла gate открытым над накрытой сценой (v21 Д3, уверенность «gate был открыт»
-         * ~0.8) - и прошивка честно втягивала следующий запуск в широкую панель.
+         * How long a Home's suspension waits for the cover to be read: long enough that a scene
+         * the area calls covered a little late still gets its gate closed (1.9.3).
          */
         const val HOME_CONFIRM_BUDGET_MS = 3_000L
     }
