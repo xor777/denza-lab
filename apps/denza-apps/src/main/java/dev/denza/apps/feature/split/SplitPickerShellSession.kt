@@ -1,6 +1,19 @@
 package dev.denza.apps.feature.split
 
-import dev.denza.apps.platform.shell.ServiceCallParcel
+import dev.denza.apps.feature.split.SplitWorld.Companion.APP_PLACEMENT_CONFIRM_ATTEMPTS
+import dev.denza.apps.feature.split.SplitWorld.Companion.APP_PLACEMENT_CONFIRM_INTERVAL_MS
+import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_BALANCED_SPLIT
+import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_FULL_IVI
+import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_HOME
+import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_POLL_INTERVAL_MS
+import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_PRIMARY_FULL
+import dev.denza.apps.feature.split.SplitWorld.Companion.AREA_SECONDARY_FULL
+import dev.denza.apps.feature.split.SplitWorld.Companion.EXIT_SETTLE_MS
+import dev.denza.apps.feature.split.SplitWorld.Companion.MAIN_DISPLAY_ID
+import dev.denza.apps.feature.split.SplitWorld.Companion.MAX_TASKS_PER_PANE
+import dev.denza.apps.feature.split.SplitWorld.Companion.ROOT_SETTLE_MS
+import dev.denza.apps.feature.split.SplitWorld.Companion.TASK_DISCOVERY_ATTEMPTS
+import dev.denza.apps.feature.split.SplitWorld.Companion.TASK_DISCOVERY_INTERVAL_MS
 import dev.denza.apps.platform.shell.classpathAssignment
 import dev.denza.apps.platform.shell.helperNotLoaded
 import dev.denza.apps.platform.shell.shellQuote
@@ -24,42 +37,16 @@ internal const val SPLIT_PHASE_ROOTS_PLACED = "roots-placed"
 internal class SplitPickerShellSession(
     shell: (String) -> String,
     private val apkPath: String,
-    private val settle: (Long) -> Unit = Thread::sleep,
+    settle: (Long) -> Unit = Thread::sleep,
     private val gateLeaseStore: SplitGateLeaseStore,
-    /**
-     * The topology reads of the operation this session belongs to. The default is a private one,
-     * which makes a stand-alone session share reads only within itself.
-     */
-    private val topology: SplitTopologyCache = SplitTopologyCache(),
+    /** The topology reads of the operation this session belongs to ([SplitWorld]). */
+    topology: SplitTopologyCache = SplitTopologyCache(),
     /** Where the shell-UID proxy is loaded from; the APK is the always-valid fallback. */
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
-    /**
-     * Milliseconds spent turning an answer into the model, reported to the operation's budget.
-     *
-     * Every parse of this session goes through it, so the ring can say whether a slow operation
-     * was slow because of the car or because of 8 KB of text and a regular expression per line.
-     */
-    private val parsed: (Long) -> Unit = {},
+    /** Milliseconds spent turning an answer into the model ([SplitWorld]). */
+    parsed: (Long) -> Unit = {},
 ) {
-    private val send = shell
-
-    /**
-     * Every command of every recipe, in the order the recipe sends it - unchanged, and the one
-     * place that decides whether the shared topology read may outlive it (deny by default).
-     */
-    private fun shell(command: String): String {
-        if (!SplitTopologyCache.isTopologyRead(command)) topology.invalidate()
-        return send(command)
-    }
-
-    /**
-     * Every settle pause of every recipe. It drops the shared topology read first: a recipe that
-     * waits is a recipe that expects the car to have changed underneath it.
-     */
-    private fun pause(millis: Long) {
-        topology.invalidate()
-        settle(millis)
-    }
+    private val world = SplitWorld(shell, settle, topology, parsed)
 
     /**
      * Waits read-only while the user is dragging the native divider.
@@ -72,8 +59,8 @@ internal class SplitPickerShellSession(
         var releasedBalancedSamples = 0
         var releasedNonBalancedSamples = 0
         repeat(NATIVE_PICKER_COMMIT_ATTEMPTS) { attempt ->
-            val balanced = callInt("service call activity_task 30") == AREA_BALANCED_SPLIT
-            val pointerActive = hasActivePointer(shell("dumpsys input"))
+            val balanced = world.callInt("service call activity_task 30") == AREA_BALANCED_SPLIT
+            val pointerActive = hasActivePointer(world.shell("dumpsys input"))
             if (pointerActive) {
                 releasedBalancedSamples = 0
                 releasedNonBalancedSamples = 0
@@ -87,7 +74,7 @@ internal class SplitPickerShellSession(
             if (releasedBalancedSamples >= NATIVE_PICKER_RELEASED_SAMPLES) return true
             if (releasedNonBalancedSamples >= NATIVE_PICKER_CANCELLED_SAMPLES) return false
             if (attempt + 1 < NATIVE_PICKER_COMMIT_ATTEMPTS) {
-                pause(NATIVE_PICKER_COMMIT_INTERVAL_MS)
+                world.pause(NATIVE_PICKER_COMMIT_INTERVAL_MS)
             }
         }
         return false
@@ -95,8 +82,8 @@ internal class SplitPickerShellSession(
 
     /** Final read-only guard immediately before a stock-picker observation becomes a mutation. */
     fun nativePickerMutationAllowed(): Boolean =
-        callInt("service call activity_task 30") == AREA_BALANCED_SPLIT &&
-            !hasActivePointer(shell("dumpsys input"))
+        world.callInt("service call activity_task 30") == AREA_BALANCED_SPLIT &&
+            !hasActivePointer(world.shell("dumpsys input"))
 
     /**
      * Closes only the split gate owned by this product after Home is authoritative.
@@ -111,7 +98,7 @@ internal class SplitPickerShellSession(
      * ретраится до [HOME_CONFIRM_BUDGET_MS], а [displaced] отдаёт воркер пользовательскому вводу
      * немедленно - явное действие не ждёт фоновый шум (§4).
      *
-     * Правка W3 волны 7: подтверждение - предикат накрытия ([sceneCovered]: area 0 ИЛИ 4), не
+     * Правка W3 волны 7: подтверждение - предикат накрытия ([SplitWorld.sceneCovered]: area 0 ИЛИ 4), не
      * строгое ==0. Карта tx30 живьём (2026-08-25): в переходном грязном мире area дребезжит
      * 0↔4 - чужое fullscreen-окно поверх накрывает сцену так же честно, как Home (1.11.5), а
      * жёсткое ==0 сжигало весь бюджет над честно накрытой сценой и оставляло gate открытым.
@@ -125,7 +112,7 @@ internal class SplitPickerShellSession(
             if (suspendOwnedGateIfCovered()) return true
             if (waited >= HOME_CONFIRM_BUDGET_MS || displaced()) return false
             val slice = minOf(AREA_POLL_INTERVAL_MS, HOME_CONFIRM_BUDGET_MS - waited)
-            pause(slice)
+            world.pause(slice)
             waited += slice
         }
     }
@@ -143,15 +130,15 @@ internal class SplitPickerShellSession(
      * накрытие ВИДЕЛА (`collapse: area=0` в живом ринге), но про gate не знала.
      *
      * Полномочие мутации здесь то же, что и всегда: не событие, а прочитанная area 0/4
-     * ([sceneCovered], 1.9.1, 1.11.5). Никакого нового канала и никакого таймерного цикла: это
+     * ([SplitWorld.sceneCovered], 1.9.1, 1.11.5). Никакого нового канала и никакого таймерного цикла: это
      * один вопрос машине внутри уже запланированного чтения.
      *
      * @return whether this call is what suspended it.
      */
     fun suspendOwnedGateIfCovered(): Boolean {
         if (!gateLeaseStore.isOwned()) return false
-        if (!sceneCovered()) return false
-        callVoid("service call activity_task 126 i32 0")
+        if (!world.sceneCovered()) return false
+        world.callVoid("service call activity_task 126 i32 0")
         return true
     }
 
@@ -173,8 +160,8 @@ internal class SplitPickerShellSession(
      */
     fun resumeOwnedGateIfVisible(): Boolean {
         if (!gateLeaseStore.isOwned()) return false
-        if (sceneCovered()) return false
-        callVoid("service call activity_task 126 i32 1")
+        if (world.sceneCovered()) return false
+        world.callVoid("service call activity_task 126 i32 1")
         return true
     }
 
@@ -189,12 +176,12 @@ internal class SplitPickerShellSession(
      * `topResumedActivity` для этого не годится: он есть у каждого корня отдельно, то есть
      * описывает вершину контейнера, а не единственный фокус экрана.
      *
-     * Вывод сужается grep'ом на самой машине: полный дамп большой, а [validateOutput] отвергает
+     * Вывод сужается grep'ом на самой машине: полный дамп большой, а [SplitWorld.validateOutput] отвергает
      * любой вывод со словом «Exception» - в дампе всех активностей оно может встретиться по совсем
      * постороннему поводу. Ничего не бросает: не прочиталось - значит не прочиталось.
      */
     private fun focusedTaskId(): Int? = runCatching {
-        val dump = shell("dumpsys activity activities | grep mFocusedApp")
+        val dump = world.shell("dumpsys activity activities | grep mFocusedApp")
         FOCUSED_TASK_PATTERN.find(dump)?.groupValues?.get(1)?.toIntOrNull()
     }.getOrNull()
 
@@ -233,7 +220,7 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
         expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
     ): SplitSceneRead {
-        val area = callInt("service call activity_task 30")
+        val area = world.callInt("service call activity_task 30")
         if (area != AREA_BALANCED_SPLIT && area != AREA_FULL_IVI && area != AREA_HOME) {
             return SplitSceneRead(null, "area=$area")
         }
@@ -270,14 +257,14 @@ internal class SplitPickerShellSession(
      * свежим пикером, а не быть усыновлённой как `FULL`.
      */
     fun readOwnedSelection(pickerComponents: Set<String>): SplitSceneRead {
-        val area = callInt("service call activity_task 30")
+        val area = world.callInt("service call activity_task 30")
         if (area == AREA_BALANCED_SPLIT) {
             return readOwnedScene(area, pickerComponents, emptyMap())
         }
         val survivor = SplitPane.entries.firstOrNull { pane -> pane.fullArea == area }
             ?: return SplitSceneRead(null, "area=$area")
-        val roots = nativeRootIds()
-        val state = snapshot()
+        val roots = world.nativeRootIds()
+        val state = world.snapshot()
         val other = survivor.other()
         val otherHoldsOwnBase = state.root(roots.getValue(other))?.tasks.orEmpty().any { task ->
             task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
@@ -309,8 +296,8 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
         expectedApps: Map<SplitPane, SplitPickerExpectedApp>,
     ): SplitSceneRead {
-        val roots = nativeRootIds()
-        val state = snapshot()
+        val roots = world.nativeRootIds()
+        val state = world.snapshot()
         val panes = mutableMapOf<SplitPane, SplitPickerLivePane>()
         SplitPane.entries.forEach { pane ->
             val root = state.root(roots.getValue(pane))
@@ -438,11 +425,11 @@ internal class SplitPickerShellSession(
         // рождали этот реконсил над area 0, слепая pause(1500) держала единственного воркера, и
         // следующий OPEN стоял за ним ~2 с очереди. Существование накрытой сцены проверяет
         // вызывающий (инвариант 5); дивайдерный settle остаётся неизменным для живых area.
-        val area = callInt("service call activity_task 30")
+        val area = world.callInt("service call activity_task 30")
         if (area == AREA_HOME || area == AREA_FULL_IVI) return null
-        pause(DIVIDER_RECONCILE_SETTLE_MS)
+        world.pause(DIVIDER_RECONCILE_SETTLE_MS)
         existingOwnedSession(pickerComponents)?.let { return it }
-        if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) return null
+        if (world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) return null
         if (previousPanes.keys != SplitPane.entries.toSet()) return null
 
         val observed = SplitPane.entries.map { pane -> previousPanes.getValue(pane) }
@@ -459,9 +446,9 @@ internal class SplitPickerShellSession(
             return null
         }
 
-        val roots = nativeRootIds()
+        val roots = world.nativeRootIds()
         val nativeRootIds = roots.values.toSet()
-        val state = snapshot()
+        val state = world.snapshot()
         val mainTasks = state.roots.asSequence()
             .filter { root -> root.displayId == MAIN_DISPLAY_ID }
             .flatMap { root -> root.tasks.asSequence() }
@@ -506,7 +493,7 @@ internal class SplitPickerShellSession(
                 moved = true
             }
         }
-        if (moved) pause(ROOT_SETTLE_MS)
+        if (moved) world.pause(ROOT_SETTLE_MS)
         SplitPane.entries.forEach { pane ->
             normalizeTaskToRoot(
                 taskId = hosts.getValue(pane).id,
@@ -537,7 +524,7 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
     ): SplitCollapseRead {
-        val area = callInt("service call activity_task 30")
+        val area = world.callInt("service call activity_task 30")
         val survivor = when (area) {
             AREA_PRIMARY_FULL -> SplitPane.PRIMARY
             AREA_SECONDARY_FULL -> SplitPane.SECONDARY
@@ -556,8 +543,8 @@ internal class SplitPickerShellSession(
             return SplitCollapseRead(null, "запись сцены неполна")
         }
 
-        val roots = nativeRootIds()
-        val state = snapshot()
+        val roots = world.nativeRootIds()
+        val state = world.snapshot()
         val collapsedRoot = state.root(roots.getValue(survivor.other()))
         if (collapsedRoot?.tasks.orEmpty().any { task -> !task.isEmptyRootMarker() }) {
             return SplitCollapseRead(null, "в схлопнутом корне остались задачи")
@@ -639,8 +626,8 @@ internal class SplitPickerShellSession(
             try {
                 moveTask(detachedPicker.id, survivorRootId, toTop = false)
                 reattachedFromRootId = originalRootId
-                pause(ROOT_SETTLE_MS)
-                check(callInt("service call activity_task 30") == survivor.fullArea) {
+                world.pause(ROOT_SETTLE_MS)
+                check(world.callInt("service call activity_task 30") == survivor.fullArea) {
                     "Split изменился при возврате picker ${detachedPicker.id}"
                 }
                 normalizeTaskToRoot(detachedPicker.id, survivorRootId)
@@ -674,7 +661,7 @@ internal class SplitPickerShellSession(
         expected: SplitPickerObservedPane,
         pickerComponents: Set<String>,
     ): SplitPickerLivePane? {
-        val settledRoot = snapshot().root(rootId) ?: return null
+        val settledRoot = world.snapshot().root(rootId) ?: return null
         val picker = settledRoot.tasks.singleOrNull { task ->
             task.id == expected.hostTaskId &&
                 task.isDenzaPickerBase() &&
@@ -739,7 +726,7 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
     ): SplitCollapsedPaneRead {
-        val area = callInt("service call activity_task 30")
+        val area = world.callInt("service call activity_task 30")
         val survivorByArea = when (area) {
             AREA_PRIMARY_FULL -> SplitPane.PRIMARY
             AREA_SECONDARY_FULL -> SplitPane.SECONDARY
@@ -751,8 +738,8 @@ internal class SplitPickerShellSession(
         if (!expectedPanes.isCompleteTwoPaneRecord()) {
             return SplitCollapsedPaneRead(null, null, "запись сцены неполна")
         }
-        val roots = nativeRootIds()
-        val state = snapshot()
+        val roots = world.nativeRootIds()
+        val state = world.snapshot()
         val panelTasks = roots.values.mapNotNull(state::root).flatMap(SplitRootTask::tasks)
         val absent = SplitPane.entries.filter { pane ->
             val expected = expectedPanes.getValue(pane)
@@ -848,8 +835,8 @@ internal class SplitPickerShellSession(
         if (!expectedPanes.isCompleteTwoPaneRecord()) {
             return SplitCollapsedPaneRead(null, null, "запись сцены неполна")
         }
-        val roots = nativeRootIds()
-        val state = snapshot()
+        val roots = world.nativeRootIds()
+        val state = world.snapshot()
         val paneBounds = SplitPane.entries.associateWith { pane ->
             state.root(roots.getValue(pane))?.bounds
                 ?: return SplitCollapsedPaneRead(null, null, "$pane: контейнера нет")
@@ -858,7 +845,7 @@ internal class SplitPickerShellSession(
             paneBounds.getValue(pane).strictlyContains(paneBounds.getValue(pane.other()))
         } ?: return SplitCollapsedPaneRead(null, null, "панельные корни не вложены")
         val stretchedBounds = paneBounds.getValue(stretched)
-        val tasks = mainDisplayTasks()
+        val tasks = world.mainDisplayTasks()
         val survivors = SplitPane.entries.filter { pane ->
             val expected = expectedPanes.getValue(pane)
             tasks.any { task ->
@@ -939,7 +926,7 @@ internal class SplitPickerShellSession(
         existing: Map<SplitPane, SplitPickerLivePane>,
         pickerComponents: Set<String>,
     ): Map<SplitPane, SplitPickerLivePane> {
-        val area = callInt("service call activity_task 30")
+        val area = world.callInt("service call activity_task 30")
         if (area == AREA_BALANCED_SPLIT) {
             // A scene already on screen asks the firmware for nothing - with one exception. Its
             // gate may be one a cover suspended and nothing resumed (a call or a camera over the
@@ -964,8 +951,8 @@ internal class SplitPickerShellSession(
                 .mapNotNull { pane -> existing[pane]?.hostTaskId }
                 .firstOrNull()
             ?: error("В split-сессии нет задачи для возврата")
-        run("am task focus $focusTaskId")
-        check(awaitArea(EXIT_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
+        world.run("am task focus $focusTaskId")
+        check(world.awaitArea(EXIT_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
             "Прошивка не вернула существующий split на экран"
         }
         val revealed = existingOwnedSession(pickerComponents)
@@ -1038,12 +1025,12 @@ internal class SplitPickerShellSession(
                 .onSuccess { wanted[pane] = target }
                 .onFailure { failed += pane }
         }
-        val rootIds = nativeRootIds()
+        val rootIds = world.nativeRootIds()
         // Do not enter through activity_task tx115 here. BYD remembers split-capable packages
         // globally and may restore an unrelated OEM companion (notably ADAS) before our launcher
         // gets control. Explicit PRIMARY/SECONDARY categories create and target the same native
         // roots without consulting that remembered OEM pair.
-        val before = snapshot()
+        val before = world.snapshot()
 
         // Phase 2 - the roots. A picker already in its pane is adopted, never rebuilt.
         val existingPickerTasks = SplitPane.entries.associateWith { pane ->
@@ -1095,7 +1082,7 @@ internal class SplitPickerShellSession(
         if (
             launchedPanes.isNotEmpty() &&
             SplitPane.PRIMARY !in launchedPanes &&
-            callInt("service call activity_task 30") in SINGLE_PANE_AREAS
+            world.callInt("service call activity_task 30") in SINGLE_PANE_AREAS
         ) {
             val picker = launchPickerTask(
                 pane = SplitPane.PRIMARY,
@@ -1137,7 +1124,7 @@ internal class SplitPickerShellSession(
         // waited out by condition, not by a blind pause: the read that confirms the reparent is,
         // through the shared topology cache, the very read the apps phase decides from (правка A3).
         if (reparented) {
-            awaitSnapshotMatching { state ->
+            world.awaitSnapshotMatching { state ->
                 SplitPane.entries.all { pane ->
                     state.root(rootIds.getValue(pane))?.tasks
                         ?.any { task -> task.id == pickerTasks.getValue(pane).id } == true
@@ -1148,9 +1135,9 @@ internal class SplitPickerShellSession(
         // truly empty scene came up as an ordinary fullscreen task. A scene assembled from
         // survivors has no divider on screen to drag - at Home there is none - and is raised by
         // the reveal's own focus command in the apps phase instead (правка B1).
-        if (launchedPicker && callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+        if (launchedPicker && world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
             dragDividerToBalanced()
-            check(awaitArea(NATIVE_PICKER_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
+            check(world.awaitArea(NATIVE_PICKER_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
                 "Прошивка не раскрыла native split"
             }
         }
@@ -1158,7 +1145,7 @@ internal class SplitPickerShellSession(
 
         // Phase 3 - the apps. One read decides which pane still needs a launch at all.
         val hostTaskIds = pickerTasks.mapValues { (_, picker) -> picker.id }
-        val settled = snapshot()
+        val settled = world.snapshot()
         val appTaskIds = mutableMapOf<SplitPane, Int>()
         val launching = mutableMapOf<SplitPane, SplitLaunchTarget>()
         val adoptedAppIds = mutableListOf<Int>()
@@ -1318,8 +1305,8 @@ internal class SplitPickerShellSession(
             // The reveal's own command, per adopted pane: it orders the exact task above its
             // picker and raises the covered scene on the way (правка B1, к 1.9.4). Membership is
             // then confirmed on the read the normalize pass shares.
-            adoptedAppIds.forEach { taskId -> run("am task focus $taskId") }
-            awaitSnapshotMatching { state ->
+            adoptedAppIds.forEach { taskId -> world.run("am task focus $taskId") }
+            world.awaitSnapshotMatching { state ->
                 appTaskIds.all { (pane, taskId) ->
                     state.root(rootIds.getValue(pane))?.tasks?.any { it.id == taskId } == true
                 }
@@ -1330,10 +1317,10 @@ internal class SplitPickerShellSession(
         // to grab under Home. One focus on an exact owned task - the app if there is one, else a
         // base - raises the assembled scene the way the reveal does (правка B1, к 1.9.4); a scene
         // already balanced costs one area read and nothing else.
-        if (!launchedPicker && callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+        if (!launchedPicker && world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
             val focusTaskId = appTaskIds.values.firstOrNull()
                 ?: hostTaskIds.getValue(SplitPane.PRIMARY)
-            run("am task focus $focusTaskId")
+            world.run("am task focus $focusTaskId")
         }
         onPhase("apps-launched")
 
@@ -1417,7 +1404,7 @@ internal class SplitPickerShellSession(
             // branch of v20 P1.2 burned two twelve-read budgets (~5 с каждый) against a task the
             // firmware refused to hold.
             val found = linkedMapOf<SplitPane, SplitTask>()
-            awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
+            world.awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
                 val tasks = state.roots.asSequence()
                     .filter { it.displayId == MAIN_DISPLAY_ID }
                     .flatMap { it.tasks.asSequence() }
@@ -1469,7 +1456,7 @@ internal class SplitPickerShellSession(
         // is the restore path's short one (правка W5): a reparent lands on the very next read,
         // and a task the firmware keeps out of the pane is answered by the pane's honest
         // degradation, not by twelve reads of hope.
-        awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
+        world.awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
             requested.all { (pane, taskId) ->
                 state.root(rootIds.getValue(pane))?.tasks?.any { it.id == taskId } == true
             }
@@ -1499,7 +1486,7 @@ internal class SplitPickerShellSession(
         appTaskIds: MutableMap<SplitPane, Int>,
         failed: MutableSet<SplitPane>,
     ) {
-        val state = snapshot()
+        val state = world.snapshot()
         val settledPanes = requested.mapValues { (_, taskId) ->
             SplitPane.entries.firstOrNull { candidate ->
                 state.root(rootIds.getValue(candidate))?.tasks?.any { it.id == taskId } == true
@@ -1545,8 +1532,8 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
     ): SplitPickerPlacement {
         ensureGateOpen()
-        val roots = nativeRootIds()
-        val before = snapshot()
+        val roots = world.nativeRootIds()
+        val before = world.snapshot()
         val pane = SplitPane.entries.firstOrNull { candidate ->
             before.root(roots.getValue(candidate))?.tasks?.any { task ->
                 task.id == pickerTaskId &&
@@ -1558,7 +1545,7 @@ internal class SplitPickerShellSession(
         val otherRootId = roots.getValue(pane.other())
         val expectedArea = expectedSelectionArea(
             pane = pane,
-            currentArea = callInt("service call activity_task 30"),
+            currentArea = world.callInt("service call activity_task 30"),
             otherRootVacant = before.root(otherRootId)
                 ?.tasks
                 ?.all { it.isEmptyRootMarker() } == true,
@@ -1612,7 +1599,7 @@ internal class SplitPickerShellSession(
         removeTasksSafely(ownArtifacts)
         evictToFullRoot(foreignOccupants)
 
-        val clearedState = snapshot()
+        val clearedState = world.snapshot()
         val clearedPicker = clearedState.root(targetRootId)?.tasks?.firstOrNull { task ->
             task.id == pickerHost.id &&
                 task.isDenzaPickerBase() &&
@@ -1655,7 +1642,7 @@ internal class SplitPickerShellSession(
             val settledPickerHost = if (settledPane == pane) {
                 pickerHost
             } else {
-                snapshot().root(settledRootId)?.tasks?.firstOrNull { task ->
+                world.snapshot().root(settledRootId)?.tasks?.firstOrNull { task ->
                     task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
                 } ?: error("Пикер панели, куда прошивка поставила приложение, не найден")
             }
@@ -1680,7 +1667,7 @@ internal class SplitPickerShellSession(
                 residentByRoot = mapOf(settledRootId to target.packageName),
             )
             normalizeTaskToRoot(settledAppTaskId, settledRootId)
-            pause(ROOT_SETTLE_MS)
+            world.pause(ROOT_SETTLE_MS)
 
             return awaitSelectedAppPlacement(
                 pane = settledPane,
@@ -1741,7 +1728,7 @@ internal class SplitPickerShellSession(
                 lastError = error
             }
             if (attempt + 1 < APP_PLACEMENT_CONFIRM_ATTEMPTS) {
-                pause(APP_PLACEMENT_CONFIRM_INTERVAL_MS)
+                world.pause(APP_PLACEMENT_CONFIRM_INTERVAL_MS)
             }
         }
         throw lastError ?: IllegalStateException(
@@ -1773,7 +1760,7 @@ internal class SplitPickerShellSession(
         expectedArea: Int,
         preservedTargetTaskRoots: Map<Int, Int>,
     ): SplitPickerPlacement {
-        val root = snapshot().root(rootId)
+        val root = world.snapshot().root(rootId)
             ?: error("Split-контейнер выбранного окна исчез")
         check(root.tasks.any {
             it.id == pickerHost.id &&
@@ -1790,7 +1777,7 @@ internal class SplitPickerShellSession(
         check(top.bounds == root.bounds) {
             "Приложение ${target.packageName} не приняло размер выбранного окна"
         }
-        check(callInt("service call activity_task 30") == expectedArea) {
+        check(world.callInt("service call activity_task 30") == expectedArea) {
             "Split не перешёл в рабочее состояние"
         }
         // Правка волны 14: панель - это её база и ОДНО приложение, а не две задачи. Живая вторая
@@ -1830,7 +1817,7 @@ internal class SplitPickerShellSession(
         target: SplitLaunchTarget,
         launchedTaskId: Int,
     ): Int {
-        val root = snapshot().root(rootId) ?: error("Split-контейнер выбранного окна исчез")
+        val root = world.snapshot().root(rootId) ?: error("Split-контейнер выбранного окна исчез")
         val candidates = root.tasks.filter { task ->
             task.id != pickerHostTaskId &&
                 !task.isEmptyRootMarker() &&
@@ -1863,15 +1850,15 @@ internal class SplitPickerShellSession(
         excludedTaskIds: Set<Int> = emptySet(),
     ): SplitTask {
         startTargetInPane(pane, target, secondInstance)
-        pause(APP_LAUNCH_SETTLE_MS)
-        val direct = awaitTaskMatching { task ->
+        world.pause(APP_LAUNCH_SETTLE_MS)
+        val direct = world.awaitTaskMatching { task ->
             task.id !in excludedTaskIds &&
                 task.packageName == target.packageName &&
                 !task.isOwnSplitComponent()
         }
         promoteTask(direct, rootIds.getValue(pane))
         var settled: SplitTask? = null
-        awaitSnapshotMatching { state ->
+        world.awaitSnapshotMatching { state ->
             settled = rootIds.values.asSequence()
                 .mapNotNull(state::root)
                 .flatMap { root -> root.tasks.asSequence() }
@@ -1902,7 +1889,7 @@ internal class SplitPickerShellSession(
             SplitPane.PRIMARY -> PRIMARY_PICKER_CATEGORY
             SplitPane.SECONDARY -> SECONDARY_PICKER_CATEGORY
         }
-        run(
+        world.run(
             "am start -a android.intent.action.MAIN " +
                 "-c android.intent.category.LAUNCHER " +
                 "-c $category " +
@@ -1916,7 +1903,7 @@ internal class SplitPickerShellSession(
         baselineTaskIds: Set<Int>,
         preservedTargetTaskRoots: Map<Int, Int>,
     ) {
-        snapshot().roots.asSequence()
+        world.snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
             .filter { task -> task.id !in baselineTaskIds && task.packageName == packageName }
@@ -1930,7 +1917,7 @@ internal class SplitPickerShellSession(
         preservedTaskRoots: Map<Int, Int>,
     ) {
         if (preservedTaskRoots.isEmpty()) return
-        val current = mainDisplayTasks().associateBy(SplitTask::id)
+        val current = world.mainDisplayTasks().associateBy(SplitTask::id)
         preservedTaskRoots.forEach { (taskId, rootId) ->
             val task = current[taskId]
                 ?: error("Не удалось сохранить уже открытое окно $packageName")
@@ -1939,7 +1926,7 @@ internal class SplitPickerShellSession(
             }
             if (task.rootId != rootId) moveTask(taskId, rootId)
         }
-        pause(ROOT_SETTLE_MS)
+        world.pause(ROOT_SETTLE_MS)
         requirePreservedTargetTasks(packageName, preservedTaskRoots)
     }
 
@@ -1948,7 +1935,7 @@ internal class SplitPickerShellSession(
         preservedTaskRoots: Map<Int, Int>,
     ) {
         if (preservedTaskRoots.isEmpty()) return
-        val current = mainDisplayTasks().associateBy(SplitTask::id)
+        val current = world.mainDisplayTasks().associateBy(SplitTask::id)
         preservedTaskRoots.forEach { (taskId, rootId) ->
             val task = current[taskId]
                 ?: error("Уже открытое окно $packageName исчезло")
@@ -1958,27 +1945,12 @@ internal class SplitPickerShellSession(
         }
     }
 
-    /**
-     * Every task the main display holds right now.
-     *
-     * A mutating operation reads it before its first command, because a launch without
-     * `MULTIPLE_TASK` hands back the task the package already had - wherever on the screen that
-     * was. Journalling one of those as "created" would let an unwind close an application the user
-     * was already running (invariant 3, U2).
-     */
-    fun livingTaskIds(): Set<Int> = mainDisplayTasks().mapTo(mutableSetOf(), SplitTask::id)
-
-    private fun mainDisplayTasks(): List<SplitTask> = snapshot().roots.asSequence()
-        .filter { it.displayId == MAIN_DISPLAY_ID }
-        .flatMap { it.tasks.asSequence() }
-        .toList()
-
     private fun requirePickerReady(
         rootId: Int,
         pickerTaskId: Int,
         pickerComponents: Set<String>,
     ) {
-        val root = snapshot().root(rootId)
+        val root = world.snapshot().root(rootId)
             ?: error("Split-контейнер исчез после неудачного запуска")
         val picker = root.tasks.singleOrNull { task ->
             task.id == pickerTaskId &&
@@ -2005,7 +1977,7 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
         expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
     ): SplitNavigationReturnPlan {
-        val roots = nativeRootIds()
+        val roots = world.nativeRootIds()
         val originalPane = SplitPane.entries.firstOrNull { pane ->
             roots.getValue(pane) == originalRootTaskId
         }
@@ -2013,7 +1985,7 @@ internal class SplitPickerShellSession(
         if (hiddenOwnedSession != null) {
             revealOwnedSession(hiddenOwnedSession, pickerComponents)
         }
-        if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+        if (world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
             return SplitNavigationReturnPlan(
                 pane = originalPane,
                 rootTaskId = originalRootTaskId,
@@ -2022,7 +1994,7 @@ internal class SplitPickerShellSession(
             )
         }
 
-        val before = snapshot()
+        val before = world.snapshot()
         val pickerByPane = SplitPane.entries.associateWith { pane ->
             before.root(roots.getValue(pane))?.tasks?.singleOrNull { task ->
                 task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
@@ -2088,7 +2060,7 @@ internal class SplitPickerShellSession(
             } catch (error: Throwable) {
                 lastError = error
                 if (attempt + 1 < TASK_DISCOVERY_ATTEMPTS) {
-                    pause(TASK_DISCOVERY_INTERVAL_MS)
+                    world.pause(TASK_DISCOVERY_INTERVAL_MS)
                 }
             }
         }
@@ -2103,7 +2075,7 @@ internal class SplitPickerShellSession(
     ): SplitPickerPlacement {
         val pane = plan.pane ?: error("Не выбран split-контейнер возврата")
         val hostTaskId = plan.hostTaskId ?: error("Не найден пикер окна возврата")
-        val root = snapshot().root(plan.rootTaskId)
+        val root = world.snapshot().root(plan.rootTaskId)
             ?: error("Split-контейнер возврата исчез")
         check(root.tasks.any { task ->
             task.id == hostTaskId &&
@@ -2129,8 +2101,8 @@ internal class SplitPickerShellSession(
         pane: SplitPane,
         pickerComponents: Set<String>,
     ): SplitPickerPaneObservation {
-        val roots = nativeRootIds()
-        val root = snapshot().root(roots.getValue(pane))
+        val roots = world.nativeRootIds()
+        val root = world.snapshot().root(roots.getValue(pane))
         val nativeHost = root?.tasks?.firstOrNull { it.isNativeSplitBootstrap() }
         val pickerHost = nativeHost?.takeIf { it.matchesAnyTopComponent(pickerComponents) }
             ?: root?.tasks?.firstOrNull { it.matchesAnyComponent(pickerComponents) }
@@ -2157,8 +2129,8 @@ internal class SplitPickerShellSession(
         hostTaskId: Int,
         pickerComponents: Set<String>,
     ): SplitPickerPaneObservation? {
-        val roots = nativeRootIds()
-        val state = snapshot()
+        val roots = world.nativeRootIds()
+        val state = world.snapshot()
         // BYD can temporarily strand both permanent picker bases in one root while moving the
         // visible app to the other during divider resize. That is not a picker reveal: emitting
         // one here would erase the recorded APP ownership before reconcileDividerResize repairs
@@ -2191,13 +2163,6 @@ internal class SplitPickerShellSession(
     }
 
     /**
-     * Whether the firmware currently covers the scene: Home (area 0) and a foreign fullscreen
-     * window (area 4) hide it without ending it (инвариант 5, 1.9.1, 1.11.5). Read-only.
-     */
-    fun sceneCovered(): Boolean =
-        callInt("service call activity_task 30").let { it == AREA_HOME || it == AREA_FULL_IVI }
-
-    /**
      * Whether every recorded member of the scene is still alive on the main display under its
      * exact recorded identity - a picker by task id and our own component, an app by task id and
      * package (инвариант 5, ред. 2026-08-24).
@@ -2214,7 +2179,7 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
     ): Boolean {
         if (scene.isEmpty()) return false
-        val tasks = mainDisplayTasks()
+        val tasks = world.mainDisplayTasks()
         return scene.values.all { observed ->
             tasks.any { task ->
                 task.id == observed.hostTaskId &&
@@ -2247,7 +2212,7 @@ internal class SplitPickerShellSession(
     fun deadRecordedApps(scene: Map<SplitPane, SplitPickerLivePane>): Set<SplitPane> {
         val apps = scene.filterValues { observed -> observed.appTaskId != null }
         check(apps.isNotEmpty()) { "У записанной сцены нет приложений-якорей" }
-        val tasks = mainDisplayTasks()
+        val tasks = world.mainDisplayTasks()
         return apps.filterValues { observed ->
             tasks.none { task ->
                 task.id == observed.appTaskId &&
@@ -2271,8 +2236,8 @@ internal class SplitPickerShellSession(
         scene: Map<SplitPane, SplitPickerLivePane>,
         pickerComponents: Set<String>,
     ): Boolean {
-        pause(SCENE_END_CONFIRM_SETTLE_MS)
-        return !allRecordedMembersAlive(scene, pickerComponents) && sceneCovered()
+        world.pause(SCENE_END_CONFIRM_SETTLE_MS)
+        return !allRecordedMembersAlive(scene, pickerComponents) && world.sceneCovered()
     }
 
     /**
@@ -2288,10 +2253,10 @@ internal class SplitPickerShellSession(
     fun confirmDeadRecordedApps(
         scene: Map<SplitPane, SplitPickerLivePane>,
     ): SplitDeadAppsConfirmation {
-        pause(SCENE_END_CONFIRM_SETTLE_MS)
+        world.pause(SCENE_END_CONFIRM_SETTLE_MS)
         return SplitDeadAppsConfirmation(
             deadPanes = deadRecordedApps(scene),
-            covered = sceneCovered(),
+            covered = world.sceneCovered(),
         )
     }
 
@@ -2308,8 +2273,8 @@ internal class SplitPickerShellSession(
      * [singleVisiblePickerTaskId] already pays for.
      */
     fun visiblePickerTaskIds(pickerComponents: Set<String>): List<Int> {
-        val roots = nativeRootIds()
-        val state = snapshot()
+        val roots = world.nativeRootIds()
+        val state = world.snapshot()
         return roots.values.asSequence()
             .mapNotNull(state::root)
             .flatMap { root -> root.tasks.asSequence() }
@@ -2327,8 +2292,8 @@ internal class SplitPickerShellSession(
         hostTaskId: Int,
         pickerComponent: String,
     ): Int {
-        val rootId = nativeRootIds().getValue(pane)
-        val host = snapshot().root(rootId)?.tasks
+        val rootId = world.nativeRootIds().getValue(pane)
+        val host = world.snapshot().root(rootId)?.tasks
             ?.firstOrNull { it.id == hostTaskId && it.isNativeSplitBootstrap() }
             ?: error("Штатный host выбранного окна исчез")
         check(nativePickerMutationAllowed()) {
@@ -2336,7 +2301,7 @@ internal class SplitPickerShellSession(
         }
         val picker = launchPickerInPane(pane, rootId, pickerComponent)
         removeBootstrapIfPresent(host)
-        pause(ROOT_SETTLE_MS)
+        world.pause(ROOT_SETTLE_MS)
         val observed = observePane(pane, setOf(pickerComponent))
         check(observed.hostTaskId == picker.id && observed.pickerVisible) {
             "Пикер не стал верхним в выбранном окне"
@@ -2345,7 +2310,7 @@ internal class SplitPickerShellSession(
     }
 
     fun removeRecordedTask(taskId: Int, packageName: String): Boolean {
-        val task = snapshot().roots.asSequence()
+        val task = world.snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
             .firstOrNull { it.id == taskId && it.packageName == packageName }
@@ -2367,7 +2332,7 @@ internal class SplitPickerShellSession(
      * @return the ids that were actually removed.
      */
     fun removePickerArtifacts(taskIds: List<Int>, pickerComponents: Set<String>): List<Int> {
-        val tasks = snapshot().roots.asSequence()
+        val tasks = world.snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
             .filter {
@@ -2398,8 +2363,8 @@ internal class SplitPickerShellSession(
         pickerTaskId: Int,
         preexistingTaskIds: Set<Int>?,
     ): Boolean {
-        val rootId = nativeRootIds().getValue(pane)
-        val candidates = snapshot().root(rootId)?.tasks.orEmpty().filter { task ->
+        val rootId = world.nativeRootIds().getValue(pane)
+        val candidates = world.snapshot().root(rootId)?.tasks.orEmpty().filter { task ->
             task.id != pickerTaskId &&
                 task.packageName == packageName &&
                 !task.isDenzaPickerBase()
@@ -2437,9 +2402,9 @@ internal class SplitPickerShellSession(
      */
     private fun evictToFullRoot(tasks: List<SplitTask>): Boolean {
         if (tasks.isEmpty()) return false
-        val fullRootId = fullIviRootTaskId()
+        val fullRootId = world.fullIviRootTaskId()
         tasks.forEach { task -> moveTask(task.id, fullRootId, toTop = false) }
-        pause(ROOT_SETTLE_MS)
+        world.pause(ROOT_SETTLE_MS)
         normalizeEvictedTasksToTheirRoots(tasks.mapTo(mutableSetOf(), SplitTask::id))
         raiseSceneOverTheEvicted()
         return true
@@ -2460,9 +2425,9 @@ internal class SplitPickerShellSession(
      * команды. Постусловие рецепта судит само - здесь ожидание не бросает.
      */
     private fun raiseSceneOverTheEvicted() {
-        if (callInt("service call activity_task 30") != AREA_FULL_IVI) return
-        val roots = nativeRootIds()
-        val state = snapshot()
+        if (world.callInt("service call activity_task 30") != AREA_FULL_IVI) return
+        val roots = world.nativeRootIds()
+        val state = world.snapshot()
         val top = SplitPane.entries.firstNotNullOfOrNull { pane ->
             val root = state.root(roots.getValue(pane)) ?: return@firstNotNullOfOrNull null
             // Под накрытием `am stack list` прячет всех детей панели; верхнюю тогда называет
@@ -2471,8 +2436,8 @@ internal class SplitPickerShellSession(
             (root.resolvedTopTask() ?: root.resolvedCoveredTopTask() ?: root.tasks.lastOrNull())
                 ?.takeUnless { task -> task.isEmptyRootMarker() }
         } ?: return
-        run("am task focus ${top.id}")
-        awaitArea(EXIT_SETTLE_MS) { area -> area != AREA_FULL_IVI }
+        world.run("am task focus ${top.id}")
+        world.awaitArea(EXIT_SETTLE_MS) { area -> area != AREA_FULL_IVI }
     }
 
     /**
@@ -2483,7 +2448,7 @@ internal class SplitPickerShellSession(
      * равна ему и не стоит ни одной команды.
      */
     private fun normalizeEvictedTasksToTheirRoots(taskIds: Set<Int>) {
-        val landed = snapshot()
+        val landed = world.snapshot()
         landed.roots.asSequence()
             .filter { root -> root.displayId == MAIN_DISPLAY_ID && root.bounds.hasArea() }
             .flatMap { root ->
@@ -2500,20 +2465,20 @@ internal class SplitPickerShellSession(
         taskId: Int,
         packageName: String,
     ) {
-        val before = snapshot()
+        val before = world.snapshot()
         val task = before.roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
             .firstOrNull { it.id == taskId && it.packageName == packageName }
             ?: return
-        val paneRootId = nativeRootIds().getValue(pane)
+        val paneRootId = world.nativeRootIds().getValue(pane)
         if (task.rootId != paneRootId) return
         moveTask(task.id, paneRootId)
-        callVoid(
+        world.callVoid(
             "service call activity_task 114 i32 " +
                 if (pane == SplitPane.PRIMARY) EXPAND_PRIMARY_MODE else EXPAND_SECONDARY_MODE,
         )
-        check(awaitArea(EXIT_SETTLE_MS) { it != AREA_BALANCED_SPLIT }) {
+        check(world.awaitArea(EXIT_SETTLE_MS) { it != AREA_BALANCED_SPLIT }) {
             "Возвращённое приложение осталось в закрытом split-контейнере"
         }
     }
@@ -2524,7 +2489,7 @@ internal class SplitPickerShellSession(
      * task to the full IVI root, then remove only picker and unselected host artifacts.
      */
     fun closePickers(pickerComponents: Map<SplitPane, String>) {
-        val before = snapshot()
+        val before = world.snapshot()
         val mainDisplayTasks = before.roots
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap(SplitRootTask::tasks)
@@ -2589,18 +2554,18 @@ internal class SplitPickerShellSession(
         closeOwnedGate()
 
         if (foreground != null) {
-            val fullRootId = fullIviRootTaskId()
+            val fullRootId = world.fullIviRootTaskId()
             if (foreground.rootId != fullRootId) {
                 moveTask(foreground.id, fullRootId)
             }
             normalizeTaskToRoot(foreground.id, fullRootId)
-            pause(EXIT_SETTLE_MS)
+            world.pause(EXIT_SETTLE_MS)
         } else {
-            run("input keyevent KEYCODE_HOME")
-            pause(EXIT_SETTLE_MS)
+            world.run("input keyevent KEYCODE_HOME")
+            world.pause(EXIT_SETTLE_MS)
         }
 
-        val current = snapshot()
+        val current = world.snapshot()
         removeTasksSafely(
             pickerTasks.mapNotNull { previous ->
                 current.roots.asSequence()
@@ -2617,17 +2582,17 @@ internal class SplitPickerShellSession(
         // выживет ли огрызок. Identity собственного постоянного пикера ([isDenzaPickerBase]) не
         // может назвать чужую задачу, поэтому проход безусловен.
         removeTasksSafely(
-            snapshot().roots.asSequence()
+            world.snapshot().roots.asSequence()
                 .filter { it.displayId == MAIN_DISPLAY_ID }
                 .flatMap { it.tasks.asSequence() }
                 .filter { task -> task.isDenzaPickerBase() }
                 .toList(),
         )
 
-        val after = snapshot()
+        val after = world.snapshot()
         if (foreground != null) {
-            val fullRootId = fullIviRootTaskId()
-            when (val area = callInt("service call activity_task 30")) {
+            val fullRootId = world.fullIviRootTaskId()
+            when (val area = world.callInt("service call activity_task 30")) {
                 AREA_HOME -> Unit // The user explicitly left while cleanup was in flight.
                 AREA_FULL_IVI -> {
                     val fullRoot = after.root(fullRootId)
@@ -2653,16 +2618,11 @@ internal class SplitPickerShellSession(
                 else -> error("Прошивка сохранила split после выключения: area=$area")
             }
         } else {
-            check(callInt("service call activity_task 30") == AREA_HOME) {
+            check(world.callInt("service call activity_task 30") == AREA_HOME) {
                 "Пустой split не закрылся на домашний экран"
             }
         }
     }
-
-    fun fullIviRootTaskId(): Int =
-        callInt("service call activity_task 118 i32 $AREA_FULL_IVI").also { rootId ->
-            check(rootId > 0) { "Прошивка не вернула полноэкранный IVI-контейнер" }
-        }
 
     private fun launchPickerInPane(
         pane: SplitPane,
@@ -2670,8 +2630,8 @@ internal class SplitPickerShellSession(
         pickerComponent: String,
     ): SplitTask {
         startPickerInPane(pane, pickerComponent)
-        pause(PICKER_SETTLE_MS)
-        return awaitTaskMatching { task ->
+        world.pause(PICKER_SETTLE_MS)
+        return world.awaitTaskMatching { task ->
             task.rootId == rootId &&
                 task.visible &&
                 task.isDenzaPickerBase() &&
@@ -2688,7 +2648,7 @@ internal class SplitPickerShellSession(
         // No settle prefix: the await below is already a poll, and the blind pause in front of it
         // was the user waiting out a launch the firmware may have finished (1.13, правка A3).
         startPickerInPane(pane, pickerComponent)
-        return awaitTaskMatching { task ->
+        return world.awaitTaskMatching { task ->
             task.id !in excludedTaskIds &&
                 task.rootId > 0 &&
                 task.isDenzaPickerBase() &&
@@ -2704,7 +2664,7 @@ internal class SplitPickerShellSession(
             SplitPane.PRIMARY -> PRIMARY_PICKER_CATEGORY
             SplitPane.SECONDARY -> SECONDARY_PICKER_CATEGORY
         }
-        run(
+        world.run(
             "am start -a android.intent.action.MAIN " +
                 "-c $category " +
                 "-n ${shellQuote(pickerComponent)} " +
@@ -2723,7 +2683,7 @@ internal class SplitPickerShellSession(
      * [hasActivePointer], была ровно та, которую никто не мог позвать в тесте.
      */
     internal fun dragDividerToBalanced() {
-        val inputState = shell("dumpsys input").also(::validateOutput)
+        val inputState = world.shell("dumpsys input").also(world::validateOutput)
         val dividerLine = inputState.lineSequence().firstOrNull { line ->
             line.contains("multi-divider-shadow") && line.contains("frame=[")
         } ?: error("Нативный drag control не появился")
@@ -2757,52 +2717,19 @@ internal class SplitPickerShellSession(
         // порча жеста, который делает пользователь; этот путь и так холодный, лишнее чтение здесь
         // ничего не стоит. Тот же предикат, что охраняет мутацию штатного пикера
         // ([nativePickerMutationAllowed]) - там он уже применяется, здесь его просто не звали.
-        if (hasActivePointer(shell("dumpsys input"))) {
+        if (hasActivePointer(world.shell("dumpsys input"))) {
             error("Дивайдер под пальцем: синтетический жест не отправляется")
         }
-        run("input swipe $startX $y $endX $y $DIVIDER_DRAG_MS")
+        world.run("input swipe $startX $y $endX $y $DIVIDER_DRAG_MS")
     }
 
     private fun removeBootstrapIfPresent(previous: SplitTask) {
-        val current = snapshot().roots.asSequence()
+        val current = world.snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
             .firstOrNull { it.id == previous.id && it.isNativeSplitBootstrap() }
             ?: return
         removeTaskSafely(current)
-    }
-
-    private fun awaitTaskMatching(predicate: (SplitTask) -> Boolean): SplitTask {
-        repeat(TASK_DISCOVERY_ATTEMPTS) { attempt ->
-            snapshot().roots.asSequence()
-                .filter { it.displayId == MAIN_DISPLAY_ID }
-                .flatMap { it.tasks.asSequence() }
-                .filter(predicate)
-                .maxByOrNull(SplitTask::id)
-                ?.let { return it }
-            if (attempt + 1 < TASK_DISCOVERY_ATTEMPTS) pause(TASK_DISCOVERY_INTERVAL_MS)
-        }
-        error("Запущенная задача не появилась в ActivityTaskManager")
-    }
-
-    /**
-     * Polls the whole topology until [matches] agrees, within the discovery budget (правка A3).
-     *
-     * It replaces the blind settle a mutation used to sleep out: the first read usually already
-     * agrees - `am stack move-task` reparents synchronously on this firmware - and then the read
-     * doubles, through the shared topology cache, as the next phase's snapshot. A timeout is not
-     * an error here: the recipes that use it end in their own postcondition, which is the honest
-     * judge of whether the car really settled.
-     */
-    private fun awaitSnapshotMatching(
-        attempts: Int = TASK_DISCOVERY_ATTEMPTS,
-        matches: (SplitTaskSnapshot) -> Boolean,
-    ): Boolean {
-        repeat(attempts) { attempt ->
-            if (matches(snapshot())) return true
-            if (attempt + 1 < attempts) pause(TASK_DISCOVERY_INTERVAL_MS)
-        }
-        return false
     }
 
     /**
@@ -2839,7 +2766,7 @@ internal class SplitPickerShellSession(
                 if (error is SettledPlacementError) throw error
             }
             if (attempt + 1 < APP_PLACEMENT_CONFIRM_ATTEMPTS) {
-                pause(APP_PLACEMENT_CONFIRM_INTERVAL_MS)
+                world.pause(APP_PLACEMENT_CONFIRM_INTERVAL_MS)
             }
         }
         throw lastError ?: IllegalStateException("Сцена не достигла устойчивого состояния")
@@ -2854,10 +2781,10 @@ internal class SplitPickerShellSession(
     ): Map<SplitPane, SplitPickerLivePane> {
         // The area first: it is the cheapest predicate and the one still moving right after a
         // launch, so a polling attempt fails before it pays for a whole topology parse.
-        check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
+        check(world.callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
             "Нативный split не активировался"
         }
-        val state = snapshot()
+        val state = world.snapshot()
         return SplitPane.entries.associateWith { pane ->
             val root = state.root(rootIds.getValue(pane))
                 ?: error("Split-контейнер ${pane.name} исчез")
@@ -2939,20 +2866,20 @@ internal class SplitPickerShellSession(
             "${task.id} ${shellQuote(task.packageName)} ${shellQuote(baseActivity)} " +
                 "${shellQuote(topPackage)} ${shellQuote(topActivity)}"
         }
-        val classpath = proxyClasspath.entry(::shell)
-        val output = shell(
+        val classpath = proxyClasspath.entry(world::shell)
+        val output = world.shell(
             "${classpathAssignment(classpath, apkPath)} app_process /system/bin " +
                 "--nice-name=denza_split_cmd $SPLIT_PROXY_CLASS remove-task $arguments",
         )
         // The class did not load from the kept jar: the next removal asks the car again.
         if (helperNotLoaded(output)) proxyClasspath.forget()
-        validateOutput(output)
+        world.validateOutput(output)
         val removed = parseRemovals(output)
         val refused = tasks.filterNot { task -> removed[task.id] == true }
         if (refused.isNotEmpty()) {
             // A task the proxy would not take is only a failure if it is still there: the firmware
             // may have finished the very dismissal that made us ask.
-            val living = snapshot().roots.asSequence()
+            val living = world.snapshot().roots.asSequence()
                 .flatMap { root -> root.tasks.asSequence() }
                 .mapTo(mutableSetOf(), SplitTask::id)
             refused.firstOrNull { task -> task.id in living }?.let { task ->
@@ -2960,7 +2887,7 @@ internal class SplitPickerShellSession(
             }
         }
         if (refused.size == tasks.size) return false
-        pause(ROOT_SETTLE_MS)
+        world.pause(ROOT_SETTLE_MS)
         return true
     }
 
@@ -2977,7 +2904,7 @@ internal class SplitPickerShellSession(
 
     private fun moveTask(taskId: Int, rootId: Int, toTop: Boolean = true) {
         check(taskId > 0 && rootId > 0)
-        run("am stack move-task $taskId $rootId $toTop")
+        world.run("am stack move-task $taskId $rootId $toTop")
     }
 
     private fun promoteTask(task: SplitTask, targetRootId: Int) {
@@ -2985,7 +2912,7 @@ internal class SplitPickerShellSession(
         if (task.rootId == targetRootId) {
             // DiLink treats move-task into the current root as a no-op even with toTop=true.
             // Focus is the firmware-backed operation that promotes a task hidden by the picker.
-            run("am task focus ${task.id}")
+            world.run("am task focus ${task.id}")
         } else {
             moveTask(task.id, targetRootId)
         }
@@ -3017,7 +2944,7 @@ internal class SplitPickerShellSession(
         rootIds: Map<SplitPane, Int>,
         appTaskIds: MutableMap<SplitPane, Int>,
     ) {
-        val state = snapshot()
+        val state = world.snapshot()
         appTaskIds.keys.toList().forEach { pane ->
             val root = state.root(rootIds.getValue(pane)) ?: return@forEach
             val recorded = root.tasks.firstOrNull { task -> task.id == appTaskIds.getValue(pane) }
@@ -3046,7 +2973,7 @@ internal class SplitPickerShellSession(
         // не лишнее (1.5.2, правка волны 14 на пути выбора; здесь - правка 2026-09-04). Пакет
         // читается с самой записанной задачи, а не с запроса: прошивка вправе посадить приложение
         // в соседнюю панель (1.5.3), и тогда `wanted[pane]` назвал бы не того.
-        val state = snapshot()
+        val state = world.snapshot()
         val residentByRoot = appTaskIds.entries.mapNotNull { (pane, appTaskId) ->
             val rootId = rootIds.getValue(pane)
             state.root(rootId)?.tasks
@@ -3086,7 +3013,7 @@ internal class SplitPickerShellSession(
         preexistingTaskIds: Set<Int>?,
         residentByRoot: Map<Int, String> = emptyMap(),
     ) {
-        val state = snapshot()
+        val state = world.snapshot()
         val surplus = keepByRoot.flatMap { (rootId, keep) ->
             val resident = residentByRoot[rootId]
             state.root(rootId)?.tasks.orEmpty()
@@ -3128,7 +3055,7 @@ internal class SplitPickerShellSession(
         class Resize(val pane: SplitPane, val taskId: Int, val bounds: SplitBounds, val host: Boolean)
 
         val divergent = mutableListOf<Resize>()
-        val before = snapshot()
+        val before = world.snapshot()
         SplitPane.entries.forEach { pane ->
             val rootId = rootIds.getValue(pane)
             val root = before.root(rootId) ?: error("Split-контейнер $rootId исчез")
@@ -3154,13 +3081,13 @@ internal class SplitPickerShellSession(
         }
         if (divergent.isEmpty()) return false
         divergent.forEach { resize ->
-            run(
+            world.run(
                 "am task resize ${resize.taskId} ${resize.bounds.left} ${resize.bounds.top} " +
                     "${resize.bounds.right} ${resize.bounds.bottom}",
             )
         }
-        pause(ROOT_SETTLE_MS)
-        val after = snapshot()
+        world.pause(ROOT_SETTLE_MS)
+        val after = world.snapshot()
         divergent.forEach { resize ->
             val rootId = rootIds.getValue(resize.pane)
             val root = after.root(rootId)
@@ -3185,19 +3112,19 @@ internal class SplitPickerShellSession(
 
     /** @return whether the task actually had to be resized. */
     private fun normalizeTaskToRoot(taskId: Int, rootId: Int): Boolean {
-        val beforeRoot = snapshot().root(rootId)
+        val beforeRoot = world.snapshot().root(rootId)
             ?: error("Split-контейнер $rootId исчез")
         val beforeTask = beforeRoot.tasks.firstOrNull { it.id == taskId }
             ?: error("Задача приложения $taskId не вошла в split-контейнер")
         if (beforeTask.bounds == beforeRoot.bounds) return false
         check(beforeRoot.bounds.hasArea()) { "Split-контейнер $rootId не имеет размера" }
         val bounds = beforeRoot.bounds
-        run(
+        world.run(
             "am task resize $taskId ${bounds.left} ${bounds.top} " +
                 "${bounds.right} ${bounds.bottom}",
         )
-        pause(ROOT_SETTLE_MS)
-        val afterRoot = snapshot().root(rootId)
+        world.pause(ROOT_SETTLE_MS)
+        val afterRoot = world.snapshot().root(rootId)
             ?: error("Split-контейнер $rootId исчез после изменения размера")
         val afterTask = afterRoot.tasks.firstOrNull { it.id == taskId }
             ?: error("Задача приложения $taskId исчезла после изменения размера")
@@ -3207,39 +3134,13 @@ internal class SplitPickerShellSession(
         return true
     }
 
-    /**
-     * Waits for the firmware's own split area to reach a state, and not one slice longer.
-     *
-     * The recipes used to sleep out a whole settle before looking even once, which on a transition
-     * the firmware had already finished was the user waiting for nothing at all (1.13). The budget
-     * and the mutation that precedes it are unchanged; what is gone is the sleeping through it.
-     */
-    private fun awaitArea(budgetMs: Long, matches: (Int) -> Boolean): Boolean {
-        var waited = 0L
-        while (true) {
-            if (matches(callInt("service call activity_task 30"))) return true
-            if (waited >= budgetMs) return false
-            val slice = minOf(AREA_POLL_INTERVAL_MS, budgetMs - waited)
-            pause(slice)
-            waited += slice
-        }
-    }
-
-    private fun nativeRootIds(): Map<SplitPane, Int> = topology.roots {
-        SplitPane.entries.associateWith { pane ->
-            callInt("service call activity_task 118 i32 ${pane.areaId}").also { rootId ->
-                check(rootId > 0) { "Прошивка не вернула split-контейнер ${pane.areaId}" }
-            }
-        }
-    }
-
     private fun ensureGateOpen() {
         // On this DiLink 5.1 build tx123 is `isCanSplit()`: for the BYD platform branch it is
         // a constant capability answer, not the current mIsEnterSplit value. Only tx126 changes
         // the mutable gate, and it is idempotent in the firmware.
-        callVoid("service call activity_task 126 i32 1")
+        world.callVoid("service call activity_task 126 i32 1")
         if (!gateLeaseStore.setOwned(true)) {
-            runCatching { callVoid("service call activity_task 126 i32 0") }
+            runCatching { world.callVoid("service call activity_task 126 i32 0") }
             error("Не удалось сохранить владение split-gate")
         }
     }
@@ -3253,7 +3154,7 @@ internal class SplitPickerShellSession(
      */
     fun closeOwnedGate(): Boolean {
         if (!gateLeaseStore.isOwned()) return false
-        callVoid("service call activity_task 126 i32 0")
+        world.callVoid("service call activity_task 126 i32 0")
         check(gateLeaseStore.setOwned(false)) { "Не удалось освободить split-gate" }
         return true
     }
@@ -3277,8 +3178,8 @@ internal class SplitPickerShellSession(
      */
     private fun ensureSupported(packageName: String) {
         val quoted = shellQuote(packageName)
-        callVoid("service call activity_task 125 s16 $quoted")
-        check(callBoolean("service call activity_task 112 s16 $quoted")) {
+        world.callVoid("service call activity_task 125 s16 $quoted")
+        check(world.callBoolean("service call activity_task 112 s16 $quoted")) {
             "Прошивка не добавила $packageName в split"
         }
     }
@@ -3304,118 +3205,7 @@ internal class SplitPickerShellSession(
      * любого выбранного приложения. Проверка tx112 после неё не нужна - манифест наш.
      */
     private fun listOwnPackageForTheDivider() {
-        callVoid("service call activity_task 125 s16 ${shellQuote(SPLIT_HOST_PACKAGE)}")
-    }
-
-    private fun snapshot(): SplitTaskSnapshot = topology.state {
-        val answer = shell("am stack list").also(::validateOutput)
-        measured { SplitTaskSnapshot.parse(answer) }
-    }
-
-    /** One pair of marks around the work that is neither the car's nor the transport's. */
-    private inline fun <T> measured(read: () -> T): T {
-        val startedAt = System.nanoTime()
-        try {
-            return read()
-        } finally {
-            parsed((System.nanoTime() - startedAt) / 1_000_000L)
-        }
-    }
-
-    private fun callBoolean(command: String): Boolean = callInt(command) != 0
-
-    private fun callInt(command: String): Int {
-        val output = shell(command).also(::validateOutput)
-        return measured {
-            val words = ServiceCallParcel.words(output)
-                ?: error("Некорректный ответ activity_task")
-            check(words.size >= 2 && words[0] == 0) {
-                "Ошибка activity_task: ${output.trim()}"
-            }
-            words[1]
-        }
-    }
-
-    private fun callVoid(command: String) {
-        val output = shell(command).also(::validateOutput)
-        val words = ServiceCallParcel.words(output)
-            ?: error("Некорректный ответ activity_task")
-        check(words.isNotEmpty() && words[0] == 0) {
-            "Ошибка activity_task: ${output.trim()}"
-        }
-    }
-
-    private fun run(command: String) {
-        validateOutput(shell(command))
-    }
-
-    private fun validateOutput(output: String) {
-        check(
-            !output.contains("Error:", ignoreCase = true) &&
-                !output.contains("Exception", ignoreCase = true) &&
-                !output.contains("UNKNOWN_TRANSACTION", ignoreCase = true),
-        ) { output.trim().ifBlank { "shell command failed" } }
-    }
-
-    private fun SplitTask.matchesComponent(flattenedComponent: String): Boolean {
-        val separator = flattenedComponent.indexOf('/')
-        if (separator <= 0 || separator == flattenedComponent.lastIndex) return false
-        val expectedPackage = flattenedComponent.substring(0, separator)
-        val rawClass = flattenedComponent.substring(separator + 1)
-        val expectedClass = if (rawClass.startsWith('.')) expectedPackage + rawClass else rawClass
-        val actualClass = activityName?.let { name ->
-            if (name.startsWith('.')) packageName + name else name
-        }
-        return packageName == expectedPackage && actualClass == expectedClass
-    }
-
-    private fun SplitTask.matchesTopComponent(flattenedComponent: String): Boolean {
-        val separator = flattenedComponent.indexOf('/')
-        if (separator <= 0 || separator == flattenedComponent.lastIndex) return false
-        val expectedPackage = flattenedComponent.substring(0, separator)
-        val rawClass = flattenedComponent.substring(separator + 1)
-        val expectedClass = if (rawClass.startsWith('.')) expectedPackage + rawClass else rawClass
-        return topPackageName == expectedPackage && topActivityName == expectedClass
-    }
-
-    private fun SplitTask.matchesAnyComponent(components: Set<String>): Boolean =
-        components.any { component -> matchesComponent(component) }
-
-    private fun SplitTask.matchesAnyTopComponent(components: Set<String>): Boolean =
-        components.any { component -> matchesTopComponent(component) }
-
-    private fun SplitTask.isNativeSplitBootstrap(): Boolean =
-        isStockSplitPicker() || isStockSplitBootstrap()
-
-    private fun SplitTask.isStockSplitPicker(): Boolean =
-        packageName == STOCK_PICKER_PACKAGE && activityName == STOCK_PICKER_ACTIVITY
-
-    private fun SplitTask.isStockSplitBootstrap(): Boolean =
-        packageName == STOCK_BOOTSTRAP_PACKAGE && activityName == STOCK_BOOTSTRAP_ACTIVITY
-
-    private fun SplitTask.matchesOwnTopComponent(): Boolean =
-        topPackageName == packageName &&
-            topActivityName == activityName
-
-    /** Resolves a native root hidden by area=4, where `am stack list` marks every child hidden. */
-    private fun SplitRootTask.resolvedCoveredTopTask(): SplitTask? {
-        val exact = tasks.filter { task -> task.matchesOwnTopComponent() }
-        if (exact.isNotEmpty()) return exact.first()
-        return tasks.filter { task -> task.packageName == task.topPackageName }.singleOrNull()
-    }
-
-    /**
-     * `am stack list` hides every child when a fullscreen root covers split and repeats only the
-     * old root-top component. Exact persisted task id plus package identity is the narrow proof
-     * that lets us reveal that owned scene without guessing which hidden child was top.
-     */
-    private fun SplitRootTask.resolveExpectedCoveredApp(
-        expected: SplitPickerExpectedApp?,
-    ): SplitTask? {
-        expected ?: return null
-        val task = tasks.singleOrNull { candidate -> candidate.id == expected.taskId }
-            ?: return null
-        return task.takeIf { it.packageName == expected.packageName && it.bounds == bounds }
+        world.callVoid("service call activity_task 125 s16 ${shellQuote(SPLIT_HOST_PACKAGE)}")
     }
 
     /**
@@ -3480,18 +3270,6 @@ internal class SplitPickerShellSession(
             ?: candidates.maxByOrNull(SplitTask::id)
     }
 
-    /**
-     * Инвариант 3: package сам по себе identity не доказывает. Собственные компоненты продукта -
-     * постоянные пикеры и штатный bootstrap - не могут быть «найденным приложением», даже когда
-     * запускается пакет самого продукта (U3). Живая мина v20 P1.2: при self-restore matcher по
-     * одному пакету предпочёл бы свежесозданный пикер пре-существующему таску хаба.
-     */
-    private fun SplitTask.isOwnSplitComponent(): Boolean =
-        isDenzaPickerBase() || isNativeSplitBootstrap()
-
-    private fun SplitTask.isDenzaPickerBase(): Boolean =
-        packageName == SPLIT_HOST_PACKAGE && activityName == SPLIT_PICKER_ACTIVITY
-
     private fun expectedSelectionArea(
         pane: SplitPane,
         currentArea: Int,
@@ -3502,22 +3280,17 @@ internal class SplitPickerShellSession(
         else -> error("Пикер больше не находится в рабочем окне")
     }
 
-    private fun SplitTask.isEmptyRootMarker(): Boolean =
-        id == rootId && packageName == "unknown" && activityName == null
+    // region the world's reads the operations ask for
 
-    private val SplitPane.fullArea: Int
-        get() = when (this) {
-            SplitPane.PRIMARY -> AREA_PRIMARY_FULL
-            SplitPane.SECONDARY -> AREA_SECONDARY_FULL
-        }
+    fun livingTaskIds(): Set<Int> = world.livingTaskIds()
+
+    fun sceneCovered(): Boolean = world.sceneCovered()
+
+    fun fullIviRootTaskId(): Int = world.fullIviRootTaskId()
+
+    // endregion
 
     private companion object {
-        const val MAIN_DISPLAY_ID = 0
-        const val AREA_HOME = 0
-        const val AREA_PRIMARY_FULL = 1
-        const val AREA_SECONDARY_FULL = 2
-        const val AREA_BALANCED_SPLIT = 3
-        const val AREA_FULL_IVI = 4
         /** The areas of the firmware's single-pane modes, 101 and 102: one pane, no split. */
         val SINGLE_PANE_AREAS = setOf(AREA_PRIMARY_FULL, AREA_SECONDARY_FULL)
         const val EXPAND_PRIMARY_MODE = 101
@@ -3530,11 +3303,7 @@ internal class SplitPickerShellSession(
         const val PICKER_LAUNCH_FLAGS = "0x18010000"
         const val PRIMARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_PRIMARY"
         const val SECONDARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_SECOND"
-        const val MAX_TASKS_PER_PANE = 2
         const val LAUNCH_MODE_SINGLE_TASK = 2
-        const val TASK_DISCOVERY_ATTEMPTS = 12
-        const val TASK_DISCOVERY_INTERVAL_MS = 100L
-
         /**
          * Правка W5 (v20 P1.2): ожидания restore-пути отвечают с первого чтения - запущенная
          * задача попадает в `am stack list` сразу, тёплый запуск пикера стоит ~0.9 с вместе с
@@ -3569,15 +3338,9 @@ internal class SplitPickerShellSession(
         const val PICKER_SETTLE_MS = 150L
         const val NATIVE_PICKER_SETTLE_MS = 450L
         const val APP_LAUNCH_SETTLE_MS = 250L
-        const val APP_PLACEMENT_CONFIRM_ATTEMPTS = 20
-        const val APP_PLACEMENT_CONFIRM_INTERVAL_MS = 100L
-
         /** Only the single-pane selection keeps two samples; a built scene ends in the
          *  operation's own whole-scene read-back instead (правка A4). */
         const val APP_PLACEMENT_STABLE_SAMPLES = 2
-        const val ROOT_SETTLE_MS = 120L
-        const val EXIT_SETTLE_MS = 650L
-        const val AREA_POLL_INTERVAL_MS = 100L
         const val DISPLAY_WIDTH = 2_560
         const val EDGE_INSET = 50
         const val PANEL_HEIGHT = 1_600
@@ -3585,10 +3348,6 @@ internal class SplitPickerShellSession(
         const val LEFT_DIVIDER_X = 856
         const val RIGHT_DIVIDER_X = 1_704
         const val DIVIDER_DRAG_MS = 400
-        const val STOCK_PICKER_PACKAGE = "com.android.launcher3"
-        const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
-        const val STOCK_BOOTSTRAP_PACKAGE = "com.byd.sr"
-        const val STOCK_BOOTSTRAP_ACTIVITY = "com.byd.sr.MainActivity"
         const val SPLIT_PROXY_CLASS = "dev.denza.apps.feature.split.SplitTaskProxyMain"
         const val SPLIT_PROXY_RESULT_PREFIX = "DENZA_SPLIT_RESULT:"
         /** `mFocusedApp=ActivityRecord{a81ee00 u0 dev.denza.apps/.MainActivity} t332}` */
