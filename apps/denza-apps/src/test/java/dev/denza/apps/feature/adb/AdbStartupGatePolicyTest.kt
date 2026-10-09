@@ -280,10 +280,10 @@ class AdbStartupGatePolicyTest {
 
     @Test
     fun `the gate never repeats a failure label at the owner`() {
-        // The coordinator stores exception names in `details` - "ConnectException" and the like -
-        // and those are worth having on the service screen, where the reader knows what they mean.
-        // Forwarding the snapshot's details wholesale would put them on the blocking gate instead,
-        // and would also print the two phases whose details merely restate their own message.
+        // Exception names - "ConnectException" and the like - belong on «Технические сведения»,
+        // where the reader knows what they mean. Forwarding the snapshot's details wholesale would
+        // put whatever a snapshot carries on the blocking gate, and would also print the two phases
+        // whose details merely restate their own message.
         val noisy = AdbRescueSnapshot(
             phase = AdbRescuePhase.ERROR,
             details = "ConnectException",
