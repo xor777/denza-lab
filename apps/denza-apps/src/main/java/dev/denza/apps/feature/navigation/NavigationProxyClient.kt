@@ -116,38 +116,6 @@ object NavigationProxyClient {
     fun createProjectionRoot(context: Context, displayId: Int): Int =
         intResult(run(context, "create-root", displayId.toString()))
 
-    fun moveTask(context: Context, packageName: String, taskId: Int, displayId: Int): Boolean =
-        booleanResult(
-            run(context, "move-task", packageName, taskId.toString(), displayId.toString()),
-        )
-
-    fun setTaskBounds(
-        context: Context,
-        packageName: String,
-        taskId: Int,
-        left: Int,
-        top: Int,
-        right: Int,
-        bottom: Int,
-    ): Boolean = booleanResult(
-        run(
-            context,
-            "set-bounds",
-            packageName,
-            taskId.toString(),
-            left.toString(),
-            top.toString(),
-            right.toString(),
-            bottom.toString(),
-        ),
-    )
-
-    fun focusTask(context: Context, packageName: String, taskId: Int): Boolean =
-        booleanResult(run(context, "focus-task", packageName, taskId.toString()))
-
-    fun backgroundTask(context: Context, packageName: String, taskId: Int): Boolean =
-        booleanResult(run(context, "background-task", packageName, taskId.toString()))
-
     fun taskDisplayId(context: Context, packageName: String, taskId: Int): Int =
         intResult(run(context, "task-display", packageName, taskId.toString()))
 
@@ -163,11 +131,6 @@ object NavigationProxyClient {
     fun releaseVirtualDisplay() = synchronized(lock) {
         virtualDisplay?.release()
         virtualDisplay = null
-    }
-
-    fun disconnect() {
-        releaseVirtualDisplay()
-        disconnectShell()
     }
 
     fun disconnectShell() {
