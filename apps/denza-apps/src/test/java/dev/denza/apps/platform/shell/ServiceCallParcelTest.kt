@@ -115,7 +115,7 @@ class ServiceCallParcelTest {
                 hudRead(hudWords(reply)),
                 hudRead(ServiceCallParcel.oneLineWords(reply)?.take(2)),
             )
-            // CloudLinkProtocol and SplitPickerShellSession: every word of the body.
+            // CloudLinkProtocol and SplitWorld: every word of the body.
             assertEquals(reply, bodyWords(reply, Regex("""Parcel\(([^')]*)""")), words)
             assertEquals(reply, bodyWords(reply, Regex("Parcel\\(([^']+)")), words)
         }
