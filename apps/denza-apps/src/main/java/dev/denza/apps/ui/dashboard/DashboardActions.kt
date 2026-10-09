@@ -6,57 +6,188 @@ import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 
 /**
- * Everything the dashboard can ask the runtime to do, in one parameter.
+ * Everything the screen can ask the app to do, as one object.
  *
- * The screen used to take twenty-nine separate lambdas and hand each one down by name, which is why
- * adding a feature meant editing a signature, a call site and an activity together. They are the
- * same callbacks; they simply travel as one thing now, so a tile and its settings sheet can be
- * handed the whole vocabulary and pick what they need.
+ * `MainActivity` builds it once, over the repository and the features' runtimes, and hands it to
+ * `DenzaAppsRoot` whole. It used to be forty-two lambdas threaded one by one through the activity,
+ * the root's signature, a `remember` keyed on thirty-one of them and the constructor of
+ * [DashboardActions] - five edits for every new callback, and a key left out of the `remember`
+ * would have handed the screen a stale one without a word from the compiler. A new action is now a
+ * member here and its answer in the activity, and the compiler asks for both.
+ *
+ * Each member is a value, not a function, so a panel handed `actions.onToggleMirrors` is handed the
+ * same object on every recomposition and is skipped when nothing else changed. An implementation
+ * keeps them that way: stored once, never built in a getter ([IdleActions], `AppActions`).
+ *
+ * What only opens a window of this screen - a panel, a chooser, «Сервис» - is not here: the root
+ * opens those itself ([DashboardActions]).
  */
-data class DashboardActions(
-    val onToggleSimulcast: (Boolean) -> Unit,
-    val onLaunchSimulcast: () -> Unit,
-    val onRepairSimulcast: () -> Unit,
-    val onChooseApps: () -> Unit,
-    /** Read the car's applications for a chooser that is already open, without opening one. */
-    val onLoadAppChoices: () -> Unit,
-    val onToggleApp: (String) -> Unit,
-    val onToggleMirrors: (Boolean) -> Unit,
-    val onMirrorsPosition: (MirrorsPosition) -> Unit,
-    val onMirrorsProcessing: (Boolean) -> Unit,
-    val onPreviewMirrors: () -> Unit,
-    val onNavigationAction: () -> Unit,
-    val onNavigationPlacement: (ClusterMapPlacement) -> Unit,
-    val onNavigationSteeringWheelButton: (Boolean) -> Unit,
-    val onChooseNavigationApp: () -> Unit,
-    /** Read the car for «Что показывать» when the panel's own page opens, without opening a window. */
-    val onLoadNavigationAppChoices: () -> Unit,
-    val onSelectNavigationApp: (String) -> Unit,
-    val onToggleSplitScreen: (Boolean) -> Unit,
-    val onLaunchSplitScreen: () -> Unit,
-    val onSetWeatherEnabled: (Boolean) -> Unit,
-    val onToggleHudGuidance: (Boolean) -> Unit,
-    val onToggleSpeakerCovers: (Boolean) -> Unit,
-    val onRaiseSpeakerCovers: () -> Unit,
-    val onToggleCloudLink: (Boolean) -> Unit,
+interface DenzaActions {
+    // «Трансляция»
+    val onToggleSimulcast: (Boolean) -> Unit
+    val onLaunchSimulcast: () -> Unit
+    val onRepairSimulcast: () -> Unit
+
+    /** Read the car's applications for «Что транслировать» as a chooser of them opens. */
+    val onLoadAppChoices: () -> Unit
+    val onToggleApp: (String) -> Unit
+
+    // «Зеркала»
+    val onToggleMirrors: (Boolean) -> Unit
+    val onMirrorsPosition: (MirrorsPosition) -> Unit
+    val onMirrorsProcessing: (Boolean) -> Unit
+    val onPreviewMirrors: () -> Unit
+
+    // «Экран водителя»
+    val onNavigationAction: () -> Unit
+    val onNavigationPlacement: (ClusterMapPlacement) -> Unit
+    val onNavigationSteeringWheelButton: (Boolean) -> Unit
+
+    /** Read the car for «Что показывать» as a chooser of it opens. */
+    val onLoadNavigationAppChoices: () -> Unit
+
+    /** One answer chosen; true when the car took it, and a window showing the choice closes. */
+    val onSelectNavigationApp: (String) -> Boolean
+
+    /** The instruments' screen chosen by hand, or null to let the app decide again. */
+    val onSelectClusterDisplay: (Int?) -> Unit
+
+    /** Read the car's displays again, and nothing else: the instruments' picker while it waits. */
+    val onSearchClusterDisplays: () -> Unit
+
+    // «Разделение»
+    val onToggleSplitScreen: (Boolean) -> Unit
+    val onLaunchSplitScreen: () -> Unit
+
+    // «Погода»
+    val onSetWeatherEnabled: (Boolean) -> Unit
+
+    // «HUD Подсказки»
+    val onToggleHudGuidance: (Boolean) -> Unit
+
+    // «Динамики»
+    val onToggleSpeakerCovers: (Boolean) -> Unit
+    val onRaiseSpeakerCovers: () -> Unit
+
+    // «Облако»
+    val onToggleCloudLink: (Boolean) -> Unit
+
     /** Keep client Wi-Fi on while the car sleeps; the car's own setting, read back from it. */
-    val onSetCloudWifiRetained: (Boolean) -> Unit,
+    val onSetCloudWifiRetained: (Boolean) -> Unit
+
+    // «Язык системы»
+    val onRefreshSystemLanguage: () -> Unit
+
     /** Hand the language over to the car's own list; this app does not set it itself. */
-    val onOpenSystemLanguage: () -> Unit,
-    val onSetDefaultAppsEnabled: (Boolean) -> Unit,
+    val onOpenSystemLanguage: () -> Unit
+
+    // «Shortcuts»
+    /** Read the roles again; `true` also drops the launcher catalog the panel was drawn from. */
+    val onRefreshDefaultApps: (force: Boolean) -> Unit
+    val onSetDefaultAppsEnabled: (Boolean) -> Unit
+    val onSelectDefaultApp: (DefaultAppRole, String) -> Unit
+
+    // «Экран справа»
+    /** Read what can go to the passenger's screen; false while an install runs - nothing opens. */
+    val onLoadFseApps: () -> Boolean
+
+    /** One application pressed; true when its install has started and the chooser closes. */
+    val onInstallFseApp: (String) -> Boolean
+
+    // «Сервис» and the car's ADB access
+    /** What «Сервис» reads as it opens: DiShare's screens and the car's displays. */
+    val onRefreshScreenDiagnostics: () -> Unit
+
+    /** «Сервис» stands on a started screen, or does not: its report is built only while it does. */
+    val onServiceReportVisible: (Boolean) -> Unit
+
+    /** «Сервис» has opened: the automatic ADB restore takes the moment to look again. */
+    val onServiceOpened: () -> Unit
+    val onSetAdbRestoreEnabled: (Boolean) -> Unit
+
+    /** Look at the car's ADB access, for the gate and «Сервис»; the gate follows the answer. */
+    val onCheckAdbAccess: () -> Unit
+
+    /**
+     * A tile's press on «Нет доступа»: look at the car's ADB access without asking it for anything,
+     * and run `onTrusted` if the car still trusts this app. If it does not, the startup gate comes
+     * up by itself.
+     */
+    val onCheckAdbAccessThen: (onTrusted: () -> Unit) -> Unit
+    val onRequestAdbAuthorizationOnce: () -> Unit
+    val onAllowNewAdbAuthorizationAttempt: () -> Unit
+}
+
+/**
+ * An app that answers every action by doing nothing - and, asked to check its access, finds a car
+ * that trusts it. What the debug build's fixture screens and the tests stand on; each overrides
+ * the few actions it watches. Never the product's: `MainActivity` answers every one.
+ */
+open class IdleActions : DenzaActions {
+    override val onToggleSimulcast: (Boolean) -> Unit = {}
+    override val onLaunchSimulcast: () -> Unit = {}
+    override val onRepairSimulcast: () -> Unit = {}
+    override val onLoadAppChoices: () -> Unit = {}
+    override val onToggleApp: (String) -> Unit = {}
+    override val onToggleMirrors: (Boolean) -> Unit = {}
+    override val onMirrorsPosition: (MirrorsPosition) -> Unit = {}
+    override val onMirrorsProcessing: (Boolean) -> Unit = {}
+    override val onPreviewMirrors: () -> Unit = {}
+    override val onNavigationAction: () -> Unit = {}
+    override val onNavigationPlacement: (ClusterMapPlacement) -> Unit = {}
+    override val onNavigationSteeringWheelButton: (Boolean) -> Unit = {}
+    override val onLoadNavigationAppChoices: () -> Unit = {}
+    override val onSelectNavigationApp: (String) -> Boolean = { false }
+    override val onSelectClusterDisplay: (Int?) -> Unit = {}
+    override val onSearchClusterDisplays: () -> Unit = {}
+    override val onToggleSplitScreen: (Boolean) -> Unit = {}
+    override val onLaunchSplitScreen: () -> Unit = {}
+    override val onSetWeatherEnabled: (Boolean) -> Unit = {}
+    override val onToggleHudGuidance: (Boolean) -> Unit = {}
+    override val onToggleSpeakerCovers: (Boolean) -> Unit = {}
+    override val onRaiseSpeakerCovers: () -> Unit = {}
+    override val onToggleCloudLink: (Boolean) -> Unit = {}
+    override val onSetCloudWifiRetained: (Boolean) -> Unit = {}
+    override val onRefreshSystemLanguage: () -> Unit = {}
+    override val onOpenSystemLanguage: () -> Unit = {}
+    override val onRefreshDefaultApps: (Boolean) -> Unit = {}
+    override val onSetDefaultAppsEnabled: (Boolean) -> Unit = {}
+    override val onSelectDefaultApp: (DefaultAppRole, String) -> Unit = { _, _ -> }
+    override val onLoadFseApps: () -> Boolean = { false }
+    override val onInstallFseApp: (String) -> Boolean = { false }
+    override val onRefreshScreenDiagnostics: () -> Unit = {}
+    override val onServiceReportVisible: (Boolean) -> Unit = {}
+    override val onServiceOpened: () -> Unit = {}
+    override val onSetAdbRestoreEnabled: (Boolean) -> Unit = {}
+    override val onCheckAdbAccess: () -> Unit = {}
+    override val onCheckAdbAccessThen: (() -> Unit) -> Unit = { onTrusted -> onTrusted() }
+    override val onRequestAdbAuthorizationOnce: () -> Unit = {}
+    override val onAllowNewAdbAuthorizationAttempt: () -> Unit = {}
+}
+
+/**
+ * What a press on the dashboard can do: everything the app does ([DenzaActions], delegated to
+ * [app]), and the windows of this screen the root opens itself - a panel, a chooser, «Сервис».
+ *
+ * Built once by `DenzaAppsRoot` and remembered with the one object it wraps, so a tile and its
+ * panel are handed the same vocabulary on every recomposition.
+ */
+class DashboardActions(
+    app: DenzaActions,
+    /** «Что транслировать» as a window of its own: a tile waiting on the choice. */
+    val onChooseApps: () -> Unit,
+    /** «Что показывать» as a window of its own: a tile waiting on the choice. */
+    val onChooseNavigationApp: () -> Unit,
+    /** «Экран справа»'s chooser, which both gestures on its tile open. */
     val onChooseFseApp: () -> Unit,
     val onOpenClusterPicker: () -> Unit,
     val onOpenService: () -> Unit,
     val onOpenSettings: (TileId) -> Unit,
-    /**
-     * Look at the car's ADB access without asking it for anything, and run [onTrusted] if the car
-     * still trusts this app. If it does not, the startup gate comes up by itself.
-     */
-    val onCheckAdbAccess: (onTrusted: () -> Unit) -> Unit = { onTrusted -> onTrusted() },
-)
+) : DenzaActions by app
 
 /**
  * Turning a press into the call it stands for.
@@ -123,7 +254,7 @@ object DashboardPress {
             FeatureResolution.SELECT_APPS -> actions.onChooseApps()
             FeatureResolution.SELECT_NAVIGATION_APP -> actions.onChooseNavigationApp()
             FeatureResolution.SELECT_CLUSTER_DISPLAY -> actions.onOpenClusterPicker()
-            FeatureResolution.CHECK_ACCESS -> actions.onCheckAdbAccess { retry(tile.id, actions) }
+            FeatureResolution.CHECK_ACCESS -> actions.onCheckAdbAccessThen { retry(tile.id, actions) }
             FeatureResolution.RETRY -> retry(tile.id, actions)
             null -> actions.onOpenSettings(tile.id)
         }
