@@ -6,7 +6,7 @@ import kotlin.math.roundToInt
  * Process-lifetime state behind the visible trip panel.
  *
  * The engine keeps only values the active spectrum layout renders: the
- * movement-gated trip clock, GNSS distance/altitude/climb, validated Yandex
+ * movement-gated trip clock, GNSS distance/altitude/variometer, validated Yandex
  * guidance, and offline sun facts. Android adapters push samples in on the main
  * thread and the renderer reads the state on that same thread.
  */
@@ -221,7 +221,6 @@ class TripEngine {
     fun smoothedAltitude(): Double = gnss.smoothedAltitude
     fun hasAltitude(): Boolean = gnss.hasAltitude
     fun variometer(): Double = gnss.variometer
-    fun tripClimbMeters(): Double = gnss.tripClimbMeters
     fun distanceMeters(): Double = gnss.distanceMeters
     fun sunInfo(): SunInfo = sun
 
