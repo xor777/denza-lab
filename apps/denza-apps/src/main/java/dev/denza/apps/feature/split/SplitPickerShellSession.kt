@@ -1,11 +1,26 @@
 package dev.denza.apps.feature.split
 
 /**
- * Explicit, command-driven split session.
+ * Explicit, command-driven split session: the live-proven recipes of one operation, behind the one
+ * object the operations hold ([SplitOperationWorkspace.split]).
  *
  * This class never watches or interprets arbitrary foreground launches. Every mutation starts
  * from either the dedicated launcher or a tap in a picker, so the destination pane and expected
  * component are known before any task is moved.
+ *
+ * It builds the recipes from its constructor and owns none of them itself; each call below is one
+ * line into the unit that holds it:
+ * - [SplitWorld] - the funnel every command and settle pause goes through, the reads, the waits
+ *   and the identity predicates;
+ * - [SplitTaskCommands] - the task-tree commands every recipe is made of;
+ * - [SplitGate] - every transition of the firmware gate a session makes, and its lease;
+ * - [SplitOwnedScene] - the reads that prove a scene ours;
+ * - [SplitSceneBuilder] - the scene of an open: reveal or build;
+ * - [SplitSelect] - a tap in a picker;
+ * - [SplitCollapse] - what a divider gesture left: a resize to repair, a collapse to prove;
+ * - [SplitNavReturn] - the navigator back from the cluster;
+ * - [SplitEdge] - the stock picker of an edge drag, and the synthetic divider drag;
+ * - [SplitTeardown] - the toggle going off, and what an ended scene or pane leaves.
  */
 internal class SplitPickerShellSession(
     shell: (String) -> String,
@@ -69,8 +84,10 @@ internal class SplitPickerShellSession(
     fun readOwnedSelection(pickerComponents: Set<String>): SplitSceneRead =
         ownedScene.readOwnedSelection(pickerComponents)
 
-    fun observePickerTask(hostTaskId: Int, pickerComponents: Set<String>): SplitPickerPaneObservation? =
-        ownedScene.observePickerTask(hostTaskId, pickerComponents)
+    fun observePickerTask(
+        hostTaskId: Int,
+        pickerComponents: Set<String>,
+    ): SplitPickerPaneObservation? = ownedScene.observePickerTask(hostTaskId, pickerComponents)
 
     fun visiblePickerTaskIds(pickerComponents: Set<String>): List<Int> =
         ownedScene.visiblePickerTaskIds(pickerComponents)
@@ -91,8 +108,9 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
     ): Boolean = ownedScene.confirmSceneEndMembersDead(scene, pickerComponents)
 
-    fun confirmDeadRecordedApps(scene: Map<SplitPane, SplitPickerLivePane>): SplitDeadAppsConfirmation =
-        ownedScene.confirmDeadRecordedApps(scene)
+    fun confirmDeadRecordedApps(
+        scene: Map<SplitPane, SplitPickerLivePane>,
+    ): SplitDeadAppsConfirmation = ownedScene.confirmDeadRecordedApps(scene)
 
     // endregion
 
@@ -117,7 +135,8 @@ internal class SplitPickerShellSession(
     fun revealOwnedSession(
         existing: Map<SplitPane, SplitPickerLivePane>,
         pickerComponents: Set<String>,
-    ): Map<SplitPane, SplitPickerLivePane> = builder.revealOwnedSession(existing, pickerComponents)
+    ): Map<SplitPane, SplitPickerLivePane> =
+        builder.revealOwnedSession(existing, pickerComponents)
 
     fun buildScene(
         pickerComponents: Map<SplitPane, String>,
@@ -163,12 +182,14 @@ internal class SplitPickerShellSession(
     fun readCollapsedPaneByExistence(
         pickerComponents: Set<String>,
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
-    ): SplitCollapsedPaneRead = collapse.readCollapsedPaneByExistence(pickerComponents, expectedPanes)
+    ): SplitCollapsedPaneRead =
+        collapse.readCollapsedPaneByExistence(pickerComponents, expectedPanes)
 
     fun collapsedPaneByPanelBounds(
         pickerComponents: Set<String>,
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
-    ): SplitCollapsedPaneRead = collapse.collapsedPaneByPanelBounds(pickerComponents, expectedPanes)
+    ): SplitCollapsedPaneRead =
+        collapse.collapsedPaneByPanelBounds(pickerComponents, expectedPanes)
 
     // endregion
 
