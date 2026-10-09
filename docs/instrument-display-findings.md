@@ -20,7 +20,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | Luminofor reached the car with main `001940ae` (APK `cd4c97de`) at 17:31 on 2026-09-23; the Contour before it was on the car from 2026-09-05 (build 44) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23), [What still waits for the car](#what-still-waits-for-the-car) |
 | Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22) and `GENERATION_KW` the engine's charge into the pack, zero while the engine drives the wheels (2026-09-24); so the engine's box stands only while the engine charges and leaves 10 s after `ENGINE_RUNNING` drops | live | 2026-09-24 | [What still waits for the car](#what-still-waits-for-the-car), [Why the engine's box does not flicker](#why-the-engines-box-does-not-flicker) |
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
-| `VehicleTelemetryHub.kt` polls for three `VehicleWatcher`s: `CLUSTER`, `STRIP` and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-09-22 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
+| `VehicleTelemetryHub.kt` polls for four `VehicleWatcher`s: `CLUSTER`, `STRIP`, the strip's trip clock `TRIP` (since 2026-10-09; it reads the park switch from the sweep) and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-10-09 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
 | A failed shell read is a dropped read (`VehicleDroppedRead`, the link-lost picture), not the closed one: `VehicleLink` closes the screens at once only for a missing ADB key, otherwise after two failures in a row and 4 s without an answer; a screen that starts watching ends the backoff (`VehicleBackoff.wake`) | code | 2026-10-08 | [Telemetry ownership](#telemetry-ownership) |
 | Mirrors follow AVC's own inputs (`MirrorTransitionReducer.kt`): show side X while AVC's card of X is built and the lamps flash X (FID `0x38A0002C`: `2`/`3` left, `4`/`5` right); close at once when the lamps leave X, the card ends, or the raw lever FID `0x1330002C` has an onset toward the other side | code | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
 | While Mirrors are on they own the stock choice: each monitor start writes choice `1` (both images on the head unit) and keeps the owner's value in `stock_turn_camera_before`; turning Mirrors off gives it back if `1` is still set (`SideCameraMonitorService.kt`, `MirrorsSettings.kt`) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23) |
@@ -545,6 +545,8 @@ second shell. The figures survive a process restart through `TripJournal`, one r
 written whole through a temp file and a rename, and restored only when the
 odometer says it is about the road we are on.
 
+> **Superseded 2026-10-09:** the trip panel no longer reads this id with a shell of its own; `TripParkSignal` is deleted. Its trip clock takes `VehicleTelemetry.parked` from the same hub sweep, under the claim `VehicleWatcher.TRIP`, so the hub is the id's only reader — see [Telemetry ownership](#telemetry-ownership).
+
 ### The two boxes, and what a running panel said about them
 
 The panel was built, put on a live bench and watched, and everything that came
@@ -1024,6 +1026,8 @@ That reader keeps its own shell because it runs on the head unit without the
 cluster; the cluster asks in the batch it already sends to that device, which
 costs about five milliseconds of a sweep that already spends a hundred and thirty
 on shell overhead.
+
+> **Superseded 2026-10-09:** the hub has run for the life of the process since 2026-09-18 (`VehicleWatcher.LEDGER`), so "without the cluster" stopped being a reason. The trip panel's reader and its shell are deleted; the trip clock reads P from this sweep through `TripParkFeed` and holds `VehicleWatcher.TRIP` while the strip runs, which keeps the cadence at the ledger's second and ends a backoff it finds.
 
 **Cold values are rebuilt from each cold sweep** (`VehicleColdSweep.rebuild`)
 rather than merged into a map

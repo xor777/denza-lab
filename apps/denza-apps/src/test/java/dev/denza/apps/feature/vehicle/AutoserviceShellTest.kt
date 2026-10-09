@@ -1,6 +1,5 @@
 package dev.denza.apps.feature.vehicle
 
-import dev.denza.apps.feature.trip.TripParkSignal
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -163,18 +162,18 @@ class AutoserviceShellTest {
     }
 
     @Test
-    fun theParkSwitchIsTheOneTheTripPanelAlreadyReads() {
-        // One feature id, two callers. The trip panel keeps its own shell because it runs without
-        // the cluster; the cluster asks in the batch it already has going past this device.
+    fun theParkSwitchIsTheOneTheTripPanelHasAlwaysRead() {
+        // The command the trip panel's own reader sent from the day it shipped until 2026-10-09,
+        // when its clock started reading P from this sweep instead (`TripParkFeedTest`).
         val signal = VehicleSignal.GEARBOX_PARK
         assertEquals(
-            "the cluster's command must be the trip panel's command",
-            "echo @@0; ${TripParkSignal.COMMAND}",
+            "the hub's command must be the live-proven park command",
+            "echo @@0; service call autoservice 5 i32 1011 i32 89129008",
             AutoserviceShell.command(listOf(signal)),
         )
         assertEquals(0.0, AutoserviceShell.decode(signal, 0)!!, 1e-9)
         assertEquals(1.0, AutoserviceShell.decode(signal, 1)!!, 1e-9)
-        // A third value is not an answer, the same way the trip panel's own reader refuses it.
+        // A third value is not an answer, the same way the trip panel's own reader refused it.
         assertNull(AutoserviceShell.decode(signal, 2))
     }
 
