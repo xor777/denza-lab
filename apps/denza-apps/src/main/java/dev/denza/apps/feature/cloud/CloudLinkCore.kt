@@ -183,8 +183,10 @@ internal class CloudLinkCore {
      * give the car its own profile back. Each half only when the reading says it is needed.
      */
     fun switchedOff(car: CloudCarState): List<CloudStep> = buildList {
-        if (car.profile == CloudLinkProtocol.WIFI_PROFILE && !car.cellular) add(CloudStep.AnnounceGone)
-        if (car.profile == CloudLinkProtocol.WIFI_PROFILE && !car.cellular) add(CloudStep.WaitDisconnected)
+        if (car.profile == CloudLinkProtocol.WIFI_PROFILE && !car.cellular) {
+            add(CloudStep.AnnounceGone)
+            add(CloudStep.WaitDisconnected)
+        }
         if (!car.onStockProfile) add(CloudStep.RestoreProfile(car.stockProfile))
     }
 

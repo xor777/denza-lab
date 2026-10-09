@@ -48,7 +48,6 @@ object CloudLinkController {
             if (enabled) {
                 attempt(app, core.switchedOn(read(app), CloudNetwork.usable(app), now()))
             }
-            true
         }
     }
 
@@ -67,7 +66,6 @@ object CloudLinkController {
             shell(app, CloudLinkProtocol.wifiRetentionCommand(retain))
             check(read(app).wifiRetained == retain) { "Настройка Wi-Fi не подтвердилась" }
             record(app, "wifiRetention=$retain confirmed")
-            true
         }
     }
 
@@ -181,7 +179,7 @@ object CloudLinkController {
         app: Context,
         taken: (CloudLinkFailures) -> CloudLinkFailures,
         refused: (CloudLinkFailures, String) -> CloudLinkFailures,
-        block: () -> Boolean,
+        block: () -> Unit,
     ) {
         pressesInFlight.incrementAndGet()
         // Core is worker-owned; the caller publishes only the atomic busy flag, whose write marks
@@ -189,7 +187,7 @@ object CloudLinkController {
         CloudLinkRuntime.busy = true
         executor.execute {
             try {
-                check(block()) { "Операция не подтвердилась" }
+                block()
                 CloudLinkRuntime.failures = taken(CloudLinkRuntime.failures)
             } catch (error: Exception) {
                 CloudLinkRuntime.failures = refused(CloudLinkRuntime.failures, failure(error))
