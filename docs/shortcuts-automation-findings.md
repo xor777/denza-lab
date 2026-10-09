@@ -16,7 +16,7 @@ Everything else here is a dated findings journal.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
-| Wheel Play/Pause is keyed by **package**: the last package seen PLAYING is persisted in prefs `media_resume`, `last_played_package` (`last_played_at` is written, never read: no expiry) (`MediaResumeCore.kt`, `MediaLastPlayedPreferences.kt`) | code | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
+| Wheel Play/Pause is keyed by **package**: the last package seen PLAYING is persisted in prefs `media_resume`, `last_played_package`, with no time and no expiry (`last_played_at`, never read, stopped being written on 2026-10-09) (`MediaResumeCore.kt`, `MediaLastPlayedPreferences.kt`) | code | 2026-10-09 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | Play resolves in order: something PLAYING → pause it; a live or dormant session of the last-played package → `play()` with no `ACTION_PLAY` gate; none → the firmware (`stock-no-live-session`); no record → the firmware (`stock-no-history`) (`MediaResumeCore.perform`) | code | 2026-10-08 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | A session that leaves `getActiveSessions` stays commandable until `onSessionDestroyed`: this vehicle's `MediaSessionRecord` routes `play()` without reading `mIsActive` | firmware | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | The firmware's Play fallback (`MediaKeyHandler`) is the audio-focus owner's controller, else `com.byd.mediacenter`, so every Play we refuse opens the stock player | firmware | 2026-09-05 | [Why Pause can work while Play selects stock music](#why-pause-can-work-while-play-selects-stock-music) |
@@ -360,6 +360,8 @@ parking the driver expects the same thing as after a red light. It is stored so
 that an expiry stays one comparison away in `MediaResumeCore.lastPlayedPackage`
 if a car ever argues for one. `MediaResumeCoreTest` pins the decision with
 "an old record is still honoured because there is no time limit".
+
+> **Superseded 2026-10-09:** only `last_played_package` is written now. The timestamp nobody read is gone, so a PLAYING of the package already recorded no longer reaches the preferences file; an expiry would have to store a time again. A car updated from an older build keeps the stale `last_played_at` key, unread.
 
 > **Superseded 2026-10-08:** the record still has no expiry, but after a night's parking it resolves nothing: the sleep unloads the player, and a package with no live session is left to the firmware. The record now only chooses among live sessions, for example after our own service restarted while the player kept running — see [No resurrection after sleep (2026-10-08)](#no-resurrection-after-sleep-2026-10-08).
 

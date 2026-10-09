@@ -236,7 +236,7 @@ class MediaKeyDiagnosticsTest {
     @Test
     fun `a press for a player the car unloaded is recorded as left to the firmware`() {
         val core = MediaResumeCore(object : MediaLastPlayedStore {
-            override fun lastPlayed() = MediaLastPlayed("ru.yandex.music", 1L)
+            override fun lastPlayed() = MediaLastPlayed("ru.yandex.music")
 
             override fun remember(packageName: String) = Unit
         })

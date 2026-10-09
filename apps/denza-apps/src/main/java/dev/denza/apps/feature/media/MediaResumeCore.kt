@@ -57,19 +57,18 @@ internal object MediaResumeReason {
     const val STOCK_NO_LIVE_SESSION = "stock-no-live-session"
 }
 
-/** The package whose session was last seen actually playing, and the wall clock at that moment. */
+/** The package whose session was last seen actually playing. */
 internal data class MediaLastPlayed(
     val packageName: String,
-    val atMillis: Long,
 )
 
 /**
  * Survives this process. Everything else the policy knows dies with it.
  *
- * The timestamp is written but never read by the policy: there is deliberately no expiry, because
- * the driver's expectation after a night's parking is the same as after a red light - the wheel
- * resumes what was playing. It is stored so that a time limit stays one comparison away in
- * [MediaResumeCore.lastPlayedPackage] if a car ever proves that wrong.
+ * There is deliberately no expiry, because the driver's expectation after a night's parking is the
+ * same as after a red light - the wheel resumes what was playing - so no time is kept either. A
+ * time limit, if a car ever proves that wrong, needs one written here and compared in
+ * [MediaResumeCore.lastPlayedPackage].
  */
 internal interface MediaLastPlayedStore {
     fun lastPlayed(): MediaLastPlayed?
