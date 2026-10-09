@@ -260,6 +260,11 @@ channel, read by type), «Экран не найден», «Не установ�
 the vendor's result code go to the technical report only. Until 2026-10-09 the progress lines named
 the application («Подготавливаю Яндекс Навигатор») and ran past the tile.
 
+While an install runs, pressing the tile opens nothing (`FseInstallStatus.installing`): the tile
+already shows how far it has got. It used to open the chooser again, whose every tap was refused
+because one install runs at a time. «Нет доступа» waits on the press, which checks the car's ADB
+access before the chooser opens again.
+
 ### Split-package report (removed)
 
 The support screen used to list every split APK file of every installable

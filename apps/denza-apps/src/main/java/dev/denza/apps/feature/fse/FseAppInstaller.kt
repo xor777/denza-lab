@@ -47,6 +47,14 @@ sealed interface FseInstallResult {
 
 /** The «Экран справа» tile while an install runs and once it has ended. */
 object FseInstallStatus {
+    /**
+     * Whether an install is running. While it is, the tile's press opens nothing: the tile already
+     * shows how far it has got, and the chooser it used to open again took every tap and did
+     * nothing with it - one install runs at a time.
+     */
+    fun installing(snapshot: FeatureSnapshot): Boolean =
+        snapshot.status == FeatureStatus.STARTING || snapshot.status == FeatureStatus.RECOVERING
+
     /** Running: the tile's caption is the install's own words, [FseInstallStep]'s. */
     fun progress(words: String): FeatureSnapshot = FeatureSnapshot(
         id = FeatureId.FSE_INSTALLER,
