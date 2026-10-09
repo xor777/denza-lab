@@ -1,12 +1,12 @@
 package dev.denza.apps.feature.split
 
 /**
- * The contract automaton: `(state, settled fact) -> (state', plans)`.
+ * The contract automaton: `(state, settled fact) -> (state', whether a scene needs tearing down)`.
  *
  * Pure, synchronous and total. It is the only writer of semantic state (invariant 12) and knows
  * nothing about ADB, time, threads or task ids (contract section 7). A fact that is impossible in
- * the current state is a strict no-op: the very same state instance comes back with no plans, so a
- * duplicated, late or foreign observation can never move the screen (U1, invariant 8).
+ * the current state is a strict no-op: the very same state instance comes back with no teardown,
+ * so a duplicated, late or foreign observation can never move the screen (U1, invariant 8).
  */
 internal object SplitAutomaton {
 

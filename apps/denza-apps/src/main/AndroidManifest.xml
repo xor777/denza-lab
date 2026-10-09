@@ -82,7 +82,7 @@
             android:name=".feature.cluster.ClusterSceneService"
             android:exported="false" />
         <!--
-            The picker and its inert host are embedded in Denza Apps. The launcher alias below
+            The split picker is embedded in Denza Apps. The launcher alias below
             only exposes a second icon; it never represents a separately installed package.
             CATEGORY_INFO lets SmartMulti restore the picker component for this split-capable
             package without exposing another always-on launcher entry.

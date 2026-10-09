@@ -144,19 +144,13 @@ internal sealed interface SplitFact {
 }
 
 /**
- * High-level intents produced by the automaton.
+ * What one step of the automaton yields: the next semantic state, and whether the toggle went off
+ * over a scene that still has to be torn down.
  *
- * Concrete shell steps, identity checks and rollback belong to the operation runner; a plan only
- * says what the product wants to happen.
- *
- * Returning a projected navigator is deliberately absent: it is an actor operation running under
- * the navigation lease ([SplitInputPriority.NAV]), not something the automaton schedules. The
- * automaton only hears about the return that already happened ([SplitFact.ProjectionReturned]).
- *
- * The operations are written settled-first, so today only `DisableOperation` reads a plan, and it
- * reads whether the list is empty rather than which variant it holds: "the toggle went off over a
- * scene that needs a teardown". The variants are the automaton's own statement of which teardown
- * the contract asks for (1.2.3 versus 1.2.4-1.2.5) and are asserted as such by its tests.
+ * Concrete shell steps, identity checks and rollback belong to the operations, which build their own
+ * plans; the automaton schedules nothing. Returning a projected navigator, likewise, is an actor
+ * operation running under the navigation lease ([SplitInputPriority.NAV]): the automaton only hears
+ * about the return that already happened ([SplitFact.ProjectionReturned]).
  */
 internal data class SplitReduction(
     val state: SplitState,
