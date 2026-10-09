@@ -31,9 +31,9 @@ import dev.denza.apps.feature.adb.AdbStartupGatePolicy
 import dev.denza.apps.feature.defaultapps.DefaultAppsCatalogCache
 import dev.denza.apps.feature.defaultapps.DefaultAppsRuntime
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
-import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.fse.FseInstallApp
-import dev.denza.apps.feature.fse.FseInstallStatus
+import dev.denza.apps.feature.fse.FseInstallRuntime
+import dev.denza.apps.feature.fse.FseInstallState
 import dev.denza.apps.feature.hud.HudGuidanceRider
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
@@ -212,7 +212,7 @@ data class DenzaUiState(
      * recompute - the car's launcher catalog, and nothing but that page draws it.
      */
     val appChoices: List<SimulcastAppChoice> = emptyList(),
-    /** What «Экран справа» offers, read when its chooser opens (`refreshFseInstallApps`). */
+    /** What «Экран справа» offers, read when its chooser opens (`FseInstallRuntime.refreshApps`). */
     val fseInstallApps: List<FseInstallApp> = emptyList(),
 )
 
@@ -234,11 +234,10 @@ internal fun DenzaUiState.behindAdbGate(
 /** Android-facing state owner shared by the Compose shell and runtime services. */
 object DenzaAppRepository {
     private const val TAG = "DenzaApps.Repository"
-    private val executor = Executors.newSingleThreadExecutor()
 
     /**
      * Where the choosers read the launcher catalog: off the main thread, and not behind a
-     * passenger install on [executor], which can take minutes.
+     * passenger install, which can take minutes.
      */
     private val catalogExecutor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "denza-catalog").apply { isDaemon = true }
@@ -292,6 +291,18 @@ object DenzaAppRepository {
         state = stateStore.cell(
             get = DenzaUiState::defaultApps,
             set = { state, defaultApps -> state.copy(defaultApps = defaultApps) },
+        ),
+        context = { appContext },
+    )
+
+    /**
+     * The «Экран справа» tile's runtime: its chooser's list and one install at a time, published
+     * through the tile's two fields of [state]; see [FseInstallRuntime].
+     */
+    val fseInstall = FseInstallRuntime(
+        state = stateStore.cell(
+            get = { state -> FseInstallState(install = state.fseInstaller, apps = state.fseInstallApps) },
+            set = { state, fse -> state.copy(fseInstaller = fse.install, fseInstallApps = fse.apps) },
         ),
         context = { appContext },
     )
@@ -562,51 +573,6 @@ object DenzaAppRepository {
             }
             current.copy(appChoices = marked)
         }
-    }
-
-    /**
-     * Read what «Экран справа» can offer, before its chooser opens; false when it must not open -
-     * an install is already under way - and the screen leaves it shut.
-     *
-     * On the caller's thread, as it always was: the chooser opens drawn, list and pictures both.
-     */
-    fun refreshFseInstallApps(): Boolean {
-        val context = appContext ?: return false
-        if (FseInstallStatus.installing(stateStore.snapshot().state.fseInstaller)) return false
-        val installedApps = FseAppInstaller.installedApps(context)
-        // The pictures are read with the list, as they always were, so the chooser opens drawn.
-        installedApps.filter(FseInstallApp::installable).forEach { app ->
-            AppIcons.load(context, app.packageName)
-        }
-        stateStore.update { current -> current.copy(fseInstallApps = installedApps) }
-        return true
-    }
-
-    /**
-     * One application pressed in the chooser; true when its install has started and the chooser
-     * closes, false when the chooser stays.
-     */
-    fun installOnPassengerScreen(packageName: String): Boolean {
-        val context = appContext ?: return false
-        when (claimFseInstall(packageName)) {
-            FseInstallClaim.BUSY -> return false
-            // The list the picker was drawn from no longer matches the car. Re-read it and leave
-            // the picker standing: a working chooser is the answer, not a note about the old one.
-            FseInstallClaim.STALE -> {
-                refreshFseInstallApps()
-                return false
-            }
-            FseInstallClaim.START -> Unit
-        }
-        executor.execute {
-            val result = FseAppInstaller.install(context, packageName) { message ->
-                val progress = FseInstallStatus.progress(message)
-                stateStore.update { current -> current.copy(fseInstaller = progress) }
-            }
-            val completed = FseInstallStatus.of(result)
-            stateStore.update { current -> current.copy(fseInstaller = completed) }
-        }
-        return true
     }
 
     /**
@@ -1348,40 +1314,6 @@ object DenzaAppRepository {
             runtimeEnabled = SplitScreenSettings.isEnabled(context),
             setRuntimeEnabled = SplitScreenCoordinator::setEnabled,
         )
-    }
-
-    /**
-     * What a tap on the passenger picker turns out to be.
-     *
-     * [STALE] is the one case worth telling apart: the picker was drawn from a list that has since
-     * changed under it, so the honest answer is a picker that shows the car as it is now rather
-     * than a sentence explaining why the tile the driver just pressed did nothing.
-     */
-    private enum class FseInstallClaim { START, BUSY, STALE }
-
-    private fun claimFseInstall(packageName: String): FseInstallClaim {
-        while (true) {
-            val snapshot = stateStore.snapshot()
-            val current = snapshot.state
-            if (FseInstallStatus.installing(current.fseInstaller)) return FseInstallClaim.BUSY
-
-            val app = current.fseInstallApps.firstOrNull { it.packageName == packageName }
-            // A package that cannot be sent across is already drawn as unpressable, so reaching
-            // here means the list is out of date. Both of these used to write a line of amber over
-            // the grid instead - "APK недоступен", "Приложение больше не найдено" - which is the
-            // picker teaching the driver to read explanations of taps that will never work.
-            if (app == null || !app.installable) return FseInstallClaim.STALE
-
-            val updated = current.copy(
-                fseInstaller = FeatureSnapshot(
-                    id = FeatureId.FSE_INSTALLER,
-                    desiredEnabled = false,
-                    status = FeatureStatus.STARTING,
-                    message = app.label,
-                ),
-            )
-            if (stateStore.compareAndSet(snapshot, updated)) return FseInstallClaim.START
-        }
     }
 
     private fun supportDiagnostics(context: Context): String =

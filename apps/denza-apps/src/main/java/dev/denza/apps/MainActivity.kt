@@ -58,8 +58,8 @@ class MainActivity : ComponentActivity() {
                     onSelectDefaultApp = DenzaAppRepository.defaultApps::select,
                     onLoadAppChoices = DenzaAppRepository::refreshAppChoices,
                     onToggleApp = DenzaAppRepository::toggleAppSelection,
-                    onLoadFseApps = DenzaAppRepository::refreshFseInstallApps,
-                    onInstallFseApp = DenzaAppRepository::installOnPassengerScreen,
+                    onLoadFseApps = DenzaAppRepository.fseInstall::refreshApps,
+                    onInstallFseApp = DenzaAppRepository.fseInstall::install,
                 )
             },
         )

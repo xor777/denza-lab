@@ -47,7 +47,7 @@ class TileSliceContractTest {
     /** Tiles whose state no slice reads: each is published by the one path that changes it. */
     private val publishedByTheirOwnPath = mapOf(
         // The passenger install reports its own progress as it goes, on the install's thread.
-        TileId.PASSENGER to "DenzaAppRepository.installOnPassengerScreen",
+        TileId.PASSENGER to "FseInstallRuntime.install",
         // The roles are read and written on the default-apps thread, each write claimed.
         TileId.DEFAULT_APPS to "DefaultAppsRuntime.refresh",
         // A door: its count is the other tiles', and its report is built while it is open.
