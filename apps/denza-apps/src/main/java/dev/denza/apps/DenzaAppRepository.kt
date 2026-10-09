@@ -45,7 +45,7 @@ import dev.denza.apps.feature.cloud.CloudLinkService
 import dev.denza.apps.feature.cloud.CloudLinkSettings
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cloud.CloudNetwork
-import dev.denza.apps.feature.locale.SystemLanguage
+import dev.denza.apps.feature.locale.SystemLanguageFeature
 import dev.denza.apps.feature.locale.SystemLanguageSnapshot
 import dev.denza.apps.feature.media.MediaKeyRider
 import dev.denza.apps.feature.mirrors.MirrorDisplayReadiness
@@ -77,8 +77,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverService
 import dev.denza.apps.feature.speaker.SpeakerCoverSettings
 import dev.denza.apps.feature.speaker.SpeakerCoverStatus
 import dev.denza.apps.feature.split.SplitLauncherEntryActivity
-import dev.denza.apps.feature.weather.WeatherAdapterScheduler
-import dev.denza.apps.feature.weather.WeatherAdapterState
+import dev.denza.apps.feature.weather.WeatherFeature
 import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.accessibility.AccessibilityHost
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
@@ -282,6 +281,24 @@ object DenzaAppRepository {
         // Every writer outside this object marks through StateMarks; from here on they land here.
         StateMarks.connect { slices, cause -> publisher.invalidate(slices, cause) }
     }
+
+    /**
+     * The «Погода» tile's feature: its switch, and the adapter's record read back as its slice;
+     * see [WeatherFeature].
+     */
+    val weather = WeatherFeature(
+        slice = FeatureSlices.WEATHER.handle(publisher),
+        context = { appContext },
+    )
+
+    /**
+     * The «Язык системы» tile's feature: the language the car speaks, read as its slice, and the
+     * car's own list of them; see [SystemLanguageFeature].
+     */
+    val systemLanguage = SystemLanguageFeature(
+        slice = FeatureSlices.SYSTEM_LANGUAGE.handle(publisher),
+        context = { appContext },
+    )
 
     /**
      * The «Shortcuts» tile's runtime: the three roles, read and written on its own thread and
@@ -491,14 +508,10 @@ object DenzaAppRepository {
                 automatic = clusterDisplayName(ClusterDisplayResolver.select(candidates), candidates),
             )
         }
-        StateSlice.WEATHER -> WeatherReading(
-            enabled = WeatherAdapterState.enabled(context),
-            temperature = WeatherAdapterState.lastTemperature(context),
-            updatedMillis = WeatherAdapterState.lastSuccessMillis(context),
-        )
-        // A tile on the main screen, read like every other tile's state: one call to
-        // [Locale.getDefault], and the car is asked nothing.
-        StateSlice.SYSTEM_LANGUAGE -> SystemLanguageReading(SystemLanguage.read())
+        // The tiles in the SliceFeature shape read themselves; FeatureSlices lays what they read.
+        StateSlice.WEATHER -> FeatureSlices.WEATHER.reading(weather.read(context))
+        StateSlice.SYSTEM_LANGUAGE ->
+            FeatureSlices.SYSTEM_LANGUAGE.reading(systemLanguage.read(context))
     }
 
     fun setSimulcastEnabled(enabled: Boolean) {
@@ -943,19 +956,6 @@ object DenzaAppRepository {
     }
 
     /**
-     * What language the car is speaking, read straight.
-     *
-     * No coordinator and no claim: this is [Locale.getDefault], which cannot fail and cannot be
-     * refused, read as the [StateSlice.SYSTEM_LANGUAGE] slice on the publisher's thread. The
-     * machinery the old per-application override needed - a permission granted over ADB, a running
-     * flag, an ABA-safe compare, two shapes of failure - all belonged to writing somebody else's
-     * locale, and nothing here writes anything.
-     */
-    fun refreshSystemLanguage() {
-        invalidate(StateSlice.SYSTEM_LANGUAGE, "language")
-    }
-
-    /**
      * Split the screen now, through the same door the launcher icon opens.
      *
      * Not a second way of doing it - literally the same entry activity, so the flow a driver gets
@@ -980,46 +980,6 @@ object DenzaAppRepository {
                 }
             },
         )
-    }
-
-    /**
-     * Whether the car is fed weather at all.
-     *
-     * There is no coordinator behind this and no handshake to wait for: the adapter either has a
-     * standing alarm or it does not, so the press is the whole of the operation and the state can
-     * be reported the moment it is written.
-     */
-    fun setWeatherEnabled(enabled: Boolean) {
-        val context = appContext ?: return
-        WeatherAdapterState.setEnabled(context, enabled)
-        if (enabled) WeatherAdapterScheduler.ensureScheduled(context)
-        else WeatherAdapterScheduler.cancel(context)
-        publisher.publish("weather switch") { current -> current.copy(weatherEnabled = enabled) }
-    }
-
-    /**
-     * What the car was last handed, copied from the adapter's own record.
-     *
-     * The forecast is fetched every ten minutes by [WeatherAdapterService], which writes the
-     * temperature and the time of the last success as it goes; the tile and the panel read them
-     * from here: the [StateSlice.WEATHER] slice, read with every [refresh] and, through
-     * [WeatherAdapterState.observe], after every run as it records - until 2026-10-06 only the
-     * runtime start read them, so the tile kept the temperature of the moment the process came up.
-     */
-    fun refreshWeather() {
-        invalidate(StateSlice.WEATHER, "weather")
-    }
-
-    /**
-     * Hand the language over to the car's own list.
-     *
-     * The whole feature. This app does not set the language, does not mirror what was chosen and
-     * does not need to be told afterwards: the car applies it to the system locale, every process
-     * is reconfigured, and this one comes back through [refreshSystemLanguage] like any other.
-     */
-    fun openSystemLanguage() {
-        val context = appContext ?: return
-        SystemLanguage.open(context)
     }
 
     private fun initializeAdbGate(context: Context) {
@@ -1073,11 +1033,7 @@ object DenzaAppRepository {
                     invalidate(StateSlice.NAVIGATION, "navigation")
                 }
             }
-            runtimeStep("weather initialize") {
-                WeatherAdapterScheduler.ensureScheduled(app)
-                WeatherAdapterState.observe(app) { refreshWeather() }
-                refreshWeather()
-            }
+            runtimeStep("weather initialize") { weather.start(app) }
             runtimeStep("dashboard refresh") { refresh("runtime start") }
             runtimeStep("default apps refresh") { defaultApps.refresh() }
             runtimeStep("steering wheel reconcile") {

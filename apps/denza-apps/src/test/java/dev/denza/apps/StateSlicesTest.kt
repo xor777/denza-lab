@@ -10,6 +10,7 @@ import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.locale.SystemLanguageSnapshot
 import dev.denza.apps.feature.mirrors.MirrorsPosition
+import dev.denza.apps.feature.weather.WeatherSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
 import org.junit.Test
@@ -110,8 +111,8 @@ class StateSlicesTest {
                 override = null,
                 automatic = "Экран 1",
             ),
-            WeatherReading(enabled = true, temperature = 14, updatedMillis = 1_000L),
-            SystemLanguageReading(SystemLanguageSnapshot()),
+            FeatureSlices.WEATHER.reading(WeatherSnapshot(enabled = true, temperature = 14, updatedMillis = 1_000L)),
+            FeatureSlices.SYSTEM_LANGUAGE.reading(SystemLanguageSnapshot()),
         )
     }
 }
