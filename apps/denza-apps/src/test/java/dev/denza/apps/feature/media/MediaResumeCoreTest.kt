@@ -292,7 +292,10 @@ class MediaResumeCoreTest {
         assertEquals(0, before.plays)
     }
 
-    /** What `SimulcastAccessibilityService.onKeyEvent` gets back for both halves of that press. */
+    /**
+     * What `MediaKeyRider.onKeyEvent` - the first key rider `RiderDispatch.key` asks - gets back for
+     * both halves of that press.
+     */
     @Test
     fun `the wheel key for an unloaded player is released untouched, down and up`() {
         val core = core(FakeStore("yandex"))

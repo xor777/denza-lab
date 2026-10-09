@@ -208,7 +208,7 @@ class MediaResumeSessionsTest {
         assertTrue(log.contains("could not validate media sessions"))
     }
 
-    /** `requestMediaResumeRefresh` calls `start()` again once the access repair is done. */
+    /** `MediaKeyRider.requestRefresh` calls `start()` again once the access repair is done. */
     @Test
     fun startingAgainAfterTheGrantCameBackListensAgain() {
         store.remember("ru.yandex.music")

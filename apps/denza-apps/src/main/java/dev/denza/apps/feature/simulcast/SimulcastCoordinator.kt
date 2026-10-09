@@ -3,7 +3,6 @@ package dev.denza.apps.feature.simulcast
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
-import dev.denza.apps.SimulcastAccessibilityService
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.OverlayGrant
 import dev.denza.apps.core.FeatureId
@@ -12,6 +11,7 @@ import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.core.FeatureWords
+import dev.denza.apps.platform.accessibility.AccessibilityHost
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
 import dev.denza.apps.platform.accessibility.SharedAccessibilityAccess
 
@@ -80,7 +80,7 @@ object SimulcastCoordinator {
         blocker = blocker(context),
         overlayAllowed = hasOverlayPermission(context),
         accessibilityEnabled = isAccessibilityEnabled(context),
-        accessibilityConnected = SimulcastAccessibilityService.isConnected(),
+        accessibilityConnected = AccessibilityHost.isConnected(),
         active = SimulcastIntegration.getLastTargetPackage() != null,
     )
 
@@ -195,7 +195,7 @@ object SimulcastCoordinator {
         return SharedAccessibilityAccess.isEnabled(setting)
     }
 
-    fun isAccessibilityConnected(): Boolean = SimulcastAccessibilityService.isConnected()
+    fun isAccessibilityConnected(): Boolean = AccessibilityHost.isConnected()
 
     private fun blocker(context: Context): SimulcastBlocker? {
         if (!isInstalled(context.packageManager, DISHARE_PACKAGE)) {

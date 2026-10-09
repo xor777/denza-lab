@@ -80,7 +80,8 @@ candidate for the throw.
    path and `AndroidTarget.pauseSession` in `MediaResumeController`,
    `MediaKeyDiagnostics.recordCompletion` with a nullable
    `MediaKeyPress.keyCode`, the bridge's construction, `warm()` and `close()` in
-   `SimulcastAccessibilityService.java`, and the `packMediaFocus` task in
+   `SimulcastAccessibilityService.java` (since 2026-10-09 the key lives and goes with
+   `feature/media/MediaKeyRider.kt`, a rider of that service), and the `packMediaFocus` task in
    `apps/denza-apps/build.gradle.kts`. The deleted tests are in
    `MediaResumeCoreTest.kt` and `MediaKeyDiagnosticsTest.kt` at the same commit.
 3. Raise `DenzaMediaResume` and `DenzaMediaFocus` logging before any live run;

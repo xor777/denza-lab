@@ -23,7 +23,6 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
@@ -42,9 +41,9 @@ import java.util.Set;
  * Seamless Simulcast overlay driven by accessibility. Watches the native
  * {@code com.byd.dishare/.app.ui.ShareDialogActivity} window, reads its live node
  * bounds via {@link SimulcastDialogGeometry}, and reproduces the native picker with
- * the user's chosen apps so it looks native. It rides on the app's shared accessibility
- * service ({@code dev.denza.apps.SimulcastAccessibilityService}), which hands it the service
- * and every window event.
+ * the user's chosen apps so it looks native. {@link SimulcastOverlayRider} puts it on the app's
+ * shared accessibility service: attach as the service connects, a refresh for every window event,
+ * detach as it goes.
  *
  * <p>Interaction mirrors native: tap an app in the row to select it (its icon shows
  * on the central source screen), then drag from the central screen onto a receiver
@@ -137,17 +136,6 @@ public final class SimulcastDialogOverlay {
         attached = true;
         windowManager = (WindowManager) service.getSystemService(Context.WINDOW_SERVICE);
         windowReconciler = new SimulcastWindowReconciler(new OverlayWindowHost());
-    }
-
-    /** A window of any app appeared, went or changed: look at the stock dialog again, shortly. */
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        int type = event.getEventType();
-        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-                && type != AccessibilityEvent.TYPE_WINDOWS_CHANGED
-                && type != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-            return;
-        }
-        scheduleRefresh();
     }
 
     /** The service is going: no refresh is left queued, the exit control comes back, every window goes. */
