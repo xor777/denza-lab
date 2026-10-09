@@ -298,8 +298,17 @@ internal class SplitCoordinatorCore(
     private var toggledTo: Boolean? = null
     private val recheckLock = Any()
     private val residentLock = Any()
-    private val gateCheckLock = Any()
-    private var gateCheck: SplitCancellable? = null
+
+    /** The gate closed ahead of the area on Home, and its undo (К 1.9; [SplitGateAhead]). */
+    private val gateAhead = SplitGateAhead(
+        gate = gate,
+        gateLeaseStore = gateLeaseStore,
+        clock = clock,
+        readArea = readArea,
+        log = log,
+        coverRecorded = { currentState().visibility == SceneVisibility.COVERED },
+        keepersPending = { actor.pendingPriorities().filter { it in GATE_KEEPERS }.isNotEmpty() },
+    )
 
     private var state = SplitState()
     private var live: SplitLiveScene = emptyMap()
@@ -556,7 +565,7 @@ internal class SplitCoordinatorCore(
         if (!currentState().enabled) return
         val owners = actor.pendingPriorities().filter { it in GATE_KEEPERS }
         if (owners.isEmpty()) {
-            closeGateAhead("homekey")
+            gateAhead.close("homekey")
         } else {
             log.log("homekey: gate оставлен операции ${owners.joinToString()}", background = true)
         }
@@ -585,7 +594,7 @@ internal class SplitCoordinatorCore(
             return
         }
         if (area.isCoveredArea()) {
-            closeGateAhead("area=$area")
+            gateAhead.close("area=$area")
             homeVisible()
         } else {
             dividerResized()
@@ -608,52 +617,6 @@ internal class SplitCoordinatorCore(
         val listening = signals.arm(onHomeKey = ::homeKeyPressed, onArea = ::areaChanged)
         if (!listening || !handOverCoveredArea) return
         runCatching(readArea).getOrNull()?.takeIf { area -> area.isCoveredArea() }?.let(::areaChanged)
-    }
-
-    /**
-     * One in-process transaction on the gate, and only on ours: a gate this session never opened is
-     * not its to close (to 1.12), and a cover already recorded has suspended it already.
-     */
-    private fun closeGateAhead(cause: String) {
-        if (!gateLeaseStore.isOwned()) return
-        if (currentState().visibility == SceneVisibility.COVERED) return
-        val startedAtMs = clock.nowMs()
-        val closed = runCatching { gate.set(open = false) }
-            .onFailure { error -> log.log("gate на опережение не закрылся ($cause): $error") }
-            .isSuccess
-        if (!closed) return
-        log.log("gate закрыт на опережение ($cause) за ${clock.nowMs() - startedAtMs} мс")
-        synchronized(gateCheckLock) {
-            gateCheck?.cancel()
-            gateCheck = clock.schedule(GATE_AHEAD_CHECK_MS) { checkGateAhead(cause) }
-        }
-    }
-
-    /**
-     * The undo of [closeGateAhead], decided by one area read. A covered area means the close was
-     * right and the Home input owns the rest. A visible one with no cover recorded means the Home
-     * never happened - the firmware swallowed the key, or a push was one of the transients - and a
-     * visible scene with our gate closed is a pane app escaping to fullscreen on its next screen
-     * (findings, "Placement, read end to end"), so the gate goes back.
-     */
-    private fun checkGateAhead(cause: String) {
-        synchronized(gateCheckLock) { gateCheck = null }
-        val area = runCatching(readArea).getOrNull() ?: return
-        if (area.isCoveredArea()) return
-        if (!gateLeaseStore.isOwned()) return
-        if (currentState().visibility == SceneVisibility.COVERED) return
-        val owners = actor.pendingPriorities().filter { it in GATE_KEEPERS }
-        if (owners.isNotEmpty()) return
-        runCatching { gate.set(open = true) }
-            .onSuccess { log.log("gate возвращён: $cause без накрытия, area=$area") }
-            .onFailure { error -> log.log("gate не возвращён после $cause: $error") }
-    }
-
-    private fun cancelGateCheck() {
-        synchronized(gateCheckLock) {
-            gateCheck?.cancel()
-            gateCheck = null
-        }
     }
 
     // endregion
@@ -736,7 +699,7 @@ internal class SplitCoordinatorCore(
     /** The worker is joined first, so nothing is still holding the transport when it closes. */
     fun shutdown() {
         cancelReconcileRechecks()
-        cancelGateCheck()
+        gateAhead.cancelCheck()
         disarmResidentRelease()
         actor.shutdown()
         (shellFactory as? AutoCloseable)?.let { closeable -> runCatching(closeable::close) }
@@ -969,14 +932,6 @@ internal class SplitCoordinatorCore(
     internal companion object {
         /** Ф4: how long the shell-UID helper may stand about with no operation needing it. */
         const val RESIDENT_IDLE_MS = 30_000L
-
-        /**
-         * When a gate closed ahead of the area is checked against it. The push of a real Home
-         * arrived 111 ms after the key live, and flip to delivery was at most 145 ms over six
-         * captured Homes (findings 2026-09-23); a second is several times that, and short enough
-         * that a swallowed Home leaves a visible scene with a closed gate for no longer than it.
-         */
-        const val GATE_AHEAD_CHECK_MS = 1_000L
 
         /**
          * The operations that are using the gate at this instant and may not have it closed under
