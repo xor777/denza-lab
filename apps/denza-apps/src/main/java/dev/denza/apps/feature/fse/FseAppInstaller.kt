@@ -7,6 +7,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.util.Base64
 import android.util.Log
+import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.disharebridge.LocalAdbClient
 import org.json.JSONObject
@@ -307,19 +308,14 @@ object FseAppInstaller {
      * "Восстановить ADB" - and "Подтвердите ADB-ключ на экране автомобиля" is a sentence and a half
      * printed on a tile that elides at one line. A tile says what state a thing is in; what to do
      * about it is the press, which reopens the chooser, and the panel behind the long press.
+     *
+     * The copy's own failure is named first, whatever stopped it: a copy that died half-way is what
+     * the driver is looking at. The channel's failures read as they do on every tile ([AdbProblem]).
      */
     private fun friendlyError(error: Exception): String = when {
-        error.message.orEmpty().contains("APK copy", ignoreCase = true) ->
-            "Не скопировалось"
-        error.message.orEmpty().contains("authorization required", ignoreCase = true) ||
-            error.message.orEmpty().contains("authorization pending", ignoreCase = true) ->
-            "Ждёт доступ к ADB"
-        error.message.orEmpty().contains("refused", ignoreCase = true) ->
-            "ADB недоступен"
-        error.message.orEmpty().contains("not mounted", ignoreCase = true) ->
-            "Экран не найден"
-        error.message.orEmpty().contains("timed out", ignoreCase = true) ->
-            "Экран не ответил"
+        error.message.orEmpty().contains("APK copy", ignoreCase = true) -> "Не скопировалось"
+        AdbProblem.of(error) != null -> AdbProblem.WORDS
+        error.message.orEmpty().contains("not mounted", ignoreCase = true) -> "Экран не найден"
         else -> "Не установилось"
     }
 

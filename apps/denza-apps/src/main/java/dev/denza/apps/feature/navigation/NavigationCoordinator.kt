@@ -10,6 +10,7 @@ import dev.denza.apps.StateSlice
 import dev.denza.apps.TaskMoveLease
 import dev.denza.apps.TaskMoveOwner
 import dev.denza.apps.TaskMoveOwnership
+import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
@@ -252,7 +253,7 @@ object NavigationCoordinator {
             // The projection reads the same grant.
             StateMarks.mark(StateSlice.SIMULCAST, "overlay granted")
         } catch (error: Exception) {
-            val problem = friendlyProxyProblem(error)
+            val problem = proxyProblem(error)
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -307,7 +308,7 @@ object NavigationCoordinator {
             val task = NavigationProxyClient.findTask(app, packageName)
             update(NavigationSession(taskId = task.takeIf { it >= 0 }))
         } catch (error: Exception) {
-            val problem = friendlyProxyProblem(error)
+            val problem = proxyProblem(error)
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -407,7 +408,7 @@ object NavigationCoordinator {
         } catch (error: Exception) {
             pendingProjectionAfterOpen = false
             splitRoutingLease.release()
-            val problem = friendlyProxyProblem(error)
+            val problem = proxyProblem(error)
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -428,7 +429,7 @@ object NavigationCoordinator {
         val taskId = try {
             NavigationProxyClient.findTask(app, packageName)
         } catch (error: Exception) {
-            val problem = friendlyProxyProblem(error)
+            val problem = proxyProblem(error)
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -475,7 +476,7 @@ object NavigationCoordinator {
             // The projection reads the same grant.
             StateMarks.mark(StateSlice.SIMULCAST, "overlay granted")
         } catch (error: Exception) {
-            val problem = friendlyProxyProblem(error)
+            val problem = proxyProblem(error)
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -728,7 +729,7 @@ object NavigationCoordinator {
         val liveTask = try {
             NavigationProxyClient.findTask(app, packageName)
         } catch (error: Exception) {
-            val problem = friendlyProxyProblem(error)
+            val problem = proxyProblem(error)
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -969,35 +970,16 @@ object NavigationCoordinator {
         val resolution: FeatureResolution,
     )
 
-    private fun friendlyProxyProblem(error: Exception): NavigationProblem {
-        val text = error.message.orEmpty()
-        return when {
-            text.contains("authorization required", ignoreCase = true) ->
-                NavigationProblem(
-                    "Откройте ADB Rescue в диагностике",
-                    FeatureResolution.CONFIRM_ON_CAR,
-                )
-            text.contains("authorization pending", ignoreCase = true) ->
-                NavigationProblem(
-                    "Подтвердите запрос на экране автомобиля",
-                    FeatureResolution.CONFIRM_ON_CAR,
-                )
-            text.contains("refused", ignoreCase = true) ->
-                NavigationProblem(
-                    "Включите отладку USB в настройках автомобиля",
-                    FeatureResolution.ENABLE_CAR_DEBUGGING,
-                )
-            text.contains("timeout", ignoreCase = true) ->
-                NavigationProblem(
-                    "Система автомобиля не отвечает",
-                    FeatureResolution.RETRY,
-                )
-            else ->
-                NavigationProblem(
-                    "Повторите подключение",
-                    FeatureResolution.RETRY,
-                )
-        }
+    /**
+     * What a failed proxy, appops or shell call says on the tile.
+     *
+     * The channel's own failures say what they say on every tile that uses it ([AdbProblem]) and
+     * the press goes and looks; anything else failed at this step.
+     */
+    private fun proxyProblem(error: Exception): NavigationProblem {
+        val channel = AdbProblem.of(error)
+            ?: return NavigationProblem("Повторите подключение", FeatureResolution.RETRY)
+        return NavigationProblem(AdbProblem.WORDS, channel.resolution)
     }
 }
 
