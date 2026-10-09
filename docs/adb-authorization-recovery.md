@@ -12,7 +12,8 @@ currently inaccessible vehicle.
 | A feature tile whose call failed on the channel says «Нет доступа» and its press runs the passive check: the feature retries if the car still trusts the app, and the startup gate comes up if it does not (`FeatureResolution.CHECK_ACCESS`, `AdbProblem`) | code, 2026-10-09 | [Product behaviour](#product-behaviour) |
 | The access row and the recovery dialog say a state and the switch reading; exception names are only the «Последний сбой» row of «Технические сведения» | code, 2026-10-09 | [Explaining the channel](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26) |
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
-| Dipilot rescue shows the passive shell result before clicks, then queue observations and click diagnostics; it approves requests by design | local tests/build; vehicle acceptance pending | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| Dipilot rescue 0.2.0 has one explicit recovery button: passive shell check, service setup, window search regardless of queue logs, bounded approvals and final diagnostics | local tests/build; 0.2.0 vehicle acceptance pending | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| The owner's 0.1.0 photo shows Dipilot shell works; the service was off, no clicks ran and the queue remained unknown | owner photo, 2026-10-09; no queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
@@ -742,21 +743,40 @@ public blob plus comment match. The single-class decompile is retained in
 `captures/dipilot-adb-rescue-20261008/AdbClient.java`; it contains key material and is untracked.
 No key material is printed in this document or in the probe's diagnostic log excerpts.
 
-The on-screen sequence is:
+**Correction, 2026-10-09:** version 0.1.0 searched windows before reading the queue only when the
+Dipilot shell check failed. With a trusted shell, the click fallback was inside the log-driven
+pending-queue loop. An unknown queue skipped that loop even if the service was enabled. The
+owner's photo (`photo_2026-10-09 14.07.21.jpeg`) shows both shell checks succeeding, native
+`adb client authorized`, the service off, an unknown queue and no approvals. This proves access
+with the Dipilot identity; it does not establish an empty queue or failure to recognize windows,
+because no window scan ran. Version 0.2.0 removes the log condition from the initial window scan.
 
-1. Attempt a passive shell connection with the Dipilot identity, execute a control-string command,
+The on-screen sequence in 0.2.0 is:
+
+1. Press the single **«Восстановить ADB»** button. Opening the app alone does not start recovery.
+   Attempt a passive shell connection with the Dipilot identity, execute a control-string command,
    and show **ДА** or **НЕТ** plus the failure reason before arming clicks. No public key is
    submitted: possession of the private key alone does not make it trusted by the car.
-2. If that fails and the accessibility service is enabled, approve available ADB windows during a
-   bounded wait and recheck shell after clicks. An earlier window may belong to another key, so
-   the first accepted click alone does not stop the wait. Show whether the service actually
-   connected, how many scans/windows it saw, how many ADB windows had a button, and how many
-   `ACTION_CLICK` attempts Android accepted. These counters do not prove authorization.
-3. Once shell works, read all logcat buffers, including the native `adbd` tag. Show the latest
-   retained queue observation before and after approvals, with redacted log excerpts. A first
+2. If shell works, read the queue observation before window search. If the probe's accessibility
+   service is off, use that trusted shell to add only this component to the current user's secure
+   enabled-service list, preserving the other components, then enable accessibility. Verify the
+   written settings and wait at most five seconds for the actual service connection. If shell
+   is unavailable or setup fails, open this service's Settings page (general accessibility settings
+   as fallback). Enable **«Ключ Dipilot»** there and return; the pending run resumes automatically,
+   including after process death in Settings. Returning without enabling it does not loop through
+   Settings. The report remains selectable for copying without another button.
+3. Search accessible windows on all displays for up to twelve seconds and at most eight accepted
+   clicks **regardless of initial shell success or PENDING/DRAINED/UNKNOWN queue logs**. Recheck
+   shell after accepted clicks, while continuing to search for subsequent windows. The service
+   has its own scan deadline, so a slow shell check cannot keep clicks armed indefinitely. Show
+   whether the service actually connected, how many scans/windows it saw, how many ADB windows
+   had a button, and how many `ACTION_CLICK` attempts Android accepted. These counters do not
+   prove authorization. A completely hidden window may still be inaccessible to the service.
+4. Approve at most five requests with `service call adb 1 i32 1 s16 '<current public key>'`.
+   This stage requires shell and a pending observation in all logcat buffers, including native
+   `adbd`. Show queue observations before and after approvals with redacted excerpts. A first
    dispatched prompt counts as pending even without a second client. Missing logs and an
    approval without a native empty-queue marker mean **НЕИЗВЕСТНО**, not an empty queue.
-4. Approve at most five requests with `service call adb 1 i32 1 s16 '<current public key>'`.
    Verify Binder's exception code, then wait for a new confirmation or `no prompts to send`.
    Confirmation timestamps distinguish duplicate requests for the same key; an answered or
    drained historical request must not be reused. Accessibility clicks are disarmed during
@@ -779,7 +799,14 @@ Sources are the IVI 2605 corpus under `captures/split-firmware-20260923/jadx/ser
 [adbd_auth.cpp](https://android.googlesource.com/platform/frameworks/native/+/refs/tags/aml_sta_331711010/libs/adbd_auth/adbd_auth.cpp),
 where both `AllowUsbDevice` and `DenyUsbDevice` advance one dispatched prompt. Active clients can
 continue adding requests, and a queue longer than the probe's bound can remain pending.
-No vehicle installation or recovery run was performed for this review.
+The 0.2.0 service setup follows the secure-setting observer in this vehicle's
+`AccessibilityManagerService`; it uses shell privileges and adds no permission to the probe's
+manifest. Local validation: 39 unit tests pass, debug APK 0.2.0 builds, lint has no errors.
+The tests cover the owner's trusted-shell/unknown-queue scenario, service
+activation/connection failures, continued search after clicks, approval limits, cancellation,
+and preservation of other accessibility components. The owner's 0.1.0 run above is the only
+vehicle evidence for this probe so far; no 0.2.0 vehicle installation or recovery was performed
+for this change.
 
 ## The persistent shell is a terminal (live v31, 2026-08-26)
 

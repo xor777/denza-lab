@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="accessibility_description">Нажимает «Разрешить» на спрятанном запросе доступа к ADB, и только пока на экране спасателя идёт освобождение порта.</string>
+    <string name="accessibility_description">Ищет окна запросов ADB на доступных дисплеях и нажимает «Разрешить» только во время восстановления, запущенного кнопкой в «Ключ Dipilot».</string>
 </resources>

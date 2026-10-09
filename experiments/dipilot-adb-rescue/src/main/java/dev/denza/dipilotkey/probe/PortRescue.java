@@ -1,8 +1,6 @@
 package dev.denza.dipilotkey.probe;
 
 import android.content.Context;
-import android.provider.Settings;
-
 import dev.denza.disharebridge.LocalAdbClient;
 
 import java.io.IOException;
@@ -25,6 +23,7 @@ final class PortRescue {
     private static final int SHELL_TIMEOUT_MS = 8000;
     private static final long CLICK_WAIT_MS = 12000;
     private static final long RETRY_WAIT_MS = 3000;
+    private static final long SERVICE_WAIT_MS = 5000;
 
     enum Access {
         TRUSTED,
@@ -33,15 +32,25 @@ final class PortRescue {
         ERROR
     }
 
-    private final Context context;
-    private final LocalAdbClient client;
+    static final class Result {
+        final String report;
+        final boolean needsServiceSettings;
+
+        Result(String report, boolean needsServiceSettings) {
+            this.report = report;
+            this.needsServiceSettings = needsServiceSettings;
+        }
+    }
+
+    private final RescueDevice device;
     private String lastFailure = "";
 
     PortRescue(Context context) throws Exception {
-        this.context = context.getApplicationContext();
-        AdbKeyFile.install(this.context);
-        this.client = new LocalAdbClient(
-                this.context, DipilotIdentity.COMMENT, LocalAdbClient.AuthorizationPolicy.PASSIVE);
+        this(new AndroidRescueDevice(context));
+    }
+
+    PortRescue(RescueDevice device) {
+        this.device = device;
     }
 
     String rescue() {
@@ -49,18 +58,22 @@ final class PortRescue {
     }
 
     String rescue(Consumer<String> progress) {
+        return run(progress).report;
+    }
+
+    Result run(Consumer<String> progress) {
         StringBuilder report = new StringBuilder();
-        PromptClicker.resetDiagnostics();
-        boolean clicker = PromptClicker.enabled(context);
+        device.resetClicks();
+        boolean needsSettings = false;
         try {
             report.append("Ключ Dipilot (").append(DipilotIdentity.COMMENT).append(")\n");
             report.append("Отпечаток: ").append(DipilotIdentity.fingerprint()).append('\n');
         } catch (Exception error) {
             report.append("Ключ не читается: ").append(error.getClass().getSimpleName()).append('\n');
         }
-        report.append("adb_enabled: ").append(systemSwitch()).append('\n');
+        report.append("adb_enabled: ").append(device.systemSwitch()).append('\n');
         report.append("Служба нажатий: ")
-                .append(clicker ? "включена" : "ВЫКЛЮЧЕНА")
+                .append(device.clickerEnabled() ? "включена" : "ВЫКЛЮЧЕНА")
                 .append('\n');
         report.append("\n1. Открываю shell ключом Dipilot (пассивно)…\n");
         progress.accept(report.toString());
@@ -68,53 +81,36 @@ final class PortRescue {
             Access access = check();
             appendCheck(report, "Первая проверка shell", access);
             progress.accept(report.toString());
-            // Show the shell result before arming any authorization clicks.
-            if (access != Access.TRUSTED && clicker) {
-                report.append("Очередь: пока НЕИЗВЕСТНО — нет shell для чтения журнала.\n");
-                PromptClicker.arm();
-                report.append("\n2. Ищу доступное службе окно ADB и нажимаю «Разрешить»…\n");
-                progress.accept(report.toString());
-                long deadline = android.os.SystemClock.uptimeMillis() + CLICK_WAIT_MS;
-                int observedClicks = 0;
-                try {
-                    while (access != Access.TRUSTED) {
-                        long remaining = deadline - android.os.SystemClock.uptimeMillis();
-                        if (remaining <= 0 || observedClicks >= PromptDecision.MAX_CLICKS
-                                || !waitForClick(observedClicks, remaining)) {
-                            break;
-                        }
-                        observedClicks = PromptClicker.clicks();
-                        access = check();
-                        appendCheck(report, "Shell после нажатий " + observedClicks, access);
-                        progress.accept(report.toString() + PromptClicker.diagnostics());
-                    }
-                } finally {
-                    PromptClicker.disarm();
-                }
-                report.append(PromptClicker.diagnostics());
-                access = check();
-                appendCheck(report, "Shell после нажатий", access);
-                progress.accept(report.toString());
-            } else if (access != Access.TRUSTED) {
-                report.append("Без службы нажатий окно не нажать, "
-                        + "а новый запрос этот ключ не отправляет.\n");
-                report.append("Включите службу кнопкой выше и откройте спасатель снова.\n");
-            }
             if (access == Access.TRUSTED) {
-                report.append("\n3. Читаю журнал очереди…\n");
-                progress.accept(report.toString());
-                drain(report, progress);
+                String before = reread(report);
+                appendQueue(report, "Очередь до поиска окон", before);
+                appendTail(report, before, 6);
             } else {
-                report.append("Очередь: НЕИЗВЕСТНО — без shell журнал недоступен.\n");
+                report.append("Очередь до поиска окон: НЕИЗВЕСТНО — без shell журнал недоступен.\n");
             }
-            PromptClicker.disarm();
+            progress.accept(report.toString());
+            if (prepareClicker(access, report, progress)) {
+                // Queue logs may be absent or historical. Always search, even with a trusted key.
+                access = scanWindows(access, report, progress);
+                if (access == Access.TRUSTED) {
+                    report.append("\n4. Проверяю очередь и разрешаю подтверждённые запросы…\n");
+                    progress.accept(report.toString());
+                    drain(report, progress);
+                } else {
+                    report.append("Очередь после: НЕИЗВЕСТНО — без shell журнал недоступен.\n");
+                }
+            } else {
+                needsSettings = true;
+                report.append("Нужно включить службу «Ключ Dipilot» в открывшихся настройках "
+                        + "и вернуться. Проверка продолжится автоматически.\n");
+            }
+            device.disarmClicks();
             Access after = check();
             report.append('\n');
             appendCheck(report, "Итоговая повторная проверка shell", after);
-            if (clicker) {
-                report.append("\nНажатия за этот запуск:\n").append(PromptClicker.diagnostics());
-            } else {
-                report.append("Нажатия: не выполнялись, служба выключена.\n");
+            report.append("\nНажатия за этот запуск:\n").append(device.clickDiagnostics());
+            if (needsSettings && after == Access.TRUSTED) {
+                appendQueue(report, "Очередь после", reread(report));
             }
             report.append("Наличие shell само по себе не доказывает пустую очередь.\n");
             progress.accept(report.toString());
@@ -122,9 +118,78 @@ final class PortRescue {
             report.append("\nОстановлено.\n");
             Thread.currentThread().interrupt();
         } finally {
-            PromptClicker.disarm();
+            device.disarmClicks();
         }
-        return report.toString();
+        return new Result(report.toString(), needsSettings);
+    }
+
+    private boolean prepareClicker(Access access, StringBuilder report, Consumer<String> progress)
+            throws InterruptedException {
+        report.append("\n2. Подготавливаю службу нажатий…\n");
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException();
+        }
+        if (!device.clickerEnabled()) {
+            if (access != Access.TRUSTED) {
+                report.append("Без shell автоматически включить службу нельзя.\n");
+                progress.accept(report.toString());
+                return false;
+            }
+            report.append("Включаю службу через shell; сохраняю остальные службы.\n");
+            progress.accept(report.toString());
+            try {
+                device.enableClicker();
+                report.append("Настройки службы записаны.\n");
+            } catch (InterruptedException interrupted) {
+                throw interrupted;
+            } catch (Exception error) {
+                report.append("Автоматическое включение не удалось: ")
+                        .append(failure(error)).append('\n');
+                progress.accept(report.toString());
+                return false;
+            }
+        }
+        long deadline = device.now() + SERVICE_WAIT_MS;
+        while (!device.clickerConnected() && device.now() < deadline) {
+            progress.accept(report.toString() + "Жду подключения службы…\n");
+            device.pause(250);
+        }
+        boolean ready = device.clickerEnabled() && device.clickerConnected();
+        report.append("Служба подключена: ").append(ready ? "ДА\n" : "НЕТ\n");
+        progress.accept(report.toString());
+        return ready;
+    }
+
+    private Access scanWindows(Access access, StringBuilder report, Consumer<String> progress)
+            throws InterruptedException {
+        report.append("\n3. Ищу окна ADB на всех доступных службе дисплеях (до 12 секунд)…\n");
+        progress.accept(report.toString());
+        long deadline = device.now() + CLICK_WAIT_MS;
+        int observedClicks = device.clicks();
+        device.armClicks(CLICK_WAIT_MS);
+        try {
+            while (device.now() < deadline && device.clicks() < PromptDecision.MAX_CLICKS) {
+                progress.accept(report.toString() + device.clickDiagnostics());
+                long remaining = deadline - device.now();
+                if (remaining <= 0) {
+                    break;
+                }
+                device.pause(Math.min(400, remaining));
+                int current = device.clicks();
+                if (current > observedClicks) {
+                    observedClicks = current;
+                    access = check();
+                    appendCheck(report, "Shell после нажатий " + current, access);
+                }
+            }
+        } finally {
+            device.disarmClicks();
+        }
+        report.append("Поиск окон завершён.\n").append(device.clickDiagnostics());
+        access = check();
+        appendCheck(report, "Shell после поиска окон", access);
+        progress.accept(report.toString());
+        return access;
     }
 
     private void drain(StringBuilder report, Consumer<String> progress) throws InterruptedException {
@@ -151,18 +216,18 @@ final class PortRescue {
             String request = QueueDrain.requestToken(log);
             String attempt = request != null ? request : key;
             if (command == null || Objects.equals(lastAttempt, attempt)) {
-                int before = PromptClicker.clicks();
+                int before = device.clicks();
                 report.append(command == null
                         ? "Ключ текущего запроса не найден; жду нажатие службы.\n"
                         : "Новый запрос после разрешения пока не подтверждён; жду службу.\n");
                 progress.accept(report.toString());
                 boolean clicked = false;
-                if (PromptClicker.enabled(context)) {
-                    PromptClicker.arm();
+                if (device.clickerConnected()) {
+                    device.armClicks(RETRY_WAIT_MS);
                     try {
                         clicked = waitForClick(before, RETRY_WAIT_MS);
                     } finally {
-                        PromptClicker.disarm();
+                        device.disarmClicks();
                     }
                 }
                 if (clicked) {
@@ -190,6 +255,8 @@ final class PortRescue {
                 if (!accepted) {
                     break;
                 }
+            } catch (InterruptedException interrupted) {
+                throw interrupted;
             } catch (Exception error) {
                 report.append("allow не выполнен: ").append(failure(error)).append('\n');
                 break;
@@ -213,10 +280,10 @@ final class PortRescue {
             String previous, StringBuilder report, Consumer<String> progress)
             throws InterruptedException {
         String previousRequest = QueueDrain.requestToken(previous);
-        long deadline = android.os.SystemClock.uptimeMillis() + RETRY_WAIT_MS;
+        long deadline = device.now() + RETRY_WAIT_MS;
         String updated;
         do {
-            Thread.sleep(250);
+            device.pause(250);
             updated = reread(report);
             String currentRequest = QueueDrain.requestToken(updated);
             if (updated == null || QueueDrain.state(updated) == QueueDrain.State.DRAINED
@@ -224,7 +291,7 @@ final class PortRescue {
                 return updated;
             }
             progress.accept(report.toString() + "Жду подтверждение продвижения очереди…\n");
-        } while (android.os.SystemClock.uptimeMillis() < deadline);
+        } while (device.now() < deadline);
         return updated;
     }
 
@@ -260,15 +327,20 @@ final class PortRescue {
         }
     }
 
-    private Access check() {
+    private Access check() throws InterruptedException {
         lastFailure = "";
         try {
-            String output = client.shell("printf " + CHECK_MARKER);
+            String output = shell("printf " + CHECK_MARKER);
             if (!output.contains(CHECK_MARKER)) {
                 lastFailure = "Shell не вернул контрольную строку.";
             }
             return output.contains(CHECK_MARKER) ? Access.TRUSTED : Access.ERROR;
+        } catch (InterruptedException interrupted) {
+            throw interrupted;
         } catch (Exception error) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new InterruptedException();
+            }
             lastFailure = failure(error);
             return classify(error);
         }
@@ -284,30 +356,28 @@ final class PortRescue {
     }
 
     private String shell(String command) throws Exception {
-        return client.shell(command, SHELL_TIMEOUT_MS);
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException();
+        }
+        return device.shell(command, SHELL_TIMEOUT_MS);
     }
 
     private boolean waitForClick(int clicksBefore, long budgetMs) throws InterruptedException {
-        long deadline = android.os.SystemClock.uptimeMillis() + budgetMs;
-        while (android.os.SystemClock.uptimeMillis() < deadline) {
-            if (PromptClicker.clicks() > clicksBefore) {
+        long deadline = device.now() + budgetMs;
+        while (device.now() < deadline) {
+            if (device.clicks() > clicksBefore) {
                 return true;
             }
             if (Thread.currentThread().isInterrupted()) {
                 throw new InterruptedException();
             }
-            Thread.sleep(400);
+            long remaining = deadline - device.now();
+            if (remaining <= 0) {
+                break;
+            }
+            device.pause(Math.min(400, remaining));
         }
-        return PromptClicker.clicks() > clicksBefore;
-    }
-
-    private String systemSwitch() {
-        try {
-            int raw = Settings.Global.getInt(context.getContentResolver(), Settings.Global.ADB_ENABLED);
-            return raw != 0 ? "включена (" + raw + ")" : "ВЫКЛЮЧЕНА (0)";
-        } catch (Exception ignored) {
-            return "прочитать не удалось";
-        }
+        return device.clicks() > clicksBefore;
     }
 
     private static String describe(Access access) {
