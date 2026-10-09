@@ -1434,18 +1434,13 @@ object DenzaAppRepository {
             SplitScreenPhase.ACTIVE -> FeatureStatus.ACTIVE
         }
         // U5: the card never reports a failure of the product. It says what the feature is doing
-        // right now and whether its icon is on the launcher, and nothing else.
+        // right now, and the switch says whether its icon is on the launcher. «Иконка Split Screen
+        // доступна / скрыта» stood in for an empty message here, was never drawn, and was English.
         return FeatureSnapshot(
             id = FeatureId.SPLIT_SCREEN,
             desiredEnabled = launcherVisible,
             status = status,
-            message = session.message.ifBlank {
-                if (launcherVisible) {
-                    "Иконка Split Screen доступна"
-                } else {
-                    "Иконка Split Screen скрыта"
-                }
-            },
+            message = session.message,
         )
     }
 
