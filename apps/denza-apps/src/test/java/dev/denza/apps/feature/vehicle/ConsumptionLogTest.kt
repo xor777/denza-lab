@@ -231,19 +231,82 @@ class ConsumptionLogTest {
         assertTrue(bucket(2.0).value.isNaN())
     }
 
+    /**
+     * The odometer the way the car reports it: whole tenths of a kilometre, decoded from an integer
+     * count, so the hundred metres of a bucket arrive in the one poll that closes it and the polls
+     * before it carry none.
+     */
+    private class Car(val log: ConsumptionLog = ConsumptionLog()) {
+        private var tenths = 1000
+
+        init {
+            log.sample(tenths / 10.0, 0.0, 0.0, CRUISE_KMH)
+        }
+
+        /** One poll [dt] seconds after the last, the odometer [ticks] tenths further on. */
+        fun poll(powerKw: Double?, dt: Double = 1.0, ticks: Int = 0, speedKmh: Double? = CRUISE_KMH) {
+            tenths += ticks
+            log.sample(tenths / 10.0, powerKw, dt, speedKmh)
+        }
+
+        /**
+         * One bucket: a poll a second for every entry of [powers], the tick on the last of them.
+         * A null is a power read that did not answer.
+         */
+        fun bucket(vararg powers: Double?): ConsumptionSample {
+            powers.forEachIndexed { index, power -> poll(power, ticks = if (index == powers.lastIndex) 1 else 0) }
+            return log.buckets.last()
+        }
+    }
+
+    /**
+     * An odometer step of more than one tick is not a reading (contract §2.6).
+     *
+     * A slow sweep on the highway can see 0.2 or 0.3 km at once. That closes one bucket of the whole
+     * step with none of it known, and the next bucket is an ordinary reading again. Until 2026-10-09
+     * the step was a reading of its whole road on one point of a chart whose points are a hundred
+     * metres each, which is what this test pinned then.
+     */
     @Test
-    fun anOdometerStepLongerThanOneBucketClosesOneBucketOfThatWholeRoad() {
-        val log = ConsumptionLog()
-        log.sample(100.0, 30.0, 0.0)
-        // Three hundred metres inside one sample interval: one bucket, and it says 0.3 km.
-        log.sample(100.3, 30.0, 6.0)
-        val bucket = log.buckets.single()
-        assertEquals("one record", 1, log.buckets.size)
-        assertEquals("carrying the whole step", 0.3, bucket.km, 1e-9)
-        assertEquals(0.3, bucket.knownKm, 1e-9)
-        assertEquals(energy(30.0, 6.0), bucket.kwh, 1e-12)
-        // The axis is the road, so the figure is over 0.3 km rather than over a nominal tick.
-        assertEquals(energy(30.0, 6.0) / 0.3 * 100.0, bucket.value, 1e-9)
+    fun anOdometerStepOfSeveralTicksIsNotAReading() {
+        val car = Car()
+        car.poll(30.0, dt = 3.0)
+        car.poll(30.0, dt = 6.0, ticks = 3)
+        val step = car.log.buckets.single()
+        assertEquals("one record", 1, car.log.buckets.size)
+        assertEquals("carrying the whole step", 0.3, step.km, 1e-9)
+        assertEquals("none of it known", 0.0, step.knownKm, 1e-12)
+        assertFalse(step.known)
+        assertTrue(step.value.isNaN())
+
+        val next = car.bucket(30.0, 30.0, 30.0)
+        assertEquals("and the next tick is a reading again", 0.1, next.knownKm, 1e-12)
+        assertTrue(next.known)
+    }
+
+    /**
+     * §7, «the caption is the chart», across long steps: a two-tick step every kilometre leaves the
+     * unit naming the chart's own width.
+     *
+     * Before 2026-10-09 a two-tick step was one point and two hundred metres of the unit's road, so
+     * the chart and the unit no longer counted the same readings.
+     */
+    @Test
+    fun longStepsLeaveTheUnitTheChartsWidth() {
+        val car = Car()
+        repeat(120) { index ->
+            if (index % 10 == 9) {
+                car.poll(25.0, dt = 6.0, ticks = 2)
+            } else {
+                car.bucket(25.0, 25.0, 25.0, 25.0, 25.0, 25.0)
+            }
+        }
+        val window = car.log.window
+        val chart = ConsumptionChart.of(car.log.buckets)
+        assertEquals("a hundred readings", 100, window.count { it.known })
+        assertEquals("ten kilometres of them", 10.0, ConsumptionWindow.coveredKm(window), 1e-9)
+        assertEquals("which is the chart's width", chart.span * ConsumptionChart.PITCH_KM, ConsumptionWindow.coveredKm(window), 1e-9)
+        assertEquals(energy(25.0, 6.0) / 0.1 * 100.0, ConsumptionWindow.mean(window)!!, 1e-9)
     }
 
     @Test
@@ -392,5 +455,10 @@ class ConsumptionLogTest {
         log.drive(steps = 2, powerKw = 20.0)
         log.reset()
         assertTrue(log.buckets.isEmpty())
+    }
+
+    private companion object {
+        /** Sixty kilometres an hour: a hundred metres in six one-second polls. */
+        const val CRUISE_KMH = 60.0
     }
 }

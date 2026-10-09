@@ -34,15 +34,32 @@ class ConsumptionWindowTest {
         assertEquals(130.0, visible.last().odometerKm, 1e-9)
     }
 
+    /**
+     * The tail is measured in the road of readings rather than in records.
+     *
+     * Until 2026-10-09 this test stood the walk on three-hundred-metre *readings* - an odometer step
+     * of three ticks, which the log then recorded as a reading of its whole road - and found
+     * thirty-four records to ten kilometres. Such a step is not a reading (contract §2.6): it closes
+     * one record with none of its road known, and the walk reaches past it for readings.
+     */
     @Test
     fun theTailIsMeasuredInRoadRatherThanInRecords() {
-        // Three hundred metres a bucket - an odometer step no tick can explain - so ten kilometres
-        // is thirty-four records rather than a hundred. Counting records counted the wrong axis.
-        val long = List(60) { ConsumptionSample(100.0 + (it + 1) * 0.3, 0.06, 0.3, 0.3) }
-        val window = ConsumptionWindow.raw(long)
-        assertEquals(34, window.size)
-        assertEquals("and the road it holds", 10.2, window.sumOf { it.km }, 1e-9)
+        var odometer = 100.0
+        val all = List(150) { index ->
+            if (index % 3 == 2) {
+                odometer += 0.3
+                ConsumptionSample(odometer, 0.06, 0.3, 0.0)
+            } else {
+                odometer += 0.1
+                ConsumptionSample(odometer, 0.02, 0.1, 0.1)
+            }
+        }
+        val window = ConsumptionWindow.raw(all)
+        assertEquals("a hundred readings and the fifty steps between them", 150, window.size)
+        assertEquals("ten kilometres of readings", 10.0, ConsumptionWindow.coveredKm(all), 1e-9)
+        assertEquals(ConsumptionChart.of(all).span * ConsumptionChart.PITCH_KM, ConsumptionWindow.coveredKm(all), 1e-9)
     }
+
 
     /**
      * And it is measured in **recorded** road: what is not a reading carries none of it.

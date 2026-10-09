@@ -289,10 +289,17 @@ road and the road with known energy; the bucket's value is energy over known
 road, and a bucket with less than half its road known is **not a reading**. A
 bucket that is not a reading is out of everything - out of the figure's sum, out
 of the road the unit names, off the chart's axis - which is what makes «за 3,7 км»
-a promise about the number beside it and about the chart beside that. An odometer
-step longer than one bucket closes one bucket of that road, and it is not a
-reading. Restart continuity keeps working through the journal, which carries the
-road per bucket.
+a promise about the number beside it and about the chart beside that. Restart
+continuity keeps working through the journal, which carries the road per bucket.
+
+**An odometer step longer than one bucket closes one bucket of that road, and it
+is not a reading**: none of its road is known, because nobody watched it being
+covered. So every reading is one tick, which is what lets a pitch per point be
+the road under the chart, and `VehicleLogReplayTest` holds every recorded drive
+to it. (Until 2026-10-09 the code did not follow this sentence: a 0.2-0.3 km step
+in one slow sweep was a reading of its whole road, one point of the chart and two
+or three ticks of the unit, and `ConsumptionLogTest` pinned it. No recorded drive
+has such a step.)
 
 **The window is bounded by recorded road alone.** Ten kilometres of readings from
 yesterday are ten kilometres of readings: they stay on the chart and in the
@@ -496,9 +503,10 @@ test.
   and all, not a copy of them as before 2026-10-08 - in a JVM test; the test
   asserts the invariants that do
   not depend on what a signal means: the road under the chart is a point per
-  reading bucket and equals the road the unit names, the figure equals energy over
-  known road, every point equals the trailing ten readings computed a second time,
-  no point is ever a `NaN`, and the engine's box is never up with the flag down.
+  reading bucket and equals the road the unit names, every reading is one
+  odometer tick, the figure equals energy over known road, every point equals
+  the trailing ten readings computed a second time, no point is ever a `NaN`,
+  and the engine's box is never up with the flag down.
   It replays the three newest drives and the newest one the engine gave in, and a
   drive the engine gave in has to raise the box at least once, or the last
   invariant would hold over nothing. With no drive on the machine it is skipped,
@@ -516,7 +524,8 @@ test.
   the smoothing, its floor of five, the ceilings and the sentence.)
 - **Mutations** on the arithmetic (§2.2, §2.3, §2.6) before the merge, as on
   every wave before: the smoothing, its floor, the skipping of non-readings, the
-  window's ten kilometres, the standing threshold and the null-speed rule.
+  window's ten kilometres, the standing threshold and the null-speed rule; since
+  2026-10-09 also the multi-tick step.
 
 ## 8. Open, and what closes each
 

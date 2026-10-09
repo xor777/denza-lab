@@ -24,6 +24,13 @@ package dev.denza.apps.feature.vehicle
  * figure, out of the road the unit names, and off the chart's axis, where its neighbours close up
  * behind it rather than a hole being drawn for it.
  *
+ * ### A step of more than one tick is not a reading
+ *
+ * Contract §2.6, since 2026-10-09. A step of more than one tick in one interval is road nobody
+ * watched being covered: it closes one bucket of that road with none of it known, which is not a
+ * reading. Until then it was a reading of its whole 0.2-0.3 km on one point of a chart whose points
+ * are a hundred metres each.
+ *
  * Pure Kotlin, no Android imports: the accumulation rules are unit tested. What happens to a closed
  * bucket afterwards is the caller's business - [onBucketClosed] is how the journal on disk hears
  * about one without this class learning what a file is.
@@ -35,8 +42,9 @@ package dev.denza.apps.feature.vehicle
  *   what lets a journal decide later whether it is still part of the retained road
  * @param kwh the signed integral of pack power over it; negative where the road gave energy back
  * @param km the road it covers - never the record count, because one bucket can carry a longer
- *   odometer step than one tick
- * @param knownKm how much of that road the energy is known over
+ *   odometer step than one tick (and is then not a reading)
+ * @param knownKm how much of that road the energy is known over, and none of it after a step of
+ *   more than one tick
  */
 internal data class ConsumptionSample(
     val odometerKm: Double,
@@ -83,6 +91,7 @@ internal class ConsumptionLog(
     private var pendingKm = 0.0
     private var pendingKnownKm = 0.0
     private var pendingKwh = 0.0
+    private var pendingOverran = false
 
     /** Closed buckets, oldest first. All of them - the journal's own thirty kilometres. */
     val buckets: List<ConsumptionSample> get() = closed.toList()
@@ -152,12 +161,15 @@ internal class ConsumptionLog(
         // road (contract §2.2).
         val moving = speedKmh == null || speedKmh > STANDING_KMH
         pendingKm += km
+        // More than one tick in one interval is road nobody watched being covered (§2.6).
+        if (km > DEFAULT_BUCKET_KM + KM_EPSILON) pendingOverran = true
         if (knows) {
             pendingKnownKm += km
             if (moving) pendingKwh += powerKw!! * dtSeconds / 3600.0
         }
         if (pendingKm >= DEFAULT_BUCKET_KM - KM_EPSILON) {
-            val sample = ConsumptionSample(reading, pendingKwh, pendingKm, pendingKnownKm)
+            val knownKm = if (pendingOverran) 0.0 else pendingKnownKm
+            val sample = ConsumptionSample(reading, pendingKwh, pendingKm, knownKm)
             closed.addLast(sample)
             while (closed.size > capacity) closed.removeFirst()
             dropOpenWork()
@@ -206,6 +218,7 @@ internal class ConsumptionLog(
         pendingKm = 0.0
         pendingKnownKm = 0.0
         pendingKwh = 0.0
+        pendingOverran = false
     }
 
     companion object {
