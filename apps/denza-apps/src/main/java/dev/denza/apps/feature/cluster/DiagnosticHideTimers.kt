@@ -3,8 +3,8 @@ package dev.denza.apps.feature.cluster
 /**
  * When each layer's diagnostic panels come down, one timer per layer.
  *
- * `ClusterSceneService` runs three unrelated things on one main-thread handler: these timers, the
- * queued first-frame notification ([CameraReadyNotification]) and its own teardown. Showing a
+ * `ClusterSceneService` runs unrelated things on one main-thread handler: these timers and its own
+ * teardown (a queued first-frame notification was a third until 2026-10-09). Showing a
  * camera or a preview used to clear that handler whole. A screen picked in the service panel puts
  * opaque LEFT/RIGHT panels on the *base* layer, over the Contour, for 2.2 seconds; a turn signal
  * inside that window took the base layer's hide with it, and nothing else ever hides the base

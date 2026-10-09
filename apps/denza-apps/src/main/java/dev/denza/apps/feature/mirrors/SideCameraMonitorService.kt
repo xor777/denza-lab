@@ -7,9 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.MainActivity
@@ -56,7 +54,6 @@ class SideCameraMonitorService : Service() {
     private val preemptInFlight = AtomicBoolean()
     private val statusLock = Any()
     private var lastStatus: Pair<MirrorSide?, String>? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
     private var clusterDisplayId: Int? = null
     private var lastDisplayResolveMs = 0L
     private var lastShadowStatus = ""
@@ -78,7 +75,7 @@ class SideCameraMonitorService : Service() {
             stopSelf(startId)
             return START_NOT_STICKY
         }
-        startForeground(NOTIFICATION_ID, notification("Mirrors are ready"))
+        startForeground(NOTIFICATION_ID, notification())
         startMonitor()
         return START_STICKY
     }
@@ -156,9 +153,6 @@ class SideCameraMonitorService : Service() {
             preemptInFlight.set(false)
             setStatus(null, "monitor stopped")
         }
-        // A notification posted under the gate before it closed must not come back after the
-        // service is gone: it would stand as an orphan «Showing left mirror» until the next start.
-        mainHandler.removeCallbacksAndMessages(null)
         val signalLease = turnSignalLease
         turnSignalLease = null
         switchSubscription?.close()
@@ -234,9 +228,7 @@ class SideCameraMonitorService : Service() {
             applyTransition(stockSide, now, mode)
             releaseStaleClaimWhenIdle(detection)
         } catch (error: Exception) {
-            if (setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")) {
-                postNotification("ADB access needs attention")
-            }
+            setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")
         }
     }
 
@@ -464,15 +456,11 @@ class SideCameraMonitorService : Service() {
                 clusterDisplayId = it
             }
             is ClusterDisplaySelection.NeedsVerification -> {
-                if (setStatus(null, "camera overlay display is ambiguous")) {
-                    postNotification("Camera display needs verification")
-                }
+                setStatus(null, "camera overlay display is ambiguous")
                 null
             }
             ClusterDisplaySelection.Missing -> {
-                if (setStatus(null, "camera overlay display not found")) {
-                    postNotification("Camera display not found")
-                }
+                setStatus(null, "camera overlay display not found")
                 null
             }
         }
@@ -566,21 +554,15 @@ class SideCameraMonitorService : Service() {
      *
      * Under the gate on purpose: the status is a preferences write and a mark on the dashboard's
      * mirrors slice, both a few microseconds, so the state the tile reads leaves the gate together
-     * with the transition. The notification is a binder call, and goes to the main thread instead.
+     * with the transition. The notification no longer follows it: it said «Starting left mirror»
+     * and «Showing left mirror» on every turn signal, a binder call each time, in English.
      */
     private fun publishLocked() {
         val side = transitionState.side.takeIf { transitionState.phase == MirrorTransitionPhase.SHOWING }
         val details = transitionState.details.ifBlank {
             transitionState.phase.name.lowercase()
         }
-        if (!setStatus(side, details)) return
-        val mirror = transitionState.side?.name?.lowercase()
-        val notification = when (transitionState.phase) {
-            MirrorTransitionPhase.STARTING -> "Starting $mirror mirror"
-            MirrorTransitionPhase.SHOWING -> "Showing $mirror mirror"
-            MirrorTransitionPhase.IDLE -> "Mirrors are ready"
-        }
-        postNotification(notification)
+        setStatus(side, details)
     }
 
     private fun observedSide(): MirrorSide? = transitionGate.read {
@@ -605,23 +587,12 @@ class SideCameraMonitorService : Service() {
 
     private fun ensureChannel() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Mirrors", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CHANNEL_ID, "Зеркала", NotificationManager.IMPORTANCE_LOW),
         )
     }
 
-    /**
-     * The notification, updated on the main thread in the order the statuses were recorded, and
-     * only while the monitor runs: [stopMonitor] drops whatever is still queued.
-     */
-    private fun postNotification(text: String) {
-        mainHandler.post { if (transitionGate.isRunning) updateNotification(text) }
-    }
-
-    private fun updateNotification(text: String) {
-        getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification(text))
-    }
-
-    private fun notification(text: String): Notification {
+    /** The foreground service's notification: one steady line while the mirrors watch. */
+    private fun notification(): Notification {
         val open = PendingIntent.getActivity(
             this,
             0,
@@ -630,8 +601,8 @@ class SideCameraMonitorService : Service() {
         )
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_denza_apps)
-            .setContentTitle("Denza Apps · Mirrors")
-            .setContentText(text)
+            .setContentTitle("Denza Apps")
+            .setContentText("Зеркала включены")
             .setContentIntent(open)
             .setOngoing(true)
             .build()

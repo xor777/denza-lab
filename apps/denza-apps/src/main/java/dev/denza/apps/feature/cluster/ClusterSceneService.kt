@@ -56,13 +56,6 @@ class ClusterSceneService : Service() {
         postDelayed = { task, delayMs -> handler.postDelayed(task, delayMs) },
         remove = { task -> handler.removeCallbacks(task) },
     )
-    private val cameraReadyNotification = CameraReadyNotification(
-        post = { task -> handler.post { task() } },
-        isCurrentReady = { generation ->
-            cameraCommandFence.isCurrent(generation) && cameraRuntime.snapshot().phase == CameraRuntimePhase.READY
-        },
-        onFailure = { error -> Log.w(TAG, "Camera notification failed; video untouched", error) },
-    )
     private var basePresentation: ClusterPresentation? = null
     private var cameraPresentation: ClusterPresentation? = null
     private var cameraTeardownPresentation: ClusterPresentation? = null
@@ -71,7 +64,7 @@ class ClusterSceneService : Service() {
         super.onCreate()
         active = this
         createChannel()
-        startForeground(NOTIFICATION_ID, notification("Preparing instrument display"))
+        startForeground(NOTIFICATION_ID, notification())
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -138,15 +131,9 @@ class ClusterSceneService : Service() {
         cameraLayer: Boolean,
     ): ClusterPresentation? {
         if (selection !is ClusterDisplaySelection.Selected) {
-            updateNotification(
-                if (selection is ClusterDisplaySelection.NeedsVerification) {
-                    if (cameraLayer) "Camera display needs verification"
-                    else "Choose the instrument display in Support"
-                } else {
-                    if (cameraLayer) "Camera display not found"
-                    else "Instrument display not found"
-                },
-            )
+            // The tile says it («Экран не найден», «Экран не выбран»); the notification is not a
+            // second place to tell the driver, and it used to send them to a «Support» screen.
+            Log.w(TAG, "no ${if (cameraLayer) "camera" else "instrument"} display: $selection")
             return null
         }
         val currentPresentation = if (cameraLayer) cameraPresentation else basePresentation
@@ -163,7 +150,7 @@ class ClusterSceneService : Service() {
         val manager = getSystemService(android.hardware.display.DisplayManager::class.java)
         val display = manager?.getDisplay(selection.display.id)
         if (display == null || !display.isValid) {
-            updateNotification(if (cameraLayer) "Camera display disappeared" else "Instrument display disappeared")
+            Log.w(TAG, "${if (cameraLayer) "camera" else "instrument"} display ${selection.display.id} disappeared")
             return null
         }
         return try {
@@ -176,13 +163,9 @@ class ClusterSceneService : Service() {
                 cameraLayer = cameraLayer,
             ).also { it.show() }
             if (cameraLayer) cameraPresentation = shown else basePresentation = shown
-            // Camera status follows the first frame; avoid an intermediate system Binder call
-            // before layout/binding. Base-scene notification behavior is unchanged.
-            if (!cameraLayer) updateNotification("Instrument display is ready")
             shown
         } catch (error: RuntimeException) {
             Log.e(TAG, "Unable to show ${if (cameraLayer) "camera" else "instrument"} presentation", error)
-            updateNotification(if (cameraLayer) "Camera display needs attention" else "Instrument display needs attention")
             null
         }
     }
@@ -193,7 +176,6 @@ class ClusterSceneService : Service() {
             !cameraTeardownBarrier.isClear
         ) {
             Log.i(TAG, "showCamera ${config.side} rejected: cleanup in progress")
-            updateNotification("Waiting for camera cleanup")
             return
         }
         Log.i(TAG, "showCamera ${config.side}; generation=$commandGeneration at_ms=${SystemClock.elapsedRealtime()}")
@@ -220,7 +202,6 @@ class ClusterSceneService : Service() {
             } else {
                 beginCameraTeardown(presentation, failure)
             }
-            updateNotification("Camera stopped safely")
         }
     }
 
@@ -244,7 +225,6 @@ class ClusterSceneService : Service() {
                 }
             } else {
                 cameraRuntime.idle("camera hidden")
-                updateNotification("Mirrors are ready")
                 onLocalSurfaceDetached?.invoke()
                 onComplete?.invoke()
             }
@@ -291,10 +271,8 @@ class ClusterSceneService : Service() {
                 ) {
                     if (finalFailure == null) {
                         cameraRuntime.idle("camera hidden")
-                        updateNotification("Mirrors are ready")
                     } else {
                         cameraRuntime.failed(finalFailure)
-                        updateNotification("Camera stopped safely")
                     }
                 }
                 if (!cameraTeardownBarrier.complete(teardownToken)) {
@@ -310,7 +288,6 @@ class ClusterSceneService : Service() {
         val scene = prepareBaseScene() ?: return
         pendingMapConsumer = null
         scene.showMap(placement, consumer)
-        updateNotification("Navigation display is ready")
     }
 
     private fun showDashboard(placement: ClusterMapPlacement) {
@@ -367,10 +344,6 @@ class ClusterSceneService : Service() {
     private fun onAvcFirstFrame(commandGeneration: Long, details: String) {
         if (!cameraCommandFence.isCurrent(commandGeneration)) return
         Log.i(TAG, "AVC first texture update; generation=$commandGeneration $details")
-        val side = cameraRuntime.snapshot().side ?: return
-        cameraReadyNotification.afterFirstFrame(commandGeneration) {
-            updateNotification("Showing ${side.name.lowercase()} mirror")
-        }
     }
 
     private fun onAvcFailure(commandGeneration: Long, details: String) {
@@ -391,7 +364,6 @@ class ClusterSceneService : Service() {
         val presentation = cameraPresentation
         if (presentation == null) {
             cameraRuntime.failed(details)
-            updateNotification("Camera stopped safely")
         } else {
             beginCameraTeardown(presentation, details)
         }
@@ -406,16 +378,19 @@ class ClusterSceneService : Service() {
 
     private fun createChannel() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Instrument display", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CHANNEL_ID, "Экран водителя", NotificationManager.IMPORTANCE_LOW),
         )
     }
 
-    private fun updateNotification(message: String) {
-        getSystemService(NotificationManager::class.java)
-            ?.notify(NOTIFICATION_ID, notification(message))
-    }
-
-    private fun notification(message: String): Notification {
+    /**
+     * The foreground service's notification: one steady line while the scene is up.
+     *
+     * It used to be rewritten at every step - «Preparing instrument display», «Showing left
+     * mirror» on every turn signal, «Camera stopped safely» - in English, and for a missing display
+     * «Choose the instrument display in Support», a screen the app does not have. What went wrong
+     * is the tile's to say and the log's to keep.
+     */
+    private fun notification(): Notification {
         val open = PendingIntent.getActivity(
             this,
             0,
@@ -425,7 +400,7 @@ class ClusterSceneService : Service() {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_denza_apps)
             .setContentTitle("Denza Apps")
-            .setContentText(message)
+            .setContentText("Экран водителя")
             .setContentIntent(open)
             .setOngoing(true)
             .build()

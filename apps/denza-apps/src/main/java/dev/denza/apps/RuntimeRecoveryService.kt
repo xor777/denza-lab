@@ -72,10 +72,10 @@ class RuntimeRecoveryService : Service() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Denza Apps recovery",
+                "Восстановление",
                 NotificationManager.IMPORTANCE_MIN,
             ).apply {
-                description = "Short-lived recovery of enabled vehicle features"
+                description = "Короткий перезапуск включённых функций"
                 setShowBadge(false)
             },
         )

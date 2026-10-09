@@ -66,10 +66,10 @@ class WeatherAdapterService : Service() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Weather updates",
+                "Погода",
                 NotificationManager.IMPORTANCE_MIN,
             ).apply {
-                description = "Updates the native vehicle weather widget"
+                description = "Передаёт прогноз штатному виджету погоды"
                 setShowBadge(false)
             },
         )
