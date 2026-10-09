@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.cloud
 
 import dev.denza.apps.platform.shell.ServiceCallParcel
+import dev.denza.apps.platform.shell.ShellGrants
 
 /**
  * The shell commands the cloud link sends and how the car's answers read. Pure Kotlin with no
@@ -195,9 +196,9 @@ internal object CloudLinkProtocol {
      */
     fun wifiRetentionCommand(retain: Boolean): String =
         if (retain) {
-            "settings put global $WIFI_RETENTION_KEY 1"
+            ShellGrants.settingsPut("global", WIFI_RETENTION_KEY, "1")
         } else {
-            "settings delete global $WIFI_RETENTION_KEY"
+            ShellGrants.settingsDelete("global", WIFI_RETENTION_KEY)
         }
 }
 

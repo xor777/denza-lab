@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.platform.shell.ShellGrants
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -46,7 +47,7 @@ internal object TripAudioAccessPolicy {
 
     /** The exact `pm grant` shell command the repair runs. */
     fun grantCommands(packageName: String): List<String> = listOf(
-        "pm grant $packageName $RECORD",
+        ShellGrants.permission(packageName, RECORD),
     )
 }
 

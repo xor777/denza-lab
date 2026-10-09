@@ -7,6 +7,7 @@ import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.feature.cloud.CloudLinkReport
+import dev.denza.apps.platform.shell.ShellGrants
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -105,7 +106,7 @@ internal object AdbPortRestorePass {
     val PERMISSION: String = Manifest.permission.WRITE_SECURE_SETTINGS
 
     /** The only command that changes anything, and only when the permission is missing. */
-    fun grantCommand(packageName: String): String = "pm grant $packageName $PERMISSION"
+    fun grantCommand(packageName: String): String = ShellGrants.permission(packageName, PERMISSION)
 
     /**
      * Holds the permission if it can, then reads what keeps the port open. Never throws: a step that

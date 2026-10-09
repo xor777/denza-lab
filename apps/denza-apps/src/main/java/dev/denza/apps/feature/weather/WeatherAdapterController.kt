@@ -7,6 +7,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.platform.shell.ShellGrants
 
 internal class WeatherAdapterController(context: Context) {
     private val appContext = context.applicationContext
@@ -100,11 +101,12 @@ internal class WeatherAdapterController(context: Context) {
 
     internal companion object {
         /** The four global proxy keys the spike wrote, removed in one shell trip. */
-        val LEGACY_PROXY_CLEAR_COMMAND: String =
-            "settings delete global http_proxy; " +
-                "settings delete global global_http_proxy_host; " +
-                "settings delete global global_http_proxy_port; " +
-                "settings delete global global_http_proxy_exclusion_list"
+        val LEGACY_PROXY_CLEAR_COMMAND: String = listOf(
+            "http_proxy",
+            "global_http_proxy_host",
+            "global_http_proxy_port",
+            "global_http_proxy_exclusion_list",
+        ).joinToString("; ") { key -> ShellGrants.settingsDelete("global", key) }
 
         private const val TAG = "DenzaWeatherAdapter"
         private const val NATIVE_PACKAGE = "com.byd.weatherdata"
