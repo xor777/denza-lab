@@ -28,16 +28,16 @@ class DenzaUiStateStoreTest {
                 }
             }
 
-            val appPickerUpdate = submit { it.copy(appPickerVisible = true) }
-            val fsePickerUpdate = submit { it.copy(fseInstallerPickerVisible = true) }
+            val weatherUpdate = submit { it.copy(weatherEnabled = false) }
+            val cloudUpdate = submit { it.copy(cloudLinkBusy = true) }
 
             assertTrue(bothReadInitialState.await(5, TimeUnit.SECONDS))
             releaseWrites.countDown()
-            appPickerUpdate.get(5, TimeUnit.SECONDS)
-            fsePickerUpdate.get(5, TimeUnit.SECONDS)
+            weatherUpdate.get(5, TimeUnit.SECONDS)
+            cloudUpdate.get(5, TimeUnit.SECONDS)
 
-            assertTrue(store.state.value.appPickerVisible)
-            assertTrue(store.state.value.fseInstallerPickerVisible)
+            assertFalse(store.state.value.weatherEnabled)
+            assertTrue(store.state.value.cloudLinkBusy)
         } finally {
             releaseWrites.countDown()
             executor.shutdownNow()
