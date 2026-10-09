@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.cluster
 
 import dev.denza.apps.feature.mirrors.MirrorCameraConfig
+import dev.denza.apps.feature.mirrors.MirrorSide
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 
 /**
@@ -167,8 +168,12 @@ internal class FakeRenderer(
     /** A failure the renderer reports from inside [start], as a refused bindService does. */
     var failOnStart: String? = null
 
+    /** An exception [start] throws once the call is recorded. */
+    var throwOnStart: RuntimeException? = null
+
     override fun start(viewpoint: Int, processingEnabled: Boolean) {
         rec.record("$name.renderer.start viewpoint=$viewpoint processing=$processingEnabled")
+        throwOnStart?.let { throw it }
         // The real start() stops first, then takes a texture that is already available at once.
         if (surface) releaseSurface()
         listening = true
@@ -255,4 +260,156 @@ internal class FakeViews(
         rec.record("$name.showDashboard $placement")
 
     override fun hideDashboard() = rec.record("$name.hideDashboard")
+}
+
+/** One presentation the fake service opened: its layer and the fakes it is made of. */
+internal class FakePresentation(
+    val name: String,
+    val layer: SceneLayer,
+    val views: FakeViews,
+    val renderer: FakeRenderer,
+)
+
+/**
+ * The service's half of [SceneLayers]: displays the test chooses and presentations made of fakes.
+ * Opening one records what ClusterSceneService does - the window shown on that display, its
+ * onCreate handing the renderer to the layer - and nothing that reaches AVC.
+ */
+internal class FakeLayers(
+    private val rec: SceneRecorder,
+    private val teardown: TeardownThread,
+    private val clock: SceneClock,
+    private val log: SceneLog,
+) : SceneLayers {
+    /** The display each resolver finds; null is `ClusterDisplaySelection.Missing`. */
+    var baseDisplay: Int? = 3
+    var cameraDisplay: Int? = 7
+
+    /** The next open finds its display gone, or its window cannot be shown. */
+    var refuseNextOpen = false
+
+    /** The next camera presentation's renderer reports this failure from inside start. */
+    var nextCameraFailsOnStart: String? = null
+
+    /** The next camera presentation's renderer throws this from start. */
+    var nextCameraThrowsOnStart: RuntimeException? = null
+
+    val cameras = mutableListOf<FakePresentation>()
+    val bases = mutableListOf<FakePresentation>()
+
+    override fun resolve(cameraLayer: Boolean): ClusterDisplaySelection {
+        val id = if (cameraLayer) cameraDisplay else baseDisplay
+        rec.record("layers.resolve ${kind(cameraLayer)} -> ${id ?: "missing"}")
+        return if (id == null) {
+            ClusterDisplaySelection.Missing
+        } else {
+            ClusterDisplaySelection.Selected(
+                ClusterDisplayDescriptor(id, "display $id", 2560, 720, 240, 0, 0),
+            )
+        }
+    }
+
+    override fun open(displayId: Int, cameraLayer: Boolean, events: AvcEvents): SceneLayer? {
+        rec.record("layers.open ${kind(cameraLayer)} display=$displayId")
+        if (refuseNextOpen) {
+            refuseNextOpen = false
+            return null
+        }
+        val opened = if (cameraLayer) cameras else bases
+        val name = "${kind(cameraLayer)}#${opened.size + 1}"
+        val renderer = FakeRenderer(name, rec)
+        if (cameraLayer) {
+            renderer.failOnStart = nextCameraFailsOnStart
+            renderer.throwOnStart = nextCameraThrowsOnStart
+            nextCameraFailsOnStart = null
+            nextCameraThrowsOnStart = null
+        }
+        val views = FakeViews(name, rec, renderer)
+        val layer = SceneLayer(displayId, views, events, teardown, clock, log)
+        renderer.events = layer
+        rec.record("$name.show")
+        layer.attach(renderer)
+        opened += FakePresentation(name, layer, views, renderer)
+        return layer
+    }
+
+    private fun kind(cameraLayer: Boolean) = if (cameraLayer) "camera" else "base"
+}
+
+/**
+ * The camera scene as the car runs it, every seam a fake: one process-wide
+ * [CameraSceneController], service instances started and destroyed as Android would, the
+ * monitor's calls on its own thread, intents delivered when the test says.
+ */
+internal class CameraSceneHarness {
+    val rec = SceneRecorder()
+    val main = FakeMain(rec)
+    val teardown = FakeTeardownThread(rec)
+    private val log = RecordingLog(rec)
+    private val clock = SceneClock { main.now }
+
+    /** The controller's runtime, for the states only a cross-thread moment produces. */
+    val runtimeTracker = CameraRuntimeTracker()
+    val controller = CameraSceneController(main, clock, log, runtimeTracker)
+    val layers = FakeLayers(rec, teardown, clock, log)
+    private var instances = 0
+
+    /** The live service instance's scene. */
+    lateinit var service: CameraSceneController.Scene
+        private set
+
+    init {
+        startService()
+    }
+
+    val runtime: CameraRuntimeSnapshot get() = controller.runtimeSnapshot()
+
+    /** A new ClusterSceneService instance: its own handler on the main looper, then onCreate. */
+    fun startService(): CameraSceneController.Scene {
+        instances++
+        val handler = main.handler(if (instances == 1) "handler" else "handler#$instances")
+        service = controller.Scene(layers, handler).also { it.created() }
+        return service
+    }
+
+    /** The newest camera presentation, or the [n]th (1-based). */
+    fun camera(n: Int = layers.cameras.size): FakePresentation = layers.cameras[n - 1]
+
+    fun base(n: Int = layers.bases.size): FakePresentation = layers.bases[n - 1]
+
+    /** ClusterSceneService.showCamera on the monitor's thread: a generation, an intent on its way. */
+    fun requestShow(
+        side: MirrorSide,
+        position: MirrorsPosition = MirrorsPosition.SIDES,
+        processing: Boolean = true,
+    ): ShowIntent = rec.on("monitor") {
+        val config = MirrorCameraConfig(side, position, processing)
+        ShowIntent(config, controller.requestShow(config))
+    }
+
+    /** The Show intent reaching onStartCommand of the live instance. */
+    fun deliver(intent: ShowIntent) = service.onShowCameraAction(intent.config, intent.generation)
+
+    fun show(
+        side: MirrorSide,
+        position: MirrorsPosition = MirrorsPosition.SIDES,
+        processing: Boolean = true,
+    ) = deliver(requestShow(side, position, processing))
+
+    /** Show, the TextureView laid out, AVC ready: a camera on screen. */
+    fun showReady(side: MirrorSide) {
+        show(side)
+        camera().renderer.textureAvailable()
+        camera().renderer.ready("avc=TS init=true buffer=1")
+    }
+
+    /** SideCameraMonitorService.preemptCamera, whose callbacks record themselves as [who]. */
+    fun preempt(who: String = "monitor"): Long = rec.on("monitor") {
+        controller.preemptCamera(
+            onLocalSurfaceDetached = { rec.record("$who.localDetached") },
+            onVendorFreeCompleted = { rec.record("$who.vendorFreed") },
+        )
+    }
+
+    class ShowIntent(val config: MirrorCameraConfig, val generation: Long)
 }

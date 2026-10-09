@@ -19,8 +19,8 @@ internal class CameraSceneController(
     private val mainLooper: MainLooper,
     private val clock: SceneClock,
     private val log: SceneLog,
+    private val cameraRuntime: CameraRuntimeTracker = CameraRuntimeTracker(),
 ) {
-    private val cameraRuntime = CameraRuntimeTracker()
     private val cameraCommandFence = CameraCommandFence()
     private val cameraTeardownBarrier = CameraTeardownBarrier()
 
