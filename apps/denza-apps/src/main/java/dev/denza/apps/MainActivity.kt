@@ -75,7 +75,6 @@ class MainActivity : ComponentActivity() {
         DenzaAppRepository.refresh("resume")
         DenzaAppRepository.refreshDefaultApps()
         DenzaAppRepository.refreshCloudLink()
-        SimulcastOverlayService.hide(this)
     }
 
     override fun onPause() {

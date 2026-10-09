@@ -122,12 +122,6 @@ object SimulcastScreenDiagnostics {
     fun recordCastVideoSize(
         receiverId: String,
         resolution: SimulcastVideoSizeResolver.Resolution,
-    ) = recordCastVideoSize(receiverId, resolution, null)
-
-    @JvmStatic
-    fun recordCastVideoSize(
-        receiverId: String,
-        resolution: SimulcastVideoSizeResolver.Resolution,
         bounds: SimulcastVideoBoundsResolver.Bounds?,
     ) {
         castStatus = "Последний запуск $receiverId=" +

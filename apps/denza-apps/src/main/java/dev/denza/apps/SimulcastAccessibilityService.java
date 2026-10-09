@@ -61,11 +61,13 @@ import java.util.Set;
  * on the central source screen), then drag from the central screen onto a receiver
  * (HUD / passenger) to start casting. Dragging directly from a row icon also works.
  *
- * <p>Rendering: a full-screen {@code FLAG_NOT_TOUCHABLE} {@link DrawView} paints
- * everything (so every untouched pixel passes through to the native dialog), while
- * small touchable input windows over our icons / the central screen capture gestures.
- * The native row is erased and redrawn so a 3-app selection looks like a native
- * 3-app row, not 3 of 5 stock slots. Geometry is anchored to the stable row
+ * <p>Rendering: an opaque {@link RowPlateView} window covers the native app list and
+ * draws our row on it, so a 3-app selection looks like a native 3-app row, not 3 of 5
+ * stock slots; a {@link CentralIconPlateView} shows the selected app inside the central
+ * screen card; a full-screen {@code FLAG_NOT_TOUCHABLE} {@link DrawView} paints only the
+ * drop-zone hints and the dragged icon, so every untouched pixel passes through to the
+ * native dialog; small touchable input windows over our icons and the central screen
+ * capture gestures. Geometry is anchored to the stable row
  * container (not the scrolling stock icons), so our row does not jump when the
  * native list scrolls.
  */
@@ -73,9 +75,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private static final String TAG = "DenzaSimulcastA11y";
     private static final String DISHARE_PKG = "com.byd.dishare";
 
-    // Native row colours from decompiled DiShare (night theme). We keep the native
+    // Native row colour from decompiled DiShare (night theme). We keep the native
     // hue but make our replacement panel opaque so stock app icons never bleed through.
-    private static final int DIALOG_BG = Color.rgb(0x15, 0x18, 0x1f);
     private static final int ROW_PANEL = Color.rgb(0x37, 0x3c, 0x49);
     private static final float ROW_CORNER_DP = 20f;
 
@@ -119,7 +120,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private SimulcastDialogGeometry geometry;
     private final List<Slot> slots = new ArrayList<>();
     private Rect panelBounds;
-    private Rect eraseBounds;
     private Rect centralIconBounds;
     private Target selectedTarget;
     private List<String> appliedPackages = Collections.emptyList();
@@ -543,21 +543,20 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         return null;
     }
 
-    /**
-     * Lay out the selected apps as a centered row anchored to the stable row
-     * container, with fixed native-sized icons, plus the central preview icon and the
-     * erase/panel regions. Nothing here reads the scrolling stock icons.
-     */
     private List<String> selectedPackages() {
         List<String> selected = SimulcastApps.getSelected(this);
         int count = Math.min(selected.size(), SimulcastApps.MAX_SELECTED);
         return Collections.unmodifiableList(new ArrayList<>(selected.subList(0, count)));
     }
 
+    /**
+     * Lay out the selected apps as a centered row anchored to the stable row
+     * container, with fixed native-sized icons, plus the central preview icon and the
+     * panel region. Nothing here reads the scrolling stock icons.
+     */
     private void rebuild(SimulcastDialogGeometry geo, List<String> selected) {
         slots.clear();
         panelBounds = null;
-        eraseBounds = null;
         centralIconBounds = null;
         if (!geo.isAppPickerOpen() || geo.appList == null) {
             return;
@@ -597,9 +596,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         panelBounds = new Rect(geo.appList);
         panelBounds.union(compactPanel);
         panelBounds.inset(-dp(8), -dp(8));
-        eraseBounds = new Rect(geo.appList);
-        eraseBounds.union(panelBounds);
-        eraseBounds.inset(-dp(20), -dp(14));
 
         if (geo.centralContent != null) {
             // This is the actual native screen_card_view inside the blue selected
@@ -932,7 +928,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         slots.clear();
         geometry = null;
         panelBounds = null;
-        eraseBounds = null;
         centralIconBounds = null;
         appliedPackages = Collections.emptyList();
         missingDialogSinceMs = 0L;

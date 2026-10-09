@@ -31,7 +31,6 @@ import dev.denza.disharebridge.DiShareProjectionBridge;
  */
 public class SimulcastOverlayService extends Service {
     private static final String TAG = "DenzaSimulcastOverlay";
-    private static final String ACTION_MONITOR = "dev.denza.apps.MONITOR_SIMULCAST";
     private static final String ACTION_SHOW_ACTIVE_EXIT = "dev.denza.apps.SHOW_ACTIVE_EXIT";
     private static final String ACTION_HIDE_ACTIVE_EXIT = "dev.denza.apps.HIDE_ACTIVE_EXIT";
     static final String ACTION_START_TARGET = "dev.denza.apps.START_SIMULCAST_TARGET";
@@ -47,25 +46,18 @@ public class SimulcastOverlayService extends Service {
     private SimulcastExitButtonView activeShareExitView;
     private DiShareProjectionBridge activeBridge;
 
-    public static void startMonitor(Context context) {
-        startAction(context, ACTION_MONITOR);
-    }
-
     public static void stopCurrent(Context context) {
         TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
         startAction(context, ACTION_STOP_CURRENT);
     }
 
+    /** Starts the service if it is not running, and shows the exit control if a share is. */
     public static void showActiveExit(Context context) {
         startAction(context, ACTION_SHOW_ACTIVE_EXIT);
     }
 
     public static void hideActiveExit(Context context) {
         startAction(context, ACTION_HIDE_ACTIVE_EXIT);
-    }
-
-    /** Kept for callers; the picker overlay is owned by the accessibility service. */
-    public static void hide(Context context) {
     }
 
     /** Launch a target share through the proven bridge path and target geometry policy. */
@@ -114,7 +106,7 @@ public class SimulcastOverlayService extends Service {
             hideActiveShareExit();
             return START_STICKY;
         }
-        if (ACTION_SHOW_ACTIVE_EXIT.equals(action) || ACTION_MONITOR.equals(action)) {
+        if (ACTION_SHOW_ACTIVE_EXIT.equals(action)) {
             maybeShowActiveExit();
             return START_STICKY;
         }

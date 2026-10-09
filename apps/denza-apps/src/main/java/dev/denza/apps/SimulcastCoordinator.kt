@@ -148,7 +148,7 @@ object SimulcastCoordinator {
             return
         }
         if (!environment.needsSetup && !forceRepair) {
-            SimulcastOverlayService.startMonitor(context)
+            SimulcastOverlayService.showActiveExit(context)
             onEvent(SimulcastReconcileEvent.Refresh)
             return
         }
@@ -172,7 +172,7 @@ object SimulcastCoordinator {
                     ),
                 )
             } else if (repaired) {
-                SimulcastOverlayService.startMonitor(context)
+                SimulcastOverlayService.showActiveExit(context)
                 onEvent(SimulcastReconcileEvent.Repaired)
             } else {
                 val problem = setupProblem(failure)

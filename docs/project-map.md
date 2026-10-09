@@ -214,8 +214,8 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
   Gateway.
 - For Simulcast, normal app uid is enough for direct DiShare launches. The native
   `ShareApp` visual metadata is solved at the UI layer: the accessibility overlay
-  erases the stock row and paints the chosen apps over it (no metadata injection,
-  no helper APKs). The old alias/`SourceKeeperService` path is removed.
+  covers the stock row with an opaque plate and paints the chosen apps on it (no
+  metadata injection, no helper APKs). The old alias/`SourceKeeperService` path is removed.
 - HUD camera output is not a supported product path from a normal debug APK.
   DiShare can show generated frames and some app-accessible Camera2 feeds, but
   protected side/AVC feeds remain blocked.
