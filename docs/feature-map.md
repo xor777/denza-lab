@@ -255,11 +255,11 @@ One door to what is wrong right now, the app's access to the car, the instrument
 ### Trip strip under the tiles
 
 - **What it is:** two pages one swipe apart, remembered by `StripPageSettings`: page 1 sound (`StripPage.SOUND`: track, trip readings, spectrum analyser) and page 2 the car (`StripPage.VEHICLE`: pack flow, volts, five temperatures, engine, last 10 km).
-- **Entry points:** `DenzaAppsRoot` hands `SpectrumPanel` to `DashboardBody` as its strip (not drawn while the ADB gate blocks) → `TripPanelView` (frame loop, swipe) → `TripPanelRenderer` draws a `StripModel` filled by `StripReadings`. Sound page: `NowPlayingSource`, `SpectrumSource` → `SpectrumRenderer`, trip from `TripSession.hub` (`TripSensorHub`, `TripEngine`). Car page: `VehiclePageRenderer`, `VehiclePageWords`, data from `VehicleSession.hub` (`VehicleTelemetryHub`, claimed as `VehicleWatcher.STRIP` only while that page is on screen).
+- **Entry points:** `DenzaAppsRoot` hands `SpectrumPanel` to `DashboardBody` as its strip (not drawn while the ADB gate blocks) → `TripPanelView` (frame loop, swipe) → `TripPanelRenderer` draws a `StripModel` filled by `StripReadings`. Sound page: `NowPlayingSource` (a subscriber of `MediaSessionHub`), `SpectrumSource` → `SpectrumRenderer`, trip from `TripSession.hub` (`TripSensorHub`, `TripEngine`). Car page: `VehiclePageRenderer`, `VehiclePageWords`, data from `VehicleSession.hub` (`VehicleTelemetryHub`, claimed as `VehicleWatcher.STRIP` only while that page is on screen).
 - **Surface:** `ui/SpectrumPanel.kt`, `feature/trip/`, `feature/vehicle/`.
 - **Docs:** `docs/energy-display-contract.md` (normative for the car page), `docs/audio-capture-findings.md` (analyser capture), `docs/vehicle-data-findings.md`, `tools/design-canvas/luminofor/README.md`.
 - **Luminofor:** fixtures `main-sound`, `main-first`, `main-paused`, `two-sound`, `two-first`, `one-sound`, `main-car`, `main-car-engine`, `main-car-hot`, `main-car-neutral`, `main-car-charging`, `two-car`, `one-car`; drawn by `drawHead` in `tools/design-canvas/luminofor/luminofor.js`; debug mapping `StripFixtures`.
-- **Tests:** `StripBoardContractTest`, `StripGeometryTest`, `StripReadingsTest`, `SpectrumAnalysisTest`, `TripEngineTest`, `EnergyReadoutsTest`, `VehicleLogReplayTest`, `LuminoforScreenContractTest`.
+- **Tests:** `StripBoardContractTest`, `StripGeometryTest`, `StripReadingsTest`, `NowPlayingSourceTest`, `SpectrumAnalysisTest`, `TripEngineTest`, `EnergyReadoutsTest`, `VehicleLogReplayTest`, `LuminoforScreenContractTest`.
 
 ### Driver's-display instruments (the Contour)
 

@@ -1,37 +1,35 @@
 package dev.denza.apps.feature.trip
 
-import android.content.ComponentName
 import android.content.Context
-import android.media.session.MediaController
-import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
-import android.os.Handler
-import android.os.Looper
-import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
+import dev.denza.apps.platform.media.MediaSessionChange
+import dev.denza.apps.platform.media.MediaSessionControls
+import dev.denza.apps.platform.media.MediaSessionHub
+import dev.denza.apps.platform.media.MediaSessionSubscriber
+import dev.denza.apps.platform.media.MediaSessions
 
 /**
  * What the car is playing: the title, the artist and whether it plays, for the strip to print.
  *
- * Reads the active [android.media.session.MediaSession] through
- * [MediaSessionManager], which needs notification-listener access — the app
- * already holds it for the HUD's artwork listener, and that same component is
- * the token used here. Nothing new is requested or enabled: if the access is
- * not there, the panel simply has no track and the analyser takes the space
- * back.
+ * Reads the active media sessions through the process's [MediaSessionHub], which needs the app's
+ * notification-listener access (`MediaSessionAccess`). Nothing new is requested or enabled here: if
+ * the access is not there, the panel simply has no track and the analyser takes the space back.
  *
  * Works for whatever holds the session, which on this head unit means both a
  * media app such as Yandex Music and the Bluetooth sink fronted by
  * `com.byd.mediacenter`.
  *
+ * Follows one session: the one actually playing when the active list is read, else the first in
+ * it, so a paused track still shows its title. Between reads of the list it stays with that one and
+ * reads its title and state as they change, whatever the other sessions do.
+ *
  * Main-thread only, like the rest of the panel.
  */
 class NowPlayingSource {
 
-    private val handler = Handler(Looper.getMainLooper())
-    private var manager: MediaSessionManager? = null
-    private var controller: MediaController? = null
-    private var listenerComponent: ComponentName? = null
-    private var running = false
+    private var hub: MediaSessionHub? = null
+    private var followed: Any? = null
+    private var controls: MediaSessionControls? = null
 
     var title: String? = null
         private set
@@ -46,81 +44,57 @@ class NowPlayingSource {
     val hasTrack: Boolean
         get() = !title.isNullOrBlank()
 
-    private val sessionsChanged =
-        MediaSessionManager.OnActiveSessionsChangedListener { controllers -> adopt(controllers) }
-
-    private val callback = object : MediaController.Callback() {
-        override fun onMetadataChanged(metadata: android.media.MediaMetadata?) = readMetadata()
-        override fun onPlaybackStateChanged(state: PlaybackState?) = readState()
-        override fun onSessionDestroyed() = refresh()
-    }
-
-    fun start(context: Context) {
-        if (running) return
-        running = true
-        val app = context.applicationContext
-        val component = ComponentName(app, YandexNotificationArtworkListener::class.java)
-        listenerComponent = component
-        val service = app.getSystemService(MediaSessionManager::class.java) ?: return
-        manager = service
-        // Without notification-listener access this throws; the panel then just
-        // runs without a track strip rather than failing.
-        runCatching {
-            service.addOnActiveSessionsChangedListener(sessionsChanged, component, handler)
-            adopt(service.getActiveSessions(component))
+    private val subscriber = MediaSessionSubscriber { sessions, change ->
+        when (change) {
+            MediaSessionChange.ListRead -> adopt(sessions)
+            is MediaSessionChange.Playback -> if (change.token == followed) readState(sessions)
+            is MediaSessionChange.Metadata -> if (change.token == followed) readMetadata()
         }
     }
 
+    fun start(context: Context) {
+        start(MediaSessionHub.get(context))
+    }
+
+    internal fun start(sessions: MediaSessionHub) {
+        if (hub != null) return
+        hub = sessions
+        sessions.subscribe(subscriber)
+    }
+
     fun stop() {
-        if (!running) return
-        running = false
-        runCatching { manager?.removeOnActiveSessionsChangedListener(sessionsChanged) }
-        detach()
-        manager = null
+        val current = hub ?: return
+        hub = null
+        current.unsubscribe(subscriber)
+        followed = null
+        controls = null
         title = null
         artist = null
         playing = false
-    }
-
-    private fun refresh() {
-        val service = manager ?: return
-        val component = listenerComponent ?: return
-        runCatching { adopt(service.getActiveSessions(component)) }
     }
 
     /**
      * Picks the session to follow: the one actually playing, else the highest
      * priority one, so a paused track still shows its title.
      */
-    private fun adopt(controllers: List<MediaController>?) {
-        if (!running) return
-        val candidates = controllers.orEmpty()
-        val chosen = candidates.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+    private fun adopt(sessions: MediaSessions) {
+        val candidates = sessions.active
+        val chosen = candidates.firstOrNull { it.playbackState == PlaybackState.STATE_PLAYING }
             ?: candidates.firstOrNull()
-        if (chosen?.sessionToken == controller?.sessionToken) {
-            readMetadata()
-            readState()
-            return
-        }
-        detach()
-        controller = chosen
-        chosen?.registerCallback(callback, handler)
+        followed = chosen?.token
+        controls = chosen?.controls
         readMetadata()
-        readState()
+        readState(sessions)
     }
 
-    private fun detach() {
-        controller?.let { runCatching { it.unregisterCallback(callback) } }
-        controller = null
-    }
-
+    /** The title and artist, read from the session itself. */
     private fun readMetadata() {
-        val metadata = controller?.metadata
-        title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
-        artist = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST)
+        val track = runCatching { controls?.track() }.getOrNull()
+        title = track?.title
+        artist = track?.artist
     }
 
-    private fun readState() {
-        playing = controller?.playbackState?.state == PlaybackState.STATE_PLAYING
+    private fun readState(sessions: MediaSessions) {
+        playing = followed?.let(sessions::get)?.playbackState == PlaybackState.STATE_PLAYING
     }
 }
