@@ -127,7 +127,7 @@ translations it shipped with. Region-qualified locales in the captured APKs:
 | `BydAutoVoice` | 44 | yes |
 | `dishare` | 36 | yes |
 | `BydSRDenza` (speech recognition) | 0 | — |
-| `openbyd`, `MapHelper`, `CustomKey`, `AutoVideo`, `bilithings` | 12, all `en`/`es`/`fr`/`pt`/`zh` variants | no |
+| `MapHelper`, `CustomKey`, `AutoVideo`, `bilithings` | 12, all `en`/`es`/`fr`/`pt`/`zh` variants | no |
 
 So a language switch translates settings, the voice assistant UI and DiShare,
 and leaves the rest of the stock applications in English.

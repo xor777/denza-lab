@@ -1150,7 +1150,7 @@ rendered by MediaCenter on ordinary `STREAM_MUSIC=3`.
 Full decompile of `IntegrationMediaCenter.apk` (`reverse/mediacenter/`,
 8 dexes; the decompile is gone, and the APK, byte-identical to the OTA's, is
 `captures/ambient-light-20260923/settings-ui/system/system/app/IntegrationMediaCenter/IntegrationMediaCenter.apk`
-since 2026-10-08) plus re-check of AutoVoice/MapHelper/openbyd originally suggested
+since 2026-10-08) plus re-check of AutoVoice/MapHelper and a third-party app originally suggested
 that a BT-shaped public audio path might be sufficient. Live testing
 **falsified that hypothesis**: focus 14 and audible stream-14/content-5 tones
 did not extend the covers.

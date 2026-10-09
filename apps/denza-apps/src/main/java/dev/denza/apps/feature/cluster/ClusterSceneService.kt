@@ -829,7 +829,7 @@ class ClusterSceneService : Service() {
             )
     }
 
-    /** OpenBYD-compatible navigation contrast shades, strengthened for the center panel. */
+    /** Navigation contrast shades, strengthened for the center panel. */
     // Explicit save/restore calls make the destructive blend scope auditable.
     @SuppressLint("UseKtx")
     private class ProjectionEdgeShadeView(context: Context) : View(context) {

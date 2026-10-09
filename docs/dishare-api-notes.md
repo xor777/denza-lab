@@ -604,8 +604,8 @@ exposes a distinct `screen_tv` / `deviceId=tv` contract for configurations with 
 single rear display; Denza Apps maps it to the same visible rear card as
 `screen_overhead`. N9 rear and overhead support is implemented from these
 contracts. N9 verification still needs `getScreens`, an accessibility-tree
-capture, and one isolated launch per receiver. OpenBYD enumerates Android
-`Display` objects rather than DiShare receivers; seeing a rear display there is
+capture, and one isolated launch per receiver. A third-party projection app
+enumerates Android `Display` objects rather than DiShare receivers; seeing a rear display there is
 useful hardware evidence, but availability still comes from `getScreens`.
 
 The hidden Denza Apps diagnostic view now captures those three discovery layers

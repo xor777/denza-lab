@@ -12,7 +12,7 @@ class ClusterDisplayResolverTest {
             listOf(
                 candidate(0, "Built-in Screen", 1920, 1080),
                 candidate(2, "left_rse_screen", 1920, 1080),
-                candidate(3, "OpenBYD virtual fission", 1920, 720, own = true),
+                candidate(3, "third-party virtual fission", 1920, 720, own = true),
                 cluster,
                 candidate(5, "overhead_screen", 1920, 1080),
             ),
