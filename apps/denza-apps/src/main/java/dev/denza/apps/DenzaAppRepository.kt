@@ -211,8 +211,12 @@ data class DenzaUiState(
      * recompute - the car's launcher catalog, and nothing but that page draws it.
      */
     val appChoices: List<SimulcastAppChoice> = emptyList(),
-    /** What «Экран справа» offers, read when its chooser opens (`FseInstallRuntime.refreshApps`). */
-    val fseInstallApps: List<FseInstallApp> = emptyList(),
+    /**
+     * What «Экран справа» offers, read when its chooser opens (`FseInstallRuntime.refreshApps`);
+     * null until this process has read it, which a chooser brought back with the screen says as
+     * «looking» rather than as a car with nothing to offer.
+     */
+    val fseInstallApps: List<FseInstallApp>? = null,
 )
 
 /**

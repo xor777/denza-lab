@@ -82,19 +82,17 @@ fun DenzaAppsRoot(
     // Saved rather than merely remembered. The split path of this firmware recreates the activity
     // when a pane is promoted or collapsed, and every open panel used to vanish with it - so a
     // driver who widened the window to read a setting arrived back on the dashboard instead.
-    var showClusterPicker by rememberSaveable { mutableStateOf(false) }
+    //
+    // What a tile opens - its panel, the instruments' screen picker, the three choosers - is
+    // [DashboardWindows], which keeps the choosers back while the startup gate is up. «Сервис» and
+    // the gate's own windows are not a tile's: they are what the gate leaves the driver.
+    val windows = rememberSaveable(saver = DashboardWindows.Saver) { DashboardWindows() }
     var showDiagnostics by rememberSaveable { mutableStateOf(false) }
     var showAdbRecovery by rememberSaveable { mutableStateOf(false) }
     var showAdbExplainer by rememberSaveable { mutableStateOf(false) }
-    var settingsFor by rememberSaveable { mutableStateOf<TileId?>(null) }
-    // The three whole-sheet choosers a tile opens when its feature waits on a choice. Windows of
-    // this screen, so they are kept here with the panels, saved as the panels are; they used to be
-    // flags in the repository's state, beside what the car said.
-    var choosingApps by rememberSaveable { mutableStateOf(false) }
-    var choosingNavigationApp by rememberSaveable { mutableStateOf(false) }
-    var choosingFseApp by rememberSaveable { mutableStateOf(false) }
     val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue, uiState.adbRestore)
     val adbStartupBlocked = uiState.adbRescue.phase != AdbRescuePhase.TRUSTED
+    val shown = windows.shown(gateUp = adbStartupBlocked)
     // The recovery window belongs to the gate and cannot outlive it. Latched, it reopened itself:
     // the car answers, the gate goes, the flag stays true, and the next thing to block the app
     // arrived with a recovery dialog already on top of it that nobody had asked for.
@@ -103,12 +101,11 @@ fun DenzaAppsRoot(
     }
     // The app's actions and this screen's own doors, as one vocabulary for a tile and its panel.
     //
-    // Held across frames under the one key it has: the object the activity built. The doors only
-    // set this function's saved flags, which are the same state objects for as long as it is
-    // composed, so they need no key of their own. A [DashboardActions] built afresh on every
+    // Held across frames under the object the activity built and the windows' holder, which is the
+    // same object for as long as this is composed. A [DashboardActions] built afresh on every
     // recomposition would hand every tile, every chip and every panel a parameter that had changed
     // - which is the one thing that makes Compose redraw a subtree it did not need to touch.
-    val dashboardActions = remember(actions) {
+    val dashboardActions = remember(actions, windows) {
         // Service used to be seven quick taps on an undisclosed part of the screen, with no
         // affordance and nothing to tell you it had happened. A live run found the other half of
         // that bargain: a tap that misses the secret door now lands on a tile, and an odd number of
@@ -124,20 +121,16 @@ fun DenzaAppsRoot(
             actions.onRefreshSystemLanguage()
             showDiagnostics = true
         }
-        // The passenger's list is read first, on this thread, so the chooser opens drawn - and not
-        // at all while an install is under way.
-        val openFseChooser = {
-            if (actions.onLoadFseApps()) choosingFseApp = true
-        }
+        val openFseChooser = { windows.openFseChooser(actions) }
         DashboardActions(
             app = actions,
             // Each of these lists is read as its window opens (see the windows below).
-            onChooseApps = { choosingApps = true },
-            onChooseNavigationApp = { choosingNavigationApp = true },
+            onChooseApps = { windows.apps = true },
+            onChooseNavigationApp = { windows.navigationApp = true },
             onChooseFseApp = openFseChooser,
             onOpenClusterPicker = {
                 actions.onSearchClusterDisplays()
-                showClusterPicker = true
+                windows.clusterPicker = true
             },
             onOpenService = openService,
             onOpenSettings = { id: TileId ->
@@ -148,7 +141,7 @@ fun DenzaAppsRoot(
                     // Opening the tile asks the car only if the last read has gone stale.
                     TileId.DEFAULT_APPS -> {
                         actions.onRefreshDefaultApps(false)
-                        settingsFor = id
+                        windows.settingsFor = id
                     }
                     // «Экран справа» has no settings. Its panel held one sentence and a button that
                     // opened the chooser the tile's own press opens, so a long press and a short
@@ -156,7 +149,7 @@ fun DenzaAppsRoot(
                     // chooser now, and the sentence went with it - see [FseInstallerPickerDialog].
                     TileId.PASSENGER -> openFseChooser()
                     else -> {
-                        settingsFor = id
+                        windows.settingsFor = id
                     }
                 }
             },
@@ -210,7 +203,7 @@ fun DenzaAppsRoot(
             // buttons in Material purple - on a screen whose entire point was that there is
             // one palette. A theme that wraps only the easy half is not a theme.
 
-            settingsFor?.let { id ->
+            shown.settingsFor?.let { id ->
                 if (id == TileId.DEFAULT_APPS) {
                     DefaultAppsSheet(
                         state = uiState.defaultApps,
@@ -218,7 +211,7 @@ fun DenzaAppsRoot(
                         onRefresh = { actions.onRefreshDefaultApps(true) },
                         onSelect = actions.onSelectDefaultApp,
                         onSetEnabled = actions.onSetDefaultAppsEnabled,
-                        onDismiss = { settingsFor = null },
+                        onDismiss = { windows.settingsFor = null },
                     )
                 } else {
                     FeatureSheet(
@@ -226,7 +219,7 @@ fun DenzaAppsRoot(
                         state = uiState,
                         actions = dashboardActions,
                         compact = compactLayout,
-                        onDismiss = { settingsFor = null },
+                        onDismiss = { windows.settingsFor = null },
                     )
                 }
             }
@@ -255,56 +248,53 @@ fun DenzaAppsRoot(
                     onOpenService = actions.onServiceOpened,
                 )
             }
-            if (showClusterPicker) {
+            if (shown.clusterPicker) {
                 ClusterDisplayPickerDialog(
                     displays = uiState.clusterCandidates,
                     compactLayout = compactLayout,
                     onSelect = { displayId ->
                         actions.onSelectClusterDisplay(displayId)
-                        showClusterPicker = false
+                        windows.clusterPicker = false
                     },
                     onRefresh = actions.onSearchClusterDisplays,
-                    onDismiss = { showClusterPicker = false },
+                    onDismiss = { windows.clusterPicker = false },
                 )
             }
-            // A chooser reads its list as it opens, and again when it comes back open with this
-            // screen: a process the system recreated has lost the list it was showing.
-            if (choosingApps) {
+            // A chooser reads its list as it comes out - when it opens, and when it comes back open
+            // with this screen after the gate has dropped: a process the system recreated has lost
+            // the list it was showing, and its runtime has started only now.
+            if (shown.apps) {
                 LaunchedEffect(Unit) { actions.onLoadAppChoices() }
                 AppPickerDialog(
                     apps = uiState.appChoices,
                     compactLayout = compactLayout,
                     selectedCount = uiState.selectedAppCount,
                     onToggle = actions.onToggleApp,
-                    onDismiss = { choosingApps = false },
+                    onDismiss = { windows.apps = false },
                 )
             }
-            if (choosingNavigationApp) {
+            if (shown.navigationApp) {
                 LaunchedEffect(Unit) { actions.onLoadNavigationAppChoices() }
                 NavigationPickerDialog(
                     apps = uiState.navigationAppChoices,
                     compactLayout = compactLayout,
-                    // One at a time: the choice the car takes closes the window.
-                    onSelect = { packageName ->
-                        if (actions.onSelectNavigationApp(packageName)) choosingNavigationApp = false
-                    },
-                    onDismiss = { choosingNavigationApp = false },
+                    // One at a time: the choice the app takes closes the window.
+                    onSelect = { packageName -> windows.chooseNavigationApp(packageName, actions) },
+                    onDismiss = { windows.navigationApp = false },
                 )
             }
-            if (choosingFseApp) {
-                // Opened by [openFseChooser], the list is already read. Brought back open with a
-                // new process it is empty, and an empty list here says «Приложения не найдены».
+            if (shown.fseApp) {
+                // Opened by a press, the list is already read. Brought back with the screen it has
+                // not been read in this process yet; the store says so as it stands.
                 LaunchedEffect(Unit) {
-                    if (uiState.fseInstallApps.isEmpty() && !actions.onLoadFseApps()) choosingFseApp = false
+                    windows.readFseAppsIfLost(read = state.value.fseInstallApps != null, actions)
                 }
                 FseInstallerPickerDialog(
                     apps = uiState.fseInstallApps,
                     compactLayout = compactLayout,
                     // An install that starts closes the chooser; a stale tap leaves it, re-read.
-                    onInstall = { packageName ->
-                        if (actions.onInstallFseApp(packageName)) choosingFseApp = false
-                    },
-                    onDismiss = { choosingFseApp = false },
+                    onInstall = { packageName -> windows.installFseApp(packageName, actions) },
+                    onDismiss = { windows.fseApp = false },
                 )
             }
             if (adbStartupOverlay.visible) {

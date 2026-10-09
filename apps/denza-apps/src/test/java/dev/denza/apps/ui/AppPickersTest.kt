@@ -97,6 +97,16 @@ class AppPickersTest {
         assertEquals("Что показывать", NAVIGATION_CHOICE_TITLE)
     }
 
+    /**
+     * A passenger chooser brought back with the screen after the process died has no list yet, and
+     * says it is looking - not that the car has nothing to send - until its list is read.
+     */
+    @Test
+    fun thePassengerChooserSaysItIsLookingUntilItsListIsRead() {
+        assertEquals("Ищем приложения…", fseChooserEmptyText(null))
+        assertEquals("Приложения не найдены", fseChooserEmptyText(emptyList()))
+    }
+
     private fun app(packageName: String, label: String): SimulcastAppChoice = SimulcastAppChoice(
         packageName = packageName,
         label = label,
