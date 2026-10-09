@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.speaker
 
+import dev.denza.apps.platform.shell.ServiceCallParcel
+
 /**
  * The one vehicle property this feature writes, and how its reply reads.
  *
@@ -28,12 +30,5 @@ internal object SpeakerCoverProtocol {
      * A write answers with one word and it is the status: `Parcel(00000001    '....')`. A two-word
      * reply is the shape of a *read* and is not an acknowledgement of anything.
      */
-    fun accepted(output: String): Boolean {
-        val body = PARCEL.find(output)?.groupValues?.get(1) ?: return false
-        val words = WORD.findAll(body).map { it.value.toLong(16).toInt() }.toList()
-        return words.singleOrNull() == 1
-    }
-
-    private val PARCEL = Regex("""Parcel\(([^')]*)""")
-    private val WORD = Regex("""[0-9a-fA-F]{8}""")
+    fun accepted(output: String): Boolean = ServiceCallParcel.words(output)?.singleOrNull() == 1
 }

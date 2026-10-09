@@ -9,13 +9,14 @@ package dev.denza.apps.platform.shell
  *
  * Only the short form is understood. A longer reply - an exception's message, a string - is printed
  * over several lines, each starting with its offset (`0x00000000: ...`). Read line by line it has
- * no words; read whole by [words], its first offset passes for a word, which is how the cloud link
- * and the split's `activity_task` calls have always read it. [oneLineWords] refuses that form
- * instead, for the HUD's read, whose own expression never matched it. Nothing this app reads
- * through here is that long when it succeeds.
+ * no words; read whole by [words], its first offset passes for a word, which is how the cloud link,
+ * the speaker report and the split's `activity_task` calls have always read it. [oneLineWords]
+ * refuses that form instead, for the HUD's read, whose own expression never matched it. Nothing
+ * this app reads through here is that long when it succeeds.
  *
- * It replaces the expressions the vehicle batch, the HUD speed limit, the cloud link and the split
- * each had of their own; on every reply they each give the same reading (`ServiceCallParcelTest`).
+ * It replaces the expressions the vehicle batch, the HUD speed limit, the cloud link, the split and
+ * the speaker report each had of their own; on every reply they each give the same reading
+ * (`ServiceCallParcelTest`).
  */
 internal object ServiceCallParcel {
 
