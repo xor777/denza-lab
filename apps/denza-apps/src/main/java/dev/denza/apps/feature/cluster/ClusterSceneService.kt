@@ -52,9 +52,18 @@ class ClusterSceneService : Service() {
     }
 
     private val handler = Handler(Looper.getMainLooper())
+    private val sceneHandler = object : SceneHandler {
+        override fun postDelayed(task: Runnable, delayMs: Long) {
+            handler.postDelayed(task, delayMs)
+        }
+
+        override fun removeCallbacks(task: Runnable) = handler.removeCallbacks(task)
+
+        override fun removeAll() = handler.removeCallbacksAndMessages(null)
+    }
     private val diagnosticHides = DiagnosticHideTimers(
-        postDelayed = { task, delayMs -> handler.postDelayed(task, delayMs) },
-        remove = { task -> handler.removeCallbacks(task) },
+        postDelayed = { task, delayMs -> sceneHandler.postDelayed(task, delayMs) },
+        remove = { task -> sceneHandler.removeCallbacks(task) },
     )
     private var basePresentation: ClusterPresentation? = null
     private var cameraPresentation: ClusterPresentation? = null
@@ -82,7 +91,7 @@ class ClusterSceneService : Service() {
                 if (cameraCommandFence.isCurrent(generation)) {
                     showCamera(intent.cameraConfig(), generation)
                 } else {
-                    Log.i(TAG, "stale showCamera rejected; generation=$generation")
+                    sceneLog.i("stale showCamera rejected; generation=$generation")
                 }
             }
             ACTION_SHOW_MAP -> showMap(intent.mapPlacement())
@@ -108,7 +117,7 @@ class ClusterSceneService : Service() {
 
     override fun onDestroy() {
         cameraCommandFence.invalidate()
-        handler.removeCallbacksAndMessages(null)
+        sceneHandler.removeAll()
         stopScene(stopService = false)
         if (active === this) active = null
         super.onDestroy()
@@ -133,7 +142,7 @@ class ClusterSceneService : Service() {
         if (selection !is ClusterDisplaySelection.Selected) {
             // The tile says it («Экран не найден», «Экран не выбран»); the notification is not a
             // second place to tell the driver, and it used to send them to a «Support» screen.
-            Log.w(TAG, "no ${if (cameraLayer) "camera" else "instrument"} display: $selection")
+            sceneLog.w("no ${if (cameraLayer) "camera" else "instrument"} display: $selection")
             return null
         }
         val currentPresentation = if (cameraLayer) cameraPresentation else basePresentation
@@ -150,7 +159,7 @@ class ClusterSceneService : Service() {
         val manager = getSystemService(android.hardware.display.DisplayManager::class.java)
         val display = manager?.getDisplay(selection.display.id)
         if (display == null || !display.isValid) {
-            Log.w(TAG, "${if (cameraLayer) "camera" else "instrument"} display ${selection.display.id} disappeared")
+            sceneLog.w("${if (cameraLayer) "camera" else "instrument"} display ${selection.display.id} disappeared")
             return null
         }
         return try {
@@ -165,7 +174,7 @@ class ClusterSceneService : Service() {
             if (cameraLayer) cameraPresentation = shown else basePresentation = shown
             shown
         } catch (error: RuntimeException) {
-            Log.e(TAG, "Unable to show ${if (cameraLayer) "camera" else "instrument"} presentation", error)
+            sceneLog.e("Unable to show ${if (cameraLayer) "camera" else "instrument"} presentation", error)
             null
         }
     }
@@ -175,10 +184,10 @@ class ClusterSceneService : Service() {
             cameraRuntime.snapshot().phase == CameraRuntimePhase.STOPPING ||
             !cameraTeardownBarrier.isClear
         ) {
-            Log.i(TAG, "showCamera ${config.side} rejected: cleanup in progress")
+            sceneLog.i("showCamera ${config.side} rejected: cleanup in progress")
             return
         }
-        Log.i(TAG, "showCamera ${config.side}; generation=$commandGeneration at_ms=${SystemClock.elapsedRealtime()}")
+        sceneLog.i("showCamera ${config.side}; generation=$commandGeneration at_ms=${sceneClock.elapsedRealtime()}")
         cameraRuntime.starting(config.side)
         val scene = prepareCameraScene()
         if (scene == null) {
@@ -194,7 +203,7 @@ class ClusterSceneService : Service() {
             diagnosticHides.cancel(cameraLayer = true)
             scene.showCamera(config, commandGeneration)
         } catch (error: RuntimeException) {
-            Log.e(TAG, "Unable to start camera renderer", error)
+            sceneLog.e("Unable to start camera renderer", error)
             val failure = "camera start failed: ${error::class.java.simpleName}"
             val presentation = cameraPresentation
             if (presentation == null) {
@@ -231,7 +240,7 @@ class ClusterSceneService : Service() {
             return
         }
 
-        Log.i(TAG, "hideCamera: releasing surface")
+        sceneLog.i("hideCamera: releasing surface")
         beginCameraTeardown(
             presentation = presentation,
             onLocalSurfaceDetached = onLocalSurfaceDetached,
@@ -260,7 +269,7 @@ class ClusterSceneService : Service() {
         presentation.dismissAfterSurfaceRelease(
             onLocalSurfaceDetached,
             {
-                Log.i(TAG, "hideCamera: surface released, display freed")
+                sceneLog.i("hideCamera: surface released, display freed")
                 if (cameraTeardownPresentation === presentation) {
                     cameraTeardownPresentation = null
                 }
@@ -276,7 +285,7 @@ class ClusterSceneService : Service() {
                     }
                 }
                 if (!cameraTeardownBarrier.complete(teardownToken)) {
-                    Log.i(TAG, "ignored stale AVC presentation teardown completion")
+                    sceneLog.i("ignored stale AVC presentation teardown completion")
                 }
                 onComplete?.invoke()
             },
@@ -315,7 +324,7 @@ class ClusterSceneService : Service() {
                 cameraRuntime.snapshot().phase !in
                 setOf(CameraRuntimePhase.IDLE, CameraRuntimePhase.FAILED))
         ) {
-            Log.i(TAG, "camera preview rejected: camera lifecycle is active")
+            sceneLog.i("camera preview rejected: camera lifecycle is active")
             return
         }
         val scene = if (cameraOverlay) prepareCameraScene() else prepareBaseScene()
@@ -328,14 +337,13 @@ class ClusterSceneService : Service() {
 
     private fun onAvcReady(commandGeneration: Long, details: String) {
         if (!cameraCommandFence.isCurrent(commandGeneration)) {
-            Log.i(TAG, "stale AVC ready ignored; generation=$commandGeneration")
+            sceneLog.i("stale AVC ready ignored; generation=$commandGeneration")
             return
         }
         val runtime = cameraRuntime.snapshot()
         if (runtime.phase != CameraRuntimePhase.STARTING) return
         lastCameraDetails = details
-        Log.i(
-            TAG,
+        sceneLog.i(
             "AVC ready; generation=$commandGeneration side=${runtime.side} details=$details",
         )
         runtime.side?.let { cameraRuntime.ready(it, details) }
@@ -343,12 +351,12 @@ class ClusterSceneService : Service() {
 
     private fun onAvcFirstFrame(commandGeneration: Long, details: String) {
         if (!cameraCommandFence.isCurrent(commandGeneration)) return
-        Log.i(TAG, "AVC first texture update; generation=$commandGeneration $details")
+        sceneLog.i("AVC first texture update; generation=$commandGeneration $details")
     }
 
     private fun onAvcFailure(commandGeneration: Long, details: String) {
         if (!cameraCommandFence.isCurrent(commandGeneration)) {
-            Log.i(TAG, "stale AVC failure ignored; generation=$commandGeneration")
+            sceneLog.i("stale AVC failure ignored; generation=$commandGeneration")
             return
         }
         val runtime = cameraRuntime.snapshot()
@@ -357,8 +365,7 @@ class ClusterSceneService : Service() {
             runtime.phase != CameraRuntimePhase.READY
         ) return
         lastCameraDetails = details
-        Log.w(
-            TAG,
+        sceneLog.w(
             "AVC failure; generation=$commandGeneration side=${runtime.side} details=$details",
         )
         val presentation = cameraPresentation
@@ -413,7 +420,7 @@ class ClusterSceneService : Service() {
         private val failed: (Long, String) -> Unit,
         private val firstFrame: (Long, String) -> Unit,
         private val cameraLayer: Boolean,
-    ) : Presentation(context, display) {
+    ) : Presentation(context, display), SceneLayerViews {
         lateinit var mapSurface: SurfaceView
             private set
         private lateinit var mapShade: ProjectionEdgeShadeView
@@ -422,7 +429,7 @@ class ClusterSceneService : Service() {
         private lateinit var cameraFrame: FrameLayout
         private lateinit var cameraEdgeShade: EdgeShadeView
         private lateinit var diagnosticLayer: FrameLayout
-        private lateinit var renderer: AvcCameraRenderer
+        private lateinit var renderer: CameraRenderer
         private var cameraSource = CameraSource.NONE
         private var dashboardPlacement: ClusterMapPlacement? = null
         private var teardownScheduled = false
@@ -487,12 +494,15 @@ class ClusterSceneService : Service() {
             root.addView(diagnosticLayer, matchParent())
             setContentView(root)
 
-            renderer = AvcCameraRenderer(context, cameraTexture, object : AvcCameraRenderer.Listener {
-                override fun onReady(details: String) = ready(cameraCommandGeneration, details)
-                override fun onFailure(details: String) = failed(cameraCommandGeneration, details)
-                override fun onLocalSurfaceReleased() = markLocalSurfaceDetached()
-                override fun onFirstFrame(details: String) = firstFrame(cameraCommandGeneration, details)
-            })
+            renderer = AvcCameraRenderer(context, cameraTexture, rendererEvents.asAvcListener())
+                .asCameraRenderer()
+        }
+
+        private val rendererEvents = object : CameraRendererEvents {
+            override fun onReady(details: String) = ready(cameraCommandGeneration, details)
+            override fun onFailure(details: String) = failed(cameraCommandGeneration, details)
+            override fun onLocalSurfaceReleased() = markLocalSurfaceDetached()
+            override fun onFirstFrame(details: String) = firstFrame(cameraCommandGeneration, details)
         }
 
         private fun createBaseLayers(root: FrameLayout) {
@@ -550,19 +560,18 @@ class ClusterSceneService : Service() {
         // blocked binder calls into com.byd.avc right after its SIGSEGV.
         private fun scheduleVendorRelease() {
             try {
-                super.dismiss()
+                removeWindow()
             } finally {
                 if (!renderer.hasLocalSurfaceHandle()) markLocalSurfaceDetached()
-                vendorTeardownHandler.post {
-                    val startedAt = android.os.SystemClock.elapsedRealtime()
+                vendorTeardown.post {
+                    val startedAt = sceneClock.elapsedRealtime()
                     try {
                         stopActiveCamera()
                     } finally {
                         synchronized(teardownCallbacks) { teardownFinished = true }
-                        Log.i(
-                            TAG,
+                        sceneLog.i(
                             "vendor display freed in " +
-                                "${android.os.SystemClock.elapsedRealtime() - startedAt}ms",
+                                "${sceneClock.elapsedRealtime() - startedAt}ms",
                         )
                         completeTeardownCallbacks()
                     }
@@ -602,6 +611,19 @@ class ClusterSceneService : Service() {
             stopActiveCamera()
             cameraCommandGeneration = commandGeneration
             hideDiagnostic()
+            layoutCamera(config)
+            cameraSource = CameraSource.AVC
+            renderer.start(
+                if (config.side == MirrorSide.LEFT) LEFT_VIEWPOINT else RIGHT_VIEWPOINT,
+                config.processingEnabled,
+            )
+        }
+
+        override fun removeWindow() {
+            super.dismiss()
+        }
+
+        override fun layoutCamera(config: MirrorCameraConfig) {
             val metrics = android.util.DisplayMetrics()
             @Suppress("DEPRECATION")
             display.getRealMetrics(metrics)
@@ -638,14 +660,9 @@ class ClusterSceneService : Service() {
             cameraTexture.setTransform(Matrix())
             cameraEdgeShade.visibility = View.VISIBLE
             cameraFrame.visibility = View.VISIBLE
-            cameraSource = CameraSource.AVC
-            renderer.start(
-                if (config.side == MirrorSide.LEFT) LEFT_VIEWPOINT else RIGHT_VIEWPOINT,
-                config.processingEnabled,
-            )
         }
 
-        fun showMap(placement: ClusterMapPlacement, consumer: MapSurfaceConsumer) {
+        override fun showMap(placement: ClusterMapPlacement, consumer: MapSurfaceConsumer) {
             val metrics = android.util.DisplayMetrics()
             @Suppress("DEPRECATION")
             display.getRealMetrics(metrics)
@@ -694,7 +711,7 @@ class ClusterSceneService : Service() {
             }
         }
 
-        fun hideMap() {
+        override fun hideMap() {
             mapConsumer = null
             expectedMapWidth = 0
             expectedMapHeight = 0
@@ -711,7 +728,7 @@ class ClusterSceneService : Service() {
          * That is the whole difference from [showMap], and it is what makes this path free of the
          * shell commands, task moves and vendor surfaces the projection path needs.
          */
-        fun showDashboard(placement: ClusterMapPlacement) {
+        override fun showDashboard(placement: ClusterMapPlacement) {
             val metrics = android.util.DisplayMetrics()
             @Suppress("DEPRECATION")
             display.getRealMetrics(metrics)
@@ -733,7 +750,7 @@ class ClusterSceneService : Service() {
             dashboardLayer.visibility = View.VISIBLE
         }
 
-        fun hideDashboard() {
+        override fun hideDashboard() {
             dashboardPlacement = null
             dashboardLayer.visibility = View.GONE
             // Removing the view is what releases the telemetry poll: the dashboard holds it open
@@ -743,6 +760,10 @@ class ClusterSceneService : Service() {
 
         fun hideCamera() {
             stopActiveCamera()
+            hideCameraFrame()
+        }
+
+        override fun hideCameraFrame() {
             cameraFrame.visibility = View.GONE
         }
 
@@ -756,6 +777,10 @@ class ClusterSceneService : Service() {
 
         fun showDiagnostic(position: MirrorsPosition, visible: Boolean) {
             hideCamera()
+            drawDiagnostic(position, visible)
+        }
+
+        override fun drawDiagnostic(position: MirrorsPosition, visible: Boolean) {
             diagnosticLayer.removeAllViews()
             if (!visible) {
                 diagnosticLayer.addView(View(context).apply { setBackgroundColor(Color.TRANSPARENT) }, matchParent())
@@ -782,7 +807,7 @@ class ClusterSceneService : Service() {
             diagnosticLayer.visibility = View.VISIBLE
         }
 
-        fun hideDiagnostic() {
+        override fun hideDiagnostic() {
             diagnosticLayer.removeAllViews()
             diagnosticLayer.visibility = View.GONE
         }
@@ -1178,6 +1203,50 @@ class ClusterSceneService : Service() {
             thread.start()
             Handler(thread.looper)
         }
+        private val vendorTeardown = TeardownThread { task -> vendorTeardownHandler.post(task) }
+        private val mainLooper = object : MainLooper {
+            override fun isCurrent(): Boolean = Looper.myLooper() == Looper.getMainLooper()
+
+            override fun post(task: Runnable) {
+                Handler(Looper.getMainLooper()).post(task)
+            }
+        }
+        private val sceneClock = SceneClock { SystemClock.elapsedRealtime() }
+        private val sceneLog = object : SceneLog {
+            override fun i(message: String) {
+                Log.i(TAG, message)
+            }
+
+            override fun w(message: String) {
+                Log.w(TAG, message)
+            }
+
+            override fun e(message: String, error: Throwable) {
+                Log.e(TAG, message, error)
+            }
+        }
+
+        private fun AvcCameraRenderer.asCameraRenderer(): CameraRenderer {
+            val avc = this
+            return object : CameraRenderer {
+                override fun start(viewpoint: Int, processingEnabled: Boolean) =
+                    avc.start(viewpoint, processingEnabled)
+
+                override fun stop() = avc.stop()
+
+                override fun hasLocalSurfaceHandle(): Boolean = avc.hasLocalSurfaceHandle()
+            }
+        }
+
+        private fun CameraRendererEvents.asAvcListener(): AvcCameraRenderer.Listener {
+            val events = this
+            return object : AvcCameraRenderer.Listener {
+                override fun onReady(details: String) = events.onReady(details)
+                override fun onFailure(details: String) = events.onFailure(details)
+                override fun onLocalSurfaceReleased() = events.onLocalSurfaceReleased()
+                override fun onFirstFrame(details: String) = events.onFirstFrame(details)
+            }
+        }
         @Volatile var lastCameraDetails: String = ""
             private set
 
@@ -1185,7 +1254,7 @@ class ClusterSceneService : Service() {
 
         fun showCamera(context: Context, config: MirrorCameraConfig) {
             val generation = cameraCommandFence.issueShow()
-            Log.i(TAG, "camera request; generation=$generation side=${config.side} at_ms=${SystemClock.elapsedRealtime()}")
+            sceneLog.i("camera request; generation=$generation side=${config.side} at_ms=${sceneClock.elapsedRealtime()}")
             val intent = serviceIntent(context, ACTION_SHOW_CAMERA)
                 .putExtra(EXTRA_SIDE, config.side.name)
                 .putExtra(EXTRA_POSITION, config.position.name)
@@ -1258,12 +1327,12 @@ class ClusterSceneService : Service() {
         fun hideCameraSync(timeoutMs: Long): Boolean {
             cameraCommandFence.invalidate()
             val service = active ?: return true
-            if (Looper.myLooper() == Looper.getMainLooper()) {
+            if (mainLooper.isCurrent()) {
                 service.hideCamera()
                 return true
             }
             val latch = CountDownLatch(1)
-            Handler(Looper.getMainLooper()).post {
+            mainLooper.post {
                 service.hideCamera(latch::countDown)
             }
             return latch.await(timeoutMs.coerceAtLeast(1L), TimeUnit.MILLISECONDS)
@@ -1291,7 +1360,7 @@ class ClusterSceneService : Service() {
                 }
                 return generation
             }
-            Handler(Looper.getMainLooper()).post {
+            mainLooper.post {
                 service.hideCamera(onLocalSurfaceDetached, onVendorFreeCompleted)
             }
             return generation
