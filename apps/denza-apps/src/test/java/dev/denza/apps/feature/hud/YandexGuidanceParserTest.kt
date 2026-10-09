@@ -29,6 +29,52 @@ class YandexGuidanceParserTest {
     }
 
     @Test
+    fun theSpeedSignTravelsWithAVisibleRead() {
+        val guidance = YandexGuidanceParser.parse(
+            instruction = "Поверните направо",
+            nextRoadName = "",
+            maneuverDistance = "300",
+            maneuverUnit = "м",
+            remainingDistance = "",
+            remainingTime = "",
+            eta = "",
+            speedLimit = " 60 ",
+        )
+
+        assertEquals(60, requireNotNull(guidance).speedLimitKmh)
+    }
+
+    @Test
+    fun onlyAPostedLimitIsALimit() {
+        assertEquals(60, YandexGuidanceParser.parseSpeedLimit("60"))
+        assertEquals(110, YandexGuidanceParser.parseSpeedLimit("110 км/ч"))
+        assertEquals(5, YandexGuidanceParser.parseSpeedLimit("5"))
+        assertEquals(150, YandexGuidanceParser.parseSpeedLimit("150"))
+        assertNull(YandexGuidanceParser.parseSpeedLimit(""))
+        assertNull(YandexGuidanceParser.parseSpeedLimit("0"))
+        assertNull(YandexGuidanceParser.parseSpeedLimit("62"))
+        assertNull(YandexGuidanceParser.parseSpeedLimit("155"))
+        assertNull(YandexGuidanceParser.parseSpeedLimit("60 mph"))
+        assertNull(YandexGuidanceParser.parseSpeedLimit("Ограничение"))
+        assertNull(YandexGuidanceParser.parseSpeedLimit("60 через 300 м"))
+    }
+
+    @Test
+    fun noSignIsNoLimit() {
+        val guidance = YandexGuidanceParser.parse(
+            instruction = "Поверните направо",
+            nextRoadName = "",
+            maneuverDistance = "300",
+            maneuverUnit = "м",
+            remainingDistance = "",
+            remainingTime = "",
+            eta = "",
+        )
+
+        assertNull(requireNotNull(guidance).speedLimitKmh)
+    }
+
+    @Test
     fun parsesEnglishFamiliesAndImperialDistance() {
         assertEquals(HudManeuver.SLIGHT_LEFT, YandexGuidanceParser.parseManeuver("Keep left at the fork"))
         assertEquals(HudManeuver.SHARP_RIGHT, YandexGuidanceParser.parseManeuver("Make a sharp right turn"))

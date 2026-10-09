@@ -179,6 +179,20 @@ class YandexNotificationGuidanceTest {
         const val OTHER_KEY = "0|ru.yandex.yandexnavi|7|null|10123"
     }
 
+    @Test
+    fun aBackgroundRouteNeverRepeatsTheLastSpeedSign() {
+        val patch = YandexNotificationGuidanceParser.parse(
+            YandexNotificationGuidanceFields(
+                maneuverResourceName = "notification_right_sdl",
+                title = "250 м",
+            ),
+        )
+
+        val guidance = requireNotNull(patch).mergeWith(visibleGuidance().copy(speedLimitKmh = 60))
+
+        assertNull(guidance.speedLimitKmh)
+    }
+
     private fun visibleGuidance() = HudGuidance(
         maneuver = HudManeuver.RIGHT,
         roundaboutExitNumber = null,

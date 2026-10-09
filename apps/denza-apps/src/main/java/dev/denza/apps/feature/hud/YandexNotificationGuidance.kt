@@ -46,6 +46,8 @@ internal data class YandexNotificationGuidancePatch(
             remainingTimeSeconds = remainingTimeSeconds ?: previous?.remainingTimeSeconds,
             remainingTimeText = remainingTimeText.ifEmpty { previous?.remainingTimeText.orEmpty() },
             eta = eta.ifEmpty { previous?.eta.orEmpty() },
+            // The notification has no speed sign, and an earlier one is not this road's.
+            speedLimitKmh = null,
         )
     }
 }
