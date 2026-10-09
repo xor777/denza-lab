@@ -1074,6 +1074,12 @@ up only while the modem presents a **Chinese ICCID** — the car's factory eSIM,
 or an rSIM in the SIM slot. With a local SIM the cloud does not take the car.
 The SIM needs no service of its own; the internet comes over Wi-Fi.
 
+With the link up, the owner reports, the official phone app works with the car
+as usual: not only status, charge and range but remote control too. This is an
+owner report, not a captured command trace; it closes the question of whether
+the cloud reaches the car when the app asks
+([Stock-client reuse](stock-client-boundaries.md#stock-client-reuse-sleep-and-incoming-commands-current-boundaries)).
+
 The recorded evidence agrees with it. Every fresh 211 rejection (code 3) above
 came from a car on a local SIM — operators 25901 and 25002 — on mobile data and
 around Wi-Fi transitions alike, while the owner's car, on its factory China
@@ -1097,6 +1103,7 @@ What changes in main:
   adapter sends `-5` under `double_apn`, as for any other loss of Wi-Fi.
 - **The tile says «Нет Wi-Fi»** where it said «Нет интернета».
 - **The panel says the condition.** The «Облако» note now tells the driver
+  that the phone app then works with the car as usual, status and control,
   that the link comes back only while the modem sees a Chinese ICCID — the
   factory eSIM or an rSIM in the slot — that a local SIM will not work, and
   that the SIM itself needs no internet. Boards `sheet-cloud` and

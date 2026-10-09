@@ -250,7 +250,7 @@ The car's own navigation, music and video Shortcuts commands open the driver's c
 
 ### «Облако» — `CLOUD`
 
-The car's stock cloud client gets online over Wi-Fi, so the official Denza phone app sees the car's charge and range. It works only while the modem sees a Chinese ICCID (the factory eSIM or an rSIM in the slot); the panel's note says so.
+The car's stock cloud client gets online over Wi-Fi, so the official Denza phone app works with the car as usual, status and remote control. It works only while the modem sees a Chinese ICCID (the factory eSIM or an rSIM in the slot); the panel's note says so.
 
 - **Tile:** `DashboardTiles.cloud`; feature `FeatureId.CLOUD_LINK`; state `DenzaUiState.cloudLink` (from `CloudLinkRuntime.snapshot` in the `StateSlice.CLOUD_LINK` slice; words `CloudLinkStatus.words`), `DenzaUiState.cloudLinkBusy`, `DenzaUiState.cloudWifiRetained`. `CloudLinkController` marks the slice on every press (`CloudLinkRuntime.busy`) and every publication of its worker (`CloudLinkController.publish`), ticks included, which also carries the readings that age with the clock.
 - **Press / long press:** `DashboardPress.perform` (ignored while `DenzaUiState.cloudLinkBusy`) → `DashboardPress.toggle` (after a refusal it asks the same wish again) → `DashboardActions.onToggleCloudLink` → `DenzaAppRepository.setCloudLinkEnabled` → `CloudLinkController.switchOn` / `CloudLinkController.switchOff`. Long press → `FeatureSheet`; second switch → `DashboardActions.onSetCloudWifiRetained` → `DenzaAppRepository.setCloudWifiRetained` → `CloudLinkController.setWifiRetained`.

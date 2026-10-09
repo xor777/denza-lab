@@ -518,7 +518,7 @@ object DashboardTiles {
 
     /**
      * The car's own link to the cloud, carried over Wi-Fi while the modem sees the car's Chinese SIM -
-     * which is what the Denza app on the phone reads the car through.
+     * the link the Denza app on the phone reads and controls the car through, as it does in China.
      *
      * The caption is a reading whenever the switch is on, because that is the question anybody
      * glancing at it is asking: is the phone seeing the car. «На связи» is the stock client holding
