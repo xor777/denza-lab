@@ -1,6 +1,6 @@
 package dev.denza.apps.feature.split
 
-import dev.denza.apps.TaskMoveOwnership
+import dev.denza.apps.platform.tasks.TaskMoveOwnership
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

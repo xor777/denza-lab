@@ -8,11 +8,11 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
-import dev.denza.apps.TaskMoveOwnership
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.platform.shell.ShellProxyClasspath
 import dev.denza.apps.platform.shell.ShellProxyJar
 import dev.denza.apps.platform.shell.ShellProxyStager
+import dev.denza.apps.platform.tasks.TaskMoveOwnership
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 

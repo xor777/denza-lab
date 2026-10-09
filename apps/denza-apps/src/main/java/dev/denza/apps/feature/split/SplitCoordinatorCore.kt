@@ -1,8 +1,8 @@
 package dev.denza.apps.feature.split
 
-import dev.denza.apps.TaskMoveOwner
-import dev.denza.apps.TaskMoveOwnership
 import dev.denza.apps.adb.AdbProblem
+import dev.denza.apps.platform.tasks.TaskMoveOwner
+import dev.denza.apps.platform.tasks.TaskMoveOwnership
 import java.util.concurrent.atomic.AtomicReference
 
 /**

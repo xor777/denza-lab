@@ -1,4 +1,4 @@
-package dev.denza.apps
+package dev.denza.apps.platform.tasks
 
 /**
  * Кто прямо сейчас имеет право двигать задачи на головном устройстве.

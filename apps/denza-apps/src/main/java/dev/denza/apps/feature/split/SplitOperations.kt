@@ -1,11 +1,11 @@
 package dev.denza.apps.feature.split
 
-import dev.denza.apps.TaskMoveLease
-import dev.denza.apps.TaskMoveOwner
-import dev.denza.apps.TaskMoveOwnership
 import dev.denza.apps.platform.shell.classpathAssignment
 import dev.denza.apps.platform.shell.helperNotLoaded
 import dev.denza.apps.platform.shell.shellQuote
+import dev.denza.apps.platform.tasks.TaskMoveLease
+import dev.denza.apps.platform.tasks.TaskMoveOwner
+import dev.denza.apps.platform.tasks.TaskMoveOwnership
 import java.util.concurrent.atomic.AtomicReference
 
 /**
