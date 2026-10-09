@@ -4,6 +4,7 @@ import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.core.FeatureWords
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
@@ -195,10 +196,10 @@ object DashboardTiles {
     private fun settled(snapshot: FeatureSnapshot): Boolean = unsettled(snapshot) == null
 
     /** A feature this car does not have, when it gave no reason. */
-    internal const val ABSENT = "Недоступно"
+    internal const val ABSENT = FeatureWords.ABSENT
 
     /** A switch the car did not take, when it gave no reason. */
-    internal const val REFUSED = "Не переключилось"
+    internal const val REFUSED = FeatureWords.REFUSED
 
     /**
      * What the press does, given where the feature has got to.

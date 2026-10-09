@@ -38,7 +38,7 @@ class SimulcastCoordinatorTest {
         )
 
         assertEquals(FeatureStatus.NEEDS_ACTION, blocked.status)
-        assertEquals("Выберите приложения для трансляции", blocked.message)
+        assertEquals("Не выбрано", blocked.message)
         assertEquals(FeatureResolution.SELECT_APPS, blocked.resolution)
     }
 
@@ -56,7 +56,8 @@ class SimulcastCoordinatorTest {
         )
 
         assertEquals(FeatureStatus.UNAVAILABLE, unavailable.status)
-        assertEquals("Трансляция недоступна на этой системе", unavailable.message)
+        // No words of its own: the tile prints its «Недоступно».
+        assertEquals("", unavailable.message)
         assertNull(unavailable.resolution)
     }
 
@@ -73,7 +74,7 @@ class SimulcastCoordinatorTest {
         )
 
         assertEquals(FeatureStatus.NEEDS_ACTION, blocked.status)
-        assertEquals("Повторите настройку доступа", blocked.message)
+        assertEquals("Нет доступа", blocked.message)
         assertEquals(FeatureResolution.RETRY, blocked.resolution)
     }
 
@@ -98,12 +99,17 @@ class SimulcastCoordinatorTest {
         assertEquals(FeatureResolution.RETRY, problem.resolution)
     }
 
-    /** Words that only look like the channel's are not read as it any more. */
+    /**
+     * Whatever stopped the repair, the app has no access and the tile says so; only the press
+     * differs. Words that only look like the channel's are not read as it any more.
+     */
     @Test
-    fun `a failure of the repair itself keeps its own words`() {
-        val problem = SimulcastCoordinator.setupProblem(IllegalStateException("authorization pending"))
+    fun `a failure of the repair itself is still no access, and the press repairs again`() {
+        for (failure in listOf(null, IllegalStateException("authorization pending"))) {
+            val problem = SimulcastCoordinator.setupProblem(failure)
 
-        assertEquals("Не удалось восстановить доступ", problem.message)
-        assertEquals(FeatureResolution.RETRY, problem.resolution)
+            assertEquals("Нет доступа", problem.message)
+            assertEquals(FeatureResolution.RETRY, problem.resolution)
+        }
     }
 }

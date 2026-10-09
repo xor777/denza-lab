@@ -4,6 +4,7 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
+import dev.denza.apps.core.FeatureWords
 
 /**
  * The tile's status, read the way every other feature reads its own: from the switch and from
@@ -21,7 +22,8 @@ import dev.denza.apps.core.FeatureSnapshot
  * which walks the service through the access repair.
  */
 object SpeakerCoverStatus {
-    const val ACCESS_MESSAGE = "Повторите настройку доступа"
+    /** A state; the press switches the feature on again, which walks the service through the repair. */
+    const val ACCESS_MESSAGE = FeatureWords.NO_ACCESS
 
     fun snapshot(enabled: Boolean, sessionsObservable: Boolean): FeatureSnapshot = when {
         !enabled -> FeatureReducer.disabled(FeatureId.SPEAKER_COVERS)

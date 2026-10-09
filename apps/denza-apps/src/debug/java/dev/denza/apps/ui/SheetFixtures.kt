@@ -140,7 +140,7 @@ internal object SheetFixtures {
             state = state.copy(
                 hudGuidance = FeatureReducer.needsAction(
                     FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
-                    "Повторите настройку доступа",
+                    "Нет доступа",
                     resolution = FeatureResolution.RETRY,
                 ),
                 cloudLink = FeatureSnapshot(FeatureId.CLOUD_LINK, true, FeatureStatus.ERROR, message = "Не включилось"),

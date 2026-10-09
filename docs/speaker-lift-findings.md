@@ -27,7 +27,7 @@ Updated 2026-10-03. What raises the Devialet speaker covers on the Z9GT and the 
 | The car reports by itself for `MediaTaskManager`'s whitelist (`com.byd.mediacenter`, `com.byd.videoplay*`, QQ Music, NetEase, Ximalaya, `bubei.tingshu.hd`) and filter (`android`, telecom, Bluetooth); the app's copy is `SpeakerCoverReporting.kt`, to re-read after a firmware update | code | 2026-09-03 | [Who the app reports for](#who-the-app-reports-for) |
 | Why Yandex never raises them: for any other focus owner the stock `MediaController` sends source `26` and `PAUSED` 500 ms after it takes focus | firmware | 2026-09-03 | [Why Yandex playback never raises the covers](#why-yandex-playback-never-raises-the-covers-corpus-2026-09-03) |
 | The report is refused from the app UID (`20004`, `BYDAUTO_INSTRUMENT_SET`) even though `ICarMediaService` is reachable from it; the shell UID is accepted | live | 2026-09-03 | [It is a shell write, not an app-UID one](#it-is-a-shell-write-not-an-app-uid-one) |
-| The tile reads OFF, NEEDS_ACTION «Повторите настройку доступа» (media-session access) or READY and never spins; `SpeakerCoverRuntime.reporting` only greys «Поднять» (`SpeakerCoverStatus.kt`) | code | 2026-09-04 | [Second pass, same day](#second-pass-same-day-the-status-reads-like-every-other-tiles) |
+| The tile reads OFF, NEEDS_ACTION «Нет доступа» (media-session access; until 2026-10-09 «Повторите настройку доступа») or READY and never spins; `SpeakerCoverRuntime.reporting` only greys «Поднять» (`SpeakerCoverStatus.kt`) | code | 2026-10-09 | [Second pass, same day](#second-pass-same-day-the-status-reads-like-every-other-tiles) |
 | On the Z9GT `0x16300025` (dev `1002`) drives the motor as an edge: `1` out, `2` in; rewriting the value it already holds moves nothing | live | 2026-08-25 | [Direct cover control](#direct-cover-control-2026-08-25-live-proven-both-ways) |
 | On the Z9GT the first `2` latches the amp into manual mode (`0x35A000DA` reads `2`, stock raises stop) until an ignition cycle; it read `1` again by 2026-09-03 | live | 2026-08-25 | [Confirmed: direct retract disables stock auto-lift](#confirmed-direct-retract-disables-stock-auto-lift-for-the-ignition-cycle) |
 | On the N9 `0x16300025` is the stock auto-lift enable flag (CarSettings `SpeakerAutoLiftCommon`): `2` retracts and disables auto-lift, `1` never raises | live | 2026-08-30 | [On the N9 the setting closes reliably and never opens](#on-the-n9-the-setting-closes-reliably-and-never-opens) |
@@ -1958,6 +1958,8 @@ the same:
 - `SpeakerCoverStatus.snapshot(enabled, sessionsObservable)` is the tile: OFF;
   NEEDS_ACTION «Повторите настройку доступа» with RETRY when the notification
   listener that grants media-session access is off; else READY. No row spins.
+  > **Superseded 2026-10-09:** the caption is «Нет доступа» (`FeatureWords.NO_ACCESS`), a state
+  > within the tile's 17 characters; the instruction asked the driver to do what the press does.
   RETRY is the tile press, which switches the feature on again and walks the
   service through the access repair, exactly as on HUD.
 - `SpeakerCoverRuntime` is one Boolean, `reporting`, set by the service for the

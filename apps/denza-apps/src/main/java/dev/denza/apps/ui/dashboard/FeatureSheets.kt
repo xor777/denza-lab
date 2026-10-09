@@ -159,24 +159,12 @@ fun FeatureSheet(
             onDismiss = onDismiss,
             glyph = tileGlyph(tile.icon),
         )
-        // Whatever the feature has to say for itself, in the colour that state deserves. It is
-        // said once, here, rather than by each sheet in its own words - and only when the state is
-        // one the driver has to do something about.
-        //
-        // A working feature restating itself is noise, and it is the same rule the tile's caption
-        // follows: something that speaks on a healthy car teaches the driver to stop reading it.
-        // Split screen was heading its panel with "Иконка Split Screen доступна" directly above
-        // the switch that says so, in English, inside a Russian sentence.
-        val speaks = tile.tone == DenzaTileTone.ATTENTION ||
-            tile.tone == DenzaTileTone.BROKEN ||
-            tile.tone == DenzaTileTone.WORKING
         // Read through [DashboardPress.messageOf] rather than off the snapshot: the stock language
         // has no snapshot to carry a message in, so its refusals arrived here as an empty string
         // and the panel for the one tile whose failure is invisible on its face said nothing
-        // either. A message the tile has already made its own caption is not said twice.
-        val message = DashboardPress.messageOf(id, state)
+        // either.
         DenzaStatusLine(
-            text = if (speaks && message != tile.state) message else "",
+            text = panelStatus(tile, DashboardPress.messageOf(id, state)),
             tone = tile.tone,
         )
         when (id) {
@@ -199,6 +187,27 @@ fun FeatureSheet(
         // и третьего быть не должно (U5).
         DenzaNote(helpOf(id))
     }
+}
+
+/**
+ * The line a panel opens with: whatever the feature has to say for itself, in the colour that
+ * state deserves, said once here rather than by each sheet in its own words - and only when the
+ * state is one the driver has to do something about, or one that is under way.
+ *
+ * Waiting and broken say the tile's own caption, which is a state in a few words and agrees with the
+ * colour. They used to say the feature's message and only when it differed from the caption, which
+ * it never did: a panel opened on a broken feature said nothing about it, while its board drew the
+ * red line at the top. Work under way says its progress, which the caption does not carry.
+ *
+ * A working feature restating itself is noise, and it is the same rule the tile's caption follows:
+ * something that speaks on a healthy car teaches the driver to stop reading it. Split screen was
+ * heading its panel with "Иконка Split Screen доступна" directly above the switch that says so, in
+ * English, inside a Russian sentence.
+ */
+internal fun panelStatus(tile: DashboardTile, message: String): String = when (tile.tone) {
+    DenzaTileTone.ATTENTION, DenzaTileTone.BROKEN -> tile.state
+    DenzaTileTone.WORKING -> message.takeIf { it != tile.state }.orEmpty()
+    else -> ""
 }
 
 /**
@@ -225,8 +234,9 @@ private fun helpOf(id: TileId): String = when (id) {
     TileId.SPLIT ->
         "При включении на рабочем столе появляется значок разделения экрана. " +
             "Он открывает выбор двух приложений, которые встанут рядом."
+    // The tile says «Нет навигатора» when it is missing; this is where the navigator is named.
     TileId.HUD ->
-        "Указания навигатора повторяются на проекции на лобовом стекле."
+        "Указания Яндекс Навигатора повторяются на проекции на лобовом стекле."
     TileId.WEATHER ->
         "Приложение забирает прогноз и отдаёт его штатному виджету погоды. " +
             "Своей погоды оно не рисует — виджет остаётся штатным."

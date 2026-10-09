@@ -11,6 +11,13 @@ import dev.denza.apps.feature.cluster.ClusterDisplaySelection
  * instrument display used by navigation.
  */
 object MirrorDisplayReadiness {
+    /**
+     * Ambiguous or absent, the cameras have no screen to go to. A state: the press switches the
+     * mirrors on again, which looks for it again - «Повторите поиск экрана камер» asked the driver
+     * to do what the press does, in 28 characters on a line that holds 17.
+     */
+    const val SCREEN_NOT_FOUND = "Экран не найден"
+
     fun snapshot(
         selection: ClusterDisplaySelection,
         active: Boolean,
@@ -21,13 +28,13 @@ object MirrorDisplayReadiness {
         )
         is ClusterDisplaySelection.NeedsVerification -> FeatureReducer.needsAction(
             FeatureReducer.starting(FeatureId.MIRRORS),
-            message = "Повторите поиск экрана камер",
+            message = SCREEN_NOT_FOUND,
             details = "camera overlay display is ambiguous",
             resolution = FeatureResolution.RETRY,
         )
         ClusterDisplaySelection.Missing -> FeatureReducer.needsAction(
             FeatureReducer.starting(FeatureId.MIRRORS),
-            message = "Повторите поиск экрана камер",
+            message = SCREEN_NOT_FOUND,
             details = "camera overlay display not found",
             resolution = FeatureResolution.RETRY,
         )

@@ -34,7 +34,7 @@ class FeatureModelsTest {
 
         val result = FeatureReducer.needsAction(
             starting,
-            "Выберите приложения для трансляции",
+            "Не выбрано",
             resolution = FeatureResolution.SELECT_APPS,
         )
 
