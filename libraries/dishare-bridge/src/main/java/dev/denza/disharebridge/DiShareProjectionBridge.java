@@ -56,7 +56,6 @@ public final class DiShareProjectionBridge {
     private static final int TX_GET_STATE = 0x5;
     private static final int TX_START = 0x6;
     private static final int TX_STOP = 0x7;
-    private static final int TX_CLOSE_DISHARE_UI = 0xb;
     private static final int SOURCE_VIDEO_WIDTH = 2560;
     private static final int SOURCE_VIDEO_HEIGHT = 1440;
     private static final int TARGET_VIDEO_WIDTH = 1024;
@@ -162,7 +161,7 @@ public final class DiShareProjectionBridge {
             try {
                 registerControlClient();
                 Bundle result = startShare();
-                if (isSuccessfulResult(result)) {
+                if (isSuccessfulControlResult(result)) {
                     // Only the timeout: tx 1 from this very start is already queued behind us.
                     session.started();
                     unbindControl();
@@ -193,48 +192,29 @@ public final class DiShareProjectionBridge {
         new CurrentShareStopper(context.getApplicationContext(), callback).start();
     }
 
-    public static void closeUi(Context context, String screenId, Callback callback) {
-        new DiShareUiCloser(context.getApplicationContext(), screenId, callback).start();
-    }
-
-    public String getTargetPackage() {
-        return targetPackage;
-    }
-
+    /** Used by the parked {@code research/simulcast-aliases} launcher, not by Denza Apps. */
     public boolean isStarted() {
         return session.phase() == DiShareShareSession.Phase.ACTIVE;
     }
 
+    /** Used by the parked {@code research/simulcast-aliases} launcher, not by Denza Apps. */
     public void start() {
         start(false, false);
     }
 
-    public void startToReceiver(String receiver) {
-        startToReceivers(Collections.singletonList(receiver));
-    }
-
-    public void startToReceiver(String receiver, int videoWidth, int videoHeight) {
-        startToReceivers(Collections.singletonList(receiver), videoWidth, videoHeight);
-    }
-
+    /** The product's start: one receiver, the share's video size and its bounds in that video. */
     public void startToReceiver(String receiver, int videoWidth, int videoHeight,
             Rect videoBounds) {
         start(false, false, Collections.singletonList(receiver),
                 videoWidth, videoHeight, videoBounds);
     }
 
-    public void startToReceivers(List<String> receivers) {
-        startToReceivers(receivers, 0, 0);
-    }
-
-    public void startToReceivers(List<String> receivers, int videoWidth, int videoHeight) {
-        start(false, false, receivers, videoWidth, videoHeight, null);
-    }
-
+    /** Used by the parked {@code research/simulcast-aliases} launcher, not by Denza Apps. */
     public void startSourceOnly() {
         start(true, false);
     }
 
+    /** Used by the parked {@code research/simulcast-aliases} launcher, not by Denza Apps. */
     public void startLikeCurrentShare() {
         start(false, true);
     }
@@ -562,20 +542,6 @@ public final class DiShareProjectionBridge {
         }
     }
 
-    private boolean isSuccessfulResult(Bundle result) {
-        if (result == null || result.isEmpty()) {
-            return false;
-        }
-        Set<String> keys = result.keySet();
-        for (String key : keys) {
-            Object value = result.get(key);
-            if (value instanceof Integer && ((Integer) value).intValue() != 0) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     private void log(String message) {
         Log.i(TAG, message);
         callback.onLog(message);
@@ -775,144 +741,6 @@ public final class DiShareProjectionBridge {
         }
 
         private void finishStopped(String message) {
-            if (finished) {
-                return;
-            }
-            log(message);
-            cleanup();
-            callback.onStopped(message);
-        }
-
-        private void fail(String message) {
-            if (finished) {
-                return;
-            }
-            log("failed " + message);
-            cleanup();
-            callback.onFailed(message);
-        }
-
-        private void cleanup() {
-            finished = true;
-            handler.removeCallbacksAndMessages(null);
-            controlBinding.release();
-        }
-
-        private void log(String message) {
-            Log.i(TAG, message);
-            callback.onLog(message);
-        }
-    }
-
-    private static final class DiShareUiCloser {
-        private final String screenId;
-        private final Callback callback;
-        private final Handler handler = new Handler(Looper.getMainLooper());
-        private final DiShareListenerBinder listener = new DiShareListenerBinder();
-        private final DiShareBinding controlBinding;
-        private boolean finished;
-
-        DiShareUiCloser(Context context, String screenId, Callback callback) {
-            this.screenId = screenId == null || screenId.trim().isEmpty()
-                    ? "screen_ivi" : screenId.trim();
-            this.callback = callback;
-            this.controlBinding = new DiShareBinding(context, CONTROL_ACTION,
-                    new DiShareBinding.Listener() {
-                        @Override
-                        public void onConnected(IBinder binder) {
-                            log("close ui control connected");
-                            runClose();
-                        }
-
-                        @Override
-                        public void onDisconnected() {
-                            log("close ui control disconnected");
-                            fail("control disconnected");
-                        }
-                    });
-        }
-
-        void start() {
-            boolean bound;
-            try {
-                bound = controlBinding.bind();
-            } catch (RuntimeException e) {
-                fail("bind control failed: " + shortError(e));
-                return;
-            }
-            if (!bound) {
-                fail("bind control returned false");
-                return;
-            }
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    fail("timeout");
-                }
-            }, 5000L);
-        }
-
-        private void runClose() {
-            try {
-                registerControlClient();
-                Bundle result = closeUi();
-                if (isSuccessfulControlResult(result)) {
-                    finishClosed("close ui ok " + bundleToString(result));
-                } else {
-                    fail("close ui returned " + bundleToString(result));
-                }
-            } catch (RuntimeException e) {
-                fail("close ui failed: " + shortError(e));
-            }
-        }
-
-        private void registerControlClient() {
-            Parcel data = Parcel.obtain();
-            Parcel reply = Parcel.obtain();
-            try {
-                data.writeInterfaceToken(CONTROL_DESCRIPTOR);
-                data.writeStrongBinder(listener);
-                data.writeString(CONTROL_PACKAGE);
-                transactControl(TX_REGISTER, data, reply);
-                reply.readException();
-                log("close ui registered package=" + CONTROL_PACKAGE);
-            } finally {
-                reply.recycle();
-                data.recycle();
-            }
-        }
-
-        private Bundle closeUi() {
-            Parcel data = Parcel.obtain();
-            Parcel reply = Parcel.obtain();
-            try {
-                data.writeInterfaceToken(CONTROL_DESCRIPTOR);
-                data.writeString(screenId);
-                data.writeString(CONTROL_PACKAGE);
-                transactControl(TX_CLOSE_DISHARE_UI, data, reply);
-                reply.readException();
-                if (reply.readInt() == 0) {
-                    return null;
-                }
-                return reply.readBundle(DiShareProjectionBridge.class.getClassLoader());
-            } finally {
-                reply.recycle();
-                data.recycle();
-            }
-        }
-
-        private void transactControl(int code, Parcel data, Parcel reply) {
-            try {
-                IBinder controlBinder = controlBinding.binder();
-                if (controlBinder == null || !controlBinder.transact(code, data, reply, 0)) {
-                    throw new IllegalStateException("control transact false code=" + code);
-                }
-            } catch (RemoteException e) {
-                throw new IllegalStateException(e);
-            }
-        }
-
-        private void finishClosed(String message) {
             if (finished) {
                 return;
             }
