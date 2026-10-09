@@ -43,6 +43,8 @@ public final class LocalAdbClientTest {
     @Test
     public void thePendingFailureIsTheOneEveryCallerRecognises() {
         IOException pending = LocalAdbClient.authorizationPending();
+        assertTrue("Denza Apps reads it by its type",
+                pending instanceof LocalAdbClient.AuthorizationPendingException);
         assertTrue(LocalAdbClient.isAuthorizationPending(pending));
         assertTrue("the words the callers outside the library look for: " + pending.getMessage(),
                 pending.getMessage().toLowerCase(Locale.ROOT).contains("authorization pending"));
@@ -50,6 +52,20 @@ public final class LocalAdbClientTest {
                 new LocalAdbClient.AuthorizationRequiredException()));
         assertFalse(LocalAdbClient.isAuthorizationPending(
                 new IOException("Connection refused")));
+    }
+
+    /**
+     * No address to try is a channel that is not there, said by its type: the app's tiles read it
+     * as a missing channel rather than as a failure of whatever was being asked.
+     */
+    @Test
+    public void noHostToTryIsItsOwnFailure() throws Exception {
+        try {
+            LocalAdbClient.firstHostThatAnswers(new ArrayList<>(), (host, sent) -> "unreached");
+            fail("an empty host list answered");
+        } catch (LocalAdbClient.NoHostsException expected) {
+            assertEquals("No ADB hosts available", expected.getMessage());
+        }
     }
 
     /**

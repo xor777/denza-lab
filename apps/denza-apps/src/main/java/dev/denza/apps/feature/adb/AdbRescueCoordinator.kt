@@ -2,12 +2,9 @@ package dev.denza.apps.feature.adb
 
 import android.annotation.SuppressLint
 import android.content.Context
+import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.disharebridge.LocalAdbClient
-import java.io.IOException
-import java.net.ConnectException
-import java.net.NoRouteToHostException
-import java.net.SocketTimeoutException
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -390,12 +387,8 @@ object AdbRescueCoordinator {
             .putBoolean(KEY_REQUEST_PENDING, pending)
             .commit()
 
-    private fun isUnavailable(error: Throwable): Boolean = generateSequence(error) { it.cause }
-        .any {
-            it is ConnectException || it is SocketTimeoutException ||
-                it is NoRouteToHostException ||
-                (it is IOException && it.message.orEmpty().contains("Connection refused", true))
-        }
+    /** An adbd that does not answer, as opposed to one that answered something unexpected. */
+    private fun isUnavailable(error: Throwable): Boolean = AdbProblem.of(error) == AdbProblem.NO_LINK
 
     private fun failureLabel(error: Throwable): String {
         val root = generateSequence(error) { it.cause }.last()
