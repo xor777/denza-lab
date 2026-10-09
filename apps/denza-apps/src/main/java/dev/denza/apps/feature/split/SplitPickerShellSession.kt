@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.platform.shell.shellQuote
+
 /**
  * The phase of a build at which the two panel bases are standing in their roots (правка W10).
  *
@@ -3504,8 +3506,6 @@ internal class SplitPickerShellSession(
             SplitPane.PRIMARY -> AREA_PRIMARY_FULL
             SplitPane.SECONDARY -> AREA_SECONDARY_FULL
         }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
 
     private companion object {
         const val MAIN_DISPLAY_ID = 0

@@ -2,6 +2,7 @@ package dev.denza.apps.feature.vehicle.signal
 
 import android.os.SystemClock
 import android.util.Log
+import dev.denza.apps.platform.shell.shellQuote
 import dev.denza.disharebridge.LocalAdbClient
 import java.io.IOException
 import java.util.concurrent.ExecutorService
@@ -270,7 +271,7 @@ internal class AdbTurnSignalEventChannel(
     internal companion object {
         /** The listener as the shell of its own stream, loaded from the staged [entry]. */
         fun launchCommand(entry: String, nonce: String, signalMask: Int): String =
-            "CLASSPATH='${entry.replace("'", "'\\''")}' exec app_process /system/bin " +
+            "CLASSPATH=${shellQuote(entry)} exec app_process /system/bin " +
                 "--nice-name=denza_vehicle_signals " +
                 "${TargetedBydLightEventProxyMain::class.java.name} serve $nonce $signalMask"
 

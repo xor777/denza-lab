@@ -5,6 +5,7 @@ import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.view.Surface
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.platform.shell.shellQuote
 import dev.denza.disharebridge.LocalAdbClient
 
 /**
@@ -201,8 +202,6 @@ object NavigationProxyClient {
         "false" -> false
         else -> throw IllegalStateException("navigation command returned a non-boolean result")
     }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 
 }
 
