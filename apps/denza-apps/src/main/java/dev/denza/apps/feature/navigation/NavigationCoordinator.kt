@@ -6,12 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import android.util.Log
-import dev.denza.apps.StateMarks
-import dev.denza.apps.StateSlice
 import dev.denza.apps.TaskMoveLease
 import dev.denza.apps.TaskMoveOwner
 import dev.denza.apps.TaskMoveOwnership
-import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.adb.OverlayGrant
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
@@ -236,14 +234,10 @@ object NavigationCoordinator {
             )
             return
         }
-        // The scene's base presentation is a system window. Every feature of this app that opens
-        // one grants itself the appop first, over the same local ADB this card already needs.
+        // The scene's base presentation is a system window. The right to draw one is granted over
+        // ADB only when Android says it is not held ([OverlayGrant]).
         try {
-            DenzaLocalAdb.client(app).shell(
-                "cmd appops set ${app.packageName} SYSTEM_ALERT_WINDOW allow",
-            )
-            // The projection reads the same grant.
-            StateMarks.mark(StateSlice.SIMULCAST, "overlay granted")
+            OverlayGrant.ensure(app)
         } catch (error: Exception) {
             val problem = NavigationWords.failed(NavigationStep.OPEN, error)
             update(
@@ -467,11 +461,7 @@ object NavigationCoordinator {
             return
         }
         try {
-            DenzaLocalAdb.client(app).shell(
-                "cmd appops set ${app.packageName} SYSTEM_ALERT_WINDOW allow",
-            )
-            // The projection reads the same grant.
-            StateMarks.mark(StateSlice.SIMULCAST, "overlay granted")
+            OverlayGrant.ensure(app)
         } catch (error: Exception) {
             val problem = NavigationWords.failed(NavigationStep.PROJECT, error)
             update(

@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.provider.Settings
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.adb.OverlayGrant
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
@@ -207,7 +208,7 @@ object SimulcastCoordinator {
 
     fun isAccessibilityRepairRunning(): Boolean = accessibilityRepair.isRunning()
 
-    fun hasOverlayPermission(context: Context): Boolean = Settings.canDrawOverlays(context)
+    fun hasOverlayPermission(context: Context): Boolean = OverlayGrant.held(context)
 
     fun isAccessibilityEnabled(context: Context): Boolean {
         val setting = Settings.Secure.getString(
