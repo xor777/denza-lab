@@ -37,7 +37,6 @@ import dev.denza.apps.feature.media.MediaKeyDiagnostics;
 import dev.denza.apps.feature.media.MediaKeyExperiment;
 import dev.denza.apps.feature.media.MediaKeySnapshot;
 import dev.denza.apps.feature.media.MediaResumeController;
-import dev.denza.apps.feature.media.MediaFocusPauseBridge;
 import dev.denza.apps.feature.navigation.NavigationSettings;
 import dev.denza.apps.feature.navigation.SteeringWheelKeyInterceptor;
 import dev.denza.apps.feature.speaker.SpeakerCoverService;
@@ -136,7 +135,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private HudGuidanceAccessibilityMonitor hudGuidanceMonitor;
     // Published here and read by the support report, which is built off the main looper.
     private volatile MediaResumeController mediaResumeController;
-    private MediaFocusPauseBridge mediaFocusPauseBridge;
     private MediaButtonEnvironment mediaButtonEnvironment;
 
     // Gesture state shared between input windows and the painter.
@@ -158,15 +156,11 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         windowReconciler = new SimulcastWindowReconciler(new OverlayWindowHost());
         hudGuidanceMonitor = new HudGuidanceAccessibilityMonitor(this);
         hudGuidanceMonitor.attach();
-        // Both switches are on in a normal build. They exist so one rung of the next/previous
-        // experiment can be taken away without touching anything else; see MediaKeyExperiment.
+        // On in a normal build. The switch exists so a build without the key filter can be made
+        // without touching anything else; see MediaKeyExperiment.
         if (MediaKeyExperiment.INTERCEPT_KEYS) {
             mediaButtonEnvironment = new MediaButtonEnvironment(this);
-            if (MediaKeyExperiment.FOCUS_SURGERY) {
-                mediaFocusPauseBridge = new MediaFocusPauseBridge(this);
-                mediaFocusPauseBridge.warm();
-            }
-            mediaResumeController = new MediaResumeController(this, mediaFocusPauseBridge);
+            mediaResumeController = new MediaResumeController(this);
             mediaResumeController.start();
         }
         Log.i(TAG, "service connected");
@@ -295,9 +289,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         ServiceInstanceHop.post(() -> instance, SimulcastAccessibilityService::postToMain,
                 service -> {
                     if (service.mediaResumeController != null) {
-                        if (service.mediaFocusPauseBridge != null) {
-                            service.mediaFocusPauseBridge.warm();
-                        }
                         service.mediaResumeController.start();
                     }
                 });
@@ -305,8 +296,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
 
     private void tearDownMediaResume() {
         if (mediaResumeController != null) mediaResumeController.stop();
-        if (mediaFocusPauseBridge != null) mediaFocusPauseBridge.close();
-        mediaFocusPauseBridge = null;
         mediaResumeController = null;
         mediaButtonEnvironment = null;
     }

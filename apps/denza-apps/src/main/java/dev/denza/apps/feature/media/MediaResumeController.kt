@@ -17,17 +17,13 @@ import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
  *
  * This is the Android half: it keeps a [MediaResumeTarget] per session token for as long as the
  * session lives, feeds the policy in [MediaResumeCore] and carries out what the policy decided -
- * a direct transport command or a deferred pause through the focus helper. A package with no
- * session left is not brought back: that press is refused and goes to the firmware. The policy
- * itself is pure and lives next door.
+ * a direct transport command. A package with no session left is not brought back: that press is
+ * refused and goes to the firmware. The policy itself is pure and lives next door.
  *
  * The caller decides whether a new DOWN is safe to intercept. Once accepted, repeats and UP for
  * that press remain consumed even if the caller's guard changes before release.
  */
-class MediaResumeController @JvmOverloads constructor(
-    context: Context,
-    private val pausePreparation: MediaPausePreparation? = null,
-) {
+class MediaResumeController(context: Context) {
     private val app = context.applicationContext
     private val handler = Handler(Looper.getMainLooper())
     private val manager = app.getSystemService(MediaSessionManager::class.java)
@@ -42,8 +38,6 @@ class MediaResumeController @JvmOverloads constructor(
     // Written on the main looper, read by the support report from whatever thread built it.
     @Volatile
     private var listening = false
-    private var pauseOperation: PauseOperation? = null
-    private var nextPauseOperationId = 0L
 
     private val sessionsChanged =
         MediaSessionManager.OnActiveSessionsChangedListener(::reconcile)
@@ -71,7 +65,6 @@ class MediaResumeController @JvmOverloads constructor(
             runCatching { manager?.removeOnActiveSessionsChangedListener(sessionsChanged) }
         }
         listening = false
-        pauseOperation = null
         detachAll()
         keyInterceptor.reset()
     }
@@ -95,20 +88,10 @@ class MediaResumeController @JvmOverloads constructor(
             perform = { command ->
                 decide(
                     event.keyCode,
-                    when {
-                        // A bounded operation already owns the driver's intent. The second press
-                        // is consumed so the firmware cannot answer half of it, and says so.
-                        pauseOperation != null -> MediaResumeDecision(
-                            accepted = true,
-                            reason = MediaResumeReason.PAUSE_IN_FLIGHT,
-                        )
-
-                        !refreshBeforeCommand() -> MediaResumeDecision(
-                            accepted = false,
-                            reason = MediaResumeReason.SESSION_ACCESS,
-                        )
-
-                        else -> core.perform(command, ::deferPause)
+                    if (refreshBeforeCommand()) {
+                        core.perform(command)
+                    } else {
+                        MediaResumeDecision(accepted = false, reason = MediaResumeReason.SESSION_ACCESS)
                     },
                 )
             },
@@ -136,91 +119,18 @@ class MediaResumeController @JvmOverloads constructor(
     /**
      * The one place a media press is accepted or refused.
      *
-     * Every branch of the policy - the key path and the deferred pause completing later - ends
-     * here, so a press never disappears without a named reason in the log, and the support
-     * report's ring is fed from the same line.
+     * Every branch of the policy ends here, so a press never disappears without a named reason in
+     * the log, and the support report's ring is fed from the same line.
      */
-    private fun decide(keyCode: Int?, decision: MediaResumeDecision): Boolean {
+    private fun decide(keyCode: Int, decision: MediaResumeDecision): Boolean {
         Log.i(
             TAG,
             "media command ${if (decision.accepted) "accepted" else "skipped"} " +
-                "key=${keyCode ?: "-"} reason=${decision.reason} " +
+                "key=$keyCode reason=${decision.reason} " +
                 "package=${decision.packageName ?: "-"}",
         )
-        val detail = MediaKeyDetail.decision(decision)
-        if (keyCode != null) {
-            MediaKeyDiagnostics.note(detail)
-        } else {
-            MediaKeyDiagnostics.recordCompletion(detail, decision.accepted)
-        }
+        MediaKeyDiagnostics.note(MediaKeyDetail.decision(decision))
         return decision.accepted
-    }
-
-    private fun deferPause(
-        selected: MediaResumeTarget,
-        predecessors: List<MediaResumeTarget>,
-    ): Boolean {
-        val preparation = pausePreparation ?: return false
-        if (!runCatching(preparation::isReady).getOrDefault(false)) return false
-        val selectedTarget = selected as? AndroidTarget ?: return false
-        val current = selectedTarget.pauseSession ?: return false
-        val predecessorSessions = predecessors.map { target ->
-            (target as? AndroidTarget)?.pauseSession ?: return false
-        }.distinct()
-        if (predecessorSessions.isEmpty()) return false
-
-        val operation = PauseOperation(++nextPauseOperationId, selectedTarget)
-        pauseOperation = operation
-        val accepted = runCatching {
-            preparation.prepare(
-                MediaPausePreparationRequest(current, predecessorSessions),
-                MediaPausePreparationCompletion { success ->
-                    handler.post { completeDeferredPause(operation, success) }
-                },
-            )
-        }.getOrDefault(false)
-        if (!accepted && pauseOperation === operation) pauseOperation = null
-        return accepted
-    }
-
-    private fun completeDeferredPause(operation: PauseOperation, prepared: Boolean) {
-        if (!listening || pauseOperation !== operation) return
-        pauseOperation = null
-        val target = operation.target.packageName
-        // The press is consumed the moment the preparation starts, so a preparation that fails used
-        // to lose it entirely: the driver pressed pause and nothing whatever happened. That is what
-        // the car showed on 2026-09-18, three presses in a row, with the helper answering
-        // "unchanged" each time. The pause goes out either way now. The most a failed preparation
-        // can cost is the suspended predecessor resuming itself, which is the older and much
-        // smaller fault, and the ring still says the preparation was the part that failed.
-        if (!prepared) {
-            decide(null, MediaResumeDecision(false, MediaResumeReason.PAUSE_PREPARATION, target))
-        }
-        if (!refreshBeforeCommand()) {
-            decide(
-                null,
-                MediaResumeDecision(
-                    false,
-                    MediaResumeReason.SESSION_ACCESS_AFTER_PREPARATION,
-                    target,
-                ),
-            )
-            return
-        }
-        val completion = core.completeDeferredPause(operation.target)
-        decide(
-            null,
-            MediaResumeDecision(
-                accepted = completion == DeferredPauseCompletion.DISPATCHED,
-                reason = when (completion) {
-                    DeferredPauseCompletion.DISPATCHED -> MediaResumeReason.PAUSE
-                    DeferredPauseCompletion.ALREADY_PAUSED -> MediaResumeReason.PAUSE_COMPLETE
-                    DeferredPauseCompletion.STALE -> MediaResumeReason.STALE_AFTER_PREPARATION
-                    DeferredPauseCompletion.FAILED -> MediaResumeReason.PAUSE_TRANSPORT
-                },
-                packageName = target,
-            ),
-        )
     }
 
     /**
@@ -266,12 +176,6 @@ class MediaResumeController @JvmOverloads constructor(
     ) : MediaResumeTarget {
         override val identity: Any = controller.sessionToken
         override val packageName: String = controller.packageName
-        val pauseSession: MediaPauseSession? = runCatching {
-            MediaPauseSession(
-                packageName = controller.packageName,
-                uid = app.packageManager.getApplicationInfo(controller.packageName, 0).uid,
-            )
-        }.getOrNull()
         @Volatile
         private var destroyed = false
 
@@ -365,9 +269,4 @@ class MediaResumeController @JvmOverloads constructor(
     private companion object {
         const val TAG = "DenzaMediaResume"
     }
-
-    private data class PauseOperation(
-        val id: Long,
-        val target: MediaResumeTarget,
-    )
 }
