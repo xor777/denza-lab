@@ -8,7 +8,7 @@ live-car evidence is current through 2026-09-04.
 
 ## Current state
 
-Updated 2026-10-08. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
+Updated 2026-10-09. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
 
 Owned elsewhere: what an energy figure means, its words and its chart - [energy-display-contract.md](energy-display-contract.md) (normative, wins over this page); the panel's drawing, boards and `compare.py` - [tools/design-canvas/luminofor/README.md](../tools/design-canvas/luminofor/README.md) (normative); the HUD as a display - [hud-projection-findings.md](hud-projection-findings.md); the turn-signal CAN events - [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
 
@@ -38,6 +38,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | One tap launches a missing task on display `0` and projects it (900 ms, then at most five checks 700 ms apart); missing-task launch, return and warm re-projection passed with Yandex Navigator | live | 2026-09-05 | [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
 | A navigator allowlist: six packages (the Morphe Google Maps build `app.morphe.android.apps.maps` added 2026-09-11, `d66c61ab`) in `NavigationAppPolicy` and `ClusterProxyMain.ALLOWED_PACKAGES`; removed 2026-09-23 by the owner's decision, and `DriverScreenChoicesTest` fails if any of the six reappears | refuted | 2026-09-23 | [Any application, not six navigators](#any-application-not-six-navigators) |
 | HUD guidance reads Yandex's accessibility nodes (and its notification `RemoteViews`) and sends `HudRoadInfoNotifyStruct` to `SomeIpServerService`, service `3097367205183488`, topic `1127042368241665` (`HudSomeIpClient.java`); field 28 uses the OpenBYD icon table, live-verified for left, right and both slights | live | 2026-09-03 | [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
+| The stock navigator fills the same packet with speed limit (11), section control (13-15), camera (17/18), lanes (5, 7, 29), road class (6) and reroute (16 = `3`); its field-28 table matches ours for turns, slights, sharp, U-turn and straight, uses `13`/`15`/`18`/`20`/`22`/`24` for roundabouts and never `25`-`44`; it also writes the limit to ADAS (`0x4CA00040`, cleared with `0`) | firmware | 2026-10-09 | [The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09) |
 | A cluster DVR view from Android camera `0`: its delivered orientation flips with vendor state no app can read; behind `ClusterDvrFlag` from 2026-08-14 (`55190633`), renderer and flag deleted 2026-08-26 (`4233dd15`) | refuted | 2026-08-26 | [DVR Camera2 source: verified renderer, product path retired](#dvr-camera2-source-verified-renderer-product-path-retired) |
 | Other dead ends: `IWindowManager.mirrorDisplay` copies (the stock card stays above, the right copy carries stock controls), DiShare HUD camera (protected AVC frames black), the stock cluster projection Binder (package list, left card for `com.byd.avc` only), ADAS cameras (no video endpoint), the AVC surround source (a wide-angle parking view, not long-range vision) | refuted | 2026-07-25 | [Failed or research-only paths](#failed-or-research-only-paths), [AVC surround-view source](#avc-surround-view-source) |
 
@@ -47,7 +48,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - The firmware-model Mirrors contract in motion: only stationary runs (D, R, hazard) of 2026-09-23 are recorded; a moving drive with the `captures/mirrors-firmware-model/` capture settles it. AVC's floating `‹ ›` (view `5097`) while we hold the renderer is a crash path by the code and is not to be tried.
 - Any non-navigator projected on this firmware, `com.byd.avc` above all: one owning session, from a documented reset, with `logcat -b crash -v time` ([Any application, not six navigators](#any-application-not-six-navigators)).
 - Whether the camera-start trims of `44f02df5` are faster: the matched A/B protocol in [Acceleration candidates: skip unused camera-start work (2026-09-05)](#acceleration-candidates-skip-unused-camera-start-work-2026-09-05).
-- HUD field-28 IDs for sharp, U-turn, straight and roundabout (a parked ID sweep), the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check, which also has to measure how often Yandex reposts its notification while driving, against the six-second age) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
+- What the glass draws for field 11 alone, a sign in field 7 with field 6 = `6`, fields 17/18 and 23, field 9 below 11 m, and field-28 IDs for sharp, U-turn, straight and roundabout (`13` against `25`-`34`): one parked sweep with `:hud-frames-probe` ([The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09)); Yandex's `text_speedlimit` on this car's build (an accessibility dump while driving); the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check, which also has to measure how often Yandex reposts its notification while driving, against the six-second age) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
 - Navigation recovery paths not run live: selection change (the choice rule of 2026-10-08 included), launch-discovery timeout, command failure, lost ADB, APK restart; and the `Переносим…` overlay seen on the car.
 - `android.hardware.AVMCamera` as a raw camera source outside AVC: its access control is not in the image; an isolated probe settles it.
 
@@ -57,7 +58,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - [Energy display proposals before the contract (2026-09-05 and 2026-09-07, superseded)](#energy-display-proposals-before-the-contract-2026-09-05-and-2026-09-07-superseded) — the energy audit and whole-panel correction that the energy contract answered.
 - [Mirrors behavior preserved in Denza Apps](#mirrors-behavior-preserved-in-denza-apps) — camera geometry, the 2026-09-04 guard history, the 2026-09-23 firmware read and contract with its live runs, and the startup timing runs.
 - [Navigation projection](#navigation-projection) — placements, any application since 2026-09-23, task topology and capture method, one-tap launch, transfer overlay, steering-wheel key, teardown rules.
-- [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) — Yandex guidance to the stock SOME/IP road topic, the AR arrow approximation, field-28 maneuver IDs.
+- [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) — Yandex guidance to the stock SOME/IP road topic, the AR arrow approximation, field-28 maneuver IDs, the stock packet field by field and other senders' findings (2026-10-09).
 - [Central IVI split routing](#central-ivi-split-routing) — the retired router, kept for the stock `byd-freeform` substrate it measured.
 - [OpenBYD research boundary](#openbyd-research-boundary) — what `com.sr.openbyd` taught and what was not copied.
 - [Recorded car runs and escalation alerts](#recorded-car-runs-and-escalation-alerts) — 2026-07 acceptance runs by APK hash, open hardware checks, the `com.byd.avc` crash procedure.
@@ -2415,6 +2416,8 @@ geometry safety net. Left, right, and both slight IDs are live verified; sharp,
 U-turn, straight, and roundabout IDs come from the same table but have not been
 seen on the car yet. A parked ID sweep remains the way to verify them.
 
+> **Note 2026-10-09:** the stock sender never uses `25` for a roundabout; its value for entering one is `13` (see [The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09)). What `25` draws on the glass is unverified.
+
 Yandex Navigator 29.8.1 also contains a structured AndroidX Car App path. Its
 own projected guidance constructs a `Trip` from destination address, a
 `TravelEstimate` from remaining distance, arrival time, and remaining time,
@@ -2473,6 +2476,133 @@ road guidance. Until 2026-10-08 this paragraph said three seconds; the code has
 used six since 2026-07-25 (`2a3cfb1f`). Disabling the switch clears, stops, and
 unbinds the stock service. Unknown maneuver text is never guessed as a straight
 arrow: text and distance may continue, but the directional image is omitted.
+
+### The stock road packet field by field, and what other senders learned (2026-10-09)
+
+Status: research, nothing changed in the product. Read from this car's IVI OTA
+(`captures/hud-firmware-20260923/`), not run; the third-party findings below
+were made on other BYD models and are reported, not reproduced here.
+
+**Who fills which field.** The stock navigator `com.byd.launchermap` builds the
+whole `0x8001` packet in one call (`jadx/BydLaunchermap/sources/k/e/j/d.java:192`);
+the field numbers and types are in `someip/hud/navi/info/service/SomeipHudNaviInfoService.java:811-878`.
+
+| Field | Name | Type | Stock source and value |
+| --- | --- | --- | --- |
+| 2 | `counter` | int | `2`, or `1` while the junction picture is shown (`d.s`); `2` again on clear |
+| 3 / 4 | `car2Dest` / `timeOfCar2Dest` | int | `NaviInfo.routeRemain.dist` m / `.time` s |
+| 5 | `numOfLanes` | int | `LaneInfo.backLane.size()` |
+| 6 | `currentRoadLevel` | int | `NaviInfo.curRoadClass`, AutoNavi `RoadClass` (0 freeway, 1 national, 2 provincial, 3 county, 4 rural, 5 in-county, 6 city expressway, 7 main, 8 secondary, 9 common, 10 non-navigable); `-1` on clear. Denza Apps leaves it unset, which reads as `0`, freeway |
+| 7 | `permissibleDirection` | bytes | lane picture, PNG (JPEG when the HUD reports format 2), quality 80, built from the stock lane arrow drawables |
+| 11 | `currentMaxSpeedLimit` | int | `BydAutoSpeed.Speed.currentLimit`, km/h: the lowest valid of road limit, camera limit and section-control limit (`com/autosdk/bussiness/vehicle/BydAutoSpeed.java:316`) |
+| 12 | `currentSpeed` | int | `Speed.currentSpeed`, km/h |
+| 13 / 14 / 15 | `distance2SpeedLimitZone` / `lengthOfSpeedLimit` / `speedLimit` | int | average-speed (section) control: metres already driven in the section, its length, its limit (`d.j`, from `onUpdateIntervalCameraDynamicInfo`) |
+| 17 / 18 | `cameraAheadStatus` / `theDistance2Camera` | int | `1` with the nearest camera's distance in metres, `0`/`0` without one (`NaviService.onShowNaviCameraExt`) |
+| 23 | `dangerSigns` | int | `NaviRoadFacility.type` (road-facility warning) |
+| 24 / 25 | `pOIInformation` / `reachTheDestination` | string | POI JSON / destination `lon,lat` |
+| 29 | `lanesPermissibleDirectionId` | string | `back,front|` per lane from `LaneInfo.backLane`/`frontLane`; a set whose majority is code `22` is not sent |
+| 16 | `navigatingStatus` | int | `1` idle/clear, `2` guiding, `3` while rerouting (`BaseNaviPresenter.java:2455`, `2464`) |
+
+**Field 28, read from the bytecode.** `jadx` mangles the setter, so it was
+checked with `dexdump` on `classes24.dex` (`k.e.j.d.l`): the AutoNavi maneuver
+icon goes through the table in `k/e/j/e/b.java`, then `65` (merge left) becomes
+`4` and `66` (merge right) `5`. With the icon names from
+`com/autonavi/gbl/guide/model/ManeuverIconID.java`:
+
+| AutoNavi icon | Field 28 | AutoNavi icon | Field 28 |
+| --- | --- | --- | --- |
+| 2 turn left | 1 | 11 enter roundabout (counter-clockwise) | 13 |
+| 3 turn right | 2 | 21 / 22 / 23 / 24 roundabout then left / right / ahead / U-turn | 15 / 18 / 20 / 22 |
+| 4 slight left | 3 | 12 leave roundabout | 24 |
+| 5 slight right | 5 | 17 / 18 enter / leave clockwise roundabout | 14 / 23 |
+| 65 / 66 merge left / right | 4 / 5 | 25 / 26 / 27 / 28 clockwise roundabout then left / right / ahead / U-turn | 16 / 17 / 19 / 21 |
+| 6 / 7 sharp left / right | 7 / 8 | 10 waypoint | 45 |
+| 8 U-turn (left) | 9 | 13 service area | 46 |
+| 19 U-turn right | 10 | 14 toll gate | 47 |
+| 9 continue | 11 | 15 destination | 48 |
+| 20 special continue | 12 | 16 tunnel | 49 |
+
+This is the firmware's own sender, so it confirms the values Denza Apps uses for
+left, right, slights, sharp, U-turn and straight. It also shows that the stock
+sender never uses `25`-`44`: numbered roundabout exits are not part of what it
+sends to the HUD. Denza Apps sends `25` for every roundabout (see the roundabout
+paragraph above); the stock value for "enter the roundabout" is `13`. What the
+glass draws for `25` has not been seen.
+
+**The stock map speed limit also goes to ADAS.** Besides field 11 the stock
+navigator writes the limit to the Setting device: `SETTING_SPEED_LIMIT_SET`
+`0x4CA00040` (km/h, on every change, `0` on `onNaviStop` and `onDestroy`) and
+`SETTING_RODE_TYPE_SET` `0x4CA00050` (the AutoNavi road class, `11` for some
+form-ways) (`com/autosdk/bussiness/vehicle/PlatformApiImpl.java:845-893`,
+`NaviService.java:686`, `757`, `1421`, `location/instrument/LocationBaseInstrument.java:183-206`).
+This is the car's map input to its own speed-limit assistance, which the
+cluster and HUD sign follow. It needs the `BYDAUTO_*` Setting permission, which
+an app UID does not have. In Russia the stock map has no data, so on this car
+that input is normally empty.
+
+**Binding without a type crashes the SOME/IP service.** `SomeIpServerService.onUnbind`
+calls `Objects.requireNonNull(intent.getType())` for every started service
+(`jadx/SomeIpService/sources/com/ts/car/someip/service/manager/SomeIpServerService.java:141-176`).
+The same type identifies the client: unbinding removes every binding with that
+type and stops the service once none is left. `HudSomeIpClient` sets the type
+to its package name (`HudSomeIpClient.java:142`).
+
+**What other senders found on other BYD HUDs.** Two third-party apps send the
+same packet: one from Yandex Navigator, one from Waze and Google Maps. Their
+owners report the following from Sea Lion 06/07, Leopard 3 and Han L; none of
+it has been tried on this car:
+
+- A number in field 11 alone draws nothing on the Sea Lion 07 and Leopard 3.
+  A red-ring sign drawn into field 7 (the lane-picture slot) with field 6 = `6`
+  does. Both apps send field 6 = `6` whenever field 7 carries a picture, `1`
+  otherwise and `255` in the clear.
+- Field 9 from `0` to `10` m shows the Chinese word for "now"; both clamp it
+  to `11`. Denza Apps sends Yandex's distance as it is.
+- On those cars field 28 `7`/`8` draw U-turns. They send sharp turns as `1`/`2`
+  and every roundabout and destination as `99`, because other values drew a
+  stray left chevron. On the Sea Lion 07, field 28 drives only the animated
+  "dynamic navigation" chevrons and the main arrow is the field-8 picture. On
+  this car, field 28 picks the glyph of the Fusion AR arrow (2026-09-03, above),
+  and the firmware table here agrees with Denza Apps, so their table is not
+  this car's.
+- Yandex Navigator exposes the speed limit in the accessibility view
+  `text_speedlimit` as a bare number, and the current street in
+  `status_panel_text`. The 2026-07-19 run above also saw a limit (`20`) on the
+  screen; the view id has not been checked on this car's Yandex build.
+- In Yandex's rich notification, the `primaryicon` drawable names a road event
+  (`road_alerts_camera_32`, `road_alerts_accident_32`,
+  `road_alerts_road_works_32`, `road_alerts_other_32`) and `titleview` then
+  carries its distance. No camera limit is exposed there. Newer Navigator builds
+  are reported to post only a static `Навигатор запущен` notification.
+- Lanes are sent as field 5 plus field 29 in the AutoNavi lane vocabulary
+  (`0` S, `1` L, `2` S+L, `3` R, `4` S+R, `5` U-turn left, `6` L+R, `7` S+L+R,
+  `8` U-turn right, `9` S+UL, `10` S+UR, `11` L+UL, `12` R+UR, `16` S+L+UL,
+  `17` R+UL, `18` L+R+UL, `19` S+R+UL, `20` L+UR; `255` = not recommended),
+  with at most eight lanes. Neither app has a Yandex lane source; Yandex's
+  lanes reach other apps only through its protected Car App path.
+- The vehicle's own sign can be set with `0x4CA00050` = `7`, then `0x4CA00040` =
+  limit (5-130 in steps of 5), then `0x4CA00050` = `6`, through a shell-UID
+  helper. The write is checked by reading ADAS `0x2D500020` (raw = limit / 5 +
+  1). The car may apply an accepted value later, so they never clear it. That
+  writes into the car's speed-limit assistance, not into a picture.
+- One app resends the whole packet every 50 ms and ends a route with five
+  clear packets 120 ms apart before `stopService`. The other resends every
+  300 ms and holds a route for 90 s without updates (its changelog lists a
+  distance left on the glass after a cancelled route). Denza Apps sends on
+  change with a five-second heartbeat, ages by data (six seconds) and sends one
+  clear.
+
+**Still to do.**
+- Dump Yandex's accessibility tree on this car while driving under a posted
+  limit and near a camera, to confirm `text_speedlimit` and find any camera
+  view.
+- In one parked session, owned by one person from a documented reset, extend
+  `:hud-frames-probe` to show what the glass draws for: field 11 alone; field 7
+  sign with field 6 = `6`; fields 17/18; field 23; field 28 = `4`, `7`-`10`,
+  `12`, `13`, `15`, `18`, `20`, `22`, `24`, `25`-`34`, `45`-`49`; field 9 =
+  `0`, `5`, `11`; field 16 = `3`.
+- The owner decides on the ADAS setter. It is a vehicle input, not a display,
+  and it outlives the route.
 
 ## Central IVI split routing
 
