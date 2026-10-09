@@ -8,6 +8,7 @@ import dev.denza.apps.feature.media.MediaKeySnapshot
 import dev.denza.apps.feature.media.MediaKeyState
 import dev.denza.apps.feature.mirrors.MirrorSide
 import dev.denza.apps.feature.mirrors.SideCameraDetection
+import dev.denza.apps.feature.simulcast.SimulcastRuntimeSnapshot
 import dev.denza.apps.feature.split.SplitFirmwareReading
 import dev.denza.apps.feature.split.SplitWorkEnd
 import dev.denza.apps.feature.split.SplitWorkOperation

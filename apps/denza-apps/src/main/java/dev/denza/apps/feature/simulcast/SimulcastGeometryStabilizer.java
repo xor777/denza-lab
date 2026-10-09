@@ -1,4 +1,4 @@
-package dev.denza.apps;
+package dev.denza.apps.feature.simulcast;
 
 /**
  * Holds back overlay geometry until two equivalent samples have remained available

@@ -30,7 +30,7 @@ ends.
 | `1b1f648` clamps the mirror to at least 16:9; centered `videoViewBounds` (`SimulcastVideoBoundsResolver.kt`) put the `2560x1440` frame at `[0,80][2560,1520]` on the IVI's `2560x1600` panel, uncropped and undistorted | live | 2026-08-14 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
 | "An aspect-matched share size removes a 16:10 receiver's black bar": DiShare clamps the request back to 16:9 (`2560x1600` asked, `2560x1440` `BYD-Mirror` made); the product centres the frame instead | refuted | 2026-08-14 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
 | Debug builds only: `SimulcastDebugReceiver`, guarded by `android.permission.DUMP`, takes `dev.denza.apps.START_SIMULCAST_TARGET` (`targetPackage`, `receiver`) and `STOP_SIMULCAST_TARGET` (`apps/denza-apps/src/debug/AndroidManifest.xml`) | code | 2026-08-20 | [No-root native Simulcast row workaround](#no-root-native-simulcast-row-workaround) |
-| Dialog lifecycle comes from the accessibility service with a 320 ms disappearance grace, never from `action.byd.dishare.DIALOG_HOME`/`DIALOG_LAUNCHER`/`DIALOG_CLOSE`; the outgoing `DIALOG_CLOSE` is package-scoped to `com.byd.dishare` (`SimulcastAccessibilityService.java`, `SimulcastOverlayService.java`) | code | 2026-08-27 | [Dialog lifecycle trust boundary](#dialog-lifecycle-trust-boundary) |
+| Dialog lifecycle comes from the accessibility service with a 320 ms disappearance grace, never from `action.byd.dishare.DIALOG_HOME`/`DIALOG_LAUNCHER`/`DIALOG_CLOSE`; the outgoing `DIALOG_CLOSE` is package-scoped to `com.byd.dishare` (`SimulcastDialogOverlay.java`, `SimulcastOverlayService.java`) | code | 2026-08-27 | [Dialog lifecycle trust boundary](#dialog-lifecycle-trust-boundary) |
 | Self-repair over local ADB grants `SYSTEM_ALERT_WINDOW` and enables `SimulcastAccessibilityService` (`AccessibilityRepair.kt`, `SimulcastCoordinator.kt` until 2026-10-09); `LocalAdbClient.java` tries `127.0.0.1:5555`, then the car's non-loopback IPv4 addresses | code | 2026-06-30 | [Target-screen centered aspect-fit policy](#target-screen-centered-aspect-fit-policy) |
 | DiShare video to `screen_hud` ends with exit `605` when HUD availability `0x38B00036` falls 2→1 on P→D at 0 km/h, and does not come back in P (hud-projection-findings.md) | live | 2026-09-24 | [hud-projection-findings.md](hud-projection-findings.md) |
 | Generated frames and Camera2 ids `0`/`1` stream to the HUD through DiShare; ids `2` and `10`, which AVC uses, throw for a normal app UID, and AVC `initDisplay` into the DiShare encoder surface gives a black HUD | live | 2026-06-26 | [HUD camera streaming findings](#hud-camera-streaming-findings) |
@@ -421,7 +421,7 @@ Current no-root custom drag approach:
 
    > **Superseded 2026-06-29:** hit zones are the live accessibility bounds of the stock receiver cards (`ar_hud_screen`, `fse_screen`, …), read by `SimulcastDialogGeometry.java`; no decoded layout coordinates are used — see [Multi-screen receiver contract (2026-07-18)](#multi-screen-receiver-contract-2026-07-18).
 
-6. `SimulcastAccessibilityService` queries DiShare `getScreens` through
+6. The overlay (`SimulcastDialogOverlay`, on the shared accessibility service) queries DiShare `getScreens` through
    `DiShareScreens` and intersects runtime-available receivers with receiver
    nodes visible in the current accessibility tree. On the
    current car the available list is `screen_hud`, `screen_fse`, and
@@ -432,7 +432,7 @@ Current no-root custom drag approach:
    the custom row aligned with the native App Change row when the right side is
    occupied by navigation or another app.
 
-   > **Superseded 2026-06-29:** the 839 dp layout profile was removed; the row is centred on the live `app_list` node, or on a box derived from the `switch_share_app` button when the list is absent (`SimulcastDialogGeometry.java`, `SimulcastAccessibilityService.java`) — see [Multi-screen receiver contract (2026-07-18)](#multi-screen-receiver-contract-2026-07-18).
+   > **Superseded 2026-06-29:** the 839 dp layout profile was removed; the row is centred on the live `app_list` node, or on a box derived from the `switch_share_app` button when the list is absent (`SimulcastDialogGeometry.java`, `SimulcastDialogOverlay.java`) — see [Multi-screen receiver contract (2026-07-18)](#multi-screen-receiver-contract-2026-07-18).
 
 8. The debug build exposes a `SimulcastDebugReceiver` bridge for two repeatable
    ADB checks. The receiver requires `android.permission.DUMP` and forwards the

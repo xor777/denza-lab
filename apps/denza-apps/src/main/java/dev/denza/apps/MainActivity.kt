@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import dev.denza.apps.feature.navigation.NavigationTransferOverlay
+import dev.denza.apps.feature.simulcast.SimulcastIntegration
+import dev.denza.apps.feature.simulcast.SimulcastOverlayService
 import dev.denza.apps.ui.DenzaAppsRoot
 
 class MainActivity : ComponentActivity() {

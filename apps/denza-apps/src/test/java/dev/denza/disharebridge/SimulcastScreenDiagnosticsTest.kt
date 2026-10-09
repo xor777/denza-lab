@@ -1,6 +1,6 @@
 package dev.denza.disharebridge
 
-import dev.denza.apps.SimulcastScreenDiagnostics
+import dev.denza.apps.feature.simulcast.SimulcastScreenDiagnostics
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
