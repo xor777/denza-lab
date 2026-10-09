@@ -2203,7 +2203,7 @@ lines (`BydSmartMultiIviController` 5 020, `BydSmartMultiDividerController`
 ### The area is pushed, not only polled
 
 The value the product reads with `service call activity_task 30` more than
-thirty times in `SplitPickerShellSession` is
+thirty times in the session's recipes (then all in `SplitPickerShellSession`) is
 `IActivityTaskManager.getScreenAreaInfoForMulti` (tx30). The same interface
 also **pushes** it: tx120 `registerScreenAreaInfoForMultiCallback(IScreenAreaInfoForMultiCallback)`
 and tx121 `unregisterScreenAreaInfoForMultiCallback()`, which the transaction
