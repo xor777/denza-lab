@@ -46,8 +46,6 @@ internal class SplitMutationJournal {
     }
 
     fun entries(): List<SplitJournalEntry> = synchronized(recorded) { recorded.toList() }
-
-    fun isEmpty(): Boolean = synchronized(recorded) { recorded.isEmpty() }
 }
 
 /**
