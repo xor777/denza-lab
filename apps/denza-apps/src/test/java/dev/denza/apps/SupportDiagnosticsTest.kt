@@ -2,6 +2,10 @@ package dev.denza.apps
 
 import dev.denza.apps.feature.cluster.CameraRuntimePhase
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
+import dev.denza.apps.feature.media.MediaKeyPress
+import dev.denza.apps.feature.media.MediaKeyReport
+import dev.denza.apps.feature.media.MediaKeySnapshot
+import dev.denza.apps.feature.media.MediaKeyState
 import dev.denza.apps.feature.mirrors.MirrorSide
 import dev.denza.apps.feature.mirrors.SideCameraDetection
 import dev.denza.apps.feature.split.SplitFirmwareReading
@@ -127,6 +131,38 @@ class SupportDiagnosticsTest {
             "три разные причины молчания - три разные строки",
             3,
             setOf(quietCar, takenEffect, neverDelivered).size,
+        )
+    }
+
+    /**
+     * Кнопка на руле: строки `MediaKeyReport` - строки раздела, одна в одну. Нажатия остаются одной
+     * строкой, сколько бы их ни было: их «; » - часть значения, а не разделитель, как у анализатора.
+     */
+    @Test
+    fun `the wheel key's lines are the section's rows, its presses one row`() {
+        val lines = MediaKeyReport.lines(
+            MediaKeySnapshot(
+                state = MediaKeyState.NO_SESSION_ACCESS,
+                rememberedPackage = "ru.yandex.music",
+                presses = listOf(
+                    MediaKeyPress(1L, 334, false, "not-media"),
+                    MediaKeyPress(2L, 386, false, "stream-mute"),
+                ),
+            ),
+            stamp = { millis -> "12:05:1$millis" },
+            mode = "без правки фокуса (ступень 1)",
+        )
+        assertEquals(
+            TechnicalSection(
+                "Кнопка play/pause на руле",
+                listOf(
+                    TechnicalRow("Кнопка play/pause", "нет доступа к сессиям"),
+                    TechnicalRow("Режим медиакнопки", "без правки фокуса (ступень 1)"),
+                    TechnicalRow("Запомненная сессия", "ru.yandex.music"),
+                    TechnicalRow("Последние нажатия", "12:05:11 334 ✗ not-media; 12:05:12 386 ✗ stream-mute"),
+                ),
+            ),
+            SupportDiagnostics.mediaKeySection(lines),
         )
     }
 

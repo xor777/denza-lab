@@ -209,7 +209,7 @@ One door to what is wrong right now, the app's access to the car, the instrument
 - **Settings:** «Восстановление ADB» is on by default (`AdbRestorePreferences`, `adb_restore`, `adb_restore_enabled`); «Приборный экран» stores its override with `ClusterDisplayResolver.saveOverride`.
 - **Docs:** `docs/adb-authorization-recovery.md` (the tile and the gate's door), `docs/shortcuts-automation-findings.md` (play/pause lines), `docs/telematics/cloud-tile.md` («Облако» section).
 - **Luminofor:** fixtures `sheet-service`, `sheet-service-trouble`, `one-sheet-service-trouble`, `sheet-service-access`, `sheet-service-screen`, `sheet-service-restore`, `one-sheet-service-restore`, `sheet-service-technical`, `sheet-service-split`, `sheet-service-journal`; the technical page's blocks are built by techBlocks in `tools/design-canvas/luminofor/fixtures.js` (same parse rule as `TechnicalReadings`).
-- **Tests:** `ServiceModelTest`, `SupportDiagnosticsTest`, `BehindAdbGateTest`, `TechnicalReadingsTest`, `MediaKeySupportLinesTest`, `MediaKeyDiagnosticsTest`, `DashboardTilesTest`.
+- **Tests:** `ServiceModelTest`, `SupportDiagnosticsTest`, `BehindAdbGateTest`, `TechnicalReadingsTest`, `MediaKeyDiagnosticsTest`, `DashboardTilesTest`.
 
 ## Not tiles
 
