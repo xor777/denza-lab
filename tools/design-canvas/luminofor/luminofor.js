@@ -948,13 +948,6 @@
       case 'footnote':
         words(c, b.text, x + w / 2, y + SH.footnote.size * RB.ascent, SH.footnote.size, SH.footnote.alpha, { align: 'center' });
         return SH.footnote.size * (RB.ascent + RB.descent);
-      case 'reading': {
-        const R = SH.reading;
-        const lh = R.labelSize * (RB.ascent + RB.descent);
-        words(c, b.label, x, y + R.labelSize * RB.ascent, R.labelSize, R.labelAlpha);
-        words(c, b.value, x, y + lh + R.gap + R.valueSize * RB.ascent, R.valueSize, R.valueAlpha, { w: 400 });
-        return lh + R.gap + R.valueSize * (RB.ascent + RB.descent);
-      }
     }
     return 0;
   }

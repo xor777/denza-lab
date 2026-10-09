@@ -43,9 +43,7 @@ class LuminoforSpecContractTest {
     }
 
     @Test
-    fun compositingIsAdditive() {
-        assertEquals("additive", str("compositing"))
-        assertEquals(true, LuminoforSpec.COMPOSITING_ADDITIVE)
+    fun background() {
         assertEquals(hex(str("colors", "background")), LuminoforSpec.BACKGROUND)
     }
 
@@ -61,14 +59,12 @@ class LuminoforSpecContractTest {
         assertEquals(hex(str("colors", "head", "cardOn")), HeadInk.CARD_ON)
         assertEquals(hex(str("colors", "head", "cardOff")), HeadInk.CARD_OFF)
         assertEquals(rgba(str("colors", "head", "crown")), HeadInk.CROWN)
-        assertEquals(rgba(str("colors", "head", "handle")), HeadInk.HANDLE)
         assertEquals(hex(str("colors", "head", "dotOn")), HeadInk.DOT_ON)
         assertEquals(rgba(str("colors", "head", "dotOff")), HeadInk.DOT_OFF)
     }
 
     @Test
     fun typeWeights() {
-        i(LuminoforSpec.Type.CLUSTER_WEIGHT, "type", "cluster", "weight")
         i(LuminoforSpec.Type.HEAD_WEIGHT, "type", "head", "weight")
         i(LuminoforSpec.Type.HEAD_STRONG, "type", "head", "strong")
         assertEquals("Jura", str("type", "cluster", "family"))
@@ -241,8 +237,6 @@ class LuminoforSpecContractTest {
 
     @Test
     fun headShared() {
-        n(Head.Handle.WIDTH, "head", "handle", "width"); n(Head.Handle.HEIGHT, "head", "handle", "height")
-        n(Head.Handle.TOP, "head", "handle", "top")
         val r = Head.Reading
         n(r.UNIT_RATIO, "head", "reading", "unitRatio"); n(r.UNIT_GAP_RATIO, "head", "reading", "unitGapRatio")
         n(r.RATE_RATIO, "head", "reading", "rateRatio"); n(r.RATE_GAP_RATIO, "head", "reading", "rateGapRatio")
@@ -316,7 +310,7 @@ class LuminoforSpecContractTest {
         n(g.ON_TEXT_ALPHA, "sheet", "segmented", "onTextAlpha"); n(g.OFF_TEXT_ALPHA, "sheet", "segmented", "offTextAlpha")
         n(g.SIZE, "sheet", "segmented", "size")
         val a = LuminoforSpec.Sheet.Apps
-        n(a.TILE, "sheet", "apps", "tile"); i(a.COLUMNS, "sheet", "apps", "columns"); i(a.NAVIGATION_COLUMNS, "sheet", "apps", "navigationColumns")
+        n(a.TILE, "sheet", "apps", "tile"); i(a.COLUMNS, "sheet", "apps", "columns")
         n(a.RADIUS, "sheet", "apps", "radius"); n(a.ICON, "sheet", "apps", "icon"); n(a.NAME_SIZE, "sheet", "apps", "nameSize")
         n(a.NAME_ALPHA, "sheet", "apps", "nameAlpha"); n(a.GAP, "sheet", "apps", "gap"); n(a.BADGE, "sheet", "apps", "badge")
         assertEquals(hex(SpecJson.str("sheet", "apps", "badgeColor")), a.BADGE_COLOR); n(a.BADGE_INSET, "sheet", "apps", "badgeInset")
@@ -329,9 +323,6 @@ class LuminoforSpecContractTest {
         n(b.SECONDARY_ALPHA, "sheet", "button", "secondaryAlpha"); n(b.SECONDARY_HEIGHT, "sheet", "button", "secondaryHeight")
         n(b.SECONDARY_SIZE, "sheet", "button", "secondarySize")
         n(LuminoforSpec.Sheet.Footnote.SIZE, "sheet", "footnote", "size"); n(LuminoforSpec.Sheet.Footnote.ALPHA, "sheet", "footnote", "alpha"); n(LuminoforSpec.Sheet.Footnote.GAP, "sheet", "footnote", "gap")
-        val rd = LuminoforSpec.Sheet.Reading
-        n(rd.LABEL_SIZE, "sheet", "reading", "labelSize"); n(rd.LABEL_ALPHA, "sheet", "reading", "labelAlpha")
-        n(rd.VALUE_SIZE, "sheet", "reading", "valueSize"); n(rd.VALUE_ALPHA, "sheet", "reading", "valueAlpha"); n(rd.GAP, "sheet", "reading", "gap")
         val m = LuminoforSpec.Sheet.Modal
         n(m.WIDTH, "sheet", "modal", "width"); n(m.RADIUS, "sheet", "modal", "radius"); n(m.PAD, "sheet", "modal", "pad")
         n(m.ICON, "sheet", "modal", "icon"); n(m.ICON_GAP, "sheet", "modal", "iconGap")
