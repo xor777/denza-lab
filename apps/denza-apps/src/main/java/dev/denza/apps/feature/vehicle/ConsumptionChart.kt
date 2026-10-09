@@ -78,9 +78,6 @@ internal object ConsumptionChart {
      */
     const val MIN_STEPS = 5
 
-    /** The same smoothing said in road, which is what the boards and the prose call it. */
-    val SMOOTH_KM: Double = SMOOTH_STEPS * PITCH_KM
-
     /**
      * The recorded road as the points the box draws, oldest first.
      *
