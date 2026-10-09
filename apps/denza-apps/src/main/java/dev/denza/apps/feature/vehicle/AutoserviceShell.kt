@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.vehicle
 
+import dev.denza.apps.platform.shell.ServiceCallParcel
+
 /**
  * Turns the vehicle allowlist into one shell command and its output back into
  * numbers. Pure Kotlin with no Android imports, so the whole protocol is unit
@@ -22,10 +24,6 @@ internal object AutoserviceShell {
     const val SERVICE = "autoservice"
 
     private const val MARKER = "@@"
-
-    private val PARCEL = Regex(
-        """Parcel\(([0-9a-fA-F]{8})\s+([0-9a-fA-F]{8})""",
-    )
 
     /** Sentinels the Binder returns instead of failing; never a reading. */
     private val SENTINEL_WORDS = intArrayOf(
@@ -60,10 +58,10 @@ internal object AutoserviceShell {
                 }
 
                 !answered && index in signals.indices -> {
-                    val match = PARCEL.find(line)
-                    if (match != null) {
+                    // A status and a value on this very line; the value is the reading.
+                    val word = ServiceCallParcel.words(line)?.takeIf { it.size >= 2 }?.get(1)
+                    if (word != null) {
                         answered = true
-                        val word = match.groupValues[2].toLong(16).toInt()
                         val signal = signals[index]
                         decode(signal, word)?.let { values[signal] = it }
                     }

@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.cloud
 
+import dev.denza.apps.platform.shell.ServiceCallParcel
+
 /**
  * The shell commands the cloud link sends and how the car's answers read. Pure Kotlin with no
  * Android imports, so the whole protocol is unit tested on the JVM.
@@ -161,9 +163,7 @@ internal object CloudLinkProtocol {
 
     /** `Result: Parcel(00000000 00000001 ...)`: no exception, and the client holds a connection. */
     fun tcpConnected(line: String): Boolean? {
-        val words = PARCEL.find(line)?.groupValues?.get(1)?.let { body ->
-            WORD.findAll(body).map { it.value.toLong(16).toInt() }.toList()
-        } ?: return null
+        val words = ServiceCallParcel.words(line) ?: return null
         if (words.size < 2 || words[0] != 0) return null
         return words[1] == 1
     }
@@ -199,9 +199,6 @@ internal object CloudLinkProtocol {
         } else {
             "settings delete global $WIFI_RETENTION_KEY"
         }
-
-    private val PARCEL = Regex("""Parcel\(([^')]*)""")
-    private val WORD = Regex("""[0-9a-fA-F]{8}""")
 }
 
 /** Controlled diagnostic labels; no arbitrary shell output is included in reports. */
