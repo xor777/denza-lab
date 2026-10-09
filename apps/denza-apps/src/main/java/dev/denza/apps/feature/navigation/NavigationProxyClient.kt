@@ -3,8 +3,14 @@ package dev.denza.apps.feature.navigation
 import android.content.Context
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
+import android.util.Log
 import android.view.Surface
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.platform.shell.ShellProxyClasspath
+import dev.denza.apps.platform.shell.ShellProxyJar
+import dev.denza.apps.platform.shell.ShellProxyStager
+import dev.denza.apps.platform.shell.classpathAssignment
+import dev.denza.apps.platform.shell.helperNotLoaded
 import dev.denza.apps.platform.shell.shellQuote
 import dev.denza.disharebridge.LocalAdbClient
 
@@ -25,10 +31,13 @@ object NavigationProxyClient {
             DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION or
             DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
 
+    private const val TAG = "DenzaNavProxyClient"
+
     private val lock = Any()
     private val shellLock = Any()
     @Volatile private var virtualDisplay: VirtualDisplay? = null
     @Volatile private var adbShell: LocalAdbClient.PersistentShellSession? = null
+    @Volatile private var proxy: ShellProxyClasspath? = null
 
     fun findTask(context: Context, packageName: String): Int =
         intResult(run(context, findTaskWords(packageName)))
@@ -125,16 +134,76 @@ object NavigationProxyClient {
             adbShell?.close()
             adbShell = null
         }
+        // Whatever broke the link, the next command checks the jar on the car again.
+        proxy?.forget()
     }
 
     private fun run(context: Context, words: List<String>): String {
-        val command = commandLine(context.applicationInfo.sourceDir, words)
         val shell = synchronized(shellLock) {
             adbShell ?: DenzaLocalAdb.client(context)
                 .openPersistentShell()
                 .also { adbShell = it }
         }
-        return shell.shell(command)
+        return runProxy(proxy(context), shell::shell, words)
+    }
+
+    /**
+     * One command of the proxy, from the jar [classpath] keeps.
+     *
+     * The command line itself loads the APK if the kept jar has gone ([classpathAssignment]). A
+     * reply with no result drops the kept path, so the next command asks the car again; a reply
+     * that says the class could not be loaded at all is sent once more at once - nothing of the
+     * proxy ran, so a second try of any verb, a mutation included, moves nothing twice.
+     */
+    internal fun runProxy(
+        classpath: ShellProxyClasspath,
+        shell: (String) -> String,
+        words: List<String>,
+    ): String {
+        val output = shell(commandLine(classpath.entry(shell), classpath.apkPath, words))
+        if (hasResult(output)) return output
+        classpath.forget()
+        if (!helperNotLoaded(output)) return output
+        return shell(commandLine(classpath.entry(shell), classpath.apkPath, words))
+    }
+
+    private fun proxy(context: Context): ShellProxyClasspath =
+        proxy ?: synchronized(shellLock) {
+            proxy ?: context.applicationContext.let { app ->
+                stagedProxy(
+                    asset = { name -> app.assets.open(name).use { it.readBytes() } },
+                    apkPath = app.applicationInfo.sourceDir,
+                    log = { message -> Log.i(TAG, message) },
+                )
+            }.also { proxy = it }
+        }
+
+    /**
+     * [ClusterProxyMain] from its own jar, packed with [ProjectablePackages] and the shared bootstrap.
+     *
+     * The proxy used to be loaded from the whole APK, which ART opens and verifies at every start -
+     * 1.36 s a start for the split's comparable proxy on this car - and a ★ press starts it three or
+     * four times, the projection's health check once every five seconds. The jar is staged once per
+     * process on the shell already open ([ShellProxyStager]); if the car will not take it, the APK
+     * is the classpath, as before.
+     */
+    internal fun stagedProxy(
+        asset: (String) -> ByteArray,
+        apkPath: String,
+        log: (String) -> Unit,
+        directory: String = ShellProxyStager.DIRECTORY,
+    ): ShellProxyClasspath {
+        val helper = ShellProxyJar.NAVIGATION
+        return ShellProxyClasspath(
+            ShellProxyStager(
+                helper = helper,
+                jar = { asset(helper.asset) },
+                log = log,
+                directory = directory,
+            ),
+            apkPath = apkPath,
+            log = log,
+        )
     }
 
     // The words of each fixed operation, in the order and the count ClusterProxyMain.main reads
@@ -183,10 +252,16 @@ object NavigationProxyClient {
     internal fun taskDisplayWords(packageName: String, taskId: Int): List<String> =
         listOf("task-display", packageName, taskId.toString())
 
-    /** One one-shot start of [ClusterProxyMain] from [classpath], every word quoted on its own. */
-    internal fun commandLine(classpath: String, words: List<String>): String =
-        "CLASSPATH=${shellQuote(classpath)} app_process /system/bin --nice-name=denza_nav_cmd " +
+    /**
+     * One one-shot start of [ClusterProxyMain] from [classpath] - or from [apk], if the jar has gone
+     * by the time the line runs - every word quoted on its own.
+     */
+    internal fun commandLine(classpath: String, apk: String, words: List<String>): String =
+        "${classpathAssignment(classpath, apk)} app_process /system/bin --nice-name=denza_nav_cmd " +
             "$MAIN_CLASS ${words.joinToString(" ") { shellQuote(it) }}"
+
+    private fun hasResult(output: String): Boolean =
+        output.lineSequence().any { line -> line.trim().startsWith(RESULT_PREFIX) }
 
     internal fun resultValue(output: String): String = output.lineSequence()
         .map(String::trim)

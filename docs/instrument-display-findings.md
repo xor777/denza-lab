@@ -32,7 +32,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | Camera start, stock-window observation to first `TextureView` update: median 272 ms (243-391, n=10); `initDisplay` 150-232 ms; the two diagnostic reads 0-1 ms | live | 2026-09-04 | [Completed baseline and confirmed cancellation flicker](#completed-baseline-and-confirmed-cancellation-flicker) |
 | Show gated on the BYDAutoLight listener (two 2026-09-04 contracts) made the camera appear "randomly" and was removed that evening; the window-only Show and five-poll quarantine that followed were replaced by the firmware-model contract | refuted | 2026-09-23 | [Mirrors behavior preserved in Denza Apps](#mirrors-behavior-preserved-in-denza-apps) |
 | "Five polls of a surviving same-side window mean the lever came back": the survivor is AVC's two-second timer (tails 2.18-3.06 s, not 100-300 ms), and the rule was the cancellation flicker | refuted | 2026-09-04 | [Completed baseline and confirmed cancellation flicker](#completed-baseline-and-confirmed-cancellation-flicker) |
-| Projection: the app owns the `VirtualDisplay` and its Surface; a short-lived shell-UID `ClusterProxyMain` only finds, moves, resizes, focuses or backgrounds one task; a split child is reparented alone into an organizer-created empty root | live | 2026-08-14 | [Navigation projection](#navigation-projection), [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
+| Projection: the app owns the `VirtualDisplay` and its Surface; a short-lived shell-UID `ClusterProxyMain` only finds, moves, resizes, focuses or backgrounds one task; a split child is reparented alone into an organizer-created empty root. Since 2026-10-09 (code, not run on the car) the proxy loads from its own `navigation-proxy.jar`, staged by SHA-256 (`ShellProxyStager.kt`), not from the APK | live | 2026-08-14 | [Navigation projection](#navigation-projection), [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
 | An Activity as the projection root: on 2026-08-14 a tap reached vendor `Task.resumeTopActivityUncheckedLocked`, whose `ClassCastException` killed `system_server`; forbidden, and root discovery fails closed unless one new organizer root reports `childTaskIds=[rootTaskId]` | refuted | 2026-08-14 | [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
 | Placements on the 2560x720 cluster: Full at `272 dpi`, Center `Rect(768, 0 - 1791, 720)` at `320 dpi`, Left `Rect(0, 0 - 1023, 609)`, Right `Rect(1537, 95 - 2560, 619)`; Waze renders in Full and Right and stays black in Center and Left | live | 2026-08-19 | [Navigation projection](#navigation-projection), [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
 | One tap launches a missing task on display `0` and projects it (900 ms, then at most five checks 700 ms apart); missing-task launch, return and warm re-projection passed with Yandex Navigator | live | 2026-09-05 | [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
@@ -49,7 +49,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - Any non-navigator projected on this firmware, `com.byd.avc` above all: one owning session, from a documented reset, with `logcat -b crash -v time` ([Any application, not six navigators](#any-application-not-six-navigators)).
 - Whether the camera-start trims of `44f02df5` are faster: the matched A/B protocol in [Acceleration candidates: skip unused camera-start work (2026-09-05)](#acceleration-candidates-skip-unused-camera-start-work-2026-09-05).
 - What the glass draws for field 11 alone, a sign in field 7 with field 6 = `6`, fields 17/18 and 23, field 9 below 11 m, and field-28 IDs for sharp, U-turn, straight and roundabout (`13` against `25`-`34`): one parked sweep with `:hud-frames-probe` ([The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09)); the car's sign fed from Yandex (`text_speedlimit`, the Setting writes and their ADAS readback): one drive under posted limits ([The car's speed sign from Yandex](#the-cars-speed-sign-from-yandex-2026-10-09)); the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check, which also has to measure how often Yandex reposts its notification while driving, against the six-second age) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
-- Navigation recovery paths not run live: selection change (the choice rule of 2026-10-08 included), launch-discovery timeout (since 2026-10-09 a 15 s deadline, `NavigationLaunchWait`, that settles with no words instead of «Дождитесь запуска приложения и повторите»), command failure, lost ADB, APK restart; and the `Переносим…` overlay seen on the car.
+- Navigation recovery paths not run live: selection change (the choice rule of 2026-10-08 included), launch-discovery timeout (since 2026-10-09 a 15 s deadline, `NavigationLaunchWait`, that settles with no words instead of «Дождитесь запуска приложения и повторите»), command failure, lost ADB, APK restart; the `Переносим…` overlay seen on the car; and the proxy from its own jar (2026-10-09): one ★ press, the time to a projected picture, before and after.
 - `android.hardware.AVMCamera` as a raw camera source outside AVC: its access control is not in the image; an isolated probe settles it.
 
 ## Contents
@@ -1931,6 +1931,31 @@ was a closed allowlist of six navigators. Package admission and task identity
 are checked again inside the shell-UID boundary before every task mutation.
 Binder objects and `Surface` stay in the app process; the shell side exposes
 only the fixed task operations listed above.
+
+Since 2026-10-09 those commands load `ClusterProxyMain` from a jar of its own,
+not from the APK. Until then every command was `CLASSPATH=<apk> app_process`,
+and ART opened and verified the whole 40-65 MB APK each time; the split
+measured 1.36 s for each such start of its comparable proxy. A ★ press starts
+the proxy three or four times (`find-task`, `projection-origin`, `create-root`
+for a split child, `project-task`) and the health check once every five
+seconds while projected. The build packs `navigation-proxy.jar` (9.6 KB) from
+`ClusterProxyMain`, `ProjectablePackages` and the shared bootstrap, with this
+app's id compiled in from `BuildConfig`; the first command of the process
+stages it as `/data/local/tmp/denza-nav-proxy-<sha256>.jar` over the same shell
+(`ShellProxyStager`: verified by hash, other copies deleted, sent in pieces of
+at most 8 KiB of command line) and every later one reuses it. A car that
+refuses the file runs the command from the APK, as before. The process keeps
+the jar's path, and the file can be deleted while it lives, so the command line
+checks it with mksh's builtin `[` and loads the APK for that command if it has
+gone; until this was added, a deleted jar failed every command until the
+process restarted and could leave a navigator on the cluster. A reply with no
+result drops the kept path, so the next command asks the car again; a reply
+saying the class could not be loaded at all is sent once more at once, since
+nothing of the proxy ran. A closed shell drops the kept path too. The verbs,
+their arguments and outputs, and the checks inside the proxy (`enforceTask`,
+`ProjectablePackages`) are the same code; `NavigationProxyClientTest` pins the
+command line of every verb and runs a deleted jar through a real `/bin/sh`.
+Not run on the car, and the time saved has not been measured.
 
 The persisted map placement has four live-switchable layouts on the verified
 `2560x720` instrument display:
