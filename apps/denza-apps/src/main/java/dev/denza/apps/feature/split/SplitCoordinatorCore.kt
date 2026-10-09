@@ -2,6 +2,7 @@ package dev.denza.apps.feature.split
 
 import dev.denza.apps.TaskMoveOwner
 import dev.denza.apps.TaskMoveOwnership
+import dev.denza.apps.adb.AdbProblem
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -955,7 +956,7 @@ internal class SplitCoordinatorCore(
     }
 
     private fun report(callback: (SplitActionResult) -> Unit, outcome: SplitOutcome) {
-        val result = if (isChannelUnavailable(reasonOf(outcome))) {
+        val result = if (channelOf(outcome) != null || isChannelUnavailable(reasonOf(outcome))) {
             SplitActionResult.CHANNEL_UNAVAILABLE
         } else {
             SplitActionResult.SETTLED
@@ -1076,6 +1077,18 @@ internal class SplitCoordinatorCore(
             else -> null
         }
 
+        /**
+         * The local ADB channel's own failure, read by type where the exception was in hand: a
+         * real socket timeout says "Read timed out", which no marker below ever matched, and so a
+         * hung link used to end a tap on «Разделить экран» with nothing instead of the repair
+         * screen 1.11.4 promises.
+         */
+        fun channelOf(outcome: SplitOutcome): AdbProblem? = when (outcome) {
+            is SplitOutcome.RolledBack -> outcome.channel
+            is SplitOutcome.Failed -> outcome.channel
+            else -> null
+        }
+
         fun expectedApps(live: SplitLiveScene): Map<SplitPane, SplitPickerExpectedApp> =
             live.entries.mapNotNull { (pane, observed) ->
                 val taskId = observed.appTaskId ?: return@mapNotNull null
@@ -1110,14 +1123,17 @@ internal class SplitCoordinatorCore(
             }
 
         /**
-         * Whether a failure means the control channel itself is not usable (1.11.4).
+         * Whether a failure that reached the core only as text means the control channel itself is
+         * not usable (1.11.4) - the helper path.
          *
-         * The four shapes below are what this car answers with when the local ADB link is not
-         * there: an unauthorised key, a key whose confirmation is still pending, a refused
-         * connection and a link that stopped answering. None of them is a defect of the recipe
-         * that met it - every recipe fails the same way - and none of them can be repaired from a
-         * pane. They are the one failure a surface is allowed to act on, by opening the screen
-         * that repairs the channel; everything else is diagnostics.
+         * An exception still in hand is read by its type ([channelOf], [AdbProblem]). What arrives
+         * here is what crossed a boundary as words: the resident helper's replies, and anything
+         * else that kept only a message. The four shapes below are what this car answers with when
+         * the local ADB link is not there: an unauthorised key, a key whose confirmation is still
+         * pending, a refused connection and a link that stopped answering. None of them is a defect
+         * of the recipe that met it - every recipe fails the same way - and none of them can be
+         * repaired from a pane. They are the one failure a surface is allowed to act on, by opening
+         * the screen that repairs the channel; everything else is diagnostics.
          */
         fun isChannelUnavailable(raw: String?): Boolean {
             val text = raw.orEmpty()

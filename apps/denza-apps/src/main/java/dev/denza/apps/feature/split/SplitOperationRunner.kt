@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.adb.AdbProblem
+
 /**
  * Execution frame of one operation: fenced commands, a mutation journal, exact rollback and a
  * single atomic commit (contract section 7, invariants 9 and 10).
@@ -239,7 +241,7 @@ internal abstract class GuardedOperation<P>(
             SplitOutcome.Cancelled(cancelled.reason)
         } catch (failure: Throwable) {
             SplitRollback.run(op.journal, rollbackExecutor)
-            SplitOutcome.RolledBack(failure.message ?: failure.toString())
+            SplitOutcome.RolledBack(failure.message ?: failure.toString(), AdbProblem.of(failure))
         } finally {
             cleanUp(op)
         }

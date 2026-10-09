@@ -1265,6 +1265,9 @@ internal class RecordingShellFactory(private val fake: FakeShell) : SplitShellFa
     private var failReason: String = SPLIT_ADB_DROPPED
 
     @Volatile
+    private var failError: Throwable? = null
+
+    @Volatile
     private var reached = CountDownLatch(0)
 
     @Volatile
@@ -1290,6 +1293,13 @@ internal class RecordingShellFactory(private val fake: FakeShell) : SplitShellFa
     fun failOn(command: String, reason: String = SPLIT_ADB_DROPPED) {
         failAt = command
         failReason = reason
+        failError = null
+    }
+
+    /** Fails the next occurrence of [command] with [error] itself, as the transport throws it. */
+    fun failOn(command: String, error: Throwable) {
+        failAt = command
+        failError = error
     }
 
     override fun open(): SplitShellHandle {
@@ -1306,7 +1316,7 @@ internal class RecordingShellFactory(private val fake: FakeShell) : SplitShellFa
                 synchronized(recorded) { session += command }
                 if (command == failAt) {
                     failAt = null
-                    throw IllegalStateException(failReason)
+                    throw failError ?: IllegalStateException(failReason)
                 }
                 return synchronized(fake) { fake.shell(command) }
             }
