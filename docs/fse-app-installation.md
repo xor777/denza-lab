@@ -1,8 +1,51 @@
 # Passenger-screen (FSE) app installation
 
-Status: **working on the test car**. The path was verified on 2026-07-20 and
-requalified after the 2026-07 firmware update on 2026-08-14. It is available
-from Denza Apps 0.3.0. Host-side probes are kept for protocol work and recovery.
+How Denza Apps installs an application from the main screen (IVI) onto the
+passenger screen (FSE), why that path works, and which other install channels
+were ruled out. Available from Denza Apps 0.3.0; host-side probes are kept for
+protocol work and recovery.
+
+## Current state
+
+Updated 2026-10-09. How an APK installed on the IVI reaches the passenger
+screen's own Android, and what the product does with the answer.
+
+| Claim | Status | Since | Section |
+|---|---|---|---|
+| The passenger screen is a separate Android 12 (FSE, `192.168.195.17`): no user `999`, FSE ADB `5037`/`5555` closed, so `adb install --user 999` belongs to another BYD design | live | 2026-07-20 | [What the passenger screen is](#what-the-passenger-screen-is) |
+| The APK travels over the IVI's read/write SMB mount of FSE storage (`/storage/FFFF-FFFC`); `BYDCrossDevice` feature `-13631467` (`0xff300015`) asks FSE to install it | live | 2026-07-20 | [Verified transport](#verified-transport) |
+| FSE's `WallpaperHomeFse` installs wallpaper type `14` (`WALLPAPER_TYPE_APK`): the first `*.apk` under `wallpaper/`, one full-install `PackageInstaller` session as `android.uid.system` | live | 2026-07-20 | [Why the wallpaper service installs APKs](#why-the-wallpaper-service-installs-apks) |
+| `config.json` and `wallpaper/` must sit directly in the resource root; one extra `fse/` level answers `result=0` and installs nothing | live | 2026-07-20 | [Why the wallpaper service installs APKs](#why-the-wallpaper-service-installs-apks) |
+| Requalified on IVI `eng.build20260705.011226` / FSE SoC `42.1.8.2605219.1`: the reply no longer reaches `Launcher.CrossUtil`, so the product registers an `IBYDCrossListener` before sending and waits for the matching `res_id` | live | 2026-08-14 | [2026-07 firmware compatibility](#2026-07-firmware-compatibility) |
+| `result=1` and `result=-7` (`FAIL_APK_SERVICE_INVALID`: the package is committed, the dummy wallpaper service is missing) both count as installed; any other code fails, and no answer within 90 s is a timeout (`FseAppInstaller.kt`) | code | 2026-08-14 | [2026-07 firmware compatibility](#2026-07-firmware-compatibility) |
+| A split-APK package cannot install this way (one file per session), so the chooser leaves it out and its record says «Split APK пока не поддерживается» (`FseAppInstaller.kt`) | code | 2026-07-20 | [Denza Apps flow](#denza-apps-flow) |
+| The «Экран справа» flow: chooser of launchable non-system IVI apps, copy in 4 MiB blocks with progress and an exact size check, `set_wallpaper_path`, staging removed after an answer, abandoned `denza-apps-install-*` removed before the next install (`FseAppInstaller.kt`) | code | 2026-10-09 | [Denza Apps flow](#denza-apps-flow) |
+| The tile says states of at most 17 characters (`FseInstallStep`, `FseInstallFailure`); the exception, the staging path and the vendor's result code go to the technical report only | code | 2026-10-09 | [Denza Apps flow](#denza-apps-flow) |
+| A press while an install runs opens nothing (`FseInstallStatus.installing`) | code | 2026-10-09 | [Denza Apps flow](#denza-apps-flow) |
+| The split-package report (`FSE APK layouts`) is gone: off the support screen on 2026-08-26, its code deleted on 2026-10-09 | code | 2026-10-09 | [Split-package report (removed)](#split-package-report-removed) |
+| The host probe `FseCrossMessageProbe` registers a listener for theme requests and logs only the matching `CROSS_RESPONSE`; a sender's return `0` is no proof of installation | live | 2026-09-24 | [2026-07 firmware compatibility](#2026-07-firmware-compatibility) |
+| Copying an APK over SMB and opening it in File Manager does not install it: FSE `InstallStart` admits only `com.byd.appstore` or a null referrer | firmware | 2026-08-25 | [FSE PackageInstaller is market-only](#fse-packageinstaller-is-market-only) |
+| There is no second remote installer for an arbitrary APK: type `14` is the only IVI→FSE install channel, `uninstall_wallpaper` on the same bus the only likely extra | firmware | 2026-08-25 | [Other install channels](#other-install-channels-fse-firmware-421826052191-2026-08-25) |
+
+**Open questions**
+- Which method a cross message with `provider_method: uninstall_wallpaper` actually runs, uninstall
+  or `reset_wallpaper` (`CrossMessageHandler`). Settled by a watched FSE probe before uninstall is
+  offered.
+- Whether an APK install leaves FSE wallpaper metadata changed. Settled by reading the wallpaper
+  provider's state before and after an install.
+
+## Contents
+- [What the passenger screen is](#what-the-passenger-screen-is) — FSE as its own Android system, its addresses and fingerprint.
+- [Where the investigation started](#where-the-investigation-started) — the `--user 999` recipe from another BYD design, and why it does not apply.
+- [Verified transport](#verified-transport) — SMB for the file, the cross-device bus for the request.
+- [Why the wallpaper service installs APKs](#why-the-wallpaper-service-installs-apks) — wallpaper type `14`, the `-7` result and the resource layout.
+- [Message format](#message-format) — the `set_wallpaper_path` JSON and the 2026-07 firmware changes.
+- [Live verification](#live-verification) — AIMP, Yandex Navigator and Kinopoisk on the passenger screen.
+- [Denza Apps flow](#denza-apps-flow) — the chooser, the copy, the request, the tile's captions, and the removed split-package report.
+- [Known limitations and cleanup](#known-limitations-and-cleanup) — launching, wallpaper side effects, uninstall, staging cleanup.
+- [Other install channels (FSE firmware `42.1.8.2605219.1`, 2026-08-25)](#other-install-channels-fse-firmware-421826052191-2026-08-25) — every other FSE installer, read from the OTA.
+- [FSE PackageInstaller is market-only](#fse-packageinstaller-is-market-only) — the referrer gate in `InstallStart`.
+- [If type 14 is closed](#if-type-14-is-closed) — the fallbacks, and why none installs an arbitrary APK.
 
 ## What the passenger screen is
 
@@ -229,6 +272,8 @@ UI test, so they are not added to the evidence table above.
 ## Denza Apps flow
 
 Denza Apps 0.3.0 adds the **Установить приложение** card in the second row. It:
+
+> **Superseded 2026-10-09:** the card is the «Экран справа» tile of the Luminofor dashboard now; what it says is described below the list.
 
 1. lists non-system launcher applications installed on the main IVI, including
    their real icon and version; BYD service packages and Chinese-labelled apps
