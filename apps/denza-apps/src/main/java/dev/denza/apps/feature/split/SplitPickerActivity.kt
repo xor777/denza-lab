@@ -40,8 +40,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -598,7 +596,7 @@ private fun SplitPickerTile(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Outlined.Apps,
+                    imageVector = SplitPickerFallbackIcon,
                     contentDescription = null,
                     modifier = Modifier.size(72.dp),
                     tint = DenzaColors.Muted,
