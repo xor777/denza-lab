@@ -54,6 +54,22 @@ class AccessibilityHostTest {
     }
 
     @Test
+    fun `an instance the system created is on its way until it connects or goes`() {
+        assertNull(AccessibilityHost.bindingForMs(10_000))
+
+        AccessibilityHost.created(first, atMs = 10_000)
+        assertEquals(400L, AccessibilityHost.bindingForMs(10_400))
+        AccessibilityHost.bind(first)
+        assertNull("connected: nothing is on its way", AccessibilityHost.bindingForMs(10_500))
+
+        AccessibilityHost.created(second, atMs = 20_000)
+        AccessibilityHost.unbind(first) // the old instance's going does not settle the new one
+        assertEquals(100L, AccessibilityHost.bindingForMs(20_100))
+        AccessibilityHost.unbind(second) // destroyed before it connected
+        assertNull(AccessibilityHost.bindingForMs(20_200))
+    }
+
+    @Test
     fun `a call is carried to the main thread and runs with the rider`() {
         AccessibilityHost.bind(first)
 

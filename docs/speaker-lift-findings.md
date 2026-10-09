@@ -29,7 +29,7 @@ Updated 2026-10-09. What raises the Devialet speaker covers on the Z9GT and the 
 | Why Yandex never raises them: for any other focus owner the stock `MediaController` sends source `26` and `PAUSED` 500 ms after it takes focus | firmware | 2026-09-03 | [Why Yandex playback never raises the covers](#why-yandex-playback-never-raises-the-covers-corpus-2026-09-03) |
 | The report is refused from the app UID (`20004`, `BYDAUTO_INSTRUMENT_SET`) even though `ICarMediaService` is reachable from it; the shell UID is accepted | live | 2026-09-03 | [It is a shell write, not an app-UID one](#it-is-a-shell-write-not-an-app-uid-one) |
 | The tile reads OFF, NEEDS_ACTION «Нет доступа» (media-session access; until 2026-10-09 «Повторите настройку доступа») or READY and never spins; `SpeakerCoverRuntime.reporting` only greys «Поднять» (`SpeakerCoverStatus.kt`) | code | 2026-10-09 | [Second pass, same day](#second-pass-same-day-the-status-reads-like-every-other-tiles) |
-| The eager list's foreground-app observer (the shared accessibility service) is repaired when it is off or on but not bound, by the one check every rider uses (`AccessibilityHealth.ready`, `SpeakerObserverAccess.kt`, `SpeakerObserverAccessTest`); until 2026-10-09 only an off service was | code | 2026-10-09 | [The foreground-app observer is repaired like everyone's](#the-foreground-app-observer-is-repaired-like-everyones-2026-10-09) |
+| The eager list's foreground-app observer (the shared accessibility service) is repaired when it is off or on but not bound, by the one check every rider uses (`AccessibilityHealth.ready`, `SpeakerObserverAccess.kt`, `SpeakerObserverAccessTest`); until 2026-10-09 only an off service was. A repair asked for while the system is still binding an instance it created by itself waits up to 2 s for it and rewrites nothing if it lands (`AccessibilityRepair.awaitBind`) | code | 2026-10-09 | [The foreground-app observer is repaired like everyone's](#the-foreground-app-observer-is-repaired-like-everyones-2026-10-09) |
 | On the Z9GT `0x16300025` (dev `1002`) drives the motor as an edge: `1` out, `2` in; rewriting the value it already holds moves nothing | live | 2026-08-25 | [Direct cover control](#direct-cover-control-2026-08-25-live-proven-both-ways) |
 | On the Z9GT the first `2` latches the amp into manual mode (`0x35A000DA` reads `2`, stock raises stop) until an ignition cycle; it read `1` again by 2026-09-03 | live | 2026-08-25 | [Confirmed: direct retract disables stock auto-lift](#confirmed-direct-retract-disables-stock-auto-lift-for-the-ignition-cycle) |
 | On the N9 `0x16300025` is the stock auto-lift enable flag (CarSettings `SpeakerAutoLiftCommon`): `2` retracts and disables auto-lift, `1` never raises | live | 2026-08-30 | [On the N9 the setting closes reliably and never opens](#on-the-n9-the-setting-closes-reliably-and-never-opens) |
@@ -1989,6 +1989,16 @@ eager list stayed deaf while the ★ key, HUD guidance and the projection, which
 repaired it. Now every rider asks the same question. `SpeakerObserverAccessTest` holds the speakers
 to it - an observer that is on but not bound is repaired, a ready one is left alone; not run on the
 car yet.
+
+Asking for both opened one window the old rule did not have, the one the ★ key and the projection
+already had: right after an APK update or a boot the system binds the listed service by itself, and
+a watcher starting before that bind lands saw it unbound and asked for a repair, which takes both
+Denza services down for about three seconds. The shared repair now waits that bind out: when the
+system has created an instance that has not connected yet, the repair waits up to two seconds
+(`AccessibilityHealth.BIND_GRACE_MS`, the same pause the repair gives the system after writing the
+setting) and rewrites nothing if it connects. A service the firmware left crashed after a sleep has
+no instance on its way (split-screen-findings.md, "Every sleep of the car force-stops the product"),
+so a wake is repaired at once, as before. `AccessibilityRepairTest` holds the wait.
 
 ### Still open
 

@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
@@ -30,6 +31,14 @@ public class SimulcastAccessibilityService extends AccessibilityService implemen
             new RiderDispatch<>(
                     DenzaAccessibilityRiders.INSTANCE.create(),
                     (rider, call, error) -> Log.e(TAG, "rider " + rider + " failed on " + call, error));
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        // The system is binding this instance: a repair asked for meanwhile waits for the bind
+        // instead of rewriting the setting under it (AccessibilityHealth.bindWaitMs).
+        AccessibilityHost.INSTANCE.created(this, SystemClock.elapsedRealtime());
+    }
 
     @Override
     protected void onServiceConnected() {

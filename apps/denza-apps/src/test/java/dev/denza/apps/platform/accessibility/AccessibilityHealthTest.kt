@@ -29,4 +29,26 @@ class AccessibilityHealthTest {
         assertEquals(false, healthy.ready(extra = false))
         assertEquals(false, AccessibilityHealth(enabled = true, connected = false).ready(extra = true))
     }
+
+    /** A listed service the system is binding by itself is waited for, up to the grace. */
+    @Test
+    fun `a repair waits out the rest of the grace for a bind under way`() {
+        val grace = AccessibilityHealth.BIND_GRACE_MS
+
+        assertEquals(grace, AccessibilityHealth(enabled = true, connected = false, bindingForMs = 0).bindWaitMs())
+        assertEquals(grace - 1_500, AccessibilityHealth(true, false, bindingForMs = 1_500).bindWaitMs())
+        assertEquals(0L, AccessibilityHealth(true, false, bindingForMs = grace).bindWaitMs())
+        assertEquals(0L, AccessibilityHealth(true, false, bindingForMs = grace + 5_000).bindWaitMs())
+    }
+
+    /**
+     * Nothing else waits. A crashed service has no instance on its way - the firmware binds it again
+     * for nobody - so its repair runs at once; so does one switched off, or one already bound.
+     */
+    @Test
+    fun `nothing waits without a bind under way`() {
+        assertEquals(0L, AccessibilityHealth(enabled = true, connected = false).bindWaitMs())
+        assertEquals(0L, AccessibilityHealth(enabled = false, connected = false, bindingForMs = 0).bindWaitMs())
+        assertEquals(0L, AccessibilityHealth(enabled = true, connected = true, bindingForMs = 0).bindWaitMs())
+    }
 }
