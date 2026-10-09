@@ -219,9 +219,10 @@ internal fun panelStatus(tile: DashboardTile, message: String): String = when (t
  * driver actually cannot work out by looking, which is what a covered speaker or a turn-indicator
  * camera does when nobody is watching it.
  *
- * Short, present tense, no instructions the screen already gives.
+ * Short, present tense, no instructions the screen already gives. The `sheet-*` boards draw the
+ * same paragraph, and `SheetBoardContractTest` holds the two together.
  */
-private fun helpOf(id: TileId): String = when (id) {
+internal fun helpOf(id: TileId): String = when (id) {
     TileId.CLUSTER ->
         "На приборную панель за рулём встаёт что-то одно: приборы или любое приложение " +
             "с машины. Короткое нажатие на плитку ставит его туда и убирает обратно."
@@ -236,7 +237,9 @@ private fun helpOf(id: TileId): String = when (id) {
             "Он открывает выбор двух приложений, которые встанут рядом."
     // The tile says «Нет навигатора» when it is missing; this is where the navigator is named.
     TileId.HUD ->
-        "Указания Яндекс Навигатора повторяются на проекции на лобовом стекле."
+        "Указания Яндекс Навигатора повторяются на проекции на лобовом стекле. " +
+            "«Карта на проекции» показывает рядом со скоростью карту вокруг машины, " +
+            "пока Яндекс открыт на экране."
     TileId.WEATHER ->
         "Приложение забирает прогноз и отдаёт его штатному виджету погоды. " +
             "Своей погоды оно не рисует — виджет остаётся штатным."
@@ -476,7 +479,14 @@ private fun splitSheet(state: DenzaUiState, actions: DashboardActions, busy: Boo
     )
 }
 
-/** Whether navigation hints are repeated onto the projection. */
+/**
+ * The hints on the projection, and the map window beside the speed under them.
+ *
+ * The map rides on the hints: the HUD shows its window only beside a road packet that says a route
+ * is on, and the hints are what send it. So the second switch greys while the first is off or still
+ * settling, and keeps its own position - the tile's press moves the hints and never the map. Yandex
+ * hidden or covered is a state of the map, not a failure of it, and nothing here speaks of it.
+ */
 @Composable
 private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
@@ -485,7 +495,17 @@ private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boole
         onCheckedChange = actions.onToggleHudGuidance,
         enabled = !busy,
     )
+    DenzaSwitchRow(
+        title = "Карта на проекции",
+        checked = state.hudMapEnabled,
+        onCheckedChange = actions.onSetHudMapEnabled,
+        enabled = hudMapSwitchEnabled(state, busy),
+    )
 }
+
+/** Whether «Карта на проекции» can be moved: only with the hints on and settled. */
+internal fun hudMapSwitchEnabled(state: DenzaUiState, busy: Boolean): Boolean =
+    state.hudGuidance.desiredEnabled && !busy
 
 /**
  * Whether the app keeps feeding the car's own weather widget, and when it last did.

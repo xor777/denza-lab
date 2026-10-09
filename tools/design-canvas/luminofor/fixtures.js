@@ -438,6 +438,17 @@
     ]
   }, { tile: 'CLOUD', cloud: true, wifi: false });
 
+  // the hints and, under them, the map window beside the speed: both on, the paragraph naming
+  // the one condition the map has - Yandex open on the screen
+  sheets.hud = sheetOf(4, {
+    title: 'HUD Подсказки',
+    blocks: [
+      { t: 'switch', title: 'Подсказки на проекции', on: true },
+      { t: 'switch', title: 'Карта на проекции', on: true },
+      { t: 'note', text: 'Указания Яндекс Навигатора повторяются на проекции на лобовом стекле. «Карта на проекции» показывает рядом со скоростью карту вокруг машины, пока Яндекс открыт на экране.' }
+    ]
+  }, { tile: 'HUD', hud: true, map: true });
+
   // board id -> [board, fixture]; px sizes are the displays' own
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
@@ -492,6 +503,7 @@
     'modal-adb-wifi':  [{ kind: 'modal', mode: 'full' }, wifiGate],
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],
     'one-sheet-cloud': [{ kind: 'sheet', mode: 'one' }, sheets.cloud],
+    'sheet-hud':       [{ kind: 'sheet', mode: 'full' }, sheets.hud],
     'one-sheet-cluster':   [{ kind: 'sheet', mode: 'one' }, sheets.cluster],
     'one-sheet-cast-apps': [{ kind: 'sheet', mode: 'one' }, sheets.castApps],
     'digits':         [{ kind: 'digits' }, {}]

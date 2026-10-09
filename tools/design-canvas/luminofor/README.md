@@ -64,6 +64,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `main-car-neutral`, `-charging`, `-closed`, `one-car-closed` | «Батарея» in white; on the charger; the shell closed, at two widths |
 | `two-sound`, `two-car`, `one-sound`, `one-car` | the two-thirds and one-third panes |
 | `sheet-cluster`, `-mirrors`, `-simulcast`, `-speakers`, `-locale`, `-broken` | a tile's settings panel over the dashboard |
+| `sheet-hud` | the HUD panel: the hints and, under them, the map window beside the speed, both on |
 | `sheet-cast-apps`, `sheet-defaults` | a panel's page of applications, the default-apps panel |
 | `sheet-service`, `sheet-service-trouble`, `sheet-service-access`, `one-sheet-service-trouble` | the service panel on a healthy car, with two features needing somebody (wide and in the one-third pane), and with no access to the car |
 | `sheet-service-screen`, `sheet-service-technical` | the service's two pages: the instruments' screen, and the technical report with the cloud first |
@@ -80,6 +81,8 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
   `StripBoardContractTest` and `StripGeometryTest` the strip, `ContourGeometryTest`,
   `ContourFrameBuilderTest` and `ContourFixturesContractTest` the cluster - including the
   numbers `luminofor.js` writes inline rather than in `spec.json`.
+- `SheetBoardContractTest` holds the paragraph of every tile's own panel board to the words the
+  app writes in `helpOf`.
 - The renderers draw with `LightPen`, which is this file's verbs (`beam`, `glowFill`, `text`,
   the figures) on an Android canvas; a renderer ported from `luminofor.js` reads line for line
   like it. `Silhouette` is `silhouette()`, the ten-kilometre chart on both screens.

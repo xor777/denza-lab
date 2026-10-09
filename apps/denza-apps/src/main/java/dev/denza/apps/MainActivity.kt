@@ -93,6 +93,8 @@ internal object AppActions : DenzaActions {
 
     override val onToggleHudGuidance: (Boolean) -> Unit =
         { enabled -> DenzaAppRepository.setHudGuidanceEnabled(enabled) }
+    override val onSetHudMapEnabled: (Boolean) -> Unit =
+        { enabled -> DenzaAppRepository.setHudMapEnabled(enabled) }
 
     override val onToggleSpeakerCovers: (Boolean) -> Unit =
         { enabled -> DenzaAppRepository.setSpeakerCoversEnabled(enabled) }

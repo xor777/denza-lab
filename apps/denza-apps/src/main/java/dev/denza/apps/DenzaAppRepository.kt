@@ -138,6 +138,11 @@ data class DenzaUiState(
     ),
     val splitScreen: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPLIT_SCREEN),
     val hudGuidance: FeatureSnapshot = FeatureReducer.disabled(FeatureId.HUD_GUIDANCE),
+    /**
+     * «Карта на проекции», the HUD panel's second switch: the stored wish, kept whatever the hints
+     * do. The map runs only while the hints hold a route, so the panel greys it with them off.
+     */
+    val hudMapEnabled: Boolean = false,
     val speakerCovers: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPEAKER_COVERS),
     /**
      * A cover report on the wire, for the second «Поднять» is greyed.
@@ -484,7 +489,10 @@ object DenzaAppRepository {
                 session = SplitScreenCoordinator.snapshot(),
             ),
         )
-        StateSlice.HUD_GUIDANCE -> HudGuidanceReading(evaluateHudGuidance(context))
+        StateSlice.HUD_GUIDANCE -> HudGuidanceReading(
+            snapshot = evaluateHudGuidance(context),
+            mapEnabled = HudGuidanceSettings.isMapEnabled(context),
+        )
         StateSlice.SPEAKER_COVERS -> SpeakerCoversReading(
             snapshot = SpeakerCoverStatus.snapshot(
                 enabled = SpeakerCoverSettings.isEnabled(context),
@@ -798,6 +806,18 @@ object DenzaAppRepository {
                 serviceReport.rebuildNow()
             }
         }
+    }
+
+    /**
+     * The map window beside the speed. Only the wish is stored here: the monitor reads it on its
+     * next poll and starts or empties the window itself, and it runs only while the hints hold a
+     * Yandex route, which is why nothing else needs to be repaired or asked for.
+     */
+    fun setHudMapEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        HudGuidanceSettings.setMapEnabled(context, enabled)
+        HudGuidanceRider.requestRefresh()
+        invalidate(StateSlice.HUD_GUIDANCE, "hud map switch")
     }
 
     /**

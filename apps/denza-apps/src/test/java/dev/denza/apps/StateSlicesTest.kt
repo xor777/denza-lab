@@ -102,7 +102,7 @@ class StateSlicesTest {
                 appChoice = NavigationAppChoice("ru.yandex.yandexnavi", "Навигатор", selected = true),
             ),
             SplitScreenReading(FeatureReducer.disabled(FeatureId.SPLIT_SCREEN)),
-            HudGuidanceReading(FeatureReducer.disabled(FeatureId.HUD_GUIDANCE)),
+            HudGuidanceReading(FeatureReducer.disabled(FeatureId.HUD_GUIDANCE), mapEnabled = true),
             SpeakerCoversReading(FeatureReducer.disabled(FeatureId.SPEAKER_COVERS), reporting = false),
             CloudLinkReading(FeatureReducer.disabled(FeatureId.CLOUD_LINK), wifiRetained = true, busy = false),
             ClusterDisplayReading(

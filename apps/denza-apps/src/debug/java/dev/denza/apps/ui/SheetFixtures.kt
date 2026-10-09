@@ -196,6 +196,12 @@ internal object SheetFixtures {
                 cloudWifiRetained = if (s.has("wifi")) s.getBoolean("wifi") else null,
             )
         }
+        if (s.has("hud")) {
+            state = state.copy(
+                hudGuidance = snapshot(FeatureId.HUD_GUIDANCE, s.getBoolean("hud"), s),
+                hudMapEnabled = s.optBoolean("map", false),
+            )
+        }
         if (s.has("speakers")) {
             state = state.copy(speakerCovers = snapshot(FeatureId.SPEAKER_COVERS, s.getBoolean("speakers"), s))
         }

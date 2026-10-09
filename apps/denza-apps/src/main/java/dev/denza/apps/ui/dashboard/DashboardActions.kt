@@ -74,6 +74,9 @@ interface DenzaActions {
     // «HUD Подсказки»
     val onToggleHudGuidance: (Boolean) -> Unit
 
+    /** The map window beside the speed, the panel's second switch; the tile never moves it. */
+    val onSetHudMapEnabled: (Boolean) -> Unit
+
     // «Динамики»
     val onToggleSpeakerCovers: (Boolean) -> Unit
     val onRaiseSpeakerCovers: () -> Unit
@@ -153,6 +156,7 @@ open class IdleActions : DenzaActions {
     override val onLaunchSplitScreen: () -> Unit = {}
     override val onSetWeatherEnabled: (Boolean) -> Unit = {}
     override val onToggleHudGuidance: (Boolean) -> Unit = {}
+    override val onSetHudMapEnabled: (Boolean) -> Unit = {}
     override val onToggleSpeakerCovers: (Boolean) -> Unit = {}
     override val onRaiseSpeakerCovers: () -> Unit = {}
     override val onToggleCloudLink: (Boolean) -> Unit = {}

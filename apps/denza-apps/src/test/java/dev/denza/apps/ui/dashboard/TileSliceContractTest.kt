@@ -135,7 +135,7 @@ class TileSliceContractTest {
             appChoice = NavigationAppChoice("ru.yandex.yandexnavi", "Навигатор", selected = true),
         )
         StateSlice.SPLIT_SCREEN -> SplitScreenReading(marked(FeatureId.SPLIT_SCREEN))
-        StateSlice.HUD_GUIDANCE -> HudGuidanceReading(marked(FeatureId.HUD_GUIDANCE))
+        StateSlice.HUD_GUIDANCE -> HudGuidanceReading(marked(FeatureId.HUD_GUIDANCE), mapEnabled = true)
         StateSlice.SPEAKER_COVERS -> SpeakerCoversReading(marked(FeatureId.SPEAKER_COVERS), reporting = true)
         StateSlice.CLOUD_LINK -> CloudLinkReading(marked(FeatureId.CLOUD_LINK), wifiRetained = true, busy = true)
         StateSlice.CLUSTER_DISPLAY -> ClusterDisplayReading(
