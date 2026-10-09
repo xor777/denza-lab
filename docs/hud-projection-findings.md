@@ -1751,7 +1751,7 @@ window would carry an empty map even if the navigator ran.
 no route geometry (see "HUD turn-by-turn guidance"). The product already runs
 Yandex on its own `Denza Navigation` virtual display for the cluster
 (`NavigationProxyClient.createVirtualDisplay`), but that display renders into
-the cluster's `SurfaceView` (`ClusterSceneService`, `:516`), which cannot be
+the cluster's `SurfaceView` (`ClusterPresentation.kt`, the base layer's map surface), which cannot be
 read back. Tapping those frames needs a GL relay: the virtual display draws
 into a `SurfaceTexture`, which is drawn both to the cluster surface and to a
 small offscreen buffer for the HUD. The other option is a map the app draws
