@@ -17,7 +17,8 @@ import java.util.concurrent.Executors
  */
 data class FseInstallState(
     val install: FeatureSnapshot,
-    val apps: List<FseInstallApp>,
+    /** Null until this process has read the list. */
+    val apps: List<FseInstallApp>?,
 )
 
 /**
@@ -102,7 +103,7 @@ class FseInstallRuntime internal constructor(
             return@decide Decision.none(FseInstallClaim.BUSY)
         }
 
-        val app = current.apps.firstOrNull { it.packageName == packageName }
+        val app = current.apps?.firstOrNull { it.packageName == packageName }
         // A package that cannot be sent across is already drawn as unpressable, so reaching
         // here means the list is out of date. Both of these used to write a line of amber over
         // the grid instead - "APK недоступен", "Приложение больше не найдено" - which is the

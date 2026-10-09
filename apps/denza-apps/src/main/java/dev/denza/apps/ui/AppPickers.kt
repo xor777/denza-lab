@@ -234,23 +234,26 @@ private const val APP_CHOICES_LOADING = "Ищем приложения…"
  * open. The tile used to answer a short press with this chooser and a long press with a settings
  * panel that held one sentence and a button opening this chooser - the same tile leading to two
  * screens, one of them empty. The sentence came along as the chooser's foot.
+ *
+ * [apps] is null while the list has not been read: a chooser brought back with the screen after the
+ * process died. It says it is looking then, as the other two do, and not that the car has nothing.
  */
 @Composable
 internal fun FseInstallerPickerDialog(
-    apps: List<FseInstallApp>,
+    apps: List<FseInstallApp>?,
     compactLayout: Boolean,
     onInstall: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val installable = fseChooserApps(apps)
+    val installable = fseChooserApps(apps.orEmpty())
     DenzaAppChooserSheet(
         title = "Экран справа",
-        subtitle = subtitleFor(installable.size),
+        subtitle = if (apps == null) "" else subtitleFor(installable.size),
         items = installable,
         key = FseInstallApp::packageName,
         compact = compactLayout,
         onDismiss = onDismiss,
-        emptyText = "Приложения не найдены",
+        emptyText = fseChooserEmptyText(apps),
         footer = { DenzaNote(FSE_INSTALL_HELP) },
     ) { app ->
         DenzaAppTile(
@@ -274,6 +277,10 @@ internal fun FseInstallerPickerDialog(
  */
 internal fun fseChooserApps(apps: List<FseInstallApp>): List<FseInstallApp> =
     apps.filter(FseInstallApp::installable)
+
+/** What an empty «Экран справа» says: looking, until its list is read, and then the answer. */
+internal fun fseChooserEmptyText(apps: List<FseInstallApp>?): String =
+    if (apps == null) APP_CHOICES_LOADING else "Приложения не найдены"
 
 /** "12 приложений с головного устройства" - agreed the way Russian agrees it. */
 private fun subtitleFor(count: Int): String =
