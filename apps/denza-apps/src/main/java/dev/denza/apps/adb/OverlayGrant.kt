@@ -4,6 +4,7 @@ import android.content.Context
 import android.provider.Settings
 import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
+import dev.denza.apps.platform.shell.ShellGrants
 
 /**
  * The app's own right to draw over other windows - the scene on the driver's screen, the
@@ -27,5 +28,5 @@ object OverlayGrant {
     }
 
     internal fun command(packageName: String): String =
-        "cmd appops set $packageName SYSTEM_ALERT_WINDOW allow"
+        ShellGrants.appop(packageName, "SYSTEM_ALERT_WINDOW", "allow")
 }

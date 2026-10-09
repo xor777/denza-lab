@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.platform.shell.ShellGrants
 import dev.denza.disharebridge.LocalAdbClient
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -42,8 +43,8 @@ internal object TripLocationAccessPolicy {
 
     /** The exact `pm grant` shell commands, fine first then coarse. */
     fun grantCommands(packageName: String): List<String> = listOf(
-        "pm grant $packageName $FINE",
-        "pm grant $packageName $COARSE",
+        ShellGrants.permission(packageName, FINE),
+        ShellGrants.permission(packageName, COARSE),
     )
 }
 

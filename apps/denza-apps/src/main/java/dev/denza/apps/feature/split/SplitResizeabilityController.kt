@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.platform.shell.ShellGrants
+
 /** Owns Android's global resizeability override while Denza split routing is enabled. */
 internal class SplitResizeabilityController(
     private val shell: (String) -> String,
@@ -60,9 +62,9 @@ internal class SplitResizeabilityController(
     }
 
     private fun writeCommand(value: SplitGlobalSettingValue): String = when (value) {
-        SplitGlobalSettingValue.MISSING -> "settings delete global $RESIZEABILITY_SETTING"
-        SplitGlobalSettingValue.DISABLED -> "settings put global $RESIZEABILITY_SETTING 0"
-        SplitGlobalSettingValue.ENABLED -> "settings put global $RESIZEABILITY_SETTING 1"
+        SplitGlobalSettingValue.MISSING -> ShellGrants.settingsDelete("global", RESIZEABILITY_SETTING)
+        SplitGlobalSettingValue.DISABLED -> ShellGrants.settingsPut("global", RESIZEABILITY_SETTING, "0")
+        SplitGlobalSettingValue.ENABLED -> ShellGrants.settingsPut("global", RESIZEABILITY_SETTING, "1")
     }
 
     private fun validate(output: String) {

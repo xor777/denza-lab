@@ -84,6 +84,25 @@ class SplitSmartMultiControllerTest {
         assertTrue(commands.any { it == "settings delete system byd_smart_multi_second_activity" })
     }
 
+    /** The restore's writes, letter for letter: every value quoted, numbers too (pinned 2026-10-09). */
+    @Test
+    fun restoreWritesEveryValueQuoted() {
+        controller.enable()
+        firmware["byd_smart_multi_primary_activity"] = SPLIT_HOST_PACKAGE
+        firmware["byd_smart_multi_primary_position"] = "1"
+        commands.clear()
+
+        controller.restore()
+
+        assertEquals(
+            listOf(
+                "settings put system byd_smart_multi_primary_activity 'com.android.launcher3'",
+                "settings put system byd_smart_multi_primary_position '2'",
+            ),
+            commands.drop(1),
+        )
+    }
+
     @Test
     fun restoringWithoutTheLeaseTouchesNothingAtAll() {
         controller.restore()
