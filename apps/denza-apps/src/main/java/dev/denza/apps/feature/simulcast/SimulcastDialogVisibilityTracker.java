@@ -1,4 +1,4 @@
-package dev.denza.apps;
+package dev.denza.apps.feature.simulcast;
 
 /**
  * Turns observations of the real DiShare accessibility window into idempotent exit-overlay

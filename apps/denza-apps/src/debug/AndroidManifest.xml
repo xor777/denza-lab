@@ -14,7 +14,7 @@
             android:screenOrientation="landscape"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <receiver
-            android:name=".SimulcastDebugReceiver"
+            android:name=".feature.simulcast.SimulcastDebugReceiver"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.DUMP">

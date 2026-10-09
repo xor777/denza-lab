@@ -1,9 +1,9 @@
 package dev.denza.apps.ui.dashboard
 
 import dev.denza.apps.DenzaUiState
-import dev.denza.apps.SimulcastBlocker
-import dev.denza.apps.SimulcastCoordinator
-import dev.denza.apps.SimulcastEnvironment
+import dev.denza.apps.feature.simulcast.SimulcastBlocker
+import dev.denza.apps.feature.simulcast.SimulcastCoordinator
+import dev.denza.apps.feature.simulcast.SimulcastEnvironment
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot

@@ -1,5 +1,6 @@
-package dev.denza.apps
+package dev.denza.apps.feature.simulcast
 
+import dev.denza.apps.SimulcastAppChoice
 import dev.denza.apps.feature.defaultapps.InstalledDefaultApp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame

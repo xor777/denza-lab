@@ -1,4 +1,4 @@
-package dev.denza.apps
+package dev.denza.apps.feature.simulcast
 
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureStatus

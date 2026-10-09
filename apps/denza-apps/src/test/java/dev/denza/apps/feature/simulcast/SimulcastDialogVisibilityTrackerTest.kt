@@ -1,7 +1,7 @@
-package dev.denza.apps
+package dev.denza.apps.feature.simulcast
 
-import dev.denza.apps.SimulcastDialogVisibilityTracker.Command
-import dev.denza.apps.SimulcastDialogVisibilityTracker.Observation
+import dev.denza.apps.feature.simulcast.SimulcastDialogVisibilityTracker.Command
+import dev.denza.apps.feature.simulcast.SimulcastDialogVisibilityTracker.Observation
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

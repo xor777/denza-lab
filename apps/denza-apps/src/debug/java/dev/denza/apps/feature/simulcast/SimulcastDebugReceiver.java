@@ -1,4 +1,4 @@
-package dev.denza.apps;
+package dev.denza.apps.feature.simulcast;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;

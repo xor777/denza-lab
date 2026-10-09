@@ -1,10 +1,7 @@
-package dev.denza.apps
+package dev.denza.apps.feature.simulcast
 
 import android.content.Context
 import android.graphics.Rect
-import dev.denza.apps.feature.simulcast.ScreenTarget
-import dev.denza.apps.feature.simulcast.SimulcastVideoSizeResolver
-import dev.denza.apps.feature.simulcast.SimulcastVideoBoundsResolver
 import dev.denza.disharebridge.DiShareScreens
 import java.util.concurrent.atomic.AtomicBoolean
 

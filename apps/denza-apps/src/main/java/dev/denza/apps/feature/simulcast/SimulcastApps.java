@@ -1,4 +1,4 @@
-package dev.denza.apps;
+package dev.denza.apps.feature.simulcast;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -14,12 +14,12 @@ import java.util.List;
  * (in order), so the row looks fully native with no stock icons — no helper APKs or
  * slot registrations required.
  */
-final class SimulcastApps {
+public final class SimulcastApps {
     private static final String PREFS = "simulcast_apps";
     private static final String KEY_SELECTED = "selected_packages";
 
     /** Max apps in the row (the native row comfortably fits this many). */
-    static final int MAX_SELECTED = 6;
+    public static final int MAX_SELECTED = 6;
 
     /** Preferred defaults, in row order. Filtered to whatever is installed. */
     static final String[] DEFAULT_PREFERRED = {
@@ -35,7 +35,7 @@ final class SimulcastApps {
     }
 
     /** Ordered list of selected, currently-installed packages. Seeds defaults on first run. */
-    static List<String> getSelected(Context context) {
+    public static List<String> getSelected(Context context) {
         String raw = prefs(context).getString(KEY_SELECTED, null);
         if (raw == null) {
             List<String> defaults = defaults(context);
@@ -57,7 +57,7 @@ final class SimulcastApps {
      * The stored order as it was written, without asking the package manager about each entry or
      * seeding the defaults: for a press on the chooser, which already holds what the car offers.
      */
-    static List<String> getStored(Context context) {
+    public static List<String> getStored(Context context) {
         String raw = prefs(context).getString(KEY_SELECTED, null);
         List<String> out = new ArrayList<>();
         if (raw == null) {
@@ -72,7 +72,7 @@ final class SimulcastApps {
         return out;
     }
 
-    static void setSelected(Context context, List<String> packages) {
+    public static void setSelected(Context context, List<String> packages) {
         StringBuilder builder = new StringBuilder();
         for (String pkg : packages) {
             if (builder.length() > 0) {
@@ -83,7 +83,7 @@ final class SimulcastApps {
         prefs(context).edit().putString(KEY_SELECTED, builder.toString()).apply();
     }
 
-    static int selectedCount(Context context) {
+    public static int selectedCount(Context context) {
         return getSelected(context).size();
     }
 

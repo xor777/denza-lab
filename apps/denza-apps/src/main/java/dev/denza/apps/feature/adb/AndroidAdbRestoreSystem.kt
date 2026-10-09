@@ -10,7 +10,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
 import dev.denza.apps.DenzaAppRepository
-import dev.denza.apps.SimulcastCoordinator
+import dev.denza.apps.feature.simulcast.SimulcastCoordinator
 import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb

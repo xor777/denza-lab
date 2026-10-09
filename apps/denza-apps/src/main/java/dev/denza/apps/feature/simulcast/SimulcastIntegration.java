@@ -1,11 +1,14 @@
-package dev.denza.apps;
+package dev.denza.apps.feature.simulcast;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import dev.denza.apps.StateMarks;
+import dev.denza.apps.StateSlice;
+
 import java.util.Objects;
 
-final class SimulcastIntegration {
+public final class SimulcastIntegration {
     private static final String PREFS = "simulcast_integration";
     private static final String KEY_ENABLED = "enabled";
 
@@ -21,15 +24,15 @@ final class SimulcastIntegration {
     private SimulcastIntegration() {
     }
 
-    static boolean isEnabled(Context context) {
+    public static boolean isEnabled(Context context) {
         return prefs(context).getBoolean(KEY_ENABLED, false);
     }
 
-    static void setEnabled(Context context, boolean enabled) {
+    public static void setEnabled(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply();
     }
 
-    static String getLastTargetPackage() {
+    public static String getLastTargetPackage() {
         return lastTargetPackage;
     }
 
@@ -37,12 +40,12 @@ final class SimulcastIntegration {
      * A share started on [packageName]. The «Трансляция» tile shows a running share, so the write
      * marks its slice; nothing else tells it.
      */
-    static void setLastTargetPackage(String packageName) {
+    public static void setLastTargetPackage(String packageName) {
         replaceLastTargetPackage(packageName, "share started");
     }
 
     /** No share any more: ended by us or by DiShare, or replaced by the next one. */
-    static void clearLastTargetPackage() {
+    public static void clearLastTargetPackage() {
         replaceLastTargetPackage(null, "share over");
     }
 

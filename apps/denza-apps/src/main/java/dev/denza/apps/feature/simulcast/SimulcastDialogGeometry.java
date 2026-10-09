@@ -1,4 +1,4 @@
-package dev.denza.apps;
+package dev.denza.apps.feature.simulcast;
 
 import android.graphics.Rect;
 import android.view.accessibility.AccessibilityNodeInfo;

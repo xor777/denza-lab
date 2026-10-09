@@ -1,4 +1,4 @@
-package dev.denza.apps;
+package dev.denza.apps.feature.simulcast;
 
 import android.app.Service;
 import android.content.Context;
@@ -19,8 +19,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 
-import dev.denza.apps.feature.simulcast.SimulcastVideoBoundsResolver;
-import dev.denza.apps.feature.simulcast.SimulcastVideoSizeResolver;
+import dev.denza.apps.R;
 import dev.denza.apps.platform.tasks.TaskMoveLease;
 import dev.denza.apps.platform.tasks.TaskMoveOwner;
 import dev.denza.apps.platform.tasks.TaskMoveOwnership;
@@ -30,7 +29,7 @@ import dev.denza.disharebridge.DiShareProjectionBridge;
  * Headless controller for the casting session. It launches the selected app to a
  * receiver screen through {@link DiShareProjectionBridge}, stops it, and shows the
  * floating exit control (native DiShare exit glyph) over the casting app. The
- * Simulcast picker UI itself is drawn by {@link SimulcastAccessibilityService}.
+ * Simulcast picker UI itself is drawn by {@link SimulcastDialogOverlay}.
  */
 public class SimulcastOverlayService extends Service {
     private static final String TAG = "DenzaSimulcastOverlay";

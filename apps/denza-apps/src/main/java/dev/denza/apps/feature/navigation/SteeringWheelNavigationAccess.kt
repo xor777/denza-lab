@@ -1,7 +1,7 @@
 package dev.denza.apps.feature.navigation
 
 import android.content.Context
-import dev.denza.apps.SimulcastCoordinator
+import dev.denza.apps.feature.simulcast.SimulcastCoordinator
 import dev.denza.apps.platform.accessibility.AccessibilityRepair
 
 data class SteeringWheelNavigationAccess(

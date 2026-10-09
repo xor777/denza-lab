@@ -1,8 +1,9 @@
-package dev.denza.apps
+package dev.denza.apps.feature.simulcast
 
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
+import dev.denza.apps.SimulcastAccessibilityService
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.OverlayGrant
 import dev.denza.apps.core.FeatureId
@@ -68,7 +69,7 @@ sealed interface SimulcastReconcileEvent {
 }
 
 /**
- * Owns Simulcast setup and recovery. UI state remains in [DenzaAppRepository];
+ * Owns Simulcast setup and recovery. UI state remains in [dev.denza.apps.DenzaAppRepository];
  * this component reports bounded lifecycle events back to that facade.
  */
 object SimulcastCoordinator {

@@ -64,6 +64,14 @@ import dev.denza.apps.feature.navigation.NavigationAppPolicy
 import dev.denza.apps.feature.navigation.NavigationPlacementPolicy
 import dev.denza.apps.feature.navigation.NavigationSettings
 import dev.denza.apps.feature.navigation.SteeringWheelNavigationAccessCoordinator
+import dev.denza.apps.feature.simulcast.SimulcastAppChoices
+import dev.denza.apps.feature.simulcast.SimulcastApps
+import dev.denza.apps.feature.simulcast.SimulcastBlocker
+import dev.denza.apps.feature.simulcast.SimulcastCoordinator
+import dev.denza.apps.feature.simulcast.SimulcastIntegration
+import dev.denza.apps.feature.simulcast.SimulcastOverlayService
+import dev.denza.apps.feature.simulcast.SimulcastReconcileEvent
+import dev.denza.apps.feature.simulcast.SimulcastScreenDiagnostics
 import dev.denza.apps.feature.split.SplitDiagnostics
 import dev.denza.apps.feature.split.SplitLauncherIconController
 import dev.denza.apps.feature.split.SplitScreenCoordinator

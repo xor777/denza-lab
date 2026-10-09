@@ -76,7 +76,7 @@
             </intent-filter>
         </service>
         <service
-            android:name=".SimulcastOverlayService"
+            android:name=".feature.simulcast.SimulcastOverlayService"
             android:exported="false" />
         <service
             android:name=".feature.cluster.ClusterSceneService"
