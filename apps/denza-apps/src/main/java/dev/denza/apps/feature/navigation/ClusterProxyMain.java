@@ -8,11 +8,12 @@ import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.os.IBinder;
 import android.os.IInterface;
-import android.os.Looper;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.util.Log;
 import android.view.Display;
+
+import dev.denza.apps.platform.shell.ShellProxyBootstrap;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -47,8 +48,8 @@ public final class ClusterProxyMain {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 1) throw new IllegalArgumentException("operation required");
-        Looper.prepareMainLooper();
-        Commands commands = new Commands(systemContext());
+        ShellProxyBootstrap.prepareMainLooper();
+        Commands commands = new Commands(ShellProxyBootstrap.systemContext());
         switch (args[0]) {
             case "find-task":
                 requireCount(args, 2);
@@ -87,14 +88,6 @@ public final class ClusterProxyMain {
             default:
                 throw new IllegalArgumentException("unsupported operation");
         }
-    }
-
-    @SuppressLint({"PrivateApi", "DiscouragedPrivateApi"})
-    private static Context systemContext() throws Exception {
-        Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
-        Object activityThread = activityThreadClass.getDeclaredMethod("systemMain").invoke(null);
-        Method getSystemContext = activityThreadClass.getDeclaredMethod("getSystemContext");
-        return (Context) getSystemContext.invoke(activityThread);
     }
 
     private static void requireCount(String[] args, int expected) {

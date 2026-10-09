@@ -5,8 +5,9 @@ import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.os.IBinder;
-import android.os.Looper;
 import android.os.Parcel;
+
+import dev.denza.apps.platform.shell.ShellProxyBootstrap;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -40,8 +41,8 @@ public final class SplitTaskProxyMain {
     }
 
     public static void main(String[] args) throws Exception {
-        Looper.prepareMainLooper();
-        Context context = systemContext();
+        ShellProxyBootstrap.prepareMainLooper();
+        Context context = ShellProxyBootstrap.systemContext();
         if (args.length == 2 && "serve".equals(args[0])) {
             serve(context, args[1]);
             return;
@@ -364,13 +365,5 @@ public final class SplitTaskProxyMain {
         } catch (ReflectiveOperationException | RuntimeException ignored) {
             return false;
         }
-    }
-
-    @SuppressLint({"PrivateApi", "DiscouragedPrivateApi"})
-    private static Context systemContext() throws Exception {
-        Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
-        Object activityThread = activityThreadClass.getDeclaredMethod("systemMain").invoke(null);
-        Method getSystemContext = activityThreadClass.getDeclaredMethod("getSystemContext");
-        return (Context) getSystemContext.invoke(activityThread);
     }
 }

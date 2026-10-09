@@ -1667,6 +1667,14 @@ an initial mode snapshot and a second getter snapshot 5.504 s later, both value
 `1`, and exited without an orphan. One event lane may serve future approved
 event signals; modules must not spawn one helper per signal.
 
+> **Superseded 2026-10-09:** the 7,449-byte asset is no longer the current one.
+> The jar now also carries `ShellProxyBootstrap` (`platform/shell/`), the looper,
+> system-context and hidden-API lines every shell-UID helper used to repeat, and
+> was 7,546 bytes in the build that moved them; its bytes and SHA-256 change with
+> any build that touches either class, and the product checks the hash on the
+> car rather than a recorded value. The live smoke above was of the 7,449-byte
+> asset; the moved lines do the same calls in the same order.
+
 The raw phase never selects a camera side. Known onset phases `2` and `4` can
 only close an active Denza camera of the other side, immediately and before
 stock AVC rebuilds its own surface. An onset for the side already starting or

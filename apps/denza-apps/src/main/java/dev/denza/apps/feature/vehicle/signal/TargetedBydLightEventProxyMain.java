@@ -6,6 +6,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 
+import dev.denza.apps.platform.shell.ShellProxyBootstrap;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationHandler;
@@ -49,9 +51,9 @@ public final class TargetedBydLightEventProxyMain {
         int signalMask = Integer.parseInt(args[2]);
         boolean watchSwitch = (signalMask & WATCH_SWITCH) != 0;
         boolean watchMode = (signalMask & WATCH_MODE) != 0;
-        prepareMainLooper();
-        exemptHiddenApis();
-        Context context = systemContext();
+        ShellProxyBootstrap.prepareMainLooper();
+        ShellProxyBootstrap.exemptHiddenApis();
+        Context context = ShellProxyBootstrap.systemContext();
         QueueState queue = new QueueState();
         AtomicBoolean finishing = new AtomicBoolean();
 
@@ -343,31 +345,6 @@ public final class TargetedBydLightEventProxyMain {
 
         String format() {
             return kind + " " + sequence + " " + observedAtNanos + " " + fid + " " + value;
-        }
-    }
-
-    private static void prepareMainLooper() {
-        try {
-            Looper.prepareMainLooper();
-        } catch (IllegalStateException alreadyPrepared) {
-            // app_process can prepare it before entering this class.
-        }
-    }
-
-    private static Context systemContext() throws Exception {
-        Class<?> activityThread = Class.forName("android.app.ActivityThread");
-        Object thread = activityThread.getMethod("systemMain").invoke(null);
-        return (Context) activityThread.getMethod("getSystemContext").invoke(thread);
-    }
-
-    private static void exemptHiddenApis() {
-        try {
-            Class<?> vm = Class.forName("dalvik.system.VMRuntime");
-            Object runtime = vm.getMethod("getRuntime").invoke(null);
-            vm.getMethod("setHiddenApiExemptions", String[].class)
-                    .invoke(runtime, (Object) new String[]{"L"});
-        } catch (Exception ignored) {
-            // Registration will fail closed if the framework denies the reflective calls.
         }
     }
 
