@@ -2,6 +2,8 @@ package dev.denza.apps.platform.media
 
 import android.content.ComponentName
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
@@ -77,7 +79,9 @@ internal data class MediaSessionAccessDiagnostics(
  * it, so the grant and its repair live here rather than in any one of them. Each asks; none owns it.
  *
  * The repair is one idempotent `cmd notification allow_listener` over the local ADB shell, run once
- * at a time however many owners ask, and every asker hears the outcome.
+ * at a time however many owners ask, and every asker hears the outcome. A repair that granted the
+ * listener has [MediaSessionHub] listen again before any asker hears it: losing the grant made the
+ * platform drop the hub's listener.
  */
 object MediaSessionAccess {
     /**
@@ -153,6 +157,10 @@ object MediaSessionAccess {
             if (result.isSuccess) {
                 phase = MediaSessionAccessPhase.ENABLED
                 lastFailure = null
+                if (result.getOrNull() == MediaSessionAccessRepairResult.GRANTED) {
+                    // Posted ahead of the askers' own callbacks, which post to the same looper.
+                    Handler(Looper.getMainLooper()).post { MediaSessionHub.get(context).relisten() }
+                }
             } else {
                 phase = MediaSessionAccessPhase.FAILED
                 lastFailure = result.exceptionOrNull()?.toString()
