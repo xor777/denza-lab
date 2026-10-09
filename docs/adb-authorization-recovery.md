@@ -677,7 +677,8 @@ key expiry. The first real passive classic probe wins: when it succeeds the stat
 no `adb_wifi_enabled=1` is written, and permission/accessibility preparation happens while the
 trusted shell is still available. `AdbPortRestore.ensurePermission` and the existing preparation
 pass share a grant lock, so the missing permission is not concurrently granted by two owners.
-A bound accessibility service is left alone. An unbound one joins `SimulcastCoordinator.repairAccess`
+A ready accessibility service - switched on and bound, `AccessibilityHealth.ready`, the check every
+rider uses since 2026-10-09; before it, bound alone - is left alone. Any other joins `AccessibilityRepair.repair`
 and its existing ordered transaction; transient failures get two more attempts, 15 seconds apart,
 with a generation guard before queued writes. Other features' requests still own their shared repair.
 
@@ -691,7 +692,8 @@ Settings writes within that wave have a 15-second interval; passive hints honor 
 new network, confirmed success or the explicit `settings` hint. The network/time and outcome/time
 pairs are stored atomically.
 
-`SimulcastAccessibilityService` hosts `WifiDebuggingDialogAutoAllow`. It accepts only the SystemUI
+The shared accessibility service (`SimulcastAccessibilityService`) hosts `WifiDebuggingDialogAutoAllow`
+through `WifiDebuggingDialogRider`, which it hands every window-state event. It accepts only the SystemUI
 `WifiDebuggingActivity` and the exact event window, follows the event source to its root, or uses
 that `windowId` in `service.windows` when the source is missing. It finds Allow before changing a
 checkbox, checks actual `ACTION_CLICK` results and allows once if the checkbox is absent/refused.
