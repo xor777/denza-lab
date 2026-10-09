@@ -557,7 +557,7 @@ class DashboardTilesTest {
         assertEquals(DenzaTileCaption.READING, connected.caption)
 
         val away = cloud(true, CloudCarState(connected = false), network = false)
-        assertEquals("Нет Wi-Fi", away.state)
+        assertEquals("Нет интернета", away.state)
         assertEquals(DenzaTileTone.LIVE, away.tone)
         assertEquals(DenzaTileCaption.SETTING, away.caption)
 

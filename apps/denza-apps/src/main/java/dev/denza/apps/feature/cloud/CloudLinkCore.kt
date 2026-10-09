@@ -27,10 +27,10 @@ internal sealed interface CloudStep {
  * **What the stock client needs from us.** `cloudmanager` owns identity, telemetry, timers and the
  * whole protocol; the only thing it lacks on this car is a network it believes in. Its gate opens on
  * APN3's «ready» (`notify_nw(4)`) and on nothing Wi-Fi sends it, and closes on APN3's «gone»
- * (`-5`). So the adapter translates: validated Wi-Fi ([CloudNetwork], with actual stock APNs
- * guarded separately) is «ready», Wi-Fi that has stayed gone is «gone» - paired, because a gate
- * opened and never closed is a synthetic APN left standing (docs/telematics/cloud-tile.md,
- * "Stock-client Wi-Fi adaptation").
+ * (`-5`). So the adapter translates: usable internet ([CloudNetwork] - Wi-Fi, or mobile data from
+ * any SIM, with actual stock APNs guarded separately) is «ready», internet that has stayed gone is «gone» - paired, because
+ * a gate opened and never closed is a synthetic APN left standing (docs/telematics/cloud-tile.md,
+ * "Stock-client Wi-Fi adaptation"). Only Wi-Fi is proven on a car.
  *
  * **Why it may have to say «ready» again.** The stock `BYDMultiApnConnReceiver` sends `-5` itself on
  * any `CONNECTIVITY_CHANGE_FUNCTION` whose APN3 is not connected, with no comparison against the
@@ -160,10 +160,9 @@ internal class CloudLinkCore {
     }
 
     /**
-     * Wi-Fi has been gone for [NETWORK_LOSS_GRACE_MS]: the other half of the pair. Mobile data in
-     * its place is a loss like any other - the cloud does not take the car over it ([CloudNetwork]).
-     * An access point handing over within the grace is not: the client's socket drops with the old
-     * network and its own reconnect, or the repeat after the settle, carries it onto the new one.
+     * Usable internet has been gone for [NETWORK_LOSS_GRACE_MS]: the other half of the pair. Moving
+     * from Wi-Fi to mobile data is not a loss - the client's socket drops with the old network and
+     * its own reconnect, or the repeat after the settle, carries it onto the new one.
      *
      * Said while the gate may be ours - including one a previous process opened, which is why
      * [Gate.UNKNOWN] answers too - and only under the profile the adapter put the car on: outside

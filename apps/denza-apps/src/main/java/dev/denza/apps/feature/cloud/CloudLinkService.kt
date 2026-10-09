@@ -20,8 +20,8 @@ import dev.denza.apps.MainActivity
 import dev.denza.apps.R
 
 /**
- * Keeps the cloud link's adapter alive while the switch is on, and tells it when validated Wi-Fi
- * comes and goes ([CloudNetwork]); stock APNs are guarded separately.
+ * Keeps the cloud link's adapter alive while the switch is on, and tells it when internet comes and
+ * goes - Wi-Fi or validated mobile data ([CloudNetwork]); stock APNs are guarded separately.
  *
  * It decides nothing: [CloudLinkController] reads the car and [CloudLinkCore] says what to send.
  * What only a running component can do is here - hold the process, watch the default network, and
@@ -45,9 +45,9 @@ class CloudLinkService : Service() {
     }
 
     /**
-     * Wi-Fi that stays gone for the grace period, and only that, closes the gate: a network that
-     * blinks - an access point handing over, the router restarting - must not cost a disconnect and
-     * a new login.
+     * Internet that stays gone for the grace period, and only that, closes the gate: a network that
+     * blinks - an access point handing over, a tunnel on mobile data, Wi-Fi giving way to mobile -
+     * must not cost a disconnect and a new login.
      */
     private val lossCheck = Runnable {
         if (!CloudNetwork.usable(this)) CloudLinkController.networkGone(this)

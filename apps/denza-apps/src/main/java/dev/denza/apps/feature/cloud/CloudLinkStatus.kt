@@ -110,22 +110,21 @@ object CloudLinkRuntime {
 /** The kind of internet the car is on, as far as the cloud link is concerned. */
 enum class CloudNetworkKind(val label: String) {
     WIFI("Wi-Fi"),
+    MOBILE("мобильный"),
     NONE("нет"),
 }
 
 /**
- * Whether the car has internet the adapter can translate into «APN3 up» for the stock client:
- * validated Wi-Fi, and nothing else.
+ * Whether the car has internet the adapter can translate into «APN3 up» for the stock client.
  *
- * The cloud registers the car by the SIM the modem sees (IMSI and ICCID in message 211) and takes
- * only a Chinese one - the factory eSIM or an rSIM in the slot. That SIM has no internet outside
- * China, so Wi-Fi is the only network there is to translate. Mobile data means a local SIM, whose
- * ICCID the cloud refuses, or a Chinese SIM with service, whose own APN is the stock framework's to
- * announce. Mobile data counted from 2026-09-23 to 2026-10-09 and never brought a link up on any car
- * (docs/telematics/cloud-tile.md, "Wi-Fi only: the cloud takes a Chinese ICCID").
+ * The public profile goes out through the default network like any other client, so it is not
+ * Wi-Fi as such that it needs but validated internet: Wi-Fi, or mobile data from the car's own
+ * SIM. Proven over Wi-Fi on 2026-09-23. What the cloud checks is not the network but the identity:
+ * it takes the car by a Chinese ICCID, so mobile data works where the modem shows one - reported
+ * for an rSIM over a local SIM (docs/telematics/cloud-tile.md, "The cloud takes a Chinese ICCID").
  *
- * Core and operations still guard the actual APN1/APN3 state before changing the profile or
- * notifying the client.
+ * Operator metadata cannot establish whether a private BYD APN is active. Core and operations
+ * guard the actual APN1/APN3 state before changing the profile or notifying the client.
  */
 object CloudNetwork {
     fun usable(context: Context): Boolean = kind(context) != CloudNetworkKind.NONE
@@ -148,18 +147,22 @@ object CloudNetwork {
     }
 
     /** The rule itself, without Android, so it is tested on the JVM. */
-    internal fun kindOf(validated: Boolean, wifi: Boolean): CloudNetworkKind =
-        if (validated && wifi) CloudNetworkKind.WIFI else CloudNetworkKind.NONE
+    internal fun kindOf(
+        validated: Boolean,
+        wifi: Boolean,
+        cellular: Boolean,
+    ): CloudNetworkKind = when {
+        !validated -> CloudNetworkKind.NONE
+        wifi -> CloudNetworkKind.WIFI
+        cellular -> CloudNetworkKind.MOBILE
+        else -> CloudNetworkKind.NONE
+    }
 
     /** Report metadata only: the supplied operator code has MCC 460, not proof of SIM hardware/APN. */
     internal fun chineseSim(simOperator: String?): Boolean = simOperator?.startsWith("460") == true
 }
 
-/**
- * The default network's facts the rule reads, before the rule reads them. [cellular] and
- * [simOperator] are not the rule's: the report shows them, so a screenshot says whether the car was
- * on mobile data and whether its SIM is Chinese.
- */
+/** The default network's facts the rule reads, before the rule reads them. */
 data class CloudNetworkReading(
     val validated: Boolean,
     val wifi: Boolean,
@@ -167,7 +170,7 @@ data class CloudNetworkReading(
     val simOperator: String?,
 ) {
     val kind: CloudNetworkKind
-        get() = CloudNetwork.kindOf(validated, wifi)
+        get() = CloudNetwork.kindOf(validated, wifi, cellular)
 }
 
 /**
@@ -178,11 +181,11 @@ data class CloudNetworkReading(
  * | -------- | ------------------------------------------------------------------ | ------------------- |
  * | OFF      | switched off                                                       | «Выключено»         |
  * | ACTIVE   | the stock client holds its connection                              | «На связи»          |
- * | READY    | switched on, no Wi-Fi to translate                                 | «Нет Wi-Fi»         |
- * | STARTING | switched on, on Wi-Fi, not connected (yet)                         | «Подключается»      |
+ * | READY    | switched on, no usable internet to translate                       | «Нет интернета»     |
+ * | STARTING | switched on, on internet, not connected (yet)                      | «Подключается»      |
  * | ERROR    | the driver's last press was not taken by the car                   | «Не включилось» / «Не выключилось» |
  * | ERROR    | the car could not be read, or its reading is old                   | «Нет свежих данных» |
- * | ERROR    | on and on Wi-Fi, and the link did not come up                      | «Нет связи»         |
+ * | ERROR    | on and on internet, and the link did not come up                   | «Нет связи»         |
  *
  * That is the whole vocabulary. The tile used to print the controller's own words - exception
  * class names, «Не прочитано с машины: TCP, профиль, флаг APN1…», «Облако отклонило регистрацию
@@ -192,7 +195,7 @@ data class CloudNetworkReading(
  * The two failures are kept apart ([CloudLinkFailures]): a refused press stands until a press or
  * the car's state answers it, while a failed pass goes with the next pass that works.
  *
- * READY is on and healthy: the adapter has nothing to do until Wi-Fi comes back, as the mirrors
+ * READY is on and healthy: the adapter has nothing to do until internet comes back, as the mirrors
  * have nothing to do until a turn signal. STARTING may last - the client retries on its own and the
  * adapter repeats «ready» on a growing backoff - and it is drawn as working for as long as it is
  * true, as weather is before its first forecast.
@@ -201,7 +204,7 @@ object CloudLinkStatus {
     /** Nothing the app knows about the car is fresh. */
     const val STALE = "Нет свежих данных"
 
-    /** On, on Wi-Fi, and the link is not up - stalled, refused, or the profile taken away. */
+    /** On, on internet, and the link is not up - stalled, refused, or the profile taken away. */
     const val NO_LINK = "Нет связи"
 
     /**
@@ -211,7 +214,7 @@ object CloudLinkStatus {
     fun words(snapshot: FeatureSnapshot): String = when (snapshot.status) {
         FeatureStatus.OFF -> "Выключено"
         FeatureStatus.ACTIVE -> "На связи"
-        FeatureStatus.READY -> snapshot.message.ifBlank { "Нет Wi-Fi" }
+        FeatureStatus.READY -> snapshot.message.ifBlank { "Нет интернета" }
         FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE -> snapshot.message.ifBlank { FeatureWords.REFUSED }
         else -> "Подключается"
     }
@@ -251,7 +254,7 @@ object CloudLinkStatus {
             !network -> FeatureReducer.ready(FeatureId.CLOUD_LINK)
             // A pass that read the car and could not finish, a profile somebody else changed, a
             // registration the cloud refused, a link that stayed down past the settle: on, on
-            // Wi-Fi, and no link. The reasons are the report's.
+            // internet, and no link. The reasons are the report's.
             automaticFailure != null || profileDrift || registrationFailure != null || stalled ->
                 error(NO_LINK)
             else -> base

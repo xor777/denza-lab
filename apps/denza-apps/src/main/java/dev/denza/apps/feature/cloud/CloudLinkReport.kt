@@ -4,12 +4,12 @@ package dev.denza.apps.feature.cloud
  * The cloud link's line in the service report: everything this app knows about the link, as the
  * technical page's «Облако» section.
  *
- * The link is tested on cars nobody here can reach, so the section is the whole state, and one
- * screenshot of it has to be enough: what the driver asked for and what the tile says, why a press
- * did not take, the network the rule reads and the facts it reads it from, the SIM's operator code
- * (never its identity) - MCC 460 is the first thing to look for, since the cloud takes only a
- * Chinese SIM - what the car last said and how long ago, and where the adapter is in its own clock.
- * Related facts share a row so the section fits one screen.
+ * The link is tested on cars nobody here can reach - mobile data on a local SIM most of all - so the
+ * section is the whole state, and one screenshot of it has to be enough: what the driver asked for
+ * and what the tile says, why a press did not take, the network the rule reads and the facts it
+ * reads it from, the SIM's operator code (never its identity), what the car last said and how long
+ * ago, and where the adapter is in its own clock. Related facts share a row so the section fits
+ * one screen.
  *
  * The rows of the report's «Облако» section, in the order the page shows them: what the driver
  * would look for first on top.
