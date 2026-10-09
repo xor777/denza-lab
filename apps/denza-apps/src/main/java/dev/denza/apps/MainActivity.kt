@@ -55,10 +55,9 @@ class MainActivity : ComponentActivity() {
                         DenzaAppRepository::refreshSystemLanguage,
                     onOpenSystemLanguage =
                         DenzaAppRepository::openSystemLanguage,
-                    onRefreshDefaultApps = DenzaAppRepository::refreshDefaultApps,
-                    onSetDefaultAppsEnabled =
-                        DenzaAppRepository::setDefaultAppsEnabled,
-                    onSelectDefaultApp = DenzaAppRepository::selectDefaultApp,
+                    onRefreshDefaultApps = DenzaAppRepository.defaultApps::refresh,
+                    onSetDefaultAppsEnabled = DenzaAppRepository.defaultApps::setEnabled,
+                    onSelectDefaultApp = DenzaAppRepository.defaultApps::select,
                     onChooseApps = DenzaAppRepository::showAppPicker,
                     onLoadAppChoices = DenzaAppRepository::refreshAppChoices,
                     onCloseAppPicker = DenzaAppRepository::hideAppPicker,
@@ -75,7 +74,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         NavigationTransferOverlay.setMainActivityResumed(this, true)
         DenzaAppRepository.refresh("resume")
-        DenzaAppRepository.refreshDefaultApps()
+        DenzaAppRepository.defaultApps.refresh()
         DenzaAppRepository.refreshCloudLink()
     }
 

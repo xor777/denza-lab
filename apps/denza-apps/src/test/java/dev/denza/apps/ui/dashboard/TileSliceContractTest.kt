@@ -49,7 +49,7 @@ class TileSliceContractTest {
         // The passenger install reports its own progress as it goes, on the install's thread.
         TileId.PASSENGER to "DenzaAppRepository.installOnPassengerScreen",
         // The roles are read and written on the default-apps thread, each write claimed.
-        TileId.DEFAULT_APPS to "DenzaAppRepository.refreshDefaultApps",
+        TileId.DEFAULT_APPS to "DefaultAppsRuntime.refresh",
         // A door: its count is the other tiles', and its report is built while it is open.
         TileId.SERVICE to "ServiceReport",
     )
