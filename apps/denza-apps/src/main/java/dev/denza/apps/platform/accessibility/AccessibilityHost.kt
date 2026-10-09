@@ -15,18 +15,41 @@ interface RiderHost {
  * The app's shared accessibility service as the rest of the process sees it: bound or not, and a
  * way to its riders from any thread.
  *
- * The service binds itself as it connects and unbinds as it goes. Only that instance can unbind
- * itself, so an old instance destroyed late does not report a newer, bound one as gone.
+ * The service says it was created as the system starts binding it, binds itself as it connects and
+ * unbinds as it goes. Only that instance can unbind itself, so an old instance destroyed late does
+ * not report a newer, bound one as gone.
  */
 object AccessibilityHost {
+    private class Arriving(val host: RiderHost, val sinceMs: Long)
+
     private val bound = AtomicReference<RiderHost?>(null)
+    private val arriving = AtomicReference<Arriving?>(null)
+
+    /** The system created [host] at [atMs] (elapsed realtime) and is binding it now. */
+    fun created(host: RiderHost, atMs: Long) {
+        arriving.set(Arriving(host, atMs))
+    }
 
     fun bind(host: RiderHost) {
         bound.set(host)
+        settle(host)
     }
 
     fun unbind(host: RiderHost) {
         bound.compareAndSet(host, null)
+        settle(host)
+    }
+
+    /**
+     * How long ago, at [nowMs], the system created an instance that has neither connected nor gone
+     * since; null when none is on its way. A service the firmware left crashed has no instance at
+     * all, so this is null for it.
+     */
+    fun bindingForMs(nowMs: Long): Long? = arriving.get()?.let { nowMs - it.sinceMs }
+
+    private fun settle(host: RiderHost) {
+        val current = arriving.get()
+        if (current?.host === host) arriving.compareAndSet(current, null)
     }
 
     /** Whether the service is bound to this process right now. */
