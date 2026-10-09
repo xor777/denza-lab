@@ -26,6 +26,12 @@ tile through them.
 - `DashboardPress` (`ui/dashboard/DashboardActions.kt`) — what a press does
   (`DashboardPress.perform`) and which `FeatureSnapshot` a tile reads
   (`DashboardPress.snapshotOf`); the callbacks themselves are the fields of `DashboardActions`.
+  A tile waiting on `FeatureResolution.CHECK_ACCESS` - a local ADB failure, read by `AdbProblem`,
+  which every feature tile says as «Нет доступа» (`FeatureWords`) - runs
+  `DashboardActions.onCheckAdbAccess` (`DenzaAppRepository.checkAdbAccessThen`, the passive
+  check) and retries only if the car still trusts the app; otherwise the startup gate comes up.
+  `TileCaptionContractTest` holds every caption a feature can write when it did not settle to the
+  tile's 17 characters.
 - `FeatureSheet` (`ui/dashboard/FeatureSheets.kt`) — the panel a long press opens: one private
   `…Sheet` function per tile, the paragraph in `helpOf`, the button in `panelAction`.
 - `DenzaAppRepository` and its `DenzaUiState` (`DenzaAppRepository.kt`) — the state every tile

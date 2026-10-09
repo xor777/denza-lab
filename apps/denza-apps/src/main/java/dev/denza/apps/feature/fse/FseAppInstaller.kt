@@ -10,6 +10,7 @@ import android.util.Log
 import dev.denza.apps.adb.AdbProblem
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.FeatureId
+import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.disharebridge.LocalAdbClient
@@ -61,12 +62,19 @@ object FseInstallStatus {
             status = FeatureStatus.READY,
             message = result.app.label,
         )
+        // The channel's failure waits on the press, which looks at the car's access before the
+        // chooser opens again; any other ending is the install's own, and the press is the chooser.
         is FseInstallResult.Failed -> FeatureSnapshot(
             id = FeatureId.FSE_INSTALLER,
             desiredEnabled = false,
-            status = FeatureStatus.ERROR,
+            status = if (result.failure == FseInstallFailure.NO_ACCESS) {
+                FeatureStatus.NEEDS_ACTION
+            } else {
+                FeatureStatus.ERROR
+            },
             message = result.message,
             details = result.details,
+            resolution = FeatureResolution.CHECK_ACCESS.takeIf { result.failure == FseInstallFailure.NO_ACCESS },
         )
     }
 }

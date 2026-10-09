@@ -87,7 +87,7 @@ class SimulcastCoordinatorTest {
         for (failure in listOf(AdbFailures.authorizationPending(), AdbFailures.authorizationRequired())) {
             val problem = SimulcastCoordinator.setupProblem(failure)
             assertEquals("Нет доступа", problem.message)
-            assertEquals(FeatureResolution.CONFIRM_ON_CAR, problem.resolution)
+            assertEquals(FeatureResolution.CHECK_ACCESS, problem.resolution)
         }
     }
 
@@ -96,7 +96,7 @@ class SimulcastCoordinatorTest {
         val problem = SimulcastCoordinator.setupProblem(SocketTimeoutException("Read timed out"))
 
         assertEquals("Нет доступа", problem.message)
-        assertEquals(FeatureResolution.RETRY, problem.resolution)
+        assertEquals(FeatureResolution.CHECK_ACCESS, problem.resolution)
     }
 
     /**

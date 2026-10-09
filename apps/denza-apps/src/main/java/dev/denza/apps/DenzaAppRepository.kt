@@ -956,6 +956,25 @@ object DenzaAppRepository {
         AdbRescueCoordinator.checkAccess(context) { onAdbRescueChanged(context) }
     }
 
+    /**
+     * A tile's press on a failed channel: the passive check, and [onTrusted] on the main thread if
+     * the car still trusts this app. If it does not, the phase leaves TRUSTED and the startup gate
+     * comes up over the dashboard - the choice the driver has. A check already running answers for
+     * this press too, without it.
+     */
+    fun checkAdbAccessThen(onTrusted: () -> Unit) {
+        val context = appContext ?: return
+        val answered = AtomicBoolean(false)
+        AdbRescueCoordinator.checkAccess(context) {
+            onAdbRescueChanged(context)
+            if (AdbRescueCoordinator.snapshot().phase == AdbRescuePhase.TRUSTED &&
+                answered.compareAndSet(false, true)
+            ) {
+                Handler(Looper.getMainLooper()).post(onTrusted)
+            }
+        }
+    }
+
     fun requestAdbAuthorizationOnce() {
         val context = appContext ?: return
         AdbRescueCoordinator.requestOnce(context) { onAdbRescueChanged(context) }

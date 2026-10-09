@@ -32,8 +32,13 @@ enum class FeatureResolution {
     SELECT_APPS,
     SELECT_CLUSTER_DISPLAY,
     SELECT_NAVIGATION_APP,
-    CONFIRM_ON_CAR,
-    ENABLE_CAR_DEBUGGING,
+    /**
+     * The local ADB channel failed ([dev.denza.apps.adb.AdbProblem]). The press looks at it again
+     * without asking the car for anything: if trust is gone, the startup gate comes up and is the
+     * choice; if it is there, the feature tries again. It replaced two that only retried - one
+     * whose words asked the driver to confirm a prompt, one to switch on USB debugging.
+     */
+    CHECK_ACCESS,
     RETRY,
 }
 

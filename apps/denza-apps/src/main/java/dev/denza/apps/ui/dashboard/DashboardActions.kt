@@ -51,6 +51,11 @@ data class DashboardActions(
     val onOpenClusterPicker: () -> Unit,
     val onOpenService: () -> Unit,
     val onOpenSettings: (TileId) -> Unit,
+    /**
+     * Look at the car's ADB access without asking it for anything, and run [onTrusted] if the car
+     * still trusts this app. If it does not, the startup gate comes up by itself.
+     */
+    val onCheckAdbAccess: (onTrusted: () -> Unit) -> Unit = { onTrusted -> onTrusted() },
 )
 
 /**
@@ -108,8 +113,9 @@ object DashboardPress {
     /**
      * A feature waiting on the driver: send the press where the waiting actually ends.
      *
-     * The three retry-shaped resolutions all mean the same thing to a tile - try again - and each
-     * feature has its own way of trying, which is why this is a table and not one call.
+     * Each feature has its own way of trying again, which is why that is a table and not one call.
+     * A channel that failed is looked at first: retrying over a car that no longer trusts the app
+     * only fails the same way, while the gate that comes up is a choice the driver can act on.
      */
     private fun resolve(tile: DashboardTile, state: DenzaUiState, actions: DashboardActions) {
         val snapshot = snapshotOf(tile.id, state)
@@ -117,10 +123,8 @@ object DashboardPress {
             FeatureResolution.SELECT_APPS -> actions.onChooseApps()
             FeatureResolution.SELECT_NAVIGATION_APP -> actions.onChooseNavigationApp()
             FeatureResolution.SELECT_CLUSTER_DISPLAY -> actions.onOpenClusterPicker()
-            FeatureResolution.CONFIRM_ON_CAR,
-            FeatureResolution.ENABLE_CAR_DEBUGGING,
-            FeatureResolution.RETRY,
-            -> retry(tile.id, actions)
+            FeatureResolution.CHECK_ACCESS -> actions.onCheckAdbAccess { retry(tile.id, actions) }
+            FeatureResolution.RETRY -> retry(tile.id, actions)
             null -> actions.onOpenSettings(tile.id)
         }
     }
