@@ -695,24 +695,30 @@ object DenzaAppRepository {
     /**
      * Read the car for «Что показывать» without opening a window, off the main thread: the panel's
      * own page asks for this when it opens, the way the projection's page does.
+     *
+     * The mark is the driver's stored choice until the coordinator has started: a window brought
+     * back with the screen can open before it, and the coordinator alone would mark the instruments.
      */
     fun refreshNavigationAppChoices() {
         val context = appContext ?: return
         catalogExecutor.execute {
-            val choices = NavigationAppChoices.all(context, NavigationCoordinator.selectedPackage())
+            val selected = NavigationCoordinator.selectedPackage {
+                NavigationSettings.selectedPackage(context)
+            }
+            val choices = NavigationAppChoices.all(context, selected)
             stateStore.update { current -> current.copy(navigationAppChoices = choices) }
         }
     }
 
     /**
-     * One answer chosen on «Что показывать»; false when the car no longer offers it, and a window
-     * showing the choice stays open over the list it was drawn from.
+     * One answer chosen on «Что показывать»; true when the coordinator took it to carry out, and a
+     * window showing the choice closes. False when the car no longer offers it or the coordinator
+     * has not started yet - nothing would carry it out - and the window stays open over its list.
+     * See [NavigationCoordinator.selectPackage] for a choice taken and then refused.
      */
     fun selectNavigationApp(packageName: String): Boolean {
-        val context = appContext ?: return false
-        if (!NavigationSettings.isOffered(context, packageName)) return false
-        NavigationCoordinator.selectPackage(packageName)
-        return true
+        appContext ?: return false
+        return NavigationCoordinator.selectPackage(packageName)
     }
 
     fun setSplitScreenEnabled(enabled: Boolean) {
