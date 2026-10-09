@@ -16,6 +16,25 @@ enum class DefaultAppRoleStatus {
     ERROR,
 }
 
+/**
+ * What a role's row says when it did not settle: a state in a word or two.
+ *
+ * The rows used to say «Не удалось прочитать список приложений», «Не удалось завершить
+ * автоматический выбор», «Выбранное приложение не установлено или не запускается» - sentences
+ * about the provider, up to 54 characters on one line. What the row is for is which application
+ * opens; when it cannot say, it says which way it fell short, and the exception goes to logcat.
+ */
+object DefaultAppsWords {
+    /** The role, or the applications to choose from, could not be read. */
+    const val UNREAD = "Не прочиталось"
+
+    /** A choice was not written back. */
+    const val UNSAVED = "Не сохранилось"
+
+    /** The chosen application is not installed, or does not launch. */
+    const val GONE = "Не установлено"
+}
+
 data class DefaultAppRoleUiState(
     val role: DefaultAppRole,
     val selectedPackageName: String? = null,

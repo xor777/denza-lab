@@ -5,6 +5,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppChoice
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
+import dev.denza.apps.feature.defaultapps.DefaultAppsWords
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -97,6 +98,21 @@ class DefaultAppsSheetTest {
         DefaultAppRoleStatus.entries.forEach { status ->
             val text = defaultAppsStatusText(role.copy(status = status))
             assertTrue(status.toString(), text.isNotBlank())
+        }
+    }
+
+    /**
+     * A role that fell short says which way in a word or two, never the provider's sentence: the
+     * rows used to read «Не удалось прочитать список приложений» and «Выбранное приложение не
+     * установлено или не запускается», up to 54 characters on one line.
+     */
+    @Test
+    fun aRoleThatFellShortSaysAState() {
+        val role = DefaultAppRoleUiState(role = DefaultAppRole.NAVIGATION, status = DefaultAppRoleStatus.ERROR)
+        assertEquals("Не прочиталось", defaultAppsStatusText(role))
+        for (words in listOf(DefaultAppsWords.UNREAD, DefaultAppsWords.UNSAVED, DefaultAppsWords.GONE)) {
+            assertEquals(words, defaultAppsStatusText(role.copy(message = words)))
+            assertTrue(words, words.length <= 17)
         }
     }
 

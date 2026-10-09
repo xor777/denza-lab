@@ -17,6 +17,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
+import dev.denza.apps.feature.defaultapps.DefaultAppsWords
 import dev.denza.apps.ui.components.DenzaAppChooser
 import dev.denza.apps.ui.components.DenzaAppTile
 import dev.denza.apps.ui.components.DenzaChoiceGroup
@@ -224,7 +225,7 @@ internal fun defaultAppsStatusText(
         roleState.message.ifBlank { "Загружаем приложения…" }
     roleState.status == DefaultAppRoleStatus.APPLYING -> "Сохраняем выбор…"
     roleState.status == DefaultAppRoleStatus.ERROR ->
-        roleState.message.ifBlank { "Не удалось прочитать настройку" }
+        roleState.message.ifBlank { DefaultAppsWords.UNREAD }
     // A settled role is its application's name and nothing beside it. A cold start's own message
     // used to be printed here too, ahead of the name with a dot between; the row is not the place
     // for a remark about how the value arrived.
