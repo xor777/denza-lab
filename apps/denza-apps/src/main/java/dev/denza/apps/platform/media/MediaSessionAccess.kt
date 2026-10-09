@@ -8,6 +8,7 @@ import android.provider.Settings
 import dev.denza.apps.StateMarks
 import dev.denza.apps.StateSlice
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.platform.shell.shellQuote
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -51,9 +52,6 @@ internal object MediaSessionAccessPolicy {
 
     fun allowCommand(componentName: String): String =
         "cmd notification allow_listener ${shellQuote(componentName)}"
-
-    private fun shellQuote(value: String): String =
-        "'${value.replace("'", "'\"'\"'")}'"
 }
 
 internal enum class MediaSessionAccessPhase {
