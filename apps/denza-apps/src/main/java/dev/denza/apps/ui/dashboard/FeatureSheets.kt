@@ -244,14 +244,14 @@ private fun helpOf(id: TileId): String = when (id) {
         "Динамики выезжают, когда играет музыка или открыт плеер — в том числе из приложений, " +
             "которые машина своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина " +
             "сама. «Поднять» выдвигает их снова, если машина убрала их в простое."
-    // The one condition the car does not show: the cloud recognises it by its SIM, so with a local
-    // one the tile says «Нет связи» on working Wi-Fi, and this is the only place that says why.
+    // The one condition the car does not show: the cloud recognises it by the ICCID the modem
+    // presents, so without a Chinese one the tile says «Нет связи» on working internet, and this
+    // is the only place that says why.
     TileId.CLOUD ->
-        "Машина выходит в облако через Wi-Fi, и приложение Denza на телефоне работает с ней " +
-            "как обычно: показывает состояние и управляет машиной. Облако узнаёт машину по китайской SIM-карте, поэтому связь " +
-            "восстанавливается, только если модем видит китайский ICCID: родную eSIM или rSIM " +
-            "в слоте. С местной SIM-картой связи не будет, а интернет на самой карте не нужен. " +
-            "«Держать Wi-Fi включенным» не даёт машине выключать Wi-Fi, когда она засыпает, — " +
+        "Машина выходит в облако через Wi-Fi или мобильный интернет, и приложение Denza " +
+            "на телефоне работает с ней как обычно: показывает состояние и управляет машиной. " +
+            "Связь восстанавливается, если модем видит китайский ICCID — от родной eSIM " +
+            "или от rSIM. «Держать Wi-Fi включенным» не даёт машине выключать Wi-Fi, когда она засыпает, — " +
             "связь остаётся и на стоянке."
     TileId.LOCALE ->
         "Язык меняется у всей машины, а не у приложения: список открывает сама машина, " +

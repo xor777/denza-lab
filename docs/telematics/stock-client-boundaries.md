@@ -57,7 +57,7 @@ result paths. The separate `cloudctrlserv` binary depends on `libmqttserv`,
 TCP/MQTT → stock dispatch → MCU control architecture, not a completed command
 execution trace or proof that every phone button uses our tested TCP session.
 
-> **Superseded 2026-10-09:** the owner reports that with the «Облако» link up the official phone app works as usual, remote control of the car included; no command trace was captured — see [cloud-tile.md, Wi-Fi only: the cloud takes a Chinese ICCID, 2026-10-09](cloud-tile.md#wi-fi-only-the-cloud-takes-a-chinese-iccid-2026-10-09).
+> **Superseded 2026-10-09:** the owner reports that with the «Облако» link up the official phone app works as usual, remote control of the car included; no command trace was captured — see [cloud-tile.md, The cloud takes a Chinese ICCID, 2026-10-09](cloud-tile.md#the-cloud-takes-a-chinese-iccid-2026-10-09).
 
 The helper has only proved login and upload. Incoming command delivery,
 command-specific authorization/preconditions, execution and result reporting

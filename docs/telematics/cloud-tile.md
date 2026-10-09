@@ -20,7 +20,7 @@ Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-f
   - [Build 60 hotfix: stale-reading flash on re-enable, 2026-09-24](#build-60-hotfix-stale-reading-flash-on-re-enable-2026-09-24)
   - [Automatic failures clear with the next working pass, 2026-10-08](#automatic-failures-clear-with-the-next-working-pass-2026-10-08)
   - [The tile's fixed vocabulary, 2026-10-09](#the-tiles-fixed-vocabulary-2026-10-09)
-  - [Wi-Fi only: the cloud takes a Chinese ICCID, 2026-10-09](#wi-fi-only-the-cloud-takes-a-chinese-iccid-2026-10-09)
+  - [The cloud takes a Chinese ICCID, 2026-10-09](#the-cloud-takes-a-chinese-iccid-2026-10-09)
   - [Build 59: confirmed application fixes and cache-refresh investigation, 2026-09-24](#build-59-confirmed-application-fixes-and-cache-refresh-investigation-2026-09-24)
   - [Offline identity preparation and command 211 reproduction, 2026-09-24](#offline-identity-preparation-and-command-211-reproduction-2026-09-24)
   - [R-SIM terminology and configurable ICCID, 2026-09-24](#r-sim-terminology-and-configurable-iccid-2026-09-24)
@@ -135,7 +135,6 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   **Only Wi-Fi is proven on a car.** Mobile data from a local SIM was added on
   2026-09-23 for owners with such a SIM to test (see below).
   > **Checked 2026-10-03:** still true on main. `CloudNetwork.kindOf` (`feature/cloud/CloudLinkStatus.kt`) counts a validated Wi-Fi or cellular default network as usable. A Wi-Fi-only factory rule existed only in WIP commit 9cc0247e, which eed3a411 reverted (kept on branch `archive/cloudmanager-runtime`).
-  > **Superseded 2026-10-09:** usable internet is validated Wi-Fi only; mobile data no longer counts, because the cloud takes the car only by a Chinese ICCID, which has no service outside China — see [Wi-Fi only: the cloud takes a Chinese ICCID, 2026-10-09](#wi-fi-only-the-cloud-takes-a-chinese-iccid-2026-10-09).
 - **On**: when the car is not on `double_apn` with APN1 disabled, send the
   profile broadcast, wait 3 s and read the profile back. Then, with usable
   internet and TCP≠1, send one `4`.
@@ -145,7 +144,6 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   mobile data is not a loss: the client's socket drops with the old network,
   and its own reconnect, or the repeat after the 90 s settle, carries it
   over.
-  > **Superseded 2026-10-09:** Wi-Fi giving way to mobile data is now a loss like any other — see [Wi-Fi only: the cloud takes a Chinese ICCID, 2026-10-09](#wi-fi-only-the-cloud-takes-a-chinese-iccid-2026-10-09).
 - **Repeats**: the stock `BYDMultiApnConnReceiver` sends `-5` on any
   `CONNECTIVITY_CHANGE_FUNCTION` whose APN3 is not CONNECTED. So a car on
   usable internet that reads TCP≠1 is told `4` again, once the disconnection
@@ -1063,56 +1061,53 @@ goes to the «Отказ» row as «Wi-Fi во сне: …». The 211 rejection'
 there too. `CloudLinkFailuresTest` holds that no reason reaches the tile, and
 `TileCaptionContractTest` holds every word to the tile's budget.
 
-> **Superseded 2026-10-09:** «Нет интернета» is now «Нет Wi-Fi»: the link translates Wi-Fi only — see [Wi-Fi only: the cloud takes a Chinese ICCID, 2026-10-09](#wi-fi-only-the-cloud-takes-a-chinese-iccid-2026-10-09).
-
-### Wi-Fi only: the cloud takes a Chinese ICCID, 2026-10-09
+### The cloud takes a Chinese ICCID, 2026-10-09
 
 Code change, not yet on any car.
 
 The owner reports the rule this page left open: the stock client's link comes
-up only while the modem presents a **Chinese ICCID** — the car's factory eSIM,
-or an rSIM in the SIM slot. With a local SIM the cloud does not take the car.
-The SIM needs no service of its own; the internet comes over Wi-Fi.
-
-With the link up, the owner reports, the official phone app works with the car
-as usual: not only status, charge and range but remote control too. This is an
-owner report, not a captured command trace; it closes the question of whether
-the cloud reaches the car when the app asks
+up only while the modem presents a **Chinese ICCID** — the car's factory eSIM
+or an rSIM. A forum user reports, through the owner, that an rSIM over a local
+SIM works as well. With the link up, the official phone app works with the car
+as usual: status, charge and range, and remote control too. These are owner
+reports, not captured traces; the last one closes the question of whether the
+cloud reaches the car when the app asks
 ([Stock-client reuse](stock-client-boundaries.md#stock-client-reuse-sleep-and-incoming-commands-current-boundaries)).
 
-The recorded evidence agrees with it. Every fresh 211 rejection (code 3) above
-came from a car on a local SIM — operators 25901 and 25002 — on mobile data and
-around Wi-Fi transitions alike, while the owner's car, on its factory China
-Mobile SIM with no service, registers over Wi-Fi. Message 211 carries IMSI and
-ICCID ([Forum Wi-Fi / ordinary-SIM reports](#forum-wi-fi--ordinary-sim-reports-native-registration-stage-2026-09-24)),
-and the firmware has no client-side check of either, so the requirement is the
-server's. Code 3's vendor meaning is still not read from anything; this rule is
-the reason the product acts on, not a decoding of the code.
+The recorded evidence agrees with it:
 
-What changes in main:
+- The factory SIM itself is not required. On 2026-09-24 the cloud accepted a
+  generated Chinese pair (ICCID `898607…`, IMSI `46001…`) and a changed ICCID
+  (`89860…`) with the original IMSI, through registration, discovery and login
+  (`captures/telematics-20260924/generated-pair-session/`,
+  `iccid-complete-login/`).
+- Every fresh 211 rejection (code 3) above came from a car whose SIM is local
+  (operators 25901 and 25002; one ICCID was 18 digits), on mobile data and
+  around Wi-Fi transitions alike.
+- Message 211 carries IMSI and ICCID
+  ([Forum Wi-Fi / ordinary-SIM reports](#forum-wi-fi--ordinary-sim-reports-native-registration-stage-2026-09-24))
+  and the firmware checks neither, so the requirement is the server's.
 
-- **Wi-Fi only.** `CloudNetwork.kindOf` (`feature/cloud/CloudLinkStatus.kt`)
-  answers `WIFI` for a validated Wi-Fi default network and `NONE` for anything
-  else; `CloudNetworkKind.MOBILE` is gone. Mobile data had counted since
-  2026-09-23 (`88ebad76`) for owners with a local SIM, and no car ever
-  reached TCP 1 on it. A car with
-  a local SIM is refused by the cloud whatever carries the packets; a Chinese
-  SIM with service is on its own APN, which the stock framework announces and
-  the adapter already leaves alone (`cellular`, `CloudLinkProtocol.kt`).
-- **Wi-Fi giving way to mobile data is now a loss**: after the 30 s grace the
-  adapter sends `-5` under `double_apn`, as for any other loss of Wi-Fi.
-- **The tile says «Нет Wi-Fi»** where it said «Нет интернета».
-- **The panel says the condition.** The «Облако» note now tells the driver
-  that the phone app then works with the car as usual, status and control,
-  that the link comes back only while the modem sees a Chinese ICCID — the
-  factory eSIM or an rSIM in the slot — that a local SIM will not work, and
-  that the SIM itself needs no internet. Boards `sheet-cloud` and
+Not established: whether a Chinese ICCID with a local IMSI is enough (what a
+given rSIM presents is unknown), and code 3's vendor meaning.
+
+What this means for main:
+
+- **The network rule stays as it was**: validated Wi-Fi or mobile data
+  (`CloudNetwork.kindOf`). The condition is the identity, not the transport —
+  an rSIM over a local SIM brings both a Chinese ICCID and mobile internet.
+  A Wi-Fi-only rule was committed the same day (`ea94cee3`) and reverted
+  before it reached any car, once the rSIM report arrived: it would have cut
+  exactly that setup.
+- **The panel says the condition, briefly.** The «Облако» note: the car goes
+  to the cloud over Wi-Fi or mobile internet, the phone app then works as
+  usual, status and control, and the link comes back if the modem sees a
+  Chinese ICCID — from the factory eSIM or from an rSIM. At the owner's
+  request it makes no claims about local SIMs. Boards `sheet-cloud` and
   `one-sheet-cloud` carry the same text.
-- **The report keeps the evidence.** «Сервис» still shows `Wi-Fi / сотовая`
-  and the SIM's operator code with its MCC 460 marker, so a screenshot from a
-  car that stays on «Нет связи» shows whether its SIM is Chinese. The operator
-  code comes from the IMSI, not the ICCID; it is a strong hint, not the ICCID
-  itself.
+- **Reading the report.** The «SIM» row is the operator code, which comes from
+  the IMSI, not the ICCID: a car with an rSIM can show a local operator and
+  still have a Chinese ICCID, so that row is a hint, not a verdict.
 
 The custom-SIM runtime that would present a different identity to the cloud
 stays on branch `archive/cloudmanager-runtime` and is not part of main.
@@ -1285,7 +1280,7 @@ prefixes. An effect on APN selection is therefore a separate firmware mechanism
 from an application-level 211 rejection. No client-side evidence establishes
 a universal server requirement for one ICCID prefix or original-SIM binding.
 
-> **Superseded 2026-10-09:** the owner reports that the link comes up only while the modem presents a Chinese ICCID (the factory eSIM or an rSIM in the slot); the requirement is the server's, not the client's — see [Wi-Fi only: the cloud takes a Chinese ICCID, 2026-10-09](#wi-fi-only-the-cloud-takes-a-chinese-iccid-2026-10-09).
+> **Superseded 2026-10-09:** the owner reports that the link comes up only while the modem presents a Chinese ICCID (the factory eSIM or an rSIM); the requirement is the server's, not the client's — see [The cloud takes a Chinese ICCID, 2026-10-09](#the-cloud-takes-a-chinese-iccid-2026-10-09).
 
 Historical terminology correction: earlier notes used "rSIM" to mean a Chinese
 roaming replacement SIM. A programmable **R-SIM adapter** and a Chinese-issued
@@ -1342,7 +1337,7 @@ packet constructor or `prepare`; its name alone is not evidence that it
 refreshes SIM identity. The forum car's April native binary has not been
 compared with this reference. No new car operation was performed.
 
-> **Superseded 2026-10-09:** a Chinese ICCID seen by the modem — the factory eSIM or an rSIM in the slot — is the prerequisite the owner reports; a local SIM is refused — see [Wi-Fi only: the cloud takes a Chinese ICCID, 2026-10-09](#wi-fi-only-the-cloud-takes-a-chinese-iccid-2026-10-09).
+> **Checked 2026-10-09:** still true of the factory SIM — a generated Chinese pair was accepted — but the modem must present a Chinese ICCID (the factory eSIM or an rSIM), by the owner's report — see [The cloud takes a Chinese ICCID, 2026-10-09](#the-cloud-takes-a-chinese-iccid-2026-10-09).
 
 Consequently, a physically installed original Chinese SIM is **not an
 established universal prerequisite**. Message 211 carrying IMSI/ICCID remains
