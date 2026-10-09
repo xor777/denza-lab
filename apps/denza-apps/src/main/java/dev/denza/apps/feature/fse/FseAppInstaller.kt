@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import android.content.pm.ResolveInfo
 import android.util.Base64
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
@@ -38,84 +37,6 @@ sealed interface FseInstallResult {
     data class Failed(val message: String, val details: String? = null) : FseInstallResult
 }
 
-internal data class FseSplitFileDiagnostic(
-    val declaredName: String,
-    val fileName: String,
-    val isFile: Boolean,
-    val readable: Boolean,
-    val sizeBytes: Long,
-)
-
-internal data class FseApkLayoutDiagnostic(
-    val packageName: String,
-    val label: String,
-    val versionName: String,
-    val launcherSplitName: String?,
-    val baseFileName: String,
-    val baseIsFile: Boolean,
-    val baseReadable: Boolean,
-    val baseSizeBytes: Long,
-    val declaredSplitNames: List<String>,
-    val splitFiles: List<FseSplitFileDiagnostic>,
-)
-
-internal object FseApkLayoutDiagnostics {
-    fun render(
-        candidateCount: Int,
-        layouts: List<FseApkLayoutDiagnostic>,
-    ): List<String> {
-        val splitLayouts = layouts
-            .filter { it.splitFiles.isNotEmpty() }
-            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
-        return buildList {
-            add(
-                "FSE APK layouts=" +
-                    "candidates=$candidateCount; " +
-                    "split=${splitLayouts.size}; " +
-                    "monolithic=${(candidateCount - splitLayouts.size).coerceAtLeast(0)}",
-            )
-            if (splitLayouts.isEmpty()) {
-                add("FSE split packages=none")
-                return@buildList
-            }
-            splitLayouts.forEach { layout ->
-                add(
-                    "FSE split ${layout.packageName}=" +
-                        "label=${layout.label}; " +
-                        "version=${layout.versionName.ifBlank { "—" }}; " +
-                        "launcher=${layout.launcherSplitName ?: "base"}; " +
-                        "base=${layout.baseFileName.ifBlank { "—" }}:" +
-                        fileState(
-                            layout.baseIsFile,
-                            layout.baseReadable,
-                            layout.baseSizeBytes,
-                        ) + "; " +
-                        "files=${layout.splitFiles.size}; " +
-                        "names=${layout.declaredSplitNames.size}",
-                )
-                add(
-                    "FSE split names ${layout.packageName}=" +
-                        layout.declaredSplitNames.ifEmpty { listOf("—") }.joinToString(" | "),
-                )
-                add(
-                    "FSE split files ${layout.packageName}=" +
-                        layout.splitFiles.mapIndexed { index, file ->
-                            "${index + 1}:${file.declaredName}:" +
-                                "${file.fileName.ifBlank { "—" }}:" +
-                                fileState(file.isFile, file.readable, file.sizeBytes)
-                        }.joinToString(" | "),
-                )
-            }
-        }
-    }
-
-    private fun fileState(isFile: Boolean, readable: Boolean, sizeBytes: Long): String = when {
-        !isFile -> "missing"
-        !readable -> "not-readable"
-        else -> "${sizeBytes}B"
-    }
-}
-
 private const val FSE_INSTALL_RESULT_SUCCESS = 1
 // FSE 42.1.8.2605219.1 returned -7 after a fresh RUTUBE install became visible.
 // The package is present even though the OEM wallpaper provider reports a warning.
@@ -133,7 +54,6 @@ object FseAppInstaller {
     private data class InstalledPackageCandidate(
         val packageName: String,
         val label: String,
-        val resolveInfo: ResolveInfo,
         val packageInfo: PackageInfo,
         val applicationInfo: ApplicationInfo,
     )
@@ -162,49 +82,6 @@ object FseAppInstaller {
                 compareByDescending<FseInstallApp> { it.installable }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { it.label },
             )
-    }
-
-    /**
-     * Passive package-layout evidence for the hidden support screen.
-     *
-     * This uses only PackageManager metadata and file stat calls. It never opens
-     * ADB, copies an APK, or contacts the passenger screen.
-     */
-    fun diagnosticLines(context: Context): List<String> {
-        val candidates = installedPackageCandidates(context)
-        val layouts = candidates.map { candidate ->
-            val base = File(candidate.applicationInfo.sourceDir.orEmpty())
-            val rawDeclaredNames: Array<out String>? = candidate.packageInfo.splitNames
-            val declaredNames = rawDeclaredNames.orEmpty().map { it.trim() }
-            val splitFiles = candidate.applicationInfo.splitSourceDirs
-                ?.mapIndexed { index, path ->
-                    val file = File(path.orEmpty())
-                    FseSplitFileDiagnostic(
-                        declaredName = declaredNames.getOrNull(index)
-                            ?.takeIf { it.isNotBlank() }
-                            ?: "index-${index + 1}",
-                        fileName = file.name,
-                        isFile = file.isFile,
-                        readable = file.canRead(),
-                        sizeBytes = file.length(),
-                    )
-                }
-                .orEmpty()
-            FseApkLayoutDiagnostic(
-                packageName = candidate.packageName,
-                label = candidate.label,
-                versionName = candidate.packageInfo.versionName.orEmpty(),
-                launcherSplitName = candidate.resolveInfo.activityInfo?.splitName
-                    ?.takeIf { it.isNotBlank() },
-                baseFileName = base.name,
-                baseIsFile = base.isFile,
-                baseReadable = base.canRead(),
-                baseSizeBytes = base.length(),
-                declaredSplitNames = declaredNames,
-                splitFiles = splitFiles,
-            )
-        }
-        return FseApkLayoutDiagnostics.render(candidates.size, layouts)
     }
 
     fun install(
@@ -415,7 +292,6 @@ object FseAppInstaller {
                 InstalledPackageCandidate(
                     packageName = packageName,
                     label = label,
-                    resolveInfo = resolveInfo,
                     packageInfo = packageInfo,
                     applicationInfo = applicationInfo,
                 )
