@@ -81,6 +81,17 @@ matching the two-layer Denza display composition verified on the car:
 - camera diagnostics use the same overlay display and appear after the user
   presses **Проверить камеры** or chooses a display in hidden diagnostics.
 
+> **Superseded 2026-09-23:** the base layer is not Yandex Navigator's alone: it hosts any application `ProjectablePackages` admits, or this app's own instruments drawn as a `View` with no virtual display (since 2026-08-25) — see [Any application, not six navigators](#any-application-not-six-navigators) and [App-owned instrument dashboard](#app-owned-instrument-dashboard).
+
+`ClusterDisplayResolver` accepts a saved manual override, the exact known Denza
+display name
+`shared_fission_bg_XDJAScreenProjection_0`, `cluster`/`fission` name evidence,
+real dimensions, and display characteristics. The camera overlay is selected
+separately by the exact known name
+`shared_fission_bg_XDJAScreenProjection_1`. It excludes IVI, rear/RSE, overhead,
+DiShare, and Denza Apps' own virtual displays. An absent or ambiguous match
+leaves the feature unavailable instead of guessing a numeric display ID.
+
 Since 2026-10-09 the service only turns intents into calls, keeps its
 notification and opens presentations. The decisions are in plain classes a unit
 test can drive: `CameraSceneController` lives as long as the process and owns
@@ -93,16 +104,25 @@ posts `freeDisplay` to the `denza-avc-teardown` thread. What they touch - the
 renderer, the presentation's views, the handler, the main looper, the teardown
 thread, the clock and the log - is named in `CameraSceneSeams.kt`.
 
-> **Superseded 2026-09-23:** the base layer is not Yandex Navigator's alone: it hosts any application `ProjectablePackages` admits, or this app's own instruments drawn as a `View` with no virtual display (since 2026-08-25) — see [Any application, not six navigators](#any-application-not-six-navigators) and [App-owned instrument dashboard](#app-owned-instrument-dashboard).
+The call sequences those classes make - what com.byd.avc sees from this app -
+are pinned by `CameraSceneControllerTest` against the recording fakes in
+`RecordingCameraScene.kt`: Show, Hide, Show during teardown, AVC refusing while
+STARTING, a display that changed, the service destroyed mid-teardown, Shows
+racing a Hide, a turn signal during a diagnostic preview, and the logcat lines
+`tools/analyze_mirrors_startup.py` reads. Two of the pinned paths are recorded
+as they stand, not endorsed:
 
-`ClusterDisplayResolver` accepts a saved manual override, the exact known Denza
-display name
-`shared_fission_bg_XDJAScreenProjection_0`, `cluster`/`fission` name evidence,
-real dimensions, and display characteristics. The camera overlay is selected
-separately by the exact known name
-`shared_fission_bg_XDJAScreenProjection_1`. It excludes IVI, rear/RSE, overhead,
-DiShare, and Denza Apps' own virtual displays. An absent or ambiguous match
-leaves the feature unavailable instead of guessing a numeric display ID.
+- Two Shows that are both current with no Hide between restart AVC on the
+  window that is still up: `freeDisplay` runs on the main thread with our
+  Surface attached, the order of the 2026-07-18 abort
+  ([dishare-api-notes.md](dishare-api-notes.md#live-car-side-switch-safety-finding-2026-07-18)).
+  The monitor never sends it - `MirrorTransitionReducer` issues Show only with
+  the runtime IDLE or FAILED and no preemption in flight - but the scene does
+  not refuse it.
+- A camera-layer presentation left by «Проверить камеры» stays on its display;
+  if the camera display's id has changed by the next turn signal, that Show
+  tears the old layer down and ends FAILED (`camera display changed`), so the
+  turn shows no camera and the one after opens on the new display.
 
 ## App-owned instrument dashboard
 
