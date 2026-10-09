@@ -5,10 +5,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
 
 import dev.denza.apps.feature.simulcast.ScreenTarget;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,8 +21,9 @@ import java.util.Set;
  *
  * Node ids captured from the live dialog:
  * {@code central_screen} (source preview), all receiver cards described by
- * {@link ScreenTarget}, {@code app_list} + {@code app_icon} (only after App Change),
- * {@code switch_share_app} (App Change button), {@code close}.
+ * {@link ScreenTarget}, {@code app_list} (only after App Change),
+ * {@code switch_share_app} (App Change button, where the row stands before that),
+ * {@code close}. The stock icons inside the row ({@code app_icon}) scroll and are not read.
  */
 final class SimulcastDialogGeometry {
     private static final String PKG = "com.byd.dishare";
@@ -34,24 +33,18 @@ final class SimulcastDialogGeometry {
     /** Exact inner content bounds inside the native blue selected frame. */
     final Rect centralContent;
     final Map<String, Rect> receivers;
-    final Rect appChangeButton;
     final Rect close;
     /** Bounds of the native row container (RecyclerView). Null unless App Change is open. */
     final Rect appList;
-    /** Per-slot bounds of the native app row, left-to-right. Empty unless App Change is open. */
-    final List<Rect> appSlots;
 
     private SimulcastDialogGeometry(Rect dialog, Rect central, Rect centralContent,
-            Map<String, Rect> receivers, Rect appChangeButton, Rect close, Rect appList,
-            List<Rect> appSlots) {
+            Map<String, Rect> receivers, Rect close, Rect appList) {
         this.dialog = dialog;
         this.central = central;
         this.centralContent = centralContent;
         this.receivers = receivers;
-        this.appChangeButton = appChangeButton;
         this.close = close;
         this.appList = appList;
-        this.appSlots = appSlots;
     }
 
     /**
@@ -63,19 +56,17 @@ final class SimulcastDialogGeometry {
         return appList != null;
     }
 
-    /** Same exact layout, excluding native row slots that can scroll independently. */
+    /** Same exact layout. */
     boolean sameLayoutAs(SimulcastDialogGeometry other) {
         return equivalentWithin(other, 0);
     }
 
     /**
-     * Equivalent on-screen layout within {@code epsilonPx}. Native row slots and the
-     * App Change button are deliberately excluded because they can move independently
-     * inside the stable row container.
+     * Equivalent on-screen layout within {@code epsilonPx}. Only the stable containers
+     * count: the stock icons scroll inside the row and the App Change button moves with
+     * it, and either would make our row recompute (jump/resize) on every native scroll.
      */
     boolean equivalentWithin(SimulcastDialogGeometry other, int epsilonPx) {
-        // Deliberately excludes appSlots: those scroll within the container and would
-        // otherwise make our row recompute (jump/resize) on every native scroll event.
         return other != null
                 && approximatelyEqualRect(dialog, other.dialog, epsilonPx)
                 && approximatelyEqualRect(central, other.central, epsilonPx)
@@ -140,16 +131,6 @@ final class SimulcastDialogGeometry {
         return Collections.unmodifiableMap(result);
     }
 
-    Set<String> visibleViewResourceNames() {
-        LinkedHashSet<String> result = new LinkedHashSet<>();
-        for (ScreenTarget target : ScreenTarget.SUPPORTED) {
-            if (receivers.containsKey(target.receiverId)) {
-                result.add(target.viewResourceName);
-            }
-        }
-        return Collections.unmodifiableSet(result);
-    }
-
     static SimulcastDialogGeometry from(AccessibilityNodeInfo root) {
         if (root == null) {
             return null;
@@ -161,7 +142,6 @@ final class SimulcastDialogGeometry {
         if (dialog == null) {
             return null;
         }
-        List<Rect> slots = allNodeBounds(root, "app_icon");
         Rect appChangeButton = nodeBounds(root, "switch_share_app");
         Rect appList = nodeBounds(root, "app_list");
         if (appList == null && appChangeButton != null) {
@@ -184,10 +164,8 @@ final class SimulcastDialogGeometry {
                 central,
                 centralContent,
                 Collections.unmodifiableMap(receivers),
-                appChangeButton,
                 nodeBounds(root, "close"),
-                appList,
-                slots);
+                appList);
     }
 
     private static Rect appListFromButton(Rect button) {
@@ -241,28 +219,10 @@ final class SimulcastDialogGeometry {
         return result;
     }
 
-    private static List<Rect> allNodeBounds(AccessibilityNodeInfo root, String id) {
-        List<Rect> out = new ArrayList<>();
-        List<AccessibilityNodeInfo> nodes =
-                root.findAccessibilityNodeInfosByViewId(PKG + ":id/" + id);
-        if (nodes != null) {
-            for (AccessibilityNodeInfo n : nodes) {
-                Rect r = new Rect();
-                n.getBoundsInScreen(r);
-                if (!r.isEmpty()) {
-                    out.add(r);
-                }
-                n.recycle();
-            }
-        }
-        return out;
-    }
-
     @Override
     public String toString() {
         return "Geometry{dialog=" + dialog + ", central=" + central
                 + ", centralContent=" + centralContent
-                + ", receivers=" + receivers + ", appChange=" + appChangeButton
-                + ", slots=" + appSlots.size() + '}';
+                + ", receivers=" + receivers + ", appList=" + appList + '}';
     }
 }
