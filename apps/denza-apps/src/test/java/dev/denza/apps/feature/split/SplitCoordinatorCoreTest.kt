@@ -1,5 +1,9 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.disharebridge.AdbFailures
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.After
@@ -420,8 +424,9 @@ class SplitCoordinatorCoreTest {
     }
 
     /**
-     * 1.11.4: каждая форма, которой эта машина отвечает на мёртвый локальный ADB, доходит до
-     * поверхности как мёртвый канал - и ни одна из них не превращается в текст на панели.
+     * 1.11.4, путь помощника: каждая форма, которой эта машина отвечает на мёртвый локальный ADB,
+     * доходит до поверхности как мёртвый канал, даже если пришла одним текстом - так отвечает
+     * резидентный помощник - и ни одна из них не превращается в текст на панели.
      *
      * Формы взяты из живых отказов: неподтверждённый ключ, ключ в ожидании подтверждения,
      * отказ в соединении и переставший отвечать канал. Ни один рецепт их не переживает, и ни
@@ -448,6 +453,50 @@ class SplitCoordinatorCoreTest {
             assertEquals(reason, listOf(SplitActionResult.CHANNEL_UNAVAILABLE), results.toList())
             assertEquals("и экран об этом молчит", "", core.snapshot().message)
         }
+    }
+
+    /**
+     * 1.11.4, путь транспорта: исключение, которое бросает сам канал, читается по типу. Настоящий
+     * таймаут сокета говорит «Read timed out», и ни один маркер текста его не узнавал: тап по
+     * «Разделить экран» на зависшей связи кончался ничем вместо экрана ремонта.
+     */
+    @Test
+    fun theTransportsOwnFailuresAreADeadChannelByTheirType() {
+        val failures = listOf(
+            SocketTimeoutException("Read timed out"),
+            SocketTimeoutException("failed to connect to /127.0.0.1 (port 5555) from /:: (port 0) after 900ms"),
+            ConnectException("failed to connect to /127.0.0.1 (port 5555): ECONNREFUSED (Connection refused)"),
+            AdbFailures.authorizationRequired(),
+            AdbFailures.authorizationPending(),
+        )
+        failures.forEach { error ->
+            val car = car(FakeShell())
+            val core = car.core(SplitDurable(enabled = true))
+            core.initialize {}
+            val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+
+            car.shells.failOn(GATE_OPEN, error)
+            core.openPickerSession(results::add)
+            car.barrier()
+
+            assertEquals(error.toString(), listOf(SplitActionResult.CHANNEL_UNAVAILABLE), results.toList())
+            assertEquals("и экран об этом молчит", "", core.snapshot().message)
+        }
+    }
+
+    /** Отказ помощника, который не про канал, остаётся отказом рецепта: ремонтировать нечего. */
+    @Test
+    fun aFailureThatIsNotTheChannelsSettles() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true))
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+
+        car.shells.failOn(GATE_OPEN, IOException("the resident helper is not running"))
+        core.openPickerSession(results::add)
+        car.barrier()
+
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
     }
 
     /** 1.5.6, U5: пакет исчез между кадром и чтением - тап просто закончился. */

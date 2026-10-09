@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.adb.AdbProblem
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
@@ -170,14 +171,17 @@ internal sealed interface SplitOutcome {
     /** The read-back passed and the durable snapshot was written by exactly one commit. */
     data object Committed : SplitOutcome
 
-    /** The operation failed and the journal was replayed backwards (contract 7.10). */
-    data class RolledBack(val reason: String) : SplitOutcome
+    /**
+     * The operation failed and the journal was replayed backwards (contract 7.10). [channel] is the
+     * local ADB channel's own failure, read off the exception where it was still in hand.
+     */
+    data class RolledBack(val reason: String, val channel: AdbProblem? = null) : SplitOutcome
 
     /** The operation lost its token: preempted, shut down or expired. */
     data class Cancelled(val reason: String) : SplitOutcome
 
     /** The operation refused its preconditions or died in a way it could not describe. */
-    data class Failed(val message: String) : SplitOutcome
+    data class Failed(val message: String, val channel: AdbProblem? = null) : SplitOutcome
 }
 
 /**
@@ -483,7 +487,9 @@ internal class SplitActor(
             } catch (escaped: Throwable) {
                 // The queue outlives any single operation, including a listener that throws while
                 // its ticket is being settled. Losing the worker would freeze the whole product.
-                entry.ticket.finish(SplitOutcome.Failed(escaped.message ?: escaped.toString()))
+                entry.ticket.finish(
+                    SplitOutcome.Failed(escaped.message ?: escaped.toString(), AdbProblem.of(escaped)),
+                )
             }
         }
     }
@@ -497,7 +503,7 @@ internal class SplitActor(
             Thread.currentThread().interrupt()
             SplitOutcome.Failed(SplitCancelReason.SHUTDOWN)
         } catch (failure: Throwable) {
-            SplitOutcome.Failed(failure.message ?: failure.toString())
+            SplitOutcome.Failed(failure.message ?: failure.toString(), AdbProblem.of(failure))
         }
         lock.withLock {
             if (inFlight === entry) inFlight = null
