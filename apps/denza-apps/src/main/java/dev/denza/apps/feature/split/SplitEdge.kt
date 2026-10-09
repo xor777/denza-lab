@@ -122,14 +122,11 @@ internal class SplitEdge(
     }
 
     /**
-     * Раскрывает native split синтетическим перетаскиванием дивайдера.
+     * Reveals the native split with one synthetic drag of the divider.
      *
-     * `internal`, а не `private`, по той же причине, что [awaitNativePickerCommit] и
-     * [nativePickerMutationAllowed]: это охраняемая мутация, и её охрана проверяется напрямую.
-     * Через reveal сюда не добраться - путь срабатывает только на по-настоящему пустой сцене,
-     * и ни один сценарный тест до него не доходит (проверено: холодный `openPickerSession` не
-     * отправляет ни одного `input swipe`). Единственная мутация в файле, которая не звала
-     * [hasActivePointer], была ровно та, которую никто не мог позвать в тесте.
+     * `internal` rather than `private`, like [awaitNativePickerCommit] and
+     * [nativePickerMutationAllowed]: it is a guarded mutation, and its guards are tested directly.
+     * A build reaches it only on a truly empty scene whose pickers came up as fullscreen tasks.
      */
     internal fun dragDividerToBalanced() {
         val inputState = world.shell("dumpsys input").also(world::validateOutput)
@@ -142,30 +139,28 @@ internal class SplitEdge(
         val top = divider.groupValues[2].toInt()
         val right = divider.groupValues[3].toInt()
         val bottom = divider.groupValues[4].toInt()
-        // Детенты 856/1704 и ширина 2560 сняты живьём с панели ЭТОЙ машины; вычислять их из
-        // чего-либо значило бы выдумать поведение прошивки, поэтому они остаются константами. Но
-        // тогда обязана быть проверка, что панель та самая - иначе жест уйдёт по координатам
-        // чужого экрана. Тень дивайдера растянута на всю высоту панели, и её высота - единственная
-        // величина отсюда, которую можно с панелью сверить: 1600 и в живом дампе, и в измерении
-        // экрана (2560x1600). Расходится - не отправляем ничего.
+        // The detents 856/1704 and the width 2560 were measured on this car's panel; computing
+        // them from anything would invent firmware behaviour, so they stay constants - and the
+        // panel has to be checked to be that panel, or the gesture would land on the coordinates
+        // of another screen. The divider's shadow spans the panel's height, the one value here
+        // that can be held against the panel: 1600, in the live dump and in the screen size
+        // (2560x1600). Anything else sends nothing.
         //
-        // Отрицательный left здесь нормален: тень уходит за край экрана (живьём frame=[-67,0]).
+        // A negative left is normal: the shadow runs past the edge of the screen (frame=[-67,0]).
         if (bottom - top != PANEL_HEIGHT || right <= left) {
             error("Геометрия дивайдера не с этой панели: [$left,$top][$right,$bottom]")
         }
         val startX = ((left + right) / 2).coerceIn(EDGE_INSET, DISPLAY_WIDTH - EDGE_INSET)
         val endX = if (startX < DISPLAY_WIDTH / 2) LEFT_DIVIDER_X else RIGHT_DIVIDER_X
-        // Вертикаль остаётся константой, и это следствие проверки выше, а не предположение: тень
-        // растянута на всю высоту панели, панель обязана быть 1600, значит середина обязана быть
-        // 800. Считать её из рамки я пробовал - при таком guard'е выражение не может дать другого
-        // числа, то есть отличить вычисление от константы нечем, и тест на него был бы
-        // декоративным (контракт §10.3.2).
+        // The vertical is a constant because of the check above, not by assumption: the shadow
+        // spans the panel, the panel must be 1600 high, so its middle is 800. Computed from the
+        // frame under that guard it cannot be another number, and a test of the computation would
+        // be decorative (contract §10.3.2).
         val y = DIVIDER_Y
-        // Последнее, что делается перед мутацией, и на СВЕЖЕМ дампе: рамку читали раньше, а палец
-        // за это время мог опуститься. Свой жест поверх чужого касания - это не гонка за сцену, а
-        // порча жеста, который делает пользователь; этот путь и так холодный, лишнее чтение здесь
-        // ничего не стоит. Тот же предикат, что охраняет мутацию штатного пикера
-        // ([nativePickerMutationAllowed]) - там он уже применяется, здесь его просто не звали.
+        // The last thing before the mutation, on a fresh dump: the frame was read earlier and a
+        // finger may have come down since. A gesture of ours over the user's touch spoils the
+        // user's gesture; this path is cold, and the extra read costs nothing. It is the same
+        // predicate that guards the stock picker's replacement ([nativePickerMutationAllowed]).
         if (hasActivePointer(world.shell("dumpsys input"))) {
             error("Дивайдер под пальцем: синтетический жест не отправляется")
         }

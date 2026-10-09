@@ -393,12 +393,10 @@ internal class SplitActor(
      * over 7). An in-flight victim only loses its token here: it settles its own ticket when it
      * unwinds at its next fence, which is what makes "no late mutation" observable.
      *
-     * Правка 2026-09-04 (владелец: «закрыть панель, вытянуть обратно - наш пикер через 2-3 с»).
-     * Жест вытягивания сам рождает шторм `TYPE_WINDOWS_CHANGED`, то есть сверку со слепой паузой
-     * `DIVIDER_RECONCILE_SETTLE_MS`, и подтверждённый edge вставал в очередь за ней: в очереди он
-     * старше по приоритету, а в полёте не вытеснял ничего. Теперь он отнимает у полётной сверки
-     * токен тем же механизмом, что `OPEN` и `SELECT`; сверка перечитает мир после него по своему
-     * же отложенному повтору.
+     * A confirmed edge takes the token of an in-flight reconcile as well: the pull-out gesture
+     * itself raises a storm of `TYPE_WINDOWS_CHANGED`, that is a reconcile with the divider's
+     * blind settle, and an edge queued behind it put our picker in the pane 2-3 s late
+     * (2026-09-04). The reconcile re-reads the world after the edge by its own delayed retry.
      */
     private fun preempt(priority: SplitInputPriority): List<Pair<SplitTicket, String>> {
         val victims: Set<SplitInputPriority>

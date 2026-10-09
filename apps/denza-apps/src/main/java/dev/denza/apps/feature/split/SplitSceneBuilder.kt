@@ -77,43 +77,36 @@ internal class SplitSceneBuilder(
     /**
      * The whole scene in one recipe: the two permanent picker bases and the apps above them.
      *
-     * It used to be two - `openPickers`, then one `restoreApp` per pane, which fell through to the
-     * same `selectApp` a user tap runs - and the two of them repeated everything: the gate, the
-     * roots, the snapshot, and a postcondition that measured one pane at a time and only up to the
-     * moment the *other* pane had not been launched yet. That is the "picker over an app" defect of
-     * acceptance v17, and it is why restoring a saved pair took eleven seconds where a fresh open
-     * took three.
+     * One preamble (the gate, the runtime list), one pass over the roots, the launches back to
+     * back, and one postcondition over the whole scene at once ([awaitScenePlacement]); contract
+     * 7.7 then adds the operation's own read-back on top. A postcondition measured one pane at a
+     * time would pass a pane before the other pane's launch had covered it with its picker.
      *
-     * Every command it sends was already sent before; what is new is the order. One preamble, one
-     * pass over the roots, both launches back to back, and one postcondition measured over the
-     * whole scene twice (contract 7.7 then adds the operation's own read-back on top).
-     *
-     * The pickers stay the mechanism and the floor: this firmware ignores the pane categories for
-     * third-party apps and refuses to hold a split whose root is empty (1.4.1, findings), so the
-     * phases go, not the pickers.
+     * The pickers are the mechanism and the floor: this firmware ignores the pane categories for
+     * third-party apps and refuses to hold a split whose root is empty (1.4.1).
      */
     fun buildScene(
         pickerComponents: Map<SplitPane, String>,
         targets: Map<SplitPane, SplitLaunchTarget>,
         /**
-         * The exact identities this process recorded for the apps of a still-living scene
-         * (правка B1, ground-v18 A). A survivor the firmware threw out of the panel roots is
-         * taken back by reparenting that exact task instead of launching; anything the map
-         * cannot prove exactly falls through to the honest launch below (invariant 4).
+         * The exact identities this process recorded for the apps of a still-living scene. A
+         * survivor the firmware threw out of the panel roots is taken back by reparenting that
+         * exact task instead of launching; anything the map cannot prove exactly falls through to
+         * the honest launch below (invariant 4).
          */
         expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
         /**
-         * The ids already living on the main display before this operation's first mutation
-         * (правка W6). It is the operation's own journal knowledge: a failed pane's candidate may
-         * be removed only when this build provably created it; a pre-existing task is returned to
-         * the background instead. `null` means the past could not be read, and then nothing is
-         * ever removed as "created".
+         * The ids already living on the main display before this operation's first mutation. It
+         * is the operation's own journal knowledge: a failed pane's candidate may be removed only
+         * when this build provably created it; a pre-existing task is returned to the background
+         * instead. `null` means the past could not be read, and then nothing is ever removed as
+         * "created".
          */
         preexistingTaskIds: Set<Int>? = null,
         /**
-         * Правка W10: фазовые метки сборки для диагностического лога. Следующая красная ветка
-         * обязана раскладываться по логу без гаданий: какому шагу достались секунды, говорит
-         * сама операция ("roots-started" ... "placement-confirmed"), а не реконструкция.
+         * The phases of the build for the diagnostic ring ("roots-started" ...
+         * "placement-confirmed"), so that the seconds of a slow build are attributed by the
+         * operation itself rather than reconstructed.
          */
         onPhase: (String) -> Unit = {},
         /**
@@ -163,10 +156,10 @@ internal class SplitSceneBuilder(
         // dies, and who kills it"). Home throws the wide pane's tasks out of their container and a
         // collapse does the same to the closed pane; out there a task that is excluded from
         // recents and lies below Home is trimmed by the firmware at the first new recents task -
-        // usually the very tap on the launcher that asked for this open. On 2026-09-18 18:55:35 an
-        // open read such a picker 44 ms before it went. It is left to that trim, and the pane
-        // gets a fresh picker; its id is kept out of the launch's discovery so the old one is
-        // never mistaken for the new.
+        // usually the very tap on the launcher that asked for this open, so an open can read such
+        // a picker moments before it goes. It is left to that trim, and the pane gets a fresh
+        // picker; its id is kept out of the launch's discovery so the old one is never mistaken
+        // for the new.
         val strandedPickerIds = before.roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
@@ -187,11 +180,11 @@ internal class SplitSceneBuilder(
             pickerTasks[pane] = picker
         }
         // A firmware left in a single-pane mode (101/102) keeps a pane launch in its one pane:
-        // only START_IVI_PRIMARY re-splits (IVI:463-503). It is how a navigator returned from the
-        // cluster into a hidden scene leaves it (live 2026-09-23 19:24): the narrow picker it
-        // stands on was adopted above, the wide launch landed full screen, and there is no divider
-        // shadow for a gesture. The narrow side gets a fresh picker, the one launch that re-splits;
-        // the adopted one stays under it.
+        // only START_IVI_PRIMARY re-splits (IVI:463-503). A navigator returned from the cluster
+        // into a hidden scene leaves it so (findings, "An open over a single-pane firmware"): the
+        // narrow picker was adopted above, the wide launch landed full screen, and there is no
+        // divider shadow for a gesture. The narrow side gets a fresh picker, the one launch that
+        // re-splits; the adopted one stays under it.
         if (
             launchedPanes.isNotEmpty() &&
             SplitPane.PRIMARY !in launchedPanes &&
@@ -233,9 +226,9 @@ internal class SplitSceneBuilder(
             }
         }
         // A settle is for something that happened: two pickers already in their roots settle
-        // nothing (1.13, "не заставлять ждать там, где ждать нечего"). And what did happen is
-        // waited out by condition, not by a blind pause: the read that confirms the reparent is,
-        // through the shared topology cache, the very read the apps phase decides from (правка A3).
+        // nothing (1.13). What did happen is waited out by condition, not by a blind pause: the
+        // read that confirms the reparent is, through the shared topology cache, the very read the
+        // apps phase decides from.
         if (reparented) {
             world.awaitSnapshotMatching { state ->
                 SplitPane.entries.all { pane ->
@@ -247,8 +240,11 @@ internal class SplitSceneBuilder(
         // The synthetic drag backs up exactly one situation: a picker this build launched on a
         // truly empty scene came up as an ordinary fullscreen task. A scene assembled from
         // survivors has no divider on screen to drag - at Home there is none - and is raised by
-        // the reveal's own focus command in the apps phase instead (правка B1).
-        if (launchedPicker && world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+        // the reveal's own focus command in the apps phase instead.
+        if (
+            launchedPicker &&
+            world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT
+        ) {
             edge.dragDividerToBalanced()
             check(world.awaitArea(NATIVE_PICKER_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
                 "Прошивка не раскрыла native split"
@@ -276,13 +272,10 @@ internal class SplitSceneBuilder(
             } else {
                 null
             }
-            // Правка W1 волны 10 (приёмка v25, Д1): живая задача целевого пакета, уже стоящая в
-            // корне ЭТОЙ панели, и есть приложение панели. Прежде её не признавал никто - `covered`
-            // и `stray` требуют точный записанный id, - и панель уходила в ЗАПУСК поверх живой
-            // копии. При двух задачах одного пакета прошивка приносила по `am start` вторую копию,
-            // а поиск по пакету называл первую и втаскивал её следом: в корне оказывались обе
-            // (живьём v25: `music t316+t532 RELAUNCHED into SECONDARY`, три задачи в панели).
-            // Приложение живо - значит панель его показывает, а не запускает копию.
+            // A living task of the target package already in THIS pane's root is the pane's
+            // application, even without the exact recorded id `covered` and `stray` need: the
+            // pane shows it rather than launching over it, since with two tasks of a package a
+            // launch would bring the second copy and the root would end up holding both.
             val resident = if (covered == null && stray == null) {
                 residentAppInPane(settled, rootIds, pane, hostTaskIds, expectedApps[pane], target)
             } else {
@@ -306,8 +299,8 @@ internal class SplitSceneBuilder(
                         ),
                     )
                 }
-                // Правка B1, U2: the pane still holds the exact recorded task, merely covered or
-                // under its picker. It is adopted and later promoted; nothing is launched.
+                // U2: the pane still holds the exact recorded task, merely covered or under its
+                // picker. It is adopted and later promoted; nothing is launched.
                 covered != null -> {
                     appTaskIds[pane] = covered.id
                     adoptedAppIds += covered.id
@@ -320,9 +313,9 @@ internal class SplitSceneBuilder(
                         ),
                     )
                 }
-                // Правка B1: the firmware threw the exact recorded task out of the panel roots
-                // (ground-v18 A) but kept it alive with its panel bounds. Reparenting it back is
-                // the whole restore of that pane - the very moves that are already live-proven.
+                // The firmware threw the exact recorded task out of the panel roots but kept it
+                // alive with its panel bounds. Reparenting it back is the whole restore of that
+                // pane - the very moves that are already live-proven.
                 stray != null -> {
                     appTaskIds[pane] = stray.id
                     adoptedAppIds += stray.id
@@ -336,8 +329,8 @@ internal class SplitSceneBuilder(
                     )
                     commands.moveTask(stray.id, rootIds.getValue(pane))
                 }
-                // Правка W1 волны 10: приложение панели уже стоит в её корне. Оно поднимается тем
-                // же focus, что и `covered`, и получает размер панели в общем пакетном ресайзе.
+                // The pane's application already stands in its root. It is raised by the same
+                // focus as `covered` and takes the pane's size in the batched resize.
                 resident != null -> {
                     appTaskIds[pane] = resident.id
                     adoptedAppIds += resident.id
@@ -354,17 +347,15 @@ internal class SplitSceneBuilder(
             }
         }
         // A pane is its picker plus at most one app, so whatever else a previous session or a
-        // native ending left in one has to leave before this scene can be proven. It is the rule
-        // the two blind `prunePane` calls used to run, now decided from the read above; a clean
-        // pane costs nothing at all, and the copy of the package this pane is about to show is
-        // kept so that restoring it reuses the task instead of restarting it (U2).
+        // native ending left in one has to leave before this scene can be proven, decided from the
+        // read above; a clean pane costs nothing at all.
         val stale = SplitPane.entries.flatMap { pane ->
             val target = wanted[pane]?.packageName
             val keep = setOfNotNull(
                 hostTaskIds.getValue(pane),
                 appTaskIds[pane],
-                // Правка W1 волны 10: копия пакета в корне бережётся ради ЗАПУСКА, чтобы он
-                // переиспользовал задачу вместо перезапуска (U2).
+                // A copy of the package this pane is about to launch is kept, so that the launch
+                // reuses the task instead of restarting it (U2).
                 if (appTaskIds[pane] == null) {
                     settled.root(rootIds.getValue(pane))?.tasks
                         ?.filter { task -> task.packageName == target }
@@ -374,10 +365,9 @@ internal class SplitSceneBuilder(
                     null
                 },
             )
-            // Правка 2026-09-04: у панели, чьё приложение уже найдено, вторая живая задача того же
-            // пакета - житель панели, а не лишнее (1.5.2, правка волны 14). Волна 10 отправляла её
-            // «живой в фон», но корень 4 фона не держит (машинная правда волны 10): окно вставало
-            // поверх сцены. Лишним остаётся только чужой пакет и собственные компоненты.
+            // In a pane whose application is found, a second living task of the same package is
+            // a resident of the pane, not surplus (1.5.2): evicted, it would stand visible in root
+            // 4 over the scene. Only a foreign package and our own components are surplus.
             val resident = target?.takeIf { appTaskIds[pane] != null }
             settled.root(rootIds.getValue(pane))?.tasks.orEmpty()
                 .filterNot { task ->
@@ -388,14 +378,13 @@ internal class SplitSceneBuilder(
                             task.packageName == resident)
                 }
         }
-        // Правка W3 волны 8 (инвариант 3, примечание контракта под 1.5; диагноз v23 Д1(б)/Д2):
-        // членство в панельном корне - не приговор. Удаляется только доказуемо своё - собственные
-        // компоненты по exact identity и задачи, СОЗДАННЫЕ этой операцией по её же журнальному
-        // чтению (механика W6). Любая другая задача корня - задача пользователя, чем бы она туда
-        // ни попала (нативное втягивание, прежний выбор), и выселяется живой в полноэкранный
-        // корень - с его геометрией, потому что в фон она там не уходит. Непрочитанное
-        // прошлое (`preexistingTaskIds == null`) трактуется как «не наше»: не доказано создание -
-        // не удаляем.
+        // Membership of a panel root is no verdict (invariant 3; contract, note under 1.5). Only
+        // what is provably ours is removed - our own components by exact identity, and tasks this
+        // operation created by its own journal read. Any other task of a root is the user's,
+        // however it got there (pulled in natively, an earlier selection), and is evicted alive
+        // into the full root, with that root's geometry because it does not go to the background
+        // there. An unread past (`preexistingTaskIds == null`) counts as not ours: no proven
+        // creation, no removal.
         val (executable, foreign) = stale.partition { task ->
             task.isOwnSplitComponent() ||
                 (preexistingTaskIds != null && task.id !in preexistingTaskIds)
@@ -416,8 +405,8 @@ internal class SplitSceneBuilder(
         }
         if (adoptedAppIds.isNotEmpty()) {
             // The reveal's own command, per adopted pane: it orders the exact task above its
-            // picker and raises the covered scene on the way (правка B1, к 1.9.4). Membership is
-            // then confirmed on the read the normalize pass shares.
+            // picker and raises the covered scene on the way (1.9.4). Membership is then confirmed
+            // on the read the normalize pass shares.
             adoptedAppIds.forEach { taskId -> world.run("am task focus $taskId") }
             world.awaitSnapshotMatching { state ->
                 appTaskIds.all { (pane, taskId) ->
@@ -428,33 +417,31 @@ internal class SplitSceneBuilder(
         // A build that launched no picker has nothing that asks the firmware for the split: the
         // categories raise it only on our own picker starts, and the synthetic drag has no divider
         // to grab under Home. One focus on an exact owned task - the app if there is one, else a
-        // base - raises the assembled scene the way the reveal does (правка B1, к 1.9.4); a scene
-        // already balanced costs one area read and nothing else.
-        if (!launchedPicker && world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+        // base - raises the assembled scene the way the reveal does (1.9.4); a scene already
+        // balanced costs one area read and nothing else.
+        if (
+            !launchedPicker &&
+            world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT
+        ) {
             val focusTaskId = appTaskIds.values.firstOrNull()
                 ?: hostTaskIds.getValue(SplitPane.PRIMARY)
             world.run("am task focus $focusTaskId")
         }
         onPhase("apps-launched")
 
-        // Правка W3 волны 10 (владелец, 2026-08-25): панель после запусков обязана остаться «база
-        // и приложение», и добивается этого сборка, а не постусловие. Всё, что прошивка успела
-        // принести в корень сверх пары, - не повод провалить готовую сцену и оставить экран
-        // пустым: своё убирается, задача пользователя уезжает живой в полноэкранный корень (в фон
-        // она там не уходит, поэтому и получает его геометрию). Предпусковая чистка
-        // выше видит мир ДО запусков и до новоприбывших не достаёт.
+        // After the launches a pane is still "base and application", and the build makes it so,
+        // not the postcondition: whatever the firmware brought into a root beyond the pair is no
+        // reason to fail a finished scene. The cleanup above saw the world before the launches.
         sweepPanesToBaseAndApp(rootIds, hostTaskIds, appTaskIds, preexistingTaskIds)
-        // Правка 2026-09-04: окном панели становится та задача её приложения, что фактически
-        // стоит сверху, - тот же ответ миру, что даёт выбор (`settledSelectedAppTaskId`, правка
-        // волны 13). Прошивка вправе привести в панель обе задачи пакета и положить сверху не ту,
-        // которую адресовал запуск; уборка выше теперь её не выселяет, значит и постусловие
-        // обязано спрашивать про приложение, а не про адресата.
+        // A pane's window is whichever task of its application is actually on top - the same
+        // answer the selection takes from the world: the firmware may bring both tasks of a
+        // package into the pane and put the other one on top.
         settleResidentWindows(rootIds, appTaskIds)
         // Both bases and both apps take the size of their pane from one read, the divergent ones
         // are resized back to back, and one settle and one more read close the whole batch.
         normalizeSceneToRoots(hostTaskIds, appTaskIds, rootIds, failed)
         // 1.3.2: a pane whose app did not come back keeps its picker - and only what this build
-        // itself created may die with the attempt (правка W6).
+        // itself created may die with the attempt.
         failed.forEach { pane ->
             val packageName = targets[pane]?.packageName ?: return@forEach
             runCatching {
@@ -500,22 +487,22 @@ internal class SplitSceneBuilder(
             launching.entries.map { (pane, target) -> mapOf(pane to target) }
         }
         val taken = mutableSetOf<Int>()
-        // Панель, КОТОРУЮ ПРОСИЛИ, - и только она. Панель, которую назвал мир, читается ниже.
+        // The pane each launch ASKED for, and only that; the pane the world gave is read below.
         val requested = linkedMapOf<SplitPane, Int>()
         groups.forEach { group ->
             val started = group.filter { (pane, target) ->
-                runCatching { commands.startTargetInPane(pane, target, secondInstanceOf(pane, paneApps)) }
+                runCatching {
+                    commands.startTargetInPane(pane, target, secondInstanceOf(pane, paneApps))
+                }
                     .onFailure { failed += pane }
                     .isSuccess
             }
             if (started.isEmpty()) return@forEach
-            // One poll answers the whole group from the same reads, and the blind settle that
-            // used to precede the waiting is gone: a restore's task already exists, so the very
-            // first read finds it (правка A2/A3). A pane keeps its first match - exactly what the
-            // per-pane wait did - and a pane the short budget leaves unmatched fails alone,
-            // degrading to the working picker of 1.3.2 (правка W5): the red
-            // branch of v20 P1.2 burned two twelve-read budgets (~5 с каждый) against a task the
-            // firmware refused to hold.
+            // One poll answers the whole group from the same reads, with no settle before it: a
+            // restore's task already exists, so the very first read finds it. A pane keeps its
+            // first match, and a pane the short budget leaves unmatched fails alone, degrading to
+            // the working picker of 1.3.2 rather than burning reads on a task the firmware will
+            // not hold.
             val found = linkedMapOf<SplitPane, SplitTask>()
             world.awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
                 val tasks = state.roots.asSequence()
@@ -529,12 +516,10 @@ internal class SplitSceneBuilder(
                             task.packageName == target.packageName &&
                             !task.isOwnSplitComponent()
                     }
-                    // Правка W2 волны 10 (приёмка v25, Д1): запуск идёт в КАТЕГОРИИ панели, и
-                    // задача, оказавшаяся в её корне, - это и есть ответ прошивки на него. Прежний
-                    // «максимальный id по всему дисплею» при двух задачах пакета называл ДРУГУЮ
-                    // копию и втаскивал её `promoteTask`-ом поверх той, что запуск уже принёс: в
-                    // панели оказывались обе (живьём `music t316+t532 RELAUNCHED into SECONDARY`),
-                    // и постусловие валило всю сборку. Место доказывает больше, чем свежесть.
+                    // The launch goes in the pane's CATEGORY, and a task that ended in that pane's
+                    // root is the firmware's answer to it: place proves more than freshness. With
+                    // two tasks of a package, the newest on the whole display may be the OTHER
+                    // copy, and promoting it would put both into the pane.
                     candidates.filter { task -> task.rootId == rootIds.getValue(pane) }
                         .ifEmpty { candidates }
                         .maxByOrNull(SplitTask::id)
@@ -565,10 +550,9 @@ internal class SplitSceneBuilder(
         }
         if (requested.isEmpty()) return
         // The promotes are waited out by condition as well: every promoted task listed in its
-        // pane root, on a read the following normalize pass then shares (правка A3). The budget
-        // is the restore path's short one (правка W5): a reparent lands on the very next read,
-        // and a task the firmware keeps out of the pane is answered by the pane's honest
-        // degradation, not by twelve reads of hope.
+        // pane root, on a read the following normalize pass then shares. The budget is the
+        // restore path's short one: a reparent lands on the very next read, and a task the
+        // firmware keeps out of the pane is answered by the pane's honest degradation.
         world.awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
             requested.all { (pane, taskId) ->
                 state.root(rootIds.getValue(pane))?.tasks?.any { it.id == taskId } == true
@@ -578,20 +562,15 @@ internal class SplitSceneBuilder(
     }
 
     /**
-     * Правка волны 15 (дефект 2026-08-27, контракт 1.5.3/1.5.7): сборка записывает ФАКТИЧЕСКУЮ
-     * сторону приземления, а не запрошенную.
+     * The build records the side each app actually landed on, not the side it asked for (1.5.3,
+     * 1.5.7), as the selection does: everything downstream - the sweep, the geometry, the
+     * postcondition - is keyed by pane, and an app the firmware put into the OTHER pane would
+     * otherwise be surplus there and evicted, a live visible window over the whole scene.
      *
-     * Путь ВЫБОРА умеет это с волны 7 ([selectApp], `settledPane`), путь СБОРКИ не умел: он писал
-     * `appTaskIds[запрошенная панель]`, и всё ниже по течению - уборка [sweepPanesToBaseAndApp],
-     * геометрия [normalizeSceneToRoots], постусловие [scenePlacement] - ключевалось запрошенной
-     * панелью. Задача, которую прошивка посадила в СОСЕДНЮЮ панель, в keep-набор своего корня не
-     * попадала, становилась там лишней и уезжала выселением - живое видимое окно владельца
-     * (2026-08-27: `dev.denza.apps` шириной 832 px поверх всей сцены).
-     *
-     * Приоритет стороны - у того, кому прошивка уже отказала: его [SplitTaskCommands.promoteTask] в запрошенный
-     * корень мир только что не отдал, и переспорить это нечем (1.5.3, `mPrimaryActivity`
-     * персистит). Приложение, вставшее туда, куда просили, ещё подвижно, и панель уступает ему
-     * первой - это честный отказ 1.3.2 «панель показывает пикер», а не перетаскивание чужого.
+     * The side goes first to the app the firmware already refused: the world has just declined
+     * its [SplitTaskCommands.promoteTask] into the requested root, and there is nothing to argue
+     * with (1.5.3, `mPrimaryActivity` persists). An app that landed where it was asked is still
+     * movable, and its pane yields first - the honest refusal of 1.3.2, the pane shows its picker.
      */
     private fun recordSettledPanes(
         rootIds: Map<SplitPane, Int>,
@@ -608,16 +587,16 @@ internal class SplitSceneBuilder(
         val (displaced, compliant) = settledPanes.entries.partition { (pane, settled) ->
             settled != pane
         }
-        // Сначала те, чью сторону назвала прошивка вопреки запросу: спорить с ней нечем, и
-        // запрошенная ими панель честно деградирует в свой пикер (1.3.2, 1.5.7).
+        // First those whose side the firmware named against the request: there is nothing to
+        // argue with, and the pane they asked for honestly degrades to its picker (1.3.2, 1.5.7).
         displaced.forEach { (pane, settled) ->
             failed += pane
             if (settled != null && appTaskIds[settled] == null) {
                 appTaskIds[settled] = requested.getValue(pane)
             }
         }
-        // Затем те, кто встал куда просили. Панель, уже занятая приземлившимся соседом, им не
-        // достаётся: панель - это база и ОДНО приложение (инвариант 3, 1.3.2).
+        // Then those that landed where they asked. A pane already taken by a neighbour that
+        // landed there is not theirs: a pane is its base and ONE application (invariant 3, 1.3.2).
         compliant.forEach { (pane, _) ->
             if (appTaskIds[pane] == null) {
                 appTaskIds[pane] = requested.getValue(pane)
@@ -640,8 +619,8 @@ internal class SplitSceneBuilder(
             paneApps[SplitPane.PRIMARY] == paneApps[SplitPane.SECONDARY]
 
     /**
-     * The exact recorded app of a pane, alive on the main display outside every panel root
-     * (правка B1). The proof mirrors [resolveExpectedCoveredApp]: the persisted task id, the
+     * The exact recorded app of a pane, alive on the main display outside every panel root.
+     * The proof mirrors [resolveExpectedCoveredApp]: the persisted task id, the
      * package identity and the preserved panel bounds equal to the destination root's - anything
      * less exact returns nothing and the pane is launched honestly (invariant 4).
      */
@@ -671,16 +650,16 @@ internal class SplitSceneBuilder(
     }
 
     /**
-     * Приложение панели, которое уже в ней живёт (правка W1 волны 10).
+     * The pane's application that already lives in it.
      *
-     * Запуск этого продукта - `am start` без `MULTIPLE_TASK`, то есть «дай задачу пакета, какая
-     * есть». Значит панель, в корне которой такая задача уже стоит, ничего не запускает: она её
-     * принимает. Точность здесь ровно та же, что у самого запуска - пакет, - но исход доказан, а
-     * не заказан: при двух задачах пакета запуск приносил вторую копию поверх первой.
+     * The product's launch is `am start` without `MULTIPLE_TASK`, "the package's task, whichever
+     * it is", so a pane whose root already holds such a task launches nothing and takes it. The
+     * precision is the launch's own - the package - but the outcome is proven, not requested:
+     * with two tasks of a package, a launch would bring the second copy over the first.
      *
-     * Инвариант 3 не ослаблен: собственные компоненты продукта (пикер-база, штатный bootstrap)
-     * не могут быть «найденным приложением» даже когда запускается пакет продукта.
-     * Из нескольких копий предпочитается записанная этим процессом, иначе - свежайшая.
+     * Invariant 3 is not weakened: the product's own components are never "the application
+     * found", even when the product's own package is launched. Of several copies, the one this
+     * process recorded wins, else the newest.
      */
     private fun residentAppInPane(
         state: SplitTaskSnapshot,
@@ -702,13 +681,13 @@ internal class SplitSceneBuilder(
     }
 
     /**
-     * Какая задача приложения стала окном каждой панели - решает мир, а не запуск (правка
-     * 2026-09-04; зеркало [settledSelectedAppTaskId] для сборки).
+     * Which task of its application became each pane's window - the world decides, not the
+     * launch; the build's edition of the selection's rule ([SplitSelect]).
      *
-     * Запись панели меняется только на задачу ТОГО ЖЕ пакета, что уже записан, и только когда
-     * именно она стоит сверху: чужая верхняя задача - по-прежнему отказ постусловия, а не новое
-     * приложение панели. Собственные компоненты продукта кандидатами не бывают (инвариант 3).
-     * Чтение одно и оно же достаётся [normalizeSceneToRoots] через общий кэш топологии.
+     * A pane's record changes only to a task of the SAME package already recorded, and only when
+     * that task is on top: a foreign top task is still a refusal of the postcondition, not a new
+     * application of the pane. The product's own components are never candidates (invariant 3).
+     * The one read here is shared with [normalizeSceneToRoots] through the topology cache.
      */
     private fun settleResidentWindows(
         rootIds: Map<SplitPane, Int>,
@@ -731,17 +710,15 @@ internal class SplitSceneBuilder(
     }
 
     /**
-     * Правка W3 волны 10: последнее слово сборки о составе панелей.
+     * The build's last word on what its panes hold.
      *
-     * Правило то же, что у предпусковой чистки: панель - это её пикер-база и не больше одного
-     * приложения; своё (собственные компоненты и созданное этой операцией по её же журнальному
-     * чтению) убирается, всё остальное - задача пользователя и уезжает живой в полноэкранный
-     * корень. Отличие одно и оно решающее: этот проход видит мир ПОСЛЕ запусков, то есть тех, кого
-     * прошивка привела в корень сама. Живьём (v25 Д1) именно они делали панель трёхзадачной, а
-     * постусловие превращало готовую сцену в откат в пустоту.
+     * The rule is the pre-launch cleanup's: a pane is its picker base and at most one application;
+     * what is ours goes, a user's task leaves alive for the full root. The difference is that this
+     * pass sees the world AFTER the launches, with whatever the firmware brought into a root by
+     * itself, which would otherwise turn a finished scene into a failed postcondition.
      *
-     * Чтение здесь одно и оно же достаётся [normalizeSceneToRoots] через общий кэш топологии,
-     * когда двигать не пришлось ничего.
+     * When nothing had to move, its one read is shared with [normalizeSceneToRoots] through the
+     * topology cache.
      */
     private fun sweepPanesToBaseAndApp(
         rootIds: Map<SplitPane, Int>,
@@ -749,13 +726,12 @@ internal class SplitSceneBuilder(
         appTaskIds: Map<SplitPane, Int>,
         preexistingTaskIds: Set<Int>?,
     ) {
-        // Обе базы сцены неприкосновенны, в чьём бы корне ни оказались: база не в своей панели -
-        // это задача для постусловия, а не повод убить живую базу собственной сцены.
+        // Both bases of the scene are untouchable in whichever root they ended: a base outside its
+        // pane is a matter for the postcondition, not a reason to kill a live base of our scene.
         val bases = hostTaskIds.values.toSet()
-        // Приложение панели называет её жильца, и вторая живая задача того же пакета - житель, а
-        // не лишнее (1.5.2, правка волны 14 на пути выбора; здесь - правка 2026-09-04). Пакет
-        // читается с самой записанной задачи, а не с запроса: прошивка вправе посадить приложение
-        // в соседнюю панель (1.5.3), и тогда `wanted[pane]` назвал бы не того.
+        // The pane's application names its resident, and a second living task of that package is
+        // a resident, not surplus (1.5.2). The package is read from the recorded task itself, not
+        // from the request: the firmware may put the app into the other pane (1.5.3).
         val state = world.snapshot()
         val residentByRoot = appTaskIds.entries.mapNotNull { (pane, appTaskId) ->
             val rootId = rootIds.getValue(pane)
@@ -773,14 +749,13 @@ internal class SplitSceneBuilder(
     }
 
     /**
-     * The whole-scene edition of [SplitTaskCommands.normalizeTaskToRoot], for the one recipe that sizes four tasks
-     * at once (правка A1). Every check is the single-task recipe's own - the same root lookup, the
-     * same bounds predicate, the same meaning of a failure - but the snapshot before, the settle
-     * and the snapshot after are paid once for the scene instead of once per task, which on the
-     * car was up to eight `am stack list` and four settles describing the same instant.
+     * The whole-scene edition of [SplitTaskCommands.normalizeTaskToRoot], for the one recipe that
+     * sizes four tasks at once. Every check is the single-task recipe's own - the same root lookup,
+     * the same bounds predicate, the same meaning of a failure - but the snapshot before, the
+     * settle and the snapshot after are paid once for the scene instead of once per task.
      *
-     * A missing or unresized host is still an error of the whole build; an app that is missing or
-     * refuses its pane's size degrades only that pane, exactly as before (1.3.2).
+     * A missing or unresized host is an error of the whole build; an app that is missing or
+     * refuses its pane's size degrades only that pane (1.3.2).
      *
      * @return whether anything actually had to be resized.
      */
@@ -851,12 +826,11 @@ internal class SplitSceneBuilder(
     /**
      * Clears a failed restoration candidate off the exact picker pane (1.3.2).
      *
-     * Правка W6 (v20 P1.2): удалить можно только задачу, СОЗДАННУЮ этой операцией. Живой
-     * пре-существовавший таск кандидата - чужое имущество (инвариант 3, U2): деградация паны
-     * его не воскрешает, но и не казнит - он возвращается живым в полноэкранный root тем же
-     * live-proven reparent'ом, которым его втянули (1.3.4 запрещает воскрешение, а не казнь
-     * фоновых задач). Прошлое, которого операция не читала (`preexistingTaskIds == null`),
-     * трактуется как «не наше»: не доказано создание - не удаляем.
+     * Only a task this operation CREATED may be removed. A living candidate that existed before
+     * is the user's (invariant 3, U2): the pane's degradation neither revives it nor kills it -
+     * it goes back alive into the full root by the same reparent that pulled it in. A past the
+     * operation did not read (`preexistingTaskIds == null`) counts as not ours: no proven
+     * creation, no removal.
      *
      * @return whether the pane actually had to be cleared.
      */
@@ -880,17 +854,16 @@ internal class SplitSceneBuilder(
     }
 
     /**
-     * The postcondition of a whole built scene: one full agreeing read (правка A4).
+     * The postcondition of a whole built scene: one full agreeing read.
      *
      * BYD publishes task placement before its split-area controller has necessarily committed the
-     * same transition, so the loop refuses and retries for as long as any predicate disagrees -
-     * that part is unchanged. What one agreeing read now has to say is everything at once, for
-     * both panes together: the firmware's own area is balanced, each root holds its exact picker
-     * base at the root's size with at most one task above it, and the exact expected task is the
-     * *visible* top at the root's size. The second independent observation this recipe used to
-     * take itself is the operation's own read-back (contract 7.7, `OpenOperation.readBack`), which
-     * re-reads the settled scene from the car after the shared topology is dropped - the guard
-     * that answers the "picker over an application" defect class of acceptance v17.
+     * same transition, so the loop refuses and retries for as long as any predicate disagrees.
+     * One agreeing read says everything at once, for both panes together: the firmware's own area
+     * is balanced, each root holds its exact picker base at the root's size with at most one
+     * application above it, and the exact expected task is the *visible* top at the root's size.
+     * The second, independent observation is the operation's own read-back (contract 7.7,
+     * `OpenOperation.readBack`), which re-reads the settled scene from the car after the shared
+     * topology is dropped - the guard against a picker left over an application.
      */
     private fun awaitScenePlacement(
         pickerComponents: Map<SplitPane, String>,
@@ -906,10 +879,8 @@ internal class SplitSceneBuilder(
             sample.getOrNull()?.let { placement -> return placement }
             sample.exceptionOrNull()?.let { error ->
                 lastError = error
-                // Правка W3 волны 10 (§1.13): состав панели рецепт уже закончил менять, и ждать
-                // его нечем - доведение безнадёжной сборки было чистым ожиданием. Живьём v25 Д1:
-                // 20 проб по 100 мс жгли 7.1-7.5 с поверх готового рецепта и уводили открытие за
-                // потолок в 10 с.
+                // The recipe has finished changing what the panes hold, and no wait changes it
+                // (1.13): polling a hopeless build out would only push the open past its ceiling.
                 if (error is SettledPlacementError) throw error
             }
             if (attempt + 1 < APP_PLACEMENT_CONFIRM_ATTEMPTS) {
@@ -946,10 +917,10 @@ internal class SplitSceneBuilder(
                 "Пикер ${pane.name} не принял размер split-контейнера"
             }
             val appTaskId = appTaskIds[pane]
-            // Правка 2026-09-04: панель - это база и ОДНО приложение, а не две задачи. Вторая
-            // живая задача того же пакета, что и приложение панели, - его же окно (1.5.2, правка
-            // волны 14 на пути выбора) и в счёт не идёт; всё остальное сверх приложения - состав,
-            // который рецепт уже закончил менять, а не переходный такт прошивки.
+            // A pane is its base and ONE application, not two tasks: a second living task of the
+            // pane application's package is that application's own window (1.5.2) and does not
+            // count; anything else beyond the application is what the recipe left, not a
+            // transient beat of the firmware.
             val resident = appTaskId?.let { id ->
                 root.tasks.firstOrNull { task -> task.id == id }?.packageName
             }
@@ -962,8 +933,8 @@ internal class SplitSceneBuilder(
                         task.packageName == resident)
             }
             if (occupants > MAX_TASKS_PER_PANE - 1) {
-                // Не переходный такт прошивки, а состав корня, который рецепт уже закончил менять
-                // (правка W3 волны 10): его выметает [sweepPanesToBaseAndApp], а не ожидание.
+                // Not a transient beat of the firmware but what the recipe left in the root:
+                // [sweepPanesToBaseAndApp] clears that, not a wait.
                 throw SettledPlacementError("В ${pane.name} накопилось больше двух задач")
             }
             val top = root.resolvedTopTask() ?: error("В ${pane.name} нет верхней задачи")
@@ -986,8 +957,8 @@ internal class SplitSceneBuilder(
     }
 
     /**
-     * Отказ постусловия, который ожиданием не лечится: мир уже устоялся в том виде, в каком его
-     * оставил рецепт (правка W3 волны 10). Полл сцены пережидает такты прошивки, а не структуру.
+     * A refusal of the postcondition that no wait cures: the world has settled as the recipe left
+     * it. The scene's poll waits out beats of the firmware, not structure.
      */
     private class SettledPlacementError(message: String) : IllegalStateException(message)
 
@@ -995,12 +966,9 @@ internal class SplitSceneBuilder(
         /** The areas of the firmware's single-pane modes, 101 and 102: one pane, no split. */
         val SINGLE_PANE_AREAS = setOf(AREA_PRIMARY_FULL, AREA_SECONDARY_FULL)
         /**
-         * Правка W5 (v20 P1.2): ожидания restore-пути отвечают с первого чтения - запущенная
-         * задача попадает в `am stack list` сразу, тёплый запуск пикера стоит ~0.9 с вместе с
-         * собственным round trip `am start`, а каждое чтение на этой машине само по себе
-         * 250-300 мс. Два прохода покрывают честный случай; не-матч - немедленная деградация
-         * паны в пикер с нотисом 1.3.2 (~1 c ветки вместо двух сгоревших 12-кратных бюджетов
-         * по ~5 с у красной ветки restore).
+         * The restore path's waits answer on the first read - a launched task is in
+         * `am stack list` at once, and each read on this car costs 250-300 ms by itself. Two
+         * passes cover the honest case; no match degrades the pane to its picker at once (1.3.2).
          */
         const val RESTORE_DISCOVERY_ATTEMPTS = 2
         const val NATIVE_PICKER_SETTLE_MS = 450L
@@ -1008,7 +976,7 @@ internal class SplitSceneBuilder(
 }
 
 /**
- * The phase of a build at which the two panel bases are standing in their roots (правка W10).
+ * The phase of a build at which the two panel bases are standing in their roots.
  *
  * It is a name an operation compares against rather than free text, because invariant 9 hangs a
  * decision on exactly this instant: past it the panes hold something the recipe has proven, so a

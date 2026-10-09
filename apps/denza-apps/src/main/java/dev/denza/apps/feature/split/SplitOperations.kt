@@ -862,9 +862,8 @@ internal class OpenOperation(
         //
         // Nothing is swallowed here. "There is no scene of ours" is answered with `null` by the
         // recipe itself, so a throw can only be the fence or the link - and both belong on the
-        // operation's ordinary error path, where the user is told (U5). A `getOrNull` around this
-        // read turned a dead ADB and a cancelled token alike into "no scene" and then rebuilt the
-        // screen on that reading.
+        // operation's ordinary error path (U5), not on "no scene", which would rebuild the screen
+        // on a dead ADB or a cancelled token.
         val read = work.split(op).readOwnedSession(
             pickerComponents = SPLIT_PICKER_COMPONENT_SET,
             expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
@@ -883,7 +882,7 @@ internal class OpenOperation(
      * Восстановить его отсюда - потерять решение пользователя, поэтому мир спрашивают ещё раз,
      * ровно в тот момент, когда ответ впервые начинает что-то значить.
      *
-     * Стоит это ноль команд: [SplitPickerShellSession.collapsedPaneByPanelBounds] читает те же
+     * Стоит это ноль команд: [SplitCollapse.collapsedPaneByPanelBounds] читает те же
      * два `activity_task 118` и тот же `am stack list`, которые следом читает scene-read, и они
      * общие в пределах операции ([SplitTopologyCache]). Мутаций здесь нет вовсе: огрызок пикера
      * закрытой панели уберёт сама сборка, которая сейчас переложит обе панели заново.
@@ -1161,12 +1160,12 @@ internal class SelectOperation(
      * for the first time a moment ago.
      *
      * Правка 2026-09-18 (живая сессия 18:58:27-18:58:36): читается
-     * [SplitPickerShellSession.readOwnedSelection], а не строгая сцена. Строгость 2026-08-27
+     * [SplitOwnedScene.readOwnedSelection], а не строгая сцена. Строгость 2026-08-27
      * («правка v37») отвечает на вопрос «наш ли это мир целиком», и для ОТКРЫТИЯ и для СВЕРКИ она
      * верна. Для ВЫБОРА её граница оказалась чужой: пользователь схлопнул панель (`Full(SECONDARY)`,
      * 1.8.2) и тапнул Навигатор в выжившем полноэкранном пикере - размещение прошло, а read-back
      * сказал `rolled-back reason=read-back failed` при `read-back: area=2`. Одна панель на весь
-     * экран - законная сцена (ось 2.3), и [SplitPickerShellSession.selectApp] её уже признаёт
+     * экран - законная сцена (ось 2.3), и [SplitSelect.selectApp] её уже признаёт
      * (`expectedSelectionArea` держит ожидаемую area на 1/2). Слот при этом записывается по
      * ФАКТИЧЕСКОЙ стороне (1.5.3): прошивка при каждом схлопывании переносит выжившего в широкую
      * панель, и записанный продуктом логический выживший может не совпадать с физическим.
@@ -2021,12 +2020,12 @@ internal class ReconcileOperation(
      * seen only by existence, because this process was not looking.
      *
      * Правка W1 волны 7 (b1-CORE, живой протокол 2026-08-25): конец сцены доказывается двумя
-     * чтениями - сцена НАКРЫТА ([SplitPickerShellSession.sceneCovered], area 0/4) И мёртв её
+     * чтениями - сцена НАКРЫТА ([SplitWorld.sceneCovered], area 0/4) И мёртв её
      * ЯКОРЬ по exact identity на всём main display. Правка W1 волны 8 (v23 Д1(а)) сузила якорь:
      * у сцены с записанными приложениями это только сами приложения
-     * ([SplitPickerShellSession.deadRecordedApps]) - смерть выселенной пикер-базы при живых
+     * ([SplitOwnedScene.deadRecordedApps]) - смерть выселенной пикер-базы при живых
      * приложениях сцену не кончает; у сцены «пикер|пикер» якорь - члены, как в волне 7
-     * ([SplitPickerShellSession.allRecordedMembersAlive]). Живая накрытая сцена - ВСЕ члены живы -
+     * ([SplitOwnedScene.allRecordedMembersAlive]). Живая накрытая сцена - ВСЕ члены живы -
      * не убирается никогда (инвариант 5): прошивка на Home опустошает корень панели, отвязывая
      * живые задачи, и отвязанный член живой накрытой сцены - не сирота. Мёртвый член под
      * накрытием - нативный конец: Back в широком пикере при «пикер|пикер», свайп, «очистить всё»
@@ -2279,7 +2278,7 @@ internal class ReconcileOperation(
      *
      * Правка волны 12: у существования есть цена - оно спрашивает `area`, а её ответ 1/2 живёт
      * меньше секунды. Поэтому за ним стоит третий предикат, читающий геометрию панельных корней
-     * ([SplitPickerShellSession.collapsedPaneByPanelBounds]): растянутый контейнер выжившего
+     * ([SplitCollapse.collapsedPaneByPanelBounds]): растянутый контейнер выжившего
      * переживает и Home, и чужое полноэкранное окно, так что решение пользователя больше не
      * зависит от того, успел ли продукт посмотреть в нужную миллисекунду.
      *

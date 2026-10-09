@@ -65,11 +65,9 @@ internal class SplitSelect(
         // can linger briefly in the hidden full-IVI root; a subsequent launch legitimately
         // replaces that stale task and must not be rejected or "preserved" as another window.
         //
-        // Правка волны 15: ОКНО, а не мебель продукта (U3, инвариант 3). Пикер-база соседней
-        // панели носит наш package, и до сих пор она сюда попадала - но пока каталог отдавал про
-        // нас `launchMode` трамплина (`standard`), гард молчал и цены у этого не было. С честным
-        // `singleTask` самой `MainActivity` тот же набор запретил бы выбор Denza Apps вообще:
-        // соседняя панель всегда держит свою базу (1.5.3, «открылась и работает»).
+        // A duplicate is a WINDOW, never the product's furniture (U3, invariant 3): the other
+        // pane's picker base carries our package and is always there, so counted, it would forbid
+        // selecting Denza Apps (a `singleTask` MainActivity) in any pane at all (1.5.3).
         val duplicatePeerTasks = before.root(otherRootId)?.tasks.orEmpty()
             .filter { task ->
                 !task.isDenzaPickerBase() && task.packageName == target.packageName
@@ -80,12 +78,11 @@ internal class SplitSelect(
         commands.ensureSupported(target.packageName)
 
         // A picker tap is authoritative proof that this pane is being selected. Free its exact
-        // permanent base before requiring the picker to be the root top. Правка W3 волны 8
-        // (инвариант 3, примечание контракта под 1.5; диагноз v23 Д2): удаляется только своё по
-        // точному компоненту - вторая база или штатный bootstrap, застрявшие в этом корне. Чужая
-        // задача в корне - задача пользователя (нативно втянутый хаб - U3: наш package, не наш
-        // компонент) и выселяется живой в полноэкранный корень; эта операция ещё ничего не
-        // создавала, так что «созданного ею» здесь не бывает.
+        // permanent base before requiring the picker to be the root top (invariant 3; contract,
+        // note under 1.5): only what is ours by exact component goes - a second base or the stock
+        // bootstrap stuck in this root. Any other task of the root is the user's (a hub pulled in
+        // natively is our package but not our component, U3) and is evicted alive into the full
+        // root; this operation has created nothing yet, so nothing here is "created by it".
         val (ownArtifacts, foreignOccupants) = before.root(targetRootId)?.tasks.orEmpty()
             .filterNot { task -> task.id == pickerHost.id || task.isEmptyRootMarker() }
             .partition { task -> task.isOwnSplitComponent() }
@@ -125,9 +122,9 @@ internal class SplitSelect(
                 secondInstance = duplicatePeerTasks.isNotEmpty(),
                 excludedTaskIds = preservedTargetTaskRoots.keys,
             )
-            // Правка W4 (волна 7, контракт 1.5.3): сторона - выбор прошивки, продукт записывает
-            // факт. Задача могла встать в другую панель; слот, пикер-хозяин и постусловие берут
-            // фактическую сторону вместо того, чтобы объявлять вставшему окну ложный rollback.
+            // The side is the firmware's choice and the product records the fact (1.5.3): the
+            // task may have landed in the other pane, and the slot, the host picker and the
+            // postcondition take the actual side rather than rolling back a window that stands.
             val settledPane = SplitPane.entries.first { candidate ->
                 roots.getValue(candidate) == launchedTask.rootId
             }
@@ -139,21 +136,18 @@ internal class SplitSelect(
                     task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
                 } ?: error("Пикер панели, куда прошивка поставила приложение, не найден")
             }
-            // Правка волны 13 (П3, 1.5.2): окном панели становится та задача цели, которая
-            // фактически встала сверху, а не та, которую адресовал запуск.
+            // The pane's window is the task of the target that is actually on top, not the one
+            // the launch addressed (1.5.2).
             val settledAppTaskId = settledSelectedAppTaskId(
                 rootId = settledRootId,
                 pickerHostTaskId = settledPickerHost.id,
                 target = target,
                 launchedTaskId = launchedTask.id,
             )
-            // Правка волны 14 (приёмка v29, дефект D): вторая живая задача ВЫБРАННОГО пакета -
-            // законный житель этой панели, а не мусор уборки. Прошивка привела её сюда сама, и
-            // выселение живого ВИДИМОГО окна в полноэкранный корень 4 - это не «уехало в фон»:
-            // корень 4 фоновых задач не держит вовсе (машинная правда волны 10), так что окно
-            // встаёт поверх всей сцены со своими прежними панельными границами. Живьём это
-            // давало битый полуэкран и `select outcome=rolled-back reason=В выбранном split-окне
-            // нет верхней задачи` - обе настоящие панели становились невидимыми (U5, инвариант 9).
+            // A second living task of the SELECTED package is a legitimate resident of this pane,
+            // not debris: the firmware brought it here itself, and evicting a visible window to
+            // root 4 does not send it to the background - root 4 holds none - but puts it over
+            // the whole scene with its pane bounds (U5, invariant 9).
             commands.sweepRootsToBaseAndApp(
                 keepByRoot = mapOf(settledRootId to setOf(settledPickerHost.id, settledAppTaskId)),
                 preexistingTaskIds = baselineTaskIds,
@@ -195,13 +189,10 @@ internal class SplitSelect(
     }
 
     /**
-     * Запуск цели с live-proven promote в выбранный root - и подтверждением ПО ФАКТУ (правка W4
-     * волны 7, контракт 1.5.3). Прошивка кладёт split-способный собственный пакет по СВОИМ
-     * правилам стороны и может не отдать promote выбранную панель; прежняя пара «слепая пауза +
-     * один снапшот выбранного root» объявляла ложный rollback фактически вставшему окну (live
-     * v22 b3: «выбрал Denza Apps → снова пикер, со второго раза открылось»). Успех - задача цели
-     * устоялась в ЛЮБОМ из двух панельных root; какой именно, называет её собственный
-     * [SplitTask.rootId]. Ошибка - только когда задача реально никуда не встала.
+     * The target's launch with the live-proven promote into the chosen root, confirmed BY THE
+     * FACT (1.5.3). The firmware places a split-capable package by its own side rules and may not
+     * give the promote the chosen pane, so success is the target's task settled in EITHER panel
+     * root, the one its own [SplitTask.rootId] names; failure is only a task that settled nowhere.
      */
     private fun launchTargetDirectIntoRoot(
         target: SplitLaunchTarget,
@@ -232,13 +223,13 @@ internal class SplitSelect(
     }
 
     /**
-     * Какая задача цели стала окном панели - решает мир, а не запуск (правка волны 13, П3).
+     * Which task of the target became the pane's window - the world decides, not the launch.
      *
-     * Запуск продукта - `am start` без `MULTIPLE_TASK`, то есть «дай задачу пакета, какая есть»,
-     * и прошивка вольна привести в панель не одну (v28: t316 И t532 у Яндекс.Музыки). Верхняя из
-     * них - то, что видит пользователь, и именно она становится приложением панели; запущенная
-     * задача остаётся ответом только тогда, когда мир не назвал верхней ни одну из задач цели.
-     * Собственные компоненты продукта кандидатами не бывают (инвариант 3).
+     * The product's launch is `am start` without `MULTIPLE_TASK`, "the package's task, whichever
+     * it is", and the firmware may bring more than one task of the package into the pane. The top
+     * one is what the user sees, and it becomes the pane's application; the launched task is the
+     * answer only when the world names none of the target's tasks the top. The product's own
+     * components are never candidates (invariant 3).
      */
     private fun settledSelectedAppTaskId(
         rootId: Int,
@@ -308,19 +299,14 @@ internal class SplitSelect(
     }
 
     /**
-     * Постусловие выбора: сверху в панели стоит ЦЕЛЕВОЕ ПРИЛОЖЕНИЕ (правка волны 13, П3).
+     * The selection's postcondition: the TARGET APPLICATION is on top of the pane - not
+     * necessarily the task the launch addressed, since a package with two living tasks may have
+     * both brought into the pane (1.5.2, 1.5.3, invariant 9).
      *
-     * Прежде оно требовало, чтобы верхней стала именно та задача, которую адресовал запуск, - и
-     * приёмка v28 показала, чего это стоит: у Яндекс.Музыки две живые задачи (t316, t532),
-     * прошивка привела в панель обе, верхней оказалась не запущенная, и продукт объявил ОТКАТ
-     * окну, которое пользователь видел открытым. Слот не двигался, выбор не запоминался, первый
-     * же Home стирал результат - против 1.5.2 («живая вторая задача пакета - обычный житель
-     * мира»), 1.5.3, U5 и инварианта 9. Apple Music с одной задачей коммитилась штатно.
-     *
-     * Идентичность приложения пользователя доказывает пакет цели, а собственные компоненты
-     * продукта в неё не принимаются (инвариант 3, U3): запуск `dev.denza.apps` - это его
-     * MainActivity, но никогда не пикер-база. Слот записывается по фактической верхней задаче, и
-     * она же становится записанной identity панели.
+     * The user's application is proven by the target's package, and the product's own components
+     * never count as it (invariant 3, U3): a launch of `dev.denza.apps` is its MainActivity,
+     * never a picker base. The slot is recorded by the actual top task, which also becomes the
+     * pane's recorded identity.
      */
     private fun selectedAppPlacement(
         pane: SplitPane,
@@ -351,9 +337,9 @@ internal class SplitSelect(
         check(world.callInt("service call activity_task 30") == expectedArea) {
             "Split не перешёл в рабочее состояние"
         }
-        // Правка волны 14: панель - это её база и ОДНО приложение, а не две задачи. Живая вторая
-        // задача выбранного пакета лежит под ним и не мешает ничему (1.5.2); посторонняя задача -
-        // мешает, и это по-прежнему отказ.
+        // A pane is its base and ONE application, not two tasks: a living second task of the
+        // selected package lies under it and is in nothing's way (1.5.2); a foreign task is, and
+        // is a refusal.
         check(
             root.tasks.none { task ->
                 task.id != pickerHost.id &&
@@ -443,7 +429,7 @@ internal class SplitSelect(
         const val LAUNCH_MODE_SINGLE_TASK = 2
         const val APP_LAUNCH_SETTLE_MS = 250L
         /** Only the single-pane selection keeps two samples; a built scene ends in the
-         *  operation's own whole-scene read-back instead (правка A4). */
+         *  operation's own whole-scene read-back instead. */
         const val APP_PLACEMENT_STABLE_SAMPLES = 2
     }
 }

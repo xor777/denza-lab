@@ -28,6 +28,7 @@ Updated 2026-10-09. Where this journal and the normative [split-screen-product-c
 | Home and the area are heard in process with no permission: `CLOSE_SYSTEM_DIALOGS` `reason=homekey` arrives 9 ms after key-up, the tx120 area push (`UnionActivityManager.registerScreenAreaInfoForMultiListener`) 0.1 s after it; `SplitFirmwareSignals.kt` registers both and `SplitCoordinatorCore.homeKeyPressed` closes our gate (`SplitGateAhead`). Live: gate closed at +16 ms, a dock launch at +393 ms went fullscreen | live | 2026-09-23 | [The three calls, live from an app UID](#the-three-calls-live-from-an-app-uid-2026-09-23), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
 | tx30/112/118/125/126 are transacted from the app process (`SplitInProcessCalls.kt`, `BinderSplitGateSwitch`); the world read (`am stack list`), moves, focus and `remove-task` (`SplitTaskProxyMain.java`) still need the shell | code | 2026-09-23 | [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
 | The shell-UID task proxy runs from its own jar, staged as `/data/local/tmp/denza-split-proxy-<sha256>.jar` and verified by its SHA-256 by the shared `ShellProxyStager.kt`, which deletes every other copy of it on each call; a car that refuses the file loads the class from the APK, as before the jar existed, and so does a command whose jar has gone since | code | 2026-10-09 | [The task proxy's jar, staged by its hash](#the-task-proxys-jar-staged-by-its-hash-code-2026-10-09) |
+| The firmware recipes of an operation are ten units behind the facade `SplitPickerShellSession` (`SplitWorld`, `SplitTaskCommands`, `SplitGate`, `SplitOwnedScene`, `SplitSceneBuilder`, `SplitSelect`, `SplitCollapse`, `SplitNavReturn`, `SplitEdge`, `SplitTeardown`), moved without a changed command; every transition of the gate is in `SplitGate.kt`, and the history the recipes' comments carried is in this doc | code | 2026-10-09 | [The session cut into recipe units](#the-session-cut-into-recipe-units-code-2026-10-09) |
 | Other transactions: tx115 `enterSplitMode` restores the remembered pair (the product never calls it); tx114 `changeSplitScreenMode` 101/102 expand one pane and 100 does nothing; tx116 swaps; tx117 `closeApplication(pkg)` closes a pane's top app natively; tx124 needs the caller's Activity token | firmware | 2026-09-23 | [The divider and the stock picker](#the-divider-and-the-stock-picker-read-end-to-end), [SmartMulti persistence contract](#smartmulti-persistence-contract-exact-vehicle-corpus-2026-08-16), [Product direction](#product-direction-explicit-two-picker-session) |
 | Home moves the wide and full containers' tasks out, under Home and outside any container; the narrow container keeps its tasks; a return after Home is always a re-placement of the wide pane | firmware | 2026-09-23 | [Home, read end to end](#home-read-end-to-end) |
 | A picker stranded outside the pane roots (the wide one after Home, the closed pane's after a collapse) is killed by `RecentTasks.trimInactiveRecentTasks` at the first task new to recents, usually our own trampoline; the open never takes it back and launches a fresh one (`SplitSceneBuilder.kt`) | code | 2026-09-23 | [Why the wide picker dies, and who kills it](#why-the-wide-picker-dies-and-who-kills-it), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
@@ -77,6 +78,7 @@ Updated 2026-10-09. Where this journal and the normative [split-screen-product-c
 - [A narrated live session, mapped to the logs (2026-09-18)](#a-narrated-live-session-mapped-to-the-logs-2026-09-18) — six narrated minutes: one dead app under cover, the single-pane read-back, the survivor's pane, the Home→dock race and its first step.
 - [The firmware read whole: reconstruction from the OTA image (2026-09-23)](#the-firmware-read-whole-reconstruction-from-the-ota-image-2026-09-23) — the whole OTA corpus (area push, unguarded transactions, detent map, placement, Home, the trim, sleep and wake, self-start) and what the product does with each; the journal and service page (09-24); a cold open against the accessibility repair.
 - [The task proxy's jar, staged by its hash (code, 2026-10-09)](#the-task-proxys-jar-staged-by-its-hash-code-2026-10-09) — `denza-split-proxy-<sha256>.jar`, verified by hash, every other copy deleted; the same stager as the turn-signal listener's.
+- [The session cut into recipe units (code, 2026-10-09)](#the-session-cut-into-recipe-units-code-2026-10-09) — `SplitPickerShellSession` as the facade of ten units, the proof that no command changed, and the history the recipes' comments used to carry, rule by rule.
 
 ## Product direction: explicit two-picker session
 
@@ -2914,3 +2916,114 @@ What an acceptance run should expect: one `denza-split-proxy-<64 hex>.jar` in
 `/data/local/tmp`, a new name whenever the proxy's bytes change, and no
 `denza-split-proxy-<number>.jar` left after the first open. Not yet run on the
 car.
+
+## The session cut into recipe units (code, 2026-10-09)
+
+`SplitPickerShellSession` had grown to 3 700 lines and about a hundred
+functions: the world read and the identity predicates, every gate transition
+of a session, the scene's build and reveal, the selection, the collapse reads,
+the navigation return, the edge and the synthetic drag, the teardown and the
+proxy plumbing, in one class. From 2026-08-23 the package took 117 commits, 74
+of them `fix(split)` - the growth by patches that section 8.7 of the contract
+names as what degraded the previous architecture. On 2026-10-09 it was cut by
+moving code, not rewriting it:
+
+| Unit | Holds |
+|---|---|
+| `SplitWorld` | the funnel every command and settle pause goes through (the topology cache's invalidation rule), `am stack list` and the `activity_task` reads, the waits on them, and the identity predicates |
+| `SplitTaskCommands` | launches in a pane's category, tx125/tx112, move, promote, resize, removal through the proxy, eviction to the full root, the "base and one app" sweep |
+| `SplitGate.kt` | every transition of the gate: the session's (`SplitGate`), the journal's undo (`SplitGateUndo`), and the core's close ahead of the area with its one-second check (`SplitGateAhead`) |
+| `SplitOwnedScene` | the reads that prove a scene ours, and the liveness of its recorded members |
+| `SplitSceneBuilder` | the open: the reveal of a covered scene, or the whole build |
+| `SplitSelect` | a tap in a picker |
+| `SplitCollapse` | what the divider left: the resize repair and the three collapse proofs |
+| `SplitNavReturn` | the navigator back from the cluster |
+| `SplitEdge` | the stock picker of an edge drag, and the synthetic divider drag |
+| `SplitTeardown` | the toggle going off, and what an ended scene or pane leaves |
+
+`SplitPickerShellSession` is the facade the operations hold: it builds the
+units from its constructor and forwards each call. The recipes did not change:
+the only edit inside a moved body is the unit a call goes to. Two things prove
+it. Nine scenario tests were added first, on the old code, for the branches a
+coverage run found unreached: an empty scene revealed by the synthetic drag
+and polled for, one package in both panes, an edge attach over a surviving
+stock picker, an unsavable gate lease, a swallowed picker launch, a teardown
+that ends on Home or keeps the split, and a navigation return with nowhere to
+land; one more pins the whole log of a representative session, reads and
+pauses included. And the command log of every split test on the fake car -
+328 fake cars, about 6 900 commands - was recorded before the cut and
+compared after every step: identical, apart from three scenarios whose number
+of background re-reads varied from run to run on the old code too, because
+their hint storms raced the actor's coalescing. An independent review
+repeated the comparison with the pauses, the binder flips of the gate and the
+lease writes included, and found the same.
+
+The comparison can be repeated from the repository. The three storms now
+arrive while the worker is held, so every split test sends the same commands
+on every run, and `SplitCommandLog` writes the log of all of them on demand
+(`-PsplitCommandLog=<file>` with `--rerun`; usage in its KDoc). Recording at
+the commit that pins the recipe branches and at any later one, the two files
+differ only by the cars of tests added since.
+
+The gate's in-process flips are driven by the signal scenarios through a real
+Home, with one cover and nothing in the way. The guards around them were held
+by no test: mutants that dropped the recorded-cover check from the close
+ahead or from its check a second later, the pending-operation check, or the
+cover read before a session's resumption left every split test green.
+`SplitGateTest` now holds each of them, against controls in which the flip
+does happen. None of this has been run on the car.
+
+### Where the history in the recipes' comments went
+
+The recipes' comments had become a journal of the corrections that made them,
+with wave and version labels, live sessions and acceptance runs. The code now
+says what each recipe guarantees and why; the history is here, rule by rule,
+with the evidence the comments cited.
+
+| Rule now in the code | History |
+|---|---|
+| Teardown: the app the system calls focused stays fullscreen; z-order is only the fallback | Added 2026-08-27, when a z-order guess could send the wrong pane's app fullscreen; the read was proven on the product's shell channel in live v39 ([The focus read](#the-focus-read-proven-on-the-products-own-channel-live-v39-2026-08-27)), though the comment called it unverified until 2026-10-09 |
+| Teardown: a last pass removes our pickers by identity anywhere on the main display | Wave 7, acceptance pass of the DISABLE sweep: orphans that appeared between the first snapshot and the cleanup survived or not by the order of a race |
+| Gate: Home's suspension polls the cover up to 3 s and yields to a user request | Diagnosis v21 D3-B: six 100 ms probes gave up silently; that this left the gate open over a covered scene was put at a confidence of about 0.8, and an open gate is what pulls the next start into the wide pane |
+| Gate: the cover is area 0 or 4, not 0 alone | Wave 7: the live tx30 map of 2026-08-25 showed the area flipping 0↔4 in a transient world; a strict 0 burned the budget over a scene a fullscreen window covered |
+| Gate: the reconcile suspends the gate over a cover it reads | Wave 17, live v33: the Home hint came twice in eight Homes ([The Home hint arrives twice in eight](#the-home-hint-arrives-twice-in-eight-and-the-open-gate-is-what-pulls-apps-in-live-v33-2026-08-26)) |
+| Gate: the lease is taken whenever the gate is opened | Decided 2026-08-18: tx123 is not the gate on this firmware, so the gate's previous state cannot be read |
+| Launch: no `MULTIPLE_TASK` except for a second copy of a package the other pane holds | Acceptance v17: a restore started a fresh copy behind a splash screen and orphaned the playing one (music #44 → #66 → #81) |
+| tx125 for every pane app, tx112 after it | 2026-09-11 and 09-23: listing only when tx112 said no left manifest-capable apps outside the runtime list, with "Release to close window" in the wide pane |
+| tx125 for our own package, once per build | Until 2026-09-11 the build only asked tx112 about us, which always says yes (live 2026-08-28), so tx125 was never called; the isolating experiment dock-split-v19 showed the hub getting the reduced detent map. The corpus reading of 2026-08-28 that placement does not read the list was wrong (OTA 2026-09-23) |
+| Eviction keeps the task visible; its bounds become its root's, and the scene is raised over it | Wave 8 introduced the eviction, first named "in background". Live 2026-08-28: `move-task <id> 4 false` leaves the task `visible=true`, and a leaf inside `ivi_full` accepts a resize either way (task 151: to the pane's 832 px and back to fullscreen). 2026-08-27: `dev.denza.apps` 832 px wide in root 4 over both panes, the area at 4 and a rollback "Нативный split не активировался". The raising focus is the one acceptance v24 A1 proved with VLC and Brave over the pair for 25-60 s |
+| A second living task of a pane app's package is a resident, not surplus | Wave 13, acceptance v28: a tap on Yandex Music brought both t316 and t532 into the pane; wave 14, acceptance v29: evicting the second task put it over the scene; 2026-09-04: the same rule for both panes of a build, whose restore path had not passed it |
+| A package alone is no identity; our components are never "the app found" | Live v20 P1.2: a self-restore matched by package would have taken a fresh picker for the hub's task |
+| A scene read names the pane and the predicate that refused | Acceptance v17 logged "nothing of ours" on every open, and a live scene was rebuilt with nothing saying why |
+| The selection's read-back accepts one pane over the screen at area 1/2 | Live 2026-09-18 18:58: after a collapse to `Full(SECONDARY)`, a tap on the navigator placed it (`startSplitWindow #68 type=32 newMode=102`) and the read-back rolled it back, accepting only area 0/3/4 and both roots |
+| Residents are counted as applications, not tasks | Acceptance v28: t316 and t532 of one app in one pane, both visible, the pane correct on screen |
+| Under Home only a root holding our picker alone is proof | Decided 2026-08-23 |
+| The end of a scene with apps is read per pane, with the bases left out | Wave 8 (v23) introduced the app anchors; live 2026-09-18: one app of the pair removed from recents under Home buried the whole scene. A base Home evicted dies nondeterministically while the apps live |
+| One second read of a scene's end, 400 ms later | Wave 8: the phase evidence of v23 showed 1 119 ms between `roots` and `apps-launched` of a defective open - a dead anchor read inside the firmware's teardown |
+| The synthetic drag's guards | No scenario test reached the drag through a build until 2026-10-09 (`anEmptySceneIsReparentedIntoTheRootsAndRevealedByTheSyntheticDrag`) |
+| The open is one recipe with one postcondition over the whole scene | Acceptance v17, "picker over an app": `openPickers` plus one `restoreApp` per pane measured a pane at a time, and restoring a pair took 11 s against 3 s for a fresh open |
+| A recorded app thrown out of the panel roots is reparented, not relaunched | Ground-v18 A |
+| Only tasks the build provably created are removed | Live v20 P1.2 |
+| The build reports its phases | A red branch's seconds had to be reconstructed from the log |
+| A picker stranded outside the roots is never taken back | Live 2026-09-18 18:55:35: an open read such a picker 44 ms before the trim removed it ([Why the wide picker dies](#why-the-wide-picker-dies-and-who-kills-it)) |
+| A single-pane firmware is re-split by a fresh narrow picker | Live 2026-09-23 19:24 ([An open over a single-pane firmware](#an-open-over-a-single-pane-firmware-after-the-navigator-came-back-live-2026-09-23)) |
+| A living task of the target in the pane is the pane's app; a launch's task is looked for in its pane's root first | Wave 10, acceptance v25: `music t316+t532 RELAUNCHED into SECONDARY`, three tasks in one pane |
+| The build sweeps its panes again after the launches | Wave 10 (2026-08-25): what the firmware brought in by itself turned finished scenes into failed postconditions |
+| The build records the side each app landed on | Wave 15, 2026-08-27: an app the firmware put into the other pane was evicted as surplus - `dev.denza.apps` 832 px wide over the whole scene |
+| The restore path's discovery budget is two reads | Live v20 P1.2: the red branch burned two twelve-read budgets of about 5 s each. A launched task is in `am stack list` at once, a warm picker launch costs about 0.9 s with its own `am start`, and each read 250-300 ms, so two passes cover the honest case and a miss degrades the pane in about 1 s |
+| A settled wrong scene fails at once | Wave 10, acceptance v25: 20 probes of 100 ms burned 7.1-7.5 s over a finished recipe and pushed the open past its 10 s ceiling |
+| The scene is resized in one batch; waits are conditions, not settles | Up to eight `am stack list` and four settles had described one instant |
+| The selection's duplicate check counts windows, not our picker base | Wave 15: with the honest `singleTask` of `MainActivity`, the other pane's base would have forbidden selecting Denza Apps at all |
+| A tap removes our own artifacts from its pane and evicts a user's task | Wave 8, diagnosis v23 D2 |
+| The selection records the side the firmware chose | Wave 7, live v22: selecting Denza Apps showed the picker again, and it opened on a second try |
+| The selection's window is the target's top task | Wave 13, acceptance v28: the launched task of Yandex Music was not the top one, and the product rolled back a window the user saw open; Apple Music, with one task, committed |
+| The second task of the selected package stays in the pane | Wave 14, acceptance v29: a broken half screen and `select outcome=rolled-back reason=В выбранном split-окне нет верхней задачи` |
+| The divider reconcile reads the area before its settle | Live v20: window echoes of the back gesture started it over area 0, and its blind 1.5 s pause held the worker while the next open waited about 2 s |
+| Every collapse predicate names itself | Diagnosis v21: during the two-pass teardown each fail-closed predicate refused, and nothing said which |
+| A collapse is proven by existence; the area names the closed pane | Diagnosis v21 D1; wave 9, acceptance v24 D1 |
+| The stretched panel root proves a collapse under a cover; the stretched window, not the base, names the survivor | Wave 12, live protocol 2026-08-25 (v27 A1-A6: 5 of 5 selections lost); wave 13, acceptance v28: 4 of 4 SECONDARY collapses unproven while the base was looked for on the stretched bounds; geometry from `v28-targeted` A1 under Home (bases at `[24,112][856,1472]` and `[880,112][2536,1472]`, the survivor's app t520 at `[0,0][2560,1600]` in the stretched root), v25-B(iii) (a pane without an app: the survivor's base t569 at `[0,0][2560,1600]` `visible=true`, the closed pane's base t570 at the panel's `[880,112][2536,1472]`) and `21-after-dragL` (a fresh collapse before any cover stretches both the base and the app) |
+| The collapse read returns the survivor's physical pane too | 2026-09-18, by the owner's decision: at 18:55 the narrow pane's music came back to the narrow pane after the wide one closed, although the firmware had left it in the wide one |
+| Actor: a confirmed edge takes the token of an in-flight reconcile | 2026-09-04: closing a pane and pulling it back out put our picker in it 2-3 s late, behind the reconcile the gesture's own window events started |
+| Picker: the width constraint alone decides the grid's columns | Wave 8, diagnosis v23 D3: a fullscreen picker drew half of itself as empty margins |
+| Picker: the header's gap is the larger of the real inset and the pane's own air | Wave 7: a plain `statusBarsPadding()` (f166d42) pressed the header into the drag control; the fixed 42dp before it cut the header of a fullscreen picker left by Back |
+| Picker: one header in every state | Wave 7: an «Открываю …» line duplicated the chosen tile's spinner and moved the pane's top; wave 11 (U5): refusal texts stood in the header over a working list of apps |
