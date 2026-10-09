@@ -43,7 +43,7 @@ class SplitFirmwareSignalsTest {
         )
         assertTrue("аренда осталась нашей: следующий тап откроет его снова", car.gateLease.isOwned())
 
-        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
+        car.clock.advance(SplitGateAhead.CHECK_MS)
 
         assertEquals("накрытие настоящее - обратно не открыт", listOf(false), car.fake.binderGateFlips)
         assertFalse(car.fake.isGateOpen())
@@ -61,7 +61,7 @@ class SplitFirmwareSignalsTest {
         assertFalse("до проверки gate закрыт на опережение", car.fake.isGateOpen())
         assertEquals(SceneVisibility.VISIBLE, core.currentState().visibility)
 
-        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
+        car.clock.advance(SplitGateAhead.CHECK_MS)
 
         assertEquals(listOf(false, true), car.fake.binderGateFlips)
         assertTrue(

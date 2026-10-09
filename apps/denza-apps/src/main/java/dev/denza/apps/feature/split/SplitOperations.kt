@@ -358,16 +358,12 @@ internal class SplitShellRollbackExecutor(
 
     private var deadlineAtMs: Long? = null
 
-    /** Contract, to 1.12: a gate is closed only by the lease that opened it. */
-    override fun closeGate() {
-        if (!gateLeaseStore.isOwned()) return
-        budgeted("service call activity_task 126 i32 0")
-        gateLeaseStore.setOwned(false)
-    }
+    /** The gate's own inverses ([SplitGateUndo]), sent through this unwind's budget. */
+    private val gateUndo = SplitGateUndo(gateLeaseStore, ::budgeted)
 
-    override fun openGate() {
-        budgeted("service call activity_task 126 i32 1")
-    }
+    override fun closeGate() = gateUndo.close()
+
+    override fun openGate() = gateUndo.open()
 
     override fun restoreLease(kind: String, prevValue: String?) {
         leases.firstOrNull { lease -> lease.kind == kind }?.restore(::budgeted)

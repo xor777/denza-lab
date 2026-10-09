@@ -2829,7 +2829,7 @@ class SplitScenarioTest {
         car.barrier()
         // The key closed the gate ahead and checks it a second later; over a covered world the
         // check finds the cover and leaves the rest to Home, so it is let run before counting.
-        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
+        car.clock.advance(SplitGateAhead.CHECK_MS)
         car.barrier()
         // Второй barrier дренирует всё, что Home мог бы подать мгновенно: до волны 8 здесь
         // уже не было сироты, теперь мир не читается в зубы teardown-а до таймера повтора.
@@ -3357,7 +3357,7 @@ class SplitScenarioTest {
         car.barrier()
         // The key closed the gate ahead and checks it a second later; over a covered world the
         // check finds the cover and leaves the rest to Home, so it is let run before counting.
-        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
+        car.clock.advance(SplitGateAhead.CHECK_MS)
         car.barrier()
 
         assertEquals(
@@ -3457,7 +3457,7 @@ class SplitScenarioTest {
         car.barrier()
         // The key closed the gate ahead and checks it a second later; over a covered world the
         // check finds the cover and leaves the rest to Home, so it is let run before counting.
-        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
+        car.clock.advance(SplitGateAhead.CHECK_MS)
         car.barrier()
 
         assertEquals(
@@ -4782,7 +4782,7 @@ class SplitScenarioTest {
             "исчерпание ретраев названо в ринге",
             car.diagnostics.any { it.startsWith("home suspend unconfirmed:") },
         )
-        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
+        car.clock.advance(SplitGateAhead.CHECK_MS)
         car.barrier()
         assertTrue("gate, закрытый на опережение, возвращён над видимой сценой", car.fake.isGateOpen())
         assertTrue("и аренда не потеряна", car.gateLease.isOwned())
@@ -5076,7 +5076,7 @@ class SplitScenarioTest {
         car.barrier()
         // The key closed the gate ahead and checks it a second later; over a covered world the
         // check finds the cover and leaves the rest to Home, so it is let run before counting.
-        car.clock.advance(SplitCoordinatorCore.GATE_AHEAD_CHECK_MS)
+        car.clock.advance(SplitGateAhead.CHECK_MS)
         car.barrier()
         assertFalse("gate приостановлен Home-ом как обычно", car.fake.isGateOpen())
         assertEquals(
