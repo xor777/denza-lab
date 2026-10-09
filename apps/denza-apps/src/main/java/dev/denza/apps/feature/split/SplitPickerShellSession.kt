@@ -46,43 +46,7 @@ internal class SplitPickerShellSession(
     private val commands = SplitTaskCommands(world, apkPath, proxyClasspath)
     private val gate = SplitGate(world, gateLeaseStore)
     private val ownedScene = SplitOwnedScene(world)
-
-    /**
-     * Waits read-only while the user is dragging the native divider.
-     *
-     * BYD exposes the stock picker Activity before the drop is accepted and can report balanced
-     * area 3 while the pointer is still down. No task operation may run until both signals settle
-     * because launching our picker would steal the still-active divider gesture.
-     */
-    fun awaitNativePickerCommit(): Boolean {
-        var releasedBalancedSamples = 0
-        var releasedNonBalancedSamples = 0
-        repeat(NATIVE_PICKER_COMMIT_ATTEMPTS) { attempt ->
-            val balanced = world.callInt("service call activity_task 30") == AREA_BALANCED_SPLIT
-            val pointerActive = hasActivePointer(world.shell("dumpsys input"))
-            if (pointerActive) {
-                releasedBalancedSamples = 0
-                releasedNonBalancedSamples = 0
-            } else if (balanced) {
-                releasedBalancedSamples += 1
-                releasedNonBalancedSamples = 0
-            } else {
-                releasedBalancedSamples = 0
-                releasedNonBalancedSamples += 1
-            }
-            if (releasedBalancedSamples >= NATIVE_PICKER_RELEASED_SAMPLES) return true
-            if (releasedNonBalancedSamples >= NATIVE_PICKER_CANCELLED_SAMPLES) return false
-            if (attempt + 1 < NATIVE_PICKER_COMMIT_ATTEMPTS) {
-                world.pause(NATIVE_PICKER_COMMIT_INTERVAL_MS)
-            }
-        }
-        return false
-    }
-
-    /** Final read-only guard immediately before a stock-picker observation becomes a mutation. */
-    fun nativePickerMutationAllowed(): Boolean =
-        world.callInt("service call activity_task 30") == AREA_BALANCED_SPLIT &&
-            !hasActivePointer(world.shell("dumpsys input"))
+    private val edge = SplitEdge(world, commands)
 
     /**
      * Какую задачу система считает сфокусированной, если её вообще можно спросить.
@@ -103,15 +67,6 @@ internal class SplitPickerShellSession(
         val dump = world.shell("dumpsys activity activities | grep mFocusedApp")
         FOCUSED_TASK_PATTERN.find(dump)?.groupValues?.get(1)?.toIntOrNull()
     }.getOrNull()
-
-    private fun hasActivePointer(inputDump: String): Boolean {
-        val stateStart = inputDump.indexOf("TouchStatesByDisplay:")
-        if (stateStart < 0) return false
-        val stateEnd = inputDump.indexOf("\n  Display:", startIndex = stateStart)
-            .takeIf { it >= 0 }
-            ?: inputDump.length
-        return inputDump.substring(stateStart, stateEnd).contains("down=true")
-    }
 
     /**
      * Waits for BYD's divider transition, then repairs only recorded picker/app ownership.
@@ -841,7 +796,7 @@ internal class SplitPickerShellSession(
         // survivors has no divider on screen to drag - at Home there is none - and is raised by
         // the reveal's own focus command in the apps phase instead (правка B1).
         if (launchedPicker && world.callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
-            dragDividerToBalanced()
+            edge.dragDividerToBalanced()
             check(world.awaitArea(NATIVE_PICKER_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
                 "Прошивка не раскрыла native split"
             }
@@ -1774,55 +1729,6 @@ internal class SplitPickerShellSession(
         return SplitPickerPlacement(pane, hostTaskId, taskId, packageName)
     }
 
-    fun observePane(
-        pane: SplitPane,
-        pickerComponents: Set<String>,
-    ): SplitPickerPaneObservation {
-        val roots = world.nativeRootIds()
-        val root = world.snapshot().root(roots.getValue(pane))
-        val nativeHost = root?.tasks?.firstOrNull { it.isNativeSplitBootstrap() }
-        val pickerHost = nativeHost?.takeIf { it.matchesAnyTopComponent(pickerComponents) }
-            ?: root?.tasks?.firstOrNull { it.matchesAnyComponent(pickerComponents) }
-        val pickerVisible = pickerHost?.visible == true &&
-            pickerHost.matchesAnyTopComponent(pickerComponents)
-        val nativeVisible = nativeHost?.visible == true &&
-            nativeHost.matchesOwnTopComponent()
-        val host = when {
-            pickerVisible -> pickerHost
-            nativeVisible -> nativeHost
-            else -> pickerHost ?: nativeHost
-        }
-        return SplitPickerPaneObservation(
-            pane = pane,
-            hostTaskId = host?.id,
-            nativeHostVisible = nativeVisible,
-            pickerVisible = pickerVisible,
-            observedTaskIds = root?.tasks?.mapTo(mutableSetOf(), SplitTask::id).orEmpty(),
-        )
-    }
-
-    fun attachPicker(
-        pane: SplitPane,
-        hostTaskId: Int,
-        pickerComponent: String,
-    ): Int {
-        val rootId = world.nativeRootIds().getValue(pane)
-        val host = world.snapshot().root(rootId)?.tasks
-            ?.firstOrNull { it.id == hostTaskId && it.isNativeSplitBootstrap() }
-            ?: error("Штатный host выбранного окна исчез")
-        check(nativePickerMutationAllowed()) {
-            "Нативный split изменился перед запуском picker"
-        }
-        val picker = commands.launchPickerInPane(pane, rootId, pickerComponent)
-        removeBootstrapIfPresent(host)
-        world.pause(ROOT_SETTLE_MS)
-        val observed = observePane(pane, setOf(pickerComponent))
-        check(observed.hostTaskId == picker.id && observed.pickerVisible) {
-            "Пикер не стал верхним в выбранном окне"
-        }
-        return picker.id
-    }
-
     fun removeRecordedTask(taskId: Int, packageName: String): Boolean {
         val task = world.snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
@@ -1941,8 +1847,8 @@ internal class SplitPickerShellSession(
         // Сторона отказа безопасная: если от нашей сцены не осталось ничего, штатный пикер живёт.
         val sceneIsOurs = mainDisplayTasks.any { task -> task.isDenzaPickerBase() }
         // `com.byd.sr` здесь не трогается вовсе. Вставленный прошивкой bootstrap снимается там, где
-        // продукт знает его id и только что видел его своими глазами: [attachPicker] →
-        // [removeBootstrapIfPresent], сразу после запуска своего пикера в эту панель. К выключению
+        // продукт знает его id и только что видел его своими глазами: [SplitEdge.attachPicker] →
+        // [SplitEdge.removeBootstrapIfPresent], сразу после запуска своего пикера в эту панель. К выключению
         // такого доказательства нет, а пакет настоящий, пользовательский; полноэкранный
         // `com.byd.sr` при этом не проходит [eligible], то есть его нельзя было бы даже опознать
         // как то приложение, ради которого сцена разбирается.
@@ -2052,66 +1958,6 @@ internal class SplitPickerShellSession(
                 "Пустой split не закрылся на домашний экран"
             }
         }
-    }
-
-    /**
-     * Раскрывает native split синтетическим перетаскиванием дивайдера.
-     *
-     * `internal`, а не `private`, по той же причине, что [awaitNativePickerCommit] и
-     * [nativePickerMutationAllowed]: это охраняемая мутация, и её охрана проверяется напрямую.
-     * Через reveal сюда не добраться - путь срабатывает только на по-настоящему пустой сцене,
-     * и ни один сценарный тест до него не доходит (проверено: холодный `openPickerSession` не
-     * отправляет ни одного `input swipe`). Единственная мутация в файле, которая не звала
-     * [hasActivePointer], была ровно та, которую никто не мог позвать в тесте.
-     */
-    internal fun dragDividerToBalanced() {
-        val inputState = world.shell("dumpsys input").also(world::validateOutput)
-        val dividerLine = inputState.lineSequence().firstOrNull { line ->
-            line.contains("multi-divider-shadow") && line.contains("frame=[")
-        } ?: error("Нативный drag control не появился")
-        val divider = DIVIDER_FRAME_PATTERN.find(dividerLine)
-            ?: error("Нативный drag control не появился")
-        val left = divider.groupValues[1].toInt()
-        val top = divider.groupValues[2].toInt()
-        val right = divider.groupValues[3].toInt()
-        val bottom = divider.groupValues[4].toInt()
-        // Детенты 856/1704 и ширина 2560 сняты живьём с панели ЭТОЙ машины; вычислять их из
-        // чего-либо значило бы выдумать поведение прошивки, поэтому они остаются константами. Но
-        // тогда обязана быть проверка, что панель та самая - иначе жест уйдёт по координатам
-        // чужого экрана. Тень дивайдера растянута на всю высоту панели, и её высота - единственная
-        // величина отсюда, которую можно с панелью сверить: 1600 и в живом дампе, и в измерении
-        // экрана (2560x1600). Расходится - не отправляем ничего.
-        //
-        // Отрицательный left здесь нормален: тень уходит за край экрана (живьём frame=[-67,0]).
-        if (bottom - top != PANEL_HEIGHT || right <= left) {
-            error("Геометрия дивайдера не с этой панели: [$left,$top][$right,$bottom]")
-        }
-        val startX = ((left + right) / 2).coerceIn(EDGE_INSET, DISPLAY_WIDTH - EDGE_INSET)
-        val endX = if (startX < DISPLAY_WIDTH / 2) LEFT_DIVIDER_X else RIGHT_DIVIDER_X
-        // Вертикаль остаётся константой, и это следствие проверки выше, а не предположение: тень
-        // растянута на всю высоту панели, панель обязана быть 1600, значит середина обязана быть
-        // 800. Считать её из рамки я пробовал - при таком guard'е выражение не может дать другого
-        // числа, то есть отличить вычисление от константы нечем, и тест на него был бы
-        // декоративным (контракт §10.3.2).
-        val y = DIVIDER_Y
-        // Последнее, что делается перед мутацией, и на СВЕЖЕМ дампе: рамку читали раньше, а палец
-        // за это время мог опуститься. Свой жест поверх чужого касания - это не гонка за сцену, а
-        // порча жеста, который делает пользователь; этот путь и так холодный, лишнее чтение здесь
-        // ничего не стоит. Тот же предикат, что охраняет мутацию штатного пикера
-        // ([nativePickerMutationAllowed]) - там он уже применяется, здесь его просто не звали.
-        if (hasActivePointer(world.shell("dumpsys input"))) {
-            error("Дивайдер под пальцем: синтетический жест не отправляется")
-        }
-        world.run("input swipe $startX $y $endX $y $DIVIDER_DRAG_MS")
-    }
-
-    private fun removeBootstrapIfPresent(previous: SplitTask) {
-        val current = world.snapshot().roots.asSequence()
-            .filter { it.displayId == MAIN_DISPLAY_ID }
-            .flatMap { it.tasks.asSequence() }
-            .firstOrNull { it.id == previous.id && it.isNativeSplitBootstrap() }
-            ?: return
-        commands.removeTaskSafely(current)
     }
 
     /**
@@ -2511,6 +2357,22 @@ internal class SplitPickerShellSession(
 
     // endregion
 
+    // region the edge and the divider ([SplitEdge])
+
+    fun awaitNativePickerCommit(): Boolean = edge.awaitNativePickerCommit()
+
+    fun nativePickerMutationAllowed(): Boolean = edge.nativePickerMutationAllowed()
+
+    fun observePane(pane: SplitPane, pickerComponents: Set<String>): SplitPickerPaneObservation =
+        edge.observePane(pane, pickerComponents)
+
+    fun attachPicker(pane: SplitPane, hostTaskId: Int, pickerComponent: String): Int =
+        edge.attachPicker(pane, hostTaskId, pickerComponent)
+
+    internal fun dragDividerToBalanced() = edge.dragDividerToBalanced()
+
+    // endregion
+
     private companion object {
         /** The areas of the firmware's single-pane modes, 101 and 102: one pane, no split. */
         val SINGLE_PANE_AREAS = setOf(AREA_PRIMARY_FULL, AREA_SECONDARY_FULL)
@@ -2526,13 +2388,6 @@ internal class SplitPickerShellSession(
          * по ~5 с у красной ветки restore).
          */
         const val RESTORE_DISCOVERY_ATTEMPTS = 2
-        const val NATIVE_PICKER_COMMIT_ATTEMPTS = 150
-        const val NATIVE_PICKER_COMMIT_INTERVAL_MS = 100L
-        // Two 100 ms samples were live-proven insufficient: edge collapse can expose area 3 for
-        // substantially longer before settling to area 1/2. One second keeps this path read-only
-        // through that firmware transition without drawing a window over the user's gesture.
-        const val NATIVE_PICKER_RELEASED_SAMPLES = 10
-        const val NATIVE_PICKER_CANCELLED_SAMPLES = 5
         const val DIVIDER_RECONCILE_SETTLE_MS = 1_500L
 
         const val NATIVE_PICKER_SETTLE_MS = 450L
@@ -2540,19 +2395,9 @@ internal class SplitPickerShellSession(
         /** Only the single-pane selection keeps two samples; a built scene ends in the
          *  operation's own whole-scene read-back instead (правка A4). */
         const val APP_PLACEMENT_STABLE_SAMPLES = 2
-        const val DISPLAY_WIDTH = 2_560
-        const val EDGE_INSET = 50
-        const val PANEL_HEIGHT = 1_600
-        const val DIVIDER_Y = PANEL_HEIGHT / 2
-        const val LEFT_DIVIDER_X = 856
-        const val RIGHT_DIVIDER_X = 1_704
-        const val DIVIDER_DRAG_MS = 400
         /** `mFocusedApp=ActivityRecord{a81ee00 u0 dev.denza.apps/.MainActivity} t332}` */
         val FOCUSED_TASK_PATTERN = Regex("mFocusedApp=ActivityRecord\\{[^}]*\\}\\s+t([0-9]+)\\}")
 
-        val DIVIDER_FRAME_PATTERN = Regex(
-            "frame=\\[(-?[0-9]+),(-?[0-9]+)]\\[(-?[0-9]+),(-?[0-9]+)]",
-        )
     }
 }
 
