@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.split
 
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -8,6 +9,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SplitPickerShellSessionTest {
+    private val fakes = mutableListOf<FakeShell>()
+
+    /** A refusal under the session's own `runCatching` never reaches the test ([FakeShell.refused]). */
+    @After
+    fun everyCommandWasOneTheCarModels() {
+        fakes.forEach { fake ->
+            assertEquals("commands this car does not model", emptyList<String>(), fake.refused.toList())
+        }
+    }
+
     private fun dragSession(
         frame: String = "name='Embedded{multi-divider-shadow}', frame=[-67,0][108,1600]",
         touchOnSecondRead: String = NO_ACTIVE_TOUCH,
@@ -3778,6 +3789,7 @@ class SplitPickerShellSessionTest {
         fake: FakeShell,
         gateLeaseStore: SplitGateLeaseStore = FakeGateLease(),
     ): SplitPickerShellSession {
+        fakes += fake
         // One session shares its two topology reads for as long as nothing could have moved a
         // task. In the car that means "no command and no settle pause since"; here it additionally
         // means "and the test did not reach into the firmware behind the session's back".

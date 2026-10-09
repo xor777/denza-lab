@@ -5,6 +5,7 @@ import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import org.junit.Assert.assertEquals
 
 /**
  * The shared firmware fixture: one fake `am`/`service call` surface, one fake gate lease and the
@@ -192,6 +193,17 @@ internal class FakeShell(
     }
 
     val commands = mutableListOf<String>()
+
+    /**
+     * Every command this car did not understand, in order.
+     *
+     * The fake refuses one by throwing, but the product runs some of its shell work under
+     * `runCatching` - the cleanup after a scene, putting evicted tasks back in their roots, the
+     * quiet background reconcile - and there the throw never reaches the test: the scenario goes on
+     * green over a command no car was modelled to answer. So the refusal is also written down here,
+     * and [SplitCarFixture.close] and `SplitPickerShellSessionTest` fail on anything in it.
+     */
+    val refused: MutableList<String> = Collections.synchronizedList(mutableListOf())
 
     /**
      * Пакеты, чьи задачи прошивка не удерживает в панельных root'ах (живой красный v20 P1.2:
@@ -897,7 +909,7 @@ internal class FakeShell(
                             globals.remove(statement.removePrefix("settings delete global "))
                             null
                         }
-                        else -> error("Unexpected statement: $statement")
+                        else -> refuse(statement)
                     }
                 }.joinToString("\n")
             // Secure settings: where the accessibility observer of the picker-access lease lives.
@@ -929,8 +941,13 @@ internal class FakeShell(
                 system.remove(command.removePrefix("settings delete system "))
                 ""
             }
-            else -> error("Unexpected command: $command")
+            else -> refuse(command)
         }
+    }
+
+    private fun refuse(command: String): Nothing {
+        refused += command
+        error("Unexpected command: $command")
     }
 
     private fun renderStack(): String = buildString {
@@ -1202,9 +1219,11 @@ internal class SplitCarFixture(
         }
     }
 
+    /** Ends the run, and fails it if the car was sent a command it does not model ([FakeShell.refused]). */
     fun close() {
         built?.shutdown()
         actor.shutdown()
+        assertEquals("commands this car does not model", emptyList<String>(), fake.refused.toList())
     }
 
     private companion object {
