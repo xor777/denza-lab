@@ -1,5 +1,7 @@
 package dev.denza.apps
 
+import dev.denza.apps.core.Decision
+import dev.denza.apps.core.StateCell
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +57,38 @@ internal class DenzaUiStateStore(
      */
     fun compareAndSet(expected: Snapshot, updated: DenzaUiState): Boolean =
         commit(expected, updated)
+
+    /**
+     * The fields [get] reads, for the feature that writes them itself (see [StateCell]); [set] lays
+     * a value of them back onto the whole state. Every write goes through this store, so a cell's
+     * claim loses to any write made since it was decided, exactly as [compareAndSet] does.
+     */
+    fun <T : Any> cell(
+        get: (DenzaUiState) -> T,
+        set: (DenzaUiState, T) -> DenzaUiState,
+    ): StateCell<T> = object : StateCell<T> {
+        override val value: T
+            get() = get(snapshot().state)
+
+        override fun update(transform: (T) -> T) {
+            this@DenzaUiStateStore.update { state -> set(state, transform(get(state))) }
+        }
+
+        override fun updateIf(predicate: (T) -> Boolean, transform: (T) -> T): Boolean =
+            this@DenzaUiStateStore.updateIf(
+                predicate = { state -> predicate(get(state)) },
+                transform = { state -> set(state, transform(get(state))) },
+            )
+
+        override fun <R> decide(decision: (T) -> Decision<T, R>): R {
+            while (true) {
+                val expected = snapshot()
+                val decided = decision(get(expected.state))
+                val value = decided.value ?: return decided.answer
+                if (compareAndSet(expected, set(expected.state, value))) return decided.answer
+            }
+        }
+    }
 
     private fun commit(expected: Snapshot, updated: DenzaUiState): Boolean =
         synchronized(commitLock) {
