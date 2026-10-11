@@ -195,7 +195,7 @@ final class HudSomeIpSender {
         return message.toByteArray();
     }
 
-    private static byte[] embed(int field, byte[] message) {
+    static byte[] embed(int field, byte[] message) {
         ByteArrayOutputStream output = new ByteArrayOutputStream(message.length + 8);
         varint(output, (field << 3) | 2);
         varint(output, message.length);
@@ -203,14 +203,14 @@ final class HudSomeIpSender {
         return output.toByteArray();
     }
 
-    private static void stringField(ByteArrayOutputStream output, int field, String value) {
+    static void stringField(ByteArrayOutputStream output, int field, String value) {
         if (value == null || value.isEmpty()) {
             return;
         }
         bytesField(output, field, value.getBytes(StandardCharsets.UTF_8));
     }
 
-    private static void bytesField(ByteArrayOutputStream output, int field, byte[] value) {
+    static void bytesField(ByteArrayOutputStream output, int field, byte[] value) {
         if (value == null || value.length == 0) {
             return;
         }
@@ -219,7 +219,7 @@ final class HudSomeIpSender {
         output.write(value, 0, value.length);
     }
 
-    private static void intField(ByteArrayOutputStream output, int field, long value) {
+    static void intField(ByteArrayOutputStream output, int field, long value) {
         varint(output, field << 3);
         varint(output, value);
     }

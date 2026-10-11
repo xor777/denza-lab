@@ -47,6 +47,31 @@ final class FrameArt {
         return png(bitmap);
     }
 
+    /** Three lanes on black: left / highlighted ahead / right, matching HudLanePacket.IDS. */
+    static byte[] lanes() {
+        // Stock layout_hud_laneinfo_arrow: 37 px wide + 2 px each margin, 60 px high.
+        Bitmap bitmap = Bitmap.createBitmap(123, 60, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        canvas.drawColor(Color.BLACK);
+        canvas.scale(123f / 240, 60f / 96);
+        Paint arrow = stroke(7f);
+        arrow.setColor(Color.GRAY);
+        canvas.drawLine(40, 80, 40, 30, arrow);
+        canvas.drawLine(40, 30, 16, 30, arrow);
+        canvas.drawLine(16, 30, 29, 17, arrow);
+        canvas.drawLine(16, 30, 29, 43, arrow);
+        arrow.setColor(Color.WHITE);
+        canvas.drawLine(120, 80, 120, 16, arrow);
+        canvas.drawLine(120, 16, 104, 32, arrow);
+        canvas.drawLine(120, 16, 136, 32, arrow);
+        arrow.setColor(Color.GRAY);
+        canvas.drawLine(200, 80, 200, 30, arrow);
+        canvas.drawLine(200, 30, 224, 30, arrow);
+        canvas.drawLine(224, 30, 211, 17, arrow);
+        canvas.drawLine(224, 30, 211, 43, arrow);
+        return png(bitmap);
+    }
+
     /**
      * Map-window frame. The stock sends an opaque RGB_565 screenshot, so this one is opaque
      * too: black (dark on a HUD) with white marks.

@@ -14,6 +14,9 @@
 # never reinstalls Denza Apps and never clears a logcat buffer.
 #
 #   tools/hud_frames_probe.sh flags                    # read-only HUD, gear and speed signals
+#   tools/hud_frames_probe.sh lanes [mode] [secs]       # native lane slot, P only; modes:
+#                                                      # control, ids, image, both, both-city
+#   tools/hud_frames_probe.sh lanes-stop               # cancel and clear the lane trial
 #   tools/hud_frames_probe.sh install                  # build if needed, install the probe only
 #   tools/hud_frames_probe.sh icon [fps-list] [secs]   # default 1,2,5,10 for 10 s each
 #   tools/hud_frames_probe.sh map  [fps-list] [secs] [w] [h] [marker]
@@ -39,7 +42,7 @@ repo_root="$(cd "$script_dir/.." && pwd)"
 serial="${ADB_SERIAL:-127.0.0.1:5555}"
 probe_package="dev.denza.hudframes.probe"
 apk="$repo_root/experiments/hud-frames-probe/build/outputs/apk/debug/hud-frames-probe.apk"
-out_dir="$repo_root/captures/hud-live-20260923"
+out_dir="${HUD_PROBE_OUT:-$repo_root/captures/hud-live-20260923}"
 tag="DenzaHudFramesProbe"
 
 adb_() { adb -s "$serial" "$@"; }
@@ -93,6 +96,43 @@ plan() {
     echo "log: $file"
     flags
     echo "crash after:  $(crash_mark)"
+}
+
+# A lane trial owns the whole road packet. Stop all other navigation senders first.
+lanes() {
+    local mode="${1:-both}" seconds="${2:-12}" file pid waited=0
+    case "$mode" in control|ids|image|both|both-city) ;; *) echo "invalid lane mode" >&2; return 2;; esac
+    [[ "$seconds" =~ ^[0-9]+$ ]] && [ "$seconds" -ge 1 ] && [ "$seconds" -le 30 ] \
+        || { echo "seconds must be 1..30" >&2; return 2; }
+    [ "$(read_int 1011 555745336)" = "00000001" ] \
+        && [ "$(read_float 1013 -1807745016)" = "00000000" ] \
+        && [ "$(read_int 1023 951058460)" = "00000001" ] \
+        || { echo "requires P, zero speed and HUD on" >&2; return 1; }
+    mkdir -p "$out_dir"
+    file="$out_dir/lanes-$mode-$(stamp).log"
+    echo "crash before: $(crash_mark)"
+    flags
+    adb_ logcat -v time -T 1 -s "$tag" >"$file" 2>&1 &
+    pid=$!
+    trap 'kill "$pid" 2>/dev/null || true' EXIT
+    adb_ shell am start -W -n "$probe_package/.HudLanesActivity" \
+        --es mode "$mode" --ei seconds "$seconds"
+    until grep -q "lanes $mode offer withdrawn" "$file" || [ "$waited" -ge "$((seconds + 10))" ]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    trap - EXIT
+    grep -E 'lanes |stop ret=' "$file" || true
+    echo "log: $file"
+    flags
+    echo "crash after: $(crash_mark)"
+    if ! grep -q "lanes $mode offer withdrawn" "$file"; then
+        adb_ shell am start -n "$probe_package/.HudLanesActivity" --es mode stop >/dev/null
+        echo "missing cleanup marker; inspect log before another trial" >&2
+        return 1
+    fi
 }
 
 # --- yandex channel ---------------------------------------------------------------------------
@@ -215,6 +255,8 @@ case "${1:-}" in
         flags
         echo "crash after:  $(crash_mark)"
         ;;
+    lanes) shift; lanes "$@" ;;
+    lanes-stop) adb_ shell am start -n "$probe_package/.HudLanesActivity" --es mode stop ;;
     yandex) shift; yandex_run "$@" ;;
     yandex-return) yandex_return ;;
     uninstall) adb_ uninstall "$probe_package" ;;

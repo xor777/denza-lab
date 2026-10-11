@@ -30,5 +30,12 @@
             android:launchMode="singleTask"
             android:taskAffinity="dev.denza.hudframes.probe.someip"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <activity
+            android:name=".HudLanesActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="dev.denza.hudframes.probe.lanes"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
     </application>
 </manifest>
