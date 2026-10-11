@@ -80,6 +80,10 @@ internal class HudMapProjectionSource(private val service: AccessibilityService)
         if (granted !== projection) close()
         if (granted == null) {
             sink.onGap(HudMapState.NO_GRANT)
+            // The map would show now: ask without waiting for the driver to open Denza Apps.
+            if (windows.placement(SystemClock.uptimeMillis()) is YandexMapPlacement.MainScreen) {
+                HudMapGrant.requestInBackground(service)
+            }
         } else {
             if (display == null) open(granted, handler)
             if (display == null) {

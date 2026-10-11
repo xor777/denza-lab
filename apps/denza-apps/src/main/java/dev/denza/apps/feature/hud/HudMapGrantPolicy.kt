@@ -7,6 +7,12 @@ enum class HudMapGrantTrigger {
 
     /** `MainActivity` came to the front - opened, or its split pane focused again. */
     RESUME,
+
+    /**
+     * The map runs - a route, Yandex on the main screen - with no token and none of our Activities
+     * on screen: [HudMapCaptureRequestActivity] is started from the background to ask.
+     */
+    BACKGROUND,
 }
 
 /** What the grant should do now. */
@@ -75,7 +81,7 @@ object HudMapGrantPolicy {
         if (live || asking) return HudMapGrantAction.NOTHING
         val wait = when (trigger) {
             HudMapGrantTrigger.SWITCH -> SWITCH_RETRY_MS
-            HudMapGrantTrigger.RESUME -> RESUME_RETRY_MS
+            HudMapGrantTrigger.RESUME, HudMapGrantTrigger.BACKGROUND -> RESUME_RETRY_MS
         }
         if (lastAttemptMs != null && nowMs - lastAttemptMs < wait) return HudMapGrantAction.NOTHING
         return if (opAllowed) HudMapGrantAction.REQUEST else HudMapGrantAction.ALLOW_OP_THEN_REQUEST

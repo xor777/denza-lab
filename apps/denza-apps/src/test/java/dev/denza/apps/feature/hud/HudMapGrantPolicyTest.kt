@@ -4,6 +4,7 @@ import dev.denza.apps.feature.hud.HudMapGrantAction.ALLOW_OP_THEN_REQUEST
 import dev.denza.apps.feature.hud.HudMapGrantAction.NOTHING
 import dev.denza.apps.feature.hud.HudMapGrantAction.RELEASE
 import dev.denza.apps.feature.hud.HudMapGrantAction.REQUEST
+import dev.denza.apps.feature.hud.HudMapGrantTrigger.BACKGROUND
 import dev.denza.apps.feature.hud.HudMapGrantTrigger.RESUME
 import dev.denza.apps.feature.hud.HudMapGrantTrigger.SWITCH
 import org.junit.Assert.assertEquals
@@ -62,6 +63,16 @@ class HudMapGrantPolicyTest {
     fun aPressOfTheSwitchAsksAgainSoonButNotInTheSameBreath() {
         assertEquals(REQUEST, decide(trigger = SWITCH, lastAttemptMs = now - 30_000L))
         assertEquals(NOTHING, decide(trigger = SWITCH, lastAttemptMs = now - 1_000L))
+    }
+
+    @Test
+    fun theBackgroundAsksLikeAResumeOnceAMinuteAndNeverWithTheMapOff() {
+        assertEquals(REQUEST, decide(trigger = BACKGROUND))
+        assertEquals(ALLOW_OP_THEN_REQUEST, decide(trigger = BACKGROUND, opAllowed = false))
+        assertEquals(NOTHING, decide(trigger = BACKGROUND, lastAttemptMs = now - HudMapGrantPolicy.RESUME_RETRY_MS + 1))
+        assertEquals(REQUEST, decide(trigger = BACKGROUND, lastAttemptMs = now - HudMapGrantPolicy.RESUME_RETRY_MS))
+        assertEquals(NOTHING, decide(trigger = BACKGROUND, live = true))
+        assertEquals(NOTHING, decide(trigger = BACKGROUND, mapOn = false))
     }
 
     @Test

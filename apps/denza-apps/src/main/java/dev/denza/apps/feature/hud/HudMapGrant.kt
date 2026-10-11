@@ -103,6 +103,86 @@ object HudMapGrant {
         }
     }
 
+    /**
+     * The map needs a token now - a route, Yandex on the main screen - and none of our Activities
+     * may be there to ask: start [HudMapCaptureRequestActivity] from the background, at most once a
+     * [HudMapGrantPolicy.RESUME_RETRY_MS], allowing op 46 over the local ADB shell first if needed.
+     * The app may start an Activity from the background because it holds the overlay right.
+     */
+    fun requestInBackground(context: Context) {
+        val app = context.applicationContext
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            main.post { requestInBackground(app) }
+            return
+        }
+        appContext = app
+        val action = HudMapGrantPolicy.decide(
+            trigger = HudMapGrantTrigger.BACKGROUND,
+            hintsOn = HudGuidanceSettings.isEnabled(app),
+            mapOn = HudGuidanceSettings.isMapEnabled(app),
+            live = projection != null,
+            inFlight = inFlight,
+            opAllowed = opAllowed(app),
+            lastAttemptMs = lastAttemptMs,
+            nowMs = SystemClock.elapsedRealtime(),
+        )
+        when (action) {
+            HudMapGrantAction.REQUEST -> openRequestScreen(app)
+            HudMapGrantAction.ALLOW_OP_THEN_REQUEST -> {
+                inFlight = true
+                lastAttemptMs = SystemClock.elapsedRealtime()
+                setReason(HudMapGrantReason.REQUESTING)
+                shell.execute {
+                    val allowed = try {
+                        DenzaLocalAdb.client(app).shell(ShellGrants.appop(app.packageName, "PROJECT_MEDIA", "allow"))
+                        opAllowed(app)
+                    } catch (error: Exception) {
+                        Log.w(TAG, "PROJECT_MEDIA not allowed over ADB: $error")
+                        false
+                    }
+                    main.post {
+                        if (!inFlight) return@post
+                        if (allowed) openRequestScreen(app) else fail(HudMapGrantReason.NO_ADB, "op 46 still not allowed")
+                    }
+                }
+            }
+            HudMapGrantAction.RELEASE -> release()
+            HudMapGrantAction.NOTHING -> Unit
+        }
+    }
+
+    /** [HudMapCaptureRequestActivity] is up: ask from it. False when there is nothing to ask. */
+    internal fun onRequestScreen(activity: Activity, launch: (Intent) -> Unit): Boolean {
+        val app = activity.applicationContext
+        appContext = app
+        if (projection != null || !stillWanted(app)) {
+            inFlight = false
+            return false
+        }
+        inFlight = true
+        if (lastAttemptMs == null) lastAttemptMs = SystemClock.elapsedRealtime()
+        setReason(HudMapGrantReason.REQUESTING)
+        ask(app, launch)
+        return inFlight
+    }
+
+    private fun openRequestScreen(app: Context) {
+        inFlight = true
+        lastAttemptMs = SystemClock.elapsedRealtime()
+        setReason(HudMapGrantReason.REQUESTING)
+        try {
+            app.startActivity(
+                Intent(app, HudMapCaptureRequestActivity::class.java).addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or
+                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS,
+                ),
+            )
+            Log.i(TAG, "grant: request screen started from the background")
+        } catch (error: RuntimeException) {
+            fail(HudMapGrantReason.REFUSED, "request screen: $error")
+        }
+    }
+
     /** The map or the hints went off: the token goes, and the foreground type with it. */
     fun release() {
         if (Looper.myLooper() != Looper.getMainLooper()) {

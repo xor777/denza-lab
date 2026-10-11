@@ -196,6 +196,16 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:taskAffinity="dev.denza.apps.control" />
+        <!-- Asks for the map's screen capture from the background, invisibly, when no Activity of
+             ours is on screen: HudMapGrant.requestInBackground. A task of its own, so the app's
+             task is never brought forward; it closes as soon as SystemUI answers. -->
+        <activity
+            android:name=".feature.hud.HudMapCaptureRequestActivity"
+            android:configChanges="orientation|screenLayout|screenSize|smallestScreenSize"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity="dev.denza.apps.capture"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity
             android:name=".DenzaLauncherActivity"
             android:excludeFromRecents="true"
