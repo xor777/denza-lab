@@ -14,7 +14,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
-| Stock navigation has a distinct lane input: count 5, picture 7 and per-lane codes 29. `:hud-frames-probe` now separates IDs, image and their combination; rendering by this car's separate HUD controller still needs owner observation, not a successful send log | firmware / code | 2026-10-11 | [Native lane probe](hud-projection-findings.md#hud-native-lanes) |
+| The owner's native HUD displays three lane arrows from field-7 PNG with field 5 = 3, road class 6 = 7, without field 29. Fields 5/29 alone leave only the control maneuver. Owner-observed in P; a Yandex source and moving-car behavior remain unverified | live | 2026-10-11 | [Native lane probe](hud-projection-findings.md#hud-native-lanes) |
 | One `ClusterSceneService` owns two presentations: the base layer (a projected application's `SurfaceView`, or this app's instruments) on `shared_fission_bg_XDJAScreenProjection_0`, the camera `TextureView` on `shared_fission_bg_XDJAScreenProjection_1`; `ClusterDisplayResolver.kt` picks them by name evidence and never guesses a numeric display id. Since 2026-10-09 the service is Android glue: `CameraSceneController.kt` decides which Show starts a camera and when a layer is torn down, `SceneLayer.kt` lets AVC go (window, then `freeDisplay` on `denza-avc-teardown`), both behind `CameraSceneSeams.kt` | code | 2026-07-18 | [Product architecture](#product-architecture) |
 | The driver's display shows one thing at a time: `Приборы` (this app's instruments, the default and the fallback, `FULL` only) or any application with a launch intent except this app and HOME (`ProjectablePackages.java`, asked again in `ClusterProxyMain.java` before every task mutation); there is no package list | code | 2026-09-23 | [How the driver reaches it](#how-the-driver-reaches-it), [Any application, not six navigators](#any-application-not-six-navigators) |
 | The instruments are the Luminofor triptych: `ClusterDashboardRenderer.kt` is the board ported onto `LightPen`, its anchors are `ContourGeometry.kt` on `LuminoforSpec`, the Kotlin copy of `spec.json`; a `View` on the base presentation, with no virtual display and no shell command | code | 2026-09-23 | [App-owned instrument dashboard](#app-owned-instrument-dashboard), [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23) |
@@ -2555,6 +2555,11 @@ arrow: text and distance may continue, but the directional image is omitted.
 Status: research, nothing changed in the product. Read from this car's IVI OTA
 (`captures/hud-firmware-20260923/`), not run; the third-party findings below
 were made on other BYD models and are reported, not reproduced here.
+
+**Update 2026-10-11:** lane count/picture/IDs were separated on the owner's car
+in P. Fields 5/7 show the test lane picture without 29; 5/29 without a picture do
+not show lanes. This supersedes the earlier untested status for the lane slot
+only. See the [owner-observed sequence](hud-projection-findings.md#hud-native-lanes).
 
 **Who fills which field.** The stock navigator `com.byd.launchermap` builds the
 whole `0x8001` packet in one call (`jadx/BydLaunchermap/sources/k/e/j/d.java:192`);
