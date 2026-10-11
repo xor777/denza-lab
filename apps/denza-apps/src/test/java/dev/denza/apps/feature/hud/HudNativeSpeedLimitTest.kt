@@ -1,9 +1,9 @@
 package dev.denza.apps.feature.hud
 
-import dev.denza.apps.feature.hud.HudNativeSpeedLimitEngine.Companion.ADAS_CHANGE_DELAY_MS
 import dev.denza.apps.feature.hud.HudNativeSpeedLimitEngine.Companion.BASE_DELAY_MS
 import dev.denza.apps.feature.hud.HudNativeSpeedLimitEngine.Companion.CONFIRM_MS
 import dev.denza.apps.feature.hud.HudNativeSpeedLimitEngine.Companion.READ_MS
+import dev.denza.apps.feature.hud.HudNativeSpeedLimitEngine.Companion.RETRY_CEILING_MS
 import dev.denza.apps.feature.hud.HudNativeSpeedLimitEngine.Companion.RETRY_MS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -158,7 +158,7 @@ class HudNativeSpeedLimitTest {
     }
 
     @Test
-    fun anUnconfirmedWriteIsTriedOnceMoreTenSecondsLaterAndThenLeft() {
+    fun anUnconfirmedWriteGoesOnTenTwentyThenEveryThirtySeconds() {
         val engine = HudNativeSpeedLimitEngine()
         engine.setTarget(60, 0)
         engine.onRead(9, 0)
@@ -171,11 +171,19 @@ class HudNativeSpeedLimitTest {
         engine.onWritten(true, 11_400)
 
         assertNull(engine.onRead(9, 11_400 + CONFIRM_MS + 1))
-        assertNull(engine.onRead(9, 60_000))
+        assertNull(engine.onRead(9, 11_000 + 2 * RETRY_MS - 1))
+        assertEquals(60, engine.onRead(9, 11_000 + 2 * RETRY_MS))
+        engine.onWritten(true, 31_400)
+
+        // Never given up while the car shows another sign: from the third on, every 30 s.
+        assertNull(engine.onRead(9, 31_000 + RETRY_CEILING_MS - 1))
+        assertEquals(60, engine.onRead(9, 31_000 + RETRY_CEILING_MS))
+        engine.onWritten(true, 61_400)
+        assertEquals(60, engine.onRead(9, 61_000 + RETRY_CEILING_MS))
     }
 
     @Test
-    fun aCameraSignAfterOursIsAnsweredAfterSixSeconds() {
+    fun aCameraSignAfterOursIsOverwrittenAfterOneSecond() {
         val engine = HudNativeSpeedLimitEngine()
         engine.setTarget(60, 0)
         engine.onRead(9, 0)
@@ -183,9 +191,10 @@ class HudNativeSpeedLimitTest {
         engine.onWritten(true, 1_400)
         engine.onRead(13, 1_700)
 
-        assertNull(engine.onRead(11, 10_000))
-        assertNull(engine.onRead(11, 10_000 + BASE_DELAY_MS + ADAS_CHANGE_DELAY_MS - 1))
-        assertEquals(60, engine.onRead(11, 10_000 + BASE_DELAY_MS + ADAS_CHANGE_DELAY_MS))
+        // The camera reads 50 a while later: ours wins, as soon as the base delay allows.
+        assertNull(engine.onRead(11, 4_000))
+        assertNull(engine.onRead(11, 4_000 + BASE_DELAY_MS - 1))
+        assertEquals(60, engine.onRead(11, 4_000 + BASE_DELAY_MS))
     }
 
     @Test

@@ -2734,10 +2734,15 @@ assistance cautious enough to be given a navigation limit.
     `SETTING_RODE_TYPE_SET` = 7, `SETTING_SPEED_LIMIT_SET` = the limit,
     `SETTING_RODE_TYPE_SET` = 6;
   - the write counts when a read shows it within 3 s (reads every 300 ms
-    meanwhile). Otherwise it is tried once more, 10 s after the first, and
-    then left until the limit or the car's sign changes;
+    meanwhile). Since 2026-10-11 Yandex's sign wins over the car's own
+    sources, its camera included (the owner's decision: the camera is often
+    wrong). While the car shows another sign the writes go on, 10 s after the
+    first, 20 s after the second, then every 30 s
+    (`HudNativeSpeedLimitEngine.RETRY_CEILING_MS`);
+    > **Superseded 2026-10-11:** until then a sign was tried twice, 10 s apart, and then left until the limit or the car's sign changed - on the drive that day this left the car wrong for long stretches.
   - if the car leaves a value it had taken (its camera read a sign), the
-    limit is written again after 6 s;
+    limit is written again after the same 1 s as any difference;
+    > **Superseded 2026-10-11:** until then the car's change was given 5 s more (6 s in all) before the rewrite.
   - no limit means no reads and no writes. Nothing is cleared, neither at the
     end of a route nor when Yandex hides its sign.
 - **Where the order comes from.** Owners of Sea Lion 06/07 report the value
@@ -2762,8 +2767,8 @@ assistance cautious enough to be given a navigation limit.
    by `confirmed`.
 3. The cluster and HUD sign show Yandex's value. Note what the glass draws for
    field 11.
-4. Past a sign the camera reads differently, see which value wins and whether
-   the six-second rewrite holds.
+4. Past a sign the camera reads differently, see that Yandex's value comes
+   back within about a second and holds (since 2026-10-11 ours wins).
 5. After the route ends, note which sign the car keeps.
 
 ## Central IVI split routing

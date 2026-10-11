@@ -115,11 +115,13 @@ internal object HudNativeSpeedLimitProtocol {
  * [HudNativeSpeedLimitRunner] drives it from one worker thread.
  *
  * - A new target is read first; a car already showing it is left alone.
- * - A sign that differs is written after it has stayed different for [BASE_DELAY_MS], or for
- *   [BASE_DELAY_MS] + [ADAS_CHANGE_DELAY_MS] when the car moved away from a value we had written and
- *   seen it take (its camera read a sign).
- * - A write counts once the read shows it within [CONFIRM_MS]; at most [MAX_ATTEMPTS] writes per
- *   divergence, [RETRY_MS] apart.
+ * - Yandex's sign wins over the car's own sources, its camera included (the owner's decision on
+ *   2026-10-11: the camera is often wrong). A sign that differs is written after it has stayed
+ *   different for [BASE_DELAY_MS], whether the car never took ours or its camera moved it away.
+ * - A write counts once the read shows it within [CONFIRM_MS]. While the car shows another sign the
+ *   writes go on, [RETRY_MS] after the first, twice that after the second, then every
+ *   [RETRY_CEILING_MS]: on the drive of 2026-10-11 the car took 21 of 75 writes, some of them only
+ *   after 20 s, and two tries per sign left it wrong for the rest of the stretch.
  * - No target means nothing happens. Nothing is cleared: a route that ends or a sign Yandex hides
  *   leaves the car's own assistance to carry on from what it last had.
  */
@@ -135,9 +137,6 @@ internal class HudNativeSpeedLimitEngine(private val log: (String) -> Unit = {})
     private var nextAttemptAt = 0L
     private var nextReadAt = 0L
     private var lastRaw: Int? = null
-    private var writtenRaw = 0
-    private var confirmedRaw = 0
-    private var adasChanged = false
     private var readFailing = false
 
     val currentTarget: Int? get() = target
@@ -175,10 +174,6 @@ internal class HudNativeSpeedLimitEngine(private val log: (String) -> Unit = {})
         }
         readFailing = false
         val changed = lastRaw != null && raw != lastRaw
-        if (writtenRaw != 0 && raw == writtenRaw) {
-            confirmedRaw = raw
-            adasChanged = false
-        }
         if (raw == HudNativeSpeedLimitProtocol.expectedRaw(goal)) {
             if (!confirmed) {
                 val outcome = when {
@@ -191,13 +186,12 @@ internal class HudNativeSpeedLimitEngine(private val log: (String) -> Unit = {})
             confirmed = true
             awaiting = false
             delayStarted = false
-            adasChanged = false
         } else {
-            if (changed && confirmedRaw != 0) adasChanged = raw != confirmedRaw
             if (confirmed) {
                 confirmed = false
                 cycle++
                 attempt = 0
+                nextAttemptAt = 0L
                 log("car moved to raw=$raw from target=$goal, cycle=$cycle")
                 startDelay(nowMs)
             } else if (!delayStarted || changed) {
@@ -209,7 +203,7 @@ internal class HudNativeSpeedLimitEngine(private val log: (String) -> Unit = {})
         nextReadAt = nowMs + if (awaiting) CONFIRM_READ_MS else READ_MS
         if (!shouldWrite(nowMs)) return null
         attempt++
-        nextAttemptAt = nowMs + RETRY_MS
+        nextAttemptAt = nowMs + (RETRY_MS * attempt).coerceAtMost(RETRY_CEILING_MS)
         log("write target=$goal cycle=$cycle attempt=$attempt")
         return goal
     }
@@ -218,7 +212,6 @@ internal class HudNativeSpeedLimitEngine(private val log: (String) -> Unit = {})
     fun onWritten(answered: Boolean, nowMs: Long) {
         val goal = target ?: return
         if (answered) {
-            writtenRaw = HudNativeSpeedLimitProtocol.expectedRaw(goal)
             awaiting = true
             confirmAt = nowMs + CONFIRM_MS
             nextReadAt = nowMs + CONFIRM_READ_MS
@@ -229,21 +222,18 @@ internal class HudNativeSpeedLimitEngine(private val log: (String) -> Unit = {})
     }
 
     private fun shouldWrite(nowMs: Long): Boolean =
-        target != null && !confirmed && !awaiting && attempt < MAX_ATTEMPTS &&
+        target != null && !confirmed && !awaiting &&
             delayStarted && nowMs >= delayDueAt && nowMs >= nextAttemptAt
 
     private fun startDelay(nowMs: Long) {
         delayStarted = true
-        delayDueAt = nowMs + BASE_DELAY_MS + if (adasChanged) ADAS_CHANGE_DELAY_MS else 0L
+        delayDueAt = nowMs + BASE_DELAY_MS
     }
 
     private fun expireConfirmation(nowMs: Long) {
         if (!awaiting || nowMs <= confirmAt) return
         awaiting = false
-        log(
-            "unconfirmed target=$target cycle=$cycle attempt=$attempt raw=$lastRaw" +
-                if (attempt >= MAX_ATTEMPTS) ", attempts spent" else "",
-        )
+        log("unconfirmed target=$target cycle=$cycle attempt=$attempt raw=$lastRaw")
     }
 
     companion object {
@@ -252,9 +242,8 @@ internal class HudNativeSpeedLimitEngine(private val log: (String) -> Unit = {})
         const val READ_RETRY_MS = 10_000L
         const val CONFIRM_MS = 3_000L
         const val RETRY_MS = 10_000L
+        const val RETRY_CEILING_MS = 30_000L
         const val BASE_DELAY_MS = 1_000L
-        const val ADAS_CHANGE_DELAY_MS = 5_000L
-        const val MAX_ATTEMPTS = 2
     }
 }
 
