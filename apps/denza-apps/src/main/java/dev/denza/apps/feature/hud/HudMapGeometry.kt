@@ -24,7 +24,8 @@ data class PxRect(val left: Int, val top: Int, val right: Int, val bottom: Int) 
  * labels in dp, so one cut in dp is one picture on the glass at every density, and the density
  * changes only how sharp it is before the reduction (docs/hud-projection-findings.md, «Окно карты
  * как функция продукта»). The cut the owner saw on the glass on 2026-09-23 was 576×346 dp of a
- * 160 dpi frame reduced to 300×180.
+ * 160 dpi frame reduced to 300×180; after the drive of 2026-10-11 he found the map small, and the
+ * cut became 490×294 dp, everything on the glass about 17 % larger.
  */
 object HudMapGeometry {
     /** The map window's frame: it fits the window whole, a larger one is cropped by the HUD. */
@@ -32,7 +33,7 @@ object HudMapGeometry {
     const val MAP_HEIGHT = 180
 
     /** The cut's width in Yandex's dp; its height follows the frame's 5:3. */
-    const val CROP_WIDTH_DP = 576f
+    const val CROP_WIDTH_DP = 490f
 
     /** Where the car's cursor sits in the cut, from the top: the rest above it is the road ahead. */
     const val ARROW_ROW = 0.77f

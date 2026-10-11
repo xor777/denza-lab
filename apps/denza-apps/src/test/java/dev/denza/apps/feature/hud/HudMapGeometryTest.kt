@@ -10,14 +10,14 @@ class HudMapGeometryTest {
 
     @Test
     fun theCutIsTheSameDpAtEveryDensity() {
-        // 2026-09-23: 576×346 dp of a 160 dpi frame. The main screen is 320 dpi, density 2.
+        // 490×294 dp since 2026-10-11 (576×346 before). The main screen is 320 dpi, density 2.
         val parked = HudMapGeometry.crop(PxRect(0, 0, 960, 576), 1f, 480, 400)
         val main = HudMapGeometry.crop(mainScreen, 2f, 1280, 1136)
 
-        assertEquals(576, parked.width)
-        assertEquals(346, parked.height)
-        assertEquals(1152, main.width)
-        assertEquals(691, main.height)
+        assertEquals(490, parked.width)
+        assertEquals(294, parked.height)
+        assertEquals(980, main.width)
+        assertEquals(588, main.height)
     }
 
     @Test
@@ -25,8 +25,8 @@ class HudMapGeometryTest {
         val crop = HudMapGeometry.crop(mainScreen, 2f, 1280, 1136)
 
         assertEquals(1280, crop.left + crop.width / 2)
-        // 0.77 of 691 is 532: the road ahead takes the 532 pixels above the cursor.
-        assertEquals(1136 - 532, crop.top)
+        // 0.77 of 588 is 453: the road ahead takes the 453 pixels above the cursor.
+        assertEquals(1136 - 453, crop.top)
     }
 
     @Test
@@ -36,7 +36,7 @@ class HudMapGeometryTest {
 
         assertEquals(window.left, crop.left)
         assertEquals(window.bottom, crop.bottom)
-        assertEquals(1152, crop.width)
+        assertEquals(980, crop.width)
     }
 
     @Test

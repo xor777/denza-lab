@@ -32,9 +32,9 @@ internal sealed interface HudMapResult {
  * arrays, the cursor search's scratch, the key's histogram and the PNG's bitmap stay from one frame
  * to the next. Owned by the frame thread; [close] frees what it holds.
  *
- * The cut is about 576 pixels wide in the sources it is made for - the main screen mirrored at half
- * size (density 1), the instruments' 160 dpi display - so one bilinear pass to 300 is ×0.52, close
- * enough to a 2×2 mean that a second, CPU, reduction would buy nothing.
+ * The cut is about 490 pixels wide in the sources it is made for - the main screen mirrored at half
+ * size (density 1), the instruments' 160 dpi display - so one bilinear pass to 300 is ×0.61, which
+ * a second, CPU, reduction would not improve.
  */
 internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseable {
     private val anchors = HudMapAnchorTracker()

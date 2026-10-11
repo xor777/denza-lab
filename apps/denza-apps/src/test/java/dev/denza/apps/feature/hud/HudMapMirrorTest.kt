@@ -32,11 +32,11 @@ class HudMapMirrorTest {
 
     @Test
     fun theCutInTheMirrorIsTheSameDpAsOnTheScreen() {
-        // Density 2 halved is 1: 576 dp is 576 mirror pixels, as on the 160 dpi display of 2026-09-23.
+        // Density 2 halved is 1: 490 dp is 490 mirror pixels.
         val crop = HudMapGeometry.crop(HudMapMirror.scale(PxRect(0, 0, 2560, 1600), 0.5f), 2f * 0.5f, 640, 568)
 
-        assertEquals(576, crop.width)
-        assertEquals(346, crop.height)
+        assertEquals(490, crop.width)
+        assertEquals(294, crop.height)
     }
 
     @Test

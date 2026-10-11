@@ -6,10 +6,9 @@ import kotlin.math.roundToInt
  * The main screen as the map's mirror sees it: half its size, and everything the window list says
  * in display pixels brought into the mirror's.
  *
- * Half is enough: the cut is 576×346 dp, which at the main screen's density 2 is 1152×692 display
- * pixels and in the mirror 576×346 - the very size the 2026-09-23 run cut from a 160 dpi display
- * and the owner saw on the glass. Mirroring at full size would only make the GPU throw three
- * quarters of it away.
+ * Half is enough: the cut is 490×294 dp ([HudMapGeometry.CROP_WIDTH_DP]), which at the main
+ * screen's density 2 is 980×588 display pixels and in the mirror 490×294, still more than the
+ * 300×180 sent. Mirroring at full size would only make the GPU throw three quarters of it away.
  */
 object HudMapMirror {
     /** The mirror's size for a [width]×[height] screen: half, at least one pixel. */
