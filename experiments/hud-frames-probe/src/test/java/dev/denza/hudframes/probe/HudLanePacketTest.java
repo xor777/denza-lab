@@ -12,6 +12,16 @@ public class HudLanePacketTest {
     private static final byte[] PNG = { (byte) 137, 80, 78, 71, 13, 10, 26, 10 };
     private static final byte[] MARKER = { 1, 2, 3 };
 
+    @Test public void alreadyStartedRegistersOurClientInsteadOfAbortingTrial() {
+        // First live control returned 13, not 0. ResultValue + serverIdMapBinder confirm
+        // ALREADY_STARTED registers a second client; errors must still stop the trial.
+        assertTrue(HudSomeIpSender.offerStarted(0));
+        assertTrue(HudSomeIpSender.offerStarted(13));
+        for (int error : new int[] {-200, -2, 1, 3, 4, 5, 6, 8, 11, 14, 15}) {
+            assertFalse(HudSomeIpSender.offerStarted(error));
+        }
+    }
+
     @Test public void idsTrialDoesNotAccidentallySupplyLanePicture() {
         Map<Integer, Object> p = packet("ids");
         assertEquals(3L, p.get(5));

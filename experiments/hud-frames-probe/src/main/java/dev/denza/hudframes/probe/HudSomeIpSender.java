@@ -74,8 +74,13 @@ final class HudSomeIpSender {
             return -2;
         }
         int result = call(TX_START, SVC_HUD_NAVI);
-        started = result == 0;
+        started = offerStarted(result);
         return result;
+    }
+
+    /** Firmware registers this client also when the shared service is ALREADY_STARTED (13). */
+    static boolean offerStarted(int result) {
+        return result == 0 || result == 13;
     }
 
     /** Fires one event; returns the service result (0 = accepted). */

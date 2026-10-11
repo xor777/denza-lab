@@ -96,7 +96,7 @@ public final class HudLanesActivity extends Activity {
                 if (cancelled) return;
                 int start = sender.open(3000);
                 show("lanes " + mode + " start ret=" + start);
-                if (start != 0) return;
+                if (!HudSomeIpSender.offerStarted(start)) return;
                 offered = true;
                 byte[] payload = HudLanePacket.build(mode, FrameArt.lanes(), FrameArt.marker(96));
                 int sent = 0;

@@ -6,6 +6,11 @@ Separate `HudLanesActivity`, ordinary UID, no new permissions. This asks whether
 owner's native HUD renders navigation lanes through service 266 / event `0x8001`.
 It never writes vehicle/ADAS settings and never casts video or sends map frames.
 Transport `ret=0` proves acceptance at the IVI service, **not** a visible result.
+Starting accepts `0` and `13` (`ALREADY_STARTED`): firmware registers another
+client when service 266 already has an owner. Stop/unbind removes our client;
+other owners keep their offer. Denza Apps can retain an idle offer after a route
+stops, so zero alone is an incorrect start criterion. This was the first trial's
+failure, before any frame was sent; the trace is in `captures/hud-lanes-20261011/`.
 
 Before a trial: P, speed 0, HUD on; stop Yandex and stock navigation routes and any
 other HUD probe. Confirm the normal stock scene. Denza Apps can remain installed:
