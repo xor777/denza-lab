@@ -10,7 +10,7 @@ a plain fullscreen picker.
 
 ## Current state
 
-Updated 2026-10-09. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
+Updated 2026-10-11. Where this journal and the normative [split-screen-product-contract.md](split-screen-product-contract.md) disagree, the contract wins; this doc answers how the stock BYD split behaves on the owner's car (DiLink 5.1, Android 13) and what Denza Apps' «Разделить экран» does with it, with the live and firmware evidence for each step.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -36,6 +36,7 @@ Updated 2026-10-09. Where this journal and the normative [split-screen-product-c
 | Every sleep (quickboot) removes all pane tasks and force-stops `dev.denza.apps`, and no exemption is reachable; the gate, the tx125 list and the SmartMulti keys survive. A starting process reads the area once and suspends a gate it still owns | live | 2026-09-23 | [Every sleep of the car force-stops the product](#every-sleep-of-the-car-force-stops-the-product-live-2026-09-23), [What the product does with it](#what-the-product-does-with-it-2026-09-23) |
 | The shared accessibility repair rewrites the setting at once for a crashed service (no instance on its way: every wake), and waits up to 2 s for an instance the system created by itself (an update, a boot), rewriting nothing - the split observer included - if it connects (`AccessibilityRepair.kt`, `AccessibilityHealth.BIND_GRACE_MS`) | code | 2026-10-09 | [Every sleep of the car force-stops the product](#every-sleep-of-the-car-force-stops-the-product-live-2026-09-23) |
 | «Disable background Apps» (`com.byd.appstartmanagement`) checked means self-start is blocked; every APK install or update re-blocks it, so the wake's `BOOT_COMPLETED` skips the product until the owner unchecks it. Unchecked, `RuntimeRecoveryReceiver` brought the product back at wake | live | 2026-09-23 | [The self-start switch](#the-self-start-switch-and-a-registrar-that-never-registered-live-2026-09-23) |
+| A caption drag down by a third of the display closes the dragged pane app alive. The pane collapses only if its root is left empty; normally our picker under the app is uncovered. Any force-stop of the package over a visible split (an install, Settings, the Recents card) removes both picker bases and leaves the apps, so until the next open the swipe closes the whole pane | live | 2026-10-11 | [A caption swipe closes the whole pane](#a-caption-swipe-closes-the-whole-pane-once-our-picker-is-gone-live-2026-10-11) |
 | Two Denza tasks side by side (hub + picker, picker + picker): a stock divider resize becomes a side swap (`changePrimaryAppAndPosition` returns early); left as the firmware does it, by the owner's decision | live | 2026-09-23 | [A resize between two panes of one package](#a-resize-between-two-panes-of-one-package-moves-them-instead-live-2026-09-23) |
 | Measured: warm open 0.9–1.5 s, cold 3.5 s, first after an install 7.1 s, select 1.1–1.2 s, disable 2.2 s. Budgets: 10 s for toggle/open/select/home, 25 s edge, 30 s reconcile (`SplitOperations.kt`); the waiting shield stays at least 300 ms and at most 15 s (`SplitLaunchOverlay.kt`); a picker's wait for its selection ends by itself at 15 s even with no answer (`SplitPickerWait.kt`, 2026-10-08) | code | 2026-08-27 | [What the operations actually cost](#what-the-operations-actually-cost-and-the-budgets-that-now-follow-from-it-live-v39-2026-08-27), [Explicit restore progress window](#explicit-restore-progress-window-and-bounded-close-2026-08-22) |
 | "Native split is dead from user space; a display of our own is the only route." Not so: native split works through the gate and the BYD categories, and an app-owned display loses the hosted app at its first own activity start | refuted | 2026-08-14 | [Historical verdict (incorrect)](#historical-verdict-incorrect) |
@@ -2874,6 +2875,36 @@ first (the hub started 1.5 s before the tap), where the lease step took 156 ms
 instead of 4.86 s and the picker's service connected 1.6 s after the scene was
 placed. What is left of a cold open is contention: its shell calls and the
 recovery's run at once.
+
+### A caption swipe closes the whole pane once our picker is gone (live 2026-10-11)
+
+The owner swiped Yandex Music down by its caption in the narrow pane (Music
+narrow, the navigator wide) and the whole pane closed, the navigator taking the
+screen. The firmware did it and the product did nothing; the journal has only a
+background read a second later. At 17:06:20 `recognizeGuesture` returned 0, a
+drag down by more than a third of the display (`dy 949`, the threshold is
+1600 / 3). That closes the dragged task: `removeRootTaskChildForMulti` →
+`removeIviRootTaskChild` → `animateChangeToFullWindow(102)`. Music was moved out
+of the root alive, with its process and media session kept.
+
+`BydSmartMultiController.removeRootTaskChildForMulti` collapses a pane only when
+its root is left with `getChildCount() == 0`. A root with something left in it
+only updates the divider icon. A pane is its picker plus the app above it, so
+the same swipe normally uncovers our picker and the pane stays (live
+2026-08-22, [Product direction](#product-direction-explicit-two-picker-session)).
+This time root 2 held Music alone (`sz=1`). The events log shows why: at 16:36:10
+an APK install from the parallel session (`stop dev.denza.apps due to
+installPackageLI`) killed `dev.denza.apps:picker`. Both picker bases went with it
+(`wm_finish_activity … SplitPickerActivity, proc died without state saved`,
+tasks 94 and 95 removed), while the pane apps of other packages stayed.
+
+So any force-stop of the package over a visible split leaves its panes with no
+picker under the apps: an install or update, a force-stop from Settings, or the
+swipe of the Denza Apps card in Recents. Until the next «Разделить экран», a
+caption swipe then closes the pane rather than showing its picker. A quickboot
+cannot leave this state, because it removes the pane apps too
+([Every sleep of the car force-stops the product](#every-sleep-of-the-car-force-stops-the-product-live-2026-09-23)).
+The product does not put missing picker bases back when its process restarts.
 
 ## The task proxy's jar, staged by its hash (code, 2026-10-09)
 
