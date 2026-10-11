@@ -9,6 +9,9 @@ import dev.denza.apps.feature.media.MediaResumeController
 import dev.denza.apps.feature.media.MediaResumeCore
 import dev.denza.apps.feature.media.MediaResumeSessions
 import dev.denza.apps.feature.navigation.SteeringWheelKeyRider
+import dev.denza.apps.feature.alice.AliceVoiceKeyController
+import dev.denza.apps.feature.alice.AliceVoiceKeyRider
+import dev.denza.apps.platform.accessibility.AccessibilityKeyEvent
 import dev.denza.apps.platform.accessibility.RiderDispatch
 import dev.denza.apps.platform.media.FakeMediaSessionSource
 import dev.denza.apps.platform.media.FakeSession
@@ -21,7 +24,7 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * The wheel's two keys as the service hands them out: the production riders of
+ * The wheel's media, star and voice keys as the service hands them out: the production riders of
  * [DenzaAccessibilityRiders], in their order, through [RiderDispatch]. Only the Android around them
  * is stood in for: behind Play/Pause, the real [MediaResumeController] and policy over a fake
  * session list, and a guard (call, mute) the test answers; behind ★, its switch and navigation.
@@ -45,10 +48,14 @@ class WheelKeyRoutingTest {
     private var navigationAccepts = true
     private var navigations = 0
     private var starLogThrows = false
+    private var navigatorVisible = false
+    private var aliceClicks = 0
+    private val aliceWork = mutableListOf<() -> Unit>()
 
     private val riders = DenzaAccessibilityRiders.create()
     private val media = riders.filterIsInstance<MediaKeyRider>().single()
     private val star = riders.filterIsInstance<SteeringWheelKeyRider>().single()
+    private val alice = riders.filterIsInstance<AliceVoiceKeyRider>().single()
     private val failures = mutableListOf<String>()
     private val dispatch = RiderDispatch(riders) { rider, call, _ -> failures += "$rider $call" }
 
@@ -68,6 +75,13 @@ class WheelKeyRoutingTest {
             },
             log = { if (starLogThrows) error("the star's log broke") },
         )
+        alice.attach(AliceVoiceKeyController(
+            clock = { 1_000L },
+            visibleNavigator = { if (navigatorVisible) 295 else null },
+            post = { aliceWork += it },
+            clickIfVisible = { navigatorVisible.also { if (it) aliceClicks++ } },
+            report = {},
+        ))
     }
 
     @After
@@ -156,6 +170,26 @@ class WheelKeyRoutingTest {
         assertEquals(0, guardAsked + player.pauses + player.plays + navigations)
     }
 
+    @Test
+    fun `voice reaches Alice without calling media or star and needs visible Navigator`() {
+        assertEquals(listOf(false, false, false), press(320))
+        navigatorVisible = true
+        assertEquals(listOf(true, true, true), press(320))
+        assertEquals(0, aliceClicks)
+        aliceWork.toList().forEach { it() }
+        assertEquals(1, aliceClicks)
+        assertEquals(0, guardAsked + navigations + player.pauses)
+    }
+
+    @Test
+    fun `host metadata keeps a canceled physical voice UP away from both assistants`() {
+        navigatorVisible = true
+        assertTrue(dispatch.key(AccessibilityKeyEvent(320, DOWN, 0, 2, 900, 1_000, false)))
+        assertTrue(dispatch.key(AccessibilityKeyEvent(320, UP, 0, 2, 900, 1_000, true)))
+        assertTrue(aliceWork.isEmpty())
+        assertEquals(0, aliceClicks + navigations + player.pauses)
+    }
+
     /** A press answered stays answered when the telling about it throws: never ours and the firmware's too. */
     @Test
     fun `a play pause press stays consumed when its log throws after the policy acted`() {
@@ -178,7 +212,7 @@ class WheelKeyRoutingTest {
         val fresh = DenzaAccessibilityRiders.create()
         val idle = RiderDispatch(fresh) { rider, call, _ -> failures += "$rider $call" }
 
-        assertEquals(listOf(false, false), listOf(idle.key(386, DOWN, 0), idle.key(321, DOWN, 0)))
+        assertEquals(listOf(false, false, false), listOf(idle.key(386, DOWN, 0), idle.key(321, DOWN, 0), idle.key(320, DOWN, 0)))
     }
 
     /**
@@ -188,11 +222,12 @@ class WheelKeyRoutingTest {
      */
     @Test
     fun `no two key riders take the same code`() {
+        navigatorVisible = true
         val taken = mutableMapOf<String, MutableSet<Int>>()
         for (rider in riders.filter { it.takesKeys }) {
             for (code in 0..1023) {
-                val down = rider.onKeyEvent(code, DOWN, 0)
-                val up = rider.onKeyEvent(code, UP, 0)
+                val down = rider.onKeyEvent(AccessibilityKeyEvent(code, DOWN, 0))
+                val up = rider.onKeyEvent(AccessibilityKeyEvent(code, UP, 0))
                 if (down || up) taken.getOrPut(rider.name) { mutableSetOf() } += code
             }
         }
@@ -201,6 +236,7 @@ class WheelKeyRoutingTest {
             mapOf(
                 "media-key" to setOf(KEYCODE_MEDIA_PLAY_PAUSE, KEYCODE_MEDIA_PLAY, KEYCODE_MEDIA_PAUSE, 386),
                 "steering-wheel-key" to setOf(321),
+                "alice-voice-key" to setOf(320),
             ),
             taken,
         )

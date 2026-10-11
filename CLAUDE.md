@@ -43,7 +43,7 @@ and a contents list. Read that first; then `rg -n '^#{2,3} ' <doc>` and
 | `ui/`, `design/`, `feature/trip`, `feature/cluster/dashboard` | [tools/design-canvas/luminofor/README.md](tools/design-canvas/luminofor/README.md) — the Luminofor design, normative: how to render a board and lay a `LuminoforFixtureActivity` screenshot over it with `compare.py`. [tools/design-canvas/README.md](tools/design-canvas/README.md) is the method and the boards before Luminofor. |
 | `feature/vehicle`, `feature/cluster/dashboard`, `VehiclePageRenderer` | [docs/energy-display-contract.md](docs/energy-display-contract.md) — normative energy contract for the Contour and the car page. [docs/vehicle-data-findings.md](docs/vehicle-data-findings.md) — GNSS/IMU and the `autoservice` FID protocol. |
 | `feature/split` | [docs/split-screen-product-contract.md](docs/split-screen-product-contract.md) — normative; wins over [docs/split-screen-findings.md](docs/split-screen-findings.md). |
-| `feature/media`, `feature/defaultapps` | [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — PersonBean roles and the normative steering-wheel Play/Pause contract. |
+| `feature/media`, `feature/defaultapps`, `feature/alice` | [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — PersonBean roles and the normative steering-wheel Play/Pause contract. |
 | `feature/cloud` | [docs/telematics/README.md](docs/telematics/README.md) — the car's own cloud client (`cloudmanager`) over Wi-Fi, the «Облако» tile, result codes. |
 | `feature/hud`, `feature/fse` | [docs/hud-projection-findings.md](docs/hud-projection-findings.md) — the HUD as a display and the working recipe on this car; [docs/fse-app-installation.md](docs/fse-app-installation.md) — installing on the passenger computer; [research/fse-firmware/README.md](research/fse-firmware/README.md), with BydHud's direct-drive internals (inactive on this car) in `bydhud-direct-drive.md` there. Turn-by-turn guidance: [docs/instrument-display-findings.md](docs/instrument-display-findings.md), "HUD turn-by-turn guidance". |
 | `feature/cluster`, `feature/mirrors`, `feature/navigation` | [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, Contour, Mirrors, navigation projection. |
@@ -113,6 +113,7 @@ The on-device probes and the frozen legacy app are configured only when the
 | `:hud-frames-probe` | `experiments/hud-frames-probe/` | `dev.denza.hudframes.probe` (disposable moving-frames test of the HUD's picture slots and DiShare video) |
 | `:fse-hud-inspector` | `experiments/fse-hud-inspector/` | `dev.denza.fsehud.probe` (FSE snapshot/export and a manual 20-second local arhud Activity; no vehicle setters or DiShare) |
 | `:avc-stock-probe` | `experiments/avc-stock-probe/` | `dev.denza.avcstock.probe` (disposable app-UID read and write of the stock AVC mode and turn-camera choice) |
+| `:alice-wheel-probe` | `experiments/alice-wheel-probe/` | `dev.denza.alicewheel.probe` (disposable foreground-only Navigator Alice voice-key interception) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
 included in the root Gradle build.

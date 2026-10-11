@@ -5,7 +5,7 @@ import android.view.accessibility.AccessibilityEvent
 
 /**
  * One feature riding on the app's shared accessibility service, over types a test can stand in
- * for: [S] the service, [E] an event. A key is its three numbers, read once by the host, so the
+ * for: [S] the service, [E] an event. A key's values are copied once by the host, so the
  * key riders run in a test as they run in the car. Production riders are [AccessibilityRider].
  *
  * Everything is called on the service's main thread, in the order the host was given its riders
@@ -43,6 +43,10 @@ interface Rider<in S, in E> {
      * does after: a DOWN it took and then threw on would reach the firmware too, and its UP not.
      */
     fun onKeyEvent(keyCode: Int, action: Int, repeatCount: Int): Boolean = false
+
+    /** Full press identity for riders that need it; existing key policies keep their three values. */
+    fun onKeyEvent(event: AccessibilityKeyEvent): Boolean =
+        onKeyEvent(event.keyCode, event.action, event.repeatCount)
 
     /**
      * The service is going. It is called as the service is unbound and again as it is destroyed,

@@ -10,6 +10,7 @@ import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
 import dev.denza.apps.platform.accessibility.AccessibilityHost;
+import dev.denza.apps.platform.accessibility.AccessibilityKeyEvent;
 import dev.denza.apps.platform.accessibility.RiderDispatch;
 import dev.denza.apps.platform.accessibility.RiderHost;
 
@@ -57,7 +58,9 @@ public class SimulcastAccessibilityService extends AccessibilityService implemen
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
-        return riders.key(event.getKeyCode(), event.getAction(), event.getRepeatCount());
+        return riders.key(new AccessibilityKeyEvent(
+                event.getKeyCode(), event.getAction(), event.getRepeatCount(),
+                event.getDeviceId(), event.getDownTime(), event.getEventTime(), event.isCanceled()));
     }
 
     @Override

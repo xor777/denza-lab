@@ -34,10 +34,13 @@ class RiderDispatch<S, E>(
         }
     }
 
-    fun key(keyCode: Int, action: Int, repeatCount: Int): Boolean {
+    fun key(keyCode: Int, action: Int, repeatCount: Int): Boolean =
+        key(AccessibilityKeyEvent(keyCode, action, repeatCount))
+
+    fun key(event: AccessibilityKeyEvent): Boolean {
         for (rider in keyRiders) {
             val consumed = try {
-                rider.onKeyEvent(keyCode, action, repeatCount)
+                rider.onKeyEvent(event)
             } catch (error: Exception) {
                 failed.failed(rider.name, "key", error)
                 false

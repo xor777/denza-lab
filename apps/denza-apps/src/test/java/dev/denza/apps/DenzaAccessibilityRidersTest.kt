@@ -23,6 +23,7 @@ class DenzaAccessibilityRidersTest {
                 "hud-guidance",
                 "media-key",
                 "steering-wheel-key",
+                "alice-voice-key",
                 "simulcast-overlay",
                 "runtime-recovery",
             ),
@@ -30,10 +31,10 @@ class DenzaAccessibilityRidersTest {
         )
     }
 
-    /** Play/Pause had the key first and ★ only what Play/Pause left; no other feature saw a key. */
+    /** The three wheel actions have distinct codes; established media and star order is preserved. */
     @Test
-    fun `a key is offered to play pause first, to the star second and to nobody else`() {
-        assertEquals(listOf("media-key", "steering-wheel-key"), riders.filter { it.takesKeys }.map { it.name })
+    fun `a key is offered to play pause then star then Alice`() {
+        assertEquals(listOf("media-key", "steering-wheel-key", "alice-voice-key"), riders.filter { it.takesKeys }.map { it.name })
     }
 
     /**
@@ -48,18 +49,18 @@ class DenzaAccessibilityRidersTest {
             riders.filter { RiderDispatch.wants(it, type, packageName) }.map { it.name }
 
         assertEquals(
-            listOf("wifi-debugging-dialog", "speaker-foreground", "hud-guidance", "simulcast-overlay"),
+            listOf("wifi-debugging-dialog", "speaker-foreground", "hud-guidance", "alice-voice-key", "simulcast-overlay"),
             handed(STATE, "ru.yandex.yandexnavi"),
         )
         assertEquals(
-            listOf("wifi-debugging-dialog", "speaker-foreground", "native-weather", "hud-guidance", "simulcast-overlay"),
+            listOf("wifi-debugging-dialog", "speaker-foreground", "native-weather", "hud-guidance", "alice-voice-key", "simulcast-overlay"),
             handed(STATE, "com.byd.weatherdata"),
         )
-        assertEquals(listOf("native-weather", "hud-guidance", "simulcast-overlay"), handed(CONTENT, "com.byd.weatherdata"))
-        assertEquals(listOf("hud-guidance", "simulcast-overlay"), handed(CONTENT, "ru.yandex.yandexnavi"))
-        assertEquals(listOf("hud-guidance", "simulcast-overlay"), handed(WINDOWS, null))
+        assertEquals(listOf("native-weather", "hud-guidance", "alice-voice-key", "simulcast-overlay"), handed(CONTENT, "com.byd.weatherdata"))
+        assertEquals(listOf("hud-guidance", "alice-voice-key", "simulcast-overlay"), handed(CONTENT, "ru.yandex.yandexnavi"))
+        assertEquals(listOf("hud-guidance", "alice-voice-key", "simulcast-overlay"), handed(WINDOWS, null))
         assertEquals(
-            listOf("wifi-debugging-dialog", "speaker-foreground", "hud-guidance", "simulcast-overlay"),
+            listOf("wifi-debugging-dialog", "speaker-foreground", "hud-guidance", "alice-voice-key", "simulcast-overlay"),
             handed(STATE, null),
         )
         // A type the service's configuration never asks for: the weather and HUD guidance took

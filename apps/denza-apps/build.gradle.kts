@@ -131,7 +131,7 @@ android {
         // versionName is the owner's product version - it changes only by their
         // explicit decision. versionCode is an internal build counter so the car
         // can tell builds apart during acceptance; it never drives the version.
-        versionCode = 71
+        versionCode = 73
         versionName = "0.7.0"
     }
 
