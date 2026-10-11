@@ -2656,8 +2656,10 @@ it has been tried on this car:
   (`0` S, `1` L, `2` S+L, `3` R, `4` S+R, `5` U-turn left, `6` L+R, `7` S+L+R,
   `8` U-turn right, `9` S+UL, `10` S+UR, `11` L+UL, `12` R+UR, `16` S+L+UL,
   `17` R+UL, `18` L+R+UL, `19` S+R+UL, `20` L+UR; `255` = not recommended),
-  with at most eight lanes. Neither app has a Yandex lane source; Yandex's
-  lanes reach other apps only through its protected Car App path.
+  with at most eight lanes. A structured Yandex lane source is present in its
+  protected Car App path. The ordinary lane balloon renders as a map texture;
+  extracting its pixels is a separate unverified candidate, not an accessibility
+  text source. See the [installed-APK read](hud-projection-findings.md#hud-yandex-lane-source).
 - The vehicle's own sign can be set with `0x4CA00050` = `7`, then `0x4CA00040` =
   limit (5-130 in steps of 5), then `0x4CA00050` = `6`, through a shell-UID
   helper. The write is checked by reading ADAS `0x2D500020` (raw = limit / 5 +
