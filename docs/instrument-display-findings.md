@@ -8,7 +8,7 @@ live-car evidence is current through 2026-09-04.
 
 ## Current state
 
-Updated 2026-10-09. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
+Updated 2026-10-11. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
 
 Owned elsewhere: what an energy figure means, its words and its chart - [energy-display-contract.md](energy-display-contract.md) (normative, wins over this page); the panel's drawing, boards and `compare.py` - [tools/design-canvas/luminofor/README.md](../tools/design-canvas/luminofor/README.md) (normative); the HUD as a display - [hud-projection-findings.md](hud-projection-findings.md); the turn-signal CAN events - [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
 
@@ -38,7 +38,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | One tap launches a missing task on display `0` and projects it (900 ms, then at most five checks 700 ms apart); missing-task launch, return and warm re-projection passed with Yandex Navigator | live | 2026-09-05 | [Capturing navigation and the Waze layout experiment](#capturing-navigation-and-the-waze-layout-experiment) |
 | A navigator allowlist: six packages (the Morphe Google Maps build `app.morphe.android.apps.maps` added 2026-09-11, `d66c61ab`) in `NavigationAppPolicy` and `ClusterProxyMain.ALLOWED_PACKAGES`; removed 2026-09-23 by the owner's decision, and `DriverScreenChoicesTest` fails if any of the six reappears | refuted | 2026-09-23 | [Any application, not six navigators](#any-application-not-six-navigators) |
 | HUD guidance reads Yandex's accessibility nodes (and its notification `RemoteViews`) and sends `HudRoadInfoNotifyStruct` to `SomeIpServerService`, service `3097367205183488`, topic `1127042368241665` (`HudSomeIpClient.java`); field 28 uses the recovered HUD icon table, live-verified for left, right and both slights | live | 2026-09-03 | [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
-| The road packet follows the stock navigator read from the firmware: field 2 is its `2`, the clear goes out three times (`HudSomeIpClient.java`), field 11 carries the limit on Yandex's sign (`text_speedlimit`), and the same limit goes to the car's own sign through the stock map input, `0x4CA00050` = 7, `0x4CA00040` = limit, `0x4CA00050` = 6, checked against ADAS `0x2D500020`, never cleared (`HudNativeSpeedLimit.kt`); the stock field-28 table matches ours for turns, sharp, U-turn and straight and uses `13` for a roundabout, never `25`-`44` | code | 2026-10-09 | [The car's speed sign from Yandex](#the-cars-speed-sign-from-yandex-2026-10-09), [The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09) |
+| The road packet follows the stock navigator read from the firmware: field 2 is its `2`, the clear goes out three times (`HudSomeIpClient.java`), field 11 carries the limit on Yandex's sign (`text_speedlimit`, visible to the shared service only with `flagIncludeNotImportantViews`: live 2026-10-11, without it no limit was ever read), and the same limit goes to the car's own sign through the stock map input, `0x4CA00050` = 7, `0x4CA00040` = limit, `0x4CA00050` = 6, checked against ADAS `0x2D500020`, never cleared (`HudNativeSpeedLimit.kt`; parked on 2026-10-11 two writes of 20 left ADAS at 0); the stock field-28 table matches ours for turns, sharp, U-turn and straight and uses `13` for a roundabout, never `25`-`44` | code | 2026-10-09 | [The car's speed sign from Yandex](#the-cars-speed-sign-from-yandex-2026-10-09), [The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09) |
 | A cluster DVR view from Android camera `0`: its delivered orientation flips with vendor state no app can read; behind `ClusterDvrFlag` from 2026-08-14 (`55190633`), renderer and flag deleted 2026-08-26 (`4233dd15`) | refuted | 2026-08-26 | [DVR Camera2 source: verified renderer, product path retired](#dvr-camera2-source-verified-renderer-product-path-retired) |
 | Other dead ends: `IWindowManager.mirrorDisplay` copies (the stock card stays above, the right copy carries stock controls), DiShare HUD camera (protected AVC frames black), the stock cluster projection Binder (package list, left card for `com.byd.avc` only), ADAS cameras (no video endpoint), the AVC surround source (a wide-angle parking view, not long-range vision) | refuted | 2026-07-25 | [Failed or research-only paths](#failed-or-research-only-paths), [AVC surround-view source](#avc-surround-view-source) |
 
@@ -2665,9 +2665,9 @@ it has been tried on this car:
   2026-10-09, sends the clear three times 120 ms apart.
 
 **Still to do.**
-- Confirm `text_speedlimit` on this car's Yandex build: the product reads it
-  since 2026-10-09, and «Сервис» → HUD → «Данные» shows `знак N` when it
-  arrives. Dump the tree near a camera to find a camera view.
+- ~~Confirm `text_speedlimit` on this car's Yandex build~~ - confirmed
+  2026-10-11, readable only with `flagIncludeNotImportantViews` (see "The car's
+  speed sign from Yandex"). Dump the tree near a camera to find a camera view.
 - In one parked session, owned by one person from a documented reset, extend
   `:hud-frames-probe` to show what the glass draws for: field 11 alone; field 7
   sign with field 6 = `6`; fields 17/18; field 23; field 28 = `4`, `7`-`10`,
@@ -2678,8 +2678,23 @@ it has been tried on this car:
 
 ### The car's speed sign from Yandex (2026-10-09)
 
-Status: in the product (`HudNativeSpeedLimit.kt`), tested on the JVM, not yet
-run on the car.
+Status: in the product (`HudNativeSpeedLimit.kt`); on the car since 2026-10-11
+(build 65): the sign is read and goes out in field 11, the car's own sign has
+not taken a write yet.
+
+**First run on the car (2026-10-11, build 63 then 65, parked).**
+- Yandex showed a 20 sign, and every road packet went out with no limit. The
+  view exists (`text_speedlimit` inside the clickable `speedlimitview_guidance`,
+  `dumpsys activity top`), but Yandex marks it unimportant for accessibility,
+  and the shared service, without `flagIncludeNotImportantViews`, found nothing
+  by its id. Open apps that read the same id on 2026 Yandex builds set that
+  flag. With it (build 65, `YandexSpeedSignAccessContractTest`), the log said
+  `publishing RIGHT ... speedLimit=20` at once.
+- The car's sign: `target 20 expectedRaw=5`, two write cycles 10 s apart, each
+  `unconfirmed ... raw=0`; ADAS `0x2D500020` stayed 0 through both. The car was
+  parked. Whether the assistance outputs only in motion, needs the speed-limit
+  assistance switched on in the car's settings, or does not take our writes is
+  not known; a drive under a posted limit settles the first two.
 
 The owner made the car's own speed sign the main use of Yandex's limit. On this
 car the stock map has no data, so the sign rests on the car's own sources, and
