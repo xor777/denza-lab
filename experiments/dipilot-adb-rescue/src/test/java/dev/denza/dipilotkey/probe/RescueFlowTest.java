@@ -29,6 +29,9 @@ public class RescueFlowTest {
         assertEquals(0, device.allows);
         assertEquals(3, device.checks);
         assertTrue(result.report.contains("Поиск окон завершён"));
+        assertTrue(result.report.contains("Тестовый состав окон"));
+        assertTrue(device.events.contains(AdbWindowDump.ACTIVITIES));
+        assertTrue(device.events.contains(AdbWindowDump.WINDOWS));
         assertTrue(result.report.contains("Очередь после (последнее событие журнала): НЕИЗВЕСТНО"));
         assertTrue(result.report.contains("Итоговая повторная проверка shell: ДА"));
         assertFalse(device.armed);
@@ -53,15 +56,17 @@ public class RescueFlowTest {
     }
 
     @Test
-    public void rejectedServiceSetupRequiresSettingsAndNeverArmsClicks() {
+    public void rejectedServiceSetupContinuesWithTrustedShellWithoutOpeningSettings() {
         Device device = new Device();
         device.enableError = new IOException("Permission denial");
         PortRescue.Result result = new PortRescue(device).run(snapshot -> { });
-        assertTrue(result.needsServiceSettings);
+        assertFalse(result.needsServiceSettings);
         assertEquals(0, device.arms);
         assertEquals(0, device.allows);
         assertTrue(result.report.contains("Автоматическое включение не удалось"));
         assertTrue(result.report.contains("Итоговая повторная проверка shell: ДА"));
+        assertTrue(result.report.contains("продолжаю восстановление через доверенный shell"));
+        assertTrue(result.report.contains("6. Восстанавливаю доступ"));
     }
 
     @Test
@@ -70,7 +75,7 @@ public class RescueFlowTest {
         device.enabled = true;
         device.connectionAt = Long.MAX_VALUE;
         PortRescue.Result result = new PortRescue(device).run(snapshot -> { });
-        assertTrue(result.needsServiceSettings);
+        assertFalse(result.needsServiceSettings);
         assertEquals(5000, device.clock);
         assertEquals(0, device.arms);
         assertTrue(result.report.contains("Служба подключена: НЕТ"));
@@ -166,6 +171,28 @@ public class RescueFlowTest {
         }
     }
 
+    @Test
+    public void unavailableActivityDumpDoesNotPreventWindowDumpOrFinalShellCheck() {
+        Device device = new Device();
+        device.failActivityDump = true;
+        PortRescue.Result result = new PortRescue(device).run(snapshot -> { });
+        assertTrue(result.report.contains("dumpsys activity activities: НЕИЗВЕСТНО"));
+        assertTrue(device.events.contains(AdbWindowDump.WINDOWS));
+        assertTrue(result.report.contains("Итоговая повторная проверка shell: ДА"));
+        assertEquals(0, device.allows);
+    }
+
+    @Test
+    public void compactStatusReflectsTheActualWholeRunWithoutClaimingAnEmptyQueue() {
+        Device device = new Device();
+        PortRescue.Result result = new PortRescue(device).run(snapshot -> { });
+        String summary = ReportSummary.from(result.report);
+        assertTrue(summary.contains("Shell: ДА"));
+        assertTrue(summary.contains("служба: подключена"));
+        assertTrue(summary.endsWith("Очередь (журнал): неизвестно"));
+        assertEquals(4, summary.split("\n").length);
+    }
+
     private static final class Device implements RescueDevice {
         final List<String> events = new ArrayList<>();
         boolean trusted = true;
@@ -174,6 +201,7 @@ public class RescueFlowTest {
         boolean binderWhileArmed;
         boolean interruptPause;
         boolean slowCheckAfterClick;
+        boolean failActivityDump;
         int trustAfterClicks = Integer.MAX_VALUE;
         int failCheckNumber;
         int checks;
@@ -218,6 +246,18 @@ public class RescueFlowTest {
             if (command.equals(QueueDrain.DUMP_KEYS)) {
                 return "(has extras)";
             }
+            if (command.equals(DenzaPublicKey.READ)) {
+                assertFalse(armed);
+                return "run-as: package not debuggable: dev.denza.apps";
+            }
+            if (command.equals(AdbWindowDump.ACTIVITIES) || command.equals(AdbWindowDump.WINDOWS)) {
+                events.add(command);
+                assertFalse(armed);
+                if (failActivityDump && command.equals(AdbWindowDump.ACTIVITIES)) {
+                    throw new IOException("dump denied");
+                }
+                return "Window #0 dev.denza.dipilotkey.probe/RescueActivity";
+            }
             throw new AssertionError("Unexpected device operation");
         }
         @Override public String systemSwitch() { return "включена (1)"; }
@@ -243,8 +283,18 @@ public class RescueFlowTest {
         @Override public void disarmClicks() { armed = false; }
         @Override public int clicks() { return clicks; }
         @Override public String clickDiagnostics() {
-            return "Проверок окон: " + scans + "\nACTION_CLICK принят: " + clicks + "\n";
+            return "Служба подключена: " + (clickerConnected() ? "ДА" : "НЕТ")
+                    + "\nПроверок окон: " + scans + "; окон в последней проверке: 6"
+                    + "\nНайдено окон ADB с кнопкой: " + clicks
+                    + "\nПопыток «Разрешить»: " + clicks + "; ACTION_CLICK принят: " + clicks + "\n";
         }
+        @Override public String windowDiagnostics() { return "Тестовый состав окон\n"; }
+        @Override public DenzaKeyRescue.Request requestPublicKey(String key,
+                DenzaKeyRescue.BeforeSend beforeSend) {
+            throw new AssertionError("Target key is unavailable in these scenarios");
+        }
+        @Override public boolean targetRequestAttempted(String fingerprint) { return false; }
+        @Override public void rememberTargetRequest(String fingerprint) { }
         @Override public long now() { return clock; }
         @Override public void pause(long millis) throws InterruptedException {
             if (interruptPause) {

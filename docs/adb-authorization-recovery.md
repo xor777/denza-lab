@@ -2,7 +2,7 @@
 
 ## Current state
 
-Updated 2026-10-09. Static firmware evidence and local checks do not establish recovery on a
+Updated 2026-10-10. Static firmware evidence and local checks do not establish recovery on a
 currently inaccessible vehicle.
 
 | Claim | Status | Section |
@@ -12,8 +12,11 @@ currently inaccessible vehicle.
 | A feature tile whose call failed on the channel says «Нет доступа» and its press runs the passive check: the feature retries if the car still trusts the app, and the startup gate comes up if it does not (`FeatureResolution.CHECK_ACCESS`, `AdbProblem`) | code, 2026-10-09 | [Product behaviour](#product-behaviour) |
 | The access row and the recovery dialog say a state and the switch reading; exception names are only the «Последний сбой» row of «Технические сведения» | code, 2026-10-09 | [Explaining the channel](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26) |
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
-| Dipilot rescue 0.2.0 has one explicit recovery button: passive shell check, service setup, window search regardless of queue logs, bounded approvals and final diagnostics | local tests/build; 0.2.0 vehicle acceptance pending | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| Dipilot rescue has one explicit recovery button; 0.3.0 automatically enabled/bound its service and inspected accessible trees on the car, with a pinned four-line status | owner photos, 2026-10-09; no dialog approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| The 0.4.0 owner photos show the existing Denza Apps public key was read and submitted once, but no approval or target-key shell was established; different and unavailable system fingerprints were reported together | owner photos received 2026-10-10; recovery unproved | [Denza Apps key recovery](#denza-apps-key-recovery-040-local-2026-10-09) |
+| Dipilot rescue 0.5.0 attempts recovery autonomously, understands both dump formats, approves identifiable preceding keys, and reports success only after two signed shell connections inside the Denza Apps UID | unit/build/lint and Android emulator protocol checks; car acceptance pending | [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10) |
 | The owner's 0.1.0 photo shows Dipilot shell works; the service was off, no clicks ran and the queue remained unknown | owner photo, 2026-10-09; no queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| The owner's 0.2.0 photo shows a connected click service, 29 scans, six windows on the last scan and zero recognized ADB windows with a button; shell still works and the queue is unknown | owner photo, 2026-10-09; no approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
@@ -33,6 +36,7 @@ currently inaccessible vehicle.
 - [Port 5555 after a reboot](#port-5555-after-a-reboot-and-reopening-it-through-wireless-debugging-corpus-2026-10-06)
 - [Autonomous restore](#autonomous-restore-implementation-2026-10-08)
 - [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08)
+- [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10)
 - [The persistent shell is a terminal](#the-persistent-shell-is-a-terminal-live-v31-2026-08-26)
 
 Status: startup gate and the healthy one-shot path exercised on DiLink 5.1 on 2026-08-18;
@@ -419,6 +423,11 @@ Android's flag, as this page allowed for above, is the same class of cause.
 Distinguishing them needs the auth log, which needs a shell, which needs the
 prompt. The probe cannot break that circle and neither can any other APK.
 
+**Scope clarification, 2026-10-09:** that limitation described the fresh-identity rescue above.
+The separate Dipilot-identity probe now has an already trusted shell, as confirmed in the owner's
+photos below. It can read system diagnostics without a new prompt. The missing dialog's mechanism
+and the presence of a native pending queue still have not been established.
+
 Consequences for the product:
 
 - The gate currently tells this owner to press a button and approve a dialog.
@@ -753,18 +762,46 @@ owner's photo (`photo_2026-10-09 14.07.21.jpeg`) shows both shell checks succeed
 with the Dipilot identity; it does not establish an empty queue or failure to recognize windows,
 because no window scan ran. Version 0.2.0 removes the log condition from the initial window scan.
 
-The on-screen sequence in 0.2.0 is:
+**Owner result, 2026-10-09, 0.2.0:** `photo_2026-10-09 15.48.09.jpeg` shows the service connected,
+29 window scans, six windows in the last scan, zero recognized ADB windows with a button, zero
+click attempts and zero accepted clicks. Shell works after window search and on the final new
+connection. Both queue observations remain unknown; the retained native log shows trusted-client
+authorization without queue markers, and no Binder approvals ran. This confirms that the earlier
+scan-launch error is fixed on the car. The zero counter does not distinguish missing accessibility
+trees, an unrecognized dialog text, or a missing positive button; neither an empty queue nor its
+recovery is established.
+
+**Owner result, 2026-10-09, 0.3.0:** the three `photo_2026-10-09 17.13.*.jpeg` images show an
+initially disabled service, automatic secure-setting setup and an actual service connection.
+Thirty scans saw five windows on the last pass; all five had trees. Two SystemUI roots had 63/48
+nodes and no recognized ADB text; the other roots belonged to BydMate, the probe and
+`com.byd.launcherhmap` (the latter on display 4). No ADB window/button or click was recognized.
+The component check found none of its known Activity names in the two system snapshots. This
+narrows the earlier unknown to absent/unrecognized ADB content in the accessible trees, rather
+than missing trees or a scan that never ran. The 0.3.0 component parser omitted the firmware's
+`UsbDebuggingActivityAlias`; 0.4.0 includes it, so those negative snapshots cannot exclude that
+alias. Trusted Dipilot shell still works, while the native queue remains unknown. The owner
+identified the app whose own connection fails as **Denza Apps**; the trusted Dipilot connection
+does not submit that app's key or prove its trust.
+
+The on-screen sequence in 0.5.0 is:
 
 1. Press the single **«Восстановить ADB»** button. Opening the app alone does not start recovery.
+   A four-line status stays below the button: Dipilot shell/service, Denza Apps key result,
+   windows/recognized ADB windows/click attempts and accepted clicks, and the queue-log observation.
+   Scan counts remain in the full report, which scrolls
+   separately below it; selecting/copying that report does not need a second button.
    Attempt a passive shell connection with the Dipilot identity, execute a control-string command,
-   and show **ДА** or **НЕТ** plus the failure reason before arming clicks. No public key is
-   submitted: possession of the private key alone does not make it trusted by the car.
+   and show **ДА** or **НЕТ** plus the failure reason before arming clicks. This Dipilot check
+   submits no public key: possession of the private key alone does not make it trusted by the car.
 2. If shell works, read the queue observation before window search. If the probe's accessibility
    service is off, use that trusted shell to add only this component to the current user's secure
    enabled-service list, preserving the other components, then enable accessibility. Verify the
    written settings and wait at most five seconds for the actual service connection. If shell
-   is unavailable or setup fails, open this service's Settings page (general accessibility settings
-   as fallback). Enable **«Ключ Dipilot»** there and return; the pending run resumes automatically,
+   is unavailable and the click service needs setup, open this service's Settings page (general
+   accessibility settings as fallback). With a trusted shell, failed click-service setup instead
+   continues directly to target recovery without taking the owner to Settings. When shell is
+   unavailable, enable **«Ключ Dipilot»** there and return; the pending run resumes automatically,
    including after process death in Settings. Returning without enabling it does not loop through
    Settings. The report remains selectable for copying without another button.
 3. Search accessible windows on all displays for up to twelve seconds and at most eight accepted
@@ -774,7 +811,15 @@ The on-screen sequence in 0.2.0 is:
    whether the service actually connected, how many scans/windows it saw, how many ADB windows
    had a button, and how many `ACTION_CLICK` attempts Android accepted. These counters do not
    prove authorization. A completely hidden window may still be inaccessible to the service.
-4. Approve at most five requests with `service call adb 1 i32 1 s16 '<current public key>'`.
+   In 0.3.0, retain up to sixteen latest window observations, keyed by display and window ID.
+   Each shows its type, root package, node count and why it was skipped: no tree, other package,
+   text not recognized as ADB, or recognized ADB without an Allow button. SystemUI ADB-related
+   text and positive/negative button labels help identify localization mismatches; other app text
+   and unrelated notification text are omitted, and key bodies are redacted. An unreadable window
+   is recorded separately and does not stop inspection of the other windows. Recognition and
+   approval rules remain the same as in 0.2.0.
+4. Approve requests with `service call adb 1 i32 1 s16 '<current public key>'`, within a shared
+   limit of five Binder approvals for this and the later target stage combined.
    This stage requires shell and a pending observation in all logcat buffers, including native
    `adbd`. Show queue observations before and after approvals with redacted excerpts. A first
    dispatched prompt counts as pending even without a second client. Missing logs and an
@@ -783,7 +828,14 @@ The on-screen sequence in 0.2.0 is:
    Confirmation timestamps distinguish duplicate requests for the same key; an answered or
    drained historical request must not be reused. Accessibility clicks are disarmed during
    Binder approvals and used as a bounded fallback when the current key cannot be read.
-5. Disarm clicks and repeat the passive shell check on a new connection. Report shell trust and
+5. If no click was accepted and shell is available, read `dumpsys activity activities` and
+   `dumpsys window windows`. Print only whether SystemUI USB/wireless debugging Activity names
+   occur in each snapshot. An empty, denied or timed-out dump is unknown, not evidence of absence.
+   Component presence does not prove visibility, accessibility or a native pending queue.
+6. With clicks disarmed and a trusted shell, run autonomous Denza Apps key recovery below,
+   including passive target-key shell and reconnect checks. The owner need not separately open
+   Denza Apps to establish whether its identity now works.
+7. Repeat the passive Dipilot shell check on a new connection. Report shell trust and
    the queue independently. A retained empty marker says the queue was empty at that event;
    it cannot rule out later requests whose logs were lost.
 
@@ -803,12 +855,164 @@ where both `AllowUsbDevice` and `DenyUsbDevice` advance one dispatched prompt. A
 continue adding requests, and a queue longer than the probe's bound can remain pending.
 The 0.2.0 service setup follows the secure-setting observer in this vehicle's
 `AccessibilityManagerService`; it uses shell privileges and adds no permission to the probe's
-manifest. Local validation: 39 unit tests pass, debug APK 0.2.0 builds, lint has no errors.
+manifest. Local validation for 0.2.0: 39 unit tests pass, debug APK builds, lint has no errors.
 The tests cover the owner's trusted-shell/unknown-queue scenario, service
 activation/connection failures, continued search after clicks, approval limits, cancellation,
-and preservation of other accessibility components. The owner's 0.1.0 run above is the only
-vehicle evidence for this probe so far; no 0.2.0 vehicle installation or recovery was performed
-for this change.
+and preservation of other accessibility components. The 0.3.0 owner's photos establish service
+activation and tree inspection; none of the three versions' owner runs established queue recovery.
+
+Local validation for 0.3.0: 52 unit tests pass, debug APK builds, lint has no errors. Additional
+tests cover window skip reasons and display identity, bounded/redacted observations, unavailable
+system dumps, and the four-line status with the exact readings from the owner's 0.2.0 photo.
+
+### Denza Apps key recovery (0.4.0, local, 2026-10-09)
+
+**Superseded by 0.5.0 below:** this version could only inspect public-key persistence and left the
+signed connection check to the owner. An unavailable or differently formatted system fingerprint
+prevented its approval attempt. That is not sufficient for autonomous recovery or acceptance.
+
+The owner requested reauthorization of the **existing** Denza Apps identity. Android runtime
+permissions and ADB RSA trust are separate. The product's `DenzaLocalAdb` uses the comment
+`denza-apps@denza`; the shared `AdbKeyStore` stores its pair in
+`getNoBackupFilesDir()/adb_auth_key_v1`, with legacy `adb_auth` SharedPreferences migration.
+An app update preserves this identity. No target key is generated, replaced or removed by this
+probe. In 0.4.0 its only target storage read returned public X.509 RSA DER.
+
+The explicit button adds this bounded stage after window/queue inspection:
+
+- Run `run-as dev.denza.apps sh -c ...` over the trusted Dipilot shell. Read the eight-byte
+  file header and the four-byte public length, then emit only the public member; skip the
+  private member. If the atomic file is absent, extract only the `public_x509` XML value from
+  legacy preferences. A missing/non-debuggable target or malformed public key stops this stage.
+  Host-shell fixture tests prove the extraction does not export or change a synthetic private
+  member. The owner photos received 2026-10-10 subsequently establish public extraction on this
+  head unit; they do not establish permission to execute the 0.5.0 helper.
+- Convert the RSA-2048/65537 public DER to the 524-byte Android ADB blob and display its
+  fingerprint. Read `dumpsys adb` internally. A matching blob in `user_keys` or `system_keys`
+  establishes that the system's persisted trust list contains that identity; matching XML
+  metadata alone does not. Raw keys and dumps are never displayed.
+- If already stored, submit nothing and direct the owner to check access in Denza Apps.
+  Otherwise, if `last_key_received` matches this fingerprint, attempt one
+  `allowDebugging(true, key)`. **That field is the framework's last received fingerprint, not a
+  current pending-queue query.** This attempt does not assert a live prompt or a drained queue.
+- If the fingerprint does not match, open one local ADB socket, receive `AUTH TOKEN`, and send
+  this public key once as `AUTH RSAPUBLICKEY`. No target private key or signature is needed to
+  create the explicit prompt; the AOSP daemon dispatches this packet directly to the framework.
+  Hold the socket during the bounded confirmation attempt, and close it on completion/failure.
+  Persist a per-fingerprint attempt latch immediately before writing AUTH, so an ambiguous send
+  or process restart cannot resubmit the same key on every button press. Connection/challenge
+  failure before the latch allows a later attempt. A socket is retried at another own IP only
+  if TCP connect failed, before any ADB packet was written.
+- Wait at most five seconds (plus bounded shell calls) for the matching framework fingerprint
+  or a saved key. A different/unavailable fingerprint prevents target approval. If a prior
+  attempt latch exists, only observe/approve; do not submit again. A request behind a stuck
+  queue can remain there after socket closure; the latch is intentionally retained.
+- Check Binder's reply, then wait at most three seconds (plus bounded shell calls) for the key
+  to appear in the system trust list. Report **«ключ сохранён системой»** only from that new
+  dump, independently of Binder acceptance. This is not a signature/shell check using the target
+  private key. The owner must open Denza Apps and run its access check; only that establishes
+  that the app can reconnect with its own identity.
+
+Expected firmware action is the exact corpus `AdbDebuggingManager` case 3: fingerprint equality
+permits `OK` and schedules key persistence for `alwaysAllow`; a mismatch returns without either.
+Case 5 receives a public key and updates the fingerprint before starting confirmation. Native
+`AllowUsbDevice` consumes the currently dispatched prompt or logs an unknown prompt. Thus a
+stale matching fingerprint can still allow framework persistence without proving native queue
+progress. A Binder success without a newly stored key falsifies recovery, as does a subsequent
+Denza Apps connection failure. Preserve all existing keys and the trusted access for this owner
+run; clearing app data or the system trust list is not the recovery baseline.
+
+Protocol sources: AOSP [adb.cpp](https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/android12-gsi/adb.cpp)
+(`AUTH RSAPUBLICKEY` dispatch) and the native [adbd_auth.cpp](https://android.googlesource.com/platform/frameworks/native/+/refs/tags/aml_sta_331711010/libs/adbd_auth/adbd_auth.cpp)
+linked above. The authority/persistence checks come from this vehicle's decompiled framework,
+including the plain `field=value` dump format in `DualDumpOutputStream`.
+
+Local validation for 0.4.0: 69 unit tests pass, debug APK builds, lint has zero errors. Tests cover
+public-only binary/XML extraction, encoding against the known Dipilot public identity, saved-key
+recognition, stale/different fingerprints, a single socket submission, the persisted request latch,
+Binder success without persistence, inaccessible target storage, cancellation and the four-line
+target result. Socket fixtures check framing, checksums and absence of a public submission when
+adbd does not issue the expected RSA token. These are code/protocol checks, not vehicle acceptance.
+
+**Owner result received 2026-10-10:** the three `photo_2026-10-10 09.51.*.jpeg` photos show
+Dipilot shell working before and after recovery, a connected click service, thirty scans, five
+windows on the last pass and no ADB windows or clicks. Two SystemUI roots have 63/44 nodes without
+recognized ADB text; the known debugging components are absent from the two dump snapshots.
+Stage 6 reads the Denza Apps public key and reports one public submission, followed by
+«разрешение не подтверждено». The retained native logs only show trusted Dipilot clients and the
+queue remains unknown. No target Binder approval or signed target shell is reported. The message
+combines a different last fingerprint with an unavailable one, so these photos cannot distinguish
+an unidentified earlier key from a dump-parser failure. They also cannot prove an empty or blocked
+native queue. The photo timestamps are 2026-10-10; the head unit's log timestamps read 10-09 18:48.
+
+### Autonomous target recovery (0.5.0, 2026-10-10)
+
+The owner cannot perform further diagnostic round trips. One explicit press now runs the recovery
+attempt and the acceptance check itself. No target private key is returned to the probe, copied
+to a temporary file or exported: a short-lived `app_process` helper loads the probe's installed
+APK through `CLASSPATH` **inside `run-as dev.denza.apps`**, reads the existing pair there, signs
+there and returns only its fingerprint and result codes. It neither starts Denza Apps nor creates,
+migrates or replaces its identity. Canonical storage and its `AtomicFile` `.bak` take precedence;
+legacy preferences are read with bounded literal base64 extraction, without XML entity expansion.
+
+The target stage does the following:
+
+1. Read the target public key, then run a passive signature check with its existing private key
+   inside that UID. An accepted RSA challenge must lead to an actual shell command returning a
+   control string; close that connection and repeat on a fresh TCP connection. An already working
+   target returns success without another public submission or approval. Unauthenticated CNXN
+   without an RSA challenge does not count as identity verification.
+2. Parse both the vehicle corpus's `connected_to_adb=`, `last_key_received=`, `user_keys=` format
+   and older `Connected to adbd:`, `Last key received:`, `User keys:` fields. If `dumpsys adb` does
+   not contain recognized fields, try `dumpsys usb`. Show thread presence, the last fingerprint and
+   saved target-key presence independently. Thread presence is only the framework's object flag;
+   the last fingerprint is not a live queue query. Missing/denied/truncated data stays unknown.
+3. If needed and the request latch is clear, submit the existing public key once and hold that
+   socket. Honor the 0.4.0 persisted latch: the owner's earlier submission is not duplicated by
+   an APK update. If the last system fingerprint identifies a preceding key, locate its exact
+   public blob in the dumps/logs and approve it only after recomputing the matching fingerprint.
+   A matching target fingerprint permits target approval. If the dump fingerprint is unavailable,
+   make one exact-target approval attempt; the firmware itself enforces fingerprint equality.
+   Never invent a public key from a fingerprint. Stop repeating an answered fingerprint without
+   a distinct new request token. Allow at most the remaining portion of the shared five-call
+   Binder budget, with a 45-second target loop deadline plus bounded shell/helper calls.
+4. Recheck the actual signed target shell after target approval. Saved-key metadata and Binder
+   success alone cannot set the result to success. If this path fails, append only the target
+   public key to `/data/misc/adb/adb_keys` **only if that file already exists and is readable and
+   writable to the trusted shell**. Preserve its existing contents and permissions, skip a
+   duplicate, and never create a missing file or change permissions. A failed write is reported
+   as unconfirmed. No `su`, trust-list clearing, daemon restart or bypass property is used.
+5. Perform the two signed shell connections again. The pinned result is
+   **«Denza Apps: shell и повторное подключение: ДА»** only when both succeed with the expected
+   fingerprint. Otherwise the run reports the last system/key state and a failed signed check.
+   The final passive Dipilot shell check still runs separately. An explicitly disabled global
+   ADB switch may be enabled; there is no off/on toggle of the working daemon.
+
+The older textual fields are corroborated by AOSP's
+[UsbDebuggingManager](https://android.googlesource.com/platform/frameworks/base/+/eb437d4/services/usb/java/com/android/server/usb/UsbDebuggingManager.java).
+This does not claim the owner car uses that format: its raw dump was not present in the photos.
+The vehicle corpus's `AdbDebuggingManager` case 3 enforces the exact fingerprint and persists an
+always-allowed key; case 10 records a key after real signature authentication, which can adopt a
+public key appended to the existing writable list. The native queue may retain a public-only
+request after that socket closes. Target access restored therefore remains separate from an
+explicit native empty-queue marker. An earlier pending key absent from both dumps and logs cannot
+be approved by this allow-only probe; an unwritable trust file supplies no alternative. Such a run
+must finish with failure rather than claim universal queue recovery.
+
+Local validation: 84 unit tests pass; debug APK builds; lint has no errors. Tests cover both dump
+formats, exact preceding-key matching, no re-submission of a latched target, one target call with
+unavailable dump fields, the combined Binder budget, public append preserving existing bytes and
+permissions, missing-file preservation, canonical/backup/legacy pair reads and the real ADB
+signature/shell protocol. Android emulator validation runs the helper under the Denza Apps UID
+against a host fixture with a **synthetic** RSA key; the server validates RSA signatures and shell
+commands on four fresh connections across canonical and legacy storage. A fifth connection verifies
+the rejected-signature path: it submits no public key, opens no shell and does not pretend a second
+check ran. The emulator caught Android's unsupported Xerces configuration
+before delivery; the legacy reader was replaced and retested. These checks do not establish
+reauthorization on the owner's head unit. Machine-readable local evidence is retained under the
+ignored `captures/dipilot-adb-rescue-20261010/` directory, without private keys or public blobs.
+The checked debug APK is versionCode 5 / 0.5.0, SHA-256
+`9f93b68d0dec8a1c2f451f40777062fc7f4e145035813f25eec228c894badc82`.
 
 ## The persistent shell is a terminal (live v31, 2026-08-26)
 

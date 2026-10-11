@@ -14,9 +14,8 @@ import java.util.function.Consumer;
 /**
  * Frees a stuck ADB prompt queue while authenticated as BydDipilot.
  *
- * <p>The probe never submits a public key. Dipilot already did, and another submission would
- * take another slot. This signs with that same key, clicks Allow on the dialog wherever it was
- * put, and once the key has a shell approves whatever the log still says is pending.
+ * <p>Dipilot connections only sign with its existing identity. A separate stage may submit
+ * Denza Apps' existing public key once, after establishing a trusted Dipilot shell.
  */
 final class PortRescue {
     private static final String CHECK_MARKER = "DENZA_DIPILOT_OK";
@@ -65,6 +64,7 @@ final class PortRescue {
         StringBuilder report = new StringBuilder();
         device.resetClicks();
         boolean needsSettings = false;
+        int approvals = 0;
         try {
             report.append("Ключ Dipilot (").append(DipilotIdentity.COMMENT).append(")\n");
             report.append("Отпечаток: ").append(DipilotIdentity.fingerprint()).append('\n');
@@ -95,16 +95,27 @@ final class PortRescue {
                 if (access == Access.TRUSTED) {
                     report.append("\n4. Проверяю очередь и разрешаю подтверждённые запросы…\n");
                     progress.accept(report.toString());
-                    drain(report, progress);
+                    approvals = drain(report, progress);
                 } else {
                     report.append("Очередь после: НЕИЗВЕСТНО — без shell журнал недоступен.\n");
                 }
             } else {
-                needsSettings = true;
-                report.append("Нужно включить службу «Ключ Dipilot» в открывшихся настройках "
-                        + "и вернуться. Проверка продолжится автоматически.\n");
+                needsSettings = access != Access.TRUSTED;
+                report.append(needsSettings
+                        ? "Нужно включить службу «Ключ Dipilot» в открывшихся настройках "
+                                + "и вернуться. Проверка продолжится автоматически.\n"
+                        : "Служба нажатий недоступна; продолжаю восстановление через доверенный shell.\n");
+            }
+            if (access == Access.TRUSTED && device.clicks() == 0) {
+                inspectSystemWindows(report, progress);
             }
             device.disarmClicks();
+            if (access == Access.TRUSTED) {
+                new DenzaKeyRescue(device, QueueDrain.MAX_ALLOWS - approvals).run(report, progress);
+                appendQueue(report, "Очередь после проверки Denza Apps", reread(report));
+            } else {
+                report.append("Denza Apps: без shell ключ недоступен\n");
+            }
             Access after = check();
             report.append('\n');
             appendCheck(report, "Итоговая повторная проверка shell", after);
@@ -186,13 +197,31 @@ final class PortRescue {
             device.disarmClicks();
         }
         report.append("Поиск окон завершён.\n").append(device.clickDiagnostics());
+        report.append(device.windowDiagnostics());
         access = check();
         appendCheck(report, "Shell после поиска окон", access);
         progress.accept(report.toString());
         return access;
     }
 
-    private void drain(StringBuilder report, Consumer<String> progress) throws InterruptedException {
+    private void inspectSystemWindows(StringBuilder report, Consumer<String> progress)
+            throws InterruptedException {
+        report.append("\n5. Нажатий не было; проверяю наличие ADB-диалога в системных дампах…\n");
+        progress.accept(report.toString());
+        for (String command : new String[]{AdbWindowDump.ACTIVITIES, AdbWindowDump.WINDOWS}) {
+            try {
+                report.append(AdbWindowDump.describe(command, shell(command)));
+            } catch (InterruptedException interrupted) {
+                throw interrupted;
+            } catch (Exception error) {
+                report.append(command).append(": НЕИЗВЕСТНО — ").append(failure(error)).append('\n');
+            }
+            progress.accept(report.toString());
+        }
+        report.append("Наличие компонента не доказывает, что окно видно или доступно службе.\n");
+    }
+
+    private int drain(StringBuilder report, Consumer<String> progress) throws InterruptedException {
         String log;
         try {
             log = shell(QueueDrain.LOGCAT);
@@ -200,7 +229,7 @@ final class PortRescue {
             report.append("Очередь: НЕИЗВЕСТНО. Журнал не прочитан: ")
                     .append(failure(error)).append('\n');
             progress.accept(report.toString());
-            return;
+            return 0;
         }
         appendQueue(report, "Очередь до разрешений", log);
         appendTail(report, log, 6);
@@ -243,9 +272,9 @@ final class PortRescue {
                 break;
             }
             try {
-                String output = shell(command);
                 lastAttempt = attempt;
                 allows++;
+                String output = shell(command);
                 boolean accepted = QueueDrain.binderAccepted(output);
                 report.append(allows).append(") allowDebugging: ")
                         .append(accepted ? "Binder принял вызов; проверяю журнал.\n"
@@ -274,6 +303,7 @@ final class PortRescue {
         appendQueue(report, "Очередь после", log);
         appendTail(report, log, 6);
         progress.accept(report.toString());
+        return allows;
     }
 
     private String waitForQueueChange(

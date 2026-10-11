@@ -10,8 +10,8 @@ android {
         applicationId = "dev.denza.dipilotkey.probe"
         minSdk = 33
         targetSdk = 33
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 5
+        versionName = "0.5.0"
     }
 
     compileOptions {

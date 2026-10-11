@@ -38,6 +38,7 @@ public final class PromptClicker extends AccessibilityService {
     private static final AtomicInteger attempts = new AtomicInteger();
     private static final AtomicInteger scans = new AtomicInteger();
     private static final AtomicInteger windows = new AtomicInteger();
+    private static final WindowDiagnostics windowDetails = new WindowDiagnostics();
     private static final Set<Integer> dialogs = new HashSet<>();
     private static volatile String note = "";
     private static final Map<Integer, Long> clickedAt = new HashMap<>();
@@ -67,6 +68,7 @@ public final class PromptClicker extends AccessibilityService {
         attempts.set(0);
         scans.set(0);
         windows.set(0);
+        windowDetails.clear();
         note = "";
         synchronized (clickedAt) {
             clickedAt.clear();
@@ -118,6 +120,10 @@ public final class PromptClicker extends AccessibilityService {
                 + "; ACTION_CLICK принят: " + clicks.get()
                 + (note.isEmpty() ? "" : "\n" + note)
                 + "\nПринятое нажатие проверяется отдельно открытием shell.\n";
+    }
+
+    static String windowDiagnostics() {
+        return windowDetails.render();
     }
 
     static boolean enabled(Context context) {
@@ -199,8 +205,12 @@ public final class PromptClicker extends AccessibilityService {
         windows.set(all.size());
         try {
             for (AccessibilityWindowInfo window : all) {
-                if (consider(window)) {
-                    return;
+                try {
+                    if (consider(window)) {
+                        return;
+                    }
+                } catch (RuntimeException error) {
+                    windowDetails.error(window.getDisplayId(), window.getId(), window.getType(), error);
                 }
             }
         } finally {
@@ -215,6 +225,8 @@ public final class PromptClicker extends AccessibilityService {
         try {
             AccessibilityNodeInfo root = window.getRoot();
             if (root == null) {
+                windowDetails.observe(window.getDisplayId(), window.getId(), window.getType(),
+                        null, null, null);
                 return false;
             }
             StringBuilder text = new StringBuilder();
@@ -225,7 +237,8 @@ public final class PromptClicker extends AccessibilityService {
             List<PromptDecision.Node> nodes = new ArrayList<>();
             collect(root, owned, nodes, text);
             CharSequence packageName = root.getPackageName();
-            PromptDecision decision = PromptDecision.decide(
+            PromptDecision decision = windowDetails.observe(
+                    window.getDisplayId(), window.getId(), window.getType(),
                     packageName == null ? "" : packageName.toString(), text.toString(), nodes);
             if (decision.clickIndex < 0) {
                 return false;

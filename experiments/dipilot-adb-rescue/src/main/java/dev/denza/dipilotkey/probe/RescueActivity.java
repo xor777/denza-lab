@@ -29,6 +29,7 @@ public final class RescueActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
 
     private TextView report;
+    private TextView status;
     private Button restore;
     private SharedPreferences preferences;
     private boolean busy;
@@ -39,7 +40,7 @@ public final class RescueActivity extends Activity {
         preferences = getSharedPreferences("rescue", MODE_PRIVATE);
         setContentView(buildLayout());
         if (savedInstanceState != null) {
-            report.setText(savedInstanceState.getCharSequence("report", report.getText()));
+            showReport(savedInstanceState.getCharSequence("report", report.getText()));
         }
     }
 
@@ -51,7 +52,7 @@ public final class RescueActivity extends Activity {
             // Consume the continuation before running; a failure must not reopen Settings in a loop.
             runRescue(false);
         } else if (preferences.getBoolean(PENDING_SETTINGS, false)) {
-            report.setText("Ожидаю включения службы «Ключ Dipilot». После включения вернитесь "
+            showReport("Ожидаю включения службы «Ключ Dipilot». После включения вернитесь "
                     + "сюда — восстановление продолжится автоматически.\n\n" + report.getText());
         }
     }
@@ -83,15 +84,24 @@ public final class RescueActivity extends Activity {
         root.addView(restore, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        status = new TextView(this);
+        status.setTypeface(Typeface.MONOSPACE);
+        status.setTextColor(Color.WHITE);
+        status.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
+        status.setPadding(0, dp(6), 0, dp(8));
+        root.addView(status, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
         report = new TextView(this);
         report.setTypeface(Typeface.MONOSPACE);
         report.setTextColor(Color.WHITE);
         report.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
         report.setTextIsSelectable(true);
         report.setPadding(0, dp(12), 0, 0);
-        report.setText("Ключ Dipilot · 0.2.0\nНажмите «Восстановить ADB». Сначала проверю shell, "
-                + "затем подготовлю службу нажатий, проверю окна и очередь.\n"
-                + "Отчёт можно выделить и скопировать долгим нажатием.");
+        report.setText("Ключ Dipilot · 0.5.0\nНажмите «Восстановить ADB». Сначала проверю shell, "
+                + "затем проверю окна, очередь и существующий ключ Denza Apps.\n"
+                + "Подробный отчёт ниже прокручивается; скопировать его можно долгим нажатием.");
+        status.setText(ReportSummary.from(report.getText()));
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(report);
@@ -106,7 +116,7 @@ public final class RescueActivity extends Activity {
         }
         preferences.edit().remove(PENDING_SETTINGS).apply();
         setBusy(true);
-        report.setText("Подключаюсь ключом Dipilot…");
+        showReport("Подключаюсь ключом Dipilot…");
         worker.execute(() -> {
             PortRescue.Result result;
             String[] lastSnapshot = {""};
@@ -115,7 +125,7 @@ public final class RescueActivity extends Activity {
                     lastSnapshot[0] = snapshot;
                     main.post(() -> {
                         if (!isDestroyed()) {
-                            report.setText(snapshot);
+                            showReport(snapshot);
                         }
                     });
                 });
@@ -133,7 +143,7 @@ public final class RescueActivity extends Activity {
             PortRescue.Result completed = result;
             main.post(() -> {
                 if (!isDestroyed()) {
-                    report.setText(completed.report);
+                    showReport(completed.report);
                     setBusy(false);
                     if (completed.needsServiceSettings && mayOpenSettings) {
                         // Persist before leaving the app, including a process death in Settings.
@@ -142,6 +152,7 @@ public final class RescueActivity extends Activity {
                     } else if (completed.needsServiceSettings) {
                         report.append("\nСлужба по-прежнему недоступна. Проверьте её настройки "
                                 + "и нажмите «Восстановить ADB» ещё раз.\n");
+                        status.setText(ReportSummary.from(report.getText()));
                     }
                 }
             });
@@ -168,6 +179,11 @@ public final class RescueActivity extends Activity {
         this.busy = busy;
         restore.setEnabled(!busy);
         restore.setText(busy ? "Восстанавливаю…" : "Восстановить ADB");
+    }
+
+    private void showReport(CharSequence text) {
+        report.setText(text);
+        status.setText(ReportSummary.from(text));
     }
 
     private int dp(int value) {
