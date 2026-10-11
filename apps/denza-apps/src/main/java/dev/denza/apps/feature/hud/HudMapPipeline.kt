@@ -53,11 +53,10 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
         val window = frame.window
         val anchor = anchors.current(window)
         val crop = HudMapGeometry.crop(window, frame.density, anchor.x, anchor.y)
-        val depth = (HudMapWindows.COVER_DEPTH_DP * frame.density).toInt()
-        HudMapWindows.coverer(crop, frame.above, depth)?.let { return HudMapResult.Covered(it) }
-
-        val keep = capture?.due() == true
+        val covered = HudMapWindows.coverer(crop, frame.above)
+        val keep = covered == null && capture?.due() == true
         val searching = keep || window != searchedWindow || nowMs - searchedAt >= SEARCH_INTERVAL_MS
+        if (pass(covered != null, searching) == HudMapPass.SKIP) return HudMapResult.Covered(covered!!)
         val mapWidth = HudMapGeometry.MAP_WIDTH
         val mapHeight = HudMapGeometry.MAP_HEIGHT
         val analysisWidth = HudMapGeometry.analysisWidth(window)
@@ -74,12 +73,8 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
             out = drawn,
         )
         check(drewAll) { "the GPU gave no image of the cut" }
-        for (row in 0 until mapHeight) {
-            System.arraycopy(drawn, row * width, mapPixels, row * mapWidth, mapWidth)
-        }
-        key.apply(mapPixels, key.ground(mapPixels))
-        val image = png.encode(mapPixels, mapWidth, mapHeight)
 
+        var analysisPng: ByteArray? = null
         if (searching) {
             searchedAt = nowMs
             searchedWindow = window
@@ -104,8 +99,16 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
                 blob?.let { window.left + it.x / scale },
                 blob?.let { window.top + it.y / scale },
             )
-            if (keep) capture?.save(png.encode(analysisPixels, analysisWidth, analysisHeight), image)
+            if (keep) analysisPng = png.encode(analysisPixels, analysisWidth, analysisHeight)
         }
+        if (covered != null) return HudMapResult.Covered(covered)
+
+        for (row in 0 until mapHeight) {
+            System.arraycopy(drawn, row * width, mapPixels, row * mapWidth, mapWidth)
+        }
+        key.apply(mapPixels, key.ground(mapPixels))
+        val image = png.encode(mapPixels, mapWidth, mapHeight)
+        if (keep) capture?.save(analysisPng, image)
         return HudMapResult.Frame(HudSomeIpClient.mapPayload(image), anchor.source)
     }
 
@@ -124,7 +127,32 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
     companion object {
         /** How often the cursor is looked for while the window stays where it is. */
         const val SEARCH_INTERVAL_MS = 300L
+
+        /**
+         * What one picture is used for. A hidden cut still searches when a search is due: the cut
+         * is placed by the cursor, so only a search can take it out from under what hides it. On
+         * 2026-10-11 the hidden check came first and returned before the search; the owner moved
+         * the map, the cut followed the cursor under the split's divider, and the window stayed
+         * empty after Yandex had brought its cursor back.
+         */
+        internal fun pass(covered: Boolean, searching: Boolean): HudMapPass = when {
+            !covered -> HudMapPass.FRAME
+            searching -> HudMapPass.SEARCH_ONLY
+            else -> HudMapPass.SKIP
+        }
     }
+}
+
+/** What [HudMapPipeline.pass] decided one picture is for. */
+internal enum class HudMapPass {
+    /** Hidden, and no search due: nothing is drawn. */
+    SKIP,
+
+    /** Hidden: the cursor is looked for, nothing is sent. */
+    SEARCH_ONLY,
+
+    /** The map window's frame, and the search if one is due. */
+    FRAME,
 }
 
 /**

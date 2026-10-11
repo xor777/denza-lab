@@ -43,7 +43,7 @@ class HudMapWindowsTest {
         val placement = HudMapWindows.place(listOf(statusBar, yandex), NAVI) as YandexMapPlacement.MainScreen
         val crop = HudMapGeometry.crop(placement.window, 2f, 1280, 1136)
 
-        assertNull(HudMapWindows.coverer(crop, placement.above, depth = 8))
+        assertNull(HudMapWindows.coverer(crop, placement.above))
     }
 
     @Test
@@ -51,18 +51,44 @@ class HudMapWindowsTest {
         val camera = window("dev.denza.apps", type = 2, layer = 50, PxRect(1600, 700, 2400, 1300))
         val crop = HudMapGeometry.crop(yandexWindow, 2f, 1280, 1136)
 
-        assertSame(camera, HudMapWindows.coverer(crop, listOf(statusBar, camera), depth = 8))
+        assertSame(camera, HudMapWindows.coverer(crop, listOf(statusBar, camera)))
     }
 
     @Test
-    fun aDividerGrazingTheEdgeOfAPaneWideCutDoesNotHideIt() {
-        val pane = PxRect(1700, 0, 2550, 1600)
-        val crop = HudMapGeometry.crop(pane, 2f, 2125, 1136)
-        val divider = window(null, type = 5, layer = 20, PxRect(1690, 0, 1706, 1600))
+    fun theSplitHandleOverAPaneEdgeDoesNotHideACutPushedAgainstThatEdge() {
+        // The car on 2026-10-11, in the half-size mirror: Yandex in the wide pane, the divider's
+        // handle - a system window - 38 px into it. The cursor moved left with the map, and the cut
+        // followed it to the pane's edge.
+        val pane = PxRect(440, 56, 1268, 736)
+        val handle = window(null, type = 3, layer = 3, PxRect(390, 0, 478, 800))
+        val placement = HudMapWindows.place(listOf(handle, window(NAVI, type = 1, layer = 2, pane)), NAVI)
+            as YandexMapPlacement.MainScreen
+        val crop = HudMapGeometry.crop(placement.window, 1f, 460, 600)
 
-        // 6 px into the cut: under 4 dp at density 2.
-        assertNull(HudMapWindows.coverer(crop, listOf(divider), depth = 8))
-        assertSame(divider, HudMapWindows.coverer(crop, listOf(divider), depth = 6))
+        assertEquals(pane.left, crop.left)
+        assertEquals(listOf(handle), placement.above)
+        assertNull(HudMapWindows.coverer(crop, placement.above))
+    }
+
+    @Test
+    fun aWindowOverTheMiddleOfTheCutHidesItAndOneInItsMarginDoesNot() {
+        val crop = PxRect(1000, 500, 1576, 846)
+        // The margin is 15 % a side: 86 px of the width, 51 px of the height.
+        val inMargin = window(null, type = 3, layer = 9, PxRect(900, 0, 1086, 1600))
+        val overMiddle = window(null, type = 3, layer = 9, PxRect(900, 0, 1088, 1600))
+        val shade = window(null, type = 3, layer = 9, PxRect(0, 0, 2560, 700))
+
+        assertNull(HudMapWindows.coverer(crop, listOf(inMargin)))
+        assertSame(overMiddle, HudMapWindows.coverer(crop, listOf(overMiddle)))
+        assertSame(shade, HudMapWindows.coverer(crop, listOf(shade)))
+    }
+
+    @Test
+    fun aHiddenCutStillLooksForTheCursorWhenASearchIsDue() {
+        assertEquals(HudMapPass.SEARCH_ONLY, HudMapPipeline.pass(covered = true, searching = true))
+        assertEquals(HudMapPass.SKIP, HudMapPipeline.pass(covered = true, searching = false))
+        assertEquals(HudMapPass.FRAME, HudMapPipeline.pass(covered = false, searching = false))
+        assertEquals(HudMapPass.FRAME, HudMapPipeline.pass(covered = false, searching = true))
     }
 
     private fun window(packageName: String?, type: Int, layer: Int, bounds: PxRect) =
