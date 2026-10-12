@@ -60,7 +60,7 @@ class HudMapPaletteTest {
     }
 
     @Test
-    fun aThinRoadIsDimWhiteAndAWideOneAnOutline() {
+    fun everyRoadIsFlatDimWhiteAWideOneToo() {
         val scene = canvas()
         scene.rect(0, 40, 600, 44, ROAD)
         scene.rect(0, 100, 600, 160, ROAD)
@@ -69,9 +69,9 @@ class HudMapPaletteTest {
 
         val road = HudMapPalette.ROAD.map { it * HudMapPalette.ROAD_LEVEL }.toFloatArray()
         assertColour(road, out.at(100, 21))
-        // The wide road's top edge at full, its middle at the faint fill.
+        // No outline: the wide road's edge and its middle alike.
         assertColour(road, out.at(100, 50))
-        assertColour(road.map { it * HudMapPalette.FILL_LEVEL }.toFloatArray(), out.at(100, 65))
+        assertColour(road, out.at(100, 65))
     }
 
     @Test
@@ -104,15 +104,19 @@ class HudMapPaletteTest {
     }
 
     @Test
-    fun theLaneBalloonStaysWithItsPlateDimmed() {
+    fun theLaneBalloonStaysWithItsPlateDimmedAndEveryArrowWhole() {
         val scene = canvas()
         scene.rect(100, 40, 210, 116, BLUE)
         scene.rect(150, 50, 156, 106, WHITE_INK)
+        // A lane that does not go the route's way: a light-blue arrow, thick enough to be outlined
+        // if it were taken for road.
+        scene.rect(120, 50, 132, 106, LANE_OFF)
 
         val out = paint(scene)
 
         assertColour(dimmed(BLUE), out.at(55, 30))
         assertColour(HudMapPalette.WHITE, out.at(76, 39))
+        assertColour(floatArrayOf(115 / 255f, 163 / 255f, 254 / 255f), out.at(63, 39))
     }
 
     @Test
@@ -237,5 +241,6 @@ class HudMapPaletteTest {
         const val NUMBER = 0xFF969696.toInt()
         const val ROAD = 0xFF465880.toInt()
         const val AMBER = 0xFFF0B428.toInt()
+        const val LANE_OFF = 0xFF73A3FE.toInt()
     }
 }

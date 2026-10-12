@@ -14,10 +14,10 @@ import kotlin.math.min
  * bright colour round the hue circle ([GREEN], [YELLOW], [RED], [CYAN]; [WHITE] maneuver arrows,
  * [CURSOR], [ROAD] at [ROAD_LEVEL]), while Yandex's shapes are kept: house numbers, labels and POI
  * pins go as whole islands, holes are closed, the grey route is grown back from a thick seed so its
- * arrows keep their tips, a wide carriageway is drawn as its edges over a faint fill. Yandex's
- * road signs on the route and its lane balloon stay as it drew them, their blue plate dimmed
- * ([PLATE_LEVEL]); the owner asked for them on 2026-10-12. Where a pin is taken out, whatever line
- * crossed it is carried through.
+ * arrows keep their tips. Every road is flat, a wide carriageway filled like a thin one: the
+ * owner found outlines busy on 2026-10-12. Yandex's road signs on the route and its lane balloon
+ * stay as it drew them, their blue plate dimmed ([PLATE_LEVEL]); the owner asked for them the same
+ * day. Where a pin is taken out, whatever line crossed it is carried through.
  *
  * Prototyped and tuned on the frames of the drive of 2026-10-11 (docs/hud-projection-findings.md,
  * «Перекраска целиком»); every threshold is in pixels of this doubled image and in the 0..1 scale
@@ -34,7 +34,6 @@ class HudMapPalette {
     private val roles = ByteArray(SIZE)
     private val cursorWeight = FloatArray(SIZE)
     private val ink = FloatArray(SIZE)
-    private val inside = FloatArray(SIZE)
     private val scratch = FloatArray(SIZE)
     private val spare = FloatArray(SIZE)
 
@@ -174,12 +173,15 @@ class HudMapPalette {
             val edge = y0 <= 8 || x0 <= 8 || y1 >= HEIGHT - 9 || x1 >= WIDTH - 9
             val framed = sized && (edge || (bw.toFloat() / bh in 0.88f..1.14f && whiteFrame(y0, y1, x0, x1)))
             if (long > 60 || framed) {
-                // Its plate, its glyph and its frame - not the blue-grey road round it.
+                // Its plate, its glyphs - white, or light blue for a lane that does not go the way
+                // of the route, (115,163,254) - and its frame; not the blue-grey road round it,
+                // which is no brighter than 0.6.
                 for (y in max(0, y0 - 4) until min(HEIGHT, y1 + 5)) {
                     for (x in max(0, x0 - 4) until min(WIDTH, x1 + 5)) {
                         val i = y * WIDTH + x
-                        val plate = hue[i] >= 190f && hue[i] < 260f && sat[i] > 0.62f && mx[i] > 0.3f
-                        if (plate || (sat[i] < 0.25f && mx[i] > 0.5f)) kept[i] = true
+                        val bluish = hue[i] >= 190f && hue[i] < 260f
+                        val plate = bluish && sat[i] > 0.62f && mx[i] > 0.3f
+                        if (plate || (bluish && mx[i] > 0.8f) || (sat[i] < 0.25f && mx[i] > 0.5f)) kept[i] = true
                     }
                 }
             } else {
@@ -332,15 +334,9 @@ class HudMapPalette {
         }
     }
 
-    /** The roads: a steep ramp on value, labels out as islands, holes closed, wide ones outlined. */
+    /** The roads: a steep ramp on value, flat; labels out as islands, holes closed. */
     private fun paintRoads() {
         for (i in 0 until SIZE) ink[i] = smooth(INK_LO, INK_HI, mx[i])
-        // How wide a road is, judged before pins and labels are cut out of it: a removed pin leaves
-        // a dark gap in the fill, not a hole with an outline of its own.
-        bits.load(ink, 0.5f)
-        bits.dilate(2)
-        bits.erode(5)
-        bits.store(inside)
         for (i in 0 until SIZE) if (icon[i]) ink[i] = 0f
         // Through a pin on the route the roads go on too; a pin off it stays a gap, which is better
         // than a line drawn to where no road was.
@@ -360,7 +356,6 @@ class HudMapPalette {
         bits.store(mask)
         for (i in 0 until SIZE) if (small[i] && !mask[i]) ink[i] = 0f
         closeGaps(ink, null, 2)
-        for (i in 0 until SIZE) ink[i] *= 1f - (1f - FILL_LEVEL) * inside[i]
     }
 
     /** Route over roads, the cursor over both, kept signs over all; then each 2×2 block averaged. */
@@ -536,9 +531,6 @@ class HudMapPalette {
 
         /** Roads under every route colour, the red included. */
         const val ROAD_LEVEL = 0.42f
-
-        /** Inside a wide road, of [ROAD_LEVEL]: its edges carry it. */
-        const val FILL_LEVEL = 0.30f
 
         /** A kept sign's or lane balloon's blue plate, under its white glyph. */
         const val PLATE_LEVEL = 0.55f
