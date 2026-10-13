@@ -15,7 +15,7 @@ import java.util.Base64;
 import java.util.Locale;
 
 /**
- * The one ADB identity baked into BydDipilot 7.32.
+ * The original BydDipilot 7.32 ADB identity, injected from ignored local build inputs.
  *
  * <p>{@code com.byd.windowmanager.utils.adb.AdbClient}'s static initializer holds this PKCS#8
  * key and the public blob whose comment is {@code wireless@adb}. Connecting with it is that
@@ -26,38 +26,17 @@ final class DipilotIdentity {
 
     /**
      * MD5 of the ADB public-key blob, the string {@code UsbDebuggingActivity} prints.
-     * Computed from the PKCS#8 above; the test pins it so a corrupted constant cannot pass.
+     * Computed from the local PKCS#8; the test pins it so an altered local identity cannot pass.
      */
     static final String FINGERPRINT = "2A:FE:35:E4:0C:F8:DB:29:26:E8:87:9E:EC:BD:4E:28";
 
     /** The start of field {@code m} in that class, the base64 of the ADB public blob. */
-    static final String PUBLIC_BLOB_PREFIX = "[REDACTED]";
+    static final String PUBLIC_BLOB_PREFIX = DipilotKeyMaterial.PUBLIC_BLOB_PREFIX;
 
     private static final int RSA_BITS = 2048;
     private static final int RSA_WORDS = RSA_BITS / 32;
 
-    private static final String PKCS8_BASE64 =
-            "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]"
-                    + "[REDACTED]";
+    private static final String PKCS8_BASE64 = DipilotKeyMaterial.PKCS8_BASE64;
 
     private static KeyPair cached;
 

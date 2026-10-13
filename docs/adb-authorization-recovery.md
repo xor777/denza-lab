@@ -2,7 +2,7 @@
 
 ## Current state
 
-Updated 2026-10-10. Static firmware evidence and local checks do not establish recovery on a
+Updated 2026-10-13. Static firmware evidence and local checks do not establish recovery on a
 currently inaccessible vehicle.
 
 | Claim | Status | Section |
@@ -12,6 +12,7 @@ currently inaccessible vehicle.
 | A feature tile whose call failed on the channel says «Нет доступа» and its press runs the passive check: the feature retries if the car still trusts the app, and the startup gate comes up if it does not (`FeatureResolution.CHECK_ACCESS`, `AdbProblem`) | code, 2026-10-09 | [Product behaviour](#product-behaviour) |
 | The access row and the recovery dialog say a state and the switch reading; exception names are only the «Последний сбой» row of «Технические сведения» | code, 2026-10-09 | [Explaining the channel](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26) |
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
+| Dipilot key material is supplied only from an ignored owner-local file; tracked sources contain no private key or public blob | build inputs, 2026-10-13 | [Local key storage](#local-key-storage-and-history-redaction-2026-10-13) |
 | Dipilot rescue has one explicit recovery button; 0.3.0 automatically enabled/bound its service and inspected accessible trees on the car, with a pinned four-line status | owner photos, 2026-10-09; no dialog approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | The 0.4.0 owner photos show the existing Denza Apps public key was read and submitted once, but no approval or target-key shell was established; different and unavailable system fingerprints were reported together | owner photos received 2026-10-10; recovery unproved | [Denza Apps key recovery](#denza-apps-key-recovery-040-local-2026-10-09) |
 | Dipilot rescue 0.5.0 attempts recovery autonomously, understands both dump formats, approves identifiable preceding keys, and reports success only after two signed shell connections inside the Denza Apps UID | unit/build/lint and Android emulator protocol checks; car acceptance pending | [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10) |
@@ -36,6 +37,7 @@ currently inaccessible vehicle.
 - [Port 5555 after a reboot](#port-5555-after-a-reboot-and-reopening-it-through-wireless-debugging-corpus-2026-10-06)
 - [Autonomous restore](#autonomous-restore-implementation-2026-10-08)
 - [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08)
+- [Local key storage](#local-key-storage-and-history-redaction-2026-10-13)
 - [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10)
 - [The persistent shell is a terminal](#the-persistent-shell-is-a-terminal-live-v31-2026-08-26)
 
@@ -754,6 +756,10 @@ public blob plus comment match. The single-class decompile is retained in
 `captures/dipilot-adb-rescue-20261008/AdbClient.java`; it contains key material and is untracked.
 No key material is printed in this document or in the probe's diagnostic log excerpts.
 
+**Storage correction, 2026-10-13:** the original implementation embedded the private key as Java
+string fragments. The tracked class now references generated key material. The owner's ignored
+local file supplies the same identity; the public repository does not contain those fragments.
+
 **Correction, 2026-10-09:** version 0.1.0 searched windows before reading the queue only when the
 Dipilot shell check failed. With a trusted shell, the click fallback was inside the log-driven
 pending-queue loop. An unknown queue skipped that loop even if the service was enabled. The
@@ -864,6 +870,37 @@ activation and tree inspection; none of the three versions' owner runs establish
 Local validation for 0.3.0: 52 unit tests pass, debug APK builds, lint has no errors. Additional
 tests cover window skip reasons and display identity, bounded/redacted observations, unavailable
 system dumps, and the four-line status with the exact readings from the owner's 0.2.0 photo.
+
+### Local key storage and history redaction (2026-10-13)
+
+The owner requested preservation of the working identity locally and removal from published Git
+history. `.local-secrets/dipilot-adb-rescue/identity.properties` holds the original `pkcs8Base64`
+and `publicBlobBase64` members. The directory is owner-only, the file is mode `600`, and
+`/.local-secrets/` is explicitly git-ignored. Its values are not reproduced in documentation,
+commands, reports or a checked-in example.
+
+The opt-in probe build generates `DipilotKeyMaterial.java` under its ignored `build/` directory
+from that file, through the Android variant generated-source API. Missing input or invalid
+base64 syntax stops the build; there is no replacement key, dummy identity or committed fallback. The existing
+fingerprint and protocol tests verify that the preserved key is still the original identity.
+The locally built APK necessarily contains the key so it can authenticate; it remains ignored
+and must not be uploaded to a public release or artifact store.
+
+The exposure audit found one matching source blob, first introduced in
+`a1e4309b50b58ad36ecf73d365269196e7574dc1`, reachable from `main` and
+`denza-apps-v0.7.0`. Existing PR refs and the other remote heads/tags precede that introduction.
+History redaction replaces the complete encoding and each original source fragment, including
+the public-blob prefix, with `[REDACTED]`. The code and other history are retained. Old release
+tags are historical snapshots: redacted key literals are deliberately unusable there; the current
+probe obtains its identity from the local file above.
+
+Before rewriting, private local bundles preserve both local and remote refs under the same
+ignored owner-only directory. They must never be pushed. The rewritten mirror is checked across
+all reachable objects before publishing, and an independent fresh clone verifies the published
+heads/tags afterward. GitHub's cached views of old commit IDs require
+[GitHub Support](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository#fully-removing-the-data-from-github)
+for server-side garbage collection; changing branch/tag refs alone cannot prove those caches
+were deleted. Other clones must follow the rewritten history without merging old ancestry back.
 
 ### Denza Apps key recovery (0.4.0, local, 2026-10-09)
 

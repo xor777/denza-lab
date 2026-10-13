@@ -8,6 +8,7 @@
 /captures/
 /reverse/
 /local.properties
+/.local-secrets/
 /.idea/
 *.iml
 *.apk
