@@ -21,8 +21,8 @@ data class HudMapWindow(
 sealed interface YandexMapPlacement {
     /**
      * Yandex has no application window on the main screen: it is on the instruments, minimised or
-     * not running. The instruments are a source of their own, not built yet; for now this sends no
-     * frame.
+     * not running. The instruments are a source of their own ([HudMapClusterSource]); this one
+     * sends no frame.
      */
     data object NotOnMainScreen : YandexMapPlacement
 

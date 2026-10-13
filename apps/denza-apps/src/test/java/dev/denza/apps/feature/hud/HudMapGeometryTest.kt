@@ -62,6 +62,25 @@ class HudMapGeometryTest {
     }
 
     @Test
+    fun everyInstrumentsPlacementTakesTheSameDpCutAsTheMainScreen() {
+        // The navigation display on the 2560×720 instruments: pixels and dpi of each placement
+        // (ClusterMapLayout); the cut is 490 dp in all of them, cursor in the middle.
+        val placements = listOf(
+            Triple("FULL", PxRect(0, 0, 2560, 720), 272),
+            Triple("LEFT", PxRect(0, 0, 1023, 609), 272),
+            Triple("RIGHT", PxRect(0, 0, 1023, 524), 272),
+            Triple("CENTER", PxRect(0, 0, 1023, 720), 320),
+        )
+        for ((name, window, dpi) in placements) {
+            val density = HudMapClusterSource.density(dpi)
+            val crop = HudMapGeometry.crop(window, density, window.width / 2, window.height * 3 / 4)
+
+            assertEquals(name, Math.round(HudMapGeometry.CROP_WIDTH_DP * density), crop.width)
+            assertTrue(name, crop.left >= 0 && crop.top >= 0 && crop.right <= window.right && crop.bottom <= window.bottom)
+        }
+    }
+
+    @Test
     fun theAnalysisImageIsThreeHundredTwentyWideInTheWindowsProportions() {
         assertEquals(320, HudMapGeometry.analysisWidth(mainScreen))
         assertEquals(200, HudMapGeometry.analysisHeight(mainScreen))

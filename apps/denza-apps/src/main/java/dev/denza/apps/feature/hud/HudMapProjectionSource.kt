@@ -166,7 +166,7 @@ internal class HudMapProjectionSource(private val service: AccessibilityService)
                 }
                 try {
                     val mirrored = HudMapMirror.scale(placement, factor)
-                    sink.onFrame(HudMapFrame(picture, mirrored.window, mirrored.above, density))
+                    sink.onFrame(HudMapFrame(HudMapImage.Screen(picture), mirrored.window, mirrored.above, density))
                 } finally {
                     picture.recycle()
                 }

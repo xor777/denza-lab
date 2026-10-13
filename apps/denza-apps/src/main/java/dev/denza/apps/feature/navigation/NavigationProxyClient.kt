@@ -36,6 +36,7 @@ object NavigationProxyClient {
     private val lock = Any()
     private val shellLock = Any()
     @Volatile private var virtualDisplay: VirtualDisplay? = null
+    @Volatile private var drawnInto: NavigationDisplaySurface? = null
     @Volatile private var adbShell: LocalAdbClient.PersistentShellSession? = null
     @Volatile private var proxy: ShellProxyClasspath? = null
 
@@ -98,15 +99,30 @@ object NavigationProxyClient {
         check(surface.isValid) { "navigation surface is invalid" }
         val manager = context.getSystemService(DisplayManager::class.java)
             ?: error("display manager unavailable")
+        val displayWidth = width.coerceIn(320, 7_680)
+        val displayHeight = height.coerceIn(240, 4_320)
+        val displayDensity = densityDpi.coerceIn(120, 640)
         virtualDisplay = manager.createVirtualDisplay(
             "Denza Navigation",
-            width.coerceIn(320, 7_680),
-            height.coerceIn(240, 4_320),
-            densityDpi.coerceIn(120, 640),
+            displayWidth,
+            displayHeight,
+            displayDensity,
             surface,
             DISPLAY_FLAGS,
         ) ?: error("virtual display creation failed")
-        virtualDisplay!!.display.displayId
+        val displayId = virtualDisplay!!.display.displayId
+        drawnInto = NavigationDisplaySurface(displayId, surface, displayWidth, displayHeight, displayDensity)
+        displayId
+    }
+
+    /**
+     * The navigation display's surface and size while display [expectedDisplayId] lives, else null:
+     * where the HUD's map window reads Yandex from while it is on the instruments.
+     */
+    fun drawnSurface(expectedDisplayId: Int): NavigationDisplaySurface? = synchronized(lock) {
+        val display = virtualDisplay?.display ?: return@synchronized null
+        val drawn = drawnInto ?: return@synchronized null
+        drawn.takeIf { display.isValid && display.displayId == expectedDisplayId && drawn.displayId == expectedDisplayId }
     }
 
     fun createProjectionRoot(context: Context, displayId: Int): Int =
@@ -127,6 +143,7 @@ object NavigationProxyClient {
     fun releaseVirtualDisplay() = synchronized(lock) {
         virtualDisplay?.release()
         virtualDisplay = null
+        drawnInto = null
     }
 
     fun disconnectShell() {
@@ -284,4 +301,13 @@ data class NavigationProjectionOrigin(
     val sourceRootTaskId: Int,
     val companionTaskId: Int,
     val companionRootTaskId: Int,
+)
+
+/** The navigation display's sink: the cluster scene's surface it draws into, and its size and density. */
+class NavigationDisplaySurface(
+    val displayId: Int,
+    val surface: Surface,
+    val width: Int,
+    val height: Int,
+    val densityDpi: Int,
 )

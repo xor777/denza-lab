@@ -4,7 +4,13 @@ import android.graphics.Bitmap
 import android.graphics.Paint
 import android.graphics.Picture
 import android.graphics.Rect
+import android.os.Handler
+import android.os.HandlerThread
+import android.view.PixelCopy
+import android.view.Surface
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** What the pipeline made of one picture. */
 internal sealed interface HudMapResult {
@@ -29,7 +35,9 @@ internal sealed interface HudMapResult {
  *
  * Built for 10 frames a second and more. The screen is never copied whole into memory, and each
  * frame is one GPU pass ([HudMapScaler]): the cut, and on a search frame Yandex's reduced window
- * under it in the same picture, so the price of a render and its read-back is paid once. The pixel
+ * under it in the same picture, so the price of a render and its read-back is paid once. A frame
+ * drawn into a surface - the instruments' - is read the same way by PixelCopy, the cut and the
+ * reduced window each scaled on the way ([HudMapSurfaceReader]). The pixel
  * arrays, the cursor search's scratch, the key's histogram and the PNG's bitmap stay from one frame
  * to the next. Owned by the frame thread; [close] frees what it holds.
  *
@@ -44,6 +52,7 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
     private val palette = HudMapPalette()
     private val png = HudMapPng()
     private val scaler = HudMapScaler()
+    private var surfaces: HudMapSurfaceReader? = null
     private var drawn = IntArray(0)
     private var analysisPixels = IntArray(0)
     private val cutPixels = IntArray(HudMapPalette.WIDTH * HudMapPalette.HEIGHT)
@@ -67,15 +76,15 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
         val width = if (searching) maxOf(cutWidth, analysisWidth) else cutWidth
         val height = if (searching) cutHeight + analysisHeight else cutHeight
         if (drawn.size < width * height) drawn = IntArray(width * height)
-        val drewAll = scaler.draw(
-            image = frame.image,
-            width = width,
-            height = height,
-            cut = crop,
-            whole = if (searching) window else null,
-            out = drawn,
-        )
-        check(drewAll) { "the GPU gave no image of the cut" }
+        val whole = if (searching) window else null
+        when (val image = frame.image) {
+            is HudMapImage.Screen -> {
+                val drewAll = scaler.draw(image.bitmap, width, height, crop, whole, drawn)
+                check(drewAll) { "the GPU gave no image of the cut" }
+            }
+            is HudMapImage.Drawn -> (surfaces ?: HudMapSurfaceReader().also { surfaces = it })
+                .draw(image.surface, width, crop, whole, drawn)
+        }
 
         var analysisPng: ByteArray? = null
         if (searching) {
@@ -126,6 +135,8 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
 
     override fun close() {
         scaler.close()
+        surfaces?.close()
+        surfaces = null
         png.close()
     }
 
@@ -229,6 +240,87 @@ internal class HudMapScaler : AutoCloseable {
     private fun forget() {
         picture.beginRecording(1, 1)
         picture.endRecording()
+    }
+}
+
+/**
+ * Parts of the last frame a surface was given, read by PixelCopy - the cut at the palette's size
+ * and, if asked, the whole window at the analysis width under it, laid out as [HudMapScaler] lays
+ * them - for a display that draws into a surface of this app's, as the navigation display on the
+ * instruments does. PixelCopy scales on the way, so only the small images reach the CPU.
+ *
+ * PixelCopy answers on a handler; its answers come on a thread of the reader's own, and the frame
+ * thread waits for each, at most [TIMEOUT_MS]. A copy that fails throws with PixelCopy's reason:
+ * the runner counts it and logs the first of a run, which is how a surface that cannot be read
+ * shows itself. The two bitmaps are kept for the next frame. Owned by the frame thread; [close]
+ * ends the answering thread.
+ */
+internal class HudMapSurfaceReader : AutoCloseable {
+    private val answers = HandlerThread("denza-hud-map-copy").apply { start() }
+    private val handler = Handler(answers.looper)
+    private val from = Rect()
+    private var cut: Bitmap? = null
+    private var whole: Bitmap? = null
+
+    /** Written on the answering thread before the latch opens, read after it. */
+    @Volatile private var result = PixelCopy.ERROR_UNKNOWN
+
+    /**
+     * [cut] of [surface] at the top left of [out], [width] pixels a row, at the palette's size and,
+     * if given, [window] under it at the analysis width.
+     */
+    fun draw(surface: Surface, width: Int, cut: PxRect, window: PxRect?, out: IntArray) {
+        val cutWidth = HudMapPalette.WIDTH
+        val cutHeight = HudMapPalette.HEIGHT
+        val cutImage = sized(this.cut, cutWidth, cutHeight).also { this.cut = it }
+        copy(surface, cut, cutImage)
+        cutImage.getPixels(out, 0, width, 0, 0, cutWidth, cutHeight)
+        if (window == null) return
+        val analysisWidth = HudMapGeometry.analysisWidth(window)
+        val analysisHeight = HudMapGeometry.analysisHeight(window)
+        val wholeImage = sized(whole, analysisWidth, analysisHeight).also { whole = it }
+        copy(surface, window, wholeImage)
+        wholeImage.getPixels(out, cutHeight * width, width, 0, 0, analysisWidth, analysisHeight)
+    }
+
+    override fun close() {
+        answers.quitSafely()
+        cut?.recycle()
+        whole?.recycle()
+        cut = null
+        whole = null
+    }
+
+    private fun copy(surface: Surface, part: PxRect, into: Bitmap) {
+        check(surface.isValid) { "the surface is gone" }
+        from.set(part.left, part.top, part.right, part.bottom)
+        val done = CountDownLatch(1)
+        result = PixelCopy.ERROR_UNKNOWN
+        PixelCopy.request(surface, from, into, { code -> result = code; done.countDown() }, handler)
+        check(done.await(TIMEOUT_MS, TimeUnit.MILLISECONDS)) { "PixelCopy gave no answer in $TIMEOUT_MS ms" }
+        val code = result
+        check(code == PixelCopy.SUCCESS) { "PixelCopy ${describe(code)}" }
+    }
+
+    private fun sized(kept: Bitmap?, width: Int, height: Int): Bitmap {
+        if (kept != null && kept.width == width && kept.height == height) return kept
+        kept?.recycle()
+        return Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    }
+
+    companion object {
+        /** Longer than any copy should take; a frame thread stuck here sends nothing. */
+        const val TIMEOUT_MS = 250L
+
+        fun describe(code: Int): String = when (code) {
+            PixelCopy.SUCCESS -> "SUCCESS"
+            PixelCopy.ERROR_UNKNOWN -> "ERROR_UNKNOWN"
+            PixelCopy.ERROR_TIMEOUT -> "ERROR_TIMEOUT"
+            PixelCopy.ERROR_SOURCE_NO_DATA -> "ERROR_SOURCE_NO_DATA"
+            PixelCopy.ERROR_SOURCE_INVALID -> "ERROR_SOURCE_INVALID"
+            PixelCopy.ERROR_DESTINATION_INVALID -> "ERROR_DESTINATION_INVALID"
+            else -> "code $code"
+        }
     }
 }
 

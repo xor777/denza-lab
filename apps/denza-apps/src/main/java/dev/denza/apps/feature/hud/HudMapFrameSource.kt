@@ -2,6 +2,7 @@ package dev.denza.apps.feature.hud
 
 import android.graphics.Bitmap
 import android.os.Handler
+import android.view.Surface
 
 /**
  * Where the map window's pictures come from: a picture of the screen Yandex is drawn on, and where
@@ -10,8 +11,9 @@ import android.os.Handler
  * The pipeline behind it - the cursor, the cut, the key, the PNG and the send ([HudMapPipeline],
  * [HudMapRunner]) - does not know how the picture was taken, and a source does not know what is
  * done with it. The main screen's source is a MediaProjection mirror ([HudMapProjectionSource]); the
- * instruments' display will be another. The pace is the source's alone: it delivers when it has a
- * frame, and nothing downstream assumes an interval.
+ * instruments' is the navigation display's own surface ([HudMapClusterSource]); [HudMapAutoSource]
+ * runs whichever has Yandex. The pace is the source's alone: it delivers when it has a frame, and
+ * nothing downstream assumes an interval.
  *
  * Every call to a source, and every call it makes back, is on the one thread whose [Handler] it is
  * started with.
@@ -31,16 +33,28 @@ interface HudMapFrameSource {
 }
 
 /**
- * One picture of the screen Yandex is on. [image] - a hardware bitmap as a rule - is the source's
- * and is valid only until [HudMapFrameSink.onFrame] returns; [window] and [above] are in its pixels;
- * [density] is that screen's pixels per dp.
+ * One picture of the screen Yandex is on. [image] is the source's and is valid only until
+ * [HudMapFrameSink.onFrame] returns; [window] and [above] are in its pixels; [density] is that
+ * screen's pixels per dp.
  */
 class HudMapFrame(
-    val image: Bitmap,
+    val image: HudMapImage,
     val window: PxRect,
     val above: List<HudMapWindow>,
     val density: Float,
 )
+
+/** What a frame's pixels are in; the pipeline reads the parts it needs from either. */
+sealed interface HudMapImage {
+    /** A picture of a screen, a hardware bitmap as a rule, drawn from by the GPU. */
+    class Screen(val bitmap: Bitmap) : HudMapImage
+
+    /**
+     * A surface a display draws into, [width]×[height]: what is read is the last frame it was
+     * given, at the moment of reading.
+     */
+    class Drawn(val surface: Surface, val width: Int, val height: Int) : HudMapImage
+}
 
 /** What a source tells the pipeline, on the source's thread. */
 interface HudMapFrameSink {
