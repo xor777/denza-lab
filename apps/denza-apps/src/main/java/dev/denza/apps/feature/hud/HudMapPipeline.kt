@@ -11,6 +11,7 @@ import android.view.Surface
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /** What the pipeline made of one picture. */
 internal sealed interface HudMapResult {
@@ -262,9 +263,6 @@ internal class HudMapSurfaceReader : AutoCloseable {
     private var cut: Bitmap? = null
     private var whole: Bitmap? = null
 
-    /** Written on the answering thread before the latch opens, read after it. */
-    @Volatile private var result = PixelCopy.ERROR_UNKNOWN
-
     /**
      * [cut] of [surface] at the top left of [out], [width] pixels a row, at the palette's size and,
      * if given, [window] under it at the analysis width.
@@ -295,10 +293,16 @@ internal class HudMapSurfaceReader : AutoCloseable {
         check(surface.isValid) { "the surface is gone" }
         from.set(part.left, part.top, part.right, part.bottom)
         val done = CountDownLatch(1)
-        result = PixelCopy.ERROR_UNKNOWN
-        PixelCopy.request(surface, from, into, { code -> result = code; done.countDown() }, handler)
-        check(done.await(TIMEOUT_MS, TimeUnit.MILLISECONDS)) { "PixelCopy gave no answer in $TIMEOUT_MS ms" }
-        val code = result
+        // Each request its own answer: a late one from a timed-out request cannot pass for the next.
+        val answer = AtomicInteger(PixelCopy.ERROR_UNKNOWN)
+        PixelCopy.request(surface, from, into, { code -> answer.set(code); done.countDown() }, handler)
+        if (!done.await(TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            // The copy may still land in this bitmap: the next frame takes fresh ones.
+            cut = null
+            whole = null
+            error("PixelCopy gave no answer in $TIMEOUT_MS ms")
+        }
+        val code = answer.get()
         check(code == PixelCopy.SUCCESS) { "PixelCopy ${describe(code)}" }
     }
 

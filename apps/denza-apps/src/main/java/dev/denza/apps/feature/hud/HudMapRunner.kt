@@ -59,6 +59,7 @@ internal class HudMapRunner(
     private var showing = false
     private var failureLogged = false
     private var framesThisRun = 0
+    private val failures = HudMapFailureClock()
 
     private val sink = object : HudMapFrameSink {
         override fun onFrame(frame: HudMapFrame) = onPicture(frame)
@@ -90,6 +91,7 @@ internal class HudMapRunner(
             showing = false
             failureLogged = false
             framesThisRun = 0
+            failures.succeeded()
             HudMapRuntime.onRunStarted()
             (pipeline ?: HudMapPipeline(capture).also { pipeline = it }).reset()
             source.start(worker, sink)
@@ -148,8 +150,12 @@ internal class HudMapRunner(
                 failureLogged = true
                 Log.w(TAG, "frame failed", error)
             }
+            // The last good frame stays while failures are brief; once they last, the window is
+            // emptied, or the HUD would go on repeating a map that no longer moves.
+            if (made == generation && failures.failed(started)) onHidden(HudMapState.FAILING, null)
             return
         }
+        failures.succeeded()
         // Stopped while the frame was made: the stop has said what the state is.
         if (made != generation) return
         when (result) {
@@ -222,5 +228,29 @@ internal class HudMapRunner(
 
         /** The stock navigator's own repeat of its last frame. */
         const val REPEAT_MS = 1_000L
+    }
+}
+
+/**
+ * How long frames may fail before the map window stops showing the last good one: a failure now and
+ * then is covered by the repeat, failures that go on are not. Frame thread.
+ */
+internal class HudMapFailureClock(private val blankAfterMs: Long = BLANK_AFTER_MS) {
+    private var since = NONE
+
+    /** A frame failed at [nowMs]; true once failures have lasted [blankAfterMs] with no good frame. */
+    fun failed(nowMs: Long): Boolean {
+        if (since == NONE) since = nowMs
+        return nowMs - since >= blankAfterMs
+    }
+
+    /** A frame was made: the next failure starts the clock again. */
+    fun succeeded() {
+        since = NONE
+    }
+
+    companion object {
+        const val BLANK_AFTER_MS = 1_000L
+        private const val NONE = Long.MIN_VALUE
     }
 }

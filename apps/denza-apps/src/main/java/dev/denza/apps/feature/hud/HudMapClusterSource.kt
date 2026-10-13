@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.hud
 
+import android.accessibilityservice.AccessibilityService
 import android.os.Handler
 import android.os.SystemClock
 import android.util.Log
@@ -52,7 +53,13 @@ internal class HudMapClusterSource @JvmOverloads constructor(
         val sink = sink ?: return
         val handler = handler ?: return
         val started = SystemClock.uptimeMillis()
-        val drawn = drawnSurface()
+        // Runs in the accessibility service's process, beside the hints: whatever goes wrong in
+        // reading the navigation's state is no frame, never a crash.
+        val drawn = try {
+            drawnSurface()
+        } catch (_: RuntimeException) {
+            null
+        }
         if (drawn == null) {
             sink.onGap(HudMapState.NOT_ON_SCREEN)
         } else {
@@ -101,17 +108,18 @@ internal class HudMapClusterSource @JvmOverloads constructor(
 
 /**
  * The map window's source wherever Yandex is: [instruments] while Yandex is projected on the
- * cluster, [screen] otherwise. One runs at a time, the choice looked at every [CHOOSE_MS]; a switch
- * stops the one before it starts the other, so the sink never hears both, and «Сервис» is told
- * which one runs. The main screen's mirror goes while Yandex is on the instruments; its token
+ * cluster and not seen on the main screen, [screen] otherwise - the main screen wins, so a
+ * projection state that lags behind a Yandex already back on the main screen costs nothing. One runs at a time, the choice looked at every [CHOOSE_MS]; a switch
+ * stops the one before it starts the other, so the sink never hears both, empties the window, and
+ * «Сервис» is told which one runs. The main screen's mirror goes while Yandex is on the instruments; its token
  * stays ([HudMapGrant]).
  *
  * Every call is on the map's thread, the [Handler] it is started with.
  */
-internal class HudMapAutoSource @JvmOverloads constructor(
+internal class HudMapAutoSource(
     private val screen: HudMapFrameSource,
     private val instruments: HudMapFrameSource,
-    private val onInstruments: () -> Boolean = { HudMapClusterSource.yandexOnInstruments() != null },
+    private val onInstruments: () -> Boolean,
 ) : HudMapFrameSource {
     override val name: String
         get() = (running ?: screen).name
@@ -140,9 +148,19 @@ internal class HudMapAutoSource @JvmOverloads constructor(
     private fun choose() {
         val sink = sink ?: return
         val handler = handler ?: return
-        val wanted = pick(onInstruments(), screen, instruments)
+        // A doubt about where Yandex is keeps the main screen's source, as before the instruments'.
+        val there = try {
+            onInstruments()
+        } catch (_: RuntimeException) {
+            false
+        }
+        val wanted = pick(there, screen, instruments)
         if (wanted !== running) {
-            running?.stop()
+            val was = running
+            was?.stop()
+            // Yandex has left the screen the last frame came from: the window is emptied now, not
+            // on the old source's next look, which a stopped source no longer takes.
+            if (was != null) sink.onGap(HudMapState.NOT_ON_SCREEN)
             running = wanted
             HudMapRuntime.onSource("${wanted.name}, ${wanted.frameIntervalMs} мс")
             // One line per switch, never per frame: on the car it says which source a run used.
@@ -159,5 +177,20 @@ internal class HudMapAutoSource @JvmOverloads constructor(
         private const val TAG = "DenzaHudMap"
 
         fun <T> pick(onInstruments: Boolean, screen: T, instruments: T): T = if (onInstruments) instruments else screen
+
+        /** Yandex is read from the instruments only while it is projected there and not on the main screen. */
+        fun onInstruments(projected: Boolean, onMainScreen: Boolean): Boolean = projected && !onMainScreen
+
+        /** The main screen's source and the instruments', chosen by [service]'s view of the windows. */
+        @JvmStatic
+        fun create(service: AccessibilityService): HudMapAutoSource {
+            val windows = HudMapWindowReader(service)
+            return HudMapAutoSource(HudMapProjectionSource(service), HudMapClusterSource()) {
+                onInstruments(
+                    projected = HudMapClusterSource.yandexOnInstruments() != null,
+                    onMainScreen = windows.placement(SystemClock.uptimeMillis()) is YandexMapPlacement.MainScreen,
+                )
+            }
+        }
     }
 }

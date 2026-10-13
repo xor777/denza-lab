@@ -3,7 +3,9 @@ package dev.denza.apps.feature.hud
 import dev.denza.apps.feature.navigation.NavigationPhase
 import dev.denza.apps.feature.navigation.NavigationSession
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The instruments' source reads Yandex only while Yandex itself is projected there. */
@@ -46,5 +48,13 @@ class HudMapClusterSourceTest {
     fun theAutoSourceRunsTheInstrumentsOnlyWhileYandexIsThere() {
         assertEquals("instruments", HudMapAutoSource.pick(true, "screen", "instruments"))
         assertEquals("screen", HudMapAutoSource.pick(false, "screen", "instruments"))
+    }
+
+    @Test
+    fun theMainScreenWinsWhenYandexIsSeenThere() {
+        assertTrue(HudMapAutoSource.onInstruments(projected = true, onMainScreen = false))
+        // A projection state that lags behind Yandex already back on the main screen.
+        assertFalse(HudMapAutoSource.onInstruments(projected = true, onMainScreen = true))
+        assertFalse(HudMapAutoSource.onInstruments(projected = false, onMainScreen = false))
     }
 }

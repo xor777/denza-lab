@@ -21,6 +21,12 @@ enum class HudMapState {
 
     /** Frames are going to the map window. */
     SENDING,
+
+    /**
+     * Frames are being taken and none has been made for [HudMapFailureClock.BLANK_AFTER_MS]: the
+     * window is emptied rather than kept on an old picture.
+     */
+    FAILING,
 }
 
 /** What «Сервис» shows of the map window. No frame and no place is kept here. */
