@@ -13,6 +13,7 @@ currently inaccessible vehicle.
 | The access row and the recovery dialog say a state and the switch reading; exception names are only the «Последний сбой» row of «Технические сведения» | code, 2026-10-09 | [Explaining the channel](#explaining-the-channel-and-reaching-diagnostics-past-the-gate-v35-2026-08-26) |
 | The isolated Dipilot rescue uses the exact private identity and full public blob from BydDipilot 7.32 | APK corpus, 2026-10-08 | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Dipilot key material is supplied only from an ignored owner-local file; tracked sources contain no private key or public blob | build inputs, 2026-10-13 | [Local key storage](#local-key-storage-and-history-redaction-2026-10-13) |
+| Published `main` and `denza-apps-v0.7.0` have redacted key history, but the original commit remains accessible by SHA until GitHub Support purges server-side objects | fresh-clone audit and GitHub API, 2026-10-13 | [Local key storage](#local-key-storage-and-history-redaction-2026-10-13) |
 | Dipilot rescue has one explicit recovery button; 0.3.0 automatically enabled/bound its service and inspected accessible trees on the car, with a pinned four-line status | owner photos, 2026-10-09; no dialog approvals or queue recovery established | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | The 0.4.0 owner photos show the existing Denza Apps public key was read and submitted once, but no approval or target-key shell was established; different and unavailable system fingerprints were reported together | owner photos received 2026-10-10; recovery unproved | [Denza Apps key recovery](#denza-apps-key-recovery-040-local-2026-10-09) |
 | Dipilot rescue 0.5.0 attempts recovery autonomously, understands both dump formats, approves identifiable preceding keys, and reports success only after two signed shell connections inside the Denza Apps UID | unit/build/lint and Android emulator protocol checks; car acceptance pending | [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10) |
@@ -886,8 +887,8 @@ fingerprint and protocol tests verify that the preserved key is still the origin
 The locally built APK necessarily contains the key so it can authenticate; it remains ignored
 and must not be uploaded to a public release or artifact store.
 
-The exposure audit found one matching source blob, first introduced in
-`a1e4309b50b58ad36ecf73d365269196e7574dc1`, reachable from `main` and
+The exposure audit found one matching source blob; its introduction commit is recorded in the
+ignored local exposure report. It was reachable from `main` and
 `denza-apps-v0.7.0`. Existing PR refs and the other remote heads/tags precede that introduction.
 History redaction replaces the complete encoding and each original source fragment, including
 the public-blob prefix, with `[REDACTED]`. The code and other history are retained. Old release
@@ -901,6 +902,20 @@ heads/tags afterward. GitHub's cached views of old commit IDs require
 [GitHub Support](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository#fully-removing-the-data-from-github)
 for server-side garbage collection; changing branch/tag refs alone cannot prove those caches
 were deleted. Other clones must follow the rewritten history without merging old ancestry back.
+
+Verification on 2026-10-13: the rewritten mirror and an independent GitHub clone have zero
+matches across all reachable objects. The two affected refs were updated atomically with explicit
+leases on their previous SHAs; the other twenty-two remote refs stayed unchanged. Across 225
+rewritten commits, tree changes were limited to redacting `DipilotIdentity.java`; the final tree
+retains the local-input implementation above. All 84 probe tests pass, assembly and lint succeed,
+and an assembly attempted without the local key fails even when previous generated outputs exist.
+The local key was restored byte for byte after that check.
+
+The GitHub contents API still returns the original file when addressed by its introduction SHA.
+The response was inspected internally and not printed or saved. Full removal from GitHub is
+therefore **pending Support**, despite clean branch/tag history. A ready-to-send support request
+and the ref/commit maps are retained locally under `.local-secrets/dipilot-adb-rescue/`; they
+contain repository metadata and no actual key material.
 
 ### Denza Apps key recovery (0.4.0, local, 2026-10-09)
 
