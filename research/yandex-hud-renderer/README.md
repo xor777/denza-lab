@@ -2,8 +2,9 @@
 
 An independent HUD map **inside the running Navigator process**, using its
 existing MapKit and current Guidance. Full navigation stays in the original
-main-screen Activity. This is a working emulator experiment, not a standalone
-companion APK, a modified Navigator release, or a car-tested feature.
+main-screen Activity. This directory is the original instrumented emulator experiment. The
+[embedded debug APK and HUD transport](../../experiments/yandex-hud-module/README.md)
+now have a separate owner; neither path is car-tested or an ordinary companion APK.
 
 Findings and access boundaries live in
 [HUD projection findings](../../docs/hud-projection-findings.md#hud-yandex-independent-renderer).
@@ -66,7 +67,9 @@ MapKit access and bitmap composition run on Navigator's main thread. PNG
 compression and Base64 conversion run on the Frida worker thread, verified by
 thread names in the report. A single in-flight frame owns the shared buffers
 until encoding completes. Host-side transfer exists only to collect evidence;
-there is no HUD transport or Android startup service in this experiment.
+this historical Frida runner has no HUD transport or startup service. The
+embedded module linked above adds automatic startup, background guidance and
+Binder/SOME-IP transport without process instrumentation.
 
 ## Pinned inputs
 

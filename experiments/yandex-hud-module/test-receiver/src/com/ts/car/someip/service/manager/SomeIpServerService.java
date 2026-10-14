@@ -1,0 +1,76 @@
+package com.ts.car.someip.service.manager;
+
+import android.app.Service;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.*;
+import android.util.Base64;
+import android.util.Log;
+import java.io.*;
+import org.json.JSONObject;
+
+/** Disposable emulator substitute, never install on a vehicle or distribute with the candidate. */
+public final class SomeIpServerService extends Service {
+    private long frames, starts, stops, roads, blanks, bad;
+    private boolean active, session;
+    private final Binder endpoint = new Binder() {
+        @Override protected synchronized boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
+            if (code == INTERFACE_TRANSACTION) { reply.writeString("ts.car.someip.sdk.ISomeIpServerInterface"); return true; }
+            data.enforceInterface("ts.car.someip.sdk.ISomeIpServerInterface");
+            int result = 0;
+            try {
+                if (code == 4 || code == 5) {
+                    if (data.readLong() != 3097367205183488L) throw new IllegalArgumentException("service id");
+                    session = code == 4;
+                    if (session) starts++; else stops++;
+                } else if (code == 6) {
+                    if (!session || data.readInt() != 1) throw new IllegalArgumentException("session/handle");
+                    long topic = data.readLong();
+                    if (data.readLong() != 0) throw new IllegalArgumentException("instance");
+                    int length = data.readInt();
+                    byte[] payload = data.createByteArray();
+                    if (payload.length != length) throw new IllegalArgumentException("length");
+                    if (topic == 1127042368241665L) {
+                        byte[] expectedOn = {10,5,16,2,(byte)128,1,2}, expectedOff = {10,5,16,2,(byte)128,1,1};
+                        if (!java.util.Arrays.equals(payload, expectedOn) && !java.util.Arrays.equals(payload, expectedOff)) throw new IllegalArgumentException("road wire");
+                        active = payload[payload.length - 1] == 2;
+                        roads++;
+                    } else if (topic == 1127042368241667L) {
+                        int[] cursor = {0};
+                        if (varint(payload, cursor) != 10) throw new IllegalArgumentException("map field");
+                        int size = varint(payload, cursor);
+                        if (cursor[0] + size != payload.length) throw new IllegalArgumentException("map envelope");
+                        byte[] png = Base64.decode(java.util.Arrays.copyOfRange(payload, cursor[0], payload.length), Base64.NO_WRAP);
+                        Bitmap image = BitmapFactory.decodeByteArray(png, 0, png.length);
+                        if (image == null || image.getWidth() != 300 || image.getHeight() != 180) throw new IllegalArgumentException("PNG size");
+                        int[] pixels = new int[54000]; image.getPixels(pixels,0,300,0,0,300,180); image.recycle();
+                        boolean black = true; for (int color : pixels) if ((color & 0xffffff) != 0) { black = false; break; }
+                        if (black) blanks++;
+                        else if (!active) throw new IllegalArgumentException("map without road active");
+                        try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), String.format("frame-%02d.png", frames % 60)))) { out.write(png); }
+                        frames++;
+                    } else throw new IllegalArgumentException("topic");
+                } else return false;
+            } catch (Exception error) { result = -1; bad++; Log.e("HudReceiver", "invalid transaction", error); }
+            save();
+            reply.writeNoException(); reply.writeInt(result); return true;
+        }
+    };
+    @Override public IBinder onBind(Intent intent) {
+        if (!Build.HARDWARE.equals("ranchu") && !Build.HARDWARE.equals("goldfish")) return null;
+        return endpoint;
+    }
+    private void save() {
+        try {
+            JSONObject value = new JSONObject().put("frames",frames).put("starts",starts).put("stops",stops)
+                    .put("roads",roads).put("blanks",blanks).put("bad",bad).put("active",active).put("session",session)
+                    .put("uptime",SystemClock.elapsedRealtime());
+            try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(),"report.json"))) { out.write(value.toString().getBytes("UTF-8")); }
+        } catch (Exception error) { Log.e("HudReceiver", "report failed",error); }
+    }
+    private static int varint(byte[] input, int[] offset) {
+        int value = 0, shift = 0;
+        while (true) { int item = input[offset[0]++] & 255; value |= (item & 127) << shift; if ((item & 128) == 0) return value; shift += 7; if (shift > 28) throw new IllegalArgumentException("varint"); }
+    }
+}
