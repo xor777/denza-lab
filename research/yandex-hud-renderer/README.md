@@ -26,10 +26,12 @@ route / white cursor / maneuver-header draft.
   The HUD raises HSL lightness, preserving hue and saturation. Very hard traffic
   stays darker than hard traffic; unknown traffic never turns green.
 - `DrivingRoute.getJamSegments()` supplies a class for each original geometry
-  segment. Cache refresh is at most one second; route changes and outdated
-  conditions invalidate immediately. A length mismatch or outdated conditions
-  produces UNKNOWN, never fabricated free flow. Palette indices are reapplied
-  after every `setGeometry`, which resets them.
+  segment. The route layer subscribes to `ConditionsListener`; changes are read
+  on the next frame, with a 30-second fallback refresh. Route changes and the
+  outdated flag invalidate immediately. A length mismatch or outdated conditions
+  produces UNKNOWN. One full geometry retains its original traffic indices;
+  `hide(Subpolyline)` advances the visible start without `setGeometry` or a new
+  palette upload on every frame.
 - The cursor is Navigator's `notification_arrow` drawable, rotated north and
   brightened ×1.12. This is a stock 2D cursor resource, not the main map's 3D
   cursor model. Lane glyphs are its `context_lane_*_large` drawables, with white
@@ -60,9 +62,11 @@ mirror, pixel crop, task move, second route calculation, API-key extraction,
 host-validation change or vehicle/HUD write. This reuses the original native
 renderer with our own scene; it does not reimplement `libmaps-mobile.so`.
 
-The PNG producer runs on the Navigator main thread, as its MapKit requires.
-This is suitable for a bounded experiment, not yet a production lifecycle or
-performance design. Host-side Base64 transfer exists only to collect evidence.
+MapKit access and bitmap composition run on Navigator's main thread. PNG
+compression and Base64 conversion run on the Frida worker thread, verified by
+thread names in the report. A single in-flight frame owns the shared buffers
+until encoding completes. Host-side transfer exists only to collect evidence;
+there is no HUD transport or Android startup service in this experiment.
 
 ## Pinned inputs
 
@@ -125,7 +129,9 @@ stopped before the probe can start its own.
 ```
 
 Output directories must be new. Duration is 1–60 s, requested frequency 1–10 Hz;
-each Frida operation has a 10 s host timeout. `--simulate` explicitly starts the
+each Frida operation has a 10 s host timeout. `--cycles 3` exercises repeated
+start/stop in the same script (total rendering duration is capped at 120 s).
+Cancellation, if requested, happens in the final cycle. `--simulate` explicitly starts the
 Navigator's simulation of its already-selected route and stops it on exit.
 Without that flag the probe only reads guidance. On host/process interruption,
 discard the disposable emulator; a host timeout cannot cancel a native call
@@ -207,8 +213,8 @@ The final `native-stock-final` trial with non-road geometry hidden produced
 214 frames / 30.06 s, **7.12 fps**, median 68 ms / p95 224 ms: 165 guidance
 frames and 48 all-black off frames, verified pixel by pixel. Traffic was 186/186
 segments (125 LIGHT, 6 HARD, 52 FREE, 3 UNKNOWN). Neither final trial had execution
-or cleanup errors. The 10 fps target is therefore **not stable** for this richer
-renderer in the emulator; profiling and optimization remain open. The concurrent
+or cleanup errors. These are **pre-optimization measurements**, superseded by
+the profiled implementation below; they did not establish a stable 10 fps. The concurrent
 browser export in the final run is a possible source of host load, not a proven
 explanation; the lower measured rate must not be dropped from the findings. This is emulator-to-host output, not HUD refresh or
 vehicle performance acceptance. Earlier `native-guidance-*` trials preserve the
@@ -219,6 +225,76 @@ API references: [segment palette](https://yandex.com/maps-api/docs/mapkit/com/ya
 [map style tags](https://yandex.com/maps-api/docs/mapkit/style.html).
 The embedded Roboto font license is in `tools/design-canvas/luminofor/fonts/`.
 
+
+## Runtime structure and performance (2026-10-14)
+
+The visual model stays in `hud-scene.js`; all 15 stand PNGs are byte-identical to
+v2 after this change. Backend responsibilities are explicit:
+
+- `navigator-adapter.js`: guidance validity, camera distance, native lane data,
+  and an owned route layer. Geometry is installed once per route ID; progress
+  hides the passed subpolyline. Conditions listeners are retained and removed
+  with their route. Traffic colors are uploaded only when their indices change.
+  The obsolete maneuver-annotation traversal and per-frame geometry copying
+  are removed. Invalid progress clears the route rather than drawing stale data.
+- `android-painter.js`: two reusable ARGB buffers (432,000 bytes in total,
+  excluding native map and resources), cached drawables, and a reusable PNG
+  stream. The overlay is rebuilt only when drawing commands change. Static
+  off/error frames reuse encoded bytes. The native screenshot is copied into
+  the owned output buffer and recycled in `finally`.
+- `renderer.js`: main-thread map work, worker-thread encoding, a guarded
+  idle/starting/running/stopping lifecycle, and single-flight frame ownership.
+  Partial initialization rolls back; cleanup attempts every release even after
+  one fails. Only owned simulation/resources are stopped. Zoom smoothing uses
+  elapsed time instead of the number of frames.
+- `tools/yandex_hud_renderer_probe.py`: bounded RPCs, frame acknowledgements,
+  numbered multi-cycle captures, source snapshot/hash, mode-specific timings,
+  and cleanup covering attach/load/start failures. Missed deadlines are dropped,
+  never accumulated into a render backlog.
+
+Evidence: `captures/yandex-hud-performance-20261014/`. Browser export did not
+run during these timing trials. Same APK, AVD, 300×180 output and 10 Hz target:
+
+| Trial | Frames / elapsed | Actual fps | Active preparation median / p95 | Main-thread median / p95 |
+| --- | --- | --- | --- | --- |
+| `baseline` (previous code + stage timers) | 196 / 20.03 s | 9.79 | 28 / 98 ms | 28 / 98 ms; encoding was on main |
+| `optimized-01` (cached geometry/overlay, polling traffic) | 200 / 20.00 s | 10.00 | 14 / 62 ms | See per-stage report |
+| `optimized-03` (conditions events, final source) | 298 / 30.01 s | 9.93 | 16 / 32 ms | 8 / 12 ms |
+
+The final 30-second trial contains 297 guidance frames and one rerouting frame.
+It built geometry once, uploaded traffic once, painted the overlay three times,
+and loaded four drawable resources. The route stage p95 is 1 ms. Encoding ran
+on `Thread-29`, while map work ran on `main`. The newer preparation metric also
+includes dispatch latency; `rpcMs` additionally includes host transport.
+First-frame initialization still causes occasional missed deadlines: maximum
+preparation was 211 ms (main work 94 ms). This is approximately 10 fps on the
+emulator, **not a guarantee of an uninterrupted 10 fps on the car**.
+
+`lifecycle` runs three start/stop cycles in one script: 118, 120 and 119 frames
+in 12 seconds each, no execution/cleanup errors. Cancelling in the final cycle
+produced 40 entirely black PNGs, verified pixel by pixel; 39 reused the encoded
+black frame. Each cycle built geometry/uploaded colors once; normal stop and a
+second idempotent stop succeeded. Navigator's original `MapActivity` remained
+resumed afterward. Tested source SHA-256:
+`2eeeed842a00e68f922f50f9618bbd5060afb46db9ae828c75c636c25a9c507c`.
+
+`optimized-02` is retained as a failed-start record: no main map was found and
+no frames were produced. The emulator had restarted Android's system process
+between trials (`zygote64` abort in `crash-after-01.txt`), leaving the launcher
+foreground. Reopening Navigator restored the preconditions for `optimized-03`;
+that system event is not attributed to a renderer cause. No car was connected.
+
+```sh
+node --test research/yandex-hud-renderer/*.test.cjs
+```
+
+Fourteen tests cover scene gates/palette, geometry reuse, route replacement,
+traffic events/staleness/fallback, invalid progress, late old-route callbacks,
+partial-start rollback, concurrent-frame rejection and cleanup failure. Real
+conditions updates did not occur during the short native trials; event-driven
+invalidation and route replacement are unit-tested, not live-driving acceptance.
+Long-duration native memory/GPU behavior, background/foreground transitions,
+real rerouting and the transport to the glass remain unmeasured.
 
 ## Further work
 
