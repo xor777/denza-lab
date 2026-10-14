@@ -26,13 +26,6 @@ function choose(name) {
     }));
 }
 
-const hudStyle = [
-    {elements: ['geometry'], stylers: {color: '#000000'}},
-    {elements: ['label'], stylers: {visibility: 'off'}},
-    {tags: {any: ['road']}, elements: ['geometry'], stylers: {color: '#58636a'}},
-    {tags: {any: ['road']}, elements: ['geometry.outline'], stylers: {color: '#000000'}},
-    {tags: {any: ['road.minor']}, elements: ['geometry'], stylers: {color: '#354047'}}
-];
 
 rpc.exports = {
     async start(simulate, transparent) {
@@ -57,7 +50,7 @@ rpc.exports = {
             // A black map slot is optically transparent on the owner's HUD.
             // The alpha switch is a failing diagnostic: run-07 made the native
             // map (including its route) invisible, leaving only our Canvas arrow.
-            const style = JSON.parse(JSON.stringify(hudStyle));
+            const style = JSON.parse(JSON.stringify(HudScene.mapStyle));
             if (transparent) {
                 map.setTransparentBackgroundEnabled(true);
                 style[0].stylers.color = '#00000000';
@@ -65,11 +58,11 @@ rpc.exports = {
             }
             if (!map.setMapStyle(JSON.stringify(style))) throw new Error('HUD style rejected');
             window.setMaxFps(10);
-            window.setFocusPoint(Java.use('com.yandex.mapkit.ScreenPoint').$new(150, 132));
+            window.setFocusPoint(Java.use('com.yandex.mapkit.ScreenPoint').$new(150, 143));
             const candidates = guidance.filter(g => g.isValid());
             if (candidates.length > 1) throw new Error('Ambiguous guidance instances');
             state = {offscreen, window, map, objects, baseObjects, main: main[0], windows, guidance,
-                active: candidates[0] || null, line: null, frame: 0, simulation: false};
+                active: candidates[0] || null, line: null, frame: 0, simulation: false, freshness: {}, zoom: null, traffic: {}};
             if (simulate) {
                 if (!state.active || !state.active.route()) throw new Error('Start a route in Navigator first');
                 if (String(state.active.getSimulationStatus()) !== 'IDLE')
@@ -89,61 +82,44 @@ rpc.exports = {
             const s = state;
             const begin = Date.now();
             const Camera = Java.use('com.yandex.mapkit.map.CameraPosition');
-            let route = null;
-            let location = null;
-            let routePosition = null;
-            if (s.active && s.active.isValid()) {
-                route = s.active.route();
-                routePosition = s.active.getRoutePosition();
-                const classified = s.active.getLocation();
-                if (classified) location = classified.getLocation();
-            }
-            let mode = 'base-map-only';
-            if (route && location) {
-                mode = 'navigator-route';
-                const geometry = route.getGeometry();
+            const data = HudNavigator.read(s.active, s.freshness, Number(Java.use('android.os.SystemClock').elapsedRealtime()));
+            const {route, location, position: routePosition} = data;
+            const scene = HudScene.build(data.input);
+            let bitmap;
+            if (scene.drawMap) {
+                const geometry = HudNavigator.remainingGeometry(route, routePosition);
+                if (!geometry) throw new Error('Invalid remaining-route geometry');
                 if (!s.line) {
                     s.line = s.objects.addPolyline(geometry);
-                    s.line.setStrokeColor(0xff70f4ff | 0);
+                    HudScene.JAM_TYPES.forEach((type,index)=>s.line.setPaletteColor(index,(0xff000000|parseInt(HudScene.TRAFFIC[type].slice(1),16))|0));
                     s.line.setStrokeWidth(5);
                     s.line.setOutlineColor(-16777216);
                     s.line.setOutlineWidth(1);
-                } else {
-                    s.line.setGeometry(geometry);
-                }
+                } else s.line.setGeometry(geometry);
+                const traffic = HudNavigator.traffic(route, s.traffic, Number(Java.use('android.os.SystemClock').elapsedRealtime()));
+                s.line.setStrokeColors(traffic.colors.subList(routePosition.getSegmentIndex(),traffic.count));
                 const heading = location.getHeading();
-                s.map.move(Camera.$new(location.getPosition(), 17.0,
+                const targetZoom = HudScene.cameraZoom(data.input.maneuver?.distance, location.getPosition().getLatitude());
+                s.zoom = s.zoom === null ? targetZoom : s.zoom + Math.max(-0.08, Math.min(0.08, targetZoom - s.zoom));
+                s.map.move(Camera.$new(location.getPosition(), s.zoom,
                     heading ? heading.doubleValue() : 0.0, 0.0));
-            } else {
-                if (s.line) { s.baseObjects.remove(s.line); s.line = null; }
-                // Explicit baseline only: never label an independently built or
-                // simulated polyline as Navigator's current route.
-                const camera = s.main.getMap().getCameraPosition();
-                s.map.move(Camera.$new(camera.getTarget(), 17.0, camera.getAzimuth(), 0.0));
-            }
-            let bitmap = s.offscreen.captureScreenshot();
-            if (!bitmap || bitmap.getWidth() !== 300 || bitmap.getHeight() !== 180)
-                throw new Error('Invalid offscreen frame');
-            if (mode === 'navigator-route') {
+                bitmap = s.offscreen.captureScreenshot();
+                if (!bitmap || bitmap.getWidth() !== 300 || bitmap.getHeight() !== 180)
+                    throw new Error('Invalid offscreen frame');
                 if (!bitmap.isMutable()) {
                     const copy = bitmap.copy(Java.use('android.graphics.Bitmap$Config').ARGB_8888.value, true);
-                    bitmap.recycle();
-                    bitmap = copy;
+                    bitmap.recycle(); bitmap = copy;
                 }
-                // Our car marker, composed from vectors, not read from the IVI.
-                const canvas = Java.use('android.graphics.Canvas').$new(bitmap);
-                const paint = Java.use('android.graphics.Paint').$new(1);
-                const path = Java.use('android.graphics.Path').$new();
-                path.moveTo(150, 122); path.lineTo(158, 141);
-                path.lineTo(150, 137); path.lineTo(142, 141); path.close();
-                paint.setColor(-16777216);
-                paint.setStrokeWidth(4);
-                paint.setStyle(Java.use('android.graphics.Paint$Style').STROKE.value);
-                canvas.drawPath(path, paint);
-                paint.setColor(-1);
-                paint.setStyle(Java.use('android.graphics.Paint$Style').FILL.value);
-                canvas.drawPath(path, paint);
+            } else {
+                if (s.line) { s.baseObjects.remove(s.line); s.line = null; }
+                s.zoom = null;
+                // A route preview, cancellation, completed route or stale position
+                // never continues capturing the map or retains its previous pixels.
+                bitmap = Java.use('android.graphics.Bitmap').createBitmap(300, 180,
+                    Java.use('android.graphics.Bitmap$Config').ARGB_8888.value);
+                bitmap.eraseColor(-16777216);
             }
+            paintHudAndroid(bitmap, scene.commands);
             const stream = Java.use('java.io.ByteArrayOutputStream').$new();
             if (!bitmap.compress(Java.use('android.graphics.Bitmap$CompressFormat').PNG.value, 100, stream))
                 throw new Error('PNG encoding failed');
@@ -152,9 +128,10 @@ rpc.exports = {
             const png = String(Java.use('android.util.Base64').encodeToString(raw, 2));
             bitmap.recycle();
             stream.close();
-            const result = {kind: 'frame', index: s.frame++, mode, elapsedMs: Date.now() - begin,
+            const result = {kind: 'frame', index: s.frame++, mode: scene.mode, guidance: data.input, routeStatus: data.status, locationClass: data.locationClass, elapsedMs: Date.now() - begin,
                 bytes: raw.length, routePresent: !!route, locationPresent: !!location,
-                routeSegment: routePosition ? routePosition.getSegmentIndex() : null};
+                routeSegment: routePosition ? routePosition.getSegmentIndex() : null,
+                traffic: scene.drawMap ? {valid:s.traffic.valid, outdated:s.traffic.outdated, count:s.traffic.count, jamCount:s.traffic.jamCount, types:s.traffic.types} : null};
             send({kind: 'png', frame: result, base64: png});
             return result;
         });
@@ -164,6 +141,7 @@ rpc.exports = {
         return mainThread(() => {
             if (!state) return;
             if (state.simulation) state.active.stopSimulation();
+            if (state.traffic.colors) state.traffic.colors.$dispose();
             state.baseObjects.clear();
             // Release only our window and retained Java wrappers. The original
             // app continues to own its MapKit/Guidance lifetime.

@@ -11,12 +11,49 @@ The branch starts from `d6253bae`, `experiment/yandex-hud-renderer`.
 
 ## What it renders
 
-`renderer.js` creates `OffscreenMapWindow(300, 180, 1.0)`, configures only that
-window, reads the one live `GuidanceBinding`, and draws its exact route geometry.
-The camera follows the guidance location/heading at zoom 17, tilt 0, with its
-focus at (150, 132). Gray roads, cyan route, white car marker, black background;
-no map labels, POI, buildings or navigation UI. Black is optically transparent
-in the owner's known HUD slot. It is **not alpha transparency**.
+`renderer.js` creates a 300×180 offscreen MapKit window for the active route.
+The primary Navigator map keeps its original UI and camera. The HUD contains
+only roads, a golden cursor, the traffic-colored remaining route and a compact
+blue lane sign at the upper right. **No maneuver icon, distance or reserved
+header.** This is the owner's corrected design, superseding the first cyan
+route / white cursor / maneuver-header draft.
+
+`hud-scene.js` is shared by the browser stand and `android-painter.js`:
+
+- Traffic color families come from the pinned APK's
+  `mapkit_styling_automotive_jam_*` resources: FREE `#82EA0E`, LIGHT `#FFFF41`,
+  HARD `#FF5413`, VERY_HARD `#932100`, UNKNOWN `#A0A0A0`, BLOCKED `#1A1A1A`.
+  The HUD raises HSL lightness, preserving hue and saturation. Very hard traffic
+  stays darker than hard traffic; unknown traffic never turns green.
+- `DrivingRoute.getJamSegments()` supplies a class for each original geometry
+  segment. Cache refresh is at most one second; route changes and outdated
+  conditions invalidate immediately. A length mismatch or outdated conditions
+  produces UNKNOWN, never fabricated free flow. Palette indices are reapplied
+  after every `setGeometry`, which resets them.
+- The cursor is Navigator's `notification_arrow` drawable, rotated north and
+  brightened ×1.12. This is a stock 2D cursor resource, not the main map's 3D
+  cursor model. Lane glyphs are its `context_lane_*_large` drawables, with white
+  recommended directions and 40% alpha secondary directions, on the slightly
+  brightened `balloon_new_blue` color. These are native resource components
+  assembled in our corner badge, **not a captured/cropped on-screen balloon**.
+- The lane badge is 36 px high, at most 126 px wide, 6 px from the top/right;
+  it overlays the map. Unsupported lane kinds/directions and signs exceeding six
+  lanes are omitted. The experimental adapter currently supports plain lanes.
+- Neutral gray roads are brightened; structures, labels, POI, landscape, public
+  transport, pedestrian paths, markings and crosswalks are hidden. The actual
+  MapKit tag is `road_minor` (the old `road.minor` rule did nothing).
+- Focus is (150,143); heading follows guidance, zoom 14.6–16.7 uses the upcoming
+  maneuver distance internally to choose context. No maneuver is drawn.
+- Black is optically transparent in the owner's HUD slot, **not PNG alpha**.
+  Brightness, especially the blue patch, still needs calibration on the glass.
+
+The renderer requires resumed guidance, an active route, and an unfinished
+route status. Selection/preview is not navigation. Cancellation/finish produces
+an entirely black frame, without capturing the map. Lost/off-route status clears
+old guidance and displays `Маршрут…`; missing/coarse/outdated position, or a
+sample not refreshed for three seconds, displays `Нет позиции` without a frozen
+map. The research runner polls this state; it is not an installed startup service.
+
 
 `captureScreenshot()` belongs to our new offscreen window. There is no screen
 mirror, pixel crop, task move, second route calculation, API-key extraction,
@@ -94,11 +131,11 @@ Without that flag the probe only reads guidance. On host/process interruption,
 discard the disposable emulator; a host timeout cannot cancel a native call
 already executing inside Navigator or guarantee remote cleanup.
 
-Inspect PNGs and `report.json`. `navigator-route` means both route and location
-were available; `base-map-only` is explicitly **not** a synchronized route.
-Normal stop clears only our map objects and releases our references, leaving
-MapKit and the original map running. Native object reclamation and long-term
-memory growth are not measured.
+Inspect PNGs and `report.json`. Current modes are `guidance`, `off`,
+`rerouting` and `waiting-location`. `guidance` alone is not pixel evidence;
+inspect the PNGs as well. Normal stop clears only our map objects and releases
+our references, leaving MapKit and the original map running. Native object
+reclamation and long-term memory growth are not measured.
 
 Expected observations:
 
@@ -108,15 +145,15 @@ Expected observations:
    route segment indices progress during simulation. Check actual pixels:
    successful RPC calls and `navigator-route` alone do not prove visible output.
 3. Add `--cancel-route-after 5` with `--simulate --seconds 12` to cancel the
-   test route in Navigator: subsequent frames must have no old line or arrow.
+   test route in Navigator: subsequent frames must be entirely black, with no road, line, arrow or lane sign.
 4. Cleanup must finish without `error` or `cleanup_error` in the report.
 
 `--test-native-alpha` is a **negative-test reproducer**, not a supported theme.
 In run-07 it made the native map and route invisible and left only the Canvas
 arrow. The working output uses HUD black. Rerouting and location loss/staleness
-need further acceptance; route lines currently include the passed section too.
+are covered on the deterministic stand; real driving acceptance is still owed.
 
-Recorded evidence is under `captures/yandex-hud-renderer-20261014/`, including
+The original geometric proof (before the dedicated HUD layout) is under `captures/yandex-hud-renderer-20261014/`, including
 the APK/Dex inspection, logs of failed iterations, final PNGs and source hashes.
 Run-09 produced 300 PNGs in 30.00018 s (9.99994 fps), median preparation 8 ms.
 299 frames had a route; the first awaited the simulation location. There were
@@ -124,7 +161,9 @@ Run-09 produced 300 PNGs in 30.00018 s (9.99994 fps), median preparation 8 ms.
 5.05 s: 50 route frames followed by 70 base-map frames, with no cyan route or
 car marker in the final PNG. `MapActivity` remained resumed; both trials ended
 without an execution or cleanup error.
-These are emulator-to-host measurements, not car CPU/GPU or HUD refresh claims.
+Those historic runs used `navigator-route` / `base-map-only`; the current renderer
+replaces the baseline map with an all-black `off` frame. These are emulator-to-host
+measurements, not car CPU/GPU or HUD refresh claims.
 
 Close only this disposable emulator and remove only this forward after testing:
 
@@ -132,6 +171,54 @@ Close only this disposable emulator and remove only this forward after testing:
 adb -s emulator-5580 forward --remove tcp:27043
 adb -s emulator-5580 emu kill
 ```
+
+## Design stand (2026-10-14)
+
+Generate the portable stand using the already-decompiled, owner-provided APK
+corpus. No extracted Yandex artwork is committed. The generator reads nine lane
+VectorDrawables and one cursor PNG; the native backend loads the corresponding
+resources directly from the installed Navigator.
+
+```sh
+node --test research/yandex-hud-renderer/hud-scene.test.cjs
+# Requires Playwright + Chrome; set NODE_PATH to the available Node packages if needed.
+node tools/yandex_hud_stand_capture.cjs captures/yandex-hud-design-20261014/v2
+```
+
+Open the resulting `stand.html`. It embeds scripts, stock resources and the repo's
+Roboto font. The source `stand/index.html` is a template: it needs this resource
+export before viewing. Select one of 15 situations, compare **Штатная палитра**
+and **Яндекс ярче**, start/stop guidance, or export a native 300×180 PNG.
+
+Road geometry and traffic in these cases are explicitly synthetic. The overlay,
+stock glyphs, cursor and palette are the real shared rendering code. Cases cover
+straight, right/left, exit, roundabout, U-turn, arrival, six lanes, mixed traffic,
+severe congestion, unknown traffic, rerouting, lost position, preview and finish.
+The exporter writes native PNGs, `situations.png`, `situations-nine.png` and a
+browser report. Checks cover native-size export equality, all-black stop and
+restart, no header occlusion, and the distinct traffic colors in the mixed scene.
+
+Live-process evidence is under `captures/yandex-hud-design-20261014/`:
+`native-preview` remained off in route selection. `native-stock-01` produced
+198 frames in 20.09 s (9.86 fps), with 146 guidance frames and 50 black frames
+after cancellation. It read **186 real jam segments for 186 geometry segments**:
+114 LIGHT, 6 HARD, 63 FREE, 3 UNKNOWN. Preparation median 27 ms, p95 98 ms.
+The final `native-stock-final` trial with non-road geometry hidden produced
+214 frames / 30.06 s, **7.12 fps**, median 68 ms / p95 224 ms: 165 guidance
+frames and 48 all-black off frames, verified pixel by pixel. Traffic was 186/186
+segments (125 LIGHT, 6 HARD, 52 FREE, 3 UNKNOWN). Neither final trial had execution
+or cleanup errors. The 10 fps target is therefore **not stable** for this richer
+renderer in the emulator; profiling and optimization remain open. The concurrent
+browser export in the final run is a possible source of host load, not a proven
+explanation; the lower measured rate must not be dropped from the findings. This is emulator-to-host output, not HUD refresh or
+vehicle performance acceptance. Earlier `native-guidance-*` trials preserve the
+superseded cyan/header draft and camera measurements; they are not the final look.
+
+API references: [segment palette](https://yandex.com/maps-api/docs/mapkit/com/yandex/mapkit/map/PolylineMapObject.html),
+[route traffic](https://yandex.com/maps-api/docs/mapkit/com/yandex/mapkit/directions/driving/DrivingRoute.html),
+[map style tags](https://yandex.com/maps-api/docs/mapkit/style.html).
+The embedded Roboto font license is in `tools/design-canvas/luminofor/fonts/`.
+
 
 ## Further work
 

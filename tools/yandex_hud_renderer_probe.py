@@ -50,7 +50,8 @@ def main():
         parser.error("Forward the chosen emulator's tcp:27042 to --port first")
     pid = int(adb("shell", "pidof", PACKAGE))
     args.out.mkdir(parents=True, exist_ok=False)
-    source = (ROOT / "research/yandex-hud-renderer/renderer.js").read_text()
+    source_files = ["hud-scene.js", "navigator-adapter.js", "android-painter.js", "renderer.js"]
+    source = "\n".join((ROOT / "research/yandex-hud-renderer" / name).read_text() for name in source_files)
     report = {"apk_sha256": apk_hash, "agent_sha256": hashlib.sha256(source.encode()).hexdigest(),
               "serial": args.serial, "pid": pid, "requested_fps": args.fps, "frames": [],
               "simulation_requested": args.simulate,
