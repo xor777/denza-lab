@@ -299,17 +299,16 @@ the implementation and update that page.
 Denza Lab is built and tested on one car in the author's own time. If it saved
 you time or made your car better, you can support further work:
 
-| Method | Details |
-| --- | --- |
-| USDT, Tron network (TRC20) | `TMueD4CZvQMsA7jPXA4n9J6UNJxvCKHqjD` |
-| Bank card, T-Bank (Russia) | `2200 7001 6892 5955`, Дмитрий У. |
+**USDT, Tron network (TRC20):** `TMueD4CZvQMsA7jPXA4n9J6UNJxvCKHqjD`
 
-- USDT: send on the **TRON (TRC20)** network only; other networks or tokens sent
-  to this address may be lost.
-- Card: please write **«Подарок»** in the transfer comment.
+Send on the **TRON (TRC20)** network only; other networks or tokens sent to
+this address may be lost. Support is voluntary and does not change the terms
+above: no warranty, no priority support.
 
-Support is voluntary and does not change the terms above: no warranty, no
-priority support.
+**С российской карты.** Перевод на карту Т-Банка `2200 7001 6892 5955`
+(Дмитрий У.). В комментарии к переводу, пожалуйста, напишите «Подарок».
+Поддержка добровольная и ничего не меняет в условиях выше: без гарантий и без
+приоритетной поддержки.
 
 ## License
 
