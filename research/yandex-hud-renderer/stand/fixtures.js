@@ -58,7 +58,7 @@
         {id:'enforcement',title:'Контроль',note:'Камера 40 · пост ДПС · полоса для автобусов',roads:straightRoads,
             route:[[150,143],[150,94],[177,61],[192,43]],traffic:['LIGHT','LIGHT','LIGHT'],
             lanes:[lane(['straight'],'straight'),lane(['straight'],'straight'),lane([],null,'BUS_LANE')],
-            events:[{kind:'camera',x:150,y:108,limit:40},{kind:'police',x:172,y:66}]},
+            events:[{kind:'camera',x:150,y:94,limit:40},{kind:'police',x:177,y:61}]},
         {id:'railway',title:'Переезд и опасность',note:'Ж/д переезд · опасный участок',roads:crossRoads,
             route:[[150,143],[150,61]],traffic:['FREE'],lanes:[],
             events:[{kind:'railway',x:150,y:105},{kind:'danger',x:150,y:68}]},
