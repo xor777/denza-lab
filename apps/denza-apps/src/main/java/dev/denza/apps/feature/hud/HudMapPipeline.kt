@@ -25,10 +25,10 @@ internal sealed interface HudMapResult {
 /**
  * One frame of the map window from one picture of the screen, whatever took the picture.
  *
- * The cut ([HudMapGeometry.crop]) is placed at the cursor as last found, drawn by the GPU at twice
- * the map window's 300×180, keyed to black ([HudMapKey]), repainted for the projector and reduced
- * to 300×180 ([HudMapPalette]; a day map is only reduced), encoded as PNG and wrapped in the map
- * event's payload, all here, so the main thread only fires it. The cursor is looked for in Yandex's
+ * The cut ([HudMapGeometry.crop]) is placed at the cursor as last found, drawn by the GPU at the
+ * map window's own 300×180, keyed to black ([HudMapKey]), repainted pixel by pixel for the projector
+ * ([HudMapPalette]; a day map stays as keyed), encoded as PNG and wrapped in the map event's
+ * payload, all here, so the main thread only fires it. The cursor is looked for in Yandex's
  * window reduced to [HudMapGeometry.ANALYSIS_WIDTH] - not on every frame, but every
  * [SEARCH_INTERVAL_MS], whenever the window moves, and on every frame kept for tuning - and its
  * answer places the next frame's cut: Yandex keeps its cursor still on the screen while it follows
@@ -43,8 +43,8 @@ internal sealed interface HudMapResult {
  * to the next. Owned by the frame thread; [close] frees what it holds.
  *
  * The cut is about 490 pixels wide in the sources it is made for - the main screen mirrored at half
- * size (density 1), the instruments' 160 dpi display - so the GPU's bilinear pass to 600 is ×1.22:
- * the palette sees the lines whole, and its own 2×2 reduction makes the window's frame.
+ * size (density 1), the instruments' 160 dpi display - so one bilinear pass to 300 is ×0.61, which
+ * a second, CPU, reduction would not improve.
  */
 internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseable {
     private val anchors = HudMapAnchorTracker()
@@ -56,7 +56,6 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
     private var surfaces: HudMapSurfaceReader? = null
     private var drawn = IntArray(0)
     private var analysisPixels = IntArray(0)
-    private val cutPixels = IntArray(HudMapPalette.WIDTH * HudMapPalette.HEIGHT)
     private val mapPixels = IntArray(HudMapGeometry.MAP_WIDTH * HudMapGeometry.MAP_HEIGHT)
     private var searchedAt = Long.MIN_VALUE
     private var searchedWindow: PxRect? = null
@@ -70,8 +69,8 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
         val keep = covered == null && capture?.due() == true
         val searching = keep || window != searchedWindow || nowMs - searchedAt >= SEARCH_INTERVAL_MS
         if (pass(covered != null, searching) == HudMapPass.SKIP) return HudMapResult.Covered(covered!!)
-        val cutWidth = HudMapPalette.WIDTH
-        val cutHeight = HudMapPalette.HEIGHT
+        val cutWidth = HudMapGeometry.MAP_WIDTH
+        val cutHeight = HudMapGeometry.MAP_HEIGHT
         val analysisWidth = HudMapGeometry.analysisWidth(window)
         val analysisHeight = HudMapGeometry.analysisHeight(window)
         val width = if (searching) maxOf(cutWidth, analysisWidth) else cutWidth
@@ -117,11 +116,11 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
         if (covered != null) return HudMapResult.Covered(covered)
 
         for (row in 0 until cutHeight) {
-            System.arraycopy(drawn, row * width, cutPixels, row * cutWidth, cutWidth)
+            System.arraycopy(drawn, row * width, mapPixels, row * cutWidth, cutWidth)
         }
-        val ground = key.ground(cutPixels)
-        key.apply(cutPixels, ground)
-        if (HudMapPalette.isNight(ground)) palette.apply(cutPixels, mapPixels) else HudMapPalette.reduce(cutPixels, mapPixels)
+        val ground = key.ground(mapPixels)
+        key.apply(mapPixels, ground)
+        if (HudMapPalette.isNight(ground)) palette.apply(mapPixels, mapPixels)
         val image = png.encode(mapPixels, HudMapGeometry.MAP_WIDTH, HudMapGeometry.MAP_HEIGHT)
         if (keep) capture?.save(analysisPng, image)
         return HudMapResult.Frame(HudSomeIpClient.mapPayload(image), anchor.source)
@@ -182,7 +181,7 @@ internal enum class HudMapPass {
  * render, because on the emulator the render and its read-back cost far more per call than per
  * pixel (2026-10-09: 31-84 ms for one 600×360 pass against 35-72 ms for a 320×200 one).
  *
- * The two small bitmaps are made per frame and recycled at once - at most 600×560, about 1.3 MB,
+ * The two small bitmaps are made per frame and recycled at once - at most 320×380, half a megabyte,
  * none of it on the Java heap. A renderer drawing into a kept `ImageReader` would have reused them,
  * but on the API 35 emulator it drew nothing a reader could see (2026-10-09), and this path is the
  * platform's own.
@@ -197,22 +196,22 @@ internal class HudMapScaler : AutoCloseable {
     private val to = Rect()
 
     /**
-     * Draws [cut] of [image] at the top left at twice the map window's 300×180 ([HudMapPalette]) and,
-     * if given, [whole] under it at the analysis width, into a [width]×[height] image read into
-     * [out] row by row; false when the GPU gave no image.
+     * Draws [cut] of [image] at the top left as the map window's 300×180 and, if given, [whole] under
+     * it at the analysis width, into a [width]×[height] image read into [out] row by row; false when
+     * the GPU gave no image.
      */
     fun draw(image: Bitmap, width: Int, height: Int, cut: PxRect, whole: PxRect?, out: IntArray): Boolean {
         val canvas = picture.beginRecording(width, height)
         from.set(cut.left, cut.top, cut.right, cut.bottom)
-        to.set(0, 0, HudMapPalette.WIDTH, HudMapPalette.HEIGHT)
+        to.set(0, 0, HudMapGeometry.MAP_WIDTH, HudMapGeometry.MAP_HEIGHT)
         canvas.drawBitmap(image, from, to, paint)
         if (whole != null) {
             from.set(whole.left, whole.top, whole.right, whole.bottom)
             to.set(
                 0,
-                HudMapPalette.HEIGHT,
+                HudMapGeometry.MAP_HEIGHT,
                 HudMapGeometry.analysisWidth(whole),
-                HudMapPalette.HEIGHT + HudMapGeometry.analysisHeight(whole),
+                HudMapGeometry.MAP_HEIGHT + HudMapGeometry.analysisHeight(whole),
             )
             canvas.drawBitmap(image, from, to, paint)
         }
@@ -245,7 +244,7 @@ internal class HudMapScaler : AutoCloseable {
 }
 
 /**
- * Parts of the last frame a surface was given, read by PixelCopy - the cut at the palette's size
+ * Parts of the last frame a surface was given, read by PixelCopy - the cut at the map window's size
  * and, if asked, the whole window at the analysis width under it, laid out as [HudMapScaler] lays
  * them - for a display that draws into a surface of this app's, as the navigation display on the
  * instruments does. PixelCopy scales on the way, so only the small images reach the CPU.
@@ -264,12 +263,12 @@ internal class HudMapSurfaceReader : AutoCloseable {
     private var whole: Bitmap? = null
 
     /**
-     * [cut] of [surface] at the top left of [out], [width] pixels a row, at the palette's size and,
+     * [cut] of [surface] at the top left of [out], [width] pixels a row, at the map window's size and,
      * if given, [window] under it at the analysis width.
      */
     fun draw(surface: Surface, width: Int, cut: PxRect, window: PxRect?, out: IntArray) {
-        val cutWidth = HudMapPalette.WIDTH
-        val cutHeight = HudMapPalette.HEIGHT
+        val cutWidth = HudMapGeometry.MAP_WIDTH
+        val cutHeight = HudMapGeometry.MAP_HEIGHT
         val cutImage = sized(this.cut, cutWidth, cutHeight).also { this.cut = it }
         copy(surface, cut, cutImage)
         cutImage.getPixels(out, 0, width, 0, 0, cutWidth, cutHeight)

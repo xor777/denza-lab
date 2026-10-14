@@ -6,139 +6,105 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Each role of a night map in its own colour on the glass, Yandex's shapes kept: scenes drawn at
- * the palette's doubled size in Yandex's keyed night colours (measured on the drive of 2026-10-11),
- * read back at the map window's 300×180.
+ * Every pixel of a night map in the projector's colour by its own colour, nothing removed, and no
+ * jump in between: scenes in Yandex's keyed night colours (measured on the drive of 2026-10-11).
  */
 class HudMapPaletteTest {
 
     @Test
     fun trafficColoursComeOutInTheProjectorsOwn() {
+        assertColour(HudMapPalette.GREEN, paintBlock(FREE))
+        assertColour(HudMapPalette.YELLOW, paintBlock(SLOW))
+        assertColour(HudMapPalette.RED, paintBlock(JAM))
+        // A heavy jam's dark red is red too, at its own shade: a dark colour is no light on the glass.
+        assertColour(HudMapPalette.RED.map { it * 0.804f }.toFloatArray(), paintBlock(HEAVY))
+    }
+
+    @Test
+    fun theCursorsGoldIsOrangeAndKeepsItsShape() {
         val scene = canvas()
-        scene.rect(100, 20, 112, 220, FREE)
-        scene.rect(200, 20, 212, 220, SLOW)
-        scene.rect(420, 20, 432, 220, JAM)
+        // A triangle, its tip one pixel wide: nothing about it is cut.
+        for (row in 0 until 16) scene.rect(150 - row / 2, 120 + row, 151 + row / 2, 121 + row, CURSOR)
 
         val out = paint(scene)
 
-        assertColour(HudMapPalette.GREEN, out.at(53, 60))
-        assertColour(HudMapPalette.YELLOW, out.at(103, 60))
-        assertColour(HudMapPalette.RED, out.at(213, 60))
+        assertColour(HudMapPalette.ORANGE, out.at(150, 120))
+        assertColour(HudMapPalette.ORANGE, out.at(143, 135))
     }
 
     @Test
-    fun aGreyRouteIsCyanAndItsManeuverArrowWhite() {
+    fun lanePlatesAreDarkBlueTheirActiveArrowWhiteTheOthersMuted() {
         val scene = canvas()
-        scene.rect(150, 60, 162, 260, GREY)
-        scene.rect(146, 40, 166, 60, WHITE_INK)
+        scene.rect(100, 40, 160, 80, PLATE)
+        scene.rect(140, 45, 143, 75, WHITE_INK)
+        scene.rect(115, 45, 118, 75, LANE_OFF)
 
         val out = paint(scene)
 
-        assertColour(HudMapPalette.CYAN, out.at(78, 80))
-        assertColour(HudMapPalette.WHITE, out.at(78, 25))
+        assertColour(HudMapPalette.BLUE, out.at(105, 60))
+        assertColour(HudMapPalette.COOL, out.at(141, 60))
+        // Between the plate and the white arrow, nearer neither.
+        val off = out.at(116, 60)
+        assertTrue(Integer.toHexString(off), red(off) in 60..200 && blue(off) > red(off) + 40)
     }
 
     @Test
-    fun aBlueRouteIsCyanToo() {
-        val scene = canvas()
-        scene.rect(100, 20, 112, 270, BLUE)
-
-        assertColour(HudMapPalette.CYAN, paint(scene).at(53, 70))
+    fun roadsAreACoolWhiteLiftedFromTheirDimGrey() {
+        // Road blue-grey 0.50 of full: 0.50^0.65 = 0.64 of the cool white.
+        assertColour(HudMapPalette.COOL.map { it * 0.639f }.toFloatArray(), paintBlock(ROAD))
+        assertColour(HudMapPalette.COOL, paintBlock(WHITE_INK))
     }
 
     @Test
-    fun aHouseNumberGoesWhole() {
+    fun theGreyRouteIsCyanButNotBesideWhite() {
         val scene = canvas()
-        // An "L" of 3-pixel strokes: thinner than the grey route, smaller than a road.
-        scene.rect(100, 100, 103, 118, NUMBER)
-        scene.rect(100, 115, 112, 118, NUMBER)
+        scene.rect(60, 20, 70, 160, GREY)
+        scene.rect(200, 20, 210, 160, GREY)
+        scene.rect(210, 20, 214, 160, WHITE_INK)
 
         val out = paint(scene)
 
-        assertEquals(BLACK, out.at(50, 54))
-        assertEquals(BLACK, out.at(53, 58))
+        // 0.63 of full: cyan at 0.63 / 0.65.
+        assertColour(HudMapPalette.CYAN.map { it * 0.965f }.toFloatArray(), out.at(65, 90))
+        // Within a pixel of white the grey stays a grey: white text keeps no cyan rim.
+        val rim = out.at(209, 90)
+        assertTrue(Integer.toHexString(rim), red(rim) > 150)
     }
 
     @Test
-    fun everyRoadIsFlatDimWhiteAWideOneToo() {
+    fun nothingIsRemoved() {
         val scene = canvas()
-        scene.rect(0, 40, 600, 44, ROAD)
-        scene.rect(0, 100, 600, 160, ROAD)
+        // A house number's stroke, three pixels by five, in the labels' blue-grey.
+        scene.rect(100, 100, 103, 105, LABEL)
 
         val out = paint(scene)
 
-        val road = HudMapPalette.ROAD.map { it * HudMapPalette.ROAD_LEVEL }.toFloatArray()
-        assertColour(road, out.at(100, 21))
-        // No outline: the wide road's edge and its middle alike.
-        assertColour(road, out.at(100, 50))
-        assertColour(road, out.at(100, 65))
+        assertTrue(red(out.at(101, 102)) > 100)
+        assertEquals(BLACK, out.at(110, 102))
     }
 
     @Test
-    fun theCursorInTheBottomMiddleIsOrange() {
-        val scene = canvas()
-        scene.rect(285, 262, 315, 292, AMBER)
-
-        assertColour(HudMapPalette.CURSOR, paint(scene).at(150, 138))
-    }
-
-    @Test
-    fun amberAwayFromTheCursorsPlaceIsSlowTraffic() {
-        val scene = canvas()
-        scene.rect(60, 40, 90, 70, AMBER)
-
-        assertColour(HudMapPalette.YELLOW, paint(scene).at(37, 27))
-    }
-
-    @Test
-    fun aRoadSignStaysAsYandexDrewItWithItsPlateDimmed() {
-        val scene = canvas()
-        scene.rect(98, 98, 128, 128, WHITE_INK)
-        scene.rect(100, 100, 126, 126, BLUE)
-        scene.rect(109, 109, 117, 117, WHITE_INK)
-
-        val out = paint(scene)
-
-        assertColour(dimmed(BLUE), out.at(51, 51))
-        assertColour(HudMapPalette.WHITE, out.at(56, 56))
-    }
-
-    @Test
-    fun theLaneBalloonStaysWithItsPlateDimmedAndEveryArrowWhole() {
-        val scene = canvas()
-        scene.rect(100, 40, 210, 116, BLUE)
-        scene.rect(150, 50, 156, 106, WHITE_INK)
-        // A lane that does not go the route's way: a light-blue arrow, thick enough to be outlined
-        // if it were taken for road.
-        scene.rect(120, 50, 132, 106, LANE_OFF)
-
-        val out = paint(scene)
-
-        assertColour(dimmed(BLUE), out.at(55, 30))
-        assertColour(HudMapPalette.WHITE, out.at(76, 39))
-        assertColour(floatArrayOf(115 / 255f, 163 / 255f, 254 / 255f), out.at(63, 39))
-    }
-
-    @Test
-    fun aPinGoesAndTheRouteRunsOnThroughIt() {
-        val scene = canvas()
-        scene.rect(100, 20, 112, 300, FREE)
-        // A drop, taller than wide and with no white frame: a pin, not a sign.
-        scene.rect(96, 138, 116, 162, BLUE)
-
-        val out = paint(scene)
-
-        assertColour(HudMapPalette.GREEN, out.at(53, 75))
-        assertEquals(BLACK, out.at(48, 75))
-    }
-
-    @Test
-    fun aStreetNameWrittenOnTheRouteIsClosedOver() {
-        val scene = canvas()
-        scene.rect(100, 20, 112, 300, FREE)
-        scene.rect(100, 148, 112, 152, BLACK)
-
-        assertColour(HudMapPalette.GREEN, paint(scene).at(53, 75))
+    fun aColourShadingIntoAnotherNeverJumps() {
+        // The edge of one colour against another, as antialiasing and a moving map make it: the
+        // output follows the input without a step, whichever two colours meet.
+        val pairs = listOf(
+            FREE to ROAD, PLATE to WHITE_INK, LANE_OFF to PLATE, GREY to BLACK, GREY to WHITE_INK,
+            CURSOR to SLOW, JAM to ROAD, FREE to BLACK, ROAD to BLACK,
+        )
+        val steps = 400
+        for ((a, b) in pairs) {
+            var last = -1
+            for (k in 0..steps) {
+                val out = paintBlock(mix(a, b, k / steps.toFloat()))
+                if (last != -1) {
+                    for (shift in intArrayOf(16, 8, 0)) {
+                        val jump = kotlin.math.abs((out shr shift and 0xFF) - (last shr shift and 0xFF))
+                        assertTrue("${Integer.toHexString(a)} to ${Integer.toHexString(b)} at $k: $jump", jump <= 20)
+                    }
+                }
+                last = out
+            }
+        }
     }
 
     @Test
@@ -156,68 +122,40 @@ class HudMapPaletteTest {
         assertFalse(HudMapPalette.isNight(0xFFE8E8E8.toInt()))
     }
 
-    @Test
-    fun aDayMapIsOnlyReducedTwoByTwo() {
-        val scene = canvas()
-        scene[0] = WHITE_INK
-        val out = IntArray(HudMapGeometry.MAP_WIDTH * HudMapGeometry.MAP_HEIGHT)
+    private fun canvas() = IntArray(HudMapGeometry.MAP_WIDTH * HudMapGeometry.MAP_HEIGHT) { BLACK }
 
-        HudMapPalette.reduce(scene, out)
-
-        assertEquals(0xFF404040.toInt(), out[0])
-        assertEquals(BLACK, out[1])
-    }
-
-    @Test
-    fun maskStepsCrossWordBoundariesAndLeaveTheEdgeAlone() {
-        val width = 130
-        val height = 3
-        val bits = HudMapBits(width, height)
-        val mask = BooleanArray(width * height)
-        mask[width + 63] = true
-
-        bits.load(mask)
-        bits.dilate(1)
-        bits.store(mask)
-
-        for (y in 0 until height) {
-            for (x in 0 until width) {
-                assertEquals("($x, $y)", x in 62..64, mask[y * width + x])
-            }
-        }
-
-        // Past the edge counts as set to an erosion: a full mask stays full, a lone pixel goes.
-        val full = BooleanArray(width * height) { true }
-        bits.load(full)
-        bits.erode(1)
-        bits.store(full)
-        assertTrue(full.all { it })
-        bits.load(BooleanArray(width * height).also { it[width + 64] = true })
-        bits.erode(1)
-        bits.store(full)
-        assertTrue(full.none { it })
-    }
-
-    private fun canvas() = IntArray(HudMapPalette.WIDTH * HudMapPalette.HEIGHT) { BLACK }
-
-    /** Fills [x0, x1) × [y0, y1) of a doubled-size scene. */
+    /** Fills [x0, x1) × [y0, y1). */
     private fun IntArray.rect(x0: Int, y0: Int, x1: Int, y1: Int, colour: Int) {
-        for (y in y0 until y1) for (x in x0 until x1) this[y * HudMapPalette.WIDTH + x] = colour
+        for (y in y0 until y1) for (x in x0 until x1) this[y * HudMapGeometry.MAP_WIDTH + x] = colour
     }
 
     private fun paint(scene: IntArray): IntArray {
-        val out = IntArray(HudMapGeometry.MAP_WIDTH * HudMapGeometry.MAP_HEIGHT)
+        val out = IntArray(scene.size)
         HudMapPalette().apply(scene, out)
         return out
     }
 
+    /** The middle of a 20-pixel block of [colour] on black. */
+    private fun paintBlock(colour: Int): Int {
+        val scene = canvas()
+        scene.rect(50, 50, 70, 70, colour)
+        return paint(scene).at(60, 60)
+    }
+
     private fun IntArray.at(x: Int, y: Int) = this[y * HudMapGeometry.MAP_WIDTH + x]
 
-    private fun dimmed(colour: Int): FloatArray = floatArrayOf(
-        (colour shr 16 and 0xFF) / 255f * HudMapPalette.PLATE_LEVEL,
-        (colour shr 8 and 0xFF) / 255f * HudMapPalette.PLATE_LEVEL,
-        (colour and 0xFF) / 255f * HudMapPalette.PLATE_LEVEL,
-    )
+    private fun red(c: Int) = c shr 16 and 0xFF
+
+    private fun blue(c: Int) = c and 0xFF
+
+    private fun mix(a: Int, b: Int, t: Float): Int {
+        var out = BLACK
+        for (shift in intArrayOf(16, 8, 0)) {
+            val v = ((a shr shift and 0xFF) * (1 - t) + (b shr shift and 0xFF) * t + 0.5f).toInt()
+            out = out or (v shl shift)
+        }
+        return out
+    }
 
     private fun assertColour(expected: FloatArray, actual: Int) {
         val channels = intArrayOf(actual shr 16 and 0xFF, actual shr 8 and 0xFF, actual and 0xFF)
@@ -235,12 +173,13 @@ class HudMapPaletteTest {
         const val FREE = 0xFF82E90D.toInt()
         const val SLOW = 0xFFFFFF41.toInt()
         const val JAM = 0xFFF03C3C.toInt()
+        const val HEAVY = 0xFFA51923.toInt()
+        const val CURSOR = 0xFFE9B135.toInt()
+        const val PLATE = 0xFF1666FE.toInt()
+        const val LANE_OFF = 0xFF73A3FE.toInt()
         const val GREY = 0xFFA0A0A0.toInt()
         const val WHITE_INK = 0xFFFFFFFF.toInt()
-        const val BLUE = 0xFF1A6DFF.toInt()
-        const val NUMBER = 0xFF969696.toInt()
         const val ROAD = 0xFF465880.toInt()
-        const val AMBER = 0xFFF0B428.toInt()
-        const val LANE_OFF = 0xFF73A3FE.toInt()
+        const val LABEL = 0xFF78829A.toInt()
     }
 }
