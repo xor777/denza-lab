@@ -194,12 +194,23 @@ Navigator is hidden. Receiver reconnect, clear and frame stop after disabling
 background guidance pass; zero wire errors and an empty crash log. This uses
 the emulator's HUD receiver, not the car's projector.
 
-The owner reported Keyboard and Kinopoisk on the car. Their actual APKs and
-PackageManager failure log were unavailable, so the exact car failure is still
-unconfirmed; this is a reproduced packaging defect, not a claim that either
+At the time of the initial conflict report, the owner reported Keyboard and
+Kinopoisk on the car; their APKs and the PackageManager failure log were
+unavailable. This was a reproduced packaging defect, not a claim that either
 app was inspected. Do not remove those apps as a workaround. If installation
 still conflicts, obtain the actual `INSTALL_FAILED_*` detail and per-user
 package state before changing anything else.
+
+**Car installation confirmed (same day).** The subsequent “package appears to
+be invalid” failure was a corrupt USB copy: same byte count, different SHA-256,
+a damaged compressed `classes11.dex` and failed signature digest. The known-good
+APK was copied to the same USB drive as `DenzaHUD-verified.apk`, read back and
+hash-checked, then installed through the stock File Manager / Package Installer
+UI on Android 13. The installed `base.apk` matches the candidate SHA-256 above;
+installer is `com.android.packageinstaller`. No `adb install`, rebuild or
+signature changes were needed. Other Yandex apps remain installed. Navigator
+was left unlaunched for the owner's runtime test; HUD behavior on the car is
+still unverified. Evidence: `captures/yandex-hud-usb-install-20261014/`.
 
 Reproduce on a **clean disposable emulator only** (refuses a car and existing
 test packages):
