@@ -101,9 +101,11 @@ the package-specific AndroidX signature permission stay unchanged.
 The original package and version code stay. Android SDK XML decoding verifies
 that all other manifest declarations match; the builder verifies the signature,
 16-KiB alignment and byte equality of all original ZIP entries except the two
-patched dex files and manifest. `build-report.json` records APK and module
-source hashes. Resources and native libraries are unchanged. The builder first
-runs the 18 host assertions.
+patched dex files, manifest and `resources.arsc`. The sole resource change is
+`passport_account_type` → `com.yandex.passport.denza`; an independent full `aapt2`
+dump comparison rejects every other resource change. Resource IDs, XML
+references and native libraries stay unchanged. `build-report.json` records
+APK/module hashes and the resource check. The builder first runs 18 host assertions.
 
 The dedicated local experimental key lives in ignored
 `captures/yandex-hud-signing/experiment.p12`. It is **not Yandex's key**. Passport
@@ -177,7 +179,7 @@ receiver reconnect, triple clear, zero protocol errors. Recorded design runs
 (`run-06` suburban, `run-07` central Moscow) and the frame sheet
 `hud-visual-native.png` are in the same directory. Emulator only.
 
-**Installation conflict fix (same day).** The current candidate is
+**Installation conflict fix (same day, superseded by the account fix below).** The candidate was
 `captures/yandex-hud-install-conflict-20261014/build-01/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
 SHA-256 `264c6fcb51e49f31dcbf1655e0c30ff194c252a13fe619608410916a3b791dd1`.
 Compared with the labelled v3 build-08, only `AndroidManifest.xml` changes
@@ -226,7 +228,7 @@ python3 tools/yandex_hud_build/install_check.py --serial emulator-5580 \
 runner creates a separate fixture key and two package names. Never install
 these synthetic permission owners on the car.
 
-## Known login limitation
+## Isolated account type
 
 Car diagnosis on 2026-10-14 confirmed that login fails while saving the account:
 `uid 10138 cannot explicitly add accounts of type: com…`. Android registers the
@@ -234,12 +236,43 @@ shared `com.yandex.passport` authenticator to Yandex Keyboard (UID 10117); our
 fork has a different signer and cannot add accounts under that type. This is
 separate from the shared-permission installation fix.
 
-The SDK reads `passport_account_type` into its account-type configuration;
-both authenticator and sync adapter reference that resource. A separate value
-such as `com.yandex.passport.denza.hud` is the proposed fix, still unimplemented
-and untested. Preserve other apps and their accounts. Full login acceptance
-must follow an isolated account-type test. Read-only evidence is under
-`captures/yandex-hud-login-20261014/`.
+The build now sets `passport_account_type` to exactly `com.yandex.passport.denza`.
+The SDK reads this resource into its account-type configuration; authenticator
+and sync adapter use the same resource. Android signature checks and the other
+apps' accounts are unchanged. Login inside this app is independent of the
+shared Yandex account type. Full server login still requires the owner's check.
+
+`account_check.py` refuses non-emulators and existing test/target packages. It
+builds an inert authenticator with a different key and an instrumentation APK
+with the fork's key. Under Navigator's actual UID, the old build is denied when
+adding the shared type; the new build resolves both resource and SDK type to
+`com.yandex.passport.denza`, adds/removes a credential-free test account, and is
+still denied access to the shared type. Both authenticators coexist. These test
+APKs must never be installed on a car; they do not read user credentials.
+
+```sh
+python3 tools/yandex_hud_build/account_check.py --serial emulator-5580 \
+  --before captures/yandex-hud-install-conflict-20261014/build-01/yandex-navigator-29.8.1-denza-hud-exp.1.apk \
+  --after captures/yandex-hud-account-20261014/build-02/yandex-navigator-29.8.1-denza-hud-exp.1.apk \
+  --out captures/yandex-hud-account-20261014/new-check
+```
+
+Evidence: diagnosis in `captures/yandex-hud-login-20261014/`, passing check in
+`captures/yandex-hud-account-20261014/check-01/`. Candidate `build-02` SHA-256:
+`f53c0f816c7198633db25a73212bce0269850d9d58b7e9bf02eb0bde813d2348`.
+It differs from the installed pre-fix APK only in `resources.arsc`, excluding
+signing metadata; all renderer, native and dex content remains byte-identical.
+
+**Installed on the car (2026-10-14).** Current APK is the `build-02` above,
+also present on USB as `DenzaHUD-account-denza.apk`. Stock File Manager → USB →
+Package Installer → Update completed with `App installed`; the installed APK
+matches the SHA-256 above. UID 10138 and existing app data were retained, with
+no uninstall, data clear or `adb install` / `pm install` on the car. Android
+now registers Navigator's authenticator and sync adapter under
+`com.yandex.passport.denza`. Keyboard still owns `com.yandex.passport` and
+Kinopoisk still owns `com.yandex.passport.kinopoisk`. Full server login awaits
+the owner's check. Evidence: `captures/yandex-hud-account-20261014/car-report.json`,
+`car-after-owners.txt`, `car-sync-adapter.txt` and `car-success.png`.
 
 ## Before the car trial
 

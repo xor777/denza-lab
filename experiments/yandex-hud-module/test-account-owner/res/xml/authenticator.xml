@@ -1,0 +1,2 @@
+<account-authenticator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accountType="com.yandex.passport" android:label="@string/app_name" />

@@ -9,6 +9,7 @@ import subprocess
 import zipfile
 import xml.etree.ElementTree as ET
 from manifest import LABEL, LAUNCH_TARGET, SHARED_PERMISSION, edit
+from resources import ACCOUNT_TYPE, ORIGINAL_ACCOUNT_TYPE, isolate_account_type
 
 ROOT = Path(__file__).resolve().parents[2]
 PIN = '3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3'
@@ -87,6 +88,7 @@ def main():
             run([java/'bin/java', '-Xmx1g', '-cp', str(patcher)+os.pathsep+str(args.jadx_jar), 'PatchHooks', source, target, mode, args.out/'guidance-hook.dex'])
             changes[name] = target.read_bytes()
         changes['AndroidManifest.xml'] = edit(original.read('AndroidManifest.xml'))
+        changes['resources.arsc'] = isolate_account_type(original.read('resources.arsc'))
         dex_names = [x for x in original.namelist() if x.startswith('classes') and x.endswith('.dex')]
         extra = 'classes'+str(max([1 if x == 'classes.dex' else int(x[7:-4]) for x in dex_names])+1)+'.dex'
         changes[extra] = (dex/'classes.dex').read_bytes()
@@ -111,14 +113,24 @@ def main():
     run([build_tools/'apksigner', 'verify', '--verbose', '--print-certs', result], env=env)
     run([build_tools/'zipalign', '-c', '-P', '16', '4', result])
     verify_manifest(args.apk, result, env)
+    # Independent Android SDK decoder: exactly one resource value may differ.
+    def resource_dump(apk):
+        return subprocess.check_output([str(build_tools/'aapt2'), 'dump', 'resources', str(apk)], text=True)
+    before_resources, after_resources = resource_dump(args.apk), resource_dump(result)
+    old_value = 'resource 0x7f1515b5 string/passport_account_type\n      () "' + ORIGINAL_ACCOUNT_TYPE + '"'
+    new_value = old_value.replace(ORIGINAL_ACCOUNT_TYPE, ACCOUNT_TYPE)
+    if before_resources.count(old_value) != 1 or after_resources != before_resources.replace(old_value, new_value):
+        raise RuntimeError('Unexpected resource change beyond passport_account_type')
     report = {'input_sha256': PIN, 'apk': str(result), 'sha256': hashlib.sha256(result.read_bytes()).hexdigest(),
               'extra_dex': extra, 'module_source_sha256': {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
               'package': 'ru.yandex.yandexnavi', 'version': '29.8.1-denza-hud-exp.1', 'debuggable': True,
               'runtime': 'embedded Java, no Frida', 'manifest_semantic_check': 'passed'}
     report['removed_permission_declarations'] = [SHARED_PERMISSION]
+    report['account_type'] = ACCOUNT_TYPE
+    report['resource_semantic_check'] = 'passed: only passport_account_type changed'
     # Prove untouched ZIP contents, not just a successful signature.
     with zipfile.ZipFile(args.apk) as before, zipfile.ZipFile(result) as after:
-        allowed = {'classes10.dex','classes12.dex','AndroidManifest.xml'}
+        allowed = {'classes10.dex','classes12.dex','AndroidManifest.xml','resources.arsc'}
         changed = []
         for name in before.namelist():
             if name.startswith('META-INF/'): continue
