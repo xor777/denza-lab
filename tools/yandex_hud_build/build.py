@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import zipfile
 import xml.etree.ElementTree as ET
-from manifest import LABEL, LAUNCH_TARGET, edit
+from manifest import LABEL, LAUNCH_TARGET, SHARED_PERMISSION, edit
 
 ROOT = Path(__file__).resolve().parents[2]
 PIN = '3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3'
@@ -42,6 +42,9 @@ def verify_manifest(original, candidate, env):
              and node.attrib == {android + 'name': 'com.ts.car.someip.service'}]
     if len(added) != 1: raise RuntimeError('HUD query mismatch')
     queries.remove(added[0])
+    shared = [node for node in before.findall('permission') if node.attrib.get(android + 'name') == SHARED_PERMISSION]
+    if len(shared) != 1: raise RuntimeError('Expected one original shared signature permission')
+    before.remove(shared[0])
     def tree(node):
         return node.tag, dict(node.attrib), (node.text or '').strip(), [tree(child) for child in node]
     if tree(before) != tree(after): raise RuntimeError('Unexpected manifest change')
@@ -112,6 +115,7 @@ def main():
               'extra_dex': extra, 'module_source_sha256': {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
               'package': 'ru.yandex.yandexnavi', 'version': '29.8.1-denza-hud-exp.1', 'debuggable': True,
               'runtime': 'embedded Java, no Frida', 'manifest_semantic_check': 'passed'}
+    report['removed_permission_declarations'] = [SHARED_PERMISSION]
     # Prove untouched ZIP contents, not just a successful signature.
     with zipfile.ZipFile(args.apk) as before, zipfile.ZipFile(result) as after:
         allowed = {'classes10.dex','classes12.dex','AndroidManifest.xml'}

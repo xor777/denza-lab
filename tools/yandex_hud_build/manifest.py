@@ -5,13 +5,16 @@ label of its own, which Android resolves through its target activity, so both ar
 shortcut, the app list and recents to tell this build from the owner's original Navigator.
 
 Preserves resource IDs, original string indices, attributes, namespaces and all
-other elements. The input is independently SHA-pinned by the build tool.
+other elements except the declaration of Yandex's shared signature permission:
+our differently signed fork must not claim ownership of it. Permission uses and
+component guards stay unchanged. The input is independently SHA-pinned.
 """
 import struct
 
 U32 = lambda data, offset: struct.unpack_from('<I', data, offset)[0]
 LABEL = 'Яндекс HUD'
 LAUNCH_TARGET = 'ru.yandex.yandexmaps.app.MapActivity'
+SHARED_PERMISSION = 'com.yandex.permission.READ_CREDENTIALS'
 
 
 def chunks(data, start=8):
@@ -115,8 +118,18 @@ def edit(data):
     package_start += struct.pack('<II6H', 0xffffffff, package, 20, 20, 1, 0, 0, 0)
     package_start += struct.pack('<IIIHBBI', ns, name, query, 8, 0, 3, query)
     package_end = struct.pack('<HHIIIII', 0x103, 16, 24, 0, 0xffffffff, 0xffffffff, package)
-    output = bytearray(data[:8]); inserted = marked = debugged = labelled = 0
+    output = bytearray(data[:8]); inserted = marked = debugged = labelled = removed = 0
+    skipped_depth = 0
     for kind, chunk in parts:
+        if skipped_depth:
+            if kind == 0x102: skipped_depth += 1
+            elif kind == 0x103: skipped_depth -= 1
+            continue
+        if (kind == 0x102 and strings[U32(chunk, 20)] == 'permission'
+                and attribute_text(chunk, strings, ns, 'name') == SHARED_PERMISSION):
+            skipped_depth = 1
+            removed += 1
+            continue
         if kind == 1:
             output.extend(new_pool); continue
         if kind == 0x180:
@@ -150,7 +163,8 @@ def edit(data):
         if kind == 0x103 and strings[U32(chunk, 20)] == 'queries':
             output.extend(package_start + package_end); inserted += 1
         output.extend(chunk)
-    if inserted != 1 or marked != 1 or debugged != 1 or labelled != 2:
-        raise ValueError(f'Unexpected manifest shape: query={inserted} version={marked} debug={debugged} label={labelled}')
+    if (inserted, marked, debugged, labelled, removed, skipped_depth) != (1, 1, 1, 2, 1, 0):
+        raise ValueError(f'Unexpected manifest shape: query={inserted} version={marked} debug={debugged}'
+                         f' label={labelled} shared_permission={removed} depth={skipped_depth}')
     struct.pack_into('<I', output, 4, len(output))
     return bytes(output)

@@ -4,7 +4,7 @@ Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
 map and Binder/SOME-IP output. Branch: `experiment/yandex-hud-renderer`.
 This module is embedded into the pinned owner APK by a host build tool; it is
 not an independently installable app or a dependency of Denza Apps. The car
-has not been changed. Detailed evidence belongs to
+has not been changed by these build/test tools. Detailed evidence belongs to
 [HUD findings](../../docs/hud-projection-findings.md#hud-yandex-embedded).
 
 ## Runtime
@@ -93,13 +93,17 @@ Manifest changes are limited to `debuggable=true`, version name
 `29.8.1-denza-hud-exp.1`, the label «Яндекс HUD» on the application and on
 `MapActivity` (the launcher alias has no label of its own and Android takes
 the target activity's, so the shortcut, the app list and recents show it), and
-one package-visibility query for the HUD service.
+one package-visibility query for the HUD service. The common declaration
+`<permission name="com.yandex.permission.READ_CREDENTIALS">` is removed: a fork
+with our signer must not claim ownership of a signature permission shared by
+official Yandex apps. Its `uses-permission` request, all component guards and
+the package-specific AndroidX signature permission stay unchanged.
 The original package and version code stay. Android SDK XML decoding verifies
 that all other manifest declarations match; the builder verifies the signature,
 16-KiB alignment and byte equality of all original ZIP entries except the two
 patched dex files and manifest. `build-report.json` records APK and module
 source hashes. Resources and native libraries are unchanged. The builder first
-runs the 16 host assertions.
+runs the 18 host assertions.
 
 The dedicated local experimental key lives in ignored
 `captures/yandex-hud-signing/experiment.p12`. It is **not Yandex's key**. Passport
@@ -153,6 +157,9 @@ cover the design and the theme contract, not native transport.
 
 ## Current candidate (2026-10-14)
 
+The latest candidate is the **installation conflict fix** below. The earlier
+embedded and glass-design builds are retained here as evidence.
+
 `captures/yandex-hud-embedded-20261014/build-06/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
 SHA-256 `16a51953b9c263353d39dff4581ca416169546729553ce12b94515b8ff0926e6`.
 `acceptance-06/report.json` passed: 9.76 fps foreground, 9.90 fps background,
@@ -169,6 +176,44 @@ corner, road events, manoeuvre arrows, black land, loading guard. Its
 receiver reconnect, triple clear, zero protocol errors. Recorded design runs
 (`run-06` suburban, `run-07` central Moscow) and the frame sheet
 `hud-visual-native.png` are in the same directory. Emulator only.
+
+**Installation conflict fix (same day).** The current candidate is
+`captures/yandex-hud-install-conflict-20261014/build-01/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
+SHA-256 `264c6fcb51e49f31dcbf1655e0c30ff194c252a13fe619608410916a3b791dd1`.
+Compared with the labelled v3 build-08, only `AndroidManifest.xml` changes
+(excluding signing metadata); renderer, assets and native libraries are byte
+identical. `check-02/report.json` reproduces `INSTALL_FAILED_DUPLICATE_PERMISSION`
+with the old build and installs the new one alongside **two** inert fixture
+apps signed with another key, both declaring Yandex's common signature
+permission. They can also be installed after the fixed Navigator. Ownership
+and signature protection remain with those apps.
+
+`acceptance-01/report.json` also passes with both fixtures installed: route
+guidance delivers 80 foreground frames and 120 background frames while the
+Navigator is hidden. Receiver reconnect, clear and frame stop after disabling
+background guidance pass; zero wire errors and an empty crash log. This uses
+the emulator's HUD receiver, not the car's projector.
+
+The owner reported Keyboard and Kinopoisk on the car. Their actual APKs and
+PackageManager failure log were unavailable, so the exact car failure is still
+unconfirmed; this is a reproduced packaging defect, not a claim that either
+app was inspected. Do not remove those apps as a workaround. If installation
+still conflicts, obtain the actual `INSTALL_FAILED_*` detail and per-user
+package state before changing anything else.
+
+Reproduce on a **clean disposable emulator only** (refuses a car and existing
+test packages):
+
+```sh
+python3 tools/yandex_hud_build/install_check.py --serial emulator-5580 \
+  --before captures/yandex-hud-visual-20261014/build-08/yandex-navigator-29.8.1-denza-hud-exp.1.apk \
+  --after captures/yandex-hud-install-conflict-20261014/build-01/yandex-navigator-29.8.1-denza-hud-exp.1.apk \
+  --out captures/yandex-hud-install-conflict-20261014/new-check
+```
+
+`test-permission-owner/` has no code, components or requested permissions; the
+runner creates a separate fixture key and two package names. Never install
+these synthetic permission owners on the car.
 
 ## Before the car trial
 
