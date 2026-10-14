@@ -13,8 +13,9 @@ function drawFixture(canvas, fixture, activeOverride) {
         // style's colours, the route at ROUTE width with its black gap, MapKit's white manoeuvre arrow.
         // The overlay painted after it is the same command stream the module draws.
         const P=HudScene.PALETTE,R=HudScene.ROUTE,line=(points,color,width)=>({op:'shape',d:points.map((p,i)=>[i?'L':'M',...p]),stroke:color,width});
-        HudScene.paint(ctx, fixture.roads.map(r=>line(r.points,P.black,r.minor?4:7)));
-        HudScene.paint(ctx, fixture.roads.map(r=>line(r.points,r.minor?P.minor:P.road,r.minor?2.5:5)));
+        const k=HudScene.ROADS.scale;
+        HudScene.paint(ctx, fixture.roads.map(r=>line(r.points,P.black,(r.minor?2.5:5)*k+2)));
+        HudScene.paint(ctx, fixture.roads.map(r=>line(r.points,r.minor?P.minor:P.road,(r.minor?2.5:5)*k)));
         if(fixture.route.length) {
             HudScene.paint(ctx,[line(fixture.route,P.black,R.width+2*R.outline)]);
             const colors=input.stockPalette?HudScene.STOCK:HudScene.TRAFFIC;

@@ -303,6 +303,14 @@ Dolgoprudny route at 25 m/s: metres count down to each manoeuvre, ids 1/2
 alternate with the streets, the limit moves between 20 and 60. Emulator only;
 what the glass draws from these fields is the car test.
 
+**Brighter roads (same day).** On the glass the map was almost invisible while
+route and cursor read well. `captures/yandex-hud-roads-20261014/build-01/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
+SHA-256 `d23c4054c9396ecc8c042f40b432c9667001e7cd590ddb284a1cb735dc1cb57e`,
+differs from the hints build only in `assets/denza-hud/theme.json`: roads 80 %,
+yards 54 %, both 1.35× wide. Emulator: theme applied (road pixels
+`#C8CCD4`), hint packets flow with zero protocol errors; `roads-variants.png`
+compares five steps with the glass model.
+
 ## Before the car trial
 
 The experimental signature prevents an update over the original Navigator.

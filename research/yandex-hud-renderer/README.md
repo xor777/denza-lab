@@ -33,8 +33,10 @@ additive glass:
 - **Cursor**: Yandex's faceted arrow, drawn as vectors in red-orange (lit facet
   `#FF7A33`, shaded `#E8480E`) on a black underlay. Orange sits about 35° from
   the jam red, so the car never reads as a traffic segment.
-- **Roads**: about 45 % neutral white; `road_minor` (yards, driveways) about
-  22 %, otherwise a residential district becomes a grid. Labels, POI, paths,
+- **Roads**: about 80 % neutral white (`#C8CCD4`) at 1.35× MapKit's width
+  (style `scale`), `road_minor` (yards, driveways) about 54 % (`#8A8E96`).
+  **Corrected on the owner's glass, 2026-10-14:** the first v3 roads, 45 % and
+  22 %, were almost invisible while the route and cursor read well. Labels, POI, paths,
   markings and crosswalks are hidden. **Land is painted black, not hidden**:
   hidden land shows MapKit's night clear colour (13,13,13), a faint glowing
   rectangle on the glass.

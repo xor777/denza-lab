@@ -13,15 +13,17 @@ const JAM_TYPES=['UNKNOWN','BLOCKED','FREE','LIGHT','HARD','VERY_HARD'];
 // apart, very hard is magenta rather than Yandex's burgundy (which the glass shows as a dim red),
 // unknown is cyan and never a shade of free.
 const TRAFFIC={UNKNOWN:'#00C8FF',BLOCKED:'#D0D4DC',FREE:'#00F050',LIGHT:'#FFE600',HARD:'#FF1F3D',VERY_HARD:'#FF1FC8'};
-const PALETTE={black:'#000000',white:'#FFFFFF',road:'#686C74',minor:'#35373C',
+const PALETTE={black:'#000000',white:'#FFFFFF',road:'#C8CCD4',minor:'#8A8E96',
  plate:'#0E3FA3',amber:'#FFB21A',red:'#FF3B30',orange:'#FF7A1A',blue:'#3D8BFF',hint:'#FFD84A'};
-// Roads are context, never competition for the route: about 45 % white; driveways and yards, which
-// turn a residential district into a grid, about 22 %.
+// Roads: about 80 % white and 1.35× MapKit's width, driveways and yards about 54 %. On the owner's
+// glass (2026-10-14) roads at 42 %/22 % were almost invisible while the route and cursor read well;
+// the route still leads by colour, width and its black gap.
+const ROADS={scale:1.35};
 const mapStyle=[{elements:['geometry'],stylers:{color:PALETTE.black}},
  {elements:['label'],stylers:{visibility:'off'}},
- {tags:{any:['road']},elements:['geometry'],stylers:{color:PALETTE.road}},
+ {tags:{any:['road']},elements:['geometry'],stylers:{color:PALETTE.road,scale:ROADS.scale}},
  {tags:{any:['road']},elements:['geometry.outline'],stylers:{color:PALETTE.black}},
- {tags:{any:['road_minor','road_unclassified','road_7']},elements:['geometry'],stylers:{color:PALETTE.minor}},
+ {tags:{any:['road_minor','road_unclassified','road_7']},elements:['geometry'],stylers:{color:PALETTE.minor,scale:ROADS.scale}},
  // Painted black, not hidden: hidden land shows MapKit's night clear colour (13,13,13), a faint glowing
  // rectangle on the glass. Black land keeps the empty field optically transparent.
  {tags:{none:['road']},elements:['geometry'],stylers:{color:PALETTE.black}},
@@ -305,7 +307,7 @@ function theme(){
   icons:ICONS,eventTags:EVENT_TAGS,eventPriority:EVENT_PRIORITY,events:EVENTS,finish:FINISH,cursor:CURSOR,
   manoeuvre:{...MANOEUVRE,icons:MANOEUVRES}};
 }
-const api={SIZE,STOCK,TRAFFIC,JAM_TYPES,PALETTE,ROUTE,GLYPH,GLYPHS,LANES,LANE_TEMPLATES,LANE_DIRECTIONS,ICONS,EVENT_TAGS,
+const api={SIZE,STOCK,TRAFFIC,JAM_TYPES,PALETTE,ROADS,ROUTE,GLYPH,GLYPHS,LANES,LANE_TEMPLATES,LANE_DIRECTIONS,ICONS,EVENT_TAGS,
  EVENTS,FINISH,CURSOR,MANOEUVRE,MANOEUVRES,mapStyle,laneNames,assetNames,cameraZoom,validLanes,laneRect,routeHits,laneSide,laneBadge,eventKind,placeEvents,
  build,paint,theme};
 if(typeof module!=='undefined')module.exports=api;root.HudScene=api;
