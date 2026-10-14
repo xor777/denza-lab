@@ -66,6 +66,13 @@ in km/h, 26/27 «3,4 км» / «10 мин», 28 the stock manoeuvre id. Everythi
 from guidance itself: windshield manoeuvres (`Action`, toponym, the roundabout
 exit on the manoeuvre that leaves it), the route's `RoutePosition`
 (`distanceToFinish`/`timeToFinish`) and `getSpeedLimit()` (m/s, 16.67 → 60).
+`StreetName` compacts the toponym before field 10 in both foreground and
+background: standalone Russian/English road types become `ул.`, `просп.`,
+`пер.`, `ш.`, `наб.`, `пл.`, `б-р`, `пр-д`, `St`, `Ave`, `Blvd`, `Rd`,
+`Ln`, `Hwy`, `Sq`. The proper name is not truncated; Unicode whitespace is
+normalized and the result is cached until the input changes. No Activity,
+TextView, accessibility or native UI presenter is needed. This is an explicit
+compatibility dictionary, not a claim to reproduce every Yandex native rule.
 Field 28 follows the stock BYD navigator: 13 enters and 24 leaves a roundabout
 (Denza Apps sends 25), 48 finish, 45 waypoint. Without these fields the HUD
 filled the manoeuvre window with its own Chinese captions. A changed hint goes
@@ -119,7 +126,8 @@ patched dex files, manifest and `resources.arsc`. The sole resource change is
 `passport_account_type` → `com.yandex.passport.denza`; an independent full `aapt2`
 dump comparison rejects every other resource change. Resource IDs, XML
 references and native libraries stay unchanged. `build-report.json` records
-APK/module hashes and the resource check. The builder first runs 18 host assertions.
+APK/module hashes and the resource check. The builder first runs the host
+module and street-name tests, including foreground/background field-10 parity.
 
 The dedicated local experimental key lives in ignored
 `captures/yandex-hud-signing/experiment.p12`. It is **not Yandex's key**. Passport
@@ -176,8 +184,8 @@ cover the design and the theme contract, not native transport.
 
 ## Current candidate (2026-10-14)
 
-The latest candidate is the **installation conflict fix** below. The earlier
-embedded and glass-design builds are retained here as evidence.
+The latest candidate is the **N9 compact street experiment** below. The earlier
+embedded, packaging and glass-design builds are retained here as evidence.
 
 `captures/yandex-hud-embedded-20261014/build-06/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
 SHA-256 `16a51953b9c263353d39dff4581ca416169546729553ce12b94515b8ff0926e6`.
@@ -310,6 +318,30 @@ differs from the hints build only in `assets/denza-hud/theme.json`: roads 80 %,
 yards 54 %, both 1.35× wide. Emulator: theme applied (road pixels
 `#C8CCD4`), hint packets flow with zero protocol errors; `roads-variants.png`
 compares five steps with the glass model.
+
+**N9 compact street experiment (same day).** The owner reports that N9 shows
+the street with Denza Apps but not with the embedded module. Length is a
+hypothesis, not a measured N9 limit. The candidate formats the route's full
+toponym with one `StreetName` instance in foreground/background, without reading
+or keeping an Activity. It does not create a native UI presenter. The explicit
+dictionary above approximates common abbreviations; exact parity with every
+native Yandex rule is unproved. AR fields, roundabout IDs and the renderer stay
+unchanged so this trial tests the street hypothesis alone.
+
+APK: `captures/yandex-hud-street-20261014/build-02/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
+SHA-256 `44794e93e93c049b6a84174ee3fd99fd3789d5d0d4839dfeb1f9ff77503c098b`.
+Only `classes17.dex` differs from the brighter-roads candidate (excluding signing
+metadata). The original experimental signer and `com.yandex.passport.denza`
+remain, so this updates the existing fork. 36 module checks and 30 string cases
+pass; `delta.json` and build evidence are in `captures/yandex-hud-street-20261014/`.
+`acceptance-03` passes: 9.71 fps foreground, 9.93 background, `Mokhovaya St`
+in field 10 in both modes and after receiver restart, triple clear and stopped
+frames when background guidance is disabled, zero wire errors and empty crash
+log. The host runner now retries a JSON decode up to five times when it reads
+evidence during a truncate/write; all acceptance conditions remain unchanged.
+The passing run needed no retries. Transfer copy: `DenzaHUD-N9-streets.apk`
+in that directory, with a SHA-256 sidecar. No car installation or N9 acceptance
+is claimed.
 
 ## Before the car trial
 

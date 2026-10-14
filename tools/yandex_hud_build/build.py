@@ -69,9 +69,10 @@ def main():
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
-         package/'HudWire.java', package/'Reflect.java', package/'NavigatorSource.java',
-         ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe/ModuleTest.java'])
+         package/'HudWire.java', package/'Reflect.java', package/'NavigatorSource.java', package/'StreetName.java',
+         *sorted((ROOT/'experiments/yandex-hud-module/src/test/java').rglob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.StreetNameTest'])
     classes = args.out / 'module-classes'; classes.mkdir()
     sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java'))
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-classpath', android, '-d', classes, *sources])

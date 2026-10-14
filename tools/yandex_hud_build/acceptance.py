@@ -29,7 +29,7 @@ def main():
     if adb('shell', 'sha256sum', paths[0][8:]).split()[0] != expected:
         parser.error('Installed candidate differs from --apk')
     args.out.mkdir(parents=True, exist_ok=False)
-    report = {'apk_sha256': expected, 'snapshots': [], 'checks': {}}
+    report = {'apk_sha256': expected, 'snapshots': [], 'checks': {}, 'partial_json_retries': 0}
     original_pid = adb('shell', 'pidof', 'ru.yandex.yandexnavi').strip()
 
     def command(action, **values):
@@ -42,11 +42,24 @@ def main():
         adb('shell', 'mv', '/data/data/ru.yandex.yandexnavi/files/denza-hud-command.pending',
             '/data/data/ru.yandex.yandexnavi/files/denza-hud-command.json')
 
+    def read_json(path):
+        # Emulator evidence files are rewritten in place at frame rate. A read can
+        # land between truncate and write; retry only decoding, never failed ADB.
+        for attempt in range(5):
+            raw = adb('shell', 'cat', path)
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                if attempt == 4:
+                    raise
+                report['partial_json_retries'] += 1
+                time.sleep(0.05)
+
     def snapshot(name):
         item = {'name': name, 'host_monotonic': time.monotonic()}
         for key, path in [('renderer', '/data/data/ru.yandex.yandexnavi/files/denza-hud-evidence/latest.json'),
                           ('receiver', '/data/data/com.ts.car.someip.service/files/report.json')]:
-            item[key] = json.loads(adb('shell', 'cat', path))
+            item[key] = read_json(path)
         item['activity'] = adb('shell', 'dumpsys', 'activity', 'activities')
         report['snapshots'].append(item)
         (args.out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
