@@ -68,13 +68,13 @@ def main():
     android = sdk / 'platforms/android-35/android.jar'
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
-    run([java/'bin/javac', '--release', '8', '-d', unit_classes,
+    run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
          package/'HudWire.java', package/'Reflect.java', package/'NavigatorSource.java',
          ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe/ModuleTest.java'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     classes = args.out / 'module-classes'; classes.mkdir()
     sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java'))
-    run([java/'bin/javac', '--release', '8', '-classpath', android, '-d', classes, *sources])
+    run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-classpath', android, '-d', classes, *sources])
     run([java/'bin/jar', 'cf', args.out/'module.jar', '-C', classes, '.'])
     dex = args.out/'module-dex'; dex.mkdir()
     run([build_tools/'d8', '--min-api', '26', '--lib', android, '--output', dex, args.out/'module.jar'], env=env)

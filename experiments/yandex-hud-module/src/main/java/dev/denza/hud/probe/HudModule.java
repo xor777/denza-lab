@@ -69,7 +69,7 @@ public final class HudModule {
         HudPainter painter;
         HudTransport transport;
         boolean busy, wasActive;
-        String mode = "off";
+        String mode = "off", hintKey;
         long frames, lastStats, nextAttempt;
         long mapFrames, mainMicros, maxMainMicros;
 
@@ -133,6 +133,10 @@ public final class HudModule {
                     mainMicros += elapsed;
                     maxMainMicros = Math.max(maxMainMicros, elapsed);
                 }
+                // The hint's picture is drawn here, on main with the overlay; the packet is built on the worker.
+                final NavigatorSource.Hint hint = frame.drawMap() ? frame.hint : null;
+                final byte[] icon = painter.manoeuvre(hint);
+                logHint(hint);
                 final long token = epoch.get();
                 final HudPainter owned = painter;
                 final boolean visible = visibleActivities > 0;
@@ -141,7 +145,7 @@ public final class HudModule {
                     try {
                         byte[] png = owned.encode(!frame.drawMap());
                         if (token == epoch.get()) {
-                            transport.publish(png);
+                            transport.publish(png, HudWire.road(true, hint, icon));
                             emulator.frame(png, frame.mode, visible, frame.backgroundEnabled, frame.resumed);
                         }
                     } catch (Throwable error) {
@@ -168,6 +172,18 @@ public final class HudModule {
                 // One in-flight frame; fixed-rate attempts skip work under output backpressure.
                 MAIN.postDelayed(this::tick, Math.max(0, (wasActive ? 100 : 400) - (SystemClock.elapsedRealtime() - now)));
             }
+        }
+
+        /** One line per manoeuvre, limit or failure, not per frame: metres change every frame. */
+        private void logHint(NavigatorSource.Hint hint) {
+            String key = hint == null ? "none" : hint.iconKey() + ":" + hint.stockId + ":" + hint.speedLimit;
+            if (source.hintFailure != null) key = "failed:" + source.hintFailure;
+            if (key.equals(hintKey)) return;
+            hintKey = key;
+            if (source.hintFailure != null) Log.w(TAG, "hint unavailable: " + source.hintFailure);
+            else if (hint != null) Log.i(TAG, "hint " + hint.iconKey() + " stock=" + hint.stockId + " in=" + hint.distance
+                    + "m road=" + (hint.road.isEmpty() ? "-" : "set") + " remain=" + hint.remainingMeters + "m/" + hint.remainingSeconds
+                    + "s limit=" + hint.speedLimit + " raw=" + hint.limitValue + "/" + hint.limitText);
         }
 
         private void releaseDrawing() {

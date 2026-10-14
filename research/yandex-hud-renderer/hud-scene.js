@@ -205,6 +205,31 @@ function eventCommand(p){
 // The finish: a white target ring on the route's end.
 const FINISH={ops:[circle(0,0,8.5,{fill:BK}),circle(0,0,5.6,{stroke:W,width:2.4}),circle(0,0,2,{fill:W})]};
 
+/* ---------- manoeuvre picture for the HUD's own manoeuvre window (road packet field 8) ---------- */
+// White on transparent, 192×192 like the picture Denza Apps sends: the lane glyphs at 6× on a 32×32
+// grid, so the manoeuvre window and the lane badge speak one language. The roundabout is drawn
+// counter-clockwise from below, exit 1 to the right, 2 ahead, 3 to the left, passed exits as stubs.
+const MANOEUVRE={size:192,scale:6};
+const glyphOps=name=>[{op:'group',x:2,y:0,scale:1,ops:[shape(GLYPHS[name].stroke,{stroke:W,width:GLYPH.stroke}),shape(GLYPHS[name].head,{fill:W})]}];
+function exitAngle(n,i){
+ if(!n)return -42;
+ if(n<=4)return [0,-90,-180,-225][i-1];
+ return -225*(Math.min(i,8)-1)/(Math.min(n,8)-1);
+}
+function roundabout(n){
+ const c=[16,15],at=(a,r)=>[+(c[0]+Math.cos(a*Math.PI/180)*r).toFixed(2),+(c[1]+Math.sin(a*Math.PI/180)*r).toFixed(2)];
+ const ops=[circle(c[0],c[1],6,{stroke:W,width:3.2}),shape([['M',16,30.5],['L',16,21.5]],{stroke:W,width:GLYPH.stroke})];
+ for(let i=1;i<Math.min(n,8);i++){const a=exitAngle(Math.min(n,8),i);ops.push(shape([['M',...at(a,7.6)],['L',...at(a,10.6)]],{stroke:W,width:1.8}));}
+ const a=exitAngle(Math.min(n,8),Math.min(n,8));
+ ops.push(shape([['M',...at(a,6)],['L',...at(a,9.4)]],{stroke:W,width:GLYPH.stroke}),shape(head(at(a,16),a),{fill:W}));
+ return ops;
+}
+const MANOEUVRES={straight:glyphOps('straightahead'),left:glyphOps('left90'),right:glyphOps('right90'),
+ 'slight-left':glyphOps('left45'),'slight-right':glyphOps('right45'),'sharp-left':glyphOps('left135'),'sharp-right':glyphOps('right135'),
+ 'uturn-left':glyphOps('left180'),'uturn-right':glyphOps('right180'),
+ finish:[circle(16,16,10,{stroke:W,width:3.2}),circle(16,16,4,{fill:W})],
+ roundabout:Array.from({length:9},(_,n)=>roundabout(n))};
+
 /* ---------- cursor ---------- */
 // Yandex's faceted arrow in red-orange: lit left facet, shaded right, on a black underlay that cuts
 // the route under it. Orange sits 35° from the jam red, so the car never reads as a traffic segment.
@@ -277,10 +302,11 @@ function paint(ctx,commands,assets={}){
 function theme(){
  return {size:SIZE,mapStyle,traffic:TRAFFIC,jamTypes:JAM_TYPES,palette:PALETTE,route:ROUTE,
   lanes:{...LANES,templates:LANE_TEMPLATES,glyphs:GLYPHS,glyphStroke:GLYPH.stroke,directions:LANE_DIRECTIONS},
-  icons:ICONS,eventTags:EVENT_TAGS,eventPriority:EVENT_PRIORITY,events:EVENTS,finish:FINISH,cursor:CURSOR};
+  icons:ICONS,eventTags:EVENT_TAGS,eventPriority:EVENT_PRIORITY,events:EVENTS,finish:FINISH,cursor:CURSOR,
+  manoeuvre:{...MANOEUVRE,icons:MANOEUVRES}};
 }
 const api={SIZE,STOCK,TRAFFIC,JAM_TYPES,PALETTE,ROUTE,GLYPH,GLYPHS,LANES,LANE_TEMPLATES,LANE_DIRECTIONS,ICONS,EVENT_TAGS,
- EVENTS,FINISH,CURSOR,mapStyle,laneNames,assetNames,cameraZoom,validLanes,laneRect,routeHits,laneSide,laneBadge,eventKind,placeEvents,
+ EVENTS,FINISH,CURSOR,MANOEUVRE,MANOEUVRES,mapStyle,laneNames,assetNames,cameraZoom,validLanes,laneRect,routeHits,laneSide,laneBadge,eventKind,placeEvents,
  build,paint,theme};
 if(typeof module!=='undefined')module.exports=api;root.HudScene=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

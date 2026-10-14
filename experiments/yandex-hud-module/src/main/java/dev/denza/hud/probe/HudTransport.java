@@ -9,7 +9,9 @@ final class HudTransport {
     private static final String TAG = "DenzaYandexHud";
     private final Context context;
     private final Handler worker;
-    private final byte[] blank, activeRoad = HudWire.road(true), inactiveRoad = HudWire.road(false);
+    private final byte[] blank, inactiveRoad = HudWire.road(false);
+    /** The newest hint packet and the one the HUD last got; a changed hint goes out at once. */
+    private byte[] road = HudWire.road(true), sentRoad;
     private IBinder binder;
     private ServiceConnection connection;
     private boolean started, desired;
@@ -24,17 +26,22 @@ final class HudTransport {
         blank = HudWire.map(blankPng);
     }
 
-    void publish(byte[] png) {
+    void publish(byte[] png, byte[] hint) {
         if (!desired) lastRoad = 0;
         desired = true;
         clearRemaining = 0;
+        road = hint;
         lastFrame = SystemClock.elapsedRealtime();
         worker.removeCallbacks(maintenance);
         ensureConnected();
         if (started) {
-            if (lastFrame - lastRoad >= 500) {
-                if (!fire(HudWire.ROAD, activeRoad)) { recover(); return; }
+            // Heartbeat every 500 ms as before; a changed hint (metres, a new manoeuvre, the limit)
+            // goes out at once but not more than four times a second.
+            long since = lastFrame - lastRoad;
+            if (since >= 500 || (since >= 250 && !java.util.Arrays.equals(road, sentRoad))) {
+                if (!fire(HudWire.ROAD, road)) { recover(); return; }
                 lastRoad = lastFrame;
+                sentRoad = road;
             }
             if (fire(HudWire.MAP, HudWire.map(png))) sent++;
             else recover();
@@ -87,8 +94,9 @@ final class HudTransport {
                     started = transact(4, HudWire.SERVICE, null) == 0;
                     if (started) {
                         Log.i(TAG, "transport started");
-                        if (!fire(HudWire.ROAD, activeRoad)) recover();
+                        if (!fire(HudWire.ROAD, road)) recover();
                         lastRoad = SystemClock.elapsedRealtime();
+                        sentRoad = road;
                     } else recover();
                 });
             }

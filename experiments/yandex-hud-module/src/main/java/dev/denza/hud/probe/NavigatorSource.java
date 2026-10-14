@@ -16,16 +16,30 @@ final class NavigatorSource {
         }
         @Override public String toString() { return plain ? directions + ":" + highlight : kind; }
     }
+    /**
+     * What the HUD's own manoeuvre window shows (road packet fields 3/4, 8-11, 26-28), read from
+     * the guidance itself rather than from Yandex's screen. icon is a theme manoeuvre picture, null
+     * without a manoeuvre ahead; -1 means unknown; speedLimit 0 means no sign.
+     */
+    static final class Hint {
+        String icon, road = "", limitText;
+        int stockId, exit, distance = -1, remainingMeters = -1, remainingSeconds = -1, speedLimit;
+        double limitValue = Double.NaN;
+        String iconKey() { return icon == null ? null : icon.equals("roundabout") ? icon + exit : icon; }
+    }
     static final class Frame {
         String mode = "off";
         boolean backgroundEnabled, resumed;
         Object route, position, point, windshield;
         double heading, latitude, cameraDistance = Double.NaN;
         List<Lane> lanes = Collections.emptyList();
+        Hint hint;
         boolean active() { return !mode.equals("off"); }
         boolean drawMap() { return mode.equals("guidance"); }
     }
     private final Reflect api;
+    /** The last reason a hint could not be read, for the module log; the map goes on without it. */
+    String hintFailure;
     private String lastStamp;
     private long lastChanged;
     NavigatorSource(Reflect api) { this.api = api; }
@@ -64,6 +78,12 @@ final class NavigatorSource {
         Object next = api.call(guidance, "getNextManeuver");
         if (next != null) frame.cameraDistance = ((Number) api.call(next, "getDistance")).doubleValue();
         frame.windshield = api.call(automotive, "getWindshield");
+        try {
+            frame.hint = hint(frame.route, automotive, frame.windshield);
+            hintFailure = null;
+        } catch (RuntimeException error) {
+            hintFailure = String.valueOf(error.getCause() != null ? error.getCause() : error);
+        }
         Double laneDistance = (Double) api.call(guidance, "getNextLaneSignDistance");
         if (laneDistance == null || laneDistance < 0 || laneDistance > 800) return frame;
         List<?> signs = (List<?>) api.call(frame.windshield, "getLaneSigns");
@@ -93,10 +113,85 @@ final class NavigatorSource {
         return frame;
     }
 
-    /** MapKit reports road-event limits in m/s; the sign shows km/h rounded to the posted step of 5. */
+    private Hint hint(Object route, Object automotive, Object windshield) {
+        Hint hint = new Hint();
+        Object here = api.call(route, "getRoutePosition");
+        double toFinish = Double.NaN;
+        if (here != null) {
+            toFinish = (Double) api.call(here, "distanceToFinish");
+            double time = (Double) api.call(here, "timeToFinish");
+            if (toFinish >= 0) hint.remainingMeters = (int) Math.round(toFinish);
+            if (time >= 0) hint.remainingSeconds = (int) Math.round(time);
+        }
+        Object limit = api.call(automotive, "getSpeedLimit");
+        if (limit != null) {
+            hint.limitValue = (Double) api.call(limit, "getValue");
+            hint.limitText = String.valueOf(api.call(limit, "getText"));
+            hint.speedLimit = speedLimit(hint.limitValue);
+        }
+        List<?> manoeuvres = windshield == null ? Collections.emptyList() : (List<?>) api.call(windshield, "getManoeuvres");
+        for (int i = 0; i < manoeuvres.size(); i++) {
+            Object manoeuvre = manoeuvres.get(i);
+            double distance = toFinish - (Double) api.call(api.call(manoeuvre, "getPosition"), "distanceToFinish");
+            if (!(distance >= 0)) continue; // passed, or no position to measure from
+            Object annotation = api.call(manoeuvre, "getAnnotation");
+            Object action = annotation == null ? null : api.call(annotation, "getAction");
+            String[] kind = action == null ? null : manoeuvre(action.toString());
+            if (kind == null) continue;
+            hint.icon = kind[0];
+            hint.stockId = Integer.parseInt(kind[1]);
+            hint.distance = (int) Math.round(distance);
+            Object toponym = api.call(annotation, "getToponym");
+            hint.road = toponym == null ? "" : toponym.toString().trim();
+            if (hint.icon.equals("roundabout")) {
+                // The exit number rides on the manoeuvre that leaves the roundabout.
+                hint.exit = exit(annotation);
+                if (hint.exit == 0 && i + 1 < manoeuvres.size()) hint.exit = exit(api.call(manoeuvres.get(i + 1), "getAnnotation"));
+            }
+            break;
+        }
+        return hint;
+    }
+
+    private int exit(Object annotation) {
+        if (annotation == null) return 0;
+        Object metadata = api.call(annotation, "getActionMetadata");
+        Object leave = metadata == null ? null : api.call(metadata, "getLeaveRoundaboutMetadata");
+        return leave == null ? 0 : Math.max(0, (Integer) api.call(leave, "getExitNumber"));
+    }
+
+    /**
+     * Navigator's Action → {theme manoeuvre picture, road packet field 28}. Field 28 follows the
+     * stock BYD navigator read from the firmware (docs/instrument-display-findings.md, "Field 28"):
+     * 13 enters and 24 leaves a roundabout, 48 is the destination, 45 a waypoint.
+     */
+    static String[] manoeuvre(String action) {
+        switch (action) {
+            case "STRAIGHT": case "BOARD_FERRY": case "LEAVE_FERRY": return new String[]{"straight", "11"};
+            case "SLIGHT_LEFT": case "FORK_LEFT": case "EXIT_LEFT": return new String[]{"slight-left", "3"};
+            case "SLIGHT_RIGHT": case "FORK_RIGHT": case "EXIT_RIGHT": return new String[]{"slight-right", "5"};
+            case "LEFT": return new String[]{"left", "1"};
+            case "RIGHT": return new String[]{"right", "2"};
+            case "HARD_LEFT": return new String[]{"sharp-left", "7"};
+            case "HARD_RIGHT": return new String[]{"sharp-right", "8"};
+            case "UTURN_LEFT": return new String[]{"uturn-left", "9"};
+            case "UTURN_RIGHT": return new String[]{"uturn-right", "10"};
+            case "ENTER_ROUNDABOUT": return new String[]{"roundabout", "13"};
+            case "LEAVE_ROUNDABOUT": return new String[]{"roundabout", "24"};
+            case "FINISH": return new String[]{"finish", "48"};
+            case "WAYPOINT": return new String[]{"finish", "45"};
+            default: return null;
+        }
+    }
+
+    /** MapKit reports speed limits in m/s; the sign shows km/h rounded to the posted step of 5. */
     static int speedLimit(Float metresPerSecond) {
-        if (metresPerSecond == null || !(metresPerSecond > 0) || metresPerSecond > 70) return 0;
-        return Math.round(metresPerSecond * 3.6f / 5f) * 5;
+        return metresPerSecond == null ? 0 : speedLimit(metresPerSecond.doubleValue());
+    }
+
+    static int speedLimit(double metresPerSecond) {
+        if (!(metresPerSecond > 0) || metresPerSecond > 70) return 0;
+        return (int) Math.round(metresPerSecond * 3.6 / 5) * 5;
     }
 
     private static String laneName(String value) {

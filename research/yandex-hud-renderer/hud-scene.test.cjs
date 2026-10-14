@@ -82,6 +82,11 @@ test('the module theme carries every template the painter needs',()=>{
  for(const name of Object.values(hud.LANE_DIRECTIONS))assert(theme.lanes.glyphs[name],name);
  for(const kind of new Set(Object.values(hud.EVENT_TAGS)))assert(theme.icons[kind],kind);
  assert(theme.icons['camera-limit']);
+ // Every picture NavigatorSource.manoeuvre can name, roundabout exits 0..8.
+ for(const name of ['straight','left','right','slight-left','slight-right','sharp-left','sharp-right','uturn-left','uturn-right','finish'])
+  assert(theme.manoeuvre.icons[name],name);
+ assert.equal(theme.manoeuvre.icons.roundabout.length,9);
+ assert.equal(theme.manoeuvre.size,32*theme.manoeuvre.scale);
 });
 test('traffic cache cannot carry green across outdated data, route changes or bad segment counts',()=>{
  const adapter=require('./navigator-adapter.js');

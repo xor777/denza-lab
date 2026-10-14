@@ -58,9 +58,23 @@ It binds explicitly to `com.ts.car.someip.service` with the caller's package as
 intent type and `ts.car.someip.sdk.ISomeIpServerInterface` as Binder descriptor.
 Transactions 4/5 start/stop service `3097367205183488`; transaction 6 sends the
 exact handle/topic/instance/length/byte-array layout. Topic `1127042368241665`
-activates the navigation slot (road fields 2=2, 16=2); topic
-`1127042368241667` carries field 1 = Base64 PNG, without the road envelope.
-No maneuver, speed, vehicle-property or DiShare writes are made.
+is the road packet: 2 = 2, 16 = 2 (navigating) and, while a moving map is
+drawn, the hint in Denza Apps' field order — 3/4 remaining metres/seconds,
+8 a 192×192 white manoeuvre picture (the theme's lane glyphs at 6×, roundabout
+with its exit), 9 metres to the manoeuvre, 10 its street, 11 the posted limit
+in km/h, 26/27 «3,4 км» / «10 мин», 28 the stock manoeuvre id. Everything comes
+from guidance itself: windshield manoeuvres (`Action`, toponym, the roundabout
+exit on the manoeuvre that leaves it), the route's `RoutePosition`
+(`distanceToFinish`/`timeToFinish`) and `getSpeedLimit()` (m/s, 16.67 → 60).
+Field 28 follows the stock BYD navigator: 13 enters and 24 leaves a roundabout
+(Denza Apps sends 25), 48 finish, 45 waypoint. Without these fields the HUD
+filled the manoeuvre window with its own Chinese captions. A changed hint goes
+out at once, at most four times a second, else every 500 ms. Rerouting and a
+lost position send only 2/16. Topic `1127042368241667` carries field 1 =
+Base64 PNG, without the road envelope. **No vehicle-property or DiShare writes**:
+the car's own speed sign (cluster and HUD) needs the `BYDAUTO_*` Setting writes
+Denza Apps makes through local ADB; this process has no such permission, so
+only field 11 carries the limit.
 
 A connection generation rejects late callbacks. Binding has a three-second
 retry deadline; failures retry after one second. Reconnection uses the next
@@ -117,8 +131,11 @@ signature-dependent integrations are unverified.
 ## Emulator checks
 
 `test-receiver/` is a disposable fake of the IVI Binder endpoint. It validates
-session state, topic IDs, protobuf, PNG dimensions and clear frames; records a
-bounded 60-frame ring. **Never install this APK on the car.** Both its service
+session state, topic IDs, protobuf, PNG dimensions and clear frames, parses the
+road packet field by field (a clear carries nothing else; a manoeuvre has a
+192×192 picture, metres and an id; a limit is 5–130 by 5), keeps the last hint
+in `report.json` and records a bounded 60-frame ring. Acceptance also requires
+hint packets in the foreground stretch. **Never install this APK on the car.** Both its service
 and the candidate's private-file simulation harness are restricted to
 `ranchu`/`goldfish`. The candidate exposes no new command receiver or socket.
 Simulation commands are consumed once; repeated stop checks IDLE first because
@@ -273,6 +290,18 @@ now registers Navigator's authenticator and sync adapter under
 Kinopoisk still owns `com.yandex.passport.kinopoisk`. Full server login awaits
 the owner's check. Evidence: `captures/yandex-hud-account-20261014/car-report.json`,
 `car-after-owners.txt`, `car-sync-adapter.txt` and `car-success.png`.
+
+**Hints from the module (same day).** Candidate
+`captures/yandex-hud-hints-20261014/build-01/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
+SHA-256 `556881b28a314e07358aa7e7e9623db7a25f317d1c3ecd0d1d6dfd6643143497`.
+Against the installed account-fix `build-02` only `classes17.dex` (the module)
+and `assets/denza-hud/theme.json` differ; signer and version code are the same,
+so it installs as an update over the car's copy. `acceptance-01` passed: 9.78
+fps foreground, 9.94 background, 26 hint packets with a limit in 8 s, receiver
+reconnect, triple clear, zero protocol errors. `hint-sequence.txt` follows a
+Dolgoprudny route at 25 m/s: metres count down to each manoeuvre, ids 1/2
+alternate with the streets, the limit moves between 20 and 60. Emulator only;
+what the glass draws from these fields is the car test.
 
 ## Before the car trial
 

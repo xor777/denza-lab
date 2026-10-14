@@ -69,6 +69,10 @@ def main():
         second = snapshot('foreground-end')
         report['checks']['foreground_frames'] = second['receiver']['frames'] - first['receiver']['frames']
         report['checks']['foreground_unique_png'] = frames('foreground')
+        # Road packets with a manoeuvre picture, metres and id; the limit only where the route has one.
+        report['checks']['hint_packets'] = second['receiver'].get('hints', 0) - first['receiver'].get('hints', 0)
+        report['checks']['limit_packets'] = second['receiver'].get('limits', 0) - first['receiver'].get('limits', 0)
+        report['checks']['last_hint'] = second['receiver'].get('lastHint')
         (args.out / 'foreground.png').write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         time.sleep(3)
@@ -109,6 +113,7 @@ def main():
         (args.out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     check = report['checks']
     ok = (check.get('foreground_frames', 0) >= 50 and check.get('background_frames', 0) >= 80
+          and check.get('hint_packets', 0) > 0
           and check.get('foreground_unique_png', 0) > 10 and check.get('background_unique_png', 0) > 10
           and check.get('hidden') and check.get('background_disabled_clears')
           and check.get('reconnected')

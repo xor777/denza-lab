@@ -27,6 +27,7 @@ final class HudPainter implements AutoCloseable {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Map<String, Drawable> drawables = new HashMap<>();
     private final Map<JSONArray, Path> paths = new IdentityHashMap<>();
+    private final Map<String, byte[]> manoeuvres = new HashMap<>();
     private final ByteArrayOutputStream stream = new ByteArrayOutputStream(32768);
     private final float[] cursor;
     private String key, laneKey, side;
@@ -357,6 +358,35 @@ final class HudPainter implements AutoCloseable {
         } finally { target.restore(); }
     }
 
+    /**
+     * The HUD manoeuvre window's picture (road packet field 8): the theme's manoeuvre template,
+     * white on transparent, cached per manoeuvre so a route only ever renders a handful.
+     */
+    byte[] manoeuvre(NavigatorSource.Hint hint) throws JSONException {
+        String key = hint == null ? null : hint.iconKey();
+        if (key == null) return null;
+        byte[] cached = manoeuvres.get(key);
+        if (cached != null) return cached;
+        JSONObject spec = theme.getJSONObject("manoeuvre"), icons = spec.getJSONObject("icons");
+        JSONArray ops = hint.icon.equals("roundabout")
+                ? icons.getJSONArray("roundabout").getJSONArray(Math.min(hint.exit, icons.getJSONArray("roundabout").length() - 1))
+                : icons.optJSONArray(hint.icon);
+        if (ops == null) return null;
+        int size = spec.getInt("size");
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        try {
+            Canvas target = new Canvas(bitmap);
+            float scale = (float) spec.getDouble("scale");
+            target.scale(scale, scale);
+            draw(target, ops, 1, null);
+            ByteArrayOutputStream png = new ByteArrayOutputStream(4096);
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, png)) throw new IllegalStateException("Manoeuvre PNG failed");
+            cached = png.toByteArray();
+        } finally { bitmap.recycle(); }
+        manoeuvres.put(key, cached);
+        return cached;
+    }
+
     byte[] encode(boolean fixed) {
         if (fixed && staticPng != null) return staticPng;
         stream.reset();
@@ -366,5 +396,5 @@ final class HudPainter implements AutoCloseable {
         return bytes;
     }
 
-    @Override public void close() { output.recycle(); overlay.recycle(); drawables.clear(); paths.clear(); staticPng = null; }
+    @Override public void close() { output.recycle(); overlay.recycle(); drawables.clear(); paths.clear(); manoeuvres.clear(); staticPng = null; }
 }
