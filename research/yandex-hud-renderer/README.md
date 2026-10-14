@@ -13,42 +13,72 @@ The branch starts from `d6253bae`, `experiment/yandex-hud-renderer`.
 ## What it renders
 
 `renderer.js` creates a 300×180 offscreen MapKit window for the active route.
-The primary Navigator map keeps its original UI and camera. The HUD contains
-only roads, a golden cursor, the traffic-colored remaining route and a compact
-blue lane sign at the upper right. **No maneuver icon, distance or reserved
-header.** This is the owner's corrected design, superseding the first cyan
-route / white cursor / maneuver-header draft.
+The primary Navigator map keeps its original UI and camera. **No manoeuvre
+panel, distance or reserved header**; the map uses all 180 pixels.
 
-`hud-scene.js` is shared by the browser stand and `android-painter.js`:
+`hud-scene.js` is the one design source. The browser stand paints it directly;
+the [embedded module](../../experiments/yandex-hud-module/README.md) receives it
+as `assets/denza-hud/theme.json` (`tools/yandex_hud_build/theme.cjs`) and only
+positions its templates. Current design, v3 (2026-10-14), tuned for the
+additive glass:
 
-- Traffic color families come from the pinned APK's
-  `mapkit_styling_automotive_jam_*` resources: FREE `#82EA0E`, LIGHT `#FFFF41`,
-  HARD `#FF5413`, VERY_HARD `#932100`, UNKNOWN `#A0A0A0`, BLOCKED `#1A1A1A`.
-  The HUD raises HSL lightness, preserving hue and saturation. Very hard traffic
-  stays darker than hard traffic; unknown traffic never turns green.
-- `DrivingRoute.getJamSegments()` supplies a class for each original geometry
-  segment. The route layer subscribes to `ConditionsListener`; changes are read
-  on the next frame, with a 30-second fallback refresh. Route changes and the
-  outdated flag invalidate immediately. A length mismatch or outdated conditions
-  produces UNKNOWN. One full geometry retains its original traffic indices;
-  `hide(Subpolyline)` advances the visible start without `setGeometry` or a new
-  palette upload on every frame.
-- The cursor is Navigator's `notification_arrow` drawable, rotated north and
-  brightened ×1.12. This is a stock 2D cursor resource, not the main map's 3D
-  cursor model. Lane glyphs are its `context_lane_*_large` drawables, with white
-  recommended directions and 40% alpha secondary directions, on the slightly
-  brightened `balloon_new_blue` color. These are native resource components
-  assembled in our corner badge, **not a captured/cropped on-screen balloon**.
-- The lane badge is 36 px high, at most 126 px wide, 6 px from the top/right;
-  it overlays the map. Unsupported lane kinds/directions and signs exceeding six
-  lanes are omitted. The experimental adapter currently supports plain lanes.
-- Neutral gray roads are brightened; structures, labels, POI, landscape, public
-  transport, pedestrian paths, markings and crosswalks are hidden. The actual
-  MapKit tag is `road_minor` (the old `road.minor` rule did nothing).
+- **Route classes** are saturated primaries with zeroed spare channels: FREE
+  `#00F050`, LIGHT `#FFE600`, HARD `#FF1F3D`, VERY_HARD `#FF1FC8` (magenta),
+  UNKNOWN `#00C8FF` (cyan, never a shade of free), BLOCKED `#D0D4DC`. Over
+  daylit asphalt every colour loses about half its saturation (glass model of
+  2026-10-12 in the findings), and a dark colour is no colour, so Yandex's
+  burgundy for very hard would read as a dim red. MapKit draws the line 8 px
+  wide with a 2 px black gap, 24 px gradients between classes and its own white
+  manoeuvre arrows (`PolylineMapObject.addArrow`) on the next two manoeuvres.
+- **Cursor**: Yandex's faceted arrow, drawn as vectors in red-orange (lit facet
+  `#FF7A33`, shaded `#E8480E`) on a black underlay. Orange sits about 35° from
+  the jam red, so the car never reads as a traffic segment.
+- **Roads**: about 45 % neutral white; `road_minor` (yards, driveways) about
+  22 %, otherwise a residential district becomes a grid. Labels, POI, paths,
+  markings and crosswalks are hidden. **Land is painted black, not hidden**:
+  hidden land shows MapKit's night clear colour (13,13,13), a faint glowing
+  rectangle on the glass.
+- **Lanes**: own glyphs on one 28×32 grid with a shared stem, 3.6-unit round
+  strokes and 8×10 heads, scaled uniformly (26 px high up to four lanes; five
+  and six lanes shrink to fit 132 px). Recommended direction white, others
+  38 %, dashed lane markings between cells, on Yandex blue dimmed to `#0E3FA3`
+  (a full blue plate is a bright patch on the glass and drowns the arrows).
+  Bus and taxi lanes show a dim road marking «А»; tram and bike lanes stay
+  empty; the count and position stay true. Shift and from-the-other-side
+  directions are drawn; an unknown direction still hides the whole sign.
+- **Lane corner**: the top corner the manoeuvre does not turn into. The sign
+  can belong to a later manoeuvre than the next bend, so the route drawn ahead
+  (its first 260 screen pixels) moves the badge when it reaches that corner.
+- **Road events on the route**, upright, about 20 px, each on a black halo:
+  camera (with the posted limit as a red-ringed sign when the event carries
+  one), police, accident and danger triangles, roadworks barrier, closed road,
+  speed bump (amber hump on its line) and railway crossing. Nearest first, at
+  most four; an icon that would cover the lanes, the cursor or a nearer icon is
+  left out. Chat, feedback and «other» events never reach the glass.
+- **Finish**: a white target ring where the route ends.
 - Focus is (150,143); heading follows guidance, zoom 14.6–16.7 uses the upcoming
-  maneuver distance internally to choose context. No maneuver is drawn.
+  manoeuvre distance internally to choose context.
 - Black is optically transparent in the owner's HUD slot, **not PNG alpha**.
-  Brightness, especially the blue patch, still needs calibration on the glass.
+  Brightness on the real glass is still uncalibrated for this design.
+
+**Superseded, v2 (earlier on 2026-10-14):** a golden stock `notification_arrow`
+cursor, stock `context_lane_*_large` glyphs stretched into 23×28 cells on the
+full `balloon_new_blue`, a badge fixed at the top right, and stock jam colours
+with raised HSL lightness. On the glass model lime and yellow merge, the golden
+cursor shares the yellow route's hue, the fixed badge covered right turns, and
+stretched glyphs lost their proportions. Stand PNGs of v2 stay in `captures/yandex-hud-design-20261014/v2/`.
+
+`DrivingRoute.getJamSegments()` supplies a class for each original geometry
+segment. The route layer subscribes to `ConditionsListener`; changes are read
+on the next frame, with a 30-second fallback refresh. Route changes and the
+outdated flag invalidate immediately. A length mismatch or outdated conditions
+produces UNKNOWN. One full geometry retains its original traffic indices;
+`hide(Subpolyline)` advances the visible start without `setGeometry` or a new
+palette upload on every frame.
+
+**The Frida runner below is historical.** `android-painter.js` executes the v2
+command set (`roundRect`, `text`, `path`, `drawable`); v3 adds `group`, `shape`
+and `circle`. To reproduce the Frida trials, check out `e9240849`.
 
 The renderer requires resumed guidance, an active route, and an unfinished
 route status. Selection/preview is not navigation. Cancellation/finish produces
@@ -183,29 +213,28 @@ adb -s emulator-5580 emu kill
 
 ## Design stand (2026-10-14)
 
-Generate the portable stand using the already-decompiled, owner-provided APK
-corpus. No extracted Yandex artwork is committed. The generator reads nine lane
-VectorDrawables and one cursor PNG; the native backend loads the corresponding
-resources directly from the installed Navigator.
+The stand needs no extracted Yandex artwork any more: every glyph, icon and the
+cursor are our vectors in `hud-scene.js`.
 
 ```sh
 node --test research/yandex-hud-renderer/hud-scene.test.cjs
 # Requires Playwright + Chrome; set NODE_PATH to the available Node packages if needed.
-node tools/yandex_hud_stand_capture.cjs captures/yandex-hud-design-20261014/v2
+node tools/yandex_hud_stand_capture.cjs captures/yandex-hud-design-20261014/v3
 ```
 
-Open the resulting `stand.html`. It embeds scripts, stock resources and the repo's
-Roboto font. The source `stand/index.html` is a template: it needs this resource
-export before viewing. Select one of 15 situations, compare **Штатная палитра**
-and **Яндекс ярче**, start/stop guidance, or export a native 300×180 PNG.
+Open the resulting `stand.html`; it embeds the scripts and the repo's Roboto.
+Select one of 18 situations, compare the glass palette with **Штатная палитра**
+(stock jam colours and a golden cursor), start/stop guidance, or export a native
+300×180 PNG.
 
-Road geometry and traffic in these cases are explicitly synthetic. The overlay,
-stock glyphs, cursor and palette are the real shared rendering code. Cases cover
-straight, right/left, exit, roundabout, U-turn, arrival, six lanes, mixed traffic,
-severe congestion, unknown traffic, rerouting, lost position, preview and finish.
-The exporter writes native PNGs, `situations.png`, `situations-nine.png` and a
-browser report. Checks cover native-size export equality, all-black stop and
-restart, no header occlusion, and the distinct traffic colors in the mixed scene.
+Road geometry, traffic and events in these cases are explicitly synthetic. The
+stand draws roads, the route and MapKit's manoeuvre arrow in the map style's
+colours as a stand-in for the native layer; the overlay over it is the same
+command stream the module draws. Cases cover straight, right/left, exit,
+roundabout, U-turn, arrival, six lanes, mixed, severe and unknown traffic,
+speed bumps, enforcement (camera, police, bus lane), railway and danger,
+rerouting, lost position, preview and finish. The exporter writes native PNGs,
+`situations.png`, `situations-guidance.png` and a browser report.
 
 Live-process evidence is under `captures/yandex-hud-design-20261014/`:
 `native-preview` remained off in route selection. `native-stock-01` produced

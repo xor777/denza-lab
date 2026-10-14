@@ -4,7 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const assert = require('node:assert/strict');
-const {execFileSync}=require('node:child_process');
 const { chromium } = require('playwright');
 const root = path.resolve(__dirname, '..');
 const dir = path.join(root,'research/yandex-hud-renderer');
@@ -17,8 +16,6 @@ for(const src of ['../hud-scene.js','fixtures.js','stand.js']) {
 }
 const font=fs.readFileSync(path.join(root,'tools/design-canvas/luminofor/fonts/Roboto-500.ttf')).toString('base64');
 html=html.replace('../../../tools/design-canvas/luminofor/fonts/Roboto-500.ttf',`data:font/ttf;base64,${font}`);
-const assets=execFileSync('python3',[path.join(root,'tools/yandex_hud_stock_assets.py')],{encoding:'utf8'});
-html=html.replace('window.HUD_ASSET_URLS={};',`window.HUD_ASSET_URLS=${assets};`);
 const standalone=path.join(out,'stand.html');fs.writeFileSync(standalone,html);
 (async()=>{
     const browser=await chromium.launch({executablePath:process.env.DC_CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
@@ -43,7 +40,7 @@ const standalone=path.join(out,'stand.html');fs.writeFileSync(standalone,html);
         for(const r of records.filter(r=>r.mode==='guidance')) assert(r.lit>1500,`${r.id} must draw roads and hints`);
         for(const k of ['FREE','LIGHT','HARD','VERY_HARD'])assert(records.find(r=>r.id==='mixed-traffic').colors[k]>20,k+' missing from mixed traffic');
         assert.equal(records.find(r=>r.id==='unknown-traffic').colors.FREE,0);
-        assert(await page.evaluate(()=>{const d=document.getElementById('case-right').getContext('2d').getImageData(144,20,1,1).data;return d[0]>100;}),'road must extend into former header');
+        assert(await page.evaluate(()=>{const d=document.getElementById('case-right').getContext('2d').getImageData(144,30,1,1).data;return d[0]>60;}),'road must extend into former header');
         await page.selectOption('#scene','right');
         await page.click('#toggle');assert.equal(await page.locator('#frame').getAttribute('data-mode'),'off');
         assert.equal(await page.evaluate(()=>{const d=document.getElementById('frame').getContext('2d').getImageData(0,0,300,180).data;return d.some((v,i)=>i%4!==3&&v>0);}),false);
@@ -61,10 +58,10 @@ const standalone=path.join(out,'stand.html');fs.writeFileSync(standalone,html);
         await page.screenshot({path:path.join(out,'stand.png'),fullPage:true});
         await page.goto(pathToFileURL(standalone).href+'?atlas');await page.waitForFunction(()=>window.HUD_READY);
         await page.screenshot({path:path.join(out,'situations.png'),fullPage:true});
-        await page.evaluate(()=>{for(const f of HUD_FIXTURES.slice(9))document.getElementById('case-'+f.id).parentElement.remove();});
-        await page.screenshot({path:path.join(out,'situations-nine.png'),fullPage:true});
+        await page.evaluate(()=>{for(const f of HUD_FIXTURES.slice(12))document.getElementById('case-'+f.id).parentElement.remove();});
+        await page.screenshot({path:path.join(out,'situations-guidance.png'),fullPage:true});
         assert.deepEqual(errors,[]);
-        fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({records,checks:['15 deterministic frames','preview and finish all-black','stop clears every pixel','restart restores guidance','export is identical to native-size frame','palette switch changes pixels and restores them','no browser exceptions']},null,2)+'\n');
+        fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({records,checks:[records.length+' deterministic frames','preview and finish all-black','stop clears every pixel','restart restores guidance','export is identical to native-size frame','palette switch changes pixels and restores them','no browser exceptions']},null,2)+'\n');
         console.log(JSON.stringify({out,frames:records.length,errors}));
     } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

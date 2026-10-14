@@ -12,7 +12,7 @@ final class HudEmulatorControl {
     private final boolean enabled = Build.HARDWARE.equals("ranchu") || Build.HARDWARE.equals("goldfish");
     private final Context context;
     private final Reflect api;
-    private long pollAt, sequence;
+    private long pollAt, themeAt, themeStamp, sequence, recorded, recordEvery, recordLimit;
     private String lastCommand = "";
     HudEmulatorControl(Context context, Reflect api) { this.context = context; this.api = api; }
 
@@ -43,6 +43,13 @@ final class HudEmulatorControl {
                 if (!api.call(guidance, "getSimulationStatus").toString().equals("IDLE"))
                     api.call(guidance, "stopSimulation");
                 if (api.call(guidance, "route") != null) api.call(guidance, "stop");
+            } else if (action.equals("speed")) {
+                api.call(guidance, "setSimulatedSpeed", value.getDouble("metresPerSecond"));
+            } else if (action.equals("record")) {
+                // Design evidence along a whole simulated route: every Nth published frame, bounded.
+                recordEvery = Math.max(1, value.getInt("every"));
+                recordLimit = Math.min(600, value.getInt("limit"));
+                recorded = 0;
             } else if (action.equals("background")) {
                 api.call(api.call(guidance, "bgConfigurator"), "setBackgroundOnRouteEnabled", value.getBoolean("enabled"));
             } else throw new IllegalArgumentException("Unknown emulator action");
@@ -50,9 +57,32 @@ final class HudEmulatorControl {
         } catch (Exception error) { Log.w("DenzaYandexHud", "emulator action failed", error); }
     }
 
+    /** Emulator design loop: a pushed theme replaces the APK asset without rebuilding; null when unchanged. */
+    JSONObject theme(long now) {
+        if (!enabled || now < themeAt) return null;
+        themeAt = now + 500;
+        File file = new File(context.getFilesDir(), "denza-hud-theme.json");
+        if (!file.isFile() || file.lastModified() == themeStamp) return null;
+        themeStamp = file.lastModified();
+        try {
+            byte[] bytes = new byte[(int) Math.min(1 << 20, file.length())];
+            try (FileInputStream in = new FileInputStream(file)) {
+                if (in.read(bytes) != bytes.length) return null;
+            }
+            JSONObject theme = new JSONObject(new String(bytes, StandardCharsets.UTF_8));
+            Log.i("DenzaYandexHud", "emulator theme loaded");
+            return theme;
+        } catch (Exception error) { Log.w("DenzaYandexHud", "emulator theme rejected", error); return null; }
+    }
+
     void frame(byte[] png, String mode, boolean visible, boolean background, boolean resumed) {
         if (!enabled) return;
         try {
+            if (recordLimit > 0 && mode.equals("guidance") && sequence % recordEvery == 0 && recorded < recordLimit) {
+                File record = new File(context.getFilesDir(), "denza-hud-record");
+                if (record.isDirectory() || record.mkdir())
+                    try (FileOutputStream out = new FileOutputStream(new File(record, String.format("frame-%04d.png", recorded++)))) { out.write(png); }
+            }
             File directory = new File(context.getFilesDir(), "denza-hud-evidence");
             if (!directory.isDirectory() && !directory.mkdir()) return;
             // Bounded 60-frame ring for emulator acceptance; never stores locations or routes in logs.

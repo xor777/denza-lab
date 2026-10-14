@@ -80,8 +80,7 @@ def main():
         extra = 'classes'+str(max([1 if x == 'classes.dex' else int(x[7:-4]) for x in dex_names])+1)+'.dex'
         changes[extra] = (dex/'classes.dex').read_bytes()
         changes['classes'+str(int(extra[7:-4])+1)+'.dex'] = (args.out/'guidance-hook.dex').read_bytes()
-        script = "const h=require('./research/yandex-hud-renderer/hud-scene.js');process.stdout.write(JSON.stringify({mapStyle:h.mapStyle,traffic:h.TRAFFIC,jamTypes:h.JAM_TYPES,palette:h.PALETTE,cursor:h.build({guidanceActive:true,routePresent:true,locationFresh:true,lanes:[]}).commands}));"
-        changes['assets/denza-hud/theme.json'] = subprocess.check_output(['node', '-e', script], cwd=ROOT)
+        changes['assets/denza-hud/theme.json'] = subprocess.check_output(['node', ROOT/'tools/yandex_hud_build/theme.cjs'], cwd=ROOT)
         with zipfile.ZipFile(args.out/'unsigned.apk', 'w', allowZip64=False) as output:
             for info in original.infolist():
                 if info.filename.startswith('META-INF/') and (info.filename.endswith(('.SF','.RSA','.DSA','.EC')) or info.filename == 'META-INF/MANIFEST.MF'):

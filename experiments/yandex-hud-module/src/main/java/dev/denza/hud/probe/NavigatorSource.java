@@ -7,15 +7,19 @@ import java.util.List;
 /** Navigation state only: visibility does not authorize a route, and preview is never guidance. */
 final class NavigatorSource {
     static final class Lane {
+        final boolean plain;
+        final String kind;
         final List<String> directions;
         final String highlight;
-        Lane(List<String> directions, String highlight) { this.directions = directions; this.highlight = highlight; }
-        @Override public String toString() { return directions + ":" + highlight; }
+        Lane(String kind, List<String> directions, String highlight) {
+            this.kind = kind; this.plain = kind.equals("PLAIN_LANE"); this.directions = directions; this.highlight = highlight;
+        }
+        @Override public String toString() { return plain ? directions + ":" + highlight : kind; }
     }
     static final class Frame {
         String mode = "off";
         boolean backgroundEnabled, resumed;
-        Object route, position, point;
+        Object route, position, point, windshield;
         double heading, latitude, cameraDistance = Double.NaN;
         List<Lane> lanes = Collections.emptyList();
         boolean active() { return !mode.equals("off"); }
@@ -59,15 +63,21 @@ final class NavigatorSource {
         frame.heading = heading == null ? 0 : heading;
         Object next = api.call(guidance, "getNextManeuver");
         if (next != null) frame.cameraDistance = ((Number) api.call(next, "getDistance")).doubleValue();
+        frame.windshield = api.call(automotive, "getWindshield");
         Double laneDistance = (Double) api.call(guidance, "getNextLaneSignDistance");
         if (laneDistance == null || laneDistance < 0 || laneDistance > 800) return frame;
-        List<?> signs = (List<?>) api.call(api.call(automotive, "getWindshield"), "getLaneSigns");
+        List<?> signs = (List<?>) api.call(frame.windshield, "getLaneSigns");
         if (signs.isEmpty()) return frame;
         List<?> lanes = (List<?>) api.call(api.call(signs.get(0), "getLaneSign"), "getLanes");
         if (lanes.isEmpty() || lanes.size() > 6) return frame;
         List<Lane> result = new ArrayList<>();
         for (Object lane : lanes) {
-            if (!String.valueOf(api.call(lane, "getLaneKind")).equals("PLAIN_LANE")) return frame;
+            // A bus, tram or taxi lane keeps its place without arrows; a guessed direction would mislead.
+            String kind = String.valueOf(api.call(lane, "getLaneKind"));
+            if (!kind.equals("PLAIN_LANE")) {
+                result.add(new Lane(kind, Collections.<String>emptyList(), null));
+                continue;
+            }
             List<String> directions = new ArrayList<>();
             for (Object value : (List<?>) api.call(lane, "getDirections")) {
                 String name = laneName(String.valueOf(value));
@@ -77,10 +87,16 @@ final class NavigatorSource {
             Object selected = api.call(lane, "getHighlightedDirection");
             String highlight = selected == null ? null : laneName(selected.toString());
             if (directions.isEmpty() || (selected != null && (highlight == null || !directions.contains(highlight)))) return frame;
-            result.add(new Lane(directions, highlight));
+            result.add(new Lane(kind, directions, highlight));
         }
         frame.lanes = result;
         return frame;
+    }
+
+    /** MapKit reports road-event limits in m/s; the sign shows km/h rounded to the posted step of 5. */
+    static int speedLimit(Float metresPerSecond) {
+        if (metresPerSecond == null || !(metresPerSecond > 0) || metresPerSecond > 70) return 0;
+        return Math.round(metresPerSecond * 3.6f / 5f) * 5;
     }
 
     private static String laneName(String value) {
@@ -94,6 +110,10 @@ final class NavigatorSource {
             case "RIGHT135": return "right135";
             case "LEFT180": return "left180";
             case "RIGHT180": return "right180";
+            case "LEFT_SHIFT": return "leftshift";
+            case "RIGHT_SHIFT": return "rightshift";
+            case "LEFT_FROM_RIGHT": return "left90";
+            case "RIGHT_FROM_LEFT": return "right90";
             default: return null;
         }
     }

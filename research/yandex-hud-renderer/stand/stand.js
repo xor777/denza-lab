@@ -9,19 +9,23 @@ function drawFixture(canvas, fixture, activeOverride) {
     const scene = HudScene.build(input), ctx=canvas.getContext('2d');
     ctx.clearRect(0,0,300,180); ctx.fillStyle='#000';ctx.fillRect(0,0,300,180);
     if(scene.drawMap) {
-        // Fixture geometry substitutes for the native MapKit layer only on this stand.
-        // The navigation overlay below is the same command stream used on Android.
-        HudScene.paint(ctx, fixture.roads.map(r=>({op:'path',points:r.points,
-            color:r.minor?HudScene.PALETTE.minor:HudScene.PALETTE.road,width:r.minor?1.8:2.7})));
+        // Fixture geometry stands in for the native MapKit layer only on this stand: roads in the map
+        // style's colours, the route at ROUTE width with its black gap, MapKit's white manoeuvre arrow.
+        // The overlay painted after it is the same command stream the module draws.
+        const P=HudScene.PALETTE,R=HudScene.ROUTE,line=(points,color,width)=>({op:'shape',d:points.map((p,i)=>[i?'L':'M',...p]),stroke:color,width});
+        HudScene.paint(ctx, fixture.roads.map(r=>line(r.points,P.black,r.minor?4:7)));
+        HudScene.paint(ctx, fixture.roads.map(r=>line(r.points,r.minor?P.minor:P.road,r.minor?2.5:5)));
         if(fixture.route.length) {
-            HudScene.paint(ctx,[{op:'path',points:fixture.route,color:'#000',width:9}]);
+            HudScene.paint(ctx,[line(fixture.route,P.black,R.width+2*R.outline)]);
             const colors=input.stockPalette?HudScene.STOCK:HudScene.TRAFFIC;
-            for(let i=0;i<fixture.route.length-1;i++) HudScene.paint(ctx,[{op:'path',points:fixture.route.slice(i,i+2),color:colors[fixture.traffic[i]||'UNKNOWN'],width:5}]);
+            for(let i=0;i<fixture.route.length-1;i++) HudScene.paint(ctx,[line(fixture.route.slice(i,i+2),colors[fixture.traffic[i]||'UNKNOWN'],R.width)]);
         }
-        if(fixture.destination) {
-            const [x,y]=fixture.destination;
-            ctx.fillStyle='#000';ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();
-            ctx.strokeStyle=HudScene.PALETTE.hint;ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.stroke();
+        if(fixture.arrow) {
+            const a=fixture.arrow,[x1,y1]=a[a.length-2],[x2,y2]=a[a.length-1],t=Math.atan2(y2-y1,x2-x1),h=R.arrow.triangleHeight;
+            const tip=[x2+Math.cos(t)*h,y2+Math.sin(t)*h],n=[-Math.sin(t)*h*.75,Math.cos(t)*h*.75];
+            const head=[['M',...tip],['L',x2+n[0],y2+n[1]],['L',x2-n[0],y2-n[1]],['Z']];
+            HudScene.paint(ctx,[line(a,P.black,R.width-1+2*R.arrow.outlineWidth),{op:'shape',d:head,fill:P.black,stroke:P.black,width:2*R.arrow.outlineWidth},
+                line(a,R.arrow.fill,R.width-1),{op:'shape',d:head,fill:R.arrow.fill}]);
         }
     }
     HudScene.paint(ctx,scene.commands,stockAssets);
@@ -31,10 +35,6 @@ function drawFixture(canvas, fixture, activeOverride) {
 window.drawFixture=drawFixture;
 (async function(){
     await document.fonts.ready;
-    for(const name of HudScene.assetNames){
-        if(!window.HUD_ASSET_URLS[name])throw new Error('Generate the stand with tools/yandex_hud_stand_capture.cjs to load stock resources');
-        const img=new Image();img.src=window.HUD_ASSET_URLS[name];await img.decode();stockAssets[name]=img;
-    }
     const select=document.getElementById('scene');
     for(const f of HUD_FIXTURES) {const option=document.createElement('option');option.value=f.id;option.textContent=f.title;select.append(option);}
     select.value=HUD_FIXTURES.some(f=>f.id===params.get('scene'))?params.get('scene'):'right';
@@ -43,7 +43,7 @@ window.drawFixture=drawFixture;
         const f=HUD_FIXTURES.find(f=>f.id===select.value), scene=drawFixture(document.getElementById('frame'),f,override);
         const colors=document.getElementById('palette').value==='stock'?HudScene.STOCK:HudScene.TRAFFIC;
         const legend=document.getElementById('traffic-legend');legend.replaceChildren();
-        for(const [key,label] of [['FREE','Свободно'],['LIGHT','Плотно'],['HARD','Затор'],['VERY_HARD','Сильный затор']]){
+        for(const [key,label] of [['FREE','Свободно'],['LIGHT','Плотно'],['HARD','Затор'],['VERY_HARD','Сильный затор'],['UNKNOWN','Нет данных']]){
             const span=document.createElement('span'), swatch=document.createElement('i');swatch.className='swatch';swatch.style.background=colors[key];span.append(swatch,document.createTextNode(label));legend.append(span);
         }
         document.getElementById('title').textContent=f.title;

@@ -5,7 +5,11 @@ import java.util.Arrays;
 /** Host tests of wire compatibility and visibility/route gates, without the foreign APK. */
 public final class ModuleTest {
     public static class Config { public boolean isBackgroundOnRouteEnabled() { return enabled; } boolean enabled = true; }
-    public static class Automotive { public String getRouteStatus() { return status; } String status = "ON_ROUTE"; }
+    public static class Automotive {
+        public String getRouteStatus() { return status; }
+        public Object getWindshield() { return null; }
+        String status = "ON_ROUTE";
+    }
     public static class Navigation { public Automotive getGuidance() { return automotive; } final Automotive automotive = new Automotive(); }
     public static class Point { public double getLatitude() { return 55.7; } }
     public static class Location {
@@ -64,7 +68,9 @@ public final class ModuleTest {
         check(source.read(guidance,true,3200).drawMap(),"fresh sample recovers rendering");
         guidance.location.accuracy="COARSE";
         check(!source.read(guidance,true,3300).drawMap(),"coarse fix cannot draw a precise route");
-        System.out.println("16 native module assertions passed");
+        check(NavigatorSource.speedLimit(16.666f)==60 && NavigatorSource.speedLimit(27.78f)==100,"road-event limits are m/s, shown in km/h");
+        check(NavigatorSource.speedLimit(null)==0 && NavigatorSource.speedLimit(0f)==0 && NavigatorSource.speedLimit(Float.NaN)==0,"no limit, no number");
+        System.out.println("18 native module assertions passed");
     }
     private static void check(boolean ok,String message) { if(!ok)throw new AssertionError(message); }
 }

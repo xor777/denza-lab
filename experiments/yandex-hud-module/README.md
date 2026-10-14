@@ -15,19 +15,29 @@ has not been changed. Detailed evidence belongs to
   their lifecycle. No Frida, root, laptop connection or screen capture is
   required by the resulting APK.
 - `NavigatorSource` reads the actual selected/resumed route, native position,
-  background-navigation preference, traffic and plain lane signs. It checks
+  background-navigation preference, traffic, lane signs (bus/tram/taxi lanes keep
+  their place) and the windshield for upcoming manoeuvres. It checks
   route/resume **before** accessing automotive route status: the native API is
   undefined before a route exists and can abort debug ART.
 - `HudMap` owns a separate offscreen MapKit window. Geometry is created once per
   route; progress hides its completed prefix. Conditions events invalidate the
-  traffic palette, with a 30-second fallback. Outdated/mismatched traffic uses
-  UNKNOWN. It never moves the main map, sets a location provider, computes a
-  second route or changes global MapKit start/stop state.
-- `HudPainter` owns two bitmaps, cached drawables and an overlay. The build
-  exports the existing `research/yandex-hud-renderer/hud-scene.js` theme into an
-  APK asset. Roads, brighter stock traffic colors, golden stock cursor and
-  compact blue lane badge remain; no maneuver panel. Black is the HUD's optical
-  background convention, not true PNG transparency.
+  traffic palette and the route's road events, with a 30-second fallback.
+  Outdated/mismatched traffic uses UNKNOWN. White manoeuvre arrows
+  (`addArrow`) mark the next two windshield manoeuvres; MapKit accepts arrows
+  only in order along the line, so an earlier announcement rebuilds the line.
+  Road events (`getEvents`: tags and the posted limit in m/s), speed bumps and
+  railway crossings are cached per route and projected with `worldToScreen`
+  after the camera move, nearest first. While MapKit still shows its loading
+  placeholder (light grid, or the night clear colour with grid lines) the frame
+  carries no map. It never moves the main map, sets a location provider,
+  computes a second route or changes global MapKit start/stop state.
+- `HudPainter` owns two bitmaps and an overlay and executes the theme's drawing
+  templates op for op as `research/yandex-hud-renderer/hud-scene.js` paints them
+  (exported by `tools/yandex_hud_build/theme.cjs`); it computes only placement:
+  the lane corner (with hysteresis inside one sign) and which road events fit.
+  The design itself is described in the
+  [renderer README](../../research/yandex-hud-renderer/README.md#what-it-renders).
+  Black is the HUD's optical background convention, not true PNG transparency.
 - `HudModule` polls at up to 10 fps while active, 2.5 Hz while off. MapKit and
   composition stay on main; PNG encoding and Binder calls share one worker.
   Only one frame is in flight, with no frame queue. An epoch invalidates work
@@ -103,7 +113,11 @@ bounded 60-frame ring. **Never install this APK on the car.** Both its service
 and the candidate's private-file simulation harness are restricted to
 `ranchu`/`goldfish`. The candidate exposes no new command receiver or socket.
 Simulation commands are consumed once; repeated stop checks IDLE first because
-native `stopSimulation()` otherwise aborts.
+native `stopSimulation()` otherwise aborts. For design work the same harness
+takes `{"action":"record","every":N,"limit":M}` (every Nth guidance frame into
+`files/denza-hud-record/`, at most 600) and `{"action":"speed","metresPerSecond":v}`
+(simulation speed); a pushed `files/denza-hud-theme.json` replaces the APK theme
+on the next frame, so colours, sizes and templates change without a rebuild.
 
 ```sh
 python3 tools/yandex_hud_build/receiver.py captures/yandex-hud-embedded-20261014/new-receiver
@@ -111,8 +125,13 @@ adb -s emulator-5580 install captures/yandex-hud-embedded-20261014/new-receiver/
 adb -s emulator-5580 install captures/yandex-hud-embedded-20261014/new-build/yandex-navigator-29.8.1-denza-hud-exp.1.apk
 ```
 
-Use a disposable root-capable emulator; start a route in Navigator's ordinary
-UI first. Then:
+Use a disposable root-capable emulator. A fresh (`-read-only`) boot has no
+runtime permissions: grant `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`,
+`ACCESS_BACKGROUND_LOCATION` and `POST_NOTIFICATIONS` to `ru.yandex.yandexnavi`
+with `pm grant`, otherwise Navigator suspends guidance when hidden and the
+background check sees no frames. Start a route in Navigator's ordinary UI
+first (`yandexnavi://build_route_on_map?lat_from=…&lon_from=…&lat_to=…&lon_to=…`,
+then **Go**). Then:
 
 ```sh
 python3 tools/yandex_hud_build/acceptance.py --serial emulator-5580 \
@@ -126,8 +145,8 @@ background-disabled clear, stable stopped counters and repeated cancellation
 without a Navigator restart. Inspect saved PNGs as well as `report.json`.
 `src/test/.../ModuleTest.java` covers exact wire bytes, preview/cancel/resume,
 background preference and stale/coarse position on the host without the APK.
-The original renderer's 14 Node tests remain a visual/algorithm baseline, not
-native transport acceptance.
+The renderer's Node tests (`node --test research/yandex-hud-renderer/*.test.cjs`)
+cover the design and the theme contract, not native transport.
 
 ## Current candidate (2026-10-14)
 
@@ -138,6 +157,15 @@ SHA-256 `16a51953b9c263353d39dff4581ca416169546729553ce12b94515b8ff0926e6`.
 process restart, zero protocol errors. `active-cancel-06` also verified cancel
 while rendering, three black frames and unchanged counters after another stop.
 These are emulator observations only.
+
+**Glass design v3 (same day).** `captures/yandex-hud-visual-20261014/build-06/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
+SHA-256 `e821f4d79f5a52d7f33dea578050893e2ebe8c5927103a9ecb190b9373ab2d14`:
+contrast route palette, red-orange vector cursor, own lane glyphs in the free
+corner, road events, manoeuvre arrows, black land, loading guard. Its
+`acceptance-06/report.json` passed: 9.65 fps foreground, 9.93 fps background,
+receiver reconnect, triple clear, zero protocol errors. Recorded design runs
+(`run-06` suburban, `run-07` central Moscow) and the frame sheet
+`hud-visual-native.png` are in the same directory. Emulator only.
 
 ## Before the car trial
 

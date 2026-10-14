@@ -59,7 +59,7 @@ public final class HudModule {
         final Context context;
         final Reflect api = new Reflect();
         final NavigatorSource source = new NavigatorSource(api);
-        final JSONObject theme;
+        JSONObject theme;
         final HandlerThread thread = new HandlerThread("denza-hud-output", android.os.Process.THREAD_PRIORITY_BACKGROUND);
         final Handler worker;
         final AtomicLong epoch = new AtomicLong();
@@ -102,6 +102,8 @@ public final class HudModule {
             try {
                 if (guidance == null) return;
                 emulator.poll(guidance, now);
+                JSONObject override = busy ? null : emulator.theme(now);
+                if (override != null) { theme = override; releaseDrawing(); }
                 NavigatorSource.Frame frame = source.read(guidance, visibleActivities > 0, now);
                 if (!frame.mode.equals(mode)) {
                     mode = frame.mode;
@@ -116,15 +118,15 @@ public final class HudModule {
                 if (busy || now < nextAttempt) return;
                 if (!frame.active()) { releaseDrawing(); return; }
                 if (painter == null) painter = new HudPainter(context, theme);
-                Bitmap screenshot = null;
+                HudMap.Shot shot = null;
                 try {
                     if (frame.drawMap()) {
                         if (map == null) map = new HudMap(api, theme);
-                        screenshot = map.capture(frame, now);
-                        if (screenshot == null || screenshot.getWidth() != 300 || screenshot.getHeight() != 180) throw new IllegalStateException("Invalid frame dimensions");
+                        shot = map.capture(frame, now);
+                        if (shot.bitmap != null && (shot.bitmap.getWidth() != 300 || shot.bitmap.getHeight() != 180)) throw new IllegalStateException("Invalid frame dimensions");
                     } else if (map != null) map.clearRoute();
-                    painter.compose(screenshot, frame);
-                } finally { if (screenshot != null) screenshot.recycle(); }
+                    painter.compose(shot, frame);
+                } finally { if (shot != null && shot.bitmap != null) shot.bitmap.recycle(); }
                 long elapsed = (SystemClock.elapsedRealtimeNanos() - begin) / 1000;
                 if (frame.drawMap()) {
                     mapFrames++;
@@ -153,7 +155,8 @@ public final class HudModule {
                     lastStats = now;
                     Log.i(TAG, "frames=" + frames + " mapFrames=" + mapFrames
                             + " mapMainMeanUs=" + (mapFrames == 0 ? 0 : mainMicros / mapFrames)
-                            + " mapMainMaxUs=" + maxMainMicros + " visible=" + visible);
+                            + " mapMainMaxUs=" + maxMainMicros + " visible=" + visible
+                            + " marks=" + (painter == null ? 0 : painter.placedMarks));
                 }
             } catch (Throwable error) {
                 Log.e(TAG, "frame failed; clearing HUD", error);
