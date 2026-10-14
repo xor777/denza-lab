@@ -294,6 +294,23 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
 When a page disagrees with the code, manifest, or Gradle configuration, follow
 the implementation and update that page.
 
+## Support the author
+
+Denza Lab is built and tested on one car in the author's own time. If it saved
+you time or made your car better, you can support further work:
+
+| Method | Details |
+| --- | --- |
+| USDT, Tron network (TRC20) | `TMueD4CZvQMsA7jPXA4n9J6UNJxvCKHqjD` |
+| Bank card, T-Bank (Russia) | `2200 7001 6892 5955`, Дмитрий У. |
+
+- USDT: send on the **TRON (TRC20)** network only; other networks or tokens sent
+  to this address may be lost.
+- Card: please write **«Подарок»** in the transfer comment.
+
+Support is voluntary and does not change the terms above: no warranty, no
+priority support.
+
 ## License
 
 The original work in this repository is released under the
