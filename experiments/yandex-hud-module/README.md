@@ -226,6 +226,21 @@ python3 tools/yandex_hud_build/install_check.py --serial emulator-5580 \
 runner creates a separate fixture key and two package names. Never install
 these synthetic permission owners on the car.
 
+## Known login limitation
+
+Car diagnosis on 2026-10-14 confirmed that login fails while saving the account:
+`uid 10138 cannot explicitly add accounts of type: com…`. Android registers the
+shared `com.yandex.passport` authenticator to Yandex Keyboard (UID 10117); our
+fork has a different signer and cannot add accounts under that type. This is
+separate from the shared-permission installation fix.
+
+The SDK reads `passport_account_type` into its account-type configuration;
+both authenticator and sync adapter reference that resource. A separate value
+such as `com.yandex.passport.denza.hud` is the proposed fix, still unimplemented
+and untested. Preserve other apps and their accounts. Full login acceptance
+must follow an isolated account-type test. Read-only evidence is under
+`captures/yandex-hud-login-20261014/`.
+
 ## Before the car trial
 
 The experimental signature prevents an update over the original Navigator.
