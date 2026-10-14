@@ -1,11 +1,17 @@
 """Minimal binary-XML edit: query the HUD service and mark an experimental debug build.
 
+The application and MapActivity labels become LABEL: the launcher shortcut is an alias without a
+label of its own, which Android resolves through its target activity, so both are needed for the
+shortcut, the app list and recents to tell this build from the owner's original Navigator.
+
 Preserves resource IDs, original string indices, attributes, namespaces and all
 other elements. The input is independently SHA-pinned by the build tool.
 """
 import struct
 
 U32 = lambda data, offset: struct.unpack_from('<I', data, offset)[0]
+LABEL = 'Яндекс HUD'
+LAUNCH_TARGET = 'ru.yandex.yandexmaps.app.MapActivity'
 
 
 def chunks(data, start=8):
@@ -28,6 +34,27 @@ def length(data, offset, utf8):
     return (((value & 32767) << 16) | struct.unpack_from('<H', data, offset + 2)[0], offset + 4) if value & 32768 else (value, offset + 2)
 
 
+def attribute_text(chunk, strings, ns, name):
+    attr_start, attr_size, attr_count = struct.unpack_from('<HHH', chunk, 24)
+    for i in range(attr_count):
+        offset = 16 + attr_start + i * attr_size
+        if U32(chunk, offset) == ns and strings[U32(chunk, offset + 4)] == name and U32(chunk, offset + 8) != 0xffffffff:
+            return strings[U32(chunk, offset + 8)]
+    return None
+
+
+def relabel(chunk, strings, ns, label):
+    """android:label @string reference → raw string: same attribute, same position."""
+    attr_start, attr_size, attr_count = struct.unpack_from('<HHH', chunk, 24)
+    for i in range(attr_count):
+        offset = 16 + attr_start + i * attr_size
+        if U32(chunk, offset) == ns and strings[U32(chunk, offset + 4)] == 'label':
+            struct.pack_into('<I', chunk, offset + 8, label)
+            struct.pack_into('<HBBI', chunk, offset + 12, 8, 0, 3, label)
+            return 1
+    return 0
+
+
 def edit(data):
     if struct.unpack_from('<H', data)[0] != 3:
         raise ValueError('Expected compiled Android manifest')
@@ -43,7 +70,7 @@ def edit(data):
         if utf8:
             size, pos = length(pool, pos, True)
         strings.append(bytes(pool[pos:pos + size * (1 if utf8 else 2)]).decode('utf-8' if utf8 else 'utf-16le'))
-    additions = ['com.ts.car.someip.service', '29.8.1-denza-hud-exp.1', 'debuggable']
+    additions = ['com.ts.car.someip.service', '29.8.1-denza-hud-exp.1', 'debuggable', LABEL]
     if 'package' not in strings:
         additions.append('package')
     new_strings = strings + additions
@@ -75,6 +102,7 @@ def edit(data):
     query = new_strings.index(additions[0])
     version = new_strings.index(additions[1])
     debug = new_strings.index('debuggable')
+    label = new_strings.index(LABEL)
     resources = next(chunk for kind, chunk in parts if kind == 0x180)
     resource_ids = list(struct.unpack('<' + 'I' * ((len(resources) - 8) // 4), resources[8:]))
     if debug < len(resource_ids): raise ValueError('Unexpected existing debug resource')
@@ -87,7 +115,7 @@ def edit(data):
     package_start += struct.pack('<II6H', 0xffffffff, package, 20, 20, 1, 0, 0, 0)
     package_start += struct.pack('<IIIHBBI', ns, name, query, 8, 0, 3, query)
     package_end = struct.pack('<HHIIIII', 0x103, 16, 24, 0, 0xffffffff, 0xffffffff, package)
-    output = bytearray(data[:8]); inserted = marked = debugged = 0
+    output = bytearray(data[:8]); inserted = marked = debugged = labelled = 0
     for kind, chunk in parts:
         if kind == 1:
             output.extend(new_pool); continue
@@ -96,6 +124,7 @@ def edit(data):
         if kind == 0x102 and strings[U32(chunk, 20)] == 'application':
             attr_start, attr_size, attr_count = struct.unpack_from('<HHH', chunk, 24)
             if attr_size != 20: raise ValueError('Unexpected attribute size')
+            labelled += relabel(chunk, strings, ns, label)
             # Android attributes are ordered by resource ID, not string-pool position.
             index = next((i for i in range(attr_count)
                           if resource_ids[U32(chunk, 16 + attr_start + i * 20 + 4)] > 0x0101000f), attr_count)
@@ -108,6 +137,8 @@ def edit(data):
                 old = struct.unpack_from('<H', chunk, position)[0]
                 if old > index: struct.pack_into('<H', chunk, position, old + 1)
             debugged += 1
+        if kind == 0x102 and strings[U32(chunk, 20)] == 'activity' and attribute_text(chunk, strings, ns, 'name') == LAUNCH_TARGET:
+            labelled += relabel(chunk, strings, ns, label)
         if kind == 0x102 and strings[U32(chunk, 20)] == 'manifest':
             attr_start, attr_size, attr_count = struct.unpack_from('<HHH', chunk, 24)
             for i in range(attr_count):
@@ -119,7 +150,7 @@ def edit(data):
         if kind == 0x103 and strings[U32(chunk, 20)] == 'queries':
             output.extend(package_start + package_end); inserted += 1
         output.extend(chunk)
-    if inserted != 1 or marked != 1 or debugged != 1:
-        raise ValueError(f'Unexpected manifest shape: query={inserted} version={marked} debug={debugged}')
+    if inserted != 1 or marked != 1 or debugged != 1 or labelled != 2:
+        raise ValueError(f'Unexpected manifest shape: query={inserted} version={marked} debug={debugged} label={labelled}')
     struct.pack_into('<I', output, 4, len(output))
     return bytes(output)

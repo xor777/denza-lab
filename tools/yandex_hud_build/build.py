@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import zipfile
 import xml.etree.ElementTree as ET
-from manifest import edit
+from manifest import LABEL, LAUNCH_TARGET, edit
 
 ROOT = Path(__file__).resolve().parents[2]
 PIN = '3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3'
@@ -29,6 +29,14 @@ def verify_manifest(original, candidate, env):
     after.attrib[android + 'versionName'] = before.attrib[android + 'versionName']
     if after.find('application').attrib.pop(android + 'debuggable') != 'true':
         raise RuntimeError('Candidate must be a debug build')
+    if after.find('application').attrib[android + 'label'] != LABEL:
+        raise RuntimeError('Experimental launcher label missing')
+    after.find('application').attrib[android + 'label'] = before.find('application').attrib[android + 'label']
+    target = lambda root: next(node for node in root.find('application').findall('activity')
+                               if node.attrib.get(android + 'name') == LAUNCH_TARGET)
+    if target(after).attrib[android + 'label'] != LABEL:
+        raise RuntimeError('Experimental launcher label missing on the launch activity')
+    target(after).attrib[android + 'label'] = target(before).attrib[android + 'label']
     queries = after.find('queries')
     added = [node for node in queries if node.tag == 'package'
              and node.attrib == {android + 'name': 'com.ts.car.someip.service'}]

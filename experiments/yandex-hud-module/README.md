@@ -90,7 +90,10 @@ patched Guidance class is relocated into a second new dex. No foreign source
 or binary is committed.
 
 Manifest changes are limited to `debuggable=true`, version name
-`29.8.1-denza-hud-exp.1`, and one package-visibility query for the HUD service.
+`29.8.1-denza-hud-exp.1`, the label «Яндекс HUD» on the application and on
+`MapActivity` (the launcher alias has no label of its own and Android takes
+the target activity's, so the shortcut, the app list and recents show it), and
+one package-visibility query for the HUD service.
 The original package and version code stay. Android SDK XML decoding verifies
 that all other manifest declarations match; the builder verifies the signature,
 16-KiB alignment and byte equality of all original ZIP entries except the two
