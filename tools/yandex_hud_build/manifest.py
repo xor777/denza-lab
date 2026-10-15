@@ -10,9 +10,9 @@ our differently signed fork must not claim ownership of it. Permission uses and
 component guards stay unchanged. The input is independently SHA-pinned.
 """
 import struct
+from identity import LABEL, VERSION_CODE, VERSION_NAME
 
 U32 = lambda data, offset: struct.unpack_from('<I', data, offset)[0]
-LABEL = 'Яндекс HUD'
 LAUNCH_TARGET = 'ru.yandex.yandexmaps.app.MapActivity'
 SHARED_PERMISSION = 'com.yandex.permission.READ_CREDENTIALS'
 
@@ -73,7 +73,7 @@ def edit(data):
         if utf8:
             size, pos = length(pool, pos, True)
         strings.append(bytes(pool[pos:pos + size * (1 if utf8 else 2)]).decode('utf-8' if utf8 else 'utf-16le'))
-    additions = ['com.ts.car.someip.service', '29.8.1-denza-hud-exp.1', 'debuggable', LABEL]
+    additions = ['com.ts.car.someip.service', VERSION_NAME, 'debuggable', LABEL]
     if 'package' not in strings:
         additions.append('package')
     new_strings = strings + additions
@@ -118,7 +118,7 @@ def edit(data):
     package_start += struct.pack('<II6H', 0xffffffff, package, 20, 20, 1, 0, 0, 0)
     package_start += struct.pack('<IIIHBBI', ns, name, query, 8, 0, 3, query)
     package_end = struct.pack('<HHIIIII', 0x103, 16, 24, 0, 0xffffffff, 0xffffffff, package)
-    output = bytearray(data[:8]); inserted = marked = debugged = labelled = removed = 0
+    output = bytearray(data[:8]); inserted = marked = numbered = debugged = labelled = removed = 0
     skipped_depth = 0
     for kind, chunk in parts:
         if skipped_depth:
@@ -160,11 +160,15 @@ def edit(data):
                     struct.pack_into('<I', chunk, offset + 8, version)
                     struct.pack_into('<HBBI', chunk, offset + 12, 8, 0, 3, version)
                     marked += 1
+                elif strings[U32(chunk, offset + 4)] == 'versionCode':
+                    struct.pack_into('<I', chunk, offset + 8, 0xffffffff)
+                    struct.pack_into('<HBBI', chunk, offset + 12, 8, 0, 0x10, VERSION_CODE)
+                    numbered += 1
         if kind == 0x103 and strings[U32(chunk, 20)] == 'queries':
             output.extend(package_start + package_end); inserted += 1
         output.extend(chunk)
-    if (inserted, marked, debugged, labelled, removed, skipped_depth) != (1, 1, 1, 2, 1, 0):
+    if (inserted, marked, numbered, debugged, labelled, removed, skipped_depth) != (1, 1, 1, 1, 2, 1, 0):
         raise ValueError(f'Unexpected manifest shape: query={inserted} version={marked} debug={debugged}'
-                         f' label={labelled} shared_permission={removed} depth={skipped_depth}')
+                         f' number={numbered} label={labelled} shared_permission={removed} depth={skipped_depth}')
     struct.pack_into('<I', output, 4, len(output))
     return bytes(output)

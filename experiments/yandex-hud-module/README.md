@@ -1,4 +1,4 @@
-# Embedded Navigator HUD experiment
+# YandexHUD — embedded Navigator HUD experiment
 
 Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
 map and Binder/SOME-IP output. Branch: `experiment/yandex-hud-renderer`.
@@ -148,8 +148,8 @@ Because original `classes12.dex` already has 65,536 method references, its
 patched Guidance class is relocated into a second new dex. No foreign source
 or binary is committed.
 
-Manifest changes are limited to `debuggable=true`, version name
-`29.8.1-denza-hud-exp.1`, the label «Яндекс HUD» on the application and on
+Manifest changes are limited to `debuggable=true`, version name/code from
+`tools/yandex_hud_build/identity.py`, the label **YandexHUD** on the application and on
 `MapActivity` (the launcher alias has no label of its own and Android takes
 the target activity's, so the shortcut, the app list and recents show it), and
 one package-visibility query for the HUD service. The common declaration
@@ -157,7 +157,7 @@ one package-visibility query for the HUD service. The common declaration
 with our signer must not claim ownership of a signature permission shared by
 official Yandex apps. Its `uses-permission` request, all component guards and
 the package-specific AndroidX signature permission stay unchanged.
-The original package and version code stay. Android SDK XML decoding verifies
+The original package stays. Android SDK XML decoding verifies
 that all other manifest declarations match; the builder verifies the signature,
 16-KiB alignment and byte equality of all original ZIP entries except the two
 patched dex files, manifest and `resources.arsc`. The sole resource change is
@@ -174,6 +174,25 @@ already permits debug applications with a different signer; its check is not
 patched. The release-mode attempt exits with a signature mismatch. The debug
 candidate builds routes without signing in; account login, SSO, purchases and
 signature-dependent integrations are unverified.
+
+## Build identification
+
+`tools/yandex_hud_build/identity.py` is the single source of the published build
+number. Numbering starts at **1**; earlier experiments keep their historical
+names. Increment `BUILD_NUMBER` before distributing a changed build; rebuilding
+the same source keeps its number. The builder does not increment a local counter.
+
+- Launcher/app name: **YandexHUD**.
+- Android app-info version: `29.8.1-YandexHUD.1` (upstream version + build number).
+- Android version code: upstream `739494300` + build number, initially `739494301`.
+- Output file: `YandexHUD-1-arm64-debug.apk` (or `universal`).
+- Startup log (`DenzaYandexHud` tag) reads the installed version/name from
+  PackageManager. `build-report.json` records the label, build number, version
+  name/code, source hashes and APK SHA-256; a `.apk.sha256` sidecar is also saved.
+
+The package, account type and signing key stay the same, so installing with
+replacement preserves the app's data. Use the APK hash as the exact identity
+for device testing; a build number alone is not a byte-for-byte check.
 
 ## Emulator checks
 
@@ -195,7 +214,7 @@ on the next frame, so colours, sizes and templates change without a rebuild.
 ```sh
 python3 tools/yandex_hud_build/receiver.py captures/yandex-hud-embedded-20261014/new-receiver
 adb -s emulator-5580 install captures/yandex-hud-embedded-20261014/new-receiver/emulator-only-hud-receiver.apk
-adb -s emulator-5580 install captures/yandex-hud-embedded-20261014/new-build/yandex-navigator-29.8.1-denza-hud-exp.1.apk
+adb -s emulator-5580 install captures/yandex-hud-arm64-20261015/new-build/YandexHUD-1-arm64-debug.apk
 ```
 
 Use a disposable root-capable emulator. A fresh (`-read-only`) boot has no
@@ -208,7 +227,7 @@ then **Go**). Then:
 
 ```sh
 python3 tools/yandex_hud_build/acceptance.py --serial emulator-5580 \
-  --apk captures/yandex-hud-embedded-20261014/new-build/yandex-navigator-29.8.1-denza-hud-exp.1.apk \
+  --apk captures/yandex-hud-arm64-20261015/new-build/YandexHUD-1-arm64-debug.apk \
   --out captures/yandex-hud-embedded-20261014/new-acceptance
 ```
 
@@ -229,7 +248,22 @@ cover the design and the theme contract, not native transport.
 
 ## Current candidate (2026-10-15)
 
-The current candidate adds **native AR from real Yandex geometry, ARM64 debug**:
+**YandexHUD build 1, ARM64 debug:**
+`captures/yandexhud-1-20261015/YandexHUD-1-arm64-debug.apk`, 219,762,615 bytes,
+SHA-256 `c93b90f8f8553cba1415c500db7bcf81d20fe452875da39968e157a6e23feea7`.
+Version `29.8.1-YandexHUD.1`, code `739494301`. This starts numbered builds;
+the native AR behavior below is unchanged. Only the manifest (name/version)
+and `classes17.dex` (startup version log read from PackageManager) differ from
+the AR reference outside signing metadata, verified in `comparison.json`.
+67 module / 148 AR assertions, SDK manifest/resource comparison, signature and
+16-KiB alignment checks passed. All original native libraries, map/AR code,
+stock images, account isolation and signing identity are preserved.
+Installed as an update on the owner's car at 13:04 MSK on 2026-10-15:
+`car-install-01/report.json` confirms the APK hash, version/code, ARM64/debug,
+unchanged UID and first-install time, and no change in the crash log.
+No route was started for this naming update; physical AR acceptance remains pending.
+
+**AR reference before YandexHUD numbering (same navigation behavior):**
 `captures/yandex-hud-ar-20261015/DenzaHUD-AR-arm64-debug.apk`, 219,762,615 bytes,
 SHA-256 `11a882f29cebfe3b917a7b55860c4e167c7904f5846261ede551a97c445252c7`.
 Only the embedded module (`classes17.dex`) differs from the previous ARM64

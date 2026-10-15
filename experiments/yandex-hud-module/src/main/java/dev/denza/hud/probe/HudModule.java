@@ -2,6 +2,7 @@ package dev.denza.hud.probe;
 
 import android.app.*;
 import android.content.Context;
+import android.content.pm.PackageInfo;
 import android.graphics.Bitmap;
 import android.os.*;
 import android.util.Log;
@@ -77,6 +78,7 @@ public final class HudModule {
 
         Engine(Context context) throws Exception {
             this.context = context;
+            PackageInfo identity = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
             try (InputStream input = context.getAssets().open("denza-hud/theme.json")) {
                 ByteArrayOutputStream data = new ByteArrayOutputStream();
                 byte[] buffer = new byte[4096]; int count;
@@ -96,7 +98,7 @@ public final class HudModule {
                 transport = new HudTransport(context, worker, bytes.toByteArray());
             });
             MAIN.post(this::tick);
-            Log.i(TAG, "embedded module ready exp.1");
+            Log.i(TAG, "YandexHUD ready: " + identity.versionName + " code=" + identity.versionCode);
         }
 
         void tick() {

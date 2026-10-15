@@ -8,7 +8,8 @@ from pathlib import Path
 import subprocess
 import zipfile
 import xml.etree.ElementTree as ET
-from manifest import LABEL, LAUNCH_TARGET, SHARED_PERMISSION, edit
+from identity import BUILD_NUMBER, LABEL, VERSION_CODE, VERSION_NAME
+from manifest import LAUNCH_TARGET, SHARED_PERMISSION, edit
 from resources import ACCOUNT_TYPE, ORIGINAL_ACCOUNT_TYPE, isolate_account_type
 from stock_art import extract as stock_art
 
@@ -38,9 +39,10 @@ def verify_manifest(original, candidate, env):
         return ET.fromstring(subprocess.check_output(['apkanalyzer', 'manifest', 'print', str(path)], env=env))
     before, after = read(original), read(candidate)
     android = '{http://schemas.android.com/apk/res/android}'
-    if after.attrib[android + 'versionName'] != '29.8.1-denza-hud-exp.1':
-        raise RuntimeError('Experimental version missing')
-    after.attrib[android + 'versionName'] = before.attrib[android + 'versionName']
+    for name, expected in [('versionName', VERSION_NAME), ('versionCode', str(VERSION_CODE))]:
+        if after.attrib[android + name] != expected:
+            raise RuntimeError('YandexHUD build identity mismatch: ' + name)
+        after.attrib[android + name] = before.attrib[android + name]
     if after.find('application').attrib.pop(android + 'debuggable') != 'true':
         raise RuntimeError('Candidate must be a debug build')
     if after.find('application').attrib[android + 'label'] != LABEL:
@@ -136,7 +138,8 @@ def main():
         run([java/'bin/keytool', '-genkeypair', '-keystore', key, '-storepass', 'denza-local-experiment',
              '-keypass', 'denza-local-experiment', '-alias', 'hud-experiment', '-keyalg', 'RSA', '-keysize', '3072',
              '-validity', '3650', '-dname', 'CN=Denza HUD local experiment, O=Owner local research'])
-    result = args.out/'yandex-navigator-29.8.1-denza-hud-exp.1.apk'
+    architecture = 'arm64' if args.abi == 'arm64-v8a' else 'universal'
+    result = args.out/f'{LABEL}-{BUILD_NUMBER}-{architecture}-debug.apk'
     run([build_tools/'apksigner', 'sign', '--ks', key, '--ks-key-alias', 'hud-experiment', '--ks-pass', 'pass:denza-local-experiment', '--out', result, args.out/'aligned.apk'], env=env)
     run([build_tools/'apksigner', 'verify', '--verbose', '--print-certs', result], env=env)
     run([build_tools/'zipalign', '-c', '-P', '16', '4', result])
@@ -151,7 +154,8 @@ def main():
         raise RuntimeError('Unexpected resource change beyond passport_account_type')
     report = {'input_sha256': PIN, 'apk': str(result), 'sha256': hashlib.sha256(result.read_bytes()).hexdigest(),
               'extra_dex': extra, 'module_source_sha256': {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
-              'package': 'ru.yandex.yandexnavi', 'version': '29.8.1-denza-hud-exp.1', 'debuggable': True,
+              'package': 'ru.yandex.yandexnavi', 'label': LABEL, 'build_number': BUILD_NUMBER,
+              'version': VERSION_NAME, 'version_code': VERSION_CODE, 'debuggable': True,
               'runtime': 'embedded Java, no Frida', 'manifest_semantic_check': 'passed'}
     report['removed_permission_declarations'] = [SHARED_PERMISSION]
     report['account_type'] = ACCOUNT_TYPE
@@ -180,6 +184,7 @@ def main():
         for name, content in artwork.items():
             if after.read(name) != content: raise RuntimeError('Stock asset changed: ' + name)
     (args.out/'build-report.json').write_text(json.dumps(report, indent=2)+'\n')
+    result.with_suffix('.apk.sha256').write_text(report['sha256'] + '  ' + result.name + '\n')
     print(json.dumps(report, indent=2))
 
 
