@@ -4,7 +4,9 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import org.junit.Assert.assertEquals
@@ -441,52 +443,128 @@ class HudArApproximationTest {
     }
 
     @Test
-    fun `simulated approach keeps one guide point and never drops AR down to three metres`() {
+    fun `simulated turn shows AR from fifty metres through the corner with one guide point`() {
         val tracker = HudArApproximationTracker()
         val turnAheadMeters = 100.0
+        val arcRadius = 6.0
+        val arcLength = PI / 2.0 * arcRadius
+        val straight = turnAheadMeters - arcRadius
         var travelled = 0.0
         var pose: HudVehiclePose? = null
         var reported = 0
         var reports = 0
+        var speed = 10.0
         val guidePoints = LinkedHashSet<String>()
-        var arSamples = 0
+        val heldLines = LinkedHashSet<String>()
+        var firstArDistance: Int? = null
+        var firstInRange: Int? = null
+        var last: HudArFrame? = null
         var tick = 0
-        while (turnAheadMeters - travelled > 3.0) {
+        // The approach, a right turn on a 6 m arc that starts 6 m before the node, and 10 m of
+        // the new street while the navigator still reports 0 and has not moved on.
+        while (travelled < straight + arcLength + 10.0) {
             val now = NOW + tick * POLL_MS
-            val remaining = turnAheadMeters - travelled
+            val (north, east, heading) = when {
+                travelled <= straight -> Triple(travelled, 0.0, 0.0)
+                travelled <= straight + arcLength -> {
+                    val angle = (travelled - straight) / arcRadius
+                    Triple(straight + arcRadius * sin(angle), arcRadius * (1.0 - cos(angle)), Math.toDegrees(angle))
+                }
+                else -> Triple(turnAheadMeters, arcRadius + travelled - straight - arcLength, 90.0)
+            }
             // A GNSS fix and the navigator's distance each about once a second, out of phase,
             // with a few metres of disagreement and a degree or so of course jitter.
             if (tick % 3 == 0) {
                 val fix = tick / 3
                 pose = pose(
-                    latitude = LATITUDE + metersToLatitude(travelled + 0.5 * cos(fix * 0.9)),
-                    longitude = LONGITUDE + metersToLongitude(0.4 * sin(fix * 1.3 + 0.3)),
-                    headingDegrees = (360.0 + 1.2 * sin(fix * 2.1 + 0.5)) % 360.0,
+                    latitude = LATITUDE + metersToLatitude(north + 0.5 * cos(fix * 0.9)),
+                    longitude = LONGITUDE + metersToLongitude(east + 0.4 * sin(fix * 1.3 + 0.3)),
+                    headingDegrees = (360.0 + heading + 1.2 * sin(fix * 2.1 + 0.5)) % 360.0,
+                    speedMetersPerSecond = speed,
                     capturedAtElapsedMs = now,
                 )
             }
             if (tick == 0 || tick % 3 == 2) {
-                reported = (remaining + 3.0 * sin(reports * 1.7 + 1.0)).roundToInt()
+                val remaining = turnAheadMeters - travelled
+                reported = max(0, (remaining + 3.0 * sin(reports * 1.7 + 1.0)).roundToInt())
                 reports++
             }
 
             val frame = tracker.resolve(guidance(HudManeuver.RIGHT, reported), pose, now)
+            val held = frame.guidance.maneuverDistanceMeters
 
-            if (frame.guidance.maneuverDistanceMeters >= 3) {
-                assertNotNull("tick=$tick remaining=$remaining reported=$reported", frame.geometry)
-            }
+            if (held > 50) assertNull("tick=$tick held=$held", frame.geometry)
+            if (firstInRange == null && held <= 50) firstInRange = held
+            if (firstArDistance == null && frame.geometry != null) firstArDistance = held
+            if (firstArDistance != null) assertNotNull("tick=$tick held=$held", frame.geometry)
             frame.geometry?.let {
                 guidePoints += it.guidePoint
-                arSamples++
+                if (held <= 25) heldLines += it.guideLine
             }
+            last = frame
             // 36 km/h, braking from 40 m out toward 14 km/h at the corner.
-            val speedMetersPerSecond = if (remaining > 40.0) 10.0 else 4.0 + 6.0 * remaining / 40.0
-            travelled += speedMetersPerSecond * POLL_MS / 1000.0
+            val remaining = turnAheadMeters - travelled
+            speed = if (remaining > 40.0) 10.0 else max(4.0, 4.0 + 6.0 * remaining / 40.0)
+            travelled += speed * POLL_MS / 1000.0
             tick++
         }
 
+        // The navigator reports once a second, so AR starts at the first report inside 50 m.
+        assertEquals(firstInRange, checkNotNull(firstArDistance))
         assertEquals(guidePoints.toString(), 1, guidePoints.size)
-        assertTrue("arSamples=$arSamples ticks=$tick", arSamples >= 25)
+        assertEquals(1, heldLines.size)
+        val exit = checkNotNull(checkNotNull(last).geometry)
+        assertEquals(0, checkNotNull(last).guidance.maneuverDistanceMeters)
+        assertEquals(90.0, exit.vehicleHeadingDegrees, 3.0)
+    }
+
+    @Test
+    fun `AR starts at fifty metres at turning speed and earlier when faster`() {
+        listOf(8.0 to 50, 20.0 to 80, 60.0 to 150).forEach { (speed, start) ->
+            val tracker = HudArApproximationTracker()
+            assertNull("speed=$speed", tracker.arGeometry(guidance(distance = start + 1), pose(speedMetersPerSecond = speed), NOW))
+            assertNotNull("speed=$speed", tracker.arGeometry(guidance(distance = start), pose(speedMetersPerSecond = speed), NOW))
+        }
+    }
+
+    @Test
+    fun `inside the turn hold AR follows the car and ends only with the step`() {
+        val tracker = HudArApproximationTracker()
+        val approach = tracker.arGeometry(guidance(HudManeuver.RIGHT, 40), pose(), NOW)!!
+        // Turning into the corner: a nose 60 degrees off the approach fails every guard.
+        val turning = pose(
+            latitude = LATITUDE + metersToLatitude(36.0),
+            longitude = LONGITUDE + metersToLongitude(3.0),
+            headingDegrees = 60.0,
+            capturedAtElapsedMs = NOW + 3_000L,
+        )
+        val outside = HudArApproximationTracker()
+        outside.arGeometry(guidance(HudManeuver.RIGHT, 40), pose(), NOW)!!
+        assertNull(outside.arGeometry(guidance(HudManeuver.RIGHT, 30), turning, NOW + 3_000L))
+        val held = tracker.arGeometry(guidance(HudManeuver.RIGHT, 4), turning, NOW + 3_000L)!!
+        assertEquals(approach.guidePoint, held.guidePoint)
+        assertEquals(approach.guideLine, held.guideLine)
+        assertEquals(60.0, held.vehicleHeadingDegrees, 0.0)
+        assertEquals(turning.latitude, held.vehicleLatitude, 0.0)
+
+        // A fix that has gone stale keeps the last frame instead of dropping AR mid-turn.
+        assertEquals(held, tracker.arGeometry(guidance(HudManeuver.RIGHT, 0), turning, NOW + 6_000L))
+        assertNull(
+            tracker.arGeometry(
+                guidance(HudManeuver.LEFT, 300).copy(nextRoadName = "Другая улица"),
+                pose(capturedAtElapsedMs = NOW + 6_000L),
+                NOW + 6_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun `the turn hold does not bring back AR lost before it`() {
+        val tracker = HudArApproximationTracker()
+        assertNotNull(tracker.arGeometry(guidance(distance = 45), pose(), NOW))
+        assertNull(tracker.arGeometry(guidance(distance = 40), pose(), NOW + 2_501L))
+        val fresh = pose(latitude = LATITUDE + metersToLatitude(25.0), capturedAtElapsedMs = NOW + 3_000L)
+        assertNull(tracker.arGeometry(guidance(distance = 20), fresh, NOW + 3_000L))
     }
 
     @Test
@@ -644,12 +722,14 @@ class HudArApproximationTest {
         longitude: Double = LONGITUDE,
         headingDegrees: Double = 0.0,
         accuracyMeters: Double = 4.0,
+        // Fast enough that AR may start anywhere in the 150 m window; the start distance has its own tests.
+        speedMetersPerSecond: Double = 40.0,
         capturedAtElapsedMs: Long = NOW,
     ) = HudVehiclePose(
         latitude = latitude,
         longitude = longitude,
         altitudeMeters = 120.0,
-        speedMetersPerSecond = 8.0,
+        speedMetersPerSecond = speedMetersPerSecond,
         headingDegrees = headingDegrees,
         accuracyMeters = accuracyMeters,
         capturedAtElapsedMs = capturedAtElapsedMs,

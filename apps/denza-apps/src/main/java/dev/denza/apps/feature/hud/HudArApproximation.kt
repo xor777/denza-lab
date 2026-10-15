@@ -121,6 +121,13 @@ data class HudArFrame(
  * the value it began with or field 9 grows. So within a step the distance only
  * shrinks, the turn point is placed once and never moves, and AR that has been
  * shown and then lost stays off until the next step instead of flapping.
+ *
+ * AR starts at [AR_START_DISTANCE_METERS], or earlier when the car is fast
+ * enough that the firmware's four-second entry would not finish before the
+ * turn. Inside [TURN_HOLD_DISTANCE_METERS] AR already shown holds until the
+ * navigator moves on: turning, the car leaves the course the point was
+ * projected along, which the guards read as a wrong projection, so there the
+ * line and point stay as last drawn and only the vehicle fields follow the car.
  */
 class HudArApproximationTracker {
     private data class StepKey(
@@ -134,7 +141,7 @@ class HudArApproximationTracker {
     private var heldDistanceMeters = 0
     private var guidePoint: GeoPoint? = null
     private var incomingHeadingDegrees = 0.0
-    private var arShown = false
+    private var shownGeometry: HudArGeometry? = null
     private var arEnded = false
     private var cachedPose: HudVehiclePose? = null
     private var cachedGeometry: HudArGeometry? = null
@@ -164,10 +171,15 @@ class HudArApproximationTracker {
             guidance.copy(maneuverDistanceMeters = heldDistanceMeters)
         }
         if (arEnded) return HudArFrame(held, null)
-        val geometry = geometry(guidance.maneuver, pose, nowElapsedMs)
+        val shown = shownGeometry
+        val geometry = if (shown != null && heldDistanceMeters <= TURN_HOLD_DISTANCE_METERS) {
+            pose?.takeIf { poseIsUsable(it, nowElapsedMs) }?.let { shown.following(it) } ?: shown
+        } else {
+            geometry(guidance.maneuver, pose, nowElapsedMs)
+        }
         if (geometry != null) {
-            arShown = true
-        } else if (arShown) {
+            shownGeometry = geometry
+        } else if (shown != null) {
             arEnded = true
         }
         return HudArFrame(held, geometry)
@@ -178,7 +190,7 @@ class HudArApproximationTracker {
         heldDistanceMeters = 0
         guidePoint = null
         incomingHeadingDegrees = 0.0
-        arShown = false
+        shownGeometry = null
         arEnded = false
         cachedPose = null
         cachedGeometry = null
@@ -194,6 +206,7 @@ class HudArApproximationTracker {
             return null
         }
         if (pose == null || !poseIsUsable(pose, nowElapsedMs)) return null
+        if (guidePoint == null && distance > startDistanceMeters(pose)) return null
         if (pose == cachedPose) return cachedGeometry
 
         val vehicle = GeoPoint(pose.latitude, pose.longitude)
@@ -247,6 +260,20 @@ class HudArApproximationTracker {
         cachedGeometry = geometry
         return geometry
     }
+
+    private fun HudArGeometry.following(pose: HudVehiclePose): HudArGeometry = copy(
+        vehicleLatitude = pose.latitude,
+        vehicleLongitude = pose.longitude,
+        vehicleAltitudeMeters = pose.altitudeMeters,
+        vehicleSpeedMetersPerSecond = pose.speedMetersPerSecond,
+        vehicleHeadingDegrees = pose.headingDegrees,
+    )
+
+    // The firmware needs fly-in, twist and rotate, four seconds, before the arrow points at the turn.
+    private fun startDistanceMeters(pose: HudVehiclePose): Double = min(
+        MAX_MANEUVER_DISTANCE_METERS.toDouble(),
+        max(AR_START_DISTANCE_METERS, pose.speedMetersPerSecond * AR_START_LEAD_SECONDS),
+    )
 
     private fun poseIsUsable(pose: HudVehiclePose, nowElapsedMs: Long): Boolean {
         if (nowElapsedMs < pose.capturedAtElapsedMs) return false
@@ -381,6 +408,9 @@ class HudArApproximationTracker {
         const val EARTH_RADIUS_METERS = 6_371_008.8
         const val MIN_MANEUVER_DISTANCE_METERS = 3
         const val MAX_MANEUVER_DISTANCE_METERS = 150
+        const val AR_START_DISTANCE_METERS = 50.0
+        const val AR_START_LEAD_SECONDS = 4.0
+        const val TURN_HOLD_DISTANCE_METERS = 25
         const val MIN_GUIDE_POINT_DISTANCE_METERS = 1.5
         const val MAX_GUIDE_POINT_DISTANCE_METERS = 220.0
         const val MAX_POSE_AGE_MS = 2_500L
