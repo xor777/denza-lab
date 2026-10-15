@@ -8,12 +8,13 @@ live-car evidence is current through 2026-09-04.
 
 ## Current state
 
-Updated 2026-10-11. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
+Updated 2026-10-15. What this app puts on the driver's display (the cluster), how its side cameras follow the stock turn-signal camera, how an application is projected to the cluster and guided on the HUD, and which firmware facts and dead ends that rests on.
 
 Owned elsewhere: what an energy figure means, its words and its chart - [energy-display-contract.md](energy-display-contract.md) (normative, wins over this page); the panel's drawing, boards and `compare.py` - [tools/design-canvas/luminofor/README.md](../tools/design-canvas/luminofor/README.md) (normative); the HUD as a display - [hud-projection-findings.md](hud-projection-findings.md); the turn-signal CAN events - [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
+| The firmware's AR turn scene (`libAREngine.so`, `judgeRecycle`) restarts its timed phases whenever field 31 changes or field 9 grows. The stock navigator holds field 31 at the segment end for the whole maneuver. Until `efea7776` our approximation blended it on every distance change, and the 2026-10-14 Google runs changed it about once a second, so the arrow never left its twist phase. Since `efea7776` `HudArApproximationTracker` holds field 31 and the smallest field 9 for a step, and keeps AR off for the rest of a step once it has dropped. Read from BydHud's copy of the engine, not this car's renderer; the fix has not been installed or seen on the glass | firmware | 2026-10-15 | [The AR arrow's scene machine](#the-ar-arrows-scene-machine-read-from-the-firmware-2026-10-14), [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
 | The owner's native HUD displays three lane arrows from field-7 PNG with field 5 = 3, road class 6 = 7, without field 29. Fields 5/29 alone leave only the control maneuver. Owner-observed in P; a Yandex source and moving-car behavior remain unverified | live | 2026-10-11 | [Native lane probe](hud-projection-findings.md#hud-native-lanes) |
 | One `ClusterSceneService` owns two presentations: the base layer (a projected application's `SurfaceView`, or this app's instruments) on `shared_fission_bg_XDJAScreenProjection_0`, the camera `TextureView` on `shared_fission_bg_XDJAScreenProjection_1`; `ClusterDisplayResolver.kt` picks them by name evidence and never guesses a numeric display id. Since 2026-10-09 the service is Android glue: `CameraSceneController.kt` decides which Show starts a camera and when a layer is torn down, `SceneLayer.kt` lets AVC go (window, then `freeDisplay` on `denza-avc-teardown`), both behind `CameraSceneSeams.kt` | code | 2026-07-18 | [Product architecture](#product-architecture) |
 | The driver's display shows one thing at a time: `Приборы` (this app's instruments, the default and the fallback, `FULL` only) or any application with a launch intent except this app and HOME (`ProjectablePackages.java`, asked again in `ClusterProxyMain.java` before every task mutation); there is no package list | code | 2026-09-23 | [How the driver reaches it](#how-the-driver-reaches-it), [Any application, not six navigators](#any-application-not-six-navigators) |
@@ -50,6 +51,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - Any non-navigator projected on this firmware, `com.byd.avc` above all: one owning session, from a documented reset, with `logcat -b crash -v time` ([Any application, not six navigators](#any-application-not-six-navigators)).
 - Whether the camera-start trims of `44f02df5` are faster: the matched A/B protocol in [Acceleration candidates: skip unused camera-start work (2026-09-05)](#acceleration-candidates-skip-unused-camera-start-work-2026-09-05).
 - What the glass draws for field 11 alone, a sign in field 7 with field 6 = `6`, fields 17/18 and 23, field 9 below 11 m, and field-28 IDs for sharp, U-turn, straight and roundabout (`13` against `25`-`34`): one parked sweep with `:hud-frames-probe` ([The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09)); the car's sign fed from Yandex (`text_speedlimit`, the Setting writes and their ADAS readback): one drive under posted limits ([The car's speed sign from Yandex](#the-cars-speed-sign-from-yandex-2026-10-09)); the Canvas roundabout drawn counter-clockwise since 2026-10-08 (exit 3 must point left on the glass), and the notification artwork and background guidance (a minimized-route check, which also has to measure how often Yandex reposts its notification while driving, against the six-second age) ([HUD turn-by-turn guidance](#hud-turn-by-turn-guidance)).
+- Whether the AR arrow reaches its turned pose ahead of the turn now that field 31 is held for the whole maneuver (`efea7776`): the first drive with that build, on Yandex, and on Google Maps once the third-party sender carries the same change ([The AR arrow's scene machine](#the-ar-arrows-scene-machine-read-from-the-firmware-2026-10-14)).
 - Navigation recovery paths not run live: selection change (the choice rule of 2026-10-08 included), launch-discovery timeout (since 2026-10-09 a 15 s deadline, `NavigationLaunchWait`, that settles with no words instead of «Дождитесь запуска приложения и повторите»), command failure, lost ADB, APK restart; the `Переносим…` overlay seen on the car; and the proxy from its own jar (2026-10-09): one ★ press, the time to a projected picture, before and after.
 - `android.hardware.AVMCamera` as a raw camera source outside AVC: its access control is not in the image; an isolated probe settles it.
 
@@ -59,7 +61,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - [Energy display proposals before the contract (2026-09-05 and 2026-09-07, superseded)](#energy-display-proposals-before-the-contract-2026-09-05-and-2026-09-07-superseded) — the energy audit and whole-panel correction that the energy contract answered.
 - [Mirrors behavior preserved in Denza Apps](#mirrors-behavior-preserved-in-denza-apps) — camera geometry, the 2026-09-04 guard history, the 2026-09-23 firmware read and contract with its live runs, and the startup timing runs.
 - [Navigation projection](#navigation-projection) — placements, any application since 2026-09-23, task topology and capture method, one-tap launch, transfer overlay, steering-wheel key, teardown rules.
-- [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) — Yandex guidance to the stock SOME/IP road topic, the AR arrow approximation, field-28 maneuver IDs, the stock packet field by field and other senders' findings (2026-10-09).
+- [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) — Yandex guidance to the stock SOME/IP road topic, the AR arrow approximation, the firmware's AR scene machine (2026-10-14), field-28 maneuver IDs, the stock packet field by field and other senders' findings (2026-10-09).
 - [Central IVI split routing](#central-ivi-split-routing) — the retired router, kept for the stock `byd-freeform` substrate it measured.
 - [Third-party projection app: research boundary](#third-party-projection-app-research-boundary) — what an inspected third-party projection app taught and what was not copied.
 - [Recorded car runs and escalation alerts](#recorded-car-runs-and-escalation-alerts) — 2026-07 acceptance runs by APK hash, open hardware checks, the `com.byd.avc` crash procedure.
@@ -2421,13 +2423,19 @@ no polyline. Denza Apps therefore uses an explicitly bounded approximation:
   the polyline against the live vehicle pose, so a divergence larger than the
   maneuver's own angle used to let a slight left render as a right-bending
   arrow while every approach-frame guard passed.
-- The inferred turn point is anchored in world coordinates, so repeated GNSS
-  fixes cannot drag it forward while Yandex's displayed distance is unchanged.
-  Small distance updates are blended; a distance increase of at least 30
-  metres resets the anchor as a recalculation. A large lateral course mutation
-  now rebases the approximation and suppresses that sample instead of folding
-  an old anchor across the car. The next stable sample may resume AR. Leaving
-  the activation window clears the anchor.
+- Everything below holds for one step: a run of the same maneuver and next
+  road (`HudArApproximationTracker`, since `efea7776`). Within a step the
+  packet's field 9 is the smallest distance Yandex has reported, so it never
+  grows. A distance at least 30 metres above it is a recalculated route and
+  starts a new step. The turn point is placed once, at the first sample that
+  passes every guard, in world coordinates, and field 31 carries it unchanged
+  until the step ends. Every AR sample rebuilds field 30 from the live pose
+  through that point. Once AR has been sent in a step, the first sample that
+  cannot produce it ends AR for the rest of the step. The firmware restarts its
+  scene on any change of field 31 or a rise of field 9; see
+  [The AR arrow's scene machine](#the-ar-arrows-scene-machine-read-from-the-firmware-2026-10-14).
+
+> **Superseded 2026-10-15:** until `efea7776` the anchor was blended toward a fresh `pose + distance` estimate on every distance change, rebased (one sample suppressed) on a large lateral course change, and AR resumed on the next stable sample. Each of these moved field 31 or switched between AR and compact packets inside a maneuver, and every such change restarted the firmware's scene.
 - The historical anchor course and the live approach must agree within 45
   degrees. The exit is derived from the live approach rather than blended with
   the stale anchor course. Immediately before serialization, a semantic guard
@@ -2440,7 +2448,8 @@ no polyline. Denza Apps therefore uses an explicitly bounded approximation:
   Only an explicit U-turn may exceed the regular 165-degree reversal ceiling.
 - Field 33 remains `0.0` because proximity is not whole-route progress. AR
   refreshes every 350 ms. Losing an eligible pose immediately emits a compact
-  packet so the firmware cannot retain stale geometry.
+  packet so the firmware cannot retain stale geometry; since `efea7776` AR then
+  stays off until the next step.
 
 Four synthetic straight/slight/normal/sharp paths and the corrected left/right
 pair were accepted by the live SOME/IP service, cleared, and stopped without
@@ -2449,7 +2458,7 @@ registered a 200 ms GNSS request on the car. Twenty-two JVM mutation tests
 cover the activation boundaries, unsupported maneuvers,
 stale/imprecise/out-of-order fixes, parked-course hold, north/dateline wrap,
 left/right mirroring, U-turn direction and return heading, turn severity,
-anchor stability, rerouting, lateral rebasing, stale-course rejection,
+anchor stability, rerouting, lateral rebasing (replaced on 2026-10-15 by the step contract above), stale-course rejection,
 wire-boundary turn semantics in both the approach and the nose frame, and
 exact protobuf field numbers/wire types. End-to-end visual validation during a
 real moving Yandex route, including the new U-turn geometry, is intentionally
@@ -2549,6 +2558,92 @@ road guidance. Until 2026-10-08 this paragraph said three seconds; the code has
 used six since 2026-07-25 (`2a3cfb1f`). Disabling the switch clears, stops, and
 unbinds the stock service. Unknown maneuver text is never guessed as a straight
 arrow: text and distance may continue, but the directional image is omitted.
+
+### The AR arrow's scene machine, read from the firmware (2026-10-14)
+
+Status: read from the firmware. It explains the 2026-10-14 Google Maps runs
+(recorded under `captures/maps-microg-20261014/`).
+The product follows it since `efea7776` (2026-10-15): code and unit tests only,
+not installed on the car, not seen on the glass.
+
+**Source and its limit.** `libAREngine.so` of the stock `BydHud` in the FSE OTA
+(`captures/fse-firmware-20260924/bydhud-unpacked/`, read with its
+`inspect_native.py`; offsets below are that file's). On this car BydHud is not
+registered ([hud-projection-findings.md](hud-projection-findings.md#hud-bydhud-not-direct)),
+so this is the closest readable copy of the AR engine, not proof that the same
+code draws this car's glass. Its models (`arrow.obj`, `phoenix.glb`,
+`butterfly.glb`) are the HUD's arrow-type setting, and its phases match what the
+owner saw.
+
+**Fields.** `ArNavigation::update` (`0x295508`) keeps field 9 at `+0x154`,
+field 28 at `+0x190` and the parsed field 31 at `+0x438`/`+0x440` (the
+"Guide point coordinates error" log reads these); field 30 is parsed into a
+point list, and field 31 has to be one of its points ("Guide point not found on
+guide line", `updateArNavDataGl`).
+
+**A turn scene** (`turnRightArrow` `0x2b05c4`; the left turn and the phoenix,
+butterfly and fish variants all call the same `judgeRecycle`):
+
+- It starts only while 14 m <= field 9 <= a start distance, after 11 frames in
+  that range. The start distance (`initSpeedDist`) is 100, 160, 230, 310, 400 or 500 m
+  by a speed byte whose steps (31/51/71/91/111) read as km/h, plus a road-class
+  margin of 20 to 60 m.
+- Then: fly-in 1.5 s, twist 1.5 s, rotate 1.0 s (the arrow turns to the angle of
+  the field-30 segment after field 31, clamped to 45-90 degrees,
+  `getTurnPointAngle`), carousel with no time limit, two recycle steps of 1 s,
+  exit.
+- From twist on, `judgeRecycle` (`0x2aa5bc`) runs every frame and ends the phase
+  when field 28 differs from the scene's, when field 9 is larger than the value
+  stored at the last phase change, or when field 31's longitude or latitude is
+  not exactly equal (a double compare) to the stored point; also when a status
+  byte is 3, probably rerouting. Inside the start distance a left or right
+  maneuver (field 28 `1`/`3`/`7` or `2`/`5`/`8`) then returns to the phase it
+  interrupted with that phase's timer restarted; otherwise the scene recycles
+  and the arrow flies in again.
+
+So every change of field 31 restarts the twist, which needs 1.5 s without one,
+or the rotate, which needs 1.0 s.
+
+**The stock navigator never moves field 31 within a maneuver.** It is the last
+shape point of the current AutoNavi segment (`BydLaunchermap` `k/e/j/d.java`,
+`r(SegmentInfo)`), field 9 is that segment's `segmentRemain.dist`, the whole
+packet goes out every 100 ms (`k/e/j/g/e.java`, thread `hud-message-sending`),
+and field 30 runs from the car's current shape point to the segment end and on
+through the whole next segment, rebuilt when the shape-point index changes
+(`k/e/f/a2.java`). Field 33 is driven distance over route length
+(`BaseNaviPresenter.java:2973`).
+
+**Our approximation moves it.** `HudArApproximationTracker` blends the anchored
+turn point toward a fresh `pose + distance` estimate whenever the reported
+distance changes, and field 31 carries that point. Google Maps reports metres
+once a second. The 2026-10-14 drive's send log (`captures/maps-microg-20261014/`)
+has 25 field-31 values in 24 s on the 84-to-0 m right turn and 23 in 21 s on the
+72-to-0 m one. The longest stretch without a change was 1.21 s, so 1.5 s never
+came. The parked replays reused that geometry: the full Denza Apps encoder replay had 24
+values in 24 s (longest 1.40 s), and the field-2 A/B had 25 in 25 s. That is why
+field 2, the encoder and the cadence changed nothing: in every run the arrow
+stayed in the twist, the intermediate animation, until the turn.
+
+Yandex's on-screen distance moves in steps, so field 31 changes less often and a
+1.5 s gap sometimes fits. That would explain why Denza Apps looked right; no
+Yandex wire trace exists to confirm it, and its code blends the same way.
+
+**What follows for the packet:** hold field 31 for the whole maneuver (a new
+value only with a new step or a reroute), never let field 9 grow within a step,
+and do not alternate AR and compact packets within a step (an empty field 31 is
+a change too). `HudArApproximationTracker` does all three since `efea7776`; the
+step contract is in [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance).
+`HudArApproximationTest` holds it, including a 100-to-3 m approach with distance
+and GNSS each about once a second, a few metres apart, that must keep one field-31
+value and AR on every sample.
+
+**Not done:** seeing it on the glass. On 2026-10-15 the owner chose to skip the
+parked A/B (the recorded right turn with field 31 held) and change the code
+directly. The first drive with a build from `efea7776` or later is the check: the
+arrow should reach its turned pose within about 4 s of appearing and hold it until
+the turn. A residual edge: two maneuvers of the same kind with no road name, the
+second less than 30 m further than what was left of the first, stay one step, so
+the held distance stays low until the new one drops below it.
 
 ### The stock road packet field by field, and what other senders learned (2026-10-09)
 
