@@ -10,6 +10,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from manifest import LABEL, LAUNCH_TARGET, SHARED_PERMISSION, edit
 from resources import ACCOUNT_TYPE, ORIGINAL_ACCOUNT_TYPE, isolate_account_type
+from stock_art import extract as stock_art
 
 ROOT = Path(__file__).resolve().parents[2]
 PIN = '3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3'
@@ -54,12 +55,14 @@ def verify_manifest(original, candidate, env):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apk', type=Path, default=ROOT / 'captures/hud-lanes-20261011/yandex-installed.apk')
+    parser.add_argument('--stock-apk', type=Path, default=ROOT / 'captures/hud-firmware-20260923/system/system/app/BydLaunchermap/BydLaunchermap.apk')
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--jadx-jar', type=Path, default=Path('/opt/homebrew/Cellar/jadx/1.5.5/libexec/lib/jadx-1.5.5-all.jar'))
     args = parser.parse_args()
     args.out = args.out.resolve()
     if hashlib.sha256(args.apk.read_bytes()).hexdigest() != PIN:
         parser.error('Input APK is not the reviewed Navigator 29.8.1')
+    artwork, artwork_report = stock_art(args.stock_apk)
     args.out.mkdir(parents=True, exist_ok=False)
     sdk = Path(os.environ.get('ANDROID_HOME', '/opt/homebrew/share/android-commandlinetools'))
     java = Path(os.environ.get('JAVA_HOME', '/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home'))
@@ -69,9 +72,14 @@ def main():
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
-         package/'HudWire.java', package/'Reflect.java', package/'NavigatorSource.java',
+         package/'HudWire.java', package/'Reflect.java', package/'NavigatorSource.java', package/'StockHudSymbols.java',
          ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe/ModuleTest.java'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
+    selected = subprocess.check_output([str(java/'bin/java'), '-cp', str(unit_classes),
+                                       'dev.denza.hud.probe.ModuleTest', 'assets'], text=True).splitlines()
+    for name in selected:
+        if 'assets/denza-hud/stock/' + name + '.png' not in artwork:
+            raise RuntimeError('Missing mapped stock artwork: ' + name)
     classes = args.out / 'module-classes'; classes.mkdir()
     sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java'))
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-classpath', android, '-d', classes, *sources])
@@ -80,7 +88,7 @@ def main():
     run([build_tools/'d8', '--min-api', '26', '--lib', android, '--output', dex, args.out/'module.jar'], env=env)
     patcher = args.out/'patcher'; patcher.mkdir()
     run([java/'bin/javac', '-cp', args.jadx_jar, '-d', patcher, ROOT/'tools/yandex_hud_build/PatchHooks.java'])
-    changes = {}
+    changes = dict(artwork)
     with zipfile.ZipFile(args.apk) as original:
         for name, mode in [('classes10.dex', 'context'), ('classes12.dex', 'guidance')]:
             source = args.out/('original-'+name); source.write_bytes(original.read(name))
@@ -127,6 +135,7 @@ def main():
               'runtime': 'embedded Java, no Frida', 'manifest_semantic_check': 'passed'}
     report['removed_permission_declarations'] = [SHARED_PERMISSION]
     report['account_type'] = ACCOUNT_TYPE
+    report['stock_artwork'] = artwork_report
     report['resource_semantic_check'] = 'passed: only passport_account_type changed'
     # Prove untouched ZIP contents, not just a successful signature.
     with zipfile.ZipFile(args.apk) as before, zipfile.ZipFile(result) as after:
@@ -137,6 +146,8 @@ def main():
             if before.read(name) != after.read(name): changed.append(name)
         if set(changed) != allowed: raise RuntimeError('Unexpected changed APK entries: '+str(changed))
         report['changed_original_entries'] = changed
+        for name, content in artwork.items():
+            if after.read(name) != content: raise RuntimeError('Stock asset changed: ' + name)
     (args.out/'build-report.json').write_text(json.dumps(report, indent=2)+'\n')
     print(json.dumps(report, indent=2))
 

@@ -18,9 +18,18 @@ final class HudWire {
 
     /** Road packet 0x8001: navigating (16 = 2) with whatever of the hint is known, or the clear (16 = 1). */
     static byte[] road(boolean active, NavigatorSource.Hint hint, byte[] icon) {
-        ByteArrayOutputStream body = new ByteArrayOutputStream(256 + (icon == null ? 0 : icon.length));
+        return road(active, hint, icon, 0, null);
+    }
+
+    /** One complete road snapshot: lanes do not depend on a manoeuvre being available. */
+    static byte[] road(boolean active, NavigatorSource.Hint hint, byte[] icon, int laneCount, byte[] lanes) {
+        boolean hasLanes = active && laneCount > 0 && laneCount <= 6 && lanes != null && lanes.length > 0;
+        ByteArrayOutputStream body = new ByteArrayOutputStream(256 + (icon == null ? 0 : icon.length)
+                + (hasLanes ? lanes.length : 0));
         number(body, 2, 2);
         number(body, 16, active ? 2 : 1);
+        number(body, 5, hasLanes ? laneCount : 0); // Explicit clear while the route stays active, too.
+        if (hasLanes) bytes(body, 7, lanes);
         if (active && hint != null) {
             if (hint.remainingMeters >= 0) number(body, 3, hint.remainingMeters);
             if (hint.remainingSeconds >= 0) number(body, 4, hint.remainingSeconds);

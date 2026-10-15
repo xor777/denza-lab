@@ -35,7 +35,8 @@ public final class ModuleTest {
         Manoeuvre(double finish, Annotation annotation) { position = new Position(finish); this.annotation = annotation; }
     }
     public static class Windshield {
-        public List<Manoeuvre> getManoeuvres() { return manoeuvres; } public List<Object> getLaneSigns() { return java.util.Collections.emptyList(); }
+        public List<Manoeuvre> getManoeuvres() { return manoeuvres; } public List<Object> getLaneSigns() { return lanes; }
+        List<Object> lanes = java.util.Collections.emptyList();
         List<Manoeuvre> manoeuvres = java.util.Collections.emptyList();
     }
     public static class Route { public Position getRoutePosition() { return new Position(1000); } }
@@ -64,14 +65,26 @@ public final class ModuleTest {
         public Object getLocation() { return location; }
         public Object getRoutePosition() { return location == null ? null : new Object(); }
         public Object getNextManeuver() { return null; }
-        public Double getNextLaneSignDistance() { return null; }
+        public Double getNextLaneSignDistance() { return laneDistance; }
+        Double laneDistance;
         Classified location;
         Object route = new Object(); boolean resumed = true;
         final Config config = new Config(); final Navigation navigation = new Navigation();
     }
+    public static class LaneSign {
+        public LaneSign getLaneSign() { return this; }
+        public List<Lane> getLanes() { return Arrays.asList(new Lane()); }
+    }
+    public static class Lane {
+        public String getLaneKind() { return "PLAIN_LANE"; }
+        public List<String> getDirections() { return Arrays.asList("STRAIGHT_AHEAD", "RIGHT90"); }
+        public String getHighlightedDirection() { return "RIGHT90"; }
+    }
     public static void main(String[] args) {
-        check(Arrays.equals(HudWire.road(true),new byte[]{10,5,16,2,(byte)128,1,2}),"active road protobuf");
-        check(Arrays.equals(HudWire.road(false),new byte[]{10,5,16,2,(byte)128,1,1}),"clear road protobuf");
+        if (args.length > 0 && args[0].equals("assets")) { assetNames(); return; }
+
+        check(Arrays.equals(HudWire.road(true),new byte[]{10,7,16,2,(byte)128,1,2,40,0}),"active road protobuf");
+        check(Arrays.equals(HudWire.road(false),new byte[]{10,7,16,2,(byte)128,1,1,40,0}),"clear road protobuf");
         check(Arrays.equals(HudWire.map(new byte[]{0,1,2}),new byte[]{10,4,'A','A','E','C'}),"map has no road envelope");
         NavigatorSource source = new NavigatorSource(new Reflect());
         Guidance guidance = new Guidance();
@@ -129,7 +142,79 @@ public final class ModuleTest {
         check(HudWire.duration(59).equals("1 мин")&&HudWire.duration(3600).equals("1 ч")&&HudWire.duration(3900).equals("1 ч 5 мин"),"remaining time text");
         check(HudWire.distance(950).equals("950 м")&&HudWire.distance(12345).equals("12 км"),"route distance text");
         check(NavigatorSource.manoeuvre("FORK_LEFT")[1].equals("3")&&NavigatorSource.manoeuvre("FINISH")[0].equals("finish")&&NavigatorSource.manoeuvre("UNKNOWN")==null,"field 28 table");
-        System.out.println("32 native module assertions passed");
+        nativeLanes();
+        windshield.lanes=Arrays.<Object>asList(new LaneSign());guidance.laneDistance=100d;guidance.config.enabled=true;
+        check(source.read(guidance,false,3700).lanes.size()==1,"background guidance reads actual lane signs");
+        guidance.laneDistance=801d;
+        check(source.read(guidance,false,3800).lanes.isEmpty(),"distant lane signs clear");
+        guidance.laneDistance=Double.NaN;
+        check(source.read(guidance,false,3801).lanes.isEmpty(),"non-finite distance clears");
+        guidance.laneDistance=100d;windshield.lanes=java.util.Collections.emptyList();
+        check(source.read(guidance,false,3900).lanes.isEmpty(),"missing lane sign clears during guidance");
+        windshield.lanes=Arrays.<Object>asList(new LaneSign());
+        check(source.read(guidance,false,7000).lanes.isEmpty(),"stale position clears lanes");
+        guidance.location.location.stamp++;guidance.config.enabled=false;
+        check(source.read(guidance,false,7100).lanes.isEmpty(),"disabled background clears lanes");
+        guidance.navigation.automotive.status="ROUTE_LOST";
+        check(source.read(guidance,true,7200).lanes.isEmpty(),"rerouting clears lanes");
+        System.out.println(assertions+" native module assertions passed");
+    }
+    private static NavigatorSource.Lane lane(String selected, String... directions) {
+        return new NavigatorSource.Lane("PLAIN_LANE",Arrays.asList(directions),selected);
+    }
+    private static void nativeLanes() {
+        List<NavigatorSource.Lane> sign=Arrays.asList(lane(null,"straightahead"),lane("straightahead","straightahead","left90"),lane("right90","straightahead","right90"));
+        check(Arrays.equals(StockHudSymbols.lanes(sign),new String[]{"landback_hud_0","landfront_hud_20","landfront_hud_43"}),"stock unselected and partial recommended branches");
+        check(Arrays.equals(StockHudSymbols.lanes(Arrays.asList(lane("left180","straightahead","left180"))),new String[]{"landfront_hud_95"}),"stock U-turn composite");
+        check(StockHudSymbols.lanes(Arrays.asList(lane("left45","left45","left90"))).length==0,"do not collapse distinct turns into one glyph");
+        check(StockHudSymbols.lanes(Arrays.asList(lane("leftshift","leftshift"))).length==0,"no guessed lane-shift arrow");
+        check(StockHudSymbols.lanes(Arrays.asList(lane("right90","left90"))).length==0,"highlight must belong to lane");
+        NavigatorSource.Lane bus=new NavigatorSource.Lane("BUS_LANE",java.util.Collections.<String>emptyList(),null);
+        String[] reserved=StockHudSymbols.lanes(Arrays.asList(bus,lane("straightahead","straightahead"),bus));
+        check(reserved.length==3&&reserved[0]==null&&reserved[2]==null,"reserved lanes keep positions");
+        check(StockHudSymbols.lanes(Arrays.asList(bus,bus)).length==0,"no empty graphic");
+        check(StockHudSymbols.lanes(java.util.Collections.nCopies(7,sign.get(0))).length==0,"never truncate an oversized sign");
+        byte[] png={1,2,3};
+        Map<Integer,Object> road=fields(HudWire.road(true,null,null,3,png));
+        check(road.get(5).equals(3L)&&Arrays.equals((byte[])road.get(7),png),"raw lane PNG without a hint");
+        road=fields(HudWire.road(true,withManoeuvre(),png,3,png));
+        check(road.containsKey(7)&&road.containsKey(8)&&road.containsKey(10),"one packet preserves lanes and manoeuvre/street");
+        for(int count:new int[]{0,-1,7}) {
+            road=fields(HudWire.road(true,null,null,count,png));
+            check(road.get(5).equals(0L)&&!road.containsKey(7),"invalid lane count clears");
+        }
+        road=fields(HudWire.road(true,null,null,3,null));
+        check(road.get(5).equals(0L)&&!road.containsKey(7),"no image means explicit zero lanes");
+        road=fields(HudWire.road(false,withManoeuvre(),png,3,png));
+        check(road.size()==3&&road.get(5).equals(0L)&&!road.containsKey(7),"cancel drops both pictures and clears lane count");
+        NavigatorSource.Hint hint=withManoeuvre();
+        check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou3"),"native right manoeuvre");
+        hint.icon="finish";hint.stockId=45;
+        check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou10"),"waypoint differs from finish despite shared semantic icon");
+        hint.stockId=48;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou15"),"native finish");
+        hint.icon="roundabout";hint.stockId=13;hint.exit=10;
+        check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou59"),"stock tenth roundabout exit");
+        hint.exit=11;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou11"),"unknown exit must not display a wrong number");
+        hint.stockId=24;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou12"),"generic roundabout leave");
+    }
+    /** Enumerate every reachable mapping; the builder verifies each resource exists in the pinned APK. */
+    private static void assetNames() {
+        java.util.Set<String> names=new java.util.TreeSet<>();
+        String[] directions={"straightahead","left90","right90","left180","right180"};
+        for(int mask=1;mask<32;mask++) {
+            java.util.List<String> values=new java.util.ArrayList<>();
+            for(int bit=0;bit<5;bit++)if((mask&(1<<bit))!=0)values.add(directions[bit]);
+            for(int highlight=-1;highlight<values.size();highlight++) {
+                NavigatorSource.Lane lane=new NavigatorSource.Lane("PLAIN_LANE",values,highlight<0?null:values.get(highlight));
+                names.addAll(Arrays.asList(StockHudSymbols.lanes(Arrays.asList(lane))));
+            }
+        }
+        for(String action:Arrays.asList("STRAIGHT","LEFT","RIGHT","SLIGHT_LEFT","SLIGHT_RIGHT","HARD_LEFT","HARD_RIGHT","UTURN_LEFT","UTURN_RIGHT","FINISH","WAYPOINT","ENTER_ROUNDABOUT","LEAVE_ROUNDABOUT")) {
+            String[] kind=NavigatorSource.manoeuvre(action);NavigatorSource.Hint hint=new NavigatorSource.Hint();
+            hint.icon=kind[0];hint.stockId=Integer.parseInt(kind[1]);
+            for(int exit=0;exit<=11;exit++){hint.exit=exit;names.add(StockHudSymbols.manoeuvre(hint));}
+        }
+        for(String name:names)System.out.println(name);
     }
     private static NavigatorSource.Hint withManoeuvre() {
         NavigatorSource.Hint hint=new NavigatorSource.Hint();
@@ -153,5 +238,6 @@ public final class ModuleTest {
         long value=0;int shift=0;
         while(true){int b=input[at[0]++]&255;value|=(long)(b&127)<<shift;if((b&128)==0)return value;shift+=7;}
     }
-    private static void check(boolean ok,String message) { if(!ok)throw new AssertionError(message); }
+    private static int assertions;
+    private static void check(boolean ok,String message) { assertions++; if(!ok)throw new AssertionError(message); }
 }

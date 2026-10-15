@@ -25,26 +25,10 @@ test('missing, unsupported or oversized lane signs never produce guessed glyphs'
  for(const lanes of [[{directions:['unknown'],highlight:'unknown'}],Array(7).fill(right.lanes[0]),[{directions:['left'],highlight:'right'}]])
   assert.deepEqual(hud.build({...right,lanes}).commands,base);
 });
-test('a bus lane keeps its place with the road marking instead of hiding the whole sign',()=>{
- const badgeOf=lanes=>hud.build({...right,lanes}).commands.find(c=>c.op==='group'&&c.ops.some(o=>o.op==='roundRect'));
- const cells=badgeOf([{directions:['straight'],highlight:'straight'},{kind:'BUS_LANE',directions:[]}]).ops.filter(o=>o.op==='group');
- assert.equal(cells.length,2);
- assert.deepEqual(cells[1].ops.map(o=>o.op==='text'&&o.value),['А']);
- assert.equal(badgeOf([{directions:['straight'],highlight:'straight'},{kind:'TRAM_LANE',directions:[]}]).ops.filter(o=>o.op==='group').length,1);
-});
-test('every lane template fits the frame top and keeps glyph proportions',()=>{
- for(const t of hud.LANE_TEMPLATES){
-  assert(t.w<=hud.LANES.maxWidth&&t.h<=40,`${t.n} lanes`);
-  assert(t.scale>0.6,`${t.n} lanes are not squashed`);
- }
-});
-test('the badge leaves the corner the route turns into, and the corner the route actually reaches',()=>{
- const L=(d,h)=>({directions:d,highlight:h});
- assert.equal(hud.laneSide([L(['right'],'right'),L(['straight'])]),'left');
- assert.equal(hud.laneSide([L(['left'],'left'),L(['straight'])]),'right');
- // A left-lane sign for a later manoeuvre while the route first bends right into the right corner.
- assert.equal(hud.laneSide([L(['left'],'left'),L(['straight'])],[[150,143],[150,60],[290,20]]),'left');
- assert.equal(hud.laneSide([L(['left'],'left'),L(['straight'])],[[150,143],[150,60],[0,60]]),'right');
+test('lane signs belong to the native HUD slot and never occupy the map',()=>{
+ const base=hud.build({...right,lanes:[]});
+ for(const lanes of [right.lanes,[{directions:['straight'],highlight:'straight'},{kind:'BUS_LANE',directions:[]}]])
+  assert.deepEqual(hud.build({...right,lanes}),base);
 });
 test('route classes are saturated, mutually distinct and never dark on the additive glass',()=>{
  const values=Object.values(hud.TRAFFIC);
@@ -58,12 +42,12 @@ test('route classes are saturated, mutually distinct and never dark on the addit
  // Magenta also differs from red by a whole blue channel, so 35° is enough for that pair.
  for(const [a,b,min] of [['FREE','LIGHT',60],['LIGHT','HARD',60],['HARD','VERY_HARD',35],['FREE','UNKNOWN',45]])assert(gap(T[a],T[b])>=min,`${a}/${b}`);
 });
-test('road events: nearest first, never over lanes, cursor or each other, limit shown on the sign',()=>{
+test('road events: nearest first, never over cursor or each other, former lane corner is free, limit shown on the sign',()=>{
  const lanes=[{directions:['straight'],highlight:'straight'}];
  const scene=hud.build({...right,lanes,events:[
   {kind:'camera',x:150,y:70,limit:60},{kind:'bump',x:150,y:74},{kind:'police',x:150,y:140},
   {kind:'danger',x:280,y:20},{kind:'railway',x:60,y:60},{kind:'chat',x:30,y:120},{kind:'works',x:2,y:90}]});
- assert.deepEqual(scene.events.map(e=>e.kind),['camera-limit','railway']);
+ assert.deepEqual(scene.events.map(e=>e.kind),['camera-limit','danger','railway']);
  const text=flat(scene.commands).find(c=>c.op==='text');
  assert.equal(text.value,'60');
  assert.equal(hud.eventKind(['SPEED_CONTROL','POLICE']),'camera');
@@ -78,15 +62,11 @@ test('fixture traffic is one classification per route segment and everything sta
 });
 test('the module theme carries every template the painter needs',()=>{
  const theme=JSON.parse(JSON.stringify(hud.theme()));
- for(const key of ['mapStyle','traffic','jamTypes','route','lanes','icons','eventTags','eventPriority','events','finish','cursor'])assert(theme[key],key);
- for(const name of Object.values(hud.LANE_DIRECTIONS))assert(theme.lanes.glyphs[name],name);
+ for(const key of ['mapStyle','traffic','jamTypes','route','icons','eventTags','eventPriority','events','finish','cursor'])assert(theme[key],key);
  for(const kind of new Set(Object.values(hud.EVENT_TAGS)))assert(theme.icons[kind],kind);
  assert(theme.icons['camera-limit']);
- // Every picture NavigatorSource.manoeuvre can name, roundabout exits 0..8.
- for(const name of ['straight','left','right','slight-left','slight-right','sharp-left','sharp-right','uturn-left','uturn-right','finish'])
-  assert(theme.manoeuvre.icons[name],name);
- assert.equal(theme.manoeuvre.icons.roundabout.length,9);
- assert.equal(theme.manoeuvre.size,32*theme.manoeuvre.scale);
+ assert.equal(theme.lanes,undefined);
+ assert.equal(theme.manoeuvre,undefined);
 });
 test('traffic cache cannot carry green across outdated data, route changes or bad segment counts',()=>{
  const adapter=require('./navigator-adapter.js');

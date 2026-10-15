@@ -12,7 +12,8 @@ import org.json.JSONObject;
 
 /** Disposable emulator substitute, never install on a vehicle or distribute with the candidate. */
 public final class SomeIpServerService extends Service {
-    private long frames, starts, stops, roads, blanks, bad, hints, limits;
+    private long frames, starts, stops, roads, blanks, bad, hints, limits, lanePackets, laneClears;
+    private int laneCount;
     private boolean active, session;
     private JSONObject lastHint = new JSONObject();
     private final Binder endpoint = new Binder() {
@@ -64,13 +65,14 @@ public final class SomeIpServerService extends Service {
         try {
             JSONObject value = new JSONObject().put("frames",frames).put("starts",starts).put("stops",stops)
                     .put("roads",roads).put("blanks",blanks).put("bad",bad).put("hints",hints).put("limits",limits).put("lastHint",lastHint).put("active",active).put("session",session)
+                    .put("lanePackets",lanePackets).put("laneClears",laneClears).put("laneCount",laneCount)
                     .put("uptime",SystemClock.elapsedRealtime());
             try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(),"report.json"))) { out.write(value.toString().getBytes("UTF-8")); }
         } catch (Exception error) { Log.e("HudReceiver", "report failed",error); }
     }
     /**
-     * Road packet 0x8001 as Denza Apps sends it: field 1 wraps 2 = 2, 16 = 1 (clear, nothing else) or
-     * 16 = 2 (navigating) with the hint fields 3/4, 8 (192×192 PNG), 9, 10, 11 (5..130 by 5), 26, 27, 28.
+     * Road packet 0x8001 as Denza Apps sends it: field 1 wraps 2 = 2, 16 = 1 (clear, zero lanes) or
+     * 16 = 2 (navigating) with the hint fields 3/4, 5/7 (native lanes), 8 (80×80 stock PNG), 9, 10, 11 (5..130 by 5), 26, 27, 28.
      */
     private boolean road(byte[] payload) throws Exception {
         int[] cursor = {0};
@@ -90,16 +92,29 @@ public final class SomeIpServerService extends Service {
         }
         if (!Integer.valueOf(2).equals(fields.get(2))) throw new IllegalArgumentException("field 2");
         Object state = fields.get(16);
+        Object count = fields.get(5);
+        if (!(count instanceof Integer)) throw new IllegalArgumentException("Missing lane count/clear");
+        int nextLanes = (Integer) count;
+        if (nextLanes < 0 || nextLanes > 6 || (nextLanes > 0) != fields.containsKey(7)) throw new IllegalArgumentException("Lane count/image mismatch");
+        if (nextLanes > 0) {
+            byte[] png = (byte[]) fields.get(7);
+            Bitmap row = BitmapFactory.decodeByteArray(png, 0, png.length);
+            if (row == null || row.getWidth() != nextLanes * 41 || row.getHeight() != 60) throw new IllegalArgumentException("Lane PNG dimensions");
+            row.recycle(); lanePackets++;
+            try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(),"latest-lanes.png"))) { out.write(png); }
+        } else if (laneCount > 0 && Integer.valueOf(2).equals(state)) laneClears++;
+        laneCount = nextLanes;
         if (Integer.valueOf(1).equals(state)) {
-            if (fields.size() != 2) throw new IllegalArgumentException("clear carries a hint");
+            if (fields.size() != 3 || laneCount != 0) throw new IllegalArgumentException("clear carries a hint");
             return false;
         }
         if (!Integer.valueOf(2).equals(state)) throw new IllegalArgumentException("field 16");
         if (fields.containsKey(8)) {
             byte[] png = (byte[]) fields.get(8);
             Bitmap icon = BitmapFactory.decodeByteArray(png, 0, png.length);
-            if (icon == null || icon.getWidth() != 192 || icon.getHeight() != 192) throw new IllegalArgumentException("manoeuvre PNG");
+            if (icon == null || icon.getWidth() != 80 || icon.getHeight() != 80) throw new IllegalArgumentException("manoeuvre PNG");
             icon.recycle();
+            try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(),"latest-manoeuvre.png"))) { out.write(png); }
             if (!(fields.get(9) instanceof Integer) || !(fields.get(28) instanceof Integer)) throw new IllegalArgumentException("manoeuvre without distance/id");
             hints++;
         }
@@ -111,7 +126,7 @@ public final class SomeIpServerService extends Service {
         JSONObject hint = new JSONObject();
         for (java.util.Map.Entry<Integer, Object> entry : fields.entrySet()) {
             Object value = entry.getValue();
-            if (entry.getKey() == 8) hint.put("8", ((byte[]) value).length + " bytes");
+            if (entry.getKey() == 8 || entry.getKey() == 7) hint.put(String.valueOf(entry.getKey()), ((byte[]) value).length + " bytes");
             else hint.put(String.valueOf(entry.getKey()), value instanceof byte[] ? new String((byte[]) value, "UTF-8") : value);
         }
         lastHint = hint;

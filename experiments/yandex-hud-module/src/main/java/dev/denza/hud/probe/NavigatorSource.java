@@ -18,7 +18,7 @@ final class NavigatorSource {
     }
     /**
      * What the HUD's own manoeuvre window shows (road packet fields 3/4, 8-11, 26-28), read from
-     * the guidance itself rather than from Yandex's screen. icon is a theme manoeuvre picture, null
+     * the guidance itself rather than from Yandex's screen. icon is a semantic manoeuvre key, null
      * without a manoeuvre ahead; -1 means unknown; speedLimit 0 means no sign.
      */
     static final class Hint {
@@ -85,7 +85,7 @@ final class NavigatorSource {
             hintFailure = String.valueOf(error.getCause() != null ? error.getCause() : error);
         }
         Double laneDistance = (Double) api.call(guidance, "getNextLaneSignDistance");
-        if (laneDistance == null || laneDistance < 0 || laneDistance > 800) return frame;
+        if (laneDistance == null || !(laneDistance >= 0 && laneDistance <= 800)) return frame;
         List<?> signs = (List<?>) api.call(frame.windshield, "getLaneSigns");
         if (signs.isEmpty()) return frame;
         List<?> lanes = (List<?>) api.call(api.call(signs.get(0), "getLaneSign"), "getLanes");
@@ -161,7 +161,7 @@ final class NavigatorSource {
     }
 
     /**
-     * Navigator's Action → {theme manoeuvre picture, road packet field 28}. Field 28 follows the
+     * Navigator's Action → {semantic manoeuvre key, road packet field 28}. Field 28 follows the
      * stock BYD navigator read from the firmware (docs/instrument-display-findings.md, "Field 28"):
      * 13 enters and 24 leaves a roundabout, 48 is the destination, 45 a waypoint.
      */

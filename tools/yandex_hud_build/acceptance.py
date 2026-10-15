@@ -13,6 +13,7 @@ def main():
     parser.add_argument('--serial', required=True)
     parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--apk', required=True, type=Path)
+    parser.add_argument('--require-lanes', action='store_true', help='Require real lane packets during foreground/background guidance')
     args = parser.parse_args()
     if not args.serial.startswith('emulator-'):
         parser.error('Disposable emulator only')
@@ -82,6 +83,9 @@ def main():
         report['checks']['background_frames'] = second['receiver']['frames'] - first['receiver']['frames']
         report['checks']['background_unique_png'] = frames('background')
         report['checks']['hidden'] = not second['renderer']['visible']
+        report['checks']['background_lane_packets'] = second['receiver'].get('lanePackets', 0) - first['receiver'].get('lanePackets', 0)
+        report['checks']['lane_packets'] = second['receiver'].get('lanePackets', 0)
+        report['checks']['active_lane_clears'] = second['receiver'].get('laneClears', 0)
         (args.out / 'background.png').write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
         receiver_pid = adb('shell', 'pidof', 'com.ts.car.someip.service').strip()
         if not receiver_pid.isdecimal(): raise RuntimeError('Expected one emulator receiver process')
@@ -120,6 +124,8 @@ def main():
           and check.get('process_survived_cleanup')
           and check.get('background_disabled_stops_frames') and check.get('wire_errors') == 0
           and check.get('clear_frames', 0) >= 3)
+    if args.require_lanes:
+        ok = ok and check.get('lane_packets', 0) > 0 and check.get('background_lane_packets', 0) > 0
     report['passed'] = bool(ok)
     (args.out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     if not ok: raise SystemExit('Acceptance failed; inspect report and pixels')

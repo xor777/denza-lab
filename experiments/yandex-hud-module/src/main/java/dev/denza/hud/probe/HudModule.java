@@ -68,6 +68,7 @@ public final class HudModule {
         HudMap map;
         HudPainter painter;
         HudTransport transport;
+        StockHudArt stockArt;
         boolean busy, wasActive;
         String mode = "off", hintKey;
         long frames, lastStats, nextAttempt;
@@ -90,6 +91,7 @@ public final class HudModule {
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes);
                 bitmap.recycle();
+                stockArt = new StockHudArt(context.getAssets());
                 transport = new HudTransport(context, worker, bytes.toByteArray());
             });
             MAIN.post(this::tick);
@@ -133,9 +135,9 @@ public final class HudModule {
                     mainMicros += elapsed;
                     maxMainMicros = Math.max(maxMainMicros, elapsed);
                 }
-                // The hint's picture is drawn here, on main with the overlay; the packet is built on the worker.
+                // Immutable semantic snapshot; stock artwork and PNG work belong to the output worker.
                 final NavigatorSource.Hint hint = frame.drawMap() ? frame.hint : null;
-                final byte[] icon = painter.manoeuvre(hint);
+                final String[] laneSymbols = StockHudSymbols.lanes(frame.lanes);
                 logHint(hint);
                 final long token = epoch.get();
                 final HudPainter owned = painter;
@@ -145,7 +147,10 @@ public final class HudModule {
                     try {
                         byte[] png = owned.encode(!frame.drawMap());
                         if (token == epoch.get()) {
-                            transport.publish(png, HudWire.road(true, hint, icon));
+                            byte[] lanes = stockArt.lanes(laneSymbols);
+                            byte[] icon = stockArt.manoeuvre(hint);
+                            if (token != epoch.get()) return;
+                            transport.publish(png, HudWire.road(true, hint, icon, laneSymbols.length, lanes));
                             emulator.frame(png, frame.mode, visible, frame.backgroundEnabled, frame.resumed);
                         }
                     } catch (Throwable error) {

@@ -4,7 +4,8 @@ An independent HUD map **inside the running Navigator process**, using its
 existing MapKit and current Guidance. Full navigation stays in the original
 main-screen Activity. This directory is the original instrumented emulator experiment. The
 [embedded debug APK and HUD transport](../../experiments/yandex-hud-module/README.md)
-now have a separate owner; neither path is car-tested or an ordinary companion APK.
+now have a separate owner. The latest native lane/manoeuvre slots await car
+acceptance; this is not an ordinary companion APK.
 
 Findings and access boundaries live in
 [HUD projection findings](../../docs/hud-projection-findings.md#hud-yandex-independent-renderer).
@@ -19,7 +20,8 @@ panel, distance or reserved header**; the map uses all 180 pixels.
 `hud-scene.js` is the one design source. The browser stand paints it directly;
 the [embedded module](../../experiments/yandex-hud-module/README.md) receives it
 as `assets/denza-hud/theme.json` (`tools/yandex_hud_build/theme.cjs`) and only
-positions its templates. Current design, v3 (2026-10-14), tuned for the
+positions its templates. Current map design is v3 with native HUD arrows
+(2026-10-15), tuned for the
 additive glass:
 
 - **Route classes** are saturated primaries with zeroed spare channels: FREE
@@ -40,22 +42,17 @@ additive glass:
   markings and crosswalks are hidden. **Land is painted black, not hidden**:
   hidden land shows MapKit's night clear colour (13,13,13), a faint glowing
   rectangle on the glass.
-- **Lanes**: own glyphs on one 28×32 grid with a shared stem, 3.6-unit round
-  strokes and 8×10 heads, scaled uniformly (26 px high up to four lanes; five
-  and six lanes shrink to fit 132 px). Recommended direction white, others
-  38 %, dashed lane markings between cells, on Yandex blue dimmed to `#0E3FA3`
-  (a full blue plate is a bright patch on the glass and drowns the arrows).
-  Bus and taxi lanes show a dim road marking «А»; tram and bike lanes stay
-  empty; the count and position stay true. Shift and from-the-other-side
-  directions are drawn; an unknown direction still hides the whole sign.
-- **Lane corner**: the top corner the manoeuvre does not turn into. The sign
-  can belong to a later manoeuvre than the next bend, so the route drawn ahead
-  (its first 260 screen pixels) moves the badge when it reaches that corner.
+- **Lanes and manoeuvre block**: the embedded module now sends original cyan
+  stock HUD artwork into the separate native slots. No blue badge, lane glyphs
+  or lane exclusion rectangle remain on the map. Details, matching rules and
+  pixel/cache checks live in the module README linked above. The old badge
+  helpers remain exported only for historical research consumers; the scene
+  builder and embedded JSON theme no longer use or ship them.
 - **Road events on the route**, upright, about 20 px, each on a black halo:
   camera (with the posted limit as a red-ringed sign when the event carries
   one), police, accident and danger triangles, roadworks barrier, closed road,
   speed bump (amber hump on its line) and railway crossing. Nearest first, at
-  most four; an icon that would cover the lanes, the cursor or a nearer icon is
+  most four; an icon that would cover the cursor or a nearer icon is
   left out. Chat, feedback and «other» events never reach the glass.
 - **Finish**: a white target ring where the route ends.
 - Focus is (150,143); heading follows guidance, zoom 14.6–16.7 uses the upcoming

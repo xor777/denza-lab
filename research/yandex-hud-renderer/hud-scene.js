@@ -247,7 +247,7 @@ function cameraZoom(distance,latitude){
  return Math.max(14.6,Math.min(16.7,Math.log2(156543.03392*Math.cos(latitude*Math.PI/180)*118/ahead)));
 }
 function build(input={}){
- const commands=[],palette=input.stockPalette?{...PALETTE,plate:STOCK.blue}:PALETTE;
+ const commands=[];
  const text=value=>commands.push({op:'text',value,x:10,y:24,size:16,color:PALETTE.hint,align:'left'});
  if(input.guidanceActive!==true)return {mode:'off',drawMap:false,commands};
  if(input.rerouting===true){text('Маршрут…');return {mode:'rerouting',drawMap:false,commands};}
@@ -255,15 +255,12 @@ function build(input={}){
  if(input.locationFresh!==true){text('Нет позиции');return {mode:'waiting-location',drawMap:false,commands};}
  // No manoeuvre panel, distance or reserved header: the map uses all 180 pixels.
  const blocked=[EVENTS.cursor];
- let lanes=null;
- if(validLanes(input.lanes)){lanes=laneBadge(input.lanes,palette,input.route);blocked.push(lanes.rect);}
  if(input.finish&&input.finish.every(Number.isFinite))
   commands.push({op:'group',x:Math.round(input.finish[0]),y:Math.round(input.finish[1]),scale:1,ops:FINISH.ops});
  const placed=placeEvents(input.events,blocked);
  for(const p of placed.slice().reverse())commands.push(eventCommand(p));
- if(lanes)commands.push(lanes.command);
  commands.push(...(input.stockPalette?STOCK_CURSOR:CURSOR));
- return {mode:'guidance',drawMap:true,commands,lanes:lanes&&{side:lanes.side,rect:lanes.rect},events:placed};
+ return {mode:'guidance',drawMap:true,commands,lanes:null,events:placed};
 }
 
 /* ---------- canvas executor (the module's HudPainter mirrors it op for op) ---------- */
@@ -303,9 +300,7 @@ function paint(ctx,commands,assets={}){
 // Everything the module needs, as plain JSON.
 function theme(){
  return {size:SIZE,mapStyle,traffic:TRAFFIC,jamTypes:JAM_TYPES,palette:PALETTE,route:ROUTE,
-  lanes:{...LANES,templates:LANE_TEMPLATES,glyphs:GLYPHS,glyphStroke:GLYPH.stroke,directions:LANE_DIRECTIONS},
-  icons:ICONS,eventTags:EVENT_TAGS,eventPriority:EVENT_PRIORITY,events:EVENTS,finish:FINISH,cursor:CURSOR,
-  manoeuvre:{...MANOEUVRE,icons:MANOEUVRES}};
+  icons:ICONS,eventTags:EVENT_TAGS,eventPriority:EVENT_PRIORITY,events:EVENTS,finish:FINISH,cursor:CURSOR};
 }
 const api={SIZE,STOCK,TRAFFIC,JAM_TYPES,PALETTE,ROADS,ROUTE,GLYPH,GLYPHS,LANES,LANE_TEMPLATES,LANE_DIRECTIONS,ICONS,EVENT_TAGS,
  EVENTS,FINISH,CURSOR,MANOEUVRE,MANOEUVRES,mapStyle,laneNames,assetNames,cameraZoom,validLanes,laneRect,routeHits,laneSide,laneBadge,eventKind,placeEvents,

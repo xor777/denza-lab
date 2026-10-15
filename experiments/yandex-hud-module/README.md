@@ -34,10 +34,18 @@ has not been changed by these build/test tools. Detailed evidence belongs to
 - `HudPainter` owns two bitmaps and an overlay and executes the theme's drawing
   templates op for op as `research/yandex-hud-renderer/hud-scene.js` paints them
   (exported by `tools/yandex_hud_build/theme.cjs`); it computes only placement:
-  the lane corner (with hysteresis inside one sign) and which road events fit.
+  which road events fit. Lane guidance never occupies the map.
   The design itself is described in the
   [renderer README](../../research/yandex-hud-renderer/README.md#what-it-renders).
   Black is the HUD's optical background convention, not true PNG transparency.
+- `StockHudSymbols` translates lane directions/recommendations and manoeuvres
+  to the primary cyan BydLaunchermap resources. `StockHudArt` loads their original
+  bytes from APK assets on the output worker, outside Android density scaling.
+  Lane cells are 37×60 with 2 px side margins (41 px pitch), on optical black;
+  only the current row is encoded and cached. Special lanes keep empty cells.
+  Unsupported/ambiguous signs are hidden in full, never truncated or guessed.
+  45°/135° turns use the stock left/right symbol; lane shifts are unsupported.
+  Manoeuvres reuse original 80×80 PNG bytes without drawing or re-encoding.
 - `HudModule` polls at up to 10 fps while active, 2.5 Hz while off. MapKit and
   composition stay on main; PNG encoding and Binder calls share one worker.
   Only one frame is in flight, with no frame queue. An epoch invalidates work
@@ -60,8 +68,8 @@ Transactions 4/5 start/stop service `3097367205183488`; transaction 6 sends the
 exact handle/topic/instance/length/byte-array layout. Topic `1127042368241665`
 is the road packet: 2 = 2, 16 = 2 (navigating) and, while a moving map is
 drawn, the hint in Denza Apps' field order — 3/4 remaining metres/seconds,
-8 a 192×192 white manoeuvre picture (the theme's lane glyphs at 6×, roundabout
-with its exit), 9 metres to the manoeuvre, 10 its street, 11 the posted limit
+5 the lane count and 7 its raw PNG (independent of the hint),
+8 the original cyan 80×80 manoeuvre PNG (including roundabout exits 1–10), 9 metres to the manoeuvre, 10 its street, 11 the posted limit
 in km/h, 26/27 «3,4 км» / «10 мин», 28 the stock manoeuvre id. Everything comes
 from guidance itself: windshield manoeuvres (`Action`, toponym, the roundabout
 exit on the manoeuvre that leaves it), the route's `RoutePosition`
@@ -70,7 +78,10 @@ Field 28 follows the stock BYD navigator: 13 enters and 24 leaves a roundabout
 (Denza Apps sends 25), 48 finish, 45 waypoint. Without these fields the HUD
 filled the manoeuvre window with its own Chinese captions. A changed hint goes
 out at once, at most four times a second, else every 500 ms. Rerouting and a
-lost position send only 2/16. Topic `1127042368241667` carries field 1 =
+lost position send 2/16 and explicit 5 = 0, without a lane image. A missing
+lane sign also sends 5 = 0 while the route remains active. Field 6 (road class)
+is unchanged; no road is falsely labelled main road. Field 29 is unnecessary
+for the recovered image slot. Topic `1127042368241667` carries field 1 =
 Base64 PNG, without the road envelope. **No vehicle-property or DiShare writes**:
 the car's own speed sign (cluster and HUD) needs the `BYDAUTO_*` Setting writes
 Denza Apps makes through local ADB; this process has no such permission, so
@@ -89,7 +100,13 @@ car acceptance.
 
 Requires JDK 17, Android SDK platform 35 / build-tools 36.0.0, Node, `apkanalyzer`
 and the dexlib2 bundled in local JADX 1.5.5. Paths can be supplied via
-`JAVA_HOME`, `ANDROID_HOME`, `--jadx-jar` and `--apk`.
+`JAVA_HOME`, `ANDROID_HOME`, `--jadx-jar`, `--apk` and `--stock-apk`.
+The stock artwork input is the pinned BydLaunchermap APK described in
+[stock artwork findings](../../docs/hud-projection-findings.md#hud-stock-artwork).
+The builder checks its hash and dimensions and copies 127 original PNGs
+(176,502 bytes) into `assets/denza-hud/stock/`; no foreign binary is committed.
+Every reachable symbol mapping must resolve to an asset. The build report
+records and verifies byte equality of every copied image.
 
 ```sh
 python3 tools/yandex_hud_build/build.py \
@@ -119,7 +136,7 @@ patched dex files, manifest and `resources.arsc`. The sole resource change is
 `passport_account_type` → `com.yandex.passport.denza`; an independent full `aapt2`
 dump comparison rejects every other resource change. Resource IDs, XML
 references and native libraries stay unchanged. `build-report.json` records
-APK/module hashes and the resource check. The builder first runs 18 host assertions.
+APK/module hashes and the resource check. The builder first runs 67 host assertions.
 
 The dedicated local experimental key lives in ignored
 `captures/yandex-hud-signing/experiment.p12`. It is **not Yandex's key**. Passport
@@ -132,8 +149,8 @@ signature-dependent integrations are unverified.
 
 `test-receiver/` is a disposable fake of the IVI Binder endpoint. It validates
 session state, topic IDs, protobuf, PNG dimensions and clear frames, parses the
-road packet field by field (a clear carries nothing else; a manoeuvre has a
-192×192 picture, metres and an id; a limit is 5–130 by 5), keeps the last hint
+road packet field by field (a clear has zero lanes and no hint; lane rows
+are 41×count by 60, manoeuvres are 80×80 with metres and an id; a limit is 5–130 by 5), keeps the last hint
 in `report.json` and records a bounded 60-frame ring. Acceptance also requires
 hint packets in the foreground stretch. **Never install this APK on the car.** Both its service
 and the candidate's private-file simulation harness are restricted to
@@ -170,14 +187,49 @@ hidden rendering with actual moving PNGs, receiver-process death/rebind,
 background-disabled clear, stable stopped counters and repeated cancellation
 without a Navigator restart. Inspect saved PNGs as well as `report.json`.
 `src/test/.../ModuleTest.java` covers exact wire bytes, preview/cancel/resume,
-background preference and stale/coarse position on the host without the APK.
+background preference and stale/coarse position on the host without the APK. Use `--require-lanes` on the route above to
+also require real lane packets in background guidance.
 The renderer's Node tests (`node --test research/yandex-hud-renderer/*.test.cjs`)
 cover the design and the theme contract, not native transport.
 
 ## Current candidate (2026-10-15)
 
-The current candidate is **Brighter roads** below (`d23c4054…b57e`), including
-the account-type fix. The unproved N9 street-shortening experiment was reverted
+The current candidate is **Native cyan arrows**:
+`captures/yandex-hud-native-arrows-20261015/build-02/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
+SHA-256 `13047a8ef191ddca0647bd4870553d3ae08da9ec62536f5e751636de39801ab3`.
+It keeps the bright roads/account fix and experimental signing key; it adds
+native lane-slot output, replaces manoeuvre artwork and removes the blue map
+badge. It is not installed or visually accepted on the car in this change.
+Android pixel/cache fixtures (`artwork-check-02/`) pass for 1/3/6 lanes,
+cyan/grey pixels, reserved cells, 1,000 unchanged frames without re-encoding,
+disappearance/reappearance and manoeuvres. The fixture runs in a separate
+emulator-only `app_process`, against the installed candidate assets, with no
+Binder output or production test hook:
+
+```sh
+python3 tools/yandex_hud_build/artwork_test.py --serial emulator-5580 \
+  --build captures/yandex-hud-native-arrows-20261015/build-02 \
+  --out captures/yandex-hud-native-arrows-20261015/new-artwork-check
+```
+
+The actual-route emulator run (`acceptance-02`, `--require-lanes`) passed:
+9.87 fps foreground / 9.91 fps hidden, 58/60 distinct frames, 40 lane packets
+in the 12-second hidden interval, no wire errors, receiver death/reconnect,
+three clear frames, stable stop and process survival. The route starts at
+55.7513,37.6090 and ends at 55.7829,37.6290. PNGs include both native slots and
+the map without a badge. The first build exposed a leftover lane-corner route
+projection; it was removed from `HudMap` as well as the painter, and the final
+APK passed the same route with real lanes. The failed `acceptance-01` report is
+retained as regression evidence, not an accepted candidate.
+`lane-lifecycle/` separately passed real background guidance changing 0 → 3 → 0
+lanes while the route/map continued, then cancellation to inactive/zero lanes.
+
+Physical acceptance remains: combined map/lanes, disappearance during guidance,
+4–6 lane width, 80×80 manoeuvre scaling, background, motion and N9. The prior
+car probe proved three lanes with road class 7; this module leaves that field
+unchanged, so the dependence on road class is still unknown.
+
+ The unproved N9 street-shortening experiment was reverted
 on 2026-10-15; earlier builds are retained as evidence.
 
 **Alice language check (2026-10-15).** Original and HUD APKs both show the plain

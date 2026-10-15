@@ -19,10 +19,10 @@ final class HudMap implements AutoCloseable {
         final String kind; final float x, y; final int limit;
         Mark(String kind, float x, float y, int limit) { this.kind = kind; this.x = x; this.y = y; this.limit = limit; }
     }
-    /** Map pixels, or null while MapKit still shows its light loading grid; route = screen polyline ahead. */
+    /** Map pixels, or null while MapKit still shows its light loading grid. */
     static final class Shot {
-        final Bitmap bitmap; final List<Mark> marks; final float[] finish, route;
-        Shot(Bitmap bitmap, List<Mark> marks, float[] finish, float[] route) { this.bitmap = bitmap; this.marks = marks; this.finish = finish; this.route = route; }
+        final Bitmap bitmap; final List<Mark> marks; final float[] finish;
+        Shot(Bitmap bitmap, List<Mark> marks, float[] finish) { this.bitmap = bitmap; this.marks = marks; this.finish = finish; }
     }
     /** Route event, speed bump or railway crossing at a fixed place of the current geometry. */
     private static final class Spot {
@@ -30,7 +30,7 @@ final class HudMap implements AutoCloseable {
         Spot(String kind, int index, double fraction, int limit) { this.kind = kind; this.index = index; this.fraction = fraction; this.limit = limit; }
         boolean after(int i, double f) { return index > i || (index == i && fraction > f); }
     }
-    private static final int CANDIDATES = 12, ROUTE_POINTS = 240;
+    private static final int CANDIDATES = 12;
     private final Reflect api;
     private final JSONObject theme, routeStyle;
     private final Object offscreen, window, map, objects;
@@ -92,29 +92,12 @@ final class HudMap implements AutoCloseable {
             if (p != null) marks.add(new Mark(spot.kind, p[0], p[1], spot.limit));
         }
         float[] finish = inside(project(segmentCount - 1, 1));
-        // The lane badge chooses its corner from where the route really goes on screen. Dense suburban
-        // geometry needs the walk bounded by screen length, not by a vertex count.
-        float[] screenRoute = null;
-        if (!frame.lanes.isEmpty()) {
-            double reach = theme.getJSONObject("lanes").getDouble("reach") + 20, walked = 0;
-            float[] buffer = new float[ROUTE_POINTS * 2], last = project(index, fraction);
-            int n = 0;
-            if (last != null) { buffer[n++] = last[0]; buffer[n++] = last[1]; }
-            for (int i = index + 1; i <= segmentCount && n < buffer.length && walked <= reach; i++) {
-                float[] p = project(i, 0);
-                if (p == null) continue;
-                if (last != null) walked += Math.hypot(p[0] - last[0], p[1] - last[1]);
-                buffer[n++] = p[0]; buffer[n++] = p[1];
-                last = p;
-            }
-            screenRoute = java.util.Arrays.copyOf(buffer, n);
-        }
         Bitmap screenshot = (Bitmap) api.call(offscreen, "captureScreenshot");
         if (screenshot != null && loading(screenshot)) {
             screenshot.recycle();
-            return new Shot(null, Collections.<Mark>emptyList(), null, screenRoute);
+            return new Shot(null, Collections.<Mark>emptyList(), null);
         }
-        return new Shot(screenshot, marks, finish, screenRoute);
+        return new Shot(screenshot, marks, finish);
     }
 
     /**

@@ -16,22 +16,20 @@ import java.util.Map;
 /**
  * Two owned buffers. UI thread composes; one worker encodes before the next frame may use them.
  * Draws the theme's templates op for op as research/yandex-hud-renderer/hud-scene.js paints them;
- * only placement (lane side, which road events fit) is computed here, mirroring build().
+ * only road-event placement is computed here, mirroring build().
  */
 final class HudPainter implements AutoCloseable {
     private final Context context;
-    private final JSONObject theme, palette, lanes, icons, events;
+    private final JSONObject theme, palette, icons, events;
     private final Bitmap output = Bitmap.createBitmap(300, 180, Bitmap.Config.ARGB_8888);
     private final Bitmap overlay = Bitmap.createBitmap(300, 180, Bitmap.Config.ARGB_8888);
     private final Canvas canvas = new Canvas(output), overlayCanvas = new Canvas(overlay);
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Map<String, Drawable> drawables = new HashMap<>();
     private final Map<JSONArray, Path> paths = new IdentityHashMap<>();
-    private final Map<String, byte[]> manoeuvres = new HashMap<>();
     private final ByteArrayOutputStream stream = new ByteArrayOutputStream(32768);
     private final float[] cursor;
-    private String key, laneKey, side;
-    private float[] badge;
+    private String key;
     private byte[] staticPng;
     int overlayBuilds, placedMarks;
 
@@ -39,7 +37,6 @@ final class HudPainter implements AutoCloseable {
         this.context = context;
         this.theme = theme;
         palette = theme.getJSONObject("palette");
-        lanes = theme.getJSONObject("lanes");
         icons = theme.getJSONObject("icons");
         events = theme.getJSONObject("events");
         cursor = rect(events.getJSONArray("cursor"));
@@ -49,14 +46,10 @@ final class HudPainter implements AutoCloseable {
     }
 
     void compose(HudMap.Shot shot, NavigatorSource.Frame frame) throws Exception {
-        boolean lanesShown = frame.drawMap() && validLanes(frame.lanes);
-        if (lanesShown) laneSide(frame.lanes, shot == null ? null : shot.route); else laneKey = null;
-        String next = frame.mode + frame.lanes + (lanesShown ? side : "");
+        String next = frame.mode;
         if (!next.equals(key)) {
             overlay.eraseColor(Color.TRANSPARENT);
-            badge = null;
             if (frame.drawMap()) {
-                if (lanesShown) badge = laneBadge(frame.lanes);
                 draw(overlayCanvas, theme.getJSONArray("cursor"), 1, null);
             } else if (!frame.mode.equals("off")) {
                 JSONObject text = new JSONObject().put("op", "text").put("x", 10).put("y", 24).put("size", 16)
@@ -84,122 +77,7 @@ final class HudPainter implements AutoCloseable {
 
     /* ---------- placement, mirrors hud-scene.js ---------- */
 
-    private boolean validLanes(List<NavigatorSource.Lane> value) throws JSONException {
-        if (value.isEmpty() || value.size() > lanes.getInt("max")) return false;
-        JSONObject glyphs = lanes.getJSONObject("glyphs");
-        for (NavigatorSource.Lane lane : value) {
-            if (!lane.plain) continue;
-            if (lane.directions.isEmpty()) return false;
-            for (String direction : lane.directions) if (!glyphs.has(direction)) return false;
-            if (lane.highlight != null && !lane.directions.contains(lane.highlight)) return false;
-        }
-        return true;
-    }
-
-    /**
-     * The corner the manoeuvre does not turn into, unless the route drawn ahead reaches it and the other
-     * corner is freer (hud-scene.js laneSide). Within one lane sign the corner only moves when the other
-     * corner has at most half the route samples, so the badge does not hop from frame to frame.
-     */
-    private void laneSide(List<NavigatorSource.Lane> value, float[] route) throws JSONException {
-        JSONArray rightward = lanes.getJSONArray("rightward");
-        boolean any = false, allRight = true;
-        for (NavigatorSource.Lane lane : value) {
-            if (!lane.plain || lane.highlight == null) continue;
-            any = true;
-            boolean right = false;
-            for (int i = 0; i < rightward.length(); i++) if (rightward.getString(i).equals(lane.highlight)) right = true;
-            allRight &= right;
-        }
-        String sign = value.toString();
-        if (!sign.equals(laneKey)) {
-            laneKey = sign;
-            String preferred = any && allRight ? "left" : "right", other = preferred.equals("left") ? "right" : "left";
-            int here = hits(route, laneRect(value.size(), preferred));
-            side = here > 0 && hits(route, laneRect(value.size(), other)) < here ? other : preferred;
-        } else {
-            String other = side.equals("left") ? "right" : "left";
-            int here = hits(route, laneRect(value.size(), side));
-            if (here > 0 && hits(route, laneRect(value.size(), other)) * 2 <= here) side = other;
-        }
-    }
-
-    private float[] laneRect(int n, String corner) throws JSONException {
-        JSONObject t = lanes.getJSONArray("templates").getJSONObject(n - 1);
-        int margin = lanes.getInt("margin"), w = t.getInt("w");
-        return new float[]{corner.equals("left") ? margin : 300 - margin - w, margin, w, t.getInt("h")};
-    }
-
-    /** Route samples inside the rectangle inflated by 3 px, walking the first "reach" pixels in 4 px steps. */
-    private int hits(float[] route, float[] rect) throws JSONException {
-        double reach = lanes.getDouble("reach"), walked = 0;
-        int hits = 0;
-        for (int i = 0; route != null && i + 3 < route.length && walked <= reach; i += 2) {
-            float ax = route[i], ay = route[i + 1], bx = route[i + 2], by = route[i + 3];
-            double length = Math.hypot(bx - ax, by - ay);
-            int steps = Math.max(1, (int) Math.ceil(length / 4));
-            for (int k = i == 0 ? 0 : 1; k <= steps && walked + length * k / steps <= reach; k++) {
-                float x = ax + (bx - ax) * k / steps, y = ay + (by - ay) * k / steps;
-                if (x >= rect[0] - 3 && x <= rect[0] + rect[2] + 3 && y >= rect[1] - 3 && y <= rect[1] + rect[3] + 3) hits++;
-            }
-            walked += length;
-        }
-        return hits;
-    }
-
-    /** Draws the lane badge into the static overlay and returns its rectangle. */
-    private float[] laneBadge(List<NavigatorSource.Lane> value) throws JSONException {
-        JSONObject t = lanes.getJSONArray("templates").getJSONObject(value.size() - 1);
-        int w = t.getInt("w"), h = t.getInt("h");
-        float scale = (float) t.getDouble("scale");
-        JSONArray cells = t.getJSONArray("cells");
-        float[] rect = laneRect(value.size(), side);
-        float x = rect[0], y = rect[1];
-        JSONArray ops = new JSONArray();
-        ops.put(new JSONObject().put("op", "roundRect").put("x", 0).put("y", 0).put("w", w).put("h", h)
-                .put("r", lanes.getDouble("radius")).put("fill", palette.getString("plate")));
-        JSONObject m = lanes.getJSONObject("marking");
-        float gap = (float) lanes.getDouble("gap");
-        for (int i = 1; i < value.size(); i++) {
-            float mx = round2((float) cells.getDouble(i) - gap * scale / 2);
-            ops.put(new JSONObject().put("op", "shape").put("stroke", palette.getString("white")).put("width", m.getDouble("width"))
-                    .put("alpha", m.getDouble("alpha")).put("dash", new JSONArray().put(m.getDouble("dash")).put(m.getDouble("gap")))
-                    .put("d", new JSONArray().put(new JSONArray().put("M").put(mx).put(m.getDouble("inset")))
-                            .put(new JSONArray().put("L").put(mx).put(h - m.getDouble("inset")))));
-        }
-        JSONObject glyphs = lanes.getJSONObject("glyphs");
-        double dim = lanes.getDouble("dim"), stroke = lanes.getDouble("glyphStroke");
-        JSONArray reserved = lanes.getJSONArray("reserved");
-        for (int i = 0; i < value.size(); i++) {
-            NavigatorSource.Lane lane = value.get(i);
-            if (!lane.plain) {
-                for (int k = 0; k < reserved.length(); k++) if (reserved.getString(k).equals(lane.kind))
-                    ops.put(new JSONObject().put("op", "group").put("x", cells.getDouble(i)).put("y", t.getDouble("top"))
-                            .put("scale", scale).put("ops", new JSONArray().put(lanes.getJSONObject("reservedGlyph"))));
-                continue;
-            }
-            JSONArray children = new JSONArray();
-            List<String> order = new ArrayList<>();
-            for (String direction : lane.directions) if (!direction.equals(lane.highlight)) order.add(direction);
-            if (lane.highlight != null) order.add(lane.highlight);
-            for (String direction : order) {
-                double alpha = direction.equals(lane.highlight) ? 1 : dim;
-                JSONObject g = glyphs.getJSONObject(direction);
-                children.put(new JSONObject().put("op", "shape").put("d", g.getJSONArray("stroke")).put("stroke", palette.getString("white"))
-                        .put("width", stroke).put("alpha", alpha));
-                children.put(new JSONObject().put("op", "shape").put("d", g.getJSONArray("head")).put("fill", palette.getString("white"))
-                        .put("alpha", alpha));
-            }
-            ops.put(new JSONObject().put("op", "group").put("x", cells.getDouble(i)).put("y", t.getDouble("top"))
-                    .put("scale", scale).put("ops", children));
-        }
-        overlayCanvas.save();
-        try { overlayCanvas.translate(x, y); draw(overlayCanvas, ops, 1, null); }
-        finally { overlayCanvas.restore(); }
-        return new float[]{x, y, w, h};
-    }
-
-    /** Nearest first; an icon covering the lanes, the cursor or a nearer icon is left out. */
+    /** Nearest first; an icon covering the cursor or a nearer icon is left out. */
     private List<Object[]> placeEvents(List<HudMap.Mark> marks) throws JSONException {
         List<Object[]> placed = new ArrayList<>();
         List<float[]> boxes = new ArrayList<>();
@@ -213,7 +91,7 @@ final class HudPainter implements AutoCloseable {
             float[] b = rect(icon.getJSONArray("box"));
             float[] box = {x + b[0], y + b[1], b[2], b[3]};
             if (x < edge || x > 300 - edge || y < edge || y > 180 - edge) continue;
-            if (overlaps(box, cursor, 2) || (badge != null && overlaps(box, badge, 2))) continue;
+            if (overlaps(box, cursor, 2)) continue;
             boolean free = true;
             for (float[] other : boxes) if (overlaps(box, other, 1)) { free = false; break; }
             if (!free) continue;
@@ -230,8 +108,6 @@ final class HudPainter implements AutoCloseable {
     private static float[] rect(JSONArray value) throws JSONException {
         return new float[]{(float) value.getDouble(0), (float) value.getDouble(1), (float) value.getDouble(2), (float) value.getDouble(3)};
     }
-
-    private static float round2(float value) { return Math.round(value * 100) / 100f; }
 
     /* ---------- executor, mirrors HudScene.paint ---------- */
 
@@ -358,35 +234,6 @@ final class HudPainter implements AutoCloseable {
         } finally { target.restore(); }
     }
 
-    /**
-     * The HUD manoeuvre window's picture (road packet field 8): the theme's manoeuvre template,
-     * white on transparent, cached per manoeuvre so a route only ever renders a handful.
-     */
-    byte[] manoeuvre(NavigatorSource.Hint hint) throws JSONException {
-        String key = hint == null ? null : hint.iconKey();
-        if (key == null) return null;
-        byte[] cached = manoeuvres.get(key);
-        if (cached != null) return cached;
-        JSONObject spec = theme.getJSONObject("manoeuvre"), icons = spec.getJSONObject("icons");
-        JSONArray ops = hint.icon.equals("roundabout")
-                ? icons.getJSONArray("roundabout").getJSONArray(Math.min(hint.exit, icons.getJSONArray("roundabout").length() - 1))
-                : icons.optJSONArray(hint.icon);
-        if (ops == null) return null;
-        int size = spec.getInt("size");
-        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-        try {
-            Canvas target = new Canvas(bitmap);
-            float scale = (float) spec.getDouble("scale");
-            target.scale(scale, scale);
-            draw(target, ops, 1, null);
-            ByteArrayOutputStream png = new ByteArrayOutputStream(4096);
-            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, png)) throw new IllegalStateException("Manoeuvre PNG failed");
-            cached = png.toByteArray();
-        } finally { bitmap.recycle(); }
-        manoeuvres.put(key, cached);
-        return cached;
-    }
-
     byte[] encode(boolean fixed) {
         if (fixed && staticPng != null) return staticPng;
         stream.reset();
@@ -396,5 +243,5 @@ final class HudPainter implements AutoCloseable {
         return bytes;
     }
 
-    @Override public void close() { output.recycle(); overlay.recycle(); drawables.clear(); paths.clear(); manoeuvres.clear(); staticPng = null; }
+    @Override public void close() { output.recycle(); overlay.recycle(); drawables.clear(); paths.clear(); staticPng = null; }
 }
