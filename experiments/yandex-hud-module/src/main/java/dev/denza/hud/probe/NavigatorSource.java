@@ -38,7 +38,6 @@ final class NavigatorSource {
         boolean drawMap() { return mode.equals("guidance"); }
     }
     private final Reflect api;
-    private final StreetName streetName = new StreetName();
     /** The last reason a hint could not be read, for the module log; the map goes on without it. */
     String hintFailure;
     private String lastStamp;
@@ -143,8 +142,7 @@ final class NavigatorSource {
             hint.stockId = Integer.parseInt(kind[1]);
             hint.distance = (int) Math.round(distance);
             Object toponym = api.call(annotation, "getToponym");
-            // One source and formatter in foreground/background; never retain a screen label.
-            hint.road = streetName.compact(toponym == null ? null : toponym.toString());
+            hint.road = toponym == null ? "" : toponym.toString().trim();
             if (hint.icon.equals("roundabout")) {
                 // The exit number rides on the manoeuvre that leaves the roundabout.
                 hint.exit = exit(annotation);

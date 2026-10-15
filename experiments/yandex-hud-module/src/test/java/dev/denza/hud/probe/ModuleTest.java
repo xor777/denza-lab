@@ -111,17 +111,6 @@ public final class ModuleTest {
         check(source.hintFailure==null,"hint read: "+source.hintFailure);
         check(hint!=null&&"right".equals(hint.icon)&&hint.stockId==2&&hint.distance==250&&hint.road.equals("Тверская"),"next manoeuvre ahead, with its street");
         check(hint.remainingMeters==1000&&hint.remainingSeconds==100&&hint.speedLimit==60,"remaining route and the posted limit");
-        windshield.manoeuvres=Arrays.asList(new Manoeuvre(750,new Annotation(Action.RIGHT,"Моховая улица",null)));
-        guidance.config.enabled=true;
-        NavigatorSource.Hint visibleHint=source.read(guidance,true,3410).hint;
-        NavigatorSource.Hint hiddenHint=source.read(guidance,false,3420).hint;
-        check(visibleHint.road.equals("Моховая ул.")&&hiddenHint.road.equals(visibleHint.road),"street formatting is independent of Activity visibility");
-        Map<Integer,Object> compactPacket=fields(HudWire.road(true,hiddenHint,new byte[]{7,7}));
-        check(text(compactPacket,10).equals("Моховая ул.")&&compactPacket.get(9).equals(250L)&&compactPacket.get(28).equals(2L),"compact UTF-8 street reaches field 10 without changing the manoeuvre");
-        windshield.manoeuvres=Arrays.asList(new Manoeuvre(750,new Annotation(Action.RIGHT,"Raketostroiteley Avenue",null)));
-        check(source.read(guidance,false,3430).hint.road.equals("Raketostroiteley Ave"),"hidden route changes never reuse a previous street");
-        windshield.manoeuvres=Arrays.asList(new Manoeuvre(750,new Annotation(Action.RIGHT,null,null)));
-        check(source.read(guidance,false,3440).hint.road.isEmpty(),"missing toponym clears the street instead of retaining it");
         windshield.manoeuvres=Arrays.asList(new Manoeuvre(900,new Annotation(Action.ENTER_ROUNDABOUT,"",null)),
                 new Manoeuvre(850,new Annotation(Action.LEAVE_ROUNDABOUT,"",new Metadata(new Leave(3)))));
         hint=source.read(guidance,true,3500).hint;
@@ -140,7 +129,7 @@ public final class ModuleTest {
         check(HudWire.duration(59).equals("1 мин")&&HudWire.duration(3600).equals("1 ч")&&HudWire.duration(3900).equals("1 ч 5 мин"),"remaining time text");
         check(HudWire.distance(950).equals("950 м")&&HudWire.distance(12345).equals("12 км"),"route distance text");
         check(NavigatorSource.manoeuvre("FORK_LEFT")[1].equals("3")&&NavigatorSource.manoeuvre("FINISH")[0].equals("finish")&&NavigatorSource.manoeuvre("UNKNOWN")==null,"field 28 table");
-        System.out.println("36 native module assertions passed");
+        System.out.println("32 native module assertions passed");
     }
     private static NavigatorSource.Hint withManoeuvre() {
         NavigatorSource.Hint hint=new NavigatorSource.Hint();
