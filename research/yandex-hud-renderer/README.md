@@ -105,6 +105,31 @@ Binder/SOME-IP transport without process instrumentation.
 
 ## Pinned inputs
 
+### Stock HUD artwork reference (2026-10-15)
+
+`stock_reference.py` is a host-only inspection tool for the owner's pinned
+IVI `BydLaunchermap.apk`. It uses Pillow, copies 254 original lane/manoeuvre
+assets into ignored captures, records hashes/dimensions/pixel colours and
+builds labelled example sheets. It does not modify the HUD module or a car.
+The original primary palette is cyan `#15C6FF` / grey `#91959C`, with 37×60 px
+lane cells and 2 px side margins; compound arrows highlight the recommended
+branch. The alternative blue set is selected by the car's colour flag.
+Full source trace and limits: [stock artwork findings](../../docs/hud-projection-findings.md#hud-stock-artwork).
+
+```sh
+# Use a Python with Pillow (also provided by the Codex workspace runtime).
+python3 research/yandex-hud-renderer/stock_reference.py \
+  --apk captures/hud-firmware-20260923/system/system/app/BydLaunchermap/BydLaunchermap.apk \
+  --out captures/yandex-hud-stock-style-20261015
+```
+
+The APK must match SHA-256
+`3a7773d4b41bbbdcb2df7f6f249b91feaf197ff791d67e32e31859bd2425c793`.
+`--font` overrides the macOS default Arial path for labelled sheets.
+Outputs are offline resource examples, not glass or Android rendering acceptance.
+
+### Navigator experiment inputs
+
 - Navigator `ru.yandex.yandexnavi` 29.8.1, versionCode 739494300.
 - APK: `captures/hud-lanes-20261011/yandex-installed.apk`.
 - SHA-256: `3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3`.
