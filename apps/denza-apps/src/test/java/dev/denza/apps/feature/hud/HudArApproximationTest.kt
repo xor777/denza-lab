@@ -5,9 +5,11 @@ import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -81,37 +83,37 @@ class HudArApproximationTest {
     @Test
     fun `distance support boundary and unsupported maneuver mutations fail closed`() {
         listOf(3, 150).forEach { distance ->
-            assertNotNull(HudArApproximationTracker().resolve(guidance(distance = distance), pose(), NOW))
+            assertNotNull(HudArApproximationTracker().arGeometry(guidance(distance = distance), pose(), NOW))
         }
         listOf(0, 2, 151, 500).forEach { distance ->
-            assertNull(HudArApproximationTracker().resolve(guidance(distance = distance), pose(), NOW))
+            assertNull(HudArApproximationTracker().arGeometry(guidance(distance = distance), pose(), NOW))
         }
         listOf(
             HudManeuver.UNKNOWN,
             HudManeuver.ROUNDABOUT,
         ).forEach { maneuver ->
-            assertNull(HudArApproximationTracker().resolve(guidance(maneuver), pose(), NOW))
+            assertNull(HudArApproximationTracker().arGeometry(guidance(maneuver), pose(), NOW))
         }
     }
 
     @Test
     fun `stale future and imprecise pose mutations fail closed`() {
         assertNull(
-            HudArApproximationTracker().resolve(
+            HudArApproximationTracker().arGeometry(
                 guidance(),
                 pose(capturedAtElapsedMs = NOW - 2_501L),
                 NOW,
             ),
         )
         assertNull(
-            HudArApproximationTracker().resolve(
+            HudArApproximationTracker().arGeometry(
                 guidance(),
                 pose(capturedAtElapsedMs = NOW + 1L),
                 NOW,
             ),
         )
         assertNull(
-            HudArApproximationTracker().resolve(
+            HudArApproximationTracker().arGeometry(
                 guidance(),
                 pose(accuracyMeters = 20.1),
                 NOW,
@@ -175,26 +177,29 @@ class HudArApproximationTest {
     }
 
     @Test
-    fun `same displayed distance does not drag the anchored turn point with the car`() {
+    fun `distance updates never move the guide point within a step`() {
         val tracker = HudArApproximationTracker()
-        val first = tracker.resolve(guidance(distance = 100), pose(latitude = LATITUDE), NOW)!!
+        val first = tracker.arGeometry(guidance(distance = 100), pose(latitude = LATITUDE), NOW)!!
         val movedPose = pose(latitude = LATITUDE + metersToLatitude(10.0), capturedAtElapsedMs = NOW + 500L)
-        val sameDistance = tracker.resolve(guidance(distance = 100), movedPose, NOW + 500L)!!
-        val updatedDistance = tracker.resolve(guidance(distance = 90), movedPose, NOW + 700L)!!
+        val sameDistance = tracker.arGeometry(guidance(distance = 100), movedPose, NOW + 500L)!!
+        // The navigator's distance disagrees with the GNSS track by a few metres.
+        val updatedDistance = tracker.arGeometry(guidance(distance = 93), movedPose, NOW + 700L)!!
+        val furtherPose = pose(latitude = LATITUDE + metersToLatitude(25.0), capturedAtElapsedMs = NOW + 2_000L)
+        val further = tracker.arGeometry(guidance(distance = 71), furtherPose, NOW + 2_000L)!!
 
         assertEquals(first.guidePoint, sameDistance.guidePoint)
-        assertTrue(
-            distanceMeters(parseGuidePoint(first.guidePoint), parseGuidePoint(updatedDistance.guidePoint)) < 1.0,
-        )
+        assertEquals(first.guidePoint, updatedDistance.guidePoint)
+        assertEquals(first.guidePoint, further.guidePoint)
+        assertEquals(furtherPose.latitude, further.vehicleLatitude, 0.0)
     }
 
     @Test
     fun `instruction text mutation does not create a new anchor for the same maneuver`() {
         val tracker = HudArApproximationTracker()
         val firstGuidance = guidance(distance = 100)
-        val first = tracker.resolve(firstGuidance, pose(), NOW)!!
+        val first = tracker.arGeometry(firstGuidance, pose(), NOW)!!
         val movedPose = pose(latitude = LATITUDE + metersToLatitude(10.0), capturedAtElapsedMs = NOW + 500L)
-        val mutated = tracker.resolve(
+        val mutated = tracker.arGeometry(
             firstGuidance.copy(instruction = "Через 100 метров поверните"),
             movedPose,
             NOW + 500L,
@@ -204,12 +209,14 @@ class HudArApproximationTest {
     }
 
     @Test
-    fun `leaving activation range clears the previous anchor before reentry`() {
+    fun `a reroute out of the activation range starts a new step that anchors afresh`() {
         val tracker = HudArApproximationTracker()
-        val first = tracker.resolve(guidance(distance = 100), pose(), NOW)!!
-        assertNull(tracker.resolve(guidance(distance = 151), pose(), NOW + 100L))
+        val first = tracker.arGeometry(guidance(distance = 100), pose(), NOW)!!
+        val rerouted = tracker.resolve(guidance(distance = 151), pose(), NOW + 100L)
+        assertEquals(151, rerouted.guidance.maneuverDistanceMeters)
+        assertNull(rerouted.geometry)
         val movedPose = pose(latitude = LATITUDE + metersToLatitude(20.0), capturedAtElapsedMs = NOW + 500L)
-        val reentered = tracker.resolve(guidance(distance = 100), movedPose, NOW + 500L)!!
+        val reentered = tracker.arGeometry(guidance(distance = 100), movedPose, NOW + 500L)!!
 
         assertTrue(
             distanceMeters(parseGuidePoint(first.guidePoint), parseGuidePoint(reentered.guidePoint)) > 19.0,
@@ -219,9 +226,9 @@ class HudArApproximationTest {
     @Test
     fun `large increasing distance mutation resets a recalculated route anchor`() {
         val tracker = HudArApproximationTracker()
-        val first = tracker.resolve(guidance(distance = 80), pose(), NOW)!!
+        val first = tracker.arGeometry(guidance(distance = 80), pose(), NOW)!!
         val movedPose = pose(latitude = LATITUDE + metersToLatitude(10.0), capturedAtElapsedMs = NOW + 500L)
-        val recalculated = tracker.resolve(guidance(distance = 130), movedPose, NOW + 500L)!!
+        val recalculated = tracker.arGeometry(guidance(distance = 130), movedPose, NOW + 500L)!!
 
         assertTrue(
             distanceMeters(parseGuidePoint(first.guidePoint), parseGuidePoint(recalculated.guidePoint)) > 50.0,
@@ -229,14 +236,18 @@ class HudArApproximationTest {
     }
 
     @Test
-    fun `large lateral course mutation is suppressed instead of rotating the route`() {
+    fun `large lateral course mutation ends AR for the step instead of rotating the route`() {
         val tracker = HudArApproximationTracker()
-        assertNotNull(tracker.resolve(guidance(distance = 100), pose(headingDegrees = 0.0), NOW))
+        assertNotNull(tracker.arGeometry(guidance(distance = 100), pose(headingDegrees = 0.0), NOW))
+        val changedCourse = pose(headingDegrees = 90.0, capturedAtElapsedMs = NOW + 500L)
+
+        assertNull(tracker.arGeometry(guidance(distance = 90), changedCourse, NOW + 500L))
+        assertNull(tracker.arGeometry(guidance(distance = 90), changedCourse, NOW + 600L))
         assertNull(
-            tracker.resolve(
-                guidance(distance = 90),
-                pose(headingDegrees = 90.0, capturedAtElapsedMs = NOW + 500L),
-                NOW + 500L,
+            tracker.arGeometry(
+                guidance(distance = 89),
+                pose(headingDegrees = 0.0, capturedAtElapsedMs = NOW + 700L),
+                NOW + 700L,
             ),
         )
     }
@@ -245,7 +256,7 @@ class HudArApproximationTest {
     fun `stale incoming course cannot turn a right instruction into a reversal`() {
         val tracker = HudArApproximationTracker()
         assertNotNull(
-            tracker.resolve(
+            tracker.arGeometry(
                 guidance(maneuver = HudManeuver.RIGHT, distance = 100),
                 pose(headingDegrees = 0.0),
                 NOW,
@@ -259,7 +270,7 @@ class HudArApproximationTest {
             capturedAtElapsedMs = NOW + 500L,
         )
         assertNull(
-            tracker.resolve(
+            tracker.arGeometry(
                 guidance(maneuver = HudManeuver.RIGHT, distance = 100),
                 foldedApproach,
                 NOW + 500L,
@@ -271,7 +282,7 @@ class HudArApproximationTest {
     fun `moderately curved approach keeps terminal direction tied to the maneuver`() {
         val tracker = HudArApproximationTracker()
         assertNotNull(
-            tracker.resolve(
+            tracker.arGeometry(
                 guidance(maneuver = HudManeuver.RIGHT, distance = 100),
                 pose(headingDegrees = 0.0),
                 NOW,
@@ -284,7 +295,7 @@ class HudArApproximationTest {
             capturedAtElapsedMs = NOW + 500L,
         )
 
-        val geometry = tracker.resolve(
+        val geometry = tracker.arGeometry(
             guidance(maneuver = HudManeuver.RIGHT, distance = 100),
             curvedApproach,
             NOW + 500L,
@@ -297,7 +308,7 @@ class HudArApproximationTest {
     fun `left-curving approach cannot slant a slight left onto the right of the nose`() {
         val tracker = HudArApproximationTracker()
         assertNotNull(
-            tracker.resolve(
+            tracker.arGeometry(
                 guidance(maneuver = HudManeuver.SLIGHT_LEFT, distance = 100),
                 pose(headingDegrees = 0.0),
                 NOW,
@@ -313,7 +324,7 @@ class HudArApproximationTest {
             capturedAtElapsedMs = NOW + 500L,
         )
         assertNull(
-            tracker.resolve(
+            tracker.arGeometry(
                 guidance(maneuver = HudManeuver.SLIGHT_LEFT, distance = 100),
                 curved,
                 NOW + 500L,
@@ -325,7 +336,7 @@ class HudArApproximationTest {
     fun `gentle drift inside the slight cone keeps the tip left of the nose`() {
         val tracker = HudArApproximationTracker()
         assertNotNull(
-            tracker.resolve(
+            tracker.arGeometry(
                 guidance(maneuver = HudManeuver.SLIGHT_LEFT, distance = 100),
                 pose(headingDegrees = 0.0),
                 NOW,
@@ -338,7 +349,7 @@ class HudArApproximationTest {
             capturedAtElapsedMs = NOW + 500L,
         )
 
-        val geometry = tracker.resolve(
+        val geometry = tracker.arGeometry(
             guidance(maneuver = HudManeuver.SLIGHT_LEFT, distance = 100),
             drifted,
             NOW + 500L,
@@ -348,24 +359,25 @@ class HudArApproximationTest {
     }
 
     @Test
-    fun `straight guidance far off the nose fails closed instead of slanting`() {
+    fun `straight guidance far off the nose fails closed for the rest of the step`() {
         val tracker = HudArApproximationTracker()
         assertNotNull(
-            tracker.resolve(
+            tracker.arGeometry(
                 guidance(maneuver = HudManeuver.STRAIGHT, distance = 100),
                 pose(headingDegrees = 0.0),
                 NOW,
             ),
         )
         assertNull(
-            tracker.resolve(
+            tracker.arGeometry(
                 guidance(maneuver = HudManeuver.STRAIGHT, distance = 100),
                 pose(headingDegrees = 20.0, capturedAtElapsedMs = NOW + 500L),
                 NOW + 500L,
             ),
         )
-        assertNotNull(
-            tracker.resolve(
+        // Back inside the cone, AR still stays off: returning would restart the car's scene.
+        assertNull(
+            tracker.arGeometry(
                 guidance(maneuver = HudManeuver.STRAIGHT, distance = 100),
                 pose(headingDegrees = 10.0, capturedAtElapsedMs = NOW + 600L),
                 NOW + 600L,
@@ -389,7 +401,7 @@ class HudArApproximationTest {
 
         expectedDeflections.forEach { (maneuver, expected) ->
             for (heading in 0 until 360 step 15) {
-                val geometry = HudArApproximationTracker().resolve(
+                val geometry = HudArApproximationTracker().arGeometry(
                     guidance(maneuver = maneuver, distance = 100),
                     pose(headingDegrees = heading.toDouble()),
                     NOW,
@@ -412,21 +424,8 @@ class HudArApproximationTest {
     }
 
     @Test
-    fun `rebased lateral mutation skips one sample then recovers without stale geometry`() {
-        val tracker = HudArApproximationTracker()
-        assertNotNull(tracker.resolve(guidance(distance = 100), pose(headingDegrees = 0.0), NOW))
-        val changedCourse = pose(
-            headingDegrees = 90.0,
-            capturedAtElapsedMs = NOW + 500L,
-        )
-
-        assertNull(tracker.resolve(guidance(distance = 90), changedCourse, NOW + 500L))
-        assertNotNull(tracker.resolve(guidance(distance = 90), changedCourse, NOW + 600L))
-    }
-
-    @Test
     fun `longitude wrap mutation keeps every coordinate finite and normalized`() {
-        val geometry = HudArApproximationTracker().resolve(
+        val geometry = HudArApproximationTracker().arGeometry(
             guidance(maneuver = HudManeuver.RIGHT, distance = 150),
             pose(latitude = 80.0, longitude = 179.9999, headingDegrees = 90.0),
             NOW,
@@ -439,6 +438,140 @@ class HudArApproximationTest {
         }
         assertFalse(geometry.guideLine.contains("NaN"))
         assertFalse(geometry.guideLine.contains("Infinity"))
+    }
+
+    @Test
+    fun `simulated approach keeps one guide point and never drops AR down to three metres`() {
+        val tracker = HudArApproximationTracker()
+        val turnAheadMeters = 100.0
+        var travelled = 0.0
+        var pose: HudVehiclePose? = null
+        var reported = 0
+        var reports = 0
+        val guidePoints = LinkedHashSet<String>()
+        var arSamples = 0
+        var tick = 0
+        while (turnAheadMeters - travelled > 3.0) {
+            val now = NOW + tick * POLL_MS
+            val remaining = turnAheadMeters - travelled
+            // A GNSS fix and the navigator's distance each about once a second, out of phase,
+            // with a few metres of disagreement and a degree or so of course jitter.
+            if (tick % 3 == 0) {
+                val fix = tick / 3
+                pose = pose(
+                    latitude = LATITUDE + metersToLatitude(travelled + 0.5 * cos(fix * 0.9)),
+                    longitude = LONGITUDE + metersToLongitude(0.4 * sin(fix * 1.3 + 0.3)),
+                    headingDegrees = (360.0 + 1.2 * sin(fix * 2.1 + 0.5)) % 360.0,
+                    capturedAtElapsedMs = now,
+                )
+            }
+            if (tick == 0 || tick % 3 == 2) {
+                reported = (remaining + 3.0 * sin(reports * 1.7 + 1.0)).roundToInt()
+                reports++
+            }
+
+            val frame = tracker.resolve(guidance(HudManeuver.RIGHT, reported), pose, now)
+
+            if (frame.guidance.maneuverDistanceMeters >= 3) {
+                assertNotNull("tick=$tick remaining=$remaining reported=$reported", frame.geometry)
+            }
+            frame.geometry?.let {
+                guidePoints += it.guidePoint
+                arSamples++
+            }
+            // 36 km/h, braking from 40 m out toward 14 km/h at the corner.
+            val speedMetersPerSecond = if (remaining > 40.0) 10.0 else 4.0 + 6.0 * remaining / 40.0
+            travelled += speedMetersPerSecond * POLL_MS / 1000.0
+            tick++
+        }
+
+        assertEquals(guidePoints.toString(), 1, guidePoints.size)
+        assertTrue("arSamples=$arSamples ticks=$tick", arSamples >= 25)
+    }
+
+    @Test
+    fun `held distance never grows within a step and a reroute jump starts a new one`() {
+        val tracker = HudArApproximationTracker()
+        val carried = ArrayList<Int>()
+        val guidePoints = ArrayList<String>()
+        listOf(100, 98, 99, 97, 120).forEachIndexed { index, distance ->
+            val now = NOW + index * 1_000L
+            val frame = tracker.resolve(
+                guidance(maneuver = HudManeuver.RIGHT, distance = distance),
+                pose(latitude = LATITUDE + metersToLatitude(index * 2.0), capturedAtElapsedMs = now),
+                now,
+            )
+            carried += frame.guidance.maneuverDistanceMeters
+            guidePoints += checkNotNull(frame.geometry).guidePoint
+        }
+        assertEquals(listOf(100, 98, 98, 97, 97), carried)
+        assertEquals(1, guidePoints.toSet().size)
+
+        val now = NOW + 5_000L
+        val rerouted = tracker.resolve(
+            guidance(maneuver = HudManeuver.RIGHT, distance = 140),
+            pose(latitude = LATITUDE + metersToLatitude(10.0), capturedAtElapsedMs = now),
+            now,
+        )
+        assertEquals(140, rerouted.guidance.maneuverDistanceMeters)
+        val newPoint = checkNotNull(rerouted.geometry).guidePoint
+        assertTrue(
+            distanceMeters(parseGuidePoint(guidePoints.first()), parseGuidePoint(newPoint)) > 45.0,
+        )
+    }
+
+    @Test
+    fun `one lost AR sample ends AR for the step and a new step starts it again`() {
+        val tracker = HudArApproximationTracker()
+        val first = tracker.arGeometry(guidance(distance = 100), pose(), NOW)!!
+        assertNull(
+            tracker.arGeometry(
+                guidance(distance = 95),
+                pose(capturedAtElapsedMs = NOW),
+                NOW + 2_501L,
+            ),
+        )
+        val recovered = pose(latitude = LATITUDE + metersToLatitude(10.0), capturedAtElapsedMs = NOW + 2_600L)
+        assertNull(tracker.arGeometry(guidance(distance = 90), recovered, NOW + 2_600L))
+        assertNull(tracker.arGeometry(guidance(distance = 89), recovered, NOW + 3_000L))
+
+        val nextRoad = tracker.arGeometry(
+            guidance(distance = 70).copy(nextRoadName = "Другая улица"),
+            recovered,
+            NOW + 3_100L,
+        )!!
+        assertNotEquals(first.guidePoint, nextRoad.guidePoint)
+
+        val nextManeuver = pose(latitude = LATITUDE + metersToLatitude(30.0), capturedAtElapsedMs = NOW + 5_000L)
+        val right = tracker.arGeometry(
+            guidance(maneuver = HudManeuver.RIGHT, distance = 60).copy(nextRoadName = "Другая улица"),
+            nextManeuver,
+            NOW + 5_000L,
+        )!!
+        assertNotEquals(nextRoad.guidePoint, right.guidePoint)
+    }
+
+    @Test
+    fun `a step that has not shown AR yet may still start it`() {
+        val tracker = HudArApproximationTracker()
+        assertNull(tracker.arGeometry(guidance(distance = 120), null, NOW))
+        assertNull(tracker.arGeometry(guidance(distance = 118), pose(accuracyMeters = 20.1), NOW))
+        assertNotNull(tracker.arGeometry(guidance(distance = 116), pose(), NOW))
+    }
+
+    @Test
+    fun `compact payload carries the held distance in field nine`() {
+        listOf(HudManeuver.ROUNDABOUT, HudManeuver.LEFT).forEach { maneuver ->
+            val tracker = HudArApproximationTracker()
+            tracker.resolve(guidance(maneuver = maneuver, distance = 100), null, NOW)
+            val frame = tracker.resolve(guidance(maneuver = maneuver, distance = 104), null, NOW + 1_000L)
+            assertNull(frame.geometry)
+
+            val fields = decodeEmbeddedMessage(HudSomeIpClient.buildPayloadForTest(frame.guidance, frame.geometry))
+
+            assertEquals("maneuver=$maneuver", 100, fields.getValue(9).varint)
+            (30..33).forEach { assertFalse(fields.containsKey(it)) }
+        }
     }
 
     @Test
@@ -523,7 +656,13 @@ class HudArApproximationTest {
     )
 
     private fun geometry(maneuver: HudManeuver): HudArGeometry =
-        HudArApproximationTracker().resolve(guidance(maneuver), pose(), NOW)!!
+        HudArApproximationTracker().arGeometry(guidance(maneuver), pose(), NOW)!!
+
+    private fun HudArApproximationTracker.arGeometry(
+        guidance: HudGuidance,
+        pose: HudVehiclePose?,
+        nowElapsedMs: Long,
+    ): HudArGeometry? = resolve(guidance, pose, nowElapsedMs).geometry
 
     private fun exitDeflection(maneuver: HudManeuver): Double {
         val geometry = geometry(maneuver)
@@ -584,7 +723,7 @@ class HudArApproximationTest {
     private fun metersToLongitude(value: Double): Double =
         value / (111_195.0 * cos(Math.toRadians(LATITUDE)))
 
-    private data class WireField(val wireType: Int, val bytes: ByteArray) {
+    private data class WireField(val wireType: Int, val bytes: ByteArray, val varint: Int = 0) {
         fun doubleValue(): Double = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).double
         fun stringValue(): String = bytes.toString(Charsets.UTF_8)
     }
@@ -605,10 +744,12 @@ class HudArApproximationTest {
             offset = tag.nextOffset
             val field = tag.value ushr 3
             val wireType = tag.value and 7
+            var varint = 0
             val bytes = when (wireType) {
                 0 -> {
                     val value = readVarint(payload, offset)
                     offset = value.nextOffset
+                    varint = value.value
                     byteArrayOf()
                 }
                 1 -> payload.copyOfRange(offset, offset + 8).also { offset += 8 }
@@ -619,7 +760,7 @@ class HudArApproximationTest {
                 }
                 else -> error("Unsupported wire type $wireType")
             }
-            result[field] = WireField(wireType, bytes)
+            result[field] = WireField(wireType, bytes, varint)
         }
         return result
     }
@@ -642,6 +783,7 @@ class HudArApproximationTest {
         const val LATITUDE = 55.75
         const val LONGITUDE = 37.61
         const val NOW = 100_000L
+        const val POLL_MS = 350L
         val TRIPLE = Regex("\\[(-?[0-9.]+),(-?[0-9.]+),0(?:\\.0)?]")
     }
 }

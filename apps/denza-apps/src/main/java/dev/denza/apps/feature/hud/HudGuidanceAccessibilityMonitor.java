@@ -156,14 +156,18 @@ public final class HudGuidanceAccessibilityMonitor {
         if (sample != null) {
             guidance = sample.getGuidance();
             HudNotificationArtworkRuntime.observe(guidance, sample.getCapturedAtMs());
-            boolean changed = !guidance.equals(lastGuidance);
-            HudArGeometry arGeometry = arTracker.resolve(guidance, latestPose, nowElapsed);
+            // The packet carries the step's held distance, which never grows within a maneuver;
+            // the hints panel and the speed sign keep the reading as it is.
+            HudArFrame frame = arTracker.resolve(guidance, latestPose, nowElapsed);
+            HudGuidance published = frame.getGuidance();
+            HudArGeometry arGeometry = frame.getGeometry();
+            boolean changed = !published.equals(lastGuidance);
             boolean arActive = arGeometry != null;
             boolean arStateChanged = arActive != lastArActive;
             long heartbeat = arActive ? AR_HEARTBEAT_MS : HEARTBEAT_MS;
             if (changed || arStateChanged || now - lastPublishedMs >= heartbeat) {
-                someIpClient.publish(guidance, arGeometry);
-                lastGuidance = guidance;
+                someIpClient.publish(published, arGeometry);
+                lastGuidance = published;
                 lastPublishedMs = now;
                 lastArActive = arActive;
             }

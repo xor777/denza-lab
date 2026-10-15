@@ -106,10 +106,21 @@ class HudArPoseFilter {
     }
 }
 
+/** What one road packet carries: [guidance] with the step's held distance, and AR fields or none. */
+data class HudArFrame(
+    val guidance: HudGuidance,
+    val geometry: HudArGeometry?,
+)
+
 /**
  * Builds a deliberately conservative pseudo-route from the current pose and
- * Yandex's distance-to-maneuver. The inferred turn point is anchored when the
- * displayed distance changes, so it does not move forward with every GNSS fix.
+ * the navigator's distance-to-maneuver, held fixed for one step (a run of the
+ * same maneuver and next road).
+ *
+ * The car's AR engine restarts its turn scene whenever field 31 differs from
+ * the value it began with or field 9 grows. So within a step the distance only
+ * shrinks, the turn point is placed once and never moves, and AR that has been
+ * shown and then lost stays off until the next step instead of flapping.
  */
 class HudArApproximationTracker {
     private data class StepKey(
@@ -120,87 +131,77 @@ class HudArApproximationTracker {
     private data class GeoPoint(val latitude: Double, val longitude: Double)
 
     private var stepKey: StepKey? = null
+    private var heldDistanceMeters = 0
     private var guidePoint: GeoPoint? = null
     private var incomingHeadingDegrees = 0.0
-    private var reportedDistanceMeters: Int? = null
-    private var anchorPoseCapturedAtMs = 0L
+    private var arShown = false
+    private var arEnded = false
     private var cachedPose: HudVehiclePose? = null
-    private var cachedKey: StepKey? = null
-    private var cachedDistanceMeters: Int? = null
-    private var cachedGuidePoint: GeoPoint? = null
     private var cachedGeometry: HudArGeometry? = null
 
     fun resolve(
         guidance: HudGuidance,
         pose: HudVehiclePose?,
         nowElapsedMs: Long,
-    ): HudArGeometry? {
+    ): HudArFrame {
         val key = StepKey(
             maneuver = guidance.maneuver,
             nextRoadName = guidance.nextRoadName.trim().lowercase(Locale.ROOT),
         )
-        val distance = guidance.maneuverDistanceMeters
-        if (!supports(guidance.maneuver) || distance !in MIN_MANEUVER_DISTANCE_METERS..MAX_MANEUVER_DISTANCE_METERS) {
+        val reported = guidance.maneuverDistanceMeters
+        // A distance well above the held one is a recalculated route, not
+        // noise: it starts a new step like a new maneuver does.
+        if (key != stepKey || reported - heldDistanceMeters >= ROUTE_RESET_DISTANCE_JUMP_METERS) {
             reset()
-            return null
-        }
-        if (!poseIsUsable(pose, nowElapsedMs)) return null
-        pose ?: return null
-
-        val previousKey = stepKey
-        val previousDistance = reportedDistanceMeters
-        var anchorRebased = false
-        if (previousKey != key || guidePoint == null) {
             stepKey = key
-            guidePoint = destination(
-                GeoPoint(pose.latitude, pose.longitude),
-                pose.headingDegrees,
-                distance.toDouble(),
-            )
-            incomingHeadingDegrees = pose.headingDegrees
-            reportedDistanceMeters = distance
-            anchorPoseCapturedAtMs = pose.capturedAtElapsedMs
-        } else if (previousDistance != distance && pose.capturedAtElapsedMs > anchorPoseCapturedAtMs) {
-            val candidate = destination(
-                GeoPoint(pose.latitude, pose.longitude),
-                pose.headingDegrees,
-                distance.toDouble(),
-            )
-            val currentGuidePoint = guidePoint ?: candidate
-            val separation = distanceMeters(currentGuidePoint, candidate)
-            val distanceJump = distance - (previousDistance ?: distance)
-            when {
-                separation <= MAX_ANCHOR_BLEND_METERS -> {
-                    guidePoint = blend(currentGuidePoint, candidate, ANCHOR_BLEND)
-                    incomingHeadingDegrees = blendHeading(
-                        incomingHeadingDegrees,
-                        pose.headingDegrees,
-                        ANCHOR_BLEND,
-                    )
-                }
-                distanceJump >= ROUTE_RESET_DISTANCE_JUMP_METERS -> {
-                    guidePoint = candidate
-                    incomingHeadingDegrees = pose.headingDegrees
-                }
-                else -> {
-                    // Keeping the old point here can fold a nominal left/right
-                    // line back across the car when the course mutates. Rebase,
-                    // but suppress this sample until the new anchor is stable.
-                    guidePoint = candidate
-                    incomingHeadingDegrees = pose.headingDegrees
-                    anchorRebased = true
-                }
-            }
-            reportedDistanceMeters = distance
-            anchorPoseCapturedAtMs = pose.capturedAtElapsedMs
+            heldDistanceMeters = reported
+        } else {
+            heldDistanceMeters = min(heldDistanceMeters, reported)
         }
+        val held = if (reported == heldDistanceMeters) {
+            guidance
+        } else {
+            guidance.copy(maneuverDistanceMeters = heldDistanceMeters)
+        }
+        if (arEnded) return HudArFrame(held, null)
+        val geometry = geometry(guidance.maneuver, pose, nowElapsedMs)
+        if (geometry != null) {
+            arShown = true
+        } else if (arShown) {
+            arEnded = true
+        }
+        return HudArFrame(held, geometry)
+    }
 
-        val turn = guidePoint ?: return null
-        if (anchorRebased) {
-            clearCachedGeometry()
+    fun reset() {
+        stepKey = null
+        heldDistanceMeters = 0
+        guidePoint = null
+        incomingHeadingDegrees = 0.0
+        arShown = false
+        arEnded = false
+        cachedPose = null
+        cachedGeometry = null
+    }
+
+    private fun geometry(
+        maneuver: HudManeuver,
+        pose: HudVehiclePose?,
+        nowElapsedMs: Long,
+    ): HudArGeometry? {
+        val distance = heldDistanceMeters
+        if (!supports(maneuver) || distance !in MIN_MANEUVER_DISTANCE_METERS..MAX_MANEUVER_DISTANCE_METERS) {
             return null
         }
+        if (pose == null || !poseIsUsable(pose, nowElapsedMs)) return null
+        if (pose == cachedPose) return cachedGeometry
+
         val vehicle = GeoPoint(pose.latitude, pose.longitude)
+        // The first eligible sample of the step places the turn point; it is
+        // kept only once a line through it has passed every guard.
+        val anchored = guidePoint
+        val turn = anchored ?: destination(vehicle, pose.headingDegrees, distance.toDouble())
+        val incomingHeading = if (anchored != null) incomingHeadingDegrees else pose.headingDegrees
         val remaining = distanceMeters(vehicle, turn)
         if (remaining !in MIN_GUIDE_POINT_DISTANCE_METERS..MAX_GUIDE_POINT_DISTANCE_METERS) return null
         val approachHeading = bearingDegrees(vehicle, turn)
@@ -209,21 +210,16 @@ class HudArApproximationTracker {
         // approach leg. A slight bend survives less frame divergence than a
         // sharp one before its side visually flips.
         if (abs(shortestHeadingDelta(pose.headingDegrees, approachHeading)) >
-            maxNoseApproachErrorDegrees(guidance.maneuver)
+            maxNoseApproachErrorDegrees(maneuver)
         ) {
             return null
         }
         // The point is only an approximation derived from the course captured
-        // at the beginning of this instruction. Once the live approach no
-        // longer agrees with that course, omitting AR is safer than drawing a
+        // at the beginning of this step. Once the live approach no longer
+        // agrees with that course, omitting AR is safer than drawing a
         // geometrically plausible but semantically wrong turn.
-        if (abs(shortestHeadingDelta(incomingHeadingDegrees, approachHeading)) > MAX_ANCHOR_HEADING_ERROR_DEGREES) {
+        if (abs(shortestHeadingDelta(incomingHeading, approachHeading)) > MAX_ANCHOR_HEADING_ERROR_DEGREES) {
             return null
-        }
-        if (cachedPose == pose && cachedKey == key && cachedDistanceMeters == distance &&
-            cachedGuidePoint == turn
-        ) {
-            return cachedGeometry
         }
 
         val line = buildGuideLine(
@@ -231,9 +227,13 @@ class HudArApproximationTracker {
             turn = turn,
             approachHeading = approachHeading,
             exitHeading = approachHeading,
-            maneuver = guidance.maneuver,
+            maneuver = maneuver,
         )
-        if (!guideLineIsSafe(line, approachHeading, pose.headingDegrees, guidance.maneuver)) return null
+        if (!guideLineIsSafe(line, approachHeading, pose.headingDegrees, maneuver)) return null
+        if (anchored == null) {
+            guidePoint = turn
+            incomingHeadingDegrees = pose.headingDegrees
+        }
         val geometry = HudArGeometry(
             vehicleLatitude = pose.latitude,
             vehicleLongitude = pose.longitude,
@@ -244,32 +244,12 @@ class HudArApproximationTracker {
             guidePoint = turn.toGuidePointString(),
         )
         cachedPose = pose
-        cachedKey = key
-        cachedDistanceMeters = distance
-        cachedGuidePoint = turn
         cachedGeometry = geometry
         return geometry
     }
 
-    fun reset() {
-        stepKey = null
-        guidePoint = null
-        incomingHeadingDegrees = 0.0
-        reportedDistanceMeters = null
-        anchorPoseCapturedAtMs = 0L
-        clearCachedGeometry()
-    }
-
-    private fun clearCachedGeometry() {
-        cachedPose = null
-        cachedKey = null
-        cachedDistanceMeters = null
-        cachedGuidePoint = null
-        cachedGeometry = null
-    }
-
-    private fun poseIsUsable(pose: HudVehiclePose?, nowElapsedMs: Long): Boolean {
-        if (pose == null || nowElapsedMs < pose.capturedAtElapsedMs) return false
+    private fun poseIsUsable(pose: HudVehiclePose, nowElapsedMs: Long): Boolean {
+        if (nowElapsedMs < pose.capturedAtElapsedMs) return false
         if (nowElapsedMs - pose.capturedAtElapsedMs > MAX_POSE_AGE_MS) return false
         return pose.latitude.isFinite() && pose.latitude in -85.0..85.0 &&
             pose.longitude.isFinite() && pose.longitude in -180.0..180.0 &&
@@ -408,9 +388,7 @@ class HudArApproximationTracker {
         const val MAX_APPROACH_ERROR_DEGREES = 70.0
         const val STRAIGHT_NOSE_ERROR_DEGREES = 15.0
         const val MAX_ANCHOR_HEADING_ERROR_DEGREES = 45.0
-        const val MAX_ANCHOR_BLEND_METERS = 35.0
         const val ROUTE_RESET_DISTANCE_JUMP_METERS = 30
-        const val ANCHOR_BLEND = 0.35
         const val APPROACH_POINT_SPACING_METERS = 8.0
         const val EXIT_POINT_SPACING_METERS = 6.0
         const val MAX_APPROACH_STEPS = 24
@@ -471,9 +449,6 @@ class HudArApproximationTracker {
         fun shortestHeadingDelta(from: Double, to: Double): Double =
             ((to - from + 540.0) % 360.0) - 180.0
 
-        fun blendHeading(from: Double, to: Double, ratio: Double): Double =
-            normalizeHeading(from + shortestHeadingDelta(from, to) * ratio)
-
         fun destination(origin: GeoPoint, headingDegrees: Double, distanceMeters: Double): GeoPoint {
             val angularDistance = distanceMeters / EARTH_RADIUS_METERS
             val heading = Math.toRadians(headingDegrees)
@@ -512,16 +487,6 @@ class HudArApproximationTracker {
                 sin(latitude1) * cos(latitude2) * cos(longitudeDelta)
             return normalizeHeading(Math.toDegrees(atan2(y, x)))
         }
-
-        fun blend(first: GeoPoint, second: GeoPoint, ratio: Double): GeoPoint = GeoPoint(
-            latitude = first.latitude + (second.latitude - first.latitude) * ratio,
-            longitude = normalizeLongitude(
-                first.longitude + shortestLongitudeDelta(first.longitude, second.longitude) * ratio,
-            ),
-        )
-
-        fun shortestLongitudeDelta(from: Double, to: Double): Double =
-            ((to - from + 540.0) % 360.0) - 180.0
 
         fun normalizeLongitude(value: Double): Double = ((value + 540.0) % 360.0) - 180.0
     }
