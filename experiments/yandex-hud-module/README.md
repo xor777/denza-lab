@@ -180,6 +180,14 @@ The current candidate is **Brighter roads** below (`d23c4054…b57e`), including
 the account-type fix. The unproved N9 street-shortening experiment was reverted
 on 2026-10-15; earlier builds are retained as evidence.
 
+**Alice language check (2026-10-15).** Original and HUD APKs both show the plain
+microphone / ordinary recognition widget in English and Alice in Russian. The
+same HUD APK opened Alice and started unsilenced MIC after a locale change and
+restart; no rebuild was needed. If language is automatic, select Russian
+explicitly in Navigator and restart. This is emulator evidence; the car change,
+spoken recognition and server answer remain unverified. See
+[Alice language selection](../../docs/shortcuts-automation-findings.md#alice-language-selection-in-the-hud-build-2026-10-15).
+
 `captures/yandex-hud-embedded-20261014/build-06/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
 SHA-256 `16a51953b9c263353d39dff4581ca416169546729553ce12b94515b8ff0926e6`.
 `acceptance-06/report.json` passed: 9.76 fps foreground, 9.90 fps background,

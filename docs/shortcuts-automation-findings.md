@@ -6,7 +6,7 @@ those actions at Denza Apps.
 
 ## Current state
 
-Updated 2026-10-11. What the stock Shortcuts/AutoVoice engine lets a third-party app launch, how
+Updated 2026-10-15. What the stock Shortcuts/AutoVoice engine lets a third-party app launch, how
 Denza Apps points the three stock default-app roles at chosen packages, and how the steering
 wheel's Play/Pause and voice keys are answered.
 
@@ -16,6 +16,7 @@ Everything else here is a dated findings journal.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
+| Navigator 29.8.1 original and HUD debug APK: English locale selects the ordinary microphone / `Listening…` widget; Russian selects Alice and a button tap starts unsilenced MIC. The owner reports automatic language on the car; explicit Russian and restart still need car confirmation | emulator + code; car pending | 2026-10-15 | [Alice language selection](#alice-language-selection-in-the-hud-build-2026-10-15) |
 | Navigator 29.8.1 exposes different microphones for free map (`navi_service_open_voice_search`) and route guidance (`guidance_open_voice_search`); semantic clicks on both start sustained unsilenced MIC. The empty-text deep link, even followed by `alice_oknyx`, did not start listening | live | 2026-10-11 | [Alice in Yandex Navigator](#alice-in-yandex-navigator-2026-10-11), [Route microphone correction](#route-microphone-correction) |
 | Physical voice key `320` (scanCode `290`, device `2`): build 73 opens Alice with sustained MIC in visible Navigator, including an unfocused split pane and hidden route controls; fully hidden Navigator leaves stock BYD. Build 69 fixed the route ID, build 70 removed the manual-touch prerequisite, build 73 removed the input-focus prerequisite | live | 2026-10-11 | [Route microphone correction](#route-microphone-correction), [Hidden route controls](#hidden-route-controls-without-a-manual-touch), [Visible split](#visible-navigator-in-split-screen) |
 | Build 73 physical-key acceptance: Music focused, Navigator visible/unfocused, Denza Apps hidden; both free map and hidden route controls opened Alice with sustained MIC. With Navigator fully hidden, stock BYD opened | live | 2026-10-11 | [Visible Navigator in split screen](#visible-navigator-in-split-screen) |
@@ -73,6 +74,7 @@ Everything else here is a dated findings journal.
 
 ## Contents
 - [Alice in Yandex Navigator (2026-10-11)](#alice-in-yandex-navigator-2026-10-11) — a failed empty-text deep link and a live-proven semantic microphone click.
+- [Alice language selection in the HUD build (2026-10-15)](#alice-language-selection-in-the-hud-build-2026-10-15) — original/debug locale comparison; automatic language can select ordinary speech search.
 - [Steering-wheel Play/Pause feasibility (2026-09-05)](#steering-wheel-playpause-feasibility-2026-09-05) — corpus key routing, the accessibility key filter, the VK/Yandex focus diagnosis, the normative resume contract, its 2026-09-18 live corrections, and the 2026-10-08 decision to leave a player the car unloaded to the firmware.
 - [Evidence base for the role findings (2026-08-16 to 2026-08-27)](#evidence-base-for-the-role-findings-2026-08-16-to-2026-08-27) — what the August live passes and decompiles covered.
 - [Where the feature lives](#where-the-feature-lives) — `com.byd.autovoice/.DiyCommandActivity` and its GreenDAO storage.
@@ -97,6 +99,8 @@ An accessibility `ACTION_CLICK` opened Alice and started a sustained microphone 
 This is integrated into Denza Apps through the existing shared accessibility service.
 Build 70 passed the physical-key hidden-route case; build 72 extends selection to visible,
 unfocused split panes. See [Visible Navigator in split screen](#visible-navigator-in-split-screen).
+This result assumes Alice is enabled for the app's language. The same button IDs can instead
+invoke ordinary speech search; see the [2026-10-15 language comparison](#alice-language-selection-in-the-hud-build-2026-10-15).
 
 ### Identity and evidence
 
@@ -190,6 +194,59 @@ at +0.7, +2 and +4 s all show session **257**, UID **10133**, source **MIC**, pa
 listening orb. The later settled audio snapshot confirms that the recording ended; the probe
 does not leave an ongoing capture behind. Both runs' before/after crash buffers are identical.
 No spoken command or server answer was used as acceptance evidence.
+
+### Alice language selection in the HUD build (2026-10-15)
+
+The owner reported an ordinary microphone icon and a speech-recognition widget instead of
+Alice in the modified Navigator, with its language set to **system/automatic**. This symptom
+was reproduced on a disposable Android emulator. No car was connected during this test;
+the car's effective process locale was not read.
+
+The two APKs were installed successively on the same `denza_hu` read-only emulator
+(`emulator-5580`). Each had microphone permission, no signed-in account, and the same map
+deep link. The original required uninstalling the modified package on this disposable
+emulator because their signers differ. Within each APK, only the Android per-app locale was
+changed, followed by force-stop/relaunch; no reinstall or data clear separated its two locales.
+
+| APK | English | Russian |
+|---|---|---|
+| Original 29.8.1, SHA-256 `3b0dec3277f261fd2a2e8b6c0ccb287b1c2bf629b5333bff213fb2f6425024b3` | Plain microphone; tap opens `Listening…` / `One second…` | Purple Alice icon; tap opens «Чем я могу помочь?» and unsilenced MIC |
+| Brighter-roads HUD debug, SHA-256 `d23c4054c9396ecc8c042f40b432c9667001e7cd590ddb284a1cb735dc1cb57e` | Same plain microphone and recognition widget | Same Alice panel; MIC remains active and unsilenced across three audio snapshots |
+
+The modified APK initially inherited English from the emulator. To change only its locale:
+
+```sh
+# Disposable emulator only. Android per-app locale, not a vehicle/global locale change.
+adb -s emulator-5580 shell cmd locale set-app-locales ru.yandex.yandexnavi --user 0 --locales ru-RU
+adb -s emulator-5580 shell am force-stop ru.yandex.yandexnavi
+```
+
+The existing decompile independently explains the selection:
+
+- `ru/yandex/yandexmaps/controls/voicesearch/ControlVoiceState.java` has `ALICE`, `SPEECH_KIT`
+  and `DISABLE`; `ControlVoiceSearch.setState` chooses Alice or microphone artwork.
+- `ru/yandex/yandexmaps/alice/q.java` supplies RU/TR for the Alice product kind. EN/AR belongs
+  to the separate Yasmina kind, not a universal English Alice fallback.
+- `ru/yandex/yandexmaps/alice/o.java` selects the Alice service only if the current language
+  is in that set; otherwise it selects the fallback service.
+- `ru/yandex/yandexmaps/multiplatform/core/utils/q.java` obtains the language from
+  `Locale.getDefault().getLanguage()`.
+
+`classes3.dex` (the voice control) and `classes16.dex` (Alice selection/services) are byte
+identical in the two APKs. The locale switch fixes the reproduced icon/widget symptom without
+changing the HUD module, account type, signing key or server credentials. For the owner,
+the next car check is to select **Russian explicitly in Navigator** and fully restart it.
+The emulator test used Android's per-app locale; the in-app language selector on this car
+has not yet been exercised. Automatic language plus the matching symptom makes locale the
+leading car explanation, not a measured car root cause.
+
+Evidence: `captures/yandex-hud-alice-20261015/apk-identity.json`, `modified/` and `original/`
+contain UI XML, screenshots and audio snapshots. The emulator ran with `-no-audio`: active
+MIC proves the recording session, not recognition of a spoken command. Nonempty `ask_alice`
+text probes did not establish a conversational answer: `2+2` ended on a map search result
+for a business of that name; the subsequent Russian arithmetic question left that result
+visible. Do not claim end-to-end voice recognition, a server answer or audible speech from
+this run. The redacted process log's Firebase/RuStore push errors are not Alice failure proof.
 
 ### Product boundary
 
