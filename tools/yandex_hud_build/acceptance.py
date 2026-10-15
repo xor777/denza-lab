@@ -47,7 +47,15 @@ def main():
         item = {'name': name, 'host_monotonic': time.monotonic()}
         for key, path in [('renderer', '/data/data/ru.yandex.yandexnavi/files/denza-hud-evidence/latest.json'),
                           ('receiver', '/data/data/com.ts.car.someip.service/files/report.json')]:
-            item[key] = json.loads(adb('shell', 'cat', path))
+            # These live reports are overwritten in place; cat can catch an empty/partial write.
+            # Retry only a JSON read race, briefly. Persistent malformed data still fails acceptance.
+            for attempt in range(3):
+                try:
+                    item[key] = json.loads(adb('shell', 'cat', path))
+                    break
+                except json.JSONDecodeError:
+                    if attempt == 2: raise
+                    time.sleep(0.05)
         item['activity'] = adb('shell', 'dumpsys', 'activity', 'activities')
         report['snapshots'].append(item)
         (args.out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')

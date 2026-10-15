@@ -20,6 +20,18 @@ def run(args, **kwargs):
     subprocess.run([str(x) for x in args], check=True, **kwargs)
 
 
+def excluded_native_entries(archive, abi):
+    """Filter only ABI-specific lib/ entries; never trim code, resources or assets."""
+    names = {info.filename for info in archive.infolist()
+             if info.filename.startswith('lib/') and not info.is_dir()}
+    available = {name.split('/')[1] for name in names}
+    if abi == 'universal':
+        return set()
+    if abi not in available:
+        raise ValueError('Requested ABI is missing from the original APK: ' + abi)
+    return {name for name in names if name.split('/')[1] != abi}
+
+
 def verify_manifest(original, candidate, env):
     """Independently decode binary XML with the Android SDK, then compare its semantics."""
     def read(path):
@@ -56,6 +68,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apk', type=Path, default=ROOT / 'captures/hud-lanes-20261011/yandex-installed.apk')
     parser.add_argument('--stock-apk', type=Path, default=ROOT / 'captures/hud-firmware-20260923/system/system/app/BydLaunchermap/BydLaunchermap.apk')
+    parser.add_argument('--abi', choices=('universal', 'arm64-v8a'), default='universal',
+                        help='Keep all architectures, or only ARM64 native libraries')
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--jadx-jar', type=Path, default=Path('/opt/homebrew/Cellar/jadx/1.5.5/libexec/lib/jadx-1.5.5-all.jar'))
     args = parser.parse_args()
@@ -90,6 +104,8 @@ def main():
     run([java/'bin/javac', '-cp', args.jadx_jar, '-d', patcher, ROOT/'tools/yandex_hud_build/PatchHooks.java'])
     changes = dict(artwork)
     with zipfile.ZipFile(args.apk) as original:
+        excluded = excluded_native_entries(original, args.abi)
+        removed_native_bytes = sum(original.getinfo(name).compress_size for name in excluded)
         for name, mode in [('classes10.dex', 'context'), ('classes12.dex', 'guidance')]:
             source = args.out/('original-'+name); source.write_bytes(original.read(name))
             target = args.out/name
@@ -104,6 +120,8 @@ def main():
         changes['assets/denza-hud/theme.json'] = subprocess.check_output(['node', ROOT/'tools/yandex_hud_build/theme.cjs'], cwd=ROOT)
         with zipfile.ZipFile(args.out/'unsigned.apk', 'w', allowZip64=False) as output:
             for info in original.infolist():
+                if info.filename in excluded:
+                    continue
                 if info.filename.startswith('META-INF/') and (info.filename.endswith(('.SF','.RSA','.DSA','.EC')) or info.filename == 'META-INF/MANIFEST.MF'):
                     continue
                 output.writestr(info, changes.pop(info.filename, original.read(info.filename)))
@@ -135,14 +153,25 @@ def main():
               'runtime': 'embedded Java, no Frida', 'manifest_semantic_check': 'passed'}
     report['removed_permission_declarations'] = [SHARED_PERMISSION]
     report['account_type'] = ACCOUNT_TYPE
+    report['abi'] = args.abi
+    report['apk_bytes'] = result.stat().st_size
+    report['removed_native_entries'] = sorted(excluded)
+    report['removed_native_compressed_bytes'] = removed_native_bytes
     report['stock_artwork'] = artwork_report
     report['resource_semantic_check'] = 'passed: only passport_account_type changed'
     # Prove untouched ZIP contents, not just a successful signature.
     with zipfile.ZipFile(args.apk) as before, zipfile.ZipFile(result) as after:
         allowed = {'classes10.dex','classes12.dex','AndroidManifest.xml','resources.arsc'}
+        missing = {name for name in set(before.namelist()) - set(after.namelist())
+                   if not name.startswith('META-INF/')}
+        if missing != excluded: raise RuntimeError('Unexpected removed APK entries: ' + str(missing ^ excluded))
+        report['native_abis'] = sorted({name.split('/')[1] for name in after.namelist()
+                                       if name.startswith('lib/') and not name.endswith('/')})
+        if args.abi != 'universal' and report['native_abis'] != [args.abi]:
+            raise RuntimeError('Unexpected native ABIs in candidate')
         changed = []
         for name in before.namelist():
-            if name.startswith('META-INF/'): continue
+            if name.startswith('META-INF/') or name in excluded: continue
             if before.read(name) != after.read(name): changed.append(name)
         if set(changed) != allowed: raise RuntimeError('Unexpected changed APK entries: '+str(changed))
         report['changed_original_entries'] = changed

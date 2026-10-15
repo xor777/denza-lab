@@ -101,6 +101,11 @@ car acceptance.
 Requires JDK 17, Android SDK platform 35 / build-tools 36.0.0, Node, `apkanalyzer`
 and the dexlib2 bundled in local JADX 1.5.5. Paths can be supplied via
 `JAVA_HOME`, `ANDROID_HOME`, `--jadx-jar`, `--apk` and `--stock-apk`.
+`--abi arm64-v8a` keeps only the 22 ARM64 native libraries; `--abi universal`
+(the default) retains all original architectures. No other code or resources
+are removed. The builder verifies the exact omitted entries, the remaining
+ABIs and the byte equality of every retained original file outside the normal
+module/manifest/account patch; it records the ABI and sizes in the report.
 The stock artwork input is the pinned BydLaunchermap APK described in
 [stock artwork findings](../../docs/hud-projection-findings.md#hud-stock-artwork).
 The builder checks its hash and dimensions and copies 127 original PNGs
@@ -109,8 +114,8 @@ Every reachable symbol mapping must resolve to an asset. The build report
 records and verifies byte equality of every copied image.
 
 ```sh
-python3 tools/yandex_hud_build/build.py \
-  --out captures/yandex-hud-embedded-20261014/new-build
+python3 tools/yandex_hud_build/build.py --abi arm64-v8a \
+  --out captures/yandex-hud-arm64-20261015/new-build
 ```
 
 The input must be the owner's single APK 29.8.1 / code 739494300, SHA-256
@@ -135,7 +140,7 @@ that all other manifest declarations match; the builder verifies the signature,
 patched dex files, manifest and `resources.arsc`. The sole resource change is
 `passport_account_type` → `com.yandex.passport.denza`; an independent full `aapt2`
 dump comparison rejects every other resource change. Resource IDs, XML
-references and native libraries stay unchanged. `build-report.json` records
+references and retained native libraries stay unchanged. `build-report.json` records
 APK/module hashes and the resource check. The builder first runs 67 host assertions.
 
 The dedicated local experimental key lives in ignored
@@ -194,7 +199,26 @@ cover the design and the theme contract, not native transport.
 
 ## Current candidate (2026-10-15)
 
-The current candidate is **Native cyan arrows**:
+The current candidate is **Native cyan arrows, ARM64**:
+`captures/yandex-hud-arm64-20261015/DenzaHUD-arm64-debug.apk`, SHA-256
+`c70d3300f0f1132d71e61d162d43d9a14bb084d464b5f29026a594ff15d1f30f`.
+Its size is 219,758,519 bytes, versus 369,062,907 for the universal reference
+below: 149,304,388 bytes smaller (40.45%). Only the 64 `armeabi-v7a`, `x86`
+and `x86_64` libraries were removed. `comparison.json` proves that every other
+non-signing ZIP entry is byte-identical to the reference, including all 22
+ARM64 libraries, dex files, manifest, resource table and assets. Both APKs have
+the same certificate; debug mode and `com.yandex.passport.denza` remain.
+`upgrade-check.json` confirms an emulator update over that universal APK:
+same UID, private-file marker preserved and `primaryCpuAbi=arm64-v8a`.
+The exact ARM64 APK also passed `acceptance-02 --require-lanes`:
+9.92 fps foreground / 9.91 fps hidden, 10 background lane packets,
+one lane clear while the route continued, reconnect, triple clear and zero
+wire errors. Its first acceptance attempt hit a partial JSON report read;
+the host reader now retries that read at most three times, without changing
+the APK. The failed report is retained separately. Car acceptance is pending.
+This is an ARM64-only package, not an APK for 32-bit ARM or Intel devices.
+
+**Universal reference (same artwork and runtime):**
 `captures/yandex-hud-native-arrows-20261015/build-02/yandex-navigator-29.8.1-denza-hud-exp.1.apk`,
 SHA-256 `13047a8ef191ddca0647bd4870553d3ae08da9ec62536f5e751636de39801ab3`.
 It keeps the bright roads/account fix and experimental signing key; it adds
