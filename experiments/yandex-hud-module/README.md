@@ -242,8 +242,12 @@ receiver restart/reconnect, triple clear and zero protocol errors. Independent
 host comparison of 43 foreground and 60 background AR samples against the
 native MapKit route found a maximum point deviation of 0.0051 m (7-decimal
 serialization). This measures wire geometry, **not** alignment on the glass.
-The car has not been installed or tested in this change. Its Navigation Fusion
-setting must be enabled; Denza Apps HUD guidance must not send concurrently.
+Installed as an update on the owner's DiLink 5.1 / Android 13 at 12:13 MSK
+on 2026-10-15 (`car-install-01/report.json`): the installed APK hash matches,
+ARM64/debug confirmed, UID and first-install time preserved, crash log unchanged.
+Physical AR appearance and route/background behavior on the car still await
+owner testing. Navigation Fusion must be enabled; Denza Apps HUD guidance
+must not send concurrently.
 
 **Previous ARM64 reference (without AR):**
 `captures/yandex-hud-arm64-20261015/DenzaHUD-arm64-debug.apk`, SHA-256
