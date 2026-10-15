@@ -200,6 +200,7 @@ internal object SheetFixtures {
             state = state.copy(
                 hudGuidance = snapshot(FeatureId.HUD_GUIDANCE, s.getBoolean("hud"), s),
                 hudMapEnabled = s.optBoolean("map", false),
+                hudSentByNavigator = s.optBoolean("byNavigator", false),
             )
         }
         if (s.has("speakers")) {

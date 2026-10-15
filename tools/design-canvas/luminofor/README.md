@@ -65,6 +65,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `two-sound`, `two-car`, `one-sound`, `one-car` | the two-thirds and one-third panes |
 | `sheet-cluster`, `-mirrors`, `-simulcast`, `-speakers`, `-locale`, `-broken` | a tile's settings panel over the dashboard |
 | `sheet-hud` | the HUD panel: the hints and, under them, the map window beside the speed, both on |
+| `sheet-hud-navigator` | the same panel with «Яндекс HUD» installed: only the car's speed sign is left to the app, the map off and grey |
 | `sheet-cast-apps`, `sheet-defaults` | a panel's page of applications, the default-apps panel |
 | `sheet-service`, `sheet-service-trouble`, `sheet-service-access`, `one-sheet-service-trouble` | the service panel on a healthy car, with two features needing somebody (wide and in the one-third pane), and with no access to the car |
 | `sheet-service-screen`, `sheet-service-technical` | the service's two pages: the instruments' screen, and the technical report with the cloud first |

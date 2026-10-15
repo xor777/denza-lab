@@ -29,11 +29,19 @@ class SheetBoardContractTest {
                 Triple(id, tile, notes)
             }
         assertTrue("no panel board found", boards.any { it.second == TileId.HUD })
+        assertTrue("no board with «Яндекс HUD» installed", boards.any { state(it.first)["byNavigator"] == true })
 
         boards.forEach { (id, tile, notes) ->
-            assertEquals("$id draws a paragraph the app does not write", listOf(helpOf(tile)), notes)
+            val byNavigator = state(id)["byNavigator"] == true
+            assertEquals(
+                "$id draws a paragraph the app does not write",
+                listOf(helpOf(tile, hudSentByNavigator = byNavigator)),
+                notes,
+            )
         }
     }
+
+    private fun state(id: String) = SpecJson.fixture(id)["state"] as Map<*, *>
 
     private companion object {
         val OWN_PANELS = setOf(TileId.SERVICE, TileId.DEFAULT_APPS)

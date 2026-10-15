@@ -185,7 +185,7 @@ fun FeatureSheet(
         // посреди экрана. Ошибки живут в «Сервисе», и туда же эта строка уже попадает; на
         // центральной панели после действия есть состояние функции и объяснение, что она делает,
         // и третьего быть не должно (U5).
-        DenzaNote(helpOf(id))
+        DenzaNote(helpOf(id, hudSentByNavigator = state.hudSentByNavigator))
     }
 }
 
@@ -221,8 +221,11 @@ internal fun panelStatus(tile: DashboardTile, message: String): String = when (t
  *
  * Short, present tense, no instructions the screen already gives. The `sheet-*` boards draw the
  * same paragraph, and `SheetBoardContractTest` holds the two together.
+ *
+ * The HUD has a second paragraph, for «Яндекс HUD» installed ([DenzaUiState.hudSentByNavigator]):
+ * it is the one place that says why the map is grey and what is left for the switch to do.
  */
-internal fun helpOf(id: TileId): String = when (id) {
+internal fun helpOf(id: TileId, hudSentByNavigator: Boolean = false): String = when (id) {
     TileId.CLUSTER ->
         "На приборную панель за рулём встаёт что-то одно: приборы или любое приложение " +
             "с машины. Короткое нажатие на плитку ставит его туда и убирает обратно."
@@ -235,6 +238,10 @@ internal fun helpOf(id: TileId): String = when (id) {
     TileId.SPLIT ->
         "При включении на рабочем столе появляется значок разделения экрана. " +
             "Он открывает выбор двух приложений, которые встанут рядом."
+    TileId.HUD if hudSentByNavigator ->
+        "Установлен Яндекс HUD: подсказки и карту на лобовое стекло он выводит сам. " +
+            "Приложение передаёт только ограничение скорости — штатному знаку машины " +
+            "на приборах и проекции."
     // The tile says «Нет навигатора» when it is missing; this is where the navigator is named.
     TileId.HUD ->
         "Указания Яндекс Навигатора повторяются на проекции на лобовом стекле. " +
@@ -486,26 +493,33 @@ private fun splitSheet(state: DenzaUiState, actions: DashboardActions, busy: Boo
  * is on, and the hints are what send it. So the second switch greys while the first is off or still
  * settling, and keeps its own position - the tile's press moves the hints and never the map. Yandex
  * hidden or covered is a state of the map, not a failure of it, and nothing here speaks of it.
+ *
+ * With «Яндекс HUD» installed the navigator sends the hints and the map itself, and what the first
+ * switch still does here is the car's own speed sign, so it is named for that; the map is off and
+ * grey whatever its stored value, which comes back with the ordinary Yandex.
  */
 @Composable
 private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
-        title = "Подсказки на проекции",
+        title = if (state.hudSentByNavigator) "Знак ограничения скорости" else "Подсказки на проекции",
         checked = state.hudGuidance.desiredEnabled,
         onCheckedChange = actions.onToggleHudGuidance,
         enabled = !busy,
     )
     DenzaSwitchRow(
         title = "Карта на проекции",
-        checked = state.hudMapEnabled,
+        checked = state.hudMapEnabled && !state.hudSentByNavigator,
         onCheckedChange = actions.onSetHudMapEnabled,
         enabled = hudMapSwitchEnabled(state, busy),
     )
 }
 
-/** Whether «Карта на проекции» can be moved: only with the hints on and settled. */
+/**
+ * Whether «Карта на проекции» can be moved: only with the hints on and settled, and never while
+ * «Яндекс HUD» sends its own map.
+ */
 internal fun hudMapSwitchEnabled(state: DenzaUiState, busy: Boolean): Boolean =
-    state.hudGuidance.desiredEnabled && !busy
+    state.hudGuidance.desiredEnabled && !busy && !state.hudSentByNavigator
 
 /**
  * Whether the app keeps feeding the car's own weather widget, and when it last did.

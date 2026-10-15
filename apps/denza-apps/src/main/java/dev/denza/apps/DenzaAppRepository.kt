@@ -40,6 +40,7 @@ import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudGuidanceStatus
 import dev.denza.apps.feature.hud.HudMapGrant
 import dev.denza.apps.feature.hud.HudMapGrantTrigger
+import dev.denza.apps.feature.hud.HudNavigatorBuild
 import dev.denza.apps.feature.hud.HudNotificationAccess
 import dev.denza.apps.feature.cloud.CloudLinkController
 import dev.denza.apps.feature.cloud.CloudLinkRuntime
@@ -145,6 +146,11 @@ data class DenzaUiState(
      * do. The map runs only while the hints hold a route, so the panel greys it with them off.
      */
     val hudMapEnabled: Boolean = false,
+    /**
+     * «Яндекс HUD» is installed ([HudNavigatorBuild]): it sends the hints and the map to the HUD
+     * itself, and this app only the car's speed sign. The panel says so and greys the map.
+     */
+    val hudSentByNavigator: Boolean = false,
     val speakerCovers: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPEAKER_COVERS),
     /**
      * A cover report on the wire, for the second «Поднять» is greyed.
@@ -494,6 +500,7 @@ object DenzaAppRepository {
         StateSlice.HUD_GUIDANCE -> HudGuidanceReading(
             snapshot = evaluateHudGuidance(context),
             mapEnabled = HudGuidanceSettings.isMapEnabled(context),
+            sentByNavigator = HudNavigatorBuild.drawsHud(context),
         )
         StateSlice.SPEAKER_COVERS -> SpeakerCoversReading(
             snapshot = SpeakerCoverStatus.snapshot(

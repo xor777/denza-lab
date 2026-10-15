@@ -449,6 +449,18 @@
     ]
   }, { tile: 'HUD', hud: true, map: true });
 
+  // «Яндекс HUD» installed: it sends the hints and the map itself. The first switch is named for
+  // what is left to it, the car's own sign; the map is off and grey though its stored value is on,
+  // and the paragraph says why
+  sheets.hudNavigator = sheetOf(4, {
+    title: 'HUD Подсказки',
+    blocks: [
+      { t: 'switch', title: 'Знак ограничения скорости', on: true },
+      { t: 'switch', title: 'Карта на проекции', on: false, enabled: false },
+      { t: 'note', text: 'Установлен Яндекс HUD: подсказки и карту на лобовое стекло он выводит сам. Приложение передаёт только ограничение скорости — штатному знаку машины на приборах и проекции.' }
+    ]
+  }, { tile: 'HUD', hud: true, map: true, byNavigator: true });
+
   // board id -> [board, fixture]; px sizes are the displays' own
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
@@ -504,6 +516,7 @@
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],
     'one-sheet-cloud': [{ kind: 'sheet', mode: 'one' }, sheets.cloud],
     'sheet-hud':       [{ kind: 'sheet', mode: 'full' }, sheets.hud],
+    'sheet-hud-navigator': [{ kind: 'sheet', mode: 'full' }, sheets.hudNavigator],
     'one-sheet-cluster':   [{ kind: 'sheet', mode: 'one' }, sheets.cluster],
     'one-sheet-cast-apps': [{ kind: 'sheet', mode: 'one' }, sheets.castApps],
     'digits':         [{ kind: 'digits' }, {}]

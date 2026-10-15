@@ -29,6 +29,34 @@ class HudMapSwitchTest {
     }
 
     @Test
+    fun theMapIsGreyWhileYandexHudSendsItsOwn() {
+        val on = DenzaUiState(
+            hudGuidance = FeatureReducer.ready(FeatureId.HUD_GUIDANCE, active = false),
+            hudMapEnabled = true,
+            hudSentByNavigator = true,
+        )
+
+        assertFalse(hudMapSwitchEnabled(on, busy = false))
+    }
+
+    @Test
+    fun theHudSliceLaysWhetherYandexHudSendsItself() {
+        val read = DenzaUiState().withReadings(
+            listOf(
+                HudGuidanceReading(
+                    FeatureReducer.ready(FeatureId.HUD_GUIDANCE, active = false),
+                    mapEnabled = true,
+                    sentByNavigator = true,
+                ),
+            ),
+        )
+
+        assertTrue(read.hudSentByNavigator)
+        // The stored wish stays, for the ordinary Yandex.
+        assertTrue(read.hudMapEnabled)
+    }
+
+    @Test
     fun theTilesPressMovesTheHintsAndNeverTheMap() {
         press(DenzaUiState(hudMapEnabled = true))
         press(

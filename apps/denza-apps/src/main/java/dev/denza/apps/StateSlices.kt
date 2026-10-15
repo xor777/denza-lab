@@ -155,10 +155,15 @@ internal data class SplitScreenReading(val snapshot: FeatureSnapshot) : SliceRea
 internal data class HudGuidanceReading(
     val snapshot: FeatureSnapshot,
     val mapEnabled: Boolean,
+    val sentByNavigator: Boolean = false,
 ) : SliceReading {
     override val slice get() = StateSlice.HUD_GUIDANCE
 
-    override fun applyTo(state: DenzaUiState) = state.copy(hudGuidance = snapshot, hudMapEnabled = mapEnabled)
+    override fun applyTo(state: DenzaUiState) = state.copy(
+        hudGuidance = snapshot,
+        hudMapEnabled = mapEnabled,
+        hudSentByNavigator = sentByNavigator,
+    )
 }
 
 internal data class SpeakerCoversReading(

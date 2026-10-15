@@ -79,7 +79,7 @@ object HudMapGrant {
         val action = HudMapGrantPolicy.decide(
             trigger = trigger,
             hintsOn = HudGuidanceSettings.isEnabled(app),
-            mapOn = HudGuidanceSettings.isMapEnabled(app),
+            mapOn = HudGuidanceSettings.isMapOurs(app),
             live = projection != null,
             inFlight = inFlight,
             opAllowed = opAllowed(app),
@@ -93,7 +93,7 @@ object HudMapGrant {
             HudMapGrantAction.NOTHING -> setReason(
                 HudMapGrantPolicy.idleReason(
                     hintsOn = HudGuidanceSettings.isEnabled(app),
-                    mapOn = HudGuidanceSettings.isMapEnabled(app),
+                    mapOn = HudGuidanceSettings.isMapOurs(app),
                     live = projection != null,
                     inFlight = inFlight,
                     activityResumed = launcher != null,
@@ -119,7 +119,7 @@ object HudMapGrant {
         val action = HudMapGrantPolicy.decide(
             trigger = HudMapGrantTrigger.BACKGROUND,
             hintsOn = HudGuidanceSettings.isEnabled(app),
-            mapOn = HudGuidanceSettings.isMapEnabled(app),
+            mapOn = HudGuidanceSettings.isMapOurs(app),
             live = projection != null,
             inFlight = inFlight,
             opAllowed = opAllowed(app),
@@ -331,7 +331,7 @@ object HudMapGrant {
     }
 
     private fun stillWanted(context: Context): Boolean =
-        HudGuidanceSettings.isEnabled(context) && HudGuidanceSettings.isMapEnabled(context)
+        HudGuidanceSettings.isEnabled(context) && HudGuidanceSettings.isMapOurs(context)
 
     /** Exactly allowed, as `hasProjectionPermission` reads it: the default mode would bring the dialog. */
     private fun opAllowed(context: Context): Boolean {

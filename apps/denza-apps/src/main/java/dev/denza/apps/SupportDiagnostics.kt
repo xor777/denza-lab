@@ -37,6 +37,7 @@ import dev.denza.apps.platform.accessibility.AccessibilityHealth
 import dev.denza.apps.platform.media.MediaSessionAccess
 import dev.denza.apps.feature.hud.HudMapRuntime
 import dev.denza.apps.feature.hud.HudMapSnapshot
+import dev.denza.apps.feature.hud.HudNavigatorBuild
 import dev.denza.apps.feature.hud.HudNotificationArtworkRuntime
 import dev.denza.apps.feature.hud.HudSomeIpRuntime
 import dev.denza.apps.feature.media.MediaKeyReport
@@ -302,6 +303,13 @@ object SupportDiagnostics {
 
     private fun hudRows(context: Context): List<TechnicalRow> = buildList {
         add(row("Подсказки", yesNo(HudGuidanceSettings.isEnabled(context))))
+        // Which of the two writes the HUD: with «Яндекс HUD» this app sends only the car's sign.
+        add(
+            row(
+                "Навигатор",
+                if (HudNavigatorBuild.drawsHud(context)) "Яндекс HUD, HUD выводит сам" else "Яндекс",
+            ),
+        )
         val access = MediaSessionAccess.diagnostics(context)
         add(row("Доступ к уведомлениям", yesNo(access.accessEnabled)))
         add(row("Восстановление доступа", access.phase.name.lowercase().replace('_', '-')))

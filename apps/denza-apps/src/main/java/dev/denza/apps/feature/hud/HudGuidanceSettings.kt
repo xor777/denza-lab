@@ -37,6 +37,14 @@ object HudGuidanceSettings {
     fun isMapEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(MAP, false)
 
+    /**
+     * The map window is this app's to fill: its switch is on and the installed Navigator does not
+     * fill it itself ([HudNavigatorBuild]). The switch keeps its value either way, so the map comes
+     * back with the ordinary Yandex.
+     */
+    fun isMapOurs(context: Context): Boolean =
+        isMapEnabled(context) && !HudNavigatorBuild.drawsHud(context)
+
     @SuppressLint("UseKtx")
     fun setMapEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
