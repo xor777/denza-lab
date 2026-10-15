@@ -59,6 +59,7 @@ public final class HudModule {
         final Context context;
         final Reflect api = new Reflect();
         final NavigatorSource source = new NavigatorSource(api);
+        final HudArSource arSource = new HudArSource(api);
         JSONObject theme;
         final HandlerThread thread = new HandlerThread("denza-hud-output", android.os.Process.THREAD_PRIORITY_BACKGROUND);
         final Handler worker;
@@ -70,7 +71,7 @@ public final class HudModule {
         HudTransport transport;
         StockHudArt stockArt;
         boolean busy, wasActive;
-        String mode = "off", hintKey;
+        String mode = "off", hintKey, outputKey = "", arFailure;
         long frames, lastStats, nextAttempt;
         long mapFrames, mainMicros, maxMainMicros;
 
@@ -107,6 +108,12 @@ public final class HudModule {
                 JSONObject override = busy ? null : emulator.theme(now);
                 if (override != null) { theme = override; releaseDrawing(); }
                 NavigatorSource.Frame frame = source.read(guidance, visibleActivities > 0, now);
+                String nextOutputKey = frame.mode + (frame.drawMap() ? ":" + api.call(frame.route, "getRouteId") : "");
+                if (!nextOutputKey.equals(outputKey)) {
+                    outputKey = nextOutputKey;
+                    epoch.incrementAndGet(); // Invalidate a queued old route, including rerouting/location loss.
+                    arSource.reset();
+                }
                 if (!frame.mode.equals(mode)) {
                     mode = frame.mode;
                     Log.i(TAG, "mode=" + mode + " visible=" + (visibleActivities > 0)
@@ -137,6 +144,13 @@ public final class HudModule {
                 }
                 // Immutable semantic snapshot; stock artwork and PNG work belong to the output worker.
                 final NavigatorSource.Hint hint = frame.drawMap() ? frame.hint : null;
+                final HudAr.Frame ar = arSource.read(frame, now, System.currentTimeMillis());
+                final int arBuilds = arSource.geometryBuilds;
+                if (ar != null) emulator.route(frame.route);
+                if (!java.util.Objects.equals(arFailure, arSource.failure)) {
+                    arFailure = arSource.failure;
+                    if (arFailure != null) Log.w(TAG, "AR unavailable: " + arFailure);
+                }
                 final String[] laneSymbols = StockHudSymbols.lanes(frame.lanes);
                 logHint(hint);
                 final long token = epoch.get();
@@ -150,8 +164,9 @@ public final class HudModule {
                             byte[] lanes = stockArt.lanes(laneSymbols);
                             byte[] icon = stockArt.manoeuvre(hint);
                             if (token != epoch.get()) return;
-                            transport.publish(png, HudWire.road(true, hint, icon, laneSymbols.length, lanes));
-                            emulator.frame(png, frame.mode, visible, frame.backgroundEnabled, frame.resumed);
+                            HudAr.Frame freshAr = ar != null && SystemClock.elapsedRealtime() <= ar.pose.expiresAt ? ar : null;
+                            transport.publish(png, HudWire.road(true, hint, icon, laneSymbols.length, lanes, freshAr));
+                            emulator.frame(png, frame.mode, visible, frame.backgroundEnabled, frame.resumed, freshAr, arBuilds);
                         }
                     } catch (Throwable error) {
                         Log.e(TAG, "output failed", error);

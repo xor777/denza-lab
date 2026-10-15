@@ -87,8 +87,10 @@ def main():
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
          package/'HudWire.java', package/'Reflect.java', package/'NavigatorSource.java', package/'StockHudSymbols.java',
-         ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe/ModuleTest.java'])
+         package/'HudAr.java', package/'HudArSource.java',
+         *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
+    run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])
     selected = subprocess.check_output([str(java/'bin/java'), '-cp', str(unit_classes),
                                        'dev.denza.hud.probe.ModuleTest', 'assets'], text=True).splitlines()
     for name in selected:

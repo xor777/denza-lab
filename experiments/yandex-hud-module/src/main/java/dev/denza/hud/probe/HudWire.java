@@ -23,6 +23,10 @@ final class HudWire {
 
     /** One complete road snapshot: lanes do not depend on a manoeuvre being available. */
     static byte[] road(boolean active, NavigatorSource.Hint hint, byte[] icon, int laneCount, byte[] lanes) {
+        return road(active, hint, icon, laneCount, lanes, null);
+    }
+
+    static byte[] road(boolean active, NavigatorSource.Hint hint, byte[] icon, int laneCount, byte[] lanes, HudAr.Frame ar) {
         boolean hasLanes = active && laneCount > 0 && laneCount <= 6 && lanes != null && lanes.length > 0;
         ByteArrayOutputStream body = new ByteArrayOutputStream(256 + (icon == null ? 0 : icon.length)
                 + (hasLanes ? lanes.length : 0));
@@ -42,6 +46,16 @@ final class HudWire {
             if (hint.remainingMeters >= 0) text(body, 26, distance(hint.remainingMeters));
             if (hint.remainingSeconds >= 0) text(body, 27, duration(hint.remainingSeconds));
             if (hint.icon != null) number(body, 28, hint.stockId);
+            if (ar != null) {
+                decimal(body, 19, ar.pose.point.lon);
+                decimal(body, 20, ar.pose.point.lat);
+                number(body, 21, Math.round(ar.pose.speed)); // m/s, unlike the road speed-limit field.
+                number(body, 22, Math.round(ar.pose.altitude));
+                text(body, 30, ar.lineJson());
+                text(body, 31, ar.target.tuple());
+                decimal(body, 32, ar.pose.heading);
+                decimal(body, 33, ar.progress);
+            }
         }
         return field(1, body.toByteArray());
     }
@@ -63,6 +77,12 @@ final class HudWire {
     }
 
     private static void number(ByteArrayOutputStream out, int field, long value) { varint(out, field << 3); varint(out, value); }
+
+    private static void decimal(ByteArrayOutputStream out, int field, double value) {
+        varint(out, (field << 3) | 1);
+        long bits = Double.doubleToLongBits(value);
+        for (int i = 0; i < 8; i++) { out.write((int) (bits & 255)); bits >>>= 8; }
+    }
 
     private static void text(ByteArrayOutputStream out, int field, String value) {
         if (value != null && !value.isEmpty()) bytes(out, field, value.getBytes(StandardCharsets.UTF_8));

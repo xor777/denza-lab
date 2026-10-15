@@ -22,7 +22,8 @@ final class NavigatorSource {
      * without a manoeuvre ahead; -1 means unknown; speedLimit 0 means no sign.
      */
     static final class Hint {
-        String icon, road = "", limitText;
+        String icon, action, road = "", limitText;
+        Object position, followingPosition;
         int stockId, exit, distance = -1, remainingMeters = -1, remainingSeconds = -1, speedLimit;
         double limitValue = Double.NaN;
         String iconKey() { return icon == null ? null : icon.equals("roundabout") ? icon + exit : icon; }
@@ -30,7 +31,7 @@ final class NavigatorSource {
     static final class Frame {
         String mode = "off";
         boolean backgroundEnabled, resumed;
-        Object route, position, point, windshield;
+        Object route, position, point, windshield, location;
         double heading, latitude, cameraDistance = Double.NaN;
         List<Lane> lanes = Collections.emptyList();
         Hint hint;
@@ -71,6 +72,7 @@ final class NavigatorSource {
         if (!stamp.equals(lastStamp)) { lastStamp = stamp; lastChanged = now; }
         if (now - lastChanged > 3000) return frame;
         frame.mode = "guidance";
+        frame.location = location;
         frame.point = api.call(location, "getPosition");
         frame.latitude = (Double) api.call(frame.point, "getLatitude");
         Double heading = (Double) api.call(location, "getHeading");
@@ -139,6 +141,9 @@ final class NavigatorSource {
             String[] kind = action == null ? null : manoeuvre(action.toString());
             if (kind == null) continue;
             hint.icon = kind[0];
+            hint.action = action.toString();
+            hint.position = api.call(manoeuvre, "getPosition");
+            if (i + 1 < manoeuvres.size()) hint.followingPosition = api.call(manoeuvres.get(i + 1), "getPosition");
             hint.stockId = Integer.parseInt(kind[1]);
             hint.distance = (int) Math.round(distance);
             Object toponym = api.call(annotation, "getToponym");

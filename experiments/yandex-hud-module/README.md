@@ -19,6 +19,22 @@ has not been changed by these build/test tools. Detailed evidence belongs to
   their place) and the windshield for upcoming manoeuvres. It checks
   route/resume **before** accessing automotive route status: the native API is
   undefined before a route exists and can abort debug ART.
+- `HudArSource`/`HudAr` supply the stock Navigation Fusion animation with real
+  route geometry. The next manoeuvre's `RoutePosition.positionOnRoute(routeId)`
+  is the guide point; the line starts at the current fractional polyline position,
+  retains every vertex through that manoeuvre, and continues to the following
+  manoeuvre (at most 120 m beyond the first). This follows BydLaunchermap's
+  current-leg/next-leg contract, with a bounded exit. More than 256 vertices
+  suppresses AR rather than inventing a simpler bend. Geometry is copied once
+  per route id; only the local slice crosses to the existing output worker.
+  Coordinates, heading and speed come from Navigator's classified location,
+  without a second GPS listener, ADB, accessibility or new permissions.
+  Missing heading/speed, accuracy worse than 20 m, fixes older than 2.5 s or
+  over 1 s in the future, a pose over 30 m from the route, incompatible route
+  positions, passed manoeuvres and missing exits suppress AR while preserving
+  ordinary guidance. The worker checks expiry again after encoding. Mode or
+  route changes invalidate queued frames. Ferry/finish/waypoint instructions
+  do not request AR; real roundabout geometry uses the existing stock ids.
 - `HudMap` owns a separate offscreen MapKit window. Geometry is created once per
   route; progress hides its completed prefix. Conditions events invalidate the
   traffic palette and the route's road events, with a 30-second fallback.
@@ -87,6 +103,13 @@ the car's own speed sign (cluster and HUD) needs the `BYDAUTO_*` Setting writes
 Denza Apps makes through local ADB; this process has no such permission, so
 only field 11 carries the limit.
 
+AR shares that same complete road snapshot: doubles 19/20 are longitude/latitude,
+integers 21/22 speed in m/s and altitude in metres, 30 is JSON `[[lon,lat,0],…]`,
+31 is `lon,lat,0` for the manoeuvre, 32 is heading in degrees and 33 the fraction
+of polyline length already covered. A compact or inactive snapshot omits **all**
+AR fields. The HUD renders the animation itself; the map PNG does not carry it.
+No Navigation Fusion setting or other persistent car property is written.
+
 A connection generation rejects late callbacks. Binding has a three-second
 retry deadline; failures retry after one second. Reconnection uses the next
 fresh frame. If rendering stops providing frames for 1.5 seconds, the output
@@ -141,7 +164,9 @@ patched dex files, manifest and `resources.arsc`. The sole resource change is
 `passport_account_type` → `com.yandex.passport.denza`; an independent full `aapt2`
 dump comparison rejects every other resource change. Resource IDs, XML
 references and retained native libraries stay unchanged. `build-report.json` records
-APK/module hashes and the resource check. The builder first runs 67 host assertions.
+APK/module hashes and the resource check. The builder first runs 67 module and
+148 AR host assertions, including real winding geometry, fractional junctions,
+route identity, cache reuse, freshness, invalid positions and fixed64 wire fields.
 
 The dedicated local experimental key lives in ignored
 `captures/yandex-hud-signing/experiment.p12`. It is **not Yandex's key**. Passport
@@ -194,12 +219,33 @@ without a Navigator restart. Inspect saved PNGs as well as `report.json`.
 `src/test/.../ModuleTest.java` covers exact wire bytes, preview/cancel/resume,
 background preference and stale/coarse position on the host without the APK. Use `--require-lanes` on the route above to
 also require real lane packets in background guidance.
+Add `--require-ar` to require AR in both stretches, a single route geometry
+build and AR cleanup. The emulator-only harness independently exports MapKit's
+native route; the receiver saves a bounded 60-sample ring of decoded AR.
+The host runner verifies that every transmitted point lies on that native
+polyline in forward order, within 0.1 m. Neither export runs on a car.
 The renderer's Node tests (`node --test research/yandex-hud-renderer/*.test.cjs`)
 cover the design and the theme contract, not native transport.
 
 ## Current candidate (2026-10-15)
 
-The current candidate is **Native cyan arrows, ARM64**:
+The current candidate adds **native AR from real Yandex geometry, ARM64 debug**:
+`captures/yandex-hud-ar-20261015/DenzaHUD-AR-arm64-debug.apk`, 219,762,615 bytes,
+SHA-256 `11a882f29cebfe3b917a7b55860c4e167c7904f5846261ede551a97c445252c7`.
+Only the embedded module (`classes17.dex`) differs from the previous ARM64
+candidate outside signing metadata (`comparison.json`). Account isolation,
+signature, manifest, original native libraries and stock artwork are unchanged.
+`acceptance-01 --require-lanes --require-ar` passed: 9.91 fps foreground /
+9.90 hidden, 25 AR packets during the foreground interval and 40 during the
+background interval, 40 background lane packets, one geometry cache build,
+receiver restart/reconnect, triple clear and zero protocol errors. Independent
+host comparison of 43 foreground and 60 background AR samples against the
+native MapKit route found a maximum point deviation of 0.0051 m (7-decimal
+serialization). This measures wire geometry, **not** alignment on the glass.
+The car has not been installed or tested in this change. Its Navigation Fusion
+setting must be enabled; Denza Apps HUD guidance must not send concurrently.
+
+**Previous ARM64 reference (without AR):**
 `captures/yandex-hud-arm64-20261015/DenzaHUD-arm64-debug.apk`, SHA-256
 `c70d3300f0f1132d71e61d162d43d9a14bb084d464b5f29026a594ff15d1f30f`.
 Its size is 219,758,519 bytes, versus 369,062,907 for the universal reference

@@ -3,9 +3,38 @@
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import subprocess
 import time
+
+
+def verify_ar_geometry(directory, native):
+    """Independently locate every received point on the original MapKit polyline, in order."""
+    scale = math.cos(math.radians(native[0][1]))
+    xy = [(lon * scale * 111195, lat * 111195) for lon, lat in native]
+    samples, max_error = 0, 0.0
+    for path in directory.glob('ar-*.json'):
+        sample = json.loads(path.read_text())
+        previous = -1.0
+        for lon, lat, _ in sample['line']:
+            x, y = lon * scale * 111195, lat * 111195
+            candidates = []
+            for i, ((ax, ay), (bx, by)) in enumerate(zip(xy, xy[1:])):
+                dx, dy = bx-ax, by-ay
+                length = dx*dx + dy*dy
+                if length == 0: continue
+                fraction = max(0, min(1, ((x-ax)*dx+(y-ay)*dy)/length))
+                position = i + fraction
+                if position + 1e-5 < previous: continue
+                error = math.hypot(x-ax-fraction*dx, y-ay-fraction*dy)
+                candidates.append((error, position))
+            error, previous = min(candidates)
+            if error > .1: raise AssertionError(f'{path.name}: AR point {error:.3f}m off native route')
+            max_error = max(max_error, error)
+        samples += 1
+    if not samples: raise AssertionError('No AR geometry samples')
+    return {'samples': samples, 'max_deviation_m': max_error}
 
 
 def main():
@@ -14,6 +43,7 @@ def main():
     parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--apk', required=True, type=Path)
     parser.add_argument('--require-lanes', action='store_true', help='Require real lane packets during foreground/background guidance')
+    parser.add_argument('--require-ar', action='store_true', help='Require foreground/background AR and compare it with native route geometry')
     args = parser.parse_args()
     if not args.serial.startswith('emulator-'):
         parser.error('Disposable emulator only')
@@ -82,6 +112,11 @@ def main():
         report['checks']['hint_packets'] = second['receiver'].get('hints', 0) - first['receiver'].get('hints', 0)
         report['checks']['limit_packets'] = second['receiver'].get('limits', 0) - first['receiver'].get('limits', 0)
         report['checks']['last_hint'] = second['receiver'].get('lastHint')
+        report['checks']['foreground_ar_packets'] = second['receiver'].get('arPackets', 0) - first['receiver'].get('arPackets', 0)
+        if args.require_ar:
+            native = json.loads(adb('shell', 'cat', '/data/data/ru.yandex.yandexnavi/files/denza-hud-native-route.json'))
+            (args.out / 'native-route.json').write_text(json.dumps(native) + '\n')
+            report['checks']['foreground_ar_geometry'] = verify_ar_geometry(args.out / 'foreground', native['points'])
         (args.out / 'foreground.png').write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         time.sleep(3)
@@ -94,6 +129,10 @@ def main():
         report['checks']['background_lane_packets'] = second['receiver'].get('lanePackets', 0) - first['receiver'].get('lanePackets', 0)
         report['checks']['lane_packets'] = second['receiver'].get('lanePackets', 0)
         report['checks']['active_lane_clears'] = second['receiver'].get('laneClears', 0)
+        report['checks']['background_ar_packets'] = second['receiver'].get('arPackets', 0) - first['receiver'].get('arPackets', 0)
+        if args.require_ar:
+            report['checks']['background_ar_geometry'] = verify_ar_geometry(args.out / 'background', native['points'])
+            report['checks']['ar_geometry_cached'] = second['renderer']['arGeometryBuilds'] == 1
         (args.out / 'background.png').write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
         receiver_pid = adb('shell', 'pidof', 'com.ts.car.someip.service').strip()
         if not receiver_pid.isdecimal(): raise RuntimeError('Expected one emulator receiver process')
@@ -110,6 +149,7 @@ def main():
         time.sleep(3)
         off_after = snapshot('background-disabled-stable')
         report['checks']['background_disabled_clears'] = not off['receiver']['active'] and not off['receiver']['session']
+        report['checks']['ar_cleared'] = not off['receiver'].get('arActive', True) and off['receiver'].get('arClears', 0) > 0
         report['checks']['background_disabled_stops_frames'] = off['receiver']['frames'] == off_after['receiver']['frames']
         command('stop')
         time.sleep(2)
@@ -134,6 +174,9 @@ def main():
           and check.get('clear_frames', 0) >= 3)
     if args.require_lanes:
         ok = ok and check.get('lane_packets', 0) > 0 and check.get('background_lane_packets', 0) > 0
+    if args.require_ar:
+        ok = (ok and check.get('foreground_ar_packets', 0) > 0 and check.get('background_ar_packets', 0) > 0
+              and check.get('ar_cleared') and check.get('ar_geometry_cached'))
     report['passed'] = bool(ok)
     (args.out / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     if not ok: raise SystemExit('Acceptance failed; inspect report and pixels')

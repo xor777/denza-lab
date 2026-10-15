@@ -14,6 +14,7 @@ final class HudEmulatorControl {
     private final Reflect api;
     private long pollAt, themeAt, themeStamp, sequence, recorded, recordEvery, recordLimit;
     private String lastCommand = "";
+    private String recordedRoute;
     HudEmulatorControl(Context context, Reflect api) { this.context = context; this.api = api; }
 
     void poll(Object guidance, long now) {
@@ -75,7 +76,24 @@ final class HudEmulatorControl {
         } catch (Exception error) { Log.w("DenzaYandexHud", "emulator theme rejected", error); return null; }
     }
 
-    void frame(byte[] png, String mode, boolean visible, boolean background, boolean resumed) {
+    /** Independent native geometry export for checking received AR against the original route. Emulator only. */
+    void route(Object route) {
+        if (!enabled) return;
+        try {
+            String id = (String) api.call(route, "getRouteId");
+            if (id.equals(recordedRoute)) return;
+            org.json.JSONArray points = new org.json.JSONArray();
+            for (Object point : (java.util.List<?>) api.call(api.call(route, "getGeometry"), "getPoints"))
+                points.put(new org.json.JSONArray().put(api.call(point, "getLongitude")).put(api.call(point, "getLatitude")));
+            JSONObject reference = new JSONObject().put("routeId", id).put("points", points);
+            try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "denza-hud-native-route.json"))) {
+                out.write(reference.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            recordedRoute = id;
+        } catch (Exception error) { Log.w("DenzaYandexHud", "native route evidence failed", error); }
+    }
+
+    void frame(byte[] png, String mode, boolean visible, boolean background, boolean resumed, HudAr.Frame ar, int geometryBuilds) {
         if (!enabled) return;
         try {
             if (recordLimit > 0 && mode.equals("guidance") && sequence % recordEvery == 0 && recorded < recordLimit) {
@@ -89,7 +107,8 @@ final class HudEmulatorControl {
             long index = sequence++;
             try (FileOutputStream out = new FileOutputStream(new File(directory, String.format("frame-%02d.png", index % 60)))) { out.write(png); }
             JSONObject info = new JSONObject().put("sequence", index).put("mode", mode).put("visible", visible)
-                    .put("background", background).put("resumed", resumed).put("uptime", android.os.SystemClock.elapsedRealtime());
+                    .put("background", background).put("resumed", resumed).put("uptime", android.os.SystemClock.elapsedRealtime())
+                    .put("ar", ar != null).put("arGeometryBuilds", geometryBuilds);
             try (FileOutputStream out = new FileOutputStream(new File(directory, "latest.json"))) { out.write(info.toString().getBytes(StandardCharsets.UTF_8)); }
         } catch (Exception error) { Log.w("DenzaYandexHud", "emulator evidence failed", error); }
     }
