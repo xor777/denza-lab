@@ -41,6 +41,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | A navigator allowlist: six packages (the Morphe Google Maps build `app.morphe.android.apps.maps` added 2026-09-11, `d66c61ab`) in `NavigationAppPolicy` and `ClusterProxyMain.ALLOWED_PACKAGES`; removed 2026-09-23 by the owner's decision, and `DriverScreenChoicesTest` fails if any of the six reappears | refuted | 2026-09-23 | [Any application, not six navigators](#any-application-not-six-navigators) |
 | HUD guidance reads Yandex's accessibility nodes (and its notification `RemoteViews`) and sends `HudRoadInfoNotifyStruct` to `SomeIpServerService`, service `3097367205183488`, topic `1127042368241665` (`HudSomeIpClient.java`); field 28 uses the recovered HUD icon table, live-verified for left, right and both slights | live | 2026-09-03 | [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
 | The road packet follows the stock navigator read from the firmware: field 2 is its `2`, the clear goes out three times (`HudSomeIpClient.java`), field 11 carries the limit on Yandex's sign (`text_speedlimit`, visible to the shared service only with `flagIncludeNotImportantViews`: live 2026-10-11, without it no limit was ever read), and the same limit goes to the car's own sign through the stock map input, `0x4CA00050` = 7, `0x4CA00040` = limit, `0x4CA00050` = 6, checked against ADAS `0x2D500020`, never cleared (`HudNativeSpeedLimit.kt`; parked on 2026-10-11 two writes of 20 left ADAS at 0, while driving that day 21 of 75 writes were taken); the stock field-28 table matches ours for turns, sharp, U-turn and straight and uses `13` for a roundabout, never `25`-`44` | code | 2026-10-09 | [The car's speed sign from Yandex](#the-cars-speed-sign-from-yandex-2026-10-09), [The stock road packet field by field](#the-stock-road-packet-field-by-field-and-what-other-senders-learned-2026-10-09) |
+| With the HUD build of Yandex installed (version name with `-denza-hud`, `HudNavigatorBuild.kt`) the hints send nothing to the HUD, run no map and ask for no capture; only the car's own sign stays. The IVI SOME/IP service keeps clients apart by package, so two senders never stop each other's session but interleave on the glass | code | 2026-10-15 | [One writer per HUD channel](#one-writer-per-hud-channel-the-hud-build-of-yandex-2026-10-15) |
 | A cluster DVR view from Android camera `0`: its delivered orientation flips with vendor state no app can read; behind `ClusterDvrFlag` from 2026-08-14 (`55190633`), renderer and flag deleted 2026-08-26 (`4233dd15`) | refuted | 2026-08-26 | [DVR Camera2 source: verified renderer, product path retired](#dvr-camera2-source-verified-renderer-product-path-retired) |
 | Other dead ends: `IWindowManager.mirrorDisplay` copies (the stock card stays above, the right copy carries stock controls), DiShare HUD camera (protected AVC frames black), the stock cluster projection Binder (package list, left card for `com.byd.avc` only), ADAS cameras (no video endpoint), the AVC surround source (a wide-angle parking view, not long-range vision) | refuted | 2026-07-25 | [Failed or research-only paths](#failed-or-research-only-paths), [AVC surround-view source](#avc-surround-view-source) |
 
@@ -2873,6 +2874,58 @@ assistance cautious enough to be given a navigation limit.
 4. Past a sign the camera reads differently, see that Yandex's value comes
    back within about a second and holds (since 2026-10-11 ours wins).
 5. After the route ends, note which sign the car keeps.
+
+### One writer per HUD channel: the HUD build of Yandex (2026-10-15)
+
+Status: in the product (`HudNavigatorBuild.kt`); not installed on the car,
+not seen on the glass.
+
+**The conflict.** The owner's HUD build of Navigator (branch
+`experiment/yandex-hud-renderer`, launcher label «Яндекс HUD») keeps the
+package `ru.yandex.yandexnavi`. Until this change the hints read it as Yandex
+and, beside the embedded module, sent their own road packet `0x8001` and, with
+the map switch on, their own map window `0x8003`.
+
+The IVI `SomeIpServerService` (`captures/hud-firmware-20260923/jadx/SomeIpService`)
+keeps the clients of a service id in a set keyed by the binding intent's type
+(the package; a random UUID without one). `startSomeIpService` adds the
+caller; `stopSomeIpService` and `onUnbind` remove it and stop the service only
+when the set is empty. So neither sender stops the other's session. Nothing
+arbitrates `fireEvent`, and the HUD shows whichever packet came last. Read from
+the firmware, not observed: two maps in turn, the manoeuvre, street and
+distance alternating, field 31 alternating and restarting the AR scene (see
+[the scene machine](#the-ar-arrows-scene-machine-read-from-the-firmware-2026-10-14)),
+and this app's three black frames wiping the module's map whenever Yandex is
+covered.
+
+**The decision (owner, 2026-10-15).** One writer per HUD channel. With the HUD
+build installed the module writes `0x8001` and `0x8003`: it reads the route
+itself, this app reads a screen. This app keeps the one thing the module
+cannot do, the car's own speed sign written over ADB. The module knows nothing
+about this app and works without it.
+
+- **Recognised by the version name.** It contains `-denza-hud`
+  (`29.8.1-denza-hud-exp.1` since the build tool's first commit `d45901e9`), so
+  builds already handed out are recognised without a reinstall. The two builds
+  share the package and are never installed together, so the installed one
+  decides every route and nothing is negotiated at run time.
+  `HudGuidanceAccessibilityMonitor` reads it on a switch and once a route.
+- **What stops.** With the HUD build the monitor sends nothing and starts no
+  session, so its clears and black frames reach nothing. The map runner stays
+  off, `HudMapGrant` asks for no screen capture (`HudGuidanceSettings.isMapOurs`)
+  and the AR position source is stopped. The hints panel, the trip panel's
+  remaining figures and `HudNativeSpeedLimit` keep reading Yandex's screen as
+  before.
+- **What the driver sees.** In the HUD panel the first switch is named
+  «Знак ограничения скорости». The map switch is off and grey, its stored value
+  kept for the ordinary Yandex. The paragraph says the HUD build sends the
+  hints and the map itself (board `sheet-hud-navigator`). «Сервис» shows the
+  row «Навигатор».
+
+**Live check, still to do.** With the HUD build and this app's hints on, start
+a route and confirm: only one map and one manoeuvre on the glass, the log line
+`Яндекс HUD sends to the HUD itself`, no `publishing` lines from
+`DenzaHudGuidance`, and the car's own sign still following Yandex's.
 
 ## Central IVI split routing
 
