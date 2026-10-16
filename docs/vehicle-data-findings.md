@@ -35,7 +35,7 @@ Updated 2026-10-16. Which vehicle signals Denza Apps can read on this head unit,
 | Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
 | Washer fluid level: no FID, name or CAN bit identified; `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` (`0x3D90201E`) is probably throttle cleaning, and its `0` proves nothing | open | 2026-09-23 | [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23) |
 | N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
-| N9 CAN coverage: existing GB/YUN callbacks expose 72 additional address tuples without changing collection tables; historical union grows from 130 to 202. No labelled empty-state record exists for the extra addresses; the original bit filter leaves 13 bits in seven byte locations, none mapped to washer level | live receive path, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
+| N9 CAN coverage: GB/YUN add 72 address tuples without table writes (historical union 202). Expanded liquid-present baseline saved: 68,432 messages / 199 tuples, all 72 extra tuples covered, zero capture loss. New baseline rejects two more old correlations; 11 bits in five byte locations remain unmapped. Expanded empty/refilled states are still needed | live baseline, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
 
 **Open questions**
@@ -1522,14 +1522,14 @@ unchanged-level watch, and finally requiring the initial liquid-present
 preflight to agree too. `0x391` byte 39 bit 2 fails that last control: it had
 the empty-associated bit value while fluid was present in the preflight.
 
-The remaining 13 bits occupy only seven byte locations, all sub-ID 0,
+At that stage, the remaining 13 bits occupy only seven byte locations, all sub-ID 0,
 channel 0, 64-byte payloads. Coordinates below are zero-based/LSB0:
 
 | CAN ID | Byte | Bits surviving the correlation filter | Why this is not yet a level flag |
 | --- | --- | --- | --- |
 | `0x35A` | 3 | 5 | Whole byte spans 72–105 across the windows and changes within unchanged-level controls. |
-| `0x391` | 43 | 3 | Byte history 87 → 119 → 125 → 162/163 → 196 → 196 → 196/197 is compatible with an unrelated changing number. |
-| `0x391` | 45 | 2 | Low nibble advances through 2/3 → 3 → 4 → 8/9 → 9 → 9 → 11; other bits also vary. |
+| `0x391` | 43 | 3 | Byte history 87 → 119 → 125 → 162/163 → 196 → 196 → 196/197 is compatible with an unrelated changing number. **Subsequent cycle-02 liquid-present baseline rejects the simple flag: bit 1 in every sample, previously the empty-associated value.** |
+| `0x391` | 45 | 2 | Low nibble advances through 2/3 → 3 → 4 → 8/9 → 9 → 9 → 11; other bits also vary. **Subsequent cycle-02 liquid-present baseline likewise returns bit 1 throughout and rejects the simple flag.** |
 | `0x4A0` | 15 | 5 | Whole byte spans 72–102; behaves similarly to `0x35A` byte 3, without an established field mapping. |
 | `0x4A0` | 16 | 3–7 | Five adjacent bits flip together in 132 → 126 → 128/130 → 130 → 130/132 → 132, compatible with a numeric carry. |
 | `0x4CB` | 39 | 1–3 | Three adjacent bits arise from values 41 → 38/39 → 40 → 40 → 40/41 → 41. |
@@ -1596,11 +1596,50 @@ state was changed. See `streams-*.log`, `streams-analysis.json`, reproducible
 `analyze_streams.py`, and `reports/passive-stream-plan.md` plus health captures
 in the same evidence directory.
 
+**Expanded initial state, cycle 02, 13:57:06–14:06:45 Moscow time:** at the
+owner's request, a new liquid-present baseline recorded three sequential
+180-second windows using the already-verified collector, without table writes.
+This label is not a fresh measurement of the reservoir volume or sensor voltage;
+the earlier reported refill was 1 litre, expected OK by the owner. The user was
+asked to keep the fluid level unchanged and not operate the washer throughout.
+
+| Stream | Messages | Address tuples |
+| --- | ---: | ---: |
+| BigData | 29,533 | 127 |
+| GB | 16,517 | 43 |
+| YUN | 22,382 | 69 |
+| Total / union | **68,432** | **199** |
+
+All 72 extra tuples from the availability check are covered. Each window has
+a complete DONE/unregister, contiguous host sequence numbers, zero drops,
+callback errors and queued remainder, and almost exactly 180 seconds of frame
+timestamps. YUN's embedded counter steps backwards twice, each by **1 ms**
+between different channels; host callback sequence/time remains monotonic.
+These observations are retained, not reordered or counted as lost callbacks.
+
+Before/after known scalar GETs agree: speed float 0, hood 1, front-wiper level 1,
+wiper relay 0. Raw hood bits 4–5 of byte 2 in `0x294` are 2 throughout the
+BigData window (178 samples, channel 0) and YUN window (3,600 samples, channel 2).
+Four firmware/APK hashes and service PIDs match before/after; the crash buffer
+is unchanged. The temporary listener process exited and its dex was removed.
+No APK installation, ECU wake, UDS or vehicle SET was performed.
+
+Evidence is in `captures/washer-n9-20261016/cycle-02/liquid-present/`, including
+verbatim per-stream logs, start/end/exit records, pre/postflight/context,
+`state-notes.json`, source hashes and `summary.json` with per-byte histograms.
+`cycle-02/analyze_state.py liquid-present` reproduces the validated summary.
+`cycle-02/compare_prior_candidates.py` reproduces `prior-candidate-control.json`:
+the new normal-labelled BigData window rejects `0x391` byte 43 bit 3 and
+byte 45 bit 2. **11 old correlations in five byte locations remain**, still
+not identified sensors. Empty and refilled captures must use this same
+three-stream order and duration; the old empty capture cannot supply the
+missing GB/YUN data.
+
 **Next useful physical experiment:** record BigData **and** GB/YUN in each
 owner-labelled stable level state. The extra addresses have no corresponding
 empty-state capture; the availability windows must not be added to the
 unchanged-level controls without a fresh owner label. Do not repeat draining
-solely to re-test `0x324`, and do not add a warning to Denza Apps from the 13
+solely to re-test `0x324`, and do not add a warning to Denza Apps from the remaining
 unmapped bit correlations. A service-provided sensor part number, controller
 and live-data item would independently narrow this expanded search.
 
