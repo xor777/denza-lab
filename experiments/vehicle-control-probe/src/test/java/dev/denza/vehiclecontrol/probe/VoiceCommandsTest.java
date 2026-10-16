@@ -176,18 +176,26 @@ public class VoiceCommandsTest {
         return writes;
     }
 
-    @Test public void allWindowsUseExistingCatalogSeriallyAndReadFreshGuardsForEach() throws Exception {
+    @Test public void allWindowsGoInOneScriptAfterOneTargetedGuardRead() throws Exception {
+        List<String> commands = new java.util.ArrayList<>();
+        NativeController recording = controller((command, timeout) -> { commands.add(command); return fake.run(command, timeout); });
         VoiceCommands.Execution result = VoiceCommands.execute(
-                VoiceCommands.parseVosk(recognized("открой окна", .99).toString()), controller, () -> true);
+                VoiceCommands.parseVosk(recognized("открой окна", .99).toString()), recording, () -> true);
         assertTrue(result.complete());
         assertEquals(expectedWrites("open", "fl", "fr", "rl", "rr"), fake.writes);
-        assertEquals(4, fake.opens);
+        assertEquals(1, fake.opens);
         assertEquals(4, result.outcomes().size());
         for (var outcome : result.outcomes()) {
             assertEquals("accepted", outcome.status());
             assertTrue(outcome.message().contains("движение не подтверждено"));
         }
         assertThrows(UnsupportedOperationException.class, () -> result.outcomes().clear());
+        // Identity and hashes once, then one guard read of P, permit and the four windows (14 calls, not the whole
+        // catalog of 217), then one script with the four writes.
+        assertEquals(3, commands.size());
+        String read = commands.get(1);
+        assertEquals(14, read.split("service call autoservice 5 ", -1).length - 1);
+        assertTrue(commands.get(2).startsWith("echo @w0; service call autoservice 6"));
     }
 
     @Test public void namedRightWindowCloseUsesExactSingleWrite() throws Exception {
@@ -240,7 +248,7 @@ public class VoiceCommandsTest {
     @Test public void allFourDoorOpenAndCloseWritesComeOnlyFromSharedCatalog() throws Exception {
         assertTrue(VoiceCommands.execute(VoiceCommands.parseVosk(recognized("открой все двери", 1).toString()), controller, () -> true).complete());
         assertEquals(catalogDoorWrites(1, "fl", "fr", "rl", "rr"), fake.writes);
-        assertEquals(4, fake.opens);
+        assertEquals(1, fake.opens);
         fake.writes.clear();
         VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("закрой двери"), controller, () -> true);
         assertTrue(result.complete());
@@ -272,13 +280,12 @@ public class VoiceCommandsTest {
             }
             fake.values.put(guard.getKey(), previous);
         }
-        NativeController changedAfterFirst = controller((command, timeout) -> {
-            String output = fake.run(command, timeout);
-            if (command.startsWith("service call autoservice 6")) fake.values.put("park", 0);
-            return output;
-        });
-        assertFalse(VoiceCommands.execute(VoiceCommands.parseText("открой двери"), changedAfterFirst, () -> true).complete());
-        assertEquals(catalogDoorWrites(1, "fl"), fake.writes);
+        // One fresh reading for the plan: a door that fails its own guard is left out, the others go in the same script.
+        fake.values.put(catalog.getJSONObject("doors").getJSONObject("rl").getString("obstacle"), 1);
+        VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой двери"), controller, () -> true);
+        assertFalse(result.complete());
+        assertEquals(catalogDoorWrites(1, "fl", "fr", "rr"), fake.writes);
+        assertEquals(List.of("accepted", "accepted", "refused", "accepted"), result.outcomes().stream().map(VoiceCommands.Outcome::status).toList());
     }
 
     @Test public void doorStopBypassesMotionGuardsButStillRequiresPinnedIdentityAndBoot() throws Exception {
@@ -300,15 +307,14 @@ public class VoiceCommandsTest {
         assertTrue(fake.writes.isEmpty());
     }
 
-    @Test public void doorRefusalContinuesButUnknownAndCancellationStopWithoutRetry() throws Exception {
+    @Test public void doorRefusalOrUnknownIsPerDoorAndCancellationBeforeTheScriptSendsNothing() throws Exception {
         for (String raw : List.of("Result: Parcel(00000000    '....')", "broken")) {
             fake.writes.clear();
             fake.setReply = raw;
             VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой двери"), controller, () -> true);
             assertFalse(result.complete());
-            boolean refused = raw.startsWith("Result:");
-            assertEquals(refused ? catalogDoorWrites(1, "fl", "fr", "rl", "rr") : catalogDoorWrites(1, "fl"), fake.writes);
-            assertEquals(refused ? 4 : 1, result.outcomes().size());
+            assertEquals(catalogDoorWrites(1, "fl", "fr", "rl", "rr"), fake.writes);
+            assertEquals(4, result.outcomes().size());
         }
         fake.writes.clear();
         fake.setReply = FakeVehicle.OK;
@@ -323,30 +329,32 @@ public class VoiceCommandsTest {
         });
         assertFalse(VoiceCommands.execute(VoiceCommands.parseText("открой двери"), cancelledDuringRead, foreground::get).complete());
         assertTrue(fake.writes.isEmpty());
+        // Doors and windows of one sentence go out together: one connection, one script.
         foreground.set(true);
-        NativeController cancelled = controller((command, timeout) -> {
-            String output = fake.run(command, timeout);
-            if (command.startsWith("service call autoservice 6")) foreground.set(false);
-            return output;
-        });
-        assertFalse(VoiceCommands.execute(VoiceCommands.parseText("открой двери потом закрой окна"), cancelled, foreground::get).complete());
-        assertEquals(catalogDoorWrites(1, "fl"), fake.writes);
+        before = fake.opens;
+        assertTrue(VoiceCommands.execute(VoiceCommands.parseText("открой двери потом закрой окна"), controller, foreground::get).complete());
+        assertEquals(8, fake.writes.size());
+        assertEquals(before + 1, fake.opens);
     }
 
-    @Test public void changedParkAfterFirstWindowStopsRemainingGroup() throws Exception {
-        NativeController guarded = controller((command, timeout) -> {
-            String result = fake.run(command, timeout);
-            if (command.startsWith("service call autoservice 6")) fake.values.put("park", 65535);
-            return result;
-        });
-        VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой окна"), guarded, () -> true);
+    @Test public void parkReadOnceBeforeTheBatchRefusesEveryWindowTogether() throws Exception {
+        fake.values.put("park", 65535);
+        VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой окна"), controller, () -> true);
         assertFalse(result.complete());
-        assertEquals(expectedWrites("open", "fl"), fake.writes);
-        assertEquals(4, fake.opens);
-        assertEquals("refused", result.outcomes().get(1).status());
-        assertTrue(result.outcomes().get(1).message().contains("только в P"));
-        assertTrue(result.message().contains("Переднее левое · открыть: Запрос принят"));
+        assertTrue(fake.writes.isEmpty());
+        assertEquals(1, fake.opens);
+        assertEquals(4, result.outcomes().size());
+        for (var outcome : result.outcomes()) assertTrue(outcome.message().contains("только в P"));
         assertTrue(result.message().contains("Переднее правое · открыть: Управление доступно только в P"));
+        // A change after the script was sent cannot reach writes that already went together.
+        fake.values.put("park", 1);
+        NativeController shifting = controller((command, timeout) -> {
+            String output = fake.run(command, timeout);
+            if (command.contains("echo @w")) fake.values.put("park", 65535);
+            return output;
+        });
+        assertTrue(VoiceCommands.execute(VoiceCommands.parseText("открой окна"), shifting, () -> true).complete());
+        assertEquals(expectedWrites("open", "fl", "fr", "rl", "rr"), fake.writes);
     }
 
     @Test public void thermalOrUnknownPositionBlocksVoiceExactlyAsManualControl() throws Exception {
@@ -370,17 +378,27 @@ public class VoiceCommandsTest {
         assertTrue(fake.writes.isEmpty());
     }
 
-    @Test public void definiteRefusalContinuesWithoutRetryButUncertaintyStopsRemainder() throws Exception {
+    @Test public void carRefusalsAndUnknownOutcomesAreReportedPerWindowWithoutRetry() throws Exception {
         for (String reply : List.of(FakeVehicle.reply(0), "Result: Parcel(00000000    '....')", "broken")) {
             fake.writes.clear();
             fake.setReply = reply;
             VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой окна"), controller, () -> true);
             assertFalse(result.complete());
             boolean refused = reply.startsWith("Result: Parcel(00000000    '");
-            assertEquals(refused ? expectedWrites("open", "fl", "fr", "rl", "rr") : expectedWrites("open", "fl"), fake.writes);
-            assertEquals(refused ? 4 : 1, result.outcomes().size());
-            assertEquals(refused ? "refused" : "uncertain", result.outcomes().get(0).status());
+            // Every window was written exactly once, in one script.
+            assertEquals(expectedWrites("open", "fl", "fr", "rl", "rr"), fake.writes);
+            assertEquals(4, result.outcomes().size());
+            for (var outcome : result.outcomes()) assertEquals(refused ? "refused" : "uncertain", outcome.status());
         }
+        // A transport failure during the script: nothing is known about any window, nothing is retried.
+        fake.writes.clear();
+        fake.setReply = FakeVehicle.OK;
+        fake.writeReply = part -> null;
+        VoiceCommands.Execution lost = VoiceCommands.execute(VoiceCommands.parseText("открой окна"), controller, () -> true);
+        fake.writeReply = null;
+        assertEquals(List.of("uncertain", "uncertain", "uncertain", "uncertain"), lost.outcomes().stream().map(VoiceCommands.Outcome::status).toList());
+        assertEquals(1, fake.writes.size());
+        assertTrue(lost.message().contains("Ничего не повторялось"));
     }
 
     @Test public void pausedOrCancelledCommandCannotStartOrQueueRemainingWindows() throws Exception {
@@ -396,17 +414,7 @@ public class VoiceCommandsTest {
         });
         VoiceCommands.Execution result = VoiceCommands.execute(plan, cancelledDuringRead, foreground::get);
         assertFalse(result.complete());
-        assertEquals("cancelled", result.outcomes().get(0).status());
+        for (var outcome : result.outcomes()) assertEquals("cancelled", outcome.status());
         assertTrue(fake.writes.isEmpty());
-        foreground.set(true);
-        NativeController cancelledAfterWrite = controller((command, timeout) -> {
-            String output = fake.run(command, timeout);
-            if (command.startsWith("service call autoservice 6")) foreground.set(false);
-            return output;
-        });
-        result = VoiceCommands.execute(plan, cancelledAfterWrite, foreground::get);
-        assertFalse(result.complete());
-        assertEquals(expectedWrites("open", "fl"), fake.writes);
-        assertEquals(1, result.outcomes().size());
     }
 }

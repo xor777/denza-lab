@@ -76,7 +76,7 @@ public class VoiceMultiCommandTest {
         assertEquals(expectedWrites("fl:close", "fr:close", "rl:close", "rr:close", "door.fr:open"), fake.writes);
         assertEquals(List.of("fl", "fr", "rl", "rr", "door.fr"),
                 result.outcomes().stream().map(VoiceCommands.Outcome::target).toList());
-        assertEquals(5, fake.opens);
+        assertEquals(1, fake.opens);
         assertTrue(result.outcomes().stream().allMatch(outcome -> outcome.status().equals("accepted")));
     }
 
@@ -132,18 +132,18 @@ public class VoiceMultiCommandTest {
         assertEquals(expectedWrites("fr:close"), fake.writes);
     }
 
-    @Test public void cancellationAfterFirstWriteDoesNotQueueNextDevice() throws Exception {
+    @Test public void cancellationBeforeTheScriptSendsNoDevice() throws Exception {
         AtomicBoolean foreground = new AtomicBoolean(true);
         NativeController cancellable = controller((command, timeout) -> {
             String reply = fake.run(command, timeout);
-            if (command.startsWith("service call autoservice 6")) foreground.set(false);
+            if (command.contains("echo @park")) foreground.set(false);
             return reply;
         });
         VoiceCommands.Execution result = VoiceCommands.execute(
                 VoiceCommands.parseText("открой левое окно и правую дверь"), cancellable, foreground::get);
         assertFalse(result.complete());
-        assertEquals(expectedWrites("fl:open"), fake.writes);
-        assertEquals(1, result.outcomes().size());
+        assertTrue(fake.writes.isEmpty());
+        assertEquals(List.of("cancelled", "cancelled"), result.outcomes().stream().map(VoiceCommands.Outcome::status).toList());
         assertEquals(1, fake.opens);
     }
 }

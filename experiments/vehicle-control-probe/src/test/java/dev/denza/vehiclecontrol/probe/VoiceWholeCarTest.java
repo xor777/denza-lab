@@ -70,6 +70,11 @@ public class VoiceWholeCarTest {
                 fake.writes.add(command);
                 return reply;
             }
+            if (command.contains("echo @w")) {
+                var previous = fake.writeReply;
+                fake.writeReply = part -> part.endsWith(" i32 255 null") ? reply : fake.setReply;
+                try { return fake.run(command, timeout); } finally { fake.writeReply = previous; }
+            }
             return fake.run(command, timeout);
         };
     }
@@ -521,7 +526,7 @@ public class VoiceWholeCarTest {
 
     // ------------------------------------------------------------ execution
 
-    @Test public void acceptedWindowTargetWithUnconfirmedResetIsUncertainAndStopsThePlan() throws Exception {
+    @Test public void acceptedWindowTargetWithUnconfirmedResetIsUncertainAndNeverRetried() throws Exception {
         int run = 0;
         for (String reply : List.of("broken", REFUSED)) {
             fake.writes.clear();
@@ -529,11 +534,11 @@ public class VoiceWholeCarTest {
             VoiceCommands.Execution result = VoiceCommands.execute(
                     VoiceCommands.parseText("открой левое окно на сорок процентов и закрой правое окно"), car, () -> true);
             assertFalse(result.complete());
-            assertEquals(List.of("uncertain"), statuses(result));
-            assertTrue(result.message(), result.outcomes().get(0).message().contains("сброс цели окна не подтверждён"));
-            assertTrue(result.message().contains("оставшиеся команды не отправлены"));
-            // The target and its single reset; neither is retried and the right window is never sent.
-            assertEquals(List.of(car.command("fl", "40%").shell(), car.windowTargetReset("fl")), fake.writes);
+            assertEquals(List.of("uncertain", "accepted"), statuses(result));
+            assertTrue(result.message(), result.outcomes().get(0).message().contains("сброс не подтверждён"));
+            assertTrue(result.message().contains("Ничего не повторялось"));
+            // One script: both writes, then the single reset of the target; nothing is retried.
+            assertEquals(List.of(car.command("fl", "40%").shell(), car.command("fr", "close").shell(), car.windowTargetReset("fl")), fake.writes);
         }
         JSONObject direct = controller(resetReply(REFUSED), "direct.jsonl").act("rr", "30%");
         assertTrue(direct.getBoolean("uncertain"));
@@ -558,7 +563,7 @@ public class VoiceWholeCarTest {
         assertEquals(List.of(restarted.windowTargetReset("fl")), fake.writes);
         assertEquals(Set.of("fl"), restarted.pendingResets);
 
-        // By voice: a refused reset refuses only that window; an unknown reset outcome stops the plan.
+        // By voice: a refused or unknown reset refuses only that window; the other window is still written.
         fake.writes.clear();
         VoiceCommands.Execution voice = VoiceCommands.execute(VoiceCommands.parseText("закрой левое окно и правое окно"), restarted, () -> true);
         assertEquals(List.of("refused", "accepted"), statuses(voice));
@@ -566,8 +571,8 @@ public class VoiceWholeCarTest {
         assertEquals(List.of(restarted.windowTargetReset("fl"), restarted.command("fr", "close").shell()), fake.writes);
         fake.writes.clear();
         voice = VoiceCommands.execute(VoiceCommands.parseText("закрой левое окно и правое окно"), controller(resetReply("broken")), () -> true);
-        assertEquals(List.of("uncertain"), statuses(voice));
-        assertEquals(List.of(restarted.windowTargetReset("fl")), fake.writes);
+        assertEquals(List.of("uncertain", "accepted"), statuses(voice));
+        assertEquals(List.of(restarted.windowTargetReset("fl"), restarted.command("fr", "close").shell()), fake.writes);
 
         // An accepted reset clears the latch, journalled, before even STOP; the old target is never sent again.
         NativeController accepting = controller(fake);

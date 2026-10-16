@@ -137,7 +137,39 @@ public final class NativeController {
     private void checkIdentity(String observed) throws IOException {
         if(vehicleIdentity==null || !vehicleIdentity.equals(observed.trim())) throw new IOException("Машина или загрузка изменились. Перезапустите пульт для проверки версии");
     }
-    private Map<String,Object> readValues() throws Exception {
+    private Map<String,Object> readValues() throws Exception { return readValues(reads); }
+    /** The guard properties of these targets only, plus P: a plan does not read the whole car. */
+    Map<String,String> readsFor(Collection<String> targets) throws JSONException {
+        LinkedHashMap<String,String> subset=new LinkedHashMap<>();subset.put("park",reads.get("park"));
+        for(String target:targets) for(String key:guardKeys(target)) if(reads.containsKey(key)) subset.put(key,reads.get(key));
+        return subset;
+    }
+    /** What buildState consults to decide whether this target is blocked. */
+    List<String> guardKeys(String target) throws JSONException {
+        List<String> keys=new ArrayList<>();String[] p=target.split("\\.",-1);
+        JSONObject locks=catalog.getJSONObject("locks");
+        if(catalog.getJSONObject("windows").has(target)) { keys.add("permit");for(String s:List.of("_percent","_initialized","_thermal"))keys.add(target+s); }
+        else if(target.equals("locks")) { keys.add(locks.getString("thermal"));keys.add(locks.getString("config")); }
+        else if(p.length==2&&p[0].equals("door")&&catalog.getJSONObject("doors").has(p[1])) {
+            JSONObject spec=catalog.getJSONObject("doors").getJSONObject(p[1]);for(String f:keys(spec))if(!f.equals("set"))keys.add(spec.getString(f));
+            keys.add(locks.getString("thermal"));keys.add(locks.getString("config"));
+        } else if(p.length==2&&p[0].equals("shade")&&catalog.getJSONObject("shades").has(p[1])) {
+            JSONObject spec=catalog.getJSONObject("shades").getJSONObject(p[1]);for(String f:List.of("position","initialized","thermal","config"))keys.add(spec.getString(f));
+        } else if(p.length==2&&p[0].equals("light")&&catalog.getJSONObject("lights").has(p[1])) {
+            JSONObject spec=catalog.getJSONObject("lights").getJSONObject(p[1]);JSONArray states=spec.getJSONArray("states"),configs=spec.getJSONArray("configs");
+            for(int i=0;i<states.length();i++)keys.add(states.getString(i));for(int i=0;i<configs.length();i++)keys.add(configs.getJSONArray(i).getString(0));
+        } else if(p.length==2&&p[0].equals("massage")&&catalog.getJSONObject("massages").has(p[1])) {
+            JSONObject spec=catalog.getJSONObject("massages").getJSONObject(p[1]);for(String f:List.of("config","mode","level"))keys.add(spec.getString(f));
+        } else if(p.length==2&&p[0].equals("climate")&&catalog.has("climate")&&catalog.getJSONObject("climate").has(p[1])) {
+            JSONObject spec=catalog.getJSONObject("climate").getJSONObject(p[1]);keys.add(spec.getString("state"));JSONArray configs=spec.getJSONArray("configs");
+            for(int i=0;i<configs.length();i++)keys.add(configs.getJSONArray(i).getString(0));
+        } else if(p.length==3&&(p[0].equals("comfort")||p[0].equals("seat"))&&catalog.getJSONObject("seats").has(p[1])) {
+            JSONObject group=catalog.getJSONObject("seats").getJSONObject(p[1]).getJSONObject(p[0].equals("seat")?"axes":"comfort");
+            if(group.has(p[2])){JSONObject spec=group.getJSONObject(p[2]);for(String f:p[0].equals("seat")?List.of("position","config","initialized"):List.of("config","state"))if(spec.has(f))keys.add(spec.getString(f));}
+        }
+        return keys;
+    }
+    private Map<String,Object> readValues(Map<String,String> reads) throws Exception {
         StringBuilder script=new StringBuilder(identityCommand);
         for(var entry:reads.entrySet()) script.append("; echo @").append(entry.getKey()).append("; ").append(entry.getValue());
         String output=run(script.toString(),8000); Matcher markers=MARKER.matcher(output);
@@ -290,8 +322,9 @@ public final class NativeController {
             if(!foreground.getAsBoolean()&&!action.equals("stop")) throw new IOException("Действие отменено: пульт не на экране");
             if(pendingResets.contains(target)) {
                 // An earlier percent target may still be set: clear it first and never resend that target.
+                // STOP is sent even when the clearing fails: stopping a window must stay possible.
                 JSONObject cleared=clearWindowTarget(target);
-                if(!cleared.optBoolean("reset_accepted")) return cleared;
+                if(!cleared.optBoolean("reset_accepted")&&!action.equals("stop")) return cleared;
                 if(!foreground.getAsBoolean()&&!action.equals("stop")) throw new IOException("Действие отменено: пульт не на экране");
             }
             JSONObject entry=object("time",Instant.now().toString(),"target",target,"action",action,"command",command.shell(),"phase","attempt");
@@ -322,6 +355,92 @@ public final class NativeController {
             if(result.optBoolean("stop_accepted") || (action.equals("stop") && result.optBoolean("accepted"))) pendingStops.remove(target);
             if(percent && result.optBoolean("reset_accepted")) pendingResets.remove(target);
             return result;
+        } finally { operation.unlock(); }
+    }
+    /** One planned write; a {@code delta:} action is resolved from the plan's reading. */
+    public record Planned(String target,String action) { }
+    public interface Resolver { Planned resolve(Planned planned,JSONObject state) throws Exception; }
+
+    /**
+     * A whole plan at once. One lock (waiting up to {@code waitMs} for a remote poll in progress), one
+     * connection, one reading of only the plan's guard properties, one shell script with every write and,
+     * 300 ms later, the window target resets. Each entry gets its own result: refused before transport,
+     * accepted, refused by the car, or uncertain. A transport failure makes every sent entry uncertain;
+     * nothing is retried. Per-command reads of the whole catalog took about 2 s per command on the car.
+     */
+    List<JSONObject> actAll(List<Planned> plan,java.util.function.BooleanSupplier foreground,Resolver resolver,long waitMs) throws Exception {
+        for(Planned planned:plan) if(!planned.action().startsWith("delta:")&&command(planned.target(),planned.action()).pulse())
+            throw new IOException("Для движения кресла удерживайте кнопку");
+        if(!operation.tryLock(waitMs,java.util.concurrent.TimeUnit.MILLISECONDS)) throw new Busy();
+        try {
+            if(!foreground.getAsBoolean()) throw new IOException("Действие отменено; ничего не отправлено");
+            begin();
+            LinkedHashSet<String> targets=new LinkedHashSet<>();for(Planned planned:plan)targets.add(planned.target());
+            JSONObject state=buildState(readValues(readsFor(targets)));
+            List<JSONObject> results=new ArrayList<>();List<Command> commands=new ArrayList<>();List<Integer> send=new ArrayList<>();
+            for(Planned planned:plan) {
+                JSONObject result=object("target",planned.target(),"action",planned.action());results.add(result);commands.add(null);
+                try {
+                    Planned resolved=planned.action().startsWith("delta:")?resolver.resolve(planned,state):planned;
+                    result.put("action",resolved.action());
+                    Command command=command(resolved.target(),resolved.action());
+                    String reason=resolved.action().equals("stop")?null:reason(state,resolved.target());
+                    if(reason!=null){result.put("refused",true);result.put("error",reason);continue;}
+                    commands.set(commands.size()-1,command);send.add(results.size()-1);
+                } catch(Exception refusal) { result.put("refused",true);result.put("error",refusal.getMessage()==null?"Действие недоступно":refusal.getMessage()); }
+            }
+            if(send.isEmpty()) return results;
+            if(!foreground.getAsBoolean()) { for(int i:send){results.get(i).put("cancelled",true);results.get(i).put("error","Отменено; команда не отправлена");} return results; }
+            for(Iterator<Integer> it=send.iterator();it.hasNext();) {
+                int i=it.next();Command command=commands.get(i);
+                if(!pendingResets.contains(command.target())) continue;
+                JSONObject cleared=clearWindowTarget(command.target());
+                if(!cleared.optBoolean("reset_accepted")&&!command.action().equals("stop")) { for(String key:keys(cleared))results.get(i).put(key,cleared.get(key)); it.remove(); }
+            }
+            if(send.isEmpty()) return results;
+            StringBuilder script=new StringBuilder();List<JSONObject> entries=new ArrayList<>();boolean anyTarget=false;
+            for(int i:send) {
+                Command command=commands.get(i);
+                JSONObject entry=object("time",Instant.now().toString(),"target",command.target(),"action",command.action(),"command",command.shell(),"phase","attempt","batch",send.size());
+                record(entry);entries.add(entry);
+                if(windowTarget(command)){pendingResets.add(command.target());anyTarget=true;}
+                if(script.length()>0)script.append("; ");
+                script.append("echo @w").append(i).append("; ").append(command.shell());
+            }
+            if(anyTarget) {
+                script.append("; sleep ").append(catalog.getJSONObject("window_targets").getInt("reset_delay_ms")/1000.0);
+                for(int i:send) {
+                    Command command=commands.get(i);if(!windowTarget(command))continue;
+                    String reset=windowTargetReset(command.target());results.get(i).put("reset_command",reset);
+                    record(object("time",Instant.now().toString(),"target",command.target(),"action","reset","command",reset,"phase","reset_attempt"));
+                    script.append("; echo @r").append(i).append("; ").append(reset);
+                }
+            }
+            Map<String,String> parts=new HashMap<>();String transport=null;
+            try {
+                String output=run(script.toString(),5000+1000*send.size());Matcher markers=MARKER.matcher(output+"\n");String label=null;int end=0;
+                while(markers.find()){if(label!=null)parts.put(label,output.substring(end,Math.min(markers.start(),output.length())));label=markers.group(1);end=markers.end();}
+                if(label!=null&&end<=output.length())parts.put(label,output.substring(end));
+            } catch(Exception failure) { transport=String.valueOf(failure.getMessage()); }
+            for(int n=0;n<send.size();n++) {
+                int i=send.get(n);Command command=commands.get(i);JSONObject result=results.get(i);
+                try { String raw=parts.get("w"+i);if(raw==null)throw new IOException("нет ответа");int code=parseSet(raw);result.put("code",code);result.put("accepted",code==1);result.put("raw",raw.trim()); }
+                catch(Exception unknown) { result.put("accepted",false);result.put("uncertain",true);result.put("error","Исход неизвестен; проверьте машину. Команда не повторялась"+(transport==null?"":": "+transport)); }
+                if(windowTarget(command)) {
+                    try { String raw=parts.get("r"+i);if(raw==null)throw new IOException("нет ответа");int code=parseSet(raw);result.put("reset_code",code);result.put("reset_accepted",code==1); }
+                    catch(Exception unknown) { result.put("reset_accepted",false); }
+                    if(result.optBoolean("accepted")&&!result.optBoolean("reset_accepted")) {
+                        result.put("accepted",false);result.put("uncertain",true);
+                        result.put("error","Цель окна принята, но её сброс не подтверждён; проверьте окно. Команда не повторялась");
+                    }
+                    if(result.optBoolean("reset_accepted")) pendingResets.remove(command.target());
+                }
+                JSONObject logged=new JSONObject(entries.get(n).toString());logged.put("phase","result");
+                for(String key:keys(result)) if(!key.equals("target")&&!key.equals("action")) logged.put(key,result.get(key));
+                record(logged);
+                if(command.action().equals("stop")&&result.optBoolean("accepted")) pendingStops.remove(command.target());
+            }
+            return results;
         } finally { operation.unlock(); }
     }
     /**

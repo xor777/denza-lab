@@ -9,6 +9,8 @@ final class FakeVehicle implements NativeController.Shell {
     static String reply(int value){return String.format("Result: Parcel(00000000 %08x   '........')",value);}
         final JSONObject catalog;final Map<String,Object> values=new HashMap<>();final Map<String,String> rawOverrides=new HashMap<>();final List<String>writes=new ArrayList<>();
         volatile String readError;
+        /** Reply for one write inside a batch script; null throws as a transport failure. Default: setReply. */
+        java.util.function.Function<String,String> writeReply;
         String boot="11111111-1111-1111-1111-111111111111",setReply=OK,holdReply="@start\n"+OK+"\n@stop\n"+OK;boolean badHash;int opens;
         CountDownLatch readStarted,readRelease,holdStarted,holdRelease;
         FakeVehicle(JSONObject catalog)throws Exception{this.catalog=catalog;
@@ -28,6 +30,14 @@ final class FakeVehicle implements NativeController.Shell {
             if(command.startsWith("umask")){if(holdRelease!=null)holdRelease.countDown();return "";}
             if(command.startsWith("sleep 4.8")){writes.add(command);if(holdStarted!=null){holdStarted.countDown();assertTrue(holdRelease.await(2,TimeUnit.SECONDS));}return holdReply;}
             if(command.startsWith("service call autoservice 6")){writes.add(command);return setReply;}
+            if(command.contains("echo @w")){
+                StringBuilder out=new StringBuilder();
+                for(String part:command.split("; ")){
+                    if(part.startsWith("echo @"))out.append(part.substring(5)).append('\n');
+                    else if(part.startsWith("service call autoservice 6")){writes.add(part);String reply=writeReply==null?setReply:writeReply.apply(part);if(reply==null)throw new java.io.IOException("transport");out.append(reply).append('\n');}
+                }
+                return out.toString();
+            }
             if(command.contains("sha256sum")){StringBuilder out=new StringBuilder(identity());JSONObject h=catalog.getJSONObject("protocol").getJSONObject("hashes");for(String path:NativeController.keys(h))out.append('\n').append(badHash?"bad":h.getString(path)).append("  ").append(path);return out.toString();}
             if(command.equals(catalog.getJSONObject("protocol").getString("identity")))return identity();
             if(readStarted!=null){readStarted.countDown();assertTrue(readRelease.await(5,TimeUnit.SECONDS));}

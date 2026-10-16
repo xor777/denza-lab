@@ -203,71 +203,50 @@ public final class VoiceCommands {
 
     // ---------------------------------------------------------------- execution
 
-    /** Each target goes through the existing controller and its fresh guards. Never retries. */
+    /**
+     * The whole plan goes to the controller at once: one guard reading of the plan's targets, one shell
+     * script with every write, so «открой все окна» moves the four windows together. Relative steps are
+     * resolved from that same reading. A guard refusal affects its own target only; an unknown outcome is
+     * reported, never retried. Cancellation before the script sends nothing.
+     */
     public static Execution execute(Plan plan, NativeController controller, BooleanSupplier foreground) {
         Objects.requireNonNull(plan);
         Objects.requireNonNull(controller);
         Objects.requireNonNull(foreground);
         List<Outcome> outcomes = new ArrayList<>();
-        boolean allAccepted = true;
-        // Every relative step of the plan comes from one reading taken before the first write: a zone written
-        // first must not move the base of the next («потеплее везде» would compound under climate sync).
-        JSONObject state = null;
-        if (plan.commands().stream().anyMatch(command -> DELTA.matcher(command.action()).matches())) {
-            if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; оставшиеся команды не отправлены");
-            try { state = controller.snapshot(); } catch (Exception unknown) { state = null; }
-            if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; оставшиеся команды не отправлены");
+        if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; ничего не отправлено");
+        List<NativeController.Planned> planned = new ArrayList<>();
+        for (Command command : plan.commands()) planned.add(new NativeController.Planned(command.target(), command.action()));
+        List<JSONObject> results;
+        try {
+            results = controller.actAll(planned, foreground, (entry, state) -> {
+                Command resolved = absolute(new Command(entry.target(), entry.action()), state);
+                return new NativeController.Planned(resolved.target(), resolved.action());
+            }, 4000);
+        } catch (Exception error) {
+            boolean cancelled = !foreground.getAsBoolean();
+            return stopped(outcomes, (cancelled ? "Отменено" : error.getMessage() == null ? "Ошибка" : error.getMessage()) + "; ничего не отправлено");
         }
-        for (Command planned : plan.commands()) {
-            if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; оставшиеся команды не отправлены");
-            Command command = planned;
-            if (DELTA.matcher(planned.action()).matches()) {
-                try {
-                    if (state == null) throw new IOException("Текущее значение неизвестно");
-                    command = absolute(planned, state);
-                } catch (Exception unknown) {
-                    // Nothing was sent: an unknown current value is a refusal of this target only.
-                    allAccepted = false;
-                    String reason = unknown instanceof IOException && unknown.getMessage() != null ? unknown.getMessage()
-                            : "Текущее значение неизвестно";
-                    outcomes.add(new Outcome(planned.target(), planned.action(), "refused", reason + "; ничего не отправлено"));
-                    continue;
-                }
-            }
-            try {
-                JSONObject result = controller.act(command.target(), command.action(), foreground);
-                boolean uncertain = result.optBoolean("uncertain");
-                boolean accepted = result.optBoolean("accepted") && !uncertain;
-                // reset_required: the window had an unconfirmed earlier target and its 255 reset was not accepted,
-                // so the command itself was never sent.
-                boolean blocked = result.optBoolean("reset_required") && !result.optBoolean("reset_accepted");
-                boolean resetUnconfirmed = result.has("reset_accepted") && !result.optBoolean("reset_accepted");
-                String status = uncertain ? "uncertain" : accepted ? "accepted" : "refused";
-                String message;
-                if (blocked) message = uncertain ? "Исход сброса прежней цели окна неизвестен; команда не отправлена"
-                        : "Сброс прежней цели окна не принят; команда не отправлена";
-                else if (uncertain) message = resetUnconfirmed ? "Исход неизвестен: сброс цели окна не подтверждён; команда не повторялась"
-                        : "Исход неизвестен; команда не повторялась";
-                else if (accepted) message = movable(command.target()) ? "Запрос принят; движение не подтверждено"
-                        : "Запрос принят; состояние не подтверждено";
-                else message = "Автомобиль отказал в запросе" + (resetUnconfirmed ? "; сброс цели окна не подтверждён" : "");
-                outcomes.add(new Outcome(command.target(), command.action(), status, message));
-                if (uncertain) return stopped(outcomes, "Исход неизвестен; оставшиеся команды не отправлены");
-                allAccepted &= accepted;
-            } catch (NativeController.Refused refusal) {
-                // A known pre-write guard refusal affects this target, not independent targets.
-                allAccepted = false;
-                outcomes.add(new Outcome(command.target(), command.action(), "refused", refusal.getMessage()));
-            } catch (Exception error) {
-                boolean cancelled = !foreground.getAsBoolean();
-                outcomes.add(new Outcome(command.target(), command.action(), cancelled ? "cancelled" : "failed",
-                        error.getMessage() == null ? "Ошибка; команда не повторялась" : error.getMessage()));
-                return stopped(outcomes, cancelled ? "Отменено; оставшиеся команды не отправлены"
-                        : "Ошибка; проверьте машину. Оставшиеся команды не отправлены");
-            }
+        boolean allAccepted = true, anyUncertain = false;
+        for (JSONObject result : results) {
+            String target = result.optString("target"), action = result.optString("action");
+            boolean uncertain = result.optBoolean("uncertain"), accepted = result.optBoolean("accepted") && !uncertain;
+            boolean blocked = result.optBoolean("reset_required") && !result.optBoolean("reset_accepted");
+            String status, message;
+            if (result.optBoolean("refused")) { status = "refused"; message = result.optString("error", "Действие недоступно"); }
+            else if (result.optBoolean("cancelled")) { status = "cancelled"; message = result.optString("error"); }
+            else if (blocked) { status = uncertain ? "uncertain" : "refused";
+                message = uncertain ? "Исход сброса прежней цели окна неизвестен; команда не отправлена" : "Сброс прежней цели окна не принят; команда не отправлена"; }
+            else if (uncertain) { status = "uncertain"; message = result.optString("error", "Исход неизвестен; команда не повторялась"); }
+            else if (accepted) { status = "accepted"; message = movable(target) ? "Запрос принят; движение не подтверждено" : "Запрос принят; состояние не подтверждено"; }
+            else { status = "refused"; message = "Автомобиль отказал в запросе"; }
+            outcomes.add(new Outcome(target, action, status, message));
+            allAccepted &= accepted;
+            anyUncertain |= status.equals("uncertain");
         }
         boolean anyAccepted = outcomes.stream().anyMatch(outcome -> outcome.status().equals("accepted"));
         String summary = allAccepted ? "Все запросы приняты; результат на машине не подтверждён"
+                : anyUncertain ? "Исход части команд неизвестен; проверьте машину. Ничего не повторялось"
                 : anyAccepted ? "Часть запросов принята; проверьте результаты каждой команды"
                 : "Ни один запрос не принят; проверьте результаты каждой команды";
         return new Execution(outcomes, allAccepted, report(outcomes, summary));

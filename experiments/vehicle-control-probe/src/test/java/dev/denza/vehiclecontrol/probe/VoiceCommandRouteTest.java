@@ -59,9 +59,10 @@ public class VoiceCommandRouteTest {
             assertThrows(java.io.IOException.class,()->VoiceCommandRoute.prepare(endpoint(text,1)));
         assertTrue(car.writes.isEmpty());assertEquals(0,car.opens);
     }
-    @Test public void unknownWriteOutcomeStopsRemainingCommandsWithoutRetry()throws Exception{
+    @Test public void unknownWriteOutcomesAreReportedAndNeverRetried()throws Exception{
         car.setReply="broken";
         VoiceCommands.Execution result=VoiceCommandRoute.prepare(endpoint("включи кондиционер и открой левое окно",1)).execute(controller,()->true,true,false);
-        assertFalse(result.complete());assertEquals(1,car.writes.size());assertEquals("uncertain",result.outcomes().get(0).status());
+        assertFalse(result.complete());assertEquals(2,car.writes.size());
+        assertEquals(List.of("uncertain","uncertain"),result.outcomes().stream().map(VoiceCommands.Outcome::status).toList());
     }
 }

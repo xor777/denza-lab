@@ -115,6 +115,19 @@ sync; a fan step never goes below 1 and never weakens a fan that is off (only «
 вентилятор» writes 0). **Firmware only:** the percent write has not been sent
 to the car; the first test is one window, in P, with the owner at the glass.
 
+### One batch per plan, executed by default
+
+On the car the journal showed voice «закрой все двери» writing the doors 1.95–2.08 s apart: every
+command opened a new ADB connection and read the whole catalog (217 `service call`s) before its one
+write. `NativeController.actAll` now runs a plan with one lock (waiting up to 4 s for a remote poll),
+one connection, one read of only the plan's guard properties (`guardKeys`; four windows: 14 calls),
+relative steps resolved from that read, and one shell script with every write (window percentages:
+targets, 300 ms, resets). Every write and result is journaled; a guard refusal drops only its
+target, HAL replies are parsed per write, a transport failure leaves every sent write uncertain,
+nothing is retried. Window STOP is sent even when clearing an earlier target fails. The hands-free
+turn executes plans by default (switch in the voice settings); an endpoint of only [unk] keeps the
+turn listening.
+
 ## Minimal offline voice pipeline
 
 0.3.4 separates full parsing from the ASR confidence decision. The owner's exact
