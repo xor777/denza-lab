@@ -1,12 +1,13 @@
 # Native Denza vehicle-control prototype
 
-Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.1 / code 5, Android 13+.
+Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.2 / code 6, Android 13+.
 Native Java Views and a Java protocol controller. No WebView, JavaScript, Python,
 Chaquopy, HTTP server or laptop dependency. This remains an opt-in experiment.
 
 ## Build and update
 
 ```sh
+python3 experiments/vehicle-control-probe/prepare_voice_model.py
 JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home \
 ANDROID_HOME=/opt/homebrew/share/android-commandlinetools \
 ./gradlew -Pexperiments :vehicle-control-probe:testDebugUnitTest \
@@ -28,6 +29,73 @@ Host remote and APK share the working branch `codex/vehicle-control-remote`.
 All protocol properties, windows and firmware hashes come from the single
 `tools/vehicle_controls.json` bundled as an asset. Host tools read the same catalog.
 The Java engine does not load host Python or maintain another FID list.
+
+## Minimal offline voice pipeline
+
+0.3.2/code6 is based on the latest native remote `9deda371`, retaining the stable
+polling/attached-View fixes `6af5c5b1` and neutral resume feedback `26b86dd5`.
+The initial voice APK based on `1d4cc415` regressed those fixes and is superseded.
+Installed on N9 as 0.3.2/code6: exact APK SHA256
+`4a5d66bf345f2f5a841d772ffb16a737d9ed135d8c8c5061205d3ca82446fdd1`;
+microphone granted, key filter enabled, existing private ADB key retained.
+32 JVM tests, assemble and lint passed. Owner voice acceptance remains pending.
+
+
+0.3.2 adds voice to this same native APK, using its existing controller, catalog,
+ADB identity and action journal. Press **Голос · окна**, grant microphone permission
+once, press again and wait for **Говорите**. A second press cancels. First use unpacks
+and loads the model; later phrases reuse it. There is no always-on microphone.
+
+Pipeline: button → exclusive transient audio focus → cabin `MIC`, PCM16 mono16kHz
+→ Vosk small RU0.22 streaming recognition/endpoint → full-coverage window parser
+→ named window actions → existing fresh P/profile/boot/hash/window guards →
+single HAL writes and a displayed per-window result. A HAL1 response means accepted,
+not confirmed movement; the next GET supplies the observed percentage.
+
+Commands include «открой левое окно», «закрой правое окно», «открой левое заднее
+окно», «закрой окно сзади справа», «открой левое и правое окно», «останови окна».
+Singular left/right without a row means the corresponding **front** window;
+plural «левые окна»/«правые окна» means both on that side. Driver/passenger,
+front/rear/all groups, shared verbs and composed commands use the same alias
+table as the ASR grammar. Unsupported words, negation, percentages and incomplete
+phrases reject the entire plan. Later contradictory actions for one window replace
+earlier ones before execution. No fuzzy direction matching is used.
+
+Vosk `[unk]`, explicit negative grammar examples and minimum content-word confidence0.85
+(conjunctions/polite filler0.5) are additional rejection
+heuristics, not a guarantee against misrecognition. Only a completed endpoint can
+execute. Partial results and the eight-second timeout never execute; no timeout or
+refusal causes a retry. Remaining windows stop receiving commands after refusal,
+unknown result or leaving the screen. Audio stays in memory, is never saved or sent
+over the network. `logcat -s DenzaVoice` records loading/capture time, levels and text.
+
+For the steering-wheel voice key320, enable **Голос пульта · кнопка руля** in system
+accessibility settings (long-press **Голос** opens those settings). The isolated
+service uses the key-filter method already proven by Denza Apps. It takes the
+complete press only while this remote has focus; outside the remote it passes it.
+No Denza Apps APK or Alice settings need changing. Losing focus/pause cancels
+capture; stale callbacks cannot start a vehicle action. This prototype deliberately
+keeps the remote visible, so hidden-app microphone access remains unverified.
+
+The [official model](https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip)
+is prepared by `prepare_voice_model.py` into ignored `build/voice-input/` and bundled
+as a generated asset. It is not a source-controlled binary or runtime download.
+Both preparation and Gradle require SHA256
+`961d5ff98a17f4aa6de69864d0aa71fa5bac682301d2b5d17a3f24c5c99a46d4`.
+The APK verifies the ZIP before installing it under private `files/voice-model/`.
+Dependencies: [Vosk Android0.3.75](https://github.com/alphacep/vosk-android-demo/blob/master/app/build.gradle)
+and JNA5.18.1. This is the architecture's fast RU/window prototype: Vosk's own
+endpoint substitutes for Silero, and English ASR, Alice fallback, TTS, background
+capture and other vehicle functions are not implemented here.
+
+On-car acceptance: with the owner present, P and unobstructed glass, first note
+percentages; say «открой левое окно», compare the displayed text/FL HAL response
+and actual glass/GET, then «закрой левое окно» and compare the return. Repeat for
+FR/RL/RR; exercise «останови …» during a single movement. Falsification: wrong
+target, a command without a complete accepted phrase, silenced MIC, or accepted
+HAL without observed movement. Do not repeat uncertain commands. Physical voice
+acceptance is pending until the owner performs this sequence.
+
 
 ## Access
 
