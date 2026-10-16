@@ -340,7 +340,7 @@ public final class RemoteActivity extends Activity {
     }
 
     @Override protected void onPause(){visible=false;epoch++;handler.removeCallbacks(poll);releaseHold();super.onPause();}
-    @Override protected void onResume(){super.onResume();visible=true;if(remoteScreen){if(feedback!=null&&runtime.activeHold==null)feedback.setText("Обновляю состояние. Не подтверждённый STOP блокирует новые движения кресел.");handler.removeCallbacks(poll);handler.post(poll);}}
+    @Override protected void onResume(){super.onResume();visible=true;if(remoteScreen){if(feedback!=null&&runtime.activeHold==null)feedback.setText("Выберите действие. Принятие команды ещё не подтверждает движение.");handler.removeCallbacks(poll);handler.post(poll);}}
     @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);releaseHold();super.onDestroy();}
     @Override public void onBackPressed(){releaseHold();super.onBackPressed();}
 }
