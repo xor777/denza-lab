@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local ADB remote: windows, central locks, electric doors and seats.
+"""Local ADB remote: windows, doors, seats, roof shades, lights and massage.
 
 python3 tools/vehicle_control.py serve
 Protocol and corpus references: docs/window-control-findings.md.
@@ -19,6 +19,8 @@ CATALOG = json.loads(Path(__file__).with_name("vehicle_controls.json").read_text
 DICAR_PATH = "/system/priv-app/DiCarServer/DiCarServer.apk"
 DICAR_HASH = "ef8dc5e45f555633b4476637a05560522534a605e79d9d5b70df5c55caf142d6"
 PULSE_SECONDS = 0.3
+MASSAGE_MODES = {"off": 1, "on": 7, "wave": 2, "pulse": 3,
+                 "stretch": 4, "waist": 5, "shoulders": 6}
 
 
 def read_command(name):
@@ -78,13 +80,20 @@ class Remote(w.Remote):
                 names.update(axis[key] for key in ("position", "config", "initialized") if axis[key])
             for spec in seat["comfort"].values():
                 names.update((spec["config"], spec["state"]))
+        for spec in CATALOG["shades"].values():
+            names.update(spec[key] for key in ("position", "initialized", "thermal", "config"))
+        for spec in CATALOG["lights"].values():
+            names.update(spec["states"])
+            names.update(name for name, allowed in spec["configs"])
+        for spec in CATALOG["massages"].values():
+            names.update(spec[key] for key in ("config", "mode", "level"))
         commands = {name: read_command(name) for name in sorted(names)}
         commands["park"] = w.get_command(1011, 89129008)
         output = self.shell(w.IDENTITY + "; " + "; ".join(f"echo @{key}; {cmd}" for key, cmd in commands.items()), timeout=8)
         parts = re.split(r"(?m)^@([A-Za-z0-9_]+)\s*\n", output)
         self.check_identity(parts[0].strip().splitlines())
         if parts[1::2] != list(commands):
-            raise w.ControlError("Неполный ответ чтения дверей и сидений")
+            raise w.ControlError("Неполный ответ чтения автомобиля")
         values = {}
         for key, raw in zip(parts[1::2], parts[2::2]):
             try:
@@ -143,6 +152,33 @@ class Remote(w.Remote):
                                          "blocked": parked or (None if available else "Три уровня не подтверждены комплектацией")
                                          or (None if level is not None else "Состояние неизвестно")}
             state["seats"][key] = seat
+        state["shades"], state["lights"], state["massages"] = {}, {}, {}
+        for key, spec in CATALOG["shades"].items():
+            position = percentage(values[spec["position"]])
+            reason = (parked or (None if values[spec["config"]] == 8 else "Две шторки не подтверждены комплектацией")
+                      or (None if values[spec["initialized"]] == 1 else "Шторка не инициализирована")
+                      or (None if values[spec["thermal"]] == 0 else "Термозащита или неизвестное состояние")
+                      or (None if position is not None else "Положение шторки неизвестно"))
+            state["shades"][key] = {"name": spec["name"], "percent": position, "blocked": reason}
+        for key, spec in CATALOG["lights"].items():
+            supported = all(values[name] in allowed for name, allowed in spec["configs"])
+            decoded = [spec["state_values"].get(str(values[name])) for name in spec["states"]]
+            current = decoded[0] if all(value == decoded[0] for value in decoded) else None
+            state["lights"][key] = {"name": spec["name"], "supported": supported, "state": current,
+                                    "actions": list(spec["values"]), "blocked": parked
+                                    or (None if supported else "Функция не подтверждена комплектацией")
+                                    or (None if current is not None else "Состояние света неизвестно или различается")}
+        for key, spec in CATALOG["massages"].items():
+            mode, level = values[spec["mode"]], values[spec["level"]]
+            supported = values[spec["config"]] == 1
+            # Off reports mode=1 / level=0 on this N9. Unknown values must not
+            # become an apparently valid off state, as the stock UI defaults do.
+            valid = mode in range(1, 8) and level in range(0, 5)
+            enabled = False if mode == 1 or level == 4 else True if mode in range(2, 7) and level in (1, 2, 3) else None
+            state["massages"][key] = {"supported": supported, "mode": mode if valid else None,
+                                      "level": level if valid else None, "enabled": enabled if valid else None,
+                                      "blocked": parked or (None if supported else "Массаж не подтверждён комплектацией")
+                                      or (None if valid else "Состояние массажа неизвестно")}
         return state
 
     def validate(self, target, action):
@@ -152,6 +188,11 @@ class Remote(w.Remote):
         valid = target == "locks" and action in ("lock", "unlock")
         if len(parts) == 2 and parts[0] == "door":
             valid = parts[1] in CATALOG["doors"] and action in w.ACTIONS
+        if len(parts) == 2 and parts[0] in ("shade", "light"):
+            group = CATALOG["shades" if parts[0] == "shade" else "lights"]
+            valid = parts[1] in group and action in group[parts[1]]["values"]
+        if len(parts) == 2 and parts[0] == "massage":
+            valid = parts[1] in CATALOG["massages"] and action in (*MASSAGE_MODES, "level1", "level2", "level3")
         if len(parts) == 3 and parts[1] in CATALOG["seats"]:
             if parts[0] == "seat":
                 valid = parts[2] in CATALOG["seats"][parts[1]]["axes"] and action in ("plus", "minus", "stop")
@@ -173,6 +214,9 @@ class Remote(w.Remote):
                 reason = state["locks"]["blocked"]
             elif parts[0] == "door":
                 reason = state["doors"][parts[1]]["blocked"]
+            elif parts[0] in ("shade", "light", "massage"):
+                section = {"shade": "shades", "light": "lights", "massage": "massages"}[parts[0]]
+                reason = state[section][parts[1]]["blocked"]
             else:
                 section = "axes" if parts[0] == "seat" else "comfort"
                 reason = state["seats"][parts[1]][section][parts[2]]["blocked"]
@@ -186,6 +230,15 @@ class Remote(w.Remote):
         elif parts[0] == "seat":
             prop = CATALOG["seats"][parts[1]]["axes"][parts[2]]["set"]
             value = {"plus": 1, "minus": 2, "stop": 0}[action]
+        elif parts[0] in ("shade", "light"):
+            control = CATALOG["shades" if parts[0] == "shade" else "lights"][parts[1]]
+            prop, value = control["set"], control["values"][action]
+        elif parts[0] == "massage":
+            control = CATALOG["massages"][parts[1]]
+            if action.startswith("level"):
+                prop, value = control["set_level"], int(action[-1])
+            else:
+                prop, value = control["set_mode"], MASSAGE_MODES[action]
         else:
             control = CATALOG["seats"][parts[1]]["comfort"][parts[2]]
             prop, value = control["set"], control["values"][int(action)]

@@ -37,6 +37,18 @@ class FakeRemote(c.Remote):
                 self.values[axis["config"]] = max(axis["config_values"])
             for control in seat["comfort"].values():
                 self.values[control["config"]] = 3
+        for spec in c.CATALOG["shades"].values():
+            self.values[spec["config"]] = 8
+            self.values[spec["position"]] = 0
+            self.values[spec["thermal"]] = 0
+        for spec in c.CATALOG["lights"].values():
+            for name, allowed in spec["configs"]:
+                self.values[name] = allowed[0]
+            for name in spec["states"]:
+                self.values[name] = 1
+        for spec in c.CATALOG["massages"].values():
+            self.values[spec["mode"]] = 1
+            self.values[spec["level"]] = 0
 
     def shell(self, command, timeout=5):
         if command.startswith("finish()") or command.startswith("service call autoservice 6"):
@@ -70,6 +82,96 @@ class ExpandedTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.remote = FakeRemote(self.tmp.name)
+
+    def test_shade_commands_match_stock_percent_protocol_not_window_protocol(self):
+        for key, fid in (("front", 1330642984), ("rear", 1276178472)):
+            for action, value in (("open", 100), ("close", 0), ("stop", 254)):
+                self.assertTrue(self.remote.act("shade." + key, action)["accepted"])
+                self.assertEqual(self.remote.writes[-1], f"service call autoservice 6 i32 1001 i32 {fid} i32 {value} null")
+
+    def test_shade_guards_fail_closed_but_stop_remains_available(self):
+        spec = c.CATALOG["shades"]["rear"]
+        for name, value in (("config", 7), ("position", 255), ("initialized", 65535), ("thermal", 1)):
+            prop = spec[name]
+            old = self.remote.values[prop]
+            self.remote.values[prop] = value
+            count = len(self.remote.writes)
+            with self.assertRaises(w.ControlError):
+                self.remote.act("shade.rear", "close")
+            self.assertEqual(len(self.remote.writes), count)
+            self.assertTrue(self.remote.act("shade.rear", "stop")["accepted"])
+            self.remote.values[prop] = old
+
+    def test_new_controls_require_confirmed_park(self):
+        for park in (0, 65535, -10011):
+            self.remote.park = park
+            for target, action in (("shade.front", "open"), ("light.headlights", "auto"), ("massage.fl", "on")):
+                count = len(self.remote.writes)
+                with self.assertRaises(w.ControlError):
+                    self.remote.act(target, action)
+                self.assertEqual(len(self.remote.writes), count)
+            self.assertTrue(self.remote.act("shade.front", "stop")["accepted"])
+
+    def test_light_protocol_and_asymmetric_matrix_feedback(self):
+        for target, action, device, fid, value in (("headlights", "off", 1007, 1276153912, 1),
+                ("headlights", "auto", 1007, 1276153912, 2), ("headlights", "low", 1007, 1276153912, 4),
+                ("matrix", "on", 1004, 1125122110, 1), ("matrix", "off", 1004, 1125122110, 2),
+                ("drl", "on", 1004, 1125122118, 1), ("rear_fog", "off", 1007, 1276153904, 2),
+                ("logo", "on", 1004, 1324621876, 1)):
+            self.remote.act("light." + target, action)
+            self.assertEqual(self.remote.writes[-1], f"service call autoservice 6 i32 {device} i32 {fid} i32 {value} null")
+        states = c.CATALOG["lights"]["matrix"]["states"]
+        for raw, expected in ((1, "off"), (2, "on"), (5, "on")):
+            for name in states:
+                self.remote.values[name] = raw
+            self.assertEqual(self.remote.snapshot()["lights"]["matrix"]["state"], expected)
+        self.remote.values[states[0]] = 1
+        with self.assertRaises(w.ControlError):
+            self.remote.act("light.matrix", "on")
+
+    def test_unknown_light_configuration_and_feedback_cannot_write(self):
+        for key, spec in c.CATALOG["lights"].items():
+            for prop in (spec["configs"][0][0], spec["states"][0]):
+                old = self.remote.values[prop]
+                self.remote.values[prop] = 65535
+                count = len(self.remote.writes)
+                with self.assertRaises(w.ControlError):
+                    self.remote.act("light." + key, "off")
+                self.assertEqual(len(self.remote.writes), count)
+                self.remote.values[prop] = old
+
+    def test_massage_uses_each_seats_scalar_mode_and_level_fids(self):
+        for key, mode_fid, level_fid in (("fl", 1276190752, 1276190736), ("fr", 1276190756, 1276190739),
+                                        ("rl", 1276190760, 1276190746), ("rr", 1276190764, 1276190749)):
+            for action, value in (("off", 1), ("on", 7), ("wave", 2), ("shoulders", 6), ("level1", 1), ("level3", 3)):
+                self.remote.act("massage." + key, action)
+                fid = level_fid if action.startswith("level") else mode_fid
+                self.assertEqual(self.remote.writes[-1], f"service call autoservice 6 i32 1023 i32 {fid} i32 {value} null")
+
+    def test_massage_baseline_and_unknowns(self):
+        spec = c.CATALOG["massages"]["fl"]
+        self.assertIs(self.remote.snapshot()["massages"]["fl"]["enabled"], False)
+        self.remote.values[spec["mode"]] = 2
+        self.remote.values[spec["level"]] = 1
+        self.assertIs(self.remote.snapshot()["massages"]["fl"]["enabled"], True)
+        for prop in (spec["mode"], spec["level"], spec["config"]):
+            old = self.remote.values[prop]
+            self.remote.values[prop] = 65535
+            with self.assertRaises(w.ControlError):
+                self.remote.act("massage.fl", "on")
+            self.remote.values[prop] = old
+        self.assertEqual(self.remote.writes, [])
+
+    def test_new_allowlist_and_failed_writes_never_retry(self):
+        for target, action in (("shade.front", "255"), ("shade.glass", "open"), ("light.headlights", "far"),
+                               ("light.matrix", "stop"), ("massage.tl", "on"), ("massage.fl", "hotstone"),
+                               ("massage.fl", "level0")):
+            with self.assertRaises(w.ControlError):
+                self.remote.act(target, action)
+        self.assertEqual(self.remote.writes, [])
+        self.remote.single_reply = w.ControlError("timeout")
+        self.assertTrue(self.remote.act("shade.front", "open")["uncertain"])
+        self.assertEqual(len(self.remote.writes), 1)
 
     def test_reads_only_and_float_placeholder_never_becomes_position(self):
         prop = c.CATALOG["seats"]["fl"]["axes"]["horizontal"]["position"]
