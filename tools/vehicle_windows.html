@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Denza · Окна</title>
+<style>
+  :root {color-scheme: dark; font: 16px system-ui, sans-serif; background:#101418; color:#edf1f2}
+  * {box-sizing:border-box}
+  body {max-width:820px; margin:0 auto; padding:42px 24px}
+  header {display:flex; justify-content:space-between; align-items:center; gap:18px; margin-bottom:28px}
+  h1 {font-size:32px; font-weight:600; margin:0 0 8px}
+  p {color:#a9b7bc; margin:0; line-height:1.5}
+  main {display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  article {border:1px solid #344047; border-radius:18px; padding:24px; background:#192127}
+  h2 {font-size:18px; font-weight:500; margin:0 0 20px}
+  .percent {font-size:42px; font-variant-numeric:tabular-nums; letter-spacing:-1px}
+  .position {min-height:28px; font-size:14px}
+  meter {width:100%; height:12px; margin:12px 0 24px; accent-color:#75d7c3}
+  .buttons {display:flex; flex-wrap:wrap; gap:8px}
+  button {font:inherit; border:1px solid #53666d; border-radius:9px; padding:11px 13px; background:#25343c; color:#f4f8f9; cursor:pointer}
+  button:hover:enabled {background:#36505b}
+  button:focus-visible {outline:3px solid #75d7c3; outline-offset:3px}
+  button[data-action=stop] {border-color:#a5825f; color:#ffd4a8}
+  button:disabled {opacity:.35; cursor:default}
+  .reason {font-size:13px; color:#e8ba8a; margin-top:12px; min-height:20px}
+  #result {margin-top:22px; min-height:52px; line-height:1.5; white-space:pre-wrap}
+  footer {font-size:13px; color:#97a8af; margin-top:20px; line-height:1.6}
+  .error {color:#ffb1a6}
+  @media(max-width:600px) {main {grid-template-columns:1fr} header {align-items:flex-start} body {padding:24px 16px}}
+</style>
+<header><div><h1>Окна</h1><p id="connection" role="status">Подключение к машине…</p></div><button id="refresh">Обновить</button></header>
+<main id="windows"></main>
+<div id="result" aria-live="polite">Выберите окно и действие.</div>
+<footer>Открытие и закрытие доступны в P. «Стоп» останавливает выбранное окно.<br>
+  Ответ службы означает приём команды; движение проверяйте по положению окна.<br>
+  Прототип · положение обновляется каждые 2 секунды, пока вкладка видна.</footer>
+<script>
+  const token = location.hash.slice(1);
+  const labels = {fl:'Переднее левое',fr:'Переднее правое',rl:'Заднее левое',rr:'Заднее правое'};
+  const cards = {};
+  let reading = false, writing = false, online = false, lastState = null, lastRead = 0;
+  for (const [key, label] of Object.entries(labels)) {
+    const card = document.createElement('article');
+    card.innerHTML = `<h2>${label}</h2><div class="percent">—</div><p class="position">Нет данных</p>
+      <meter min="0" max="100" value="0" aria-label="Открытие окна"></meter>
+      <div class="buttons"><button data-action="open" disabled>Открыть</button><button data-action="close" disabled>Закрыть</button><button data-action="stop" disabled>Стоп</button></div><p class="reason"></p>`;
+    for (const button of card.querySelectorAll('button')) button.onclick = () => act(key, button.dataset.action);
+    cards[key] = card; document.querySelector('#windows').append(card);
+  }
+  function buttons() {
+    for (const [key, card] of Object.entries(cards)) {
+      for (const button of card.querySelectorAll('button')) {
+        button.disabled = !online || (button.dataset.action !== 'stop' && (writing || !!lastState?.windows[key].blocked));
+      }
+    }
+  }
+  function unavailable(message) {
+    online = false; lastState = null; buttons();
+    document.querySelector('#connection').textContent = message;
+    for (const card of Object.values(cards)) {
+      card.querySelector('.percent').textContent = '—';
+      card.querySelector('.position').textContent = 'Нет свежих данных';
+      card.querySelector('meter').value = 0;
+      card.querySelector('.reason').textContent = '';
+    }
+  }
+  async function api(path, data) {
+    const headers = {'X-Window-Token':token};
+    if (data) headers['Content-Type'] = 'application/json';
+    const response = await fetch(path, {method:data?'POST':'GET',headers,body:data?JSON.stringify(data):undefined});
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Ошибка связи');
+    return result;
+  }
+  async function refresh() {
+    if (reading || writing || document.hidden) return;
+    if (!token) { unavailable('Откройте полную ссылку, напечатанную пультом в терминале'); return; }
+    reading = true;
+    try {
+      const state = await api('/api/state'); lastState = state; online = true; lastRead = Date.now();
+      document.querySelector('#connection').textContent = `${state.model} · ${state.park===1?'P':'не в P / неизвестно'} · ${new Date(state.time).toLocaleTimeString('ru')}`;
+      for (const [key, window] of Object.entries(state.windows)) {
+        const card = cards[key], value = window.percent;
+        card.querySelector('.percent').textContent = value===null?'—':`${value}%`;
+        card.querySelector('.position').textContent = value===null?'Положение неизвестно':value===0?'Закрыто':value===100?'Полностью открыто':'Открыто частично';
+        card.querySelector('meter').value = value ?? 0;
+        card.querySelector('.reason').textContent = window.blocked || '';
+      }
+      buttons();
+    } catch (error) { unavailable(error.message); }
+    finally { reading = false; }
+  }
+  async function act(window, action) {
+    if (writing && action !== 'stop') return;
+    writing = true; buttons();
+    const result = document.querySelector('#result'); result.className = ''; result.textContent = `${labels[window]} · отправка команды…`;
+    try {
+      const reply = await api('/api/action', {window,action});
+      result.textContent = reply.accepted ? `${labels[window]} · команда «${{open:'Открыть',close:'Закрыть',stop:'Стоп'}[action]}» принята (код ${reply.code}).` : reply.error || `Служба отклонила команду: ${reply.code}`;
+      if (!reply.accepted) result.className = 'error';
+    } catch (error) {
+      result.className = 'error'; result.textContent = `${error.message}. Автоповтора нет; проверьте положение окна.`;
+    } finally { writing = false; buttons(); refresh(); }
+  }
+  document.querySelector('#refresh').onclick = refresh;
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  setInterval(() => { if (online && Date.now()-lastRead>6000) unavailable('Данные устарели'); refresh(); }, 2000);
+  refresh();
+</script>
+</html>
