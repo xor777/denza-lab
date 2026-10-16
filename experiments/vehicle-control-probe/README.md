@@ -1,6 +1,6 @@
 # Native Denza vehicle-control prototype
 
-Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.4 / code 8, Android 13+.
+Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.8 / code 12, Android 13+.
 Native Java Views and a Java protocol controller. No WebView, JavaScript, Python,
 Chaquopy, HTTP server or laptop dependency. This remains an opt-in experiment.
 
@@ -292,3 +292,174 @@ The only allowed negative read sentinel is the observed -10011 for HVAC precisio
 matching the stock whole-degree fallback; other read errors remain unknown.
 Captured real HVAC parcels run through the full native read pipeline in tests,
 not just a synthetic state builder. No HVAC SET has been exercised on the car.
+
+## Bounded 10-channel microphone diagnostic (0.3.5)
+
+Shell-only `MicrophoneProbeActivity` starts a `microphone` foreground service from
+a visible window, then finishes after seven seconds. The service captures at the
+ordinary app UID: `VOICE_RECOGNITION`, PCM16, 16000 Hz, channel index mask `0x3ff`.
+It stops after 30 seconds of capture, with a 45-second overall watchdog. It never
+constructs VoiceInput/ASR/NativeController and sends no vehicle commands. It takes
+no audio focus and stores no PCM. The existing authorized key is used passively
+over loopback only to read `dumpsys audio`, at intervals of at least two seconds.
+
+Preflight: update with `adb install -r`, preserving app data and the ADB key;
+confirm the key hash, microphone runtime grant and stock voice APK identities.
+No accessibility setting, appop, audio route or vendor callback is changed.
+Start once from a quiet scene with no active remote hold or voice plan:
+
+```sh
+adb -s 127.0.0.1:5555 shell am start -n dev.denza.vehiclecontrol.probe/.MicrophoneProbeActivity --es run tench-01
+```
+
+Use a fresh run identifier each time. Emergency stop only the diagnostic:
+
+```sh
+adb -s 127.0.0.1:5555 shell am stopservice -n dev.denza.vehiclecontrol.probe/.MicrophoneProbeService
+```
+
+Evidence: private `files/microphone-probe/<run>/events.jsonl` and `summary.json`.
+Levels, nonzero counts, per-channel fingerprints, actual recording configuration,
+AudioTimestamp and ordinary UID are recorded. No speech text or raw audio is kept.
+Read evidence with `adb shell run-as dev.denza.vehiclecontrol.probe cat <path>`.
+
+Hypothesis: ten interleaved sample slots keep arriving after the Activity closes,
+and the stock UID1000 recording keeps its session, format and `silenced:false`.
+A missing/changed/silenced stock recording, lost app capture or ADB failure stops
+the diagnostic without retry. This is verified by parsing the current recording
+section, never by historical log entries or the misleading shared-UID package name.
+External before/during/after AudioFlinger dumps additionally check the actual
+10-channel index mask, client tracks and advancing stock frames.
+
+Expected falsification: failure to create/read ten channels; app silence in the
+background; stock capture disappearing, changing or being silenced; engine restart.
+A successful transport/format test alone does not prove all-seat acoustic quality
+or the assistant's response; the owner separately calls the stock wake word while
+capture runs in the background, without a vehicle command.
+
+### Live result, N9, 2026-10-16
+
+Installed 0.3.5 / code 9 SHA256:
+`8f0d2a5f44d67fcb47c11183bf4f8d9c37e80a92510a39b66f6d2ed89718678b`.
+55 JVM tests, assemble and lint passed. This is the same APK used in all three
+live runs. Source diagnostics do not invoke the existing voice/action paths.
+
+Ordinary UID 10132 obtained PCM16 / 16000 Hz / 10-channel index mask 0x3ff in three
+30-second captures. Activity intentionally finished at 7 s; Launcher was resumed
+while the microphone FGS kept reading. Per-channel sample counts were 479680,
+480000 and 480000 in runs tench-01/02/03. Each run recorded 29 own unsilenced
+configuration samples and 15 unchanged, unsilenced stock-recording checks.
+
+AudioFlinger showed both client tracks active on the same ten-channel input:
+stock PID 4398 / session 161 and app PID 25316 / sessions 505, 513, 521. Both masks 800003FF,
+rate 16000, source 6, Sil=n; both server frame counters advanced. After capture
+the app track disappeared while the original stock track remained.
+
+The first two wake attempts were inconclusive because pronunciation was also
+unstable without capture. In tench-03 the owner called the stock Chinese wake
+phrase and confirmed its response. sys.voice.windowshow and sys.bydvoice.vr.state
+were both 1 at device epoch 1792147710..1792147711, within the capture. The app
+and stock recordings stayed unsilenced through that response.
+
+All ten slots had equal sample counts. Six slots 0, 1, 4, 5, 8, 9 carried distinct
+ambient signals; pairs 2=3 and 6=7 were near-constant in quiet and had larger peaks
+in the responding-assistant run. This is compatible with the firmware 6mic/4ref
+layout, not a measured seat/channel map or ten independent microphones.
+
+ADB key and action journal SHA256 remained unchanged. Stock PIDs 4398 / 4873 did
+not restart, crash log gained no entries. No actuator command was sent. The
+diagnostic stopped automatically and the normal remote was restored. The
+foreground-service background interval was about 23 s; sleep, phone calls,
+long runs and acoustic quality from every seat are not accepted by this test.
+
+Evidence in the primary checkout: captures/voice-activation-20261016/probe-035/
+(build.json, analysis.json, three summaries/event streams, audio/AudioFlinger,
+Activity state, voice-window timeline and before/after identity/crash checks).
+The primary checkout also has docs/voice-assistant-activation.md with the
+firmware research and exact live boundaries.
+
+## «Привет, Денза» and speaker seat (0.3.8)
+
+Open **Привет, Денза** in the remote header, then **Слушать**. This is a
+separate observation Activity: no `NativeRuntime`, command parser or vehicle
+writes. A microphone foreground service keeps listening after **Оставить в фоне**;
+the notification opens the screen or stops it. Sessions last at most ten minutes,
+without boot/startup auto-restart. Back/return to remote stops the probe. The
+regular push-to-talk command feature remains a separate mode.
+
+The screen distinguishes incoming levels from a speech capture, decoding and
+wake acceptance. It shows six live level bars, **Слышу речь**, **Распознаю**,
+always the unrestricted **Услышано** transcript, captured/decoded counts and a
+specific refusal (different phrase, weak word score or timing). This addresses
+the owner's report that silent filtering made it impossible to tell if speech
+was captured. Full ASR is now run for every captured utterance; only the latest
+metadata is kept. A busy decoder says that the preceding utterance is still
+being processed instead of silently dropping the observation.
+
+Capture is the proven source6 / PCM16 / 16000Hz / index0x3ff, ordinary app UID,
+without audio focus. Slots0,1,4,5,8,9 are observed microphone candidates;
+2,3,6,7 are excluded reference candidates. This is not a physical seat order.
+A one-second quiet noise baseline gates speech, keeps200ms pre-roll, fixes the
+strongest mic at speech onset and bounds mono PCM to five seconds in memory.
+Gain is normalized without clipping, capped at8x. Own recording config is checked
+every second, stock recording via existing local ADB every5s. Silencing/loss or
+stock session/format change stops the probe. The strict guard can also stop on
+legitimate stock audio transitions. No PCM is stored or uploaded.
+
+The pinned small Vosk RU0.22 model has no `денза` token, but has `ден`, `дэн`,
+`за`. Speak normal **Привет, Денза**. The internal phonetic grammar needs all
+three words at>=0.75; the unrestricted model must independently return the full
+phrase (`ден`, `дэн` or `день` + `за`) at>=0.5. Two-pass matching rejects the
+reproduced narrow-grammar false matches **Привет, Денис** and **Привет, где
+заправка**. The name remains difficult for the generic model. On the owner's
+accepted0.3.6 call its full-model name scores were0.519391, close to0.5. Thus an
+unstable result is not evidence that the microphones are unavailable or that
+the owner pronounces it wrong. The screen now exposes the actual text/reason.
+
+**Calibration is independent of wake/ASR acceptance.** Sitting in a chosen seat,
+tap its button and speak the phrase three times, with three-second pauses.
+The active seat gets up to60s. A gated utterance with0.3..4s of voiced frames
+and a start after selection contributes one normalized six-mic energy template;
+three samples replace that seat's profile and show3/3. Long/short or preceding
+utterances show an explicit calibration error. Old partial one-sample0.3.6
+profiles survive updates but do not count as a completed seat. Other speech or
+noise may be collected: this is a controlled calibration, not a voice-identity
+classifier. Keep the cabin quiet and speak from the selected place.
+
+Order: driver, front passenger, row2left, row2right, row3left, row3right. After
+all six have3/3, repeat from each place without selecting it. Cosine similarity
+>=0.94 with best/second margin>=0.015 yields **Предположительно:** and the seat;
+otherwise **Место не определено**. These thresholds are experimental; this
+level-template method is not native DoA/beamforming/AEC and has no validated
+cross-seat/noise guarantee. Until6/6 the wake mark shows calibration progress.
+
+Private `files/wake-probe/`: `seat-profiles.json`, overwritten latest
+`last-recognition.json`, `last-wake.json`, `last-state.json`. Metadata includes
+text, word scores, energy values, selected mic and decode duration. No raw audio.
+`VoiceModelFiles` shares the original SHA-pinned, bounded ZIP installer with
+push-to-talk; asset/install path and its cancellation behavior remain the same.
+
+Validation:60 JVM tests, assembleDebug and lintDebug pass. The actual synthetic
+result corpus (Milena ru_RU through Java framing/gate/gain and hostVosk) accepts
+two positive variants and rejects seven negatives. `wake-synthetic.json` keeps
+results, not audio; it does not measure cabin false activations per hour.
+Owner confirmed a visible wake mark in0.3.6; both decoders matched
+`привет дэн за` in332ms. The first driver3/3 calibration in0.3.8 was owner-confirmed;
+All six seats now have3/3 samples, verified in private JSON and owner-confirmed. Owner also confirmed automatic driver detection. Full other-seat accuracy remains open.0.3.7 driver-only was built but
+never installed; the owner then chose all six seats and clear diagnostics.
+
+Current installed0.3.8 SHA256: `ae2bc7fd0b90e218f001a1ab147ff0c88161939477be5417234decbbc1cd364e`.
+Exact hash, existing key, action journal and prior seat template were checked
+after `install -r`. Stock PIDs4398/4873 remained unchanged. Capture evidence is
+`captures/voice-activation-20261016/probe-038/` in the primary local checkout.
+Keep owner acceptance separate from installation/capture proof.
+
+ASR diagnostics also enter the bounded Android logcat ring; app-private latest-result files are overwritten, raw PCM is never logged.
+
+Final0.3.8 audit: all18templates persisted; APK/key/action journal exact hashes
+unchanged, stock PIDs unchanged, no new crash entries. Background capture was
+verified with CarSettings resumed: probeFGS notification73, PID3367/session537
+and stocksession161 both active10ch, Sil=n. Owner reported automatic driver;
+owner clarified that other places were tested afterward, explaining the different
+last-saved seat (14:14:29, row2right). Later individual utterances are not fully
+labelled, so full per-seat accuracy remains open.

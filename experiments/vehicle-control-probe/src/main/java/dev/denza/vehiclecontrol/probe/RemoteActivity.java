@@ -20,11 +20,7 @@ public final class RemoteActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private TextView status,feedback;
     private Button voiceButton;
-    private Button voiceConfirmButton;
-    private VoiceCommands.Plan voiceConfirmation;
-    private int voiceConfirmationEpoch;
-    private VoiceInput voiceInput;
-    private boolean voiceActive;
+    private TextView voiceStatus;
     private LinearLayout body;
     private ScrollView scroll;
     private JSONObject state;
@@ -53,28 +49,16 @@ public final class RemoteActivity extends Activity {
     private Button button(String title){Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setTextSize(16);b.setTextColor(TEXT);b.setMinHeight(dp(54));return b;}
     private void postAccess(Runnable task){int generation=epoch;handler.post(()->{if(visible&&!remoteScreen&&!isDestroyed()&&generation==epoch)task.run();});}
     void showRemote() {
-        cancelVoice();releaseHold();remoteScreen=true;epoch++;state=null;stale=false;renderedPage="";paintedTab="";tabButtons.clear();controls.clear();stopControls.clear();
+        releaseHold();remoteScreen=true;epoch++;state=null;stale=false;renderedPage="";paintedTab="";tabButtons.clear();controls.clear();stopControls.clear();
         LinearLayout root=column();root.setPadding(dp(24),dp(14),dp(24),dp(12));root.setBackgroundColor(BG);
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
         TextView title=text("Denza · Пульт",27,TEXT);title.setTypeface(null,Typeface.BOLD);header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        voiceButton=button("Голос");voiceButton.setOnClickListener(v->toggleVoice());
-        voiceButton.setOnLongClickListener(v->{
-            try{startActivity(new android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));}
-            catch(Exception error){feedback.setText("Откройте системные настройки специальных возможностей: Голос пульта · кнопка руля");}
-            return true;
-        });header.addView(voiceButton);
-        voiceConfirmButton=button("Выполнить план");voiceConfirmButton.setVisibility(View.GONE);
-        voiceConfirmButton.setOnClickListener(v->{
-            VoiceCommands.Plan plan=voiceConfirmation;int generation=voiceConfirmationEpoch;
-            clearVoiceConfirmation();
-            if(plan==null||!voiceKeyAvailable()||generation!=epoch)return;
-            recordVoiceDecision(plan.text(),"confirmed","Подтверждено нажатием");
-            executeVoicePlan(plan,generation);
-        });header.addView(voiceConfirmButton);
+        voiceButton=button("Микрофон");voiceButton.setOnClickListener(v->toggleVoice());header.addView(voiceButton);
+        Button wakeProbe=button("Настройка голоса");wakeProbe.setOnClickListener(v->{releaseHold();startActivity(new android.content.Intent(this,WakeProbeActivity.class));});header.addView(wakeProbe);
         Button access=button("Доступ ADB");access.setOnClickListener(v->showAccess());header.addView(access);
         Button update=button("Обновить");update.setOnClickListener(v->refresh());header.addView(update);root.addView(header);
         status=text("Читаю состояние автомобиля…",16,ACCENT);root.addView(status);
-        root.addView(text("Голос: «открой левое окно», «закрой правую дверь», «закрой окна и открой левую заднюю дверь». Руль: долгое нажатие «Голос» для настройки.",13,MUTED));
+        voiceStatus=text("Скажите «Привет, Денза», дождитесь индикатора, затем произнесите команду. Пока показывается только текст.",17,ACCENT);voiceStatus.setMaxLines(3);voiceStatus.setEllipsize(android.text.TextUtils.TruncateAt.END);root.addView(voiceStatus);
         LinearLayout tabs=new LinearLayout(this);
         for(String tab:List.of("windows","shades","lights","doors","seats","climate")){
             Button b=button(Map.of("windows","Окна","shades","Панорама","lights","Свет","doors","Двери","seats","Сиденья","climate","Климат").get(tab));
@@ -86,7 +70,7 @@ public final class RemoteActivity extends Activity {
         setContentView(root);render();if(visible){handler.removeCallbacks(poll);handler.post(poll);}
     }
     private void refresh(){
-        if(voiceActive||!visible||!remoteScreen||runtime==null||runtime.writing.get()||!runtime.reading.compareAndSet(false,true))return;
+        if(!visible||!remoteScreen||runtime==null||runtime.writing.get()||!runtime.reading.compareAndSet(false,true))return;
         int generation=epoch;
         runtime.operations.execute(()->{
             if(!visible||!remoteScreen||generation!=epoch){runtime.reading.set(false);return;}
@@ -100,73 +84,40 @@ public final class RemoteActivity extends Activity {
                 render();});
         });
     }
-    private void updateButtons(){for(Button button:controls){Binding binding=(Binding)button.getTag();boolean release=runtime.activeHold!=null&&binding.action().equals("stop")&&binding.target().equals(runtime.activeHold.target);boolean held=button==heldButton&&runtime.activeHold!=null&&!runtime.activeHold.released.get();button.setEnabled(release||held||(state!=null&&(!stale||binding.action().equals("stop"))&&!runtime.writing.get()&&(!voiceActive||binding.action().equals("stop"))&&binding.allowed()));}
-        if(voiceButton!=null){voiceButton.setText(voiceActive?"Отменить голос":"Голос");voiceButton.setEnabled(voiceActive||(state!=null&&!runtime.writing.get()));}
-        if(voiceConfirmButton!=null){voiceConfirmButton.setVisibility(voiceConfirmation==null?View.GONE:View.VISIBLE);voiceConfirmButton.setEnabled(voiceConfirmation!=null&&!runtime.writing.get());}
+    private void updateButtons(){for(Button button:controls){Binding binding=(Binding)button.getTag();boolean release=runtime.activeHold!=null&&binding.action().equals("stop")&&binding.target().equals(runtime.activeHold.target);boolean held=button==heldButton&&runtime.activeHold!=null&&!runtime.activeHold.released.get();button.setEnabled(release||held||(state!=null&&(!stale||binding.action().equals("stop"))&&!runtime.writing.get()&&binding.allowed()));}
+        updateVoiceUi();
     }
-    boolean voiceKeyAvailable(){return visible&&remoteScreen&&focused;}
+    // The former push-to-talk/wheel execution path is retired from this Activity.
+    boolean voiceKeyAvailable(){return false;}
     int voiceKeyGeneration(){return epoch;}
     void toggleVoice(){
-        if(voiceActive){cancelVoice();feedback.setText("Голосовая команда отменена.");refresh();return;}
-        clearVoiceConfirmation();
-        if(!visible||!remoteScreen||!focused||state==null||runtime.writing.get()){if(feedback!=null)feedback.setText("Пульт ещё не готов или выполняет действие. Нажмите голос после завершения.");return;}
-        if(checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},41);return;}
-        int generation=epoch;
-        voiceActive=true;updateButtons();
-        if(voiceInput==null)voiceInput=new VoiceInput(getApplicationContext());
-        voiceInput.start(new VoiceInput.Listener(){
-            private boolean current(){return voiceActive&&visible&&remoteScreen&&!isDestroyed()&&generation==epoch;}
-            public void onStatus(String message){if(current())feedback.setText(message);}
-            public void onError(String message){if(!current())return;voiceActive=false;feedback.setText(message);updateButtons();refresh();}
-            public void onResult(JSONObject result){
-                if(!current())return;
-                voiceActive=false;
-                final VoiceCommands.Assessment assessment;
-                try{assessment=VoiceCommands.assessVosk(result.toString());}
-                catch(Exception error){recordVoiceDecision(result.optString("text"),"rejected",error.getMessage());feedback.setText("«"+result.optString("text")+"» · "+error.getMessage());updateButtons();refresh();return;}
-                VoiceCommands.Plan plan=assessment.plan();
-                if(assessment.needsConfirmation()){
-                    voiceConfirmation=plan;voiceConfirmationEpoch=generation;
-                    recordVoiceDecision(plan.text(),"confirmation_required",assessment.reason());
-                    feedback.setText("Распознано: «"+plan.text()+"». План: "+describeVoicePlan(plan)+".\n"+assessment.reason()+" Нажмите «Выполнить план» или скажите заново.");
-                    updateButtons();refresh();return;
-                }
-                recordVoiceDecision(plan.text(),"accepted",assessment.reason());
-                executeVoicePlan(plan,generation);
-            }
-        });
+        if(WakeProbeService.active){HandsFreeAccess.stop(this);}
+        else {HandsFreeAccess.setEnabled(this,true);HandsFreeAccess.request(this,41);}
+        updateVoiceUi();
     }
-    private void executeVoicePlan(VoiceCommands.Plan plan,int generation){
-        if(!voiceKeyAvailable()||generation!=epoch)return;
-        if(!runtime.writing.compareAndSet(false,true)){feedback.setText("Пульт занят. Голосовая команда не поставлена в очередь.");updateButtons();return;}
-        feedback.setText("«"+plan.text()+"» · "+(runtime.reading.get()?"ожидаю текущее чтение…":"выполняю…"));updateButtons();
-        runtime.operations.execute(()->{
-            String message;
-            try{message=VoiceCommands.execute(plan,runtime.controller,()->visible&&remoteScreen&&focused&&generation==epoch).message();}
-            catch(Exception error){message=error.getMessage()+". Команда не повторялась.";}
-            finally{runtime.writing.set(false);}
-            String answer=message;handler.post(()->{if(!visible||!remoteScreen||isDestroyed()||generation!=epoch)return;
-                feedback.setText("«"+plan.text()+"» · "+answer);updateButtons();refresh();});
-        });
+    private void cancelVoice(){WakeProbeService.cancelCurrentTurn();}
+    private final Runnable voicePoll=new Runnable(){public void run(){if(visible&&remoteScreen){updateVoiceUi();handler.postDelayed(this,180);}}};
+    private void updateVoiceUi(){
+        if(voiceButton==null||voiceStatus==null)return;
+        voiceButton.setText(WakeProbeService.active?"Микрофон: вкл":"Микрофон: выкл");voiceButton.setEnabled(true);
+        JSONObject s=WakeProbeService.snapshot();String turn=s.optString("turn_stage"),text=s.optString("turn_text");
+        if(turn.equals("LISTENING"))voiceStatus.setText("🎙 Слушаю… "+text);
+        else if(turn.equals("REVIEW"))voiceStatus.setText("Подтвердите план: "+s.optString("turn_message"));
+        else if(turn.equals("EXECUTING"))voiceStatus.setText("Выполняю: "+s.optString("turn_message"));
+        else if(turn.equals("RESULT"))voiceStatus.setText(text+" · "+s.optString("turn_message"));
+        else if(turn.equals("TIMEOUT"))voiceStatus.setText("Время ожидания команды истекло"+(text.isEmpty()?"":" · "+text));
+        else if(WakeProbeService.active&&!s.optBoolean("ready"))voiceStatus.setText(s.optString("status"));
+        else if(WakeProbeService.active)voiceStatus.setText("Скажите «Привет, Денза»"+(s.optString("last_command").isEmpty()?"":" · Последняя команда: "+s.optString("last_command")));
+        else {String missing=HandsFreeAccess.missing(this);voiceStatus.setText(!missing.isEmpty()?missing+" · нажмите «Микрофон»":HandsFreeAccess.enabled(this)?s.optString("status"):"Микрофон выключен");}
     }
-    private String describeVoicePlan(VoiceCommands.Plan plan){return VoiceCommands.describe(plan);}
-    private void recordVoiceDecision(String text,String decision,String reason){
-        if(voiceInput==null)return;
-        try{voiceInput.recordDecision(new JSONObject().put("time_ms",System.currentTimeMillis()).put("text",text).put("decision",decision).put("reason",reason));}
-        catch(JSONException ignored){/* Diagnostic metadata cannot authorize an action. */}
-    }
-    private void clearVoiceConfirmation(){
-        if(voiceConfirmation!=null)recordVoiceDecision(voiceConfirmation.text(),"cancelled","План отменён или заменён");
-        voiceConfirmation=null;if(voiceConfirmButton!=null)voiceConfirmButton.setVisibility(View.GONE);
-    }
-    private void cancelVoice(){
-        clearVoiceConfirmation();
-        voiceActive=false;if(voiceInput!=null)voiceInput.cancel();
-        if(runtime!=null&&voiceButton!=null)updateButtons();
+    private void startHandsFreeIfEnabled(){
+        if(visible&&remoteScreen&&HandsFreeAccess.enabled(this)&&!WakeProbeService.active&&HandsFreeAccess.missing(this).isEmpty())HandsFreeAccess.start(this);
+        updateVoiceUi();
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] results){
         super.onRequestPermissionsResult(request,permissions,results);
-        if(request==41&&feedback!=null&&remoteScreen)feedback.setText(results.length>0&&results[0]==android.content.pm.PackageManager.PERMISSION_GRANTED?"Микрофон разрешён. Нажмите «Голос» и дождитесь «Говорите».":"Доступ к микрофону не разрешён.");
+        if(request==41&&results.length>0&&results[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)HandsFreeAccess.request(this,41);
+        updateVoiceUi();
     }
     private void action(String target,String action){
         cancelVoice();
@@ -180,8 +131,7 @@ public final class RemoteActivity extends Activity {
         });
     }
     private void startHold(Button source,String target,String direction){
-        if(voiceActive)return;
-        clearVoiceConfirmation();
+        cancelVoice();
         if(!visible||!remoteScreen||!runtime.writing.compareAndSet(false,true))return;
         final NativeController.Hold hold;
         try{hold=runtime.controller.newHold(target,direction);}catch(Exception failure){runtime.writing.set(false);feedback.setText(failure.getMessage());return;}
@@ -430,13 +380,13 @@ public final class RemoteActivity extends Activity {
         }
     }
 
-    @Override protected void onPause(){visible=false;epoch++;cancelVoice();VoiceKeyService.detach(this);handler.removeCallbacks(poll);releaseHold();super.onPause();}
+    @Override protected void onPause(){visible=false;epoch++;handler.removeCallbacks(poll);handler.removeCallbacks(voicePoll);releaseHold();super.onPause();}
     @Override public void onWindowFocusChanged(boolean hasFocus){
         super.onWindowFocusChanged(hasFocus);boolean changed=focused!=hasFocus;focused=hasFocus;
-        if(changed&&!hasFocus){epoch++;cancelVoice();releaseHold();}
+        if(changed&&!hasFocus){epoch++;releaseHold();}
         else if(changed&&hasFocus&&visible&&remoteScreen)refresh();
     }
-    @Override protected void onResume(){super.onResume();visible=true;VoiceKeyService.attach(this);if(remoteScreen){if(feedback!=null&&runtime.activeHold==null)feedback.setText("Выберите действие. Принятие команды ещё не подтверждает движение.");handler.removeCallbacks(poll);handler.post(poll);}}
-    @Override protected void onDestroy(){if(voiceInput!=null)voiceInput.close();VoiceKeyService.detach(this);handler.removeCallbacksAndMessages(null);releaseHold();super.onDestroy();}
-    @Override public void onBackPressed(){cancelVoice();releaseHold();super.onBackPressed();}
+    @Override protected void onResume(){super.onResume();visible=true;if(remoteScreen){if(feedback!=null&&runtime.activeHold==null)feedback.setText("Выберите действие. Принятие команды ещё не подтверждает движение.");handler.removeCallbacks(poll);handler.post(poll);handler.removeCallbacks(voicePoll);handler.post(voicePoll);startHandsFreeIfEnabled();}}
+    @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);releaseHold();super.onDestroy();}
+    @Override public void onBackPressed(){releaseHold();super.onBackPressed();}
 }

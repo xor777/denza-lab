@@ -1,0 +1,131 @@
+[
+  {
+    "candidate": {
+      "text": "привет дэн за",
+      "result": [
+        {
+          "conf": 1,
+          "end": 0.6,
+          "start": 0.15,
+          "word": "привет"
+        },
+        {
+          "conf": 1,
+          "end": 0.9,
+          "start": 0.6,
+          "word": "дэн"
+        },
+        {
+          "conf": 1,
+          "end": 1.11,
+          "start": 0.9,
+          "word": "за"
+        }
+      ]
+    },
+    "verification": {
+      "text": "привет бензо",
+      "result": [
+        {
+          "conf": 1,
+          "end": 0.6,
+          "start": 0.15,
+          "word": "привет"
+        },
+        {
+          "conf": 0.747864,
+          "end": 1.11,
+          "start": 0.6,
+          "word": "бензо"
+        }
+      ]
+    },
+    "expected": true
+  },
+  {
+    "candidate": {
+      "text": "привет дэн за",
+      "result": [
+        {
+          "conf": 1,
+          "end": 0.57,
+          "start": 0.18,
+          "word": "привет"
+        },
+        {
+          "conf": 1,
+          "end": 0.9,
+          "start": 0.57,
+          "word": "дэн"
+        },
+        {
+          "conf": 1,
+          "end": 1.11,
+          "start": 0.9,
+          "word": "за"
+        }
+      ]
+    },
+    "verification": {
+      "text": "привет бензо",
+      "result": [
+        {
+          "conf": 1,
+          "end": 0.6,
+          "start": 0.18,
+          "word": "привет"
+        },
+        {
+          "conf": 1,
+          "end": 1.11,
+          "start": 0.6,
+          "word": "бензо"
+        }
+      ]
+    },
+    "expected": true
+  },
+  {
+    "candidate": {
+      "text": "привет дэн за",
+      "result": [
+        {
+          "word": "привет",
+          "conf": 1,
+          "start": 0,
+          "end": 0.6
+        },
+        {
+          "word": "дэн",
+          "conf": 1,
+          "start": 0.6,
+          "end": 0.87
+        },
+        {
+          "word": "за",
+          "conf": 1,
+          "start": 0.87,
+          "end": 1.05
+        }
+      ]
+    },
+    "verification": {
+      "text": "привет энзо",
+      "result": [
+        {
+          "word": "привет",
+          "conf": 1,
+          "start": 0,
+          "end": 0.644219
+        },
+        {
+          "word": "энзо",
+          "conf": 0.370285,
+          "start": 0.69,
+          "end": 1.05
+        }
+      ]
+    },
+    "expected": true
+  }
+]
