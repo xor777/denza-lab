@@ -380,6 +380,22 @@ firmware research and exact live boundaries.
 
 ## «Привет, Денза» and speaker seat (0.3.8)
 
+### Reliable call detection
+
+Replaying the 14 recorded car decodes: the previous detector accepted 2 of 6 real calls; the
+unrestricted pass spelled the name «дэнс», «за», «бензо» and only exact strings were accepted.
+Now the narrow pass decides (call at the start of the utterance, scores ≥ 0.75, up to 0.9 s after
+«привет», 0.45–3 s) and the unrestricted pass only vetoes: it must hear «привет» in the same place,
+and the words in the name's place, taken together, must not be a confident (≥ 0.9) word that sounds
+unlike «денза» (sound-key distance > 0.3; «Денис», «где заправка» veto, «дэнс», «за», «бензо» do not).
+Words after the name are allowed: one breath «Привет, Денза, открой окно» is a call plus a command.
+A lone «привет» waits 1.5 s for the name in the next utterance. All six microphone candidates are kept
+per utterance and the one with the most voiced energy is decoded; pre-roll is 0.4 s; an 8 s ring and
+the words after the name feed the command recognizer first, so speech started while the call was
+being recognised is kept. The narrow pass runs first, the newest utterance replaces a waiting one.
+Replay result: 6 of 6 calls accepted, 8 other utterances rejected. Not yet run on the car.
+
+
 Open **Привет, Денза** in the remote header, then **Слушать**. This is a
 separate observation Activity: no `NativeRuntime`, command parser or vehicle
 writes. A microphone foreground service keeps listening after **Оставить в фоне**;

@@ -7,10 +7,12 @@ public class WakeProbeTest {
     private JSONObject phrase(String text,double conf)throws Exception {JSONObject r=new JSONObject().put("text",text);JSONArray a=new JSONArray();String[] words=text.split(" ");for(int i=0;i<words.length;i++)a.put(new JSONObject().put("word",words[i]).put("conf",conf).put("start",i*0.4).put("end",i*0.4+0.35));return r.put("result",a);}
     @Test public void wakeRequiresWholePhoneticPhraseAndFiniteScores()throws Exception {
         assertTrue(WakePhrase.accepts(phrase("привет ден за",0.96)));assertTrue(WakePhrase.accepts(phrase("привет дэн за",0.96)));
-        for(String s:List.of("привет","ден за","привет денис","привет ден за открой окно","[unk] привет ден за"))assertFalse(s,WakePhrase.accepts(phrase(s,1)));
-        assertFalse(WakePhrase.verifies(phrase("привет где заправка",1)));
-        assertFalse(WakePhrase.verifies(phrase("привет денис",1)));
-        assertTrue(WakePhrase.verifies(phrase("привет день за",0.65)));
+        for(String s:List.of("привет","ден за","привет денис","[unk] привет ден за","открой окно привет ден за"))assertFalse(s,WakePhrase.accepts(phrase(s,1)));
+        // One breath: the call starts the utterance, the command follows the name.
+        assertTrue(WakePhrase.accepts(phrase("привет ден за [unk] [unk]",1)));
+        assertFalse(WakePhrase.matches(phrase("привет ден за",1),phrase("привет где заправка",1)));
+        assertFalse(WakePhrase.matches(phrase("привет ден за",1),phrase("привет денис",1)));
+        assertTrue(WakePhrase.matches(phrase("привет ден за",1),phrase("привет день за",0.65)));
         assertFalse(WakePhrase.accepts(phrase("привет ден за",0.5)));assertFalse(WakePhrase.accepts(new JSONObject().put("text","привет ден за")));
         JSONObject r=phrase("привет ден за",1);r.getJSONArray("result").getJSONObject(1).put("start",3).put("end",3.4);assertFalse(WakePhrase.accepts(r));
     }

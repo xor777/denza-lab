@@ -26,6 +26,11 @@ public final class WakeProbeService extends Service {
     static void cancelCurrentTurn(){TURN.cancel();}
     private AssistantOverlay overlay;
     private volatile CommandAudio commandAudio;
+    /** A command stream waiting for the capture thread to hand it the audio recorded since the call. */
+    private record Prime(CommandAudio stream,long from) { }
+    private volatile Prime pendingPrime;
+    /** The last utterance was only «привет»; the name may come in the next one (decoder thread only). */
+    private CabinSpeech.Utterance pendingHello;
     private volatile boolean resetGate;
     private final Runnable renderTurn=new Runnable(){public void run(){
         if(!running)return;
@@ -123,6 +128,8 @@ public final class WakeProbeService extends Service {
                 if(count<0)throw new IOException("Ошибка чтения микрофона: "+count);
                 if(resetGate){gate.resetUtterance();resetGate=false;}
                 if(count>0)gate.add(pcm,count,frames);else SystemClock.sleep(5);
+                Prime prime=pendingPrime;
+                if(prime!=null){pendingPrime=null;prime.stream().prime(gate.since(prime.from(),prime.stream().microphone));commandAudio=prime.stream();}
                 level=gate.level;levels=gate.levels;phase=decoding?"Распознаю захваченную речь…":gate.speaking()?"Слышу речь…":"Микрофон работает · жду речь";
                 long now=SystemClock.elapsedRealtime();
                 if(now>=nextConfig) {
@@ -147,12 +154,22 @@ public final class WakeProbeService extends Service {
     }
     private void enqueue(CabinSpeech.Utterance speech) {
         if(!running)return;
-        if(commandAudio!=null)return;
+        if(commandAudio!=null||pendingPrime!=null)return;
         if(TURN.state().stage()==AssistantTurn.Stage.EXECUTING)return;
         boolean calibrationCapture;synchronized(calibrationLock){calibrationCapture=enrollment!=null;}
         clips++;collectCalibration(speech);
-        if(decoder.getActiveCount()>0||!decoder.getQueue().isEmpty()){decision="Речь захвачена; распознаватель занят предыдущей репликой";return;}
+        // The newest utterance replaces one still waiting: a call must not be dropped behind chatter.
+        if(decoder.getActiveCount()>0||!decoder.getQueue().isEmpty()){decoder.getQueue().clear();decision="Речь захвачена; распознаю после текущей реплики";}
         decoder.execute(()->decode(speech,calibrationCapture));
+    }
+    /** «Привет» and the name cut apart by a long pause, as one utterance with at most 0.3 s between. */
+    static CabinSpeech.Utterance joined(CabinSpeech.Utterance hello,CabinSpeech.Utterance name) {
+        int gap=(int)Math.max(0,Math.min(4800,name.startSample()-hello.endSample()));
+        short[] pcm=new short[hello.pcm().length+gap+name.pcm().length];
+        System.arraycopy(hello.pcm(),0,pcm,0,hello.pcm().length);
+        System.arraycopy(name.pcm(),0,pcm,hello.pcm().length+gap,name.pcm().length);
+        double[] energy=new double[6];for(int m=0;m<6;m++)energy[m]=hello.energy()[m]+name.energy()[m];
+        return new CabinSpeech.Utterance(pcm,energy,name.microphone(),hello.voicedSamples()+name.voicedSamples(),hello.startSample(),name.endSample());
     }
     private void collectCalibration(CabinSpeech.Utterance speech) {
         synchronized(calibrationLock) {
@@ -169,43 +186,60 @@ public final class WakeProbeService extends Service {
     }
     private void decode(CabinSpeech.Utterance speech,boolean calibrationCapture) {
         if(!running)return;
+        if(commandAudio!=null||pendingPrime!=null||TURN.state().listening())return; // a command turn owns the audio
         decoding=true;long begin=SystemClock.elapsedRealtime();
         try {
-            short[] pcm=CabinSpeech.normalize(speech.pcm());
-            // Always show the unrestricted transcript, including rejected wake phrases.
-            JSONObject verification=recognize(pcm,null);heard=verification.optString("text","");
+            // The narrow pass decides first; the unrestricted pass then only confirms a candidate.
+            CabinSpeech.Utterance subject=speech;
+            JSONObject candidate=recognize(CabinSpeech.normalize(subject.pcm()),WakePhrase.GRAMMAR);decoded++;
+            WakePhrase.Detection detection=WakePhrase.narrow(candidate);
+            CabinSpeech.Utterance hello=pendingHello;pendingHello=null;
+            if(!detection.accepted()&&!detection.hello()&&hello!=null&&speech.startSample()-hello.endSample()<=24000) {
+                subject=joined(hello,speech);
+                candidate=recognize(CabinSpeech.normalize(subject.pcm()),WakePhrase.GRAMMAR);decoded++;
+                detection=WakePhrase.narrow(candidate);
+            }
+            if(detection.hello())pendingHello=speech;
+            JSONObject verification=null;
+            if(detection.accepted()){verification=recognize(CabinSpeech.normalize(subject.pcm()),null);detection=WakePhrase.detect(candidate,verification);}
+            else if(decoder.getQueue().isEmpty())verification=recognize(CabinSpeech.normalize(speech.pcm()),null); // diagnostics, only when idle
+            heard=verification==null?"Распознаю следующую реплику…":verification.optString("text","");
             if(heard.isBlank())heard="Речь захвачена, слов не разобрано";
-            JSONObject candidate=recognize(pcm,WakePhrase.GRAMMAR);decoded++;
-            boolean narrow=WakePhrase.accepts(candidate),full=WakePhrase.verifies(verification),accepted=WakePhrase.matches(candidate,verification);
+            boolean accepted=detection.accepted();
             lastText=candidate.optString("text","");
-            decision=accepted?"Фраза принята":narrow?"Отказ полной модели: "+WakePhrase.reason(verification,true):"Отказ детектора: "+WakePhrase.reason(candidate,false);
+            decision=accepted?(subject==speech?"Фраза принята":"Фраза принята: «привет» и имя склеены через паузу")
+                    :detection.hello()?"Слышу «привет», жду имя":"Отказ: "+detection.reason();
             if(!running)return;
             JSONObject attempt=new JSONObject().put("time_ms",System.currentTimeMillis()).put("candidate",candidate)
-                    .put("verification",verification).put("accepted",accepted).put("reason",decision).put("mic",speech.microphone())
-                    .put("energy",new JSONArray(speech.energy())).put("decode_ms",SystemClock.elapsedRealtime()-begin);
+                    .put("verification",verification==null?JSONObject.NULL:verification).put("accepted",accepted).put("reason",decision)
+                    .put("mic",subject.microphone()).put("joined",subject!=speech).put("name_end",detection.nameEnd())
+                    .put("energy",new JSONArray(subject.energy())).put("decode_ms",SystemClock.elapsedRealtime()-begin);
             save("last-recognition.json",attempt);Log.i(TAG,"DECODE "+attempt);
             if(!accepted)return;
             if(SystemClock.elapsedRealtime()-lastHit<2000){decision="Фраза принята · пауза между отметками 2 с";return;}
-            SeatProfiles.Guess guess=profiles.guess(speech.energy());
+            SeatProfiles.Guess guess=profiles.guess(subject.energy());
             lastHit=SystemClock.elapsedRealtime();hits++;lastWake=java.time.LocalTime.now().withNano(0)+" · «Привет, Денза»";
             lastSeat=guess.calibrated()<6?"Место: калибровка "+guess.calibrated()+"/6 кресел":guess.label();
             JSONObject event=snapshot().put("time_ms",System.currentTimeMillis()).put("asr",candidate).put("verification",verification)
-                    .put("mic",speech.microphone()).put("energy",new JSONArray(speech.energy()))
+                    .put("mic",subject.microphone()).put("energy",new JSONArray(subject.energy()))
                     .put("seat_score",guess.score()).put("seat_margin",guess.margin())
                     .put("decode_ms",SystemClock.elapsedRealtime()-begin).put("commands_enabled",HandsFreeAccess.executionEnabled(this));
             save("last-wake.json",event);Log.i(TAG,"WAKE "+event);
             boolean calibrating;synchronized(calibrationLock){calibrating=enrollment!=null;}
-            if(!calibrating&&!calibrationCapture)listenForCommand(speech);
+            if(!calibrating&&!calibrationCapture)listenForCommand(subject,detection.nameEnd());
         }catch(Exception|LinkageError e){if(running){Log.w(TAG,"Decode failed",e);status="Ошибка распознавания: "+e.getMessage();running=false;stopRecorder();}}
         finally{decoding=false;}
     }
-    private void listenForCommand(CabinSpeech.Utterance wake) throws Exception {
+    private void listenForCommand(CabinSpeech.Utterance wake,double nameEnd) throws Exception {
         if(!running)return;
         pendingRoute=null;pendingTurn=0;
         long id=TURN.arm(lastSeat,SystemClock.elapsedRealtime());
         int peak=0;for(short sample:wake.pcm())peak=Math.max(peak,Math.abs((int)sample));
         CommandAudio stream=new CommandAudio(id,wake.microphone(),peak==0?1:Math.min(8,12000.0/peak));
-        commandAudio=stream;
+        // Words after the name in the same breath, then everything recorded since the call ended.
+        int tail=(int)Math.min(wake.pcm().length,Math.max(0,Math.round((nameEnd+0.05)*16000)));
+        stream.prime(Arrays.copyOfRange(wake.pcm(),tail,wake.pcm().length));
+        pendingPrime=new Prime(stream,wake.endSample());
         try(Recognizer recognizer=new Recognizer(model,16000,commandGrammar)) {
             recognizer.setWords(true);long nextPartial=0;JSONObject endpoint=null;
             while(running&&TURN.listening(id)) {
@@ -228,7 +262,7 @@ public final class WakeProbeService extends Service {
                 Log.i(TAG,"COMMAND "+result.stage()+" turn="+id+" words="+(result.text().isBlank()?0:result.text().split(" ").length));
                 if(result.stage()==AssistantTurn.Stage.RESULT&&endpoint!=null)routeCommand(id,endpoint);
             }
-        } finally {if(commandAudio==stream)commandAudio=null;resetGate=true;}
+        } finally {Prime prime=pendingPrime;if(prime!=null&&prime.stream()==stream)pendingPrime=null;if(commandAudio==stream)commandAudio=null;resetGate=true;}
     }
     private void routeCommand(long id,JSONObject endpoint) {
         if(!running||!TURN.current(id))return;
