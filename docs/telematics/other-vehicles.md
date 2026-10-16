@@ -9,12 +9,14 @@ Updated 2026-10-16.
 | Claim | Status | Section |
 |---|---|---|
 | N9, September Android 13 firmware, owner-reported rSIM: native and manual ready=4 reach DNS/TLS and fresh registration replies with code 9; TCP remains 0 | live, 2026-10-16 | [N9 registration refusal](#denza-n9-registration-reply-9-2026-10-16) |
+| Same N9 after the owner switches to factory eSIM: one ready=4 completes registration and login over Wi-Fi; TCP 1, keepalive replies and native status response 511 observed | live, 2026-10-16; phone display, commands and sleep not tested | [Factory eSIM follow-up](#n9-factory-esim-follow-up-same-day) |
 | Hexadecimal ICCID characters alone explain N9 code 9 | unproven; Android full getter preserves hex, reference native code copies it, and the owner reports the same rSIM worked in another car | [N9 identity interpretation](#denza-n9-registration-reply-9-2026-10-16) |
 | U9: ready=4 reaches the client, but its downstream behavior is unverified with the retained filtered reports | owner-supplied reports, 2026-09-28 | [U9](#yangwang-u9--android-12-ready-notification-arrives-without-connection-2026-09-28) |
 
 ## Contents
 
 - [Denza N9: registration reply 9, 2026-10-16](#denza-n9-registration-reply-9-2026-10-16)
+- [N9 factory eSIM follow-up, same day](#n9-factory-esim-follow-up-same-day)
 - [Yangwang U9 / Android 12: ready notification arrives without connection, 2026-09-28](#yangwang-u9--android-12-ready-notification-arrives-without-connection-2026-09-28)
 
 ## Denza N9: registration reply 9, 2026-10-16
@@ -92,6 +94,46 @@ under the firmware's control; the initial profile was retained.
 Evidence (local, ignored): `captures/n9-cloud-20261016/` contains the plan,
 read-only collector, before/after/final snapshots and redacted native/framework
 logs. The bounded host log observers were stopped; the ADB transport was retained.
+
+### N9 factory eSIM follow-up, same day
+
+The owner switched from rSIM to the original Chinese eSIM and requested another
+check. Firmware was unchanged; uptime had reset outside this session and native
+PID was now 114. SIM was LOADED, operator 46013, with decimal identity lengths
+15/20. Both cellular APN interfaces were empty and APN3 was disconnected.
+Validated Wi-Fi was the default network. The existing `double_apn` / APN1-disabled
+configuration was retained; no reboot, SIM, identity or network-setting change
+was made by this session.
+
+With TCP still 0, one authorized `service call cloudmanager 1 i32 4` was sent.
+The bounded capture records, in **Moscow time**:
+
+- **16:59:27.032**: native ready=4; **16:59:29.663**: TLS verification succeeds.
+- **16:59:30.016**: fresh `211 reg_status 1`; **16:59:31.598**: discovery 200 reply.
+- **16:59:33.504**: 220 reply flag 1, `cloudService login success`, TCP 1.
+- **16:59:35.360**: one disconnect; **16:59:37.746**: stock client logs in again
+  without another ready notification. Keepalive 201 replies arrive at
+  **16:59:38.005** and **17:00:26.188**.
+- **16:59:53.368**: incoming request 511 is handled by the native CAN-FD status
+  branch, followed by successful sending of 511 at **16:59:53.371**. This is not
+  a measured SOC value or independent confirmation of the phone's display.
+- **17:01:35**: TCP remains 1, `sys.tcp_step=6`, registration code 1,
+  `app_reg_status=2`, `token_flag=1`, native PID still 114. At **17:01:50**, the
+  established port-6041 socket's source address matches `wlan0`, with TCP still 1.
+  Wi-Fi transport is therefore confirmed for this run. `ss` also emitted a
+  netlink permission warning, but returned the established socket row.
+
+The connection was left running. Host log readers were stopped after 90 seconds;
+no APK was installed, no remote control command was sent, and sleep was not tested.
+Evidence: `esim-before.json`, `esim-attempt-{native,framework}.txt`,
+`esim-after-ready.json`, `esim-final.json`, `esim-transport.txt` and the receipt
+in the same ignored capture directory.
+
+This establishes a working stock-cloud path on this N9 with factory eSIM and
+Wi-Fi. It does **not** isolate the earlier refusal to ICCID letters: the SIM pair,
+process lifetime and modem/transport state changed together, and the previous
+rSIM socket's actual transport was not established. Code 9's vendor meaning
+remains unknown; the earlier claim that letters alone explain it remains unproven.
 
 ## Yangwang U9 / Android 12: ready notification arrives without connection, 2026-09-28
 
