@@ -1,6 +1,6 @@
 # Native Denza vehicle-control prototype
 
-Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.0 / code 4, Android 13+.
+Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.1 / code 5, Android 13+.
 Native Java Views and a Java protocol controller. No WebView, JavaScript, Python,
 Chaquopy, HTTP server or laptop dependency. This remains an opt-in experiment.
 
@@ -19,8 +19,9 @@ format/path are unchanged from 0.2.1; update with `adb install -r`, never uninst
 or clear data. The existing authorized app identity and STOP journal survive.
 The owner approved the app identity on 0.2.1. Native 0.3.0 was installed over it
 on N9: installed APK hash matched, the key was preserved and real GET/climate UI
-worked. Physical seat/HVAC acceptance remains pending. The owner reported polling
-flicker in 0.3.0; that UI defect is being fixed.
+worked. Physical seat/HVAC acceptance remains pending. Polling flicker reported in
+0.3.0 is fixed in the installed 0.3.1: live readings and enabled controls persist
+across updates. The authorized key remains unchanged.
 
 Host remote and APK share the working branch `codex/vehicle-control-remote`.
 
@@ -61,8 +62,12 @@ null callback. Accepted is one raw HAL word 1; an accepted call does not prove m
 The process owns one controller and one operation lock. Activity recreation reuses
 it without waiting for a read or losing pending STOP. All ADB work runs off the UI
 thread. Reads poll every 4s only while the remote is foreground; no service or boot
-receiver runs. A busy operation never queues another press. Paused/destroyed screens
-reject new actions and ignore stale callbacks; an in-flight transaction completes.
+receiver runs. Polling updates attached Views in place without a busy banner or
+disabling controls. One explicit user intent may wait for the current read, then
+checks fresh guards; additional writes are not queued. A released hold waiting for
+a read cannot start later. Paused/destroyed screens reject new actions and ignore
+stale callbacks; an in-flight transaction completes. Failed reads retain visibly
+stale values and disable new writes while keeping STOP available.
 
 ### Seats: hold rather than tap pulses
 
@@ -104,9 +109,14 @@ connection. The 34 host tests still pass against the shared catalog.
 ARM64 Android 35 tests exercise native Views/seat selector and pause-release, actual
 Android shell early release/refused/malformed/no-refresh, held refresh/release,
 deadline and broken-output STOP execution. Measured watchdog run: 4950 ms.
-Native 0.3.0 was installed by the root session; read-only live UI checks passed.
-The implementing subagent did not access the car. See the findings document for
-the exact installed hash and the owner's polling-flicker report.
+Native 0.3.1 was installed by the root session. Three read-only live UI snapshots
+across polling cycles retained data and enabled controls without the busy banner.
+Nine Android tests include View/focus/selector stability, one intent during a read,
+early/late hold release, stepper boundaries, recovery insertion and stale lifecycle.
+Final code commit `26b86dd5` changes only resume copy after those tests; 17 JVM tests,
+build and lint passed again. Installed SHA-256:
+`2cac520d42bf67d3c6efe117af47f30ea8c1a1e6d199e65314b408b09c5ba453`.
+The implementing subagent did not access the car.
 
 ### Climate
 
