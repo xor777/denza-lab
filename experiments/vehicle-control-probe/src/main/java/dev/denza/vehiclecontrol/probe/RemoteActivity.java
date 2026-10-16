@@ -20,6 +20,9 @@ public final class RemoteActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private TextView status,feedback;
     private Button voiceButton;
+    private Button voiceConfirmButton;
+    private VoiceCommands.Plan voiceConfirmation;
+    private int voiceConfirmationEpoch;
     private VoiceInput voiceInput;
     private boolean voiceActive;
     private LinearLayout body;
@@ -60,6 +63,14 @@ public final class RemoteActivity extends Activity {
             catch(Exception error){feedback.setText("Откройте системные настройки специальных возможностей: Голос пульта · кнопка руля");}
             return true;
         });header.addView(voiceButton);
+        voiceConfirmButton=button("Выполнить план");voiceConfirmButton.setVisibility(View.GONE);
+        voiceConfirmButton.setOnClickListener(v->{
+            VoiceCommands.Plan plan=voiceConfirmation;int generation=voiceConfirmationEpoch;
+            clearVoiceConfirmation();
+            if(plan==null||!voiceKeyAvailable()||generation!=epoch)return;
+            recordVoiceDecision(plan.text(),"confirmed","Подтверждено нажатием");
+            executeVoicePlan(plan,generation);
+        });header.addView(voiceConfirmButton);
         Button access=button("Доступ ADB");access.setOnClickListener(v->showAccess());header.addView(access);
         Button update=button("Обновить");update.setOnClickListener(v->refresh());header.addView(update);root.addView(header);
         status=text("Читаю состояние автомобиля…",16,ACCENT);root.addView(status);
@@ -91,11 +102,13 @@ public final class RemoteActivity extends Activity {
     }
     private void updateButtons(){for(Button button:controls){Binding binding=(Binding)button.getTag();boolean release=runtime.activeHold!=null&&binding.action().equals("stop")&&binding.target().equals(runtime.activeHold.target);boolean held=button==heldButton&&runtime.activeHold!=null&&!runtime.activeHold.released.get();button.setEnabled(release||held||(state!=null&&(!stale||binding.action().equals("stop"))&&!runtime.writing.get()&&(!voiceActive||binding.action().equals("stop"))&&binding.allowed()));}
         if(voiceButton!=null){voiceButton.setText(voiceActive?"Отменить голос":"Голос");voiceButton.setEnabled(voiceActive||(state!=null&&!runtime.writing.get()));}
+        if(voiceConfirmButton!=null){voiceConfirmButton.setVisibility(voiceConfirmation==null?View.GONE:View.VISIBLE);voiceConfirmButton.setEnabled(voiceConfirmation!=null&&!runtime.writing.get());}
     }
     boolean voiceKeyAvailable(){return visible&&remoteScreen&&focused;}
     int voiceKeyGeneration(){return epoch;}
     void toggleVoice(){
         if(voiceActive){cancelVoice();feedback.setText("Голосовая команда отменена.");refresh();return;}
+        clearVoiceConfirmation();
         if(!visible||!remoteScreen||!focused||state==null||runtime.writing.get()){if(feedback!=null)feedback.setText("Пульт ещё не готов или выполняет действие. Нажмите голос после завершения.");return;}
         if(checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},41);return;}
         int generation=epoch;
@@ -108,23 +121,52 @@ public final class RemoteActivity extends Activity {
             public void onResult(JSONObject result){
                 if(!current())return;
                 voiceActive=false;
-                final VoiceCommands.Plan plan;
-                try{plan=VoiceCommands.parseVosk(result.toString());}
-                catch(Exception error){feedback.setText("«"+result.optString("text")+"» · "+error.getMessage());updateButtons();refresh();return;}
-                if(!runtime.writing.compareAndSet(false,true)){feedback.setText("Пульт занят. Голосовая команда не поставлена в очередь.");updateButtons();return;}
-                feedback.setText("«"+plan.text()+"» · "+(runtime.reading.get()?"ожидаю текущее чтение…":"выполняю…"));updateButtons();
-                runtime.operations.execute(()->{
-                    String message;
-                    try{message=VoiceCommands.execute(plan,runtime.controller,()->visible&&remoteScreen&&focused&&generation==epoch).message();}
-                    catch(Exception error){message=error.getMessage()+". Команда не повторялась.";}
-                    finally{runtime.writing.set(false);}
-                    String answer=message;handler.post(()->{if(!visible||!remoteScreen||isDestroyed()||generation!=epoch)return;
-                        feedback.setText("«"+plan.text()+"» · "+answer);updateButtons();refresh();});
-                });
+                final VoiceCommands.Assessment assessment;
+                try{assessment=VoiceCommands.assessVosk(result.toString());}
+                catch(Exception error){recordVoiceDecision(result.optString("text"),"rejected",error.getMessage());feedback.setText("«"+result.optString("text")+"» · "+error.getMessage());updateButtons();refresh();return;}
+                VoiceCommands.Plan plan=assessment.plan();
+                if(assessment.needsConfirmation()){
+                    voiceConfirmation=plan;voiceConfirmationEpoch=generation;
+                    recordVoiceDecision(plan.text(),"confirmation_required",assessment.reason());
+                    feedback.setText("Распознано: «"+plan.text()+"». План: "+describeVoicePlan(plan)+".\n"+assessment.reason()+" Нажмите «Выполнить план» или скажите заново.");
+                    updateButtons();refresh();return;
+                }
+                recordVoiceDecision(plan.text(),"accepted",assessment.reason());
+                executeVoicePlan(plan,generation);
             }
         });
     }
+    private void executeVoicePlan(VoiceCommands.Plan plan,int generation){
+        if(!voiceKeyAvailable()||generation!=epoch)return;
+        if(!runtime.writing.compareAndSet(false,true)){feedback.setText("Пульт занят. Голосовая команда не поставлена в очередь.");updateButtons();return;}
+        feedback.setText("«"+plan.text()+"» · "+(runtime.reading.get()?"ожидаю текущее чтение…":"выполняю…"));updateButtons();
+        runtime.operations.execute(()->{
+            String message;
+            try{message=VoiceCommands.execute(plan,runtime.controller,()->visible&&remoteScreen&&focused&&generation==epoch).message();}
+            catch(Exception error){message=error.getMessage()+". Команда не повторялась.";}
+            finally{runtime.writing.set(false);}
+            String answer=message;handler.post(()->{if(!visible||!remoteScreen||isDestroyed()||generation!=epoch)return;
+                feedback.setText("«"+plan.text()+"» · "+answer);updateButtons();refresh();});
+        });
+    }
+    private String describeVoicePlan(VoiceCommands.Plan plan){
+        Map<String,String> labels=Map.of("fl","переднее левое окно","fr","переднее правое окно","rl","заднее левое окно","rr","заднее правое окно",
+            "door.fl","передняя левая дверь","door.fr","передняя правая дверь","door.rl","задняя левая дверь","door.rr","задняя правая дверь");
+        Map<String,String> verbs=Map.of("open","открыть","close","закрыть","stop","остановить");
+        List<String> actions=new ArrayList<>();for(VoiceCommands.Command command:plan.commands())actions.add(verbs.get(command.action())+": "+labels.get(command.target()));
+        return String.join("; ",actions);
+    }
+    private void recordVoiceDecision(String text,String decision,String reason){
+        if(voiceInput==null)return;
+        try{voiceInput.recordDecision(new JSONObject().put("time_ms",System.currentTimeMillis()).put("text",text).put("decision",decision).put("reason",reason));}
+        catch(JSONException ignored){/* Diagnostic metadata cannot authorize an action. */}
+    }
+    private void clearVoiceConfirmation(){
+        if(voiceConfirmation!=null)recordVoiceDecision(voiceConfirmation.text(),"cancelled","План отменён или заменён");
+        voiceConfirmation=null;if(voiceConfirmButton!=null)voiceConfirmButton.setVisibility(View.GONE);
+    }
     private void cancelVoice(){
+        clearVoiceConfirmation();
         voiceActive=false;if(voiceInput!=null)voiceInput.cancel();
         if(runtime!=null&&voiceButton!=null)updateButtons();
     }
@@ -145,6 +187,7 @@ public final class RemoteActivity extends Activity {
     }
     private void startHold(Button source,String target,String direction){
         if(voiceActive)return;
+        clearVoiceConfirmation();
         if(!visible||!remoteScreen||!runtime.writing.compareAndSet(false,true))return;
         final NativeController.Hold hold;
         try{hold=runtime.controller.newHold(target,direction);}catch(Exception failure){runtime.writing.set(false);feedback.setText(failure.getMessage());return;}

@@ -102,6 +102,23 @@ public final class VoiceInput implements AutoCloseable {
         }
     }
 
+    /** Bounded diagnostics: only the latest text/score result and latest decision, never PCM. */
+    public void recordDecision(JSONObject decision) {
+        String json=decision.toString();
+        synchronized(lifecycle){if(!closed)worker.execute(()->writeDiagnostic("last-decision.json",json));}
+    }
+
+    private void writeDiagnostic(String name,String json) {
+        File directory=new File(context.getFilesDir(),"voice");
+        try{
+            if(!directory.isDirectory()&&!directory.mkdirs())throw new IOException("voice diagnostic directory unavailable");
+            AtomicFile target=new AtomicFile(new File(directory,name));
+            FileOutputStream output=target.startWrite();
+            try{output.write(json.getBytes(StandardCharsets.UTF_8));target.finishWrite(output);}
+            catch(Exception failure){target.failWrite(output);throw failure;}
+        }catch(Exception failure){Log.w(TAG,"Could not save last voice diagnostic",failure);}
+    }
+
     @Override public void close() {
         synchronized (lifecycle) {
             if (closed) return;
@@ -158,6 +175,7 @@ public final class VoiceInput implements AutoCloseable {
         }
         final JSONObject completed = result;
         final String failed = error;
+        if(completed!=null)writeDiagnostic("last-result.json",completed.toString());
         main.post(() -> {
             if (!live(session)) return;
             if (session.abortReason != null) session.listener.onError(session.abortReason + " · " + session.levels());

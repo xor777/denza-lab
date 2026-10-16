@@ -1,6 +1,6 @@
 # Native Denza vehicle-control prototype
 
-Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.3 / code 7, Android 13+.
+Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.4 / code 8, Android 13+.
 Native Java Views and a Java protocol controller. No WebView, JavaScript, Python,
 Chaquopy, HTTP server or laptop dependency. This remains an opt-in experiment.
 
@@ -31,6 +31,31 @@ All protocol properties, windows and firmware hashes come from the single
 The Java engine does not load host Python or maintain another FID list.
 
 ## Minimal offline voice pipeline
+
+0.3.4 separates full parsing from the ASR confidence decision. The owner's exact
+«открой правое окно и левую дверь» parses to `fr:open` and `door.fl:open`.
+In0.3.3, any content-word confidence below0.85 produced the same generic error
+as an unsupported phrase; the real scores of the reported attempt were not saved.
+Low confidence remains compatible with the observed refusal; the failing word
+and its actual score cannot be recovered from that old build.
+
+A valid complete plan with low scores now shows the recognized phrase, target
+actions and exact weak-word scores, and offers **Выполнить план**. It sends
+nothing until the owner taps that button. A new recording, manual control,
+leaving/focus loss or rebuilding the screen cancels the pending plan. A complete
+high-confidence result still executes directly. Unknown/negated/extra content,
+missing/invalid scores or disagreement between words and text never offer a plan.
+The ASR grammar now covers every alias as both operands of every connector,
+including «и левую» and the exact reported phrase.
+
+Only the latest raw recognition JSON (text/word scores) and latest decision are
+retained in private `files/voice/last-result.json` and `last-decision.json`, each
+overwritten on the next result/decision. No audio is retained. These are diagnostic
+evidence, not an execution queue; pending confirmation is never restored on restart.
+Installed0.3.4/code8 SHA256 matches
+`59bd6f5860cdb25212f292d41ee52a891f2d824deb63ce0b252aaa6f93f84c0a`.
+52 JVM tests, assemble/lint passed; the earlier refused command was not replayed.
+Owner retry and confirmation UI acceptance remain pending.
 
 0.3.3 adds electric-door open/close/stop through the existing `door.fl/fr/rl/rr`
 controller actions. «Открой левую дверь», «закрой правую заднюю дверь»,
@@ -83,9 +108,10 @@ table as the ASR grammar. Unsupported words, negation, percentages and incomplet
 phrases reject the entire plan. Later contradictory actions for one window replace
 earlier ones before execution. No fuzzy direction matching is used.
 
-Vosk `[unk]`, explicit negative grammar examples and minimum content-word confidence0.85
-(conjunctions/polite filler0.5) are additional rejection
-heuristics, not a guarantee against misrecognition. Only a completed endpoint can
+Vosk `[unk]` and explicit negative grammar examples help reject unsupported speech.
+Content-word confidence0.85 (conjunctions/polite filler0.5) selects direct execution
+or explicit plan confirmation; these are heuristics, not calibrated probabilities.
+Only a completed endpoint can
 execute. Partial results and the eight-second timeout never execute; no timeout or
 refusal causes a retry. A definite refusal is reported per target; unknown results
 or leaving the screen stop the remainder. Audio stays in memory, is never saved or sent

@@ -57,6 +57,25 @@ public final class VoiceCommands {
         public Execution { outcomes = List.copyOf(outcomes); }
     }
 
+    public record WordConfidence(String word, double confidence, double minimum) {
+        public boolean weak() { return confidence < minimum; }
+    }
+
+    /** A valid named plan can require an explicit user decision when ASR scores are low. */
+    public record Assessment(Plan plan, List<WordConfidence> words, boolean needsConfirmation, String reason) {
+        public Assessment { words = List.copyOf(words); }
+    }
+
+    /** Strict callers retain their no-low-confidence-plan contract and receive the exact reason. */
+    public static final class ConfidenceRejected extends IOException {
+        private final Assessment assessment;
+        private ConfidenceRejected(Assessment assessment) {
+            super(assessment.reason());
+            this.assessment = assessment;
+        }
+        public Assessment assessment() { return assessment; }
+    }
+
     private static Map<String, List<String>> targetAliases() {
         Map<String, List<String>> targets = new LinkedHashMap<>();
         aliases(targets, ALL, "окна", "все окна", "все", "стекла", "все стекла");
@@ -159,6 +178,14 @@ public final class VoiceCommands {
             phrases.add("открой левое окно " + connector + " правую дверь");
             phrases.add("открой левое окно " + connector + " закрой заднюю правую дверь");
             phrases.add("закрой окна " + connector + " открой двери");
+            // Cover every exact target on both sides of each connector, using one opposite-scope
+            // canonical operand. This is linear in the alias catalogue, not all target permutations.
+            for (var target : TARGET_ALIASES.entrySet()) {
+                boolean door = target.getValue().get(0).startsWith("door.");
+                String counterpart = door ? "правое окно" : "левую дверь";
+                phrases.add("открой " + target.getKey() + " " + connector + " " + counterpart);
+                phrases.add("открой " + counterpart + " " + connector + " " + target.getKey());
+            }
         }
         return List.copyOf(phrases);
     }
@@ -266,40 +293,61 @@ public final class VoiceCommands {
 
     /** Accept only a complete SetWords(true) result, with every spoken word accounted for. */
     public static Plan parseVosk(String json) throws IOException {
-        if (json == null || json.length() > 16384) throw rejected();
+        Assessment assessment = assessVosk(json);
+        if (assessment.needsConfirmation()) throw new ConfidenceRejected(assessment);
+        return assessment.plan();
+    }
+
+    /** Low scores alone can request confirmation; malformed or unsupported speech never can. */
+    public static Assessment assessVosk(String json) throws IOException {
+        if (json == null || json.length() > 16384) throw invalidRecognition();
         try {
             JSONTokener tokener = new JSONTokener(json);
             Object decoded = tokener.nextValue();
-            if (!(decoded instanceof JSONObject result) || tokener.nextClean() != 0) throw rejected();
+            if (!(decoded instanceof JSONObject result) || tokener.nextClean() != 0) throw invalidRecognition();
             Object text = result.opt("text");
-            if (!(text instanceof String)) throw rejected();
+            if (!(text instanceof String)) throw invalidRecognition();
             Plan plan = parseText((String) text);
             JSONArray words = result.optJSONArray("result");
-            if (words == null || words.length() == 0 || words.length() > 40) throw rejected();
+            if (words == null || words.length() == 0 || words.length() > 40) throw invalidRecognition();
             List<String> recognized = new ArrayList<>();
+            List<WordConfidence> scores = new ArrayList<>();
             for (int i = 0; i < words.length(); i++) {
                 JSONObject word = words.getJSONObject(i);
                 Object spelling = word.opt("word"), confidence = word.opt("conf");
-                if (!(spelling instanceof String) || !(confidence instanceof Number score)) throw rejected();
-                String normalized = normalize((String) spelling);
-                if (normalized.isEmpty() || normalized.contains(" ")) throw rejected();
+                if (!(spelling instanceof String) || !(confidence instanceof Number score)) throw invalidRecognition();
+                String normalized;
+                try { normalized = normalize((String) spelling); }
+                catch (IOException invalidWord) { throw invalidRecognition(); }
+                if (normalized.isEmpty() || normalized.contains(" ")) throw invalidRecognition();
                 double value = score.doubleValue();
-                // A weak short conjunction must not veto otherwise clear named actions/targets.
+                // Content words and short conjunctions retain the existing, distinct thresholds.
                 double minimum = CONJUNCTIONS.contains(normalized)||FILLERS.contains(normalized) ? 0.5 : MIN_WORD_CONFIDENCE;
-                if (!Double.isFinite(value) || value < minimum || value > 1) throw rejected();
+                if (!Double.isFinite(value) || value < 0 || value > 1) throw invalidRecognition();
                 recognized.add(normalized);
+                scores.add(new WordConfidence(normalized, value, minimum));
             }
-            if (!String.join(" ", recognized).equals(plan.text())) throw rejected();
-            return plan;
+            if (!String.join(" ", recognized).equals(plan.text())) throw invalidRecognition();
+            List<String> weak = new ArrayList<>();
+            for (WordConfidence score : scores)
+                if (score.weak()) weak.add("«" + score.word() + "» " + score.confidence() + " < " + score.minimum());
+            boolean needsConfirmation = !weak.isEmpty();
+            String reason = needsConfirmation ? "Низкая уверенность: " + String.join("; ", weak) + ". Ничего не отправлено"
+                    : "Все слова прошли пороги уверенности";
+            return new Assessment(plan, scores, needsConfirmation, reason);
         } catch (IOException error) {
             throw error;
         } catch (Exception error) {
-            throw rejected();
+            throw invalidRecognition();
         }
     }
 
     private static IOException rejected() {
-        return new IOException("Команда не распознана уверенно. Ничего не отправлено");
+        return new IOException("Не удалось разобрать всю фразу: неподдерживаемые слова или неполная команда. Ничего не отправлено");
+    }
+
+    private static IOException invalidRecognition() {
+        return new IOException("Некорректный результат распознавания: нет полных данных слов и оценок или текст не совпадает. Ничего не отправлено");
     }
 
     /** Each target goes through the existing controller and its fresh guards. Never retries. */

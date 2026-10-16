@@ -8,8 +8,8 @@ android {
         applicationId = "dev.denza.vehiclecontrol.probe"
         minSdk = 33
         targetSdk = 33
-        versionCode = 7
-        versionName = "0.3.3"
+        versionCode = 8
+        versionName = "0.3.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     sourceSets.getByName("test").resources.srcDir("src/sharedTest/resources")
