@@ -337,24 +337,25 @@ public class VoiceCommandsTest {
         assertEquals(before + 1, fake.opens);
     }
 
-    @Test public void parkReadOnceBeforeTheBatchRefusesEveryWindowTogether() throws Exception {
+    @Test public void onTheMoveWindowsRunAndOnlyElectricDoorsWaitForPark() throws Exception {
         fake.values.put("park", 65535);
-        VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой окна"), controller, () -> true);
+        VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой окна и двери"), controller, () -> true);
         assertFalse(result.complete());
-        assertTrue(fake.writes.isEmpty());
+        assertEquals(expectedWrites("open", "fl", "fr", "rl", "rr"), fake.writes);
         assertEquals(1, fake.opens);
-        assertEquals(4, result.outcomes().size());
-        for (var outcome : result.outcomes()) assertTrue(outcome.message().contains("только в P"));
-        assertTrue(result.message().contains("Переднее правое · открыть: Управление доступно только в P"));
+        assertEquals(List.of("accepted", "accepted", "accepted", "accepted", "refused", "refused", "refused", "refused"),
+                result.outcomes().stream().map(VoiceCommands.Outcome::status).toList());
+        assertTrue(result.message().contains("Передняя левая дверь · открыть: Электродвери и движение кресел — только в P"));
         // A change after the script was sent cannot reach writes that already went together.
+        fake.writes.clear();
         fake.values.put("park", 1);
         NativeController shifting = controller((command, timeout) -> {
             String output = fake.run(command, timeout);
             if (command.contains("echo @w")) fake.values.put("park", 65535);
             return output;
         });
-        assertTrue(VoiceCommands.execute(VoiceCommands.parseText("открой окна"), shifting, () -> true).complete());
-        assertEquals(expectedWrites("open", "fl", "fr", "rl", "rr"), fake.writes);
+        assertTrue(VoiceCommands.execute(VoiceCommands.parseText("открой двери"), shifting, () -> true).complete());
+        assertEquals(catalogDoorWrites(1, "fl", "fr", "rl", "rr"), fake.writes);
     }
 
     @Test public void thermalOrUnknownPositionBlocksVoiceExactlyAsManualControl() throws Exception {

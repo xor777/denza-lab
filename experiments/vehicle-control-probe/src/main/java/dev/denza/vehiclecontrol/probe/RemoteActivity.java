@@ -58,7 +58,7 @@ public final class RemoteActivity extends Activity {
         Button access=button("Доступ ADB");access.setOnClickListener(v->showAccess());header.addView(access);
         Button update=button("Обновить");update.setOnClickListener(v->refresh());header.addView(update);root.addView(header);
         status=text("Читаю состояние автомобиля…",16,ACCENT);root.addView(status);
-        voiceStatus=text("Скажите «Привет, Денза», дождитесь индикатора, затем произнесите команду. Пока показывается только текст.",17,ACCENT);voiceStatus.setMaxLines(3);voiceStatus.setEllipsize(android.text.TextUtils.TruncateAt.END);root.addView(voiceStatus);
+        voiceStatus=text("Скажите «Привет, Денза», дождитесь индикатора, затем произнесите команду. ",17,ACCENT);voiceStatus.setMaxLines(3);voiceStatus.setEllipsize(android.text.TextUtils.TruncateAt.END);root.addView(voiceStatus);
         LinearLayout tabs=new LinearLayout(this);
         for(String tab:List.of("windows","shades","lights","doors","seats","climate")){
             Button b=button(Map.of("windows","Окна","shades","Панорама","lights","Свет","doors","Двери","seats","Сиденья","climate","Климат").get(tab));
@@ -66,7 +66,7 @@ public final class RemoteActivity extends Activity {
         }root.addView(tabs);
         scroll=new ScrollView(this);body=column();scroll.addView(body);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         feedback=text("Выберите раздел и действие. Принятие команды ещё не подтверждает движение.",16,TEXT);root.addView(feedback);
-        root.addView(text("Управление в P · Для ручной работы завершите отдых/кемпинг · Кресла: удерживайте, до 5 с",13,MUTED));
+        root.addView(text("Электродвери и перемещение кресел — в P · Кресла: удерживайте, до 5 с",13,MUTED));
         setContentView(root);render();if(visible){handler.removeCallbacks(poll);handler.post(poll);}
     }
     private void refresh(){
@@ -79,7 +79,7 @@ public final class RemoteActivity extends Activity {
             finally{runtime.reading.set(false);}
             JSONObject answer=result;String problem=error;
             handler.post(()->{if(!visible||!remoteScreen||isDestroyed()||generation!=epoch)return;
-                if(problem==null){state=answer;stale=false;status.setText("N9 · "+(answer.optInt("park",-1)==1?"P · управление доступно":"не в P / неизвестно")+" · "+java.time.LocalTime.now().withNano(0));}
+                if(problem==null){state=answer;stale=false;status.setText("N9 · "+(answer.optInt("park",-1)==1?"P":answer.optInt("park",-1)==0?"не P · доступные функции работают":"режим коробки неизвестен")+" · "+java.time.LocalTime.now().withNano(0));}
                 else {stale=true;status.setText("Данные устарели · "+problem);}
                 render();});
         });

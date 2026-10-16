@@ -36,9 +36,18 @@ public class NativeControllerTest {
         assertTrue(controller.command("comfort.fl.heat","3").shell().endsWith("i32 6 null"));
     }
     @Test public void allowlistRejectsInjectionBeforeTransport()throws Exception{for(String target:List.of("all","seat.fl.unknown","fl;reboot","massage.third","light.unknown"))assertThrows(Exception.class,()->controller.act(target,"open"));assertEquals(0,fake.opens);assertThrows(Exception.class,()->controller.act("comfort.fl.heat","4"));assertThrows(Exception.class,()->controller.act("light.headlights","3"));}
-    @Test public void freshParkUnknownAndThermalGuardsFailClosedStopBypasses()throws Exception{
+    @Test public void onTheMoveOnlyDoorsAndSeatMovementNeedParkCarGuardsStillFailClosed()throws Exception{
         controller.snapshot();fake.values.put("park",65535);
-        for(String[] a:List.of(new String[]{"fl","open"},new String[]{"door.fl","open"},new String[]{"locks","unlock"},new String[]{"shade.front","open"},new String[]{"light.headlights","auto"},new String[]{"massage.fl","on"},new String[]{"comfort.fl.heat","1"}))assertThrows(IOException.class,()->controller.act(a[0],a[1]));assertTrue(fake.writes.isEmpty());assertTrue(controller.act("fl","stop").getBoolean("accepted"));assertTrue(controller.act("shade.front","stop").getBoolean("accepted"));assertTrue(controller.act("seat.fl.horizontal","stop").getBoolean("accepted"));
+        // Driving: the voice assistant runs comfort and body functions; electric doors stay parked.
+        assertThrows(IOException.class,()->controller.act("door.fl","open"));assertTrue(fake.writes.isEmpty());
+        for(String[] a:List.of(new String[]{"fl","open"},new String[]{"locks","unlock"},new String[]{"shade.front","open"},new String[]{"light.headlights","auto"},new String[]{"massage.fl","on"},new String[]{"comfort.fl.heat","1"},new String[]{"climate.ac","on"}))
+            assertTrue(a[0],controller.act(a[0],a[1]).getBoolean("accepted"));
+        fake.writes.clear();
+        // The car's own window permit and thermal protection still refuse, as does an unknown state.
+        fake.values.put("fl_thermal",1);assertThrows(IOException.class,()->controller.act("fl","open"));fake.values.put("fl_thermal",0);
+        fake.values.put("permit",null);assertThrows(IOException.class,()->controller.act("fl","open"));fake.values.put("permit",0);
+        assertTrue(fake.writes.isEmpty());
+        assertTrue(controller.act("fl","stop").getBoolean("accepted"));assertTrue(controller.act("shade.front","stop").getBoolean("accepted"));assertTrue(controller.act("seat.fl.horizontal","stop").getBoolean("accepted"));
     }
     @Test public void unknownConfigPositionInitObstacleAndAsymmetricLightFeedbackBlock()throws Exception{
         JSONObject door=catalog.getJSONObject("doors").getJSONObject("fl");for(String field:List.of("initialized","position","obstacle","protection")){Object old=fake.values.put(door.getString(field),null);assertThrows(IOException.class,()->controller.act("door.fl","open"));fake.values.put(door.getString(field),old);}

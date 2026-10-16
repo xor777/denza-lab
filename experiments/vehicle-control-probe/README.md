@@ -1,6 +1,6 @@
 # Native Denza vehicle-control prototype
 
-Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.8 / code 12, Android 13+.
+Standalone `dev.denza.vehiclecontrol.probe`, version 0.4.2 / code 15, Android 13+.
 Native Java Views and a Java protocol controller. No WebView, JavaScript, Python,
 Chaquopy, HTTP server or laptop dependency. This remains an opt-in experiment.
 
@@ -30,6 +30,27 @@ All protocol properties, windows and firmware hashes come from the single
 `tools/vehicle_controls.json` bundled as an asset. Host tools read the same catalog.
 The Java engine does not load host Python or maintain another FID list.
 
+## Operation outside P (0.4.2)
+
+The APK no longer requires P for windows (including percentages), climate, seat heating and
+ventilation, massage, lights, roof shades or central locking. Voice and buttons share the same
+controller policy, including when the P reading is unknown. Electric-door movement and seat
+movement still require a fresh confirmed P; STOP remains available outside P. Configuration,
+window permit, initialization, thermal/obstacle protection, known-state and identity checks
+remain in force. This changes the application's gate; it does not override the vehicle's
+own control logic. Host Python remotes retain their existing policy.
+
+Tests exercise non-P and unknown P, a mixed voice plan with a refused door and accepted
+window/climate actions, and the retained mechanism protections. Physical operation while
+driving has not been tested by the agent.
+
+Installed APK SHA256: `40ab71c90656a147f459a5e003bdbf7bb6fedec1d8b351c815a14756e7249c6b`.
+114 JVM tests, assemble and lint passed. Existing key, all 18 seat samples and voice preferences
+survived the update; both 10-channel recorders were active and unsilenced, stock PIDs and crash
+buffer unchanged. Live voice window-open/window-close plans during verification received HAL1
+for all four windows; actual movement and operation outside P remain unverified. Evidence is in
+`captures/voice-activation-20261016/remote-042/` in the primary local checkout.
+
 ## Voice over the whole remote
 
 The voice pipeline now covers every control of this remote except seat movement, which
@@ -37,7 +58,8 @@ needs a held button: windows (open/close/stop and an open percentage), electric 
 central locks, both roof shades, all five climate zones (power, temperature 17..33 °C, fan
 0..7, AUTO, airflow direction), A/C, recirculation, both defrosters, heating and ventilation
 of the six seats, massage on four seats, headlights (off/auto/low), matrix light, DRL, rear
-fog lamp and the logo light. Not yet built on the car; nothing was sent to a vehicle.
+fog lamp and the logo light. Present in the installed 0.4.2; physical acceptance of all
+control families remains open.
 
 `VoiceParser` reads a whole utterance as clauses: a connector followed by its own verb opens
 a new command, without a verb it adds an object to the same command. The verb may follow its
@@ -269,7 +291,7 @@ Sections cover windows, two roof shades, lights, central locking/four electric d
 six seats with every catalogued axis/heat/ventilation option, massage on four seats,
 and the verified climate catalog. Unknown readings/configuration disable the relevant
 actions with a reason. STOP bypasses P/calibration/thermal guards, retaining boot identity.
-Other writes use fresh P and per-control guards. Firmware/profile/boot checks and
+Electric-door and seat movement use fresh P; other writes use their per-control guards. Firmware/profile/boot checks and
 all three pinned hashes remain mandatory. GETint=5, GETfloat=7; SET=6, scalar int,
 null callback. Accepted is one raw HAL word 1; an accepted call does not prove motion.
 

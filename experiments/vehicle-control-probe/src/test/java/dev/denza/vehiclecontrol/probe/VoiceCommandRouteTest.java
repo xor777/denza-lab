@@ -39,6 +39,19 @@ public class VoiceCommandRouteTest {
         assertEquals(List.of("door.fr","shade.front","massage.fl","light.headlights","locks"),result.outcomes().stream().map(VoiceCommands.Outcome::target).toList());
         assertEquals(5,car.writes.size());
     }
+    @Test public void drivingOrUnknownParkAllowsComfortPlanButRefusesOnlyElectricDoor()throws Exception{
+        VoiceCommandRoute route=VoiceCommandRoute.prepare(endpoint("открой левое окно и включи кондиционер и открой правую дверь",1));
+        for(Integer park:new Integer[]{0,65535,null}){
+            car.values.put("park",park);car.writes.clear();
+            VoiceCommands.Execution result=route.execute(controller,()->true,true,false);
+            assertFalse(result.complete());
+            assertEquals(List.of("accepted","accepted","refused"),result.outcomes().stream().map(VoiceCommands.Outcome::status).toList());
+            assertEquals(List.of(controller.command("fl","open").shell(),controller.command("climate.ac","on").shell()),car.writes);
+            car.writes.clear();
+            assertThrows(java.io.IOException.class,()->controller.hold(controller.newHold("seat.fl.horizontal","plus")));
+            assertTrue(car.writes.isEmpty());
+        }
+    }
     @Test public void previewNeverOpensTransportEvenWithConfirmedPlan()throws Exception{
         VoiceCommandRoute route=VoiceCommandRoute.prepare(endpoint("открой окна и включи кондиционер",1));
         assertFalse(route.execute(controller,()->true,false,true).complete());
@@ -49,7 +62,8 @@ public class VoiceCommandRouteTest {
         assertTrue(route.assessment.needsConfirmation());
         assertFalse(route.execute(controller,()->true,true,false).complete());assertEquals(0,car.opens);
         assertTrue(route.execute(controller,()->true,true,true).complete());assertEquals(1,car.writes.size());
-        car.writes.clear();car.values.put("park",0);
+        // Fresh guards still apply on the move: an unknown A/C state refuses.
+        car.writes.clear();car.values.put(car.catalog.getJSONObject("climate").getJSONObject("ac").getString("state"),null);
         assertFalse(route.execute(controller,()->true,true,true).complete());assertTrue(car.writes.isEmpty());
     }
     @Test public void cancelledGenerationAndInvalidWholeUtteranceCannotSendPrefix()throws Exception{

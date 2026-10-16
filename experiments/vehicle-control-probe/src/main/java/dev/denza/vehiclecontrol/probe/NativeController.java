@@ -200,17 +200,19 @@ public final class NativeController {
         try { begin(); return buildState(readValues()); } finally { operation.unlock(); }
     }
     JSONObject buildState(Map<String,Object> v) throws Exception {
-        String parked=guard(eq(v.get("park"),1),"Управление доступно только в P");
+        String parked=guard(eq(v.get("park"),1),"Электродвери и движение кресел — только в P");
+        // Voice is for driving: windows, climate, seat comfort, massage, lights, shades and locks work on the move,
+        // under the car's own permits and guards. Only electric doors and seat movement stay parked.
         JSONObject state=object("model","N9","park",v.get("park"),"permit",v.get("permit"),"time",Instant.now().toString(),"pending_stops",new JSONArray(pendingStops),"pending_window_resets",new JSONArray(pendingResets));
         JSONObject windows=new JSONObject();
         for(String key:keys(catalog.getJSONObject("windows"))) {
             JSONArray spec=catalog.getJSONObject("windows").getJSONArray(key); Double position=percent(v.get(key+"_percent"));
             windows.put(key,object("name",spec.getString(0),"percent",position,"initialized",v.get(key+"_initialized"),"thermal",v.get(key+"_thermal"),"blocked",
-                first(parked,guard(eq(v.get("permit"),0),"Штатное разрешение управления отсутствует или неизвестно"),guard(eq(v.get(key+"_initialized"),1),"Окно не инициализировано или состояние неизвестно"),guard(eq(v.get(key+"_thermal"),0),"Термозащита активна или состояние неизвестно"),guard(position!=null,"Положение окна неизвестно"))));
+                first(guard(eq(v.get("permit"),0),"Штатное разрешение управления отсутствует или неизвестно"),guard(eq(v.get(key+"_initialized"),1),"Окно не инициализировано или состояние неизвестно"),guard(eq(v.get(key+"_thermal"),0),"Термозащита активна или состояние неизвестно"),guard(position!=null,"Положение окна неизвестно"))));
         }
         state.put("windows",windows);
         JSONObject locks=catalog.getJSONObject("locks"); Object thermal=v.get(locks.getString("thermal")),config=v.get(locks.getString("config"));
-        state.put("locks",object("blocked",first(parked,guard(eq(thermal,0),"Термозащита замков или неизвестное состояние"))));
+        state.put("locks",object("blocked",first(guard(eq(thermal,0),"Термозащита замков или неизвестное состояние"))));
         JSONObject doors=new JSONObject();
         for(String key:keys(catalog.getJSONObject("doors"))) {
             JSONObject spec=catalog.getJSONObject("doors").getJSONObject(key),door=new JSONObject();
@@ -229,7 +231,7 @@ public final class NativeController {
             }
             for(String kind:keys(spec.getJSONObject("comfort"))) {
                 JSONObject c=spec.getJSONObject("comfort").getJSONObject(kind); Object raw=v.get(c.getString("state")); Integer level=oneOf(raw,new JSONArray(List.of(1,2,3,4)))?((Number)raw).intValue()-1:null; boolean available=eq(v.get(c.getString("config")),3);
-                comfort.put(kind,object("supported",available,"level",level,"blocked",first(parked,guard(available,"Три уровня не подтверждены комплектацией"),guard(level!=null,"Состояние неизвестно"))));
+                comfort.put(kind,object("supported",available,"level",level,"blocked",first(guard(available,"Три уровня не подтверждены комплектацией"),guard(level!=null,"Состояние неизвестно"))));
             }
             seats.put(key,object("name",spec.getString("name"),"axes",axes,"comfort",comfort));
         }
@@ -237,7 +239,7 @@ public final class NativeController {
         JSONObject shades=new JSONObject();
         for(String key:keys(catalog.getJSONObject("shades"))) {
             JSONObject spec=catalog.getJSONObject("shades").getJSONObject(key); Double position=percent(v.get(spec.getString("position")));
-            shades.put(key,object("name",spec.getString("name"),"percent",position,"blocked",first(parked,guard(eq(v.get(spec.getString("config")),8),"Две шторки не подтверждены комплектацией"),guard(eq(v.get(spec.getString("initialized")),1),"Шторка не инициализирована"),guard(eq(v.get(spec.getString("thermal")),0),"Термозащита или неизвестное состояние"),guard(position!=null,"Положение шторки неизвестно"))));
+            shades.put(key,object("name",spec.getString("name"),"percent",position,"blocked",first(guard(eq(v.get(spec.getString("config")),8),"Две шторки не подтверждены комплектацией"),guard(eq(v.get(spec.getString("initialized")),1),"Шторка не инициализирована"),guard(eq(v.get(spec.getString("thermal")),0),"Термозащита или неизвестное состояние"),guard(position!=null,"Положение шторки неизвестно"))));
         }
         state.put("shades",shades);
         JSONObject lights=new JSONObject();
@@ -247,14 +249,14 @@ public final class NativeController {
             String current=null; boolean agrees=true; JSONArray states=spec.getJSONArray("states");
             for(int i=0;i<states.length();i++) { Object raw=v.get(states.getString(i)); String decoded=raw==null?null:spec.getJSONObject("state_values").optString(String.valueOf(((Number)raw).intValue()),null); if(i==0) current=decoded; else agrees &= Objects.equals(current,decoded); }
             if(!agrees) current=null;
-            lights.put(key,object("name",spec.getString("name"),"supported",supported,"state",current,"actions",new JSONArray(keys(spec.getJSONObject("values"))),"blocked",first(parked,guard(supported,"Функция не подтверждена комплектацией"),guard(current!=null,"Состояние света неизвестно или различается"))));
+            lights.put(key,object("name",spec.getString("name"),"supported",supported,"state",current,"actions",new JSONArray(keys(spec.getJSONObject("values"))),"blocked",first(guard(supported,"Функция не подтверждена комплектацией"),guard(current!=null,"Состояние света неизвестно или различается"))));
         }
         state.put("lights",lights);
         JSONObject massages=new JSONObject();
         for(String key:keys(catalog.getJSONObject("massages"))) {
             JSONObject spec=catalog.getJSONObject("massages").getJSONObject(key); Object mode=v.get(spec.getString("mode")),level=v.get(spec.getString("level")); boolean supported=eq(v.get(spec.getString("config")),1); boolean valid=oneOf(mode,new JSONArray(List.of(1,2,3,4,5,6,7))) && oneOf(level,new JSONArray(List.of(0,1,2,3,4)));
             Boolean enabled=null; if(eq(mode,1)||eq(level,4)) enabled=Boolean.FALSE; else if(oneOf(mode,new JSONArray(List.of(2,3,4,5,6)))&&oneOf(level,new JSONArray(List.of(1,2,3)))) enabled=Boolean.TRUE;
-            massages.put(key,object("supported",supported,"mode",valid?mode:null,"level",valid?level:null,"enabled",valid?enabled:null,"blocked",first(parked,guard(supported,"Массаж не подтверждён комплектацией"),guard(valid,"Состояние массажа неизвестно"))));
+            massages.put(key,object("supported",supported,"mode",valid?mode:null,"level",valid?level:null,"enabled",valid?enabled:null,"blocked",first(guard(supported,"Массаж не подтверждён комплектацией"),guard(valid,"Состояние массажа неизвестно"))));
         }
         state.put("massages",massages);
         JSONObject climate=new JSONObject(),specs=catalog.optJSONObject("climate");
@@ -266,7 +268,7 @@ public final class NativeController {
             climate.put(key,object("name",spec.getString("name"),"state",decoded,"supported",supported,"zone",spec.optString("zone","general"),"order",spec.optInt("order",999),
                 "actions",spec.has("options")?spec.getJSONArray("options"):new JSONArray(keys(spec.getJSONObject("values"))),
                 "labels",spec.optJSONObject("labels")==null?new JSONObject():spec.getJSONObject("labels"),"presentation",spec.optString("presentation","buttons"),"unit",spec.optString("unit",""),
-                "blocked",first(parked,guard(supported,"Функция климата не подтверждена комплектацией"),guard(decoded!=null,"Состояние климата неизвестно"))));
+                "blocked",first(guard(supported,"Функция климата не подтверждена комплектацией"),guard(decoded!=null,"Состояние климата неизвестно"))));
         }
         state.put("climate",climate);return state;
     }
