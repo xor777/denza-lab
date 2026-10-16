@@ -9,6 +9,7 @@ Updated 2026-10-16.
 | Claim | Status | Section |
 |---|---|---|
 | N9, September Android 13 firmware, owner-reported rSIM: native and manual ready=4 reach DNS/TLS and fresh registration replies with code 9; TCP remains 0 | live, 2026-10-16 | [N9 registration refusal](#denza-n9-registration-reply-9-2026-10-16) |
+| Hexadecimal ICCID characters alone explain N9 code 9 | unproven; Android full getter preserves hex, reference native code copies it, and the owner reports the same rSIM worked in another car | [N9 identity interpretation](#denza-n9-registration-reply-9-2026-10-16) |
 | U9: ready=4 reaches the client, but its downstream behavior is unverified with the retained filtered reports | owner-supplied reports, 2026-09-28 | [U9](#yangwang-u9--android-12-ready-notification-arrives-without-connection-2026-09-28) |
 
 ## Contents
@@ -58,10 +59,30 @@ are not the observed blocker.
 
 Identity shape only: IMSI is 15 decimal digits with Chinese MCC; ICCID is 20
 characters, starts with the Chinese prefix, contains hexadecimal letters, and
-has no trailing F padding. This warrants comparison with the intended rSIM
-configuration, but is not proof of invalid identity or the meaning of code 9.
+has no trailing F padding. **Interpretation corrected 2026-10-16:** hexadecimal
+letters alone do not make this Android property invalid and are not an established
+reason for code 9. The owner reports that this same rSIM connected the cloud in
+another vehicle; identical packet bytes/configuration between vehicles have not
+been independently compared.
+
+Distinguish three layers: ETSI TS 102 221 clause 13.2 specifies decimal BCD with
+F padding for standard EF_ICCID; Android's `getFullIccSerialNumber()` explicitly
+preserves hexadecimal characters; the retained BYD `obtainRadioProp` writer uses
+that full getter for `ril.csim.iccid`. The reference native preparation accepts
+and copies non-decimal characters unchanged into 211, including the synthetic
+`89ABCDEF000000000001` case. This is already established in
+[the identity investigation](cloud-tile.md#offline-identity-preparation-and-command-211-reproduction-2026-09-24),
+not a new inference from the N9 refusal. The decimal-only guard in the research
+helper `registration_packet.py` is our own restriction, not a vendor protocol rule.
+Sources: [ETSI, clause 13.2](https://www.etsi.org/deliver/etsi_ts/102200_102299/102221/10.00.00_60/ts_102221v100000p.pdf),
+[AOSP Phone.java](https://android.googlesource.com/platform/frameworks/opt/telephony/+/15d844360c99d93c0925c1f4825351f6a5e8202b/src/java/com/android/internal/telephony/Phone.java).
+
+The exact N9 producer/native implementation and server validation remain unverified.
 The identities actually packed into 211 were not compared with current properties.
-No identifiers, credential contents or command payloads were exported.
+There is no evidence to strip letters or change the rSIM identity. The useful next
+check is the actual emitted identity pair versus current properties, followed by
+comparison with the successful vehicle's configuration. No identifiers, credential
+contents or command payloads were exported.
 
 Both cellular APN3 and Wi-Fi were active. The client logged a route command via
 `ccmni0`; the default network being Wi-Fi is not sufficient to attribute the TLS
