@@ -17,8 +17,12 @@ Output: `build/outputs/apk/debug/vehicle-control-probe-debug.apk` in this module
 Application ID, default debug signing and private `no_backup/adb_auth_key_v1`
 format/path are unchanged from 0.2.1; update with `adb install -r`, never uninstall
 or clear data. The existing authorized app identity and STOP journal survive.
-The owner installed 0.2.1 on N9, approved its identity and verified real GET and
-re-entry; native 0.3.0 car acceptance is separate and pending.
+The owner approved the app identity on 0.2.1. Native 0.3.0 was installed over it
+on N9: installed APK hash matched, the key was preserved and real GET/climate UI
+worked. Physical seat/HVAC acceptance remains pending. The owner reported polling
+flicker in 0.3.0; that UI defect is being fixed.
+
+Host remote and APK share the working branch `codex/vehicle-control-remote`.
 
 All protocol properties, windows and firmware hashes come from the single
 `tools/vehicle_controls.json` bundled as an asset. Host tools read the same catalog.
@@ -100,7 +104,9 @@ connection. The 34 host tests still pass against the shared catalog.
 ARM64 Android 35 tests exercise native Views/seat selector and pause-release, actual
 Android shell early release/refused/malformed/no-refresh, held refresh/release,
 deadline and broken-output STOP execution. Measured watchdog run: 4950 ms.
-Native 0.3.0 has not been installed or used for vehicle writes by the implementing agent.
+Native 0.3.0 was installed by the root session; read-only live UI checks passed.
+The implementing subagent did not access the car. See the findings document for
+the exact installed hash and the owner's polling-flicker report.
 
 ### Climate
 
