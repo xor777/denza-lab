@@ -33,6 +33,8 @@ project(":dishare-bridge").projectDir = file("libraries/dishare-bridge")
 //     ./gradlew -Pexperiments :night-vision-probe:assembleDebug
 //     ./gradlew -Pexperiments :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 if (providers.gradleProperty("experiments").isPresent) {
+    include(":vehicle-control-probe")
+    project(":vehicle-control-probe").projectDir = file("experiments/vehicle-control-probe")
     include(":alice-wheel-probe")
     project(":alice-wheel-probe").projectDir = file("experiments/alice-wheel-probe")
 

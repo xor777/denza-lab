@@ -123,6 +123,17 @@ public final class LocalAdbClient {
         this.authorizationPolicy = authorizationPolicy;
     }
 
+    /** A probe using an explicitly imported identity, restricted to the same device. */
+    public static LocalAdbClient loopbackOnly(Context context) {
+        return new LocalAdbClient(context, java.util.Collections.singletonList(HOST));
+    }
+
+    private LocalAdbClient(Context context, List<String> localHosts) {
+        keyStore = new AdbKeyStore(context, "vehicle-control-local");
+        hosts = localHosts;
+        authorizationPolicy = AuthorizationPolicy.PASSIVE;
+    }
+
     /**
      * This client's identity as the vehicle's authorization prompt spells it.
      *
