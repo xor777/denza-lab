@@ -24,9 +24,10 @@ GET int=5 / float=7 and SET=6 with null callback; accepted SET is one HAL word=1
 The owner-requested installation and first launch on the N9 passed on 2026-10-16;
 the installed 0.1.0 APK hash matched its build and reached the key import screen.
 Version 0.2.0 was then installed and its system dialog approved by the owner;
-Activity recreation exposed the lifecycle bug corrected in 0.2.1. Verification of
-0.2.1 on the car remains pending.
-Key provisioning, the app's local ADB connection and vehicle control acceptance remain open.
+Activity recreation exposed the lifecycle bug corrected in 0.2.1. Version 0.2.1
+was installed with the same private identity; its installed hash matched the build.
+Local ADB, real vehicle GETs and the access-panel → passive check → controller cycle
+passed on the API33 car. Full physical control acceptance remains open.
 
 1. Install the APK using the existing trusted connection, for example
    `adb -s 127.0.0.1:5555 install -r <apk>`, when the owner schedules installation.
@@ -82,8 +83,10 @@ An ARM64 Android35 emulator instrumentation smoke test runs the packaged Python3
 loads the full HTML in a real WebView and receives its offline error through the real bridge, checks float GET7/scalar SET parsing and seat trap, and confirms
 an offline transport fails closed. This proves Android runtime loading, not API33 or car
 actuator acceptance. A later owner-requested install and first launch passed on the
-API33 car, reaching the key import screen; this does not yet exercise Python/WebView
-on the car. No key import or SET was performed. No secret was packaged. See
+API33 car, initially reaching the key import screen. Version 0.2.0 obtained its own
+owner-approved identity; 0.2.1 then passed live local ADB/GETs and repeat entry.
+The owner's FL window open/close clicks were accepted in the APK journal; the
+assistant did not send actuator commands. No key import or secret packaging occurred. See
 [the installation evidence](../../docs/window-control-findings.md#apk-пульта).
 
 Stop: close the Activity. The native bridge rejects new requests while paused; an already
@@ -101,4 +104,6 @@ An explicitly changed key publishes a pending binding; only the next request app
 it under the shared operation lock. An in-flight command retains its client through
 STOP. There is no UI-thread wait and no second action queue.
 Two targeted fake-transport tests cover recreation during a running read and deferred
-identity replacement with preserved STOP latch. Car verification of 0.2.1 is pending.
+identity replacement with preserved STOP latch. Installed 0.2.1 passed the access
+panel → passive check → controller cycle on N9/API33 with real window readings.
+Its SHA-256 is `a0e6f2ca3f0c6b03274ae0bcb0048f4c0fcb3294ddd1071befca89b1a6fe2a1a`.
