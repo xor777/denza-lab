@@ -64,16 +64,17 @@ public class VoiceCommandsTest {
         assertEquals("открой все окна", plan.text());
         assertThrows(UnsupportedOperationException.class, () -> plan.commands().clear());
         assertThrows(UnsupportedOperationException.class, () -> VoiceCommands.phrases().clear());
-        assertThrows(IllegalArgumentException.class, () -> new VoiceCommands.Command("door.fl", "open"));
+        assertThrows(IllegalArgumentException.class, () -> new VoiceCommands.Command("door.trunk", "open"));
         assertThrows(IllegalArgumentException.class, () -> new VoiceCommands.Command("fl", "1"));
     }
 
     @Test public void grammarAndParserAgreeAndIncludeUnknownEscape() throws Exception {
         JSONArray grammar = new JSONArray(VoiceCommands.grammarJson());
         int accepted=0,rejected=0;
+        java.util.Set<String> positive = java.util.Set.copyOf(VoiceCommands.phrases());
         for (int i = 0; i < grammar.length() - 1; i++) {
             String phrase = grammar.getString(i);
-            if(phrase.startsWith("не ")){assertThrows(IOException.class,()->VoiceCommands.parseVosk(recognized(phrase,.99).toString()));rejected++;}
+            if(!positive.contains(phrase)){assertThrows(IOException.class,()->VoiceCommands.parseVosk(recognized(phrase,.99).toString()));rejected++;}
             else{assertEquals(phrase, VoiceCommands.parseVosk(recognized(phrase, .99).toString()).text());accepted++;}
         }
         assertEquals(VoiceCommands.phrases().size(),accepted);
@@ -92,7 +93,7 @@ public class VoiceCommandsTest {
     }
 
     @Test public void unknownNegationExtraWordsAndMultipleClausesNeverTouchTransport() {
-        for (String text : List.of("", "окна", "не открывай окна", "не открой окна", "открой окна потом двери",
+        for (String text : List.of("", "окна", "не открывай окна", "не открой окна", "открой окна потом замки",
                 "открой окна!", "открой окно", "открой люк", "открой fl", "открой 1222639670", "[unk]")) {
             assertThrows(text, IOException.class, () -> VoiceCommands.execute(
                     VoiceCommands.parseText(text), controller, () -> true));
@@ -194,6 +195,144 @@ public class VoiceCommandsTest {
         assertEquals(expectedWrites("close", "fr"), fake.writes);
     }
 
+    @Test public void feminineDoorAliasesAreSeparateFromWindowAliasesAndCompose() throws Exception {
+        for (String target : List.of("левую дверь", "водительскую дверь", "дверь водителя", "левую", "дверь спереди слева"))
+            assertEquals(target, List.of("door.fl"), targets(VoiceCommands.parseText("открой " + target)));
+        for (String target : List.of("правую дверь", "пассажирскую дверь", "дверь переднего пассажира", "правую", "дверь спереди справа"))
+            assertEquals(target, List.of("door.fr"), targets(VoiceCommands.parseText("закрой " + target)));
+        for (String target : List.of("левую заднюю дверь", "заднюю левую дверь", "дверь сзади слева", "левую дверь сзади"))
+            assertEquals(target, List.of("door.rl"), targets(VoiceCommands.parseText("открыть " + target)));
+        for (String target : List.of("правую заднюю дверь", "заднюю правую дверь", "дверь сзади справа", "правую дверь сзади"))
+            assertEquals(target, List.of("door.rr"), targets(VoiceCommands.parseText("закрывай " + target)));
+        assertEquals(List.of("door.fl", "door.fr"), targets(VoiceCommands.parseText("открой левую и правую дверь")));
+        assertEquals(List.of("door.fl", "door.rl"), targets(VoiceCommands.parseText("открой левые двери")));
+        assertEquals(List.of("door.fr", "door.rr"), targets(VoiceCommands.parseText("закрой правые двери")));
+        assertEquals(List.of("door.rl", "door.rr"), targets(VoiceCommands.parseText("останови задние двери")));
+        assertEquals(List.of("fl"), targets(VoiceCommands.parseText("открой левое")));
+        assertEquals(List.of("rl"), targets(VoiceCommands.parseText("открой сзади слева")));
+        assertEquals(List.of(new VoiceCommands.Command("fl", "open"), new VoiceCommands.Command("door.fr", "close")),
+                VoiceCommands.parseText("открой левое окно и закрой правую дверь").commands());
+        assertEquals(List.of(new VoiceCommands.Command("door.fl", "close")),
+                VoiceCommands.parseText("открой водительскую дверь нет закрой").commands());
+    }
+
+    @Test public void incompatibleDoorActionsContradictoryNounsLocksAndUnknownTailNeverTouchTransport() {
+        for (String text : List.of("опусти левую дверь", "подними дверь водителя", "открой левую дверь нет опусти",
+                "опусти левое окно и правую дверь", "подними двери", "открой левое дверь", "открой левую окно",
+                "открой водительское дверь", "открой водительскую окно", "открой двери окна", "запри двери", "отопри двери",
+                "открой багажник", "открой двери и закрой багажник", "открой дверь", "открой левую правую дверь",
+                "открой левую дверь и потом не закрой правую дверь", "открой левую дверь затем закрой люк"))
+            assertThrows(text, IOException.class, () -> VoiceCommands.execute(VoiceCommands.parseText(text), controller, () -> true));
+        assertEquals(0, fake.opens);
+        assertTrue(fake.writes.isEmpty());
+    }
+
+    List<String> catalogDoorWrites(int value, String... doors) throws Exception {
+        java.util.ArrayList<String> expected = new java.util.ArrayList<>();
+        for (String door : doors) {
+            String property = catalog.getJSONObject("doors").getJSONObject(door).getString("set");
+            JSONArray address = catalog.getJSONObject("properties").getJSONArray(property);
+            expected.add("service call autoservice 6 i32 " + address.getInt(0) + " i32 " + address.getInt(1) + " i32 " + value + " null");
+        }
+        return expected;
+    }
+
+    @Test public void allFourDoorOpenAndCloseWritesComeOnlyFromSharedCatalog() throws Exception {
+        assertTrue(VoiceCommands.execute(VoiceCommands.parseVosk(recognized("открой все двери", 1).toString()), controller, () -> true).complete());
+        assertEquals(catalogDoorWrites(1, "fl", "fr", "rl", "rr"), fake.writes);
+        assertEquals(4, fake.opens);
+        fake.writes.clear();
+        VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("закрой двери"), controller, () -> true);
+        assertTrue(result.complete());
+        assertEquals(catalogDoorWrites(2, "fl", "fr", "rl", "rr"), fake.writes);
+        assertTrue(result.message().contains("Передняя левая дверь · закрыть: Запрос принят"));
+        assertTrue(result.message().contains("Задняя правая дверь · закрыть: Запрос принят"));
+    }
+
+    @Test public void everyExistingDoorGuardIsFreshAndFailsClosedBeforeAnyWrite() throws Exception {
+        controller.snapshot();
+        JSONObject door = catalog.getJSONObject("doors").getJSONObject("fl");
+        JSONObject locks = catalog.getJSONObject("locks");
+        java.util.Map<String, Object> bad = new java.util.LinkedHashMap<>();
+        bad.put("park", 0);
+        bad.put(locks.getString("config"), 0);
+        bad.put(locks.getString("thermal"), 1);
+        bad.put(door.getString("initialized"), 0);
+        bad.put(door.getString("position"), 65535);
+        bad.put(door.getString("obstacle"), 1);
+        bad.put(door.getString("protection"), 1);
+        for (var guard : bad.entrySet()) {
+            Object previous = fake.values.get(guard.getKey());
+            for (Object invalid : new Object[] {guard.getValue(), null}) {
+                fake.values.put(guard.getKey(), invalid);
+                VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой водительскую дверь"), controller, () -> true);
+                assertFalse(guard.getKey(), result.complete());
+                assertTrue(guard.getKey(), fake.writes.isEmpty());
+                assertEquals("refused", result.outcomes().get(0).status());
+            }
+            fake.values.put(guard.getKey(), previous);
+        }
+        NativeController changedAfterFirst = controller((command, timeout) -> {
+            String output = fake.run(command, timeout);
+            if (command.startsWith("service call autoservice 6")) fake.values.put("park", 0);
+            return output;
+        });
+        assertFalse(VoiceCommands.execute(VoiceCommands.parseText("открой двери"), changedAfterFirst, () -> true).complete());
+        assertEquals(catalogDoorWrites(1, "fl"), fake.writes);
+    }
+
+    @Test public void doorStopBypassesMotionGuardsButStillRequiresPinnedIdentityAndBoot() throws Exception {
+        controller.snapshot();
+        fake.values.put("park", 65535);
+        JSONObject locks = catalog.getJSONObject("locks");
+        fake.values.put(locks.getString("config"), null);
+        fake.values.put(locks.getString("thermal"), 1);
+        JSONObject driver = catalog.getJSONObject("doors").getJSONObject("fl");
+        for (String field : List.of("initialized", "position", "obstacle", "protection")) fake.values.put(driver.getString(field), null);
+        assertTrue(VoiceCommands.execute(VoiceCommands.parseText("останови двери"), controller, () -> true).complete());
+        assertEquals(catalogDoorWrites(3, "fl", "fr", "rl", "rr"), fake.writes);
+        fake.writes.clear();
+        fake.boot = "22222222-2222-2222-2222-222222222222";
+        assertFalse(VoiceCommands.execute(VoiceCommands.parseText("стоп двери"), controller, () -> true).complete());
+        assertTrue(fake.writes.isEmpty());
+        fake.badHash = true;
+        assertFalse(VoiceCommands.execute(VoiceCommands.parseText("останови двери"), controller(fake), () -> true).complete());
+        assertTrue(fake.writes.isEmpty());
+    }
+
+    @Test public void doorRefusalContinuesButUnknownAndCancellationStopWithoutRetry() throws Exception {
+        for (String raw : List.of("Result: Parcel(00000000    '....')", "broken")) {
+            fake.writes.clear();
+            fake.setReply = raw;
+            VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой двери"), controller, () -> true);
+            assertFalse(result.complete());
+            boolean refused = raw.startsWith("Result:");
+            assertEquals(refused ? catalogDoorWrites(1, "fl", "fr", "rl", "rr") : catalogDoorWrites(1, "fl"), fake.writes);
+            assertEquals(refused ? 4 : 1, result.outcomes().size());
+        }
+        fake.writes.clear();
+        fake.setReply = FakeVehicle.OK;
+        int before = fake.opens;
+        assertFalse(VoiceCommands.execute(VoiceCommands.parseText("открой двери"), controller, () -> false).complete());
+        assertEquals(before, fake.opens);
+        AtomicBoolean foreground = new AtomicBoolean(true);
+        NativeController cancelledDuringRead = controller((command, timeout) -> {
+            String output = fake.run(command, timeout);
+            if (command.contains("echo @park")) foreground.set(false);
+            return output;
+        });
+        assertFalse(VoiceCommands.execute(VoiceCommands.parseText("открой двери"), cancelledDuringRead, foreground::get).complete());
+        assertTrue(fake.writes.isEmpty());
+        foreground.set(true);
+        NativeController cancelled = controller((command, timeout) -> {
+            String output = fake.run(command, timeout);
+            if (command.startsWith("service call autoservice 6")) foreground.set(false);
+            return output;
+        });
+        assertFalse(VoiceCommands.execute(VoiceCommands.parseText("открой двери потом закрой окна"), cancelled, foreground::get).complete());
+        assertEquals(catalogDoorWrites(1, "fl"), fake.writes);
+    }
+
     @Test public void changedParkAfterFirstWindowStopsRemainingGroup() throws Exception {
         NativeController guarded = controller((command, timeout) -> {
             String result = fake.run(command, timeout);
@@ -203,8 +342,8 @@ public class VoiceCommandsTest {
         VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой окна"), guarded, () -> true);
         assertFalse(result.complete());
         assertEquals(expectedWrites("open", "fl"), fake.writes);
-        assertEquals(2, fake.opens);
-        assertEquals("failed", result.outcomes().get(1).status());
+        assertEquals(4, fake.opens);
+        assertEquals("refused", result.outcomes().get(1).status());
         assertTrue(result.outcomes().get(1).message().contains("только в P"));
         assertTrue(result.message().contains("Переднее левое · открыть: Запрос принят"));
         assertTrue(result.message().contains("Переднее правое · открыть: Управление доступно только в P"));
@@ -231,15 +370,16 @@ public class VoiceCommandsTest {
         assertTrue(fake.writes.isEmpty());
     }
 
-    @Test public void refusalAndUncertaintyNeverRetryOrContinueGroup() throws Exception {
+    @Test public void definiteRefusalContinuesWithoutRetryButUncertaintyStopsRemainder() throws Exception {
         for (String reply : List.of(FakeVehicle.reply(0), "Result: Parcel(00000000    '....')", "broken")) {
             fake.writes.clear();
             fake.setReply = reply;
             VoiceCommands.Execution result = VoiceCommands.execute(VoiceCommands.parseText("открой окна"), controller, () -> true);
             assertFalse(result.complete());
-            assertEquals(expectedWrites("open", "fl"), fake.writes);
-            assertEquals(1, result.outcomes().size());
-            assertEquals(reply.startsWith("Result: Parcel(00000000    '") ? "refused" : "uncertain", result.outcomes().get(0).status());
+            boolean refused = reply.startsWith("Result: Parcel(00000000    '");
+            assertEquals(refused ? expectedWrites("open", "fl", "fr", "rl", "rr") : expectedWrites("open", "fl"), fake.writes);
+            assertEquals(refused ? 4 : 1, result.outcomes().size());
+            assertEquals(refused ? "refused" : "uncertain", result.outcomes().get(0).status());
         }
     }
 

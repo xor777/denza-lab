@@ -54,7 +54,7 @@ public final class RemoteActivity extends Activity {
         LinearLayout root=column();root.setPadding(dp(24),dp(14),dp(24),dp(12));root.setBackgroundColor(BG);
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
         TextView title=text("Denza · Пульт",27,TEXT);title.setTypeface(null,Typeface.BOLD);header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        voiceButton=button("Голос · окна");voiceButton.setOnClickListener(v->toggleVoice());
+        voiceButton=button("Голос");voiceButton.setOnClickListener(v->toggleVoice());
         voiceButton.setOnLongClickListener(v->{
             try{startActivity(new android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS));}
             catch(Exception error){feedback.setText("Откройте системные настройки специальных возможностей: Голос пульта · кнопка руля");}
@@ -63,7 +63,7 @@ public final class RemoteActivity extends Activity {
         Button access=button("Доступ ADB");access.setOnClickListener(v->showAccess());header.addView(access);
         Button update=button("Обновить");update.setOnClickListener(v->refresh());header.addView(update);root.addView(header);
         status=text("Читаю состояние автомобиля…",16,ACCENT);root.addView(status);
-        root.addView(text("Голос: «открой окна», «закрой водительское окно», «останови окна». Руль: включите «Голос пульта» — долгое нажатие «Голос».",13,MUTED));
+        root.addView(text("Голос: «открой левое окно», «закрой правую дверь», «закрой окна и открой левую заднюю дверь». Руль: долгое нажатие «Голос» для настройки.",13,MUTED));
         LinearLayout tabs=new LinearLayout(this);
         for(String tab:List.of("windows","shades","lights","doors","seats","climate")){
             Button b=button(Map.of("windows","Окна","shades","Панорама","lights","Свет","doors","Двери","seats","Сиденья","climate","Климат").get(tab));
@@ -90,7 +90,7 @@ public final class RemoteActivity extends Activity {
         });
     }
     private void updateButtons(){for(Button button:controls){Binding binding=(Binding)button.getTag();boolean release=runtime.activeHold!=null&&binding.action().equals("stop")&&binding.target().equals(runtime.activeHold.target);boolean held=button==heldButton&&runtime.activeHold!=null&&!runtime.activeHold.released.get();button.setEnabled(release||held||(state!=null&&(!stale||binding.action().equals("stop"))&&!runtime.writing.get()&&(!voiceActive||binding.action().equals("stop"))&&binding.allowed()));}
-        if(voiceButton!=null){voiceButton.setText(voiceActive?"Отменить голос":"Голос · окна");voiceButton.setEnabled(voiceActive||(state!=null&&!runtime.writing.get()));}
+        if(voiceButton!=null){voiceButton.setText(voiceActive?"Отменить голос":"Голос");voiceButton.setEnabled(voiceActive||(state!=null&&!runtime.writing.get()));}
     }
     boolean voiceKeyAvailable(){return visible&&remoteScreen&&focused;}
     int voiceKeyGeneration(){return epoch;}

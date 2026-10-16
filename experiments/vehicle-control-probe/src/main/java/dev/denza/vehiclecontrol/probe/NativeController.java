@@ -16,6 +16,8 @@ public final class NativeController {
     public record Connection(String identity, Shell shell) { }
     public record Command(String target, String action, String shell, boolean pulse) { }
     public static final class Busy extends IOException { Busy() { super("ADB занят; действие не поставлено в очередь"); } }
+    /** A known per-control guard refusal before any SET, safe to report independently. */
+    public static final class Refused extends IOException { Refused(String reason) { super(reason); } }
     private static final Pattern GET = Pattern.compile("Result: Parcel\\(([0-9a-fA-F]{8})\\s+([0-9a-fA-F]{8})\\s+'[^\\r\\n]{8}'\\)\\s*");
     private static final Pattern SET = Pattern.compile("Result: Parcel\\(([0-9a-fA-F]{8})\\s+'[^\\r\\n]{4}'\\)\\s*");
     private static final Pattern MARKER = Pattern.compile("(?m)^@([A-Za-z0-9_]+)\\s*\\n");
@@ -272,7 +274,7 @@ public final class NativeController {
             if(!foreground.getAsBoolean()&&!action.equals("stop")) throw new IOException("Действие отменено: пульт не на экране");
             begin();
             if(action.equals("stop")) checkIdentity(run(identityCommand,5000));
-            else { String reason=reason(buildState(readValues()),target); if(reason!=null) throw new IOException(reason); }
+            else { String reason=reason(buildState(readValues()),target); if(reason!=null) throw new Refused(reason); }
             if(!foreground.getAsBoolean()&&!action.equals("stop")) throw new IOException("Действие отменено: пульт не на экране");
             JSONObject entry=object("time",Instant.now().toString(),"target",target,"action",action,"command",command.shell(),"phase","attempt");
             record(entry);

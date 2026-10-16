@@ -1,6 +1,6 @@
 # Native Denza vehicle-control prototype
 
-Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.2 / code 6, Android 13+.
+Standalone `dev.denza.vehiclecontrol.probe`, version 0.3.3 / code 7, Android 13+.
 Native Java Views and a Java protocol controller. No WebView, JavaScript, Python,
 Chaquopy, HTTP server or laptop dependency. This remains an opt-in experiment.
 
@@ -32,6 +32,28 @@ The Java engine does not load host Python or maintain another FID list.
 
 ## Minimal offline voice pipeline
 
+0.3.3 adds electric-door open/close/stop through the existing `door.fl/fr/rl/rr`
+controller actions. «Открой левую дверь», «закрой правую заднюю дверь»,
+«открой дверь сзади слева», «закрой все двери» select physical electric-door
+movement; they do not select central locking. Bare feminine «левую/правую» means
+the corresponding front door; neuter «левое/правое» retains its window meaning.
+Every non-STOP action reads fresh P, door configuration, initialization, position,
+obstacle, drive protection and lock thermal guards through the unchanged catalog.
+
+The full utterance compiles before any command is sent: «закрой окна и открой
+правую дверь», «открой левое окно и правую дверь», «открой левое и правое окно,
+потом закрой заднюю правую дверь». Shared verbs, «и потом»/«затем»/«ещё», polite
+fillers and corrections compose into one final plan. Last action per named
+window/door wins before writes; unknown/unsupported/negative content rejects
+the entire plan. Each target reports its own result. A definite guard/HAL refusal
+does not stop independent targets; cancellation, unknown write outcome or an
+unclassified failure stops the remainder without retrying.
+Installed0.3.3/code7 SHA256 was verified as
+`2d83c50de0ff7f2acfe93fd2afb230f79ea16808d66a861d60613cb0175ceada`;
+the original key, microphone grant and voice key filter remain present.
+46 JVM tests, assemble/lint passed. No actuator commands were sent by the agent;
+owner physical voice acceptance remains pending.
+
 0.3.2/code6 is based on the latest native remote `9deda371`, retaining the stable
 polling/attached-View fixes `6af5c5b1` and neutral resume feedback `26b86dd5`.
 The initial voice APK based on `1d4cc415` regressed those fixes and is superseded.
@@ -42,13 +64,13 @@ microphone granted, key filter enabled, existing private ADB key retained.
 
 
 0.3.2 adds voice to this same native APK, using its existing controller, catalog,
-ADB identity and action journal. Press **Голос · окна**, grant microphone permission
+ADB identity and action journal. Press **Голос**, grant microphone permission
 once, press again and wait for **Говорите**. A second press cancels. First use unpacks
 and loads the model; later phrases reuse it. There is no always-on microphone.
 
 Pipeline: button → exclusive transient audio focus → cabin `MIC`, PCM16 mono16kHz
-→ Vosk small RU0.22 streaming recognition/endpoint → full-coverage window parser
-→ named window actions → existing fresh P/profile/boot/hash/window guards →
+→ Vosk small RU0.22 streaming recognition/endpoint → full-coverage command parser
+→ named window/door actions → existing fresh P/profile/boot/hash/control guards →
 single HAL writes and a displayed per-window result. A HAL1 response means accepted,
 not confirmed movement; the next GET supplies the observed percentage.
 
@@ -65,8 +87,8 @@ Vosk `[unk]`, explicit negative grammar examples and minimum content-word confid
 (conjunctions/polite filler0.5) are additional rejection
 heuristics, not a guarantee against misrecognition. Only a completed endpoint can
 execute. Partial results and the eight-second timeout never execute; no timeout or
-refusal causes a retry. Remaining windows stop receiving commands after refusal,
-unknown result or leaving the screen. Audio stays in memory, is never saved or sent
+refusal causes a retry. A definite refusal is reported per target; unknown results
+or leaving the screen stop the remainder. Audio stays in memory, is never saved or sent
 over the network. `logcat -s DenzaVoice` records loading/capture time, levels and text.
 
 For the steering-wheel voice key320, enable **Голос пульта · кнопка руля** in system
@@ -86,7 +108,7 @@ The APK verifies the ZIP before installing it under private `files/voice-model/`
 Dependencies: [Vosk Android0.3.75](https://github.com/alphacep/vosk-android-demo/blob/master/app/build.gradle)
 and JNA5.18.1. This is the architecture's fast RU/window prototype: Vosk's own
 endpoint substitutes for Silero, and English ASR, Alice fallback, TTS, background
-capture and other vehicle functions are not implemented here.
+capture and vehicle functions beyond windows/electric doors are not implemented here.
 
 On-car acceptance: with the owner present, P and unobstructed glass, first note
 percentages; say «открой левое окно», compare the displayed text/FL HAL response
