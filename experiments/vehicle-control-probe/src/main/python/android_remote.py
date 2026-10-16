@@ -7,8 +7,10 @@ import vehicle_control as control
 import vehicle_windows as windows
 
 class AndroidRemote(control.Remote):
-    def __init__(self, transport, directory):
+    def __init__(self, transport, directory, identity=""):
         self.transport = transport
+        self.binding_identity = identity
+        self.requested_binding = (identity, transport)
         super().__init__("local", log_dir=Path(directory))
         self.verified = False
 
@@ -30,6 +32,13 @@ class AndroidRemote(control.Remote):
         if not self.lock.acquire(blocking=False):
             return json.dumps({"error": "ADB занят; действие не поставлено в очередь"})
         try:
+            # Only the operation owner may swap transport, never Activity creation.
+            # An in-flight read/START/STOP keeps the exact client it began with.
+            identity, transport = self.requested_binding
+            if identity != self.binding_identity:
+                self.transport = transport
+                self.binding_identity = identity
+                self.verified = False
             if not self.verified:
                 self.verify()
                 self.verified = True
@@ -46,20 +55,16 @@ class AndroidRemote(control.Remote):
 
 _instance = None
 
-def create(transport, directory):
+def create(transport, directory, identity=""):
     global _instance
     if _instance is None:
-        _instance = AndroidRemote(transport, directory)
-    else:
-        # Activity recreation/key replacement must not overlap an old in-flight action
-        # or lose its in-memory unknown-STOP latch.
-        if not _instance.lock.acquire(blocking=False):
-            raise windows.ControlError("Дождитесь завершения текущей команды и откройте пульт снова")
-        try:
-            _instance.transport = transport
-            _instance.verified = False
-        finally:
-            _instance.lock.release()
+        _instance = AndroidRemote(transport, directory, identity)
+    elif _instance.log_dir != Path(directory):
+        raise windows.ControlError("Каталог журнала пульта изменился")
+    elif identity != _instance.requested_binding[0]:
+        # Atomic tuple publication only: no waiting and no network on the UI thread.
+        # Applied by the next request under the shared operation lock, preserving STOP.
+        _instance.requested_binding = (identity, transport)
     return _instance
 
 def page():

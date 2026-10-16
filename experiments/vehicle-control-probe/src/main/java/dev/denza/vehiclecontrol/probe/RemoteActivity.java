@@ -29,7 +29,7 @@ public final class RemoteActivity extends Activity {
             if (!Python.isStarted()) Python.start(new AndroidPlatform(getApplicationContext()));
             PyObject module = Python.getInstance().getModule("android_remote");
             PyObject remote = module.callAttr("create", transport,
-                    new java.io.File(getFilesDir(), "actions").getAbsolutePath());
+                    new java.io.File(getFilesDir(), "actions").getAbsolutePath(), transport.publicKeyFingerprint());
             showRemote(remote, module.callAttr("page").toString());
         } catch (Exception error) {
             TextView message = new TextView(this);

@@ -1,6 +1,6 @@
 # Denza vehicle-control APK prototype
 
-Standalone `dev.denza.vehiclecontrol.probe`, version 0.2.0. Opt-in experiment;
+Standalone `dev.denza.vehiclecontrol.probe`, version 0.2.1. Opt-in experiment;
 no product manifest additions. Uses the exact host controller/catalog/page copied by Gradle
 from `tools/vehicle_control*` and `vehicle_windows.py`, with an Android shell adapter.
 Chaquopy 17.0 / Python 3.13; Android 13+ (API33), arm64-v8a and x86_64.
@@ -23,7 +23,9 @@ GET int=5 / float=7 and SET=6 with null callback; accepted SET is one HAL word=1
 
 The owner-requested installation and first launch on the N9 passed on 2026-10-16;
 the installed 0.1.0 APK hash matched its build and reached the key import screen.
-Version 0.2.0 adds the normal one-shot authorization screen; its installation is pending.
+Version 0.2.0 was then installed and its system dialog approved by the owner;
+Activity recreation exposed the lifecycle bug corrected in 0.2.1. Verification of
+0.2.1 on the car remains pending.
 Key provisioning, the app's local ADB connection and vehicle control acceptance remain open.
 
 1. Install the APK using the existing trusted connection, for example
@@ -88,3 +90,15 @@ Stop: close the Activity. The native bridge rejects new requests while paused; a
 started command finishes, including its seat STOP. No new reads/writes start from paused polling.
 Logs: private `files/actions/actions.jsonl`, accessible with owner-authorized `run-as`
 on this debug package. Do not clear the data to bypass an unknown seat STOP.
+
+## Lifecycle correction 0.2.1
+
+After the owner approved the 0.2.0 system dialog, Activity recreation raced an old
+read and the adapter raised a fatal busy screen. Version 0.2.1 reuses the same
+process controller/client immediately for the same key and journal directory.
+It does not reset verification, transport, or the pending STOP latch on recreation.
+An explicitly changed key publishes a pending binding; only the next request applies
+it under the shared operation lock. An in-flight command retains its client through
+STOP. There is no UI-thread wait and no second action queue.
+Two targeted fake-transport tests cover recreation during a running read and deferred
+identity replacement with preserved STOP latch. Car verification of 0.2.1 is pending.
