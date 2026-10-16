@@ -2,9 +2,75 @@
 
 Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-findings.md` on 2026-10-03; "above" and "below" in the text refer to that file's order (see [Pages](README.md#pages)).
 
+## Current state
+
+Updated 2026-10-16.
+
+| Claim | Status | Section |
+|---|---|---|
+| N9, September Android 13 firmware, owner-reported rSIM: native and manual ready=4 reach DNS/TLS and fresh registration replies with code 9; TCP remains 0 | live, 2026-10-16 | [N9 registration refusal](#denza-n9-registration-reply-9-2026-10-16) |
+| U9: ready=4 reaches the client, but its downstream behavior is unverified with the retained filtered reports | owner-supplied reports, 2026-09-28 | [U9](#yangwang-u9--android-12-ready-notification-arrives-without-connection-2026-09-28) |
+
 ## Contents
 
+- [Denza N9: registration reply 9, 2026-10-16](#denza-n9-registration-reply-9-2026-10-16)
 - [Yangwang U9 / Android 12: ready notification arrives without connection, 2026-09-28](#yangwang-u9--android-12-ready-notification-arrives-without-connection-2026-09-28)
+
+## Denza N9: registration reply 9, 2026-10-16
+
+The owner identified the connected vehicle as N9, with rSIM and Wi-Fi, and
+authorized diagnosis and stock-cloud startup. The existing trusted ADB transport
+was used. Firmware: `BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260902.221210:user/release-keys`.
+This is not the retained May Z9GT binary; the installed executable was unreadable.
+Denza Apps (`dev.denza.apps`) was not installed; no APK was installed during this run.
+
+Before the owner's pause, SIM was ABSENT and both identity properties were empty.
+After the owner resumed work, uptime had reset, PID changed 121 -> 113, SIM was
+LOADED with operator 46001, and APN3 was `connect` on `ccmni0`. The profile was
+already `double_apn` with APN1 disabled before either observation. Default Wi-Fi
+was validated. No reboot, profile, Wi-Fi, SIM or identity change was performed
+by this session.
+
+The bounded native/framework capture establishes the following, in **Moscow time**:
+
+1. At **16:22:36.790**, the stock framework received
+   `CONNECTIVITY_CHANGE_FUNCTION`, reported `netStatus is:4,apnType:2` and
+   `APN3_CONNECTED start_work`. Native `notify_nw(4)` followed at **16:22:36.807**,
+   before the researcher's manual signal.
+2. Registration/discovery DNS succeeded. At **16:22:39.482**, native TLS reported
+   successful certificate verification and negotiated
+   `ECDHE-RSA-AES128-GCM-SHA256`. Command 211 was sent at **16:22:39.585**.
+3. At **16:22:39.863**, a received reply produced `211 reg_status 9`, followed by
+   `211 register fail! fail code = 9`.
+4. The researcher's single manual ready=4 at **16:22:43.631** returned
+   `Result: Parcel(NULL)`. It produced successful TLS and another fresh code-9
+   reply at **16:22:46.325**. Subsequent native retries also received 9 at
+   **16:22:56.691** and **16:23:32.837**; no further manual ready was sent.
+5. At **16:24:03**, the getter still returned TCP 0, `sys.tcp_step=1` and
+   `sys.tcp_reg_errcode=9`. Wi-Fi and ADB remained available, PID remained 113.
+
+This establishes an application-protocol registration refusal, not a missing
+activation event or inability to reach the registration server. The vendor's
+meaning of code 9 has not been recovered. It does not prove a specific SIM,
+account or vehicle-identity mismatch. SafeKey emitted `SAR_INVALIDHANDLEERR`
+messages within a TLS attempt that ultimately succeeded; those messages alone
+are not the observed blocker.
+
+Identity shape only: IMSI is 15 decimal digits with Chinese MCC; ICCID is 20
+characters, starts with the Chinese prefix, contains hexadecimal letters, and
+has no trailing F padding. This warrants comparison with the intended rSIM
+configuration, but is not proof of invalid identity or the meaning of code 9.
+The identities actually packed into 211 were not compared with current properties.
+No identifiers, credential contents or command payloads were exported.
+
+Both cellular APN3 and Wi-Fi were active. The client logged a route command via
+`ccmni0`; the default network being Wi-Fi is not sufficient to attribute the TLS
+socket to Wi-Fi. No transport switch was tested. Native stock retries were left
+under the firmware's control; the initial profile was retained.
+
+Evidence (local, ignored): `captures/n9-cloud-20261016/` contains the plan,
+read-only collector, before/after/final snapshots and redacted native/framework
+logs. The bounded host log observers were stopped; the ADB transport was retained.
 
 ## Yangwang U9 / Android 12: ready notification arrives without connection, 2026-09-28
 

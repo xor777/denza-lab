@@ -9,7 +9,7 @@ by a separate T-Box has not been established. Open 2026-09-22.
 
 ## Current state
 
-Updated 2026-10-09. What it takes for the official Denza phone app to see this car online, and what the «Облако» tile in Denza Apps does about it.
+Updated 2026-10-16. What it takes for the official Denza phone app to see this car online, and what the «Облако» tile in Denza Apps does about it.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -34,6 +34,7 @@ Updated 2026-10-09. What it takes for the official Denza phone app to see this c
 | `cloudmanager` caches ICCID/IMSI per process; a failed first preparation can send ICCID A with IMSI B; no narrow cache-refresh entry point was found | firmware | 2026-09-24 | [cloud-tile.md, Offline identity preparation and command 211 reproduction, 2026-09-24](cloud-tile.md#offline-identity-preparation-and-command-211-reproduction-2026-09-24) |
 | MQTT (`mqttserv`, `CloudServiceApp`) stayed 0 while the phone showed data from the stock TCP session | live | 2026-09-23 | [cloud-tile.md, Stock-client Wi-Fi adaptation, 2026-09-23](cloud-tile.md#stock-client-wi-fi-adaptation-2026-09-23) |
 | U9 (DiLink 6.0 / Android 12): ready=4 reaches `cloudmanager`, but the reports show no DNS, TLS or 211 event after it (their capture is tuned to Denza); the `4` + `double_apn` branch is unverified on that firmware | live (owner-supplied U9 reports) | 2026-09-28 | [other-vehicles.md, Yangwang U9 / Android 12: ready notification arrives without connection, 2026-09-28](other-vehicles.md#yangwang-u9--android-12-ready-notification-arrives-without-connection-2026-09-28) |
+| N9 (September Android 13 firmware, rSIM reported): stock APN3 ready and one manual 4 both reach DNS/TLS and fresh 211 reply code 9; TCP stays 0. Exact server reason and socket transport are unverified | live | 2026-10-16 | [other-vehicles.md, N9 registration refusal](other-vehicles.md#denza-n9-registration-reply-9-2026-10-16) |
 | Wi-Fi cannot carry the link because its endpoints exist only inside the carrier APN — false: the public `double_apn` endpoints carry 211/200/220 and message 512 over Wi-Fi | refuted | 2026-09-23 | [investigation-2026-09-22.md, Why Wi-Fi seemed unable to carry the telematics link (2026-09-22, superseded)](investigation-2026-09-22.md#why-wi-fi-seemed-unable-to-carry-the-telematics-link-2026-09-22-superseded) |
 | The link comes up only while the modem presents a Chinese ICCID — the factory eSIM or an rSIM, an rSIM over a local SIM included; the factory SIM itself is not required (a generated Chinese pair was accepted 2026-09-24), every fresh code 3 came from a local SIM (25901 / 25002), and «a Chinese SIM on the private APN is required» stays false: Wi-Fi carries the link | live (owner report) | 2026-10-09 | [cloud-tile.md, The cloud takes a Chinese ICCID](cloud-tile.md#the-cloud-takes-a-chinese-iccid-2026-10-09) |
 | Replaying the real Wi-Fi state (`notify_nw(2)`) repairs registration — false: state 2 never opens the gate; `4` under `double_apn` does | refuted | 2026-09-23 | [investigation-2026-09-22.md, Wi-Fi notification replay delivered, registration still fails, 16:46–16:49 MSK](investigation-2026-09-22.md#wi-fi-notification-replay-delivered-registration-still-fails-16461649-msk) |
@@ -62,6 +63,7 @@ Every cloud message, network event, Binder transaction and result code these pag
 |---|---|---|---|
 | 211 | cloud message | Terminal registration; body IMSI (15) + ICCID (20); reply status 1 = success, ≥2 takes the failure/retry branch; logged as `211 reg_status %d` | [Registration](cloud-protocol.md#official-cloud-registration-and-login-over-wi-fi-verified-2026-09-23), [Forum reports](cloud-tile.md#forum-wi-fi--ordinary-sim-reports-native-registration-stage-2026-09-24) |
 | 211 reply 3 | result | Fresh rejection on forum Z9GTs (proven on mobile data), also after a new PID; vendor meaning unknown; copied to `sys.tcp_reg_errcode` | [Build-58 follow-up](cloud-tile.md#build-58-follow-up-fresh-native-registration-replies-with-code-3-2026-09-24) |
+| 211 reply 9 | result | Fresh registration refusal on N9 with rSIM, after successful TLS; exact vendor meaning unknown | [N9](other-vehicles.md#denza-n9-registration-reply-9-2026-10-16) |
 | 200 | cloud message | Server discovery at `dilinkaddr-cn.denzacloud.com:6021`; body `01 01`; the reply names the working server (`dilinknat0-cn.denzacloud.com:6041`) | [Registration](cloud-protocol.md#official-cloud-registration-and-login-over-wi-fi-verified-2026-09-23) |
 | 220 | cloud message | Login on this build; the reply flag, not the first body byte, is the status (1 = success) | [Registration](cloud-protocol.md#official-cloud-registration-and-login-over-wi-fi-verified-2026-09-23) |
 | 221 | cloud message | Login in the older Dolphin binary only; not this build | [Dolphin comparison](investigation-2026-09-22.md#dolphin-comparison-registration-session-selection-and-token-delivery) |
