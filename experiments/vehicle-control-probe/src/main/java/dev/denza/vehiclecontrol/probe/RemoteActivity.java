@@ -22,12 +22,7 @@ public final class RemoteActivity extends Activity {
         super.onCreate(state);
         try {
             if (!new java.io.File(getNoBackupFilesDir(), "adb_auth_key_v1").isFile()) {
-                android.widget.Button importKey = new android.widget.Button(this);
-                importKey.setText("Импортировать существующий ключ ADB\nКлюч хранится только в данных пульта");
-                importKey.setOnClickListener(v -> {
-                    pickKey();
-                });
-                setContentView(importKey);
+                showAccess();
                 return;
             }
             LocalAdbClient transport = LocalAdbClient.loopbackOnly(getApplicationContext());
@@ -42,6 +37,88 @@ public final class RemoteActivity extends Activity {
             message.setText("Пульт недоступен: " + error.getMessage());
             setContentView(message);
         }
+    }
+    void showAccess() {
+        if (controller != null) controller.active = false;
+        if (view != null) { view.removeJavascriptInterface("AndroidRemote"); view.destroy(); view = null; }
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        layout.setPadding(32, 24, 32, 24);
+        TextView status = new TextView(this);
+        status.setText("Разрешите пульту локальный доступ ADB. Подтвердите запрос на экране машины и сравните отпечаток. Ключ создаётся только для этого приложения.");
+        if (new java.io.File(getNoBackupFilesDir(), "adb_auth_key_v1").isFile()) {
+            try { status.append("\nОтпечаток ключа пульта:\n" + LocalAdbClient.loopbackOnly(getApplicationContext()).publicKeyFingerprint()); }
+            catch (Exception error) { status.append("\nНе удалось прочитать ключ: " + error.getMessage()); }
+        }
+        layout.addView(status);
+        android.widget.Button request = new android.widget.Button(this);
+        request.setText("Разрешить доступ ADB");
+        request.setEnabled(!getSharedPreferences("access", MODE_PRIVATE).getBoolean("requested", false));
+        layout.addView(request);
+        android.widget.Button check = new android.widget.Button(this);
+        check.setText("Я подтвердил — проверить");
+        layout.addView(check);
+        android.widget.Button again = new android.widget.Button(this);
+        again.setText("Разрешить новую попытку запроса");
+        layout.addView(again);
+        android.widget.Button importKey = new android.widget.Button(this);
+        importKey.setText("Дополнительно: импорт существующего ключа");
+        importKey.setOnClickListener(v -> pickKey());
+        layout.addView(importKey);
+        setContentView(layout);
+        request.setOnClickListener(v -> {
+            // Latch on the UI thread before key preparation, so recreation cannot rearm it.
+            if (getSharedPreferences("access", MODE_PRIVATE).getBoolean("requested", false)) return;
+            if (!getSharedPreferences("access", MODE_PRIVATE).edit().putBoolean("requested", true).commit()) {
+                status.append("\nНе удалось сохранить защиту от повтора; запрос не отправлен.");
+                return;
+            }
+            request.setEnabled(false); check.setEnabled(false); again.setEnabled(false); importKey.setEnabled(false);
+            new Thread(() -> {
+                try {
+                    LocalAdbClient client = LocalAdbClient.loopbackOnly(getApplicationContext());
+                    String fingerprint = client.publicKeyFingerprint();
+                    java.util.concurrent.CountDownLatch shown = new java.util.concurrent.CountDownLatch(1);
+                    runOnUiThread(() -> {
+                        status.setText("Отпечаток ключа пульта:\n" + fingerprint + "\nПодтвердите соответствующий запрос ADB на машине.");
+                        status.postOnAnimation(shown::countDown);
+                    });
+                    if (!shown.await(3, java.util.concurrent.TimeUnit.SECONDS))
+                        throw new java.io.IOException("Экран с отпечатком не готов; запрос не отправлен");
+                    LocalAdbClient.AuthorizationRequestResult result = client.requestAuthorization();
+                    runOnUiThread(() -> status.setText("Отпечаток ключа пульта:\n" + fingerprint +
+                            (result == LocalAdbClient.AuthorizationRequestResult.ALREADY_AUTHORIZED
+                            ? "\nДоступ уже разрешён. Нажмите «Я подтвердил — проверить»."
+                            : "\nОдин запрос отправлен. Подтвердите на машине, затем нажмите «Я подтвердил — проверить».")));
+                } catch (Exception error) {
+                    runOnUiThread(() -> status.append("\nЗапрос не подтверждён: " + error.getMessage() + "\nАвтоматических повторов нет."));
+                } finally {
+                    runOnUiThread(() -> { check.setEnabled(true); again.setEnabled(true); importKey.setEnabled(true); });
+                }
+            }, "vehicle-adb-request").start();
+        });
+        check.setOnClickListener(v -> {
+            check.setEnabled(false); request.setEnabled(false); again.setEnabled(false); importKey.setEnabled(false);
+            new Thread(() -> {
+                try {
+                    if (!new java.io.File(getNoBackupFilesDir(), "adb_auth_key_v1").isFile())
+                        throw new java.io.IOException("Сначала нажмите «Разрешить доступ ADB»");
+                    LocalAdbClient.loopbackOnly(getApplicationContext()).shell("true");
+                    runOnUiThread(this::recreate);
+                } catch (Exception error) {
+                    runOnUiThread(() -> status.append("\nДоступ пока не подтверждён: " + error.getMessage()));
+                } finally {
+                    runOnUiThread(() -> { check.setEnabled(true); again.setEnabled(true); importKey.setEnabled(true);
+                        request.setEnabled(!getSharedPreferences("access", MODE_PRIVATE).getBoolean("requested", false)); });
+                }
+            }, "vehicle-adb-check").start();
+        });
+        again.setOnClickListener(v -> {
+            if (getSharedPreferences("access", MODE_PRIVATE).edit().putBoolean("requested", false).commit()) {
+                request.setEnabled(true);
+                status.append("\nРазрешена новая попытка. Запрос ещё не отправлен; ключ и системная очередь не менялись.");
+            }
+        });
     }
     private void pickKey() {
         android.content.Intent pick = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
@@ -67,8 +144,8 @@ public final class RemoteActivity extends Activity {
             android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
             layout.setOrientation(android.widget.LinearLayout.VERTICAL);
             android.widget.Button replace = new android.widget.Button(this);
-            replace.setText("Заменить ключ ADB");
-            replace.setOnClickListener(v -> pickKey());
+            replace.setText("Доступ ADB");
+            replace.setOnClickListener(v -> showAccess());
             layout.addView(replace);
             layout.addView(view, new android.widget.LinearLayout.LayoutParams(-1, 0, 1));
             setContentView(layout);

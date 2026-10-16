@@ -38,7 +38,17 @@ public final class RuntimeTest  {
             if (!visible.get().contains("Нет локального доступа ADB")) Thread.sleep(100);
         }
         assertTrue("WebView response: " + visible.get(), visible.get().contains("Нет локального доступа ADB"));
-        instrumentation.runOnMainSync(activity::finish);
+        instrumentation.runOnMainSync(() -> {
+            context.getSharedPreferences("access", 0).edit().putBoolean("requested", true).commit();
+            activity.showAccess();
+            android.widget.LinearLayout access = (android.widget.LinearLayout) ((android.view.ViewGroup) activity.findViewById(android.R.id.content)).getChildAt(0);
+            assertFalse("Persisted request latch must disable another submission", access.getChildAt(1).isEnabled());
+            assertTrue("Passive check stays available", access.getChildAt(2).isEnabled());
+            access.getChildAt(3).performClick();
+            assertTrue("Explicit rearm does not submit", access.getChildAt(1).isEnabled());
+            assertFalse(context.getSharedPreferences("access", 0).getBoolean("requested", true));
+            activity.finish();
+        });
         // Import and run the actual controller arithmetic, guards and parcel parsers in Android Python.
         PyObject builtins = Python.getInstance().getModule("builtins");
         builtins.callAttr("exec", "import vehicle_control as c, vehicle_windows as w, subprocess\n"

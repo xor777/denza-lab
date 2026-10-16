@@ -1,6 +1,6 @@
 # Denza vehicle-control APK prototype
 
-Standalone `dev.denza.vehiclecontrol.probe`, version 0.1.0. Opt-in experiment;
+Standalone `dev.denza.vehiclecontrol.probe`, version 0.2.0. Opt-in experiment;
 no product manifest additions. Uses the exact host controller/catalog/page copied by Gradle
 from `tools/vehicle_control*` and `vehicle_windows.py`, with an Android shell adapter.
 Chaquopy 17.0 / Python 3.13; Android 13+ (API33), arm64-v8a and x86_64.
@@ -21,14 +21,25 @@ GET int=5 / float=7 and SET=6 with null callback; accepted SET is one HAL word=1
 
 ## Connect after the owner installs
 
-Installation and vehicle acceptance were NOT performed for this build.
+The owner-requested installation and first launch on the N9 passed on 2026-10-16;
+the installed 0.1.0 APK hash matched its build and reached the key import screen.
+Version 0.2.0 adds the normal one-shot authorization screen; its installation is pending.
+Key provisioning, the app's local ADB connection and vehicle control acceptance remain open.
 
 1. Install the APK using the existing trusted connection, for example
    `adb -s 127.0.0.1:5555 install -r <apk>`, when the owner schedules installation.
-2. Launch «Denza · Пульт». The first screen asks to import an **existing authorized**
-   ADB identity through Android's document picker. The app never creates a new identity,
-   submits an authorization prompt, opens port5555, reconnects the host tunnel or clears keys.
-3. Preferred input is the existing binary `adb_auth_key_v1` from an already trusted
+2. Launch «Denza · Пульт» and press **Разрешить доступ ADB**. That explicit press
+   creates this app's own RSA2048 identity in private `no_backup` storage, displays its
+   fingerprint, then submits exactly one authorization request to local adbd. Compare the
+   fingerprint in the system dialog, approve it with persistent trust if desired, then
+   press **Я подтвердил — проверить**. That check is PASSIVE (`shell true`): no public
+   key submission. After success the controller opens; no laptop is needed.
+   A persistent latch disables repeat submissions across Activity/process restarts.
+   **Разрешить новую попытку запроса** only clears the app latch; it does not submit
+   a key, clear the system queue, or replace any identity. There are no automatic retries,
+   boot receivers, service restarts or programmatic approval calls. Reopen **Доступ ADB**
+   from the controller if access is lost. The normal path needs no imported laptop key.
+3. Optional advanced import accepts the existing binary `adb_auth_key_v1` from an already trusted
    on-device app's private `no_backup` directory, exported through an authorized owner
    workflow, for example the debug app export (only if the existing app is debuggable):
    `adb -s 127.0.0.1:5555 exec-out run-as dev.denza.apps cat no_backup/adb_auth_key_v1 > /private/owner-only/vehicle-adb-key.bin`
@@ -45,10 +56,10 @@ Installation and vehicle acceptance were NOT performed for this build.
 5. Transfer the private file through the owner's chosen secure workflow, select it once,
    then delete the transfer copy. Import checks the RSA key pair and writes an AtomicFile
    in the app's private `no_backup/adb_auth_key_v1`; backup is disabled. Future launches
-   use that file. There is no cloud upload or key printed in logs. The «Заменить ключ ADB» button permits another import without clearing the STOP journal.
+   use that file. There is no cloud upload or key printed in logs. The «Доступ ADB» panel permits another import without clearing the STOP journal.
 6. The controller connects only to the head unit's `127.0.0.1:5555`, PASSIVE authorization.
-   An unavailable adbd or untrusted imported identity blocks the UI. It does not repair
-   ADB or automatically submit a key. Once provisioned, no laptop or host server is needed.
+   An unavailable adbd or untrusted identity blocks the UI. Only the explicit access
+   button can submit a key; the controller always uses PASSIVE mode. It does not repair ADB. Once provisioned, no laptop or host server is needed.
 
 Every launch verifies CANFD/N9 identity, boot ID and three firmware hashes. STOP still
 checks boot identity but bypasses P/calibration/thermal gates. Other writes take fresh
@@ -68,8 +79,10 @@ motion. All controls still need controlled vehicle acceptance, especially STOP.
 An ARM64 Android35 emulator instrumentation smoke test runs the packaged Python3.13,
 loads the full HTML in a real WebView and receives its offline error through the real bridge, checks float GET7/scalar SET parsing and seat trap, and confirms
 an offline transport fails closed. This proves Android runtime loading, not API33 or car
-actuator acceptance. No installation or SET was performed on the car. No secret was
-packaged. Read-only vehicle checks only: ABI and SDK.
+actuator acceptance. A later owner-requested install and first launch passed on the
+API33 car, reaching the key import screen; this does not yet exercise Python/WebView
+on the car. No key import or SET was performed. No secret was packaged. See
+[the installation evidence](../../docs/window-control-findings.md#apk-пульта).
 
 Stop: close the Activity. The native bridge rejects new requests while paused; an already
 started command finishes, including its seat STOP. No new reads/writes start from paused polling.
