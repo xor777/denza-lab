@@ -37,5 +37,12 @@
             android:launchMode="singleTask"
             android:taskAffinity="dev.denza.hudframes.probe.lanes"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <activity
+            android:name=".HudStreetActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="dev.denza.hudframes.probe.street"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
     </application>
 </manifest>

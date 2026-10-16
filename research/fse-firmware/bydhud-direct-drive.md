@@ -2,7 +2,7 @@
 
 Здесь описан BydHud (`com.byd.hud`, `/system/app/BydHud/BydHud.apk` из FSE OTA
 `Di5.1_FSE_42.1.8.2605219.1.42.2.3.2605250.2`) так, как его используют варианты
-HUD с прямым управлением с FSE (direct-drive). **На машине владельца он
+HUD с прямым управлением с FSE (direct-drive). **На исследованной 24.09 Z9GT он
 неактивен:** пока `sys.hud.direct.config = 0`, PackageManager пропускает
 `com.byd.hud` (BydHud not registered, `NameNotFoundException`), поэтому сцены,
 профили SZ/HT/SN/EZ, crop карты и P-gate LVDS-сцены ниже относятся к этому
@@ -13,6 +13,13 @@ HUD с прямым управлением с FSE (direct-drive). **На маш�
 ссылки и уточнён заголовок раздела 8. Нумерация сохранена, поэтому «§8»
 в других местах означает раздел 8 здесь.
 
+## Текущее состояние
+
+| Утверждение | Статус | Раздел |
+| --- | --- | --- |
+| BydHud 2.0.21 из FSE OTA разобран; на Z9GT 24.09 пакет не зарегистрирован. На N9 16.10 зарегистрирован, APK совпал по хешу, `direct.config=1` | firmware / live | [Корпус](#engineering-corpus), [Z9GT](../../docs/hud-projection-findings.md#fse-inspector-live), [N9](../../docs/hud-projection-findings.md#hud-n9-native-street) |
+| В этом бинарнике `CreateUISurfaces` не создаёт `DiNextRoadNameSurface`; все четыре профиля задают нулевые размеры и шрифт названия улицы. Наличие класса и приём строки не доказывают её показ | firmware, 2026-10-16 | [Штатное поле улицы](#engineering-street-name) |
+
 ## Содержание
 
 - [2. Корпус, версия и состав приложения](#engineering-corpus) — OTA, хеши, manifest, нативные библиотеки.
@@ -21,6 +28,7 @@ HUD с прямым управлением с FSE (direct-drive). **На маш�
 - [5. Источники данных и управляющих сигналов](#engineering-inputs) — автомобильные свойства, 1B6, SOME/IP `0x8001`/`0x8003`.
 - [6. Автомат сцен](#engineering-scenes) — `DI_AEC_Srceen_Mode`, P-gate `DI_AEC_LVDS_Show`, условия карты.
 - [7. Раскладки и геометрия](#engineering-layout) — профили SZ/HT/SN/EZ, режимы, сборка раскладки.
+- [7.4. Штатное поле улицы](#engineering-street-name) — приём строки, неиспользуемый surface, нулевые размеры.
 - [8. Обработка карты](#engineering-map) — crop/Extend без масштабирования, маска, контракт отправителя.
 - [9. Алгоритм рисования проекции](#engineering-render) — кадр сцены, AR, warping, вывод через `libdisplay_sdk`.
 - [10. Можно ли подать видеопоток](#engineering-video) — DiShare по access type, `IMirrorSourceClient`, RTSP-заглушки.
@@ -503,6 +511,49 @@ STANDARD, хотя в Java enum STANDARD равен 2. Условие карты
 У карты две профильные позиции; `DI_AEC_Map_Pos` выбирает состояние,
 `DiMapSurface` анимирует переход. В конструкторе задано время 0,5 секунды.
 Этот сдвиг всего окна не является сдвигом области чтения внутри PNG.
+
+<a id="engineering-street-name"></a>
+
+### 7.4. Название улицы: класс есть, surface не создаётся
+
+Уточнение 2026-10-16 для `libDiArHudP.so` с хешем из раздела 2. Ранее
+проверка одного `DiNextRoadNameSurface::Draw` позволяла заключить только,
+что внутри него есть проверка UTF-8 и состояния навигации. **Этого
+недостаточно, чтобы утверждать, что штатная сцена показывает улицу.**
+
+- `MyCallBack::onSomeIpEvent` принимает строку из дорожного protobuf:
+  после очистки старого значения копирует новое в DataCenter `+0x3b78`
+  (`0xa81ac–0xa81b8`). Getter `DiDcGetNextRoadNameETH` (`0xd8f34`)
+  возвращает это поле. Строка не теряется только из-за предварительной очистки.
+- `DiNextRoadNameSurface` существует: конструктор `0x118efc`, `Draw`
+  `0x1191e4`, `SetData` `0x119454`. Конструктор читает геометрию из
+  `HudConfig +0x198..0x1a4`, размер шрифта из `+0x1098`.
+- Во всех `assets/resources/layout/{sz,ht,sn,ez}_vechicleCfg.json`
+  значения `LAYOUT_NEXTROADNAMESURFACE_{X,Y,W,H}` и
+  `FONTSIZE_NEXTROADNAME` равны нулю.
+- `MainWindow::CreateUISurfaces` (`0xfe2c4`) создаёт расстояние
+  `DiNextRoadDistSurface` вызовом в `0xfe570`, но не создаёт название
+  `DiNextRoadNameSurface`. Прямых BL-вызовов его конструктора, включая PLT,
+  в просмотренном `.text` не найдено. Переключатель включения этого surface
+  через навигационный пакет не обнаружен.
+
+Следовательно, в этой реализации штатного поля недостаточно передать другую
+строку или изменить её длину: для показа потребовались бы создание элемента
+и его ненулевая раскладка в самом renderer. FSE-снимок N9 16.10 затем
+подтвердил `sys.hud.direct.config=1`, зарегистрированный BydHud и точное
+совпадение его APK с этим корпусом. Это связывает статический вывод с
+конфигурацией N9; трассы процесса/кадров не снимались, исправление на машине
+не испытывалось. Коммерческим моделям имена профилей SZ/HT/SN/EZ по догадке
+не сопоставлялись.
+
+Картинка манёвра идёт другим путём: `DiInductionSurface` вызывает
+`PicData::LoadPng` в `0x112f2c`, `Scaled` в `0x112f88`, `updateTexture`
+в `0x112fc0`. Текст, заранее нарисованный в этой картинке, не является
+штатным полем улицы. Результаты отдельного N9-пробника —
+[в разборе HUD](../../docs/hud-projection-findings.md#hud-n9-native-street).
+Дизассемблер и хеши профилей сохранены в
+`captures/n9-hud-street-20261016/bydhud-*.txt` и
+`offline-street-analysis.json`.
 
 <a id="engineering-map"></a>
 
