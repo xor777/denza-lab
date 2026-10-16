@@ -22,7 +22,8 @@ import java.util.regex.Pattern;
  *
  * {@link VoiceParser} turns a whole utterance into named controller actions; this class keeps the
  * recognizer contract (complete endpoint, every word scored, text agreement), resolves relative
- * values from a fresh read and executes through the existing controller and its guards.
+ * values from one fresh read taken before the first write and executes through the existing
+ * controller and its guards.
  */
 public final class VoiceCommands {
     // A recognizer score is a heuristic, not a probability that the command is correct.
@@ -209,31 +210,47 @@ public final class VoiceCommands {
         Objects.requireNonNull(foreground);
         List<Outcome> outcomes = new ArrayList<>();
         boolean allAccepted = true;
+        // Every relative step of the plan comes from one reading taken before the first write: a zone written
+        // first must not move the base of the next («потеплее везде» would compound under climate sync).
+        JSONObject state = null;
+        if (plan.commands().stream().anyMatch(command -> DELTA.matcher(command.action()).matches())) {
+            if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; оставшиеся команды не отправлены");
+            try { state = controller.snapshot(); } catch (Exception unknown) { state = null; }
+            if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; оставшиеся команды не отправлены");
+        }
         for (Command planned : plan.commands()) {
             if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; оставшиеся команды не отправлены");
             Command command = planned;
             if (DELTA.matcher(planned.action()).matches()) {
                 try {
-                    command = absolute(planned, controller.snapshot());
+                    if (state == null) throw new IOException("Текущее значение неизвестно");
+                    command = absolute(planned, state);
                 } catch (Exception unknown) {
                     // Nothing was sent: an unknown current value is a refusal of this target only.
                     allAccepted = false;
-                    outcomes.add(new Outcome(planned.target(), planned.action(), "refused",
-                            "Текущее значение неизвестно; ничего не отправлено"));
+                    String reason = unknown instanceof IOException && unknown.getMessage() != null ? unknown.getMessage()
+                            : "Текущее значение неизвестно";
+                    outcomes.add(new Outcome(planned.target(), planned.action(), "refused", reason + "; ничего не отправлено"));
                     continue;
                 }
-                if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; оставшиеся команды не отправлены");
             }
             try {
                 JSONObject result = controller.act(command.target(), command.action(), foreground);
                 boolean uncertain = result.optBoolean("uncertain");
                 boolean accepted = result.optBoolean("accepted") && !uncertain;
+                // reset_required: the window had an unconfirmed earlier target and its 255 reset was not accepted,
+                // so the command itself was never sent.
+                boolean blocked = result.optBoolean("reset_required") && !result.optBoolean("reset_accepted");
+                boolean resetUnconfirmed = result.has("reset_accepted") && !result.optBoolean("reset_accepted");
                 String status = uncertain ? "uncertain" : accepted ? "accepted" : "refused";
-                String message = uncertain ? "Исход неизвестен; команда не повторялась"
-                        : accepted ? (movable(command.target()) ? "Запрос принят; движение не подтверждено"
-                        : "Запрос принят; состояние не подтверждено") : "Автомобиль отказал в запросе";
-                if (accepted && result.has("reset_accepted") && !result.optBoolean("reset_accepted"))
-                    message += "; сброс цели окна не подтверждён";
+                String message;
+                if (blocked) message = uncertain ? "Исход сброса прежней цели окна неизвестен; команда не отправлена"
+                        : "Сброс прежней цели окна не принят; команда не отправлена";
+                else if (uncertain) message = resetUnconfirmed ? "Исход неизвестен: сброс цели окна не подтверждён; команда не повторялась"
+                        : "Исход неизвестен; команда не повторялась";
+                else if (accepted) message = movable(command.target()) ? "Запрос принят; движение не подтверждено"
+                        : "Запрос принят; состояние не подтверждено";
+                else message = "Автомобиль отказал в запросе" + (resetUnconfirmed ? "; сброс цели окна не подтверждён" : "");
                 outcomes.add(new Outcome(command.target(), command.action(), status, message));
                 if (uncertain) return stopped(outcomes, "Исход неизвестен; оставшиеся команды не отправлены");
                 allAccepted &= accepted;
@@ -260,7 +277,11 @@ public final class VoiceCommands {
         return WINDOWS.contains(target) || target.startsWith("door.") || target.startsWith("shade.");
     }
 
-    /** «потеплее», «вентилятор посильнее»: a fresh reading plus the step, kept inside the control's range. */
+    /**
+     * «потеплее», «вентилятор посильнее»: a fresh reading plus the step, kept inside the control's range. A fan
+     * step never switches the fan off (floor 1) and never weakens a fan that is already off; only «выключи
+     * вентилятор» writes 0.
+     */
     static Command absolute(Command relative, JSONObject state) throws Exception {
         Matcher delta = DELTA.matcher(relative.action());
         if (!delta.matches()) return relative;
@@ -274,8 +295,9 @@ public final class VoiceCommands {
             String reading = control == null || control.isNull("state") ? null : control.optString("state", null);
             current = reading != null && reading.matches("[0-9]{1,2}") ? Integer.valueOf(reading) : null;
             boolean temperature = zoned.group(2).equals("temperature");
-            minimum = temperature ? 17 : 0;
+            minimum = temperature ? 17 : 1;
             maximum = temperature ? 33 : 7;
+            if (!temperature && current != null && current == 0 && step < 0) throw new IOException("Вентилятор уже выключен");
         } else if (comfort.matches()) {
             JSONObject control = state.getJSONObject("seats").getJSONObject(comfort.group(1)).getJSONObject("comfort")
                     .getJSONObject(comfort.group(2));

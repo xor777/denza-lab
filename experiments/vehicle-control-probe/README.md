@@ -43,10 +43,7 @@ fog lamp and the logo light. Not yet built on the car; nothing was sent to a veh
 a new command, without a verb it adds an object to the same command. The verb may follow its
 object («заднее окно приоткрыть на пятьдесят процентов»). Units decide where a number goes:
 degrees only to temperature, percent only to windows, a bare 17..33 only to temperature.
-A trailing value is shared only with earlier objects of the same kind («подогрев водителя и
-пассажира на тройку»; «закрой окна и климат на двадцать три» leaves the windows alone). A
-verb that applies to an object never turns into setting it («закрой окна на пятьдесят» is
-refused). A singular window or door with a row but no side takes the side of the previous
+A singular window or door with a row but no side takes the side of the previous
 window or door in the same utterance («окно слева …, а заднее окно …» → rear left); otherwise
 it is refused as before. Defaults: a temperature, fan, AUTO or airflow without a zone is the
 driver's; heating, ventilation or massage without a seat is the driver's; «включи подогрев»
@@ -55,6 +52,38 @@ is level 2; «приоткрыть окно» is 20 %. Relative steps («пот�
 that target. Unknown words, negation, conflicting positions, values out of range and objects
 no verb applies to still reject the whole utterance before transport.
 
+Ambiguous or contradictory speech rejects the whole utterance; the parser never guesses
+toward a physical action that was not clearly asked for:
+
+- *Implied setting.* Only a later object of a movement verb takes its value as a setting
+  («закрой окна и климат на двадцать три» closes the windows and sets 23 °C). The verb's own
+  object and other verbs never do: «открой климат на двадцать», «выключи свет на авто»,
+  «закрой вентилятор на три» are refused. A verb that applies never turns into setting
+  («закрой окна на пятьдесят» is refused).
+- *Numbers.* A window position needs «на»/«до», «процентов» or a word such as «наполовину»;
+  a number right before an object counts it («открой два окна» is refused). Level words
+  («тройку», «третий») set only fan, heating/ventilation or massage levels. Roles and adverbs
+  without a noun or a movement verb never name a window: «поставь пассажиру сто» is refused,
+  «поставь пассажиру двадцать четыре» is a temperature. «до N» is always the absolute value N,
+  also after «убавь» or «потеплее»; relative words take a level step («вентилятор посильнее на
+  два» → +2).
+- *Sharing within one command.* Positions said once with adverbs, roles or rows (never gendered
+  adjectives), on the first or last object and on no other, also place the other objects that
+  can take them («выключи климат и подогрев сзади», «открой окна и двери слева»; «закрой окна и
+  левую дверь» still closes all four windows). A single value on the first or last object goes
+  to the others whose kind takes it — degrees to a temperature, a level to fan, heating,
+  ventilation or massage, a percentage to a window — unless they would act on its own targets
+  («включи подогрев и вентиляцию на тройку»; «открой окна и левое на двадцать» → left 20 %,
+  the others open).
+- *Conflicts.* Two different actions for one target within one command are refused («сделай
+  двадцать два и потеплее», «включи режим рециркуляции и свежий воздух»), except airflow
+  directions of one zone, which combine («обдув в ноги и в лицо» → face_feet; the rear zones
+  only face/feet), and a member named next to its group. Across commands the last action wins.
+- *Also refused:* bare «противотуманки»/«противотуманные фары» (front fog lamps are not in the
+  catalog; «задние противотуманки» works), a program or AUTO without a noun («волна», «авто»),
+  one seat of a row without a side («подогрев заднего сиденья»; «задних сидений» is both).
+  «включи климат сзади на двадцать три» switches on the named zones, not `climate.power`.
+
 Every phrase the 0.3.4 window/door grammar accepted keeps its exact plan: all 11 366 were
 replayed against the old parser once; `src/sharedTest/resources/voice-window-door-0.3.4.tsv`
 keeps the 5 524 that use «и», «потом» or «and then» (the other connectors are the same lexicon
@@ -62,7 +91,7 @@ class) and `VoiceWholeCarTest` replays them. Two former refusals are now command
 command without «и» («открой левое окно закрой правое») and «запри двери» (lock). «открой
 замки»/«открой машину» stay refused: unlocking needs «разблокируй».
 
-`VoiceGrammar` generates 11 780 recognizer phrases (226 words). Vosk builds a bigram model
+`VoiceGrammar` generates 11 817 recognizer phrases (228 words). Vosk builds a bigram model
 from them, so they cover word pairs, not every sentence. A JVM test reads the model's own
 vocabulary from `graph/Gr.fst` and fails on any grammar word the model does not know (the old
 grammar's «еще», «and», «then» were silently dropped by Vosk; the grammar now spells «ещё»).
@@ -74,7 +103,16 @@ writes `BODYWORK_*_WINDOW_TARGET_POSITION_SET` (device 1001, FIDs `0x4C119010/18
 LF/LR/RF/RR) = N and 300 ms later 255 («no target»). The catalog carries these as
 `window_targets`; `fl:50%` passes the same fresh window guards, journals the target write and
 always sends the reset, also after an unknown result, never retrying the target. 0 and 100
-use the existing close/open movement. **Firmware only:** the percent write has not been sent
+use the existing close/open movement. An accepted target whose reset is refused or unknown is
+an `uncertain` outcome and stops the rest of the plan. The reset is journalled
+(`phase: reset_attempt`) before its write and its result goes into the result row; a percent
+attempt without a later accepted reset latches the window (`pendingResets`, rebuilt from the
+journal on start, `pending_window_resets` in the snapshot). Any later command for that window,
+STOP included, first sends the 255 reset alone, journalled, and is refused unless the reset is
+accepted; the old target is never resent. All relative steps of one plan are resolved from one
+snapshot taken before the first write, so «потеплее везде» does not compound under climate
+sync; a fan step never goes below 1 and never weakens a fan that is off (only «выключи
+вентилятор» writes 0). **Firmware only:** the percent write has not been sent
 to the car; the first test is one window, in P, with the owner at the glass.
 
 ## Minimal offline voice pipeline

@@ -29,6 +29,8 @@ public final class NativeController {
     private final File journal;
     private final ReentrantLock operation = new ReentrantLock();
     final Set<String> pendingStops = new TreeSet<>();
+    /** Windows whose percent target may still be set: a target attempt without a later accepted 255 reset. */
+    final Set<String> pendingResets = new TreeSet<>();
     private Shell shell;
     private String keyIdentity;
     private String vehicleIdentity;
@@ -167,7 +169,7 @@ public final class NativeController {
     }
     JSONObject buildState(Map<String,Object> v) throws Exception {
         String parked=guard(eq(v.get("park"),1),"Управление доступно только в P");
-        JSONObject state=object("model","N9","park",v.get("park"),"permit",v.get("permit"),"time",Instant.now().toString(),"pending_stops",new JSONArray(pendingStops));
+        JSONObject state=object("model","N9","park",v.get("park"),"permit",v.get("permit"),"time",Instant.now().toString(),"pending_stops",new JSONArray(pendingStops),"pending_window_resets",new JSONArray(pendingResets));
         JSONObject windows=new JSONObject();
         for(String key:keys(catalog.getJSONObject("windows"))) {
             JSONArray spec=catalog.getJSONObject("windows").getJSONArray(key); Double position=percent(v.get(key+"_percent"));
@@ -286,26 +288,60 @@ public final class NativeController {
             if(action.equals("stop")) checkIdentity(run(identityCommand,5000));
             else { String reason=reason(buildState(readValues()),target); if(reason!=null) throw new Refused(reason); }
             if(!foreground.getAsBoolean()&&!action.equals("stop")) throw new IOException("Действие отменено: пульт не на экране");
+            if(pendingResets.contains(target)) {
+                // An earlier percent target may still be set: clear it first and never resend that target.
+                JSONObject cleared=clearWindowTarget(target);
+                if(!cleared.optBoolean("reset_accepted")) return cleared;
+                if(!foreground.getAsBoolean()&&!action.equals("stop")) throw new IOException("Действие отменено: пульт не на экране");
+            }
             JSONObject entry=object("time",Instant.now().toString(),"target",target,"action",action,"command",command.shell(),"phase","attempt");
             record(entry);
+            boolean percent=windowTarget(command);
+            if(percent) pendingResets.add(target); // mirrors the journalled attempt until a reset is accepted
             JSONObject result;
             try {
                 String raw=run(command.shell(),5000);
                 int code=parseSet(raw);result=object("code",code,"accepted",code==1,"raw",raw);
             } catch(Exception error) { result=object("accepted",false,"uncertain",true,"error","Исход неизвестен; проверьте машину. Команда не повторялась: "+error.getMessage()); }
-            if(windowTarget(command)) {
+            if(percent) {
                 // The reset follows every target attempt, as in the stock app; it is never a retry of the target.
                 try { Thread.sleep(catalog.getJSONObject("window_targets").getInt("reset_delay_ms")); }
                 catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); }
                 String reset=windowTargetReset(target);result.put("reset_command",reset);
+                record(object("time",Instant.now().toString(),"target",target,"action","reset","command",reset,"phase","reset_attempt"));
                 try { String raw=run(reset,5000);int code=parseSet(raw);result.put("reset_code",code);result.put("reset_accepted",code==1);result.put("reset_raw",raw); }
                 catch(Exception error) { result.put("reset_accepted",false);result.put("reset_error",String.valueOf(error.getMessage())); }
+                if(result.optBoolean("accepted")&&!result.optBoolean("reset_accepted")) {
+                    // An accepted target that may still be set is not a known outcome: the window can keep moving.
+                    result.put("accepted",false);result.put("uncertain",true);
+                    result.put("error","Цель окна принята, но её сброс не подтверждён; проверьте окно. Команда не повторялась");
+                }
             }
             JSONObject logged=new JSONObject(entry.toString());logged.put("phase","result");for(String key:keys(result)) logged.put(key,result.get(key));
             record(logged); // Only clear latch after STOP acknowledgement is durably retained.
             if(result.optBoolean("stop_accepted") || (action.equals("stop") && result.optBoolean("accepted"))) pendingStops.remove(target);
+            if(percent && result.optBoolean("reset_accepted")) pendingResets.remove(target);
             return result;
         } finally { operation.unlock(); }
+    }
+    /**
+     * The 255 reset alone for a window whose earlier target is unconfirmed, journalled before and after the write.
+     * The latch clears only on an accepted reset; otherwise the result refuses the window action.
+     */
+    private JSONObject clearWindowTarget(String target) throws Exception {
+        String reset=windowTargetReset(target);
+        JSONObject entry=object("time",Instant.now().toString(),"target",target,"action","reset","command",reset,"phase","reset_attempt");
+        record(entry);
+        JSONObject result=object("reset_required",true,"reset_command",reset);
+        try { String raw=run(reset,5000);int code=parseSet(raw);result.put("reset_code",code);result.put("reset_accepted",code==1);result.put("reset_raw",raw); }
+        catch(Exception error) { result.put("reset_accepted",false);result.put("uncertain",true);result.put("reset_error",String.valueOf(error.getMessage())); }
+        JSONObject logged=new JSONObject(entry.toString());logged.put("phase","reset_result");for(String key:keys(result)) logged.put(key,result.get(key));
+        record(logged);
+        if(result.optBoolean("reset_accepted")) { pendingResets.remove(target); return result; }
+        result.put("accepted",false);
+        result.put("error",result.optBoolean("uncertain")?"Исход сброса прежней цели окна неизвестен; команда окна не отправлена. Проверьте окно"
+                :"Сброс прежней цели окна не принят; команда окна не отправлена");
+        return result;
     }
     public static final class Hold {
         final String target, action, token;
@@ -384,7 +420,14 @@ public final class NativeController {
         if(!journal.exists()) return;
         try(BufferedReader reader=new BufferedReader(new InputStreamReader(new FileInputStream(journal),StandardCharsets.UTF_8))) {
             String line;while((line=reader.readLine())!=null) {
-                try { JSONObject row=new JSONObject(line);String target=row.optString("target"); if(!target.startsWith("seat.")) continue;
+                try { JSONObject row=new JSONObject(line);String target=row.optString("target");
+                    if(catalog.getJSONObject("windows").has(target)) {
+                        // A percent target attempt latches until a later accepted 255 reset for the same window.
+                        if(row.optString("phase").equals("attempt")&&WINDOW_PERCENT.matcher(row.optString("action")).matches()) pendingResets.add(target);
+                        else if(row.optBoolean("reset_accepted")) pendingResets.remove(target);
+                        continue;
+                    }
+                    if(!target.startsWith("seat.")) continue;
                     if(row.optString("phase").equals("attempt")&&!row.optString("action").equals("stop")) pendingStops.add(target);
                     else if(row.optBoolean("stop_accepted")||(row.optString("action").equals("stop")&&row.optBoolean("accepted"))) pendingStops.remove(target);
                 } catch(JSONException ignored) { /* match existing journal replay of truncated lines */ }

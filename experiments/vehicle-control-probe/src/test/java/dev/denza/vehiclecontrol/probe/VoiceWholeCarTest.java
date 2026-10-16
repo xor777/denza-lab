@@ -52,6 +52,48 @@ public class VoiceWholeCarTest {
         return VoiceCommands.parseText(text).commands().stream().map(c -> c.target() + ":" + c.action()).toList();
     }
 
+    private NativeController controller(NativeController.Shell shell) throws Exception {
+        return controller(shell, "actions.jsonl");
+    }
+
+    private NativeController controller(NativeController.Shell shell, String journal) throws Exception {
+        return new NativeController(catalog, () -> {
+            fake.opens++;
+            return new NativeController.Connection("same-key", shell);
+        }, directory.resolve(journal).toFile());
+    }
+
+    /** The fake car, except that every 255 window-target reset gets this reply. */
+    private NativeController.Shell resetReply(String reply) {
+        return (command, timeout) -> {
+            if (command.startsWith("service call autoservice 6") && command.endsWith(" i32 255 null")) {
+                fake.writes.add(command);
+                return reply;
+            }
+            return fake.run(command, timeout);
+        };
+    }
+
+    private static final String REFUSED = "Result: Parcel(00000000    '....')";
+
+    private static void rejects(String... texts) {
+        for (String text : texts) assertThrows(text, IOException.class, () -> VoiceCommands.parseText(text));
+    }
+
+    private static List<String> statuses(VoiceCommands.Execution execution) {
+        return execution.outcomes().stream().map(VoiceCommands.Outcome::status).toList();
+    }
+
+    private String climateState(String key) throws Exception {
+        return catalog.getJSONObject("climate").getJSONObject(key).getString("state");
+    }
+
+    private static List<String> phases(List<String> rows) throws Exception {
+        List<String> phases = new ArrayList<>();
+        for (String row : rows) phases.add(new JSONObject(row).getString("phase"));
+        return phases;
+    }
+
     private List<String> writes(String... commands) throws Exception {
         List<String> writes = new ArrayList<>();
         for (String command : commands) {
@@ -137,7 +179,7 @@ public class VoiceWholeCarTest {
         assertEquals(List.of("massage.rr:off"), plan("выключи массаж сзади справа"));
         assertEquals(List.of("light.headlights:low"), plan("включи фары"));
         assertEquals(List.of("light.headlights:auto"), plan("фары в авто"));
-        assertEquals(List.of("light.headlights:off", "light.rear_fog:off"), plan("выключи фары и противотуманки"));
+        assertEquals(List.of("light.headlights:off", "light.rear_fog:off"), plan("выключи фары и задние противотуманки"));
         assertEquals(List.of("light.matrix:on", "light.drl:off"), plan("включи матричный свет и выключи дневные ходовые огни"));
         assertEquals(List.of("light.logo:on"), plan("включи подсветку логотипа"));
         assertEquals(List.of("shade.front:open"), plan("открой шторку"));
@@ -227,10 +269,12 @@ public class VoiceWholeCarTest {
         assertEquals(List.of(prefix + " i32 30 null", prefix + " i32 255 null"), fake.writes);
         assertTrue(result.message().contains("Заднее левое · открыть на 30 %: Запрос принят; движение не подтверждено"));
         List<String> journal = Files.readAllLines(directory.resolve("actions.jsonl"));
-        assertEquals(2, journal.size());
-        JSONObject logged = new JSONObject(journal.get(1));
+        // The reset is journalled before its write, so a crash between the two leaves the window latched.
+        assertEquals(List.of("attempt", "reset_attempt", "result"), phases(journal));
+        JSONObject logged = new JSONObject(journal.get(2));
         assertEquals("30%", logged.getString("action"));
         assertTrue(logged.getBoolean("reset_accepted"));
+        assertTrue(controller.pendingResets.isEmpty());
 
         // A guard refuses before either write.
         fake.writes.clear();
@@ -334,5 +378,248 @@ public class VoiceWholeCarTest {
 
     private static String readString(DataInputStream data) throws IOException {
         return new String(data.readNBytes(readInt(data)), StandardCharsets.UTF_8);
+    }
+
+    // ------------------------------------------------------------ ambiguity rules of the whole-car grammar
+
+    @Test public void impliedSettingOnlyForALaterObjectOfAMovementVerb() throws Exception {
+        assertEquals(List.of("fl:close", "fr:close", "rl:close", "rr:close", "climate.driver_temperature:23"),
+                plan("закрой окна и климат на двадцать три"));
+        assertEquals(List.of("fl:close", "fr:close", "rl:close", "rr:close", "climate.driver_fan:3"),
+                plan("закрой окна и вентилятор на три"));
+        rejects("выключи свет на авто", "выключи фары на авто", "выключи обдув в ноги", "выключи климат сзади на двадцать",
+                "выключи температуру на двадцать", "закрой вентилятор на три", "закрой массаж плечи", "открой климат на двадцать");
+        assertEquals(0, fake.opens);
+    }
+
+    @Test public void aBareNumberWithRolesIsATemperatureOrNothingNeverAWindow() throws Exception {
+        rejects("поставь пассажиру сто", "поставь три водителю", "пассажиру три", "поставь 3 водителю",
+                "поставь пассажиру шестнадцать", "сделай сорок слева", "поставь двадцать два водителю и пассажиру три",
+                "поставь сзади наполовину");
+        assertEquals(List.of("climate.passenger_temperature:24"), plan("поставь пассажиру двадцать четыре"));
+        assertEquals(List.of("climate.driver_temperature:22", "climate.passenger_temperature:22"),
+                plan("поставь двадцать два водителю и пассажиру"));
+        // A movement verb or a gendered position still names windows.
+        assertEquals(List.of("rl:50%", "rr:50%"), plan("открой сзади на пятьдесят"));
+        assertEquals(List.of("fl:50%"), plan("поставь левое на пятьдесят процентов"));
+    }
+
+    @Test public void windowPositionsNeedAPrepositionOrAUnitAndANumberBeforeAnObjectCountsIt() throws Exception {
+        rejects("открой два окна", "открой все четыре окна", "три окна открой", "открой левое окно сорок", "включи подогрев на три сиденья");
+        assertEquals(List.of("fl:40%"), plan("открой левое окно сорок процентов"));
+        assertEquals(List.of("fl:40%"), plan("открой левое окно на сорок"));
+        assertEquals(List.of("fl:50%", "fr:50%", "rl:50%", "rr:50%"), plan("открой окна 50%"));
+        // Temperature keeps bare cardinal numbers.
+        assertEquals(List.of("climate.driver_temperature:22"), plan("поставь двадцать два"));
+        assertEquals(List.of("climate.driver_temperature:23"), plan("температура двадцать три"));
+    }
+
+    @Test public void valuesRecordTheirPrepositionAndNumberSource() throws Exception {
+        VoiceParser.Value on = VoiceParser.item(VoiceParser.chunk(List.of("на", "пятьдесят"))).value;
+        assertTrue(on.preposition());
+        assertFalse(on.target());
+        assertTrue(on.cardinal());
+        assertFalse(VoiceParser.item(VoiceParser.chunk(List.of("пятьдесят"))).value.preposition());
+        VoiceParser.Value until = VoiceParser.item(VoiceParser.chunk(List.of("до", "двадцать"))).value;
+        assertTrue(until.preposition() && until.target());
+        assertFalse(VoiceParser.item(VoiceParser.chunk(List.of("на", "тройку"))).value.cardinal());
+        assertFalse(VoiceParser.item(VoiceParser.chunk(List.of("на", "третий", "уровень"))).value.cardinal());
+    }
+
+    @Test public void colloquialAndOrdinalNumbersOnlySetLevels() throws Exception {
+        rejects("открой окно водителя на тройку", "сделай потеплее на тройку", "поставь температуру на тройку",
+                "прибавь вентилятор на двойку", "сделай подогрев посильнее на двойку");
+        assertEquals(List.of("climate.driver_fan:5"), plan("включи вентилятор на пятёрку"));
+        assertEquals(List.of("comfort.fl.heat:3"), plan("включи подогрев на третий уровень"));
+        assertEquals(List.of("massage.fl:level2"), plan("поставь массаж на второй"));
+    }
+
+    @Test public void positionsSaidOncePlaceEveryObjectOfTheCommand() throws Exception {
+        assertEquals(List.of("comfort.fr.heat:2", "comfort.fr.vent:2"), plan("включи подогрев и вентиляцию пассажира"));
+        assertEquals(List.of("comfort.fr.heat:2", "massage.fr:on"), plan("включи подогрев и массаж пассажиру"));
+        assertEquals(List.of("climate.middle_left_power:off", "climate.middle_right_power:off", "comfort.rl.heat:0", "comfort.rr.heat:0"),
+                plan("выключи климат и подогрев сзади"));
+        assertEquals(List.of("fl:open", "rl:open", "door.fl:open", "door.rl:open"), plan("открой окна и двери слева"));
+        // Gendered adjectives are never shared; objects without seats or zones keep no positions.
+        assertEquals(List.of("fl:close", "fr:close", "rl:close", "rr:close", "door.fl:close"), plan("закрой окна и левую дверь"));
+        assertEquals(List.of("climate.ac:on", "comfort.fr.heat:2"), plan("включи кондиционер и подогрев пассажира"));
+        // Two objects of one kind with their own nouns are a group and its member, not one place.
+        assertEquals(List.of("fl:20%", "fr:open", "rl:open", "rr:open"), plan("открой окна и окно водителя на двадцать"));
+        // «сидений» already names its seats.
+        assertEquals(7, plan("включи подогрев сидений и вентиляцию пассажира").size());
+    }
+
+    @Test public void aSingleValueGoesToEveryObjectOfItsKindButNeverOntoItsOwnTargets() throws Exception {
+        assertEquals(List.of("comfort.fl.heat:3", "comfort.fl.vent:3"), plan("включи подогрев и вентиляцию на тройку"));
+        assertEquals(List.of("comfort.fl.heat:3", "comfort.fr.heat:3"), plan("включи подогрев на тройку водителю и пассажиру"));
+        assertEquals(List.of("comfort.fl.vent:1", "comfort.fr.vent:1"), plan("включи вентиляцию на минимум водителю и пассажиру"));
+        assertEquals(List.of("massage.fl:level3", "comfort.fl.heat:3"), plan("включи массаж и подогрев на тройку"));
+        assertEquals(List.of("fl:20%", "fr:open", "rl:open", "rr:open"), plan("открой окна и левое на двадцать"));
+        assertEquals(List.of("comfort.fl.heat:3", "comfort.fr.heat:3"), plan("подогрев водителя и пассажира на тройку"));
+        // Another kind keeps its own default.
+        assertEquals(List.of("comfort.fl.heat:2", "climate.power:on", "climate.driver_temperature:23"),
+                plan("включи подогрев и климат на двадцать три"));
+    }
+
+    @Test public void twoActionsForOneTargetInOneCommandRejectExceptCombinedAirflow() throws Exception {
+        assertEquals(List.of("climate.driver_mode:face_feet"), plan("обдув в ноги и в лицо"));
+        assertEquals(List.of("climate.driver_mode:feet_windshield"), plan("обдув на стекло и в ноги"));
+        assertEquals(List.of("climate.driver_mode:face_windshield"), plan("обдув на стекло и в лицо"));
+        assertEquals(List.of("climate.driver_mode:face_feet_windshield"), plan("обдув в лицо и в ноги и на стекло"));
+        assertEquals(List.of("climate.middle_left_mode:face_feet", "climate.middle_right_mode:face_feet"), plan("обдув в ноги сзади и в лицо"));
+        assertEquals(List.of("climate.middle_left_mode:face_feet", "climate.middle_right_mode:face_feet"), plan("обдув в лицо и в ноги сзади"));
+        rejects("обдув в ноги сзади и на стекло", "включи режим рециркуляции и свежий воздух", "сделай двадцать два и потеплее",
+                "включи климат на двадцать три и температуру водителя на двадцать пять");
+        // A member named next to its group keeps its own action.
+        assertEquals(List.of("comfort.fl.heat:3", "comfort.fr.heat:2", "comfort.rl.heat:2", "comfort.rr.heat:2", "comfort.tl.heat:2",
+                "comfort.tr.heat:2"), plan("включи подогрев сидений и подогрев водителя на тройку"));
+        // Across commands the last action still wins.
+        assertEquals(List.of("fl:close"), plan("открой левое окно и закрой левое окно"));
+        assertEquals(List.of("climate.recirculation:external"), plan("включи режим рециркуляции и включи свежий воздух"));
+    }
+
+    @Test public void relativeWordsTakeALevelStepAndUntilIsAlwaysAbsolute() throws Exception {
+        assertEquals(List.of("climate.driver_fan:delta:+2"), plan("сделай вентилятор посильнее на два"));
+        assertEquals(List.of("comfort.fl.heat:delta:+2"), plan("сделай подогрев посильнее на два"));
+        assertEquals(List.of("comfort.fl.heat:delta:+2"), plan("сделай подогрев посильнее на два уровня"));
+        rejects("сделай подогрев посильнее на четыре", "сделай вентилятор посильнее на восемь", "сделай вентилятор посильнее на два градуса");
+        assertEquals(List.of("climate.driver_temperature:20"), plan("убавь температуру до двадцать"));
+        assertEquals(List.of("climate.driver_temperature:20"), plan("сделай похолоднее до двадцать"));
+        assertEquals(List.of("climate.driver_fan:5"), plan("сделай вентилятор посильнее до пять"));
+        assertEquals(List.of("fl:50%"), plan("открой окно водителя до пятьдесят процентов"));
+    }
+
+    @Test public void climateOnWithZonesSwitchesThoseZones() throws Exception {
+        assertEquals(List.of("climate.middle_left_power:on", "climate.middle_right_power:on",
+                "climate.middle_left_temperature:23", "climate.middle_right_temperature:23"), plan("включи климат сзади на двадцать три"));
+        assertEquals(List.of("climate.power:on", "climate.driver_temperature:23"), plan("включи климат на двадцать три"));
+    }
+
+    @Test public void onlyTheRearFogLampCanBeNamed() throws Exception {
+        rejects("противотуманки", "включи противотуманки", "включи противотуманные фары", "выключи противотуманные огни");
+        assertEquals(List.of("light.rear_fog:on"), plan("включи задние противотуманные фары"));
+        assertEquals(List.of("light.rear_fog:off"), plan("выключи задние противотуманки"));
+        assertTrue(VoiceCommands.phrases().contains("включи задние противотуманки"));
+        assertFalse(VoiceCommands.phrases().contains("включи противотуманки"));
+        // The bare words stay recognizable so they are refused rather than forced into the rear lamp.
+        assertTrue(VoiceCommands.grammarJson().contains("\"включи противотуманки\""));
+    }
+
+    @Test public void bareProgramsAndAutoNameNoFunction() throws Exception {
+        rejects("волна", "плечи", "авто", "в режим авто", "включи фары и авто", "в ноги");
+        assertEquals(List.of("climate.driver_mode:feet"), plan("обдув в ноги"));
+        assertEquals(List.of("massage.fl:wave"), plan("включи массаж волна"));
+        assertEquals(List.of("light.headlights:auto"), plan("фары в авто"));
+    }
+
+    @Test public void oneSeatOfARowIsAmbiguousButTheRowsSeatsAreBoth() throws Exception {
+        rejects("подогрев заднего сиденья", "включи подогрев заднего сиденья", "включи массаж заднего сиденья");
+        assertEquals(List.of("comfort.rl.heat:2", "comfort.rr.heat:2"), plan("включи подогрев задних сидений"));
+        assertEquals(List.of("comfort.rl.heat:2", "comfort.rr.heat:2"), plan("включи подогрев сидений сзади"));
+        assertEquals(List.of("comfort.rl.vent:2"), plan("включи вентиляцию заднего левого сиденья"));
+    }
+
+    // ------------------------------------------------------------ execution
+
+    @Test public void acceptedWindowTargetWithUnconfirmedResetIsUncertainAndStopsThePlan() throws Exception {
+        int run = 0;
+        for (String reply : List.of("broken", REFUSED)) {
+            fake.writes.clear();
+            NativeController car = controller(resetReply(reply), "unconfirmed-" + run++ + ".jsonl");
+            VoiceCommands.Execution result = VoiceCommands.execute(
+                    VoiceCommands.parseText("открой левое окно на сорок процентов и закрой правое окно"), car, () -> true);
+            assertFalse(result.complete());
+            assertEquals(List.of("uncertain"), statuses(result));
+            assertTrue(result.message(), result.outcomes().get(0).message().contains("сброс цели окна не подтверждён"));
+            assertTrue(result.message().contains("оставшиеся команды не отправлены"));
+            // The target and its single reset; neither is retried and the right window is never sent.
+            assertEquals(List.of(car.command("fl", "40%").shell(), car.windowTargetReset("fl")), fake.writes);
+        }
+        JSONObject direct = controller(resetReply(REFUSED), "direct.jsonl").act("rr", "30%");
+        assertTrue(direct.getBoolean("uncertain"));
+        assertFalse(direct.getBoolean("accepted"));
+        assertEquals(1, direct.getInt("code"));
+        assertFalse(direct.getBoolean("reset_accepted"));
+    }
+
+    @Test public void anUnconfirmedResetLatchesDurablyAndPrecedesEveryLaterWindowCommand() throws Exception {
+        NativeController failing = controller(resetReply(REFUSED));
+        assertTrue(failing.act("fl", "40%").getBoolean("uncertain"));
+        assertEquals(Set.of("fl"), failing.pendingResets);
+        assertEquals("[\"fl\"]", failing.snapshot().getJSONArray("pending_window_resets").toString());
+
+        // A restarted controller rebuilds the latch; a refused reset refuses the window command and sends nothing else.
+        NativeController restarted = controller(resetReply(REFUSED));
+        assertEquals(Set.of("fl"), restarted.pendingResets);
+        fake.writes.clear();
+        JSONObject refused = restarted.act("fl", "close");
+        assertFalse(refused.getBoolean("accepted"));
+        assertTrue(refused.getBoolean("reset_required"));
+        assertEquals(List.of(restarted.windowTargetReset("fl")), fake.writes);
+        assertEquals(Set.of("fl"), restarted.pendingResets);
+
+        // By voice: a refused reset refuses only that window; an unknown reset outcome stops the plan.
+        fake.writes.clear();
+        VoiceCommands.Execution voice = VoiceCommands.execute(VoiceCommands.parseText("закрой левое окно и правое окно"), restarted, () -> true);
+        assertEquals(List.of("refused", "accepted"), statuses(voice));
+        assertTrue(voice.outcomes().get(0).message().contains("Сброс прежней цели окна не принят"));
+        assertEquals(List.of(restarted.windowTargetReset("fl"), restarted.command("fr", "close").shell()), fake.writes);
+        fake.writes.clear();
+        voice = VoiceCommands.execute(VoiceCommands.parseText("закрой левое окно и правое окно"), controller(resetReply("broken")), () -> true);
+        assertEquals(List.of("uncertain"), statuses(voice));
+        assertEquals(List.of(restarted.windowTargetReset("fl")), fake.writes);
+
+        // An accepted reset clears the latch, journalled, before even STOP; the old target is never sent again.
+        NativeController accepting = controller(fake);
+        assertEquals(Set.of("fl"), accepting.pendingResets);
+        fake.writes.clear();
+        assertTrue(accepting.act("fl", "stop").getBoolean("accepted"));
+        assertEquals(List.of(accepting.windowTargetReset("fl"), accepting.command("fl", "stop").shell()), fake.writes);
+        assertTrue(accepting.pendingResets.isEmpty());
+        List<String> journal = Files.readAllLines(directory.resolve("actions.jsonl"));
+        assertEquals(List.of("reset_attempt", "reset_result", "attempt", "result"), phases(journal.subList(journal.size() - 4, journal.size())));
+        assertTrue(controller(fake).pendingResets.isEmpty());
+        fake.writes.clear();
+        assertTrue(accepting.act("fl", "open").getBoolean("accepted"));
+        assertEquals(List.of(accepting.command("fl", "open").shell()), fake.writes);
+
+        // A new percent on a latched window: the lone reset first, then the new target and its own reset.
+        assertTrue(failing.act("rr", "20%").getBoolean("uncertain"));
+        NativeController next = controller(fake);
+        assertEquals(Set.of("rr"), next.pendingResets);
+        fake.writes.clear();
+        assertTrue(next.act("rr", "30%").getBoolean("accepted"));
+        assertEquals(List.of(next.windowTargetReset("rr"), next.command("rr", "30%").shell(), next.windowTargetReset("rr")), fake.writes);
+        assertTrue(next.pendingResets.isEmpty());
+    }
+
+    @Test public void relativeStepsOfOnePlanComeFromOneReadingBeforeTheFirstWrite() throws Exception {
+        List<String> zones = List.of("driver", "passenger", "middle_left", "middle_right", "rear");
+        for (String zone : zones) fake.values.put(climateState(zone + "_temperature"), 22);
+        // Climate sync: every write moves all zones; a reading per command would compound the step.
+        NativeController synced = controller((command, timeout) -> {
+            String reply = fake.run(command, timeout);
+            if (command.startsWith("service call autoservice 6"))
+                for (String zone : zones) fake.values.put(climateState(zone + "_temperature"), 30);
+            return reply;
+        });
+        assertTrue(VoiceCommands.execute(VoiceCommands.parseText("сделай потеплее везде"), synced, () -> true).complete());
+        assertEquals(writes("climate.driver_temperature:23", "climate.passenger_temperature:23", "climate.middle_left_temperature:23",
+                "climate.middle_right_temperature:23", "climate.rear_temperature:23"), fake.writes);
+
+        // A fan step never switches the fan off or weakens a fan that is off; «выключи вентилятор» still writes 0.
+        String fan = climateState("driver_fan");
+        fake.writes.clear();
+        fake.values.put(fan, 1);
+        assertTrue(VoiceCommands.execute(VoiceCommands.parseText("вентилятор послабее"), controller, () -> true).complete());
+        assertEquals(writes("climate.driver_fan:1"), fake.writes);
+        fake.writes.clear();
+        fake.values.put(fan, 0);
+        VoiceCommands.Execution off = VoiceCommands.execute(VoiceCommands.parseText("вентилятор послабее"), controller, () -> true);
+        assertEquals(List.of("refused"), statuses(off));
+        assertTrue(fake.writes.isEmpty());
+        fake.values.put(fan, 3);
+        assertTrue(VoiceCommands.execute(VoiceCommands.parseText("выключи вентилятор"), controller, () -> true).complete());
+        assertEquals(writes("climate.driver_fan:0"), fake.writes);
     }
 }

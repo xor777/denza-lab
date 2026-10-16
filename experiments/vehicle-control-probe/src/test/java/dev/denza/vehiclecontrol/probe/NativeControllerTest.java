@@ -90,5 +90,19 @@ public class NativeControllerTest {
         fake.rawOverrides.put("AC_TEMPERATURE_UNIT",reply(1));fake.rawOverrides.put("AC_COMPRESSOR_MODE",reply(-10011));assertThrows(IOException.class,()->controller.act("climate.ac","on"));
         assertThrows(Exception.class,()->controller.command("climate.driver_temperature","16"));assertThrows(Exception.class,()->controller.command("climate.driver_temperature","34"));assertThrows(Exception.class,()->controller.command("climate.rear_mode","windshield"));
     }
-
+    @Test public void windowResetLatchReplaysFromTheJournal()throws Exception{
+        Path journal=directory.resolve("actions.jsonl");
+        Files.write(journal,List.of(
+            "{\"phase\":\"attempt\",\"target\":\"rr\",\"action\":\"30%\"}", // crashed before its reset
+            "{\"phase\":\"attempt\",\"target\":\"fl\",\"action\":\"40%\"}",
+            "{\"phase\":\"reset_attempt\",\"target\":\"fl\",\"action\":\"reset\"}",
+            "{\"phase\":\"result\",\"target\":\"fl\",\"action\":\"40%\",\"reset_accepted\":true}",
+            "{\"phase\":\"attempt\",\"target\":\"fr\",\"action\":\"open\"}", // a movement never latches
+            "{\"phase\":\"attempt\",\"target\":\"rl\",\"action\":\"20%\"}",
+            "{\"phase\":\"reset_attempt\",\"target\":\"rl\",\"action\":\"reset\"}", // reset outcome unknown
+            "{\"phase\":\"result\",\"target\":\"door.fl\",\"reset_accepted\":true}"));
+        NativeController replayed=new NativeController(catalog,()->new NativeController.Connection("same-key",fake),journal.toFile());
+        assertEquals(Set.of("rl","rr"),replayed.pendingResets);
+        assertEquals("[\"rl\",\"rr\"]",replayed.snapshot().getJSONArray("pending_window_resets").toString());
+    }
 }

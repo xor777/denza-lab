@@ -137,6 +137,8 @@ final class VoiceGrammar {
             phrases.add("включи вентилятор на " + spoken);
         for (String relative : List.of("посильнее", "сильнее", "побольше", "мощнее", "интенсивнее", "послабее", "слабее", "поменьше", "потише"))
             phrases.add("сделай вентилятор " + relative);
+        phrases.add("сделай вентилятор посильнее на два");
+        phrases.add("сделай вентилятор послабее на один");
         // Climate switches.
         for (String verb : List.of("включи", "выключи", "включить", "выключить", "отключи")) {
             for (String object : List.of("климат", "кондиционер", "режим рециркуляции", "свежий воздух", "внешний воздух",
@@ -156,6 +158,11 @@ final class VoiceGrammar {
         }
         phrases.add("обдув в ноги сзади");
         phrases.add("поставь обдув в лицо пассажиру");
+        // Directions of one zone named separately combine.
+        for (String pair : List.of("в ноги и в лицо", "на стекло и в ноги", "в лицо и в ноги сзади")) {
+            phrases.add("обдув " + pair);
+            phrases.add("поставь обдув " + pair);
+        }
         // Seats: heating and ventilation.
         for (String kind : List.of("подогрев", "вентиляцию")) {
             phrases.add("включи " + kind);
@@ -173,7 +180,22 @@ final class VoiceGrammar {
             phrases.add("сделай " + kind + " посильнее");
             phrases.add("сделай " + kind + " послабее");
             phrases.add("включи " + kind + " водителя и пассажира на тройку");
+            phrases.add("включи " + kind + " на тройку водителю и пассажиру");
+            phrases.add("включи " + kind + " на минимум водителю и пассажиру");
+            phrases.add("включи " + kind + " задних сидений");
+            phrases.add("включи " + kind + " передних сидений");
+            phrases.add("сделай " + kind + " посильнее на два");
+            phrases.add("сделай " + kind + " послабее на один");
         }
+        // Positions and a value said once are shared by the objects of one command.
+        phrases.add("включи подогрев и вентиляцию пассажира");
+        phrases.add("включи подогрев и вентиляцию на тройку");
+        phrases.add("включи подогрев и массаж пассажиру");
+        phrases.add("включи массаж и подогрев на тройку");
+        phrases.add("выключи климат и подогрев сзади");
+        phrases.add("включи климат сзади на двадцать три");
+        phrases.add("открой окна и двери слева");
+        phrases.add("открой окна и левое на двадцать");
         phrases.add("включи обогрев сиденья");
         phrases.add("включи обогрев сиденья водителя");
         phrases.add("включи обогрев пассажира");
@@ -192,8 +214,8 @@ final class VoiceGrammar {
         // Lights.
         for (String verb : List.of("включи", "выключи")) {
             for (String light : List.of("фары", "свет", "основной свет", "ближний свет", "ближний", "матричный свет",
-                    "матричные фары", "матрицу", "дневные ходовые огни", "ходовые огни", "дневные огни", "противотуманки",
-                    "противотуманные фары", "задние противотуманные фары", "противотуманные огни", "подсветку логотипа", "логотип"))
+                    "матричные фары", "матрицу", "дневные ходовые огни", "ходовые огни", "дневные огни",
+                    "задние противотуманки", "задние противотуманные фары", "подсветку логотипа", "логотип"))
                 phrases.add(verb + " " + light);
         }
         for (String auto : List.of("автоматический свет", "автоматические фары", "автосвет")) phrases.add("включи " + auto);
@@ -318,6 +340,9 @@ final class VoiceGrammar {
         for (String phrase : List.of("не открой левую дверь", "не надо открой двери", "не включай подогрев", "не надо климат",
                 "не включай кондиционер", "не трогай окна", "открой левую дверь не надо"))
             negatives.add(phrase);
+        // Front fog lamps are not in the catalog: these stay recognizable so they are refused, not forced into the rear lamp.
+        for (String verb : List.of("включи", "выключи"))
+            for (String fog : List.of("противотуманки", "противотуманные фары", "противотуманные огни")) negatives.add(verb + " " + fog);
         return negatives;
     }
 }
