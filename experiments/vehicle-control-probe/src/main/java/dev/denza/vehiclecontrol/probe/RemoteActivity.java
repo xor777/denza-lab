@@ -149,13 +149,7 @@ public final class RemoteActivity extends Activity {
                 feedback.setText("«"+plan.text()+"» · "+answer);updateButtons();refresh();});
         });
     }
-    private String describeVoicePlan(VoiceCommands.Plan plan){
-        Map<String,String> labels=Map.of("fl","переднее левое окно","fr","переднее правое окно","rl","заднее левое окно","rr","заднее правое окно",
-            "door.fl","передняя левая дверь","door.fr","передняя правая дверь","door.rl","задняя левая дверь","door.rr","задняя правая дверь");
-        Map<String,String> verbs=Map.of("open","открыть","close","закрыть","stop","остановить");
-        List<String> actions=new ArrayList<>();for(VoiceCommands.Command command:plan.commands())actions.add(verbs.get(command.action())+": "+labels.get(command.target()));
-        return String.join("; ",actions);
-    }
+    private String describeVoicePlan(VoiceCommands.Plan plan){return VoiceCommands.describe(plan);}
     private void recordVoiceDecision(String text,String decision,String reason){
         if(voiceInput==null)return;
         try{voiceInput.recordDecision(new JSONObject().put("time_ms",System.currentTimeMillis()).put("text",text).put("decision",decision).put("reason",reason));}

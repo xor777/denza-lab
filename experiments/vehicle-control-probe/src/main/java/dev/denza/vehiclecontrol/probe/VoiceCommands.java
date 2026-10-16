@@ -14,29 +14,71 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-/** Offline grammar for named window and electric-door actions, never a HAL value. */
+/**
+ * Offline voice commands for every control of the remote, never a HAL value.
+ *
+ * {@link VoiceParser} turns a whole utterance into named controller actions; this class keeps the
+ * recognizer contract (complete endpoint, every word scored, text agreement), resolves relative
+ * values from a fresh read and executes through the existing controller and its guards.
+ */
 public final class VoiceCommands {
     // A recognizer score is a heuristic, not a probability that the command is correct.
     public static final double MIN_WORD_CONFIDENCE = 0.85;
-    private static final List<String> ALL = List.of("fl", "fr", "rl", "rr");
-    private static final List<String> ALL_DOORS = List.of("door.fl", "door.fr", "door.rl", "door.rr");
-    private static final Set<String> ACTIONS = Set.of("open", "close", "stop");
-    private static final Set<String> WINDOW_ONLY_ACTIONS = Set.of("опусти", "опустить", "опускай", "подними", "поднять", "поднимай");
     private static final Set<String> FILLERS = Set.of("пожалуйста", "давай", "слушай");
-    private static final Set<String> CONJUNCTIONS = Set.of("и", "а", "потом", "затем", "еще", "and", "then");
-    private static final Map<String, Boolean> CONNECTORS = connectors();
-    private static final Map<String, String> ACTION_ALIASES = actionAliases();
-    private static final Map<String, List<String>> TARGET_ALIASES = targetAliases();
-    private static final List<String> PHRASES = grammarPhrases();
+    private static final Set<String> SHORT_WORDS = Set.of("и", "а", "потом", "затем", "еще", "также", "на", "до", "в", "во",
+            "у", "для", "по", "с");
+    private static final List<String> WINDOWS = List.of("fl", "fr", "rl", "rr");
+    private static final Set<String> MOVEMENT = Set.of("open", "close", "stop");
+    private static final Set<String> MASSAGE_ACTIONS = Set.of("on", "off", "wave", "pulse", "stretch", "waist", "shoulders",
+            "level1", "level2", "level3");
+    private static final Set<String> MODES = Set.of("face", "face_feet", "feet", "feet_windshield", "windshield",
+            "face_feet_windshield", "face_windshield");
+    private static final Pattern PERCENT = Pattern.compile("([1-9][0-9]?)%");
+    private static final Pattern DELTA = Pattern.compile("delta:([+-][1-9][0-9]?)");
+    private static final Pattern ZONED = Pattern.compile("climate\\.(driver|passenger|middle_left|middle_right|rear)_(power|auto|temperature|fan|mode)");
+    private static final Pattern COMFORT = Pattern.compile("comfort\\.(fl|fr|rl|rr|tl|tr)\\.(heat|vent)");
 
     private VoiceCommands() { }
 
+    /** A named controller action. The allowlist mirrors the remote's controls and their option keys. */
     public record Command(String target, String action) {
         public Command {
-            if ((!ALL.contains(target) && !ALL_DOORS.contains(target)) || !ACTIONS.contains(action))
-                throw new IllegalArgumentException("Only named window and door actions are permitted");
+            if (!valid(target, action)) throw new IllegalArgumentException("Only catalogued remote actions are permitted");
         }
+    }
+
+    static boolean valid(String target, String action) {
+        if (target == null || action == null) return false;
+        if (WINDOWS.contains(target)) return MOVEMENT.contains(action) || PERCENT.matcher(action).matches();
+        if (target.matches("door\\.(fl|fr|rl|rr)") || target.matches("shade\\.(front|rear)")) return MOVEMENT.contains(action);
+        if (target.equals("locks")) return action.equals("lock") || action.equals("unlock");
+        if (target.equals("light.headlights")) return Set.of("off", "auto", "low").contains(action);
+        if (target.matches("light\\.(matrix|drl|rear_fog|logo)")) return action.equals("on") || action.equals("off");
+        if (target.matches("climate\\.(power|ac|front_defrost|rear_defrost)")) return action.equals("on") || action.equals("off");
+        if (target.equals("climate.recirculation")) return action.equals("internal") || action.equals("external");
+        if (target.matches("massage\\.(fl|fr|rl|rr)")) return MASSAGE_ACTIONS.contains(action);
+        Matcher zoned = ZONED.matcher(target);
+        if (zoned.matches()) {
+            String zone = zoned.group(1);
+            return switch (zoned.group(2)) {
+                case "power", "auto" -> action.equals("on") || action.equals("off");
+                case "temperature" -> DELTA.matcher(action).matches() || inRange(action, 17, 33);
+                case "fan" -> DELTA.matcher(action).matches() || inRange(action, 0, 7);
+                default -> zone.equals("driver") || zone.equals("passenger") ? MODES.contains(action)
+                        : VoiceParser.REAR_ZONE_MODES.contains(action);
+            };
+        }
+        if (COMFORT.matcher(target).matches()) return DELTA.matcher(action).matches() || inRange(action, 0, 3);
+        return false;
+    }
+
+    private static boolean inRange(String action, int minimum, int maximum) {
+        if (!action.matches("[0-9]{1,2}")) return false;
+        int value = Integer.parseInt(action);
+        return value >= minimum && value <= maximum;
     }
 
     /** Only this grammar can create a plan; its command list cannot be changed by a caller. */
@@ -76,219 +118,31 @@ public final class VoiceCommands {
         public Assessment assessment() { return assessment; }
     }
 
-    private static Map<String, List<String>> targetAliases() {
-        Map<String, List<String>> targets = new LinkedHashMap<>();
-        aliases(targets, ALL, "окна", "все окна", "все", "стекла", "все стекла");
-        aliases(targets, List.of("fl", "fr"), "передние окна", "все передние окна", "окна спереди", "спереди окна", "передние", "спереди");
-        aliases(targets, List.of("rl", "rr"), "задние окна", "все задние окна", "окна сзади", "сзади окна", "задние", "сзади");
-        aliases(targets, List.of("fl", "rl"), "левые окна", "все левые окна", "окна слева", "слева окна", "левые", "левую сторону");
-        aliases(targets, List.of("fr", "rr"), "правые окна", "все правые окна", "окна справа", "справа окна", "правые", "правую сторону");
-        aliases(targets, List.of("fl"), "окно водителя", "окно у водителя", "окно слева", "слева окно");
-        aliases(targets, List.of("fr"), "окно пассажира", "окно переднего пассажира", "окно у пассажира", "окно справа", "справа окно");
-        aliases(targets,List.of("fl"),"левое окно спереди","переднее окно слева");
-        aliases(targets,List.of("fr"),"правое окно спереди","переднее окно справа");
-        aliases(targets,List.of("rl"),"левое окно сзади","заднее окно слева");
-        aliases(targets,List.of("rr"),"правое окно сзади","заднее окно справа");
-        windowAliases(targets, "fl", "левое", "водительское", "переднее левое", "левое переднее", "спереди слева", "слева спереди", "левое спереди", "переднее слева");
-        windowAliases(targets, "fr", "правое", "пассажирское", "переднее правое", "правое переднее", "спереди справа", "справа спереди", "правое спереди", "переднее справа");
-        windowAliases(targets, "rl", "заднее левое", "левое заднее", "сзади слева", "слева сзади", "левое сзади", "заднее слева", "левое заднее сзади", "заднее левое сзади");
-        windowAliases(targets, "rr", "заднее правое", "правое заднее", "сзади справа", "справа сзади", "правое сзади", "заднее справа", "правое заднее сзади", "заднее правое сзади");
-        aliases(targets, ALL_DOORS, "двери", "все двери");
-        aliases(targets, List.of("door.fl", "door.fr"), "передние двери", "все передние двери", "двери спереди", "спереди двери");
-        aliases(targets, List.of("door.rl", "door.rr"), "задние двери", "все задние двери", "двери сзади", "сзади двери");
-        aliases(targets, List.of("door.fl", "door.rl"), "левые двери", "все левые двери", "двери слева", "слева двери");
-        aliases(targets, List.of("door.fr", "door.rr"), "правые двери", "все правые двери", "двери справа", "справа двери");
-        aliases(targets, List.of("door.fl"), "дверь водителя", "дверь у водителя", "дверь слева", "слева дверь", "левую дверь спереди", "переднюю дверь слева");
-        aliases(targets, List.of("door.fr"), "дверь пассажира", "дверь переднего пассажира", "дверь у пассажира", "дверь справа", "справа дверь", "правую дверь спереди", "переднюю дверь справа");
-        aliases(targets, List.of("door.rl"), "левую дверь сзади", "заднюю дверь слева");
-        aliases(targets, List.of("door.rr"), "правую дверь сзади", "заднюю дверь справа");
-        doorAliases(targets, "door.fl", true, "левую", "водительскую", "переднюю левую", "левую переднюю", "левую спереди", "переднюю слева");
-        doorAliases(targets, "door.fr", true, "правую", "пассажирскую", "переднюю правую", "правую переднюю", "правую спереди", "переднюю справа");
-        doorAliases(targets, "door.rl", true, "заднюю левую", "левую заднюю", "левую сзади", "заднюю слева", "левую заднюю сзади", "заднюю левую сзади");
-        doorAliases(targets, "door.rr", true, "заднюю правую", "правую заднюю", "правую сзади", "заднюю справа", "правую заднюю сзади", "заднюю правую сзади");
-        // Positional adverbs alone keep their existing window meaning; a door noun is mandatory.
-        doorAliases(targets, "door.fl", false, "спереди слева", "слева спереди");
-        doorAliases(targets, "door.fr", false, "спереди справа", "справа спереди");
-        doorAliases(targets, "door.rl", false, "сзади слева", "слева сзади");
-        doorAliases(targets, "door.rr", false, "сзади справа", "справа сзади");
-        return java.util.Collections.unmodifiableMap(targets);
-    }
+    /** Built on first use: every generated phrase is parsed, which needs this class initialised. */
+    private static final class Phrases { static final List<String> LIST = VoiceGrammar.phrases(); }
 
-    private static void aliases(Map<String, List<String>> aliases, List<String> targets, String... phrases) {
-        for (String phrase : phrases) aliases.put(phrase, targets);
-    }
-
-    private static void windowAliases(Map<String, List<String>> aliases, String target, String... positions) {
-        for (String position : positions)
-            aliases(aliases, List.of(target), position, position + " окно", "окно " + position);
-    }
-
-    private static void doorAliases(Map<String, List<String>> aliases, String target, boolean feminine, String... positions) {
-        for (String position : positions) {
-            aliases(aliases, List.of(target), position + " дверь", "дверь " + position);
-            if (feminine) aliases(aliases, List.of(target), position);
-        }
-    }
-
-    private static Map<String, Boolean> connectors() {
-        Map<String, Boolean> connectors = new LinkedHashMap<>();
-        for (String phrase : List.of("и", "а", "потом", "затем", "еще", "и потом", "а потом", "и затем", "а затем", "и еще", "а еще", "and", "then", "and then"))
-            connectors.put(phrase, Boolean.TRUE);
-        return java.util.Collections.unmodifiableMap(connectors);
-    }
-
-    private static boolean permitted(String actionAlias, Iterable<String> targets) {
-        if (!WINDOW_ONLY_ACTIONS.contains(actionAlias)) return true;
-        for (String target : targets) if (target.startsWith("door.")) return false;
-        return true;
-    }
-
-    private static Map<String, String> actionAliases() {
-        Map<String, String> actions = new LinkedHashMap<>();
-        for (String word : List.of("открой", "открыть", "открывай", "опусти", "опустить", "опускай")) actions.put(word, "open");
-        for (String word : List.of("закрой", "закрыть", "закрывай", "подними", "поднять", "поднимай")) actions.put(word, "close");
-        for (String word : List.of("останови", "остановить", "стоп", "останови движение", "прекрати движение")) actions.put(word, "stop");
-        return java.util.Collections.unmodifiableMap(actions);
-    }
-
-    private static List<String> grammarPhrases() {
-        LinkedHashSet<String> phrases = new LinkedHashSet<>();
-        for (String action : ACTION_ALIASES.keySet()) {
-            for (var target : TARGET_ALIASES.entrySet())
-                if (permitted(action, target.getValue())) phrases.add(action + " " + target.getKey());
-            // Transition examples teach the small grammar conjunctions, new frames and corrections.
-            // The parser composes them without enumerating every possible sentence.
-            phrases.add(action + " левое и правое окно");
-            phrases.add(action + " левое окно и " + action + " правое окно");
-            phrases.add("открой окна нет " + action);
-            phrases.add("пожалуйста " + action + " окна");
-            phrases.add(action + " окна пожалуйста");
-            phrases.add("давай " + action + " окна");
-            phrases.add("слушай " + action + " окна");
-            if (!WINDOW_ONLY_ACTIONS.contains(action)) {
-                phrases.add(action + " левую и правую дверь");
-                phrases.add(action + " левую дверь и " + action + " правую дверь");
-                phrases.add("открой двери нет " + action);
-                phrases.add("пожалуйста " + action + " двери");
-            }
-        }
-        phrases.add("открой левое окно и закрой правое");
-        phrases.add("открой передние окна а закрой задние окна");
-        for (String connector : CONNECTORS.keySet()) {
-            phrases.add("открой левое окно " + connector + " правую дверь");
-            phrases.add("открой левое окно " + connector + " закрой заднюю правую дверь");
-            phrases.add("закрой окна " + connector + " открой двери");
-            // Cover every exact target on both sides of each connector, using one opposite-scope
-            // canonical operand. This is linear in the alias catalogue, not all target permutations.
-            for (var target : TARGET_ALIASES.entrySet()) {
-                boolean door = target.getValue().get(0).startsWith("door.");
-                String counterpart = door ? "правое окно" : "левую дверь";
-                phrases.add("открой " + target.getKey() + " " + connector + " " + counterpart);
-                phrases.add("открой " + counterpart + " " + connector + " " + target.getKey());
-            }
-        }
-        return List.copyOf(phrases);
-    }
-
-    public static List<String> phrases() { return PHRASES; }
+    public static List<String> phrases() { return Phrases.LIST; }
 
     /** [unk] gives the recognizer an escape instead of forcing all speech into an action. */
     public static String grammarJson() {
-        List<String> grammar = new ArrayList<>(PHRASES);
+        List<String> grammar = new ArrayList<>(phrases());
         // Rejection vocabulary is intentional: ASR must retain negation, not force it into a command.
-        for(String action:ACTION_ALIASES.keySet()){
-            grammar.add("не " + action + " левое окно");
-            grammar.add("не надо " + action + " окна");
-            if (!WINDOW_ONLY_ACTIONS.contains(action)) {
-                grammar.add("не " + action + " левую дверь");
-                grammar.add("не надо " + action + " двери");
-            } else grammar.add(action + " левую дверь");
-        }
+        grammar.addAll(VoiceGrammar.negatives());
         grammar.add("[unk]");
         return new JSONArray(grammar).toString();
     }
 
-    private static String normalize(String text) throws IOException {
-        if (text == null || text.length() > 600) throw rejected();
+    static String normalize(String text) throws IOException {
+        if (text == null || text.length() > 600) throw VoiceParser.rejected();
         return text.toLowerCase(Locale.ROOT).replace('ё', 'е').trim().replaceAll("\\s+", " ");
     }
 
     public static Plan parseText(String text) throws IOException {
         String normalized = normalize(text);
-        if (normalized.isEmpty()) throw rejected();
-        List<String> tokens = new ArrayList<>(List.of(normalized.split(" ")));
-        if (tokens.size() > 40 || tokens.contains("не") || tokens.contains("[unk]")) throw rejected();
-        tokens.removeIf(FILLERS::contains);
-        Cursor cursor = new Cursor(tokens);
-        LinkedHashMap<String, String> desired = new LinkedHashMap<>();
-        while (!cursor.end()) {
-            String actionAlias = cursor.alias(ACTION_ALIASES);
-            String action = cursor.take(ACTION_ALIASES);
-            if (action == null) throw rejected();
-            Set<String> targets = cursor.targets();
-            if (!permitted(actionAlias, targets)) throw rejected();
-            while (cursor.at("нет")) {
-                cursor.position++;
-                actionAlias = cursor.alias(ACTION_ALIASES);
-                action = cursor.take(ACTION_ALIASES);
-                if (action == null) throw rejected();
-                if (!permitted(actionAlias, targets)) throw rejected();
-                // A spoken correction inherits exactly the preceding frame's targets.
-                // Explicit replacement targets must agree; ambiguous retargeting is refused.
-                if (cursor.matches(TARGET_ALIASES) && !cursor.targets().equals(targets)) throw rejected();
-            }
-            for (String target : targets) desired.put(target, action);
-            if (cursor.end()) break;
-            if (cursor.take(CONNECTORS) == null) throw rejected();
-            if (cursor.end()) throw rejected();
-        }
-        if (desired.isEmpty()) throw rejected();
-        List<Command> commands = new ArrayList<>();
-        for (var command : desired.entrySet()) commands.add(new Command(command.getKey(), command.getValue()));
-        return new Plan(normalized, commands);
-    }
-
-    /** Longest exact aliases consume every token; no substring/fuzzy/directional inference. */
-    private static final class Cursor {
-        final List<String> tokens;
-        int position;
-        Cursor(List<String> tokens) { this.tokens = tokens; }
-        boolean end() { return position >= tokens.size(); }
-        boolean at(String token) { return !end() && tokens.get(position).equals(token); }
-        <T> String alias(Map<String, T> aliases) {
-            String longest = null;
-            int length = 0;
-            for (String alias : aliases.keySet()) {
-                String[] words = alias.split(" ");
-                if (words.length <= length || position + words.length > tokens.size()) continue;
-                boolean matches = true;
-                for (int i = 0; i < words.length; i++) matches &= words[i].equals(tokens.get(position + i));
-                if (matches) { longest = alias; length = words.length; }
-            }
-            return longest;
-        }
-        <T> boolean matches(Map<String, T> aliases) { return alias(aliases) != null; }
-        <T> T take(Map<String, T> aliases) {
-            String alias = alias(aliases);
-            if (alias == null) return null;
-            position += alias.split(" ").length;
-            return aliases.get(alias);
-        }
-        Set<String> targets() throws IOException {
-            LinkedHashSet<String> targets = new LinkedHashSet<>();
-            List<String> first = take(TARGET_ALIASES);
-            if (first == null) throw rejected();
-            targets.addAll(first);
-            while (!end() && matches(CONNECTORS)) {
-                int saved = position;
-                take(CONNECTORS);
-                if (matches(ACTION_ALIASES)) { position = saved; break; }
-                List<String> next = take(TARGET_ALIASES);
-                if (next == null) throw rejected();
-                targets.addAll(next);
-            }
-            return targets;
-        }
+        if (normalized.isEmpty()) throw VoiceParser.rejected();
+        List<String> tokens = List.of(normalized.split(" "));
+        if (tokens.size() > 40 || tokens.contains("[unk]")) throw VoiceParser.rejected();
+        return new Plan(normalized, VoiceParser.parse(tokens));
     }
 
     /** Accept only a complete SetWords(true) result, with every spoken word accounted for. */
@@ -321,8 +175,8 @@ public final class VoiceCommands {
                 catch (IOException invalidWord) { throw invalidRecognition(); }
                 if (normalized.isEmpty() || normalized.contains(" ")) throw invalidRecognition();
                 double value = score.doubleValue();
-                // Content words and short conjunctions retain the existing, distinct thresholds.
-                double minimum = CONJUNCTIONS.contains(normalized)||FILLERS.contains(normalized) ? 0.5 : MIN_WORD_CONFIDENCE;
+                // Content words and short connecting words retain distinct thresholds.
+                double minimum = SHORT_WORDS.contains(normalized) || FILLERS.contains(normalized) ? 0.5 : MIN_WORD_CONFIDENCE;
                 if (!Double.isFinite(value) || value < 0 || value > 1) throw invalidRecognition();
                 recognized.add(normalized);
                 scores.add(new WordConfidence(normalized, value, minimum));
@@ -342,13 +196,11 @@ public final class VoiceCommands {
         }
     }
 
-    private static IOException rejected() {
-        return new IOException("Не удалось разобрать всю фразу: неподдерживаемые слова или неполная команда. Ничего не отправлено");
-    }
-
     private static IOException invalidRecognition() {
         return new IOException("Некорректный результат распознавания: нет полных данных слов и оценок или текст не совпадает. Ничего не отправлено");
     }
+
+    // ---------------------------------------------------------------- execution
 
     /** Each target goes through the existing controller and its fresh guards. Never retries. */
     public static Execution execute(Plan plan, NativeController controller, BooleanSupplier foreground) {
@@ -357,15 +209,31 @@ public final class VoiceCommands {
         Objects.requireNonNull(foreground);
         List<Outcome> outcomes = new ArrayList<>();
         boolean allAccepted = true;
-        for (Command command : plan.commands()) {
+        for (Command planned : plan.commands()) {
             if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; оставшиеся команды не отправлены");
+            Command command = planned;
+            if (DELTA.matcher(planned.action()).matches()) {
+                try {
+                    command = absolute(planned, controller.snapshot());
+                } catch (Exception unknown) {
+                    // Nothing was sent: an unknown current value is a refusal of this target only.
+                    allAccepted = false;
+                    outcomes.add(new Outcome(planned.target(), planned.action(), "refused",
+                            "Текущее значение неизвестно; ничего не отправлено"));
+                    continue;
+                }
+                if (!foreground.getAsBoolean()) return stopped(outcomes, "Отменено; оставшиеся команды не отправлены");
+            }
             try {
                 JSONObject result = controller.act(command.target(), command.action(), foreground);
                 boolean uncertain = result.optBoolean("uncertain");
                 boolean accepted = result.optBoolean("accepted") && !uncertain;
                 String status = uncertain ? "uncertain" : accepted ? "accepted" : "refused";
                 String message = uncertain ? "Исход неизвестен; команда не повторялась"
-                        : accepted ? "Запрос принят; движение не подтверждено" : "Автомобиль отказал в запросе";
+                        : accepted ? (movable(command.target()) ? "Запрос принят; движение не подтверждено"
+                        : "Запрос принят; состояние не подтверждено") : "Автомобиль отказал в запросе";
+                if (accepted && result.has("reset_accepted") && !result.optBoolean("reset_accepted"))
+                    message += "; сброс цели окна не подтверждён";
                 outcomes.add(new Outcome(command.target(), command.action(), status, message));
                 if (uncertain) return stopped(outcomes, "Исход неизвестен; оставшиеся команды не отправлены");
                 allAccepted &= accepted;
@@ -382,10 +250,42 @@ public final class VoiceCommands {
             }
         }
         boolean anyAccepted = outcomes.stream().anyMatch(outcome -> outcome.status().equals("accepted"));
-        String summary = allAccepted ? "Все запросы приняты; положение окон и дверей не подтверждено"
+        String summary = allAccepted ? "Все запросы приняты; результат на машине не подтверждён"
                 : anyAccepted ? "Часть запросов принята; проверьте результаты каждой команды"
                 : "Ни один запрос не принят; проверьте результаты каждой команды";
         return new Execution(outcomes, allAccepted, report(outcomes, summary));
+    }
+
+    private static boolean movable(String target) {
+        return WINDOWS.contains(target) || target.startsWith("door.") || target.startsWith("shade.");
+    }
+
+    /** «потеплее», «вентилятор посильнее»: a fresh reading plus the step, kept inside the control's range. */
+    static Command absolute(Command relative, JSONObject state) throws Exception {
+        Matcher delta = DELTA.matcher(relative.action());
+        if (!delta.matches()) return relative;
+        int step = Integer.parseInt(delta.group(1));
+        String target = relative.target();
+        Integer current;
+        int minimum, maximum;
+        Matcher zoned = ZONED.matcher(target), comfort = COMFORT.matcher(target);
+        if (zoned.matches()) {
+            JSONObject control = state.getJSONObject("climate").optJSONObject(target.substring("climate.".length()));
+            String reading = control == null || control.isNull("state") ? null : control.optString("state", null);
+            current = reading != null && reading.matches("[0-9]{1,2}") ? Integer.valueOf(reading) : null;
+            boolean temperature = zoned.group(2).equals("temperature");
+            minimum = temperature ? 17 : 0;
+            maximum = temperature ? 33 : 7;
+        } else if (comfort.matches()) {
+            JSONObject control = state.getJSONObject("seats").getJSONObject(comfort.group(1)).getJSONObject("comfort")
+                    .getJSONObject(comfort.group(2));
+            current = control.isNull("level") ? null : control.getInt("level");
+            minimum = 0;
+            maximum = 3;
+        } else throw new IOException("Нет относительного значения для этого контрола");
+        if (current == null) throw new IOException("Текущее значение неизвестно");
+        int next = Math.max(minimum, Math.min(maximum, current + step));
+        return new Command(target, Integer.toString(next));
     }
 
     private static Execution stopped(List<Outcome> outcomes, String message) {
@@ -393,13 +293,74 @@ public final class VoiceCommands {
     }
 
     private static String report(List<Outcome> outcomes, String summary) {
-        Map<String, String> labels = Map.of("fl", "Переднее левое", "fr", "Переднее правое", "rl", "Заднее левое", "rr", "Заднее правое",
-                "door.fl", "Передняя левая дверь", "door.fr", "Передняя правая дверь", "door.rl", "Задняя левая дверь", "door.rr", "Задняя правая дверь");
-        Map<String, String> actions = Map.of("open", "открыть", "close", "закрыть", "stop", "остановить");
         StringBuilder report = new StringBuilder();
         for (Outcome outcome : outcomes)
-            report.append(labels.get(outcome.target())).append(" · ").append(actions.get(outcome.action()))
+            report.append(label(outcome.target())).append(" · ").append(actionLabel(outcome.target(), outcome.action()))
                     .append(": ").append(outcome.message()).append('\n');
         return report.append(summary).toString();
+    }
+
+    // ---------------------------------------------------------------- labels
+
+    private static final Map<String, String> LABELS = labels();
+
+    private static Map<String, String> labels() {
+        Map<String, String> labels = new LinkedHashMap<>();
+        labels.putAll(Map.of("fl", "Переднее левое", "fr", "Переднее правое", "rl", "Заднее левое", "rr", "Заднее правое",
+                "door.fl", "Передняя левая дверь", "door.fr", "Передняя правая дверь", "door.rl", "Задняя левая дверь",
+                "door.rr", "Задняя правая дверь", "shade.front", "Передняя шторка", "shade.rear", "Задняя шторка"));
+        labels.putAll(Map.of("locks", "Замки", "climate.power", "Климат салона", "climate.ac", "Кондиционер",
+                "climate.recirculation", "Забор воздуха", "climate.front_defrost", "Обдув лобового стекла",
+                "climate.rear_defrost", "Обогрев заднего стекла и зеркал", "light.headlights", "Основной свет",
+                "light.matrix", "Матричный свет", "light.drl", "Дневные ходовые огни"));
+        labels.putAll(Map.of("light.rear_fog", "Задняя противотуманная фара", "light.logo", "Подсветка логотипа"));
+        Map<String, String> zones = Map.of("driver", "Водитель", "passenger", "Передний пассажир", "middle_left", "Второй ряд слева",
+                "middle_right", "Второй ряд справа", "rear", "Третий ряд");
+        Map<String, String> kinds = Map.of("power", "климат", "auto", "AUTO", "temperature", "температура", "fan", "вентилятор",
+                "mode", "направление воздуха");
+        for (var zone : zones.entrySet())
+            for (var kind : kinds.entrySet()) labels.put("climate." + zone.getKey() + "_" + kind.getKey(), zone.getValue() + " · " + kind.getValue());
+        Map<String, String> seats = Map.of("fl", "Водитель", "fr", "Передний пассажир", "rl", "Второй ряд слева", "rr", "Второй ряд справа",
+                "tl", "Третий ряд слева", "tr", "Третий ряд справа");
+        for (var seat : seats.entrySet()) {
+            labels.put("comfort." + seat.getKey() + ".heat", seat.getValue() + " · подогрев");
+            labels.put("comfort." + seat.getKey() + ".vent", seat.getValue() + " · вентиляция");
+            labels.put("massage." + seat.getKey(), seat.getValue() + " · массаж");
+        }
+        return java.util.Collections.unmodifiableMap(labels);
+    }
+
+    static String label(String target) { return LABELS.getOrDefault(target, target); }
+
+    static String actionLabel(String target, String action) {
+        Matcher percent = PERCENT.matcher(action), delta = DELTA.matcher(action);
+        if (percent.matches()) return "открыть на " + percent.group(1) + " %";
+        if (delta.matches()) return (target.endsWith("_temperature") ? "на " + delta.group(1) + " °C" : "на " + delta.group(1));
+        if (target.endsWith("_temperature")) return action + " °C";
+        if (target.endsWith("_fan")) return action.equals("0") ? "выключить" : "скорость " + action;
+        if (target.startsWith("comfort.")) return action.equals("0") ? "выключить" : "уровень " + action;
+        Map<String, String> words = new LinkedHashMap<>();
+        words.putAll(Map.of("open", "открыть", "close", "закрыть", "stop", "остановить", "lock", "заблокировать",
+                "unlock", "разблокировать", "on", "включить", "off", "выключить", "low", "ближний", "auto", "авто",
+                "internal", "рециркуляция"));
+        words.putAll(Map.of("external", "воздух снаружи", "face", "в лицо", "feet", "в ноги", "windshield", "на стекло",
+                "face_feet", "в лицо и ноги", "feet_windshield", "в ноги и на стекло", "face_windshield", "в лицо и на стекло",
+                "face_feet_windshield", "в лицо, ноги и стекло", "wave", "волна", "pulse", "пульс"));
+        words.putAll(Map.of("stretch", "растяжка", "waist", "поясница", "shoulders", "плечи", "level1", "уровень 1",
+                "level2", "уровень 2", "level3", "уровень 3"));
+        return words.getOrDefault(action, action);
+    }
+
+    /** The plan in words for the confirmation line: «Водитель · температура: 23 °C; Заднее левое: открыть на 50 %». */
+    public static String describe(Plan plan) {
+        List<String> parts = new ArrayList<>();
+        for (Command command : plan.commands()) parts.add(label(command.target()) + ": " + actionLabel(command.target(), command.action()));
+        return String.join("; ", parts);
+    }
+
+    static Set<String> targets(Plan plan) {
+        Set<String> targets = new LinkedHashSet<>();
+        for (Command command : plan.commands()) targets.add(command.target());
+        return targets;
     }
 }

@@ -30,6 +30,53 @@ All protocol properties, windows and firmware hashes come from the single
 `tools/vehicle_controls.json` bundled as an asset. Host tools read the same catalog.
 The Java engine does not load host Python or maintain another FID list.
 
+## Voice over the whole remote
+
+The voice pipeline now covers every control of this remote except seat movement, which
+needs a held button: windows (open/close/stop and an open percentage), electric doors,
+central locks, both roof shades, all five climate zones (power, temperature 17..33 °C, fan
+0..7, AUTO, airflow direction), A/C, recirculation, both defrosters, heating and ventilation
+of the six seats, massage on four seats, headlights (off/auto/low), matrix light, DRL, rear
+fog lamp and the logo light. Not yet built on the car; nothing was sent to a vehicle.
+
+`VoiceParser` reads a whole utterance as clauses: a connector followed by its own verb opens
+a new command, without a verb it adds an object to the same command. The verb may follow its
+object («заднее окно приоткрыть на пятьдесят процентов»). Units decide where a number goes:
+degrees only to temperature, percent only to windows, a bare 17..33 only to temperature.
+A trailing value is shared only with earlier objects of the same kind («подогрев водителя и
+пассажира на тройку»; «закрой окна и климат на двадцать три» leaves the windows alone). A
+verb that applies to an object never turns into setting it («закрой окна на пятьдесят» is
+refused). A singular window or door with a row but no side takes the side of the previous
+window or door in the same utterance («окно слева …, а заднее окно …» → rear left); otherwise
+it is refused as before. Defaults: a temperature, fan, AUTO or airflow without a zone is the
+driver's; heating, ventilation or massage without a seat is the driver's; «включи подогрев»
+is level 2; «приоткрыть окно» is 20 %. Relative steps («потеплее», «вентилятор посильнее»,
+«подогрев послабее») read a fresh state and stay in range; an unknown reading refuses only
+that target. Unknown words, negation, conflicting positions, values out of range and objects
+no verb applies to still reject the whole utterance before transport.
+
+Every phrase the 0.3.4 window/door grammar accepted keeps its exact plan: all 11 366 were
+replayed against the old parser once; `src/sharedTest/resources/voice-window-door-0.3.4.tsv`
+keeps the 5 524 that use «и», «потом» or «and then» (the other connectors are the same lexicon
+class) and `VoiceWholeCarTest` replays them. Two former refusals are now commands on purpose: a verb-first second
+command without «и» («открой левое окно закрой правое») and «запри двери» (lock). «открой
+замки»/«открой машину» stay refused: unlocking needs «разблокируй».
+
+`VoiceGrammar` generates 11 780 recognizer phrases (226 words). Vosk builds a bigram model
+from them, so they cover word pairs, not every sentence. A JVM test reads the model's own
+vocabulary from `graph/Gr.fst` and fails on any grammar word the model does not know (the old
+grammar's «еще», «and», «then» were silently dropped by Vosk; the grammar now spells «ещё»).
+«приоткрой», «рециркуляцию», «отопри» are not in the model, so the grammar uses
+«приоткрыть», «режим рециркуляции», «разблокируй».
+
+Window percentage is new in the controller: the stock MyCar `WindowManager.setWindowPercent`
+writes `BODYWORK_*_WINDOW_TARGET_POSITION_SET` (device 1001, FIDs `0x4C119010/18/20/28` for
+LF/LR/RF/RR) = N and 300 ms later 255 («no target»). The catalog carries these as
+`window_targets`; `fl:50%` passes the same fresh window guards, journals the target write and
+always sends the reset, also after an unknown result, never retrying the target. 0 and 100
+use the existing close/open movement. **Firmware only:** the percent write has not been sent
+to the car; the first test is one window, in P, with the owner at the glass.
+
 ## Minimal offline voice pipeline
 
 0.3.4 separates full parsing from the ASR confidence decision. The owner's exact
@@ -104,8 +151,8 @@ Commands include «открой левое окно», «закрой право
 Singular left/right without a row means the corresponding **front** window;
 plural «левые окна»/«правые окна» means both on that side. Driver/passenger,
 front/rear/all groups, shared verbs and composed commands use the same alias
-table as the ASR grammar. Unsupported words, negation, percentages and incomplete
-phrases reject the entire plan. Later contradictory actions for one window replace
+table as the ASR grammar. Unsupported words, negation and incomplete phrases reject
+the entire plan (percentages are accepted since the whole-remote voice section above). Later contradictory actions for one window replace
 earlier ones before execution. No fuzzy direction matching is used.
 
 Vosk `[unk]` and explicit negative grammar examples help reject unsupported speech.

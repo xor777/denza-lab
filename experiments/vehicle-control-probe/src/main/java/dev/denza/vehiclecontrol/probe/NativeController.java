@@ -22,6 +22,8 @@ public final class NativeController {
     private static final Pattern SET = Pattern.compile("Result: Parcel\\(([0-9a-fA-F]{8})\\s+'[^\\r\\n]{4}'\\)\\s*");
     private static final Pattern MARKER = Pattern.compile("(?m)^@([A-Za-z0-9_]+)\\s*\\n");
     private static final Map<String,Integer> MODES = Map.of("off",1,"on",7,"wave",2,"pulse",3,"stretch",4,"waist",5,"shoulders",6);
+    /** A window open percentage 1..99; 0 and 100 are the existing close/open movements. */
+    private static final Pattern WINDOW_PERCENT = Pattern.compile("([1-9][0-9]?)%");
     final JSONObject catalog;
     private final Provider provider;
     private final File journal;
@@ -239,6 +241,9 @@ public final class NativeController {
         String[] p=target.split("\\.",-1); String property; int value; boolean pulse=false;
         if(catalog.getJSONObject("windows").has(target) && Set.of("open","close","stop").contains(action))
             return new Command(target,action,setCommand(1001,catalog.getJSONObject("windows").getJSONArray(target).getInt(1),Map.of("open",1,"close",2,"stop",3).get(action)),false);
+        Matcher percent=WINDOW_PERCENT.matcher(action);
+        if(catalog.getJSONObject("windows").has(target) && percent.matches() && catalog.optJSONObject("window_targets")!=null)
+            return new Command(target,action,writeCommand(catalog.getJSONObject("window_targets").getString(target),Integer.parseInt(percent.group(1))),false);
         if(target.equals("locks") && Set.of("lock","unlock").contains(action)) { property=catalog.getJSONObject("locks").getString("set"); value=action.equals("lock")?2:1; }
         else if(p.length==2 && p[0].equals("door") && catalog.getJSONObject("doors").has(p[1]) && Set.of("open","close","stop").contains(action)) { property=catalog.getJSONObject("doors").getJSONObject(p[1]).getString("set"); value=Map.of("open",1,"close",2,"stop",3).get(action); }
         else if(p.length==2 && Set.of("shade","light","climate").contains(p[0])) {
@@ -257,6 +262,11 @@ public final class NativeController {
         return new Command(target,action,writeCommand(property,value),pulse);
     }
     private static IOException invalid() { return new IOException("Неизвестный контрол или действие"); }
+    /** Stock MyCar WindowManager.setWindowPercent: target N, then 255 («нет цели») 300 ms later. */
+    boolean windowTarget(Command command) throws JSONException { return catalog.getJSONObject("windows").has(command.target()) && WINDOW_PERCENT.matcher(command.action()).matches(); }
+    String windowTargetReset(String target) throws JSONException {
+        JSONObject targets=catalog.getJSONObject("window_targets");return writeCommand(targets.getString(target),targets.getInt("reset"));
+    }
     String reason(JSONObject state,String target) throws Exception {
         String[] p=target.split("\\."); JSONObject control;
         if(catalog.getJSONObject("windows").has(target)) control=state.getJSONObject("windows").getJSONObject(target);
@@ -283,6 +293,14 @@ public final class NativeController {
                 String raw=run(command.shell(),5000);
                 int code=parseSet(raw);result=object("code",code,"accepted",code==1,"raw",raw);
             } catch(Exception error) { result=object("accepted",false,"uncertain",true,"error","Исход неизвестен; проверьте машину. Команда не повторялась: "+error.getMessage()); }
+            if(windowTarget(command)) {
+                // The reset follows every target attempt, as in the stock app; it is never a retry of the target.
+                try { Thread.sleep(catalog.getJSONObject("window_targets").getInt("reset_delay_ms")); }
+                catch(InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+                String reset=windowTargetReset(target);result.put("reset_command",reset);
+                try { String raw=run(reset,5000);int code=parseSet(raw);result.put("reset_code",code);result.put("reset_accepted",code==1);result.put("reset_raw",raw); }
+                catch(Exception error) { result.put("reset_accepted",false);result.put("reset_error",String.valueOf(error.getMessage())); }
+            }
             JSONObject logged=new JSONObject(entry.toString());logged.put("phase","result");for(String key:keys(result)) logged.put(key,result.get(key));
             record(logged); // Only clear latch after STOP acknowledgement is durably retained.
             if(result.optBoolean("stop_accepted") || (action.equals("stop") && result.optBoolean("accepted"))) pendingStops.remove(target);
