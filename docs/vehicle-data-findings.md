@@ -7,7 +7,7 @@ identified through static inspection.
 
 ## Current state
 
-Updated 2026-10-09. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
+Updated 2026-10-16. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -34,6 +34,8 @@ Updated 2026-10-09. Which vehicle signals Denza Apps can read on this head unit,
 | Refuted: `0x44700028` / 10 is remaining energy (a ~100 kWh pack). It is state of charge ×10; nothing on the Binder gives the pack size | refuted | 2026-08-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car) |
 | Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
 | Washer fluid level: no FID, name or CAN bit identified; `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` (`0x3D90201E`) is probably throttle cleaning, and its `0` proves nothing | open | 2026-09-23 | [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23) |
+| N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
+| N9 CAN coverage: existing GB/YUN callbacks expose 72 additional address tuples without changing collection tables; historical union grows from 130 to 202. No labelled empty-state record exists for the extra addresses; the original bit filter leaves 13 bits in seven byte locations, none mapped to washer level | live receive path, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
 
 **Open questions**
@@ -1272,6 +1274,360 @@ collection table.
 
 ## Washer fluid level (2026-09-18, in progress)
 
+### N9 paired-state capture (2026-10-16)
+
+This experiment is on **N9, AutoType 168**, not the earlier Z9GT. The owner
+reported liquid in the reservoir for the baseline, then used the stock washer
+pump until empty, without touching the sensor connector, and refilled with
+**1 litre**. The owner explicitly states that this volume should return the
+sensor to **OK**; use it as the expected normal control state, not an assumed
+still-low state. The physical switch was not independently measured.
+The label is `liquid-present`, not a measured volume or proof that a level
+switch is above its threshold. The car reports `sys.car.protocol=CANFD`, model
+`n9`, and fingerprint
+`BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys`.
+Live SHA-256 checks match the existing framework, HAL and native vehicle-service
+corpus; the installed framework supplies the device/FID catalog itself.
+
+`tools/washer_capture.py` and `tools/VehicleStateSnapshot.java` make the
+experiment repeatable. Each state records two sequential passes of every
+device/FID pair in the installed `BYDAutoDeviceFeaturesMap`, using only scalar
+GET transactions 5 and 7 (float fallback on `-10013`), at one pair per 10 ms or
+slower. Read errors, unsupported types, `65535` and other placeholders remain
+raw values. This is a timestamped sweep, not an atomic snapshot. No SET, array
+transaction, UDS request, ECU wake or stock collection-table change is issued.
+The temporary shell helper has an eight-minute watchdog and is removed after
+completion; it installs no APK and changes no Denza Apps code.
+
+The same capture includes 180 seconds of stock-selected raw CAN, service and
+app-service dumps, read-only `car_status` / `dicare_record` provider queries,
+logs, process IDs, firmware hashes, command results and source hashes. Data
+stays in ignored `captures/washer-n9-20261016/`. Buffer-only properties,
+unselected CAN frames and inaccessible service internals are not covered.
+An empty dump is not evidence that an ECU has no state or faults.
+
+The initial three-minute passive inventory saved 29,680 callbacks across
+130 `(CAN ID, sub-ID, channel, payload length)` addresses on channels 0, 1 and
+2, with zero drops or callback errors. This N9 selection contains `0x055` and
+`0x3D9` sub-IDs 3, 4 and 5; it does not include every BCM frame. The broader
+paired baseline lives under `liquid-present/`, with `manifest.json`,
+`fids.tsv`, `raw-can.log`, `summary.json` and file checksums.
+
+**Baseline completed 11:26:18–11:30:01 Moscow time.** All 10,003 catalog pairs
+from 48 device groups were attempted twice (20,006 rows); 9,983 pairs had
+identical replies across the two passes. This counts unavailable values too:
+the first pass has 3,021 `-10011` replies, 1,337 `65535` placeholders and
+656 type-mismatch replies that triggered float GETs. The accompanying
+three-minute raw capture has 29,362 frames / 127 addresses, zero sequence gaps,
+zero drops and zero callback errors. Sixty-four addresses remained byte-for-byte
+constant. The small address-set difference from the first inventory is retained,
+not filled with invented samples. Both scalar passes read parking-brake switch
+`0x05500030=1` and zero speed (`0x94400008`, float). The catalog names the former
+`GEARBOX_PARK_BRAKE_SWITCH`; it is not independent proof of selector position P.
+The subsequent empty and refill comparisons are recorded below.
+
+All recorded commands exited successfully, although eight native service dumps
+were empty, including `autoservice`, `diagnosticsrv` and the UDS service;
+`car_status` returned rows and `dicare_record` had none. The stock CAN-config
+directory remains permission-denied to shell. `autoservice` and `CanDataCollect`
+retained PIDs 128 and 3584, the crash buffer was unchanged, both temporary
+helpers exited, and all saved-file checksums verified. Self-comparison produced
+zero scalar changes and zero separated bits.
+
+**Empty capture completed 11:47:37–11:51:24 Moscow time.** The owner's state
+and drain-method confirmations are retained in `physical-state-notes.json`.
+The identical tool/framework/HAL captured all 20,006 scalar rows and 29,817
+raw frames / 130 addresses, again with zero gaps, drops or callback errors.
+Both passes still read parking-brake switch 1 and zero speed. All commands completed, file hashes
+verified, both service PIDs were unchanged, the crash buffer was unchanged,
+and the temporary helpers exited.
+
+`compare-present-empty.json` and `empty-analysis.txt` preserve the comparison:
+
+- 147 device/FID pairs differ between captures; 60 have a stable but different
+  reply in each state. The named changes include doors, hood, windows, seat
+  positions/occupancy, suspension, temperature, energy and time. These do not
+  establish a washer-level signal. The rear-wiper speed setting
+  `0x47500030` also changed `0 -> 1` after using the pump; that setting is not
+  evidence of fluid level. All six device-1046 Wiper-map replies were unchanged.
+- `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` (`0x3D90201E`) stayed zero; the known
+  brake/coolant-level GETs stayed zero too. The first seven bytes of raw
+  `0x055` are identical in all 147 preflight, 150 liquid-present and 154 empty
+  samples. No payload bit in that address meets the state-separation test.
+  This does not exclude a signal whose low threshold was already reached in
+  the unmeasured liquid-present baseline.
+- 215 raw payload bits across 37 addresses have a between-state one-fraction
+  difference of at least 0.9. Requiring perfect separation against **both**
+  earlier liquid-present raw captures leaves 89 bits, still including known
+  environmental/vehicle-state changes. No bit is labelled as washer level.
+  All baseline raw addresses recur; the three extra empty-state addresses
+  already occurred in the earlier preflight, so their appearance is not itself
+  a reservoir signal. `car_status` is unchanged, and neither `dicare_record`
+  query returned rows.
+
+**Refilled capture completed 11:57:58–12:01:43 Moscow time.** All 20,006 scalar
+rows were captured, with 9,890 pairs stable across both passes; the raw capture
+contains 29,600 frames / 130 addresses, again with zero drops, callback errors
+or sequence gaps. All command statuses and file checksums pass. Vehicle/build,
+firmware and acquisition-source hashes match across all three captures. Service
+PIDs and the crash buffer remain unchanged, and both temporary helpers exited.
+Both scalar passes still read parking-brake switch 1 and zero speed. All six
+Wiper-map replies, the known brake/coolant-level GETs, the `WASH_ELEC_GATE`
+property and both provider-query results remain unchanged across all three
+states. The first seven bytes of `0x055` also remain identical in all 162 refill
+samples; its remaining byte varies within captures and was not identified as
+a level signal.
+
+`compare-empty-refilled.json`, `compare-present-refilled.json` and
+`cycle-analysis.json` preserve the full-cycle comparison:
+
+- Empty → refilled changes 161 scalar pairs (27 stable in each capture);
+  baseline → refilled changes 178 (63 stable in each). Only **nine** pairs
+  are stable within all three captures and exactly return to their baseline
+  value: the two hood properties, low-voltage-side voltage, key-battery level,
+  right electric step position, and four ADAS target-5 properties. None is a
+  washer-level mapping. In particular, the hood follows `0 → 1 → 0`, so a
+  perfect reversal alone is insufficient.
+- **51 bits across 18 raw addresses** reverse with at least 0.9 separation on
+  both transitions and at most 0.1 difference between the baseline and refill
+  one-fractions (minimum 20 samples in each phase). Thirty-five reverse
+  perfectly; 27 also agree exactly with the earlier preflight. These are
+  correlated candidates, not 51 independent sensor signals.
+- Whole-byte histories reject a binary-sensor interpretation for several
+  apparent bit reversals: for example, raw `0x10D` byte 3 rises through
+  `166/167 → 170/171 → 173/174`, while bit 2 nevertheless returns `1 → 0 → 1`.
+  Similar effects occur in battery and other changing numeric fields. Raw
+  `0x294` byte 2 bits 4–5 correspond to the hood, and `0x4C9` byte 20 to the
+  right electric step position. Raw byte indices here are **zero-based**;
+  recovered MCU descriptor byte coordinates are one-based.
+- Two still-unmapped byte-wide fields in `0x324`, sub-ID 0, channel 1,
+  deserve retaining rather than assigning a guessed meaning: byte 9 is
+  `91 → 90 → 91`, byte 24 is `93 → 92 → 93`, constant within each raw capture.
+  The recovered MCU table describes these as eight-bit fields
+  (`0x32400050`, `0x324000C8`), not single-bit flags; adjacent named descriptors
+  concern engine/energy data. This suggests numeric confounding but does not
+  prove their semantics. The MCU image is not live-hash-matched, and its
+  descriptors alone do not establish the active N9 mapping. Other unmapped
+  reversals remain in the report as well.
+
+**Later same-refill control:** a further 60-second passive capture saved
+9,823 frames / 127 addresses, with zero drops, callback errors or sequence gaps,
+as `refilled-late-raw.log`. Its source log and checksums are retained in
+`refilled-late-analysis.json`. In `0x324`, byte 9 advances to **92** in all 59
+samples, so its low bit returns to the empty-state value without another
+reported drain; this rejects that bit as a simple stable binary level flag.
+Byte 24 stays 93. This observation weakens the earlier two-byte coincidence;
+it does not identify either field. Other apparent reversals also drift while
+the reservoir is unchanged. The raw helper exited and both service PIDs remain
+128 / 3584. No second scalar sweep was made for this short control.
+
+The refill did not hold every other vehicle state fixed: the hood returned to
+baseline, and door/step, steering and other readings changed. Before promoting
+any candidate, separate these effects from level. No product warning, setter,
+installation, connector manipulation or arbitrary FID probe is justified by
+these correlations. No identified signal in this selected stream is **not**
+proof that the physical sensor, a BCM signal or an unselected CAN frame is
+absent.
+
+**Same-fluid hood-open control completed 12:09:14–12:13:10 Moscow time.** The
+owner confirmed opening the hood without another drain or refill. Acquisition
+used the same unmodified tools, vehicle and firmware as the earlier states:
+20,006 scalar rows / 10,003 pairs, 9,981 stable pairs, and 29,208 raw frames /
+127 addresses, with zero drops, callback errors or sequence gaps. All command
+statuses and saved-file checksums pass; service PIDs and the crash buffer are
+unchanged, and both temporary helpers exited. Speed is zero in both scalar
+passes and the parking-brake-switch value remains 1. Wiper-map values,
+`WASH_ELEC_GATE`, known brake/coolant-level getters and both provider queries
+remain unchanged. Raw `0x055` first-seven-byte contents also remain unchanged.
+
+The evidence lives in `refilled-hood-open/`, with pairwise reports
+`compare-refilled-hood-open.json` and `compare-empty-hood-open.json`. Reproduce
+the multi-control classification with
+`python3 captures/washer-n9-20261016/analyze_hood_control.py`; its saved result
+is `hood-control-analysis.json`. It validates complete, loss-free captures,
+catalogs, source/firmware/vehicle identity and checksums before comparison.
+
+- Both hood FIDs (`0x2940001C`, `0x26100019`) now read 1 twice, giving
+  `0 → 1 → 0 → 1`. Raw `0x294` byte 2 returns from 85 to 101 in all 179
+  hood-open samples. The physical open-hood action confirms this positive
+  control; its bits 4–5 are not washer-level evidence.
+- Of the original 51 reversing bits, **34 across 10 addresses** remain within
+  0.1 of their refilled one-fraction in **both** the later unchanged-fluid
+  capture and the hood-open capture. Twelve instead resemble their empty-state
+  value in the hood-open control; only the two known hood bits are established
+  as hood signals. Numeric carries/drift explain several other such matches;
+  the control does not make all twelve causally hood-related. Five fail the
+  other stability conditions. The retained 34 still include the known right
+  electric step, battery-related numeric bits and unmapped changing bytes;
+  they are not 34 plausible independent level switches.
+- The eight-bit field at **`0x324`, sub-ID 0, channel 1, byte 24 (zero-based)**
+  remains **93 in all 178 hood-open samples**. Its six observed histories are
+  preflight 93, baseline 93, empty 92, refill 93, later refill 93, hood-open
+  refill 93. Thus it survives this control, unlike the hood fields. Its
+  recovered descriptor is `0x324000C8`, but its meaning is still unknown:
+  a one-count change of an engine-adjacent byte could be unrelated numerical
+  variation. Do not implement a `92 = empty` rule or invent a sensor polarity.
+  **Subsequent unchanged-level watch refutes that simple rule:** the field
+  returns to 92 without any washer use or fluid change, confirmed by the owner;
+  see the watch result below. Passing the hood control did not establish a
+  level signal.
+  Byte 9, previously rejected as a stable binary flag, changes `92 → 91`
+  within this hood-open capture despite unchanged fluid.
+- A separate empty-versus-two-refilled-states filter, without requiring the
+  original baseline to match, leaves 97 raw bits and 13 scalar pairs stable
+  within all four broad sweeps. All 13 scalar pairs have other named meanings
+  (climate/audio, wireless charging, voltage/battery, step and ADAS data);
+  this also does not identify washer level. The full pairwise comparisons
+  retain every other change instead of assuming the hood was the only one.
+
+This control removes the known hood ambiguity but does not establish the
+sensor mapping. A surviving field still needs repeatable level correlation
+with other states controlled, or source-side sensor/ECU evidence, before use
+in Denza Apps. The acquisition is finished; no additional reservoir or
+connector manipulation was requested for this control.
+
+**Unchanged-level watch, approximately 12:26–12:29 Moscow time:** at the
+owner's request, another 180-second passive window recorded 28,896 frames,
+zero drops/callback errors/sequence gaps, and a complete DONE footer. Of the
+178 target `0x324` frames, the first **47 contain 93**, followed by **131
+containing 92**, with a single transition about 47.8 seconds after the first
+target sample. This is a sustained return to the former empty-state value,
+not a lone sample or parser error. Raw `0x294` hood bits remain in the known
+open state for all 178 samples. Known scalar GETs at 12:28:25 read speed 0,
+front-wiper level 1, wiper relay 0 and hood 1; those isolated reads alone do
+not prove the entire pump history.
+
+After being told about the transition, the owner explicitly confirmed:
+**no changes, no washer use**, and no fluid addition/removal. The same 1 litre
+was still present. Thus **`92 = empty`, `93 = OK` is not a valid warning rule**
+under the owner-confirmed control conditions, nor is its changing low bit a
+confirmed binary level flag. This does not identify the true numeric quantity
+or rule out every possible composite encoding, and says nothing about whether
+the physical level sensor exists.
+
+Evidence: `watch-01-raw.log`, `watch-01-run.txt`, `watch-01-context.txt`,
+`watch-01-analysis.json`, `physical-state-notes.json` and `watch-plan.json`.
+`analyze_watch.py` validates completion/loss and reports exact target-address
+histograms and timestamped value runs, with a raw-file SHA-256. The initially
+planned limited follow-up watch was stopped early after this falsification:
+thread automation `n9` is paused, not left running against the car. No product
+logic or sensor warning was added.
+
+**Offline candidate recheck after the watch:**
+`captures/washer-n9-20261016/analyze_remaining.py` validates all seven saved
+raw windows (DONE, counts, no loss/gaps), the four full capture manifests and
+their hashes, then re-evaluates the original 51 bit correlations. The saved
+`remaining-analysis.json` reports **51 → 34 → 14 → 13** after late/hood control,
+unchanged-level watch, and finally requiring the initial liquid-present
+preflight to agree too. `0x391` byte 39 bit 2 fails that last control: it had
+the empty-associated bit value while fluid was present in the preflight.
+
+The remaining 13 bits occupy only seven byte locations, all sub-ID 0,
+channel 0, 64-byte payloads. Coordinates below are zero-based/LSB0:
+
+| CAN ID | Byte | Bits surviving the correlation filter | Why this is not yet a level flag |
+| --- | --- | --- | --- |
+| `0x35A` | 3 | 5 | Whole byte spans 72–105 across the windows and changes within unchanged-level controls. |
+| `0x391` | 43 | 3 | Byte history 87 → 119 → 125 → 162/163 → 196 → 196 → 196/197 is compatible with an unrelated changing number. |
+| `0x391` | 45 | 2 | Low nibble advances through 2/3 → 3 → 4 → 8/9 → 9 → 9 → 11; other bits also vary. |
+| `0x4A0` | 15 | 5 | Whole byte spans 72–102; behaves similarly to `0x35A` byte 3, without an established field mapping. |
+| `0x4A0` | 16 | 3–7 | Five adjacent bits flip together in 132 → 126 → 128/130 → 130 → 130/132 → 132, compatible with a numeric carry. |
+| `0x4CB` | 39 | 1–3 | Three adjacent bits arise from values 41 → 38/39 → 40 → 40 → 40/41 → 41. |
+| `0x4CB` | 56 | 1 | Empty window itself includes both bit states: byte values 57, 58, 63 and 64. This passes the 90% filter, not an exact switch test. |
+
+Whole-byte variation does **not** by itself disprove a packed independent
+flag; field widths and meanings remain unknown. No surviving bit overlaps a
+descriptor in the recovered MCU tables, even when matching CAN ID/sub-ID
+across all table-channel keys. That is a corpus limitation, not evidence that
+the sensor is absent; the installed MCU image was not hash-matched.
+
+**Collection-table boundary and additional passive streams:** the installed
+N9 `CanDataCollect.apk` was read without installing anything. Its remote and
+local SHA-256 is
+`df3d7efac4f3892b0df6c7528256343ed64070daf8038b07ec4b6533ba76c7e9`.
+Its signed manifest/signature metadata match `reverse/candatacollect-jadx`;
+all manifest-listed member digests match, including `classes.dex`. The copy
+and provenance are under `captures/firmware/n9-eng.build20260705.011226/`.
+
+The matched code establishes that the cloud/local collection configuration
+is serialized into 8-byte CAN-ID/sub-ID/channel/mode/operation entries and
+sent through `BYDAutoVehicleDataDevice.sendRegisterTable(3, …)`: **device 1048,
+SET `0xAA000022`**, not a local listener filter. The stock service has remove
+and resend paths and can wake the MCU before sending. We have not established
+the exact MCU persistence/restore semantics or obtained the current table:
+`/cancollect/dataCollect/canConfigureJson` is inaccessible to shell, and the
+checked BigData/VehicleData APIs expose no table getter. In particular,
+`DYNAMIC_REQUEST_MONITOR_TABLE` asks the client to send a table; it does not
+return one. A listener's exit is not a proven rollback for a table write.
+No collection-table command, cloud configuration refresh or MCU wake was sent.
+The source trace and limitations are retained in
+`captures/washer-n9-20261016/reports/can-filter-static.md`.
+
+There is nevertheless a read-only expansion path: the framework has separate
+existing whole-frame receive callbacks for GB, YUN and OTA. The bounded host
+probe now accepts those fixed stream names; non-BigData buffers are preserved
+verbatim as `BUFFER` records, not silently treated as turn-parser frames.
+Four **sequential 20-second** availability windows produced:
+
+| Stream | Device / callback | Received buffers/frames | Distinct address tuples | Absent from all earlier BigData windows |
+| --- | --- | ---: | ---: | ---: |
+| GB | 1039 / `0x9900001F` | 1,881 | 43 | 25 |
+| YUN | 1034 / `0x99000021` | 2,485 | 69 | 51 |
+| OTA | 1032 / `0x9900001E` | 0 | 0 | 0 |
+| BigData control | 1061 / `0x99000020` | 3,294 | 127 | 0 |
+
+GB/YUN buffers fit the BigData 10-byte envelope: four-byte BE CAN ID, sub-ID,
+channel, four-byte millisecond counter, payload. All observed packets have
+valid standard IDs/channels and legal CAN/CAN-FD payload lengths; counter
+spans agree with host elapsed time to a few milliseconds with no backsteps.
+This is a structurally checked envelope interpretation, not decoded signal
+semantics. Address tuples include ID, sub-ID, channel **and payload length**.
+GB/YUN share four new tuples, so their union adds **72**, not 76, to the old
+130-tuple set: **202 historically observed tuples**. The four new windows
+alone contain 199. Neither number is a full-bus coverage percentage, and the
+sequential windows are not a simultaneous bus snapshot. OTA silence means
+only no callbacks during its 20-second window, not permanent unavailability.
+
+All windows completed with zero drops/callback errors/queued records and no
+sequence gaps. `autoservice` PID 128 and `CanDataCollect` PID 3584 remained
+unchanged; the crash buffer was identical before/after. Listeners exited and
+their temporary dex was removed. No APK, table, service or physical sensor
+state was changed. See `streams-*.log`, `streams-analysis.json`, reproducible
+`analyze_streams.py`, and `reports/passive-stream-plan.md` plus health captures
+in the same evidence directory.
+
+**Next useful physical experiment:** record BigData **and** GB/YUN in each
+owner-labelled stable level state. The extra addresses have no corresponding
+empty-state capture; the availability windows must not be added to the
+unchanged-level controls without a fresh owner label. Do not repeat draining
+solely to re-test `0x324`, and do not add a warning to Denza Apps from the 13
+unmapped bit correlations. A service-provided sensor part number, controller
+and live-data item would independently narrow this expanded search.
+
+Expected observation: a physical level input, if exposed through either read
+path, changes after emptying and returns after refill. Unchanged data or a
+change that does not reverse is not enough to identify it. Keep the same
+ignition/gear state and let the pump/wipers settle before comparing; separately
+record door/hood changes. No sensor unplugging or assumed contact polarity is
+part of this test.
+
+```bash
+python3 tools/washer_capture.py capture \
+  --output captures/washer-n9-20261016/empty --state empty
+python3 tools/washer_capture.py compare \
+  captures/washer-n9-20261016/liquid-present captures/washer-n9-20261016/empty
+python3 tools/washer_capture.py compare \
+  captures/washer-n9-20261016/empty captures/washer-n9-20261016/refilled
+```
+
+The comparison checks car/build identity, firmware hashes, catalog consistency
+and capture completeness/loss before listing changed scalar values and CAN
+bits with at least a 0.9 difference in the fraction of samples containing a 1.
+The completed refill reversal narrows the candidates but does not resolve the
+unrelated vehicle-state changes. The host analyzer's synthetic tests cover a bit reversal,
+missing completion, raw-frame loss, mismatched cars/builds and preservation of
+the no-data sentinel.
+
 ### Offline firmware follow-up (2026-09-23)
 
 **The newly readable archive opens another investigation path, but no washer
@@ -1559,7 +1915,12 @@ difference, and only if the frame that carries it is in the table.
 
 ### What is owed, and the procedure
 
-To find the bit, or to prove the head unit never sees it, one labelled
+> **Updated 2026-10-16:** use the arbitrary-state paired capture above for the
+> N9 experiment. No change in the selected stream cannot prove that the IVI or
+> other ECUs never receive the signal. Do not unplug a sensor based on the
+> historical normally-closed assumption below; its wiring/polarity is unproved.
+
+To investigate the bit in the selected stream, one labelled
 capture is needed with the sensor in both states:
 
 1. Car parked, ignition on, doors closed, nothing else changing. Run

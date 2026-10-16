@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Build and run the bounded, read-only turn-signal CAN capture.
 #
-# The device-side process subscribes only to the stock BigData callback. It does
+# The device-side process defaults to the stock BigData callback. Optional gb,
+# yun and ota receive-only callbacks record opaque BUFFER lines. It does
 # not install an APK, alter the CanDataCollect table, issue setters, wake an ECU,
 # or restart a service. Raw captures stay outside the repository by default.
 #
 # Usage:
 #   tools/raw_can_turn_probe.sh build
-#   tools/raw_can_turn_probe.sh run [seconds] [queue-capacity] [output-file]
+#   tools/raw_can_turn_probe.sh run [seconds] [queue-capacity] [output-file] [bigdata|gb|yun|ota]
 #
 # During `run`, write `MARK neutral_1`, `MARK left_1`, etc. to stdin. Write
 # `STOP` to unregister early. A hard device-side timeout always applies.
@@ -67,6 +68,12 @@ run_probe() {
   local seconds="${1:-150}"
   local queue_capacity="${2:-4096}"
   local output_file="${3:-/tmp/denza-raw-can-turn-$(date +%Y%m%d-%H%M%S).log}"
+  local stream="${4:-bigdata}"
+
+  case "$stream" in
+    bigdata|gb|yun|ota) ;;
+    *) echo "stream must be bigdata, gb, yun or ota" >&2; exit 2 ;;
+  esac
 
   if [[ ! "$seconds" =~ ^[0-9]+$ ]] || (( seconds < 10 || seconds > 180 )); then
     echo "seconds must be an integer from 10 through 180" >&2
@@ -90,7 +97,7 @@ run_probe() {
   echo "capture: $output_file"
   echo "commands: MARK <label> | STOP"
   "${adb_cmd[@]}" shell \
-    "CLASSPATH=$remote_dex exec app_process /system/bin --nice-name=denza_raw_can_turn dev.denza.tools.RawCanTurnProbe $seconds $queue_capacity" \
+    "CLASSPATH=$remote_dex exec app_process /system/bin --nice-name=denza_raw_can_turn dev.denza.tools.RawCanTurnProbe $seconds $queue_capacity $stream" \
     | tee "$output_file"
 }
 

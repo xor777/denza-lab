@@ -16,7 +16,23 @@ Current scripts:
   APK. Labels are entered on stdin; `analyze_can_turn_capture.py` ranks payload
   bits against neutral/left/right/hazard phases and reports callback loss. The
   raw stream is diagnostic only; durable results belong to
-  `docs/vehicle-data-findings.md`.
+  `docs/vehicle-data-findings.md`. An optional fourth `run` argument selects
+  `gb`, `yun` or `ota` instead of the default `bigdata`; these fixed receive-only
+  callbacks emit opaque `BUFFER` lines, not input for the turn-frame analyzer.
+  They do not request/register a collection table. N9 GB/YUN availability was
+  checked on 2026-10-16; a silent OTA window does not prove permanent absence.
+- `washer_capture.py` + `VehicleStateSnapshot.java`: paired, owner-labelled
+  reservoir-state snapshots. Reads the installed framework's device/FID catalog
+  twice through scalar GET transactions 5/7, captures 180 seconds of the stock
+  raw-CAN selection, and saves service dumps, car-status provider queries,
+  firmware hashes, timestamps and failures. No APK, setters or CAN-table changes.
+  Run `python3 tools/washer_capture.py capture --output captures/<session>/liquid-present
+  --state liquid-present` (N9 / AutoType 168 by default); repeat into a new
+  directory with `--state empty`, then `--state refilled`. `compare <before>
+  <after>` reports candidates, not identified sensors, and refuses mismatched
+  cars/builds/catalogs or incomplete/lossy captures. Buffer-only properties and
+  unselected bus frames are outside this snapshot. Host tests:
+  `cd tools && python3 -m unittest test_washer_capture`.
 - `turn_signal_event_probe.sh` + `TurnSignalEventProbe.java`: narrow read-only
   shell-UID listener for the two BYDAutoLight turn FIDs. It accepts phase marks
   and `STOP`, has a hard timeout, unregisters the listener, and removes its

@@ -21,8 +21,10 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Passive, bounded raw-CAN capture for identifying turn-indicator frames.
  *
- * <p>Runs as shell UID through {@code app_process}; no APK is installed. It subscribes only to
- * the callback already selected by the stock CanDataCollect service. It never changes the stock
+ * <p>Runs as shell UID through {@code app_process}; no APK is installed. By default it subscribes to
+ * the callback already selected by the stock CanDataCollect service. Optional gb/yun/ota streams
+ * capture opaque buffers from their existing dynamic-data callbacks, not decoded CAN frames.
+ * It never changes the stock
  * collection table and issues no setter, wake or service-restart operation.
  *
  * <p>The BYDAuto callback only copies the received bytes into a bounded queue. Formatting and
@@ -36,8 +38,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * </ul>
  */
 public final class RawCanTurnProbe {
-    private static final int BIGDATA_DYNAMIC_DATA_CALLBACK = 0x99000020;
-    private static final int DEVICE_BIGDATA = 1061;
     private static final int DEFAULT_DURATION_SECONDS = 150;
     private static final int MAX_DURATION_SECONDS = 180;
     private static final int DEFAULT_QUEUE_CAPACITY = 4096;
@@ -51,6 +51,7 @@ public final class RawCanTurnProbe {
                 args, 0, DEFAULT_DURATION_SECONDS, 10, MAX_DURATION_SECONDS, "durationSeconds");
         int queueCapacity = boundedArg(
                 args, 1, DEFAULT_QUEUE_CAPACITY, 128, MAX_QUEUE_CAPACITY, "queueCapacity");
+        Stream stream = Stream.named(args.length > 2 ? args[2] : "bigdata");
 
         AtomicBoolean finishing = new AtomicBoolean();
         AtomicLong received = new AtomicLong();
@@ -60,7 +61,7 @@ public final class RawCanTurnProbe {
 
         out("START uid=" + Process.myUid()
                 + " duration_s=" + durationSeconds
-                + " queue_capacity=" + queueCapacity);
+                + " queue_capacity=" + queueCapacity + " stream=" + stream.name);
         exemptHiddenApis();
 
         Object device = null;
@@ -68,8 +69,7 @@ public final class RawCanTurnProbe {
         Thread writer = null;
         try {
             Context context = systemContext();
-            Class<?> deviceClass = Class.forName(
-                    "android.hardware.bydauto.bigdata.BYDAutoBigDataDevice");
+            Class<?> deviceClass = Class.forName(stream.deviceClass);
             Class<?> listenerClass = Class.forName("android.hardware.IBYDAutoListener");
             Class<?> eventClass = Class.forName("android.hardware.IBYDAutoEvent");
             Method getDeviceType = eventClass.getMethod("getDeviceType");
@@ -77,7 +77,7 @@ public final class RawCanTurnProbe {
             Method getBufferData = eventClass.getMethod("getBufferData");
 
             device = deviceClass.getMethod("getInstance", Context.class).invoke(null, context);
-            writer = startWriter(queue, finishing, dropped);
+            writer = startWriter(queue, finishing, dropped, stream);
 
             InvocationHandler handler = (proxy, method, methodArgs) -> {
                 String name = method.getName();
@@ -89,8 +89,7 @@ public final class RawCanTurnProbe {
                         Object event = methodArgs[0];
                         int deviceType = (Integer) getDeviceType.invoke(event);
                         int eventType = (Integer) getEventType.invoke(event);
-                        if (deviceType == DEVICE_BIGDATA
-                                && eventType == BIGDATA_DYNAMIC_DATA_CALLBACK) {
+                        if (deviceType == stream.deviceType && eventType == stream.callback) {
                             long sequence = received.incrementAndGet();
                             byte[] data = (byte[]) getBufferData.invoke(event);
                             if (data == null) {
@@ -125,7 +124,7 @@ public final class RawCanTurnProbe {
                     new Class<?>[]{listenerClass},
                     handler);
             deviceClass.getMethod("registerListener", listenerClass, int[].class)
-                    .invoke(device, listener, new int[]{BIGDATA_DYNAMIC_DATA_CALLBACK});
+                    .invoke(device, listener, new int[]{stream.callback});
 
             final Object finalDevice = device;
             final Object finalListener = listener;
@@ -146,7 +145,7 @@ public final class RawCanTurnProbe {
             out(String.format(
                     Locale.US,
                     "READY callback=0x%08X t_ns=%d",
-                    BIGDATA_DYNAMIC_DATA_CALLBACK,
+                    stream.callback,
                     SystemClock.elapsedRealtimeNanos()));
             Looper.loop();
         } catch (Throwable error) {
@@ -167,12 +166,21 @@ public final class RawCanTurnProbe {
     private static Thread startWriter(
             ArrayBlockingQueue<Frame> queue,
             AtomicBoolean finishing,
-            AtomicLong dropped) {
+            AtomicLong dropped,
+            Stream stream) {
         Thread thread = new Thread(() -> {
             while (!finishing.get() || !queue.isEmpty()) {
                 try {
                     Frame frame = queue.poll(100, TimeUnit.MILLISECONDS);
-                    if (frame != null) writeFrame(frame);
+                    if (frame != null) {
+                        if ("bigdata".equals(stream.name)) {
+                            writeFrame(frame);
+                        } else {
+                            out("BUFFER seq=" + frame.sequence + " t_ns=" + frame.elapsedNanos
+                                    + " stream=" + stream.name + " len=" + frame.data.length
+                                    + " raw=" + hex(frame.data, 0, frame.data.length));
+                        }
+                    }
                 } catch (InterruptedException ignored) {
                     // Re-check the queue and finishing flag.
                 } catch (Throwable error) {
@@ -386,6 +394,31 @@ public final class RawCanTurnProbe {
             this.sequence = sequence;
             this.elapsedNanos = elapsedNanos;
             this.data = data;
+        }
+    }
+
+    /** Fixed receive-only FIDs from the hash-matched N9 framework, never caller-supplied IDs. */
+    private static final class Stream {
+        private final String name;
+        private final String deviceClass;
+        private final int deviceType;
+        private final int callback;
+
+        private Stream(String name, String className, int deviceType, int callback) {
+            this.name = name;
+            this.deviceClass = "android.hardware.bydauto." + name + "." + className;
+            this.deviceType = deviceType;
+            this.callback = callback;
+        }
+
+        private static Stream named(String name) {
+            switch (name) {
+                case "bigdata": return new Stream(name, "BYDAutoBigDataDevice", 1061, 0x99000020);
+                case "gb": return new Stream(name, "BYDAutoGBDevice", 1039, 0x9900001F);
+                case "yun": return new Stream(name, "BYDAutoYunDevice", 1034, 0x99000021);
+                case "ota": return new Stream(name, "BYDAutoOtaDevice", 1032, 0x9900001E);
+                default: throw new IllegalArgumentException("stream must be bigdata, gb, yun or ota");
+            }
         }
     }
 }
