@@ -35,7 +35,7 @@ Updated 2026-10-16. Which vehicle signals Denza Apps can read on this head unit,
 | Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
 | Washer fluid level: no FID, name or CAN bit identified; `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` (`0x3D90201E`) is probably throttle cleaning, and its `0` proves nothing | open | 2026-09-23 | [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23) |
 | N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
-| N9 CAN coverage: GB/YUN add 72 address tuples without table writes (historical union 202). Expanded present/empty pair saved: 68,432 / 68,296 messages, identical 199-tuples coverage, no capture loss. All 11 surviving old simple-bit rules fail the second empty control. Extra addresses contain 37 separated bits, many with other meanings; expanded refill is still needed | live pair, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
+| N9 CAN coverage: GB/YUN add 72 address tuples without table writes. Expanded present/empty/refilled cycle saved: 68,432 / 68,296 / 66,613 messages, all 199 common tuples covered without loss. Of 223 separated bits, 49 reverse; 43 contradict older controls, and 6 extra-tuple bits overlap numeric range/consumption/insulation/SOC descriptors. No washer mapping is established; 3 intermittent refill tuples also occurred in older normal/empty captures | live three-state cycle, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
 
 **Open questions**
@@ -1680,8 +1680,9 @@ normalization remain explicitly marked as hints. Unmapped changes include
 combined `0x447` samples, all eight payload bytes sum to 255 modulo 256;
 byte 7 changes inversely with the SOC-containing byte. This is checksum-like
 behavior in these samples, not evidence of an independent level flag.
-No washer-level mapping has been established; retain all candidates for the
-refill reversal rather than promoting a numeric carry to a warning.
+At this intermediate stage no washer-level mapping was established. All
+candidates were retained for the refill reversal below, rather than promoting
+a numeric carry to a warning.
 
 Evidence: `cycle-02/empty/` (including `summary.json`),
 `compare-present-empty.json`, `compare-present-empty-mcu-hints.json`,
@@ -1689,13 +1690,77 @@ Evidence: `cycle-02/empty/` (including `summary.json`),
 The comparator's synthetic flip/missing/undersampled/identical/unequal-count
 checks pass; comparing the complete baseline to itself gives zero changes.
 
-**Next useful physical experiment:** record BigData **and** GB/YUN in each
-owner-labelled stable level state. Expanded present/empty records now exist;
-the **refilled state is still missing**. The earlier availability windows must not be added to the
-unchanged-level controls without a fresh owner label. Do not repeat draining
-solely to re-test `0x324`, and do not add a warning to Denza Apps from the remaining
-unmapped bit correlations. A service-provided sensor part number, controller
-and live-data item would independently narrow this expanded search.
+**Expanded refilled state, cycle 02, 14:36:30–14:46:15 Moscow time:** the owner
+reported adding **1 litre**, expected to put the sensor in its OK state. That
+expectation is the experiment label, not an independent electrical measurement.
+The same sequential 180-second BigData/GB/YUN windows recorded **29,082 / 15,760 /
+21,771 messages** (total **66,613**), with 130 / 43 / 69 tuples (union **202**).
+All 199 tuples from both earlier states remain covered, including all 72 extra
+GB/YUN tuples, with ≥20 samples per common address. BigData additionally sees
+`0x1CD` (2 samples), `0x236` (94) and `0x3E8` (2), all sub 0/channel 0. These
+also occurred in older normal **and empty** captures, so their mere presence
+is not a repeatable level indication. `0x236`'s historical payload layout changes
+remain unresolved; absent windows are not filled with zeros.
+
+All three DONE/unregister, frame sequence, zero-loss/error/queue and duration
+checks pass. No embedded-counter backsteps occur in this refill capture.
+Firmware/APK hashes, service PIDs and crash buffer are unchanged. Known GETs
+remain speed 0, hood 1, front-wiper level 1, relay 0 before/after; raw hood stays
+2 for all 177 BigData and 3,600 YUN observations. The temporary process exited
+and its dex was removed. No vehicle configuration, table or service was changed.
+
+`cycle-02/compare_three_states.py` revalidates all three captures and requires a
+candidate to return in **every stream that separated the present/empty pair**:
+≥0.9 bit-rate separation from empty, ≤0.1 difference from the initial state,
+and ≥20 observations per state. Of **223** original bit locations, **49** return
+(40 exactly constant within all three windows); none is missing/undersampled.
+This is a correlation screen, not 49 independent sensor candidates.
+
+`cycle-02/check_historical_controls.py` tests those 49 against seven earlier
+BigData windows, retaining both polarity and missing-data distinctions.
+**43 contradict at least one earlier labelled control; none passes all seven.**
+The remaining **6** are in extra GB/YUN tuples unavailable to those historical
+BigData captures. They all overlap recovered multi-bit MCU fields:
+
+| Stream / tuple | Byte / returning bits (zero-based, LSB0) | Three-window byte values | Descriptor hint, not installed-MCU proof |
+| --- | --- | --- | --- |
+| YUN `0x3D9`, sub 4, ch 2 | byte 1, bit 1 | 34 → 32 → 30 | electric driving range |
+| YUN `0x3D9`, sub 6, ch 2 | byte 5, bit 2 | 86 → 90 → 93 | total electric consumption |
+| GB `0x43A`, sub 0, ch 2 | byte 2, bit 6 | 202–231 → 147–183 → 99–154 | insulation value; refill bit is 1 in only 91.7% of samples |
+| YUN `0x447`, sub 0, ch 0 | byte 4, bit 3 | 90–91 → 81–82 → 74–75 | battery SOC |
+| YUN `0x4A5`, sub 5, ch 2 | byte 6, bits 1 and 3 | 94 → 84 → 74 | battery SOC |
+
+None of these whole bytes returns to the initial value; a numerical change
+can return one constituent bit. Descriptor names, especially masked aliases,
+remain corroborating hints rather than a hash-matched N9 MCU mapping.
+
+The previously unmapped bytes also do not establish a flag: `0x41E` byte 2
+is 145 → 81 → mostly 81 (177/178 refill samples); `0x46C` byte 7 is 99 → 125 →
+mostly 33 (115/135), with **no 99** in refill. `0x3DA` byte 2 changes from 8–11
+to 5–6 to 8–22 and closely follows the PM2.5-containing `0x4F6` byte 1 in the
+same YUN stream: nearest-time values agree in 139/144, 148/149 and 162/163 pairs.
+Pair gaps reach 0.75/0.75/1.38 seconds; this supports a duplicate air-quality
+value, not a proven alias or washer signal. The earlier checksum-like `0x447`
+byte-7 observation remains limited to its stated samples.
+
+Evidence: `cycle-02/refilled/`, `compare-empty-refilled.json`,
+`compare-present-refilled.json`, `compare-three-states.json`,
+`three-state-mcu-hints.json`, `three-state-historical-controls.json`, and
+`refill-field-checks.json`. The new reversal comparator passes seven synthetic
+tests, including missing data, undersampling, cross-stream disagreement and
+bit-return without whole-byte return. Prior-state checksums were reverified;
+the refill evidence and analysis sources have their own checksum manifest.
+
+**Next useful step:** this expanded three-state cycle is complete, but a
+physical washer-level input is **still unidentified**. Do not repeat draining
+solely to re-test `0x324`, or turn the remaining numerical correlations into a
+Denza Apps warning. Obtain the sensor part number, wiring/controller destination
+and, if available, its named diagnostic live-data item from the service. That
+would target the next read-only search and determine whether the signal reaches
+the head unit's currently exposed streams. This result does not prove that the
+physical sensor is absent or that no other CAN encoding exists. Earlier short
+stream-availability windows still lack fresh physical-state labels and must not
+be promoted to unchanged-level controls.
 
 Expected observation: a physical level input, if exposed through either read
 path, changes after emptying and returns after refill. Unchanged data or a
