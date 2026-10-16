@@ -248,7 +248,8 @@ public final class WakeProbeService extends Service {
                 short[] block=stream.poll();if(block==null)continue;
                 if(recognizer.acceptWaveForm(block,block.length)) {
                     JSONObject resultJson=new JSONObject(recognizer.getResult());String text=resultJson.optString("text","").trim();
-                    if(!text.isEmpty()){endpoint=resultJson;TURN.finish(id,text,SystemClock.elapsedRealtime());break;}
+                    // A repeated call or a cough before the command is only [unk]: keep listening for the command.
+                    if(meaningful(text)){endpoint=resultJson;TURN.finish(id,text,SystemClock.elapsedRealtime());break;}
                 }
                 long now=SystemClock.elapsedRealtime();
                 if(now>=nextPartial){TURN.partial(id,new JSONObject(recognizer.getPartialResult()).optString("partial",""));nextPartial=now+120;}
@@ -263,6 +264,11 @@ public final class WakeProbeService extends Service {
                 if(result.stage()==AssistantTurn.Stage.RESULT&&endpoint!=null)routeCommand(id,endpoint);
             }
         } finally {Prime prime=pendingPrime;if(prime!=null&&prime.stream()==stream)pendingPrime=null;if(commandAudio==stream)commandAudio=null;resetGate=true;}
+    }
+    /** At least one word of the command grammar, not just [unk] tokens. */
+    static boolean meaningful(String text) {
+        for(String word:text.trim().split("\\s+"))if(!word.isEmpty()&&!word.equals("[unk]"))return true;
+        return false;
     }
     private void routeCommand(long id,JSONObject endpoint) {
         if(!running||!TURN.current(id))return;

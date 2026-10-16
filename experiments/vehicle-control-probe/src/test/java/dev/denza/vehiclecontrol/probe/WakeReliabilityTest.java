@@ -127,6 +127,14 @@ public class WakeReliabilityTest {
         assertEquals(14, live[0]);
     }
 
+    @Test public void aTurnKeepsListeningThroughUnknownOnlyEndpoints() {
+        assertFalse(WakeProbeService.meaningful(""));
+        assertFalse(WakeProbeService.meaningful("[unk]"));
+        assertFalse(WakeProbeService.meaningful("[unk] [unk]  [unk]"));
+        assertTrue(WakeProbeService.meaningful("[unk] открой окна"));
+        assertTrue(WakeProbeService.meaningful("включи кондиционер"));
+    }
+
     @Test public void helloAndNameCutApartAreJoinedWithAtMostAShortGap() {
         CabinSpeech.Utterance hello = new CabinSpeech.Utterance(new short[]{1, 1}, new double[]{1, 0, 0, 0, 0, 0}, 0, 2, 100, 102);
         CabinSpeech.Utterance name = new CabinSpeech.Utterance(new short[]{2, 2, 2}, new double[]{0, 2, 0, 0, 0, 0}, 1, 3, 20000, 20003);

@@ -25,7 +25,7 @@ public final class WakeProbeActivity extends Activity {
         super.onCreate(saved);getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         LinearLayout root=column();root.setPadding(dp(24),dp(12),dp(24),dp(12));root.setBackgroundColor(Color.rgb(16,22,25));
         root.addView(text("«Привет, Денза» · слышимость и места",28));
-        root.addView(text("«Привет, Денза» → команда → план. Выполнение включается отдельно; сомнительный разбор требует подтверждения.",16));
+        root.addView(text("«Привет, Денза» → команда → выполнение через пульт и его проверки. Сомнительный разбор требует подтверждения; выполнение можно выключить.",16));
         Switch execute=new Switch(this);execute.setText("Выполнять голосовые команды автомобиля");execute.setTextColor(Color.WHITE);execute.setTextSize(17);
         execute.setChecked(HandsFreeAccess.executionEnabled(this));execute.setOnCheckedChangeListener((b,on)->HandsFreeAccess.setExecutionEnabled(this,on));root.addView(execute);
         state=text("",16);root.addView(state);phase=text("",22);root.addView(phase);
