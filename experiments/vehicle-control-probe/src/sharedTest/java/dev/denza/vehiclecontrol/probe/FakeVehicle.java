@@ -8,6 +8,7 @@ final class FakeVehicle implements NativeController.Shell {
     static final String OK="Result: Parcel(00000001    '....')";
     static String reply(int value){return String.format("Result: Parcel(00000000 %08x   '........')",value);}
         final JSONObject catalog;final Map<String,Object> values=new HashMap<>();final Map<String,String> rawOverrides=new HashMap<>();final List<String>writes=new ArrayList<>();
+        volatile String readError;
         String boot="11111111-1111-1111-1111-111111111111",setReply=OK,holdReply="@start\n"+OK+"\n@stop\n"+OK;boolean badHash;int opens;
         CountDownLatch readStarted,readRelease,holdStarted,holdRelease;
         FakeVehicle(JSONObject catalog)throws Exception{this.catalog=catalog;
@@ -29,7 +30,8 @@ final class FakeVehicle implements NativeController.Shell {
             if(command.startsWith("service call autoservice 6")){writes.add(command);return setReply;}
             if(command.contains("sha256sum")){StringBuilder out=new StringBuilder(identity());JSONObject h=catalog.getJSONObject("protocol").getJSONObject("hashes");for(String path:NativeController.keys(h))out.append('\n').append(badHash?"bad":h.getString(path)).append("  ").append(path);return out.toString();}
             if(command.equals(catalog.getJSONObject("protocol").getString("identity")))return identity();
-            if(readStarted!=null){readStarted.countDown();assertTrue(readRelease.await(2,TimeUnit.SECONDS));}
+            if(readStarted!=null){readStarted.countDown();assertTrue(readRelease.await(5,TimeUnit.SECONDS));}
+            if(readError!=null)throw new java.io.IOException(readError);
             StringBuilder out=new StringBuilder(identity());Matcher m=Pattern.compile("echo @(\\w+); service call autoservice ([57]) i32 (\\d+) i32 (-?\\d+)").matcher(command);
             while(m.find()){Object value=values.get(m.group(1));int raw=value==null?-10011:m.group(2).equals("7")?Float.floatToIntBits(((Number)value).floatValue()):((Number)value).intValue();out.append('\n').append('@').append(m.group(1)).append('\n').append(rawOverrides.getOrDefault(m.group(1),reply(raw)));}
             return out.toString();

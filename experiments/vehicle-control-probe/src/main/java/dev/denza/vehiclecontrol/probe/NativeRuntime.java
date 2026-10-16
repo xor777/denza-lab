@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 final class NativeRuntime {
     private static NativeRuntime instance;
     final NativeController controller;
-    final AtomicBoolean busy=new AtomicBoolean();
+    final AtomicBoolean reading=new AtomicBoolean(), writing=new AtomicBoolean();
     final ExecutorService operations=Executors.newSingleThreadExecutor();
     private final ExecutorService release=Executors.newSingleThreadExecutor();
     volatile NativeController.Hold activeHold;

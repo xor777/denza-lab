@@ -22,6 +22,9 @@ public final class RemoteActivity extends Activity {
     private LinearLayout body;
     private ScrollView scroll;
     private JSONObject state;
+    private boolean stale;
+    private String renderedPage="",paintedTab="";
+    private record Binding(String target,String action,boolean hold,boolean allowed) { }
     private String section="windows",seat="fl",climateZone="driver";
     private final List<Button> controls=new ArrayList<>();
     private Button heldButton;
@@ -44,7 +47,7 @@ public final class RemoteActivity extends Activity {
     private Button button(String title){Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setTextSize(16);b.setTextColor(TEXT);b.setMinHeight(dp(54));return b;}
     private void postAccess(Runnable task){int generation=epoch;handler.post(()->{if(visible&&!remoteScreen&&!isDestroyed()&&generation==epoch)task.run();});}
     void showRemote() {
-        releaseHold();remoteScreen=true;epoch++;state=null;tabButtons.clear();controls.clear();stopControls.clear();
+        releaseHold();remoteScreen=true;epoch++;state=null;stale=false;renderedPage="";paintedTab="";tabButtons.clear();controls.clear();stopControls.clear();
         LinearLayout root=column();root.setPadding(dp(24),dp(14),dp(24),dp(12));root.setBackgroundColor(BG);
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
         TextView title=text("Denza · Пульт",27,TEXT);title.setTypeface(null,Typeface.BOLD);header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
@@ -62,41 +65,43 @@ public final class RemoteActivity extends Activity {
         setContentView(root);render();if(visible){handler.removeCallbacks(poll);handler.post(poll);}
     }
     private void refresh(){
-        if(!visible||!remoteScreen||runtime==null||!runtime.busy.compareAndSet(false,true))return;
-        int generation=epoch;status.setText("Обновляю показания · ADB занят…");updateButtons();
+        if(!visible||!remoteScreen||runtime==null||runtime.writing.get()||!runtime.reading.compareAndSet(false,true))return;
+        int generation=epoch;
         runtime.operations.execute(()->{
-            if(!visible||!remoteScreen||generation!=epoch){runtime.busy.set(false);return;}
+            if(!visible||!remoteScreen||generation!=epoch){runtime.reading.set(false);return;}
             JSONObject result=null;String error=null;
             try{result=runtime.controller.snapshot();}catch(Exception failure){error=failure.getMessage();}
-            finally{runtime.busy.set(false);}
+            finally{runtime.reading.set(false);}
             JSONObject answer=result;String problem=error;
             handler.post(()->{if(!visible||!remoteScreen||isDestroyed()||generation!=epoch)return;
-                state=answer;status.setText(problem!=null?problem:"N9 · "+(answer.optInt("park",-1)==1?"P · управление доступно":"не в P / неизвестно")+" · "+java.time.LocalTime.now().withNano(0));render();});
+                if(problem==null){state=answer;stale=false;status.setText("N9 · "+(answer.optInt("park",-1)==1?"P · управление доступно":"не в P / неизвестно")+" · "+java.time.LocalTime.now().withNano(0));}
+                else {stale=true;status.setText("Данные устарели · "+problem);}
+                render();});
         });
     }
-    private void updateButtons(){for(Button button:controls)button.setEnabled(state!=null&&!runtime.busy.get()&&Boolean.TRUE.equals(button.getTag()));}
+    private void updateButtons(){for(Button button:controls){Binding binding=(Binding)button.getTag();boolean release=runtime.activeHold!=null&&binding.action().equals("stop")&&binding.target().equals(runtime.activeHold.target);boolean held=button==heldButton&&runtime.activeHold!=null&&!runtime.activeHold.released.get();button.setEnabled(release||held||(state!=null&&(!stale||binding.action().equals("stop"))&&!runtime.writing.get()&&binding.allowed()));}}
     private void action(String target,String action){
-        if(!visible||!remoteScreen||!runtime.busy.compareAndSet(false,true))return;
-        int generation=epoch;feedback.setText("Отправляю команду…");updateButtons();
+        if(!visible||!remoteScreen||!runtime.writing.compareAndSet(false,true))return;
+        int generation=epoch;feedback.setText(runtime.reading.get()?"Команда ожидает текущего чтения…":"Отправляю команду…");updateButtons();
         runtime.operations.execute(()->{
-            if(!visible||!remoteScreen||generation!=epoch){runtime.busy.set(false);return;}
+            if(!visible||!remoteScreen||generation!=epoch){runtime.writing.set(false);return;}
             JSONObject result=null;String error=null;
-            try{result=runtime.controller.act(target,action,()->visible&&remoteScreen&&generation==epoch);}catch(Exception failure){error=failure.getMessage();}finally{runtime.busy.set(false);}
+            try{result=runtime.controller.act(target,action,()->visible&&remoteScreen&&generation==epoch);}catch(Exception failure){error=failure.getMessage();}finally{runtime.writing.set(false);}
             finishOperation(generation,result,error);
         });
     }
     private void startHold(Button source,String target,String direction){
-        if(!visible||!remoteScreen||!runtime.busy.compareAndSet(false,true))return;
+        if(!visible||!remoteScreen||!runtime.writing.compareAndSet(false,true))return;
         final NativeController.Hold hold;
-        try{hold=runtime.controller.newHold(target,direction);}catch(Exception failure){runtime.busy.set(false);feedback.setText(failure.getMessage());return;}
+        try{hold=runtime.controller.newHold(target,direction);}catch(Exception failure){runtime.writing.set(false);feedback.setText(failure.getMessage());return;}
         runtime.activeHold=hold;ownedHold=hold;heldButton=source;int generation=epoch;
-        feedback.setText("Удерживайте · до 5 с. Отпустите для остановки.");
+        feedback.setText(runtime.reading.get()?"Удерживайте: движение начнётся после текущего чтения. Отпускание отменяет его.":"Удерживайте · до 5 с. Отпустите для остановки.");
         for(Button b:controls)if(b!=source)b.setEnabled(hold.target.equals(stopControls.get(b)));
         runtime.operations.execute(()->{
-            if(!visible||!remoteScreen||generation!=epoch){runtime.activeHold=null;runtime.busy.set(false);return;}
+            if(!visible||!remoteScreen||generation!=epoch){runtime.activeHold=null;runtime.writing.set(false);return;}
             JSONObject result=null;String error=null;
             try{result=runtime.controller.hold(hold);}catch(Exception failure){error=failure.getMessage();}
-            finally{runtime.activeHold=null;runtime.busy.set(false);}
+            finally{runtime.activeHold=null;runtime.writing.set(false);}
             finishOperation(generation,result,error);
         });
     }
@@ -104,23 +109,29 @@ public final class RemoteActivity extends Activity {
         if(!visible||!remoteScreen||isDestroyed()||generation!=epoch)return;
         heldButton=null;
         feedback.setText(error!=null?error+". Команда не повторялась.":result.optBoolean("cancelled")&&(!result.has("stop_accepted")||result.optBoolean("stop_accepted"))?"Нажатие отменено; новое движение не запущено.":result.optBoolean("accepted")?"Команда принята"+(result.has("stop_accepted")?" · остановка также принята":"")+". Проверьте фактический результат.":result.optString("error","Команда не подтверждена · код "+result.optInt("code",-1)));
-        state=null;render();refresh();});}
+        updateButtons();refresh();});}
     private void releaseHold(){if(runtime!=null&&ownedHold!=null&&runtime.activeHold==ownedHold)runtime.releaseHold();ownedHold=null;heldButton=null;}
     private LinearLayout card(String name,String value,String reason){
         LinearLayout card=column();card.setPadding(dp(18),dp(12),dp(18),dp(14));
         GradientDrawable background=new GradientDrawable();background.setColor(CARD);background.setCornerRadius(dp(14));card.setBackground(background);
-        TextView title=text(name,19,TEXT);title.setTypeface(null,Typeface.BOLD);card.addView(title);if(value!=null)card.addView(text(value,21,ACCENT));if(reason!=null)card.addView(text(reason,14,MUTED));return card;
+        TextView title=text(name,19,TEXT);title.setTypeface(null,Typeface.BOLD);card.addView(title);
+        TextView reading=text(value==null?"":value,21,ACCENT);reading.setVisibility(value==null?View.GONE:View.VISIBLE);card.addView(reading);
+        TextView why=text(reason==null?"":reason,14,MUTED);why.setVisibility(reason==null?View.GONE:View.VISIBLE);card.addView(why);return card;
     }
     private LinearLayout row(LinearLayout card){LinearLayout row=new LinearLayout(this);card.addView(row);return row;}
     private Button control(LinearLayout row,String target,String action,String label,String reason,boolean hold){
-        Button b=button(label);if(action.equals("stop"))stopControls.put(b,target);b.setTag(action.equals("stop")||reason==null);controls.add(b);row.addView(b,new LinearLayout.LayoutParams(0,-2,1));
-        if(hold){b.setContentDescription(label+" · удерживайте до 5 секунд");b.setOnTouchListener((v,event)->{
-            if(event.getActionMasked()==MotionEvent.ACTION_DOWN){if(!b.isEnabled())return false;v.getParent().requestDisallowInterceptTouchEvent(true);startHold(b,target,action);return true;}
-            if(event.getActionMasked()==MotionEvent.ACTION_MOVE&&(event.getX()<0||event.getY()<0||event.getX()>v.getWidth()||event.getY()>v.getHeight())){releaseHold();return true;}
-            if(event.getActionMasked()==MotionEvent.ACTION_UP||event.getActionMasked()==MotionEvent.ACTION_CANCEL){releaseHold();v.getParent().requestDisallowInterceptTouchEvent(false);b.performClick();return true;}return true;});
-            b.setOnClickListener(v->{/* Motion start is only DOWN, never accessibility click/repeat. */});
-        }else b.setOnClickListener(v->{if(action.equals("stop")&&runtime.activeHold!=null){releaseHold();return;}action(target,action);});
-        return b;
+        Button b=button(label);bindControl(b,new Binding(target,action,hold,action.equals("stop")||reason==null));controls.add(b);row.addView(b,new LinearLayout.LayoutParams(0,-2,1));return b;
+    }
+    private void bindControl(Button b,Binding binding){
+        b.setTag(binding);if(binding.action().equals("stop"))stopControls.put(b,binding.target());
+        if(binding.hold()){
+            b.setContentDescription(b.getText()+" · удерживайте до 5 секунд");b.setOnTouchListener((v,event)->{
+                Binding current=(Binding)b.getTag();
+                if(event.getActionMasked()==MotionEvent.ACTION_DOWN){if(!b.isEnabled())return false;v.getParent().requestDisallowInterceptTouchEvent(true);startHold(b,current.target(),current.action());return true;}
+                if(event.getActionMasked()==MotionEvent.ACTION_MOVE&&(event.getX()<0||event.getY()<0||event.getX()>v.getWidth()||event.getY()>v.getHeight())){releaseHold();return true;}
+                if(event.getActionMasked()==MotionEvent.ACTION_UP||event.getActionMasked()==MotionEvent.ACTION_CANCEL){releaseHold();v.getParent().requestDisallowInterceptTouchEvent(false);b.performClick();return true;}return true;});
+            b.setOnClickListener(v->{});
+        }else b.setOnClickListener(v->{Binding current=(Binding)b.getTag();if(current.action().equals("stop")&&runtime.activeHold!=null){releaseHold();return;}action(current.target(),current.action());});
     }
     private String blocked(JSONObject object){return object.isNull("blocked")?null:object.optString("blocked","Нет данных");}
     private String percent(JSONObject object){return object.isNull("percent")?"Нет положения":String.format(java.util.Locale.ROOT,"%.0f%%",object.optDouble("percent"));}
@@ -135,12 +146,14 @@ public final class RemoteActivity extends Activity {
     }
     private void render(){
         if(body==null||!remoteScreen)return;
-        for(var tab:tabButtons.entrySet()){boolean selected=section.equals(tab.getValue());tab.getKey().setTextColor(selected?ACCENT:TEXT);tab.getKey().setBackgroundTintList(android.content.res.ColorStateList.valueOf(selected?Color.rgb(35,68,65):Color.rgb(47,61,68)));}
-        int y=scroll.getScrollY();body.removeAllViews();controls.clear();stopControls.clear();
-        if(state==null){body.addView(text("Нет свежих данных. Действия недоступны до чтения автомобиля.",18,MUTED));return;}
+        if(!paintedTab.equals(section)){for(var tab:tabButtons.entrySet()){boolean selected=section.equals(tab.getValue());tab.getKey().setTextColor(selected?ACCENT:TEXT);tab.getKey().setBackgroundTintList(android.content.res.ColorStateList.valueOf(selected?Color.rgb(35,68,65):Color.rgb(47,61,68)));}paintedTab=section;}
+        LinearLayout previous=body;String page=state==null?"loading":section+":"+seat+":"+climateZone;
+        body=column();controls.clear();stopControls.clear();
+        if(state==null){body.addView(text("Нет свежих данных. Действия недоступны до чтения автомобиля.",18,MUTED));commitBody(previous,page);return;}
         try{
             JSONArray pending=state.getJSONArray("pending_stops");
-            if(pending.length()>0){LinearLayout recovery=card("Проверьте остановку кресла","Ответ STOP не подтверждён",null);for(int i=0;i<pending.length();i++)control(row(recovery),pending.getString(i),"stop",pending.getString(i)+" · Стоп",null,false);body.addView(recovery);}
+            LinearLayout recoveryContainer=column();body.addView(recoveryContainer);
+            if(pending.length()>0){LinearLayout recovery=card("Проверьте остановку кресла","Ответ STOP не подтверждён",null);for(int i=0;i<pending.length();i++)control(row(recovery),pending.getString(i),"stop",pending.getString(i)+" · Стоп",null,false);recoveryContainer.addView(recovery);}
             List<LinearLayout> cards=new ArrayList<>();
             if(section.equals("windows")||section.equals("shades")){
                 JSONObject group=state.getJSONObject(section);for(String key:NativeController.keys(group)){
@@ -167,8 +180,8 @@ public final class RemoteActivity extends Activity {
                     JSONArray actions=c.getJSONArray("actions");LinearLayout r=row(card);
                     if(c.optString("presentation").equals("stepper")){
                         int index=-1;for(int i=0;i<actions.length();i++)if(actions.getString(i).equals(current))index=i;
-                        if(index>0)control(r,"climate."+key,actions.getString(index-1),"−",blocked(c),false);
-                        if(index>=0&&index+1<actions.length())control(r,"climate."+key,actions.getString(index+1),"+",blocked(c),false);
+                        control(r,"climate."+key,index>0?actions.getString(index-1):"", "−",index>0?blocked(c):"Нижняя граница",false);
+                        control(r,"climate."+key,index>=0&&index+1<actions.length()?actions.getString(index+1):"", "+",index>=0&&index+1<actions.length()?blocked(c):"Верхняя граница",false);
                     }else for(int i=0;i<actions.length();i++){if(i>0&&i%3==0)r=row(card);String a=actions.getString(i);Button b=control(r,"climate."+key,a,labels.optString(a,a),blocked(c),false);b.setSelected(a.equals(current));}
                     cards.add(card);
                 }
@@ -180,9 +193,34 @@ public final class RemoteActivity extends Activity {
                 if(state.getJSONObject("massages").has(seat)){JSONObject c=state.getJSONObject("massages").getJSONObject(seat);LinearLayout card=card("Массаж",c.isNull("enabled")?"Состояние не подтверждено":c.optBoolean("enabled")?"Включён":"Выключен",blocked(c));int count=0;LinearLayout r=null;for(String a:List.of("on","off","wave","pulse","stretch","waist","shoulders","level1","level2","level3")){if(count++%4==0)r=row(card);control(r,"massage."+seat,a,Map.of("on","Вкл.","off","Выкл.","wave","Волна","pulse","Пульсация","stretch","Растяжка","waist","Поясница","shoulders","Плечи","level1","Мягко","level2","Средне","level3","Сильно").get(a),blocked(c),false);}cards.add(card);}
                 for(String axis:NativeController.keys(axes)){JSONObject c=axes.getJSONObject(axis);LinearLayout card=card(c.getString("name"),percent(c)+" · удерживайте до 5 с",blocked(c));LinearLayout r=row(card);control(r,"seat."+seat+"."+axis,"plus",c.getJSONArray("labels").getString(0),blocked(c),true);control(r,"seat."+seat+"."+axis,"minus",c.getJSONArray("labels").getString(1),blocked(c),true);control(r,"seat."+seat+"."+axis,"stop","Стоп",null,false);cards.add(card);}
             }
-            addGrid(cards);updateButtons();scroll.post(()->scroll.scrollTo(0,y));
-        }catch(Exception failure){status.setText("Не удалось показать данные: "+failure.getMessage());state=null;updateButtons();}
+            addGrid(cards);commitBody(previous,page);updateButtons();
+        }catch(Exception failure){body=previous;stale=true;status.setText("Данные устарели · "+failure.getMessage());collectControls(body);updateButtons();}
     }
+    /** Reconcile an unattached render plan into the existing hierarchy. Ordinary polling
+     * never detaches a live View, replaces a selector adapter or scrolls the container. */
+    private void commitBody(LinearLayout previous,String page){
+        LinearLayout plan=body;body=previous;
+        if(!page.equals(renderedPage)){body.removeAllViews();while(plan.getChildCount()>0){View child=plan.getChildAt(0);plan.removeViewAt(0);body.addView(child);}renderedPage=page;}
+        else reconcile(body,plan);
+        body.setAlpha(stale?0.65f:1f);controls.clear();stopControls.clear();collectControls(body);
+    }
+    private void reconcile(View live,View plan){
+        if(live instanceof Spinner)return; // Preserve adapter, open popup, selection and focus.
+        if(live instanceof TextView target&&plan instanceof TextView source){if(!android.text.TextUtils.equals(target.getText(),source.getText()))target.setText(source.getText());}
+        if(live.getVisibility()!=plan.getVisibility())live.setVisibility(plan.getVisibility());
+        if(live.isSelected()!=plan.isSelected())live.setSelected(plan.isSelected());
+        if(live instanceof Button b&&plan.getTag() instanceof Binding binding)bindControl(b,binding);
+        if(live instanceof ViewGroup target&&plan instanceof ViewGroup source){
+            List<View> desired=new ArrayList<>();for(int i=0;i<source.getChildCount();i++)desired.add(source.getChildAt(i));
+            for(int i=0;i<desired.size();i++){
+                View candidate=desired.get(i);
+                if(i<target.getChildCount()&&target.getChildAt(i).getClass()==candidate.getClass())reconcile(target.getChildAt(i),candidate);
+                else {if(i<target.getChildCount())target.removeViewAt(i);source.removeView(candidate);target.addView(candidate,i);}
+            }
+            while(target.getChildCount()>desired.size())target.removeViewAt(target.getChildCount()-1);
+        }
+    }
+    private void collectControls(View root){if(root instanceof Button b&&b.getTag() instanceof Binding binding){controls.add(b);if(binding.action().equals("stop"))stopControls.put(b,binding.target());}if(root instanceof ViewGroup group)for(int i=0;i<group.getChildCount();i++)collectControls(group.getChildAt(i));}
     private String lightLabel(String a){return Map.of("on","Вкл.","off","Выкл.","auto","AUTO","low","Ближний","other","Другой режим").getOrDefault(a,"Нет данных");}
     void showAccess() {
         releaseHold(); remoteScreen=false; epoch++; handler.removeCallbacks(poll);
