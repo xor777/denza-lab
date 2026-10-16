@@ -2,64 +2,67 @@ package dev.denza.vehiclecontrol.probe;
 import static org.junit.Assert.*;
 import org.junit.Test;
 import androidx.test.platform.app.InstrumentationRegistry;
-import com.chaquo.python.Python;
-import com.chaquo.python.PyObject;
-import com.chaquo.python.android.AndroidPlatform;
-public final class RuntimeTest  {
-    @Test public void testEmbeddedController() throws Exception {
-        android.content.Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        if (!Python.isStarted()) Python.start(new AndroidPlatform(context));
-        PyObject module = Python.getInstance().getModule("android_remote");
-        String page = module.callAttr("page").toString();
-        assertTrue(page.contains("AndroidRemote.request("));
-        assertFalse(page.contains("await fetch("));
-        assertTrue(page.contains("Панорама"));
-        PyObject remote = module.callAttr("create", new OfflineTransport(), context.getCacheDir().getAbsolutePath());
-        String answer = remote.callAttr("request", "").toString();
-        assertTrue(answer.contains("Нет локального доступа ADB"));
-        assertFalse(answer.contains("accepted"));
-        RemoteActivity.Controller bridge = new RemoteActivity.Controller(remote);
-        bridge.active = false;
-        assertTrue(bridge.request("{\"window\":\"fl\",\"action\":\"open\"}").contains("не на экране"));
-        android.app.Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
-        android.content.Intent intent = new android.content.Intent(context, RemoteActivity.class);
-        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-        RemoteActivity activity = (RemoteActivity) instrumentation.startActivitySync(intent);
-        instrumentation.runOnMainSync(() -> activity.showRemote(remote, page));
-        java.util.concurrent.atomic.AtomicReference<String> visible = new java.util.concurrent.atomic.AtomicReference<>("");
-        for (int attempt = 0; attempt < 30 && !visible.get().contains("Нет локального доступа ADB"); attempt++) {
-            java.util.concurrent.CountDownLatch read = new java.util.concurrent.CountDownLatch(1);
-            instrumentation.runOnMainSync(() -> {
-                android.widget.LinearLayout layout = (android.widget.LinearLayout) ((android.view.ViewGroup) activity.findViewById(android.R.id.content)).getChildAt(0);
-                android.webkit.WebView web = (android.webkit.WebView) layout.getChildAt(1);
-                web.evaluateJavascript("document.querySelector('#connection')?.textContent", result -> { visible.set(result); read.countDown(); });
-            });
-            assertTrue(read.await(2, java.util.concurrent.TimeUnit.SECONDS));
-            if (!visible.get().contains("Нет локального доступа ADB")) Thread.sleep(100);
-        }
-        assertTrue("WebView response: " + visible.get(), visible.get().contains("Нет локального доступа ADB"));
-        instrumentation.runOnMainSync(() -> {
-            context.getSharedPreferences("access", 0).edit().putBoolean("requested", true).commit();
-            activity.showAccess();
-            android.widget.LinearLayout access = (android.widget.LinearLayout) ((android.view.ViewGroup) activity.findViewById(android.R.id.content)).getChildAt(0);
-            assertFalse("Persisted request latch must disable another submission", access.getChildAt(1).isEnabled());
-            assertTrue("Passive check stays available", access.getChildAt(2).isEnabled());
-            access.getChildAt(3).performClick();
-            assertTrue("Explicit rearm does not submit", access.getChildAt(1).isEnabled());
-            assertFalse(context.getSharedPreferences("access", 0).getBoolean("requested", true));
-            activity.finish();
+import android.view.*;
+import android.widget.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.concurrent.*;
+import org.json.*;
+
+public final class RuntimeTest {
+    private final android.app.Instrumentation instrumentation=InstrumentationRegistry.getInstrumentation();
+    private final android.content.Context context=instrumentation.getTargetContext();
+    private JSONObject catalog()throws Exception{try(var input=context.getAssets().open("vehicle_controls.json")){return new JSONObject(new String(input.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8));}}
+    private View find(View root,String text){if(root instanceof TextView t&&t.getText().toString().contains(text))return root;if(root instanceof ViewGroup group)for(int i=0;i<group.getChildCount();i++){View result=find(group.getChildAt(i),text);if(result!=null)return result;}return null;}
+    private void noBrowser(View root){assertFalse(root.getClass().getName().contains("WebView"));if(root instanceof ViewGroup group)for(int i=0;i<group.getChildCount();i++)noBrowser(group.getChildAt(i));}
+    private void until(java.util.function.BooleanSupplier condition)throws Exception{long end=System.nanoTime()+TimeUnit.SECONDS.toNanos(4);while(!condition.getAsBoolean()&&System.nanoTime()<end)Thread.sleep(40);assertTrue(condition.getAsBoolean());}
+    private void shot(String name)throws Exception{try(var output=new java.io.FileOutputStream(new java.io.File(context.getExternalFilesDir(null),name))){instrumentation.getUiAutomation().takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG,100,output);}}
+    @Test public void nativeSectionsAndHoldReleaseOnPause()throws Exception{
+        // Existing key data is deliberately retained across native Activity starts/recreation.
+        dev.denza.disharebridge.LocalAdbClient.loopbackOnly(context).publicKeyFingerprint();
+        Path key=context.getNoBackupFilesDir().toPath().resolve("adb_auth_key_v1");byte[] keyBefore=Files.readAllBytes(key);
+        JSONObject catalog=catalog();FakeVehicle fake=new FakeVehicle(catalog);
+        try(var input=instrumentation.getContext().getAssets().open("hvac-n9-20261016.json")){String[] lines=new JSONObject(new String(input.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).getString("raw").trim().split("\\n");for(int i=0;i<lines.length;i+=2)fake.rawOverrides.put(lines[i],lines[i+1]);}
+        NativeController controller=new NativeController(catalog,()->new NativeController.Connection("fake",fake),new java.io.File(context.getCacheDir(),"native-ui-"+UUID.randomUUID()+".jsonl"));NativeRuntime.useForTest(controller);
+        var intent=new android.content.Intent(context,RemoteActivity.class).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        RemoteActivity activity=(RemoteActivity)instrumentation.startActivitySync(intent);instrumentation.runOnMainSync(activity::showRemote);
+        until(()->find(activity.findViewById(android.R.id.content),"42%")!=null);
+        shot("native-windows.png");
+        instrumentation.runOnMainSync(()->{noBrowser(activity.findViewById(android.R.id.content));find(activity.findViewById(android.R.id.content),"Сиденья").performClick();});
+        until(()->find(activity.findViewById(android.R.id.content),"Обогрев")!=null);
+        instrumentation.waitForIdleSync();Thread.sleep(150);shot("native-seats.png");
+        fake.holdStarted=new CountDownLatch(1);fake.holdRelease=new CountDownLatch(1);
+        instrumentation.runOnMainSync(()->{
+            View button=find(activity.findViewById(android.R.id.content),"Вперёд");assertNotNull(button);
+            long t=android.os.SystemClock.uptimeMillis();button.dispatchTouchEvent(MotionEvent.obtain(t,t,MotionEvent.ACTION_DOWN,20,20,0));
         });
-        // Import and run the actual controller arithmetic, guards and parcel parsers in Android Python.
-        PyObject builtins = Python.getInstance().getModule("builtins");
-        builtins.callAttr("exec", "import vehicle_control as c, vehicle_windows as w, subprocess\n"
-                + "assert c.read_command('BODY_DRIVER_SEAT_HORIZONTAL_POSITION').startswith('service call autoservice 7 ')\n"
-                + "assert w.set_result(\"Result: Parcel(00000001    '....')\") == 1\n"
-                + "assert 'sleep 0.3' in c.pulse_script('START', 'STOP')\n"
-                + "assert 'trap finish EXIT' in c.pulse_script('START', 'STOP')\n"
-                + "out = subprocess.run(['/system/bin/sh', '-c', c.pulse_script('echo START', 'echo STOP')], capture_output=True, text=True, timeout=3)\n"
-                + "assert out.returncode == 0 and out.stdout.splitlines() == ['@start', 'START', '@stop', 'STOP'], out\n", Python.getInstance().getModule("__main__").get("__dict__"));
+        assertTrue(fake.holdStarted.await(2,TimeUnit.SECONDS));
+        instrumentation.runOnMainSync(activity::onPause); // must release through the separate channel.
+        assertTrue(fake.holdRelease.await(2,TimeUnit.SECONDS));until(()->controller.pendingStops.isEmpty());
+        instrumentation.runOnMainSync(()->{activity.onResume();find(activity.findViewById(android.R.id.content),"Климат").performClick();});
+        until(()->find(activity.findViewById(android.R.id.content),"A/C")!=null);instrumentation.waitForIdleSync();Thread.sleep(150);shot("native-climate.png");
+        instrumentation.runOnMainSync(()->{noBrowser(activity.findViewById(android.R.id.content));activity.finish();});
+        assertArrayEquals(keyBefore,Files.readAllBytes(key));NativeRuntime.useForTest(null);
     }
-    public static final class OfflineTransport {
-        public String shell(String command, int timeout) throws java.io.IOException { throw new java.io.IOException("offline fake"); }
+    private String token(){return "/data/local/tmp/denza-remote-seat-"+UUID.randomUUID().toString().replace("-","");}
+    private String shell(String start,String stop,Path release){return NativeController.holdScript(start,stop,token()).replaceAll("/data/local/tmp/denza-remote-seat-[0-9a-f]{32}",release.toString());}
+    private String echo(String value){return "printf '%s\\n' \""+value+"\"";}
+    private String output(Process p)throws Exception{assertTrue(p.waitFor(7,TimeUnit.SECONDS));return new String(p.getInputStream().readAllBytes()).trim();}
+    @Test public void androidShellEarlyReleaseAndRefusedUnknownStartNeverRefresh()throws Exception{
+        for(String response:List.of("Result: Parcel(00000000    '....')","malformed")){
+            Path release=context.getCacheDir().toPath().resolve(UUID.randomUUID().toString());String script=shell(echo(response),echo(FakeVehicle.OK),release);
+            String result=output(new ProcessBuilder("/system/bin/sh","-c",script).start());assertFalse(result.contains("@keepalive"));assertTrue(NativeController.holdResult(result).getBoolean("stop_accepted"));
+        }
+        Path release=context.getCacheDir().toPath().resolve(UUID.randomUUID().toString());Files.createFile(release);
+        String result=output(new ProcessBuilder("/system/bin/sh","-c",shell(echo(FakeVehicle.OK),echo(FakeVehicle.OK),release)).start());assertFalse(result.contains("@start"));assertTrue(NativeController.holdResult(result).getBoolean("cancelled"));
+    }
+    @Test public void androidShellReleaseKeepaliveAndDeadline()throws Exception{
+        Path release=context.getCacheDir().toPath().resolve(UUID.randomUUID().toString());
+        Process p=new ProcessBuilder("/system/bin/sh","-c",shell(echo(FakeVehicle.OK),echo(FakeVehicle.OK),release)).start();Thread.sleep(450);Files.createFile(release);String out=output(p);assertTrue(out.contains("@keepalive"));assertTrue(NativeController.holdResult(out).getBoolean("accepted"));
+        Path deadline=context.getCacheDir().toPath().resolve(UUID.randomUUID().toString());long start=android.os.SystemClock.elapsedRealtime();out=output(new ProcessBuilder("/system/bin/sh","-c",shell(echo(FakeVehicle.OK),echo(FakeVehicle.OK),deadline)).start());long elapsed=android.os.SystemClock.elapsedRealtime()-start;android.util.Log.i("NativeRemoteTest","deadline-ms="+elapsed);assertTrue("deadline ms="+elapsed,elapsed>=4700&&elapsed<5400);assertTrue(NativeController.holdResult(out).getBoolean("stop_accepted"));
+    }
+    @Test public void androidShellBrokenOutputStillStopsBeforePrintingStopAck()throws Exception{
+        Path release=context.getCacheDir().toPath().resolve(UUID.randomUUID().toString()),evidence=context.getCacheDir().toPath().resolve(UUID.randomUUID().toString());String stop="echo stopped > "+evidence+"; "+echo(FakeVehicle.OK);
+        Process p=new ProcessBuilder("/system/bin/sh","-c",shell(echo(FakeVehicle.OK),stop,release)).start();p.getInputStream().close();assertTrue(p.waitFor(3,TimeUnit.SECONDS));assertTrue(Files.exists(evidence));
     }
 }

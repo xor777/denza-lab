@@ -17,7 +17,7 @@ import vehicle_windows as w
 
 CATALOG = json.loads(Path(__file__).with_name("vehicle_controls.json").read_text())
 DICAR_PATH = "/system/priv-app/DiCarServer/DiCarServer.apk"
-DICAR_HASH = "ef8dc5e45f555633b4476637a05560522534a605e79d9d5b70df5c55caf142d6"
+DICAR_HASH = CATALOG["protocol"]["hashes"][DICAR_PATH]
 PULSE_SECONDS = 0.3
 MASSAGE_MODES = {"off": 1, "on": 7, "wave": 2, "pulse": 3,
                  "stretch": 4, "waist": 5, "shoulders": 6}

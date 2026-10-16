@@ -21,18 +21,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # CAN-FD constants, resolved from this framework, NOT the *_hal_only aliases.
 # name, SET, percent GET, initialization GET, thermal-protection GET
-WINDOWS = {
-    "fl": ("Переднее левое", 1125122104, 947912728, 1222639632, 1222639646),
-    "fr": ("Переднее правое", 1125122107, 1267728400, 1267728392, 947912768),
-    "rl": ("Заднее левое", 1125122112, 947912736, 1222639634, 1222639647),
-    "rr": ("Заднее правое", 1125122115, 947912752, 1222639638, 947912769),
-}
+CATALOG = json.loads(Path(__file__).with_name("vehicle_controls.json").read_text())
+WINDOWS = {key: tuple(spec) for key, spec in CATALOG["windows"].items()}
 ACTIONS = {"open": 1, "close": 2, "stop": 3}
-HASHES = {
-    "/system/framework/framework.jar": "aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c",
-    "/system/app/BydMyCar/BydMyCar.apk": "ebd1f91d77c76f03da09b2d7ae087ab72afd9443df6f187f09c4c64efa706751",
-}
-IDENTITY = "getprop sys.car.protocol; getprop persist.sys.AutoType; cat /proc/sys/kernel/random/boot_id"
+HASHES = {path: CATALOG["protocol"]["hashes"][path] for path in (
+    "/system/framework/framework.jar", "/system/app/BydMyCar/BydMyCar.apk"
+)}
+IDENTITY = CATALOG["protocol"]["identity"]
 PARCEL = re.compile(r"^Result: Parcel\(([0-9a-fA-F]{8})\s+([0-9a-fA-F]{8})\s+'[^\r\n]{8}'\)\s*$")
 SET_PARCEL = re.compile(r"^Result: Parcel\(([0-9a-fA-F]{8})\s+'[^\r\n]{4}'\)\s*$")
 ROOT = Path(__file__).resolve().parent.parent

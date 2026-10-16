@@ -1,7 +1,4 @@
-plugins {
-    id("com.android.application")
-    id("com.chaquo.python") version "17.0.0"
-}
+plugins { id("com.android.application") }
 android {
     namespace = "dev.denza.vehiclecontrol.probe"
     compileSdk = 37
@@ -9,32 +6,40 @@ android {
         applicationId = "dev.denza.vehiclecontrol.probe"
         minSdk = 33
         targetSdk = 33
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
+    sourceSets.getByName("test").resources.srcDir("src/sharedTest/resources")
+    sourceSets.getByName("androidTest").assets.srcDir("src/sharedTest/resources")
+    sourceSets.getByName("test").java.srcDir("src/sharedTest/java")
+    sourceSets.getByName("androidTest").java.srcDir("src/sharedTest/java")
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
-val bundleController = tasks.register<Copy>("bundleController") {
-    from(rootProject.file("tools")) {
-        include("vehicle_control.py", "vehicle_windows.py", "vehicle_controls.json", "vehicle_control.html")
+abstract class BundleVehicleCatalog : DefaultTask() {
+    @get:InputFile abstract val catalog: RegularFileProperty
+    @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
+    @TaskAction fun copyCatalog() {
+        val target = outputDirectory.file("vehicle_controls.json").get().asFile
+        target.parentFile.mkdirs()
+        catalog.get().asFile.copyTo(target, overwrite = true)
     }
-    into(layout.buildDirectory.dir("generated/controller"))
 }
-chaquopy {
-    defaultConfig { version = "3.13" }
-    sourceSets.getByName("main").srcDir(layout.buildDirectory.dir("generated/controller").get().asFile)
+val bundleCatalog = tasks.register<BundleVehicleCatalog>("bundleCatalog") {
+    catalog.set(rootProject.layout.projectDirectory.file("tools/vehicle_controls.json"))
+    outputDirectory.set(layout.buildDirectory.dir("generated/catalog"))
 }
-tasks.named("preBuild") { dependsOn(bundleController) }
-tasks.configureEach {
-    if (name.contains("PythonSources")) dependsOn(bundleController)
+androidComponents.onVariants { variant ->
+    variant.sources.assets?.addGeneratedSourceDirectory(bundleCatalog, BundleVehicleCatalog::outputDirectory)
 }
+tasks.withType<Test>().configureEach { systemProperty("vehicle.catalog", rootProject.file("tools/vehicle_controls.json").absolutePath) }
 dependencies {
     implementation(project(":dishare-bridge"))
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

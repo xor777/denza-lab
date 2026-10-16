@@ -1,5 +1,72 @@
 {
   "properties": {
+    "AC_POWER_STATE_SET": [1000, 501219364, "int"],
+    "AC_POWER_STATE": [1000, 1077936144, "int"],
+    "AC_FRONT_AC_CONFIG_FLAG": [1000, 1127219248, "int"],
+    "AC_COMPRESSOR_MODE_SET": [1000, 501219344, "int"],
+    "AC_COMPRESSOR_MODE": [1000, 1077936137, "int"],
+    "AC_CYCLE_MODE_SET": [1000, 501219355, "int"],
+    "AC_CYCLE_MODE": [1000, 1077936148, "int"],
+    "AC_CIRCULATION_MODE_FLAG": [1000, 995098686, "int"],
+    "AC_DEFROST_FRONT_STATE_SET": [1000, 501219362, "int"],
+    "AC_DEFROST_FRONT_STATE": [1000, 1077936150, "int"],
+    "AC_DEFROST_REAR_STATE_SET": [1000, 501219357, "int"],
+    "AC_DEFROST_REAR_STATE": [1000, 1128267825, "int"],
+    "AC_DEFROST_REAR_CONFIG": [1000, 1128267832, "int"],
+    "AC_MAIN_DRIVE_SINGLE_TEMP_SWITCH_SET": [1000, 1324384304, "int"],
+    "AC_WIND_LEVEL": [1000, 1077936156, "int"],
+    "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG": [1000, 1127219210, "int"],
+    "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG": [1000, 1127219208, "int"],
+    "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG": [1000, 1127219216, "int"],
+    "AC_TEMP_MAIN_SET": [1000, 501219368, "int"],
+    "AC_TEMP_MAIN": [1000, 1077936168, "int"],
+    "AC_TEMPERATURE_UNIT": [1000, 1077936167, "int"],
+    "AC_TEMPERATURE_ADJUST_ACCURACY": [1000, 915406894, "int"],
+    "AC_MAIN_DRIVE_AIR_CONDITION_WINDLEVEL_SET": [1000, 1324355600, "int"],
+    "AC_WIND_IS_SET_0_CONFIG": [1000, 1212153876, "int"],
+    "AC_CTRL_MODE_SET": [1000, 501219352, "int"],
+    "AC_CTRL_MODE": [1000, 1077936146, "int"],
+    "AC_WIND_MODE_SET": [1000, 501219336, "int"],
+    "AC_WIND_MODE": [1000, 1077936152, "int"],
+    "AC_WIND_MODE_NUM": [1000, 1127219230, "int"],
+    "AC_PASSENGER_SINGLE_TEMP_SWITCH_SET": [1000, 1324384306, "int"],
+    "AC_PASSENGER_WINDLEVEL": [1000, 1060110352, "int"],
+    "AC_TEMP_DEPUTY_SET": [1000, 501219376, "int"],
+    "AC_TEMP_DEPUTY": [1000, 1077936176, "int"],
+    "AC_PASSENGER_WINDLEVEL_SET": [1000, 1324355612, "int"],
+    "AC_PASSENGER_AUTOMATIC_AIR_CONDITION_SET": [1000, 1324355606, "int"],
+    "AC_PASSENGER_AUTOMATIC_AIR_CONDITION": [1000, 1060110346, "int"],
+    "AC_FRONT_PASSENGER_BLOWING_MODE_SET": [1000, 1324355608, "int"],
+    "AC_FRONT_PASSENGER_BLOWING_MODE": [1000, 1060110348, "int"],
+    "AC_MIDDLE_LEFT_SINGLE_TEMP_SWITCH_SET": [1000, 1324384308, "int"],
+    "AC_MIDDLE_LEFT_WIND_LEVEL": [1000, 1060110368, "int"],
+    "AC_MIDDLE_LEFT_TEMP_SET": [1000, 1324355624, "int"],
+    "AC_MIDDLE_LEFT_TEMP": [1000, 1060110376, "int"],
+    "AC_MIDDLE_LEFT_WIND_LEVEL_SET": [1000, 1324355632, "int"],
+    "AC_MIDDLE_LEFT_AUTOMATIC_BUTTON_SET": [1000, 1324355619, "int"],
+    "AC_MIDDLE_LEFT_AUTOMATIC_BUTTON": [1000, 1060110358, "int"],
+    "AC_MIDDLE_LEFT_WIND_MODE_SET": [1000, 1324355616, "int"],
+    "AC_MIDDLE_LEFT_WIND_MODE": [1000, 1060110362, "int"],
+    "AC_MIDDLE_RIGHT_SINGLE_TEMP_SWITCH_SET": [1000, 1324384310, "int"],
+    "AC_MIDDLE_RIGHT_WIND_LEVEL": [1000, 1060110372, "int"],
+    "AC_MIDDLE_RIGHT_TEMP_SET": [1000, 1324355640, "int"],
+    "AC_MIDDLE_RIGHT_TEMP": [1000, 1060110384, "int"],
+    "AC_MIDDLE_RIGHT_WIND_LEVEL_SET": [1000, 1324355636, "int"],
+    "AC_MIDDLE_RIGHT_AUTOMATIC_BUTTON_SET": [1000, 1324355648, "int"],
+    "AC_MIDDLE_RIGHT_AUTOMATIC_BUTTON": [1000, 1060110360, "int"],
+    "AC_MIDDLE_RIGHT_WIND_MODE_SET": [1000, 1324355621, "int"],
+    "AC_MIDDLE_RIGHT_WIND_MODE": [1000, 1060110365, "int"],
+    "AC_REAR_POWER_STATE_SET": [1000, 1337982988, "int"],
+    "AC_REAR_POWER_STATE": [1000, 1218445324, "int"],
+    "AC_TEMP_REAR_SET": [1000, 501219384, "int"],
+    "AC_TEMP_REAR": [1000, 1218445328, "int"],
+    "AC_REAR_WIND_LEVEL_SET": [1000, 1337982984, "int"],
+    "AC_REAR_WIND_LEVEL": [1000, 1218445320, "int"],
+    "AC_REAR_MAX_WIND_LEVEL": [1000, 1127219220, "int"],
+    "AC_REAR_CTRL_MODE_SET": [1000, 1337982990, "int"],
+    "AC_REAR_CTRL_MODE": [1000, 1218445326, "int"],
+    "AC_REAR_WIND_MODE_SET": [1000, 1337983000, "int"],
+    "AC_REAR_WIND_MODE": [1000, 1218445336, "int"],
     "BODYWORK_SUNSHADE_PANEL_PERCENT_SET": [1001, 1330642984, "int"],
     "BODYWORK_SUNSHADE_PANEL_PERCENT": [1001, 1101004816, "int"],
     "BODYWORK_SUNROOF_WINDOBLIND_INIT_STATE": [1001, 1101004826, "int"],
@@ -1154,5 +1221,1954 @@
       "set_mode": "SET_RIGHT_REAR_SEAT_MASSAGE_WORKING_MODE_SET",
       "set_level": "SET_WORKING_INTENSITY_OF_RIGHT_REAR_SEAT_MASSAGE_SET"
     }
-  }
+  },
+  "windows": {
+    "fl": [
+      "Переднее левое",
+      1125122104,
+      947912728,
+      1222639632,
+      1222639646
+    ],
+    "fr": [
+      "Переднее правое",
+      1125122107,
+      1267728400,
+      1267728392,
+      947912768
+    ],
+    "rl": [
+      "Заднее левое",
+      1125122112,
+      947912736,
+      1222639634,
+      1222639647
+    ],
+    "rr": [
+      "Заднее правое",
+      1125122115,
+      947912752,
+      1222639638,
+      947912769
+    ]
+  },
+  "protocol": {
+    "identity": "getprop sys.car.protocol; getprop persist.sys.AutoType; cat /proc/sys/kernel/random/boot_id",
+    "hashes": {
+      "/system/framework/framework.jar": "aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c",
+      "/system/app/BydMyCar/BydMyCar.apk": "ebd1f91d77c76f03da09b2d7ae087ab72afd9443df6f187f09c4c64efa706751",
+      "/system/priv-app/DiCarServer/DiCarServer.apk": "ef8dc5e45f555633b4476637a05560522534a605e79d9d5b70df5c55caf142d6"
+    }
+  },
+  "climate": {
+    "power": {
+      "name": "Климат салона",
+      "set": "AC_POWER_STATE_SET",
+      "state": "AC_POWER_STATE",
+      "values": {
+        "off": 0,
+        "on": 1
+      },
+      "state_values": {
+        "0": "off",
+        "1": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "general",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 0
+    },
+    "ac": {
+      "name": "A/C · кондиционер",
+      "set": "AC_COMPRESSOR_MODE_SET",
+      "state": "AC_COMPRESSOR_MODE",
+      "values": {
+        "off": 0,
+        "on": 1
+      },
+      "state_values": {
+        "0": "off",
+        "1": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "general",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 1
+    },
+    "recirculation": {
+      "name": "Забор воздуха",
+      "set": "AC_CYCLE_MODE_SET",
+      "state": "AC_CYCLE_MODE",
+      "values": {
+        "external": 0,
+        "internal": 1
+      },
+      "state_values": {
+        "0": "external",
+        "1": "internal"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_CIRCULATION_MODE_FLAG",
+          [
+            0
+          ]
+        ]
+      ],
+      "options": [
+        "external",
+        "internal"
+      ],
+      "presentation": "buttons",
+      "zone": "general",
+      "labels": {
+        "external": "Снаружи",
+        "internal": "Рециркуляция"
+      },
+      "order": 2
+    },
+    "front_defrost": {
+      "name": "Обдув лобового стекла",
+      "set": "AC_DEFROST_FRONT_STATE_SET",
+      "state": "AC_DEFROST_FRONT_STATE",
+      "values": {
+        "off": 0,
+        "on": 1
+      },
+      "state_values": {
+        "0": "off",
+        "1": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "general",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 3
+    },
+    "rear_defrost": {
+      "name": "Обогрев заднего стекла и зеркал",
+      "set": "AC_DEFROST_REAR_STATE_SET",
+      "state": "AC_DEFROST_REAR_STATE",
+      "values": {
+        "off": 0,
+        "on": 1
+      },
+      "state_values": {
+        "0": "off",
+        "1": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_DEFROST_REAR_CONFIG",
+          [
+            2
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "general",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 4
+    },
+    "driver_power": {
+      "name": "Водитель · питание",
+      "set": "AC_MAIN_DRIVE_SINGLE_TEMP_SWITCH_SET",
+      "state": "AC_WIND_LEVEL",
+      "values": {
+        "off": 2,
+        "on": 1
+      },
+      "state_values": {
+        "0": "off",
+        "1": "on",
+        "2": "on",
+        "3": "on",
+        "4": "on",
+        "5": "on",
+        "6": "on",
+        "7": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "driver",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 5
+    },
+    "driver_temperature": {
+      "name": "Водитель · температура",
+      "set": "AC_TEMP_MAIN_SET",
+      "state": "AC_TEMP_MAIN",
+      "values": {
+        "17": 17,
+        "18": 18,
+        "19": 19,
+        "20": 20,
+        "21": 21,
+        "22": 22,
+        "23": 23,
+        "24": 24,
+        "25": 25,
+        "26": 26,
+        "27": 27,
+        "28": 28,
+        "29": 29,
+        "30": 30,
+        "31": 31,
+        "32": 32,
+        "33": 33
+      },
+      "state_values": {
+        "17": "17",
+        "18": "18",
+        "19": "19",
+        "20": "20",
+        "21": "21",
+        "22": "22",
+        "23": "23",
+        "24": "24",
+        "25": "25",
+        "26": "26",
+        "27": "27",
+        "28": "28",
+        "29": "29",
+        "30": "30",
+        "31": "31",
+        "32": "32",
+        "33": "33"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_TEMPERATURE_UNIT",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_TEMPERATURE_ADJUST_ACCURACY",
+          [
+            -10011,
+            0,
+            1,
+            3,
+            65535
+          ]
+        ]
+      ],
+      "options": [
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33"
+      ],
+      "presentation": "stepper",
+      "zone": "driver",
+      "unit": "°C",
+      "order": 6
+    },
+    "driver_fan": {
+      "name": "Водитель · вентилятор",
+      "set": "AC_MAIN_DRIVE_AIR_CONDITION_WINDLEVEL_SET",
+      "state": "AC_WIND_LEVEL",
+      "values": {
+        "0": 8,
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "5": 5,
+        "6": 6,
+        "7": 7
+      },
+      "state_values": {
+        "0": "0",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "4": "4",
+        "5": "5",
+        "6": "6",
+        "7": "7"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_WIND_IS_SET_0_CONFIG",
+          [
+            2
+          ]
+        ]
+      ],
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "presentation": "stepper",
+      "zone": "driver",
+      "order": 7
+    },
+    "driver_auto": {
+      "name": "Водитель · AUTO",
+      "set": "AC_CTRL_MODE_SET",
+      "state": "AC_CTRL_MODE",
+      "values": {
+        "off": 1,
+        "on": 0
+      },
+      "state_values": {
+        "1": "off",
+        "0": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "driver",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 8
+    },
+    "driver_mode": {
+      "name": "Водитель · направление воздуха",
+      "set": "AC_WIND_MODE_SET",
+      "state": "AC_WIND_MODE",
+      "values": {
+        "face": 1,
+        "face_feet": 2,
+        "feet": 3,
+        "feet_windshield": 4,
+        "windshield": 5,
+        "face_feet_windshield": 6,
+        "face_windshield": 7
+      },
+      "state_values": {
+        "1": "face",
+        "2": "face_feet",
+        "3": "feet",
+        "4": "feet_windshield",
+        "5": "windshield",
+        "6": "face_feet_windshield",
+        "7": "face_windshield"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_WIND_MODE_NUM",
+          [
+            2
+          ]
+        ]
+      ],
+      "options": [
+        "face",
+        "face_feet",
+        "feet",
+        "feet_windshield",
+        "windshield",
+        "face_feet_windshield",
+        "face_windshield"
+      ],
+      "presentation": "buttons",
+      "zone": "driver",
+      "labels": {
+        "face": "В лицо",
+        "face_feet": "Лицо и ноги",
+        "feet": "В ноги",
+        "feet_windshield": "Ноги и стекло",
+        "windshield": "На стекло",
+        "face_feet_windshield": "Лицо, ноги, стекло",
+        "face_windshield": "Лицо и стекло"
+      },
+      "order": 9
+    },
+    "passenger_power": {
+      "name": "Передний пассажир · питание",
+      "set": "AC_PASSENGER_SINGLE_TEMP_SWITCH_SET",
+      "state": "AC_PASSENGER_WINDLEVEL",
+      "values": {
+        "off": 2,
+        "on": 1
+      },
+      "state_values": {
+        "0": "off",
+        "1": "on",
+        "2": "on",
+        "3": "on",
+        "4": "on",
+        "5": "on",
+        "6": "on",
+        "7": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "passenger",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 10
+    },
+    "passenger_temperature": {
+      "name": "Передний пассажир · температура",
+      "set": "AC_TEMP_DEPUTY_SET",
+      "state": "AC_TEMP_DEPUTY",
+      "values": {
+        "17": 17,
+        "18": 18,
+        "19": 19,
+        "20": 20,
+        "21": 21,
+        "22": 22,
+        "23": 23,
+        "24": 24,
+        "25": 25,
+        "26": 26,
+        "27": 27,
+        "28": 28,
+        "29": 29,
+        "30": 30,
+        "31": 31,
+        "32": 32,
+        "33": 33
+      },
+      "state_values": {
+        "17": "17",
+        "18": "18",
+        "19": "19",
+        "20": "20",
+        "21": "21",
+        "22": "22",
+        "23": "23",
+        "24": "24",
+        "25": "25",
+        "26": "26",
+        "27": "27",
+        "28": "28",
+        "29": "29",
+        "30": "30",
+        "31": "31",
+        "32": "32",
+        "33": "33"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_TEMPERATURE_UNIT",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_TEMPERATURE_ADJUST_ACCURACY",
+          [
+            -10011,
+            0,
+            1,
+            3,
+            65535
+          ]
+        ]
+      ],
+      "options": [
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33"
+      ],
+      "presentation": "stepper",
+      "zone": "passenger",
+      "unit": "°C",
+      "order": 11
+    },
+    "passenger_fan": {
+      "name": "Передний пассажир · вентилятор",
+      "set": "AC_PASSENGER_WINDLEVEL_SET",
+      "state": "AC_PASSENGER_WINDLEVEL",
+      "values": {
+        "0": 8,
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "5": 5,
+        "6": 6,
+        "7": 7
+      },
+      "state_values": {
+        "0": "0",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "4": "4",
+        "5": "5",
+        "6": "6",
+        "7": "7"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_WIND_IS_SET_0_CONFIG",
+          [
+            2
+          ]
+        ]
+      ],
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "presentation": "stepper",
+      "zone": "passenger",
+      "order": 12
+    },
+    "passenger_auto": {
+      "name": "Передний пассажир · AUTO",
+      "set": "AC_PASSENGER_AUTOMATIC_AIR_CONDITION_SET",
+      "state": "AC_PASSENGER_AUTOMATIC_AIR_CONDITION",
+      "values": {
+        "off": 1,
+        "on": 0
+      },
+      "state_values": {
+        "1": "off",
+        "0": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "passenger",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 13
+    },
+    "passenger_mode": {
+      "name": "Передний пассажир · направление воздуха",
+      "set": "AC_FRONT_PASSENGER_BLOWING_MODE_SET",
+      "state": "AC_FRONT_PASSENGER_BLOWING_MODE",
+      "values": {
+        "face": 1,
+        "face_feet": 2,
+        "feet": 3,
+        "feet_windshield": 4,
+        "windshield": 5,
+        "face_feet_windshield": 6,
+        "face_windshield": 7
+      },
+      "state_values": {
+        "1": "face",
+        "2": "face_feet",
+        "3": "feet",
+        "4": "feet_windshield",
+        "5": "windshield",
+        "6": "face_feet_windshield",
+        "7": "face_windshield"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_WIND_MODE_NUM",
+          [
+            2
+          ]
+        ]
+      ],
+      "options": [
+        "face",
+        "face_feet",
+        "feet",
+        "feet_windshield",
+        "windshield",
+        "face_feet_windshield",
+        "face_windshield"
+      ],
+      "presentation": "buttons",
+      "zone": "passenger",
+      "labels": {
+        "face": "В лицо",
+        "face_feet": "Лицо и ноги",
+        "feet": "В ноги",
+        "feet_windshield": "Ноги и стекло",
+        "windshield": "На стекло",
+        "face_feet_windshield": "Лицо, ноги, стекло",
+        "face_windshield": "Лицо и стекло"
+      },
+      "order": 14
+    },
+    "middle_left_power": {
+      "name": "Второй ряд слева · питание",
+      "set": "AC_MIDDLE_LEFT_SINGLE_TEMP_SWITCH_SET",
+      "state": "AC_MIDDLE_LEFT_WIND_LEVEL",
+      "values": {
+        "off": 2,
+        "on": 1
+      },
+      "state_values": {
+        "0": "off",
+        "1": "on",
+        "2": "on",
+        "3": "on",
+        "4": "on",
+        "5": "on",
+        "6": "on",
+        "7": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "middle_left",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 15
+    },
+    "middle_left_temperature": {
+      "name": "Второй ряд слева · температура",
+      "set": "AC_MIDDLE_LEFT_TEMP_SET",
+      "state": "AC_MIDDLE_LEFT_TEMP",
+      "values": {
+        "17": 17,
+        "18": 18,
+        "19": 19,
+        "20": 20,
+        "21": 21,
+        "22": 22,
+        "23": 23,
+        "24": 24,
+        "25": 25,
+        "26": 26,
+        "27": 27,
+        "28": 28,
+        "29": 29,
+        "30": 30,
+        "31": 31,
+        "32": 32,
+        "33": 33
+      },
+      "state_values": {
+        "17": "17",
+        "18": "18",
+        "19": "19",
+        "20": "20",
+        "21": "21",
+        "22": "22",
+        "23": "23",
+        "24": "24",
+        "25": "25",
+        "26": "26",
+        "27": "27",
+        "28": "28",
+        "29": "29",
+        "30": "30",
+        "31": "31",
+        "32": "32",
+        "33": "33"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_TEMPERATURE_UNIT",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_TEMPERATURE_ADJUST_ACCURACY",
+          [
+            -10011,
+            0,
+            1,
+            3,
+            65535
+          ]
+        ]
+      ],
+      "options": [
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33"
+      ],
+      "presentation": "stepper",
+      "zone": "middle_left",
+      "unit": "°C",
+      "order": 16
+    },
+    "middle_left_fan": {
+      "name": "Второй ряд слева · вентилятор",
+      "set": "AC_MIDDLE_LEFT_WIND_LEVEL_SET",
+      "state": "AC_MIDDLE_LEFT_WIND_LEVEL",
+      "values": {
+        "0": 8,
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "5": 5,
+        "6": 6,
+        "7": 7
+      },
+      "state_values": {
+        "0": "0",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "4": "4",
+        "5": "5",
+        "6": "6",
+        "7": "7"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_WIND_IS_SET_0_CONFIG",
+          [
+            2
+          ]
+        ]
+      ],
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "presentation": "stepper",
+      "zone": "middle_left",
+      "order": 17
+    },
+    "middle_left_auto": {
+      "name": "Второй ряд слева · AUTO",
+      "set": "AC_MIDDLE_LEFT_AUTOMATIC_BUTTON_SET",
+      "state": "AC_MIDDLE_LEFT_AUTOMATIC_BUTTON",
+      "values": {
+        "off": 1,
+        "on": 0
+      },
+      "state_values": {
+        "1": "off",
+        "0": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "middle_left",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 18
+    },
+    "middle_left_mode": {
+      "name": "Второй ряд слева · направление воздуха",
+      "set": "AC_MIDDLE_LEFT_WIND_MODE_SET",
+      "state": "AC_MIDDLE_LEFT_WIND_MODE",
+      "values": {
+        "face": 1,
+        "face_feet": 2,
+        "feet": 3
+      },
+      "state_values": {
+        "1": "face",
+        "2": "face_feet",
+        "3": "feet"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "face",
+        "face_feet",
+        "feet"
+      ],
+      "presentation": "buttons",
+      "zone": "middle_left",
+      "labels": {
+        "face": "В лицо",
+        "face_feet": "Лицо и ноги",
+        "feet": "В ноги",
+        "feet_windshield": "Ноги и стекло",
+        "windshield": "На стекло",
+        "face_feet_windshield": "Лицо, ноги, стекло",
+        "face_windshield": "Лицо и стекло"
+      },
+      "order": 19
+    },
+    "middle_right_power": {
+      "name": "Второй ряд справа · питание",
+      "set": "AC_MIDDLE_RIGHT_SINGLE_TEMP_SWITCH_SET",
+      "state": "AC_MIDDLE_RIGHT_WIND_LEVEL",
+      "values": {
+        "off": 2,
+        "on": 1
+      },
+      "state_values": {
+        "0": "off",
+        "1": "on",
+        "2": "on",
+        "3": "on",
+        "4": "on",
+        "5": "on",
+        "6": "on",
+        "7": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "middle_right",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 20
+    },
+    "middle_right_temperature": {
+      "name": "Второй ряд справа · температура",
+      "set": "AC_MIDDLE_RIGHT_TEMP_SET",
+      "state": "AC_MIDDLE_RIGHT_TEMP",
+      "values": {
+        "17": 17,
+        "18": 18,
+        "19": 19,
+        "20": 20,
+        "21": 21,
+        "22": 22,
+        "23": 23,
+        "24": 24,
+        "25": 25,
+        "26": 26,
+        "27": 27,
+        "28": 28,
+        "29": 29,
+        "30": 30,
+        "31": 31,
+        "32": 32,
+        "33": 33
+      },
+      "state_values": {
+        "17": "17",
+        "18": "18",
+        "19": "19",
+        "20": "20",
+        "21": "21",
+        "22": "22",
+        "23": "23",
+        "24": "24",
+        "25": "25",
+        "26": "26",
+        "27": "27",
+        "28": "28",
+        "29": "29",
+        "30": "30",
+        "31": "31",
+        "32": "32",
+        "33": "33"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_TEMPERATURE_UNIT",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_TEMPERATURE_ADJUST_ACCURACY",
+          [
+            -10011,
+            0,
+            1,
+            3,
+            65535
+          ]
+        ]
+      ],
+      "options": [
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33"
+      ],
+      "presentation": "stepper",
+      "zone": "middle_right",
+      "unit": "°C",
+      "order": 21
+    },
+    "middle_right_fan": {
+      "name": "Второй ряд справа · вентилятор",
+      "set": "AC_MIDDLE_RIGHT_WIND_LEVEL_SET",
+      "state": "AC_MIDDLE_RIGHT_WIND_LEVEL",
+      "values": {
+        "0": 8,
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "5": 5,
+        "6": 6,
+        "7": 7
+      },
+      "state_values": {
+        "0": "0",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "4": "4",
+        "5": "5",
+        "6": "6",
+        "7": "7"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_WIND_IS_SET_0_CONFIG",
+          [
+            2
+          ]
+        ]
+      ],
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "presentation": "stepper",
+      "zone": "middle_right",
+      "order": 22
+    },
+    "middle_right_auto": {
+      "name": "Второй ряд справа · AUTO",
+      "set": "AC_MIDDLE_RIGHT_AUTOMATIC_BUTTON_SET",
+      "state": "AC_MIDDLE_RIGHT_AUTOMATIC_BUTTON",
+      "values": {
+        "off": 1,
+        "on": 0
+      },
+      "state_values": {
+        "1": "off",
+        "0": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "middle_right",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 23
+    },
+    "middle_right_mode": {
+      "name": "Второй ряд справа · направление воздуха",
+      "set": "AC_MIDDLE_RIGHT_WIND_MODE_SET",
+      "state": "AC_MIDDLE_RIGHT_WIND_MODE",
+      "values": {
+        "face": 1,
+        "face_feet": 2,
+        "feet": 3
+      },
+      "state_values": {
+        "1": "face",
+        "2": "face_feet",
+        "3": "feet"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "face",
+        "face_feet",
+        "feet"
+      ],
+      "presentation": "buttons",
+      "zone": "middle_right",
+      "labels": {
+        "face": "В лицо",
+        "face_feet": "Лицо и ноги",
+        "feet": "В ноги",
+        "feet_windshield": "Ноги и стекло",
+        "windshield": "На стекло",
+        "face_feet_windshield": "Лицо, ноги, стекло",
+        "face_windshield": "Лицо и стекло"
+      },
+      "order": 24
+    },
+    "rear_power": {
+      "name": "Третий ряд · питание",
+      "set": "AC_REAR_POWER_STATE_SET",
+      "state": "AC_REAR_POWER_STATE",
+      "values": {
+        "off": 0,
+        "on": 1
+      },
+      "state_values": {
+        "0": "off",
+        "1": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "rear",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 25
+    },
+    "rear_temperature": {
+      "name": "Третий ряд · температура",
+      "set": "AC_TEMP_REAR_SET",
+      "state": "AC_TEMP_REAR",
+      "values": {
+        "17": 17,
+        "18": 18,
+        "19": 19,
+        "20": 20,
+        "21": 21,
+        "22": 22,
+        "23": 23,
+        "24": 24,
+        "25": 25,
+        "26": 26,
+        "27": 27,
+        "28": 28,
+        "29": 29,
+        "30": 30,
+        "31": 31,
+        "32": 32,
+        "33": 33
+      },
+      "state_values": {
+        "17": "17",
+        "18": "18",
+        "19": "19",
+        "20": "20",
+        "21": "21",
+        "22": "22",
+        "23": "23",
+        "24": "24",
+        "25": "25",
+        "26": "26",
+        "27": "27",
+        "28": "28",
+        "29": "29",
+        "30": "30",
+        "31": "31",
+        "32": "32",
+        "33": "33"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_TEMPERATURE_UNIT",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33"
+      ],
+      "presentation": "stepper",
+      "zone": "rear",
+      "unit": "°C",
+      "order": 26
+    },
+    "rear_fan": {
+      "name": "Третий ряд · вентилятор",
+      "set": "AC_REAR_WIND_LEVEL_SET",
+      "state": "AC_REAR_WIND_LEVEL",
+      "values": {
+        "0": 8,
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 4,
+        "5": 5,
+        "6": 6,
+        "7": 7
+      },
+      "state_values": {
+        "0": "0",
+        "1": "1",
+        "2": "2",
+        "3": "3",
+        "4": "4",
+        "5": "5",
+        "6": "6",
+        "7": "7"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_WIND_IS_SET_0_CONFIG",
+          [
+            2
+          ]
+        ],
+        [
+          "AC_REAR_MAX_WIND_LEVEL",
+          [
+            2
+          ]
+        ]
+      ],
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "presentation": "stepper",
+      "zone": "rear",
+      "order": 27
+    },
+    "rear_auto": {
+      "name": "Третий ряд · AUTO",
+      "set": "AC_REAR_CTRL_MODE_SET",
+      "state": "AC_REAR_CTRL_MODE",
+      "values": {
+        "off": 1,
+        "on": 0
+      },
+      "state_values": {
+        "1": "off",
+        "0": "on"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "off",
+        "on"
+      ],
+      "presentation": "buttons",
+      "zone": "rear",
+      "labels": {
+        "off": "Выкл",
+        "on": "Вкл"
+      },
+      "order": 28
+    },
+    "rear_mode": {
+      "name": "Третий ряд · направление воздуха",
+      "set": "AC_REAR_WIND_MODE_SET",
+      "state": "AC_REAR_WIND_MODE",
+      "values": {
+        "face": 1,
+        "face_feet": 2,
+        "feet": 3
+      },
+      "state_values": {
+        "1": "face",
+        "2": "face_feet",
+        "3": "feet"
+      },
+      "configs": [
+        [
+          "AC_FRONT_AC_CONFIG_FLAG",
+          [
+            8
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_TEMP_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_LEVEL_REGULATION_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "AC_REAR_OUTLET_MODE_ADJUSTMENT_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "options": [
+        "face",
+        "face_feet",
+        "feet"
+      ],
+      "presentation": "buttons",
+      "zone": "rear",
+      "labels": {
+        "face": "В лицо",
+        "face_feet": "Лицо и ноги",
+        "feet": "В ноги",
+        "feet_windshield": "Ноги и стекло",
+        "windshield": "На стекло",
+        "face_feet_windshield": "Лицо, ноги, стекло",
+        "face_windshield": "Лицо и стекло"
+      },
+      "order": 29
+    }
+  },
+  "read_sentinels": {"AC_TEMPERATURE_ADJUST_ACCURACY": [-10011]}
 }

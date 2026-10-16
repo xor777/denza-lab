@@ -3,7 +3,7 @@
 ## Current state
 
 Updated 2026-10-16. Штатные команды MyCar/DiCarServer и отдельный пульт
-с ноутбука через существующий ADB, а также отдельный APK-прототип. Общий климат салона пока не входит в пульт.
+с ноутбука через существующий ADB, а также отдельный APK-прототип. Климат салона добавлен в нативный APK 0.3.0; host UI сохраняет предыдущие разделы.
 
 | Claim | Status | Since | Section |
 | --- | --- | --- | --- |
@@ -22,6 +22,8 @@ Updated 2026-10-16. Штатные команды MyCar/DiCarServer и отде�
 | Дополнительно подтверждены конфигурации массажа четырёх кресел, невесомости пассажира, комфортной кровати и холодильника | live read-only | 2026-10-16 | [Что ещё не вошло в пульт](#что-ещё-не-вошло-в-пульт) |
 | Шторки, свет и массаж добавлены в `vehicle_control`; 34 локальных теста, fake UI, live GET. Новые физические действия не приняты | code + live read-only | 2026-10-16 | [Третья волна пульта](#третья-волна-пульта) |
 | `:vehicle-control-probe` 0.2.1 установлен на N9; собственный ключ разрешён владельцем, локальный ADB/реальные GET и повторный вход проверены. Полная приёмка механизмов открыта | live | 2026-10-16 | [APK пульта](#apk-пульта) |
+| Нативный APK 0.3.0: Java Views/контроллер, sharedcatalog, hold/refresh300ms/STOP0 с отдельным release-channel; локальные проверки, установка ещё не выполнена | code | 2026-10-16 | [Нативный пульт](#нативный-пульт) |
+| Климат 0.3.0: 30 контролов / 5 зон, exact catalog и 30/30 текущих GET/config декодированы; HVAC SET не выполнялись | code + live read-only | 2026-10-16 | [Климат нативного пульта](#климат-нативного-пульта) |
 
 **Open questions**
 - Наблюдаемое движение и остановка каждого окна: закрывает один контролируемый
@@ -47,6 +49,8 @@ Updated 2026-10-16. Штатные команды MyCar/DiCarServer и отде�
 - [Что ещё не вошло в пульт](#что-ещё-не-вошло-в-пульт)
 - [Третья волна пульта](#третья-волна-пульта)
 - [APK пульта](#apk-пульта)
+- [Нативный пульт](#нативный-пульт)
+- [Климат нативного пульта](#климат-нативного-пульта)
 
 ## Источник
 
@@ -442,6 +446,9 @@ shell/UID, callback и входа/выхода на машине. На этом 
 
 ## Что ещё не вошло в пульт
 
+> **Superseded 2026-10-16:** климат добавлен в нативный APK 0.3.0 —
+> [Климат нативного пульта](#климат-нативного-пульта). Остальные ограничения ниже сохраняются.
+
 | Возможность | Доказательство на этой N9 | Следующий шаг |
 | --- | --- | --- |
 | Массаж FL/FR/RL/RR | Четыре `SET_*_SEAT_MASSAGE_CONFIG`=1, `MassageValues` трактует 1 как наличие | Выкл./вкл., программа, интенсивность; hot-stone config=0 не добавлять |
@@ -530,6 +537,9 @@ fake UI на отдельном порту прошёл open/STOP шторки, 
 
 ## APK пульта
 
+> **Superseded 2026-10-16:** описание WebView/Python ниже относится к0.1–0.2.1.
+> В0.3.0 UI и controller полностью нативные Java — [Нативный пульт](#нативный-пульт).
+
 2026-10-16: отдельный эксперимент `:vehicle-control-probe`,
 `dev.denza.vehiclecontrol.probe`, 0.1.0. Внутри исходные Python controller,
 allowlist и HTML, собранные из `tools/` без второй копии протокола. Java bridge
@@ -612,3 +622,116 @@ commit `0971a3f24095f33d18a6ffb45a1f9979c17c9f18`, SHA-256
 lifecycle-update.json, after-access.png, lifecycle-check.png,
 owner-actions-before-update.jsonl. После этого владелец запросил перенос
 пульта на полностью нативный Android; 0.2.1 остаётся установленной до замены.
+
+
+## Нативный пульт
+
+0.3.0/code4 сохраняет `dev.denza.vehiclecontrol.probe`, debug signing и private
+`no_backup/adb_auth_key_v1` предыдущей версии. UI — Android Views, controller —
+Java, без WebView/JS/Python/Chaquopy/HTTP. Все FID/config/state/value mappings,
+окна и три firmware hashes читаются из одного `tools/vehicle_controls.json`:
+Gradle кладёт этот JSON в assets, host Python читает тот же файл.
+
+Окна, шторки, свет, замки/электродвери, шесть кресел, обогрев/вентиляция и массаж
+сохранены. P/profile/boot/hash/config/position/initialization/thermal guards и
+unknown handling перенесены. GETint5/GETfloat7; SET6 scalar int/null callback,
+одно HAL-слово1 = accepted. Повторов после отказа/неизвестного ответа нет.
+Журнал `files/actions/actions.jsonl` и pendingSTOP replay совместимы с0.2.1.
+Один процесс владеет controller и lock; пересоздание Activity не сбрасывает
+ключ/STOP latch и не ждёт ADB на main thread. Reads foreground-only, раз в4с;
+старые callbacks не меняют закрытый экран, действий в очереди нет.
+
+### Удержание кресел вместо коротких шагов
+
+Владелец сообщил:0.2.1 при каждом клике давал микродвижение и STOP. Это
+следствие намеренного шага0.3с, а не доказанная ошибка FID направления.
+Нативная0.3.0 для всех axes использует **«Удерживайте · до5с»**:
+DOWN держит направление1/2, UP/CANCEL/выход пальца за кнопку/pause/back/
+смена кресла или раздела/«Стоп» прекращают удержание.
+
+Файл корпуса от корня `captures/split-firmware-20260923/jadx/mycar/sources/`:
+`com/byd/mycar/widget/seat/adjust/common/IAdjustDragBallController.java`,
+LoopHandler280–395, повторяет CLICK_* каждые300ms; CANCEL_* снимает повтор.
+`SeatAdjustControllerDi6Master.java:431` →
+`MySeatAdjustControllerBase.java` (`optSeatHForWard:298`=1,
+`Behind:279`=2, cancel288/304=0; height634–668 аналогично) →
+`l/e/r/q0/m/a.java:m` → `q0/m/d/a.java:l` → `l0/i/k/a/a.java:g2` →
+`l0/c/f/j1.java:J2:703` (FL FID1276137488) → `v0.java:t:196`, всегда SET
+без dedupe. DiCar `com/byd/car/feature/seat/property/AdjustmentValues.java:419–443`
+из `captures/ambient-light-20260923/jadx/DiCarServer/sources/` подтверждает
+horizontal/height/backrest/cushion/legrest1/2/0. Это firmware evidence штатного
+held refresh, не live-доказательство необходимости keepalive самому ECU.
+
+В APK Android-side shell обновляет held intent раз в300ms только после exact
+HAL1 предыдущего START/refresh, без промежуточногоSTOP. Refused/unknown выходит
+вSTOP; неизвестную запись не повторяет. Fixed watchdog4.8с и polling100ms
+дают номинальный watchdog около5с. Это не абсолютная realtime-гарантия:
+синхронный зависший SET, transport/adbd/kernel failure могут задержатьSTOP. Release идёт отдельным `LocalAdbClient`
+через уникальный непредсказуемый shell-owned token, поэтому долгий основной
+shell или GET не задерживают release. Ранний release token не стирается до
+проверкиSTART; release во время fresh guards предотвращает START, а послеfsync
+до отправки выбирает STOP-only. На обновлении UI/процесса автоSTART нет.
+
+EXIT/HUP/INT/TERM/PIPE trap сначала выполняет scalarSTOP0 и сохраняет ответ,
+лишь потом печатает ACK. Поэтому закрытие stdout не может пропустить самSTOP.
+Attempt fsync предшествует START, result fsync предшествует снятию STOP latch.
+Успешная запись release-флага не считается STOP acceptance. При неизвестном
+STOP новые движения блокируются до подтверждённого recoverySTOP.
+
+Локально: Java parser/dispatch/guards/journal/lifecycle/concurrency tests,
+34hosttests; assemble/lint. Android35 ARM64 instrumentation: native Views,
+seat selector, pause-release, Android shell early release/refused/malformed,
+keepalive/release/deadline и broken stdout→STOP. Измеренный deadline4950ms.
+Это не live-приёмка новой версии на машине. Устанавливает и проверяет владелец
+отдельно; подтверждённая0.2.1 остаётся исходной точкой сравнения.
+
+
+## Климат нативного пульта
+
+2026-10-16: нативный0.3.0 добавляет30контролов HVAC: пять общих функций
+(питание салона, A/C, забор воздуха, лобовой defrost, заднее стекло+зеркала) и
+по пять функций пяти зон — водитель, передний пассажир, второй ряд слева/справа,
+третий ряд. Каждая зона: питание, температура, скорость вентилятора, AUTO и
+направление воздуха. UI показывает общие функции и выбранную зону, не30карточек
+одновременно. Seat heat/vent/massage остаются в разделе сидений.
+
+Корпус: `captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/hvac/`:
+`AcClimateServiceImpl.java:2206–2354`, `AcTempUtils.java:678–715`,
+`AcVentUtils.java:112–141,309–348,422`,
+`AcVentilationServiceImpl.java:856–876,931–945,1291–1310`.
+Все67property definitions и30named controls находятся в
+`tools/vehicle_controls.json`, разделы `properties`/`climate`. Прямые scalar
+SET используют только перечисленные вJSON значения; UI options имеют явный
+порядок, поэтому температура/fan stepper не зависит отJSONObject iteration.
+
+На этой N9 live read-only: `AC_FRONT_AC_CONFIG_FLAG=8` (stock type40/quadzone),
+три rear temp/fan/mode config=1 дают и пятый, третий ряд. Температуры
+23/23/21/21/24°C; unit=1. Снятый raw/state corpus:
+`captures/window-control-20261016/climate/full-state.json`; его копия без
+идентификаторов машины в `experiments/vehicle-control-probe/src/sharedTest/resources/hvac-n9-20261016.json`
+проходит полный native read/parcel/decode pipeline в JVMtest. Все30контролов
+с исходными config/state декодировались без блокировки. HVAC SET не выполнялись.
+
+Числовые различия, которые нельзя свести к общемуon/off:
+
+- Салон и третий ряд power:0off/1on; индивидуальные зоны первых двух рядов:
+  SET1on/2off, чтение определяется соответствующим fan:GET0off/1..7on.
+- AUTO: SET/GET0=on,1=off. Компрессор, оба defrost:0off/1on.
+- Fan:GET0=выкл.,SET8=выкл.; уровни1..7прямые. Config fan-zero=2;
+  третий ряд дополнительно maxwindconfig=2.
+- Температура:17..33°C с целым шагом1. Unit1 обязателен. Для первых четырёх
+  зон precision raw0/1/3/65535 соответствует целому шагу; фактический GET
+  precision=-10011 (недоступен), stock AcTempUtils678 defaults1°C при ошибке.
+  Поэтому только **эта property и ровно этот наблюдавшийся error** разрешены
+  через `read_sentinels`; прочие отрицательные GET остаютсяunknown. Любой другой
+  precision error блокирует эти температурные контролы. Третий ряд всегда
+  использует целый шаг, но всё ещё требует unit°C.
+- Front directions допускают1..7, второй/третий ряд1..3 по доказанному stock
+  support mask11. Неподтверждённых направлений/температурLO/HI не добавлено.
+- Rear defrost config2 на этой машине означает заднее стекло вместе с зеркалами.
+
+Общие P/profile/firmwarehash/boot guards действуют и на климат. Неизвестный
+state/unit/config блокирует соответствующую запись; current values никогда не
+заменяются видимостью выключенного состояния. JVM tests проверяют живой fixture,
+все catalog actions, особые AUTO/fan/power коды, границы температуры иunknown
+unit/precision/state. Физическая HVAC приёмка этой сборкой остаётся открытой.
