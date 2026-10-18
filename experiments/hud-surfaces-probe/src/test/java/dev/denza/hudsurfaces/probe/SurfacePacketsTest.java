@@ -36,6 +36,40 @@ public class SurfacePacketsTest {
     }
 
     @Test
+    public void lanesComeBeforeTheManoeuvreBlockInWireOrder() {
+        byte[] lanes = FakeArt.png(123, 60, 8);
+        Map<Integer, Object> p = Proto.road(SurfacePackets.lanes(FakeArt.ARROW, 3, lanes));
+        assertEquals(Arrays.asList(2, 16, 5, 6, 7, 8, 9, 10, 26, 27, 28), keys(p));
+        assertEquals(3L, p.get(5));
+        assertEquals(7L, p.get(6));
+        assertArrayEquals(lanes, (byte[]) p.get(7));
+        assertArrayEquals(FakeArt.ARROW, (byte[]) p.get(8));
+        assertEquals(800L, p.get(9));
+        assertEquals("ПРОБА", Proto.text(p.get(10)));
+        assertEquals(11L, p.get(28));
+        Map<Integer, Object> none = Proto.road(SurfacePackets.lanes(FakeArt.ARROW, 0, null));
+        assertEquals(Arrays.asList(2, 16, 5, 6, 8, 9, 10, 26, 27, 28), keys(none));
+        assertEquals(0L, none.get(5));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void aLaneCountNeedsItsPicture() {
+        SurfacePackets.lanes(FakeArt.ARROW, 3, null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void aPictureNeedsALaneCount() {
+        SurfacePackets.lanes(FakeArt.ARROW, 0, FakeArt.png(123, 60, 8));
+    }
+
+    @Test
+    public void theLanesClearIsTheSharedSessionsClear() {
+        assertArrayEquals(dev.denza.hudlink.HudRoadPacket.clear(true), SurfacePackets.clear(true));
+        assertArrayEquals(dev.denza.hudlink.HudRoadPacket.clear(false), SurfacePackets.clear());
+        assertEquals(0L, Proto.road(SurfacePackets.clear(true)).get(5));
+    }
+
+    @Test
     public void cameraWithoutNavigationIsTheCameraAndNothingElse() {
         Map<Integer, Object> p = Proto.road(
                 SurfacePackets.cameraFields(false, CameraPhase.CAMERA, 0, null));

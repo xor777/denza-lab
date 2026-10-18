@@ -12,6 +12,9 @@ final class FakeArt implements Plans.Art {
     static final byte[] MAP_A = png(300, 180, 5);
     static final byte[] MAP_B = png(300, 180, 6);
     static final byte[] BLACK = png(300, 180, 7);
+    static final byte[] LANES = png(123, 60, 8);
+    /** Marker of every {@link #lanesPicture}; its size is in its IHDR. */
+    static final int LANES_PICTURE = 9;
 
     @Override
     public byte[] arrow() {
@@ -36,6 +39,16 @@ final class FakeArt implements Plans.Art {
     @Override
     public byte[] blackMap() {
         return BLACK;
+    }
+
+    @Override
+    public byte[] lanes() {
+        return LANES;
+    }
+
+    @Override
+    public byte[] lanesPicture(int width, int height) {
+        return png(width, height, LANES_PICTURE);
     }
 
     /** Signature, IHDR with the size, and one marker byte in place of the bit depth. */

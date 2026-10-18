@@ -5,6 +5,7 @@ import static dev.denza.hudsurfaces.probe.SessionId.B;
 
 import dev.denza.hudlink.HudProtocol;
 import dev.denza.hudsurfaces.probe.SurfacePackets.CameraPhase;
+import dev.denza.hudsurfaces.probe.SurfacePackets.LanePhase;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -19,6 +20,8 @@ final class Plans {
     static final long TICK_MS = 500L;
     static final int TICKS_PER_PHASE = 10;
     static final long PHASE_MS = TICK_MS * TICKS_PER_PHASE;
+    /** Scenario 5 has five stretches, so each is eight packets, 4 s. */
+    static final int LANE_TICKS = 8;
     /** Scenario 3's warning: twenty packets, 300 m down to 110 m. */
     static final int WARNING_TICKS = 20;
     static final long BASELINE_MS = 3_000L;
@@ -46,6 +49,15 @@ final class Plans {
 
         /** 300×180 all black: what empties the map window. */
         byte[] blackMap();
+
+        /** 123×60, three lanes as the stock picture draws them: left, ahead (white), right. */
+        byte[] lanes();
+
+        /**
+         * {@code width}×{@code height}: a camera warning as the lanes window would carry it,
+         * framed edge to edge with a mark in each corner, so the glass shows any crop.
+         */
+        byte[] lanesPicture(int width, int height);
     }
 
     private Plans() {
@@ -63,6 +75,8 @@ final class Plans {
                 return handover(false, art);
             case HANDOVER_GAP:
                 return handover(true, art);
+            case LANES:
+                return lanes(art);
             case RESET:
                 return reset(art);
             default:
@@ -164,6 +178,31 @@ final class Plans {
         return steps;
     }
 
+    /**
+     * Scenario 5: the lanes window as a place for our own picture (docs/hud-output-architecture.md,
+     * 7.4). Navigation is on throughout with scenario 2's manoeuvre block; the map window gets no
+     * frame. The reset says «no lanes» too.
+     */
+    private static List<Step> lanes(Art art) {
+        List<Step> steps = new ArrayList<>();
+        steps.add(Step.open(A, "0 или 13 (13: службу 266 уже держит другой клиент)"));
+        byte[] arrow = art.arrow();
+        for (LanePhase phase : LanePhase.values()) {
+            steps.add(Step.phase(laneTitle(phase), laneHint(phase), TICK_MS * LANE_TICKS));
+            byte[] picture = phase == LanePhase.NONE ? null
+                    : phase == LanePhase.REFERENCE ? art.lanes()
+                    : art.lanesPicture(phase.width, phase.height);
+            byte[] road = SurfacePackets.lanes(arrow, phase.lanes, picture);
+            for (int tick = 0; tick < LANE_TICKS; tick++) {
+                steps.add(Step.fire(A, HudProtocol.TOPIC_ROAD, road));
+                steps.add(Step.pause(TICK_MS));
+            }
+        }
+        steps.addAll(clearAndClose(A, Collections.singletonList(A), art, true));
+        afterReset(steps, AFTER_RESET_MS);
+        return steps;
+    }
+
     /** The reset button with nothing running: open a session only to clear and close it. */
     private static List<Step> reset(Art art) {
         List<Step> steps = new ArrayList<>();
@@ -178,6 +217,12 @@ final class Plans {
      * clearer's stop is the one that withdraws the offer; then unbind every one of them.
      */
     static List<Step> clearAndClose(SessionId clearer, List<SessionId> started, Art art) {
+        return clearAndClose(clearer, started, art, false);
+    }
+
+    /** The same, its road packet also saying «no lanes» when {@code lanes} were shown. */
+    static List<Step> clearAndClose(SessionId clearer, List<SessionId> started, Art art,
+            boolean lanes) {
         if (!started.contains(clearer)) {
             throw new IllegalArgumentException("The clearer must be started");
         }
@@ -186,7 +231,7 @@ final class Plans {
                 "Неактивный road-пакет и чёрная карта ×3 через 120 мс, затем stop и unbind.",
                 STOP_DELAY_MS));
         byte[] black = SurfacePackets.map(art.blackMap());
-        byte[] clear = SurfacePackets.clear();
+        byte[] clear = SurfacePackets.clear(lanes);
         for (int round = 0; round < CLEAR_SENDS; round++) {
             if (round > 0) {
                 steps.add(Step.pause(CLEAR_REPEAT_MS));
@@ -234,6 +279,43 @@ final class Plans {
     private static void afterReset(List<Step> steps, long millis) {
         steps.add(Step.phase("После сброса", "Ничего не должно остаться.", millis));
         steps.add(Step.pause(millis));
+    }
+
+    private static String laneTitle(LanePhase phase) {
+        switch (phase) {
+            case REFERENCE:
+                return "Эталон: три полосы";
+            case PICTURE:
+                return "Картинка 123×60, 5 = 3";
+            case PICTURE_SIX:
+                return "Картинка 246×60, 5 = 6";
+            case STRIP:
+                return "Полоса 960×48, 5 = 3";
+            case NONE:
+            default:
+                return "Полос нет, 5 = 0";
+        }
+    }
+
+    private static String laneHint(LanePhase phase) {
+        String route = "Манёвр: стрелка прямо, 800 м, «ПРОБА». ";
+        switch (phase) {
+            case REFERENCE:
+                return route + "Три стрелки, средняя белая. Где на стекле окно полос: под "
+                        + "манёвром, у скорости, справа?";
+            case PICTURE:
+                return route + "Камера и «60» в белой рамке. Рамка и четыре жёлтых угла "
+                        + "целиком? Читается?";
+            case PICTURE_SIX:
+                return route + "Вдвое шире, добавлены «300 м». Окно стало шире, картинка "
+                        + "сжалась или обрезана справа? Углы видны?";
+            case STRIP:
+                return route + "Узкая длинная полоса. Сжата, обрезана (какие углы видны) или "
+                        + "пусто?";
+            case NONE:
+            default:
+                return route + "Окно полос погасло сразу? Манёвр остался?";
+        }
     }
 
     private static String cameraTitle(CameraPhase phase, boolean navigating) {

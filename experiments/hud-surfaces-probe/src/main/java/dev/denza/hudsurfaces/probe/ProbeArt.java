@@ -9,6 +9,7 @@ import android.graphics.RectF;
 import android.graphics.Typeface;
 import java.io.ByteArrayOutputStream;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -28,6 +29,8 @@ final class ProbeArt implements Plans.Art {
     private byte[] arrow;
     private byte[] camera;
     private byte[] black;
+    private byte[] lanes;
+    private final Map<String, byte[]> lanePictures = new HashMap<>();
     private final Map<SessionId, byte[]> letters = new EnumMap<>(SessionId.class);
     private final Map<SessionId, byte[]> maps = new EnumMap<>(SessionId.class);
 
@@ -120,6 +123,91 @@ final class ProbeArt implements Plans.Art {
             black = png(bitmap);
         }
         return black;
+    }
+
+    /** The stock lane picture's look: three arrows on black, the recommended one white. */
+    @Override
+    public synchronized byte[] lanes() {
+        if (lanes == null) {
+            Bitmap bitmap = Bitmap.createBitmap(123, 60, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(Color.BLACK);
+            canvas.scale(123f / 240, 60f / 96);
+            Paint grey = stroke(Color.GRAY, 7f);
+            Paint white = stroke(Color.WHITE, 7f);
+            canvas.drawLine(40, 80, 40, 30, grey);
+            canvas.drawLine(40, 30, 16, 30, grey);
+            canvas.drawLine(16, 30, 29, 17, grey);
+            canvas.drawLine(16, 30, 29, 43, grey);
+            canvas.drawLine(120, 80, 120, 16, white);
+            canvas.drawLine(120, 16, 104, 32, white);
+            canvas.drawLine(120, 16, 136, 32, white);
+            canvas.drawLine(200, 80, 200, 30, grey);
+            canvas.drawLine(200, 30, 224, 30, grey);
+            canvas.drawLine(224, 30, 211, 17, grey);
+            canvas.drawLine(224, 30, 211, 43, grey);
+            lanes = png(bitmap);
+        }
+        return lanes;
+    }
+
+    /**
+     * On black: a white frame on the very edge and an amber mark in each corner, so a crop shows
+     * which side went; inside, a camera tile, a «60» tile and «300 м» where it fits.
+     */
+    @Override
+    public synchronized byte[] lanesPicture(int width, int height) {
+        String key = width + "x" + height;
+        byte[] cached = lanePictures.get(key);
+        if (cached == null) {
+            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(Color.BLACK);
+            canvas.drawRect(1, 1, width - 1, height - 1, stroke(Color.WHITE, 2f));
+            float mark = Math.min(width, height) / 3f;
+            Paint corner = stroke(AMBER, 5f);
+            float[][] corners = {{3, 3, 1, 1}, {width - 3, 3, -1, 1}, {3, height - 3, 1, -1},
+                    {width - 3, height - 3, -1, -1}};
+            for (float[] c : corners) {
+                canvas.drawLine(c[0], c[1], c[0] + c[2] * mark, c[1], corner);
+                canvas.drawLine(c[0], c[1], c[0], c[1] + c[3] * mark, corner);
+            }
+            float tile = Math.min(40f, height - 16f);
+            float top = (height - tile) / 2f;
+            float x = 10f;
+            Paint white = fill(Color.WHITE);
+            Paint red = stroke(Color.RED, 3f);
+            for (int i = 0; i < 2; i++) {
+                RectF box = new RectF(x, top, x + tile, top + tile);
+                canvas.drawRoundRect(box, 6, 6, white);
+                box.inset(1.5f, 1.5f);
+                canvas.drawRoundRect(box, 6, 6, red);
+                if (i == 0) {
+                    Paint black = fill(Color.BLACK);
+                    canvas.drawRect(x + tile * 0.22f, top + tile * 0.36f, x + tile * 0.78f,
+                            top + tile * 0.72f, black);
+                    canvas.drawRect(x + tile * 0.38f, top + tile * 0.27f, x + tile * 0.6f,
+                            top + tile * 0.37f, black);
+                    canvas.drawCircle(x + tile * 0.5f, top + tile * 0.54f, tile * 0.11f, white);
+                } else {
+                    centered(canvas, "60", x + tile / 2f, top + tile / 2f, tile * 0.5f,
+                            Color.BLACK);
+                }
+                x += tile + 4f;
+            }
+            Paint text = fill(Color.WHITE);
+            text.setTextSize(tile * 0.6f);
+            text.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            String metres = "300 м";
+            if (x + 4f + text.measureText(metres) <= width - 10f) {
+                Paint.FontMetrics metrics = text.getFontMetrics();
+                float baseline = height / 2f - (metrics.ascent + metrics.descent) / 2f;
+                canvas.drawText(metres, x + 4f, baseline, text);
+            }
+            cached = png(bitmap);
+            lanePictures.put(key, cached);
+        }
+        return cached;
     }
 
     private static int color(SessionId session) {

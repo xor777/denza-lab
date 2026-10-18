@@ -7,6 +7,7 @@ enum Scenario {
     WARNING("warning", "3 · Камера в блоке манёвра"),
     HANDOVER_QUIET("handover-quiet", "4а · Передача: A замолкает"),
     HANDOVER_GAP("handover-gap", "4б · Передача: A уходит"),
+    LANES("lanes", "5 · Картинка в окне полос"),
     RESET("reset", "Сбросить HUD");
 
     /** What `am start ... --es scenario <id>` names. */

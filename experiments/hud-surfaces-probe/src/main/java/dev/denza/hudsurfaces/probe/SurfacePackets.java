@@ -25,6 +25,9 @@ final class SurfacePackets {
     static final int CAMERA_DISTANCE = 18;
     /** {@code dangerSigns}: an AutoNavi road-facility type. */
     static final int DANGER_SIGN = 23;
+    /** {@code RoadClass}: 7 a main road, 6 a city expressway; the 2026-10-11 lanes run used 7. */
+    static final int ROAD_CLASS = 6;
+    static final int ROAD_CLASS_MAIN = 7;
 
     static final int CAMERA_PRESENT = 1;
     static final int CAMERA_START_M = 300;
@@ -44,6 +47,33 @@ final class SurfacePackets {
     static final String ROUTE_ROAD = "ПРОБА";
     static final int ROUTE_REMAINING_M = 5000;
     static final int ROUTE_REMAINING_S = 600;
+
+    /**
+     * Scenario 5's stretches: what goes into the lanes slot (field 7) and how many lanes field 5
+     * claims. One stock lane cell is 41×60 (layout_hud_laneinfo_arrow: 37 px and 2 px each side).
+     */
+    enum LanePhase {
+        /** The stock-like picture of three lanes, the one the glass showed on 2026-10-11. */
+        REFERENCE(3, 123, 60),
+        /** Our picture in the same 3 × 41 × 60. */
+        PICTURE(3, 123, 60),
+        /** Twice as wide, claiming six lanes: does the slot widen with field 5? */
+        PICTURE_SIX(6, 246, 60),
+        /** A wide strip under a three-lane claim: scaled, cropped or dropped? */
+        STRIP(3, 960, 48),
+        /** Navigation goes on, the lanes go: 5 = 0 and no picture. */
+        NONE(0, 0, 0);
+
+        final int lanes;
+        final int width;
+        final int height;
+
+        LanePhase(int lanes, int width, int height) {
+            this.lanes = lanes;
+            this.width = width;
+            this.height = height;
+        }
+    }
 
     /** The four stretches of scenarios 1 and 2, one stock camera input each. */
     enum CameraPhase {
@@ -145,9 +175,47 @@ final class SurfacePackets {
                 .embedded(Road.ENVELOPE);
     }
 
+    /**
+     * Scenario 5: navigation with scenario 2's full manoeuvre block, {@code lanes} in field 5,
+     * road class 7, and {@code lanesPng} in field 7 - none when there are no lanes.
+     */
+    static byte[] lanes(byte[] arrowPng, int lanes, byte[] lanesPng) {
+        if (arrowPng == null || arrowPng.length == 0) {
+            throw new IllegalArgumentException("A navigating packet needs its manoeuvre picture");
+        }
+        if ((lanes > 0) != (lanesPng != null && lanesPng.length > 0)) {
+            throw new IllegalArgumentException("A lane count goes with a lane picture");
+        }
+        HudMessage message = head(true)
+                .number(Road.LANE_COUNT, lanes)
+                .number(ROAD_CLASS, ROAD_CLASS_MAIN);
+        if (lanes > 0) {
+            message.bytes(Road.LANES_PNG, lanesPng);
+        }
+        return message.bytes(Road.MANEUVER_PNG, arrowPng)
+                .number(Road.MANEUVER_METERS, ROUTE_MANEUVER_M)
+                .text(Road.ROAD_NAME, ROUTE_ROAD)
+                .text(Road.SUMMARY_DISTANCE, HudProtocol.routeDistance(ROUTE_REMAINING_M))
+                .text(Road.SUMMARY_TIME, HudProtocol.duration(ROUTE_REMAINING_S))
+                .number(Road.STOCK_MANEUVER, MANEUVER_STRAIGHT)
+                .embedded(Road.ENVELOPE);
+    }
+
     /** The clear: navigation off and nothing else, so every camera field reads 0 again. */
     static byte[] clear() {
-        return head(false).embedded(Road.ENVELOPE);
+        return clear(false);
+    }
+
+    /**
+     * The clear, and with {@code lanes} «no lanes» (5 = 0) as well, as {@code HudRoadPacket.clear}
+     * says it once lanes were shown.
+     */
+    static byte[] clear(boolean lanes) {
+        HudMessage message = head(false);
+        if (lanes) {
+            message.number(Road.LANE_COUNT, 0);
+        }
+        return message.embedded(Road.ENVELOPE);
     }
 
     /** {@code HudNavigationmap{1: Base64 PNG}}, as the stock navigator sends it. */

@@ -84,7 +84,8 @@ public class PlansTest {
                 assertEquals(HudProtocol.TOPIC_MAP, map.topic);
                 assertArrayEquals(SurfacePackets.map(FakeArt.BLACK), map.payload);
                 assertEquals(HudProtocol.TOPIC_ROAD, road.topic);
-                assertArrayEquals(SurfacePackets.clear(), road.payload);
+                // Scenario 5 showed lanes, so its clear also says «no lanes».
+                assertArrayEquals(SurfacePackets.clear(scenario == Scenario.LANES), road.payload);
                 assertEquals(map.session, road.session);
             }
             // The pauses after the first clear round: 120 + 120 + 110 = 350 ms to the stop.
@@ -149,6 +150,36 @@ public class PlansTest {
             }
         }
         assertEquals(Plans.AFTER_WARNING_MS, after);
+    }
+
+    @Test
+    public void scenarioFiveNavigatesThroughoutAndPutsEachPictureInTheLanesSlot() {
+        List<Map<Integer, Object>> roads = roadsBeforeReset(Scenario.LANES);
+        SurfacePackets.LanePhase[] phases = SurfacePackets.LanePhase.values();
+        assertEquals(phases.length * Plans.LANE_TICKS, roads.size());
+        for (int index = 0; index < roads.size(); index++) {
+            Map<Integer, Object> road = roads.get(index);
+            SurfacePackets.LanePhase phase = phases[index / Plans.LANE_TICKS];
+            assertEquals(2L, road.get(16));
+            assertArrayEquals(FakeArt.ARROW, (byte[]) road.get(8));
+            assertTrue(road.containsKey(9) && road.containsKey(26) && road.containsKey(27));
+            assertEquals((long) phase.lanes, road.get(5));
+            assertEquals(7L, road.get(6));
+            byte[] picture = (byte[]) road.get(7);
+            if (phase == SurfacePackets.LanePhase.NONE) {
+                assertFalse(road.containsKey(7));
+            } else if (phase == SurfacePackets.LanePhase.REFERENCE) {
+                assertArrayEquals(FakeArt.LANES, picture);
+            } else {
+                assertArrayEquals(FakeArt.png(phase.width, phase.height, FakeArt.LANES_PICTURE),
+                        picture);
+            }
+        }
+        // 123×60, then 246×60 claiming six lanes, then the 960×48 strip.
+        assertEquals(41 * 3, SurfacePackets.LanePhase.PICTURE.width);
+        assertEquals(41 * 6, SurfacePackets.LanePhase.PICTURE_SIX.width);
+        assertEquals(0, mapsBeforeReset(Scenario.LANES).size());
+        assertNoClearBeforeReset(Plans.plan(Scenario.LANES, art));
     }
 
     @Test
