@@ -7,35 +7,35 @@ identified through static inspection.
 
 ## Current state
 
-Updated 2026-10-16. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
+Updated 2026-10-18. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
-| A normal app UID gets standard GNSS (~1 Hz), the standard IMU and `persist.sys.AutoType`; the useful DiCar getters answer `20004` (missing `BYDAUTO_*_GET`) | live | 2026-07-24 | [High-level DiCar service](#high-level-dicar-service) |
-| Shell UID reads the native Binder: `service call autoservice 5` (`getInt`) or `7` (`getFloat`) `i32 <dev> i32 <fid>`, fid as signed decimal, payload = second parcel word | live | 2026-08-22 | [autoservice FID protocol](#autoservice-fid-protocol) |
+| A normal app UID gets standard GNSS (~1 Hz), the standard IMU and `persist.sys.AutoType`; the useful DiCar getters answer `20004` (missing `BYDAUTO_*_GET`); Shell UID reads the native Binder: `service call autoservice 5` (`getInt`) or `7` (`getFloat`) `i32 <dev> i32 <fid>`, fid as signed decimal, payload = second parcel word | live | 2026-08-22 | [High-level DiCar service](#high-level-dicar-service); [autoservice FID protocol](#autoservice-fid-protocol) |
 | Sentinels: `−10013` wrong transact (retry the other one), `−10011` no data on this generation, `0xbf800000` invalid float; max-range placeholders are dropped by a per-unit range gate | live | 2026-08-22 | [Sentinels — do not display](#sentinels--do-not-display) |
-| Transacts `10`/`12` with `i32`-only parcels SIGSEGV'd `/system/bin/autoservice`; the product sends only `5`/`7` and never `6` (`VehicleSignals.kt`, `VehicleTransact`) | code | 2026-08-22 | [Binder](#binder) |
+| Transacts `10`/`12` with `i32`-only parcels SIGSEGV'd `/system/bin/autoservice`; native scalar reads use only `5`/`7`, never `6` (`VehicleSignals.kt`, `VehicleTransact`); the separate DTC transport uses the qualified SDK buffer API | code | 2026-08-22 | [Binder](#binder) |
 | Device ids: `1000` AC, `1001` bodywork, `1006` energy, `1009` charging, `1011` gearbox, `1012` engine, `1013` speed, `1014` statistic/BMS, `1039` GB (motors, bus V), `1061` big data | live | 2026-08-22 | [Binder](#binder) |
 | Every `BYDAutoFeatureIds` constant, resolved for this car: untracked `captures/ambient-light-20260923/data/fids-canfd.tsv` (and `fids-can-classic.tsv`), tab-separated `<class or TOP>`, `<NAME>`, `<signed decimal>`, built by `resolve_clinit.py` because jadx cannot evaluate the static initializer; look ids up there, not by hand | firmware | 2026-09-23 | [autoservice FID protocol](#autoservice-fid-protocol) |
-| The product polls 8 hot ids (pack power, pack V, odometer, park, speed, rpm, engine running, generation) every 100 ms while the cluster or the strip's car page is up and every 1 s otherwise, plus 12 cold ids every 10 s; readings expire after 2 s / 25 s. That sweep is the only reader of the park switch: the strip's trip clock takes it from there under `VehicleWatcher.TRIP` (`VehicleSignals.kt`, `VehicleTelemetryHub.kt`, `TripParkFeed.kt`) | code | 2026-10-09 | [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) |
+| The product polls 8 hot ids (pack power, pack V, odometer, park, speed, rpm, engine running, generation) every 100 ms while the cluster, strip's car page or diagnostic window is up and every 1 s otherwise, plus 12 cold ids every 10 s; readings expire after 2 s / 25 s. That sweep is the only reader of the park switch: the strip's trip clock takes it from there under `VehicleWatcher.TRIP` (`VehicleSignals.kt`, `VehicleTelemetryHub.kt`, `TripParkFeed.kt`) | code | 2026-10-09 | [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) |
 | Pack power `0x14400020` (dev 1012, catalog `ENGINE_POWER`) is positive out of the pack, on a charger and in motion (`VehicleConvention.POWER_POSITIVE_IS_DISCHARGE`) | live | 2026-09-22 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
 | `GENERATION_KW` `0x2610001F` (dev 1006) is the engine's charge into the pack: 8–10 kW generating in P, `0` while the engine drives the wheels; `0x2ED00010` (catalog `ENGINE_CHARGE_POWER`) is pack power, not generation | live | 2026-09-24 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
-| `ENGINE_RUNNING` `0x10D00038`: `0` stopped, `1` cranking, `3` running; the product tests `≥ 1` (`VehicleTelemetry.kt`) | live | 2026-09-18 | [Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster) |
-| `ENGINE_RPM` `0x14400012` answers `0x1FFF` (13-bit "not available") with the engine off, parked or moving; `VehicleSignal.invalid` refuses it before decoding | live | 2026-09-22 | [A resting reading is not the same as a resting ECU](#a-resting-reading-is-not-the-same-as-a-resting-ecu) |
+| `ENGINE_RUNNING` `0x10D00038`: `0` stopped, `1` cranking, `3` running; the product tests `≥ 1` (`VehicleTelemetry.kt`); `ENGINE_RPM` `0x14400012` answers `0x1FFF` (13-bit "not available") with the engine off, parked or moving; `VehicleSignal.invalid` refuses it before decoding | live | 2026-09-22 | [Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster); [A resting reading is not the same as a resting ECU](#a-resting-reading-is-not-the-same-as-a-resting-ecu) |
 | Scales: pack temp = raw − 40 °C; cells in mV; odometer = raw / 10 km; tyres = raw / 100 bar; 12 V and SOC are floats | live | 2026-08-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car) |
 | `CHARGE_GUN` `0x34400032`: `2` AC connected, `1` on every moving row of both recorded drives, `3` on a DC stop; "charging" needs `2`, a charger reading and a pack that is not discharging (`VehicleTelemetry.kt`) | live | 2026-09-24 | [The gun is not a charger](#the-gun-is-not-a-charger-2026-09-06-falsified-on-the-road) |
 | Silent on this firmware with the engine running or not: coolant and thermostat temperature, torque, boost, knock, instantaneous fuel (the `0x324` / `0x387` / `0x30D` families) | live | 2026-08-23 | [Did not answer](#did-not-answer--every-candidate-at-every-device-tried) |
 | A floored accelerator in P starts the engine, which generates 8–10 kW into the pack while held; `0x34200008` is the pedal in percent | live | 2026-09-18 | [Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster) |
 | Consumption is the last 10 km of recorded road: a 100-point chart of 100 m buckets, each point a 1 km trailing mean; the journal `filesDir/consumption.log` keeps the newest 300 buckets as `odometer,kwh,km,knownKm` (`ConsumptionWindow.kt`, `ConsumptionChart.kt`, `ConsumptionJournal.kt`) | code | 2026-09-18 | [Energy contract §2.2](energy-display-contract.md#22-consumption-over-the-last-ten-kilometres) |
-| Which car: `persist.sys.AutoType` (readable from the app UID through `getprop`) or FID `0x40D00010`: `168` N9, `170` our Z9GT; an unrecognised id is an unknown car (Z9GT properties never captured, FID only) | live | 2026-08-30 | [Which car is this](#which-car-is-this-2026-08-30) |
+| Which car: `persist.sys.AutoType` (readable from the app UID through `getprop`) or FID `0x40D00010`: `168` N9, `170` our Z9GT; an unrecognised id is an unknown car (Z9GT `AutoType=170` also read live on 2026-10-18) | live | 2026-08-30 | [Which car is this](#which-car-is-this-2026-08-30) |
 | Raw CAN-FD frames: shell-UID `BYDAutoBigDataDevice` (`1061`) listener on `0x99000020`, about 137 frames/s, delivered only while the main `Looper` runs; app-UID registration unproven | live | 2026-09-03 | [Raw CAN-FD callback](#raw-can-fd-callback-2026-09-03) |
 | Turn signals: shell-UID listener on `0x1330002C` (raw lever phase, never names a side) and `0x38A0002C` (lamps: `1` off, `2` left, `4` right, `6` hazard) behind `VehicleSignalHub` (`TurnSignalEventProtocol.kt`) | live | 2026-09-04 | [Targeted turn-signal events](#targeted-turn-signal-events-2026-09-04) |
 | Refuted: the stock AVC window alone opens a Denza camera (window-only contract). Since 2026-09-23 Show needs AVC's card **and** the lamps on that side, and the lamps leaving close it | refuted | 2026-09-23 | [Firmware-model contract](instrument-display-findings.md#the-firmware-model-contract-2026-09-23) |
-| Refuted: `0x44700028` / 10 is remaining energy (a ~100 kWh pack). It is state of charge ×10; nothing on the Binder gives the pack size | refuted | 2026-08-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car) |
-| Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
+| Refuted: `0x44700028` / 10 is remaining energy (a ~100 kWh pack). It is state of charge ×10; nothing on the Binder gives the pack size; Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car); [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
 | Washer fluid level: no FID, name or CAN bit identified; `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` (`0x3D90201E`) is probably throttle cleaning, and its `0` proves nothing | open | 2026-09-23 | [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23) |
 | N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | N9 CAN coverage: GB/YUN add 72 address tuples without table writes. Expanded present/empty/refilled cycle saved: 68,432 / 68,296 / 66,613 messages, all 199 common tuples covered without loss. Of 223 separated bits, 49 reverse; 43 contradict older controls, and 6 extra-tuple bits overlap numeric range/consumption/insulation/SOC descriptors. No washer mapping is established; 3 intermittent refill tuples also occurred in older normal/empty captures | live three-state cycle, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
+| DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (precise ECU identity unresolved); LBMS `762→76A` zero/support09. Other ECUs untested. Native service diagnostics adds readable DTC summaries, qualified reference meanings, all eight status bits and a dated candidate inventory; 43 scalar and 15 lamp GETs refresh every5 s and expire at15 s. Lamp0 means invalid, not off; captured engine lamp on. Fourteen updated emulator views match their boards; new APK not installed on car | live reader; code window; emulator validation | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18) |
+| Head-unit cache: 225 ECU candidates/version records, including ECM UAES, BMS033, drives and ESP/IPB; 49 contain only defaults/negative markers. Both approved exports completed/closed ports; map keys, upgradeInfo and EOL task were absent. A separately captured stock `getEcuList` response yields eight complete routing records; none covers the requested powertrain/ABS targets. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. Exact target addresses/OEM dictionaries remain missing | live partial map; firmware routing; coverage open | 2026-10-18 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Stock response and alternate paths](#stock-response-prefix-and-alternate-paths-2026-10-18) |
+| Stock Update is unsuitable for diagnosis-only use. The third isolated session validated local inputs, completed TLS and received HTTP 200, then refused response headers; application auth and ECU map remain unverified. Cleanup passed. Overlapping host lifetimes with the ADS log reader exposed reuse of its working directory; our reader now refuses reuse, qualified offline. No further session is authorized | live HTTP-header refusal; cross-reader coordination still required | 2026-10-18 | [Bounded observation and isolated metadata](#bounded-observation-and-isolated-metadata-2026-10-18) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
 
 **Open questions**
@@ -46,7 +46,7 @@ Updated 2026-10-16. Which vehicle signals Denza Apps can read on this head unit,
 - Which physical signal is the washer level: an authoritative sensor-to-ECU definition, or a controlled two-state capture with `tools/raw_can_turn_probe.sh`.
 - Which palette this car uses: one read of `SET_IAL_COLOR_CONFIG`, or the owner naming the cabin colour.
 - Whether a normal APK can register the raw CAN-FD listener, DiCar's ambient-light listener or the vendor SCP IMU sensors: one isolated probe each.
-- The Z9GT's own `persist.sys.*` vehicle-id properties: one `getprop` dump.
+- The remaining Z9GT `persist.sys.*` vehicle-id properties: a qualified dump; `persist.sys.AutoType=170` is confirmed on 2026-10-18.
 
 ## Contents
 - [Executive result](#executive-result) — what a normal APK can and cannot read, in one screen
@@ -62,6 +62,8 @@ Updated 2026-10-16. Which vehicle signals Denza Apps can read on this head unit,
 - [Widget allowlist (2026-08-22)](#widget-allowlist-2026-08-22) — the measured FIDs with dev, transact and decoding
 - [Vehicle telemetry wiring (2026-08-22 to 2026-08-27)](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) — the decisions behind `feature.vehicle`, its consumers and cadence
 - [Combustion side of the hybrid (2026-08-23)](#combustion-side-of-the-hybrid-2026-08-23) — engine, generation, lamps, fuel, and the recorded start/stop cycles
+- [Diagnostics and DTC (2026-10-18)](#diagnostics-and-dtc-2026-10-18) — proven read transport, real records, status semantics and scan coverage
+- [Additional diagnostic readings and LBMS](#additional-diagnostic-readings-and-lbms-2026-10-18) — 43 GETs, window polling and the second qualified ECU
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
 - [Raw CAN-FD callback (2026-09-03)](#raw-can-fd-callback-2026-09-03) — the passive shell-UID frame stream and its envelope
 - [Washer fluid level (2026-09-18, in progress)](#washer-fluid-level-2026-09-18-in-progress) — no name, no bit yet; firmware and raw-stream paths
@@ -151,6 +153,10 @@ The temporary probe was uninstalled after the 2026-07-24 run. The 2026-08-22
 not modified. No `com.byd.avc` crash was observed.
 
 ## Which car is this (2026-08-30)
+
+Update 2026-10-18: the Z9GT now also directly answers `persist.sys.AutoType=170`;
+the earlier FID-only qualification below is historical. This does not qualify
+all the other vehicle-id properties.
 
 Every measurement on this page before 2026-08-30 was taken on a Denza Z9GT. A
 Denza N9 was attached over local ADB on 2026-08-30. The two cars run the same
@@ -558,7 +564,7 @@ flags or placeholders. A product widget polls only the rows below.
 | Group | Signal | FID | dev | tx | Session value | Decode |
 | --- | --- | --- | --- | --- | --- | --- |
 | BMS | SOC | `0x4A505038` | 1014 | 7 | 43 | % |
-| BMS | SoH | `0x44400028` | 1014 | 5 | 99 | %; **known, not polled since 2026-09-04** — the panel has no reader |
+| BMS | SoH | `0x44400028` | 1014 | 5 | 99 | %; removed from regular instruments on 2026-09-04; restored to diagnostics only on 2026-10-18 |
 | BMS | Pack temp avg/min/max | `0x44700038` / `0x44700010` / `0x44700020` | 1014 | 5 | 68 / 67 / 69 | °C = raw − 40 |
 | BMS | Cell min/max | `0x44600010` / `0x44600030` | 1014 | 5 | 3313 / 3317 | mV; Δ local |
 | BMS | Series cell count | `0x43A00008` | 1001 | 5 | 166 | cells |
@@ -568,7 +574,7 @@ flags or placeholders. A product widget polls only the rows below.
 | HV | Charge power | `0x32300018` | 1009 | 7 | 2.4 | kW |
 | HV | Charge current | `0x44400018` | 1009 | 7 | −4.4 | A; sign not proven |
 | HV | Engine/pack power | `0x14400020` | 1012 | 5 | −2 | kW |
-| HV | Insulation | `0x43A00018` | 1039 | 5 | 13051 | likely kΩ; **known, not polled since 2026-09-04** — the panel has no reader |
+| HV | Insulation | `0x43A00018` | 1039 | 5 | 13051 | unit unproved; restored to diagnostics as **raw**, not kΩ, on 2026-10-18 |
 | 12V | Voltage | `0x43400028` | 1001 | 7 | 13.8 | V (energy twin `0x36D00020` / 1006) |
 | Range | Remaining EV range | `0x4A50203E` | 1014 | 5 | 67 | km |
 | Trip | Odometer | `0x4A502010` | 1014 | 5 | 118927 | km ×10 |
@@ -833,6 +839,13 @@ other one means anything at all.
 
 ### Warning flags — all sixteen answer, all read `0` on a healthy car
 
+**Correction, 2026-10-18:** the heading describes the historical sample, not a
+health rule. It does not establish that `0` means healthy. The framework's
+common instrument-light enum explicitly uses `0=invalid`, `1=on`, `2=off`;
+the sixteen DD/oil fields below need their own qualification and must not be
+OR-ed into a health verdict. Other instrument getters now returned both `1`
+and `2` on the Z9GT. See [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18).
+
 **Known and not polled since 2026-09-04: the panel has no reader for them and
 there is no exception channel.** The ids and their decoding stay written down
 here, so bringing one back is a decision with the work already done; they left
@@ -861,8 +874,8 @@ them trips, `0` = healthy is the constant names' claim, not a measurement.
 | Transmission oil temperature high | `0x3D90102A` |
 
 Four separate ids for oil pressure and three for coolant level are generation
-variants of the same lamp, the way the motor temperatures were. Reading all of
-them and OR-ing the result is cheaper than deciding which one this car uses.
+variants of the same lamp, the way the motor temperatures were. The historical proposal to OR these variants is withdrawn: select and qualify
+the applicable getter and its enum before deriving a warning.
 
 ### Generation and charge power
 
@@ -1089,6 +1102,1105 @@ later against an unchanged `53 %` tank (`488` km of range), so whatever the
 constant names, it is not this tank's alarm. On the cluster it was painting a
 half-full tank in the alert colour. Nothing of ours replaces it; the stock
 cluster keeps the fuel level, range and low-fuel lamp a few centimetres away.
+
+## Diagnostics and DTC (2026-10-18)
+
+### Three separate diagnostic sources
+
+1. **Instrument warnings:** individual FID getters report a lamp/notice. The
+   framework `BYDAutoInstrumentDevice` common lamp enum is `0=invalid`, `1=on`,
+   `2=off`, `3..7=blinking at 0.25/0.5/1/2/4 Hz`; this is not a universal enum
+   for every DD notice or fault field. `getModuleState` instead uses 0=normal,
+   1=fault. The native cluster's `WarningLightStatus` confirms the lamp enum.
+2. **IVI health journal:** BydHealthDiagnostic reads `diag_socket_channel` with
+   `latest_diag_data` or `all_diag_data`. The 213 definitions in
+   `diagnostic_config.json` cover head-unit peripherals/software, not all car
+   ECUs. The one bounded `latest_diag_data` socket read returned EOF with zero
+   bytes; access/empty/protocol interpretation is unresolved. Do not render
+   this as a successful “no faults” scan.
+3. **Vehicle ECU DTC memory:** UDS `ReadDTCInformation` (`0x19`). This now has a
+   working read path through the stock EOL transport, independently of either
+   source above. It is a requested diagnostic exchange, not passive CAN capture.
+
+The live vehicle reports `persist.sys.AutoType=170` (Z9GT), unlike the N9
+`168` capture of 2026-10-16. At 09:33:45 UTC the instrument getters on dev1007
+returned: SRS `0x27500008`, ABS `0x27500014`, brake `0x27500020`, ESP
+`0x2750002C`, steering `0x2870000E`, TPMS `0x28700014`: all `2`; engine
+`0x28700026`: `1`; low fuel `0x28700032` and low pack `0x2A600026`: `0`.
+EPB `0x2750001A=1` is an operational indication, not evidence of a fault.
+Charge-lid notice `0x3D902022=0` remains raw/unqualified. No physical lamp
+observation or fault-causing experiment was performed; the engine lamp does
+not identify a cause and the body ECU result below cannot explain it.
+
+### Proven OEM transport
+
+Sources: the installed `SpotInspection.apk` matches SHA-256
+`0677ac9473557dcd760da047c2639ec9336709f1e7c12b0f9980de1988093d2b`;
+framework matches `aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c`.
+The existing decompile is under
+`captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/`:
+`eol/uds/UdsAutoApiSender.java`, `EolUdsListener.java`, `EolUdsResult.java`,
+`eol/executor/constant/UdsSidEnum.java`, `eol/executor/util/MatchUtils.java`.
+
+- `BYDAutoMqttDevice`, device `1033`; buffer TX `0xAA00010A`, RX `0x9900010A`.
+- Owner byte `0x0A`, request CAN id big-endian, one-byte UDS payload length,
+  then UDS bytes. Count: **`0A 07 20 03 19 01 FF`**; list:
+  **`0A 07 20 03 19 02 FF`**. SDK `set(..., BYDAutoEventValue)` is the
+  request transport; these two payloads only read diagnostic information.
+- Response: owner, response CAN id, UDS fragment length, total frames,
+  one-based frame index; first frame adds diagnostic result (`1=success`,
+  `2=negative`, `3=response timeout`, `4=diagnostic timeout`, `5=busy`).
+  First payload begins at byte7, continuation payload at byte6.
+- This capture delivered **240-byte buffers with unrelated trailing bytes**.
+  Honor the declared length: count is 6 UDS bytes, list is 35. Never parse
+  the tail as DTCs. The generic listener received the identical packet twice;
+  these are duplicate deliveries, not 16 faults or two independent reads.
+- Multi-frame assembly exists in stock code but was not exercised here.
+  Validate owner, address, lengths, positive SID/subfunction, consistent total
+  and contiguous indices before declaring a complete scan.
+
+The fixed shell helper is parked at
+[`research/vehicle-diagnostics/DtcReadProbe.java`](../research/vehicle-diagnostics/DtcReadProbe.java).
+It accepts only `count` or `list`, fixes address `0x720`, listens for 2 seconds
+before sending once, aborts on preexisting traffic or changed manager state,
+collects for 12 seconds with an 18-second watchdog, and unregisters. It uses
+normal shell UID2000 with the SDK; no permission spoof, root, APK installation,
+service restart, controller reset or diagnostic unlock. Normal Denza Apps UID
+direct-UID support is unproved. This was the initial research-only state; the
+reader has since been promoted behind local ADB as described below.
+
+The recorded preflight was park switch `1`, speed `0`, autoservice PID135,
+SpotInspection PID3622, `sys.diagmgrsrv.task_bk=r@-1_0&w@-1_0`. No experimental
+session or persisted state was created to reset. After both reads these PIDs
+and the property were unchanged, and the temporary dex was removed. Neither
+read called `0x10`, `0x11`, `0x14`, `0x27`, `0x28`, `0x2F`, `0x85`, nor a
+periodic tester-present. This is not a claim of a system-wide exclusive lock:
+the property and passive interval only provided an observed quiet baseline.
+
+### Actual DTC records and their limits
+
+Count response: `59 01 FF 00 00 08` (availability mask `FF`, format id `00`,
+eight records). List response: `59 02 FF`, followed by:
+
+| Raw 24-bit DTC | Status | Interpretation |
+| --- | --- | --- |
+| `516006` | `28` | confirmed, failed since last clear |
+| `C29D87` | `28` | confirmed, failed since last clear |
+| `C12187` | `28` | confirmed, failed since last clear |
+| `A14802` | `28` | confirmed, failed since last clear |
+| `A25000` | `28` | confirmed, failed since last clear |
+| `A25B00` | `28` | confirmed, failed since last clear |
+| `C22987` | `28` | confirmed, failed since last clear |
+| `C22A87` | `28` | confirmed, failed since last clear |
+
+`0x28 = bit3 confirmedDTC + bit5 testFailedSinceLastClear`. All eight have
+`testFailed=0`, `pendingDTC=0`, `warningIndicatorRequested=0` in this snapshot.
+They are stored confirmed records with no current failure bit set; this does
+not prove the car healthy or explain the original event. “Confirmed” must not
+be translated as “active”. Mask `FF` selects records with any supported status
+bit, including test-completion bits; a count alone is not a fault count.
+Status bit definitions are independently corroborated by
+[AUTOSAR Diagnostics](https://www.autosar.org/fileadmin/standards/R21-11/AP/AUTOSAR_SWS_Diagnostics.pdf)
+and the [ReadDTCInformation implementation](https://github.com/pylessard/python-udsoncan/blob/master/udsoncan/services/ReadDTCInformation.py).
+
+The ECU request/reply is `0x720 → 0x728`, used by stock body/window/lock/light
+workflows. Its precise hardware identity was not read. No generic code website
+or unqualified mapping was used to invent BYD descriptions. Stock `log1902`
+gets descriptions from script `Attach.dtcList` and status names from
+`Attach.dtcStatusList`; these have not been obtained for this ECU/vehicle.
+Raw codes remain the durable representation. The later format-00 work below
+adds a readable code and separately attributed general references; it does
+not establish the missing BYD dictionary.
+
+Other stock assets name `0x726 → 0x72E` (tailgate scenarios), `0x747 → 0x74F`
+(body scenarios), `0x770 → 0x778` and `0x771 → 0x779` (seat lighting scenarios).
+These are static leads, not an authoritative Z9GT ECU topology or tested DTC
+coverage. No address sweep was made. Engine, BMS, inverter, ABS/ESP, SRS, ADAS
+DTC reads and freeze-frame/extended records remain unproved.
+
+### Rejected shortcuts and engineering-menu contract
+
+- `BYDAutoDtcDevice` dev1045 `sendFaultCodeData()` **writes** a fault-code buffer;
+  it is not a DTC getter. It was not called.
+- `diagmgrsrv.getDiagingId()` returned `-1`. Firmware disassembly has a
+  calling-UID gate (`uid >= 1002`) returning `-1` on denied reads, so this
+  value does not establish that diagnostics are idle. No manager start/end
+  or UID bypass was attempted. Use the verified OEM EOL route above.
+- Separate data-quality states from vehicle states: “not polled”, “no reply”,
+  “access denied”, “unsupported”, “stale”, “complete response, zero matches”.
+  Only the last one permits “no matching DTC in this ECU”.
+- Every DTC screen needs ECU scope, request mask, snapshot time, response
+  completeness, raw code/status and description provenance. Store status bits
+  independently; saved, pending, current and warning-requested can overlap.
+- Overview should separate **current failure**, **stored records**, **instrument
+  warnings** and **unread ECUs**. No all-green vehicle silhouette after one
+  successful body-ECU query. Links in the first board are logical associations,
+  not claimed physical CAN wiring.
+- Board feedback, 2026-10-18: the owner rejected the first web-dashboard
+  layout. The next draft is a single head-unit screen in the Luminofor palette:
+  large functional schematic, values at nodes, compact ECU/DTC panel, top
+  subsystem tabs; distinct battery, drive, thermal, chassis and DTC views.
+  This draft is now implemented as a native Android window (below). The new
+  product APK has not been installed on the car.
+- Implemented navigation: overview; HV battery/charging; drive/engine; thermal;
+  chassis; body/cabin; DTC/alerts; data sources. Present only qualified signals;
+  no fabricated cell heatmap (we have min/max, not every cell), actuator state,
+  coolant readings or ECU-wide coverage. Existing telemetry uses its own
+  staleness and energy-format contract.
+
+### Native diagnostic window and packaged reader (2026-10-18)
+
+`Сервис → Диагностика автомобиля` opens `VehicleDiagnosticsWindow` as a native
+Compose dialog with an Android Canvas schematic. Closing returns to Service.
+Eight tabs change the diagram; selecting a node changes its readings panel.
+There is no WebView or production fixture data. `DiagnosticRenderer` and the
+Luminofor board share `diagnostics.json`; `DiagnosticBoardContractTest` holds
+the asset to the board. Debug-only fixtures show a frozen DTC capture and
+illustrative telemetry values; they are not a live measurement.
+
+`VehicleWatcher.DIAGNOSTICS` claims the existing `VehicleSession` hub while the
+window is started. It does not duplicate those 20 scalar reads. Their figures
+expire after the existing 2 s / 25 s horizons; dropped snapshots do not renew
+them. Pack power and voltage text use `EnergyReadouts`. A separate window-owned batch reads 43 additional scalars and fifteen warning
+lamps on opening, every five seconds, or «Обновить показания». These expire
+after 15 s of monotonic time, including during a long DTC read. Their age
+means age of the getter response, not age of the underlying CAN packet.
+Missing/invalid lamp values stay unknown; no temperature or cell-delta alarm
+threshold has been invented.
+
+«Читать DTC» runs `VehicleDiagnostics` through the app's passive local ADB
+identity. Profile 170, P=1 and speed=0 are required before each fixed request.
+One serialized window worker, a non-overwriting DTC request queue and a
+shell file lock prevent competing app reads. Extra polling pauses during DTC;
+manual requests queued during a scalar batch are not lost. The helper checks the manager baseline and observes RX for two seconds
+before sending; this is not a universal lock on all OEM diagnostic clients.
+No session entry, unlock, clear, actuator operation or address scan is offered.
+Closing/backgrounding releases the telemetry claim, cancels the UI job and
+closes its shell; an already launched helper is bounded by an 18 s watchdog.
+Snapshots live in memory and retain their original time across failed retries.
+
+`DtcProtocol` accepts only the qualified single-frame envelope, owner 10,
+the selected response ID 0x728 or 0x76A, successful transport result, UDS 0x59 with matching
+subfunction and complete helper cleanup. It checks the count against the list,
+status support mask and duplicate records; exact callback duplicates and
+unused buffer tails are handled. Timeout, negative response, unsupported
+multipart response or count disagreement never publish an empty success.
+Raw 24-bit codes, the status byte, independent current/pending/confirmed/lamp
+bits, failed-since-clear, support mask, format and snapshot time remain visible.
+Only a complete explicit zero response permits zero matches, scoped to this ECU.
+
+The **initial one-target packaged helper** was read-tested on the car after the promotion:
+SHA-256 `06b50e79f2eb93ed6d0b2cde29656f17af2807c3ce4fd96bb8419c70b67d0db0`.
+Both requests returned transport result 0 and unregister completion; the same
+eight codes/status 0x28 were returned. Profile 170 and the manager baseline
+were unchanged, `autoservice` PID 135 and SpotInspection PID 3622 remained.
+The temporary jar was removed; the lock inode is retained so future readers
+share the same lock. This verifies the helper, not the new APK's complete
+local-ADB/UI path on the car.
+
+Further corpus evidence: `res/raw/low_power_script.json` names request 0x720
+as `LA_BCM` / 左车身域控制器 (left body domain controller). Its only DTC entry
+is `0x123456`, described as a radar fault; it supplies no descriptions for the
+eight observed codes and is not accepted as their dictionary. `ScriptDao`
+resolves downloaded dictionaries under the app's external `files/Scripts`,
+falling back to internal `files/Scripts`. The external directory was empty
+in this session. No account, script download or diagnostic session was started.
+
+Validation: Android unit suite and debug assembly passed (2,226 tests,
+including 22 diagnostic checks). Native emulator screenshots of overview,
+battery, no data, retained DTC after failure, and Service were compared with
+Luminofor: 0.81–1.35% pixels above the 24-level threshold, mean 0.58–0.89/255;
+remaining differences are text rasterisation. The actual ServicePanel row,
+subsystem switch, unsupported-profile rejection and return were exercised.
+APK installation and full window acceptance on the vehicle remain pending.
+
+Evidence stays under `captures/diagnostics-menu-20261018/`: `dtc-count-live.txt`,
+`dtc-list-live.txt`, `reports/dtc-live-decoded.json`, `reports/dtc-run-plan.txt`,
+`warnings-live.txt`, `live-summary.json`, `reports/diagmgrsrv.asm`,
+`product-count-live.txt`, `product-list-live.txt`, `product-postflight.txt`,
+`reports/product-read-plan.json`, `reports/product-live-decoded.json`,
+native screenshots and `apk/denza-apps.apk`, the original
+probe source/dex and hashes. The small decoded snapshot is also retained in
+[`research/vehicle-diagnostics/dtc-20261018.json`](../research/vehicle-diagnostics/dtc-20261018.json).
+Offline replay is retained in `research/vehicle-diagnostics/decode_snapshot.py`;
+`python3 -m unittest discover -s research/vehicle-diagnostics` passes 9 checks
+covering the real snapshot, duplicate deliveries, tail bytes, empty/truncated/
+foreign/negative responses, explicit zero and count disagreement. The decoder
+intentionally rejects multi-frame input until a real trace qualifies assembly.
+The probe compiled with Java 8 bytecode and Android d8 before both live reads.
+
+### Additional diagnostic readings and LBMS (2026-10-18)
+
+The 43-entry catalogue is `DiagnosticExtra` in `DiagnosticExtras.kt`. A single
+qualified GET batch completed in 0.420 s at 10:19:36 UTC, profile 170/CANFD,
+P=1, speed=0. All 43 returned values. No setter, sync or initializer was called.
+These extend the existing shared telemetry; they are not added to the normal
+instrument poller. The worker exists only while the diagnostic window is started.
+
+| Area | Added readings | This parked snapshot |
+| --- | --- | --- |
+| HV battery | SOC float percent, SoH estimate, min/max pack temperature, cell count, insulation raw | 61%, 99%, 13/14 °C, 166, 14128 raw |
+| Power | 12 V supply, front/rear bus voltage, charge-current SDK value, fuel percent | 13.8 V, 556/555 V, −5 A, 99% |
+| Wheels LF/RF/LR/RR | Four pressures and four tyre temperatures | 2.77/2.65/2.72/2.67 bar; 23/13/20/12 °C |
+| Four doors | Position, lock, window opening percent, initialization, thermal protection | All positions 2 closed, locks 1 unlocked, windows 0%, initialized 1, protection 0 |
+| Climate | Cabin/outside temperature, inside/outside PM2.5 | 19/19 °C; 17/30 µg/m³ |
+
+The small retained `research/vehicle-diagnostics/readings-20261018.json` holds
+raw words, exact device/FID/getter and decoded values; unit tests replay all
+43. SOC is already a float percent. Window 0 is closed and protection 0 is
+inactive; door/lock/init zero is unknown. The shared native no-data words,
+invalid floats and out-of-range values are rejected. Missing or stale values
+remain unknown. SoH does not certify health; insulation units and charge-current
+sign remain unqualified. No fault threshold is inferred from these samples.
+See [window-control-findings.md](window-control-findings.md) for the window
+getter and initialization semantics. No window or door control is exposed here.
+
+`SpotInspection/res/raw/low_power_script.json` Attach names LBMS as
+低压电池管理系统 (low-voltage battery management), request 1890 / `0x762`,
+response 1898 / `0x76A`. `LbmsDtcReadProbe.java` qualified this exact address:
+count `590109000000`, list `590209`. Thus zero matching codes in this ECU,
+format `00`, supported status mask **09**: current and confirmed only. Pending,
+lamp request and failed-since-clear are unsupported, not false. The product
+keeps a distinct timestamped snapshot per ECU; selecting LBMS or 12 V changes
+the read target. Every response is checked against that target, so a 728 reply
+cannot populate 76A. The ECU name comes from the stock script; no identity DID
+or full ECU inventory was read.
+
+The two-target **packaged** `VehicleDtcProxyMain` was then separately read-tested
+at 10:29 UTC, SHA-256
+`33ce6a7242ad8f62b677af3f91f5e8491076e2cdaca63e13daabdb55038ecf0c`.
+Only the enum arguments `body` and `lbms`, each with `count` or `list`, are
+accepted. One pair per ECU returned 8×status28 for 728 and explicit zero/mask09
+for 76A. All four operations returned transport result 0 and unregistered.
+The manager baseline and autoservice PID135 / SpotInspection PID3622 remained;
+the temporary jar was removed. There were no sessions, unlocks or clears.
+
+Evidence: ignored `captures/diagnostics-fill-20261018/` contains scalar raw
+responses, the read plan, standalone LBMS proof, exact APK/helper, both product
+count/list pairs and postflight, native screenshots and board comparisons.
+Small durable results are under `research/vehicle-diagnostics/`. New debug
+boards `main-diagnostics-chassis`, `-body`, `-lbms`, `-battery-data` use the
+captured extra readings, with absent shared telemetry left unknown. They are
+explicit frozen scenes, never a production fallback. Wheel/door diagrams place
+the vehicle's front at the top.
+
+Validation: the standard full `:denza-apps:testDebugUnitTest
+:denza-apps:assembleDebug` passed without exclusions: **2,242 tests**, including
+32 diagnostic tests, zero failures/errors. The temporary unrelated HUD test
+compile blocker was resolved in the concurrent HUD change before this final run.
+Seven native scenes matched their boards within text rasterisation (0.93–1.36%
+above the 24-level threshold, mean 0.58–0.85/255). Actual Service → diagnostics →
+DTC → LBMS target selection, unsupported-profile rejection and return passed
+on the emulator. Full window acceptance on the car is still pending.
+Offline decoder checks include LBMS (10 tests).
+
+Next acceptance: vehicle-specific ECU addresses and OEM dictionaries, then
+individual bounded read validation for each ECU. Snapshot/extended-data
+subfunctions need separate support checks and layouts before implementation.
+
+### EMS, HV BMS, drives and ABS research (2026-10-18)
+
+Three independent corpus investigations covered combustion EMS, traction
+BMS/VCU/motors and ABS/ESP/IPB. They inspected installed SpotInspection,
+OTAUpdate2, ProductLineOTA, the exact framework and native cluster symbols.
+The bundled encrypted SpotInspection `response.json` was decoded offline
+with the shipped algorithm: 21 modules, 329 cases, 750 AutoAPI steps, without
+an EMS/BMS/ABS address table or applicable DTC dictionary. `UDS_CFG.json`
+describes the IVI's own DoIP endpoints, not the vehicle's CAN ECU inventory.
+This is a bounded negative finding about the inspected corpus, not proof
+that these ECUs cannot be read.
+
+| Block | Proven DTC route | What diagnostics can show now |
+| --- | --- | --- |
+| Combustion EMS | Not established | Existing running/RPM/generation/fuel, engine lamp, additional warning availability |
+| Traction HV BMS | Not established | Existing SOC/SoH/voltage/temperatures/cell extrema, warning availability |
+| Front/rear traction drives and VCU | Not established | Existing motor/inverter temperatures and bus voltage; general power warning availability |
+| ABS / ESP | Not established | ABS/ESP/brake lamps and their flashing states; tyre readings separately |
+| Low-voltage LBMS | `762 → 76A`, explicit zero/mask09 | Its own timestamped result, never substituted for traction BMS |
+| Body domain | `720 → 728`, eight stored records/maskFF | Raw and readable code, subtype, status bits and description provenance |
+
+OTA's `EcuListInfo` includes `ecuId`, `ecuDiaId`, `logicAddress`, DIDs and
+versions. `CanDiagnostic.java:240–257` splits `ecuDiaId` into hexadecimal
+request/response addresses. `VehicleOTAUtil.java:841–858` stores the list
+under key `ecuDiagnosisResultListInfo` in `share_data_prefs`. The initial direct
+shell read attempts all returned **Permission denied**:
+
+- `/data/user/0/com.byd.otaupdate2/shared_prefs/share_data_prefs.xml`;
+- `/data/ota_package/ota_ghy/result/upgradeInfo.json`;
+- `/data/ota_package/needCheckEcuList.json`;
+- `/collect2/VehicleVersion2`;
+- `/collect2/diagnosticsrv/ecu_config.json` (may be CAN logging configuration,
+  not necessarily UDS topology).
+
+The later separately authorized exports below supersede the unknown-content
+part of this initial finding: `ECUVersion.json` and the version files were
+recovered, but the full-map key was absent from both OTA preference files and
+the inspected strategy/upgrade files were missing. Direct shell denial did not
+establish whether a file existed or held the needed data.
+
+No OTA diagnostic workflow was launched: it can send `10 01`. No OEM backend
+download, session, unlock, address sweep or new ECU request was performed.
+The existing logcat buffers also contained no messages under the exact
+`OTA_GHY_UPGRADE_CanDiagnostic` / `OTA_GHY_UPGRADE_VehicleOTAUtil` tags
+(nor the unprefixed variants). Logging was not enabled or altered; this does
+not establish whether older inventories exist outside the current log buffers.
+Generic BYD scan maps have conflicting BMS/VCU/motor pairs across variants;
+none was promoted into the profile170 allowlist. The next missing artifact is
+the vehicle-specific ECU inventory plus the matching EOL `Attach.dtcList` /
+ECU software dictionary, obtained through an authorized export/read path.
+
+At **10:52:28 UTC**, one bounded scalar GET sweep on profile170/CANFD, P=1,
+speed=0 reconfirmed engine lamp1 and six safety lamps2. These six additional
+dev1007/tx5 fields all returned **0, invalid/unavailable**:
+
+| Indicator | FID | Meaning of this capture |
+| --- | --- | --- |
+| Coolant overtemperature | `2870002C` | Unknown, not off |
+| Low oil pressure | `29600008` | Unknown, not off |
+| GPF | `2870001A` | Unknown; no inference about regeneration |
+| HV battery heat warning | `2A600032` | Unknown, not off |
+| HV battery fault warning | `2B000008` | Unknown, not off |
+| Power-system fault warning | `2A60001A` | Unknown, not off |
+
+`autoservice` stayed PID135. Native cluster identifies ESP OFF as `27500026`
+(not guessed `27500038`); its one dev1007/tx5 GET returned **−10011** and is
+excluded from product polling. Coolant temperature candidates lack a proven
+°C scale; existing engine RPM keeps its `1FFF` invalid sentinel. No temperature,
+oil-pressure measurement or ECU fault cause is inferred from an indicator.
+The window now polls 15 known lamp getters, rejects 0/errors and preserves
+3–7 flashing modes. Tests replay the actual capture and all five blink values.
+
+### Vehicle-specific inventory and dictionary acquisition (2026-10-18)
+
+The owner chose to continue through the head unit, without a VDS/TIS account or
+external diagnostic adapter. Three further offline investigations separated
+actual saved objects from getters that initiate workflows. Reports and source
+SHA-256 manifests are in `captures/diagnostics-discovery-20261018/`:
+`ota-export.md`, `eol-dictionary.md`, `native-discovery.md`.
+
+**Two different artifacts are needed.** An ECU inventory identifies installed
+blocks, their software and diagnostic routes. A DTC dictionary maps a raw code
+within that ECU/software scope to its manufacturer description. One does not
+replace the other; profile170 alone does not establish software applicability.
+
+| Existing artifact to recover | Source-backed contents | Limit |
+| --- | --- | --- |
+| `/data/ota_package/ota_ghy/result/strategy.json` (OTAUpdate2) or `/data/ota_package/ota/result/strategy.json` (OTA controller) | `VehicleVersionInfo.strategy.sequence`: ECU IDs, transport-specific `ecuDiaId`, DIDs, software/hardware/config metadata | Both paths reported missing by the first exporter; an existing strategy could be stale or cover only an update subset |
+| OTA controller / OTAUpdate2 `share_data_prefs` key `ecuDiagnosisResultListInfo` | Full `EcuListInfo` records, including `ecuDiaId` and `logicAddress` | Both preference files read in the second authorized export; key absent from both. Other keys were discarded in memory |
+| `/data/ota_package/ECUVersion.json` | `ecuInfo[]`: ECU ID, software code/version, hardware version, configuration code/version | Inventory only; no diagnostic request/reply addresses |
+| `/data/ota_package/needCheckEcuList.json` | ECU IDs/software codes and check metadata | Inventory only; no diagnostic addresses |
+| SpotInspection `Scripts/<station>/<code>-<version>-script.txt`, metadata sibling `<code>-<version>.json` | Plaintext `data.attach[]`: `ecuAbbrName`, `ecuName`, bus, CAN request/response IDs, frame size, `dtcList[{code,desc}]`, `dtcStatusList[{mask,status}]` | Potential exact routing + dictionary; a matching script and applicability evidence must actually be recovered |
+
+EOL's upstream command supplies the exact script code/version/station, URL and
+task token. Command 2 (download) is separate from command 4 (execute), but its
+validation immediately creates a persisted EOL task, acquires the inspection
+lock and schedules a timeout. It is **not** a read-only dictionary getter.
+`systemIds` in download metadata has IDs/priorities/function types, not addresses
+or descriptions. Metadata is saved before checksum/decryption succeeds. Stop or
+timeout can clear `Scripts`; an empty cache therefore does not prove the vehicle
+has no OEM dictionary. No OEM task or backend request was initiated.
+
+`research/vehicle-diagnostics/import_oem_eol.py` now imports already obtained
+plaintext plus metadata offline. It retains source hashes and ECU/script/station
+identity, rejects conflicting/ambiguous routing and invalid numbers, and omits
+VINs, tokens, security attachments and command steps. Every output remains
+`profile:null`, `applicability:unverified`, `eligibleForProductAllowlist:false`.
+It is a research extraction tool, not an automatic promotion into the app.
+
+**Cached SDK reads, live:** `OtaCachedVersionsProbe.java` called only the three
+public cached getters on dev1032, through the exact SDK buffer API. It did not
+call `query`, a setter, listener, OTA workflow or UDS service. The guard observed
+profile170, P=1, speed=0 and manager `r@-1_0&w@-1_0`.
+
+| SDK method | FID (signed decimal) | Actual response |
+| --- | --- | --- |
+| `getECUVersion()` | 157571 | Empty byte array |
+| `getECUSoftcode()` | 256763 | Empty byte array |
+| `getECUVersionAndSoftcode()` | -1728053165 | 11 bytes `4D43555F4F46464C494E45`, ASCII `MCU_OFFLINE` |
+
+These responses contain no inventory. The marker has no qualified vehicle-health
+interpretation; it does not establish that the car's MCU or every ECU is offline.
+`autoservice` PID135, BydLogTool PID4822 and the manager baseline were unchanged.
+The 8-second-watchdog helper exited normally and its staged dex was removed;
+raw results, before/after state and identities are under `ota-cache-probe/`.
+
+A subsequent separate `OtaFaultCacheProbe.java` called the SDK's nominal
+`getFaultCodeInfo()` cache getter exactly once (dev1032, FID831291,
+`OTA_CMD_ECU_GET_FAULTCODE`). It returned an **empty byte array**. No consumer
+establishing a vehicle-wide DTC layout was found, and empty cannot be interpreted
+as zero faults. **Correction from the later native analysis below:** the legacy
+fault GET is not registered in this HAL, and `getBuffer` suppresses its error.
+The normal SDK exit therefore does not establish a successful cache read.
+This helper also uses an 8-second watchdog and no query, setter,
+listener or workflow. Its staged dex was removed; P/speed, service PIDs, manager
+state and crash buffer were unchanged. Source/dex identities and the result are
+under `ota-fault-cache-probe/`; no new UDS request was sent. Native
+`FeatureMapper::getStringValue` is the generic cached buffer path, but requires a
+registered FID. The paired
+`sendECUIds(3, ids)` is a separate setter (FID809554); its ID layout and a
+vehicle-specific ID enum are unknown; the current HAL rejects this SET before
+transport. It was not called. The detailed scope
+and next native analysis locations are in `ota-faultcode-cache-scope.md`.
+
+**Export paths excluded by source inspection:**
+
+- OTA SDK is protected by a signature permission; `getDisplayData()` returns a
+  UI bundle, and LockSync drops diagnostic addresses. Restarting OTA to print
+  prefs also clears reboot/recovery state and starts workflows.
+- ADB backup rejects the inspected system-UID APKs without a backup agent.
+  `allowBackup=true` and targetSdk23 do not bypass the firmware's core-UID gate.
+  No backup or compatibility override was attempted.
+- `HttpCommon.getEcuConfig()` performs HTTP and writes its cache. Diagnosticsrv
+  socket data and the 213 descriptions in `diagnostic_config.json` are IVI
+  health errors, not the powertrain ECU inventory. Its 131 CAN logging routes
+  must not be used as UDS request/response pairs.
+- BydLogTool's common zip request unconditionally proceeds to upload and can
+  delete older archives. Its bug-report collector changes logging switches and
+  can remove source logs; the OTA selector deletes `/data/ota_package/cfg`.
+  None was invoked.
+
+BydLogTool's separate socket file export was **live-proven in one explicitly
+authorized, bounded session** after the offline investigation above.
+Its installed APK matches the OTA SHA-256
+`589ec5b9555a0b64354aeee9393eb18ab9ca984ef3f0c6148d7a110eacbd97d5`.
+The exported receiver starts three wildcard listeners, including a file protocol
+with download/list/delete. ADB forwarding does not isolate these listeners.
+The path filter checks a prefix rather than the canonical path. The fixed client
+used that behavior to read only eight named cache candidates through an owned ADB
+forward; it sent list/download only. The owner explicitly approved one session
+of at most 35 seconds. A device-side 30-second STOP watchdog was armed before
+START; host cleanup sent STOP after **0.561 seconds**. All temporary listeners
+were absent afterward, the forward and newly created empty staging directory
+were removed, the watchdog STOP was observed, and process/manager state and the
+crash buffer were unchanged. This first approval was consumed; the second session
+below received separate explicit permission. The stock server exposes write
+operations to the network while running and is not a product data source.
+
+Four files passed size/MD5 checks and were saved with mode0600 under
+`approved-export-1/files/`: `needCheckEcuList.json`, `ECUVersion.json`,
+`VehicleVersion2` (`V1.0`) and `SourceVehicleVersion2` (`V1.7.0`). The two strategy
+paths, `SourceVehicleVersion` and diagnosticsrv `ecu_config.json` were reported
+missing by the exporter. `needCheckEcuList` contained an empty `ecuList`; CDN
+hosts there are not a dictionary catalog. No backend requests were made.
+
+`ECUVersion.json` (39,890 bytes, SHA-256
+`8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53`)
+contains **225 distinct ECU IDs**, but the OTA writer retains all server candidates.
+26 records have only stock negative marker `7F22`; 23 have only default-zero
+values. Different supplier/variant candidates can have identical versions;
+physical equivalence is not established without their address/DID tuples. Neither
+the count nor a nonzero value alone proves installation or a fresh ECU reply.
+Cache modification time was not retained, so freshness is unknown.
+
+| Focused cached ECU identity (prefix `HTH-2021_`) | Software version | Software code |
+| --- | --- | --- |
+| `ECM_UAES_01200001` | `4.00.10` | `32440011E004000000` |
+| `BMS_BYD_03300001` | `3.48.07` | `4A520011E00D00047B` |
+| `FMCU_BYD_00100001` | `4.03.12` | `48370011E075000000` |
+| `SMCU_BYD_00200001` | `4.00.06` | `48370011E086001100` |
+| `SMCU3_BYD_00100001` | `4.00.06` | `48370011E088001100` |
+| `ISG_BYD_00100001` | `4.03.13` | `48370011E0EA000000` |
+| `VCU_BYD_00100001` / `VCU_UAES_00100001` | `4.08.22` | `32440011E07E007841` |
+| `ESP_BOSCH_00100001` / `IPB_BOSCH_00100001` / `BSC_BYD_00100001` | `4.00.08` | `32330011DF0B000101` |
+
+These are cached identities, not an address map or decoded DTCs. In particular,
+the physical positions of SMCU/SMCU3 are not assigned from names alone. The compact
+sanitized projection is `research/vehicle-diagnostics/ecu-inventory-cache-20261018.json`.
+The full-map candidate was controller prefs
+`/data/user/0/com.byd.otaupdate/shared_prefs/share_data_prefs.xml`, specifically
+`ecuDiagnosisResultListInfo`: the writer saves full `EcuListInfo` after a
+successful check-version response, whereas `ECUVersion.json` drops addresses.
+The second separately authorized session tested this candidate and three
+related sources with `read_ota_inventory_export.py`. Its frozen SHA-256 was
+`dff6abc828923873d00fe360e5081c092be2d3b7b527b151985f2c03f0f4c1c2`.
+Raw preferences stayed in memory; only an explicit ECU/script-field projection
+could be saved. The client had no arbitrary-path, upload, delete, ADB or ECU API.
+
+| Second export source | Verified result |
+| --- | --- |
+| `/data/user/0/com.byd.otaupdate/shared_prefs/share_data_prefs.xml` | Read 705 bytes; `ecuDiagnosisResultListInfo` absent |
+| `/data/user/0/com.byd.otaupdate2/shared_prefs/share_data_prefs.xml` | Read 510 bytes; `ecuDiagnosisResultListInfo` absent |
+| `/data/ota_package/ota/result/upgradeInfo.json` | Missing according to exact parent listing |
+| `/data/user_de/0/com.byd.spotinspection/shared_prefs/com.byd.spotinspection.xml` | Read 65 bytes; `RUNNING_TASK` absent |
+
+The exporter completed normally, with zero projections saved; absent keys mean
+missing evidence, not zero installed ECUs or zero DTCs. The source writer saves
+the full-map preference later than `ECUVersion.json`, and `upgradeInfo.json`
+requires a legal update strategy and successful download preparation. The
+version-only cache therefore does not imply that either full-map cache exists.
+No EOL script identifier was recovered from `RUNNING_TASK`.
+
+Host STOP completed at **0.413 seconds** after watchdog arming. The device-side
+30-second STOP was observed; all six default/custom export ports were absent,
+the owned forward and new empty directory were removed, and process/manager
+state and crash buffer matched baseline. `approved-export-2/session.json` and
+`files/report.json` retain cleanup proof, source sizes and SHA-256 without the
+discarded preference contents. Both single-session approvals are now consumed.
+The complete offline research test suite passed **60 tests**. Product DTC
+coverage remains BODY and low-voltage LBMS only.
+
+**Remaining source-backed paths, not recovered data:** the OTA controller logs
+the server's `getEcuList` response and shorter ECU-id/address/DID lines under
+`OTA_GCY_UPGRADE_HttpApiService`, `DiagnosePresenter` and `CanDiagnostic`.
+The 5,000-line passive logcat window filtered to these tags and the corresponding
+GHY/unprefixed variants was empty; `/data/logs` was not readable by shell.
+No logging switch or collector was activated. A whole JSON response is emitted
+as one log call and may be truncated; individual ECU/route lines are a stronger
+historical correlation source. On final diagnostic failure, the controller can
+save per-candidate transcripts under `/data/ota_package/diag/diagnose/`; their
+existence and contents on this car are unverified. See the passive capture in
+`passive-route-logs.json` and source analysis in the discovery reports.
+
+The exact origin of the full candidate map is the stock controller's metadata
+POST `ota/otaService/getEcuList`. Its response model has route/DID fields but no
+DTC dictionary. The request uses the stored vehicle version and upgrade UUID,
+cached authorization and the head unit's TLS client identity. This does not
+require a VDS/TIS account, but it is not an exposed local cache getter.
+`UpdateOTAModel.loadEcuListInfo` is not safe to reuse as an isolated request:
+shared retry/authentication handlers can log out, register/login, update fault
+state and retry; the base observer can clear OTA caches and send reports on
+specific API errors. The presenter additionally starts diagnosis on success.
+Transport initialization can write a credential backup. No such workflow,
+credential export or backend request was run. The precise separation needed
+for one bounded metadata request is documented in
+`captures/diagnostics-discovery-20261018/ota-get-ecu-list-isolation.md`;
+a callable isolated implementation and its identity access are not established.
+
+Route interpretation is also transport-specific: for `can`/`canfd`,
+`ecuDiaId` represents hexadecimal request/response IDs; for `doip`/`ethernet`,
+it is target/client unless `logicAddress` overrides it. `ecuDId` is the
+software-version/software-code DID pair. The stock CAN decoder's extra leading
+zero means already-padded IDs can be misparsed; a future importer must validate
+canonical input instead of copying that quirk. The source review is retained in
+`ota-route-semantics.md`. None of these schema findings qualifies a new address
+for production DTC reads.
+
+The bounded native follow-up (`native-next-local-route/report.md`) found no
+additional matching ECM/BMS/drive/ABS address table. It confirmed the existing
+213-entry IVI dictionary in the OTA's `diagnostic_config.json`; these descriptions
+cover the head unit and its peripherals/software and must not be attached to
+powertrain codes. `/data/ota_package/ota/ecuTmpInfo.json` appeared in static native
+string initialization only; its reader/writer, schema and lifecycle were not
+established. A path string alone did not justify another export session.
+
+**Legacy fault API ruled out in this HAL.** The follow-up interpreted the exact
+`auto.default.so` SHA `5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7`
+offline, with a bounded Python ARM64 interpreter and no native firmware execution.
+`AutoID` still stores fault GET `0xCAF3B` and SET `0xC5A52`, but none of the three
+complete registration tables registers them: CAN 2,775 calls, Toyota 2,287,
+CAN-FD 11,604. Five independent park/OTA control registrations were recovered.
+The full `setString` handler returns **−10011 before encoding or writing** for
+this SET in all three variants. The generic codec merely copies `ids` unchanged;
+it does not reveal an ECU selector table.
+
+For GET, the mapper returns −10011 on a missing entry and leaves output
+pointer/length untouched. `BYDAutoService::getBuffer` calls the HAL at `0x2d918`
+then sets its own return to 0 at `0x2d928`, discarding the HAL error. This explains
+why the earlier empty SDK response cannot establish even a successful cache
+lookup. The exact intermediate JNI values were not recorded live, so the
+error-suppression explanation remains a source-backed inference. The stronger
+static fact is that **neither legacy fault FID has a route in these tables**.
+Research script `research/vehicle-diagnostics/trace_fault_native.py` checks the
+binary hash, full registration counts, control entries, setter return and codec
+boundaries. Source/disassembly/JSON evidence is in `fault-protocol-followup/`.
+
+**MCU requests carry their routes in the payload.** Independent extraction of
+the owner's MCU application matched the existing September image exactly:
+1,933,312 bytes, base `0x40000`, SHA
+`6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02`.
+Its declared byte-sum checksum also matches. Correct extended RH850 decoding
+(`V850:LE:32:v850e3v5`) allowed tracing past indirect-call instructions that the
+older default decoder could not handle. These are offline OTA findings; the
+installed MCU image was not read or compared in this pass.
+
+- Version/code input handler `0x151F68` takes big-endian request ID from bytes 0–1,
+  response ID from 2–3 and DID from 4–5. It has a special case for this MCU's own
+  `741/749` and F194/F195; the general branch starts with `10 01` session control.
+  It is not a passive enumeration getter. Completion publishes FID `99000053`.
+- Generic EOL TX `AA00010A` dispatches through `0x16C840` to `0x15147E`, with the
+  normal send path at `0x150888`. Request ID is bytes 1–2, payload starts at 4.
+  The request supplies the address; no named-ECU lookup is established here.
+- The separate VHDS path `AA000167 → 0x16D85A → 0x14C468` likewise takes the
+  request ID from bytes 1–2. Its receiver at `0x14CBC6` matches request+8 before
+  calling the ISO-TP parser `0x14CC0C`; that parser is not an address catalog.
+- Functional ID `7DF` is explicitly treated as send-without-wait: helper
+  `0x150528` returns 0, and the sender clears the active flag without arming a
+  reply timeout. Receiver `0x1528C8` requires the active flag and matches exactly
+  **saved request ID +8**, not the OBD responder range. This path therefore
+  does not supply collect-all functional OBD discovery. No `7DF` request was sent.
+
+Standard OBD Mode 03 could in principle provide emissions-related codes without
+an OEM description dictionary; its CAN response also has a code-count byte
+([ELM327 datasheet, p35](https://www.elmelectronics.com/wp-content/uploads/2017/01/ELM327DS.pdf)).
+That protocol fact does not prove reachability through the head unit's broker,
+and a standard-looking physical address is not an established ECM identity.
+The generic transport limitation above prevents treating a functional scan as
+the missing map. Existing BODY/LBMS reads are unaffected.
+
+The MCU's own transport triple `7DF/741/749`, 14-service UDS table and 13-DID
+table are preserved in `ecu-map-followup/mcu-structural-tables.json`; they are
+self-diagnostics/update configuration, not the requested engine/BMS/ABS map.
+Clear-text target identities/software codes and the known BODY/LBMS address
+anchors did not identify such a map. This bounded result does not rule out
+every encoded table in the image. The extended disassembly and route evidence
+are retained in `ecu-map-followup/`.
+`research/vehicle-diagnostics/trace_mcu_diagnostics.py` independently repeated
+21 bounded ranges / 1,262 instructions plus three FID dispatch and three output
+descriptor checks. The HAL interpreter repeat and all 73 host research/corpus
+tests passed. No product code or car installation changed in this follow-up.
+
+**Isolated metadata HTTP still has identity preconditions.** The deeper
+`getEcuList` review confirmed OTA SafeKey function 10102, certificate selector 11
+and private-key selector 12. Both native getters call `chipIsReady`, which can
+wake the chip, initialize it and conditionally enter PIN change/recovery.
+Avoiding Java's credential backup does not remove these lower-level effects.
+The existing auth token/upgrade UUID are app-private; `LoginManager`'s memory
+getter is not IPC and gives a new process no access to the running OTA process's
+identity. No mutation-free way to obtain all inputs for a separate request was
+established. No credential getter, recovery, backend request or new export
+session was run. `ecu-http-followup/contract.md` and its 31-source hash manifest
+retain the exact contract and unresolved gates.
+
+Observation of an independently initiated stock check can supply short
+ECU/route/DID logs. **Correction from the later scope audit:** the stock button
+can automatically download and schedule forced installation; it is not a
+diagnosis-only trigger. Do not start it merely to supply this observer with
+data. **Correction from the later capture below:** app-level
+logging is enabled in source, but global `log.tag=M` suppresses these messages
+on the car; individual tags need a bounded enable/restore window. The plan is
+`ecu-map-followup/passive-stock-observation.md`: correlate explicit identities
+and response records, reject truncated/conflicting data and interleaved worker
+threads, and retain the distinction between server candidates and responders.
+A same-PID association is insufficient because the stock diagnostic pool has
+three threads. The later saved HTTP prefix yielded partial candidate routes,
+but none for the requested powertrain/ABS targets. New target DTC coverage and
+factory descriptions remain unqualified; the diagnostic window must continue
+to show those blocks as unread.
+
+### Stock response prefix and alternate paths (2026-10-18)
+
+A separate owner-authorized stock OTA check had already been captured in
+`captures/ota-status-20261018/`; see [OTA findings](ota-update-findings.md).
+This follow-up only reads its saved evidence. At14:38:38, `getEcuList` returned
+status100 and a nonempty list. Android truncated the single log entry during
+the ninth object. `extract_ota_ecu_prefix.py` recovers only the eight complete
+objects with valid delimiters; it never repairs the tail or merges candidates
+sharing an address. The sanitized projection is
+`research/vehicle-diagnostics/ota-ecu-prefix-20261018.json`, with source SHA,
+line33, timestamp/PID/TID and raw routing/DID fields. It remains candidate-only,
+profile-unassigned, and ineligible for automatic product promotion.
+
+| Candidate suffix after `HTH-2021_` | Transport | Exact address pair | Version/code DIDs |
+| --- | --- | --- | --- |
+| `Media_BYD_00200001` | CAN-FD | `741/749` | `F195/F194` |
+| `ASSY_BYD_00100001` | CAN-FD | `5E7/5EF` | `F295/F294` |
+| `F_ZCU_BYD_00100001` | CAN-FD | `722/72A` | `F195/F194` |
+| `CDC_SOC_BYD_00100001` | Ethernet | `010/001`, logical target0010 | `F195/F194` |
+| `CDC_BYD_00100001` | CAN-FD | `720/728` | `F195/F194` |
+| `CDC_BYD_00200001` | CAN-FD | `720/728` | `C295/C294` |
+| `R_ZCU_BYD_00100001` | CAN-FD | `747/74F` | `F195/F194` |
+| `R_ZCU_BYD_00200001` | CAN-FD | `720/728` | `C495/C494` |
+
+`ecuChannel` is preserved as server metadata, not assigned a physical CAN bus.
+An Ethernet pair must not be interpreted as CAN IDs. These are server
+candidates, not eight proven installed modules. The repeated `720/728` with
+different DID namespaces reinforces why the existing product reports its DTC
+source as **ECU0x728** rather than asserting an exact CDC/ZCU identity. None of
+the complete entries is ECM, traction BMS, a drive controller, or ABS/ESP.
+The partial ninth row is deliberately excluded.
+
+The saved cycle ended with `versionSync104` and `checkVersion111`, not a
+successful final strategy response. Source confirms `getEcuList.onSuccess`
+passes its list to diagnosis in memory; the full preference map is written
+only by `doCheckVersionSuccessData`. Therefore a successful list fetch alone
+does not imply a new full-map cache. The error restore routine does not itself
+erase an already existing `ecuDiagnosisResultListInfo` preference; that must
+not be conflated with the separate delete-all-cache routine.
+
+Failure transcripts can survive111 under
+`/data/ota_package/diag/diagnose/<ecuId>.txt`, outside the cleared OTA directory.
+They are written only for a nonempty final failed attempt with sufficient
+storage, not successful candidates; successful frame text stays in memory.
+A new check removes the previous diagnostic directory. One direct metadata-only
+ADB `ls -ld` of the three fixed directory paths returned **Permission denied**
+for each, without starting a check or changing the car. This neither proves
+existence nor justifies another private-file export as a complete-map solution.
+
+Three additional local paths were narrowed with exact source/binary evidence:
+
+- **DiDiag:** transaction5 reaches `diagmgrsrv:0xC820`, a no-op that ignores
+  diagnostic data and returns0 for UID<1002,10 otherwise. Earlier interface-only
+  wording that it transmits data is corrected in `native-discovery.md`.
+  `getDiagingId` and `DiagServArbStrategy` describe task arbitration. The separate
+  modern UDS SDK has actual DTC/snapshot reads, but requires a target supplied by
+  the caller; its client handle is not a discovered ECU. Proof:
+  `didiag-map-next/README.md` and six verified Binder/vtable mappings.
+- **Cloud:** MCU message532's recovered39 selectors/71 records/42 CAN IDs are
+  status-bit checks after remote controls, not diagnostic routes. Separate
+  `cloudctrlserv` command7002 carries up to two request/reply pairs and command
+  payloads supplied by an incoming job; its worker sends dev1033/FID`AA00010A`.
+  This is an executor, not a local inventory getter. No job was submitted.
+  Proof: `cloud-map-next/mcu-selector-report.md` and `cloudctrl-report.md`.
+- **EOL:** all40 JSON assets match the inspected APK. Its built-in low-power
+  scenario has fixed code/version/station, but no requested subsystem map.
+  The lone `0x123456` radar entry is not a qualified DTC definition. The40-method
+  MQTT interface exposes no saved-task/catalog getter. Exact diagnostic script
+  selection still requires upstream task metadata; no such task was invoked.
+  Proof: `eol-map-next/report.md`.
+
+No new DTC address was added to the product, and no ECU command, stock check,
+BydLog session, credential getter or OEM request was initiated in this follow-up.
+The offline prefix extractor, short-event parser and bounded stream filter are
+in `research/vehicle-diagnostics/`. The parser keeps index/item/reset/route
+anchors and PID/TID, preserves unresolved cross-thread associations, and breaks
+correlation on malformed records, capture gaps or process changes. It never
+turns initial item metadata into a positive ECU response. The filter retains
+only accepted events, within 1024-byte lines / 4 MiB input / 20000 events, and
+marks dropped structural data rather than silently joining across it.
+The saved progress log has 43 candidate-index contexts but **zero ECU-identity
+anchors and zero route lines**; it cannot fill the missing part of the HTTP
+response. The whole 102-test host research suite passed, including malformed
+JSON, transport separation, cross-thread ambiguity and privacy/gap handling.
+An independent review reproduced the eight-object projection byte-for-byte.
+
+The later bounded observer implementation and emulator acceptance are recorded
+below. It has not collected a new cycle on the vehicle. This collection covers
+GCY CAN routes, not Ethernet/DoIP or manufacturer DTC descriptions.
+
+### Bounded observation and isolated metadata (2026-10-18)
+
+**The stock Check/Update button is unsuitable for a diagnosis-only run.** In
+the matched GCY source, the Settings callback returns false for download
+confirmation (`CarSettingBroadcastPresenter:80–84`); a successful strategy can
+start package downloading directly (`CheckVersionDownloadPresenter:1369–1379`).
+All ten implementations across GCY/GHY return false. The earlier response111
+only describes that completed cycle; it does not constrain a future response.
+
+After download, the forced-strategy branch runs before the ordinary mode switch
+(`UpdateOTAPresenter:677–680`). `VehicleOTAUtil:1155–1171` schedules an alarm for
+`isForce="1"` when the packages are present, without checking night-auto or
+asking for a new confirmation. The alarm dispatches appointment mode2, whose
+countdown continues after30 seconds (`BaseVehicleOTAProcess:3628–3645`). Vehicle
+conditions may prevent installation, but this is not a guaranteed no-install
+boundary. No accessible fetch-and-diagnose-only stock entrypoint was found;
+the internal `startDiagnose` requires an already obtained ECU map. Full source
+anchors and hashes: `ota-route-observer-plan/stock-check-scope.md` and its two
+JSON evidence files. A bounded logger does not bound the OTA workflow.
+
+`tools/vehicle-diagnostics/OtaRouteObserver.java` and
+`tools/observe_ota_routes.py` implement only observation. The helper owns one
+FileLock, saves the two original log properties before changing them, streams
+only GCY DiagnosePresenter/CanDiagnostic, and restores/verifies both originals
+on its device deadline or nonce-matched stop. The host saves only sanitized
+events and checks terminal state plus property readback. Maximum observation
+is350 seconds, with a separate10-second emergency deadline; a hung native call,
+SIGKILL or crash can leave unresolved restoration and blocks a fresh helper
+session. Global logging, vehicle/OTA APIs and product APKs are untouched.
+
+On `emulator-5580`, a6-second normal run restored empty originals. A second run
+restored distinct `I`/`W` values after an explicit stop and excluded synthetic
+private-looking fields from every saved output. Killing both the host runner
+and its owned ADB client during an8-second run still produced device
+`STOPPED/deadline`, both property readbacks and an exited owned logcat. Global
+logging stayed unchanged; emulator originals were restored after testing.
+These are Android lifecycle/filtering checks, not vehicle or ECU acceptance.
+Evidence: `ota-route-observer-emulator-*`, with independent host-loss cleanup
+proof;18 Java lifecycle tests and16 host-runner tests also pass. The existing
+102-test offline research suite remains green. No stock check, new BydLog
+session, credential getter or ECU request was run for these checks.
+
+The separate metadata POST remains a possible route. Existing GCY backups are
+`/data/user/0/com.byd.otaupdate/files/dcrt.crt` and `files/dkey.key`; the cached
+token and UUID are in that package's `share_data_prefs.xml`. **Backups are
+first-write-only:** `SecurityKeyUtil:187–189` leaves an existing file unchanged,
+while the normal client uses newly returned chip data. Thus today's successful
+stock connection does not prove the backups are current, paired or usable.
+Reading existing bytes and using a fresh in-memory TLS client can avoid the
+chip getter's side effects. Missing/invalid identity, token or version must stop
+the operation. UUID is an exception: the stock getter uses an empty string when
+absent, as confirmed in the second-session follow-up below. There is no exported
+stock API for this isolated request. The second session proved that the two
+existing backup files form a valid RSA pair with a currently valid client
+certificate; it did not establish backend acceptance or equality to current chip
+material.
+
+The minimal request is one fixed `getEcuList` POST with existing version/UUID,
+proper TLS identity/trust and cached token. It must omit stock retry, login,
+registration, diagnosis, versionSync and checkVersion code. Any resulting list
+is server candidates only, not proof of installed variants or OEM DTC text.
+`ecu-http-followup/backup-only-feasibility.md` records28 source hashes and the
+remaining acquisition boundary. BydLogTool's file server binds all interfaces
+and exposes deletion; using a loopback client does not remove that exposure.
+The two completed cache-export approvals do not cover a new credential session.
+
+An isolated client is now implemented in
+`tools/vehicle-diagnostics/EcuMapMetadataProbe.java`, with the separate host
+orchestrator `run_ecu_map_metadata.py` beside it. It reads exactly the existing
+GCY cert/key/prefs and SourceVehicleVersion2 through the owned local export
+session, keeps them in head-unit memory, validates RSA pair/certificate/XML,
+and emits only `INPUTS_READY`. The host must stop the export, verify all six
+known ports closed and receive terminal watchdog acknowledgement before
+sending the nonce-bound `GO`. Only then can the client make one fixed-host
+TLS1.2/1.3 metadata POST. No vendor credential/OTA API, auth recovery, redirect,
+retry or ECU request is included. The strict complete-response projection
+retains ten routing fields, preserves CAN/ethernet semantics and remains
+ineligible for automatic product promotion. Unknown response fields and known
+token/UUID/version values are excluded from output.
+
+The first authorized attempt used production client source SHA
+`8aaebd2ec636e5220f4df892d78beb8947f27632a1c77e0dabdf4c81c25a844a`;
+the production dex is
+`53eb647d8c64f9801a800dae684c5eff7e50856c8d75db34585f6eb5231c1444`.
+Both JVM and Android emulator passed84 synthetic assertions. On Android, the
+actual client main also read four synthetic transfer responses, reached READY,
+and rejected stdin EOF as `go_wait/go_eof` before HTTPS. This used an owned
+emulator-only reverse and local fixture server, both cleaned up. Real files,
+credentials, BydLogTool and the OEM backend were not used. Evidence:
+`ecu-map-metadata-android-final.json`, the final production/test build manifests,
+and `ecu-http-followup/metadata-probe-preparation.md`.
+
+The orchestration tests cover early GO refusal, protocol/privacy failures,
+ownership and delayed START. A review found and fixed a late-start race: the
+watchdog now remains responsible for a pending START until its compensating
+STOP settles; it cannot retire and leave a later listener unowned. Ownership
+uses nonce, PID and process birth time. At30 seconds it begins stopping; this
+is **not a guaranteed35-second closure if Android hangs**. Unverified closure
+retains the lease and blocks GO; a changed process owner is not stopped. The
+client itself bounds inputs to10 seconds, GO wait to10 seconds, post-GO work
+to25 seconds and total lifetime to less than45 seconds.
+Final independent review and all19 host boundary tests passed. A read-only
+car preflight also passed: existing transport/UID/profile, exact installed GCY
+and BydLog APK identities, idle export lifecycle and closed known export ports.
+It did not stage the client, read credentials or send a backend request.
+`ecu-map-metadata-prepared-session.json` preserves the historical preparation
+snapshot, linked to the consumed approval in
+`ecu-map-metadata-authorization-1.json` and actual outcome below. It is not an
+unused authorization or an instruction to retry.
+
+The separately approved session ran once and stopped with
+`helper_output_invalid` **before GO and before any HTTPS request**. The host
+verified export closure, terminal watchdog, lease removal and unchanged stock
+APK identities; an independent read-only postcheck confirmed closed known
+ports, no helper and idle diagnostic ownership. No ECU map was obtained. The
+first rejected stdout line was deliberately not retained, so the exact progress
+through the four private inputs is unknown; this is not proof that no input was
+read. Evidence: `approved-ecu-map-metadata-1/session.json` and
+`independent-post-check.json`. This one-session approval is consumed.
+
+Same-car tests then isolated a reproducible firmware incompatibility without
+BydLog, private files or an OEM request. Invalid-argument launch emitted valid
+JSON, and all84 synthetic preparation assertions passed. A loopback-only
+server serving four synthetic inputs reproduced four extra lines before READY:
+`[com.mediatek.cta.CtaAdapter]:check permission begin!`. The matched OTA's
+`core-oj` source confirms an unconditional `System.out.println` in
+`CtaAdapter.isSendingPermitted` called by `Socket.connect`, including loopback.
+The same mechanism also applies to the later HTTPS socket. Source and synthetic
+evidence confirm this failure mechanism; the discarded original line prevents
+byte-for-byte attribution of the first session's refusal. The host parser also
+passed203 pipe-fragmentation cases, including197 guaranteed split reads.
+
+The revised Java client captures its protocol stream before silencing Java
+`System.out` and `System.err`, then emits only its existing three protocol
+messages through that captured stream. It does not relax the host parser or
+skip arbitrary lines. Native file-descriptor output is not suppressed by this
+Java boundary and would still cause a closed-gate refusal. The second session
+used production source SHA `f7d8cb4e334aab2d3ab14daf17cf67b9dad414e6c3d33501464704985b0fadde`;
+production dex SHA is
+`eb84ae8e0b93bec4bdf152e82c62d15ad25610b24225beca0264267a7e1d966c`.
+All86 synthetic assertions pass on JVM and the car, including stdout/stderr
+privacy canaries. On the car, the unchanged strict host parser now accepts
+READY from the full four-input loopback fixture, then accepts only the expected
+`go_wait/go_eof` error. No GO is possible in that fixture. It leaves no helper,
+staged dex or open listener; all19 host boundary tests remain green. Evidence:
+`approved-ecu-map-metadata-1/car-synthetic-transport.json`,
+`car-output-isolation-qualification.json`, the two `*-output-isolated/build.json`
+manifests and `ecu-http-followup/stdout-failure-followup.md`. Original source
+snapshots and the first production dex remain preserved. This correction was
+used in the separately approved second session described below.
+
+**Second isolated metadata session: valid pair, missing preference.** It ran
+once and stopped at `input_validate/prefs_missing` before READY/GO/HTTPS. The
+frozen source control flow establishes that all four fixed transfers passed
+integrity checks, the certificate passed parsing/date/client-usage checks, and
+local RSA signing/verification proved the certificate/key pair. XML parsing
+also completed. The old `found.size() == 2` requirement then failed: at least
+one of `user_token` and `upgradeUuid` was absent. It does not identify which,
+and token/version validation and TLS context construction were not reached.
+No ECU map was acquired; no private input values were retained on the host.
+The host verified export closure, terminal watchdog, released lease and
+unchanged APK identities. An independent read-only check confirmed closed
+ports, no helper/lease, and `sys.diagmgrsrv.task_bk = r@-1_0&w@-1_0`.
+Evidence: `approved-ecu-map-metadata-2/session.json`, `outcome.json`,
+`independent-post-check.json` and the exact `executed-sources/` snapshots.
+The second one-session approval is consumed even though HTTPS was not reached.
+
+**Source-backed UUID correction, qualified with synthetic data only.** The
+matched GCY client's `VehicleOTAUtil.getCacheUpgradeUuid()` uses `""` as its
+SharedPreferences default. Its request JSON builder preserves this value as
+`"uuid":""`. Several normal lifecycle paths explicitly remove that preference;
+the ordinary Settings `triggerQuery → forceClearUnsafe` path itself does not
+prove a deletion. The exact selected key names and preferences path were
+correct. `prefs-source-followup.md` in the second-session evidence directory
+records the call paths, 15 source hashes and the distinction between supported
+client behavior and unproved backend acceptance.
+
+The new helper defaults only absent/empty UUID to the same empty string,
+without generating an identifier or writing a preference. Missing token now
+stops as `token_missing`; empty/invalid/case-insensitive literal `null` token
+stops as `token_invalid`, consistent with the stock token getter. Token,
+identity and real version remain mandatory. Malformed, duplicate, wrong-type,
+whitespace-only or oversized UUID still refuses. Privacy checks exclude the
+empty default from secret matching while retaining nonempty token/UUID guards.
+The four input paths, export lifecycle, GO gate, TLS, endpoint and one-attempt
+limit are unchanged. No login, registration or anonymous fallback is added.
+
+Current source SHA is
+`538953eef5da82e29b51b0b57037c8b5686d37148bed9702bec622ffed057231`;
+production dex SHA is
+`bae34ffa745e643111267882435aae9418ac188742c7088a2d9061d135167afb`.
+All102 synthetic assertions pass on JVM and the car; all19 host tests pass.
+The car's four-input loopback fixture deliberately omits UUID, reaches READY
+through the strict host parser, and rejects forced EOF before GO/HTTPS. It
+uses no BydLog/private files/OEM request and leaves no helper, test dex or
+listener. Independent static review found no actionable issue. Evidence:
+`approved-ecu-map-metadata-2/car-absent-uuid-qualification.json`,
+`final-review.json`, and the two `*-optional-uuid/manifest.json` builds.
+`ecu-map-metadata-prepared-session-3.json` now preserves the historical
+preparation, linked to its consumed authorization and actual outcome below.
+
+**Third session: HTTP response reached, headers refused.** The owner approved
+one more session. It ran once at13:04:53–13:04:59 UTC and reached `GO` only after
+export closure and terminal watchdog acknowledgement. The exact frozen control
+flow establishes local token presence/syntax and version syntax, TLS context
+construction, successful TLS handshake with hostname verification, one POST
+written/flushed, and an HTTP/1.0 or HTTP/1.1 status200 response. It then stopped
+with `https/http_headers`. That code covers an oversized header block, a
+missing/invalid header name delimiter, or a duplicate case-insensitive header
+name. Raw headers were deliberately not retained, so the exact branch is
+unknown; do not label a particular header as the cause. The body/application
+status was not parsed, and HTTP200 does not prove application token acceptance,
+ECU-map availability or that TLS requested a client certificate.
+
+All four inputs stayed in head-unit RAM. No map or private values were saved.
+The host verified closed export, terminal watchdog, removed lease and unchanged
+stock APK identities. The independent13:12:58 UTC read-only postcheck found all
+six known export ports closed, no helper/lease, unchanged APK hashes and idle
+`sys.diagmgrsrv.task_bk = r@-1_0&w@-1_0`. Evidence is
+`approved-ecu-map-metadata-3/session.json`, `outcome.json`,
+`independent-post-check.json`, and `executed-sources/`. This third one-session
+approval is consumed; no retry or new export is authorized.
+
+**Cross-reader overlap found during the owner's coordination check.** The
+other active chat, `Найти снятие лимита 130 км/ч`, reads existing IDC/ADS logs
+with `tools/read_idc_log_export.py`. It does not implement this DTC window or
+getEcuList request, but both tools control the same BydLogTool process and its
+global START/STOP broadcasts, despite using different port sets. Its host
+lifecycle ran approximately13:04:50–13:05:23 UTC, overlapping this session. Its
+report records early host STOP, a later watchdog STOP, closed ports and
+unchanged diagnostic/crash state. This establishes overlapping host lifetimes,
+not simultaneously open listeners or a cause for `http_headers`.
+
+The neighbor claims `/data/local/tmp/logtool` with plain `mkdir`. Our old
+stage accepted that directory when it already existed, so merely checking
+closed ports missed another reader's pending watchdog. Our host now refuses
+an occupied shared directory at preflight and uses atomic `mkdir` again at
+stage, before arming/START. A late conflict does not STOP the other reader or
+remove its files; our own lease remains for investigation. Successful ownership
+is held until our watchdog is terminal. All21 host tests pass, including real
+local-shell contention and refusal while another reader has closed ports.
+This correction has not been run on the car. Its scope is our host only.
+
+The directory gate is not a universal proof of another reader's cleanup:
+the IDC reader's error path may remove its staging directory even when
+watchdog verification fails. Therefore no further live export is scheduled;
+future use still needs cross-reader coordination and confirmed retirement of
+any earlier owner. The other chat's files were not changed. Evidence:
+`approved-ecu-map-metadata-3/coordination.json`, `coordination-validation.json`
+and `coordination-review.json`.
+
+### Readable DTC codes and native detail view (2026-10-18)
+
+The count response's format identifier **00** selects ISO15031-6 / SAE J2012-DA,
+per [AUTOSAR SWS_Dem_00936](https://www.autosar.org/fileadmin/standards/R23-11/CP/AUTOSAR_CP_SWS_DiagnosticEventManager.pdf).
+The first two bytes encode the base code; the last byte is the failure type,
+not the UDS status byte. Prefix conversion is independently documented in
+[ELM327 datasheet, p34](https://www.elmelectronics.com/wp-content/uploads/2016/07/ELM327DS.pdf).
+The product applies this only to format00; other formats retain raw codes.
+
+| Raw | Readable | General meaning available |
+| --- | --- | --- |
+| `516006` | `C1160-06` | BYD base meaning unknown; algorithm-based failure |
+| `C29D87` | `U029D-87` | General reference: lost communication with NOx sensor A; missing message |
+| `C12187` | `U0121-87` | General reference: lost communication with ABS control module; missing message |
+| `A14802` | `B2148-02` | BYD base meaning unknown; general signal failure |
+| `A25000` | `B2250-00` | BYD base meaning unknown; no subtype information |
+| `A25B00` | `B225B-00` | BYD base meaning unknown; no subtype information |
+| `C22987` | `U0229-87` | General reference: lost communication with heated steering wheel module; missing message |
+| `C22A87` | `U022A-87` | Base meaning unverified; missing message |
+
+Sources: U0121 and U029D appear in
+[Ford OBD system description, p176](https://www.fordservicecontent.com/ford_content/catalog/motorcraft/DOBDSM1701-2017.pdf).
+U0229 appears in the scanner manufacturer's own
+[Autel DTC reference, printed p101 / PDF p102](https://www.autel.com/br/u/cms/www/201910/19050511czji.pdf);
+this is a general reference, not a Denza service definition. U022A is absent
+from that reference and remains unknown.
+Failure types00/02/06/87 appear in [GM's 2025 Colorado electrical manual,
+pp2-249, 2-250, 2-255](https://www.gmupfitter.com/wp-content/uploads/2025/02/MY25-Colorado-Electrical-BBM.pdf).
+These are general references, **not an obtained BYD software-specific dictionary**.
+In particular U029D does not establish an installed NOx sensor, U0229 does not
+establish an installed or faulty heated steering wheel module, and U0121
+reported by 728 is not an ABS ECU scan. All eight retain their original status28
+and snapshot time; no code was reclassified as a current fault.
+
+The native DTC list shows five records per page, each with the readable code,
+short meaning and state. Selecting a record opens its original/raw identity,
+failure type, qualified source, reporting ECU and timestamp. A separate view
+explains all eight independent status bits; unsupported means «Не поддержан»,
+not «Нет». Unknown base meanings remain unknown. Warning details distinguish
+an unavailable raw0, no reply and a valid off value. Engine and HV/drive panels
+show this quality for every indicator.
+
+«Каналы» exposes the dated225-record version inventory (49 default/negative),
+the existing eight partial server candidates, and the unresolved CDC/ZCU
+identity of720→728. These are display-only evidence, not executable diagnostic
+targets. The UI no longer names720→728 a proven body controller. «Охват DTC»
+still lists EMS, HV BMS, ABS/ESP and front/rear drives as unread. Selecting these
+nodes cannot silently send the720 request: only that already qualified address
+and LBMS/12V nodes offer a read. U0121 in the ABS notes remains conditional on
+that actual format00 record. Neither generic meanings nor candidate addresses
+expand the two-target allowlist.
+
+The enriched debug APK builds and all43 diagnostic tests pass (2270 tests in
+the full Denza Apps suite, no failures or errors). Fourteen native
+emulator fixtures compare with the corresponding Luminofor boards at
+1.20–1.47% differing pixels, mean0.76–0.91/255, consistent with font rendering
+and antialiasing. The actual Android detail/status screenshots were visually
+inspected; text and controls fit. Evidence:
+`captures/diagnostics-ui-enriched-20261018/board-comparisons.txt` and the sibling
+screenshots. Emulator interaction checks cover returning from a meaning/status
+card to the same DTC page, candidate-map pagination without a read target, and
+HV warning selection opening unread coverage without a720 fallback. The final
+inventory caption says «Версия не получена» for the49 unavailable version
+records; these are not49 faults. This is emulator UI validation; the new APK is
+not installed or accepted on the car. Final APK SHA:
+`285005ef39ac5fbbd990159147e66d0dd0c9958657906813b8bc23646a415ed2`.
+
+Evidence: compact source/hash matrices and live warning capture under
+`research/vehicle-diagnostics/{engine-evidence-20261018,powertrain-evidence-20261018,chassis-research-20261018,lamps-20261018,dtc-reference-20261018}.json`.
+Ignored `captures/diagnostics-ecus-20261018/` retains agent reports, decoded
+sample, permission-denied results, raw GET replies, pinned APK, native images
+and comparisons. No new diagnostic APK was installed on the vehicle.
+
+Validation: full standard unit suite and debug assembly passed: **2,248 tests,
+38 diagnostic tests**, zero failures/errors, plus ten offline decoder checks.
+Eight native boards compare within text antialiasing: 1.12–1.40% of pixels
+above the 24-level difference threshold, mean 0.71–0.88/255. Emulator UI checks
+exercised code detail/back, subsystem → coverage without an unintended body
+read, LBMS target selection and actual Service → diagnostic window → Service.
+Independent review found and fixed the unconditional ABS-code reference;
+regressions cover unread, empty, other-code and other-format snapshots.
+Final pinned debug APK SHA-256:
+`3a063fa375d106c9806ba70de3bcebe921d8f4c33a1fb2ae654577ce03c57d8d`.
 
 ## Consumption journal
 

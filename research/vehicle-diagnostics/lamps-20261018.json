@@ -1,0 +1,114 @@
+{
+  "at": "2026-10-18T10:52:28.194917+00:00",
+  "profile": 170,
+  "rows": [
+    {
+      "key": "ENGINE",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 678428710,
+      "raw": 1
+    },
+    {
+      "key": "ABS",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 659554324,
+      "raw": 2
+    },
+    {
+      "key": "ESP",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 659554348,
+      "raw": 2
+    },
+    {
+      "key": "BRAKE",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 659554336,
+      "raw": 2
+    },
+    {
+      "key": "SRS",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 659554312,
+      "raw": 2
+    },
+    {
+      "key": "STEERING",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 678428686,
+      "raw": 2
+    },
+    {
+      "key": "TPMS",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 678428692,
+      "raw": 2
+    },
+    {
+      "key": "LOW_FUEL",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 678428722,
+      "raw": 0
+    },
+    {
+      "key": "LOW_PACK",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 710934566,
+      "raw": 0
+    },
+    {
+      "key": "COOLANT_HIGH",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 678428716,
+      "raw": 0
+    },
+    {
+      "key": "OIL_PRESSURE",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 694157320,
+      "raw": 0
+    },
+    {
+      "key": "GPF",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 678428698,
+      "raw": 0
+    },
+    {
+      "key": "PACK_HEAT",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 710934578,
+      "raw": 0
+    },
+    {
+      "key": "PACK_FAULT",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 721420296,
+      "raw": 0
+    },
+    {
+      "key": "POWER_FAULT",
+      "dev": 1007,
+      "tx": 5,
+      "fid": 710934554,
+      "raw": 0
+    }
+  ],
+  "autoservice_before": "135",
+  "autoservice_after": "135",
+  "note": "0 means invalid/unavailable, never lamp off; common Instrument warning enum only. ESP_OFF 0x27500026 dev1007 tx5 returned -10011 and is not in product polling."
+}

@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-18",
+  "scope": "Offline exact-firmware and supplied corpus; no ADB/SSH/ECU/OEM backend requests",
+  "ems_address": null,
+  "ems_oem_dtc_dictionary": null,
+  "sources": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/assets/response.json",
+      "sha256": "41d8040d56d0f73be1e3bf27303157842fb5928cf43d464dc9e4d41dfe711378"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/res/raw/low_power_script.json",
+      "sha256": "c3883631aa7f336d7c5d3da2af6a3549c988d166704106425bc9be9535cb064f"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/utils/EncryptUtils.java",
+      "sha256": "ab92b4c9140a1288a79cd38168d0d27463b7d827b78c0d847fb0d8326d3975a9"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/model/EcuListInfo.java",
+      "sha256": "94087c88e283bb1bff135f29e50cdce3777f717827e2748a40fde0e5138d6b34"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1b6528bf95e416ea4f7b92476ec077bac3a2fe9dd762e90c0e296e3c76b8169b"
+    },
+    {
+      "path": "captures/cluster-native-20261018/client-api/classes/HMIClusterClient.xml",
+      "sha256": "84248c39ed8fb28f99a52a211d4860a72c375882ab5230c38a715ec629101c1b"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/engine/BYDAutoEngineDevice.java",
+      "sha256": "1e9d97b7d50fbf3bd8ec20743d66209846ddb2de41f3eb979ecb4de56eb59048"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "sha256": "608e55ecb4cb889a5016d182b32a3ee3c0ab633656b3bcb7a0607eb2d6ec604a"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/etc/uds/UDS_CFG.json",
+      "sha256": "e46b264c572753ce93dd15c956d1f59abd99898134832b8fa9adff0a628d9424"
+    },
+    {
+      "path": "captures/washer-firmware-20260923/diagnostic_config.json",
+      "sha256": "e313e1a062dd713374e02a25e6e4c359820849f735dc0e5e92abe6c0434966de"
+    }
+  ],
+  "cached_inventory_leads": [
+    {
+      "path": "/data/user/0/com.byd.otaupdate2/shared_prefs/share_data_prefs.xml",
+      "key": "ecuDiagnosisResultListInfo",
+      "fields": [
+        "ecuId",
+        "ecuDiaId",
+        "logicAddress",
+        "ecuDId",
+        "ecuSoftCode",
+        "ecuSoftVer",
+        "ecuHardVer"
+      ],
+      "ecuDiaId_encoding": "request/response hex without 0x; exact per CanDiagnostic lines240-257"
+    },
+    {
+      "path": "/data/ota_package/ota_ghy/result/upgradeInfo.json"
+    },
+    {
+      "path": "/data/ota_package/ota_ghy/result/ecuOtaResult.json"
+    },
+    {
+      "path": "/data/ota_package/diag2/diagnose/"
+    }
+  ],
+  "read_only_non_dtc_candidates": [
+    {
+      "name": "engine_coolant_high_lamp",
+      "device": 1007,
+      "fid": "0x2870002C",
+      "tx": 5,
+      "kind": "indicator"
+    },
+    {
+      "name": "engine_low_oil_pressure_lamp",
+      "device": 1007,
+      "fid": "0x29600008",
+      "tx": 5,
+      "kind": "indicator"
+    },
+    {
+      "name": "gpf_lamp",
+      "device": 1007,
+      "fid": "0x2870001A",
+      "tx": 5,
+      "kind": "indicator"
+    },
+    {
+      "name": "engine_coolant_level",
+      "device": 1012,
+      "fid": "0x05500031",
+      "tx": 5,
+      "kind": "enum",
+      "values": {
+        "1": "normal",
+        "2": "low"
+      }
+    }
+  ],
+  "indicator_values": {
+    "0": "invalid",
+    "1": "on",
+    "2": "off",
+    "3": "blink 0.25 Hz",
+    "4": "blink 0.5 Hz",
+    "5": "blink 1 Hz",
+    "6": "blink 2 Hz",
+    "7": "blink 4 Hz"
+  },
+  "spot_asset_decryption": {
+    "file": "spotinspection-response-decoded.json",
+    "plaintext_original_sha256": "be48ef5d1d13b073f6e6c98b93a73783253252bb658844429ab0915c16884387",
+    "ciphertext_checksum_verified": true,
+    "modules": 21,
+    "cases": 329,
+    "autoapi_steps": 750,
+    "uds_or_ems_address_found": false
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-18",
+  "scope": "General format-00 references only. No BYD ECU/software-specific dictionary was obtained. Never identify a component as installed or faulty from a generic label alone.",
+  "format": {
+    "id": 0,
+    "name": "ISO 15031-6 / SAE J2012-DA format 00",
+    "source": "https://www.autosar.org/fileadmin/standards/R23-11/CP/AUTOSAR_CP_SWS_DiagnosticEventManager.pdf",
+    "section": "SWS_Dem_00936; high two bytes base code, low byte failure type",
+    "encoding_source": "https://www.elmelectronics.com/wp-content/uploads/2016/07/ELM327DS.pdf",
+    "three_byte_layout_source": "https://saemobilus.sae.org/standards/j2012_201303-diagnostic-trouble-code-definitions",
+    "encoding_page": 34
+  },
+  "base_codes": {
+    "U0121": {"meaning": "Lost communication with ABS control module", "applicability": "general SAE reference; BYD mapping unverified"},
+    "U029D": {"meaning": "Lost communication with NOx sensor A", "applicability": "general SAE reference; does not establish that this vehicle has this sensor"},
+    "U0229": {"meaning": "Lost communication with heated steering wheel module", "applicability": "general OBD reference from Autel; BYD mapping and installed module unverified", "source": "https://www.autel.com/br/u/cms/www/201910/19050511czji.pdf", "printed_page": 101, "pdf_page": 102}
+  },
+  "base_source": "https://www.fordservicecontent.com/ford_content/catalog/motorcraft/DOBDSM1701-2017.pdf",
+  "base_page": 176,
+  "failure_types": {"00": "No subtype information", "02": "General signal failure", "06": "Algorithm based failure", "87": "Missing message"},
+  "failure_source": "https://www.gmupfitter.com/wp-content/uploads/2025/02/MY25-Colorado-Electrical-BBM.pdf",
+  "failure_pages": "Printed 2-249, 2-250, 2-255 (PDF 349, 350, 355)",
+  "observed_conversions": {
+    "516006": "C1160-06", "C29D87": "U029D-87", "C12187": "U0121-87", "A14802": "B2148-02",
+    "A25000": "B2250-00", "A25B00": "B225B-00", "C22987": "U0229-87", "C22A87": "U022A-87"
+  },
+  "unknown_base_meanings": ["C1160", "B2148", "B2250", "B225B", "U022A"],
+  "vehicle_scope": "All eight observed records came from ECU 0x728, all status 0x28. They are not scans of ABS, EMS, traction BMS or motors. Do not generalize format 00 code definitions to format 04 or other formats."
+}

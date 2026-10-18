@@ -1,0 +1,148 @@
+{
+  "date": "2026-10-18",
+  "scope": "Offline-only powertrain DTC research, no vehicle/network-account actions",
+  "profile": 170,
+  "qualified_new_ecus": [],
+  "unresolved_subsystems": [
+    "HV BMS/BMC",
+    "front traction MCU",
+    "rear left/right traction MCUs",
+    "VCU"
+  ],
+  "instrument_get_candidates": [
+    {
+      "id": "pack_heat_warning",
+      "device": 1007,
+      "transaction": 5,
+      "fid": "0x2A600032",
+      "getter": "getPowerBatteryHeatWarnLightState",
+      "line": 2874
+    },
+    {
+      "id": "pack_fault_warning",
+      "device": 1007,
+      "transaction": 5,
+      "fid": "0x2B000008",
+      "getter": "getPowerBatFailWarnLightState",
+      "line": 2886
+    },
+    {
+      "id": "powertrain_fault_warning",
+      "device": 1007,
+      "transaction": 5,
+      "fid": "0x2A60001A",
+      "getter": "getPowerSysFailWarnLightState",
+      "line": 2898
+    }
+  ],
+  "indicator_enum": {
+    "0": "invalid",
+    "1": "lit",
+    "2": "off",
+    "3": "blink0.25Hz",
+    "4": "blink0.5Hz",
+    "5": "blink1Hz",
+    "6": "blink2Hz",
+    "7": "blink4Hz"
+  },
+  "notes": [
+    "Instrument state is not ECU DTC memory. Candidate fields not read by this subagent.",
+    "No exact vehicle-specific ECU address or DTC dictionary found in inspected local corpus.",
+    "Known LBMS762/76A is low-voltage BMS and must not represent HV battery.",
+    "External scan-map varies by hardware/software and is not eligible for profile170allowlist."
+  ],
+  "sources": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/res/raw/low_power_script.json",
+      "sha256": "c3883631aa7f336d7c5d3da2af6a3549c988d166704106425bc9be9535cb064f",
+      "bytes": 11809
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/assets/response.json",
+      "sha256": "41d8040d56d0f73be1e3bf27303157842fb5928cf43d464dc9e4d41dfe711378",
+      "bytes": 272369
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/assets/pl_gcy_uds_-script-20240821.json",
+      "sha256": "0fe43a16f239ce2efd048f28c375cd1fd41d179a7739fea968959fa85c04d616",
+      "bytes": 325484
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/MatchUtils.java",
+      "sha256": "db55f8a43d414b41af6fc997a5fa1edaab5a57a30cf1d4abf3efed2a65da6c45",
+      "bytes": 25950
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/test/DecryptTester.java",
+      "sha256": "f07adb7e5eec87d2800d3263e65badea4887aaa73f04361e2975b198462e27be",
+      "bytes": 3402
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/utils/EncryptUtils.java",
+      "sha256": "ab92b4c9140a1288a79cd38168d0d27463b7d827b78c0d847fb0d8326d3975a9",
+      "bytes": 3274
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "sha256": "608e55ecb4cb889a5016d182b32a3ee3c0ab633656b3bcb7a0607eb2d6ec604a",
+      "bytes": 149289
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/base/FilePathManager.java",
+      "sha256": "5e180d23dea4ee0d192cbae3b21f3de31cda6c831e7afdf6fe556f086b334101",
+      "bytes": 4920
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "8f757e43c8da34c1f0357db881072c69117b8b1a99578997f4b6f46e5a10506b",
+      "bytes": 94930
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1b6528bf95e416ea4f7b92476ec077bac3a2fe9dd762e90c0e296e3c76b8169b",
+      "bytes": 33404
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/etc/uds/UDS_CFG.json",
+      "sha256": "e46b264c572753ce93dd15c956d1f59abd99898134832b8fa9adff0a628d9424",
+      "bytes": 2415
+    },
+    {
+      "path": "captures/diagnostics-ecus-20261018/powertrain/response-decrypted.json",
+      "sha256": "e076923b1caff565d0caa5a637cc4e1b2df326edff91332711cb5beab539a355",
+      "bytes": 515551
+    }
+  ],
+  "external_candidates": {
+    "url": "https://carcoding.app/en/ecu/brand/byd/",
+    "retrieved": "2026-10-18",
+    "applicability": "Generic BYD app scan-map, not Denza Z9GT proof",
+    "pairs": {
+      "BMS": [
+        "7E7/7EF",
+        "781/789"
+      ],
+      "VCU": [
+        "7E0/7E8",
+        "743/74B"
+      ],
+      "MCU": [
+        "7E3/7EB"
+      ],
+      "frontMCU": [
+        "780/788"
+      ],
+      "rearMCU": [
+        "785/78D"
+      ]
+    }
+  },
+  "ota_cache_paths": [
+    "/data/ota_package/ota_ghy/result/upgradeInfo.json",
+    "/data/ota_package/needCheckEcuList.json",
+    "/collect2/VehicleVersion2",
+    "/collect2/SourceVehicleVersion2",
+    "/data/user/0/com.byd.otaupdate2/shared_prefs/share_data_prefs.xml"
+  ],
+  "ota_cache_access_note": "Prior documented shell Permission denied; see docs/adas-operating-limits.md:379-415. No bypass attempted."
+}

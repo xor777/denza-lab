@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-18T10:29:21.174470+00:00",
+  "profile": 170,
+  "protocol": "CANFD",
+  "request_id": "0x762",
+  "response_id": "0x76A",
+  "source": "SpotInspection low_power_script.json Attach LBMS",
+  "count_payload": "590109000000",
+  "list_payload": "590209",
+  "status_availability_mask": "09",
+  "format_identifier": 0,
+  "read_count": 0,
+  "entries": [],
+  "scope": "Only current and confirmed status bits are supported; other ECUs and full vehicle health not inferred.",
+  "packaged_helper_sha256": "33ce6a7242ad8f62b677af3f91f5e8491076e2cdaca63e13daabdb55038ecf0c"
+}

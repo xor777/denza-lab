@@ -1,0 +1,421 @@
+{
+  "date": "2026-10-18",
+  "scope": "Offline chassis DTC and warning research; no ADB or external vehicle/backend request by this agent",
+  "chassis_uds_addresses": [],
+  "qualified_chassis_dtc_dictionary_entries": [],
+  "dictionary_mechanism": "SpotInspection Attach.dtcList: exact numeric 24-bit code to desc, per script/ECU; no match for eight observed BCM codes",
+  "blocking_gaps": [
+    "Authoritative profile170 ABS/ESP/IPB request/reply address",
+    "Actual block identity/version",
+    "Vehicle-applicable OEM dictionary",
+    "Live DTC count/list response from chassis ECU"
+  ],
+  "sources": {
+    "instrument": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "sha256": "608e55ecb4cb889a5016d182b32a3ee3c0ab633656b3bcb7a0607eb2d6ec604a"
+    },
+    "adas": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/adas/BYDAutoADASDevice.java",
+      "sha256": "f0822ed1024be21846376427f2a0e557f566aa2044eabfe34f4a65e406f524a6"
+    },
+    "fids": {
+      "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+      "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+    },
+    "low_power": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/res/raw/low_power_script.json",
+      "sha256": "c3883631aa7f336d7c5d3da2af6a3549c988d166704106425bc9be9535cb064f"
+    },
+    "match_utils": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/MatchUtils.java",
+      "sha256": "db55f8a43d414b41af6fc997a5fa1edaab5a57a30cf1d4abf3efed2a65da6c45"
+    },
+    "script_dao": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/storage/ScriptDao.java",
+      "sha256": "64aa42f3a06378288bfc369b6bb7ce8cf3be8313c1062bd9719400de08ffc5b8"
+    },
+    "ota_ecu_model": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/model/EcuListInfo.java",
+      "sha256": "94087c88e283bb1bff135f29e50cdce3777f717827e2748a40fde0e5138d6b34"
+    },
+    "uds_config": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/etc/uds/UDS_CFG.json",
+      "sha256": "e46b264c572753ce93dd15c956d1f59abd99898134832b8fa9adff0a628d9424"
+    },
+    "diagnostic_service": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbyddiagnosticservice.so",
+      "sha256": "32de1289536c70c8aea48564868cefbc68b3a6cf755e471d6ad05128bba7faa0"
+    },
+    "health_config": {
+      "path": "captures/washer-firmware-20260923/diagnostic_config.json",
+      "sha256": "e313e1a062dd713374e02a25e6e4c359820849f735dc0e5e92abe6c0434966de"
+    },
+    "cells": {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6"
+    },
+    "cells_dwarf": {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/dwarf-enums.jsonl",
+      "sha256": "04c7e6cdd6c6e51a0aa329ba57c7cdc6037fcfe724264ad5f17ebaa61da22367"
+    },
+    "cells_can_table": {
+      "path": "captures/cluster-native-20261018/tables/can-signals.tsv",
+      "sha256": "022f2fe417b0b5f6b7bd64bcb5abe65c60c4529945e00fd4803d54f54656f3b9"
+    }
+  },
+  "signals": [
+    {
+      "key": "abs_lamp",
+      "name": "INSTRUMENT_2IN1_FAULT_ABS_FAILURE_WARN_LIGHT",
+      "method": "getABSFaultWarningLight()",
+      "source": "instrument",
+      "source_line": 2586,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 659554324,
+      "fid_hex": "0x27500014",
+      "enum": "warning_light_0to7",
+      "qualification": "previous_live_and_firmware",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "esp_lamp",
+      "name": "INSTRUMENT_2IN1_FAULT_ESP_FAILURE_WARN_LIGHT",
+      "method": "getESPFailWarnLightState()",
+      "source": "instrument",
+      "source_line": 2646,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 659554348,
+      "fid_hex": "0x2750002C",
+      "enum": "warning_light_0to7",
+      "qualification": "previous_live_and_firmware",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "brake_lamp",
+      "name": "INSTRUMENT_2IN1_FAULT_BRAKE_SYS_FAILURE_WARN_LIGHT",
+      "method": "getBrakeSysFaultLightState()",
+      "source": "instrument",
+      "source_line": 2598,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 659554336,
+      "fid_hex": "0x27500020",
+      "enum": "warning_light_0to7",
+      "qualification": "previous_live_and_firmware",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "epb_lamp",
+      "name": "INSTRUMENT_2IN1_FAULT_ELEC_PARKING_STATE_INDICATOR",
+      "method": "getELECParkingState()",
+      "source": "instrument",
+      "source_line": 2622,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 659554330,
+      "fid_hex": "0x2750001A",
+      "enum": "warning_light_0to7",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "esp_setting",
+      "name": "ADAS_ESP_STATE",
+      "method": "getESPState()",
+      "source": "adas",
+      "source_line": 333,
+      "device": 1038,
+      "transaction": 5,
+      "fid": 305135676,
+      "fid_hex": "0x1230003C",
+      "enum": "esp_setting_0on_1off",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "esp_presence",
+      "name": "ADAS_HAS_ESP",
+      "method": "getESPOnlineState()",
+      "source": "adas",
+      "source_line": 533,
+      "device": 1038,
+      "transaction": 5,
+      "fid": 839909434,
+      "fid_hex": "0x3210003A",
+      "enum": "esp_presence_1hard_2soft_3offline",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "abs_notice",
+      "name": "INSTRUMENT_DD_FAULT_NOTICE_ABS_SYSTEM",
+      "method": "getModuleState(0)",
+      "source": "instrument",
+      "source_line": 1953,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032851512,
+      "fid_hex": "0x3D901038",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "epb_notice",
+      "name": "INSTRUMENT_DD_FAULT_NOTICE_EPB",
+      "method": "getModuleState(1)",
+      "source": "instrument",
+      "source_line": 1956,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032851490,
+      "fid_hex": "0x3D901022",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "epb_not_released",
+      "name": "INSTRUMENT_DD_FAULT_NOTICE_EPB_NOT_RELEASED",
+      "method": "getModuleState(2)",
+      "source": "instrument",
+      "source_line": 1959,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032855590,
+      "fid_hex": "0x3D902026",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "esp_notice",
+      "name": "INSTRUMENT_DD_FAULT_NOTICE_ESP_SYSTEM",
+      "method": "getModuleState(3)",
+      "source": "instrument",
+      "source_line": 1962,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032851515,
+      "fid_hex": "0x3D90103B",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "parking_brake_not_released",
+      "name": "INSTRUMENT_DD_FAULT_PARK_BRAKE_UNRELEASED",
+      "method": "getModuleState(37)",
+      "source": "instrument",
+      "source_line": 2064,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032855589,
+      "fid_hex": "0x3D902025",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "brake_fluid_notice",
+      "name": "INSTRUMENT_DD_FAULT_LOW_BRAKE_FLUID_LEVEL",
+      "method": "getModuleState(47)",
+      "source": "instrument",
+      "source_line": 2094,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032851475,
+      "fid_hex": "0x3D901013",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "brake_pad_notice",
+      "name": "INSTRUMENT_DD_FAULT_CHECK_BRAKE_PAD",
+      "method": "getModuleState(76)",
+      "source": "instrument",
+      "source_line": 2181,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032851517,
+      "fid_hex": "0x3D90103D",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "brake_yun",
+      "name": "INSTRUMENT_2IN1_FAULT_YUN_BRAKING_SYS_FAILUE",
+      "method": "getModuleState(95)",
+      "source": "instrument",
+      "source_line": 2238,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032859666,
+      "fid_hex": "0x3D903012",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "abs_yun",
+      "name": "INSTRUMENT_2IN1_FAULT_YUN_ABS_SYS",
+      "method": "getModuleState(98)",
+      "source": "instrument",
+      "source_line": 2247,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032859669,
+      "fid_hex": "0x3D903015",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "esp_yun",
+      "name": "INSTRUMENT_2IN1_FAULT_YUN_ESP",
+      "method": "getModuleState(99)",
+      "source": "instrument",
+      "source_line": 2250,
+      "device": 1007,
+      "transaction": 5,
+      "fid": 1032859670,
+      "fid_hex": "0x3D903016",
+      "enum": "module_0normal_1fault",
+      "qualification": "firmware_only",
+      "is_dtc_inventory": false
+    },
+    {
+      "key": "esp_off_lamp",
+      "name": "DOMAIN_275_46_50_ESP_OFF_LIGHT",
+      "source": "cells",
+      "function": "BusinessWarningLight::updateEspOffLight()",
+      "function_address": "0x217de0",
+      "fid": 659554342,
+      "fid_hex": "0x27500026",
+      "enum": "warning_light_0to7",
+      "qualification": "native_can_only_no_java_getter_or_device_mapping",
+      "is_dtc_inventory": false
+    }
+  ],
+  "native_enums": {
+    "vehicle_data_appid_enum": {
+      "die_offset": "0x1b5af",
+      "values": [
+        {
+          "name": "DOMAIN_275_24_26_ABS_LIGHT",
+          "value": 659554324
+        },
+        {
+          "name": "DOMAIN_275_32_34_EPB_STATUS_LIGHT",
+          "value": 659554330
+        },
+        {
+          "name": "DOMAIN_275_40_42_BRAKE_FAULT_LIGHT",
+          "value": 659554336
+        },
+        {
+          "name": "DOMAIN_275_46_50_ESP_OFF_LIGHT",
+          "value": 659554342
+        },
+        {
+          "name": "DOMAIN_275_51_53_ESP_OFF_LIGHT_COLOR",
+          "value": 659554345
+        },
+        {
+          "name": "DOMAIN_275_54_56_ESP_FAULT_LIGHT",
+          "value": 659554348
+        }
+      ]
+    },
+    "WarningLightStatus": {
+      "die_offset": "0x1235cd",
+      "name": "WarningLightStatus",
+      "size": 4,
+      "values": [
+        {
+          "name": "WARNING_LIGHT_INVALID",
+          "value": 0
+        },
+        {
+          "name": "WARNING_LIGHT_DISPLAY",
+          "value": 1
+        },
+        {
+          "name": "WARNING_LIGHT_HIDE",
+          "value": 2
+        },
+        {
+          "name": "WARNING_LIGHT_FLASH_QUARTER_HZ",
+          "value": 3
+        },
+        {
+          "name": "WARNING_LIGHT_FLASH_HALF_HZ",
+          "value": 4
+        },
+        {
+          "name": "WARNING_LIGHT_FLASH_1HZ",
+          "value": 5
+        },
+        {
+          "name": "WARNING_LIGHT_FLASH_2HZ",
+          "value": 6
+        },
+        {
+          "name": "WARNING_LIGHT_FLASH_4HZ",
+          "value": 7
+        },
+        {
+          "name": "WARNING_LIGHT_DISPLAY_STATUS_MAX",
+          "value": 8
+        }
+      ]
+    },
+    "WarningLightColor": {
+      "die_offset": "0x1434fe",
+      "name": "WarningLightColor",
+      "size": 4,
+      "values": [
+        {
+          "name": "WARNING_LIGHT_COLOR_INVALID",
+          "value": 0
+        },
+        {
+          "name": "WARNING_LIGHT_WHITE",
+          "value": 1
+        },
+        {
+          "name": "WARNING_LIGHT_YELLOW",
+          "value": 2
+        },
+        {
+          "name": "WARNING_LIGHT_RED",
+          "value": 3
+        },
+        {
+          "name": "WARNING_LIGHT_GREEN",
+          "value": 4
+        },
+        {
+          "name": "WARNING_LIGHT_BLUE",
+          "value": 5
+        },
+        {
+          "name": "WARNING_LIGHT_OUTBOARD",
+          "value": 6
+        }
+      ]
+    }
+  },
+  "warnings": [
+    "A body ECU DTC referencing ABS is not ABS ECU DTC memory",
+    "No new GET was live-read by this agent",
+    "ModuleState 0=normal is not lamp 0=invalid",
+    "Native warning CAN mapping does not itself establish autoservice dev1007 getter availability",
+    "Raw code and support mask remain authoritative; no guessed OEM description"
+  ]
+}

@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "source": "captures/ota-status-20261018/phase1-live-check-sanitized.txt",
+  "sourceSha256": "762e6dba1a707220e8474bc959d8ad24849ffc4817285f9205e37f61d8b8318e",
+  "profile": null,
+  "applicability": "unverified",
+  "eligibleForProductAllowlist": false,
+  "responses": [
+    {
+      "line": 33,
+      "time": "10-18 14:38:38.004",
+      "pid": 4228,
+      "tid": 13861,
+      "responseState": "incomplete_or_invalid_object",
+      "completeObjects": 8,
+      "ecus": [
+        {
+          "ecuId": "HTH-2021_Media_BYD_00200001",
+          "ecuDiaId": "741/749",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "",
+          "ecuDId": "F195/F194",
+          "ecuHardDid": "F193",
+          "ecuConfigDid": "",
+          "seq": "61",
+          "route": {
+            "kind": "can",
+            "requestId": 1857,
+            "responseId": 1865,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        {
+          "ecuId": "HTH-2021_ASSY_BYD_00100001",
+          "ecuDiaId": "5E7/5EF",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "",
+          "ecuDId": "F295/F294",
+          "ecuHardDid": "F293",
+          "ecuConfigDid": "",
+          "seq": "90",
+          "route": {
+            "kind": "can",
+            "requestId": 1511,
+            "responseId": 1519,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        {
+          "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+          "ecuDiaId": "722/72A",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "",
+          "ecuDId": "F195/F194",
+          "ecuHardDid": "F193",
+          "ecuConfigDid": "FF95/FF94",
+          "seq": "109",
+          "route": {
+            "kind": "can",
+            "requestId": 1826,
+            "responseId": 1834,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        {
+          "ecuId": "HTH-2021_CDC_SOC_BYD_00100001",
+          "ecuDiaId": "010/001",
+          "ecuReprogramType": "ethernet",
+          "ecuChannel": "6",
+          "networkNumber": null,
+          "logicAddress": "0010",
+          "ecuDId": "F195/F194",
+          "ecuHardDid": "F193",
+          "ecuConfigDid": "",
+          "seq": "120",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 16,
+            "pairClient": 1,
+            "target": 16
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        {
+          "ecuId": "HTH-2021_CDC_BYD_00100001",
+          "ecuDiaId": "720/728",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "0728",
+          "ecuDId": "F195/F194",
+          "ecuHardDid": "F193",
+          "ecuConfigDid": "FF95/FF94",
+          "seq": "300",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        {
+          "ecuId": "HTH-2021_CDC_BYD_00200001",
+          "ecuDiaId": "720/728",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "0010",
+          "ecuDId": "C295/C294",
+          "ecuHardDid": "C293",
+          "ecuConfigDid": "",
+          "seq": "301",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        {
+          "ecuId": "HTH-2021_R_ZCU_BYD_00100001",
+          "ecuDiaId": "747/74F",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "1",
+          "networkNumber": null,
+          "logicAddress": "",
+          "ecuDId": "F195/F194",
+          "ecuHardDid": "F193",
+          "ecuConfigDid": "FF95/FF94",
+          "seq": "340",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        {
+          "ecuId": "HTH-2021_R_ZCU_BYD_00200001",
+          "ecuDiaId": "720/728",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "0010",
+          "ecuDId": "C495/C494",
+          "ecuHardDid": "C493",
+          "ecuConfigDid": "",
+          "seq": "341",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        }
+      ]
+    }
+  ]
+}

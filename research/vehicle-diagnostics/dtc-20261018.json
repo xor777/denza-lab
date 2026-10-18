@@ -1,0 +1,105 @@
+{
+  "vehicle_profile": 170,
+  "request_id": "0x720",
+  "response_id": "0x728",
+  "ecu_identity": "stock window-workflow address; hardware identity not read",
+  "format_identifier": 0,
+  "status_availability_mask": "FF",
+  "read_count": 8,
+  "test_failed_count": 0,
+  "pending_count": 0,
+  "confirmed_count": 8,
+  "warning_requested_count": 0,
+  "entries": [
+    {
+      "dtc_raw": "516006",
+      "status_raw": "28",
+      "status_flags": [
+        "confirmedDTC",
+        "testFailedSinceLastClear"
+      ],
+      "description": null
+    },
+    {
+      "dtc_raw": "C29D87",
+      "status_raw": "28",
+      "status_flags": [
+        "confirmedDTC",
+        "testFailedSinceLastClear"
+      ],
+      "description": null
+    },
+    {
+      "dtc_raw": "C12187",
+      "status_raw": "28",
+      "status_flags": [
+        "confirmedDTC",
+        "testFailedSinceLastClear"
+      ],
+      "description": null
+    },
+    {
+      "dtc_raw": "A14802",
+      "status_raw": "28",
+      "status_flags": [
+        "confirmedDTC",
+        "testFailedSinceLastClear"
+      ],
+      "description": null
+    },
+    {
+      "dtc_raw": "A25000",
+      "status_raw": "28",
+      "status_flags": [
+        "confirmedDTC",
+        "testFailedSinceLastClear"
+      ],
+      "description": null
+    },
+    {
+      "dtc_raw": "A25B00",
+      "status_raw": "28",
+      "status_flags": [
+        "confirmedDTC",
+        "testFailedSinceLastClear"
+      ],
+      "description": null
+    },
+    {
+      "dtc_raw": "C22987",
+      "status_raw": "28",
+      "status_flags": [
+        "confirmedDTC",
+        "testFailedSinceLastClear"
+      ],
+      "description": null
+    },
+    {
+      "dtc_raw": "C22A87",
+      "status_raw": "28",
+      "status_flags": [
+        "confirmedDTC",
+        "testFailedSinceLastClear"
+      ],
+      "description": null
+    }
+  ],
+  "frames": {
+    "count": {
+      "delivered_callbacks": 2,
+      "unique_frames": 1,
+      "buffer_bytes": 240,
+      "uds_length": 6,
+      "uds_hex": "5901FF000008"
+    },
+    "list": {
+      "delivered_callbacks": 2,
+      "unique_frames": 1,
+      "buffer_bytes": 240,
+      "uds_length": 35,
+      "uds_hex": "5902FF51600628C29D8728C1218728A1480228A2500028A25B0028C2298728C22A8728"
+    }
+  },
+  "scope": "one ECU only; no diagnostic clear or session control; no OEM descriptions",
+  "snapshot_time_utc": "2026-10-18T09:44:31Z"
+}

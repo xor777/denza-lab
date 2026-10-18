@@ -1,0 +1,164 @@
+{
+  "schema": "denza-lab.cached-ecu-identities.v1",
+  "vehicleProfile": 170,
+  "source": {
+    "devicePath": "/data/ota_package/ECUVersion.json",
+    "localEvidence": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+    "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+    "sourceTimestamp": "not retained by exporter; cache age unknown",
+    "sourceType": "existing stock OTA cache, not a live ECU scan"
+  },
+  "counts": {
+    "cachedRecords": 225,
+    "distinctEcuIds": 225,
+    "allFieldsNegativeMarker": 26,
+    "allFieldsDefaultZero": 23
+  },
+  "limitations": [
+    "Not an installed ECU count; server candidates/aliases/defaults remain in list",
+    "No ecuDiaId or diagnostic address fields in this exported projection",
+    "7F22 is stock negative-value placeholder, not a DTC or software version",
+    "No new ECU DTC requests performed",
+    "SMCU/SMCU3 physical position unconfirmed"
+  ],
+  "focusedRecords": [
+    {
+      "ecuSoftCode": "32330011DF0B000101",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.4",
+      "ecuId": "HTH-2021_ESP_BOSCH_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.00.08"
+    },
+    {
+      "ecuSoftCode": "32330011DF0B000101",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.4",
+      "ecuId": "HTH-2021_IPB_BOSCH_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.00.08"
+    },
+    {
+      "ecuSoftCode": "32330011DF0B000101",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.4",
+      "ecuId": "HTH-2021_BSC_BYD_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.00.08"
+    },
+    {
+      "ecuSoftCode": "32440011E004000000",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "1.0.0",
+      "ecuId": "HTH-2021_ECM_UAES_01200001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.00.10"
+    },
+    {
+      "ecuSoftCode": "48370011E075000000",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.5",
+      "ecuId": "HTH-2021_FMCU_BYD_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.03.12"
+    },
+    {
+      "ecuSoftCode": "000000000000000000",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.0",
+      "ecuId": "HTH-2021_RMCU_BYD_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "0.00.00"
+    },
+    {
+      "ecuSoftCode": "32440011E07E007841",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.2",
+      "ecuId": "HTH-2021_VCU_BYD_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.08.22"
+    },
+    {
+      "ecuSoftCode": "32440011E07E007841",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.2",
+      "ecuId": "HTH-2021_VCU_UAES_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.08.22"
+    },
+    {
+      "ecuSoftCode": "48370011E086001100",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.2",
+      "ecuId": "HTH-2021_SMCU_BYD_00200001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.00.06"
+    },
+    {
+      "ecuSoftCode": "48370011E088001100",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.2",
+      "ecuId": "HTH-2021_SMCU3_BYD_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.00.06"
+    },
+    {
+      "ecuSoftCode": "48370011E0EA000000",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.5",
+      "ecuId": "HTH-2021_ISG_BYD_00100001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "4.03.13"
+    },
+    {
+      "ecuSoftCode": "4A520011E00D00047B",
+      "ecuConfigCode": "000000000000000000",
+      "ecuHardVer": "0.0.3",
+      "ecuId": "HTH-2021_BMS_BYD_03300001",
+      "ecuConfigVer": "0.00.00",
+      "ecuSoftVer": "3.48.07"
+    }
+  ],
+  "productAllowlistEligible": false,
+  "fullMapAcquisition": {
+    "status": "not_recovered",
+    "sourcesChecked": [
+      {
+        "source": "/data/user/0/com.byd.otaupdate/shared_prefs/share_data_prefs.xml",
+        "sourceKey": "ecuDiagnosisResultListInfo",
+        "status": "key_missing",
+        "rawSizeBytes": 705,
+        "rawSha256": "dac467d230dc066e9a3c9c06c18632597bcd87f1aeac468e725df8c1e681703b"
+      },
+      {
+        "source": "/data/user/0/com.byd.otaupdate2/shared_prefs/share_data_prefs.xml",
+        "sourceKey": "ecuDiagnosisResultListInfo",
+        "status": "key_missing",
+        "rawSizeBytes": 510,
+        "rawSha256": "b380843cae624af3b7b74f8e6d2d56b37f11b1542f883a333424943bd9853a48"
+      },
+      {
+        "source": "/data/ota_package/ota/result/upgradeInfo.json",
+        "sourceKey": "ecuModel",
+        "status": "missing"
+      },
+      {
+        "source": "/data/user_de/0/com.byd.spotinspection/shared_prefs/com.byd.spotinspection.xml",
+        "sourceKey": "RUNNING_TASK",
+        "status": "key_missing",
+        "rawSizeBytes": 65,
+        "rawSha256": "3325d2a819fdd8062c2cdc48a09b995c9b012915bcdf88b1cf9742a7f057c793"
+      }
+    ],
+    "rawPreferencesSaved": false,
+    "liveEcuRequestsSent": false
+  },
+  "faultCacheRead": {
+    "device": 1032,
+    "fid": 831291,
+    "method": "getFaultCodeInfo",
+    "bytes": 0,
+    "interpretation": "Empty opaque cache; no vehicle DTC conclusion",
+    "evidence": "captures/diagnostics-discovery-20261018/ota-fault-cache-probe/verification.json"
+  }
+}
