@@ -93,7 +93,7 @@ The default build configures the products and the library they share:
 | --- | --- | --- |
 | `:denza-apps` | `apps/denza-apps/` | `dev.denza.apps` (active consolidation app), depends on `:dishare-bridge` and `:hud-link` |
 | `:dishare-bridge` | `libraries/dishare-bridge/` | `dev.denza.disharebridge` (library) |
-| `:hud-link` | `libraries/hud-link/` | `dev.denza.hudlink` (library: the HUD's SOME/IP wire, plain Java 8, also compiled into the YandexHUD module) |
+| `:hud-link` | `libraries/hud-link/` | `dev.denza.hudlink` (library: the HUD's SOME/IP wire, compositor and session policy, plain Java 8, also compiled into the YandexHUD module) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
 The on-device probes and the frozen legacy app are configured only when the
@@ -146,9 +146,9 @@ The same form works for every module in the second table above.
 - Keep `…​.probe` code out of product dependencies. Denza Apps has no probe or
   Denza Mirrors dependency. The frozen standalone Mirrors source retains one
   documented historical product-to-probe exception.
-- Product apps share car-access code only via `:dishare-bridge`, and the HUD's SOME/IP wire
-  via `:hud-link`. `:hud-link` stays plain Java 8 with no dependencies: `tools/yandex_hud_build`
-  compiles it into Navigator's dex with `javac --release 8`.
+- Product apps share car-access code only via `:dishare-bridge`, and the HUD's SOME/IP wire,
+  compositor and session via `:hud-link`. `:hud-link` stays plain Java 8 with no dependencies:
+  `tools/yandex_hud_build` compiles it into Navigator's dex with `javac --release 8`.
 - Do not add features to `:denza-gateway`. Limit changes to maintenance or work
   required to retire it safely.
 - New camera behavior belongs in `:denza-apps`; use

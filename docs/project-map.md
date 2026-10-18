@@ -19,7 +19,7 @@ may still use the historical `denza-gateway` directory name.
 | Path | Purpose | Rules |
 | --- | --- | --- |
 | `libraries/dishare-bridge/` | Raw DiShare binder bridge used by `denza-apps` for screen discovery and starting/stopping shares. | Keep API notes in `docs/dishare-api-notes.md` aligned with transaction behavior. With `libraries/hud-link/`, the only place product apps may share car-access code. |
-| `libraries/hud-link/` | The HUD's SOME/IP wire: Binder calls to the stock service, the protobuf writer, the road packet's field numbers, the map frame. Used by `denza-apps` and compiled into the YandexHUD module by `tools/yandex_hud_build/`. | Plain Java 8, no Kotlin or AndroidX: it ends up inside Navigator's dex. Session policy stays with each sender until the compositor (`docs/hud-output-architecture.md`). |
+| `libraries/hud-link/` | The HUD's SOME/IP wire (Binder calls to the stock service, the protobuf writer, the road packet's field numbers, the map frame) and its one writer: the compositor (`HudScene`, the placement table `HudRole`), the session policy (`HudSession`) and `HudOutput`, which runs them on an Android thread. `denza-apps` writes to the HUD only through it; the YandexHUD module compiles it in (`tools/yandex_hud_build/`) and still keeps its own session until stage 3. | Plain Java 8, no Kotlin or AndroidX: it ends up inside Navigator's dex. Decisions stay apart from Canvas and Binder so they run on the JVM. Normative: `docs/hud-output-architecture.md`. |
 
 ## Supporting Areas
 
