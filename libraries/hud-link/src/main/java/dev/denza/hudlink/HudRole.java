@@ -84,6 +84,16 @@ public enum HudRole {
         return this == MAP_ASIDE ? LANES : null;
     }
 
+    /**
+     * Whether {@code values}, published to this role, hold it against a lower-ranked source. An
+     * explicit nothing does not: the module sends «no lanes» (5 = 0) for the whole of a route, and
+     * that yields the lane window to the radar's warning; it is written only while no source has
+     * a picture for the window (docs/hud-output-architecture.md, 7.4).
+     */
+    public boolean holds(HudFields values) {
+        return this != LANES || values.has(Road.LANES_PNG);
+    }
+
     /** A role of layers in a layered window, as against a role of road-packet fields. */
     public boolean layered() {
         return window.layered;

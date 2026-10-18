@@ -81,6 +81,29 @@ public final class HudSceneTest {
     }
 
     @Test
+    public void theModulesNoLanesYieldsTheLaneWindowToTheRadar() {
+        // YandexHUD on a route: «no lanes» (5 = 0) in every frame, the whole way.
+        scene.fields(HudSource.MODULE, HudRole.MANEUVER, new HudFields.Builder().build(), LONG, 0);
+        scene.fields(HudSource.MODULE, HudRole.LANES, new HudFields.Builder()
+                .number(Road.LANE_COUNT, 0).build(), LONG, 0);
+        radarInTheLaneWindow(0);
+        scene.withdraw(HudSource.RADAR, HudRole.LANES);
+        scene.fields(HudSource.RADAR, HudRole.LANES, new HudFields.Builder()
+                .number(Road.LANE_COUNT, 3).bytes(Road.LANES_PNG, Pngs.header(123, 60)).build(), 500, 0);
+
+        HudComposition warning = scene.compose(0);
+        assertEquals(HudSource.RADAR, warning.winner(HudRole.LANES));
+        assertEquals(3L, warning.fields(HudRole.LANES).value(Road.LANE_COUNT));
+        assertTrue("the stand-in stays off the map", warning.layers(HudWindow.MAP).isEmpty());
+
+        // The warning is over: the module's «no lanes» empties the window again.
+        HudComposition after = scene.compose(500);
+        assertEquals(HudSource.MODULE, after.winner(HudRole.LANES));
+        assertEquals(0L, after.fields(HudRole.LANES).value(Road.LANE_COUNT));
+        assertTrue("no picture", !after.fields(HudRole.LANES).has(Road.LANES_PNG));
+    }
+
+    @Test
     public void theRoadLimitStandsWithoutNavigationAndTheModulesComesFirst() {
         scene.fields(HudSource.CAPTURE, HudRole.ROAD_LIMIT,
                 new HudFields.Builder().number(Road.SPEED_LIMIT, 60).build(), LONG, 0);

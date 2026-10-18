@@ -118,7 +118,7 @@ public final class HudScene {
         EnumMap<HudRole, Published> winners = new EnumMap<>(HudRole.class);
         for (Published candidate : fields) {
             Published best = winners.get(candidate.role);
-            if (best == null || candidate.role.rank(candidate.source) < best.role.rank(best.source)) {
+            if (best == null || candidate.beats(best)) {
                 winners.put(candidate.role, candidate);
             }
         }
@@ -256,6 +256,15 @@ public final class HudScene {
             this.role = role;
             this.values = values;
             this.expiresAt = expiresAt;
+        }
+
+        /** Whether this wins its role over {@code other}: what holds the role first, then rank. */
+        boolean beats(Published other) {
+            boolean holds = role.holds(values);
+            if (holds != role.holds(other.values)) {
+                return holds;
+            }
+            return role.rank(source) < role.rank(other.source);
         }
     }
 }
