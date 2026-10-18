@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.hud
 
+import dev.denza.hudlink.HudProtocol
 import java.util.Base64
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -15,7 +16,7 @@ class HudMapPayloadTest {
     fun aShortImageIsTagLengthAndBase64() {
         val png = byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte())
 
-        val payload = HudSomeIpClient.mapPayload(png)
+        val payload = HudProtocol.mapPayload(png)
 
         // "iVBORw==" is 8 characters: one length byte.
         assertArrayEquals(byteArrayOf(0x0A, 8) + "iVBORw==".toByteArray(Charsets.US_ASCII), payload)
@@ -25,7 +26,7 @@ class HudMapPayloadTest {
     fun aRealSizedFrameCarriesAMultiByteLengthAndNoLineBreaks() {
         val png = ByteArray(40_000) { (it * 31).toByte() }
 
-        val payload = HudSomeIpClient.mapPayload(png)
+        val payload = HudProtocol.mapPayload(png)
 
         assertEquals(0x0A, payload[0].toInt())
         var length = 0

@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.view.PixelCopy
 import android.view.Surface
+import dev.denza.hudlink.HudProtocol
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -123,7 +124,7 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
         if (HudMapPalette.isNight(ground)) palette.apply(mapPixels, mapPixels)
         val image = png.encode(mapPixels, HudMapGeometry.MAP_WIDTH, HudMapGeometry.MAP_HEIGHT)
         if (keep) capture?.save(analysisPng, image)
-        return HudMapResult.Frame(HudSomeIpClient.mapPayload(image), anchor.source)
+        return HudMapResult.Frame(HudProtocol.mapPayload(image), anchor.source)
     }
 
     /** Forgets the cursor, as a new route or a new start of the map should. */
@@ -363,7 +364,7 @@ internal class HudMapPng : AutoCloseable {
         val blankPayload: ByteArray by lazy {
             val black = IntArray(HudMapGeometry.MAP_WIDTH * HudMapGeometry.MAP_HEIGHT) { 0xFF000000.toInt() }
             HudMapPng().use { encoder ->
-                HudSomeIpClient.mapPayload(encoder.encode(black, HudMapGeometry.MAP_WIDTH, HudMapGeometry.MAP_HEIGHT))
+                HudProtocol.mapPayload(encoder.encode(black, HudMapGeometry.MAP_WIDTH, HudMapGeometry.MAP_HEIGHT))
             }
         }
     }

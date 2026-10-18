@@ -12,42 +12,28 @@ import android.graphics.Path;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.Parcel;
-import android.os.RemoteException;
 import android.os.SystemClock;
 import android.util.Log;
 
+import dev.denza.hudlink.HudMessage;
+import dev.denza.hudlink.HudProtocol;
+import dev.denza.hudlink.HudProtocol.Road;
+import dev.denza.hudlink.HudSomeIp;
+
 import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 /**
  * Product wrapper around the stock SOME/IP road-guidance endpoint verified by the HUD probe: the
  * road packet {@code 0x8001} the hints send, and the map window's event {@code 0x8003}, which
- * rides on the same session.
+ * rides on the same session. The wire - Binder calls, protobuf, the map frame - is `:hud-link`,
+ * shared with the YandexHUD module; the session's policy and the field choice are this app's.
  */
 final class HudSomeIpClient {
     private static final String TAG = "DenzaHudGuidance";
-    private static final String DESCRIPTOR = "ts.car.someip.sdk.ISomeIpServerInterface";
-    private static final String ACTION = "com.ts.car.someip.SomeIpServerService";
-    private static final String PACKAGE = "com.ts.car.someip.service";
-    private static final String SERVICE = "com.ts.car.someip.service.manager.SomeIpServerService";
-    private static final int TX_START = 4;
-    private static final int TX_STOP = 5;
-    private static final int TX_FIRE = 6;
-    private static final long SVC_HUD_NAVI = 3097367205183488L;
-    private static final long TOPIC_HUD_ROAD = 1127042368241665L;
-    /** Event 0x8003, {@code HudNavigationmap{1: Base64 PNG}}: the map window beside the speed. */
-    private static final long TOPIC_HUD_MAP = 1127042368241667L;
     private static final long SHUTDOWN_DELAY_MS = 350L;
     private static final long RECOVERY_DELAY_MS = 1000L;
-    /**
-     * Field 2 as the stock navigator sends it: {@code 2}, and {@code 1} only while its own junction
-     * picture is up, which this app never draws. Until 2026-10-09 it carried a sequence number.
-     */
-    private static final int STOCK_COUNTER = 2;
     /**
      * The road topic reaches the HUD over UDP, so one lost clear would leave the last arrow on the
      * glass. The clear goes out three times, 120 ms apart, all before {@link #SHUTDOWN_DELAY_MS}.
@@ -145,7 +131,7 @@ final class HudSomeIpClient {
 
     private void sendClear() {
         clearSendsLeft--;
-        int result = fire(TOPIC_HUD_ROAD, buildPayload(true, null));
+        int result = fire(HudProtocol.TOPIC_ROAD, buildPayload(true, null));
         HudSomeIpRuntime.onFireResult(result);
         Log.i(TAG, "clear ret=" + result + " left=" + clearSendsLeft);
         if (clearSendsLeft > 0) {
@@ -167,7 +153,7 @@ final class HudSomeIpClient {
     }
 
     /**
-     * A frame of the map window, already a payload ({@link #mapPayload}). It rides on the session
+     * A frame of the map window, already a payload ({@link HudProtocol#mapPayload}). It rides on the session
      * the hints started: with none started it is dropped, never a reason to start one - the HUD
      * shows the map window only beside a road packet that says a route is on. A frame ends the
      * black frames of an earlier {@link #clearMap} still to go.
@@ -177,7 +163,7 @@ final class HudSomeIpClient {
         if (!serviceStarted || binder == null) {
             return;
         }
-        HudMapRuntime.onFireResult(fire(TOPIC_HUD_MAP, payload));
+        HudMapRuntime.onFireResult(fire(HudProtocol.TOPIC_MAP, payload));
     }
 
     /**
@@ -198,7 +184,7 @@ final class HudSomeIpClient {
 
     private void sendBlankMap() {
         blankMapSendsLeft--;
-        int result = fire(TOPIC_HUD_MAP, blankMapPayload);
+        int result = fire(HudProtocol.TOPIC_MAP, blankMapPayload);
         HudMapRuntime.onFireResult(result);
         Log.i(TAG, "blank map ret=" + result + " left=" + blankMapSendsLeft);
         if (blankMapSendsLeft > 0) {
@@ -235,9 +221,7 @@ final class HudSomeIpClient {
             return;
         }
         HudSomeIpRuntime.onBinding();
-        Intent intent = new Intent(ACTION);
-        intent.setComponent(new ComponentName(PACKAGE, SERVICE));
-        intent.setType(context.getPackageName());
+        Intent intent = HudSomeIp.bindIntent(context.getPackageName());
         try {
             bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
             Log.i(TAG, "bind=" + bound);
@@ -252,25 +236,7 @@ final class HudSomeIpClient {
     }
 
     private int startSomeIpService() {
-        IBinder service = binder;
-        if (service == null) {
-            return -100;
-        }
-        Parcel data = Parcel.obtain();
-        Parcel reply = Parcel.obtain();
-        try {
-            data.writeInterfaceToken(DESCRIPTOR);
-            data.writeLong(SVC_HUD_NAVI);
-            service.transact(TX_START, data, reply, 0);
-            reply.readException();
-            return reply.readInt();
-        } catch (RuntimeException | RemoteException error) {
-            Log.e(TAG, "start failed", error);
-            return -200;
-        } finally {
-            reply.recycle();
-            data.recycle();
-        }
+        return HudSomeIp.start(binder, TAG);
     }
 
     private void startSessionAndPublishPending() {
@@ -302,7 +268,7 @@ final class HudSomeIpClient {
                 iconCache.put(iconKey, icon);
             }
         }
-        int result = fire(TOPIC_HUD_ROAD,
+        int result = fire(HudProtocol.TOPIC_ROAD,
                 buildPayload(false, guidance, icon, arGeometry));
         HudSomeIpRuntime.onFireResult(result);
         if (result == 0) {
@@ -369,29 +335,7 @@ final class HudSomeIpClient {
     }
 
     private int fire(long topic, byte[] payload) {
-        IBinder service = binder;
-        if (service == null) {
-            return -100;
-        }
-        Parcel data = Parcel.obtain();
-        Parcel reply = Parcel.obtain();
-        try {
-            data.writeInterfaceToken(DESCRIPTOR);
-            data.writeInt(1);
-            data.writeLong(topic);
-            data.writeLong(0L);
-            data.writeInt(payload.length);
-            data.writeByteArray(payload);
-            service.transact(TX_FIRE, data, reply, 0);
-            reply.readException();
-            return reply.readInt();
-        } catch (RuntimeException | RemoteException error) {
-            Log.e(TAG, "fire failed", error);
-            return -200;
-        } finally {
-            reply.recycle();
-            data.recycle();
-        }
+        return HudSomeIp.fire(binder, topic, payload, TAG);
     }
 
     private void stopAndUnbind() {
@@ -400,20 +344,7 @@ final class HudSomeIpClient {
         cancelBlankMapRepeats();
         IBinder service = binder;
         if (serviceStarted && service != null) {
-            Parcel data = Parcel.obtain();
-            Parcel reply = Parcel.obtain();
-            try {
-                data.writeInterfaceToken(DESCRIPTOR);
-                data.writeLong(SVC_HUD_NAVI);
-                service.transact(TX_STOP, data, reply, 0);
-                reply.readException();
-                Log.i(TAG, "stop ret=" + reply.readInt());
-            } catch (RuntimeException | RemoteException error) {
-                Log.w(TAG, "stop failed", error);
-            } finally {
-                reply.recycle();
-                data.recycle();
-            }
+            Log.i(TAG, "stop ret=" + HudSomeIp.stop(service, TAG));
         }
         serviceStarted = false;
         binder = null;
@@ -437,38 +368,38 @@ final class HudSomeIpClient {
             HudGuidance guidance,
             byte[] icon,
             HudArGeometry arGeometry) {
-        ByteArrayOutputStream message = new ByteArrayOutputStream(256 + (icon == null ? 0 : icon.length));
-        intField(message, 2, STOCK_COUNTER);
-        intField(message, 16, clear ? 1 : 2);
+        // Field 2 as the stock navigator sends it; until 2026-10-09 it carried a sequence number.
+        HudMessage message = new HudMessage(256 + (icon == null ? 0 : icon.length))
+                .number(Road.COUNTER, Road.STOCK_COUNTER)
+                .number(Road.STATE, clear ? Road.OFF : Road.NAVIGATING);
         if (!clear && guidance != null) {
             if (guidance.getRemainingDistanceMeters() != null) {
-                intField(message, 3, guidance.getRemainingDistanceMeters());
+                message.number(Road.REMAINING_METERS, guidance.getRemainingDistanceMeters());
             }
             if (guidance.getRemainingTimeSeconds() != null) {
-                intField(message, 4, guidance.getRemainingTimeSeconds());
+                message.number(Road.REMAINING_SECONDS, guidance.getRemainingTimeSeconds());
             }
-            bytesField(message, 8, icon);
-            intField(message, 9, guidance.getManeuverDistanceMeters());
-            stringField(message, 10, guidance.getNextRoadName());
+            message.bytes(Road.MANEUVER_PNG, icon)
+                    .number(Road.MANEUVER_METERS, guidance.getManeuverDistanceMeters())
+                    .text(Road.ROAD_NAME, guidance.getNextRoadName());
             if (guidance.getSpeedLimitKmh() != null) {
-                // currentMaxSpeedLimit, km/h, as the stock navigator fills it.
-                intField(message, 11, guidance.getSpeedLimitKmh());
+                message.number(Road.SPEED_LIMIT, guidance.getSpeedLimitKmh());
             }
-            stringField(message, 26, routeDistance(guidance));
-            stringField(message, 27, guidance.getRemainingTimeText());
-            intField(message, 28, guidance.getManeuver().getStockId());
+            message.text(Road.SUMMARY_DISTANCE, routeDistance(guidance))
+                    .text(Road.SUMMARY_TIME, guidance.getRemainingTimeText())
+                    .number(Road.STOCK_MANEUVER, guidance.getManeuver().getStockId());
             if (arGeometry != null) {
-                doubleField(message, 19, arGeometry.getVehicleLongitude());
-                doubleField(message, 20, arGeometry.getVehicleLatitude());
-                intField(message, 21, Math.round(arGeometry.getVehicleSpeedMetersPerSecond()));
-                intField(message, 22, Math.round(arGeometry.getVehicleAltitudeMeters()));
-                stringField(message, 30, arGeometry.getGuideLine());
-                stringField(message, 31, arGeometry.getGuidePoint());
-                doubleField(message, 32, arGeometry.getVehicleHeadingDegrees());
-                doubleField(message, 33, arGeometry.getNavigatingRatio());
+                message.decimal(Road.LONGITUDE, arGeometry.getVehicleLongitude())
+                        .decimal(Road.LATITUDE, arGeometry.getVehicleLatitude())
+                        .number(Road.SPEED, Math.round(arGeometry.getVehicleSpeedMetersPerSecond()))
+                        .number(Road.ALTITUDE, Math.round(arGeometry.getVehicleAltitudeMeters()))
+                        .text(Road.AR_LINE, arGeometry.getGuideLine())
+                        .text(Road.AR_POINT, arGeometry.getGuidePoint())
+                        .decimal(Road.HEADING, arGeometry.getVehicleHeadingDegrees())
+                        .decimal(Road.PROGRESS, arGeometry.getNavigatingRatio());
             }
         }
-        return embed(1, message.toByteArray());
+        return message.embedded(Road.ENVELOPE);
     }
 
     static byte[] buildPayloadForTest(HudGuidance guidance, HudArGeometry arGeometry) {
@@ -479,31 +410,9 @@ final class HudSomeIpClient {
         return buildPayload(true, null);
     }
 
-    /**
-     * {@code HudNavigationmap{1: Base64(png)}} exactly as the stock navigator sends it: field 1 as
-     * a string, Base64 without line breaks, and no envelope around the message - unlike the road
-     * packet, which is field 1 of an outer message.
-     */
-    static byte[] mapPayload(byte[] png) {
-        byte[] text = java.util.Base64.getEncoder().encode(png);
-        ByteArrayOutputStream message = new ByteArrayOutputStream(text.length + 8);
-        bytesField(message, 1, text);
-        return message.toByteArray();
-    }
-
     static String routeDistance(HudGuidance guidance) {
         Integer remainingMeters = guidance.getRemainingDistanceMeters();
-        return remainingMeters == null ? "" : formatDistance(remainingMeters);
-    }
-
-    private static String formatDistance(int meters) {
-        if (meters < 1000) {
-            return meters + " м";
-        }
-        if (meters < 10_000) {
-            return String.format(Locale.ROOT, "%.1f км", meters / 1000.0).replace('.', ',');
-        }
-        return Math.round(meters / 1000.0) + " км";
+        return remainingMeters == null ? "" : HudProtocol.routeDistance(remainingMeters);
     }
 
     static byte[] renderIcon(HudManeuver maneuver, Integer roundaboutExitNumber) {
@@ -702,57 +611,5 @@ final class HudSomeIpClient {
         arrow.lineTo(x - length, y + halfWidth);
         canvas.drawPath(arrow, paint);
         canvas.restore();
-    }
-
-    private static byte[] embed(int field, byte[] message) {
-        ByteArrayOutputStream output = new ByteArrayOutputStream(message.length + 8);
-        varint(output, (field << 3) | 2);
-        varint(output, message.length);
-        output.write(message, 0, message.length);
-        return output.toByteArray();
-    }
-
-    private static void stringField(ByteArrayOutputStream output, int field, String value) {
-        if (value == null || value.isEmpty()) {
-            return;
-        }
-        bytesField(output, field, value.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private static void bytesField(ByteArrayOutputStream output, int field, byte[] value) {
-        if (value == null || value.length == 0) {
-            return;
-        }
-        varint(output, (field << 3) | 2);
-        varint(output, value.length);
-        output.write(value, 0, value.length);
-    }
-
-    private static void intField(ByteArrayOutputStream output, int field, long value) {
-        varint(output, field << 3);
-        varint(output, value);
-    }
-
-    private static void doubleField(ByteArrayOutputStream output, int field, double value) {
-        if (!Double.isFinite(value)) {
-            return;
-        }
-        varint(output, (field << 3) | 1);
-        long bits = Double.doubleToRawLongBits(value);
-        for (int index = 0; index < Long.BYTES; index++) {
-            output.write((int) (bits & 0xffL));
-            bits >>>= 8;
-        }
-    }
-
-    private static void varint(ByteArrayOutputStream output, long value) {
-        while (true) {
-            if ((value & ~0x7fL) == 0L) {
-                output.write((int) value);
-                return;
-            }
-            output.write((int) ((value & 0x7fL) | 0x80L));
-            value >>>= 7;
-        }
     }
 }

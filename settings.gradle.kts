@@ -26,6 +26,9 @@ project(":denza-apps").projectDir = file("apps/denza-apps")
 include(":dishare-bridge")
 project(":dishare-bridge").projectDir = file("libraries/dishare-bridge")
 
+include(":hud-link")
+project(":hud-link").projectDir = file("libraries/hud-link")
+
 // The disposable on-device probes under experiments/ and the frozen legacy app are configured
 // only on request, so that an ordinary product build does not pay for nine modules it never
 // touches. Ask for them with the `experiments` property:

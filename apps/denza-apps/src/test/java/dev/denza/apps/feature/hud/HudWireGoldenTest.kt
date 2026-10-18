@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.hud
 
+import dev.denza.hudlink.HudProtocol
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -46,7 +47,7 @@ class HudWireGoldenTest {
     @Test
     fun theMapFrameIsByteForByteTheSame() {
         val png = byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 0, 1, 2)
-        assertEquals(MAP_FRAME, hex(HudSomeIpClient.mapPayload(png)))
+        assertEquals(MAP_FRAME, hex(HudProtocol.mapPayload(png)))
     }
 
     private fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
