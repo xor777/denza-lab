@@ -238,7 +238,8 @@ public final class HudModule {
         private HudSession.Trouble said;
         @Override public void onBinding() { }
         @Override public void onStarted(int result) {
-            if (result != 0) return; // A failed start is onTrouble next.
+            // A failed start is onTrouble next; 13 joins a service another session started.
+            if (result != 0 && result != HudProtocol.ALREADY_STARTED) return;
             said = null;
             Log.i(TAG, "transport started");
         }
