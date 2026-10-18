@@ -48,6 +48,9 @@ interface DenzaActions {
     val onNavigationPlacement: (ClusterMapPlacement) -> Unit
     val onNavigationSteeringWheelButton: (Boolean) -> Unit
 
+    /** «Карта в правом окне»: the HUD's map over the instruments' right card. */
+    val onSetClusterMapCardEnabled: (Boolean) -> Unit
+
     /** Read the car for «Что показывать» as a chooser of it opens. */
     val onLoadNavigationAppChoices: () -> Unit
 
@@ -158,6 +161,7 @@ open class IdleActions : DenzaActions {
     override val onNavigationAction: () -> Unit = {}
     override val onNavigationPlacement: (ClusterMapPlacement) -> Unit = {}
     override val onNavigationSteeringWheelButton: (Boolean) -> Unit = {}
+    override val onSetClusterMapCardEnabled: (Boolean) -> Unit = {}
     override val onLoadNavigationAppChoices: () -> Unit = {}
     override val onSelectNavigationApp: (String) -> Boolean = { false }
     override val onSelectClusterDisplay: (Int?) -> Unit = {}

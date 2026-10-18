@@ -171,6 +171,7 @@ internal object SheetFixtures {
                 } ?: ClusterMapPlacement.entries,
                 navigationPlacement = ClusterMapPlacement.valueOf(s.optString("placement", "FULL")),
                 navigationSteeringWheelButton = s.optBoolean("wheel", false),
+                clusterMapCardEnabled = s.optBoolean("mapCard", false),
                 navigationButtonLabel = s.optString("buttonLabel", "На приборку"),
             )
         }

@@ -133,6 +133,7 @@ internal data class NavigationReading(
     val placement: ClusterMapPlacement,
     val placements: List<ClusterMapPlacement>,
     val appChoice: NavigationAppChoice,
+    val mapCard: Boolean = false,
 ) : SliceReading {
     override val slice get() = StateSlice.NAVIGATION
 
@@ -146,6 +147,7 @@ internal data class NavigationReading(
         navigationPlacements = placements,
         navigationAppLabel = appChoice.label,
         navigationAppChoice = appChoice,
+        clusterMapCardEnabled = mapCard,
     )
 }
 

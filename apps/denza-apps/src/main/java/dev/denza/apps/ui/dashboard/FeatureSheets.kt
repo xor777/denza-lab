@@ -394,7 +394,18 @@ private fun clusterSheet(
         checked = state.navigationSteeringWheelButton,
         onCheckedChange = actions.onNavigationSteeringWheelButton,
     )
+    // Whatever stands on the driver's screen, the right card of the instruments is the stock
+    // instruments' own: this lays the HUD's map over its stock map, which is empty here.
+    DenzaSwitchRow(
+        title = CLUSTER_MAP_CARD_TITLE,
+        subtitle = CLUSTER_MAP_CARD_SUMMARY,
+        checked = state.clusterMapCardEnabled,
+        onCheckedChange = actions.onSetClusterMapCardEnabled,
+    )
 }
+
+internal const val CLUSTER_MAP_CARD_TITLE = "Карта в правом окне"
+internal const val CLUSTER_MAP_CARD_SUMMARY = "Карта с HUD вместо штатной, когда правое окно приборки показывает карту"
 
 /**
  * Which applications go to the screens - said as an answer, not asked as a grid.

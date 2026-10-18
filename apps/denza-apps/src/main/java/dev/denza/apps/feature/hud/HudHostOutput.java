@@ -171,6 +171,14 @@ final class HudHostOutput {
         sign.setTarget(target);
     }
 
+    /**
+     * The map window's picture for a screen beside the HUD - the instruments' right card - or
+     * none ({@code null}). Main thread.
+     */
+    void setMapFrameListener(kotlin.jvm.functions.Function1<byte[], kotlin.Unit> listener) {
+        output.setFrameListener(listener == null ? null : (window, png) -> listener.invoke(png));
+    }
+
     /** The hints went off: the stop that follows is said as one in «Сервис». */
     void noteStopAsked() {
         stopAsked = true;

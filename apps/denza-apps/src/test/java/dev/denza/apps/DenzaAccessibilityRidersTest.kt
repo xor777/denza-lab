@@ -25,6 +25,7 @@ class DenzaAccessibilityRidersTest {
                 "steering-wheel-key",
                 "alice-voice-key",
                 "simulcast-overlay",
+                "cluster-map-card",
                 "runtime-recovery",
             ),
             riders.map { it.name },
@@ -49,18 +50,19 @@ class DenzaAccessibilityRidersTest {
             riders.filter { RiderDispatch.wants(it, type, packageName) }.map { it.name }
 
         assertEquals(
-            listOf("wifi-debugging-dialog", "speaker-foreground", "hud-guidance", "alice-voice-key", "simulcast-overlay"),
+            listOf("wifi-debugging-dialog", "speaker-foreground", "hud-guidance", "alice-voice-key", "simulcast-overlay", "cluster-map-card"),
             handed(STATE, "ru.yandex.yandexnavi"),
         )
         assertEquals(
-            listOf("wifi-debugging-dialog", "speaker-foreground", "native-weather", "hud-guidance", "alice-voice-key", "simulcast-overlay"),
+            listOf("wifi-debugging-dialog", "speaker-foreground", "native-weather", "hud-guidance", "alice-voice-key", "simulcast-overlay", "cluster-map-card"),
             handed(STATE, "com.byd.weatherdata"),
         )
         assertEquals(listOf("native-weather", "hud-guidance", "alice-voice-key", "simulcast-overlay"), handed(CONTENT, "com.byd.weatherdata"))
         assertEquals(listOf("hud-guidance", "alice-voice-key", "simulcast-overlay"), handed(CONTENT, "ru.yandex.yandexnavi"))
-        assertEquals(listOf("hud-guidance", "alice-voice-key", "simulcast-overlay"), handed(WINDOWS, null))
+        // The instruments' right card looks at the overlay display on window changes alone.
+        assertEquals(listOf("hud-guidance", "alice-voice-key", "simulcast-overlay", "cluster-map-card"), handed(WINDOWS, null))
         assertEquals(
-            listOf("wifi-debugging-dialog", "speaker-foreground", "hud-guidance", "alice-voice-key", "simulcast-overlay"),
+            listOf("wifi-debugging-dialog", "speaker-foreground", "hud-guidance", "alice-voice-key", "simulcast-overlay", "cluster-map-card"),
             handed(STATE, null),
         )
         // A type the service's configuration never asks for: the weather and HUD guidance took

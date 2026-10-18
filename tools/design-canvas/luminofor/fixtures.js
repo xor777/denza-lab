@@ -176,10 +176,11 @@
         { t: 'group', rows: [{ kind: 'choice', title: 'Что показывать', icons: ['Яндекс Навигатор'], value: 'Яндекс Навигатор' }] },
         { t: 'section', label: 'Размещение', body: { t: 'segmented', labels: ['Полный', 'Слева', 'Центр', 'Справа'], selected: 0 } },
         { t: 'switch', title: 'Кнопка ★ на руле', on: true },
+        { t: 'switch', title: 'Карта в правом окне', summary: 'Карта с HUD вместо штатной, когда правое окно приборки показывает карту', on: false },
         { t: 'note', text: 'На приборную панель за рулём встаёт что-то одно: приборы или любое приложение с машины. Короткое нажатие на плитку ставит его туда и убирает обратно.' }
       ],
       footer: [{ t: 'button', text: 'На приборку' }, { t: 'footnote', text: TAP }]
-    }, { tile: 'CLUSTER', navigation: NAV, placements: ['FULL', 'LEFT', 'CENTER', 'RIGHT'], placement: 'FULL', wheel: true, buttonLabel: 'На приборку' }),
+    }, { tile: 'CLUSTER', navigation: NAV, placements: ['FULL', 'LEFT', 'CENTER', 'RIGHT'], placement: 'FULL', wheel: true, mapCard: false, buttonLabel: 'На приборку' }),
     mirrors: sheetOf(2, {
       title: 'Зеркала',
       blocks: [

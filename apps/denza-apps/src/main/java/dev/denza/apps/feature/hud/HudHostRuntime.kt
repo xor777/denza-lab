@@ -31,4 +31,13 @@ object HudHostRuntime {
         val app = context.applicationContext
         Handler(Looper.getMainLooper()).post { HudHostOutput.get(app).onSettingsChanged() }
     }
+
+    /**
+     * The HUD's map window as a picture, for a screen beside the HUD: [listener] is told every
+     * new PNG, null when the window shows nothing, on the main thread; null stops it. One
+     * listener, the instruments' right card (`ClusterMapCardRuntime`). Main thread.
+     */
+    fun mapFrames(context: Context, listener: ((ByteArray?) -> Unit)?) {
+        HudHostOutput.get(context.applicationContext).setMapFrameListener(listener)
+    }
 }

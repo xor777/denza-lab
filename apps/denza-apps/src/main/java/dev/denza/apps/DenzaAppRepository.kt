@@ -16,6 +16,9 @@ import dev.denza.apps.core.FeatureWords
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
+import dev.denza.apps.feature.cluster.ClusterMapCardRider
+import dev.denza.apps.feature.cluster.ClusterMapCardRuntime
+import dev.denza.apps.feature.cluster.ClusterMapCardSettings
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbAutostartRetryAction
@@ -192,6 +195,8 @@ data class DenzaUiState(
     val navigationAppLabel: String = NavigationAppPolicy.DASHBOARD_LABEL,
     /** What is chosen, as the panel's row draws it; the page's whole list is [navigationAppChoices]. */
     val navigationAppChoice: NavigationAppChoice = NavigationAppChoices.instruments(selected = true),
+    /** «Карта в правом окне» of the driver's screen panel ([ClusterMapCardSettings]). */
+    val clusterMapCardEnabled: Boolean = false,
     /**
      * Everything «Что показывать» offers, read when the page opens rather than on every refresh:
      * it is the car's whole launcher catalog, icons and all, and nothing but that page draws it.
@@ -498,6 +503,7 @@ object DenzaAppRepository {
                 ),
                 placements = NavigationPlacementPolicy.offered(selectedPackage),
                 appChoice = NavigationAppChoices.chosen(context, selectedPackage),
+                mapCard = ClusterMapCardSettings.isEnabled(context),
             )
         }
         StateSlice.SPLIT_SCREEN -> SplitScreenReading(
@@ -714,6 +720,19 @@ object DenzaAppRepository {
         } else {
             invalidate(StateSlice.NAVIGATION, "wheel switch")
         }
+    }
+
+    /**
+     * «Карта в правом окне»: the HUD's map over the instruments' right card while it shows the
+     * stock map ([ClusterMapCardRuntime]). Only this app's own window moves; nothing is written
+     * to the car.
+     */
+    fun setClusterMapCardEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        ClusterMapCardSettings.setEnabled(context, enabled)
+        ClusterMapCardRuntime.settingsChanged(context)
+        ClusterMapCardRider.requestRefresh()
+        invalidate(StateSlice.NAVIGATION, "cluster map card switch")
     }
 
     fun recoverNavigationSteeringWheelAccess(context: Context) {

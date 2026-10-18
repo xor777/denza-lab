@@ -92,6 +92,8 @@ internal object AppActions : DenzaActions {
         { placement -> DenzaAppRepository.setNavigationPlacement(placement) }
     override val onNavigationSteeringWheelButton: (Boolean) -> Unit =
         { enabled -> DenzaAppRepository.setNavigationSteeringWheelButton(enabled) }
+    override val onSetClusterMapCardEnabled: (Boolean) -> Unit =
+        { enabled -> DenzaAppRepository.setClusterMapCardEnabled(enabled) }
     override val onLoadNavigationAppChoices: () -> Unit =
         { DenzaAppRepository.refreshNavigationAppChoices() }
     override val onSelectNavigationApp: (String) -> Boolean =

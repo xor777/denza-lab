@@ -4,6 +4,7 @@ import android.content.Context
 import dev.denza.apps.core.RuntimeRecoveryRider
 import dev.denza.apps.feature.adb.WifiDebuggingDialogRider
 import dev.denza.apps.feature.alice.AliceVoiceKeyRider
+import dev.denza.apps.feature.cluster.ClusterMapCardRider
 import dev.denza.apps.feature.hud.HudGuidanceRider
 import dev.denza.apps.feature.media.MediaKeyRider
 import dev.denza.apps.feature.navigation.SteeringWheelKeyRider
@@ -34,6 +35,7 @@ object DenzaAccessibilityRiders {
         },
         AliceVoiceKeyRider(),
         SimulcastOverlayRider(),
+        ClusterMapCardRider(),
         RuntimeRecoveryRider(),
     )
 }
