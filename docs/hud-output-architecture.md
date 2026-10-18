@@ -668,15 +668,19 @@ GPS (`ic_signal_1…4` HUD Speed: выключен, поиск, включён �
 <a id="hud-out-trip"></a>
 ## 11. Выезд: что ставить и что смотреть
 
-Собрано 2026-10-18 из main `4f74f32a` в чистом worktree; на машину ничего не
-ставилось. Сверять SHA-256 на носителе после перемонтирования: флешка уже
+Собрано 2026-10-18 из main `4f74f32a` в чистом worktree. **Поставлено на машину
+2026-10-18 в 15:39–15:40** (`adb install -r`, данные сохранены, хеши `base.apk`
+на машине совпали с таблицей): Denza Apps, YandexHUD и HUD Speed Mod; пробник
+не ставился. Падений, в том числе `com.byd.avc`, после установки нет. До этого
+на машине стояли Denza Apps `b9f52189…` (versionCode 77, 13.10) и YandexHUD
+`c93b90f8…` (15.10); их копии — `captures/car-backup-20261018/`. Сверять SHA-256 на носителе после перемонтирования: флешка уже
 портила APK. Сборки из `captures/hud-speed-20261018/delivery/` не ставить: их
 Denza Apps собрана из рабочего дерева с чужими правками и старой карточкой, а
 адаптер говорит протоколом v1 — без полосок GPS и картинок HUD Speed.
 
 | Что | Файл (git-ignored) | SHA-256 |
 |---|---|---|
-| Denza Apps: хост модуля и HUD Speed | `apps/denza-apps/build/outputs/apk/debug/denza-apps.apk` (из `4f74f32a`) | `20d94c0d2659241e1b555bb8cf7b0e5acf92b146eebaef015925ce5fc34cbd39` |
+| Denza Apps: хост модуля и HUD Speed | `captures/hud-speed-20261018/host-4f74/denza-apps.apk` (чистый worktree `4f74f32a`, versionCode 78; прошёл парную проверку с HUD Speed Mod). Первая сборка того же коммита, `20d94c0d…`, перезаписана и на машину не ставилась | `c8fa636127dc613d8cb66d497169520571c2ae4f87392b9c62798bfc122aa63c` |
 | YandexHUD, модуль на `HudLink` | `captures/yandex-hud-radar-20261018/build-02/YandexHUD-1-arm64-debug.apk` | `42a4315479c5b2905a513eeb77d3f15a207623f4cba12bc77f75ae016c594bd8` |
 | HUD Speed с адаптером (протокол v2), `79.0-mod.1` «HUD Speed Mod» | `captures/hud-speed-20261018/build-mod-4f74/HUD-Speed-79.0-mod.1.apk` (исходники `4f74f32a`; от `79.0-DenzaHUD.1` отличается только манифестом) | `e3f92aeb8b6576fe979fa25ee1f39e9eeff8a0fee3049ee515338cf214fad3a5` |
 | Пробник `hud-surfaces-probe` | `experiments/hud-surfaces-probe/build/outputs/apk/debug/hud-surfaces-probe.apk` | `1f641d032a0dcc32a6b38f9ad78b880b1ffdaddb5364b83b2d4ae3ba31ac1b1b` |
