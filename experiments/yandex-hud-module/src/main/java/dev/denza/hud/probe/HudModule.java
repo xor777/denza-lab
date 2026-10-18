@@ -88,13 +88,14 @@ public final class HudModule {
             emulator = new HudEmulatorControl(context, api);
             thread.start();
             worker = new Handler(thread.getLooper());
+            final JSONObject laneArt = theme.getJSONObject("laneArt");
             worker.post(() -> {
                 Bitmap bitmap = Bitmap.createBitmap(300, 180, Bitmap.Config.ARGB_8888);
                 bitmap.eraseColor(0xff000000);
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes);
                 bitmap.recycle();
-                stockArt = new StockHudArt(context.getAssets());
+                stockArt = new StockHudArt(context.getAssets(), laneArt);
                 transport = new HudTransport(context, worker, bytes.toByteArray());
             });
             MAIN.post(this::tick);
@@ -133,7 +134,7 @@ public final class HudModule {
                 try {
                     if (frame.drawMap()) {
                         if (map == null) map = new HudMap(api, theme);
-                        shot = map.capture(frame, now);
+                        shot = map.capture(frame, now, painter);
                         if (shot.bitmap != null && (shot.bitmap.getWidth() != 300 || shot.bitmap.getHeight() != 180)) throw new IllegalStateException("Invalid frame dimensions");
                     } else if (map != null) map.clearRoute();
                     painter.compose(shot, frame);

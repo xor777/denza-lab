@@ -14,7 +14,8 @@ final class HudArSource {
 
     HudAr.Frame read(NavigatorSource.Frame frame, long elapsedNow, long wallNow) {
         failure = null;
-        if (!frame.drawMap()) { reset(); return null; }
+        // AR needs the car where it is: never on a held fix, off the route or while it is rebuilt.
+        if (!frame.mode.equals("guidance") || frame.staleMs > 0) { reset(); return null; }
         try {
             NavigatorSource.Hint hint = frame.hint;
             if (hint == null || !HudAr.supported(hint.action)) return null;

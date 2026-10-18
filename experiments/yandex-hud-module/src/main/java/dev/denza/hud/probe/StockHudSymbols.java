@@ -7,45 +7,72 @@ final class StockHudSymbols {
     static final int MAX_LANES = 6, LANE_PITCH = 41, LANE_HEIGHT = 60;
     private static final String[] NONE = new String[0];
 
-    /** Snapshot for the output worker. Empty cells preserve special lanes; unknown signs are hidden. */
+    /**
+     * One cell key per lane for the output worker, as LANE_ART in hud-scene.js lays it out: every lane
+     * gets a cell and every cell is BYD's pixels. Keys are a stock name ("landback_hud_0"), "tram:N"
+     * or "taxi:N" (N = 1 when the lane is the one to take), or "shift:L|R:N". Only an empty or
+     * oversized sign gives no row.
+     */
     static String[] lanes(List<NavigatorSource.Lane> lanes) {
         if (lanes.isEmpty() || lanes.size() > MAX_LANES) return NONE;
         String[] result = new String[lanes.size()];
-        boolean any = false;
-        for (int i = 0; i < result.length; i++) {
-            NavigatorSource.Lane lane = lanes.get(i);
-            if (!lane.plain) continue;
-            int mask = 0;
-            for (String direction : lane.directions) {
-                int bit = direction(direction);
-                // Two different branches collapsing to one stock turn would lose information.
-                if (bit == 0 || (mask & bit) != 0) return NONE;
-                mask |= bit;
-            }
-            int back = laneAction(mask);
-            if (back < 0) return NONE;
-            String suffix = Integer.toHexString(back);
-            if (lane.highlight == null) result[i] = "landback_hud_" + suffix;
-            else {
-                if (!lane.directions.contains(lane.highlight)) return NONE;
-                int selected = direction(lane.highlight);
-                if (selected == 0 || (mask & selected) == 0) return NONE;
-                if (Integer.bitCount(mask) > 1) suffix += Integer.toHexString(laneAction(selected));
-                result[i] = "landfront_hud_" + suffix;
-            }
-            any = true;
-        }
-        return any ? result : NONE;
+        for (int i = 0; i < result.length; i++) result[i] = cell(lanes.get(i));
+        return result;
     }
+
+    private static final String EMPTY = "landback_hud_22", SHIFT = "landfront_hud_d", BUS = "15";
+    /** Bits a combination loses, first to last, while BYD has no picture for it: U-turns, then the outer branches. */
+    private static final int[] DROP = {16, 8, 4, 2};
+
+    static String cell(NavigatorSource.Lane lane) {
+        int on = lane.highlight != null ? 1 : 0;
+        switch (lane.kind) {
+            case "BUS_LANE": return (on == 1 ? "landfront_hud_" : "landback_hud_") + BUS;
+            case "TRAM_LANE": return "tram:" + on;
+            case "TAXI_LANE": return "taxi:" + on;
+            default: break;
+        }
+        if (lane.directions.contains("leftshift") || lane.directions.contains("rightshift"))
+            return "shift:" + (lane.directions.contains("rightshift") ? "R" : "L") + ":" + on;
+        int mask = 0;
+        for (String direction : lane.directions) mask |= direction(direction);
+        if (mask == 0) return EMPTY;
+        int selected = lane.highlight == null ? 0 : direction(lane.highlight);
+        for (int bit : DROP) {
+            if (laneAction(mask) >= 0) break;
+            if (bit != selected && (mask & bit) != 0 && Integer.bitCount(mask) > 1) mask &= ~bit;
+        }
+        int back = laneAction(mask);
+        if (back < 0) return EMPTY;
+        String suffix = Integer.toHexString(back);
+        if (selected == 0 || (mask & selected) == 0) return "landback_hud_" + suffix;
+        if (Integer.bitCount(mask) > 1) suffix += Integer.toHexString(laneAction(selected));
+        return FRONT.contains(suffix) ? "landfront_hud_" + suffix : "landback_hud_" + Integer.toHexString(back);
+    }
+
+    /** The stock pictures a cell is made of, for the builder's check that each one is packaged. */
+    static String[] assets(String key) {
+        if (key.startsWith("tram:")) return new String[]{key.endsWith("1") ? "landfront_hud_" + BUS : "landback_hud_" + BUS};
+        if (key.startsWith("taxi:")) return new String[0];
+        if (key.startsWith("shift:")) return new String[]{SHIFT};
+        return new String[]{key};
+    }
+
+    /** Every recommended-lane picture BYD drew (`landfront_hud_*`). */
+    static final java.util.Set<String> FRONT = new java.util.HashSet<>(java.util.Arrays.asList(
+            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "10", "11", "12", "13", "14", "15", "17", "20", "21", "22", "25",
+            "40", "43", "61", "63", "70", "71", "73", "90", "95", "100", "101", "105", "113", "115", "121", "123", "125", "130", "133", "135",
+            "141", "148", "a0", "a8", "b1", "b5", "c3", "c8", "d", "e1", "e5"));
 
     private static int direction(String name) {
         switch (name) {
             case "straightahead": return 1;
-            case "left45": case "left90": case "left135": return 2;
-            case "right45": case "right90": case "right135": return 4;
+            // A turn across from the far lane is the plain turn: BYD has no other picture for it.
+            case "left45": case "left90": case "left135": case "leftfromright": return 2;
+            case "right45": case "right90": case "right135": case "rightfromleft": return 4;
             case "left180": return 8;
             case "right180": return 16;
-            default: return 0; // Lane shifts have no equivalent in the recovered stock set.
+            default: return 0; // unknown: BYD's empty lane if nothing else is known
         }
     }
 
