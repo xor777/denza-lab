@@ -40,7 +40,11 @@ public final class HudGuidanceAccessibilityMonitor {
     private boolean attached;
     private HudGuidance lastGuidance;
     private HudVehiclePose latestPose;
-    /** «YandexHUD» is installed: it writes the HUD itself, and only the car's sign is sent here. */
+    /**
+     * «YandexHUD» is installed: it brings its own source - through this app's host while it is
+     * attached ({@link HudHostOutput}), by itself otherwise - so nothing is read for the HUD here
+     * and only the car's sign is set.
+     */
     private boolean navigatorDrawsHud;
     private boolean routeHeld;
 
@@ -166,7 +170,11 @@ public final class HudGuidanceAccessibilityMonitor {
             }
             HudGuidanceRuntime.onGuidance(guidance, sample.getCapturedAtMs());
             // Only a visible read carries the sign; a background route leaves the car's sign alone.
-            speedLimit.setTarget(guidance.getSpeedLimitKmh());
+            // The module's own limit, while it publishes one through the host, comes first.
+            Integer moduleLimit = navigatorDrawsHud
+                    ? HudHostOutput.get(service).moduleLimitKmh()
+                    : null;
+            speedLimit.setTarget(moduleLimit != null ? moduleLimit : guidance.getSpeedLimitKmh());
             // After the publish, which starts the session the map's frames ride on. A route read
             // from the notification has no Yandex on the screen; the map source finds that itself.
             mapRunner.run(isMapOurs());
@@ -203,16 +211,17 @@ public final class HudGuidanceAccessibilityMonitor {
     }
 
     /**
-     * Which Navigator is installed ({@link HudNavigatorBuild}). «YandexHUD» sends the hints, the
-     * AR and the map itself, so nothing goes to the HUD from here and the AR needs no position;
-     * the car's own speed sign stays. Read on a switch and once a route: swapping the two builds
-     * means reinstalling Yandex, which ends its route.
+     * Which Navigator is installed ({@link HudNavigatorBuild}). «YandexHUD» has the hints, the AR
+     * and the map itself and publishes them - into this app's host when attached - so this
+     * source sends nothing and the AR needs no position; the car's own speed sign stays. Read on
+     * a switch and once a route: swapping the two builds means reinstalling Yandex, which ends its
+     * route.
      */
     private void readNavigatorBuild() {
         boolean draws = HudNavigatorBuild.INSTANCE.drawsHud(service);
         if (draws != navigatorDrawsHud) {
             Log.i(TAG, draws
-                    ? "YandexHUD sends to the HUD itself; only the car's speed sign goes from here"
+                    ? "YandexHUD brings its own source; only the car's speed sign is set from here"
                     : "ordinary Yandex; the hints go to the HUD from here");
         }
         navigatorDrawsHud = draws;

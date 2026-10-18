@@ -78,6 +78,15 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+        <!--
+            The HUD host: the YandexHUD module binds it from Navigator's process and publishes
+            into this app's one compositor (docs/hud-output-architecture.md, 5). Exported
+            without a permission: HudHostGate admits only the Navigator package signed with the
+            YandexHUD key, on every attach.
+        -->
+        <service
+            android:name=".feature.hud.HudHostService"
+            android:exported="true" />
         <service
             android:name=".feature.simulcast.SimulcastOverlayService"
             android:exported="false" />

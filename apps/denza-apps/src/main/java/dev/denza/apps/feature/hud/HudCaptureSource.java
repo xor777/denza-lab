@@ -1,20 +1,17 @@
 package dev.denza.apps.feature.hud;
 
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 
 import dev.denza.hudlink.HudFields;
 import dev.denza.hudlink.HudImage;
-import dev.denza.hudlink.HudOutput;
 import dev.denza.hudlink.HudProtocol;
 import dev.denza.hudlink.HudProtocol.Road;
 import dev.denza.hudlink.HudRect;
 import dev.denza.hudlink.HudRole;
 import dev.denza.hudlink.HudScene;
-import dev.denza.hudlink.HudSession;
+import dev.denza.hudlink.HudSink;
 import dev.denza.hudlink.HudSource;
 import dev.denza.hudlink.HudWindow;
 
@@ -25,10 +22,11 @@ import java.util.Map;
 /**
  * Denza Apps' own source for the HUD, the capture (docs/hud-output-architecture.md, 4): the hints
  * read from ordinary Yandex, the AR approximation that rides with them, and the map window cut from
- * the screen. It publishes them into the `:hud-link` compositor ({@link HudOutput}), which alone
- * writes to the HUD and keeps the session's policy - binding, repeats, black frames, the clear.
- * What stays here is what Denza Apps knows: which fields a hint fills, the field-8 picture, and
- * how the session reads in «Сервис» ({@link HudSomeIpRuntime}). Main thread.
+ * the screen. It publishes them into this app's host ({@link HudHostOutput}), the one compositor
+ * of the process, which alone writes to the HUD and keeps the session's policy - binding,
+ * repeats, black frames, the clear - for this source and for the YandexHUD module alike. What
+ * stays here is what Denza Apps knows: which fields a hint fills and the field-8 picture. Main
+ * thread.
  */
 final class HudCaptureSource {
     private static final String TAG = "DenzaHudGuidance";
@@ -41,20 +39,20 @@ final class HudCaptureSource {
      */
     static final long GUIDANCE_TTL_MS = HudGuidanceModelsKt.HUD_LOST_ROUTE_GRACE_MS;
 
-    private final HudOutput output;
+    private final HudHostOutput host;
+    private final HudSink output;
     private final Map<String, byte[]> iconCache = new HashMap<>();
     private String lastPublishedKey;
     private byte[] mapPng;
     private HudImage mapImage;
-    private boolean shutDown;
 
     HudCaptureSource(Context context) {
-        output = new HudOutput(context, new Handler(Looper.getMainLooper()), TAG, new Status());
+        host = HudHostOutput.get(context);
+        output = host.sink();
     }
 
     /** The hints and, while it holds, the AR geometry; every poll that has a route publishes them. */
     void publish(HudGuidance guidance, HudArGeometry arGeometry) {
-        shutDown = false;
         Map<HudRole, HudFields> fields = fields(guidance, icon(guidance), arGeometry);
         for (HudRole role : GUIDANCE_ROLES) {
             HudFields values = fields.get(role);
@@ -115,7 +113,7 @@ final class HudCaptureSource {
 
     /** The hints went off or the service is going: {@link #clear}, said as a stop in «Сервис». */
     void shutdown() {
-        shutDown = true;
+        host.noteStopAsked();
         clear();
     }
 
@@ -199,70 +197,5 @@ final class HudCaptureSource {
             scene.fields(HudSource.CAPTURE, role.getKey(), role.getValue(), GUIDANCE_TTL_MS, 0L);
         }
         return scene;
-    }
-
-    /** The session as «Сервис» shows it, and its failures in the log; no route data. */
-    private final class Status implements HudSession.Listener {
-        @Override
-        public void onBinding() {
-            HudSomeIpRuntime.onBinding();
-        }
-
-        @Override
-        public void onStarted(int result) {
-            HudSomeIpRuntime.onStarting();
-            HudSomeIpRuntime.onStartResult(result);
-        }
-
-        @Override
-        public void onFired(long topic, int result, boolean clearing) {
-            if (topic == HudProtocol.TOPIC_MAP) {
-                HudMapRuntime.onFireResult(result);
-            } else if (!clearing) {
-                HudSomeIpRuntime.onFireResult(result);
-            }
-            if (result != 0) {
-                Log.w(TAG, (topic == HudProtocol.TOPIC_MAP ? "map" : "road")
-                        + (clearing ? " clear" : "") + " ret=" + result);
-            }
-        }
-
-        @Override
-        public void onTrouble(HudSession.Trouble trouble, int result) {
-            lastPublishedKey = null;
-            HudSomeIpRuntime.onRecovering(reason(trouble, result));
-        }
-
-        @Override
-        public void onClearing() {
-            Log.i(TAG, "clearing the HUD");
-            HudSomeIpRuntime.onIdle();
-        }
-
-        @Override
-        public void onStopped() {
-            if (shutDown) {
-                HudSomeIpRuntime.onIdle("Сессия HUD остановлена");
-            } else {
-                HudSomeIpRuntime.onIdle();
-            }
-        }
-    }
-
-    private static String reason(HudSession.Trouble trouble, int result) {
-        switch (trouble) {
-            case BIND_REFUSED:
-                return "Штатный сервис HUD не принял подключение";
-            case BIND_FAILED:
-                return "Ошибка подключения к штатному HUD";
-            case BIND_TIMEOUT:
-                return "Штатный HUD не ответил на подключение";
-            case DISCONNECTED:
-                return "Штатный сервис HUD отключился";
-            case START_FAILED:
-                return "Не удалось запустить сессию HUD: " + result;
-            default:
-                return "Штатный HUD отклонил подсказку: " + result;
-        }
     }
 }

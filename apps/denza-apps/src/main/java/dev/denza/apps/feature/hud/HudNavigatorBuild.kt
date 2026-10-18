@@ -12,13 +12,18 @@ import android.content.pm.PackageManager
  * map beside the module's. The SOME/IP service keeps the two sessions apart, and the HUD shows
  * whichever packet came last: two maps in turn, the manoeuvre and street flickering, the AR guide
  * point jumping between two values and restarting the firmware's AR scene, this app's black frames
- * wiping the module's map. One writer per HUD channel: the module has the route itself, this app
- * reads a screen, so this app gives way and keeps only what the module cannot do - the car's own
- * speed sign, written over ADB.
+ * wiping the module's map. The module has the route itself, this app reads a screen, so with
+ * YandexHUD installed this app's own source - the capture - stays off.
+ *
+ * Who writes the HUD is no longer decided here (docs/hud-output-architecture.md, 5): a module
+ * that attaches to this app's host ([HudHostOutput], [HudHostService]) publishes through it and
+ * this app writes; a module that cannot reach the host - and every build handed out before the
+ * host, which never tries - writes itself. Either way there is one writer, and this app keeps
+ * what only it can do, the car's own speed sign over ADB.
  *
  * Read from the version name. Both builds share the package, never both installed, so the installed
- * one decides every route; there is nothing to negotiate at run time. The build has carried two
- * names, and both are recognised: a build already handed out is never reinstalled to match.
+ * one decides every route. The build has carried two names, and both are recognised: a build
+ * already handed out is never reinstalled to match.
  */
 object HudNavigatorBuild {
 
