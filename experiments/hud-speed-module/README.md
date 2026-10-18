@@ -79,8 +79,9 @@ Certificate SHA-256:
 The builder verifies this against the expected identity and never regenerates
 a missing key. Keep it for compatible updates. No original certificate spoofing.
 
-Output is `HUD-Speed-Denza-79.0-1.apk`, version `79.0-DenzaHUD.1`,
-code79000001. Independent SDK manifest decoding proves that only app label,
+Output is `HUD-Speed-79.0-mod.1.apk`, label «HUD Speed Mod», version
+`79.0-mod.1`, code79000001: the upstream name with a mod mark, never another
+brand (until 2026-10-18: «HUD Speed Denza», `79.0-DenzaHUD.1`). Independent SDK manifest decoding proves that only app label,
 version and the Denza Apps package query changed. Only original `classes.dex`
 and the manifest change; MainService moves to classes3, adapter to classes4.
 All native libraries, assets, resources and classes2 stay byte-identical.
@@ -91,7 +92,7 @@ All native libraries, assets, resources and classes2 stay byte-identical.
 ```sh
 python3 tools/hud_speed_build/device_checks.py --out captures/hud-speed-20261018/device-checks-final
 python3 tools/hud_speed_build/run_checks.py --serial emulator-5582 \
-  --source-apk captures/hud-speed-20261018/delivery/HUD-Speed-Denza-79.0-1.apk \
+  --source-apk captures/hud-speed-20261018/build-final/HUD-Speed-79.0-mod.1.apk \
   --host-apk captures/hud-speed-20261018/delivery/denza-apps.apk \
   --checks captures/hud-speed-20261018/device-checks-final \
   --out captures/hud-speed-20261018/new-emulator-run
@@ -157,3 +158,15 @@ two APKs in `delivery/`.
 |---|---|
 | `delivery/HUD-Speed-Denza-79.0-1.apk` | `cbcbc58a0d982aae9c625013b6842a4082779d39718b41c79e460c97706216b9` |
 | `delivery/denza-apps.apk` | `31c2b8630e99c794a0ee2efa438d97fdf7b372b035e73bb41b76a4b163d83bbc` |
+
+`acceptance-mod-4f74/`, 2026-10-18: `79.0-mod.1` («HUD Speed Mod»), built from the
+`4f74f32a` sources of the accepted protocol-v2 build, differs from it only in the
+manifest and signature files. Both suites passed on a disposable API35
+emulator with a Denza Apps host from `4f74f32a` (`host-4f74/`). With a host from
+`23285efb` (after `f6c87bc8`) `HostCheck` fails «radar replaced navigation» for
+this build and for `79.0-DenzaHUD.1` alike; the source suite passes.
+
+| Artifact | SHA-256 |
+|---|---|
+| `build-mod-4f74/HUD-Speed-79.0-mod.1.apk` | `e3f92aeb8b6576fe979fa25ee1f39e9eeff8a0fee3049ee515338cf214fad3a5` |
+| `host-4f74/denza-apps.apk` | `c8fa636127dc613d8cb66d497169520571c2ae4f87392b9c62798bfc122aa63c` |

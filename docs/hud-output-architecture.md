@@ -29,7 +29,8 @@ YandexHUD, стороннее радар-приложение с предупр�
 | Предположение «HUD Speed на Adobe AIR, accessibility не поможет» опровергнуто официальным APK 79.0: DEX, Android Views, без SWF/AIR. Его штатное уведомление содержит только состояние службы/GPS; предупреждения идут в отдельное overlay-окно | refuted | 2026-10-18 | [7](#hud-out-radar) |
 | HUD Speed 79.0 (`air.StrelkaHUDFREE`): лимит и метры в overlay — TextView, тип — ImageView без contentDescription в проверенном пути. Accessibility — кандидат для чисел, не доказанный источник полного предупреждения; Android Auto проверяет хост. Установки и живого чтения пока нет | open | 2026-10-18 | [7](#hud-out-radar) |
 | Публичная сторонняя адаптация HUD Speed `67.1.AAHA` для LiXiang переносит само `activity_background` на display 2 через свою AppComponentFactory, Pine-перехват и WindowManager. Это пример для LiXiang, не доказанная реализация другого стороннего сервиса и не проверенный путь для Denza | code | 2026-10-18 | [7.1](#hud-out-radar-lixiang) |
-| HUD Speed `79.0-DenzaHUD.1`: встроенный адаптер передаёт семантическое предупреждение через отдельный допуск; Denza Apps рисует RADAR/MAP_BADGE внизу окна карты картинками самого HUD Speed — полоса слева от курсора и его полоски GPS справа ([7.3](#hud-out-radar-badge)); протокол v2 несёт состояние радара, уровень GPS и имена его картинок; TTL 3 с от наблюдения, без собственного писателя и без режима без маршрута | code / emulator candidate | 2026-10-18 | [7.2](#hud-out-radar-adapter) |
+| HUD Speed `79.0-mod.1`, ярлык «HUD Speed Mod» (до 18.10 — `79.0-DenzaHUD.1`, «HUD Speed Denza»: чужой бренд не меняем, мод помечаем): встроенный адаптер передаёт семантическое предупреждение через отдельный допуск; Denza Apps рисует RADAR/MAP_BADGE внизу окна карты картинками самого HUD Speed — полоса слева от курсора и его полоски GPS справа ([7.3](#hud-out-radar-badge)); протокол v2 несёт состояние радара, уровень GPS и имена его картинок; TTL 3 с от наблюдения, без собственного писателя и без режима без маршрута | code / emulator candidate | 2026-10-18 | [7.2](#hud-out-radar-adapter) |
+| Парная проверка на эмуляторе (`run_checks.py`) с хостом Denza Apps после `f6c87bc8` (радар в окне полос, `MAP_ASIDE`) падает в `HostCheck` с «radar replaced navigation» — и с `79.0-mod.1`, и с принятой `79.0-DenzaHUD.1`; с хостом из `4f74f32a` обе проходят. Устарела проверка или сломан компоновщик — не разобрано | open | 2026-10-18 | [7.2](#hud-out-radar-adapter) |
 | «Под поворотом»: предупреждение HUD Speed в окне полос (поле 7, 123×60 на чёрном, 5 = 3). Радар — младший источник роли `LANES`; пока навигатор показывает свои полосы, предупреждение стоит внизу карты (`HudRole.MAP_ASIDE`). Своя картинка 123×60 в окне полос видна (прогон 2026-10-11), но чужой рисунок, другие размеры и гашение по 5 = 0 не проверены — сценарий 5 пробника | code / open | 2026-10-18 | [7.4](#hud-out-radar-lanes) |
 | Панель «HUD Подсказки» написана по доскам: картинка стекла в раскладке BYD (`HudGlassPicture`), затем «Повороты» (переключатель самой функции), «Карта», «Ограничение скорости», «Камеры» с источником в подписи, и «Где показывать камеры». Решения — `HudPanel.of`, доски шести состояний держит `HudPanelBoardContractTest`. На эмуляторе все шесть сошлись с досками на 0,70–0,92 % пикселей (`compare.py`). На машине не стояла | code / emulator | 2026-10-18 | [12](#hud-out-panel) |
 | Идея владельца: карта hud-link в штатной правой карточке приборки, когда та в режиме карты. Карточка — обычное окно Android (`MeterTbtActivity`, `START_MINI_MAP_CARD`) на дисплее приборки, где Denza Apps уже рисует камеру. Неизвестны прямоугольник карточки, порядок окон и соседство с карточками камер — сначала снимок с машины только на чтение | open | 2026-10-18 | [13](#hud-out-cluster-card) |
@@ -460,7 +461,9 @@ dex (проверено `javac --release 8`, `d8`, `ModuleTest`, `ArTest`) и с
 [`experiments/hud-speed-module/README.md`](../experiments/hud-speed-module/README.md),
 сборщик — `tools/hud_speed_build/`. Это кандидат для проверки, не принятый
 на машине продукт. Официальный APK закреплён SHA-256 из раздела 7;
-новая версия `79.0-DenzaHUD.1`, пакет прежний, подпись отдельная.
+версия `79.0-mod.1` и ярлык «HUD Speed Mod», пакет прежний, подпись отдельная.
+До 2026-10-18 сборка называлась «HUD Speed Denza», `79.0-DenzaHUD.1`: владелец
+решил не менять чужой бренд, а помечать мод.
 
 Пять перехватов входа в `MainService`: создание, обновление радара, статус
 GPS, удаление задачи и уничтожение службы. Снимок берётся из её движка:
@@ -675,7 +678,7 @@ Denza Apps собрана из рабочего дерева с чужими п�
 |---|---|---|
 | Denza Apps: хост модуля и HUD Speed | `apps/denza-apps/build/outputs/apk/debug/denza-apps.apk` (из `4f74f32a`) | `20d94c0d2659241e1b555bb8cf7b0e5acf92b146eebaef015925ce5fc34cbd39` |
 | YandexHUD, модуль на `HudLink` | `captures/yandex-hud-radar-20261018/build-02/YandexHUD-1-arm64-debug.apk` | `42a4315479c5b2905a513eeb77d3f15a207623f4cba12bc77f75ae016c594bd8` |
-| HUD Speed с адаптером (протокол v2), `79.0-DenzaHUD.1` | `captures/hud-speed-20261018/build-main-02/HUD-Speed-Denza-79.0-1.apk` | `bc12541297859a9151df0a8efdc19fb8de74d0a04ac19595dd879eb114ea293f` |
+| HUD Speed с адаптером (протокол v2), `79.0-mod.1` «HUD Speed Mod» | `captures/hud-speed-20261018/build-mod-4f74/HUD-Speed-79.0-mod.1.apk` (исходники `4f74f32a`; от `79.0-DenzaHUD.1` отличается только манифестом) | `e3f92aeb8b6576fe979fa25ee1f39e9eeff8a0fee3049ee515338cf214fad3a5` |
 | Пробник `hud-surfaces-probe` | `experiments/hud-surfaces-probe/build/outputs/apk/debug/hud-surfaces-probe.apk` | `1f641d032a0dcc32a6b38f9ad78b880b1ffdaddb5364b83b2d4ae3ba31ac1b1b` |
 
 Номер сборки YandexHUD в `tools/yandex_hud_build/identity.py` всё ещё 1, как у

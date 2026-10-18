@@ -99,7 +99,7 @@ Publish from the repository root:
 ```bash
 python3 platform/downloads/publish.py denza-apps
 python3 platform/downloads/publish.py yandex-hud path/to/YandexHUD.apk
-python3 platform/downloads/publish.py hud-speed path/to/HUD-Speed-Denza.apk
+python3 platform/downloads/publish.py hud-speed path/to/HUD-Speed-79.0-mod.1.apk
 ```
 
 Without a path, Denza Apps comes from the latest stable GitHub release. The
