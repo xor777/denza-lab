@@ -9,7 +9,7 @@ Owner-only embedded adapter for the reviewed official HUD Speed **79.0**
 | Claim | Status | Evidence |
 |---|---|---|
 | Five entry hooks in the real MainService, no OCR or visible overlay requirement | Built | `tools/hud_speed_build/PatchHooks.java`; SHA-pinned upstream APK |
-| Authenticated semantic IPC, host-rendered card, one HUD writer | Implemented | `HudRadarWarning`, `HudHostEndpoint`, Denza Apps `HudRadarSource` |
+| Authenticated semantic IPC, host-rendered badge, one HUD writer | Implemented | `HudRadarWarning`, `HudHostEndpoint`, Denza Apps `HudRadarSource` |
 | Nearest **selected** warning, GPS loss, mph, ongoing average section, stale observation, service destruction | Emulator checks | `test-device/`, `src/test/`; capture directory below |
 | Card alongside route; maneuver, lanes and road-limit ownership retained | Emulator/JVM checks | Host instrumentation and `HudRadarSourceTest` |
 | Projector on this car, genuine moving detections, background entitlement, account/purchase, database refresh, sleep/wake | Not accepted | Requires vehicle/user scenarios |
@@ -44,9 +44,12 @@ Empty list/GPS loss clears it; process death and explicit detach withdraw the
 source. Host lookup retries every 5 seconds, including unanswered bindings.
 There is no standalone SOME/IP implementation in the adapted APK.
 
-The host draws a 170×78 card in the upper-right of the 300×180 map surface,
-with original warning name, metres, optional limit and explicit unit; a section
-also shows average speed. It publishes only RADAR/MAP_BADGE. It does not replace
+The host draws a 72×58 badge in the top corner of the 300×180 map the route
+does not turn into: the warning's glyph in a red-ringed disc beside the limit
+sign, as the glass already draws cameras, and the metres - or a section's
+average - under them, with no words (docs/hud-output-architecture.md, 7.3).
+The first 170×78 card cut a black hole into the map and is gone. It publishes
+only RADAR/MAP_BADGE. It does not replace
 the navigator's road limit, maneuver, lane or AR fields, and produces no audio.
 Stopping radar in HUD Speed stops output. Background service and overlay
 entitlement checks, subscription/account code, voice and camera database remain

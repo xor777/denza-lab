@@ -14,8 +14,9 @@ public class HudRadarSourceTest {
         public void withdraw(HudSource s,HudRole r) { scene.withdraw(s,r); }
         public void withdraw(HudSource s) { scene.withdraw(s); }
     };
+    private int maneuver;
     private final HudRadarSource radar = new HudRadarSource(sink, w -> HudImage.png(java.util.Base64.getDecoder().decode(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7c8AAAAASUVORK5CYII=")));
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7c8AAAAASUVORK5CYII=")), () -> maneuver);
     private HudRadarWarning warning(long at) { return new HudRadarWarning(at,true,1,1,"Камера",200,60,1,false,-1); }
 
     @Test public void delayedWarningExpiresAtTheOriginalDeadlineAndDoesNotReplaceNavigation() {
@@ -34,6 +35,27 @@ public class HudRadarSourceTest {
         now=1000; radar.publish(warning(now),now);
         assertEquals(HudMode.OFF,scene.compose(now).mode);
         assertTrue(scene.compose(now).layers(HudWindow.MAP).isEmpty());
+    }
+    @Test public void theBadgeTakesTheTopCornerTheRouteDoesNotTurnInto() {
+        assertTrue(HudRadarSource.leftCorner(2));   // right turn: the left corner is free
+        assertTrue(HudRadarSource.leftCorner(11));  // straight on: the map marks go right first
+        assertTrue(HudRadarSource.leftCorner(0));
+        assertFalse(HudRadarSource.leftCorner(1));  // left turn
+        assertFalse(HudRadarSource.leftCorner(3));
+        assertFalse(HudRadarSource.leftCorner(7));
+        assertEquals(new HudRect(4,4,72,58),HudRadarSource.rect(true));
+        assertEquals(new HudRect(224,4,72,58),HudRadarSource.rect(false));
+    }
+    @Test public void oneWarningKeepsItsCornerWhileTheManoeuvreChanges() {
+        now=1000;
+        scene.fields(HudSource.MODULE,HudRole.MANEUVER,new HudFields.Builder().number(9,450).build(),10000,now);
+        maneuver=1; radar.publish(warning(now),now);
+        assertEquals(HudRadarSource.rect(false),scene.compose(now).layers(HudWindow.MAP).get(0).rect);
+        maneuver=2; now=1500; radar.publish(warning(now),now);
+        assertEquals(HudRadarSource.rect(false),scene.compose(now).layers(HudWindow.MAP).get(0).rect);
+        // The next object chooses again.
+        now=2000; radar.publish(new HudRadarWarning(now,true,2,1,"Камера",300,60,1,false,-1),now);
+        assertEquals(HudRadarSource.rect(true),scene.compose(now).layers(HudWindow.MAP).get(0).rect);
     }
     @Test public void stopRemovesTheWarningImmediately() {
         now=1000;

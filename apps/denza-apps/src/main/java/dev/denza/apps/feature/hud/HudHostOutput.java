@@ -16,8 +16,8 @@ import dev.denza.hudlink.HudRect;
 import dev.denza.hudlink.HudRole;
 import dev.denza.hudlink.HudSession;
 import dev.denza.hudlink.HudSink;
-import dev.denza.hudlink.HudSource;
 import dev.denza.hudlink.HudRadarWarning;
+import dev.denza.hudlink.HudSource;
 
 /**
  * This app as the HUD's host (docs/hud-output-architecture.md, 4-5): the one compositor and session
@@ -34,7 +34,9 @@ final class HudHostOutput {
     private final HudOutput output;
     private final HudModuleLimit moduleLimit = new HudModuleLimit(SystemClock::uptimeMillis);
     private final Sink sink = new Sink();
-    private final HudRadarSource radar = new HudRadarSource(sink, HudRadarPainter::draw);
+    /** Field 28 of the last manoeuvre published, for the corner the radar's warning takes. */
+    private int maneuver;
+    private final HudRadarSource radar = new HudRadarSource(sink, HudRadarPainter::draw, () -> maneuver);
     private HudHostEndpoint endpoint;
     private boolean stopAsked;
 
@@ -109,6 +111,10 @@ final class HudHostOutput {
         @Override
         public void fields(HudSource source, HudRole role, HudFields fields, long ttlMs) {
             stopAsked = false;
+            if (role == HudRole.MANEUVER) {
+                Object stock = fields.value(Road.STOCK_MANEUVER);
+                maneuver = stock instanceof Long ? (int) (long) (Long) stock : 0;
+            }
             if (source == HudSource.MODULE && role == HudRole.ROAD_LIMIT) {
                 Object limit = fields.value(Road.SPEED_LIMIT);
                 moduleLimit.published(limit instanceof Long ? (int) (long) (Long) limit : null, ttlMs);
