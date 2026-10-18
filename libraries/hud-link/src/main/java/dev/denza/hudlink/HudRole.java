@@ -8,7 +8,7 @@ import dev.denza.hudlink.HudProtocol.Road;
  * {@link HudScene} knows windows, z, ranks and fields, never maps, manoeuvres or cameras.
  *
  * <p>Every role shows only in {@link HudMode#NAVIGATION}. Without a route nothing of ours is on
- * the glass: the radar's warnings without one (variant A or B) wait for stage 4.
+ * the glass, the radar's warnings included: a route is always needed (owner, 2026-10-18).
  */
 public enum HudRole {
     /** z 100, the map window's base: one source, the other not drawn at all; the module's map before the capture. */
