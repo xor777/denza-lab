@@ -604,16 +604,17 @@ GPS (`ic_signal_1…4` HUD Speed: выключен, поиск, включён �
 <a id="hud-out-trip"></a>
 ## 11. Выезд: что ставить и что смотреть
 
-Собрано 2026-10-18 из main `cfc305cf` в чистом worktree; на машину ничего не
+Собрано 2026-10-18 из main `4f74f32a` в чистом worktree; на машину ничего не
 ставилось. Сверять SHA-256 на носителе после перемонтирования: флешка уже
 портила APK. Сборки из `captures/hud-speed-20261018/delivery/` не ставить: их
-Denza Apps собрана из рабочего дерева с чужими правками и старой карточкой.
+Denza Apps собрана из рабочего дерева с чужими правками и старой карточкой, а
+адаптер говорит протоколом v1 — без полосок GPS и картинок HUD Speed.
 
 | Что | Файл (git-ignored) | SHA-256 |
 |---|---|---|
-| Denza Apps: хост модуля и радара | `apps/denza-apps/build/outputs/apk/debug/denza-apps.apk` (из `cfc305cf`) | `01ab42ceb5cf5e05511eaf09bc9c08a8273fc1b947e4901b73c8c7ef8ecdd017` |
-| YandexHUD, модуль на `HudLink` | `captures/yandex-hud-radar-20261018/build-01/YandexHUD-1-arm64-debug.apk` | `44280c0a05bc1549e633525ca265e843900ac454d296cf6109ac882cb3c019d3` |
-| Радар-приложение с адаптером, `79.0-DenzaHUD.1` | `captures/hud-speed-20261018/build-main-01/HUD-Speed-Denza-79.0-1.apk` | `532527f9ea7cee23346cfc1e4bed6f511a5aa07fdb0c669ad9b0bb315ff803f5` |
+| Denza Apps: хост модуля и HUD Speed | `apps/denza-apps/build/outputs/apk/debug/denza-apps.apk` (из `4f74f32a`) | `20d94c0d2659241e1b555bb8cf7b0e5acf92b146eebaef015925ce5fc34cbd39` |
+| YandexHUD, модуль на `HudLink` | `captures/yandex-hud-radar-20261018/build-02/YandexHUD-1-arm64-debug.apk` | `42a4315479c5b2905a513eeb77d3f15a207623f4cba12bc77f75ae016c594bd8` |
+| HUD Speed с адаптером (протокол v2), `79.0-DenzaHUD.1` | `captures/hud-speed-20261018/build-main-02/HUD-Speed-Denza-79.0-1.apk` | `bc12541297859a9151df0a8efdc19fb8de74d0a04ac19595dd879eb114ea293f` |
 | Пробник `hud-surfaces-probe` | `experiments/hud-surfaces-probe/build/outputs/apk/debug/hud-surfaces-probe.apk` | `1f641d032a0dcc32a6b38f9ad78b880b1ffdaddb5364b83b2d4ae3ba31ac1b1b` |
 
 Номер сборки YandexHUD в `tools/yandex_hud_build/identity.py` всё ещё 1, как у
