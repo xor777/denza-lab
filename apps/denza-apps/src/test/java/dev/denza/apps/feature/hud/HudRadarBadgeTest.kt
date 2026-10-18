@@ -6,27 +6,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The glyph and the line of the radar's badge, from the radar's own names for its warnings. */
+/** The line of HUD Speed's warning beside its tiles. */
 class HudRadarBadgeTest {
     private fun warning(title: String, meters: Int = 300, limit: Int = 60, section: Boolean = false, average: Int = -1) =
         HudRadarWarning(1L, true, 1, 1, title, meters, limit, 1, section, average)
-
-    @Test
-    fun theRadarsNamesGiveTheGlyph() {
-        assertEquals(HudRadarBadge.Kind.CAMERA, HudRadarBadge.kind(warning("Стационарная камера или радар")))
-        assertEquals(HudRadarBadge.Kind.CAMERA, HudRadarBadge.kind(warning("Комплекс контроля всех ПДД")))
-        assertEquals(HudRadarBadge.Kind.CAMERA, HudRadarBadge.kind(warning("Камера на СТОП-линию или красный свет")))
-        assertEquals(HudRadarBadge.Kind.PATROL, HudRadarBadge.kind(warning("Мобильная засада или тренога")))
-        assertEquals(HudRadarBadge.Kind.PATROL, HudRadarBadge.kind(warning("Стационарный пост ДПС")))
-        assertEquals(HudRadarBadge.Kind.SECTION, HudRadarBadge.kind(warning("Секционная камера: начало участка")))
-        assertEquals(HudRadarBadge.Kind.HAZARD, HudRadarBadge.kind(warning("Опасный пешеходный переход")))
-        assertEquals(HudRadarBadge.Kind.HAZARD, HudRadarBadge.kind(warning("Внимание, дети!")))
-    }
-
-    @Test
-    fun aSectionIsASectionWhateverItsName() {
-        assertEquals(HudRadarBadge.Kind.SECTION, HudRadarBadge.kind(warning("Стационарная камера", section = true, average = 70)))
-    }
 
     @Test
     fun theLineIsMetresToTenKilometresFromOneOrTheSectionsAverage() {

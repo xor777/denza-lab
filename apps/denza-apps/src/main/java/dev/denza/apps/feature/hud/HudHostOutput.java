@@ -34,9 +34,7 @@ final class HudHostOutput {
     private final HudOutput output;
     private final HudModuleLimit moduleLimit = new HudModuleLimit(SystemClock::uptimeMillis);
     private final Sink sink = new Sink();
-    /** Field 28 of the last manoeuvre published, for the corner the radar's warning takes. */
-    private int maneuver;
-    private final HudRadarSource radar = new HudRadarSource(sink, HudRadarPainter::draw, () -> maneuver);
+    private final HudRadarSource radar;
     private HudHostEndpoint endpoint;
     private boolean stopAsked;
 
@@ -51,6 +49,18 @@ final class HudHostOutput {
     private HudHostOutput(Context context) {
         this.context = context;
         output = new HudOutput(context, new Handler(Looper.getMainLooper()), TAG, new Status());
+        HudRadarArt art = new HudRadarArt(context);
+        radar = new HudRadarSource(sink, new HudRadarSource.Renderer() {
+            @Override
+            public HudImage warning(HudRadarWarning warning) {
+                return HudRadarPainter.warning(warning, art);
+            }
+
+            @Override
+            public HudImage gps(int level) {
+                return HudRadarPainter.gps(level, art);
+            }
+        });
     }
 
     /** Where this process's sources publish. */
@@ -111,10 +121,6 @@ final class HudHostOutput {
         @Override
         public void fields(HudSource source, HudRole role, HudFields fields, long ttlMs) {
             stopAsked = false;
-            if (role == HudRole.MANEUVER) {
-                Object stock = fields.value(Road.STOCK_MANEUVER);
-                maneuver = stock instanceof Long ? (int) (long) (Long) stock : 0;
-            }
             if (source == HudSource.MODULE && role == HudRole.ROAD_LIMIT) {
                 Object limit = fields.value(Road.SPEED_LIMIT);
                 moduleLimit.published(limit instanceof Long ? (int) (long) (Long) limit : null, ttlMs);

@@ -4,9 +4,9 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 
 import dev.denza.hudlink.HudImage;
 import dev.denza.hudlink.HudRadarWarning;
@@ -14,171 +14,127 @@ import dev.denza.hudlink.HudRadarWarning;
 import java.io.ByteArrayOutputStream;
 
 /**
- * A radar warning as the glass already draws cameras (research/yandex-hud-renderer/hud-scene.js,
- * `ICONS.camera` and `camera-limit`): the warning's glyph in a red-ringed white disc beside the
- * limit as the real sign has it, black digits on white in a red ring, and under them the distance
- * in large white digits. The map window never prints a word; the units are the only letters.
+ * HUD Speed's warning as HUD Speed draws it, at the bottom of the map window where the road is
+ * already behind (docs/hud-output-architecture.md, 7.3): its tile for the type, its frame with the
+ * limit in it, and the metres - or a section's average - in large white digits; and, apart, its
+ * GPS bars. The artwork comes from the installed app ({@link HudRadarArt}); without it a plain
+ * white tile in a red frame stands in, so the numbers still show.
  *
- * <p>Transparent around the shapes: on the HUD black is no light, so a filled card would cut a
- * hole of its size out of the map. Each shape carries its own thin black edge instead, which keeps
- * it readable over a bright road. 72×58 of the 300×180 window, in a top corner ({@link
- * HudRadarSource}).
+ * <p>Transparent around the shapes: on the HUD black is no light, and a filled card would cut a
+ * hole out of the map.
  */
 final class HudRadarPainter {
-    static final int WIDTH = 72;
-    static final int HEIGHT = 58;
+    /** A tile and the frame of the limit, square. */
+    static final int TILE = 34;
+    static final int GAP = 4;
+    /** The whole strip ends here, left of the cursor (hud-scene.js EVENTS.cursor starts at 134). */
+    static final int MAX_WIDTH = 124;
+    static final int GPS = 22;
 
-    private static final int WHITE = Color.WHITE;
-    private static final int BLACK = Color.BLACK;
-    /** hud-scene.js `R`, the ring of every sign and camera on the glass. */
     private static final int RED = 0xFFFF2A2A;
-    /** hud-scene.js `PALETTE.amber`. */
-    private static final int AMBER = 0xFFFFB21A;
-    private static final Typeface SIGN = Typeface.create("sans-serif-condensed", Typeface.BOLD);
-
-    private static final float ROW = 19f;
-    private static final float GLYPH_X = 16f;
-    private static final float SIGN_X = 53f;
+    private static final Typeface DIGITS = Typeface.create("sans-serif-condensed", Typeface.BOLD);
 
     private HudRadarPainter() {
     }
 
-    static HudImage draw(HudRadarWarning warning) {
-        Bitmap bitmap = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888);
+    /** The warning strip, as wide as it needs and never wider than {@link #MAX_WIDTH}. */
+    static HudImage warning(HudRadarWarning warning, HudRadarArt art) {
+        Paint text = digits(18f);
+        String line = HudRadarBadge.caption(warning);
+        int fixed = TILE + GAP + (warning.limit > 0 ? TILE + GAP + 1 : 0);
+        float size = 18f;
+        while (fixed + text.measureText(line) + 4 > MAX_WIDTH && size > 13f) {
+            size -= 1f;
+            text.setTextSize(size);
+        }
+        int width = Math.min(MAX_WIDTH, Math.round(fixed + text.measureText(line) + 4));
+        Bitmap bitmap = Bitmap.createBitmap(width, TILE, Bitmap.Config.ARGB_8888);
         try {
             Canvas canvas = new Canvas(bitmap);
-            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            boolean sign = warning.limit > 0;
-            float glyphX = sign ? GLYPH_X : WIDTH / 2f;
-            glyph(canvas, paint, HudRadarBadge.kind(warning), glyphX, ROW);
-            if (sign) {
-                limit(canvas, paint, warning.limit, SIGN_X, ROW);
+            float x = 0;
+            tile(canvas, art == null ? null : art.drawable(warning.icon), x);
+            x += TILE + GAP;
+            if (warning.limit > 0) {
+                tile(canvas, art == null ? null : art.drawable(warning.frame), x);
+                limit(canvas, warning.limit, x + TILE / 2f);
+                x += TILE + GAP + 1;
             }
-            caption(canvas, paint, HudRadarBadge.caption(warning), WIDTH / 2f, 55f,
-                    HudRadarBadge.overLimit(warning) ? RED : WHITE);
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream(4 * 1024);
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes);
-            return HudImage.png(bytes.toByteArray());
+            outlined(canvas, text, line, x, TILE / 2f - (text.ascent() + text.descent()) / 2f,
+                    HudRadarBadge.overLimit(warning) ? RED : Color.WHITE);
+            return encode(bitmap);
         } finally {
             bitmap.recycle();
         }
     }
 
-    private static void glyph(Canvas canvas, Paint paint, HudRadarBadge.Kind kind, float cx, float cy) {
-        if (kind == HudRadarBadge.Kind.HAZARD) {
-            Path triangle = new Path();
-            triangle.moveTo(cx, cy - 14f);
-            triangle.lineTo(cx + 14.5f, cy + 11.5f);
-            triangle.lineTo(cx - 14.5f, cy + 11.5f);
-            triangle.close();
-            fill(paint, BLACK);
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(2.6f);
-            paint.setStrokeJoin(Paint.Join.ROUND);
-            canvas.drawPath(triangle, paint);
-            fill(paint, AMBER);
-            canvas.drawPath(triangle, paint);
-            fill(paint, BLACK);
-            canvas.drawRoundRect(new RectF(cx - 1.6f, cy - 6f, cx + 1.6f, cy + 3.2f), 1.2f, 1.2f, paint);
-            canvas.drawCircle(cx, cy + 6.8f, 1.8f, paint);
+    /** HUD Speed's GPS bars for {@code level}, or null when it has none to show. */
+    static HudImage gps(int level, HudRadarArt art) {
+        if (level <= HudRadarWarning.GPS_UNKNOWN || art == null) {
+            return null;
+        }
+        Drawable bars = art.drawable("ic_signal_" + level);
+        if (bars == null) {
+            return null;
+        }
+        Bitmap bitmap = Bitmap.createBitmap(GPS, GPS, Bitmap.Config.ARGB_8888);
+        try {
+            bars.setBounds(0, 0, GPS, GPS);
+            bars.draw(new Canvas(bitmap));
+            return encode(bitmap);
+        } finally {
+            bitmap.recycle();
+        }
+    }
+
+    private static void tile(Canvas canvas, Drawable drawable, float x) {
+        if (drawable != null) {
+            drawable.setBounds(Math.round(x), 0, Math.round(x) + TILE, TILE);
+            drawable.draw(canvas);
             return;
         }
-        // hud-scene.js ICONS.camera: a black edge, the white disc, the red ring.
-        fill(paint, BLACK);
-        canvas.drawCircle(cx, cy, 15.2f, paint);
-        fill(paint, WHITE);
-        canvas.drawCircle(cx, cy, 14f, paint);
-        ring(paint, RED, 3.4f);
-        canvas.drawCircle(cx, cy, 12.3f, paint);
-        fill(paint, BLACK);
-        switch (kind) {
-            case PATROL:
-                camera(canvas, paint, cx, cy - 2.2f, 1.0f);
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(1.8f);
-                paint.setStrokeCap(Paint.Cap.ROUND);
-                canvas.drawLine(cx - 1.5f, cy + 2.6f, cx - 5f, cy + 8f, paint);
-                canvas.drawLine(cx + 1.5f, cy + 2.6f, cx + 5f, cy + 8f, paint);
-                canvas.drawLine(cx, cy + 2.6f, cx, cy + 8.4f, paint);
-                break;
-            case SECTION: {
-                // A span with an arrowhead at either end: the stretch the average is taken over.
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(2.2f);
-                paint.setStrokeCap(Paint.Cap.ROUND);
-                canvas.drawLine(cx - 5f, cy, cx + 5f, cy, paint);
-                fill(paint, BLACK);
-                Path heads = new Path();
-                heads.moveTo(cx - 8.5f, cy);
-                heads.lineTo(cx - 3.5f, cy - 4.5f);
-                heads.lineTo(cx - 3.5f, cy + 4.5f);
-                heads.close();
-                heads.moveTo(cx + 8.5f, cy);
-                heads.lineTo(cx + 3.5f, cy - 4.5f);
-                heads.lineTo(cx + 3.5f, cy + 4.5f);
-                heads.close();
-                canvas.drawPath(heads, paint);
-                break;
-            }
-            default:
-                camera(canvas, paint, cx, cy, 1.25f);
-                break;
-        }
+        // Without HUD Speed's artwork: its frame's shape, white in red.
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        RectF box = new RectF(x + 1.5f, 1.5f, x + TILE - 1.5f, TILE - 1.5f);
+        paint.setColor(Color.WHITE);
+        canvas.drawRoundRect(box, 6f, 6f, paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(3f);
+        paint.setColor(RED);
+        canvas.drawRoundRect(box, 6f, 6f, paint);
     }
 
-    /** hud-scene.js camGlyph: the body, its top and the lens. */
-    private static void camera(Canvas canvas, Paint paint, float cx, float cy, float k) {
-        fill(paint, BLACK);
-        canvas.drawRoundRect(new RectF(cx - 6.4f * k, cy - 3.8f * k, cx + 6.4f * k, cy + 4.8f * k),
-                1.6f * k, 1.6f * k, paint);
-        canvas.drawRoundRect(new RectF(cx - 2.6f * k, cy - 5.8f * k, cx + 2.6f * k, cy - 3.2f * k),
-                0.8f * k, 0.8f * k, paint);
-        fill(paint, WHITE);
-        canvas.drawCircle(cx, cy + 0.5f * k, 2.9f * k, paint);
-        fill(paint, BLACK);
-        canvas.drawCircle(cx, cy + 0.5f * k, 1.6f * k, paint);
-    }
-
-    /** hud-scene.js `camera-limit`'s sign. */
-    private static void limit(Canvas canvas, Paint paint, int limit, float cx, float cy) {
-        fill(paint, BLACK);
-        canvas.drawCircle(cx, cy, 18.2f, paint);
-        fill(paint, WHITE);
-        canvas.drawCircle(cx, cy, 17f, paint);
-        ring(paint, RED, 5.1f);
-        canvas.drawCircle(cx, cy, 14.4f, paint);
+    private static void limit(Canvas canvas, int limit, float cx) {
         String digits = Integer.toString(limit);
-        fill(paint, BLACK);
-        paint.setTypeface(SIGN);
+        Paint paint = digits(digits.length() >= 3 ? 15f : 19f);
+        paint.setColor(Color.BLACK);
         paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTextSize(digits.length() >= 3 ? 13.5f : 17.5f);
-        Paint.FontMetrics metrics = paint.getFontMetrics();
-        canvas.drawText(digits, cx, cy - (metrics.ascent + metrics.descent) / 2f, paint);
+        canvas.drawText(digits, cx, TILE / 2f - (paint.ascent() + paint.descent()) / 2f, paint);
     }
 
     /** White digits with a black edge, so they read over a white road as over black ground. */
-    private static void caption(Canvas canvas, Paint paint, String text, float cx, float baseline,
+    private static void outlined(Canvas canvas, Paint paint, String text, float x, float baseline,
             int color) {
-        paint.setTypeface(SIGN);
-        paint.setTextAlign(Paint.Align.CENTER);
-        paint.setTextSize(17f);
-        paint.setColor(BLACK);
+        paint.setTextAlign(Paint.Align.LEFT);
+        paint.setColor(Color.BLACK);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(4f);
         paint.setStrokeJoin(Paint.Join.ROUND);
-        canvas.drawText(text, cx, baseline, paint);
-        fill(paint, color);
-        canvas.drawText(text, cx, baseline, paint);
-    }
-
-    private static void fill(Paint paint, int color) {
+        canvas.drawText(text, x + 2, baseline, paint);
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(color);
+        canvas.drawText(text, x + 2, baseline, paint);
     }
 
-    private static void ring(Paint paint, int color, float width) {
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(width);
-        paint.setColor(color);
+    private static Paint digits(float size) {
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setTypeface(DIGITS);
+        paint.setTextSize(size);
+        return paint;
+    }
+
+    private static HudImage encode(Bitmap bitmap) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream(4 * 1024);
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes);
+        return HudImage.png(bytes.toByteArray());
     }
 }

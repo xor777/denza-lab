@@ -8,71 +8,62 @@ import dev.denza.hudlink.HudSink;
 import dev.denza.hudlink.HudSource;
 import dev.denza.hudlink.HudWindow;
 
-import java.util.function.IntSupplier;
-
 /**
- * The radar's warning in the map window (docs/hud-output-architecture.md, 3.5: z 300, a reserved
- * corner): over the navigator's map, never instead of its manoeuvre, lanes, limit or AR, and never
- * opening navigation by itself.
- *
- * <p>The corner is the top one the route does not turn into, as the glass once placed its lanes:
- * a right turn leaves the left corner free, a left turn the right one; straight on, the left,
- * since the map puts its own event marks to the right of the route first. It is chosen when a
- * warning's object first appears and kept for it, so a badge never jumps while the car approaches.
+ * HUD Speed in the map window (docs/hud-output-architecture.md, 3.5 and 7.3): z 300, over the
+ * navigator's map and its own marks, never instead of its manoeuvre, lanes, limit or AR, never
+ * opening navigation by itself. At the bottom - the top of the window is the road ahead, the
+ * bottom is beside and behind the car: the warning left of the cursor, the GPS bars in the right
+ * corner while the radar runs. Everything lives as long as the observation it came in.
  */
 final class HudRadarSource {
     interface Renderer {
-        HudImage draw(HudRadarWarning warning);
+        /** The warning strip; its width is the picture's. */
+        HudImage warning(HudRadarWarning warning);
+
+        /** The GPS bars, or null for none. */
+        HudImage gps(int level);
     }
 
-    static final String LAYER = "warning";
+    static final String WARNING = "warning";
+    static final String GPS = "gps";
     /** From the window's edge, as the glass keeps its event marks (hud-scene.js EVENTS.edge). */
-    static final int MARGIN = 4;
+    static final int MARGIN = 6;
 
     private final HudSink sink;
     private final Renderer renderer;
-    private final IntSupplier maneuver;
-    private boolean shown;
-    private int objectId;
-    private boolean left = true;
 
-    /** {@code maneuver}: field 28 of the manoeuvre the HUD shows now, 0 when none. */
-    HudRadarSource(HudSink sink, Renderer renderer, IntSupplier maneuver) {
+    HudRadarSource(HudSink sink, Renderer renderer) {
         this.sink = sink;
         this.renderer = renderer;
-        this.maneuver = maneuver;
     }
 
-    void publish(HudRadarWarning warning, long now) {
-        long ttl = warning.remainingMs(now);
-        if (!warning.active || ttl == 0) {
-            shown = false;
+    void publish(HudRadarWarning observation, long now) {
+        long ttl = observation.remainingMs(now);
+        if (!observation.running || ttl == 0) {
             sink.withdraw(HudSource.RADAR);
             return;
         }
-        if (!shown || warning.objectId != objectId) {
-            shown = true;
-            objectId = warning.objectId;
-            left = leftCorner(maneuver.getAsInt());
+        if (observation.active) {
+            HudImage strip = renderer.warning(observation);
+            sink.layer(HudSource.RADAR, WARNING, HudRole.MAP_BADGE, warningRect(strip.width), strip, 1f, ttl);
+        } else {
+            sink.removeLayer(HudSource.RADAR, WARNING);
         }
-        sink.layer(HudSource.RADAR, LAYER, HudRole.MAP_BADGE, rect(left), renderer.draw(warning), 1f, ttl);
-    }
-
-    /** Whether the badge takes the top-left corner for a manoeuvre with stock id {@code stockId}. */
-    static boolean leftCorner(int stockId) {
-        switch (stockId) {
-            case 1: // left
-            case 3: // slight left
-            case 7: // sharp left
-            case 9: // U-turn left
-                return false;
-            default:
-                return true;
+        HudImage bars = renderer.gps(observation.gpsLevel);
+        if (bars != null) {
+            sink.layer(HudSource.RADAR, GPS, HudRole.MAP_BADGE, gpsRect(), bars, 1f, ttl);
+        } else {
+            sink.removeLayer(HudSource.RADAR, GPS);
         }
     }
 
-    static HudRect rect(boolean left) {
-        int x = left ? MARGIN : HudWindow.MAP.width - MARGIN - HudRadarPainter.WIDTH;
-        return new HudRect(x, MARGIN, HudRadarPainter.WIDTH, HudRadarPainter.HEIGHT);
+    static HudRect warningRect(int width) {
+        return new HudRect(MARGIN, HudWindow.MAP.height - MARGIN - HudRadarPainter.TILE,
+                Math.min(width, HudRadarPainter.MAX_WIDTH), HudRadarPainter.TILE);
+    }
+
+    static HudRect gpsRect() {
+        int size = HudRadarPainter.GPS;
+        return new HudRect(HudWindow.MAP.width - MARGIN - size, HudWindow.MAP.height - MARGIN - size, size, size);
     }
 }

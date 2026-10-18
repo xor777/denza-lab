@@ -44,12 +44,15 @@ Empty list/GPS loss clears it; process death and explicit detach withdraw the
 source. Host lookup retries every 5 seconds, including unanswered bindings.
 There is no standalone SOME/IP implementation in the adapted APK.
 
-The host draws a 72×58 badge in the top corner of the 300×180 map the route
-does not turn into: the warning's glyph in a red-ringed disc beside the limit
-sign, as the glass already draws cameras, and the metres - or a section's
-average - under them, with no words (docs/hud-output-architecture.md, 7.3).
-The first 170×78 card cut a black hole into the map and is gone. It publishes
-only RADAR/MAP_BADGE. It does not replace
+The host draws the warning at the bottom of the 300×180 map, left of the
+cursor, with HUD Speed's own artwork read from the installed app by the names
+the adapter sends - the type's tile and the limit's frame from g.i.w(type) -
+and the metres, or a section's average, in large white digits; HUD Speed's GPS
+bars (ic_signal_1..4) stand in the bottom-right corner while the radar runs
+(docs/hud-output-architecture.md, 7.3). Wire version 2 carries the radar's
+state, the GPS level and the drawable names; without a warning the adapter
+re-sends its state every second so the bars do not lapse, and never re-stamps
+a warning. It publishes only RADAR/MAP_BADGE. It does not replace
 the navigator's road limit, maneuver, lane or AR fields, and produces no audio.
 Stopping radar in HUD Speed stops output. Background service and overlay
 entitlement checks, subscription/account code, voice and camera database remain
