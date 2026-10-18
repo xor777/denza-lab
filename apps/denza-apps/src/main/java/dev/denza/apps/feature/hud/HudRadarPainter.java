@@ -30,6 +30,10 @@ final class HudRadarPainter {
     /** The whole strip ends here, left of the cursor (hud-scene.js EVENTS.cursor starts at 134). */
     static final int MAX_WIDTH = 124;
     static final int GPS = 22;
+    /** The lane window's picture: three stock cells of 41×60 (layout_hud_laneinfo_arrow). */
+    static final int LANE_CELLS = 3;
+    static final int LANE_WIDTH = 41 * LANE_CELLS;
+    static final int LANE_HEIGHT = 60;
 
     private static final int RED = 0xFFFF2A2A;
     private static final Typeface DIGITS = Typeface.create("sans-serif-condensed", Typeface.BOLD);
@@ -39,32 +43,58 @@ final class HudRadarPainter {
 
     /** The warning strip, as wide as it needs and never wider than {@link #MAX_WIDTH}. */
     static HudImage warning(HudRadarWarning warning, HudRadarArt art) {
-        Paint text = digits(18f);
-        String line = HudRadarBadge.caption(warning);
-        int fixed = TILE + GAP + (warning.limit > 0 ? TILE + GAP + 1 : 0);
-        float size = 18f;
-        while (fixed + text.measureText(line) + 4 > MAX_WIDTH && size > 13f) {
-            size -= 1f;
-            text.setTextSize(size);
-        }
-        int width = Math.min(MAX_WIDTH, Math.round(fixed + text.measureText(line) + 4));
-        Bitmap bitmap = Bitmap.createBitmap(width, TILE, Bitmap.Config.ARGB_8888);
+        Bitmap bitmap = strip(warning, art, MAX_WIDTH);
         try {
-            Canvas canvas = new Canvas(bitmap);
-            float x = 0;
-            tile(canvas, art == null ? null : art.drawable(warning.icon), x);
-            x += TILE + GAP;
-            if (warning.limit > 0) {
-                tile(canvas, art == null ? null : art.drawable(warning.frame), x);
-                limit(canvas, warning.limit, x + TILE / 2f);
-                x += TILE + GAP + 1;
-            }
-            outlined(canvas, text, line, x, TILE / 2f - (text.ascent() + text.descent()) / 2f,
-                    HudRadarBadge.overLimit(warning) ? RED : Color.WHITE);
             return encode(bitmap);
         } finally {
             bitmap.recycle();
         }
+    }
+
+    /**
+     * The same strip for the lane window (docs/hud-output-architecture.md, 7.4): three of the
+     * stock lane picture's 41×60 cells, black around the strip as the stock lane picture is, the
+     * strip centred. Black is no light on the HUD; whether the lane window takes our picture at
+     * all is scenario 5 of hud-surfaces-probe.
+     */
+    static HudImage lanes(HudRadarWarning warning, HudRadarArt art) {
+        Bitmap strip = strip(warning, art, LANE_WIDTH);
+        Bitmap bitmap = Bitmap.createBitmap(LANE_WIDTH, LANE_HEIGHT, Bitmap.Config.ARGB_8888);
+        try {
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(Color.BLACK);
+            canvas.drawBitmap(strip, (LANE_WIDTH - strip.getWidth()) / 2f,
+                    (LANE_HEIGHT - strip.getHeight()) / 2f, null);
+            return encode(bitmap);
+        } finally {
+            strip.recycle();
+            bitmap.recycle();
+        }
+    }
+
+    private static Bitmap strip(HudRadarWarning warning, HudRadarArt art, int maxWidth) {
+        Paint text = digits(18f);
+        String line = HudRadarBadge.caption(warning);
+        int fixed = TILE + GAP + (warning.limit > 0 ? TILE + GAP + 1 : 0);
+        float size = 18f;
+        while (fixed + text.measureText(line) + 4 > maxWidth && size > 13f) {
+            size -= 1f;
+            text.setTextSize(size);
+        }
+        int width = Math.min(maxWidth, Math.round(fixed + text.measureText(line) + 4));
+        Bitmap bitmap = Bitmap.createBitmap(width, TILE, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        float x = 0;
+        tile(canvas, art == null ? null : art.drawable(warning.icon), x);
+        x += TILE + GAP;
+        if (warning.limit > 0) {
+            tile(canvas, art == null ? null : art.drawable(warning.frame), x);
+            limit(canvas, warning.limit, x + TILE / 2f);
+            x += TILE + GAP + 1;
+        }
+        outlined(canvas, text, line, x, TILE / 2f - (text.ascent() + text.descent()) / 2f,
+                HudRadarBadge.overLimit(warning) ? RED : Color.WHITE);
+        return bitmap;
     }
 
     /** HUD Speed's GPS bars for {@code level}, or null when it has none to show. */

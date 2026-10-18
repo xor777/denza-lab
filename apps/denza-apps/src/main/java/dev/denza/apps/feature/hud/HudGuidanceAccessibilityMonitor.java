@@ -28,7 +28,6 @@ public final class HudGuidanceAccessibilityMonitor {
         return thread;
     });
     private final HudCaptureSource capture;
-    private final HudNativeSpeedLimitRunner speedLimit;
     private final HudArLocationSource locationSource;
     private final HudArApproximationTracker arTracker = new HudArApproximationTracker();
     private final HudRouteFreshness freshness =
@@ -42,8 +41,8 @@ public final class HudGuidanceAccessibilityMonitor {
     private HudVehiclePose latestPose;
     /**
      * «YandexHUD» is installed: it brings its own source - through this app's host while it is
-     * attached ({@link HudHostOutput}), by itself otherwise - so nothing is read for the HUD here
-     * and only the car's sign is set.
+     * attached ({@link HudHostOutput}), by itself otherwise - so only Yandex's limit is read for
+     * the HUD here, for the car's sign.
      */
     private boolean navigatorDrawsHud;
     private boolean routeHeld;
@@ -51,7 +50,6 @@ public final class HudGuidanceAccessibilityMonitor {
     public HudGuidanceAccessibilityMonitor(AccessibilityService service) {
         this.service = service;
         this.capture = new HudCaptureSource(service);
-        this.speedLimit = new HudNativeSpeedLimitRunner(service);
         this.locationSource = new HudArLocationSource(service, pose -> latestPose = pose);
         this.readRunner = new SingleFlightReadRunner<>(
                 readerExecutor,
@@ -92,7 +90,6 @@ public final class HudGuidanceAccessibilityMonitor {
         // The map's thread ends here; the compositor clears the HUD and stops the session.
         mapRunner.shutdown();
         capture.shutdown();
-        speedLimit.shutdown();
         HudGuidanceRuntime.onStopped();
     }
 
@@ -163,24 +160,22 @@ public final class HudGuidanceAccessibilityMonitor {
             }
             guidance = sample.getGuidance();
             if (navigatorDrawsHud) {
-                // Nothing goes to the HUD; a background read still builds on the last reading.
+                // Only the limit goes to the compositor, for the car's sign; a background read
+                // still builds on the last reading.
+                capture.publishLimit(guidance);
                 lastGuidance = guidance;
             } else {
                 publishToHud(guidance, sample, nowElapsed);
             }
             HudGuidanceRuntime.onGuidance(guidance, sample.getCapturedAtMs());
-            // Only a visible read carries the sign; a background route leaves the car's sign alone.
-            // The module's own limit, while it publishes one through the host, comes first.
-            Integer moduleLimit = navigatorDrawsHud
-                    ? HudHostOutput.get(service).moduleLimitKmh()
-                    : null;
-            speedLimit.setTarget(moduleLimit != null ? moduleLimit : guidance.getSpeedLimitKmh());
+            // The car's sign follows the compositor's limit (HudHostOutput): only a visible read
+            // carries one, so a background route leaves the car's sign alone, and the module's,
+            // while it publishes one through the host, comes first.
             // After the publish, which starts the session the map's frames ride on. A route read
             // from the notification has no Yandex on the screen; the map source finds that itself.
             mapRunner.run(isMapOurs());
         } else if (freshness.routeLost(now)) {
             routeHeld = false;
-            speedLimit.setTarget(null);
             // The map and the hints go together, and the compositor sends one clear for both;
             // nothing without a session, so with «YandexHUD» nothing reaches its HUD from here.
             mapRunner.pause(isMapOurs());
@@ -221,7 +216,7 @@ public final class HudGuidanceAccessibilityMonitor {
         boolean draws = HudNavigatorBuild.INSTANCE.drawsHud(service);
         if (draws != navigatorDrawsHud) {
             Log.i(TAG, draws
-                    ? "YandexHUD brings its own source; only the car's speed sign is set from here"
+                    ? "YandexHUD brings its own source; only Yandex's limit is read from here"
                     : "ordinary Yandex; the hints go to the HUD from here");
         }
         navigatorDrawsHud = draws;
@@ -241,7 +236,6 @@ public final class HudGuidanceAccessibilityMonitor {
         arTracker.reset();
         latestPose = null;
         capture.shutdown();
-        speedLimit.setTarget(null);
         freshness.reset();
         routeHeld = false;
         lastGuidance = null;

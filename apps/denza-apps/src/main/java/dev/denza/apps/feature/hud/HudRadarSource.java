@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.hud;
 
+import dev.denza.hudlink.HudFields;
 import dev.denza.hudlink.HudImage;
+import dev.denza.hudlink.HudProtocol.Road;
 import dev.denza.hudlink.HudRadarWarning;
 import dev.denza.hudlink.HudRect;
 import dev.denza.hudlink.HudRole;
@@ -9,7 +11,7 @@ import dev.denza.hudlink.HudSource;
 import dev.denza.hudlink.HudWindow;
 
 /**
- * HUD Speed in the map window (docs/hud-output-architecture.md, 3.5 and 7.3): z 300, over the
+ * HUD Speed on the projection (docs/hud-output-architecture.md, 3.5, 7.3 and 7.4): z 300, over the
  * navigator's map and its own marks, never instead of its manoeuvre, lanes, limit or AR, never
  * opening navigation by itself. At the bottom - the top of the window is the road ahead, the
  * bottom is beside and behind the car: the warning left of the cursor, the GPS bars in the right
@@ -19,6 +21,9 @@ final class HudRadarSource {
     interface Renderer {
         /** The warning strip; its width is the picture's. */
         HudImage warning(HudRadarWarning warning);
+
+        /** The warning as the lane window's picture, {@link HudRadarPainter#LANE_WIDTH} wide. */
+        HudImage lanes(HudRadarWarning warning);
 
         /** The GPS bars, or null for none. */
         HudImage gps(int level);
@@ -37,7 +42,12 @@ final class HudRadarSource {
         this.renderer = renderer;
     }
 
-    void publish(HudRadarWarning observation, long now) {
+    /**
+     * {@code place} {@link HudCameraPlace#LANES}: the warning goes to the lane window, and stands
+     * by at the bottom of the map ({@link HudRole#MAP_ASIDE}) for the time the navigator's own
+     * lanes hold the window.
+     */
+    void publish(HudRadarWarning observation, long now, HudCameraPlace place) {
         long ttl = observation.remainingMs(now);
         if (!observation.running || ttl == 0) {
             sink.withdraw(HudSource.RADAR);
@@ -45,9 +55,20 @@ final class HudRadarSource {
         }
         if (observation.active) {
             HudImage strip = renderer.warning(observation);
-            sink.layer(HudSource.RADAR, WARNING, HudRole.MAP_BADGE, warningRect(strip.width), strip, 1f, ttl);
+            boolean lanes = place == HudCameraPlace.LANES;
+            sink.layer(HudSource.RADAR, WARNING, lanes ? HudRole.MAP_ASIDE : HudRole.MAP_BADGE,
+                    warningRect(strip.width), strip, 1f, ttl);
+            if (lanes) {
+                sink.fields(HudSource.RADAR, HudRole.LANES, new HudFields.Builder()
+                        .number(Road.LANE_COUNT, HudRadarPainter.LANE_CELLS)
+                        .bytes(Road.LANES_PNG, renderer.lanes(observation).png())
+                        .build(), ttl);
+            } else {
+                sink.withdraw(HudSource.RADAR, HudRole.LANES);
+            }
         } else {
             sink.removeLayer(HudSource.RADAR, WARNING);
+            sink.withdraw(HudSource.RADAR, HudRole.LANES);
         }
         HudImage bars = renderer.gps(observation.gpsLevel);
         if (bars != null) {

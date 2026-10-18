@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.hud
 
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import dev.denza.hudlink.HudSource
 
@@ -22,4 +25,10 @@ object HudHostRuntime {
 
     /** Whether the YandexHUD module writes to the HUD through this app now. */
     fun hostsModule(): Boolean = HudSource.MODULE in attached
+
+    /** A switch of the HUD panel moved; the host applies it on the main thread. */
+    fun settingsChanged(context: Context) {
+        val app = context.applicationContext
+        Handler(Looper.getMainLooper()).post { HudHostOutput.get(app).onSettingsChanged() }
+    }
 }

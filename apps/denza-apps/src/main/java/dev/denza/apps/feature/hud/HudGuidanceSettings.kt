@@ -7,6 +7,9 @@ object HudGuidanceSettings {
     private const val PREFS = "denza_hud_guidance"
     private const val ENABLED = "enabled"
     private const val MAP = "map"
+    private const val SIGN = "sign"
+    private const val CAMERAS = "cameras"
+    private const val CAMERA_PLACE = "camera_place"
 
     /**
      * The one navigator whose guidance the windscreen repeats.
@@ -52,4 +55,53 @@ object HudGuidanceSettings {
             .putBoolean(MAP, enabled)
             .apply()
     }
+
+    /**
+     * «Ограничение скорости»: the navigator's limit in field 11 and on the car's own sign. On until
+     * the driver turns it off - the sign is what the HUD did first and what the owner asked for.
+     * Off, no source's limit passes the host ([HudHostOutput]), so the two go together.
+     */
+    fun isSignEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(SIGN, true)
+
+    @SuppressLint("UseKtx")
+    fun setSignEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(SIGN, enabled)
+            .apply()
+    }
+
+    /** «Камеры»: HUD Speed's warnings on the projection. On until turned off. */
+    fun areCamerasEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(CAMERAS, true)
+
+    @SuppressLint("UseKtx")
+    fun setCamerasEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(CAMERAS, enabled)
+            .apply()
+    }
+
+    /** «Где показывать камеры»: at the bottom of the map, the default, or in the lane window. */
+    fun cameraPlace(context: Context): HudCameraPlace =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CAMERA_PLACE, null)
+            ?.let { name -> HudCameraPlace.entries.firstOrNull { it.name == name } }
+            ?: HudCameraPlace.MAP
+
+    @SuppressLint("UseKtx")
+    fun setCameraPlace(context: Context, place: HudCameraPlace) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(CAMERA_PLACE, place.name)
+            .apply()
+    }
 }
+
+/**
+ * Where HUD Speed's warning stands (docs/hud-output-architecture.md, 7.3 and 7.4): at the bottom
+ * of the map window, or in the lane window under the turn, which the navigator's own lanes take
+ * back while they show - the warning then stands at the bottom of the map.
+ */
+enum class HudCameraPlace { MAP, LANES }

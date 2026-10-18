@@ -6,12 +6,12 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 
+import dev.denza.hudlink.HudComposition;
 import dev.denza.hudlink.HudFields;
 import dev.denza.hudlink.HudHostEndpoint;
 import dev.denza.hudlink.HudImage;
 import dev.denza.hudlink.HudOutput;
 import dev.denza.hudlink.HudProtocol;
-import dev.denza.hudlink.HudProtocol.Road;
 import dev.denza.hudlink.HudRect;
 import dev.denza.hudlink.HudRole;
 import dev.denza.hudlink.HudSession;
@@ -22,9 +22,17 @@ import dev.denza.hudlink.HudSource;
 /**
  * This app as the HUD's host (docs/hud-output-architecture.md, 4-5): the one compositor and session
  * of the process, on the main thread. Its own capture ({@link HudCaptureSource}) publishes into it,
- * and so does the YandexHUD module from Navigator's process, through {@link HudHostService}: one
- * writer whatever is installed. The module's road limit is kept for the car's own sign
- * ({@link #moduleLimitKmh}), which only this app can write.
+ * and so do the YandexHUD module and HUD Speed from their processes, through
+ * {@link HudHostService}: one writer whatever is installed.
+ *
+ * <p>What reaches the glass is what the HUD panel says ({@link HudGuidanceSettings}): with
+ * «Повороты» off nothing of any source passes - YandexHUD stays attached and is not shown, so it
+ * does not start drawing by itself either; «Карта» off holds back the module's map, «Ограничение
+ * скорости» off every source's limit, «Камеры» off HUD Speed. The capture keeps its own switches.
+ *
+ * <p>The car's own sign, which only this app can write, is the composition's second output: it
+ * follows the road limit's winner ({@link HudComposition#roadLimitKmh}) with or without
+ * navigation (stage 5).
  */
 final class HudHostOutput {
     private static final String TAG = "DenzaHudGuidance";
@@ -32,10 +40,11 @@ final class HudHostOutput {
 
     private final Context context;
     private final HudOutput output;
-    private final HudModuleLimit moduleLimit = new HudModuleLimit(SystemClock::uptimeMillis);
     private final Sink sink = new Sink();
     private final HudRadarSource radar;
     private HudHostEndpoint endpoint;
+    private HudNativeSpeedLimitRunner sign;
+    private Integer limit;
     private boolean stopAsked;
 
     /** The process's host; main thread. */
@@ -49,11 +58,20 @@ final class HudHostOutput {
     private HudHostOutput(Context context) {
         this.context = context;
         output = new HudOutput(context, new Handler(Looper.getMainLooper()), TAG, new Status());
+        output.setLimitListener(kmh -> {
+            limit = kmh;
+            followSign();
+        });
         HudRadarArt art = new HudRadarArt(context);
         radar = new HudRadarSource(sink, new HudRadarSource.Renderer() {
             @Override
             public HudImage warning(HudRadarWarning warning) {
                 return HudRadarPainter.warning(warning, art);
+            }
+
+            @Override
+            public HudImage lanes(HudRadarWarning warning) {
+                return HudRadarPainter.lanes(warning, art);
             }
 
             @Override
@@ -86,7 +104,10 @@ final class HudHostOutput {
 
                         @Override
                         public void onRadar(HudRadarWarning warning) {
-                            radar.publish(warning, SystemClock.elapsedRealtime());
+                            if (camerasShown()) {
+                                radar.publish(warning, SystemClock.elapsedRealtime(),
+                                        HudGuidanceSettings.INSTANCE.cameraPlace(context));
+                            }
                         }
                     },
                     TAG);
@@ -94,9 +115,60 @@ final class HudHostOutput {
         return endpoint;
     }
 
-    /** The module's road limit, km/h, while its fields live; else null. */
-    Integer moduleLimitKmh() {
-        return moduleLimit.current();
+    /**
+     * A switch of the HUD panel moved: what it now holds back leaves the glass at once, and what
+     * it lets through comes with each source's next publication.
+     */
+    void onSettingsChanged() {
+        HudGuidanceSettings settings = HudGuidanceSettings.INSTANCE;
+        if (!settings.isEnabled(context)) {
+            output.withdraw(HudSource.MODULE);
+        } else if (!settings.isMapEnabled(context)) {
+            output.withdraw(HudSource.MODULE, HudRole.MAP);
+            output.withdraw(HudSource.MODULE, HudRole.MAP_MARKS);
+        }
+        if (!settings.isSignEnabled(context)) {
+            for (HudSource source : HudSource.values()) {
+                output.withdraw(source, HudRole.ROAD_LIMIT);
+            }
+        }
+        if (!camerasShown()) {
+            output.withdraw(HudSource.RADAR);
+        }
+        followSign();
+    }
+
+    /** What the panel lets through from {@code source} for {@code role}. */
+    private boolean admits(HudSource source, HudRole role) {
+        HudGuidanceSettings settings = HudGuidanceSettings.INSTANCE;
+        if (role == HudRole.ROAD_LIMIT && !settings.isSignEnabled(context)) {
+            return false;
+        }
+        if (source == HudSource.MODULE) {
+            return settings.isEnabled(context)
+                    && (settings.isMapEnabled(context) || (role != HudRole.MAP && role != HudRole.MAP_MARKS));
+        }
+        return source != HudSource.RADAR || camerasShown();
+    }
+
+    private boolean camerasShown() {
+        return HudGuidanceSettings.INSTANCE.isEnabled(context)
+                && HudGuidanceSettings.INSTANCE.areCamerasEnabled(context);
+    }
+
+    /**
+     * The car's sign after the composition's limit. Its thread starts with the first limit to
+     * write; nothing to write leaves the car's own assistance to carry on from what it last had.
+     */
+    private void followSign() {
+        Integer target = limit;
+        if (sign == null) {
+            if (target == null) {
+                return;
+            }
+            sign = new HudNativeSpeedLimitRunner(context);
+        }
+        sign.setTarget(target);
     }
 
     /** The hints went off: the stop that follows is said as one in «Сервис». */
@@ -104,11 +176,14 @@ final class HudHostOutput {
         stopAsked = true;
     }
 
-    /** The compositor, with the module's limit kept as it passes. */
+    /** The compositor, behind what the panel lets through. */
     private final class Sink implements HudSink {
         @Override
         public void layer(HudSource source, String id, HudRole role, HudRect rect, HudImage image,
                 float opacity, long ttlMs) {
+            if (!admits(source, role)) {
+                return;
+            }
             stopAsked = false;
             output.layer(source, id, role, rect, image, opacity, ttlMs);
         }
@@ -120,27 +195,20 @@ final class HudHostOutput {
 
         @Override
         public void fields(HudSource source, HudRole role, HudFields fields, long ttlMs) {
-            stopAsked = false;
-            if (source == HudSource.MODULE && role == HudRole.ROAD_LIMIT) {
-                Object limit = fields.value(Road.SPEED_LIMIT);
-                moduleLimit.published(limit instanceof Long ? (int) (long) (Long) limit : null, ttlMs);
+            if (!admits(source, role)) {
+                return;
             }
+            stopAsked = false;
             output.fields(source, role, fields, ttlMs);
         }
 
         @Override
         public void withdraw(HudSource source, HudRole role) {
-            if (source == HudSource.MODULE && role == HudRole.ROAD_LIMIT) {
-                moduleLimit.withdrawn();
-            }
             output.withdraw(source, role);
         }
 
         @Override
         public void withdraw(HudSource source) {
-            if (source == HudSource.MODULE) {
-                moduleLimit.withdrawn();
-            }
             output.withdraw(source);
         }
     }

@@ -79,6 +79,25 @@ final class HudCaptureSource {
     }
 
     /**
+     * With YandexHUD installed only the limit Yandex shows: the module's own, when it publishes
+     * one through the host, wins over it, and with a YandexHUD that draws the HUD itself this is
+     * what the car's sign follows. A limit alone opens no navigation, so nothing of this source
+     * reaches the glass beside the module.
+     */
+    void publishLimit(HudGuidance guidance) {
+        output.withdraw(HudSource.CAPTURE, HudRole.MANEUVER);
+        output.withdraw(HudSource.CAPTURE, HudRole.AR);
+        Integer speedLimit = guidance.getSpeedLimitKmh();
+        if (speedLimit != null) {
+            output.fields(HudSource.CAPTURE, HudRole.ROAD_LIMIT, new HudFields.Builder()
+                    .number(Road.SPEED_LIMIT, speedLimit)
+                    .build(), GUIDANCE_TTL_MS);
+        } else {
+            output.withdraw(HudSource.CAPTURE, HudRole.ROAD_LIMIT);
+        }
+    }
+
+    /**
      * A frame of the map window as a PNG, or the last one again so it stays on the glass: the
      * same array renews the frame without drawing or sending it anew. The window shows only
      * beside the hints, so a frame alone opens nothing.
