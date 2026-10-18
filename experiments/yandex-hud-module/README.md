@@ -497,8 +497,8 @@ compares five steps with the glass model.
 
 **Parked N9 street experiment (2026-10-15).** The owner corrected the premise:
 N9 also lacks street names with Denza Apps. String length is therefore unproved.
-Commit `9c7a4a5d` (formatter, tests and findings) is preserved on
-`archive/yandex-hud-n9-street`; evidence and its APK remain in
+Commit `9c7a4a5d` (formatter, tests and findings) stays in main's history,
+reverted by `b21e293f`; evidence and its APK remain in
 `captures/yandex-hud-street-20261014/`. The active branch again sends the full
 toponym. The emulator checks proved only shortened field-10 transmission, not
 a fix on N9. No car rollback was performed. Do not distribute that parked APK
