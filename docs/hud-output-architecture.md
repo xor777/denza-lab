@@ -699,6 +699,19 @@ Denza Apps собрана из рабочего дерева с чужими п�
 | HUD Speed с адаптером (протокол v2), `79.0-mod.1` «HUD Speed Mod» | `captures/hud-speed-20261018/build-mod-4f74/HUD-Speed-79.0-mod.1.apk` (исходники `4f74f32a`; от `79.0-DenzaHUD.1` отличается только манифестом) | `e3f92aeb8b6576fe979fa25ee1f39e9eeff8a0fee3049ee515338cf214fad3a5` |
 | Пробник `hud-surfaces-probe` | `experiments/hud-surfaces-probe/build/outputs/apk/debug/hud-surfaces-probe.apk` | `1f641d032a0dcc32a6b38f9ad78b880b1ffdaddb5364b83b2d4ae3ba31ac1b1b` |
 
+**Заменено 2026-10-18 в 15:54:** Denza Apps на машине — сборка из main
+`372b3a9d` (чистый worktree, versionCode 78), SHA-256
+`0a17d87376017b6024f3fbe377d19dd4f5cf708867d512477be5cd4e106aaa3a`
+(`captures/cluster-card-20261018/denza-apps-mapcard.apk`). Хеш `base.apk` на машине
+совпал. Обе службы специальных возможностей привязаны, буфер падений не
+изменился (`captures/cluster-card-20261018/install/`). Сверх набора в ней:
+панель с картинкой стекла, этап 5 (знак — выход компоновщика), «Карта в
+правом окне» и «Под поворотом». YandexHUD и HUD Speed Mod остались из набора.
+**На машине «HUD Подсказки» выключены** (`enabled=false`, `map=true`). С этой
+сборкой выключенные «Повороты» не пускают на стекло ничего, и YandexHUD тоже
+([12](#hud-out-panel)). Перед поездкой плитку надо включить, иначе стекло
+пустое. Запрет фоновой работы установка снова включила.
+
 Номер сборки YandexHUD в `tools/yandex_hud_build/identity.py` всё ещё 1, как у
 уже розданной сборки; поднимать ли его перед установкой — решение владельца.
 Различать сборки по хешу. Радар-приложение с адаптером подписано своим
