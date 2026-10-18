@@ -25,7 +25,6 @@ public final class HudCompositor implements HudSink {
     private final HudSession session;
     private long frameVersion = -1L;
     private byte[] frame;
-    private HudComposition composition;
 
     public HudCompositor(HudClock clock, HudSession.Port port, HudSession.Listener listener,
             Renderer renderer) {
@@ -77,7 +76,6 @@ public final class HudCompositor implements HudSink {
      */
     public long pump() {
         HudComposition now = scene.compose(clock.now());
-        composition = now;
         long version = now.version(HudWindow.MAP);
         if (version != frameVersion) {
             frameVersion = version;
@@ -85,11 +83,6 @@ public final class HudCompositor implements HudSink {
         }
         session.show(now.road(), now.clear(), frame, version);
         return Math.min(session.pump(), now.nextChange);
-    }
-
-    /** The last composition, for a status line; null before the first pump. */
-    public HudComposition composition() {
-        return composition;
     }
 
     /** The map event for what the window shows; null when it shows nothing. */

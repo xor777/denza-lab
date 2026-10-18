@@ -72,12 +72,6 @@ public final class HudOutput implements HudSink {
         changed();
     }
 
-    /** The mode the HUD is in, as last composed. */
-    public HudMode mode() {
-        HudComposition composition = compositor.composition();
-        return composition == null ? HudMode.OFF : composition.mode;
-    }
-
     private void changed() {
         if (!queued) {
             queued = true;
