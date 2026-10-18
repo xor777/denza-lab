@@ -1,7 +1,8 @@
 # YandexHUD — embedded Navigator HUD experiment
 
 Owner-only **debug** build of Navigator 29.8.1 with an independent 300×180 HUD
-map and Binder/SOME-IP output. Branch: `experiment/yandex-hud-renderer`.
+map and Binder/SOME-IP output. Developed on `experiment/yandex-hud-renderer`, merged into
+main and the branch deleted on 2026-10-18.
 This module is embedded into the pinned owner APK by a host build tool; it is
 not an independently installable app or a dependency of Denza Apps. The car
 has not been changed by these build/test tools. Detailed evidence belongs to

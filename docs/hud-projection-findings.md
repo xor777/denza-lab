@@ -1382,6 +1382,12 @@ Apps. Road `0x8001` включает слот (поля 2=2, 16=2), map `0x8003`
 гасит слот; переподключение берёт новый кадр, очереди старых карт нет. Этот
 watchdog работает только при живом процессе и неблокированном выходном потоке.
 
+> **Изменено 2026-10-18:** `HudTransport` и `HudSomeIpClient` удалены. Провод,
+> компоновщик и сессия теперь общие, `libraries/hud-link`; модуль пишет через
+> `HudLink` — через хост Denza Apps, пока она его принимает, иначе сам. Байты
+> на проводе прежние. См. [hud-output-architecture.md](hud-output-architecture.md),
+> разделы 5, 6 и 10.
+
 **Проверка именно build-06, без Frida/server:**
 `captures/yandex-hud-embedded-20261014/acceptance-06/`, воспроизведение через
 `tools/yandex_hud_build/acceptance.py`. Отдельный эмуляторный APK приёмника
