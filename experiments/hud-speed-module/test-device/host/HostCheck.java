@@ -62,7 +62,8 @@ public final class HostCheck extends Instrumentation {
         if(!module.equals(invoke(composition,"winner",maneuver)) || !module.equals(invoke(composition,"winner",limit)))
             throw new AssertionError("radar replaced navigation");
         boolean visible=false;
-        for(Object layer:(List<?>)invoke(composition,"layers",map)) if(radar.equals(field(layer,"source"))) {
+        // The warning only: HUD Speed's GPS bars stay while its radar runs, between warnings too.
+        for(Object layer:(List<?>)invoke(composition,"layers",map)) if(radar.equals(field(layer,"source")) && "warning".equals(field(layer,"id"))) {
             visible=true;
             byte[] png=(byte[])invoke(field(layer,"image"),"png"); int hash=Arrays.hashCode(png);
             if(pictures.add(hash)) {

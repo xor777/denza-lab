@@ -100,6 +100,9 @@ public final class SourceCheck extends Instrumentation {
                 (int)get(value,"limit")!=limit || (boolean)get(value,"section")!=section) throw new AssertionError(
                         "wrong snapshot active="+get(value,"active")+" type="+get(value,"type")+" unit="+get(value,"unit")+
                         " limit="+get(value,"limit")+" section="+get(value,"section"));
+        // The app's own artwork and GPS bars, read from the real engine and type table.
+        String icon=(String)get(value,"icon"), frame=(String)get(value,"frame"); int gps=(int)get(value,"gpsLevel");
+        if (icon.isEmpty() || frame.isEmpty() || gps!=4) throw new AssertionError("artwork icon="+icon+" frame="+frame+" gps="+gps);
         if (!(Boolean)get(module(),"attached")) throw new AssertionError("host not attached");
     }
     private static Field field(Object owner,String name) throws Exception {

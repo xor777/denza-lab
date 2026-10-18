@@ -49,6 +49,14 @@ public final class HudSpeedModule {
                         return ((Number) helpers.getMethod("x", double.class, double.class, double.class, double.class)
                                 .invoke(null, a, b, c, d)).intValue();
                     }
+                    public String[] art(int type) throws Exception {
+                        // g.i.w(type): b the tile, e the frame with a limit, d the frame without.
+                        Object info = helpers.getMethod("w", int.class).invoke(null, type);
+                        if (info == null) return null;
+                        return new String[] {(String) info.getClass().getField("b").get(info),
+                                (String) info.getClass().getField("e").get(info),
+                                (String) info.getClass().getField("d").get(info)};
+                    }
                 }, now);
             } catch (Throwable failure) {
                 if (!readFailureLogged) Log.w(TAG, "snapshot failed; clearing", failure);
@@ -103,7 +111,11 @@ public final class HudSpeedModule {
             host.connect();
         }
         if (latest != null && latest.active && latest.remainingMs(now) == 0) {
-            latest = HudRadarWarning.clear(now);
+            latest = HudRadarWarning.idle(now, latest.gpsLevel);
+            if (attached) send(latest);
+        } else if (latest != null && !latest.active && latest.running && now - latest.sampledAt >= 1_000) {
+            // The GPS bars stand between the engine's events; a warning is never re-stamped.
+            latest = latest.resampled(now);
             if (attached) send(latest);
         }
         WORK.postDelayed(tick, 500);

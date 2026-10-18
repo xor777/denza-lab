@@ -10,6 +10,7 @@ public final class SourceTest {
     public static final class Position { public float d = 55, e = 37; public float a() { return 10; } }
     public static final class Radar {
         public Boolean w = true;
+        public String z = "GPS_ON";
         public boolean gps = true, G;
         public Camera H;
         public int J;
@@ -33,6 +34,9 @@ public final class SourceTest {
         public int distance(double a, double b, double c, double d) {
             check(a > c && b > d && c==55 && d==37, "distance inputs"); return 150;
         }
+        public String[] art(int type) {
+            return type == 99 ? null : new String[] {"cam_type_" + type, "cam_speed_box_red", "cam_no_speed_box_red"};
+        }
     };
     public static void main(String[] args) throws Exception {
         Service service = new Service();
@@ -41,18 +45,32 @@ public final class SourceTest {
         service.c.objects.add(new Camera(80, 5, 1, 0));
         HudRadarWarning point = read(service);
         check(point.active && point.objectId==70 && point.limit==60 && point.meters==150 && !point.section, "selected warning");
-        service.c.gps=false; check(!read(service).active, "GPS loss must clear retained list");
-        service.c.gps=true; service.c.w=false; check(!read(service).active, "stopped engine");
+        check(point.icon.equals("cam_type_1") && point.frame.equals("cam_speed_box_red") && point.gpsLevel==4, "the app's own tile, frame and full bars");
+        service.c.gps=false;
+        HudRadarWarning lost = read(service);
+        check(!lost.active && lost.running && lost.gpsLevel==3, "GPS loss clears the retained list, keeps the bars");
+        service.c.z="GPS_SEARCH"; check(read(service).gpsLevel==2, "searching");
+        service.c.z="GPS_OFF"; check(read(service).gpsLevel==1, "GPS off");
+        service.c.z="GPS_ON"; service.c.gps=true;
+        service.c.w=false; HudRadarWarning stopped = read(service);
+        check(!stopped.active && !stopped.running, "stopped engine shows nothing");
         service.c.w=true; service.c.objects.clear();
         service.c.objects.add(new Camera(99, 5, 2, 40));
         HudRadarWarning other=read(service);
         check(other.type==5 && other.title.equals("Опасность 5") && other.unit==2 && other.limit==40, "danger and mph");
+        service.c.objects.set(0, new Camera(98, 5, 1, 0));
+        check(read(service).frame.equals("cam_no_speed_box_red"), "no limit: the frame without one");
+        service.c.objects.set(0, new Camera(97, 99, 1, 60));
+        HudRadarWarning bare = read(service);
+        check(bare.active && bare.icon.isEmpty() && bare.frame.isEmpty(), "a type the table lacks has no names");
+        service.c.objects.set(0, new Camera(99, 5, 2, 40));
         service.c.G=true; service.c.H=new Camera(42, 41, 1, 90); service.c.J=650;
         check(read(service).objectId==99, "active warning precedes ongoing section, like original overlay");
         service.c.objects.clear();
         HudRadarWarning section=read(service);
         check(section.section && section.meters==650 && section.averageSpeed==36 && section.limit==90, "ongoing average section");
-        service.c.H=null; check(!read(service).active, "incomplete section state");
+        service.c.H=null; HudRadarWarning incomplete=read(service);
+        check(!incomplete.active && incomplete.running, "incomplete section state");
         System.out.println("HUD Speed source: point, priority, GPS, stop, mph, danger, section passed");
     }
     private static HudRadarWarning read(Service service) throws Exception { return HudSpeedSource.read(service, LABELS, 1_000); }
