@@ -15,7 +15,7 @@ Updated 2026-10-18. What a session needs before it opens either archive.
 | The IVI OTA `Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip` is the image of the owner's car, which reports `34.1.33.2605218.1` | live | 2026-09-23 | [Archives](#archives) |
 | The FSE OTA `Di5.1_FSE_42.1.8.2605219.1.42.2.3.2605250.2.zip` is the passenger computer's image; installed DiShare matches it by hash | live | 2026-09-24 | [Archives](#archives) |
 | Both archives sit in `~/Dev/denza/firmware/`, not `~/Downloads` (moved 2026-10-07) | live | 2026-10-07 | [Archives](#archives) |
-| `python3 tools/firmware_corpus.py find <name>` lists every copy, decompile and partition-listing line of a file; the index has 345 entries: 205 copied files, 68 jadx trees, 64 loose APKs/JARs, 8 listings | code | 2026-10-08 | [Looking before extracting](#looking-before-extracting) |
+| `python3 tools/firmware_corpus.py find <name>` lists indexed copies, decompiles and partition-listing lines; canonical build manifests are now included. The 2026-10-18 index has 420 entries: 234 files, 90 jadx trees, 88 loose APKs/JARs, 8 listings. Native cluster pulls have a separate manifest | code | 2026-10-18 | [Looking before extracting](#looking-before-extracting), [Native cluster corpus](#native-cluster-corpus) |
 | `reverse/dishare-jadx` is DiShare `1.5.1.1.23102ef` pulled from the car before the OTA; the OTA's own DiShare is a different APK (SHA-256 `ffc548…` IVI, `ef1d35…` FSE) | firmware | 2026-10-08 | [What is already there](#what-is-already-there) |
 | Each file is in the corpus once: the 14 loose APKs and JARs that were byte-identical to another copy (1.97 GB) were removed on 2026-10-08 and the docs that cited them repointed. Repeated decompiles remain: DiCarServer 3.2.0-beta.1 three times, MapHelper 1.0.6 and AutoVideo twice | code | 2026-10-08 | [What is already there](#what-is-already-there) |
 | The IVI system partition is system-as-root: `/system/framework/services.jar` lands at `<out>/system/system/framework/services.jar` | code | 2026-09-23 | [Reading an archive](#reading-an-archive) |
@@ -26,6 +26,7 @@ Updated 2026-10-18. What a session needs before it opens either archive.
 | One Python environment, `.venv-firmware/` from `research/requirements-firmware.txt`, replaces three temporary ones under `/tmp` | code | 2026-10-08 | [Python environment](#python-environment) |
 | The current-car Cells/ClusterClient libraries have full `.text` disassembly, DWARF indexes, four decoded data tables and an extracted embedded Godot API; their runtime loading is not established | firmware | 2026-10-18 | [Native cluster corpus](#native-cluster-corpus) |
 | The current-car `cluster_hmi.pck` directory and all 375 GDScript token buffers are captured and decoded; the complete 467 MB PCK was not copied | firmware | 2026-10-18 | [Native cluster corpus](#native-cluster-corpus) |
+| The IVI MCU application is decoded and indexed; it matches the September extraction byte for byte. Extended RH850 instructions require the `v850e3v5` decoder; the old default decoder can stop early | firmware | 2026-10-18 | [MCU application](#mcu-application) |
 
 **Open questions**
 - The repeated decompiles (DiCarServer three times, MapHelper and AutoVideo twice) differ in
@@ -40,6 +41,7 @@ Updated 2026-10-18. What a session needs before it opens either archive.
 - [Reading an archive](#reading-an-archive) — the IVI and FSE readers, the layout they write.
 - [Where new work goes](#where-new-work-goes) — one directory per build, reports beside evidence.
 - [Decompiling](#decompiling) — the jadx command and its traps.
+- [MCU application](#mcu-application) — verified raw code and the extended instruction decoder.
 - [Native cluster corpus](#native-cluster-corpus) — Cells/ClusterClient code, types, signals and embedded API.
 - [Python environment](#python-environment) — one venv for every reader.
 - [What is already there](#what-is-already-there) — the topic directories of September.
@@ -76,6 +78,16 @@ The index is `captures/firmware-index.tsv` (kind, build, name, package, version,
 image path, SHA-256, size, local path), rebuilt by `index`; hashes and tree metadata are cached in
 `captures/.firmware-index-cache.json`. `rg` skips the git-ignored trees; search inside them with
 `rg --no-ignore`.
+
+The index previously read only `captures/*/extraction.json`, silently missing the documented
+`captures/firmware/<build>/extraction.json` layout. The 2026-10-18 fix treats historical capture
+directories and canonical builds as separate roots: native libraries/configuration are indexed,
+and recorded APKs and jadx trees are not counted twice. Explicit `pulled-from-car-*` roots remain
+unattributed to an OTA unless a record or matching hash establishes it. Thirteen regression
+tests cover both layouts, build isolation and unsupported manifest schemas. Per-file object
+reports such as `mcu/extraction.json` are provenance, not record lists; derived MCU files have
+ordinary records in the build manifest. The earlier count of 402 was accurate for the incomplete
+index, not evidence that all extracted files were searchable.
 
 ## Reading an archive
 
@@ -142,6 +154,37 @@ APKs: a few methods fail and the rest is usable.
   before the table existed (`docs/vehicle-data-findings.md`).
 - **Old decompiles:** a tree under `reverse/` predates the OTAs; `find` shows its version before
   anything is built on it.
+
+## MCU application
+
+The owner's IVI archive member
+`Mcu/Target/di5.1_ruisa_app_canfd_e_34.2.3.2605202.2.xcd` decrypts to XML. Its
+`AppBlock` hex decodes to 1,933,312 bytes at load address `0x40000`; both the
+declared size and byte-sum checksum `163529134` match. The raw application's
+SHA-256 is `6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02`.
+
+Canonical files are `captures/firmware/ivi-34.1.33.2605218.1/mcu/payload.xcd`
+and `app.bin`, with `extraction.json` and `app-analysis.json` beside them.
+The latter is byte-identical to the already decoded September file
+`captures/speaker-firmware-20260923/mcu-app-0x40000.bin`; that directory's
+`mcu-table-evidence.json` retains earlier CAN/FID work. The missed index entry
+caused a redundant extraction on 2026-10-18; this was independent verification,
+not discovery of a previously unreadable image.
+
+For extended instructions, this pass used **pypcode4.0.1**, Python3.13 and
+`Context('V850:LE:32:v850e3v5')`. The existing Python3.9 firmware environment
+and its pinned pypcode2.0.0 were left unchanged. A temporary install at
+`/private/tmp/denza-pypcode-20261018` supplied the newer decoder via `PYTHONPATH`;
+that temporary path is not durable. The package release is documented at
+[PyPI](https://pypi.org/project/pypcode/4.0.1/). The old default language stops at
+extended instructions such as indirect `jarl`; incomplete output is not a function
+boundary. Some ranges crossing data caused a host decoder crash, so retained
+findings use bounded, instruction-aligned functions and explicit code references.
+
+Diagnostic evidence is in `captures/diagnostics-discovery-20261018/ecu-map-followup/`.
+The package's own `7DF/741/749` transport and UDS service/DID tables describe the
+MCU itself. They are not a traction-battery, engine or ABS address map. See
+[vehicle diagnostics](vehicle-data-findings.md#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18).
 
 ## Native cluster corpus
 

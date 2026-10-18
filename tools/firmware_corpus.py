@@ -9,8 +9,9 @@ Before extracting or decompiling anything, look it up:
     python3 tools/firmware_corpus.py find DiShare     # every copy, tree and listing entry
     python3 tools/firmware_corpus.py index            # rebuild captures/firmware-index.tsv
 
-The index covers every captures/*/extraction.json (files copied out of an OTA, with SHA-256 and
-the local path they landed at), every jadx tree under captures/ and reverse/ (package, version,
+The index covers record-list extraction.json manifests in captures/*/ and
+captures/firmware/<build>/ (files copied out of an OTA, with SHA-256 and their local path),
+every jadx tree under captures/ and reverse/ (package, version,
 whether resources were decoded, and the copied APK it came from when one was recorded), loose
 APKs and JARs (hashed once, then cached), and the partition listings captures/*/files-*.txt.
 docs/firmware-corpus.md says what the archives are and where new work goes.
@@ -62,7 +63,10 @@ def build_of(capture: str, record: dict = None) -> str:
     """
     archive = (record or {}).get('archive')
     if archive:
+        archive = Path(archive).name
         return ARCHIVE_BUILDS.get(archive, archive)
+    if capture.startswith('pulled-from-car'):
+        return PULLED
     if capture.startswith('fse-'):
         return FSE_BUILD
     dated = re.search(r'(20\d{6})', capture)
@@ -193,18 +197,45 @@ def sha256_of(path: Path, cache: dict) -> str:
     return digest.hexdigest()
 
 
+def capture_roots(captures: Path):
+    """Historical captures and canonical builds are disjoint owners of their files/trees."""
+    for capture in sorted(p for p in captures.iterdir() if p.is_dir()):
+        if capture.name == 'firmware':
+            yield from sorted(p for p in capture.iterdir() if p.is_dir())
+        else:
+            yield capture
+
+
+def extraction_records(capture: Path):
+    """Only the readers' record-list schema; nested provenance JSON is not an inventory."""
+    manifest = capture / 'extraction.json'
+    if not manifest.is_file():
+        return []
+    records = json.loads(manifest.read_text())
+    if not isinstance(records, list) or not all(
+        isinstance(r, dict)
+        and isinstance(r.get('path'), str) and r['path'].startswith('/')
+        and '..' not in Path(r['path']).parts
+        and type(r.get('size')) is int and r['size'] >= 0
+        and isinstance(r.get('sha256'), str)
+        and re.fullmatch(r'[0-9a-fA-F]{64}', r['sha256'])
+        and all(isinstance(r[k], str) and r[k] for k in ('partition', 'archive') if k in r)
+        for r in records
+    ):
+        return []
+    return records
+
+
 def index(root: Path):
     captures, reverse = root / 'captures', root / 'reverse'
     cache_path = captures / CACHE
     cache = json.loads(cache_path.read_text()) if cache_path.is_file() else {}
     hashes, metas = cache.setdefault('sha256', {}), cache.setdefault('trees', {})
     rows = []
-    for capture in sorted(p for p in captures.glob('*/') if p.is_dir()):
-        records = []
-        if (capture / 'extraction.json').is_file():
-            records = json.loads((capture / 'extraction.json').read_text())
+    for capture in capture_roots(captures):
+        records = extraction_records(capture)
         trees = list(trees_under(capture))
-        if not records and not trees:
+        if not records and not trees and capture.parent != captures / 'firmware':
             continue  # a live capture or our own builds, not firmware
         by_name = {}
         loose = []

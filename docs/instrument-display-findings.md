@@ -14,6 +14,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
+| Google Maps 25.16.03.747108139 works on the owner's Android 13 head unit with ReVanced microG 0.3.13.3.250932-hw and the local compatibility patch: map, search/photos, location dot and a driving route with traffic verified without a Google account. The missing fix was the original Maps identity in Cronet HTTP headers; Google rejected the repackaged identity. BYD HUD compact Google arrow and route-stop clear are owner-verified; Fusion AR renders but retains a delayed animation in the drive and stationary Denza Apps encoder replay; not accepted | live | 2026-10-14 | [Google Maps compatibility](#google-maps-compatibility-2026-10-14) |
 | The firmware's AR turn scene (`libAREngine.so`, `judgeRecycle`) restarts its timed phases whenever field 31 changes or field 9 grows. The stock navigator holds field 31 at the segment end for the whole maneuver. Until `efea7776` our approximation blended it on every distance change, and the 2026-10-14 Google runs changed it about once a second, so the arrow never left its twist phase. Since `efea7776` `HudArApproximationTracker` holds field 31 and the smallest field 9 for a step, and keeps AR off for the rest of a step once it has dropped. Read from BydHud's copy of the engine, not this car's renderer. On 2026-10-15 the owner saw the held point work on the glass, the arrow turning and holding, in a Google Maps drive through an outside sender that carries the same tracker; a Denza Apps build with it has not been on the car | live | 2026-10-15 | [The AR arrow's scene machine](#the-ar-arrows-scene-machine-read-from-the-firmware-2026-10-14), [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
 | Since `e2bdbedf` AR starts 50 m before the turn, or four seconds ahead when faster (at most 150 m), and from 25 m holds through the corner until the navigator moves to the next step: fields 30 and 31 stay as last sent and only the vehicle fields follow the fix. The 2026-10-15 drive lost AR at the navigator's 1-2 m (the old 3 m floor), where the car begins to turn, and for whole steps whose point had been projected 72-146 m out along a still-turning course. Not seen on the glass yet | code | 2026-10-15 | [The AR arrow's scene machine](#the-ar-arrows-scene-machine-read-from-the-firmware-2026-10-14), [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) |
 | The owner's native HUD displays three lane arrows from field-7 PNG with field 5 = 3, road class 6 = 7, without field 29. Fields 5/29 alone leave only the control maneuver. Owner-observed in P; a Yandex source and moving-car behavior remain unverified | live | 2026-10-11 | [Native lane probe](hud-projection-findings.md#hud-native-lanes) |
@@ -63,6 +64,8 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 - [Energy display proposals before the contract (2026-09-05 and 2026-09-07, superseded)](#energy-display-proposals-before-the-contract-2026-09-05-and-2026-09-07-superseded) — the energy audit and whole-panel correction that the energy contract answered.
 - [Mirrors behavior preserved in Denza Apps](#mirrors-behavior-preserved-in-denza-apps) — camera geometry, the 2026-09-04 guard history, the 2026-09-23 firmware read and contract with its live runs, and the startup timing runs.
 - [Navigation projection](#navigation-projection) — placements, any application since 2026-09-23, task topology and capture method, one-tap launch, transfer overlay, steering-wheel key, teardown rules.
+- [Google Maps compatibility (2026-10-14)](#google-maps-compatibility-2026-10-14) — working APKs, microG setup, the confirmed network rejection and the reproducible patch.
+- [Google Maps direct HUD investigation](#google-maps-direct-hud-investigation-2026-10-14) — public branch and beta differences, data reliability and live-test contract.
 - [HUD turn-by-turn guidance](#hud-turn-by-turn-guidance) — Yandex guidance to the stock SOME/IP road topic, the AR arrow approximation, the firmware's AR scene machine (2026-10-14), field-28 maneuver IDs, the stock packet field by field and other senders' findings (2026-10-09).
 - [Central IVI split routing](#central-ivi-split-routing) — the retired router, kept for the stock `byd-freeform` substrate it measured.
 - [Third-party projection app: research boundary](#third-party-projection-app-research-boundary) — what an inspected third-party projection app taught and what was not copied.
@@ -2292,6 +2295,206 @@ is observed twice. Projection-error cleanup follows the same rule: it releases
 a live display only after the task was positively found elsewhere or was
 successfully returned to its recorded native root. If task location or return
 is uncertain, the UI keeps a **Return** action instead of destroying the task.
+
+### Google Maps compatibility (2026-10-14)
+
+**Confirmed on this car, Android 13, arm64, 4 KiB pages:** Google Maps
+`25.16.03.747108139` / `1068022637`, initially package `app.morphe.android.apps.maps`,
+with ReVanced microG `0.3.13.3.250932-hw` / `250932006`, package
+`app.revanced.android.gms`. No Google account was used. At 19:08 Moscow time,
+the native Maps app loaded the Moscow map, search result and photographs,
+showed the location dot, and calculated Bolshoi Theatre → Gorky Park:
+6.9 km / 21 minutes, alternatives, traffic and turn instructions. Moving-car
+guidance, spoken instructions, account favourites and HUD integration were
+not verified by this stationary run. The later bridge-enabled package is
+`app.revanced.android.apps.maps`; its compact HUD arrow and stop/clear were
+owner-verified below, and the old Morphe package was removed at 20:06 MSK.
+
+The initial failure was more specific than "no internet". A temporary Cronet
+netlog in Maps captured HTTP/2 responses from
+`mobilemaps-pa-gz.googleapis.com`: `grpc-status: 7`, reason
+`API_KEY_ANDROID_APP_BLOCKED`, and the message "Requests from this Android
+client application app.morphe.android.apps.maps are blocked." Outgoing
+`X-Android-Package` and `X-Android-Cert` contained the repackaged application's
+name and signing certificate. HTTPS also worked from the Maps UID, so the
+shell-only connectivity check was not used as proof of application access.
+
+The successful patch preserves the original Maps network identity:
+`com.google.android.apps.maps` and the original Google certificate SHA-1
+`38918A453D07199354F8B19AF05EC6562CED5788`. It normalizes just these two headers
+at 30 Cronet `addHeader(String, String)` call sites; other headers are unchanged.
+The original standalone APK keeps `app.morphe.android.apps.maps`; the later
+HUD variant uses `app.revanced.android.apps.maps`. Merely
+setting microG's spoof metadata had not fixed these direct network requests.
+Replacing the diagnostic APK with the ordinary fixed APK immediately restored
+map/search/route loading. No diagnostic code remains in the working APK.
+
+The base is the Google-signed universal Maps 25.16 APK from APKMirror, patched
+with Morphe Desktop 1.18.1 and fangkampanat `gmaps-patches` 1.2.0. A local CLI
+adapter omits the newer Maps notification and BYD audio transforms, whose
+fingerprints do not match 25.16, while retaining GmsCore routing, availability,
+context and location hooks. This is a local port, not an upstream-supported
+25.16 combination. Full source, input hashes and commands are in
+[`tools/maps25-compat/README.md`](../tools/maps25-compat/README.md).
+
+Install/setup on this firmware:
+
+1. Use the saved working pair under `captures/maps-microg-20261014/`; verify the
+   hashes in the tool README before installation. Remove incompatible signing
+   variants first; this also removes their app data/accounts. The old broken
+   Maps and microG variants were removed in this run.
+2. Grant microG's requested location (including background), accounts,
+   notifications, phone/SMS and storage permissions; allow its overlay and add
+   `app.revanced.android.gms` to the device-idle whitelist. Device registration
+   and cloud messaging were enabled. Grant Maps precise/coarse location.
+3. In BYD **Disable background Apps**, leave **Maps** and **microG Services**
+   **unchecked** to allow background startup. This was reset to checked by Maps
+   APK updates during the run: check it again after every reinstall/update.
+4. microG's **Self-Check** is the checklist mentioned by the owner's contact.
+   Its canonical `com.google.android.gms`, Companion and GSF installation checks
+   do not recognize this renamed limited-services fork; their unchecked state
+   is not proof that the patched Maps cannot work. Work-profile permission is
+   unnecessary without a work profile. Account login is optional for basic
+   map/search/routes; favourites still require the owner's own Google login.
+5. Launch `app.revanced.android.apps.maps/com.google.android.maps.MapsActivity`
+   for the current HUD-enabled APK (the original standalone APK used the Morphe package).
+   Confirm a loaded map and a new search/route, rather than just an Activity
+   launch. The trusted ADB tunnel and keys were preserved throughout.
+
+Earlier unsuccessful combinations included byd-hud's ready 26.30 direct-v2
+APK and locally patched 26.39.07 with both the requested microG and MicroG-RE
+7.2.1, plus 25.16 before the header fix. Those results do not establish that
+these versions are inherently incompatible: only the final 25.16 combination
+received and passed this fix. The byd-hud README lists 25.16 and 26.30 as
+supported navigator inputs; its patch adds HUD data and is separate from this
+base Maps repair. No HUD app or vehicle controller was changed during this
+initial repair; the subsequent BYD HUD work is recorded below.
+
+Kept local evidence: working Maps/microG APKs and one standalone Maps rollback,
+signing key, compact network
+rejection evidence, patch results and final route screenshot in
+`captures/maps-microg-20261014/`. Obsolete/diagnostic APKs, clean input copies,
+download/build caches, temporary on-device files and the source clone were
+removed. APKs and keys remain git-ignored; the recipe and findings are text.
+
+### Google Maps direct HUD investigation (2026-10-14)
+
+Public upstream [BYD HUD](https://github.com/sunlixWhyNotAvailable/byd-hud) was
+checked at `ce99ebac962b16a91221cc10c8d67821c9db4b89` (3.6.2). Only `main` was
+published; no additional PR branch was found. The author's public Drive beta
+`byd-hud-v3.6.3-beta.1.apk`, SHA-256
+`5f52c219fe1b232541a296c9cfd657efe866e0f987199b14c58bbfcd02d072f5`, already
+experiments with Fusion AR. Its live `DirectTbtPayload.prepare` appends constant
+F30 `[[121.4737,31.2304,0],[121.4740,31.2307,0]]`; the separate geometry catalog
+contains test shapes. Thus “the project has no AR work” is incorrect, but this
+beta does not yet derive a live curve from the current maneuver and vehicle
+pose. The [author's issue 2](https://github.com/sunlixWhyNotAvailable/byd-hud/issues/2)
+contains the matching Denza reports. The beta was inspected, not installed.
+
+Local contribution checkout: `../byd-hud`, branch
+`feat/denza-google-maps-ar-hud`. It ports the Denza Apps approximation from
+`854bc915592d93af1b305ca3db54c576f75e8877` behind an off-by-default setting. It
+uses the existing direct-channel owner and SOME/IP sender, precise GPS, a
+qualified moving course, the original maneuver distance and current-step
+identity. Missing/stale pose, unsupported maneuvers and route loss clear F30/F31.
+The curve is an approximation, not Google's road polyline. Roundabout AR remains
+unsupported; no exit number is invented from translated cue text.
+
+The accompanying Google data audit reproduces these cases in tests: a route
+without its current step retaining the previous turn; a malformed newer frame
+allowing an older sequence back in; an unsupported physical lane shifting the
+remaining lanes; missing text-direction cues; incomplete segment distances
+reported as a full route total; and a cached image reused for a later roundabout
+with the same maneuver enum. The local changes clear or preserve unavailable
+state explicitly and scope bitmap use to the current step. The direct producer's
+identity, route generation and terminal fences remain enforced.
+
+**Live test contract.** Baseline: Denza Apps `denza_hud_guidance.enabled=false`,
+no installed BYD HUD, existing trusted ADB tunnel retained. Install the pinned
+Maps bridge and BYD HUD test APK, allow their background operation, select Google
+HUD, start a stationary route, compare Google UI with direct-frame/transport
+logs, stop the route and inspect clear packets. A bound service or return code
+zero proves transport only, not visibility on the glass. AR also needs fresh
+moving-course evidence; a parked cold start must remain compact. Do not use the
+upstream Shanghai GPS simulation. The owner will observe the actual HUD.
+
+The Maps CLI patches DEX only. The Android `NavigatorPatchPipeline` separately
+runs `HudPackageVisibilityPatcher`; a CLI-produced APK must also contain
+`<queries><package android:name="com.bydhud.app"/></queries>`. Without it,
+Android 13 returns `creatorPackage=null`, `creatorUid=-1` when Maps inspects the
+HUD PendingIntent, and the intact bridge rejects registration. The first local
+CLI build reproduced this at 19:52 MSK. `tools/maps25-compat/AddHudVisibility.java`
+reuses the upstream helper; weakening identity checks is unnecessary.
+
+At 20:00 MSK the owner confirmed and photographed `Head northwest` on the
+windshield, between the OEM Chinese labels, with no maneuver arrow. Maps was
+stationary on `DEPART`, distance 0. The direct logs show Maps 25.16 sending
+bitmap maneuver names as `{DEPART}` while the wire parser produces `DEPART`.
+`NavInfoLogger.enumName` falls back to the object's `toString()` because this
+value is not a Java Enum. The receiver's exact-name cache lookup consequently
+never selects the supplied PNG (`currentMatch=false`); DEPART's fallback is
+intentionally blank. The local receiver fix accepts the exact uppercase-name
+brace wrapper before cache lookup, keeping sequence/route/step fences intact.
+Tests first reproduced late-image loss, early-image loss and divergent ordering
+between the wrapped/plain cache keys. This finding concerns existing compact
+guidance, independently of the experimental Fusion AR geometry.
+
+After installing BYD HUD SHA-256
+`636707cd550355d1e02118beb92d81cb355e38b36ec690a2c9cac6534517dd32`, the owner
+confirmed the Google arrow appeared, and then disappeared when the route was
+stopped at 20:05 MSK. The logs show `selected=google`, a successful `final_clear`
+and service stop. This accepts compact guidance/clear, not the AR animation.
+
+**First moving AR run, not accepted.** The owner observed an entry/intermediate
+animation that only became the maneuver at the turn itself, unlike Denza Apps.
+The retained SOME/IP trace contains 246 nonempty geometry packets, including
+left/right/U-turn IDs 1/2/9, sent as early as 149/88/64 metres respectively.
+GPS was registered by BYD HUD; the firmware Navigation Fusion setting was read
+as `2` (enabled): device 1023, FID `0x38B00034`, confirmed by
+`NavigationFusionSwitchProperty` in the existing DiCar corpus. The first build
+retained upstream's rolling field-2 value 0..255. The stock navigator and Denza
+Apps hold this field at 2 during guidance. A local Denza-only correction now
+uses 2 for both semantic and physical packets; the repeated-send integration
+test failed before that change. **The owner-observed stationary A/B replay
+falsified field 2 as the explanation:** both the rolling and constant-2 versions
+kept the same intermediate animation. The replay sent the same recorded right
+turn (84 to 0 metres, 25 seconds), changing only field 2, and cleared afterwards.
+Do not repeat that hypothesis as a fix or ask for another drive to test it.
+
+**Complete Denza Apps output port.** A normalized source diff proves that the
+pose filter and geometry tracker are already identical to `HudArApproximation.kt`
+at `854bc915` (only package/type names and comments differ). The incomplete port
+was in output: generic BYD HUD added fields 5/6/7/29 and its presentation rules,
+kept a 50 ms send loop, omitted the normal route-total fields, and could clamp
+maneuver distance. The Denza profile now uses the entire Denza Apps road layout,
+the same original instruction for compact distance/glyph and AR, and the
+350 ms AR / 5-second unchanged-compact heartbeat. The shared transport and
+producer ownership remain in BYD HUD. Unknown/absent Google data is not invented.
+
+`tools/maps25-compat/denza_packet_reference.py` extracts and executes the original
+Denza Apps encoder methods (source SHA256
+`5b7b5119a43b587018eb49ae4551a93ac94d4a1d8ebb2a4f04ea80af46359d75`).
+Synthetic compact/AR/clear goldens test byte equality in the BYD HUD repo.
+`prepare_hud_replay.py --denza-apps-reference` also rebuilds the captured right
+turn with that original encoder at 350 ms. The recorded geometry is reused;
+this validates output, not fresh Google/GNSS acquisition. At 20:48 MSK the
+owner observed the repeat and reported the same long intermediate animation.
+All 72 packets were accepted, then three clears and service stop succeeded.
+Thus neither field 2 nor the full encoder/cadence substitution fixed the
+observed behavior. It does not isolate input differences from stationary-replay
+limitations: there is no matching known-good Yandex wire recording to compare.
+The older Yandex drive logs retain maneuver/AR-state events, not full packets.
+
+The installed Denza Apps reports build 77, SHA256
+`b9f52189a38fa577d38267d6c33a6f3d2cf2423b60719c43b4ec03992662a8e4`.
+The four relevant source files (geometry, GPS source, monitor and encoder) have
+no diff between the build-77 commit `51ab23f6` and current `854bc915`.
+This is source-version evidence, not a decompilation of the installed APK.
+The new BYD HUD full-output build is local only; the car still has the earlier
+`5ca14f04…` build. ADB became offline after the successful replay cleanup.
+Restoring the force-stopped Maps/BYD HUD apps and uninstalling the temporary
+`dev.denza.hudframes.probe` are pending reconnection. Do not reset ADB keys or
+restart the preserved tunnel to obtain that connection.
 
 ## HUD turn-by-turn guidance
 

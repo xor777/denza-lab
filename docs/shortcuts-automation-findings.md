@@ -35,7 +35,7 @@ Everything else here is a dated findings journal.
 | Yandex Music 2026.07.2: `MusicBrowserService.onGetRoot` returns `null` to Denza Apps (caller allowlist); the exported `DebugMediaButtonReceiver` forwards `KEYCODE_MEDIA_PLAY` to the player service | firmware | 2026-09-11 | [Resume contract](#resume-contract-the-package-not-the-token-2026-09-11) |
 | Support report «Кнопка play/pause на руле»: `Кнопка play/pause=`, `Режим медиакнопки=`, `Запомненная сессия=`, `Последние нажатия=` (last 12 presses); the only trace where `log.tag=M` hides `DenzaMediaResume` (`MediaKeyDiagnostics.kt`) | code | 2026-09-18 | [What the support report says](#what-the-support-report-says-about-the-key-2026-09-11) |
 | `content://com.byd.autovoice/PersonBean` is exported with no permission or caller check: app-UID `query` 2.3 ms, `update` 3.1 ms, shell `content query` 1.21 s; a `ContentObserver` saw no change | live | 2026-09-03 | [App-UID ContentResolver access](#app-uid-contentresolver-access-live-proven-2026-09-03) |
-| `DefaultAppRoleRepository.kt` reads and writes `DEFAULT_MAP_SWITCH`, `MUSIC_SWITCH`, `VIDEO_SWITCH` through `ContentResolver` (`SETTING=?`; conditional `SETTING=? AND VALUE=?` matching exactly one row); each role holds the chosen app's real package; no ADB, no proxy | code | 2026-09-04 | [App-UID ContentResolver access](#app-uid-contentresolver-access-live-proven-2026-09-03) |
+| `DefaultAppRoleRepository.kt` reads and writes `DEFAULT_MAP_SWITCH`, `MUSIC_SWITCH`, `VIDEO_SWITCH` through `ContentResolver` (`SETTING=?`; conditional `SETTING=? AND VALUE=?` matching exactly one row); each role holds the chosen app's real package; no ADB, no proxy. This is not global replacement of every stock navigation surface | code | 2026-09-04 | [App-UID ContentResolver access](#app-uid-contentresolver-access-live-proven-2026-09-03), [Map-role consumers](#two-independent-map-role-switches) |
 | Single-package navigation proxy (`DEFAULT_MAP_SWITCH=dev.denza.apps` plus a trampoline): AutoVoice "open app" and the map role both arrive as `getLaunchIntentForPackage(dev.denza.apps)` with `MAIN + INFO` and `FROM=com.byd.autovoice`; retired in build 42 | refuted | 2026-09-03 | [Retired single-package navigation proxy](#retired-single-package-navigation-proxy-experiment-2026-09-03) |
 | AutoVoice's `AppReceiver` resets `DEFAULT_MAP_SWITCH` to stock on `PACKAGE_REMOVED` without reading `EXTRA_REPLACING`, so a Store update of the chosen navigator drops the role | firmware | 2026-09-03 | [Retired single-package navigation proxy](#retired-single-package-navigation-proxy-experiment-2026-09-03) |
 | While Denza Apps is running it puts the navigator back after such an update: armed when the package it last confirmed in the role is removed with `EXTRA_REPLACING`, restored on `PACKAGE_ADDED`/`PACKAGE_REPLACED` by a write conditional on the stock map; a stopped app does not repair it (`NavigationRoleRepair.kt`) | code | 2026-10-08 | [Navigation role repaired after a Store update](#navigation-role-repaired-after-a-store-update-while-denza-apps-runs-2026-10-08) |
@@ -1715,11 +1715,20 @@ consumers read different ones.
 | Switch | Storage | Read by |
 | --- | --- | --- |
 | `DEFAULT_MAP_SWITCH` | `PersonBean` row in `com.byd.autovoice` | voice assistant, Shortcuts `102000` |
-| `byd_map_package` | `Settings.Global` | `CustomKey` action 7 only |
+| `byd_map_package` | `Settings.Global` | `CustomKey` action 7 and `BydProjectionService` native Gaode/Baidu cluster-provider selection |
 
-Replacing navigation *everywhere* means setting both. On this car the wheel
-key is action 1 (APA), so `byd_map_package` has no consumer and
-`DEFAULT_MAP_SWITCH` is the switch that matters for Shortcuts and voice.
+> **Superseded 2026-10-15:** the earlier claim that setting both replaces
+> navigation everywhere, and that `byd_map_package` has no consumer with wheel
+> action 1, missed the native projection service. See
+> [the firmware integration study](stock-map-findings.md#native-cluster-provider-contract).
+
+`DEFAULT_MAP_SWITCH` controls generic navigation opening from Shortcuts and
+voice. It does not replace the launcher's fixed map widget/HOME providers or
+AutoVoice's explicit stock destination-protocol binding. The projection service
+accepts the exact Baidu package or defaults to Gaode; putting the Yandex package
+in `byd_map_package` does not register Yandex as its provider. On this car the
+wheel key's action 1 (APA) means action 7 is not used; it does not make that
+setting globally inert.
 
 ### `DEFAULT_MAP_SWITCH` — the voice and Shortcuts path
 

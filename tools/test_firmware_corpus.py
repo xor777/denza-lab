@@ -110,5 +110,113 @@ class FirmwareCorpusTest(unittest.TestCase):
         self.assertEqual(len(self.rows), len(corpus.load(self.root)))
 
 
+class CanonicalFirmwareCorpusTest(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.capture = self.root / 'captures' / 'firmware' / corpus.IVI_BUILD
+        self.capture.mkdir(parents=True)
+
+    def manifest(self, directory, value):
+        write(directory / 'extraction.json', json.dumps(value).encode())
+
+    def test_canonical_native_config_apk_and_tree_have_one_owner(self):
+        records = []
+        for image, partition, data in [
+            ('/bin/dtc_vendor', 'vendor', b'dtc'),
+            ('/system/lib64/libdiagnostic.so', 'system', b'native'),
+            ('/system/etc/diagnostic_config.json', 'system', b'{}'),
+            ('/system/app/OTA/OTA.apk', 'system', b'apk'),
+        ]:
+            write(self.capture / partition / image.lstrip('/'), data)
+            records.append(record(image, data, partition=partition))
+        self.manifest(self.capture, records)
+        tree = self.capture / 'jadx' / 'OTA'
+        write(tree / 'resources' / 'AndroidManifest.xml', b'<manifest package="com.byd.ota">')
+        loose = write(self.capture / 'other' / 'Loose.jar', b'jar')
+        write(self.capture / 'files-vendor.txt', b'F /bin/dtc_vendor 3\n')
+
+        rows = corpus.index(self.root)
+        self.assertEqual(4, len([r for r in rows if r.kind == 'file']))
+        self.assertEqual([str(loose)], [r.local_path for r in rows if r.kind == 'binary'])
+        trees = [r for r in rows if r.kind == 'jadx']
+        self.assertEqual(1, len(trees))
+        self.assertEqual(records[-1]['sha256'], trees[0].sha256)
+        self.assertEqual('/system/app/OTA/OTA.apk', trees[0].image_path)
+        self.assertTrue(all(r.build == corpus.IVI_BUILD for r in rows))
+        hits, listed = corpus.find(self.root, ['dtc_vendor'])
+        self.assertEqual(1, len(hits))
+        self.assertTrue(hits[0].local_path.endswith('/vendor/bin/dtc_vendor'))
+        self.assertEqual(1, len(listed))
+
+    def test_canonical_roots_do_not_borrow_files_or_sources_from_other_builds(self):
+        self.manifest(self.capture, [record('/system/app/Missing.apk', b'same-size')])
+        fse = self.capture.parent / corpus.FSE_BUILD
+        loose = write(fse / 'system' / 'system' / 'app' / 'Missing.apk', b'otherdata')
+        rows = corpus.index(self.root)
+        missing = next(r for r in rows if r.kind == 'file')
+        self.assertEqual('', missing.local_path)
+        binaries = [r for r in rows if r.kind == 'binary']
+        self.assertEqual([(str(loose), corpus.FSE_BUILD)], [(r.local_path, r.build) for r in binaries])
+
+    def test_canonical_car_pulls_need_archive_or_matching_hash_to_be_an_ota(self):
+        pulled = self.capture.parent / 'pulled-from-car-20261018'
+        loose = write(pulled / 'native' / 'Unknown.apk', b'car-only')
+        tree = pulled / 'jadx' / 'Unknown'
+        write(tree / 'resources' / 'AndroidManifest.xml', b'<manifest package="com.byd.unknown">')
+        archive = 'Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip'
+        known = write(pulled / 'Known.apk', b'known-ota')
+        self.manifest(self.capture, [record('/system/app/Known.apk', known.read_bytes(), archive=archive)])
+
+        rows = corpus.index(self.root)
+        for path in (loose, tree):
+            self.assertEqual(corpus.PULLED, next(r.build for r in rows if r.local_path == str(path)))
+        self.assertEqual(corpus.IVI_BUILD, next(r.build for r in rows if r.local_path == str(known)))
+        self.assertEqual(corpus.IVI_BUILD, corpus.build_of(pulled.name, {'archive': archive}))
+
+    def test_unknown_manifest_schemas_are_not_extraction_records(self):
+        invalid = [
+            {'path': '/system/lib64/fake.so', 'size': 1, 'sha256': 'a' * 64},
+            [{'taskId': 'arbitrary', 'result': {}}],
+            [record('/system/lib64/fake.so', b'x'), {'path': None}],
+            [record('/system/lib64/fake.so', b'x', size=True)],
+        ]
+        for data in invalid:
+            with self.subTest(data=data):
+                self.manifest(self.capture, data)
+                self.assertEqual([], corpus.index(self.root))
+        # A valid-looking list elsewhere is not a supported extraction root.
+        self.manifest(self.capture, [])
+        self.manifest(self.capture / 'reports', [record('/system/lib64/fake.so', b'x')])
+        self.assertEqual([], corpus.index(self.root))
+
+    def test_mcu_provenance_is_ignored_and_standard_build_records_locate_mcu_files(self):
+        mcu = self.capture / 'mcu'
+        payload = write(mcu / 'payload.xcd', b'decrypted-mcu')
+        app = write(mcu / 'app.bin', b'derived-app')
+        metadata = {
+            'archive': '/archives/Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip',
+            'archiveMember': 'Mcu/Target/firmware.xcd',
+            'decryptedSize': payload.stat().st_size,
+            'decryptedSha256': hashlib.sha256(payload.read_bytes()).hexdigest(),
+            'validPkcs7': True,
+        }
+        self.manifest(mcu, metadata)
+        self.assertEqual([], corpus.index(self.root))
+        self.manifest(self.capture, metadata)
+        self.assertEqual([], corpus.index(self.root))
+        self.manifest(self.capture, [
+            record('/' + p.name, p.read_bytes(), partition='mcu', archive=metadata['archive'],
+                   provenance={'archiveMember': metadata['archiveMember'], 'derived': p == app})
+            for p in (payload, app)
+        ])
+        rows = corpus.index(self.root)
+        self.assertEqual(2, len(rows))
+        self.assertEqual({str(payload), str(app)}, {r.local_path for r in rows})
+        self.assertTrue(all(r.kind == 'file' and r.build == corpus.IVI_BUILD for r in rows))
+        self.assertEqual(2, len(corpus.find(self.root, ['mcu'])[0]))
+
+
 if __name__ == '__main__':
     unittest.main()

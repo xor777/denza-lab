@@ -1,0 +1,1158 @@
+{
+  "properties": {
+    "BODYWORK_SUNSHADE_PANEL_PERCENT_SET": [1001, 1330642984, "int"],
+    "BODYWORK_SUNSHADE_PANEL_PERCENT": [1001, 1101004816, "int"],
+    "BODYWORK_SUNROOF_WINDOBLIND_INIT_STATE": [1001, 1101004826, "int"],
+    "BODYWORK_FRONT_SUNSHADE_THERMAL_PROTECTION": [1001, 1101004857, "int"],
+    "BODYWORK_MOON_ROOF_CONFIG": [1001, 1101004844, "int"],
+    "BODYWORK_REAR_SUNSHADE_PANEL_PERCENT_SET": [1001, 1276178472, "int"],
+    "BODYWORK_REAR_SUNSHADE_PANEL_PERCENT": [1001, 1206910984, "int"],
+    "BODYWORK_REAR_SUNROOF_WINDOBLIND_INIT_STATE": [1001, 1206910994, "int"],
+    "BODYWORK_REAR_SUNSHADE_THERMAL_PROTECTION": [1001, 1206911032, "int"],
+    "LIGHT_KNOB_CURRENT_GEAR": [1004, 321912867, "int"],
+    "INSTRUMENT_HEADLIGHT_CONTROL_SET": [1007, 1276153912, "int"],
+    "INSTRUMENT_HEADLIGHT_CONTROL_FEEDBACK": [1007, 1011875880, "int"],
+    "LIGHT_LF_ADB_CONFIG": [1004, 985661474, "int"],
+    "LIGHT_RF_ADB_CONFIG": [1004, 986710050, "int"],
+    "LIGHT_ADB_STATE_SET": [1004, 1125122110, "int"],
+    "LIGHT_LF_ADB_STATE": [1004, 985661468, "int"],
+    "LIGHT_RF_ADB_STATE": [1004, 986710044, "int"],
+    "LIGHT_DAY_RUNNING_LIGHT_CONFIG": [1004, 950009907, "int"],
+    "LIGHT_DAY_RUNNING_LIGHT_AUTO_STATE_SET": [1004, 1125122118, "int"],
+    "LIGHT_DAY_RUNNING_LIGHT_AUTO_STATE": [1004, 985661476, "int"],
+    "INSTRUMENT_REAR_FOG_LAMPS_SWITCH_SET": [1007, 1276153904, "int"],
+    "INSTRUMENT_REAR_FOG_LAMPS_SWITCH_STATE": [1007, 1011875872, "int"],
+    "LIGHT_REAR_GLOW_LOGO_CONFIG": [1004, 880803908, "int"],
+    "LIGHT_REAR_GLOW_LOGO_STATE_SET": [1004, 1324621876, "int"],
+    "LIGHT_REAR_GLOW_LOGO_STATE": [1004, 880803910, "int"],
+    "SET_FRONT_LEFT_SEAT_MASSAGE_CONFIG": [1023, 1335885879, "int"],
+    "SET_FRONT_LEFT_SEAT_MASSAGE_MODE": [1023, 1335885872, "int"],
+    "SET_FRONT_LEFT_SEAT_MASSAGE_LEVEL": [1023, 1335885876, "int"],
+    "SET_MAIN_DRIVER_SEAT_MASSAGE_WORKING_MODE_SET": [1023, 1276190752, "int"],
+    "SET_MAIN_DRIVING_SEAT_MASSAGE_WORK_INTENSUTY_SET": [1023, 1276190736, "int"],
+    "SET_FRONT_RIGHT_SEAT_MASSAGE_CONFIG": [1023, 1335885887, "int"],
+    "SET_FRONT_RIGHT_SEAT_MASSAGE_MODE": [1023, 1335885880, "int"],
+    "SET_FRONT_RIGHT_SEAT_MASSAGE_LEVEL": [1023, 1335885884, "int"],
+    "SET_CO_DRIVER_SEAT_MASSAGE_WORKING_MODE_SET": [1023, 1276190756, "int"],
+    "SET_CO_DRIVING_SEAT_MASSAGE_WORK_INTENSUTY_SET": [1023, 1276190739, "int"],
+    "SET_REAR_LEFT_SEAT_MASSAGE_CONFIG": [1023, 1335885863, "int"],
+    "SET_REAR_LEFT_SEAT_MASSAGE_MODE": [1023, 1335885856, "int"],
+    "SET_REAR_LEFT_SEAT_MASSAGE_LEVEL": [1023, 1335885860, "int"],
+    "SET_LEFT_REAR_SEAT_MASSAGE_WORKING_MODE_SET": [1023, 1276190760, "int"],
+    "SET_WORKING_INTENSITY_OF_LEFT_REAR_SEAT_MASSAGE_SET": [1023, 1276190746, "int"],
+    "SET_REAR_RIGHT_SEAT_MASSAGE_CONFIG": [1023, 1335885871, "int"],
+    "SET_REAR_RIGHT_SEAT_MASSAGE_MODE": [1023, 1335885864, "int"],
+    "SET_REAR_RIGHT_SEAT_MASSAGE_LEVEL": [1023, 1335885868, "int"],
+    "SET_RIGHT_REAR_SEAT_MASSAGE_WORKING_MODE_SET": [1023, 1276190764, "int"],
+    "SET_WORKING_INTENSITY_OF_RIGHT_REAR_SEAT_MASSAGE_SET": [1023, 1276190749, "int"],
+    "SET_DRIVER_SEAT_BALANCE_SIGNAL_SET": [1023, 1276137488, "int"],
+    "BODY_DRIVER_SEAT_HORIZONTAL_POSITION": [1001, 988807176, "float"],
+    "SETTING_LF_ELECTRIC_CONFIG": [1023, 1131413528, "int"],
+    "SETTING_LF_SEAT_HORIZONTAL_UNINITIALIZED": [1023, 1228931138, "int"],
+    "SET_DRIVER_SEAT_BACKREST_SIGNAL_SET": [1023, 1276137492, "int"],
+    "BODY_DRIVER_SEAT_BACKREST_POSITION": [1001, 988807184, "float"],
+    "SETTING_LF_SEAT_BACKREST_UNINITIALIZED": [1023, 1228931139, "int"],
+    "SET_DRIVER_SEAT_HEIGHT_SIGNAL_SET": [1023, 1276137490, "int"],
+    "BODY_DRIVER_SEAT_HEIGHT_POSITION": [1001, 988807192, "float"],
+    "SETTING_LF_SEAT_HEIGHT_UNINITIALIZED": [1023, 1228931140, "int"],
+    "SET_DRIVER_SEAT_BIDET_SIGNAL_SET": [1023, 1276137494, "int"],
+    "BODY_DRIVER_SEAT_SITPOINT_POSITION": [1001, 988807200, "float"],
+    "SETTING_LF_SEAT_CUSHION_UNINITIALIZED": [1023, 1228931141, "int"],
+    "SET_LF_LEG_REST_SIGNAL_SET": [1023, 1276137523, "int"],
+    "BODY_DRIVER_SEAT_LEGHOLDER_POSITION": [1001, 988807208, "float"],
+    "SETTING_LF_LEG_REST_CONFIG": [1023, 1131413560, "int"],
+    "BODYWORK_LF_SEAT_LEG_REST_UNINITIALIZED": [1001, 1291845643, "int"],
+    "SET_LF_HEADREST_SIGNAL_SET": [1023, 1276137520, "int"],
+    "BODY_DRIVER_SEAT_HEADREST_VERTICAL_POSITION": [1001, 988807224, "float"],
+    "SETTING_LF_HEADREST_CONFIG": [1023, 1131413561, "int"],
+    "BODYWORK_LF_SEAT_LHEADREST_HEIGHT_UNINITIALIZED": [1001, 1291845644, "int"],
+    "SET_RF_BALANCE_SIGNAL_SET": [1023, 1276137496, "int"],
+    "BODYWORK_RF_SEAT_HORIZONTAL_POSITION": [1001, 1215299592, "float"],
+    "SETTING_RF_ELECTRIC_CONFIG": [1023, 1017118764, "int"],
+    "SETTING_RF_SEAT_HORIZONTAL_UNINITIALIZED": [1023, 1017118760, "int"],
+    "SET_RF_BACKREST_SIGNAL_SET": [1023, 1276137500, "int"],
+    "BODYWORK_RF_SEAT_BACKREST_POSITION": [1001, 1215299600, "float"],
+    "SETTING_RF_SEAT_BACKREST_UNINITIALIZED": [1023, 1017118761, "int"],
+    "SET_RF_HEIGHT_SIGNAL_SET": [1023, 1276137498, "int"],
+    "BODYWORK_RF_SEAT_HEIGHT_POSITION": [1001, 1215299608, "float"],
+    "SETTING_RF_SEAT_HEIGHT_UNINITIALIZED": [1023, 1017118762, "int"],
+    "SET_RF_BIDET_SIGNAL_SET": [1023, 1276137502, "int"],
+    "BODYWORK_RF_SEAT_BIDET_POSITION": [1001, 1215299616, "float"],
+    "SETTING_RF_SEAT_CUSHION_UNINITIALIZED": [1023, 1017118763, "int"],
+    "SET_RF_LEG_REST_SIGNAL_SET": [1023, 1276137510, "int"],
+    "BODYWORK_RF_SEAT_LEG_REST_POSITION": [1001, 1215299624, "float"],
+    "SETTING_RF_LEG_REST_CONFIG": [1023, 1017118776, "int"],
+    "SETTING_RF_LEG_REST_UNINITIALIZED": [1023, 1017118768, "int"],
+    "SET_RF_HEADREST_SIGNAL_SET": [1023, 1276137507, "int"],
+    "BODYWORK_RF_SEAT_HEADREST_HEIGHT_POSITION": [1001, 1215299640, "float"],
+    "SETTING_RF_HEADREST_CONFIG": [1023, 1017118777, "int"],
+    "SETTING_PASSENGER_HEADREST_HEIGHT_UNINITIALIZED": [1023, 1017118769, "int"],
+    "SET_LR_BALANCE_SIGNAL_SET": [1023, 1276186652, "int"],
+    "BODYWORK_LR_SEAT_HORIZONTAL_POSITION": [1001, 1216348168, "float"],
+    "SETTING_LR_BALANCE_CONFIG": [1023, 1214251058, "int"],
+    "SETTING_SECOND_ROW_LEFT_SEAT_HORIZONTAL_DIRECTION_INITIALIZATION_STATUS": [1023, 902828055, "int"],
+    "SET_LR_BACKREST_SIGNAL_SET": [1023, 1276186656, "int"],
+    "BODYWORK_LR_SEAT_BACKREST_POSITION": [1001, 1216348176, "float"],
+    "SETTING_LR_BACKREST_CONFIG": [1023, 1214251056, "int"],
+    "SETTING_SECOND_ROW_LEFT_SEAT_BACKREST_DIRECTION_INITIALIZATION_STATUS": [1023, 902828056, "int"],
+    "SET_LR_HEIGHT_SIGNAL_SET": [1023, 1276186654, "int"],
+    "BODYWORK_LR_SEAT_HEIGHT_POSITION": [1001, 1216348184, "float"],
+    "SETTING_LR_HEIGHT_CONFIG": [1023, 1075839012, "int"],
+    "SET_LR_BIDET_SIGNAL_SET": [1023, 1276186658, "int"],
+    "BODYWORK_LR_SEAT_BIDET_POSITION": [1001, 1216348192, "float"],
+    "SETTING_LR_BIDET_CONFIG": [1023, 1075839011, "int"],
+    "SET_LR_LEG_REST_SIGNAL_SET": [1023, 1276186660, "int"],
+    "BODYWORK_LR_SEAT_LEG_REST_POSITION": [1001, 1216348200, "float"],
+    "SETTING_LR_LEG_REST_CONFIG": [1023, 1214251068, "int"],
+    "SETTING_SECOND_ROW_LEFT_SEAT_LEG_SUPPORT_DIRECTION_INITIALIZATION_STATUS": [1023, 902828059, "int"],
+    "SET_LR_HEADREST_SIGNAL_SET": [1023, 1276186662, "int"],
+    "BODYWORK_LR_SEAT_HEADREST_HEIGHT_POSITION": [1001, 1216348216, "float"],
+    "SETTING_LR_HEADREST_HEIGHT_CONFIG": [1023, 1075839014, "int"],
+    "SET_RR_BALANCE_SIGNAL_SET": [1023, 1276186664, "int"],
+    "BODYWORK_RR_SEAT_HORIZONTAL_POSITION": [1001, 1217396744, "float"],
+    "SETTING_RR_BALANCE_CONFIG": [1023, 1214251059, "int"],
+    "SETTING_SECOND_ROW_RIGHT_SEAT_HORIZONTAL_DIRECTION_INITIALIZATION_STATUS": [1023, 909119511, "int"],
+    "SET_RR_BACKREST_SIGNAL_SET": [1023, 1276186668, "int"],
+    "BODYWORK_RR_SEAT_BACKREST_POSITION": [1001, 1217396752, "float"],
+    "SETTING_RR_BACKREST_CONFIG": [1023, 1214251057, "int"],
+    "SETTING_SECOND_ROW_RIGHT_SEAT_BACKREST_DIRECTION_INITIALIZATION_STATUS": [1023, 909119512, "int"],
+    "SET_RR_HEIGHT_SIGNAL_SET": [1023, 1276186666, "int"],
+    "BODYWORK_RR_SEAT_HEIGHT_POSITION": [1001, 1217396760, "float"],
+    "SETTING_RR_HEIGHT_CONFIG": [1023, 1123024932, "int"],
+    "SET_RR_BIDET_SIGNAL_SET": [1023, 1276186670, "int"],
+    "BODYWORK_RR_SEAT_BIDET_POSITION": [1001, 1217396768, "float"],
+    "SETTING_RR_BIDET_CONFIG": [1023, 1123024931, "int"],
+    "SET_RR_LEG_REST_SIGNAL_SET": [1023, 1276186672, "int"],
+    "BODYWORK_RR_SEAT_LEG_REST_POSITION": [1001, 1217396776, "float"],
+    "SETTING_RR_LEG_REST_CONFIG": [1023, 1214251069, "int"],
+    "SETTING_SECOND_ROW_RIGHT_SEAT_LEG_SUPPORT_DIRECTION_INITIALIZATION_STATUS": [1023, 909119515, "int"],
+    "SET_RR_HEADREST_SIGNAL_SET": [1023, 1276186674, "int"],
+    "BODYWORK_RR_SEAT_HEADREST_HEIGHT_POSITION": [1001, 1217396792, "float"],
+    "SETTING_RR_HEADREST_HEIGHT_CONFIG": [1023, 1123024934, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_BALANCE_SIGNAL_SET": [1023, 850411536, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_BALANCE_POSITION": [1023, 1159725136, "float"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_BALANCE_CONFIG": [1023, 655360056, "int"],
+    "SETTING_THIRD_ROW_LEFT_SEAT_HORIZONTAL_DIRECTION_INITIALIZATION_STATUS": [1023, 446701584, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_BACKREST_SIGNAL_SET": [1023, 850411540, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_BACKREST_POSITION": [1023, 1159725144, "float"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_BACKREST_CONFIG": [1023, 655360057, "int"],
+    "SETTING_THIRD_ROW_LEFT_BACKREST_DIRECTION_STATUS": [1023, 446701585, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_HEIGHT_SIGNAL_SET": [1023, 850411538, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_HEIGHT_POSITION": [1023, 1159725152, "float"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_HEIGHT_CONFIG": [1023, 655360060, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_BIDET_SIGNAL_SET": [1023, 850411542, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_BIDET_POSITION": [1023, 1159725160, "float"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_BIDET_CONFIG": [1023, 655360059, "int"],
+    "SETTING_THIRD_ROW_LEFT_SEAT_BASIN_HEIGHT_DIRECTION_INITIALIZATION_STATUS": [1023, 446701587, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_LEG_REST_SIGNAL_SET": [1023, 850411544, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_LEG_REST_POSITION": [1023, 1159725168, "float"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_LEG_REST_CONFIG": [1023, 655360058, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_HEADREST_SIGNAL_SET": [1023, 850411546, "int"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_HEADREST_HEIGHT_POSITION": [1023, 1159725184, "float"],
+    "SETTING_THIRD_ROW_SEAT_LEFT_HEADREST_HEIGHT_CONFIG": [1023, 655360062, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_BALANCE_SIGNAL_SET": [1023, 850411548, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_BALANCE_POSITION": [1023, 1159725192, "float"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_BALANCE_CONFIG": [1023, 655360063, "int"],
+    "SETTING_THIRD_ROW_RIGHT_SEAT_HORIZONTAL_DIRECTION_INITIALIZATION_STATUS": [1023, 514859024, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_BACKREST_SIGNAL_SET": [1023, 850411552, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_BACKREST_POSITION": [1023, 1159725200, "float"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_BACKREST_CONFIG": [1023, 655360064, "int"],
+    "SETTING_THIRD_ROW_RIGHT_BACKREST_DIRECTION_STATUS": [1023, 514859025, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_HEIGHT_SIGNAL_SET": [1023, 850411550, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_HEIGHT_POSITION": [1023, 1159725208, "float"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_HEIGHT_CONFIG": [1023, 655360067, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_BIDET_SIGNAL_SET": [1023, 850411554, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_BIDET_POSITION": [1023, 1159725216, "float"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_BIDET_CONFIG": [1023, 655360066, "int"],
+    "SETTING_THIRD_ROW_RIGHT_SEAT_BASIN_HEIGHT_DIRECTION_INITIALIZATION_STATUS": [1023, 514859027, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_LEG_REST_SIGNAL_SET": [1023, 850411556, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_LEG_REST_POSITION": [1023, 1159725224, "float"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_LEG_REST_CONFIG": [1023, 655360065, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_HEADREST_SIGNAL_SET": [1023, 850411558, "int"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_HEADREST_HEIGHT_POSITION": [1023, 1159725240, "float"],
+    "SETTING_THIRD_ROW_SEAT_RIGHT_HEADREST_HEIGHT_CONFIG": [1023, 655360069, "int"],
+    "AC_LF_SEAT_HEATING_CONFIG": [1000, 715132955, "int"],
+    "SET_DRIVER_SEAT_HEATING_STATE": [1023, 1335885835, "int"],
+    "SET_DRIVER_SEAT_HEATING_STATE_SET": [1023, 1125122068, "int"],
+    "AC_LF_SEAT_VENTILATION_CONFIG": [1000, 715132952, "int"],
+    "SET_DRIVER_SEAT_VENTILATING_STATE": [1023, 1335885832, "int"],
+    "SET_DRIVER_SEAT_VENTILATING_STATE_SET": [1023, 1125122064, "int"],
+    "AC_RF_SEAT_HEATING_CONFIG": [1000, 715132947, "int"],
+    "SET_PASSENGER_SEAT_HEATING_STATE": [1023, 1335885843, "int"],
+    "SET_PASSENGER_SEAT_HEATING_STATE_SET": [1023, 1125122076, "int"],
+    "AC_RF_SEAT_VENTILATION_CONFIG": [1000, 715132944, "int"],
+    "SET_PASSENGER_SEAT_VENTILATING_STATE": [1023, 1335885840, "int"],
+    "SET_PASSENGER_SEAT_VENTILATING_STATE_SET": [1023, 1125122072, "int"],
+    "AC_LR_SEAT_HEATING_CONFIG": [1000, 715132963, "int"],
+    "SET_REAR_LEFT_SEAT_HEATING_STATE": [1023, 1214251019, "int"],
+    "SET_REAR_LEFT_SEAT_HEATING_STATE_SET": [1023, 1125122091, "int"],
+    "AC_LR_SEAT_VENTILATION_CONFIG": [1000, 715132960, "int"],
+    "SET_REAR_LEFT_SEAT_VENTILATING_STATE": [1023, 1214251016, "int"],
+    "SET_REAR_LEFT_SEAT_VENTILATING_STATE_SET": [1023, 1125122088, "int"],
+    "AC_RR_SEAT_HEATING_CONFIG": [1000, 715132971, "int"],
+    "SET_REAR_RIGHT_SEAT_HEATING_STATE": [1023, 1214251027, "int"],
+    "SET_REAR_RIGHT_SEAT_HEATING_STATE_SET": [1023, 1125122099, "int"],
+    "AC_RR_SEAT_VENTILATION_CONFIG": [1000, 715132968, "int"],
+    "SET_REAR_RIGHT_SEAT_VENTILATING_STATE": [1023, 1214251024, "int"],
+    "SET_REAR_RIGHT_SEAT_VENTILATING_STATE_SET": [1023, 1125122096, "int"],
+    "SETTING_3RD_ROW_LEFT_SEAT_HEATING_CONFIGURATION": [1023, 446705699, "int"],
+    "SETTING_3RD_ROW_LEFT_SEAT_HEATING_WORKING_STATUS": [1023, 446705707, "int"],
+    "SETTING_3RD_ROW_LEFT_SEAT_HEATING_WORKING_COMMAND_SET": [1023, 1276215333, "int"],
+    "SETTING_3RD_ROW_LEFT_SEAT_VENTILATION_CONFIGURATION": [1023, 446705696, "int"],
+    "SETTING_3RD_ROW_LEFT_SEAT_VENTILATION_WORKING_STATUS": [1023, 446705704, "int"],
+    "SETTING_3RD_ROW_LEFT_SEAT_VENTILATION_WORKING_COMMAND_SET": [1023, 1276215330, "int"],
+    "SETTING_3RD_ROW_RIGHT_SEAT_HEATING_CONFIGURATION": [1023, 514863139, "int"],
+    "SETTING_3RD_ROW_RIGHT_SEAT_HEATING_WORKING_STATUS": [1023, 514863147, "int"],
+    "SETTING_3RD_ROW_RIGHT_SEAT_HEATING_WORKING_COMMAND_SET": [1023, 1276215341, "int"],
+    "SETTING_3RD_ROW_RIGHT_SEAT_VENTILATION_CONFIGURATION": [1023, 514863136, "int"],
+    "SETTING_3RD_ROW_RIGHT_SEAT_VENTILATION_WORKING_STATUS": [1023, 514863144, "int"],
+    "SETTING_3RD_ROW_RIGHT_SEAT_VENTILATION_WORKING_COMMAND_SET": [1023, 1276215338, "int"],
+    "BODYWORK_LF_ELECTRIC_DOOR_SET": [1001, 1276178480, "int"],
+    "BODYWORK_LF_ELECTRIC_DOOR_CURRENT_POSITION": [1001, 957350000, "int"],
+    "BODYWORK_LF_ELECTRIC_DOOR_INIT_STATUS": [1001, 957349960, "int"],
+    "BODYWORK_LF_ELECTRIC_DOOR_OBSTACLE": [1001, 957350024, "int"],
+    "BODYWORK_LF_ELECTRIC_DOOR_PREVENT_PLAY_STATUS": [1001, 957350008, "int"],
+    "DOOR_LOCK_COMMAND_AREA_LEFT_FRONT": [1041, -1066401784, "int"],
+    "BODYWORK_RF_ELECTRIC_DOOR_SET": [1001, 1276178483, "int"],
+    "BODYWORK_RF_ELECTRIC_DOOR_CURRENT_POSITION": [1001, 957350002, "int"],
+    "BODYWORK_RF_ELECTRIC_DOOR_INIT_STATUS": [1001, 957349962, "int"],
+    "BODYWORK_RF_ELECTRIC_DOOR_OBSTACLE": [1001, 957350026, "int"],
+    "BODYWORK_RF_ELECTRIC_DOOR_PREVENT_PLAY_STATUS": [1001, 957350009, "int"],
+    "DOOR_LOCK_COMMAND_AREA_RIGHT_FRONT": [1041, -1066401782, "int"],
+    "BODYWORK_LR_ELECTRIC_DOOR_SET": [1001, 1276178488, "int"],
+    "BODYWORK_LR_ELECTRIC_DOOR_CURRENT_POSITION": [1001, 957350004, "int"],
+    "BODYWORK_LR_ELECTRIC_DOOR_INIT_STATUS": [1001, 957349964, "int"],
+    "BODYWORK_LR_ELECTRIC_DOOR_OBSTACLE": [1001, 957350028, "int"],
+    "BODYWORK_LR_ELECTRIC_DOOR_PREVENT_PLAY_STATUS": [1001, 957350010, "int"],
+    "DOOR_LOCK_COMMAND_AREA_LEFT_REAR": [1041, -1066401780, "int"],
+    "BODYWORK_RR_ELECTRIC_DOOR_SET": [1001, 1276178491, "int"],
+    "BODYWORK_RR_ELECTRIC_DOOR_CURRENT_POSITION": [1001, 957350006, "int"],
+    "BODYWORK_RR_ELECTRIC_DOOR_INIT_STATUS": [1001, 957349966, "int"],
+    "BODYWORK_RR_ELECTRIC_DOOR_OBSTACLE": [1001, 957350030, "int"],
+    "BODYWORK_RR_ELECTRIC_DOOR_PREVENT_PLAY_STATUS": [1001, 957350011, "int"],
+    "DOOR_LOCK_COMMAND_AREA_RIGHT_REAR": [1041, -1066401778, "int"],
+    "BODYWORK_FOUR_DOOR_SET": [1001, 1276141590, "int"],
+    "DOOR_LOCK_HEAT_PROTECT_STATE": [1041, 962592839, "int"],
+    "BODYWORK_ELECTRIC_DOOR_CONFIG": [1001, 957350048, "int"]
+  },
+  "locks": {
+    "set": "BODYWORK_FOUR_DOOR_SET",
+    "thermal": "DOOR_LOCK_HEAT_PROTECT_STATE",
+    "config": "BODYWORK_ELECTRIC_DOOR_CONFIG"
+  },
+  "doors": {
+    "fl": {
+      "set": "BODYWORK_LF_ELECTRIC_DOOR_SET",
+      "position": "BODYWORK_LF_ELECTRIC_DOOR_CURRENT_POSITION",
+      "initialized": "BODYWORK_LF_ELECTRIC_DOOR_INIT_STATUS",
+      "obstacle": "BODYWORK_LF_ELECTRIC_DOOR_OBSTACLE",
+      "protection": "BODYWORK_LF_ELECTRIC_DOOR_PREVENT_PLAY_STATUS",
+      "lock": "DOOR_LOCK_COMMAND_AREA_LEFT_FRONT"
+    },
+    "fr": {
+      "set": "BODYWORK_RF_ELECTRIC_DOOR_SET",
+      "position": "BODYWORK_RF_ELECTRIC_DOOR_CURRENT_POSITION",
+      "initialized": "BODYWORK_RF_ELECTRIC_DOOR_INIT_STATUS",
+      "obstacle": "BODYWORK_RF_ELECTRIC_DOOR_OBSTACLE",
+      "protection": "BODYWORK_RF_ELECTRIC_DOOR_PREVENT_PLAY_STATUS",
+      "lock": "DOOR_LOCK_COMMAND_AREA_RIGHT_FRONT"
+    },
+    "rl": {
+      "set": "BODYWORK_LR_ELECTRIC_DOOR_SET",
+      "position": "BODYWORK_LR_ELECTRIC_DOOR_CURRENT_POSITION",
+      "initialized": "BODYWORK_LR_ELECTRIC_DOOR_INIT_STATUS",
+      "obstacle": "BODYWORK_LR_ELECTRIC_DOOR_OBSTACLE",
+      "protection": "BODYWORK_LR_ELECTRIC_DOOR_PREVENT_PLAY_STATUS",
+      "lock": "DOOR_LOCK_COMMAND_AREA_LEFT_REAR"
+    },
+    "rr": {
+      "set": "BODYWORK_RR_ELECTRIC_DOOR_SET",
+      "position": "BODYWORK_RR_ELECTRIC_DOOR_CURRENT_POSITION",
+      "initialized": "BODYWORK_RR_ELECTRIC_DOOR_INIT_STATUS",
+      "obstacle": "BODYWORK_RR_ELECTRIC_DOOR_OBSTACLE",
+      "protection": "BODYWORK_RR_ELECTRIC_DOOR_PREVENT_PLAY_STATUS",
+      "lock": "DOOR_LOCK_COMMAND_AREA_RIGHT_REAR"
+    }
+  },
+  "seats": {
+    "fl": {
+      "name": "Водитель",
+      "axes": {
+        "horizontal": {
+          "name": "Продольно",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SET_DRIVER_SEAT_BALANCE_SIGNAL_SET",
+          "position": "BODY_DRIVER_SEAT_HORIZONTAL_POSITION",
+          "config": "SETTING_LF_ELECTRIC_CONFIG",
+          "config_values": [
+            1,
+            2,
+            3
+          ],
+          "initialized": "SETTING_LF_SEAT_HORIZONTAL_UNINITIALIZED"
+        },
+        "backrest": {
+          "name": "Спинка",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SET_DRIVER_SEAT_BACKREST_SIGNAL_SET",
+          "position": "BODY_DRIVER_SEAT_BACKREST_POSITION",
+          "config": "SETTING_LF_ELECTRIC_CONFIG",
+          "config_values": [
+            1,
+            2,
+            3
+          ],
+          "initialized": "SETTING_LF_SEAT_BACKREST_UNINITIALIZED"
+        },
+        "height": {
+          "name": "Высота",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_DRIVER_SEAT_HEIGHT_SIGNAL_SET",
+          "position": "BODY_DRIVER_SEAT_HEIGHT_POSITION",
+          "config": "SETTING_LF_ELECTRIC_CONFIG",
+          "config_values": [
+            2,
+            3
+          ],
+          "initialized": "SETTING_LF_SEAT_HEIGHT_UNINITIALIZED"
+        },
+        "cushion": {
+          "name": "Наклон подушки",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_DRIVER_SEAT_BIDET_SIGNAL_SET",
+          "position": "BODY_DRIVER_SEAT_SITPOINT_POSITION",
+          "config": "SETTING_LF_ELECTRIC_CONFIG",
+          "config_values": [
+            3
+          ],
+          "initialized": "SETTING_LF_SEAT_CUSHION_UNINITIALIZED"
+        },
+        "legrest": {
+          "name": "Опора для ног",
+          "labels": [
+            "Поднять",
+            "Опустить"
+          ],
+          "set": "SET_LF_LEG_REST_SIGNAL_SET",
+          "position": "BODY_DRIVER_SEAT_LEGHOLDER_POSITION",
+          "config": "SETTING_LF_LEG_REST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "BODYWORK_LF_SEAT_LEG_REST_UNINITIALIZED"
+        },
+        "headrest": {
+          "name": "Подголовник",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_LF_HEADREST_SIGNAL_SET",
+          "position": "BODY_DRIVER_SEAT_HEADREST_VERTICAL_POSITION",
+          "config": "SETTING_LF_HEADREST_CONFIG",
+          "config_values": [
+            2,
+            3
+          ],
+          "initialized": "BODYWORK_LF_SEAT_LHEADREST_HEIGHT_UNINITIALIZED"
+        }
+      },
+      "comfort": {
+        "heat": {
+          "config": "AC_LF_SEAT_HEATING_CONFIG",
+          "state": "SET_DRIVER_SEAT_HEATING_STATE",
+          "set": "SET_DRIVER_SEAT_HEATING_STATE_SET",
+          "values": [
+            1,
+            2,
+            3,
+            6
+          ]
+        },
+        "vent": {
+          "config": "AC_LF_SEAT_VENTILATION_CONFIG",
+          "state": "SET_DRIVER_SEAT_VENTILATING_STATE",
+          "set": "SET_DRIVER_SEAT_VENTILATING_STATE_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      }
+    },
+    "fr": {
+      "name": "Передний пассажир",
+      "axes": {
+        "horizontal": {
+          "name": "Продольно",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SET_RF_BALANCE_SIGNAL_SET",
+          "position": "BODYWORK_RF_SEAT_HORIZONTAL_POSITION",
+          "config": "SETTING_RF_ELECTRIC_CONFIG",
+          "config_values": [
+            1,
+            2,
+            3
+          ],
+          "initialized": "SETTING_RF_SEAT_HORIZONTAL_UNINITIALIZED"
+        },
+        "backrest": {
+          "name": "Спинка",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SET_RF_BACKREST_SIGNAL_SET",
+          "position": "BODYWORK_RF_SEAT_BACKREST_POSITION",
+          "config": "SETTING_RF_ELECTRIC_CONFIG",
+          "config_values": [
+            1,
+            2,
+            3
+          ],
+          "initialized": "SETTING_RF_SEAT_BACKREST_UNINITIALIZED"
+        },
+        "height": {
+          "name": "Высота",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_RF_HEIGHT_SIGNAL_SET",
+          "position": "BODYWORK_RF_SEAT_HEIGHT_POSITION",
+          "config": "SETTING_RF_ELECTRIC_CONFIG",
+          "config_values": [
+            2,
+            3
+          ],
+          "initialized": "SETTING_RF_SEAT_HEIGHT_UNINITIALIZED"
+        },
+        "cushion": {
+          "name": "Наклон подушки",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_RF_BIDET_SIGNAL_SET",
+          "position": "BODYWORK_RF_SEAT_BIDET_POSITION",
+          "config": "SETTING_RF_ELECTRIC_CONFIG",
+          "config_values": [
+            3
+          ],
+          "initialized": "SETTING_RF_SEAT_CUSHION_UNINITIALIZED"
+        },
+        "legrest": {
+          "name": "Опора для ног",
+          "labels": [
+            "Поднять",
+            "Опустить"
+          ],
+          "set": "SET_RF_LEG_REST_SIGNAL_SET",
+          "position": "BODYWORK_RF_SEAT_LEG_REST_POSITION",
+          "config": "SETTING_RF_LEG_REST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_RF_LEG_REST_UNINITIALIZED"
+        },
+        "headrest": {
+          "name": "Подголовник",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_RF_HEADREST_SIGNAL_SET",
+          "position": "BODYWORK_RF_SEAT_HEADREST_HEIGHT_POSITION",
+          "config": "SETTING_RF_HEADREST_CONFIG",
+          "config_values": [
+            2,
+            3
+          ],
+          "initialized": "SETTING_PASSENGER_HEADREST_HEIGHT_UNINITIALIZED"
+        }
+      },
+      "comfort": {
+        "heat": {
+          "config": "AC_RF_SEAT_HEATING_CONFIG",
+          "state": "SET_PASSENGER_SEAT_HEATING_STATE",
+          "set": "SET_PASSENGER_SEAT_HEATING_STATE_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "vent": {
+          "config": "AC_RF_SEAT_VENTILATION_CONFIG",
+          "state": "SET_PASSENGER_SEAT_VENTILATING_STATE",
+          "set": "SET_PASSENGER_SEAT_VENTILATING_STATE_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      }
+    },
+    "rl": {
+      "name": "Второй ряд · слева",
+      "axes": {
+        "horizontal": {
+          "name": "Продольно",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SET_LR_BALANCE_SIGNAL_SET",
+          "position": "BODYWORK_LR_SEAT_HORIZONTAL_POSITION",
+          "config": "SETTING_LR_BALANCE_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_SECOND_ROW_LEFT_SEAT_HORIZONTAL_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "backrest": {
+          "name": "Спинка",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SET_LR_BACKREST_SIGNAL_SET",
+          "position": "BODYWORK_LR_SEAT_BACKREST_POSITION",
+          "config": "SETTING_LR_BACKREST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_SECOND_ROW_LEFT_SEAT_BACKREST_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "height": {
+          "name": "Высота",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_LR_HEIGHT_SIGNAL_SET",
+          "position": "BODYWORK_LR_SEAT_HEIGHT_POSITION",
+          "config": "SETTING_LR_HEIGHT_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        },
+        "cushion": {
+          "name": "Наклон подушки",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_LR_BIDET_SIGNAL_SET",
+          "position": "BODYWORK_LR_SEAT_BIDET_POSITION",
+          "config": "SETTING_LR_BIDET_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        },
+        "legrest": {
+          "name": "Опора для ног",
+          "labels": [
+            "Поднять",
+            "Опустить"
+          ],
+          "set": "SET_LR_LEG_REST_SIGNAL_SET",
+          "position": "BODYWORK_LR_SEAT_LEG_REST_POSITION",
+          "config": "SETTING_LR_LEG_REST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_SECOND_ROW_LEFT_SEAT_LEG_SUPPORT_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "headrest": {
+          "name": "Подголовник",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_LR_HEADREST_SIGNAL_SET",
+          "position": "BODYWORK_LR_SEAT_HEADREST_HEIGHT_POSITION",
+          "config": "SETTING_LR_HEADREST_HEIGHT_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        }
+      },
+      "comfort": {
+        "heat": {
+          "config": "AC_LR_SEAT_HEATING_CONFIG",
+          "state": "SET_REAR_LEFT_SEAT_HEATING_STATE",
+          "set": "SET_REAR_LEFT_SEAT_HEATING_STATE_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "vent": {
+          "config": "AC_LR_SEAT_VENTILATION_CONFIG",
+          "state": "SET_REAR_LEFT_SEAT_VENTILATING_STATE",
+          "set": "SET_REAR_LEFT_SEAT_VENTILATING_STATE_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      }
+    },
+    "rr": {
+      "name": "Второй ряд · справа",
+      "axes": {
+        "horizontal": {
+          "name": "Продольно",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SET_RR_BALANCE_SIGNAL_SET",
+          "position": "BODYWORK_RR_SEAT_HORIZONTAL_POSITION",
+          "config": "SETTING_RR_BALANCE_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_SECOND_ROW_RIGHT_SEAT_HORIZONTAL_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "backrest": {
+          "name": "Спинка",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SET_RR_BACKREST_SIGNAL_SET",
+          "position": "BODYWORK_RR_SEAT_BACKREST_POSITION",
+          "config": "SETTING_RR_BACKREST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_SECOND_ROW_RIGHT_SEAT_BACKREST_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "height": {
+          "name": "Высота",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_RR_HEIGHT_SIGNAL_SET",
+          "position": "BODYWORK_RR_SEAT_HEIGHT_POSITION",
+          "config": "SETTING_RR_HEIGHT_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        },
+        "cushion": {
+          "name": "Наклон подушки",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_RR_BIDET_SIGNAL_SET",
+          "position": "BODYWORK_RR_SEAT_BIDET_POSITION",
+          "config": "SETTING_RR_BIDET_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        },
+        "legrest": {
+          "name": "Опора для ног",
+          "labels": [
+            "Поднять",
+            "Опустить"
+          ],
+          "set": "SET_RR_LEG_REST_SIGNAL_SET",
+          "position": "BODYWORK_RR_SEAT_LEG_REST_POSITION",
+          "config": "SETTING_RR_LEG_REST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_SECOND_ROW_RIGHT_SEAT_LEG_SUPPORT_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "headrest": {
+          "name": "Подголовник",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SET_RR_HEADREST_SIGNAL_SET",
+          "position": "BODYWORK_RR_SEAT_HEADREST_HEIGHT_POSITION",
+          "config": "SETTING_RR_HEADREST_HEIGHT_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        }
+      },
+      "comfort": {
+        "heat": {
+          "config": "AC_RR_SEAT_HEATING_CONFIG",
+          "state": "SET_REAR_RIGHT_SEAT_HEATING_STATE",
+          "set": "SET_REAR_RIGHT_SEAT_HEATING_STATE_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "vent": {
+          "config": "AC_RR_SEAT_VENTILATION_CONFIG",
+          "state": "SET_REAR_RIGHT_SEAT_VENTILATING_STATE",
+          "set": "SET_REAR_RIGHT_SEAT_VENTILATING_STATE_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      }
+    },
+    "tl": {
+      "name": "Третий ряд · слева",
+      "axes": {
+        "horizontal": {
+          "name": "Продольно",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_LEFT_BALANCE_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_LEFT_BALANCE_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_LEFT_BALANCE_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_THIRD_ROW_LEFT_SEAT_HORIZONTAL_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "backrest": {
+          "name": "Спинка",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_LEFT_BACKREST_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_LEFT_BACKREST_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_LEFT_BACKREST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_THIRD_ROW_LEFT_BACKREST_DIRECTION_STATUS"
+        },
+        "height": {
+          "name": "Высота",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_LEFT_HEIGHT_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_LEFT_HEIGHT_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_LEFT_HEIGHT_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        },
+        "cushion": {
+          "name": "Наклон подушки",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_LEFT_BIDET_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_LEFT_BIDET_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_LEFT_BIDET_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_THIRD_ROW_LEFT_SEAT_BASIN_HEIGHT_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "legrest": {
+          "name": "Опора для ног",
+          "labels": [
+            "Поднять",
+            "Опустить"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_LEFT_LEG_REST_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_LEFT_LEG_REST_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_LEFT_LEG_REST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        },
+        "headrest": {
+          "name": "Подголовник",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_LEFT_HEADREST_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_LEFT_HEADREST_HEIGHT_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_LEFT_HEADREST_HEIGHT_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        }
+      },
+      "comfort": {
+        "heat": {
+          "config": "SETTING_3RD_ROW_LEFT_SEAT_HEATING_CONFIGURATION",
+          "state": "SETTING_3RD_ROW_LEFT_SEAT_HEATING_WORKING_STATUS",
+          "set": "SETTING_3RD_ROW_LEFT_SEAT_HEATING_WORKING_COMMAND_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "vent": {
+          "config": "SETTING_3RD_ROW_LEFT_SEAT_VENTILATION_CONFIGURATION",
+          "state": "SETTING_3RD_ROW_LEFT_SEAT_VENTILATION_WORKING_STATUS",
+          "set": "SETTING_3RD_ROW_LEFT_SEAT_VENTILATION_WORKING_COMMAND_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      }
+    },
+    "tr": {
+      "name": "Третий ряд · справа",
+      "axes": {
+        "horizontal": {
+          "name": "Продольно",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_RIGHT_BALANCE_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_RIGHT_BALANCE_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_RIGHT_BALANCE_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_THIRD_ROW_RIGHT_SEAT_HORIZONTAL_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "backrest": {
+          "name": "Спинка",
+          "labels": [
+            "Вперёд",
+            "Назад"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_RIGHT_BACKREST_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_RIGHT_BACKREST_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_RIGHT_BACKREST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_THIRD_ROW_RIGHT_BACKREST_DIRECTION_STATUS"
+        },
+        "height": {
+          "name": "Высота",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_RIGHT_HEIGHT_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_RIGHT_HEIGHT_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_RIGHT_HEIGHT_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        },
+        "cushion": {
+          "name": "Наклон подушки",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_RIGHT_BIDET_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_RIGHT_BIDET_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_RIGHT_BIDET_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": "SETTING_THIRD_ROW_RIGHT_SEAT_BASIN_HEIGHT_DIRECTION_INITIALIZATION_STATUS"
+        },
+        "legrest": {
+          "name": "Опора для ног",
+          "labels": [
+            "Поднять",
+            "Опустить"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_RIGHT_LEG_REST_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_RIGHT_LEG_REST_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_RIGHT_LEG_REST_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        },
+        "headrest": {
+          "name": "Подголовник",
+          "labels": [
+            "Выше",
+            "Ниже"
+          ],
+          "set": "SETTING_THIRD_ROW_SEAT_RIGHT_HEADREST_SIGNAL_SET",
+          "position": "SETTING_THIRD_ROW_SEAT_RIGHT_HEADREST_HEIGHT_POSITION",
+          "config": "SETTING_THIRD_ROW_SEAT_RIGHT_HEADREST_HEIGHT_CONFIG",
+          "config_values": [
+            1
+          ],
+          "initialized": null
+        }
+      },
+      "comfort": {
+        "heat": {
+          "config": "SETTING_3RD_ROW_RIGHT_SEAT_HEATING_CONFIGURATION",
+          "state": "SETTING_3RD_ROW_RIGHT_SEAT_HEATING_WORKING_STATUS",
+          "set": "SETTING_3RD_ROW_RIGHT_SEAT_HEATING_WORKING_COMMAND_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        "vent": {
+          "config": "SETTING_3RD_ROW_RIGHT_SEAT_VENTILATION_CONFIGURATION",
+          "state": "SETTING_3RD_ROW_RIGHT_SEAT_VENTILATION_WORKING_STATUS",
+          "set": "SETTING_3RD_ROW_RIGHT_SEAT_VENTILATION_WORKING_COMMAND_SET",
+          "values": [
+            1,
+            2,
+            3,
+            4
+          ]
+        }
+      }
+    }
+  },
+  "shades": {
+    "front": {
+      "name": "Передняя шторка",
+      "set": "BODYWORK_SUNSHADE_PANEL_PERCENT_SET",
+      "position": "BODYWORK_SUNSHADE_PANEL_PERCENT",
+      "initialized": "BODYWORK_SUNROOF_WINDOBLIND_INIT_STATE",
+      "thermal": "BODYWORK_FRONT_SUNSHADE_THERMAL_PROTECTION",
+      "config": "BODYWORK_MOON_ROOF_CONFIG",
+      "values": {
+        "open": 100,
+        "close": 0,
+        "stop": 254
+      }
+    },
+    "rear": {
+      "name": "Задняя шторка",
+      "set": "BODYWORK_REAR_SUNSHADE_PANEL_PERCENT_SET",
+      "position": "BODYWORK_REAR_SUNSHADE_PANEL_PERCENT",
+      "initialized": "BODYWORK_REAR_SUNROOF_WINDOBLIND_INIT_STATE",
+      "thermal": "BODYWORK_REAR_SUNSHADE_THERMAL_PROTECTION",
+      "config": "BODYWORK_MOON_ROOF_CONFIG",
+      "values": {
+        "open": 100,
+        "close": 0,
+        "stop": 254
+      }
+    }
+  },
+  "lights": {
+    "headlights": {
+      "name": "Основной свет",
+      "set": "INSTRUMENT_HEADLIGHT_CONTROL_SET",
+      "states": [
+        "INSTRUMENT_HEADLIGHT_CONTROL_FEEDBACK"
+      ],
+      "configs": [
+        [
+          "LIGHT_KNOB_CURRENT_GEAR",
+          [
+            7
+          ]
+        ]
+      ],
+      "values": {
+        "off": 1,
+        "auto": 2,
+        "low": 4
+      },
+      "state_values": {
+        "1": "off",
+        "2": "auto",
+        "3": "other",
+        "4": "low"
+      }
+    },
+    "matrix": {
+      "name": "Матричный свет",
+      "set": "LIGHT_ADB_STATE_SET",
+      "states": [
+        "LIGHT_LF_ADB_STATE",
+        "LIGHT_RF_ADB_STATE"
+      ],
+      "configs": [
+        [
+          "LIGHT_LF_ADB_CONFIG",
+          [
+            1
+          ]
+        ],
+        [
+          "LIGHT_RF_ADB_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "values": {
+        "on": 1,
+        "off": 2
+      },
+      "state_values": {
+        "1": "off",
+        "2": "on",
+        "3": "on",
+        "4": "on",
+        "5": "on"
+      }
+    },
+    "drl": {
+      "name": "Дневные ходовые огни",
+      "set": "LIGHT_DAY_RUNNING_LIGHT_AUTO_STATE_SET",
+      "states": [
+        "LIGHT_DAY_RUNNING_LIGHT_AUTO_STATE"
+      ],
+      "configs": [
+        [
+          "LIGHT_DAY_RUNNING_LIGHT_CONFIG",
+          [
+            1,
+            2
+          ]
+        ]
+      ],
+      "values": {
+        "on": 1,
+        "off": 2
+      },
+      "state_values": {
+        "1": "on",
+        "2": "off"
+      }
+    },
+    "rear_fog": {
+      "name": "Задняя противотуманная фара",
+      "set": "INSTRUMENT_REAR_FOG_LAMPS_SWITCH_SET",
+      "states": [
+        "INSTRUMENT_REAR_FOG_LAMPS_SWITCH_STATE"
+      ],
+      "configs": [
+        [
+          "LIGHT_KNOB_CURRENT_GEAR",
+          [
+            7
+          ]
+        ]
+      ],
+      "values": {
+        "on": 1,
+        "off": 2
+      },
+      "state_values": {
+        "1": "on",
+        "2": "off"
+      }
+    },
+    "logo": {
+      "name": "Подсветка заднего логотипа",
+      "set": "LIGHT_REAR_GLOW_LOGO_STATE_SET",
+      "states": [
+        "LIGHT_REAR_GLOW_LOGO_STATE"
+      ],
+      "configs": [
+        [
+          "LIGHT_REAR_GLOW_LOGO_CONFIG",
+          [
+            1
+          ]
+        ]
+      ],
+      "values": {
+        "on": 1,
+        "off": 2
+      },
+      "state_values": {
+        "1": "on",
+        "2": "off"
+      }
+    }
+  },
+  "massages": {
+    "fl": {
+      "config": "SET_FRONT_LEFT_SEAT_MASSAGE_CONFIG",
+      "mode": "SET_FRONT_LEFT_SEAT_MASSAGE_MODE",
+      "level": "SET_FRONT_LEFT_SEAT_MASSAGE_LEVEL",
+      "set_mode": "SET_MAIN_DRIVER_SEAT_MASSAGE_WORKING_MODE_SET",
+      "set_level": "SET_MAIN_DRIVING_SEAT_MASSAGE_WORK_INTENSUTY_SET"
+    },
+    "fr": {
+      "config": "SET_FRONT_RIGHT_SEAT_MASSAGE_CONFIG",
+      "mode": "SET_FRONT_RIGHT_SEAT_MASSAGE_MODE",
+      "level": "SET_FRONT_RIGHT_SEAT_MASSAGE_LEVEL",
+      "set_mode": "SET_CO_DRIVER_SEAT_MASSAGE_WORKING_MODE_SET",
+      "set_level": "SET_CO_DRIVING_SEAT_MASSAGE_WORK_INTENSUTY_SET"
+    },
+    "rl": {
+      "config": "SET_REAR_LEFT_SEAT_MASSAGE_CONFIG",
+      "mode": "SET_REAR_LEFT_SEAT_MASSAGE_MODE",
+      "level": "SET_REAR_LEFT_SEAT_MASSAGE_LEVEL",
+      "set_mode": "SET_LEFT_REAR_SEAT_MASSAGE_WORKING_MODE_SET",
+      "set_level": "SET_WORKING_INTENSITY_OF_LEFT_REAR_SEAT_MASSAGE_SET"
+    },
+    "rr": {
+      "config": "SET_REAR_RIGHT_SEAT_MASSAGE_CONFIG",
+      "mode": "SET_REAR_RIGHT_SEAT_MASSAGE_MODE",
+      "level": "SET_REAR_RIGHT_SEAT_MASSAGE_LEVEL",
+      "set_mode": "SET_RIGHT_REAR_SEAT_MASSAGE_WORKING_MODE_SET",
+      "set_level": "SET_WORKING_INTENSITY_OF_RIGHT_REAR_SEAT_MASSAGE_SET"
+    }
+  }
+}

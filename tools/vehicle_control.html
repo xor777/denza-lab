@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Denza · Пульт</title>
+<style>
+  :root{color-scheme:dark;font:15px system-ui,sans-serif;background:#101619;color:#eef4f4}
+  *{box-sizing:border-box}body{max-width:980px;margin:auto;padding:30px 24px 50px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px}
+  .eyebrow{font-size:11px;letter-spacing:2px;color:#81c7ba;margin-bottom:8px}h1{font-size:32px;margin:0 0 8px;font-weight:600;letter-spacing:-1px}
+  h2{font-size:17px;font-weight:550;margin:0 0 18px}p{margin:0;color:#a6b8bd;line-height:1.5}
+  button,select{font:inherit;color:inherit;border:1px solid #43565e;border-radius:9px;background:#26383f;padding:11px 14px;cursor:pointer}
+  button:hover:enabled{background:#36535c}button:disabled{opacity:.3;cursor:default}button:focus-visible,select:focus-visible{outline:3px solid #8de5cd;outline-offset:3px}
+  button.stop{color:#f6cd9e;border-color:#80674e}button.active,button[aria-pressed=true]{background:#a3e3d2;color:#102923;border-color:#a3e3d2}
+  button.active:hover:enabled,button[aria-pressed=true]:hover:enabled{background:#b5efdf}
+  nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}nav button{flex:1;min-width:110px;background:#19272d;border-color:#30444b}
+  [hidden]{display:none!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  article,.panel{border:1px solid #30444b;border-radius:15px;padding:23px;background:#19252b}
+  .panel{margin-bottom:16px}.buttons{display:flex;gap:8px;flex-wrap:wrap}.value{font-size:38px;font-variant-numeric:tabular-nums;letter-spacing:-1px;margin-bottom:3px}.sub{min-height:24px;font-size:13px}
+  meter{width:100%;height:9px;margin:12px 0 20px;accent-color:#91dac7}.reason{color:#d7b591;font-size:12px;line-height:1.5;margin-top:10px;min-height:18px}
+  .lock-states{margin:12px 0 16px;font-size:13px}.seat-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}.seat-heading h2{margin:0}
+  .axis{border-top:1px solid #30444b;padding:16px 0}.axis:last-child{padding-bottom:0}.axis-title{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}.axis-title span:last-child{color:#9bb7bd;font-variant-numeric:tabular-nums}
+  .comfort{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:12px}.comfort h3{font-size:14px;margin:0 0 12px;font-weight:500}.comfort .buttons{gap:5px}.comfort button{padding:10px 12px}
+  #result{position:sticky;bottom:12px;margin-top:22px;padding:14px 17px;border:1px solid #3c555d;border-radius:12px;background:#1d3038f5;box-shadow:0 6px 26px #0005;font-size:13px;line-height:1.5;min-height:49px}
+  #result.error{border-color:#a86e61;color:#ffd0c5}footer{margin-top:22px;color:#8da3aa;font-size:12px;line-height:1.6}#loading{padding:45px 0;text-align:center}
+  @media(max-width:640px){body{padding:24px 15px 30px}.grid,.comfort{grid-template-columns:1fr}.seat-heading{align-items:flex-start;flex-direction:column}.seat-heading select{width:100%}article,.panel{padding:20px}nav button{padding:11px 8px}h1{font-size:29px}}
+</style>
+<header><div><div class="eyebrow">DENZA / CONTROL</div><h1>Пульт автомобиля</h1><p id="connection" role="status">Подключение…</p></div><button id="refresh" aria-label="Обновить состояние">↻</button></header>
+<nav aria-label="Разделы пульта"><button data-tab="windows" class="active" aria-pressed="true">Окна</button><button data-tab="shades" aria-pressed="false">Панорама</button><button data-tab="lights" aria-pressed="false">Свет</button><button data-tab="doors" aria-pressed="false">Двери</button><button data-tab="seats" aria-pressed="false">Сиденья</button></nav>
+<p id="loading">Читаю состояние автомобиля…</p>
+<div id="recovery" class="panel" hidden><h2>Проверьте остановку кресла</h2><p>Ответ команды остановки не получен. Новые движения кресел заблокированы.</p><div id="recovery-buttons" class="buttons" style="margin-top:14px"></div></div>
+<section id="windows" class="grid" aria-label="Окна"></section>
+<section id="shades" hidden aria-label="Панорама"><p style="margin-bottom:16px">Передняя и задняя шторки панорамной крыши</p><div id="shade-grid" class="grid"></div></section>
+<section id="lights" class="grid" hidden aria-label="Свет"></section>
+<section id="doors" hidden aria-label="Двери"><div class="panel"><h2>Центральный замок</h2><p>Запереть или разблокировать все двери.</p><div id="lock-states" class="lock-states"></div><div id="lock-buttons" class="buttons"></div><p id="lock-reason" class="reason"></p></div><p style="margin:20px 0 14px">Электродвери · физическое открытие и закрытие</p><div id="door-grid" class="grid"></div></section>
+<section id="seats" hidden aria-label="Сиденья"><div class="panel"><div class="seat-heading"><h2>Положение и комфорт</h2><select id="seat-select" aria-label="Выбрать сиденье"></select></div><p>Одно нажатие — шаг 0,3 секунды с командой остановки.</p><div id="seat-panels"></div></div></section>
+<div id="result" role="status" aria-live="polite">Выберите раздел и действие.</div>
+<footer>Управление доступно в P. «Стоп» доступен независимо от положения селектора.<br>Показания приходят с машины. Принятая команда ещё не подтверждает движение.<br>Для ручного управления завершите штатный отдых или кемпинг.</footer>
+<script>
+const token=location.hash.slice(1), refs={windows:{},shades:{},lights:{},massages:{},doors:{},seats:{},recovery:{}}, actions=[];
+let state=null,online=false,writing=false,readTask=null,lastRead=0,built=false;
+const $=s=>document.querySelector(s);
+function node(tag,text,parent,cls){const n=document.createElement(tag);if(text!==null)n.textContent=text;if(cls)n.className=cls;if(parent)parent.append(n);return n}
+function control(parent,target,action,label){const b=node('button',label,parent,action==='stop'?'stop':'');b.disabled=true;b.dataset.target=target;b.dataset.action=action;b.onclick=()=>act(target,action,label);actions.push(b);return b}
+function build(data){
+  actions.length=0;for(const id of ["windows","lock-buttons","door-grid","seat-select","seat-panels","recovery-buttons","shade-grid","lights"])$("#"+id).replaceChildren();
+  for(const [key,v]of Object.entries(data.windows)){
+    const c=node('article',null,$('#windows'));node('h2',v.name,c);const value=node('div','—',c,'value'),sub=node('p','',c,'sub'),meter=node('meter',null,c);meter.min=0;meter.max=100;meter.value=0;meter.setAttribute('aria-label','Открытие окна');const b=node('div',null,c,'buttons');for(const[a,l]of [['open','Открыть'],['close','Закрыть'],['stop','Стоп']])control(b,key,a,l);refs.windows[key]={value,sub,meter,reason:node('p','',c,'reason')};
+  }
+  for(const[key,v]of Object.entries(data.shades)){
+    const c=node('article',null,$('#shade-grid'));node('h2',v.name,c);const value=node('div','—',c,'value'),sub=node('p','',c,'sub'),meter=node('meter',null,c);meter.min=0;meter.max=100;meter.value=0;meter.setAttribute('aria-label','Открытие шторки');const b=node('div',null,c,'buttons');for(const[a,l]of [['open','Открыть'],['close','Закрыть'],['stop','Стоп']])control(b,'shade.'+key,a,l);refs.shades[key]={value,sub,meter,reason:node('p','',c,'reason')};
+  }
+  for(const[key,v]of Object.entries(data.lights)){
+    const c=node('article',null,$('#lights'));node('h2',v.name,c);const value=node('p','—',c,'sub'),b=node('div',null,c,'buttons');b.style.marginTop='16px';const choices=[];for(const a of v.actions)choices.push(control(b,'light.'+key,a,lightLabel(a)));refs.lights[key]={row:c,value,choices,reason:node('p','',c,'reason')};
+  }
+  control($('#lock-buttons'),'locks','lock','Запереть');control($('#lock-buttons'),'locks','unlock','Разблокировать');
+  for(const[key,v]of Object.entries(data.doors)){
+    const c=node('article',null,$('#door-grid'));node('h2',v.name,c);const value=node('div','—',c,'value'),sub=node('p','',c,'sub');const b=node('div',null,c,'buttons');b.style.marginTop='20px';for(const[a,l]of [['open','Открыть'],['close','Закрыть'],['stop','Стоп']])control(b,'door.'+key,a,l);refs.doors[key]={value,sub,reason:node('p','',c,'reason')};
+  }
+  for(const[key,s]of Object.entries(data.seats)){
+    const option=node('option',s.name,$('#seat-select'));option.value=key;const panel=node('div',null,$('#seat-panels'));panel.hidden=key!=='fl';const comfort=node('div',null,panel,'comfort');const cr={};
+    for(const[kind,label]of [['heat','Обогрев'],['vent','Вентиляция']]){
+      const row=node('div',null,comfort);node('h3',label,row);const b=node('div',null,row,'buttons');const levels=[];for(let i=0;i<=3;i++)levels.push(control(b,`comfort.${key}.${kind}`,String(i),i?String(i):'Выкл.'));cr[kind]={row,levels,reason:node('p','',row,'reason')};
+    }
+    if(data.massages[key]){
+      const row=node('div',null,panel,'axis');node('h3','Массаж',row);const status=node('p','—',row,'sub'),b=node('div',null,row,'buttons');b.style.margin='12px 0';const choices=[];
+      for(const[a,l]of [['on','Включить'],['off','Выключить'],['wave','Волна'],['pulse','Пульсация'],['stretch','Растяжка'],['waist','Поясница'],['shoulders','Плечи']])choices.push(control(b,'massage.'+key,a,l));
+      node('p','Интенсивность',row,'sub');const levels=node('div',null,row,'buttons');for(const[a,l]of [['level1','Мягко'],['level2','Средне'],['level3','Сильно']])choices.push(control(levels,'massage.'+key,a,l));refs.massages[key]={row,status,choices,reason:node('p','',row,'reason')};
+    }
+    const axes={};for(const[axis,a]of Object.entries(s.axes)){
+      const row=node('div',null,panel,'axis'),title=node('div',null,row,'axis-title');node('span',a.name,title);const value=node('span','—',title),b=node('div',null,row,'buttons');control(b,`seat.${key}.${axis}`,'plus',a.labels[0]);control(b,`seat.${key}.${axis}`,'minus',a.labels[1]);control(b,`seat.${key}.${axis}`,'stop','Стоп');axes[axis]={row,value,reason:node('p','',row,'reason')};
+      refs.recovery[`seat.${key}.${axis}`]=control($('#recovery-buttons'),`seat.${key}.${axis}`,'stop',`${s.name} · ${a.name} · Стоп`);
+    }
+    refs.seats[key]={panel,axes,comfort:cr};
+  }
+  $('#seat-select').onchange=()=>{for(const[k,s]of Object.entries(refs.seats))s.panel.hidden=k!==$('#seat-select').value};
+  built=true;$('#loading').hidden=true;
+}
+function lightLabel(action){return ({off:'Выкл.',on:'Вкл.',auto:'AUTO',low:'Ближний',other:'Другой режим'})[action]||'Нет данных'}
+function reason(target){if(!state)return 'Нет данных';if(target==='locks')return state.locks.blocked;const p=target.split('.');if(['shade','light','massage'].includes(p[0]))return state[({shade:'shades',light:'lights',massage:'massages'})[p[0]]][p[1]].blocked;if(p[0]==='door')return state.doors[p[1]].blocked;if(p[0]==='seat'||p[0]==='comfort')return state.seats[p[1]][p[0]==='seat'?'axes':'comfort'][p[2]].blocked;return state.windows[target].blocked}
+function buttons(){for(const b of actions)b.disabled=!online||writing||(b.dataset.action!=='stop'&&!!reason(b.dataset.target));$('#refresh').disabled=writing||!!readTask}
+function paint(data){
+  if(!built)build(data);state=data;online=true;lastRead=Date.now();$('#connection').textContent=`${data.model} · ${data.park===1?'P · управление доступно':'не в P / неизвестно'} · ${new Date(data.time).toLocaleTimeString('ru')}`;
+  for(const[k,v]of Object.entries(data.windows)){const r=refs.windows[k];r.value.textContent=v.percent===null?'—':`${v.percent}%`;r.meter.value=v.percent??0;r.sub.textContent=v.percent===null?'Нет положения':v.percent===0?'Закрыто':v.percent===100?'Полностью открыто':'Открыто частично';r.reason.textContent=v.blocked||''}
+  for(const[k,v]of Object.entries(data.shades)){const r=refs.shades[k];r.value.textContent=v.percent===null?'—':`${v.percent}%`;r.meter.value=v.percent??0;r.sub.textContent=v.percent===null?'Нет положения':v.percent===0?'Закрыта':v.percent===100?'Полностью открыта':'Открыта частично';r.reason.textContent=v.blocked||''}
+  for(const[k,v]of Object.entries(data.lights)){const r=refs.lights[k];r.value.textContent=lightLabel(v.state);r.reason.textContent=v.blocked||'';r.choices.forEach(b=>b.setAttribute('aria-pressed',String(v.state===b.dataset.action)))}
+  for(const[k,v]of Object.entries(data.massages)){const r=refs.massages[k];r.row.hidden=!v.supported;r.status.textContent=v.enabled===true?'Массаж включён':v.enabled===false?'Массаж выключен':'Состояние не подтверждено';r.reason.textContent=v.blocked||'';r.choices.forEach(b=>{const a=b.dataset.action;const active=a==='on'?v.enabled===true:a==='off'?v.enabled===false:a.startsWith('level')?v.enabled===true&&v.level===Number(a.slice(-1)):v.enabled===true&&v.mode===({wave:2,pulse:3,stretch:4,waist:5,shoulders:6})[a];b.setAttribute('aria-pressed',String(active))})}
+  $('#lock-states').textContent=Object.values(data.doors).every(d=>d.lock===2)?'Все двери заперты':Object.values(data.doors).every(d=>d.lock===1)?'Все двери разблокированы':'Замки в разных состояниях или нет данных';$('#lock-reason').textContent=data.locks.blocked||'';
+  for(const[k,d]of Object.entries(data.doors)){const r=refs.doors[k];r.value.textContent=({1:'Открыта',2:'Закрыта',3:'Приоткрыта'})[d.position]||'—';r.value.style.fontSize='29px';r.sub.textContent=d.lock===2?'Замок заперт':d.lock===1?'Замок разблокирован':'Состояние замка неизвестно';r.reason.textContent=d.blocked||''}
+  for(const[k,s]of Object.entries(data.seats)){
+    for(const[axis,a]of Object.entries(s.axes)){const r=refs.seats[k].axes[axis];r.row.hidden=!a.supported;r.value.textContent=a.percent===null?'Нет положения':`${a.percent}%`;r.reason.textContent=a.blocked||''}
+    for(const[kind,c]of Object.entries(s.comfort)){const r=refs.seats[k].comfort[kind];r.row.hidden=!c.supported;r.reason.textContent=c.blocked||'';r.levels.forEach((b,i)=>b.setAttribute('aria-pressed',String(c.level===i)))}
+  }$('#recovery').hidden=!data.pending_stops.length;for(const[t,b]of Object.entries(refs.recovery))b.hidden=!data.pending_stops.includes(t);buttons();
+}
+function unavailable(message){online=false;state=null;$('#connection').textContent=message;buttons();for(const r of Object.values({...refs.windows,...refs.shades})){r.value.textContent='—';r.sub.textContent='Нет свежих данных';r.meter.value=0;r.reason.textContent=''}for(const r of Object.values(refs.doors)){r.value.textContent='—';r.sub.textContent='Нет свежих данных';r.reason.textContent=''}$('#lock-states').textContent='Нет свежих данных';for(const r of Object.values(refs.lights)){r.value.textContent='Нет свежих данных';r.choices.forEach(b=>b.setAttribute('aria-pressed','false'))}for(const r of Object.values(refs.massages)){r.status.textContent='Нет свежих данных';r.choices.forEach(b=>b.setAttribute('aria-pressed','false'))}for(const s of Object.values(refs.seats)){for(const a of Object.values(s.axes))a.value.textContent='—';for(const c of Object.values(s.comfort))c.levels.forEach(b=>b.setAttribute('aria-pressed','false'))}}
+async function api(data){const headers={'X-Window-Token':token};if(data)headers['Content-Type']='application/json';const r=await fetch(data?'/api/action':'/api/state',{method:data?'POST':'GET',headers,body:data?JSON.stringify(data):undefined});const body=await r.json();if(!r.ok){const error=new Error(body.error||'Ошибка связи');error.status=r.status;throw error}return body}
+function refresh(){if(readTask||writing||document.hidden)return readTask;if(!token){unavailable('Откройте полную ссылку пульта с ключом после #');return}readTask=(async()=>{try{paint(await api())}catch(e){if(e.status===409){if(!online)$('#connection').textContent='Ожидание текущего чтения…'}else unavailable(e.message)}finally{readTask=null;buttons()}})();buttons();return readTask}
+function targetName(target){if(target==='locks')return 'Центральный замок';const p=target.split('.');if(p[0]==='seat'||p[0]==='comfort'||p[0]==='massage')return $('#seat-select').selectedOptions[0]?.textContent||'Сиденье';return (state?.shades[p[1]]||state?.lights[p[1]]||state?.doors[p[1]]||state?.windows[target])?.name||target}
+async function act(target,action,label){
+  if(writing)return;writing=true;buttons();const title=targetName(target),result=$('#result');result.className='';result.textContent=`${title} · ${label}…`;
+  try{
+    // Finish the one current status read before sending; clicks are never repeated.
+    if(readTask)await readTask;
+    const r=await api({window:target,action});
+    result.textContent=r.accepted?`${title} · «${label}»: команда принята${target.startsWith('seat.')&&action!=='stop'?', команда остановки также принята':''}.`:r.error||`${title} · команда не подтверждена (код ${r.code??'—'}${r.stop_code!==undefined?`, остановка ${r.stop_code}`:''}).`;
+    if(!r.accepted)result.className='error';
+  }catch(e){result.className='error';result.textContent=e.message+'. Команда не повторялась.'}
+  finally{writing=false;buttons();refresh()}
+}
+for(const b of document.querySelectorAll('nav button'))b.onclick=()=>{for(const item of document.querySelectorAll('nav button')){const active=item===b;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));$('#'+item.dataset.tab).hidden=!active}refresh()};
+$('#refresh').onclick=refresh;document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});setInterval(()=>{if(online&&Date.now()-lastRead>10000)unavailable('Данные устарели');refresh()},4000);refresh();
+</script>
+</html>
