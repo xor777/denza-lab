@@ -112,6 +112,7 @@ The on-device probes and the frozen legacy app are configured only when the
 | `:dicar-media-probe` | `experiments/dicar-media-probe/` | `dev.denza.dicarmedia.probe` (disposable app-UID car media service evaluation for the speaker lift) |
 | `:split-events-probe` | `experiments/split-events-probe/` | `dev.denza.splitevents.probe` (disposable app-UID split area push, `homekey` and gate evaluation) |
 | `:hud-frames-probe` | `experiments/hud-frames-probe/` | `dev.denza.hudframes.probe` (disposable moving-frames test of the HUD's picture slots and DiShare video) |
+| `:hud-surfaces-probe` | `experiments/hud-surfaces-probe/` | `dev.denza.hudsurfaces.probe` (disposable parked test of the HUD's camera fields, a warning in the manoeuvre block and the SOME/IP session handover) |
 | `:fse-hud-inspector` | `experiments/fse-hud-inspector/` | `dev.denza.fsehud.probe` (FSE snapshot/export and a manual 20-second local arhud Activity; no vehicle setters or DiShare) |
 | `:avc-stock-probe` | `experiments/avc-stock-probe/` | `dev.denza.avcstock.probe` (disposable app-UID read and write of the stock AVC mode and turn-camera choice) |
 | `:alice-wheel-probe` | `experiments/alice-wheel-probe/` | `dev.denza.alicewheel.probe` (disposable foreground-only Navigator Alice voice-key interception) |
