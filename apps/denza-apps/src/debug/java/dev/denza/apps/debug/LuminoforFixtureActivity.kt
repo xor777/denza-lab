@@ -12,6 +12,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.dp
+import dev.denza.apps.feature.diagnostics.DiagnosticSurface
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
@@ -76,6 +79,15 @@ class LuminoforFixtureActivity : ComponentActivity() {
         val board = StripFixtures.board(all, id)
         val fixture = StripFixtures.fixture(all, id)
 
+        if (board.getString("kind") == "diagnostics") {
+            setContent {
+                DiagnosticSurface(DiagnosticFixtures.frame(fixture), Modifier.size(1280.dp, 680.dp),
+                    initialTab = fixture.getString("tab"), initialNode = fixture.getString("selected"),
+                    initialCode = fixture.optInt("code"), initialDetail = fixture.optBoolean("detail"),
+                    initialStatusDetail = fixture.optBoolean("statusDetail"), initialPage = fixture.optInt("page"))
+            }
+            return
+        }
         if (board.getString("kind") == "cluster") {
             val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
             root.addView(

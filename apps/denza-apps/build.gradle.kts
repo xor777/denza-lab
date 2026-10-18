@@ -189,6 +189,11 @@ android {
                 "feature/vehicle/signal/TargetedBydLightEventProxyMain.java",
             )
             packShellProxy(
+                "VehicleDtcProxy",
+                "vehicle-dtc-proxy.jar",
+                "feature/diagnostics/VehicleDtcProxyMain.java",
+            )
+            packShellProxy(
                 "NavigationProxy",
                 "navigation-proxy.jar",
                 "feature/navigation/ClusterProxyMain.java",
@@ -246,6 +251,7 @@ dependencies {
 tasks.withType<Test>().configureEach {
     inputs.files(
         rootProject.fileTree("tools/design-canvas/luminofor"),
+        rootProject.fileTree("research/vehicle-diagnostics") { include("*.json") },
         rootProject.fileTree("tools/design-canvas/split-crew"),
         fileTree("src/debug/assets/luminofor"),
         rootProject.file("docs/feature-map.md"),

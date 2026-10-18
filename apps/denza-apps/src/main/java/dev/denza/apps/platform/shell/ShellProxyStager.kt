@@ -19,6 +19,7 @@ import java.util.Base64
 internal enum class ShellProxyJar(val asset: String, val fileName: String) {
     SPLIT_TASK("split-task-proxy.jar", "denza-split-proxy"),
     VEHICLE_SIGNAL("vehicle-signal-proxy.jar", "denza-vehicle-signal"),
+    VEHICLE_DTC("vehicle-dtc-proxy.jar", "denza-vehicle-dtc"),
     NAVIGATION("navigation-proxy.jar", "denza-nav-proxy"),
 }
 

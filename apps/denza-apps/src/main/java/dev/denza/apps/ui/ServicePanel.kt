@@ -50,6 +50,7 @@ internal enum class ServicePage {
     TECHNICAL,
     JOURNAL,
     RESTORE,
+    DIAGNOSTICS,
     ;
 
     /** The page the header's way back returns to. */
@@ -148,6 +149,10 @@ internal fun ServicePanel(
     val scrolls = ServicePage.entries.associateWith { each ->
         rememberScrollState(if (each == firstPage && firstPageAtEnd) Int.MAX_VALUE else 0)
     }
+    if (page == ServicePage.DIAGNOSTICS) {
+        dev.denza.apps.feature.diagnostics.VehicleDiagnosticsWindow { page = ServicePage.MAIN }
+        return
+    }
     DenzaSheet(
         onDismiss = { if (page == ServicePage.MAIN) onDismiss() else back() },
         compact = compactLayout,
@@ -155,6 +160,7 @@ internal fun ServicePanel(
         footer = { if (page == ServicePage.MAIN) DenzaSheetFootnote(version) },
     ) {
         when (page) {
+            ServicePage.DIAGNOSTICS -> Unit
             ServicePage.MAIN -> {
                 DenzaSheetHeader(title = "Сервис", subtitle = "", onDismiss = onDismiss, glyph = DenzaIcons.ServiceGlyph)
                 ServiceMain(
@@ -247,8 +253,13 @@ private fun ServiceMain(
             }
         }
     }
-    DenzaChoiceGroup(listOf(ServicePage.RESTORE, ServicePage.SCREEN, ServicePage.TECHNICAL)) { target ->
+    DenzaChoiceGroup(listOf(ServicePage.DIAGNOSTICS, ServicePage.RESTORE, ServicePage.SCREEN, ServicePage.TECHNICAL)) { target ->
         when (target) {
+            ServicePage.DIAGNOSTICS -> DenzaChoiceRow(
+                title = "Диагностика автомобиля",
+                value = "Системы, показания и коды неисправностей",
+                onClick = { onPage(target) },
+            )
             ServicePage.RESTORE -> DenzaChoiceRow(
                 title = AdbRestoreReport.TITLE,
                 value = "Автоматически после перезагрузки",

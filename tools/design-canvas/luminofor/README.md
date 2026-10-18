@@ -77,6 +77,9 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `one-sheet-cluster`, `one-sheet-cast-apps` | the same panels filling a one-third pane |
 | `modal-adb`, `one-modal-adb` | the ADB gate asking for the car's permission |
 | `sheet-service-restore`, `one-sheet-service-restore`, `modal-adb-wifi` | automatic ADB restoration: its service page at two widths and the neutral Wi-Fi waiting gate |
+| `main-diagnostics`, `main-diagnostics-battery`, `main-diagnostics-empty`, `main-diagnostics-stale` | native service diagnostics: ECU records, HV schematic, no data, retained DTC after a failed retry |
+| `main-diagnostics-code`, `main-diagnostics-code-unknown`, `main-diagnostics-coverage` | native DTC details with general-reference provenance, unknown OEM meaning, unread ECU coverage |
+| `main-diagnostics-engine`, `main-diagnostics-power-warnings`, `main-diagnostics-abs` | captured warning availability for EMS, HV/drives and ABS/ESP; invalid0 is never off |
 | `digits` | the wide figures, for the eye |
 
 ## How the app is held to it
@@ -205,3 +208,50 @@ one did:
   because blue on the panel means «into the pack» and what the engine's id means in motion is
   still open;
 - the car page has no «60» / «−20» gutter: the approved page did not draw one.
+
+## Vehicle diagnostics
+
+`diagnostics.json` owns the diagnostic viewport, colours, subsystem geometry and
+node locations; the identical product asset is checked by `DiagnosticBoardContractTest`.
+`diagnostics.js` renders these boards, and `DiagnosticRenderer` draws the native
+Android counterpart. `DiagnosticSurface` provides hit targets for tabs, nodes,
+DTC records, paging and read/close controls. This compact engineering canvas
+uses flat source-over fills; blue indicates selection or a reading, not a
+vehicle-health verdict. Links are functional associations, not physical CAN wiring.
+
+The diagnostic fixture values stay in the debug build. Production reads the
+existing telemetry hub and timestamped manual diagnostic snapshots. Render these
+boards with the same `shot.py` / `compare.py` commands as the rest of Luminofor.
+On 2026-10-18 the four native diagnostic fixtures compared at 0.93–1.35% pixels
+moved, mean 0.58–0.84/255; the added Service row compared at 0.81%, mean 0.89/255.
+The remaining differences are the head-unit fonts' rasterisation.
+
+Diagnostic data scenes added on 2026-10-18: `main-diagnostics-chassis`,
+`main-diagnostics-body`, `main-diagnostics-lbms`, `main-diagnostics-battery-data`.
+They use the 43 captured extra GETs and a separate LBMS DTC snapshot (mask09).
+Shared telemetry absent from that capture stays unknown. The chassis/body
+schematics place the front at the top. Runtime extra readings and lamps refresh
+only while visible, every five seconds, and expire at 15 seconds; DTC snapshots
+retain their own time. The two ECU read targets remain explicitly scoped.
+
+Readable diagnostic records added on 2026-10-18 use five records per page, each
+with a short meaning. The detail card retains the raw code, format, failure type,
+snapshot time and reference provenance. A separate status page shows all eight
+independent UDS bits; an unsupported bit is never rendered as a negative result.
+`U0229` has a separately qualified general Autel reference; no BYD definition or
+installed heated-steering module is inferred. Warning rows distinguish invalid
+raw `0` from no reply and from the valid off enum.
+
+The Channels page also shows a dated research index: 225 cached candidates, 49
+with defaults/negative markers, and eight server routing records. It explicitly
+qualifies installation and DTC coverage as unproved, preserves the three
+`720/728` CDC/ZCU DID namespaces, and creates no read targets. The native name of
+that reporting ECU remains unknown. New scenes: `main-diagnostics-status`,
+`-page2`, `-identity`, `-inventory`, `-routes`, `-routes-page2`.
+
+The enriched native window was checked on emulator-5580: 14 board comparisons
+measured 1.20–1.47% moved pixels, mean 0.76–0.91/255. DTC page/detail/status/back,
+route-list paging and an unread HV subsystem → coverage were exercised through
+real native hit targets. The final suite passed 2,270 unit tests, including 43
+diagnostic tests, and debug assembly passed. This does not add vehicle acceptance
+or newly qualified DTC targets. Evidence: `captures/diagnostics-ui-enriched-20261018/`.

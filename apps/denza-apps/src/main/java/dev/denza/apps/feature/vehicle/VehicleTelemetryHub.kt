@@ -761,6 +761,9 @@ internal enum class VehicleWatcher(
     /** The head unit's strip, while it is drawing the car's page. */
     STRIP(onScreen = true),
 
+    /** The service menu's diagnostic window consumes this same sweep. */
+    DIAGNOSTICS(onScreen = true),
+
     /**
      * The head unit's trip clock, while the strip runs on either page: a trip ends on P, and the
      * clock reads P from this hub's sweep ([VehicleSignal.GEARBOX_PARK], hot, so in every sweep).
