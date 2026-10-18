@@ -21,6 +21,7 @@ class AdbRestoreManagerTest {
         override var lastOutcome: String? = null
         override var lastOutcomeAtMs = 0L
         override var autoAllow: String? = null
+        override var boot: AdbBootRecord? = null
     }
     private class System(private val scope: TestScope) : AdbRestoreSystem {
         override var sdk = 33
@@ -43,6 +44,8 @@ class AdbRestoreManagerTest {
         var restart: (suspend () -> Unit)? = null
         override fun nowMs() = 1_000_000L + scope.testScheduler.currentTime
         override fun elapsedMs() = scope.testScheduler.currentTime
+        var boots: Int? = 5
+        override fun bootCount() = boots
         override suspend fun classicConnect(): Boolean { probes++; probe?.invoke(); return live }
         override fun permissionHeld() = held
         override suspend fun selfGrant(abandoned: () -> Boolean) { assertFalse(abandoned()); grants++; held = true }
@@ -63,9 +66,9 @@ class AdbRestoreManagerTest {
         override suspend fun ensureAccessibilityForDialog(abandoned: () -> Boolean) { assertFalse(abandoned()); accessible++ }
         override suspend fun recoverRuntime() { recovered++ }
     }
-    private class Fixture(scope: TestScope) {
-        val system = System(scope)
-        val store = Store()
+    private class Fixture(scope: TestScope, held: AdbBootRecord? = null, boots: Int? = 5) {
+        val system = System(scope).also { it.boots = boots }
+        val store = Store().also { it.boot = held }
         val manager = AdbRestoreManager(system, store, scope.backgroundScope)
     }
     private fun TestScope.settle() { advanceTimeBy(1_501); runCurrent() }
@@ -279,5 +282,102 @@ class AdbRestoreManagerTest {
         advanceTimeBy(600_001)
         f.manager.attemptIfNeeded("screen-on"); settle()
         assertTrue(f.manager.snapshot().state is AdbRestoreState.Restored)
+    }
+
+    @Test fun aLaterOpenCheckKeepsTheRestoreThisBootNeeded() = runTest {
+        val f = Fixture(this)
+        f.manager.attemptIfNeeded("process-start"); settle()
+        val restored = f.manager.snapshot().boot!!
+        assertEquals(AdbBootLook.CLOSED, restored.look)
+        assertEquals(AdbBootOutcome.RESTORED, restored.outcome)
+        assertTrue(restored.closedAtMs in 1..restored.outcomeAtMs)
+        advanceTimeBy(60_000)
+        f.manager.attemptIfNeeded(AdbRestoreManager.SETTINGS); runCurrent()
+        val after = f.manager.snapshot()
+        // The check that opening «Сервис» makes is the last check, and nothing more.
+        assertEquals(AdbRestoreState.NotNeeded, after.state)
+        assertEquals("not-needed", after.lastOutcome)
+        assertEquals(AdbBootOutcome.RESTORED, after.boot!!.outcome)
+        assertEquals(restored.outcomeAtMs, after.boot!!.outcomeAtMs)
+        assertEquals(after.boot, f.store.boot)
+    }
+    @Test fun aPortOpenAtTheFirstLookNeededNothingUntilItCloses() = runTest {
+        val f = Fixture(this); f.system.live = true
+        f.manager.attemptIfNeeded("process-start"); runCurrent()
+        assertEquals(AdbBootLook.OPEN, f.manager.snapshot().boot!!.look)
+        assertNull(f.manager.snapshot().boot!!.outcome)
+        advanceTimeBy(600_000); f.system.live = false
+        f.manager.attemptIfNeeded("watchdog"); runCurrent()
+        val closedAt = f.manager.snapshot().boot!!.closedAtMs
+        assertEquals(f.system.nowMs(), closedAt)
+        settle()
+        val boot = f.manager.snapshot().boot!!
+        // The first look stays the boot's; the restore is the later closure's.
+        assertEquals(AdbBootLook.OPEN, boot.look)
+        assertEquals(AdbBootOutcome.RESTORED, boot.outcome)
+        assertEquals(closedAt, boot.closedAtMs)
+    }
+    @Test fun aClosureLastsUntilTheRestoreEndsIt() = runTest {
+        val f = Fixture(this); f.system.wifi = null
+        f.manager.attemptIfNeeded("process-start"); runCurrent()
+        val first = f.manager.snapshot().boot!!
+        assertEquals(AdbBootOutcome.WAITING_WIFI, first.outcome)
+        advanceTimeBy(30_000)
+        f.manager.attemptIfNeeded("screen-on"); runCurrent()
+        assertEquals(first.closedAtMs, f.manager.snapshot().boot!!.closedAtMs)
+        f.system.wifi = AdbRestoreWifi("router", "wifi")
+        f.manager.attemptIfNeeded("wifi"); settle()
+        val boot = f.manager.snapshot().boot!!
+        assertEquals(AdbBootOutcome.RESTORED, boot.outcome)
+        assertEquals(first.closedAtMs, boot.closedAtMs)
+        assertTrue(boot.outcomeAtMs - boot.closedAtMs >= 30_000)
+    }
+    @Test fun accessThatComesBackWhileWaitingIsNotCalledARestore() = runTest {
+        val f = Fixture(this); f.system.wifi = null
+        f.manager.attemptIfNeeded("process-start"); runCurrent()
+        f.system.live = true
+        f.manager.attemptIfNeeded("screen-on"); runCurrent()
+        assertEquals(AdbBootOutcome.RETURNED, f.manager.snapshot().boot!!.outcome)
+    }
+    @Test fun aRefusedKeyIsTheBootsFirstLook() = runTest {
+        val f = Fixture(this); f.system.probe = { throw AdbRestoreKeyUntrustedException() }
+        f.manager.attemptIfNeeded("process-start"); runCurrent()
+        val boot = f.manager.snapshot().boot!!
+        assertEquals(AdbBootLook.REFUSED, boot.look)
+        assertEquals(AdbBootOutcome.NEEDS_ACTIVATION, boot.outcome)
+    }
+    @Test fun theSameBootsRecordOutlivesTheProcessAndAnotherBootsDoesNot() = runTest {
+        val earlier = AdbBootRecord(bootCount = 5, bootAtMs = 900_000L, seenAtElapsedMs = 0L,
+            look = AdbBootLook.CLOSED, closedAtMs = 900_100L, outcome = AdbBootOutcome.RESTORED, outcomeAtMs = 900_200L)
+        assertEquals(earlier, Fixture(this, held = earlier, boots = 5).manager.snapshot().boot)
+        val next = Fixture(this, held = earlier, boots = 6)
+        assertNull(next.manager.snapshot().boot)
+        next.system.live = true
+        next.manager.attemptIfNeeded("process-start"); runCurrent()
+        val boot = next.manager.snapshot().boot!!
+        assertEquals(6, boot.bootCount)
+        assertEquals(AdbBootLook.OPEN, boot.look)
+        assertNull(boot.outcome)
+    }
+    @Test fun withoutABootCountAnElapsedClockBelowTheLastSeenIsANewBoot() {
+        val held = AdbBootRecord(bootCount = null, bootAtMs = 0L, seenAtElapsedMs = 100_000L)
+        assertTrue(held.isBoot(null, 100_000L))
+        assertFalse(held.isBoot(null, 5_000L))
+        assertFalse(held.copy(bootCount = 5).isBoot(6, 200_000L))
+    }
+    @Test fun theRecordIsOnePreferenceValue() {
+        val record = AdbBootRecord(bootCount = 7, bootAtMs = 1L, seenAtElapsedMs = 2L, look = AdbBootLook.REFUSED,
+            closedAtMs = 3L, outcome = AdbBootOutcome.FAILED, outcomeAtMs = 4L)
+        assertEquals(record, AdbBootRecord.decode(record.encode()))
+        val bare = AdbBootRecord(bootCount = null, bootAtMs = 1L, seenAtElapsedMs = 2L)
+        assertEquals(bare, AdbBootRecord.decode(bare.encode()))
+        assertNull(AdbBootRecord.decode("broken"))
+        assertNull(AdbBootRecord.decode(null))
+    }
+    @Test fun turningTheSwitchOnLooksAtOnceLikeOpeningService() = runTest {
+        val f = Fixture(this); f.manager.setEnabled(false); f.system.live = true
+        f.manager.setEnabled(true); runCurrent()
+        assertEquals(AdbRestoreManager.SWITCH, f.manager.snapshot().lastTrigger)
+        assertEquals(AdbRestoreState.NotNeeded, f.manager.snapshot().state)
     }
 }

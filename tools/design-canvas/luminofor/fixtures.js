@@ -260,12 +260,14 @@
   // that opens its panel; the car's access grows its buttons only when there is no access. The
   // instruments' screen and the technical readings are pages, and the version is the foot.
   const SVC_VERSION = { t: 'footnote', text: 'Denza Apps 0.6.2 · сборка 53' };
-  const SVC_MORE = { t: 'group', rows: [
+  // the restore's row says what it did after the last boot, in its colour when it needs somebody
+  const svcMore = (restore, tone) => ({ t: 'group', rows: [
     { kind: 'choice', title: 'Диагностика автомобиля', summary: 'Системы, показания и коды неисправностей' },
-    { kind: 'choice', title: 'Восстановление ADB', summary: 'Автоматически после перезагрузки' },
+    { kind: 'choice', title: 'Восстановление ADB', summary: restore, tone },
     { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },
     { kind: 'choice', title: 'Технические сведения', summary: 'Версия, прошивка, состояние функций' }
-  ] };
+  ] });
+  const SVC_MORE = svcMore('После перезагрузки не понадобилось');
   const SVC_ACCESS = { title: 'Доступ к машине', summary: 'ADB-доступ подтверждён' };
   // The report the technical page is read from - SupportDiagnostics, the cloud first: a line
   // `[Название]` opens a section, every other line is `key=value` in it, split on the first '='.
@@ -342,19 +344,27 @@
     cluster: 'Определён сам: Экран 1 · 1920×720', displays: [[2, 1920, 720]], version: '0.6.2', build: 53, technical: SVC_TECHNICAL,
     // every scene of the panel carries the journal, so the debug build's row opens the page
     journal: SVC_JOURNAL };
+  // «Восстановление ADB»: the answer, the switch, and what the last boot did - the port open at the
+  // first look; closed and opened again by the app at 08:11; closed, with no Wi-Fi to restore over.
+  // `adbRestore` is the record in times of the day, «Сервис» opened at 14:02:11 (SheetFixtures).
+  const restorePage = (status, rows, tone, adbRestore) => sheetOf(11, {
+    title: 'Восстановление ADB', back: true,
+    blocks: [
+      { t: 'status', text: status, tone },
+      { t: 'switch', title: 'Восстанавливать автоматически', on: true,
+        summary: 'Если после перезагрузки машина закроет доступ, приложение вернёт его через Wi-Fi' },
+      { t: 'section', label: 'Последняя перезагрузка', body: { t: 'group', rows: rows.map(([title, value]) => ({ kind: 'pair', title, value })) } }
+    ]
+  }, Object.assign({}, svcState, { page: 'restore', adbRestore }));
   const service = {
-    restore: sheetOf(11, {
-      title: 'Восстановление ADB', back: true,
-      blocks: [
-        { t: 'switch', title: 'Восстановление ADB', on: true },
-        { t: 'note', text: 'Возвращает доступ после перезагрузки через Wi-Fi. Если доступ уже есть, восстановление не требуется.' },
-        ...techBlocks([
-          '[Состояние]', 'Состояние=not-needed', 'Триггер=startup', 'Последний исход=not-needed',
-          'TLS-порт=не найден', 'Wi-Fi=wifi', 'WRITE_SECURE_SETTINGS=выдано',
-          'Сетевой диалог=ещё не было', 'Повторы=в пределах бюджета'
-        ])
-      ]
-    }, Object.assign({}, svcState, { page: 'restore' })),
+    restore: restorePage('Доступ есть, восстанавливать не нужно',
+      [['Когда', 'сегодня, 08:10'], ['Доступ после неё', 'был сразу'], ['Восстановление', 'не понадобилось']]),
+    restored: restorePage('Доступ есть: после перезагрузки его вернуло приложение',
+      [['Когда', 'сегодня, 08:10'], ['Доступ после неё', 'был закрыт'], ['Восстановление', 'удалось в 08:11, за 23 с']],
+      undefined, { look: 'CLOSED', outcome: 'RESTORED', closed: '08:10:40', outcomeAt: '08:11:03', tls: 37451, dialog: 'allowed' }),
+    restoreWifi: restorePage('Доступа нет. Вернётся, как только машина подключится к Wi-Fi',
+      [['Когда', 'сегодня, 08:10'], ['Доступ после неё', 'был закрыт'], ['Восстановление', 'ждёт Wi-Fi']], 'attention',
+      { state: 'WaitingWifi', look: 'CLOSED', outcome: 'WAITING_WIFI', closed: '08:10:40', outcomeAt: '08:10:41', wifi: false }),
     ok: sheetOf(11, {
       title: 'Сервис',
       blocks: [{ t: 'group', rows: [{ title: 'Все функции работают' }, SVC_ACCESS] }, SVC_MORE],
@@ -383,10 +393,12 @@
           { t: 'button', text: 'Отправить один запрос' },
           { t: 'button', kind: 'secondary', text: 'Проверить доступ' }
         ] },
-        SVC_MORE
+        // a key the car refuses is one the restore cannot use either
+        svcMore('Не может вернуть доступ', 'broken')
       ],
       footer: [SVC_VERSION]
-    }, Object.assign({}, svcState, { page: 'main', adb: 'Нужно разрешение ADB для Denza Apps', adbDetails: 'Можно вручную отправить ровно один запрос', adbPhase: 'AUTHORIZATION_REQUIRED' })),
+    }, Object.assign({}, svcState, { page: 'main', adb: 'Нужно разрешение ADB для Denza Apps', adbDetails: 'Можно вручную отправить ровно один запрос', adbPhase: 'AUTHORIZATION_REQUIRED',
+      adbRestore: { state: 'NeedsActivation', look: 'REFUSED', outcome: 'NEEDS_ACTIVATION', closed: '08:10:40', outcomeAt: '08:10:40' } })),
     screen: sheetOf(11, {
       title: 'Приборный экран', back: true,
       blocks: [
@@ -1233,7 +1245,9 @@
     'sheet-service-access':   [{ kind: 'sheet', mode: 'full' }, service.access],
     'sheet-service-screen':   [{ kind: 'sheet', mode: 'full' }, service.screen],
     'sheet-service-restore':  [{ kind: 'sheet', mode: 'full' }, service.restore],
-    'one-sheet-service-restore': [{ kind: 'sheet', mode: 'one' }, service.restore],
+    'sheet-service-restored': [{ kind: 'sheet', mode: 'full' }, service.restored],
+    'sheet-service-restore-wifi': [{ kind: 'sheet', mode: 'full' }, service.restoreWifi],
+    'one-sheet-service-restore': [{ kind: 'sheet', mode: 'one' }, service.restored],
     'sheet-service-technical': [{ kind: 'sheet', mode: 'full' }, service.tech],
     'sheet-service-split':   [{ kind: 'sheet', mode: 'full' }, service.split],
     'sheet-service-journal': [{ kind: 'sheet', mode: 'full' }, service.journal],

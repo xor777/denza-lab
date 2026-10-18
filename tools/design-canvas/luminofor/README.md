@@ -76,7 +76,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `sheet-service-split`, `sheet-service-journal` | the technical report scrolled to its end - the split's section and the row to its journal - and «Журнал работы»: a failed open step by step over the two operations before it |
 | `one-sheet-cluster`, `one-sheet-cast-apps` | the same panels filling a one-third pane |
 | `modal-adb`, `one-modal-adb` | the ADB gate asking for the car's permission |
-| `sheet-service-restore`, `one-sheet-service-restore`, `modal-adb-wifi` | automatic ADB restoration: its service page at two widths and the neutral Wi-Fi waiting gate |
+| `sheet-service-restore`, `sheet-service-restored`, `sheet-service-restore-wifi`, `one-sheet-service-restore`, `modal-adb-wifi` | automatic ADB restoration: its page after the last boot - the port open at the first look, closed and opened again by the app (wide and in the one-third pane), closed with no Wi-Fi - a sentence, the switch and the boot's three rows; and the neutral Wi-Fi waiting gate |
 | `main-diagnostics`, `main-diagnostics-battery`, `main-diagnostics-empty`, `main-diagnostics-stale` | native service diagnostics: ECU records, HV schematic, no data, retained DTC after a failed retry |
 | `main-diagnostics-code`, `main-diagnostics-code-unknown`, `main-diagnostics-coverage` | native DTC details with general-reference provenance, unknown OEM meaning, unread ECU coverage |
 | `main-diagnostics-engine`, `main-diagnostics-power-warnings`, `main-diagnostics-abs` | captured warning availability for EMS, HV/drives and ABS/ESP; invalid0 is never off |

@@ -20,6 +20,7 @@ import dev.denza.apps.TechnicalReadings
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRestoreReport
+import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.ui.components.DenzaChoiceGroup
 import dev.denza.apps.ui.components.DenzaChoiceRow
@@ -123,7 +124,8 @@ internal data class ServiceModel(
  *
  * [firstPage] opens it on a page - the debug build's boards of the pages - [firstPageAtEnd] scrolled
  * to that page's end (the board of the technical page's split section), and [version] is the
- * foot's words, the build's own unless a board says otherwise.
+ * foot's words, the build's own unless a board says otherwise. [nowMs] is the clock the restore's
+ * times are said from («сегодня в 08:11»), a board's own on a board.
  */
 @Composable
 internal fun ServicePanel(
@@ -140,6 +142,7 @@ internal fun ServicePanel(
     version: String = "Denza Apps ${BuildConfig.VERSION_NAME} · сборка ${BuildConfig.VERSION_CODE}",
     onSetAdbRestoreEnabled: (Boolean) -> Unit = {},
     onOpenService: () -> Unit = {},
+    nowMs: () -> Long = System::currentTimeMillis,
 ) {
     LaunchedEffect(Unit) { onOpenService() }
     var page by rememberSaveable { mutableStateOf(firstPage) }
@@ -170,6 +173,7 @@ internal fun ServicePanel(
                     onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
                     onPage = { page = it },
+                    nowMs = nowMs,
                 )
             }
             ServicePage.SCREEN -> {
@@ -189,12 +193,7 @@ internal fun ServicePanel(
             }
             ServicePage.RESTORE -> {
                 DenzaSheetHeader(title = AdbRestoreReport.TITLE, subtitle = "", onDismiss = onDismiss, onBack = back)
-                DenzaSwitchRow(title = AdbRestoreReport.TITLE, checked = state.adbRestore.enabled,
-                    onCheckedChange = onSetAdbRestoreEnabled)
-                DenzaNote(AdbRestoreReport.NOTE)
-                DenzaSection("Состояние") {
-                    DenzaChoiceGroup(AdbRestoreReport.rows(state.adbRestore)) { (key, value) -> DenzaPairRow(key, value) }
-                }
+                ServiceRestorePage(state.adbRestore, nowMs(), onSetAdbRestoreEnabled)
             }
         }
     }
@@ -208,6 +207,7 @@ private fun ServiceMain(
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onPage: (ServicePage) -> Unit,
+    nowMs: () -> Long,
 ) {
     val model = remember(state) { ServiceModel.of(state) }
     val adb = state.adbRescue
@@ -260,11 +260,15 @@ private fun ServiceMain(
                 value = "Системы, показания и коды неисправностей",
                 onClick = { onPage(target) },
             )
-            ServicePage.RESTORE -> DenzaChoiceRow(
-                title = AdbRestoreReport.TITLE,
-                value = "Автоматически после перезагрузки",
-                onClick = { onPage(target) },
-            )
+            ServicePage.RESTORE -> {
+                val restore = AdbRestoreReport.summary(state.adbRestore, nowMs())
+                DenzaChoiceRow(
+                    title = AdbRestoreReport.TITLE,
+                    value = restore.text,
+                    onClick = { onPage(target) },
+                    tone = restore.tone.tile,
+                )
+            }
             ServicePage.SCREEN -> DenzaChoiceRow(
                 title = "Приборный экран",
                 value = state.clusterDisplayLabel,
@@ -278,6 +282,35 @@ private fun ServiceMain(
         }
     }
 }
+
+/**
+ * «Восстановление ADB»: whether there is access, the switch, and what the last boot did to the port
+ * and the restore about it - the answer first, in the words of [AdbRestoreReport].
+ */
+@Composable
+private fun ServiceRestorePage(restore: AdbRestoreSnapshot, nowMs: Long, onSetEnabled: (Boolean) -> Unit) {
+    AdbRestoreReport.status(restore)?.let { DenzaStatusLine(it.text, it.tone.tile ?: DenzaTileTone.IDLE) }
+    DenzaSwitchRow(
+        title = AdbRestoreReport.SWITCH,
+        subtitle = AdbRestoreReport.SWITCH_SUMMARY,
+        checked = restore.enabled,
+        onCheckedChange = onSetEnabled,
+    )
+    val boot = AdbRestoreReport.bootRows(restore, nowMs)
+    if (boot.isNotEmpty()) {
+        DenzaSection(AdbRestoreReport.BOOT_SECTION) {
+            DenzaChoiceGroup(boot) { (key, value) -> DenzaPairRow(key, value) }
+        }
+    }
+}
+
+/** The restore's tone as the tiles' colours: quiet is the summary grey. */
+private val AdbRestoreReport.Tone.tile: DenzaTileTone?
+    get() = when (this) {
+        AdbRestoreReport.Tone.QUIET -> null
+        AdbRestoreReport.Tone.ATTENTION -> DenzaTileTone.ATTENTION
+        AdbRestoreReport.Tone.BROKEN -> DenzaTileTone.BROKEN
+    }
 
 /**
  * Which screen the instruments go to. The app finds it by itself; this is for the car where it

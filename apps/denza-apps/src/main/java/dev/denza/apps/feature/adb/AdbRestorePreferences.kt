@@ -27,6 +27,9 @@ class AdbRestorePreferences(context: Context) : AdbRestoreStore {
     override var autoAllow: String?
         get() = prefs.getString("auto_allow", null)
         set(value) = save { putString("auto_allow", value) }
+    override var boot: AdbBootRecord?
+        get() = AdbBootRecord.decode(prefs.getString("boot_record", null))
+        set(value) = save { putString("boot_record", value?.encode()) }
 
     override fun recordWrite(network: String, atMs: Long) = save {
         putString("last_write_network", network); putLong("last_write_at", atMs)

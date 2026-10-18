@@ -173,10 +173,8 @@ internal object AdbPortRestorePass {
     private const val MAX_ANSWER = 120
 }
 
-/** The rows of the service report's section, in the words the page shows. */
+/** What keeps the port open, as rows of the restore's section in «Технические сведения». */
 object AdbPortRestoreReport {
-    const val TITLE = "Восстановление порта ADB"
-
     fun rows(
         permissionHeld: Boolean,
         state: AdbPortRestoreState,

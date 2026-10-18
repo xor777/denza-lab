@@ -2,7 +2,7 @@
 
 ## Current state
 
-Updated 2026-10-13. Static firmware evidence and local checks do not establish recovery on a
+Updated 2026-10-18. Static firmware evidence and local checks do not establish recovery on a
 currently inaccessible vehicle.
 
 | Claim | Status | Section |
@@ -22,6 +22,7 @@ currently inaccessible vehicle.
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
+| «Сервис → Восстановление ADB» says whether there is access, what the first look after the last boot found and what the restore did, from a per-boot record a later open-port check does not overwrite; «Технические сведения» has one «Восстановление ADB» section with every reading once | code, emulator boards, 2026-10-18; not on the car | [The page after a boot](#the-page-after-a-boot-2026-10-18) |
 
 ## Contents
 
@@ -37,6 +38,7 @@ currently inaccessible vehicle.
 - [How ADB authorization actually works on DiLink 5.1](#how-adb-authorization-actually-works-on-dilink-51-corpus-2026-08-29)
 - [Port 5555 after a reboot](#port-5555-after-a-reboot-and-reopening-it-through-wireless-debugging-corpus-2026-10-06)
 - [Autonomous restore](#autonomous-restore-implementation-2026-10-08)
+  - [The page after a boot](#the-page-after-a-boot-2026-10-18)
 - [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08)
 - [Local key storage](#local-key-storage-and-history-redaction-2026-10-13)
 - [Autonomous target recovery](#autonomous-target-recovery-050-2026-10-10)
@@ -571,8 +573,9 @@ adb shell 'getprop | grep -iE "adb|wiress|usb.config"'
 ```
 
 Since 2026-10-08 the product reads the deciding values itself, with no host ADB. Each runtime pass
-with a trusted shell reads them, and **Сервис → Технические сведения → Восстановление порта ADB**
-shows them; see [Consequences for the product](#consequences-for-the-product). A screenshot of
+with a trusted shell reads them, and **Сервис → Технические сведения → Восстановление ADB**
+shows them under the restore's own rows (a section of its own, «Восстановление порта ADB», until
+2026-10-18); see [Consequences for the product](#consequences-for-the-product). A screenshot of
 that section taken after a full reboot answers the first question for that car.
 
 ### Reopening 5555 through wireless debugging
@@ -635,13 +638,13 @@ the permission was granted.
 | Claim | Status | Where |
 | --- | --- | --- |
 | 2605 opens 5555 through `sys.connect.adb.wiress`, written only by BYD's developer tools | firmware | `init.rc:1685`, `LogControlAndTestToolsActivity:389–391` |
-| Who sets it, or `persist.adb.tcp.port`, after a full reboot on 2605 | open | getprop above, or «Восстановление порта ADB» on the service page |
+| Who sets it, or `persist.adb.tcp.port`, after a full reboot on 2605 | open | getprop above, or «Технические сведения → Восстановление ADB» on the service page |
 | Denza Apps reads `persist.adb.tcp.port`, `service.adb.tcp.port`, `sys.connect.adb.wiress`, `persist.sys.adb.wiress.enable` and `adb_wifi_enabled` over its trusted shell once per runtime pass, read-only, and shows them on the service page | code | `AdbPortReadout`, `AdbPortRestoreReport` |
 | 2606 closes 5555 after a reboot | open | owners' reports only |
 | The wireless-debugging path and its dialog are stock on 2605 | firmware | `AdbDebuggingManager`, `WifiDebuggingActivity` |
 | Feature clients still use classic 5555; the restore manager can reopen it over STLS using the same identity | code, vehicle acceptance pending | `LocalAdbClient.PORT`, `LocalAdbTlsClient`, `AdbRestoreManager` |
 | Denza Apps requests `WRITE_SECURE_SETTINGS` and grants it to itself over its trusted shell on every runtime pass where it is missing | code | `AndroidManifest.xml`, `AdbPortRestore.prepare` |
-| That self-grant succeeds on this car | open | «Восстановление порта ADB» on the service page, after one trusted runtime pass |
+| That self-grant succeeds on this car | open | `WRITE_SECURE_SETTINGS` in «Технические сведения → Восстановление ADB», after one trusted runtime pass |
 
 The four parts (permission preparation, STLS/discovery, the network-dialog accessibility rider,
 and the Wi-Fi waiting gate) are implemented locally as of 2026-10-08. The wire handshake,
@@ -664,6 +667,10 @@ held, or why it is not: *выдано*, *выдано приложением*, *
 for an unset one and *—* before anything was read, and **Прочитано**: how long ago, or the
 failure. The section is a model of its own (`AdbPortRestoreState`, `AdbPortReadout`,
 `AdbPortRestoreReport`), so a later restore can add its rows to it.
+
+> **Superseded 2026-10-18:** these rows are the second half of one section, «Восстановление ADB»,
+> under the restore's own; the restore's copy of `WRITE_SECURE_SETTINGS` is gone and this live one
+> stays — see [The page after a boot](#the-page-after-a-boot-2026-10-18).
 
 The rule for the car follows from the preconditions: a build that holds the permission has to be
 on the car before such an OTA is installed.
@@ -726,7 +733,12 @@ attempts serialize, and OFF persists first, increments the generation, cancels t
 and writes `adb_wifi_enabled=0` when permitted. A stale attempt cannot write it back to 1 or
 restart the runtime. Opening «Сервис» sends the explicit cooldown-resetting `settings` hint.
 «Сервис → Восстановление ADB» provides the switch and the same neutral readings as
-`SupportDiagnostics`; the existing port-property section is retained. `WaitingWifi` has a neutral
+`SupportDiagnostics`; the existing port-property section is retained.
+
+> **Superseded 2026-10-18:** the page is a sentence, the switch and three rows about the last boot,
+> and the technical page has one section with the port's readings in it — see
+> [The page after a boot](#the-page-after-a-boot-2026-10-18).
+ `WaitingWifi` has a neutral
 gate with no ineffective action; technical failures stay in the report. Luminofor has full/narrow
 restore-page fixtures and a Wi-Fi gate fixture.
 
@@ -743,6 +755,62 @@ emulator (2560×1600, 320 dpi). The new full/narrow restore page compared at 1.1
 pixels (mean 1.30/2.33 levels), and the Wi-Fi gate at 0.60% (mean 0.88). Visual inspection of the
 overlays found aligned rows and controls; residue is text antialiasing and the emulator's gesture
 bar. Screenshots and validation metadata live in `captures/adb-restore-20261008/` (untracked).
+
+### The page after a boot (2026-10-18)
+
+Status: code, unit tests and emulator boards; **not on the car**.
+
+The owner opened «Сервис → Восстановление ADB» and could not tell whether a restore was needed,
+whether one had been tried, or what had happened. The code explains it:
+
+- The page showed the last check alone. Every hint is a check - the app starting, the screen,
+  Wi-Fi, the watchdog - and each wrote its outcome over the last one. Opening «Сервис» is a hint
+  too (`settings`, which resets the cooldown), so the page always showed the check its own opening
+  had made a second before: «Триггер: settings» and the time of the tap.
+- A restore was erased the same way: the first check after it found the port open and wrote
+  `not-needed` over `restored`. A non-empty «TLS-порт» was the only trace left.
+- «Состояние» and «Последний исход» were one value written twice (`publish` sets both from
+  `state.label()`). `WRITE_SECURE_SETTINGS` stood in two sections of «Технические сведения», one
+  remembered at the last check and one read live, so they could disagree. «Wi-Fi» showed `wifi`:
+  on Android 12+ a `NetworkCapabilities` read without location info redacts the SSID, and the
+  placeholder was all there was. The whole page was printed again as a section of the report.
+
+The fix keeps a record per boot, `AdbBootRecord` in `AdbRestoreManager`, one preference value
+(`boot_record`) written whole:
+
+- A boot is told by `Settings.Global.BOOT_COUNT`; where it cannot be read, an elapsed-realtime
+  reading below the last one written means a later boot. An earlier boot's record is not loaded.
+- The first look after the boot is kept: `OPEN`, `CLOSED`, or `REFUSED` (the key refused).
+- A look that finds the port closed after it last worked starts a closure (`closedAtMs`).
+- Every published state that means work moves the outcome (`CONNECTING`, `WAITING_WIFI`,
+  `NEEDS_DIALOG`, `NEEDS_ACTIVATION`, `FAILED`, `RESTORED`). `NotNeeded` changes it only when the
+  restore had not finished, to `RETURNED`: access came back, not by the restore. A check that finds
+  the port open after a restore leaves `RESTORED` and its time alone.
+
+The page, in `AdbRestoreReport`:
+
+- A sentence (`status`): «Доступ есть, восстанавливать не нужно», «Доступ есть: после
+  перезагрузки его вернуло приложение», or, orange or red, what it waits for or why it cannot.
+- The switch «Восстанавливать автоматически», saying what it does; the old note is gone.
+- «Последняя перезагрузка» (`bootRows`): «Когда», «Доступ после неё» (был сразу / был закрыт /
+  ключ не принят), «Восстановление» (не понадобилось / удалось в 08:11, за 23 с / ждёт Wi-Fi /
+  не вышло в … / доступ появился в …).
+- The row on «Сервис» says the outcome (`summary`), in its tile colour when it needs somebody,
+  instead of «Автоматически после перезагрузки» on every car.
+
+«Технические сведения» has one «Восстановление ADB» section (`technicalRows`, then
+`AdbPortRestoreReport.rows`): «Включено», «Перезагрузка» with the boot count, «После неё», «Последняя
+проверка» (state, time and what made it, in words), «TLS-порт», «Сетевой диалог», «Повторы», then the
+live `WRITE_SECURE_SETTINGS`, the five port values and «Прочитано». Turning the switch on is its own
+hint, `switch`, forcing like `settings`.
+
+Boards `sheet-service-restore`, `sheet-service-restored`, `sheet-service-restore-wifi` and
+`one-sheet-service-restore` draw the three cases; `SheetFixtures` builds the record from the board's
+`adbRestore` times of day. Against the API-35 emulator the eight service boards that
+changed compared at 0.72–2.29 % of pixels moved (mean 0.84–1.97 levels), antialiasing only.
+
+What the car has to show: after a full reboot on a 2605 image, the page says «был сразу» and
+«не понадобилось», and opening «Сервис» again does not change either.
 
 ## Dipilot identity rescue (local review, 2026-10-08)
 

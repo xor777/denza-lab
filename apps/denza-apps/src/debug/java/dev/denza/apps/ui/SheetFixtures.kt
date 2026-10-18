@@ -11,11 +11,15 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
+import dev.denza.apps.feature.adb.AdbBootLook
+import dev.denza.apps.feature.adb.AdbBootOutcome
+import dev.denza.apps.feature.adb.AdbBootRecord
 import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.adb.AdbRestoreState
 import dev.denza.apps.feature.adb.AdbRestoreWifi
 import dev.denza.apps.feature.adb.AdbStartupGatePolicy
 import dev.denza.apps.feature.adb.AdbSystemSwitch
+import dev.denza.apps.feature.adb.label
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.defaultapps.DefaultAppChoice
@@ -71,6 +75,7 @@ internal object SheetFixtures {
                 // split section is.
                 firstPageAtEnd = s.optString("scroll") == "end",
                 version = "Denza Apps ${s.getString("version")} · сборка ${s.getInt("build")}",
+                nowMs = { RestoreClock.at(s.optJSONObject("adbRestore")?.optString("now", RestoreClock.NOW) ?: RestoreClock.NOW) },
             )
             return
         }
@@ -124,8 +129,7 @@ internal object SheetFixtures {
         val technical = s.optJSONArray("technical") ?: JSONArray()
         val journal = s.optJSONArray("journal") ?: JSONArray()
         var state = DenzaUiState(
-            adbRestore = AdbRestoreSnapshot(state = AdbRestoreState.NotNeeded, lastTrigger = "startup",
-                lastOutcome = "not-needed", permissionHeld = true, wifi = AdbRestoreWifi("fixture", "wifi")),
+            adbRestore = restore(s.optJSONObject("adbRestore") ?: JSONObject()),
             adbRescue = AdbRescueSnapshot(
                 phase = AdbRescuePhase.valueOf(s.optString("adbPhase", "TRUSTED")),
                 message = s.optString("adb"),
@@ -151,6 +155,62 @@ internal object SheetFixtures {
             )
         }
         return state
+    }
+
+    /**
+     * The automatic restore as the board's `adbRestore` says it: the state of the last check, and
+     * this boot's record in times of the day («08:10», «08:11:03»). Without it, a car whose port
+     * answered at the first look after a boot this morning, checked again when «Сервис» opened.
+     */
+    private fun restore(r: JSONObject): AdbRestoreSnapshot {
+        val clock = RestoreClock
+        val checked = clock.at(r.optString("checked", RestoreClock.NOW))
+        val state = when (val name = r.optString("state", "NotNeeded")) {
+            "Restored" -> AdbRestoreState.Restored(checked)
+            "Failed" -> AdbRestoreState.Failed(r.optString("reason", "mDNS timeout"), checked)
+            "Connecting" -> AdbRestoreState.Connecting
+            "WaitingWifi" -> AdbRestoreState.WaitingWifi
+            "NeedsDialog" -> AdbRestoreState.NeedsDialog
+            "NeedsActivation" -> AdbRestoreState.NeedsActivation
+            "Disabled" -> AdbRestoreState.Disabled
+            else -> AdbRestoreState.NotNeeded.also { check(name == "NotNeeded") { name } }
+        }
+        val look = r.optString("look", "OPEN").takeIf { it.isNotEmpty() }
+        return AdbRestoreSnapshot(
+            enabled = r.optBoolean("enabled", true),
+            state = state,
+            lastTrigger = r.optString("trigger", "settings"),
+            lastOutcome = state.label(),
+            lastOutcomeAtMs = checked,
+            tlsPort = r.optInt("tls", 0).takeIf { it > 0 },
+            wifi = if (r.optBoolean("wifi", true)) AdbRestoreWifi("fixture", "wifi") else null,
+            permissionHeld = true,
+            autoAllow = r.optString("dialog").ifEmpty { null },
+            boot = AdbBootRecord(
+                bootCount = null,
+                bootAtMs = clock.at(r.optString("boot", "08:10")),
+                seenAtElapsedMs = 0L,
+                look = look?.let(AdbBootLook::valueOf),
+                closedAtMs = r.optString("closed").ifEmpty { null }?.let(clock::at) ?: 0L,
+                outcome = r.optString("outcome").ifEmpty { null }?.let(AdbBootOutcome::valueOf),
+                outcomeAtMs = r.optString("outcomeAt").ifEmpty { null }?.let(clock::at) ?: 0L,
+            ),
+        )
+    }
+
+    /** A board's times of the day, on one day, so «сегодня» is the same words on any date. */
+    private object RestoreClock {
+        const val NOW = "14:02:11"
+        private val day = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        /** «08:11» or «08:11:03», this day. */
+        fun at(time: String): Long {
+            val parts = time.split(':').map(String::toInt) + 0
+            return day + ((parts[0] * 60L + parts[1]) * 60L + parts[2]) * 1000L
+        }
     }
 
     private fun state(s: JSONObject): DenzaUiState {

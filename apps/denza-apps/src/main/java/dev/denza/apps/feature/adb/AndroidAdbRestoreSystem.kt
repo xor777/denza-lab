@@ -35,6 +35,9 @@ internal class AndroidAdbRestoreSystem(context: Context) : AdbRestoreSystem {
     override val sdk: Int get() = Build.VERSION.SDK_INT
     override fun nowMs(): Long = System.currentTimeMillis()
     override fun elapsedMs(): Long = SystemClock.elapsedRealtime()
+    override fun bootCount(): Int? = try {
+        Settings.Global.getInt(app.contentResolver, Settings.Global.BOOT_COUNT)
+    } catch (_: Exception) { null }
     override suspend fun classicConnect(): Boolean = try {
         DenzaLocalAdb.client(app).shell("printf DENZA_ADB_RESTORE_OK", 1_500).contains("DENZA_ADB_RESTORE_OK")
     } catch (_: LocalAdbClient.AuthorizationRequiredException) {

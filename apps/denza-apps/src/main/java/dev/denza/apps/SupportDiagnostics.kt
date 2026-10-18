@@ -97,8 +97,11 @@ object SupportDiagnostics {
                 section("Облако", cloudRows(context)),
                 appSection(header),
                 section("Доступ к машине", accessRows()),
-                section(AdbRestoreReport.TITLE, AdbRestoreReport.rows(AdbRestore.snapshot()).map { (key, value) -> row(key, value) }),
-                section(AdbPortRestoreReport.TITLE, adbPortRestoreRows(context)),
+                // One section for the port after a reboot: what the restore did, then what keeps the port
+                // open. They were two, and the permission both need was a row in each.
+                section(AdbRestoreReport.TITLE,
+                    AdbRestoreReport.technicalRows(AdbRestore.snapshot()).map { (key, value) -> row(key, value) } +
+                        adbPortRestoreRows(context)),
                 section("Трансляция", simulcastRows(context, header)),
                 section("Зеркала", mirrorsRows(context, header)),
                 section("Экран водителя", driverScreenRows(context)),

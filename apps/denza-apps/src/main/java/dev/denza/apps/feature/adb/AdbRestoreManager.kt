@@ -29,6 +29,73 @@ data class AdbTlsEndpoint(val host: String, val port: Int) {
     }
 }
 
+/** What the first look after a boot found on port 5555. */
+enum class AdbBootLook { OPEN, CLOSED, REFUSED }
+
+/** Where the restore got to after a boot, once it had something to do. */
+enum class AdbBootOutcome {
+    CONNECTING,
+    WAITING_WIFI,
+    NEEDS_DIALOG,
+    NEEDS_ACTIVATION,
+    FAILED,
+    RESTORED,
+
+    /** Access came back while the restore was still waiting or after it failed: not its doing. */
+    RETURNED,
+    ;
+
+    /** The port is still closed and the restore has not finished with it. */
+    val pending: Boolean get() = this != RESTORED && this != RETURNED
+}
+
+/**
+ * The head unit's latest boot as the restore saw it: what the first look found, and what the
+ * restore did about it.
+ *
+ * The page used to show the last check alone, and every hint is a check - the app starting, the
+ * screen coming on, Wi-Fi, the opening of «Сервис» itself. A restore at 08:11 was overwritten by the
+ * first of them that found the port open, so the page could never say whether the car had closed
+ * the port and whether the app had opened it again. A check that finds the port open leaves this
+ * record alone.
+ */
+data class AdbBootRecord(
+    /** `Settings.Global.BOOT_COUNT`, or null where it cannot be read. */
+    val bootCount: Int?,
+    /** When the head unit booted, on the wall clock as last read. */
+    val bootAtMs: Long,
+    /** The elapsed-realtime clock at the last write: a later reading below it is a later boot. */
+    val seenAtElapsedMs: Long,
+    val look: AdbBootLook? = null,
+    /** When the port was first found closed in the current closure; what a restore's time counts from. */
+    val closedAtMs: Long = 0L,
+    val outcome: AdbBootOutcome? = null,
+    val outcomeAtMs: Long = 0L,
+) {
+    /** Whether [count] and [elapsedMs], read now, are still this boot. */
+    fun isBoot(count: Int?, elapsedMs: Long): Boolean =
+        if (count != null && bootCount != null) count == bootCount else elapsedMs >= seenAtElapsedMs
+
+    /** One preference value, so the record is written whole or not at all. */
+    fun encode(): String = listOf(bootCount ?: "", bootAtMs, seenAtElapsedMs, look ?: "", closedAtMs,
+        outcome ?: "", outcomeAtMs).joinToString("|")
+
+    companion object {
+        fun decode(text: String?): AdbBootRecord? = runCatching {
+            val f = text!!.split('|')
+            AdbBootRecord(
+                bootCount = f[0].toIntOrNull(),
+                bootAtMs = f[1].toLong(),
+                seenAtElapsedMs = f[2].toLong(),
+                look = f[3].takeIf { it.isNotEmpty() }?.let(AdbBootLook::valueOf),
+                closedAtMs = f[4].toLong(),
+                outcome = f[5].takeIf { it.isNotEmpty() }?.let(AdbBootOutcome::valueOf),
+                outcomeAtMs = f[6].toLong(),
+            )
+        }.getOrNull()
+    }
+}
+
 data class AdbRestoreSnapshot(
     val enabled: Boolean = true,
     val state: AdbRestoreState = AdbRestoreState.NotNeeded,
@@ -41,6 +108,8 @@ data class AdbRestoreSnapshot(
     val writeWasReverted: Boolean = false,
     val retryBudgetExhausted: Boolean = false,
     val autoAllow: String? = null,
+    /** This boot's record; null until the restore has looked at the port since the boot. */
+    val boot: AdbBootRecord? = null,
 )
 
 /** Persistent wish, prior trust and the settings-write cooldown, separate from the process clock. */
@@ -52,6 +121,7 @@ interface AdbRestoreStore {
     var lastOutcome: String?
     var lastOutcomeAtMs: Long
     var autoAllow: String?
+    var boot: AdbBootRecord?
     fun recordWrite(network: String, atMs: Long) { lastWriteNetwork = network; lastWriteAtMs = atMs }
     fun recordOutcome(outcome: String, atMs: Long) { lastOutcome = outcome; lastOutcomeAtMs = atMs }
 }
@@ -61,6 +131,8 @@ interface AdbRestoreSystem {
     val sdk: Int
     fun nowMs(): Long
     fun elapsedMs(): Long
+    /** `Settings.Global.BOOT_COUNT`: which boot this is, or null where it cannot be read. */
+    fun bootCount(): Int?
     suspend fun classicConnect(): Boolean
     fun permissionHeld(): Boolean
     suspend fun selfGrant(abandoned: () -> Boolean)
@@ -111,6 +183,8 @@ class AdbRestoreManager(
         lastOutcome = store.lastOutcome,
         lastOutcomeAtMs = store.lastOutcomeAtMs.takeIf { it > 0 },
         autoAllow = store.autoAllow,
+        // An earlier boot's record is history the page has no row for: this boot starts its own.
+        boot = store.boot?.takeIf { it.isBoot(system.bootCount(), system.elapsedMs()) },
     )
 
     init {
@@ -125,6 +199,7 @@ class AdbRestoreManager(
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: AdbRestoreKeyUntrustedException) {
+                            look(gen, AdbBootLook.REFUSED)
                             publish(gen, AdbRestoreState.NeedsActivation)
                         } catch (error: Exception) {
                             publish(gen, AdbRestoreState.Failed(error.javaClass.simpleName, system.nowMs()))
@@ -145,7 +220,7 @@ class AdbRestoreManager(
 
     fun snapshot(): AdbRestoreSnapshot = current
 
-    fun attemptIfNeeded(trigger: String) = enqueue(Request(trigger, force = trigger == "settings"))
+    fun attemptIfNeeded(trigger: String) = enqueue(Request(trigger, force = trigger in FORCING))
 
     private fun enqueue(request: Request) {
         synchronized(control) {
@@ -173,7 +248,7 @@ class AdbRestoreManager(
             } else current = current.copy(enabled = true)
         }
         changed()
-        if (enabled) attemptIfNeeded("settings")
+        if (enabled) attemptIfNeeded(SWITCH)
     }
 
     fun recordAutoAllow(outcome: String) {
@@ -197,6 +272,7 @@ class AdbRestoreManager(
         }
         if (system.classicConnect()) {
             if (abandoned(gen)) return
+            look(gen, AdbBootLook.OPEN)
             synchronized(control) { store.trustedBefore = true }
             if (!system.permissionHeld()) {
                 if (abandoned(gen)) return
@@ -207,6 +283,7 @@ class AdbRestoreManager(
             return
         }
         if (abandoned(gen)) return
+        look(gen, AdbBootLook.CLOSED)
         if (!store.trustedBefore || !system.permissionHeld()) {
             publish(gen, AdbRestoreState.NeedsActivation, request); return
         }
@@ -303,8 +380,49 @@ class AdbRestoreManager(
             if (state !is AdbRestoreState.Connecting) {
                 store.recordOutcome(outcome, at)
             }
+            val held = current.boot
+            val reached = when (state) {
+                AdbRestoreState.Connecting -> AdbBootOutcome.CONNECTING
+                AdbRestoreState.WaitingWifi -> AdbBootOutcome.WAITING_WIFI
+                AdbRestoreState.NeedsDialog -> AdbBootOutcome.NEEDS_DIALOG
+                AdbRestoreState.NeedsActivation -> AdbBootOutcome.NEEDS_ACTIVATION
+                is AdbRestoreState.Failed -> AdbBootOutcome.FAILED
+                is AdbRestoreState.Restored -> AdbBootOutcome.RESTORED
+                // The port open again, with the restore not the one that opened it.
+                AdbRestoreState.NotNeeded -> AdbBootOutcome.RETURNED.takeIf { held?.outcome?.pending == true }
+                AdbRestoreState.Disabled, AdbRestoreState.Unsupported -> null
+            }
+            if (reached != null) saveBoot(bootRecord().copy(outcome = reached, outcomeAtMs = at))
         }
         changed()
+    }
+
+    /**
+     * What a look at the port found, kept as this boot's first look if it is the first. A closed
+     * port where the last look found it working starts a closure, the moment a restore counts from.
+     */
+    private fun look(gen: Long, found: AdbBootLook) = synchronized(control) {
+        if (abandoned(gen)) return@synchronized
+        val record = bootRecord()
+        val opens = found != AdbBootLook.OPEN && record.outcome?.pending != true
+        saveBoot(record.copy(look = record.look ?: found,
+            closedAtMs = if (opens) system.nowMs() else record.closedAtMs))
+    }
+
+    /** This boot's record, begun afresh if the one held belongs to an earlier boot. Under [control]. */
+    private fun bootRecord(): AdbBootRecord {
+        val count = system.bootCount()
+        val elapsed = system.elapsedMs()
+        val held = current.boot?.takeIf { it.isBoot(count, elapsed) }
+            ?: AdbBootRecord(bootCount = count, bootAtMs = 0L, seenAtElapsedMs = 0L)
+        // Read again on every write: the wall clock may have been set since the boot.
+        return held.copy(bootCount = count ?: held.bootCount, bootAtMs = system.nowMs() - elapsed,
+            seenAtElapsedMs = elapsed)
+    }
+
+    private fun saveBoot(record: AdbBootRecord) {
+        store.boot = record
+        current = current.copy(boot = record)
     }
 
     private fun reconcileWave(gen: Long) = synchronized(control) {
@@ -349,6 +467,10 @@ class AdbRestoreManager(
     }
 
     companion object {
+        /** «Сервис» opened, and the switch turned on: somebody is looking, so the cooldown waits. */
+        const val SETTINGS = "settings"
+        const val SWITCH = "switch"
+        private val FORCING = setOf(SETTINGS, SWITCH)
         const val MIN_SDK = 30
         const val SETTINGS_SETTLE_MS = 1_500L
         const val DISCOVERY_TIMEOUT_MS = 45_000L

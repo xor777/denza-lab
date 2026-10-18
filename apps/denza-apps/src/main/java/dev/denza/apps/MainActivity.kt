@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import dev.denza.apps.feature.adb.AdbRestore
+import dev.denza.apps.feature.adb.AdbRestoreManager
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.hud.HudCameraPlace
@@ -147,7 +148,7 @@ internal object AppActions : DenzaActions {
         { DenzaAppRepository.refreshScreenDiagnostics() }
     override val onServiceReportVisible: (Boolean) -> Unit =
         { open -> DenzaAppRepository.setServiceReportOpen(open) }
-    override val onServiceOpened: () -> Unit = { AdbRestore.trigger("settings") }
+    override val onServiceOpened: () -> Unit = { AdbRestore.trigger(AdbRestoreManager.SETTINGS) }
     override val onSetAdbRestoreEnabled: (Boolean) -> Unit =
         { enabled -> AdbRestore.setEnabled(enabled) }
     override val onCheckAdbAccess: () -> Unit = { DenzaAppRepository.checkAdbAccess() }
