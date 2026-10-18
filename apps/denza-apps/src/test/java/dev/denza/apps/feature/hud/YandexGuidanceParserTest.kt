@@ -139,17 +139,17 @@ class YandexGuidanceParserTest {
 
     @Test
     fun schematicRoundaboutShowsPassedExitsAndMovesTheTargetArrow() {
-        assertEquals(0, HudSomeIpClient.schematicPassedExitCount(null))
-        assertEquals(0, HudSomeIpClient.schematicPassedExitCount(1))
-        assertEquals(1, HudSomeIpClient.schematicPassedExitCount(2))
-        assertEquals(2, HudSomeIpClient.schematicPassedExitCount(3))
-        assertEquals(6, HudSomeIpClient.schematicPassedExitCount(7))
-        assertEquals(11, HudSomeIpClient.schematicPassedExitCount(20))
-        assertEquals(0f, HudSomeIpClient.schematicRoundaboutExitAngle(1, 1))
-        assertEquals(-90f, HudSomeIpClient.schematicRoundaboutExitAngle(2, 2))
-        assertEquals(-180f, HudSomeIpClient.schematicRoundaboutExitAngle(3, 3))
-        assertEquals(-225f, HudSomeIpClient.schematicRoundaboutExitAngle(4, 4))
-        assertEquals(-245f, HudSomeIpClient.schematicRoundaboutExitAngle(7, 7))
+        assertEquals(0, HudManeuverIcon.schematicPassedExitCount(null))
+        assertEquals(0, HudManeuverIcon.schematicPassedExitCount(1))
+        assertEquals(1, HudManeuverIcon.schematicPassedExitCount(2))
+        assertEquals(2, HudManeuverIcon.schematicPassedExitCount(3))
+        assertEquals(6, HudManeuverIcon.schematicPassedExitCount(7))
+        assertEquals(11, HudManeuverIcon.schematicPassedExitCount(20))
+        assertEquals(0f, HudManeuverIcon.schematicRoundaboutExitAngle(1, 1))
+        assertEquals(-90f, HudManeuverIcon.schematicRoundaboutExitAngle(2, 2))
+        assertEquals(-180f, HudManeuverIcon.schematicRoundaboutExitAngle(3, 3))
+        assertEquals(-225f, HudManeuverIcon.schematicRoundaboutExitAngle(4, 4))
+        assertEquals(-245f, HudManeuverIcon.schematicRoundaboutExitAngle(7, 7))
     }
 
     @Test
@@ -180,7 +180,7 @@ class YandexGuidanceParserTest {
             ),
         )
 
-        val tip = requireNotNull(HudSomeIpClient.arrowTip(patch.maneuver, patch.roundaboutExitNumber))
+        val tip = requireNotNull(HudManeuverIcon.arrowTip(patch.maneuver, patch.roundaboutExitNumber))
 
         assertEquals(3, patch.roundaboutExitNumber)
         assertTrue("exit 3 at x=${tip[0]}", tip[0] < ICON_CENTRE_X - 40f)
@@ -212,7 +212,7 @@ class YandexGuidanceParserTest {
         val straight = tip("Продолжайте прямо")
         assertEquals(ICON_CENTRE_X, straight[0], 1f)
         assertTrue(straight[1] < 45f)
-        assertNull(HudSomeIpClient.arrowTip(HudManeuver.UNKNOWN, null))
+        assertNull(HudManeuverIcon.arrowTip(HudManeuver.UNKNOWN, null))
     }
 
     @Test
@@ -266,7 +266,7 @@ class YandexGuidanceParserTest {
 
     private fun tip(instruction: String): FloatArray {
         val maneuver = YandexGuidanceParser.parseManeuver(instruction)
-        return requireNotNull(HudSomeIpClient.arrowTip(maneuver, null)) { instruction }
+        return requireNotNull(HudManeuverIcon.arrowTip(maneuver, null)) { instruction }
     }
 
     private fun roundaboutTip(instruction: String, exitView: String = ""): FloatArray {
@@ -283,7 +283,7 @@ class YandexGuidanceParserTest {
             ),
         )
         return requireNotNull(
-            HudSomeIpClient.arrowTip(guidance.maneuver, guidance.roundaboutExitNumber),
+            HudManeuverIcon.arrowTip(guidance.maneuver, guidance.roundaboutExitNumber),
         ) { instruction }
     }
 
