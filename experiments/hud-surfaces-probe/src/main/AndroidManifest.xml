@@ -5,5 +5,23 @@
 
     <application
         android:allowBackup="false"
-        android:label="HUD surfaces probe" />
+        android:label="HUD surfaces probe">
+
+        <!-- One screen, one button per scenario. Exported so the host can also start a scenario
+             with am start and the string extra "scenario" (see README): the firmware self-start
+             gate drops broadcasts to a UID with no live process, so an Activity is the entry.
+             Configuration changes do not recreate it: the head unit's day/night switch must not
+             cut a scenario short. -->
+        <activity
+            android:name=".SurfacesActivity"
+            android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize|density|locale|layoutDirection|fontScale|keyboard|keyboardHidden|navigation"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
 </manifest>
