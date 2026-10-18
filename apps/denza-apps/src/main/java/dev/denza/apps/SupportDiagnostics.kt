@@ -303,11 +303,11 @@ object SupportDiagnostics {
 
     private fun hudRows(context: Context): List<TechnicalRow> = buildList {
         add(row("Подсказки", yesNo(HudGuidanceSettings.isEnabled(context))))
-        // Which of the two writes the HUD: with «Яндекс HUD» this app sends only the car's sign.
+        // Which of the two writes the HUD: with «YandexHUD» this app sends only the car's sign.
         add(
             row(
                 "Навигатор",
-                if (HudNavigatorBuild.drawsHud(context)) "Яндекс HUD, HUD выводит сам" else "Яндекс",
+                if (HudNavigatorBuild.drawsHud(context)) "YandexHUD, HUD выводит сам" else "Яндекс",
             ),
         )
         val access = MediaSessionAccess.diagnostics(context)

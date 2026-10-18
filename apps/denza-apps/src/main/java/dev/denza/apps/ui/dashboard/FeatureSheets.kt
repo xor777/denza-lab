@@ -222,7 +222,7 @@ internal fun panelStatus(tile: DashboardTile, message: String): String = when (t
  * Short, present tense, no instructions the screen already gives. The `sheet-*` boards draw the
  * same paragraph, and `SheetBoardContractTest` holds the two together.
  *
- * The HUD has a second paragraph, for «Яндекс HUD» installed ([DenzaUiState.hudSentByNavigator]):
+ * The HUD has a second paragraph, for «YandexHUD» installed ([DenzaUiState.hudSentByNavigator]):
  * it is the one place that says why the map is grey and what is left for the switch to do.
  */
 internal fun helpOf(id: TileId, hudSentByNavigator: Boolean = false): String = when (id) {
@@ -239,7 +239,7 @@ internal fun helpOf(id: TileId, hudSentByNavigator: Boolean = false): String = w
         "При включении на рабочем столе появляется значок разделения экрана. " +
             "Он открывает выбор двух приложений, которые встанут рядом."
     TileId.HUD if hudSentByNavigator ->
-        "Установлен Яндекс HUD: подсказки и карту на лобовое стекло он выводит сам. " +
+        "Установлен YandexHUD: подсказки и карту на лобовое стекло он выводит сам. " +
             "Приложение передаёт только ограничение скорости — штатному знаку машины " +
             "на приборах и проекции."
     // The tile says «Нет навигатора» when it is missing; this is where the navigator is named.
@@ -494,7 +494,7 @@ private fun splitSheet(state: DenzaUiState, actions: DashboardActions, busy: Boo
  * settling, and keeps its own position - the tile's press moves the hints and never the map. Yandex
  * hidden or covered is a state of the map, not a failure of it, and nothing here speaks of it.
  *
- * With «Яндекс HUD» installed the navigator sends the hints and the map itself, and what the first
+ * With «YandexHUD» installed the navigator sends the hints and the map itself, and what the first
  * switch still does here is the car's own speed sign, so it is named for that; the map is off and
  * grey whatever its stored value, which comes back with the ordinary Yandex.
  */
@@ -516,7 +516,7 @@ private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boole
 
 /**
  * Whether «Карта на проекции» can be moved: only with the hints on and settled, and never while
- * «Яндекс HUD» sends its own map.
+ * «YandexHUD» sends its own map.
  */
 internal fun hudMapSwitchEnabled(state: DenzaUiState, busy: Boolean): Boolean =
     state.hudGuidance.desiredEnabled && !busy && !state.hudSentByNavigator

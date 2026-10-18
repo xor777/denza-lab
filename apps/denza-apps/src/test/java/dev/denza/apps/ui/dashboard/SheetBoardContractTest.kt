@@ -29,7 +29,7 @@ class SheetBoardContractTest {
                 Triple(id, tile, notes)
             }
         assertTrue("no panel board found", boards.any { it.second == TileId.HUD })
-        assertTrue("no board with «Яндекс HUD» installed", boards.any { state(it.first)["byNavigator"] == true })
+        assertTrue("no board with «YandexHUD» installed", boards.any { state(it.first)["byNavigator"] == true })
 
         boards.forEach { (id, tile, notes) ->
             val byNavigator = state(id)["byNavigator"] == true

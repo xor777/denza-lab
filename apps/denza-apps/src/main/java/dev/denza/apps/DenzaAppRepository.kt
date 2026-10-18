@@ -147,7 +147,7 @@ data class DenzaUiState(
      */
     val hudMapEnabled: Boolean = false,
     /**
-     * «Яндекс HUD» is installed ([HudNavigatorBuild]): it sends the hints and the map to the HUD
+     * «YandexHUD» is installed ([HudNavigatorBuild]): it sends the hints and the map to the HUD
      * itself, and this app only the car's speed sign. The panel says so and greys the map.
      */
     val hudSentByNavigator: Boolean = false,

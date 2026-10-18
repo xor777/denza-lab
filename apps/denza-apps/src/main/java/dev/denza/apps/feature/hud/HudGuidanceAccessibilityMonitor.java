@@ -44,7 +44,7 @@ public final class HudGuidanceAccessibilityMonitor {
     private HudGuidance lastGuidance;
     private HudVehiclePose latestPose;
     private boolean lastArActive;
-    /** «Яндекс HUD» is installed: it writes the HUD itself, and only the car's sign is sent here. */
+    /** «YandexHUD» is installed: it writes the HUD itself, and only the car's sign is sent here. */
     private boolean navigatorDrawsHud;
     private boolean routeHeld;
 
@@ -178,7 +178,7 @@ public final class HudGuidanceAccessibilityMonitor {
             routeHeld = false;
             speedLimit.setTarget(null);
             // The map's black frame before the road clear, while the session still holds. Neither
-            // goes without a session, so with «Яндекс HUD» nothing reaches its HUD from here.
+            // goes without a session, so with «YandexHUD» nothing reaches its HUD from here.
             mapRunner.pause(isMapOurs());
             someIpClient.clear();
             lastGuidance = null;
@@ -215,7 +215,7 @@ public final class HudGuidanceAccessibilityMonitor {
     }
 
     /**
-     * Which Navigator is installed ({@link HudNavigatorBuild}). «Яндекс HUD» sends the hints, the
+     * Which Navigator is installed ({@link HudNavigatorBuild}). «YandexHUD» sends the hints, the
      * AR and the map itself, so nothing goes to the HUD from here and the AR needs no position;
      * the car's own speed sign stays. Read on a switch and once a route: swapping the two builds
      * means reinstalling Yandex, which ends its route.
@@ -224,7 +224,7 @@ public final class HudGuidanceAccessibilityMonitor {
         boolean draws = HudNavigatorBuild.INSTANCE.drawsHud(service);
         if (draws != navigatorDrawsHud) {
             Log.i(TAG, draws
-                    ? "Яндекс HUD sends to the HUD itself; only the car's speed sign goes from here"
+                    ? "YandexHUD sends to the HUD itself; only the car's speed sign goes from here"
                     : "ordinary Yandex; the hints go to the HUD from here");
         }
         navigatorDrawsHud = draws;

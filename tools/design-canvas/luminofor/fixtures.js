@@ -449,7 +449,7 @@
     ]
   }, { tile: 'HUD', hud: true, map: true });
 
-  // «Яндекс HUD» installed: it sends the hints and the map itself. The first switch is named for
+  // «YandexHUD» installed: it sends the hints and the map itself. The first switch is named for
   // what is left to it, the car's own sign; the map is off and grey though its stored value is on,
   // and the paragraph says why
   sheets.hudNavigator = sheetOf(4, {
@@ -457,7 +457,7 @@
     blocks: [
       { t: 'switch', title: 'Знак ограничения скорости', on: true },
       { t: 'switch', title: 'Карта на проекции', on: false, enabled: false },
-      { t: 'note', text: 'Установлен Яндекс HUD: подсказки и карту на лобовое стекло он выводит сам. Приложение передаёт только ограничение скорости — штатному знаку машины на приборах и проекции.' }
+      { t: 'note', text: 'Установлен YandexHUD: подсказки и карту на лобовое стекло он выводит сам. Приложение передаёт только ограничение скорости — штатному знаку машины на приборах и проекции.' }
     ]
   }, { tile: 'HUD', hud: true, map: true, byNavigator: true });
 
