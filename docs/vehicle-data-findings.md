@@ -33,7 +33,7 @@ Updated 2026-10-18. Which vehicle signals Denza Apps can read on this head unit,
 | Washer fluid level: no FID, name or CAN bit identified; `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` (`0x3D90201E`) is probably throttle cleaning, and its `0` proves nothing | open | 2026-09-23 | [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23) |
 | N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | N9 CAN coverage: GB/YUN add 72 address tuples without table writes. Expanded present/empty/refilled cycle saved: 68,432 / 68,296 / 66,613 messages, all 199 common tuples covered without loss. Of 223 separated bits, 49 reverse; 43 contradict older controls, and 6 extra-tuple bits overlap numeric range/consumption/insulation/SOC descriptors. No washer mapping is established; 3 intermittent refill tuples also occurred in older normal/empty captures | live three-state cycle, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
-| DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (precise ECU identity unresolved); LBMS `762→76A` zero/support09. Other ECUs untested. Native service diagnostics adds readable DTC summaries, qualified reference meanings, all eight status bits and a dated candidate inventory; 43 scalar and 15 lamp GETs refresh every5 s and expire at15 s. Lamp0 means invalid, not off; captured engine lamp on. Fourteen updated emulator views match their boards; new APK not installed on car | live reader; code window; emulator validation | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18) |
+| DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (stock tester and its 96-case function map: left body domain `LA_BCM`; OTA map's CDC/ZCU rows unexplained; BYD labels status28 «历史故障»); LBMS `762→76A` zero/support09. Other ECUs untested. Native service diagnostics adds readable DTC summaries, qualified reference meanings, all eight status bits and a dated candidate inventory; 43 scalar and 15 lamp GETs refresh every5 s and expire at15 s. Lamp0 means invalid, not off; captured engine lamp on. Fourteen updated emulator views match their boards; new APK not installed on car | live reader; code window; emulator validation | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18); [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18) |
 | Head-unit cache: 225 ECU candidates/version records, including ECM UAES, BMS033, drives and ESP/IPB; 49 contain only defaults/negative markers. Both approved exports completed/closed ports; map keys, upgradeInfo and EOL task were absent. A separately captured stock `getEcuList` response yields eight complete routing records; none covers the requested powertrain/ABS targets. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. Exact target addresses/OEM dictionaries remain missing | live partial map; firmware routing; coverage open | 2026-10-18 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Stock response and alternate paths](#stock-response-prefix-and-alternate-paths-2026-10-18) |
 | Stock Update is unsuitable for diagnosis-only use. The third isolated session validated local inputs, completed TLS and received HTTP 200, then refused response headers; application auth and ECU map remain unverified. Cleanup passed. Overlapping host lifetimes with the ADS log reader exposed reuse of its working directory; our reader now refuses reuse, qualified offline. No further session is authorized | live HTTP-header refusal; cross-reader coordination still required | 2026-10-18 | [Bounded observation and isolated metadata](#bounded-observation-and-isolated-metadata-2026-10-18) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
@@ -574,7 +574,7 @@ flags or placeholders. A product widget polls only the rows below.
 | HV | Charge power | `0x32300018` | 1009 | 7 | 2.4 | kW |
 | HV | Charge current | `0x44400018` | 1009 | 7 | −4.4 | A; sign not proven |
 | HV | Engine/pack power | `0x14400020` | 1012 | 5 | −2 | kW |
-| HV | Insulation | `0x43A00018` | 1039 | 5 | 13051 | unit unproved; restored to diagnostics as **raw**, not kΩ, on 2026-10-18 |
+| HV | Insulation | `0x43A00018` | 1039 | 5 | 13051 | unit unproved; restored to diagnostics as **raw**, not kΩ, on 2026-10-18. The FID is `GB_BMC_INSULATION_VALUE`, a GB/T 32960 field (0–60000 kΩ): kΩ is likely — see [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18) |
 | 12V | Voltage | `0x43400028` | 1001 | 7 | 13.8 | V (energy twin `0x36D00020` / 1006) |
 | Range | Remaining EV range | `0x4A50203E` | 1014 | 5 | 67 | km |
 | Trip | Odometer | `0x4A502010` | 1014 | 5 | 118927 | km ×10 |
@@ -2201,6 +2201,52 @@ Independent review found and fixed the unconditional ABS-code reference;
 regressions cover unread, empty, other-code and other-format snapshots.
 Final pinned debug APK SHA-256:
 `3a063fa375d106c9806ba70de3bcebe921d8f4c33a1fb2ae654577ce03c57d8d`.
+
+### Plain-language inputs: reporting module, status labels, insulation (2026-10-18)
+
+Collected for a plain-Russian diagnostic screen. Read-only corpus and web work;
+nothing was sent to the car.
+
+**What `720 → 728` does.** The installed SpotInspection's
+`res/raw/low_power_script.json` attaches `reqCanId` 1824 / `rspCanId` 1832
+(`0x720` / `0x728`, CAN-FD 500k/2M) as `LA_BCM`, 左车身域控制器, the left body
+domain controller. The stock spot-check script
+`assets/pl_gcy_uds_-script-20240821.json` (vehicle not stated) sends 96 cases to
+`0x720`, grouped by its own system names: windows 8, locks/anti-theft 4,
+handles 4, child lock 2, flaps 2, seat adjustment 16, seat heating/ventilation 8,
+seat lights 4, charge-port light 6, lights 6, ambient 4, backlight 12, mirrors 6,
+steering column 8, wipers/washers 4, horn 2. `0x747` gets 47 cases of the same
+kinds plus the sunshade/sunroof (the right domain), `0x726` the tailgate,
+`0x770`/`0x771` seat lights. The OTA route map's `CDC_BYD_*` and
+`R_ZCU_BYD_00200001` rows at `720/728` stand as listed and «CDC» remains
+unexpanded; the function map makes «левый блок кузова» the working name for
+the screen. U0229 (heated steering wheel) fits a module that owns the steering
+column, but that is still not a BYD definition. Status: firmware.
+
+**BYD's own status labels.** The same script's `dtcStatusList` gives mask 8 =
+历史故障 (historical) and mask 9 = 当前故障 (current), for `LA_BCM` and LBMS
+alike. `MatchUtils` takes the largest mask fully contained in the status byte,
+so `0x28` reads «历史故障». The stock tool prints codes without a dash
+(`C116006`, `MatchUtils.java:430`), the same conversion as ours. With mask FF,
+bits 0, 1 and 6 at zero mean the test ran this operation cycle and passed:
+«сейчас в норме». LBMS's mask `0x09` supports only bits 0 and 3, so its zero
+records cannot say whether its tests ran this cycle.
+
+**Code ownership.** SAE J2012 leaves B1/B2 and C1/C2 to each manufacturer:
+another make's B2148 or C1160 says nothing about BYD. No public SAE meaning was
+found for U022A; older generic lists mark U022A–U022F reserved. No BYD
+dictionary for the eight codes exists in `captures/` or `reverse/`; the only
+`dtcList` is the `0x123456` radar placeholder already noted above.
+
+**Insulation.** `0x43A00018` on device 1039 is `GB_BMC_INSULATION_VALUE`
+(CAN-FD branch, `BYDAutoFeatureIds.java:27189`). «GB» is the GB/T 32960
+national telemetry set, which encodes insulation resistance as 0–60000 kΩ in
+1 kΩ steps, `0xFFFE` abnormal and `0xFFFF` invalid
+([GB/T 32960.3-2016](https://openstd.samr.gov.cn/bzgk/std/newGbInfo?hcno=674DE45C0AD3DE2CD75B9C4CD8ED57C1)).
+If this field follows it, 13051 / 14128 are 13.1 / 14.1 MΩ. Likely, not
+proven on this car. The product's accepted range 0..65534 would pass `0xFFFE`
+as a value. A second field, `GB_INSULATION_VALUE` `0x26200010`, is unread.
+Status: firmware.
 
 ## Consumption journal
 
