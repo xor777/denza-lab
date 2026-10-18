@@ -15,8 +15,6 @@ import java.util.Map;
  * this process does not hold.
  */
 final class HudWire {
-    static final long ROAD = HudProtocol.TOPIC_ROAD, MAP = HudProtocol.TOPIC_MAP;
-
     private HudWire() { }
 
     static byte[] road(boolean active) { return road(active, null, null); }

@@ -88,11 +88,37 @@ has not been changed by these build/test tools. Detailed evidence belongs to
 
 ## Transport
 
-`HudTransport` and `HudWire` write through the wire Denza Apps uses too,
-[`libraries/hud-link`](../../libraries/hud-link/src/main/java/dev/denza/hudlink/) (`HudSomeIp`,
-`HudMessage`, `HudProtocol`); the builder compiles its sources into the module dex, and its
-plain-Java part into the host tests. `ArTest` holds the whole road snapshot byte for byte.
-It binds explicitly to `com.ts.car.someip.service` with the caller's package as
+The module is a source of [`libraries/hud-link`](../../libraries/hud-link/src/main/java/dev/denza/hudlink/)
+([architecture](../../docs/hud-output-architecture.md), 4–6); the builder compiles all of it
+into the module dex, and its plain-Java part (scene, placement table, road packet) into the host
+tests. Each output frame `HudModule` publishes into a `HudLink` on the output worker
+(`ModuleFields`): the painter's PNG — the black static one included — as the map window's only
+layer, whole and opaque, so it reaches the HUD as painted; and the road fields by role. MANEUVER
+(3/4, 8/9/10/28, 26/27) and LANES (5 and 7, or the explicit 5 = 0) go with every frame of an
+active route, MANEUVER even when empty: the module's route opens navigation by itself, as it
+always did. ROAD_LIMIT (11) and AR (19–33) go when there is a limit and a fresh AR frame and are
+withdrawn otherwise. Everything lives 1.5 s (`HudScene.LAYER_TTL_MS`), so a module that stops
+publishing leaves the glass after 1.5 s. No route, a failed output and a failed frame withdraw
+everything. The compositor writes the fields back in the module's old order (`HudRoadPacket`):
+`ModuleTest` and `ArTest` (its `FULL_ROAD` golden comes from the encoder before the move) hold the
+bytes, and `HudWire` composes them on the same path.
+
+Hosted through Denza Apps or drawing by itself — `HudLink` decides, the module does not know:
+
+- At the first publish, and every 5 s while there is no host, it binds Denza Apps' host
+  service (`HudHostProtocol`; the manifest's package query for `dev.denza.apps` lets Android
+  11+ see it). While that binding is under way nothing is written, for at most 1 s.
+- Attached: the frame's calls go to Denza Apps as one one-way batch per worker turn, and Denza
+  Apps alone writes the HUD; the module opens no SOME/IP session. If the module's process dies,
+  Denza Apps drops what it published.
+- No host — Denza Apps missing, without the service, refusing the module, silent for 1 s, or
+  gone mid-route: the module writes itself at once through its own `HudOutput`, the same
+  compositor and session policy Denza Apps uses, with everything still alive.
+- Handover never writes twice and never clears: when Denza Apps attaches (the next try, ≤5 s),
+  the module's own session stops and unbinds without the clear, and the host gets the whole
+  picture in one batch. Whether the glass needs a black frame there is a live check.
+
+The own session binds explicitly to `com.ts.car.someip.service` with the caller's package as
 intent type and `ts.car.someip.sdk.ISomeIpServerInterface` as Binder descriptor.
 Transactions 4/5 start/stop service `3097367205183488`; transaction 6 sends the
 exact handle/topic/instance/length/byte-array layout. Topic `1127042368241665`
@@ -125,14 +151,23 @@ of polyline length already covered. A compact or inactive snapshot omits **all**
 AR fields. The HUD renders the animation itself; the map PNG does not carry it.
 No Navigation Fusion setting or other persistent car property is written.
 
-A connection generation rejects late callbacks. Binding has a three-second
-retry deadline; failures retry after one second. Reconnection uses the next
-fresh frame. If rendering stops providing frames for 1.5 seconds, the output
-worker clears the slot. Normal shutdown sends black PNG + inactive road three
-times at 120 ms intervals, then stops/unbinds at 350 ms. As with any in-process
-watchdog, this cannot send a clear after process death or while the Binder
-thread is blocked; receiver-side expiry and kill/restart behavior still need
-car acceptance.
+The own session follows `HudSession`: a connection generation rejects late
+callbacks; a binding that has not started in 3 s, a refused bind, a lost service
+and a failed send drop the binding and retry after 1 s. A changed road packet goes
+at once, at most four times a second, else every 500 ms; a new map frame at most
+12 times a second, the same frame again every second. When everything has died or
+been withdrawn, the clear — black PNG + inactive road (5 = 0) three times at 120 ms
+— then stop/unbind at 350 ms. As with any in-process watchdog, this cannot send a
+clear after process death or while the Binder thread is blocked; receiver-side
+expiry and kill/restart behavior still need car acceptance.
+
+Logs, tag `DenzaYandexHud`, one line per event and none per frame: `HUD through
+the host` / `HUD by itself: no host` / `HUD by itself: the host did not answer`
+(where the frames go; nothing when there is no host to bind at all), `host
+attached` and the host's failures (`host refused the source: N`, `host
+disconnected`, `host died`); the own session's `HUD bind=…`, `HUD start ret=…`,
+`transport started`, `transport <TROUBLE> …; retrying every 1000 ms` (once until it
+starts), `clearing HUD`, `HUD stop ret=…`, `transport stopped`.
 
 ## Build
 

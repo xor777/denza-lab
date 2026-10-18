@@ -3,9 +3,13 @@ package dev.denza.hud.probe;
 import android.app.*;
 import android.content.Context;
 import android.content.pm.PackageInfo;
-import android.graphics.Bitmap;
 import android.os.*;
 import android.util.Log;
+import dev.denza.hudlink.HudImage;
+import dev.denza.hudlink.HudLink;
+import dev.denza.hudlink.HudProtocol;
+import dev.denza.hudlink.HudSession;
+import dev.denza.hudlink.HudSource;
 import org.json.JSONObject;
 import java.io.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -69,7 +73,11 @@ public final class HudModule {
         Object guidance;
         HudMap map;
         HudPainter painter;
-        HudTransport transport;
+        /** The HUD through Denza Apps while it hosts the module, the module's own compositor otherwise. Worker only. */
+        HudLink link;
+        /** The last frame's PNG and its image, worker only: the same PNG again renews the frame without sending it anew. */
+        byte[] mapPng;
+        HudImage mapImage;
         StockHudArt stockArt;
         boolean busy, wasActive;
         String mode = "off", hintKey, outputKey = "", arFailure;
@@ -90,13 +98,8 @@ public final class HudModule {
             worker = new Handler(thread.getLooper());
             final JSONObject laneArt = theme.getJSONObject("laneArt");
             worker.post(() -> {
-                Bitmap bitmap = Bitmap.createBitmap(300, 180, Bitmap.Config.ARGB_8888);
-                bitmap.eraseColor(0xff000000);
-                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes);
-                bitmap.recycle();
                 stockArt = new StockHudArt(context.getAssets(), laneArt);
-                transport = new HudTransport(context, worker, bytes.toByteArray());
+                link = new HudLink(context, worker, TAG, new SessionLog());
             });
             MAIN.post(this::tick);
             Log.i(TAG, "YandexHUD ready: " + identity.versionName + " code=" + identity.versionCode);
@@ -125,7 +128,7 @@ public final class HudModule {
                 if (frame.active() != wasActive) {
                     wasActive = frame.active();
                     epoch.incrementAndGet();
-                    if (!wasActive) worker.post(() -> transport.clear());
+                    if (!wasActive) worker.post(this::clearOutput);
                 }
                 if (busy || now < nextAttempt) return;
                 if (!frame.active()) { releaseDrawing(); return; }
@@ -168,12 +171,13 @@ public final class HudModule {
                             byte[] icon = stockArt.manoeuvre(hint);
                             if (token != epoch.get()) return;
                             HudAr.Frame freshAr = ar != null && SystemClock.elapsedRealtime() <= ar.pose.expiresAt ? ar : null;
-                            transport.publish(png, HudWire.road(true, hint, icon, laneSymbols.length, lanes, freshAr));
+                            if (png != mapPng) { mapPng = png; mapImage = HudImage.png(png); }
+                            ModuleFields.publish(link, mapImage, ModuleFields.of(hint, icon, laneSymbols.length, lanes, freshAr));
                             emulator.frame(png, frame.mode, visible, frame.backgroundEnabled, frame.resumed, freshAr, arBuilds);
                         }
                     } catch (Throwable error) {
                         Log.e(TAG, "output failed", error);
-                        transport.clear();
+                        clearOutput();
                     } finally {
                         MAIN.post(() -> { busy = false; frames++; });
                     }
@@ -188,7 +192,7 @@ public final class HudModule {
             } catch (Throwable error) {
                 Log.e(TAG, "frame failed; clearing HUD", error);
                 epoch.incrementAndGet();
-                worker.post(() -> transport.clear());
+                worker.post(this::clearOutput);
                 if (!busy) releaseDrawing();
                 nextAttempt = now + 1000;
             } finally {
@@ -209,12 +213,48 @@ public final class HudModule {
                     + "s limit=" + hint.speedLimit + " raw=" + hint.limitValue + "/" + hint.limitText);
         }
 
+        /** Worker: no route, or the output failed. Everything the module published goes; with nothing left the HUD gets the clear. */
+        private void clearOutput() {
+            mapPng = null;
+            mapImage = null;
+            if (link != null) link.withdraw(HudSource.MODULE);
+        }
+
         private void releaseDrawing() {
             HudMap oldMap = map; HudPainter oldPainter = painter;
             map = null; painter = null;
             try { if (oldMap != null) oldMap.close(); }
             catch (Throwable error) { Log.w(TAG, "map release failed", error); }
             finally { if (oldPainter != null) oldPainter.close(); }
+        }
+    }
+
+    /**
+     * The module's own session, while it draws by itself: one line per event, never per frame; a
+     * trouble that repeats every retry is said once until the session starts or stops. The Binder
+     * side (bind, start and stop return codes) is logged by HudOutput under the same tag.
+     */
+    private static final class SessionLog implements HudSession.Listener {
+        private HudSession.Trouble said;
+        @Override public void onBinding() { }
+        @Override public void onStarted(int result) {
+            if (result != 0) return; // A failed start is onTrouble next.
+            said = null;
+            Log.i(TAG, "transport started");
+        }
+        @Override public void onFired(long topic, int result, boolean clearing) {
+            // A failed send of a frame is onTrouble; a failed clear is not retried, so it is said here.
+            if (clearing && result != 0) Log.w(TAG, (topic == HudProtocol.TOPIC_MAP ? "map" : "road") + " clear ret=" + result);
+        }
+        @Override public void onTrouble(HudSession.Trouble trouble, int result) {
+            if (trouble == said) return;
+            said = trouble;
+            Log.w(TAG, "transport " + trouble + (result != 0 ? " ret=" + result : "") + "; retrying every " + HudSession.RETRY_MS + " ms");
+        }
+        @Override public void onClearing() { Log.i(TAG, "clearing HUD"); }
+        @Override public void onStopped() {
+            said = null;
+            Log.i(TAG, "transport stopped");
         }
     }
 }
