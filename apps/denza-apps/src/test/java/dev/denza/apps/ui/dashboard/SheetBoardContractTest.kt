@@ -29,13 +29,13 @@ class SheetBoardContractTest {
                 Triple(id, tile, notes)
             }
         assertTrue("no panel board found", boards.any { it.second == TileId.HUD })
-        assertTrue("no board with «YandexHUD» installed", boards.any { state(it.first)["byNavigator"] == true })
 
         boards.forEach { (id, tile, notes) ->
-            val byNavigator = state(id)["byNavigator"] == true
+            // The HUD's paragraph comes with its panel's state, and is none in most of them.
+            val hud = if (tile == TileId.HUD) HudPanelBoardContractTest.panelOf(state(id)) else null
             assertEquals(
                 "$id draws a paragraph the app does not write",
-                listOf(helpOf(tile, hudSentByNavigator = byNavigator)),
+                listOf(helpOf(tile, hud)).filter { it.isNotBlank() },
                 notes,
             )
         }

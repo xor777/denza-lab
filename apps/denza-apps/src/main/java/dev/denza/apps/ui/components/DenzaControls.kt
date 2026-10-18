@@ -71,6 +71,28 @@ fun DenzaSwitchRow(
 }
 
 /**
+ * A setting that is on or off as one row of a [DenzaChoiceGroup] plate: [DenzaSwitchRow] without a
+ * plate of its own, the line under its title in the colour its [tone] deserves - the board's
+ * `group` of `switch` rows. The whole row toggles.
+ */
+@Composable
+fun DenzaSwitchLine(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    summary: String? = null,
+    enabled: Boolean = true,
+    tone: DenzaTileTone? = null,
+) {
+    Box(modifier.fillMaxWidth().clickable(enabled = enabled) { onCheckedChange(!checked) }) {
+        SheetRow(title = title, summary = summary, enabled = enabled, tone = tone) {
+            SheetSwitch(checked = checked, enabled = enabled)
+        }
+    }
+}
+
+/**
  * One row of a plate - a title, the line under it, and whatever stands at its end - at the board's
  * heights and baselines. Shared by the switch row and the choice row, so the two kinds of setting in
  * one column are one kind of line.

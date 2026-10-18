@@ -8,6 +8,9 @@ import dev.denza.apps.feature.adb.AdbRescueSnapshot
 import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import dev.denza.apps.feature.hud.HudCameraPlace
+import dev.denza.apps.feature.hud.HudNavigatorInstall
+import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.weather.WeatherSnapshot
 
@@ -155,14 +158,22 @@ internal data class SplitScreenReading(val snapshot: FeatureSnapshot) : SliceRea
 internal data class HudGuidanceReading(
     val snapshot: FeatureSnapshot,
     val mapEnabled: Boolean,
-    val sentByNavigator: Boolean = false,
+    val navigator: HudNavigatorInstall = HudNavigatorInstall.NONE,
+    val radar: HudRadarInstall = HudRadarInstall.NONE,
+    val signEnabled: Boolean = true,
+    val camerasEnabled: Boolean = true,
+    val cameraPlace: HudCameraPlace = HudCameraPlace.MAP,
 ) : SliceReading {
     override val slice get() = StateSlice.HUD_GUIDANCE
 
     override fun applyTo(state: DenzaUiState) = state.copy(
         hudGuidance = snapshot,
         hudMapEnabled = mapEnabled,
-        hudSentByNavigator = sentByNavigator,
+        hudNavigator = navigator,
+        hudRadar = radar,
+        hudSignEnabled = signEnabled,
+        hudCamerasEnabled = camerasEnabled,
+        hudCameraPlace = cameraPlace,
     )
 }
 

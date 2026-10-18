@@ -51,7 +51,8 @@ object HudHostGate {
         return admit(packages) { name -> signers(manager, name) }
     }
 
-    private fun signers(manager: PackageManager, name: String): Set<String> = try {
+    /** SHA-256 of each certificate [name] is signed with; empty when it is not installed. */
+    fun signers(manager: PackageManager, name: String): Set<String> = try {
         val info = manager.getPackageInfo(name, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo
         val signatures = when {
             info == null -> emptyArray()

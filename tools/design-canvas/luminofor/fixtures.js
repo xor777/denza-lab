@@ -438,28 +438,65 @@
     ]
   }, { tile: 'CLOUD', cloud: true, wifi: false });
 
-  // the hints and, under them, the map window beside the speed: both on, the paragraph naming
-  // the one condition the map has - Yandex open on the screen
-  sheets.hud = sheetOf(4, {
-    title: 'HUD Подсказки',
-    blocks: [
-      { t: 'switch', title: 'Подсказки на проекции', on: true },
-      { t: 'switch', title: 'Карта на проекции', on: true },
-      { t: 'note', text: 'Указания Яндекс Навигатора повторяются на проекции на лобовом стекле. «Карта на проекции» показывает рядом со скоростью карту вокруг машины, пока Яндекс открыт на экране.' }
-    ]
-  }, { tile: 'HUD', hud: true, map: true });
-
-  // «YandexHUD» installed: it sends the hints and the map itself. The first switch is named for
-  // what is left to it, the car's own sign; the map is off and grey though its stored value is on,
-  // and the paragraph says why
-  sheets.hudNavigator = sheetOf(4, {
-    title: 'HUD Подсказки',
-    blocks: [
-      { t: 'switch', title: 'Знак ограничения скорости', on: true },
-      { t: 'switch', title: 'Карта на проекции', on: false, enabled: false },
-      { t: 'note', text: 'Установлен YandexHUD: подсказки и карту на лобовое стекло он выводит сам. Приложение передаёт только ограничение скорости — штатному знаку машины на приборах и проекции.' }
-    ]
-  }, { tile: 'HUD', hud: true, map: true, byNavigator: true });
+  // «HUD Подсказки» (docs/hud-output-architecture.md, 12): the glass as it looks during a route,
+  // then one switch for each part of it, saying where it comes from. state carries what the panel
+  // is made of - what is installed and the switches - and HudPanelBoardContractTest holds every one
+  // of these boards to HudPanel.of(state).
+  const hudRow = (title, summary, on, enabled, tone) =>
+    Object.assign({ kind: 'switch', title, summary, on }, enabled === false ? { enabled } : {}, tone ? { tone } : {});
+  const hudPlace = (selected, enabled) => ({ t: 'section', label: 'Где показывать камеры',
+    body: Object.assign({ t: 'segmented', labels: ['Внизу карты', 'Под поворотом'], selected }, enabled === false ? { enabled } : {}) });
+  const hudSheet = (blocks, state) => sheetOf(4, { title: 'HUD Подсказки', subtitle: 'Так выглядит проекция во время маршрута', blocks },
+    Object.assign({ tile: 'HUD', hud: true, map: true, sign: true, cameras: true, place: 'MAP', navigator: 'YANDEX', radar: 'ADAPTED' }, state));
+  const YANDEX = 'Из Яндекс Навигатора', YHUD = 'Из YandexHUD', SELF = 'YandexHUD выводит сам';
+  // ordinary Yandex and HUD Speed with its adapter: everything on the glass, the cameras at the
+  // bottom of the map
+  sheets.hud = hudSheet([
+    { t: 'glass', turn: true, sign: true, map: true, cameras: 'MAP' },
+    { t: 'group', rows: [hudRow('Повороты', YANDEX, true), hudRow('Карта', YANDEX, true),
+      hudRow('Ограничение скорости', 'На знаке машины, из Яндекс Навигатора', true), hudRow('Камеры', 'Из HUD Speed', true)] },
+    hudPlace(0)
+  ], {});
+  // YandexHUD through this app's host, the cameras under the turn - which the navigator's own
+  // lanes take back while they show
+  sheets.hudYandexHud = hudSheet([
+    { t: 'glass', turn: true, sign: true, map: true, cameras: 'LANES' },
+    { t: 'group', rows: [hudRow('Повороты', YHUD, true), hudRow('Карта', YHUD, true),
+      hudRow('Ограничение скорости', 'На знаке машины, из YandexHUD', true), hudRow('Камеры', 'Из HUD Speed', true)] },
+    hudPlace(1),
+    { t: 'note', text: 'Когда навигатор показывает полосы, камеры на это время уходят вниз карты.' }
+  ], { navigator: 'YANDEX_HUD', place: 'LANES' });
+  // the ordinary HUD Speed from the store: said as it is, in the car's orange, no error
+  sheets.hudSpeedOfficial = hudSheet([
+    { t: 'glass', turn: true, sign: true, map: true, cameras: null },
+    { t: 'group', rows: [hudRow('Повороты', YHUD, true), hudRow('Карта', YHUD, true),
+      hudRow('Ограничение скорости', 'На знаке машины, из YandexHUD', true),
+      hudRow('Камеры', 'Этот HUD Speed показывает их только у себя на экране. Нужна сборка с адаптером', false, false, 'attention')] }
+  ], { navigator: 'YANDEX_HUD', radar: 'OFFICIAL' });
+  // no HUD Speed at all
+  sheets.hudNoSpeed = hudSheet([
+    { t: 'glass', turn: true, sign: true, map: true, cameras: null },
+    { t: 'group', rows: [hudRow('Повороты', YANDEX, true), hudRow('Карта', YANDEX, true),
+      hudRow('Ограничение скорости', 'На знаке машины, из Яндекс Навигатора', true),
+      hudRow('Камеры', 'Появятся, если поставить HUD Speed с адаптером', false, false)] }
+  ], { radar: 'NONE' });
+  // no navigator: the glass keeps the car's own speed, and every line says what it waits for
+  sheets.hudNoNavigator = hudSheet([
+    { t: 'glass', turn: false, sign: false, map: false, cameras: null },
+    { t: 'group', rows: [hudRow('Повороты', 'Появятся с Яндекс Навигатором или YandexHUD', true, false),
+      hudRow('Карта', 'Появится с Яндекс Навигатором или YandexHUD', true, false),
+      hudRow('Ограничение скорости', 'Появится с навигатором', true, false),
+      hudRow('Камеры', 'Из HUD Speed, во время маршрута в навигаторе', true, false)] },
+    hudPlace(0, false)
+  ], { navigator: 'NONE' });
+  // a YandexHUD built before the host draws the HUD itself: this app keeps the car's sign, and the
+  // sign's switch is the panel's one
+  sheets.hudYandexHudAlone = hudSheet([
+    { t: 'glass', turn: true, sign: true, map: true, cameras: null },
+    { t: 'group', rows: [hudRow('Повороты', SELF, true, false), hudRow('Карта', SELF, true, false),
+      hudRow('Ограничение скорости', 'На знаке машины, из YandexHUD', true),
+      hudRow('Камеры', 'Эта сборка YandexHUD не оставляет им места. В новой сборке они есть', false, false, 'attention')] }
+  ], { navigator: 'YANDEX_HUD_ALONE' });
 
   // board id -> [board, fixture]; px sizes are the displays' own
   root.LUMINOFOR_BOARDS = {
@@ -516,7 +553,11 @@
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],
     'one-sheet-cloud': [{ kind: 'sheet', mode: 'one' }, sheets.cloud],
     'sheet-hud':       [{ kind: 'sheet', mode: 'full' }, sheets.hud],
-    'sheet-hud-navigator': [{ kind: 'sheet', mode: 'full' }, sheets.hudNavigator],
+    'sheet-hud-yandexhud': [{ kind: 'sheet', mode: 'full' }, sheets.hudYandexHud],
+    'sheet-hud-speed-official': [{ kind: 'sheet', mode: 'full' }, sheets.hudSpeedOfficial],
+    'sheet-hud-no-speed': [{ kind: 'sheet', mode: 'full' }, sheets.hudNoSpeed],
+    'sheet-hud-no-navigator': [{ kind: 'sheet', mode: 'full' }, sheets.hudNoNavigator],
+    'sheet-hud-yandexhud-alone': [{ kind: 'sheet', mode: 'full' }, sheets.hudYandexHudAlone],
     'one-sheet-cluster':   [{ kind: 'sheet', mode: 'one' }, sheets.cluster],
     'one-sheet-cast-apps': [{ kind: 'sheet', mode: 'one' }, sheets.castApps],
     'digits':         [{ kind: 'digits' }, {}]

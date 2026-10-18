@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.hud;
 
+import dev.denza.apps.design.luminofor.LuminoforSpec;
 import dev.denza.hudlink.*;
 import dev.denza.hudlink.HudProtocol.Road;
 import org.junit.Test;
@@ -99,6 +100,19 @@ public class HudRadarSourceTest {
         HudComposition composed=scene.compose(now);
         assertNull(composed.winner(HudRole.LANES));
         assertEquals(HudRole.MAP_BADGE,layer(HudRadarSource.WARNING).role);
+    }
+    @Test public void theGlassInThePanelDrawsTheStripWhereTheHostPutsIt() {
+        // spec.json sheet.glass, which the HUD panel's picture is drawn from.
+        LuminoforSpec.Sheet.Glass glass=LuminoforSpec.Sheet.Glass.INSTANCE;
+        assertEquals(HudRadarPainter.TILE,(int) LuminoforSpec.Sheet.Glass.Warning.TILE);
+        assertEquals(HudRadarPainter.GAP,(int) LuminoforSpec.Sheet.Glass.Warning.GAP);
+        assertEquals(HudRadarPainter.MAX_WIDTH,(int) LuminoforSpec.Sheet.Glass.Warning.WIDTH);
+        assertEquals(HudRadarSource.MARGIN,(int) LuminoforSpec.Sheet.Glass.Warning.MARGIN);
+        assertEquals(HudRadarSource.gpsRect(),new HudRect((int) LuminoforSpec.Sheet.Glass.Gps.X,
+                (int) LuminoforSpec.Sheet.Glass.Gps.Y,HudRadarPainter.GPS,HudRadarPainter.GPS));
+        assertEquals(HudRadarPainter.GPS,(int) LuminoforSpec.Sheet.Glass.Gps.SIZE);
+        assertEquals(HudWindow.MAP.width,(int) glass.getMAP()[2]);
+        assertEquals(HudWindow.MAP.height,(int) glass.getMAP()[3]);
     }
     @Test public void radarDoesNotOpenAnUnverifiedStandaloneMode() {
         now=1000; radar.publish(warning(now),now,HudCameraPlace.MAP);

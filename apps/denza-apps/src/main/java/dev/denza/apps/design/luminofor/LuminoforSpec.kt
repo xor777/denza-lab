@@ -351,6 +351,92 @@ object LuminoforSpec {
             const val TEXT_SIZE: Float = 16f
             const val TEXT_ALPHA: Float = 0.7f
         }
+
+        /**
+         * The HUD panel's picture of the projection during a route: BYD's own layout (FSE BydHud,
+         * `layout/sz_vechicleCfg.json`) in its logical pixels, [VIEW] the part of it shown, scaled
+         * to the panel's width. A rectangle is x, y, width, height.
+         */
+        object Glass {
+            val VIEW = floatArrayOf(150f, 250f, 1030f, 262f)
+            const val RADIUS: Float = 12f
+            val TURN = floatArrayOf(219f, 360f, 44f, 44f)
+            val DISTANCE = floatArrayOf(269f, 361f, 109f, 50f)
+            val LANES = floatArrayOf(176f, 400f, 276f, 48f)
+            val SIGN = floatArrayOf(435f, 334f, 112f, 112f)
+            val SPEED = floatArrayOf(563f, 338f, 155f, 110f)
+            val UNIT = floatArrayOf(608f, 459f, 65f, 32f)
+            val MAP = floatArrayOf(850f, 269f, 300f, 180f)
+
+            /** The parts' names above the glass and below it. */
+            object Label {
+                const val SIZE: Float = 13f
+                const val ROOM: Float = 22f
+                const val ALPHA: Float = 0.9f
+                const val OFF_ALPHA: Float = 0.4f
+            }
+
+            /** The thin line from a name to its part, and the dot at its end. */
+            object Line {
+                const val COLOR: Int = 0xFF3388FF.toInt()
+                const val ALPHA: Float = 0.8f
+                const val OFF_ALPHA: Float = 0.35f
+                const val DOT: Float = 1.6f
+            }
+
+            /** The outline of a part that is off. */
+            object Dash {
+                const val LENGTH: Float = 3f
+                const val ALPHA: Float = 0.22f
+                const val RADIUS: Float = 3f
+            }
+
+            /** HUD Speed's strip in the map window, as `HudRadarPainter` and `HudRadarSource` place it. */
+            object Warning {
+                const val TILE: Float = 34f
+                const val GAP: Float = 4f
+                const val MARGIN: Float = 6f
+                const val WIDTH: Float = 124f
+            }
+
+            /** HUD Speed's GPS bars in the map window. */
+            object Gps {
+                const val X: Float = 272f
+                const val Y: Float = 152f
+                const val SIZE: Float = 22f
+            }
+
+            object Ink {
+                const val RED: Int = 0xFFFF2A2A.toInt()
+                const val DARK: Int = 0xFF111111.toInt()
+                const val ROUTE: Int = 0xFF22E06A.toInt()
+                const val ROAD: Int = 0xFFBEC4CC.toInt()
+                const val ROAD_ALPHA: Float = 0.55f
+                const val CURSOR: Int = 0xFFFF7A1A.toInt()
+                const val GPS: Int = 0xFF1FD1C1.toInt()
+            }
+
+            /** The illustration in the map window, in its 300 x 180 pixels. */
+            object Map {
+                /** x1, y1, x2, y2 each. */
+                val ROADS = listOf(
+                    floatArrayOf(0f, 70f, 300f, 52f), floatArrayOf(40f, 0f, 70f, 180f),
+                    floatArrayOf(230f, 0f, 260f, 180f), floatArrayOf(0f, 150f, 120f, 132f),
+                    floatArrayOf(190f, 120f, 300f, 112f),
+                )
+                const val ROAD_WIDTH: Float = 7f
+
+                /** A start, a line to, a quadratic's control and end, a line to. */
+                val ROUTE = floatArrayOf(150f, 180f, 150f, 110f, 150f, 62f, 190f, 58f, 300f, 50f)
+                const val ROUTE_WIDTH: Float = 10f
+
+                /** The cursor's corners. */
+                val CURSOR = floatArrayOf(150f, 118f, 166f, 162f, 150f, 152f, 134f, 162f)
+
+                /** The navigator's camera mark: x, y, radius. */
+                val MARK = floatArrayOf(214f, 30f, 15f)
+            }
+        }
     }
 
     object Head {

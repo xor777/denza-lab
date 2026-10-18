@@ -908,6 +908,124 @@
     words(c, b.text, x + w / 2, centred(y + h / 2, size), size, (primary || b.attention ? 1 : 0.9) * a, { w: 500, align: 'center', col: ink });
     return h;
   }
+  // The HUD panel's picture of the projection during a route (spec.sheet.glass): BYD's own layout
+  // scaled to the panel's width, black like the glass at night, each part named by a thin blue
+  // line above the glass or below it. A part that is off is an empty dashed outline; the car's own
+  // speed is always there. b: { turn, sign, map, cameras: 'MAP' | 'LANES' | null }.
+  const GL = SH.glass;
+  function glass(c, b, x, y, w) {
+    const V = GL.view, k = w / V[2], h = V[3] * k, gy = y + GL.label.room;
+    const R = r => [x + (r[0] - V[0]) * k, gy + (r[1] - V[1]) * k, r[2] * k, r[3] * k];
+    const RED = hexA(GL.ink.red, 1), DARK = [hex(GL.ink.dark), hex(GL.ink.dark)];
+    fillRound(c, x, gy, w, h, GL.radius, '#000000');
+    const dashed = r => over(c, () => {
+      c.setLineDash([GL.dash.length, GL.dash.length]); c.lineWidth = 1; c.strokeStyle = rgba([255, 255, 255], GL.dash.alpha);
+      c.beginPath(); c.roundRect(r[0] + 0.5, r[1] + 0.5, r[2] - 1, r[3] - 1, GL.dash.radius); c.stroke();
+    });
+    // the car's own speed
+    const sp = R(GL.rects.speed), un = R(GL.rects.unit);
+    words(c, '64', sp[0] + sp[2] / 2, sp[1] + sp[3] * 0.84, sp[3] * 0.78, 1, { w: 500, align: 'center' });
+    words(c, 'км/ч', un[0] + un[2] / 2, un[1] + un[3] * 0.72, un[3] * 0.72, 0.7, { align: 'center' });
+    const parts = [];
+    // the limit: the stock sign, white in a red ring
+    const sg = R(GL.rects.sign);
+    if (b.sign) {
+      const cx = sg[0] + sg[2] / 2, cy = sg[1] + sg[3] / 2, rr = sg[2] * 0.42;
+      over(c, () => {
+        c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(cx, cy, rr, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = RED; c.lineWidth = rr * 0.2; c.beginPath(); c.arc(cx, cy, rr * 0.9, 0, Math.PI * 2); c.stroke();
+      });
+      words(c, '60', cx, centred(cy, rr * 0.95), rr * 0.95, 1, { w: 500, align: 'center', col: DARK });
+    } else dashed(sg);
+    parts.push({ text: 'Ограничение', at: sg, up: true, on: !!b.sign });
+    // the turn: an arrow and the metres to it
+    const tn = R(GL.rects.turn), ds = R(GL.rects.distance), turnBox = [tn[0], tn[1], ds[0] + ds[2] - tn[0], ds[3]];
+    if (b.turn) {
+      over(c, () => {
+        c.strokeStyle = '#FFFFFF'; c.lineWidth = tn[2] * 0.14; c.lineCap = 'round'; c.lineJoin = 'round';
+        c.beginPath(); c.moveTo(tn[0] + tn[2] * 0.3, tn[1] + tn[3]); c.lineTo(tn[0] + tn[2] * 0.3, tn[1] + tn[3] * 0.38);
+        c.lineTo(tn[0] + tn[2] * 0.82, tn[1] + tn[3] * 0.38); c.stroke();
+        c.beginPath(); c.moveTo(tn[0] + tn[2] * 0.62, tn[1] + tn[3] * 0.16); c.lineTo(tn[0] + tn[2] * 0.86, tn[1] + tn[3] * 0.38);
+        c.lineTo(tn[0] + tn[2] * 0.62, tn[1] + tn[3] * 0.6); c.stroke();
+      });
+      words(c, '350 м', ds[0], centred(ds[1] + ds[3] * 0.42, ds[3] * 0.62), ds[3] * 0.62, 1, { w: 500 });
+    } else dashed(turnBox);
+    parts.push({ text: 'Поворот', at: turnBox, up: true, on: !!b.turn });
+    // the map window: an illustration of the navigator's map with one of its own marks
+    const mp = R(GL.rects.map), M = GL.map;
+    if (b.map) over(c, () => {
+      c.save(); c.beginPath(); c.roundRect(mp[0], mp[1], mp[2], mp[3], GL.dash.radius); c.clip();
+      const X = v => mp[0] + v * k, Y = v => mp[1] + v * k;
+      c.lineCap = 'round';
+      c.strokeStyle = hexA(GL.ink.road, GL.ink.roadAlpha); c.lineWidth = M.roadWidth * k;
+      M.roads.forEach(r => { c.beginPath(); c.moveTo(X(r[0]), Y(r[1])); c.lineTo(X(r[2]), Y(r[3])); c.stroke(); });
+      const q = M.route;
+      c.strokeStyle = GL.ink.route; c.lineWidth = M.routeWidth * k;
+      c.beginPath(); c.moveTo(X(q[0]), Y(q[1])); c.lineTo(X(q[2]), Y(q[3]));
+      c.quadraticCurveTo(X(q[4]), Y(q[5]), X(q[6]), Y(q[7])); c.lineTo(X(q[8]), Y(q[9])); c.stroke();
+      const m = M.mark;
+      c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(X(m[0]), Y(m[1]), m[2] * k, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = RED; c.lineWidth = m[2] * 0.23 * k; c.beginPath(); c.arc(X(m[0]), Y(m[1]), m[2] * 0.87 * k, 0, Math.PI * 2); c.stroke();
+      const u = M.cursor;
+      c.fillStyle = GL.ink.cursor; c.beginPath(); c.moveTo(X(u[0]), Y(u[1]));
+      for (let i = 2; i < u.length; i += 2) c.lineTo(X(u[i]), Y(u[i + 1]));
+      c.closePath(); c.fill();
+      c.restore();
+    });
+    if (b.map) {
+      const m = M.mark;
+      words(c, '60', mp[0] + m[0] * k, centred(mp[1] + m[1] * k, m[2] * 0.87 * k), m[2] * 0.87 * k, 1, { w: 500, align: 'center', col: DARK });
+    } else dashed(mp);
+    parts.push({ text: 'Карта', at: mp, up: true, on: !!b.map });
+    // HUD Speed: its tile, its frame with the limit and the metres, at the bottom of the map or in
+    // the lane window under the turn; its GPS bars bottom right while it runs
+    const W = GL.warning, t = W.tile * k, ln = R(GL.rects.lanes);
+    const strip = b.cameras === 'LANES'
+      ? [ln[0] + W.margin * k, ln[1] + ln[3] - t, W.width * k, t]
+      : [mp[0] + W.margin * k, mp[1] + mp[3] - (W.margin + W.tile) * k, W.width * k, t];
+    if (b.cameras) {
+      const g = W.gap * k;
+      [0, t + g].forEach((dx, i) => {
+        const x0 = strip[0] + dx, y0 = strip[1];
+        over(c, () => {
+          c.fillStyle = '#FFFFFF'; c.beginPath(); c.roundRect(x0, y0, t, t, t * 0.18); c.fill();
+          const lw = t * 0.09;
+          c.strokeStyle = RED; c.lineWidth = lw; c.beginPath(); c.roundRect(x0 + lw / 2, y0 + lw / 2, t - lw, t - lw, t * 0.18); c.stroke();
+          if (i === 0) {
+            c.fillStyle = GL.ink.dark;
+            c.fillRect(x0 + t * 0.22, y0 + t * 0.36, t * 0.56, t * 0.36);
+            c.fillRect(x0 + t * 0.38, y0 + t * 0.27, t * 0.22, t * 0.1);
+            c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(x0 + t * 0.5, y0 + t * 0.54, t * 0.11, 0, Math.PI * 2); c.fill();
+          }
+        });
+        if (i === 1) words(c, '60', x0 + t / 2, centred(y0 + t * 0.54, t * 0.5), t * 0.5, 1, { w: 500, align: 'center', col: DARK });
+      });
+      words(c, '350 м', strip[0] + 2 * (t + g) + g, centred(strip[1] + t * 0.54, t * 0.46), t * 0.46, 1, { w: 500 });
+      const G = GL.gps, s = G.size * k;
+      over(c, () => {
+        c.fillStyle = GL.ink.gps;
+        for (let i = 0; i < 4; i++) {
+          const bh = s * (0.3 + 0.7 * (i + 1) / 4);
+          c.fillRect(mp[0] + G.x * k + i * s * 0.26, mp[1] + G.y * k + s - bh, s * 0.18, bh);
+        }
+      });
+    } else dashed(strip);
+    parts.push({ text: 'Камеры', at: strip, up: false, on: !!b.cameras });
+    // each part named by a thin line, above the glass or below it
+    const L = GL.label, LN = GL.line;
+    parts.forEach(p => {
+      const cx = p.at[0] + p.at[2] / 2;
+      const from = p.up ? y + L.size + 4 : gy + h + 2, to = p.up ? p.at[1] - 2 : p.at[1] + p.at[3] + 2;
+      over(c, () => {
+        c.strokeStyle = hexA(LN.color, p.on ? LN.alpha : LN.offAlpha); c.lineWidth = 1;
+        c.beginPath(); c.moveTo(cx + 0.5, from); c.lineTo(cx + 0.5, to); c.stroke();
+        c.fillStyle = hexA(LN.color, p.on ? LN.alpha : LN.offAlpha); c.beginPath(); c.arc(cx + 0.5, to, LN.dot, 0, Math.PI * 2); c.fill();
+      });
+      const base = p.up ? y + L.size * RB.ascent : gy + h + L.room - L.size * RB.descent;
+      words(c, p.text, cx, base, L.size, p.on ? L.alpha : L.offAlpha, { w: 500, align: 'center' });
+    });
+    return L.room + h + L.room;
+  }
   let COMPACT = false;
   function block(c, b, x, y, w) {
     switch (b.t) {
@@ -943,6 +1061,7 @@
         });
         return yy - y;
       }
+      case 'glass': return glass(c, b, x, y, w);
       case 'note': return paragraph(c, b.text, x, y, w, SH.note.size, SH.note.leading, SH.note.alpha);
       case 'button': return button(c, b, x, y, w);
       case 'footnote':

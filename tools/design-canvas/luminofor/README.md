@@ -64,8 +64,12 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `main-car-neutral`, `-charging`, `-closed`, `one-car-closed` | «Батарея» in white; on the charger; the shell closed, at two widths |
 | `two-sound`, `two-car`, `one-sound`, `one-car` | the two-thirds and one-third panes |
 | `sheet-cluster`, `-mirrors`, `-simulcast`, `-speakers`, `-locale`, `-broken` | a tile's settings panel over the dashboard |
-| `sheet-hud` | the HUD panel: the hints and, under them, the map window beside the speed, both on |
-| `sheet-hud-navigator` | the same panel with «YandexHUD» installed: only the car's speed sign is left to the app, the map off and grey |
+| `sheet-hud` | the HUD panel: the glass during a route (the `glass` block), then «Повороты», «Карта», «Ограничение скорости», «Камеры» from ordinary Yandex and HUD Speed with its adapter, the cameras at the bottom of the map |
+| `sheet-hud-yandexhud` | the same with YandexHUD through the host, the cameras under the turn and the sentence on real lanes |
+| `sheet-hud-speed-official` | HUD Speed from the store: «Камеры» off, said in orange |
+| `sheet-hud-no-speed` | no HUD Speed: «Камеры» off, grey |
+| `sheet-hud-no-navigator` | no Yandex: only the speed on the glass, every line saying what it waits for |
+| `sheet-hud-yandexhud-alone` | a YandexHUD built before the host: it draws turns and map itself, the sign is the one switch |
 | `sheet-cast-apps`, `sheet-defaults` | a panel's page of applications, the default-apps panel |
 | `sheet-service`, `sheet-service-trouble`, `sheet-service-access`, `one-sheet-service-trouble` | the service panel on a healthy car, with two features needing somebody (wide and in the one-third pane), and with no access to the car |
 | `sheet-service-screen`, `sheet-service-technical` | the service's two pages: the instruments' screen, and the technical report with the cloud first |
@@ -102,6 +106,7 @@ Which Kotlin draws what a board function draws (paths under
 | `drawHead`: the strip's sound page, `trackBlock`, `spectrumField`, `reading`, `dots` | `TripPanelRenderer`, `SpectrumRenderer`, `StripInk`, `StripGeometry`, `StripModel` (`feature/trip/`) |
 | `drawHead`: the car page, `carChart`, `tempsRow`, `closedPage` | `VehiclePageRenderer` (`feature/trip/`) |
 | `drawSheet`: rows, `toggle`, `segmented`, `apps`, `button` | `DenzaSheet` and `SheetInk` (`ui/components/`); each tile's panel is in `ui/dashboard/FeatureSheets.kt` |
+| `drawSheet`: `glass`, the HUD panel's picture of the projection | `HudGlassPicture` (`ui/dashboard/`), what it lights from `HudPanel` |
 | `drawModal` | `DenzaModalDialog` (`ui/components/DenzaSurfaces.kt`) |
 | `spec.json` | `LuminoforSpec` (`design/luminofor/`), held to it by `LuminoforSpecContractTest` |
 

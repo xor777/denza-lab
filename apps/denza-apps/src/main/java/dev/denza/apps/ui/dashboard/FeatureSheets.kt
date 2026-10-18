@@ -18,6 +18,7 @@ import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.speaker.SpeakerCoverApps
 import dev.denza.apps.ui.FSE_INSTALL_HELP
@@ -39,6 +40,7 @@ import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.components.DenzaSheetFootnote
 import dev.denza.apps.ui.components.DenzaStatusLine
+import dev.denza.apps.ui.components.DenzaSwitchLine
 import dev.denza.apps.ui.components.DenzaSwitchRow
 
 /**
@@ -152,10 +154,11 @@ fun FeatureSheet(
             }
             return@DenzaSheet
         }
-        // No subtitle. The panel says what it is at the bottom, in a sentence, once.
+        // No subtitle. The panel says what it is at the bottom, in a sentence, once - except the
+        // HUD's, whose first thing is a picture, and the subtitle says what the picture is.
         DenzaSheetHeader(
             title = tile.name,
-            subtitle = "",
+            subtitle = if (id == TileId.HUD) HudPanel.SUBTITLE else "",
             onDismiss = onDismiss,
             glyph = tileGlyph(tile.icon),
         )
@@ -185,7 +188,7 @@ fun FeatureSheet(
         // посреди экрана. Ошибки живут в «Сервисе», и туда же эта строка уже попадает; на
         // центральной панели после действия есть состояние функции и объяснение, что она делает,
         // и третьего быть не должно (U5).
-        DenzaNote(helpOf(id, hudSentByNavigator = state.hudSentByNavigator))
+        helpOf(id, hudPanelOf(state, busy)).takeIf { it.isNotBlank() }?.let { DenzaNote(it) }
     }
 }
 
@@ -222,10 +225,10 @@ internal fun panelStatus(tile: DashboardTile, message: String): String = when (t
  * Short, present tense, no instructions the screen already gives. The `sheet-*` boards draw the
  * same paragraph, and `SheetBoardContractTest` holds the two together.
  *
- * The HUD has a second paragraph, for «YandexHUD» installed ([DenzaUiState.hudSentByNavigator]):
- * it is the one place that says why the map is grey and what is left for the switch to do.
+ * The HUD's panel explains itself with its picture of the glass and the lines of its switches, so
+ * its paragraph is [HudPanel.note]: one sentence when the cameras stand under the turn, else none.
  */
-internal fun helpOf(id: TileId, hudSentByNavigator: Boolean = false): String = when (id) {
+internal fun helpOf(id: TileId, hud: HudPanel? = null): String = when (id) {
     TileId.CLUSTER ->
         "На приборную панель за рулём встаёт что-то одно: приборы или любое приложение " +
             "с машины. Короткое нажатие на плитку ставит его туда и убирает обратно."
@@ -238,15 +241,7 @@ internal fun helpOf(id: TileId, hudSentByNavigator: Boolean = false): String = w
     TileId.SPLIT ->
         "При включении на рабочем столе появляется значок разделения экрана. " +
             "Он открывает выбор двух приложений, которые встанут рядом."
-    TileId.HUD if hudSentByNavigator ->
-        "Установлен YandexHUD: подсказки и карту на лобовое стекло он выводит сам. " +
-            "Приложение передаёт только ограничение скорости — штатному знаку машины " +
-            "на приборах и проекции."
-    // The tile says «Нет навигатора» when it is missing; this is where the navigator is named.
-    TileId.HUD ->
-        "Указания Яндекс Навигатора повторяются на проекции на лобовом стекле. " +
-            "«Карта на проекции» показывает рядом со скоростью карту вокруг машины, " +
-            "пока Яндекс открыт на экране."
+    TileId.HUD -> hud?.note.orEmpty()
     TileId.WEATHER ->
         "Приложение забирает прогноз и отдаёт его штатному виджету погоды. " +
             "Своей погоды оно не рисует — виджет остаётся штатным."
@@ -487,39 +482,56 @@ private fun splitSheet(state: DenzaUiState, actions: DashboardActions, busy: Boo
 }
 
 /**
- * The hints on the projection, and the map window beside the speed under them.
+ * The glass as it looks during a route, then one switch for each part of it ([HudPanel]).
  *
- * The map rides on the hints: the HUD shows its window only beside a road packet that says a route
- * is on, and the hints are what send it. So the second switch greys while the first is off or still
- * settling, and keeps its own position - the tile's press moves the hints and never the map. Yandex
- * hidden or covered is a state of the map, not a failure of it, and nothing here speaks of it.
- *
- * With «YandexHUD» installed the navigator sends the hints and the map itself, and what the first
- * switch still does here is the car's own speed sign, so it is named for that; the map is off and
- * grey whatever its stored value, which comes back with the ordinary Yandex.
+ * «Повороты» is the feature's own switch, the one the tile's press moves: the rest stand on it and
+ * grey while it is off or settling, each keeping its own value. With YandexHUD the host lets
+ * through what these say and nothing else ([HudGuidanceSettings]); a YandexHUD that draws the HUD
+ * itself leaves this app the car's sign alone, and its switch is the panel's one.
  */
 @Composable
 private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
-    DenzaSwitchRow(
-        title = if (state.hudSentByNavigator) "Знак ограничения скорости" else "Подсказки на проекции",
-        checked = state.hudGuidance.desiredEnabled,
-        onCheckedChange = actions.onToggleHudGuidance,
-        enabled = !busy,
-    )
-    DenzaSwitchRow(
-        title = "Карта на проекции",
-        checked = state.hudMapEnabled && !state.hudSentByNavigator,
-        onCheckedChange = actions.onSetHudMapEnabled,
-        enabled = hudMapSwitchEnabled(state, busy),
-    )
+    val panel = hudPanelOf(state, busy)
+    HudGlassPicture(panel.glass)
+    DenzaChoiceGroup(panel.rows) { row ->
+        val onChange: (Boolean) -> Unit = when (row.id) {
+            HudPanelRow.Id.TURNS -> actions.onToggleHudGuidance
+            HudPanelRow.Id.MAP -> actions.onSetHudMapEnabled
+            HudPanelRow.Id.SIGN -> actions.onSetHudSignEnabled
+            HudPanelRow.Id.CAMERAS -> actions.onSetHudCamerasEnabled
+        }
+        DenzaSwitchLine(
+            title = row.title,
+            checked = row.checked,
+            onCheckedChange = onChange,
+            summary = row.summary,
+            enabled = row.enabled,
+            tone = row.tone,
+        )
+    }
+    panel.place?.let { place ->
+        DenzaSection(HudPanel.PLACE_LABEL) {
+            DenzaSegmentedRow(
+                labels = HudPanel.PLACES,
+                selectedIndex = place.ordinal,
+                onSelect = { index -> actions.onSetHudCameraPlace(HudCameraPlace.entries[index]) },
+                enabled = panel.placeEnabled,
+            )
+        }
+    }
 }
 
-/**
- * Whether «Карта на проекции» can be moved: only with the hints on and settled, and never while
- * «YandexHUD» sends its own map.
- */
-internal fun hudMapSwitchEnabled(state: DenzaUiState, busy: Boolean): Boolean =
-    state.hudGuidance.desiredEnabled && !busy && !state.hudSentByNavigator
+/** The HUD panel for [state]: what is installed and the switches. */
+internal fun hudPanelOf(state: DenzaUiState, busy: Boolean): HudPanel = HudPanel.of(
+    navigator = state.hudNavigator,
+    radar = state.hudRadar,
+    hints = state.hudGuidance.desiredEnabled,
+    map = state.hudMapEnabled,
+    sign = state.hudSignEnabled,
+    cameras = state.hudCamerasEnabled,
+    place = state.hudCameraPlace,
+    busy = busy,
+)
 
 /**
  * Whether the app keeps feeding the car's own weather widget, and when it last did.

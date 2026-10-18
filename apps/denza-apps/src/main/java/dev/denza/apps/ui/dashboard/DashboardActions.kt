@@ -7,6 +7,7 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
+import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 
 /**
@@ -74,8 +75,17 @@ interface DenzaActions {
     // «HUD Подсказки»
     val onToggleHudGuidance: (Boolean) -> Unit
 
-    /** The map window beside the speed, the panel's second switch; the tile never moves it. */
+    /** The map window beside the speed; the tile never moves it. */
     val onSetHudMapEnabled: (Boolean) -> Unit
+
+    /** «Ограничение скорости»: field 11 and the car's own sign. */
+    val onSetHudSignEnabled: (Boolean) -> Unit
+
+    /** «Камеры»: HUD Speed's warnings on the projection. */
+    val onSetHudCamerasEnabled: (Boolean) -> Unit
+
+    /** «Где показывать камеры». */
+    val onSetHudCameraPlace: (HudCameraPlace) -> Unit
 
     // «Динамики»
     val onToggleSpeakerCovers: (Boolean) -> Unit
@@ -157,6 +167,9 @@ open class IdleActions : DenzaActions {
     override val onSetWeatherEnabled: (Boolean) -> Unit = {}
     override val onToggleHudGuidance: (Boolean) -> Unit = {}
     override val onSetHudMapEnabled: (Boolean) -> Unit = {}
+    override val onSetHudSignEnabled: (Boolean) -> Unit = {}
+    override val onSetHudCamerasEnabled: (Boolean) -> Unit = {}
+    override val onSetHudCameraPlace: (HudCameraPlace) -> Unit = {}
     override val onToggleSpeakerCovers: (Boolean) -> Unit = {}
     override val onRaiseSpeakerCovers: () -> Unit = {}
     override val onToggleCloudLink: (Boolean) -> Unit = {}

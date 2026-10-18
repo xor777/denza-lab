@@ -34,13 +34,16 @@ import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.fse.FseInstallRuntime
 import dev.denza.apps.feature.fse.FseInstallState
+import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.hud.HudGuidanceRider
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudGuidanceStatus
+import dev.denza.apps.feature.hud.HudHostRuntime
+import dev.denza.apps.feature.hud.HudInstalls
 import dev.denza.apps.feature.hud.HudMapGrant
 import dev.denza.apps.feature.hud.HudMapGrantTrigger
-import dev.denza.apps.feature.hud.HudNavigatorBuild
+import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudNotificationAccess
 import dev.denza.apps.feature.cloud.CloudLinkController
 import dev.denza.apps.feature.cloud.CloudLinkRuntime
@@ -48,6 +51,7 @@ import dev.denza.apps.feature.cloud.CloudLinkService
 import dev.denza.apps.feature.cloud.CloudLinkSettings
 import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cloud.CloudNetwork
+import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.feature.locale.SystemLanguageFeature
 import dev.denza.apps.feature.locale.SystemLanguageSnapshot
 import dev.denza.apps.feature.media.MediaKeyRider
@@ -146,11 +150,16 @@ data class DenzaUiState(
      * do. The map runs only while the hints hold a route, so the panel greys it with them off.
      */
     val hudMapEnabled: Boolean = false,
-    /**
-     * «YandexHUD» is installed ([HudNavigatorBuild]): it sends the hints and the map to the HUD
-     * itself, and this app only the car's speed sign. The panel says so and greys the map.
-     */
-    val hudSentByNavigator: Boolean = false,
+    /** Which Yandex Navigator is installed ([HudInstalls]): the HUD panel's lines say it. */
+    val hudNavigator: HudNavigatorInstall = HudNavigatorInstall.NONE,
+    /** Which HUD Speed is installed: the «Камеры» line. */
+    val hudRadar: HudRadarInstall = HudRadarInstall.NONE,
+    /** «Ограничение скорости»: field 11 and the car's own sign. */
+    val hudSignEnabled: Boolean = true,
+    /** «Камеры»: HUD Speed's warnings on the projection. */
+    val hudCamerasEnabled: Boolean = true,
+    /** «Где показывать камеры». */
+    val hudCameraPlace: HudCameraPlace = HudCameraPlace.MAP,
     val speakerCovers: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPEAKER_COVERS),
     /**
      * A cover report on the wire, for the second «Поднять» is greyed.
@@ -500,7 +509,11 @@ object DenzaAppRepository {
         StateSlice.HUD_GUIDANCE -> HudGuidanceReading(
             snapshot = evaluateHudGuidance(context),
             mapEnabled = HudGuidanceSettings.isMapEnabled(context),
-            sentByNavigator = HudNavigatorBuild.drawsHud(context),
+            navigator = HudInstalls.navigator(context),
+            radar = HudInstalls.radar(context),
+            signEnabled = HudGuidanceSettings.isSignEnabled(context),
+            camerasEnabled = HudGuidanceSettings.areCamerasEnabled(context),
+            cameraPlace = HudGuidanceSettings.cameraPlace(context),
         )
         StateSlice.SPEAKER_COVERS -> SpeakerCoversReading(
             snapshot = SpeakerCoverStatus.snapshot(
@@ -780,6 +793,7 @@ object DenzaAppRepository {
         val context = appContext ?: return
         HudGuidanceSettings.setEnabled(context, enabled)
         HudGuidanceRider.requestRefresh()
+        HudHostRuntime.settingsChanged(context)
         // The map rides on the hints: off releases its screen capture, on asks for it if the map
         // is on - the panel or the tile is on screen, so our Activity can ask.
         HudMapGrant.evaluate(context, HudMapGrantTrigger.SWITCH)
@@ -830,9 +844,42 @@ object DenzaAppRepository {
         val context = appContext ?: return
         HudGuidanceSettings.setMapEnabled(context, enabled)
         HudGuidanceRider.requestRefresh()
+        HudHostRuntime.settingsChanged(context)
         // On asks for the screen capture while the panel is open; off releases it at once.
         HudMapGrant.evaluate(context, HudMapGrantTrigger.SWITCH)
         invalidate(StateSlice.HUD_GUIDANCE, "hud map switch")
+    }
+
+    /**
+     * «Ограничение скорости»: the host lets every source's limit through or none, and the car's
+     * sign follows. With a YandexHUD that draws the HUD itself it is the panel's one switch, so
+     * turning it on turns the feature on too; everywhere else it is greyed while the feature is off.
+     */
+    fun setHudSignEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        HudGuidanceSettings.setSignEnabled(context, enabled)
+        if (enabled && !HudGuidanceSettings.isEnabled(context)) {
+            setHudGuidanceEnabled(true)
+            return
+        }
+        HudHostRuntime.settingsChanged(context)
+        invalidate(StateSlice.HUD_GUIDANCE, "hud sign switch")
+    }
+
+    /** «Камеры»: HUD Speed's warnings through the host, or none. */
+    fun setHudCamerasEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        HudGuidanceSettings.setCamerasEnabled(context, enabled)
+        HudHostRuntime.settingsChanged(context)
+        invalidate(StateSlice.HUD_GUIDANCE, "hud cameras switch")
+    }
+
+    /** «Где показывать камеры»: takes effect with HUD Speed's next observation, within a second. */
+    fun setHudCameraPlace(place: HudCameraPlace) {
+        val context = appContext ?: return
+        HudGuidanceSettings.setCameraPlace(context, place)
+        HudHostRuntime.settingsChanged(context)
+        invalidate(StateSlice.HUD_GUIDANCE, "hud camera place")
     }
 
     /**

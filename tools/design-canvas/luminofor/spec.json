@@ -148,7 +148,27 @@
     "status": { "size": 15, "leading": 1.466667 },
     "button": { "height": 56, "radius": 12, "primary": "#296DCC", "disabledAlpha": 0.5, "size": 18, "secondaryAlpha": 0.06, "secondaryHeight": 48, "secondarySize": 16 },
     "footnote": { "size": 14, "alpha": 0.4, "gap": 12 },
-    "modal": { "width": 560, "radius": 18, "pad": 28, "gap": 18, "icon": 32, "iconGap": 16, "titleSize": 24, "compactTitleSize": 20, "textSize": 16, "textAlpha": 0.7 }
+    "modal": { "width": 560, "radius": 18, "pad": 28, "gap": 18, "icon": 32, "iconGap": 16, "titleSize": 24, "compactTitleSize": 20, "textSize": 16, "textAlpha": 0.7 },
+    "glass": {
+      "_note": "The HUD panel's picture of the projection during a route (docs/hud-output-architecture.md, 12). Rectangles are BYD's own layout in its logical pixels - FSE BydHud assets/resources/layout/sz_vechicleCfg.json - and view is the part of that scene the picture shows, scaled to the panel's width. Each part is named by a thin line above the glass or below it; a part that is off is an empty dashed outline. warning and gps are HUD Speed's strip and bars as Denza Apps paints them in the 300 x 180 map window (HudRadarPainter, HudRadarSource); map is the illustration in that window.",
+      "view": [150, 250, 1030, 262],
+      "radius": 12,
+      "rects": { "turn": [219, 360, 44, 44], "distance": [269, 361, 109, 50], "lanes": [176, 400, 276, 48], "sign": [435, 334, 112, 112], "speed": [563, 338, 155, 110], "unit": [608, 459, 65, 32], "map": [850, 269, 300, 180] },
+      "label": { "size": 13, "room": 22, "alpha": 0.9, "offAlpha": 0.4 },
+      "line": { "color": "#3388FF", "alpha": 0.8, "offAlpha": 0.35, "dot": 1.6 },
+      "dash": { "length": 3, "alpha": 0.22, "radius": 3 },
+      "warning": { "tile": 34, "gap": 4, "margin": 6, "width": 124 },
+      "gps": { "x": 272, "y": 152, "size": 22 },
+      "ink": { "red": "#FF2A2A", "dark": "#111111", "route": "#22E06A", "road": "#BEC4CC", "roadAlpha": 0.55, "cursor": "#FF7A1A", "gps": "#1FD1C1" },
+      "map": {
+        "roads": [[0, 70, 300, 52], [40, 0, 70, 180], [230, 0, 260, 180], [0, 150, 120, 132], [190, 120, 300, 112]],
+        "roadWidth": 7,
+        "route": [150, 180, 150, 110, 150, 62, 190, 58, 300, 50],
+        "routeWidth": 10,
+        "cursor": [150, 118, 166, 162, 150, 152, 134, 162],
+        "mark": [214, 30, 15]
+      }
+    }
   },
   "head": {
     "full": {

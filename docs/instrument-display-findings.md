@@ -2949,14 +2949,21 @@ about this app and works without it.
 - **What stops.** With the HUD build the monitor sends nothing and starts no
   session, so its clears and black frames reach nothing. The map runner stays
   off, `HudMapGrant` asks for no screen capture (`HudGuidanceSettings.isMapOurs`)
-  and the AR position source is stopped. The hints panel, the trip panel's
-  remaining figures and `HudNativeSpeedLimit` keep reading Yandex's screen as
-  before.
-- **What the driver sees.** In the HUD panel the first switch is named
+  and the AR position source is stopped. The hints panel and the trip panel's
+  remaining figures keep reading Yandex's screen as before. *Changed
+  2026-10-18:* the speed sign no longer reads it on its own - only Yandex's
+  limit is published into the compositor, and the car's sign follows the
+  compositor's limit, the module's first
+  ([hud-output-architecture.md](hud-output-architecture.md#hud-out-stages), stage 5).
+- **What the driver sees.** ~~In the HUD panel the first switch is named
   «Знак ограничения скорости». The map switch is off and grey, its stored value
   kept for the ordinary Yandex. The paragraph says the HUD build sends the
-  hints and the map itself (board `sheet-hud-navigator`). «Сервис» shows the
-  row «Навигатор».
+  hints and the map itself (board `sheet-hud-navigator`).~~ *Replaced
+  2026-10-18:* the panel shows the glass and four switches whose lines say
+  «Из YandexHUD»; with a hosted YandexHUD the switches decide what the host
+  lets through ([hud-output-architecture.md](hud-output-architecture.md#hud-out-panel),
+  boards `sheet-hud-yandexhud`, `sheet-hud-yandexhud-alone`). «Сервис» shows
+  the row «Навигатор».
 
 **Live check, still to do.** With the HUD build and this app's hints on, start
 a route and confirm: only one map and one manoeuvre on the glass, the log line

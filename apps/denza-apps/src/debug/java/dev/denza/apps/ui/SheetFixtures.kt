@@ -23,6 +23,9 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
+import dev.denza.apps.feature.hud.HudCameraPlace
+import dev.denza.apps.feature.hud.HudNavigatorInstall
+import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.ui.dashboard.DashboardActions
 import dev.denza.apps.ui.dashboard.IdleActions
@@ -200,7 +203,11 @@ internal object SheetFixtures {
             state = state.copy(
                 hudGuidance = snapshot(FeatureId.HUD_GUIDANCE, s.getBoolean("hud"), s),
                 hudMapEnabled = s.optBoolean("map", false),
-                hudSentByNavigator = s.optBoolean("byNavigator", false),
+                hudNavigator = HudNavigatorInstall.valueOf(s.optString("navigator", "YANDEX")),
+                hudRadar = HudRadarInstall.valueOf(s.optString("radar", "NONE")),
+                hudSignEnabled = s.optBoolean("sign", true),
+                hudCamerasEnabled = s.optBoolean("cameras", true),
+                hudCameraPlace = HudCameraPlace.valueOf(s.optString("place", "MAP")),
             )
         }
         if (s.has("speakers")) {

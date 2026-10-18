@@ -6,6 +6,7 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.Digits
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.design.luminofor.LuminoforSpec.HeadInk
 import dev.denza.apps.design.luminofor.LuminoforSpec.Light
+import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet.Glass as GlassSpec
 import dev.denza.apps.design.luminofor.SpecJson.list
 import dev.denza.apps.design.luminofor.SpecJson.num
 import dev.denza.apps.design.luminofor.SpecJson.str
@@ -328,5 +329,41 @@ class LuminoforSpecContractTest {
         n(m.ICON, "sheet", "modal", "icon"); n(m.ICON_GAP, "sheet", "modal", "iconGap")
         n(m.GAP, "sheet", "modal", "gap"); n(m.TITLE_SIZE, "sheet", "modal", "titleSize"); n(m.TEXT_SIZE, "sheet", "modal", "textSize")
         n(m.TEXT_ALPHA, "sheet", "modal", "textAlpha"); n(m.COMPACT_TITLE_SIZE, "sheet", "modal", "compactTitleSize")
+    }
+
+    @Test
+    fun theHudPanelsGlass() {
+        fun nums(actual: FloatArray, vararg path: String) =
+            assertEquals(path.joinToString("."), list(*path).map { (it as Number).toFloat() }, actual.toList())
+        nums(GlassSpec.VIEW, "sheet", "glass", "view")
+        n(GlassSpec.RADIUS, "sheet", "glass", "radius")
+        listOf("turn" to GlassSpec.TURN, "distance" to GlassSpec.DISTANCE, "lanes" to GlassSpec.LANES, "sign" to GlassSpec.SIGN,
+            "speed" to GlassSpec.SPEED, "unit" to GlassSpec.UNIT, "map" to GlassSpec.MAP).forEach { (name, rect) ->
+            nums(rect, "sheet", "glass", "rects", name)
+        }
+        n(GlassSpec.Label.SIZE, "sheet", "glass", "label", "size"); n(GlassSpec.Label.ROOM, "sheet", "glass", "label", "room")
+        n(GlassSpec.Label.ALPHA, "sheet", "glass", "label", "alpha"); n(GlassSpec.Label.OFF_ALPHA, "sheet", "glass", "label", "offAlpha")
+        assertEquals(hex(str("sheet", "glass", "line", "color")), GlassSpec.Line.COLOR)
+        n(GlassSpec.Line.ALPHA, "sheet", "glass", "line", "alpha"); n(GlassSpec.Line.OFF_ALPHA, "sheet", "glass", "line", "offAlpha")
+        n(GlassSpec.Line.DOT, "sheet", "glass", "line", "dot")
+        n(GlassSpec.Dash.LENGTH, "sheet", "glass", "dash", "length"); n(GlassSpec.Dash.ALPHA, "sheet", "glass", "dash", "alpha")
+        n(GlassSpec.Dash.RADIUS, "sheet", "glass", "dash", "radius")
+        n(GlassSpec.Warning.TILE, "sheet", "glass", "warning", "tile"); n(GlassSpec.Warning.GAP, "sheet", "glass", "warning", "gap")
+        n(GlassSpec.Warning.MARGIN, "sheet", "glass", "warning", "margin"); n(GlassSpec.Warning.WIDTH, "sheet", "glass", "warning", "width")
+        n(GlassSpec.Gps.X, "sheet", "glass", "gps", "x"); n(GlassSpec.Gps.Y, "sheet", "glass", "gps", "y"); n(GlassSpec.Gps.SIZE, "sheet", "glass", "gps", "size")
+        assertEquals(hex(str("sheet", "glass", "ink", "red")), GlassSpec.Ink.RED)
+        assertEquals(hex(str("sheet", "glass", "ink", "dark")), GlassSpec.Ink.DARK)
+        assertEquals(hex(str("sheet", "glass", "ink", "route")), GlassSpec.Ink.ROUTE)
+        assertEquals(hex(str("sheet", "glass", "ink", "road")), GlassSpec.Ink.ROAD)
+        n(GlassSpec.Ink.ROAD_ALPHA, "sheet", "glass", "ink", "roadAlpha")
+        assertEquals(hex(str("sheet", "glass", "ink", "cursor")), GlassSpec.Ink.CURSOR)
+        assertEquals(hex(str("sheet", "glass", "ink", "gps")), GlassSpec.Ink.GPS)
+        assertEquals(list("sheet", "glass", "map", "roads").map { r -> (r as List<*>).map { (it as Number).toFloat() } },
+            GlassSpec.Map.ROADS.map { it.toList() })
+        n(GlassSpec.Map.ROAD_WIDTH, "sheet", "glass", "map", "roadWidth")
+        nums(GlassSpec.Map.ROUTE, "sheet", "glass", "map", "route")
+        n(GlassSpec.Map.ROUTE_WIDTH, "sheet", "glass", "map", "routeWidth")
+        nums(GlassSpec.Map.CURSOR, "sheet", "glass", "map", "cursor")
+        nums(GlassSpec.Map.MARK, "sheet", "glass", "map", "mark")
     }
 }
