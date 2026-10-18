@@ -87,7 +87,10 @@ def main():
     android = sdk / 'platforms/android-35/android.jar'
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
+    # The HUD wire shared with Denza Apps; its plain-Java part runs in the host tests too.
+    link = ROOT / 'libraries/hud-link/src/main/java'
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
+         link/'dev/denza/hudlink/HudMessage.java', link/'dev/denza/hudlink/HudProtocol.java',
          package/'HudWire.java', package/'Reflect.java', package/'NavigatorSource.java', package/'StockHudSymbols.java',
          package/'HudAr.java', package/'HudArSource.java',
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
@@ -99,7 +102,7 @@ def main():
         if 'assets/denza-hud/stock/' + name + '.png' not in artwork:
             raise RuntimeError('Missing mapped stock artwork: ' + name)
     classes = args.out / 'module-classes'; classes.mkdir()
-    sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java'))
+    sources = sorted((ROOT / 'experiments/yandex-hud-module/src/main/java').rglob('*.java')) + sorted(link.rglob('*.java'))
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-classpath', android, '-d', classes, *sources])
     run([java/'bin/jar', 'cf', args.out/'module.jar', '-C', classes, '.'])
     dex = args.out/'module-dex'; dex.mkdir()

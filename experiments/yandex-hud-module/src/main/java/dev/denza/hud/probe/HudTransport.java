@@ -4,6 +4,8 @@ import android.content.*;
 import android.os.*;
 import android.util.Log;
 
+import dev.denza.hudlink.HudSomeIp;
+
 /** Worker-thread-owned Binder session. Latest frames expire; reconnect never replays an old map. */
 final class HudTransport {
     private static final String TAG = "DenzaYandexHud";
@@ -91,7 +93,7 @@ final class HudTransport {
                 worker.post(() -> {
                     if (token != generation || !desired) return;
                     binder = service;
-                    started = transact(4, HudWire.SERVICE, null) == 0;
+                    started = counted(HudSomeIp.start(binder, TAG)) == 0;
                     if (started) {
                         Log.i(TAG, "transport started");
                         if (!fire(HudWire.ROAD, road)) recover();
@@ -106,32 +108,18 @@ final class HudTransport {
         };
         connection = next;
         bindingSince = now;
-        Intent intent = new Intent("com.ts.car.someip.SomeIpServerService")
-                .setComponent(new ComponentName("com.ts.car.someip.service", "com.ts.car.someip.service.manager.SomeIpServerService"))
-                .setType(context.getPackageName());
+        Intent intent = HudSomeIp.bindIntent(context.getPackageName());
         try {
             if (!context.bindService(intent, next, Context.BIND_AUTO_CREATE)) recover();
         } catch (RuntimeException error) { Log.w(TAG, "HUD bind failed", error); recover(); }
     }
 
-    private boolean fire(long topic, byte[] payload) { return transact(6, topic, payload) == 0; }
+    private boolean fire(long topic, byte[] payload) { return counted(HudSomeIp.fire(binder, topic, payload, TAG)) == 0; }
 
-    private int transact(int code, long id, byte[] payload) {
-        if (binder == null) return -100;
-        Parcel data = Parcel.obtain(), reply = Parcel.obtain();
-        try {
-            data.writeInterfaceToken(HudWire.DESCRIPTOR);
-            if (code == 6) {
-                data.writeInt(1); data.writeLong(id); data.writeLong(0);
-                data.writeInt(payload.length); data.writeByteArray(payload);
-            } else data.writeLong(id);
-            if (!binder.transact(code, data, reply, 0)) return -201;
-            reply.readException();
-            int result = reply.readInt();
-            if (result != 0) failures++;
-            return result;
-        } catch (RuntimeException | RemoteException error) { failures++; Log.w(TAG, "HUD transaction failed", error); return -200; }
-        finally { data.recycle(); reply.recycle(); }
+    /** A refused or failed call counts; no binder yet and an unhandled code do not, as before :hud-link. */
+    private int counted(int result) {
+        if (result != 0 && result != HudSomeIp.NO_BINDER && result != HudSomeIp.NOT_HANDLED) failures++;
+        return result;
     }
 
     private void recover() {
@@ -143,7 +131,7 @@ final class HudTransport {
 
     private void disconnect(boolean stop) {
         ++generation;
-        if (stop && started) transact(5, HudWire.SERVICE, null);
+        if (stop && started) counted(HudSomeIp.stop(binder, TAG));
         started = false;
         binder = null;
         ServiceConnection previous = connection;
