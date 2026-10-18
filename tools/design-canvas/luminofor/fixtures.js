@@ -264,6 +264,7 @@
   const svcMore = (restore, tone) => ({ t: 'group', rows: [
     { kind: 'choice', title: 'Диагностика автомобиля', summary: 'Системы, показания и коды неисправностей' },
     { kind: 'choice', title: 'Восстановление ADB', summary: restore, tone },
+    { kind: 'choice', title: 'Мобильный интернет', summary: 'Штатный контроль трафика' },
     { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },
     { kind: 'choice', title: 'Технические сведения', summary: 'Версия, прошивка, состояние функций' }
   ] });
@@ -356,7 +357,26 @@
       { t: 'section', label: 'Последняя перезагрузка', body: { t: 'group', rows: rows.map(([title, value]) => ({ kind: 'pair', title, value })) } }
     ]
   }, Object.assign({}, svcState, { page: 'restore', adbRestore }));
+  const mobilePage = (state, error, busy = false, result) => sheetOf(11, {
+    title: 'Мобильный интернет', back: true,
+    blocks: [
+      { t: 'group', rows: [{ title: 'Штатный контроль трафика',
+        summary: busy ? (['ENABLED', 'DISABLED'].includes(state) ? 'Выполняем команду…' : 'Проверяем состояние…')
+          : state === 'ENABLED' ? 'Монитор включён' : state === 'DISABLED' ? 'Монитор отключён'
+          : state === 'ABSENT' ? 'Недоступен на этой прошивке' : 'Не удалось проверить' }] },
+      ...(['ENABLED', 'DISABLED'].includes(state) ? [{ t: 'button', kind: 'secondary',
+        text: 'Отключить', enabled: state === 'ENABLED' && !busy }] : []),
+      ...(state === 'UNKNOWN' && !busy ? [{ t: 'button', kind: 'secondary', text: 'Проверить состояние' }] : []),
+      ...(error ? [{ t: 'status', text: error, tone: 'broken' }] : result ? [{ t: 'status', text: result }] : [])
+    ]
+  }, Object.assign({}, svcState, { page: 'mobile', trafficMonitor: { state, error, busy, result } }));
   const service = {
+    mobile: mobilePage('ENABLED'),
+    mobileOff: mobilePage('DISABLED', undefined, false, 'Отключение подтверждено'),
+    mobileUnknown: mobilePage('UNKNOWN'),
+    mobileAbsent: mobilePage('ABSENT'),
+    mobileFailed: mobilePage('ENABLED', 'Не удалось отключить монитор'),
+    mobileBusy: mobilePage('ENABLED', undefined, true),
     restore: restorePage('Доступ есть, восстанавливать не нужно',
       [['Когда', 'сегодня, 08:10'], ['Доступ после неё', 'был сразу'], ['Восстановление', 'не понадобилось']]),
     restored: restorePage('Доступ есть: после перезагрузки его вернуло приложение',
@@ -1240,6 +1260,14 @@
     'sheet-service-restore':  [{ kind: 'sheet', mode: 'full' }, service.restore],
     'sheet-service-restored': [{ kind: 'sheet', mode: 'full' }, service.restored],
     'sheet-service-restore-wifi': [{ kind: 'sheet', mode: 'full' }, service.restoreWifi],
+    'sheet-service-mobile': [{ kind: 'sheet', mode: 'full' }, service.mobile],
+    'sheet-service-mobile-off': [{ kind: 'sheet', mode: 'full' }, service.mobileOff],
+    'sheet-service-mobile-unknown': [{ kind: 'sheet', mode: 'full' }, service.mobileUnknown],
+    'sheet-service-mobile-absent': [{ kind: 'sheet', mode: 'full' }, service.mobileAbsent],
+    'sheet-service-mobile-failed': [{ kind: 'sheet', mode: 'full' }, service.mobileFailed],
+    'sheet-service-mobile-busy': [{ kind: 'sheet', mode: 'full' }, service.mobileBusy],
+    'one-sheet-service-mobile': [{ kind: 'sheet', mode: 'one' }, service.mobile],
+    'one-sheet-service-mobile-off': [{ kind: 'sheet', mode: 'one' }, service.mobileOff],
     'one-sheet-service-restore': [{ kind: 'sheet', mode: 'one' }, service.restored],
     'sheet-service-technical': [{ kind: 'sheet', mode: 'full' }, service.tech],
     'sheet-service-split':   [{ kind: 'sheet', mode: 'full' }, service.split],

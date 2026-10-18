@@ -30,6 +30,8 @@ import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.feature.mirrors.MirrorsPosition
+import dev.denza.apps.feature.network.TrafficMonitorSnapshot
+import dev.denza.apps.feature.network.TrafficMonitorState
 import dev.denza.apps.ui.dashboard.DashboardActions
 import dev.denza.apps.ui.dashboard.IdleActions
 import dev.denza.apps.ui.dashboard.DefaultAppsSheet
@@ -68,6 +70,7 @@ internal object SheetFixtures {
                     "technical" -> ServicePage.TECHNICAL
                     "journal" -> ServicePage.JOURNAL
                     "restore" -> ServicePage.RESTORE
+                    "mobile" -> ServicePage.MOBILE_INTERNET
                     else -> ServicePage.MAIN
                 },
                 // The board's `scroll: 'end'`: the page at the end of its scroll, where the report's
@@ -75,6 +78,14 @@ internal object SheetFixtures {
                 firstPageAtEnd = s.optString("scroll") == "end",
                 version = "Denza Apps ${s.getString("version")} · сборка ${s.getInt("build")}",
                 nowMs = { RestoreClock.at(s.optJSONObject("adbRestore")?.optString("now", RestoreClock.NOW) ?: RestoreClock.NOW) },
+                trafficMonitorFixture = s.optJSONObject("trafficMonitor")?.let { traffic ->
+                    TrafficMonitorSnapshot(
+                        state = TrafficMonitorState.valueOf(traffic.getString("state")),
+                        busy = traffic.optBoolean("busy"),
+                        error = traffic.optString("error").takeIf { it.isNotBlank() && it != "null" },
+                        result = traffic.optString("result").takeIf { it.isNotBlank() && it != "null" },
+                    )
+                } ?: TrafficMonitorSnapshot(),
             )
             return
         }

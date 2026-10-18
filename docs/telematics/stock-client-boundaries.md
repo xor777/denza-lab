@@ -1,12 +1,29 @@
-# Stock-client boundaries: sleep, Wi-Fi retention, incoming commands
+# Stock-client boundaries: sleep, Wi-Fi retention, traffic policy, incoming commands
 
 Part of [Telematics findings](README.md). Moved verbatim from `docs/telematics-findings.md` on 2026-10-03; "above" and "below" in the text refer to that file's order (see [Pages](README.md#pages)).
+
+## Current state
+
+Updated 2026-10-18. Stock network and sleep policy; observations below retain their original dates.
+
+| Claim | Status | Since | Section |
+| --- | --- | --- | --- |
+| The IVI `TrafficMonitor` can block ordinary internet when its calculated remaining allowance reaches zero, through network whitelist rules and persisted state; it is an Android package, not code on the SIM | firmware | 2026-10-18 | [TrafficMonitor](#trafficmonitor-and-the-disable-user-recipe-2026-10-18) |
+| `pm disable-user` changes the package's enabled state; it does not call the monitor's unblock/reset methods. Immediate removal of an existing block, speed improvement and behavior on another firmware are untested | firmware | 2026-10-18 | [TrafficMonitor](#trafficmonitor-and-the-disable-user-recipe-2026-10-18) |
+| APN2 is ordinary user data; the stock display-off policy can clean it up after 3 seconds without a DATA_CONTROL hold. That is independent of traffic allowance and carrier registration | firmware | 2026-09-23 | [Cellular retention](#cellular-data-retention-during-acc-off-2026-09-23) |
+| «Сервис → Мобильный интернет» reads the stock monitor's effective package state and offers one disable action with readback and an explicit result; no startup enforcement or counter/network reset | code | 2026-10-18 | [Service control](#service-control-for-the-stock-traffic-monitor-2026-10-18) |
+
+**Open questions**
+- Whether TrafficMonitor currently blocks this car: settle with a read-only package, property, network-policy and bounded log snapshot. No car connection was made for the 2026-10-18 analysis.
+- Whether disabling it removes a pre-existing block on this build: requires a separately authorized, controlled before/after test; neither process death nor reboot is established here as an unblock procedure.
 
 ## Contents
 
 - [Stock-client reuse, sleep and incoming commands: current boundaries](#stock-client-reuse-sleep-and-incoming-commands-current-boundaries)
   - [QuickBoot, Wi-Fi retention and recovery, 2026-09-23](#quickboot-wi-fi-retention-and-recovery-2026-09-23)
   - [Cellular data retention during ACC-off, 2026-09-23](#cellular-data-retention-during-acc-off-2026-09-23)
+- [TrafficMonitor and the disable-user recipe, 2026-10-18](#trafficmonitor-and-the-disable-user-recipe-2026-10-18)
+- [Service control for the stock traffic monitor, 2026-10-18](#service-control-for-the-stock-traffic-monitor-2026-10-18)
 
 ## Stock-client reuse, sleep and incoming commands: current boundaries
 
@@ -344,3 +361,130 @@ parked interval have not been measured.
 Evidence: `captures/telematics-20260923/sleep-wake/cellular-retention/` retains
 the filtered live snapshot, source identities and checksums. No modem, data,
 roaming, APN-profile or power setting was changed during this investigation.
+
+## TrafficMonitor and the disable-user recipe, 2026-10-18
+
+**The local blocker exists; the command is package disabling, not a traffic-counter reset.**
+This is static evidence from IVI OTA `34.1.33.2605218.1`, not a live acceptance result.
+The proposed command was inspected, not executed:
+
+```sh
+adb shell pm disable-user --user 0 com.byd.trafficmonitor
+```
+
+The corpus initially indexed only the partition-listing entry. The APK was then copied from
+`/system/priv-app/TrafficMonitor/TrafficMonitor.apk` to the canonical build directory and
+decompiled with resources. Identity: version `1.5.1.1.2604270842.302d55e`, versionCode
+`10501001`, 8,628,862 bytes, SHA-256
+`d0ab28395747c2994239860b0caa9c3f90d128eaf196a926340b803bb5a7f866`.
+Manifest: package `com.byd.trafficmonitor`, shared UID `android.uid.system`, persistent app,
+`MANAGE_NETWORK_POLICY` and `MODIFY_PHONE_STATE`. This is software on the head unit.
+
+Source root:
+`captures/firmware/ivi-34.1.33.2605218.1/jadx/TrafficMonitor/`.
+The following line numbers refer to
+`sources/com/byd/trafficmonitor/common/TrafficMonitorService.java`:
+
+- `calculateFlow` (`:4519–4539`) calculates `total - used - todayUsed`. When the result
+  is `<= 0`, subject to its override/already-applied flags, it calls
+  `forbidAccessInternet(true)`. The field names say `LessThan5M`, but this branch tests
+  **zero**, not 5 MB. No fixed universal GB allowance or elapsed-time cutoff follows from it.
+- `forbidAccessInternet` (`:4542–4628`) enables network whitelist rules, allows selected
+  system UIDs, writes `sys.apn3.control=apn2disable` for the quota path and
+  `persist.sys.apn2.state=false`, can disable hotspot NAT, notifies registered system apps,
+  disables the remote-camera traffic switch and updates package-permission rows.
+  This inspected mechanism blocks access; it is not a demonstrated bandwidth-rate throttle.
+- `cancelForbidAccessInternet` (`:4651–4674`) explicitly reverses the whitelist mode,
+  restores hotspot NAT when applicable, sets `persist.sys.apn2.state=true`, notifies
+  system apps and restores the camera/package flags. `onDestroy` (`:5330–5355`) only
+  unregisters listeners/receivers; it does not call this method.
+- `dealMessageFromServer` (`:3524–3552`) can allow or forbid access from a server field,
+  and separately invoke a counter reset. `onFailure` (`:3647–3686`) falls back to saved
+  allowance/usage and `/collect2/totalStats.txt`; `onCreate` (`:1691–1701`) reloads counters.
+  A local SIM's carrier allowance need not equal this cached vendor accounting. A mismatch
+  causing a real-car outage is a hypothesis, not observed in this investigation.
+- The service also controls per-app restrictions and a separate hotspot quota
+  (`:1391–1403`, `:4443–4453`); disabling the whole package affects those functions too.
+
+The matching OTA's `services.jar` decompile is
+`captures/split-firmware-20260923/jadx/services/sources/`.
+`com/android/server/NetworkManagementService.java:1359–1379` delegates the whitelist mode
+to netd (`bandwidthEnableHappyBox` / `bandwidthDisableHappyBox`) and retains `mWhiteList`
+in system_server. It is not a rule owned only by the TrafficMonitor process.
+`com/android/server/pm/PackageManagerShellCommand.java:3028` implements the package-enabled
+state operation, with no TrafficMonitor counter or unblock call. The corresponding
+[AOSP implementation](https://android.googlesource.com/platform/frameworks/base/+/14c80cf363c6f657783969e64eef9c3a3619d753/services/core/java/com/android/server/pm/PackageManagerShellCommand.java)
+documents the same command semantics. Thus disabling the decision-making package may prevent
+future enforcement, but does not establish that existing policy or persistent properties clear.
+
+`BydDcTracker.java:1143–1148` in the retained
+`captures/telematics-20260922/registration-evidence/framework-extra/byd-telephony-common.jar-src/sources/com/byd/internal/telephony/dataconnection/`
+also reads `persist.sys.apn2.state=false` and skips the normal data-stall alarm. This is an
+additional effect, not proof that this property alone tears down the data bearer.
+
+**Assessment of the recipe:** APN2 connected is not proof of unrestricted internet, adequate
+speed or TrafficMonitor being the culprit. APN2 absent/disconnected is not proof of a carrier
+fault: local data/roaming/APN configuration, registration and stock power policy need to be
+distinguished. The package command cannot replenish the carrier's allowance or remove a
+carrier-side rate cap. A real recovery claim needs the before/after network-policy state and
+actual cellular connectivity; none was measured here. The APK and decompile remain git-ignored.
+
+Jadx completed with four errors, including the large HTTP `onResponse` method; the findings
+above use successfully decoded methods, the manifest and the independent framework paths.
+Full server-response parsing is not claimed. The corpus index was refreshed after extraction.
+
+## Service control for the stock traffic monitor, 2026-10-18
+
+The service menu owns a «Мобильный интернет» page with «Штатный контроль трафика».
+The package state is a read-only status; «Отключить» is the only mutation action.
+This is independent of the «Облако» adapter: the monitor affects ordinary apps and tethering
+as well as cloud connectivity.
+The page contains only the current state, the button and the operation result. Explanatory
+notes are kept in this document. There is no promise of recovered internet or increased speed.
+
+Implementation: `feature/network/TrafficMonitorProtocol.kt`, `TrafficMonitorController.kt`,
+`TrafficMonitor.kt` and `ui/ServiceMobileInternetPage.kt`, routed by `ServicePanel`.
+
+- Opening/resuming this page reads user 0's installed, enabled and disabled package lists over
+  `DenzaLocalAdb` in passive mode. Only the exact `com.byd.trafficmonitor` entry counts; every
+  list needs a successful exit marker and all three must agree. No package means «Недоступен
+  на этой прошивке»; failed/incomplete reading means «Не удалось проверить» with a retry button.
+  Neither offers a mutation action. This reads effective state, including manifest defaults.
+- A press first rechecks the package, then sends at most one `pm disable-user --user 0` for this
+  exact package and reads the state again. A failed preflight prevents the write and reports
+  that the command was not executed. Already disabled means a read-only no-op. Command success
+  alone is insufficient; a mismatch or error is shown with the actual fresh state, or unknown
+  if verification failed. The button is inactive while busy or already disabled. The result
+  «Отключение подтверждено» requires both command completion and a disabled readback.
+  Otherwise the page shows an error;
+  a missing command reply is distinguished from a failed state check. There is no enable action.
+- One controller serializes reads and presses across page reopenings. Repeated taps are ignored
+  while busy; a timeout after sending a write triggers readback, never a repeated write. A
+  started operation finishes verification even if the page closes. Calls use the existing ADB
+  identity with an 8-second read timeout; they never request a new authorization prompt.
+- No preference, boot receiver, recurring worker or desired-state reconciliation is added.
+  Starting Denza Apps does not change the monitor. The package manager owns its durable state.
+  If firmware or another actor enables it later, the next page open shows enabled; Denza Apps
+  does not turn it off again. Enabled describes the package setting, not a running-process check.
+  No app data, `/collect2` files, APN setting, netd rule or carrier allowance is reset.
+
+`TrafficMonitorTest` covers incomplete reads, exact package matching, preflight changes,
+readback mismatches, command refusals, timeouts, double presses, reopens and disabled-state no-ops.
+`TrafficMonitorBoardTest` holds the enabled/disabled/unknown/absent/error/busy scenes to their
+words and controls. Board fixtures inject snapshots and never construct an ADB controller.
+
+Validation on 2026-10-18: `:denza-apps:testDebugUnitTest :denza-apps:assembleDebug`
+passed with 2305 tests, including 15 controller/protocol tests and the eight-scene board
+contract. The final APK's real service page was exercised on an isolated API-35 emulator
+with an empty synthetic `com.byd.trafficmonitor` package: the button disabled it, a separate
+package-manager read confirmed disabled, and the UI displayed «Отключение подтверждено»
+with no enable action. The same package-manager state had survived an emulator reboot in
+the preceding experiment. This is package-operation proof, not execution of BYD's monitor.
+The final tested APK SHA-256 is
+`7aa0c956311ef9b5e379a95e928dcf12bc0a30411157aa1bb988b1253700e6c8`;
+the installed copy matched. Ignored evidence is in `captures/traffic-monitor-20261018/`
+(`button-*.xml/png`, `button-disabled-package.txt`, `build-validation.log`, `comparisons.txt`).
+All eight final mobile-page fixtures compared to their boards at 0.46–0.66% pixels moved,
+mean 0.49–0.74/255; the inspected differences follow text rasterisation and the existing compact
+fixture handle. The four service-entry boards also passed the visual comparison.
+Vehicle installation and the effect on a real stock monitor remain untested.

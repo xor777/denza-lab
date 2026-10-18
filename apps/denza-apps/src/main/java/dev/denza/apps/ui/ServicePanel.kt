@@ -22,6 +22,8 @@ import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRestoreReport
 import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
+import dev.denza.apps.feature.network.TrafficMonitorSnapshot
+import dev.denza.apps.feature.network.TrafficMonitorText
 import dev.denza.apps.ui.components.DenzaChoiceGroup
 import dev.denza.apps.ui.components.DenzaChoiceRow
 import dev.denza.apps.ui.components.DenzaChosenRow
@@ -51,6 +53,7 @@ internal enum class ServicePage {
     TECHNICAL,
     JOURNAL,
     RESTORE,
+    MOBILE_INTERNET,
     DIAGNOSTICS,
     ;
 
@@ -143,6 +146,7 @@ internal fun ServicePanel(
     onSetAdbRestoreEnabled: (Boolean) -> Unit = {},
     onOpenService: () -> Unit = {},
     nowMs: () -> Long = System::currentTimeMillis,
+    trafficMonitorFixture: TrafficMonitorSnapshot? = null,
 ) {
     LaunchedEffect(Unit) { onOpenService() }
     var page by rememberSaveable { mutableStateOf(firstPage) }
@@ -194,6 +198,10 @@ internal fun ServicePanel(
             ServicePage.RESTORE -> {
                 DenzaSheetHeader(title = AdbRestoreReport.TITLE, subtitle = "", onDismiss = onDismiss, onBack = back)
                 ServiceRestorePage(state.adbRestore, nowMs(), onSetAdbRestoreEnabled)
+            }
+            ServicePage.MOBILE_INTERNET -> {
+                DenzaSheetHeader(title = TrafficMonitorText.TITLE, subtitle = "", onDismiss = onDismiss, onBack = back)
+                ServiceMobileInternetPage(trafficMonitorFixture)
             }
         }
     }
@@ -253,7 +261,7 @@ private fun ServiceMain(
             }
         }
     }
-    DenzaChoiceGroup(listOf(ServicePage.DIAGNOSTICS, ServicePage.RESTORE, ServicePage.SCREEN, ServicePage.TECHNICAL)) { target ->
+    DenzaChoiceGroup(listOf(ServicePage.DIAGNOSTICS, ServicePage.RESTORE, ServicePage.MOBILE_INTERNET, ServicePage.SCREEN, ServicePage.TECHNICAL)) { target ->
         when (target) {
             ServicePage.DIAGNOSTICS -> DenzaChoiceRow(
                 title = "Диагностика автомобиля",
@@ -272,6 +280,11 @@ private fun ServiceMain(
             ServicePage.SCREEN -> DenzaChoiceRow(
                 title = "Приборный экран",
                 value = state.clusterDisplayLabel,
+                onClick = { onPage(target) },
+            )
+            ServicePage.MOBILE_INTERNET -> DenzaChoiceRow(
+                title = TrafficMonitorText.TITLE,
+                value = TrafficMonitorText.MONITOR,
                 onClick = { onPage(target) },
             )
             else -> DenzaChoiceRow(
