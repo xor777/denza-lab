@@ -18,7 +18,8 @@ may still use the historical `denza-gateway` directory name.
 
 | Path | Purpose | Rules |
 | --- | --- | --- |
-| `libraries/dishare-bridge/` | Raw DiShare binder bridge used by `denza-apps` for screen discovery and starting/stopping shares. | Keep API notes in `docs/dishare-api-notes.md` aligned with transaction behavior. This is the only place product apps may share car-access code. |
+| `libraries/dishare-bridge/` | Raw DiShare binder bridge used by `denza-apps` for screen discovery and starting/stopping shares. | Keep API notes in `docs/dishare-api-notes.md` aligned with transaction behavior. With `libraries/hud-link/`, the only place product apps may share car-access code. |
+| `libraries/hud-link/` | The HUD's SOME/IP wire: Binder calls to the stock service, the protobuf writer, the road packet's field numbers, the map frame. Used by `denza-apps` and compiled into the YandexHUD module by `tools/yandex_hud_build/`. | Plain Java 8, no Kotlin or AndroidX: it ends up inside Navigator's dex. Session policy stays with each sender until the compositor (`docs/hud-output-architecture.md`). |
 
 ## Supporting Areas
 
@@ -253,7 +254,7 @@ when the `experiments` Gradle property is set, so a probe task needs
 
 ```bash
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
-./gradlew :dishare-bridge:testDebugUnitTest
+./gradlew :dishare-bridge:testDebugUnitTest :hud-link:testDebugUnitTest
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
 

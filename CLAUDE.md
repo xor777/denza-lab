@@ -45,7 +45,7 @@ and a contents list. Read that first; then `rg -n '^#{2,3} ' <doc>` and
 | `feature/split` | [docs/split-screen-product-contract.md](docs/split-screen-product-contract.md) — normative; wins over [docs/split-screen-findings.md](docs/split-screen-findings.md). |
 | `feature/media`, `feature/defaultapps`, `feature/alice` | [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — PersonBean roles and the normative steering-wheel Play/Pause contract. |
 | `feature/cloud` | [docs/telematics/README.md](docs/telematics/README.md) — the car's own cloud client (`cloudmanager`) over Wi-Fi, the «Облако» tile, result codes. |
-| `feature/hud`, `feature/fse`, `experiments/yandex-hud-module` | [docs/hud-output-architecture.md](docs/hud-output-architecture.md) — normative: one writer per HUD, layers and fields → surfaces → mode, which app hosts the compositor. [docs/hud-projection-findings.md](docs/hud-projection-findings.md) — the HUD as a display and the working recipe on this car; [docs/fse-app-installation.md](docs/fse-app-installation.md) — installing on the passenger computer; [research/fse-firmware/README.md](research/fse-firmware/README.md), with BydHud's direct-drive internals (inactive on this car) in `bydhud-direct-drive.md` there. Turn-by-turn guidance: [docs/instrument-display-findings.md](docs/instrument-display-findings.md), "HUD turn-by-turn guidance". |
+| `feature/hud`, `feature/fse`, `experiments/yandex-hud-module`, `libraries/hud-link` | [docs/hud-output-architecture.md](docs/hud-output-architecture.md) — normative: one writer per HUD, layers and fields → surfaces → mode, which app hosts the compositor. [docs/hud-projection-findings.md](docs/hud-projection-findings.md) — the HUD as a display and the working recipe on this car; [docs/fse-app-installation.md](docs/fse-app-installation.md) — installing on the passenger computer; [research/fse-firmware/README.md](research/fse-firmware/README.md), with BydHud's direct-drive internals (inactive on this car) in `bydhud-direct-drive.md` there. Turn-by-turn guidance: [docs/instrument-display-findings.md](docs/instrument-display-findings.md), "HUD turn-by-turn guidance". |
 | `feature/cluster`, `feature/mirrors`, `feature/navigation` | [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, Contour, Mirrors, navigation projection. |
 | `feature/simulcast`, DiShare in `:dishare-bridge` | [docs/dishare-api-notes.md](docs/dishare-api-notes.md) |
 | `feature/speaker` | [docs/speaker-lift-findings.md](docs/speaker-lift-findings.md) |
@@ -91,8 +91,9 @@ The default build configures the products and the library they share:
 
 | Gradle | Path | App id / namespace |
 | --- | --- | --- |
-| `:denza-apps` | `apps/denza-apps/` | `dev.denza.apps` (active consolidation app), depends on `:dishare-bridge` |
+| `:denza-apps` | `apps/denza-apps/` | `dev.denza.apps` (active consolidation app), depends on `:dishare-bridge` and `:hud-link` |
 | `:dishare-bridge` | `libraries/dishare-bridge/` | `dev.denza.disharebridge` (library) |
+| `:hud-link` | `libraries/hud-link/` | `dev.denza.hudlink` (library: the HUD's SOME/IP wire, plain Java 8, also compiled into the YandexHUD module) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
 The on-device probes and the frozen legacy app are configured only when the
@@ -125,7 +126,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
-./gradlew :dishare-bridge:testDebugUnitTest
+./gradlew :dishare-bridge:testDebugUnitTest :hud-link:testDebugUnitTest
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
 
@@ -145,7 +146,9 @@ The same form works for every module in the second table above.
 - Keep `…​.probe` code out of product dependencies. Denza Apps has no probe or
   Denza Mirrors dependency. The frozen standalone Mirrors source retains one
   documented historical product-to-probe exception.
-- Product apps share car-access code only via `:dishare-bridge`.
+- Product apps share car-access code only via `:dishare-bridge`, and the HUD's SOME/IP wire
+  via `:hud-link`. `:hud-link` stays plain Java 8 with no dependencies: `tools/yandex_hud_build`
+  compiles it into Navigator's dex with `javac --release 8`.
 - Do not add features to `:denza-gateway`. Limit changes to maintenance or work
   required to retire it safely.
 - New camera behavior belongs in `:denza-apps`; use

@@ -76,8 +76,10 @@ has not been changed by these build/test tools. Detailed evidence belongs to
 
 ## Transport
 
-`HudTransport` follows the wire contract in
-[`HudSomeIpClient.java`](../../apps/denza-apps/src/main/java/dev/denza/apps/feature/hud/HudSomeIpClient.java).
+`HudTransport` and `HudWire` write through the wire Denza Apps uses too,
+[`libraries/hud-link`](../../libraries/hud-link/src/main/java/dev/denza/hudlink/) (`HudSomeIp`,
+`HudMessage`, `HudProtocol`); the builder compiles its sources into the module dex, and its
+plain-Java part into the host tests. `ArTest` holds the whole road snapshot byte for byte.
 It binds explicitly to `com.ts.car.someip.service` with the caller's package as
 intent type and `ts.car.someip.sdk.ISomeIpServerInterface` as Binder descriptor.
 Transactions 4/5 start/stop service `3097367205183488`; transaction 6 sends the
