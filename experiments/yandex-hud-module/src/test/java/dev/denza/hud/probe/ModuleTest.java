@@ -1,7 +1,19 @@
 package dev.denza.hud.probe;
 
+import dev.denza.hudlink.HudComposition;
+import dev.denza.hudlink.HudFields;
+import dev.denza.hudlink.HudImage;
+import dev.denza.hudlink.HudMode;
+import dev.denza.hudlink.HudRect;
+import dev.denza.hudlink.HudRole;
+import dev.denza.hudlink.HudScene;
+import dev.denza.hudlink.HudSink;
+import dev.denza.hudlink.HudSource;
+import dev.denza.hudlink.HudWindow;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -167,7 +179,91 @@ public final class ModuleTest {
         check(source.read(guidance,false,7100).lanes.isEmpty(),"disabled background clears lanes");
         guidance.navigation.automotive.status="ROUTE_LOST";
         check(source.read(guidance,true,7200).lanes.isEmpty(),"rerouting clears lanes");
+        roles();
         System.out.println(assertions+" native module assertions passed");
+    }
+    /** What a frame publishes and withdraws through HudLink, and what the compositor makes of it. */
+    private static void roles() {
+        // A route without a fix: the black frame, an empty manoeuvre block and the explicit zero lanes.
+        Map<HudRole,HudFields> roles=ModuleFields.of(null,null,0,null,null);
+        check(roles.keySet().equals(EnumSet.of(HudRole.MANEUVER,HudRole.LANES)),"nothing known: manoeuvre and lanes only");
+        check(roles.get(HudRole.MANEUVER).fields().length==0&&Arrays.equals(roles.get(HudRole.LANES).fields(),new int[]{5})
+                &&roles.get(HudRole.LANES).value(5).equals(0L),"an empty block and «no lanes»");
+        byte[] png=png(300,180);
+        HudImage map=HudImage.png(png);
+        SceneSink sink=new SceneSink();
+        ModuleFields.publish(sink,map,roles);
+        check(sink.calls.equals(Arrays.asList("layer MAP map","fields MANEUVER","fields LANES","withdraw ROAD_LIMIT","withdraw AR")),"published and withdrawn: "+sink.calls);
+        HudComposition shown=sink.scene.compose(0);
+        check(shown.mode==HudMode.NAVIGATION&&!HudRole.fillsNavigation(roles.get(HudRole.MANEUVER)),"the module's route opens navigation without a manoeuvre, as it always did");
+        check(shown.passThrough(HudWindow.MAP)!=null&&shown.passThrough(HudWindow.MAP).image.png()==png,"the painter's PNG goes to the HUD as painted");
+        check(Arrays.equals(shown.road(),HudWire.road(true)),"the frame's road packet is the snapshot's");
+        check(Arrays.equals(shown.clear(),HudWire.road(false)),"the compositor's clear is the module's clear, lanes included");
+        sink.withdraw(HudSource.MODULE);
+        check(sink.scene.compose(0).mode==HudMode.OFF&&sink.scene.compose(0).road()==null,"withdrawn: navigation off");
+
+        // Everything known: picture, metres, street, id, lanes, the limit and AR.
+        HudAr.Frame ar=ar();
+        roles=ModuleFields.of(withManoeuvre(),new byte[]{7},3,new byte[]{1,2,3},ar);
+        check(roles.keySet().equals(EnumSet.of(HudRole.MANEUVER,HudRole.LANES,HudRole.ROAD_LIMIT,HudRole.AR)),"a full frame has every role");
+        check(Arrays.equals(roles.get(HudRole.MANEUVER).fields(),new int[]{3,4,8,9,10,26,27,28}),"the manoeuvre block");
+        check(Arrays.equals(roles.get(HudRole.LANES).fields(),new int[]{5,7})&&roles.get(HudRole.LANES).value(5).equals(3L),"the lane row and its count");
+        check(Arrays.equals(roles.get(HudRole.ROAD_LIMIT).fields(),new int[]{11})&&roles.get(HudRole.ROAD_LIMIT).value(11).equals(60L),"the limit, km/h");
+        check(Arrays.equals(roles.get(HudRole.AR).fields(),new int[]{19,20,21,22,30,31,32,33}),"AR geometry");
+        sink=new SceneSink();
+        ModuleFields.publish(sink,map,roles);
+        check(sink.calls.equals(Arrays.asList("layer MAP map","fields MANEUVER","fields LANES","fields ROAD_LIMIT","fields AR")),"all published: "+sink.calls);
+        check(Arrays.equals(sink.scene.compose(0).road(),HudWire.road(true,withManoeuvre(),new byte[]{7},3,new byte[]{1,2,3},ar)),"a full frame's road packet");
+        check(sink.scene.compose(HudScene.LAYER_TTL_MS-1).mode==HudMode.NAVIGATION&&sink.scene.compose(HudScene.LAYER_TTL_MS).mode==HudMode.OFF
+                &&sink.scene.compose(HudScene.LAYER_TTL_MS).layers(HudWindow.MAP).isEmpty(),"a silent module leaves the glass after 1.5 s");
+
+        // A hint without a manoeuvre, a limit or AR: summaries only, the rest withdrawn.
+        NavigatorSource.Hint ahead=withManoeuvre();ahead.icon=null;ahead.speedLimit=0;
+        roles=ModuleFields.of(ahead,new byte[]{7},0,null,null);
+        check(roles.keySet().equals(EnumSet.of(HudRole.MANEUVER,HudRole.LANES))&&Arrays.equals(roles.get(HudRole.MANEUVER).fields(),new int[]{3,4,26,27}),"summaries only");
+        sink=new SceneSink();
+        ModuleFields.publish(sink,map,roles);
+        check(sink.calls.equals(Arrays.asList("layer MAP map","fields MANEUVER","fields LANES","withdraw ROAD_LIMIT","withdraw AR")),"limit and AR withdrawn: "+sink.calls);
+        // A manoeuvre without its stock picture keeps metres, street and id; metres are never negative.
+        NavigatorSource.Hint passed=withManoeuvre();passed.distance=-1;
+        HudFields block=ModuleFields.of(passed,null,0,null,null).get(HudRole.MANEUVER);
+        check(Arrays.equals(block.fields(),new int[]{3,4,9,10,26,27,28})&&block.value(9).equals(0L),"no picture, metres clamped at 0");
+        check(!ModuleFields.of(null,null,0,null,ar).containsKey(HudRole.AR)&&!ModuleFields.of(null,null,0,null,ar).containsKey(HudRole.ROAD_LIMIT),"AR and the limit ride on a hint");
+        for(int count:new int[]{0,-1,7}){
+            HudFields lanes=ModuleFields.of(null,null,count,new byte[]{1},null).get(HudRole.LANES);
+            check(Arrays.equals(lanes.fields(),new int[]{5})&&lanes.value(5).equals(0L),"invalid lane count: explicit zero lanes "+count);
+        }
+        HudFields empty=ModuleFields.of(null,null,3,new byte[0],null).get(HudRole.LANES);
+        check(Arrays.equals(empty.fields(),new int[]{5})&&empty.value(5).equals(0L),"an empty lane picture: explicit zero lanes");
+    }
+    /** A sink straight into a scene at time 0, writing its calls down. */
+    private static final class SceneSink implements HudSink {
+        final HudScene scene=new HudScene();
+        final List<String> calls=new ArrayList<>();
+        @Override public void layer(HudSource source,String id,HudRole role,HudRect rect,HudImage image,float opacity,long ttlMs) {
+            check(source==HudSource.MODULE&&ttlMs==HudScene.LAYER_TTL_MS&&opacity==1f&&rect.equals(HudRect.whole(HudWindow.MAP)),"the map is the module's, whole and opaque");
+            calls.add("layer "+role+" "+id);scene.layer(source,id,role,rect,image,opacity,ttlMs,0);
+        }
+        @Override public void removeLayer(HudSource source,String id) { calls.add("remove "+id);scene.removeLayer(source,id); }
+        @Override public void fields(HudSource source,HudRole role,HudFields fields,long ttlMs) {
+            check(source==HudSource.MODULE&&ttlMs==HudScene.LAYER_TTL_MS,"fields are the module's, for 1.5 s");
+            calls.add("fields "+role);scene.fields(source,role,fields,ttlMs,0);
+        }
+        @Override public void withdraw(HudSource source,HudRole role) { calls.add("withdraw "+role);scene.withdraw(source,role); }
+        @Override public void withdraw(HudSource source) { calls.add("withdraw "+source);scene.withdraw(source); }
+    }
+    /** A PNG header of the given size: all HudImage reads. */
+    private static byte[] png(int width,int height) {
+        byte[] png=new byte[33];
+        byte[] head={(byte)0x89,'P','N','G','\r','\n',0x1a,'\n',0,0,0,13,'I','H','D','R'};
+        System.arraycopy(head,0,png,0,head.length);
+        for(int i=0;i<4;i++){png[16+i]=(byte)(width>>>(24-8*i));png[20+i]=(byte)(height>>>(24-8*i));}
+        return png;
+    }
+    private static HudAr.Frame ar() {
+        HudAr.Pose pose=HudAr.Pose.read(new HudAr.Point(37.5,55.7),90d,10d,4d,150d,1000L,1000L,100L);
+        HudAr.Point[] line={new HudAr.Point(37.5,55.7),new HudAr.Point(37.501,55.701)};
+        return new HudAr.Frame(pose,line[1],line,.25);
     }
     private static NavigatorSource.Lane lane(String selected, String... directions) {
         return new NavigatorSource.Lane("PLAIN_LANE",Arrays.asList(directions),selected);

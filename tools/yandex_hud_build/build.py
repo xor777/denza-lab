@@ -87,12 +87,15 @@ def main():
     android = sdk / 'platforms/android-35/android.jar'
     unit_classes = args.out / 'test-classes'; unit_classes.mkdir()
     package = ROOT / 'experiments/yandex-hud-module/src/main/java/dev/denza/hud/probe'
-    # The HUD wire shared with Denza Apps; its plain-Java part runs in the host tests too.
+    # The HUD wire and compositor shared with Denza Apps; the plain-Java part the module's fields
+    # pass through (the scene, the placement table, the road packet) runs in the host tests too.
     link = ROOT / 'libraries/hud-link/src/main/java'
+    plain = ['HudMessage', 'HudProtocol', 'HudFields', 'HudRoadPacket', 'HudRole', 'HudScene', 'HudComposition',
+             'HudLayer', 'HudMode', 'HudWindow', 'HudRect', 'HudImage', 'HudSource', 'HudSink']
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
-         link/'dev/denza/hudlink/HudMessage.java', link/'dev/denza/hudlink/HudProtocol.java',
-         package/'HudWire.java', package/'Reflect.java', package/'NavigatorSource.java', package/'StockHudSymbols.java',
-         package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java',
+         *[link/'dev/denza/hudlink'/(name + '.java') for name in plain],
+         package/'HudWire.java', package/'ModuleFields.java', package/'Reflect.java', package/'NavigatorSource.java',
+         package/'StockHudSymbols.java', package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java',
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])

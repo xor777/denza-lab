@@ -179,9 +179,10 @@ patched dex files, manifest and `resources.arsc`. The sole resource change is
 `passport_account_type` → `com.yandex.passport.denza`; an independent full `aapt2`
 dump comparison rejects every other resource change. Resource IDs, XML
 references and retained native libraries stay unchanged. `build-report.json` records
-APK/module hashes and the resource check. The builder first runs 67 module and
-148 AR host assertions, including real winding geometry, fractional junctions,
-route identity, cache reuse, freshness, invalid positions and fixed64 wire fields.
+APK/module hashes and the resource check. The builder first runs 117 module and
+152 AR host assertions, including real winding geometry, fractional junctions,
+route identity, cache reuse, freshness, invalid positions, fixed64 wire fields and
+the roles each frame publishes or withdraws.
 
 The dedicated local experimental key lives in ignored
 `captures/yandex-hud-signing/experiment.p12`. It is **not Yandex's key**. Passport
@@ -250,8 +251,9 @@ The runner verifies QEMU and the installed APK hash. It checks foreground and
 hidden rendering with actual moving PNGs, receiver-process death/rebind,
 background-disabled clear, stable stopped counters and repeated cancellation
 without a Navigator restart. Inspect saved PNGs as well as `report.json`.
-`src/test/.../ModuleTest.java` covers exact wire bytes, preview/cancel/resume,
-background preference and stale/coarse position on the host without the APK. Use `--require-lanes` on the route above to
+`src/test/.../ModuleTest.java` covers exact wire bytes, the roles each frame
+publishes or withdraws, preview/cancel/resume, background preference and
+stale/coarse position on the host without the APK. Use `--require-lanes` on the route above to
 also require real lane packets in background guidance.
 Add `--require-ar` to require AR in both stretches, a single route geometry
 build and AR cleanup. The emulator-only harness independently exports MapKit's

@@ -1,16 +1,23 @@
 package dev.denza.hud.probe;
 
-import dev.denza.hudlink.HudMessage;
+import dev.denza.hudlink.HudFields;
 import dev.denza.hudlink.HudProtocol;
-import dev.denza.hudlink.HudProtocol.Road;
+import dev.denza.hudlink.HudRoadPacket;
+import dev.denza.hudlink.HudRole;
+import dev.denza.hudlink.HudScene;
+import dev.denza.hudlink.HudSource;
+import java.util.Map;
 
 /**
- * The road snapshot in this module's field order, on the wire Denza Apps uses too (`:hud-link`,
- * libraries/hud-link). No vehicle setters: the car's own speed sign needs a BYDAUTO permission this
- * process does not hold.
+ * The module's road snapshot as the HUD gets it, for the host tests: its fields by role
+ * ({@link ModuleFields}) composed by the `:hud-link` compositor ({@link HudScene}), the path every
+ * frame takes on the car. No vehicle setters: the car's own speed sign needs a BYDAUTO permission
+ * this process does not hold.
  */
 final class HudWire {
     static final long ROAD = HudProtocol.TOPIC_ROAD, MAP = HudProtocol.TOPIC_MAP;
+
+    private HudWire() { }
 
     static byte[] road(boolean active) { return road(active, null, null); }
 
@@ -24,37 +31,17 @@ final class HudWire {
         return road(active, hint, icon, laneCount, lanes, null);
     }
 
+    /**
+     * Active: the module's fields composed alone, as its own output composes them while it draws
+     * by itself. Inactive: the clear after a route, which always showed lanes (5 = 0).
+     */
     static byte[] road(boolean active, NavigatorSource.Hint hint, byte[] icon, int laneCount, byte[] lanes, HudAr.Frame ar) {
-        boolean hasLanes = active && laneCount > 0 && laneCount <= 6 && lanes != null && lanes.length > 0;
-        HudMessage body = new HudMessage(256 + (icon == null ? 0 : icon.length) + (hasLanes ? lanes.length : 0))
-                .number(Road.COUNTER, Road.STOCK_COUNTER)
-                .number(Road.STATE, active ? Road.NAVIGATING : Road.OFF)
-                .number(Road.LANE_COUNT, hasLanes ? laneCount : 0); // Explicit clear while the route stays active, too.
-        if (hasLanes) body.bytes(Road.LANES_PNG, lanes);
-        if (active && hint != null) {
-            if (hint.remainingMeters >= 0) body.number(Road.REMAINING_METERS, hint.remainingMeters);
-            if (hint.remainingSeconds >= 0) body.number(Road.REMAINING_SECONDS, hint.remainingSeconds);
-            if (hint.icon != null) {
-                body.bytes(Road.MANEUVER_PNG, icon)
-                        .number(Road.MANEUVER_METERS, Math.max(0, hint.distance))
-                        .text(Road.ROAD_NAME, hint.road);
-            }
-            if (hint.speedLimit > 0) body.number(Road.SPEED_LIMIT, hint.speedLimit); // currentMaxSpeedLimit, km/h
-            if (hint.remainingMeters >= 0) body.text(Road.SUMMARY_DISTANCE, distance(hint.remainingMeters));
-            if (hint.remainingSeconds >= 0) body.text(Road.SUMMARY_TIME, duration(hint.remainingSeconds));
-            if (hint.icon != null) body.number(Road.STOCK_MANEUVER, hint.stockId);
-            if (ar != null) {
-                body.decimal(Road.LONGITUDE, ar.pose.point.lon)
-                        .decimal(Road.LATITUDE, ar.pose.point.lat)
-                        .number(Road.SPEED, Math.round(ar.pose.speed)) // m/s, unlike the road speed-limit field.
-                        .number(Road.ALTITUDE, Math.round(ar.pose.altitude))
-                        .text(Road.AR_LINE, ar.lineJson())
-                        .text(Road.AR_POINT, ar.target.tuple())
-                        .decimal(Road.HEADING, ar.pose.heading)
-                        .decimal(Road.PROGRESS, ar.progress);
-            }
+        if (!active) return HudRoadPacket.clear(true);
+        HudScene scene = new HudScene();
+        for (Map.Entry<HudRole, HudFields> role : ModuleFields.of(hint, icon, laneCount, lanes, ar).entrySet()) {
+            scene.fields(HudSource.MODULE, role.getKey(), role.getValue(), HudScene.LAYER_TTL_MS, 0L);
         }
-        return body.embedded(Road.ENVELOPE);
+        return scene.compose(0L).road();
     }
 
     static byte[] map(byte[] png) { return HudProtocol.mapPayload(png); }
