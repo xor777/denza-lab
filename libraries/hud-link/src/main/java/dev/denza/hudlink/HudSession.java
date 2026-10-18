@@ -22,6 +22,8 @@ import java.util.Arrays;
  *     {@link #CLEAR_SENDS} times {@link #CLEAR_REPEAT_MS} apart - then stop and unbind once
  *     {@link #STOP_DELAY_MS} have passed and the last clear is out. Something to show again
  *     before that ends the clear and sends at once.
+ * <li>Another writer takes over ({@link #handOver}): stop and unbind at once, without the
+ *     clear, so the glass keeps the last picture until the other writer's comes.
  * </ul>
  *
  * <p>No thread and no clock of its own: the owner calls {@link #pump} whenever something changed
@@ -161,6 +163,23 @@ public final class HudSession {
         } else {
             finish();
         }
+    }
+
+    /**
+     * Another writer takes the HUD over (docs/hud-output-architecture.md, 5): the session stops
+     * and unbinds now and sends no clear, which would blank the glass between the two writers.
+     * What was to be shown is dropped; {@link #show} starts a new session.
+     */
+    public void handOver() {
+        road = null;
+        map = null;
+        if (started) {
+            port.stop();
+        }
+        if (bound || stopAt != NEVER) {
+            finish();
+        }
+        retryAt = NEVER;
     }
 
     /** Does what is due now; returns when something next will be, or {@link #IDLE}. */

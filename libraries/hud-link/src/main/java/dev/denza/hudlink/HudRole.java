@@ -37,7 +37,13 @@ public enum HudRole {
     /**
      * The role whose winner opens {@link HudMode#NAVIGATION}, and the fields it must carry for
      * that: a manoeuvre block without them is empty, and the HUD fills an empty one with Chinese
-     * captions. Field 9, the metres to the manoeuvre, is in every hint either source sends.
+     * captions. Field 9, the metres to the manoeuvre, is in every hint Denza Apps' capture sends.
+     *
+     * <p>The module is the exception: it has always opened navigation for the whole of a route it
+     * holds, a manoeuvre ahead or not, and its map shows only then. Stage 3 moved it onto the
+     * compositor without changing the glass, so its route alone opens navigation. Whether the
+     * HUD then fills a block without field 9 with captions is a live check
+     * (docs/hud-output-architecture.md, open questions).
      */
     public static final HudRole NAVIGATION = MANEUVER;
     private static final int[] NAVIGATION_REQUIRES = {Road.MANEUVER_METERS};
@@ -85,6 +91,11 @@ public enum HudRole {
             }
         }
         return -1;
+    }
+
+    /** Whether {@code source}'s {@code fields}, published to {@link #NAVIGATION}, open navigation. */
+    public static boolean opensNavigation(HudSource source, HudFields fields) {
+        return source == HudSource.MODULE || fillsNavigation(fields);
     }
 
     /** Whether {@code fields}, published to {@link #NAVIGATION}, fill the manoeuvre block. */

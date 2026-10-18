@@ -60,6 +60,19 @@ public final class HudCompositor implements HudSink {
         scene.withdraw(source);
     }
 
+    /**
+     * Another writer takes the HUD over: everything published here goes and the session stops
+     * without the clear ({@link HudSession#handOver}).
+     */
+    public void handOver() {
+        for (HudSource source : HudSource.values()) {
+            scene.withdraw(source);
+        }
+        frameVersion = -1L;
+        frame = null;
+        session.handOver();
+    }
+
     /** The service answered the session's binding. */
     public void onConnected() {
         session.onConnected();

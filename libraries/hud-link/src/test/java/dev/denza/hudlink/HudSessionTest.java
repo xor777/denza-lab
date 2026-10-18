@@ -292,6 +292,37 @@ public final class HudSessionTest {
     }
 
     /** Bound, started and the first sends out at {@code time}; the port forgets those calls. */
+    @Test
+    public void handingOverStopsAtOnceWithoutTheClearAndTheNextShowStartsAnew() {
+        startedAt(0, ROAD_A, FRAME_1);
+
+        at(200);
+        session.handOver();
+        changed();
+        runUntil(2_000);
+
+        // No black frame, no inactive road: the other writer's picture follows ours directly.
+        assertCalls("0 road road-A", "0 map frame-1", "200 stop", "200 unbind");
+
+        at(2_500);
+        session.show(ROAD_B, CLEAR, null, 0);
+        changed();
+        assertCalls(since(2_500), "2500 bind");
+    }
+
+    @Test
+    public void handingOverABindingThatNeverStartedJustLetsItGo() {
+        session.show(ROAD_A, CLEAR, FRAME_1, 1);
+        changed();
+
+        at(100);
+        session.handOver();
+        changed();
+        runUntil(5_000);
+
+        assertCalls("0 bind", "100 unbind");
+    }
+
     private void startedAt(long time, byte[] road, byte[] frame) {
         at(time);
         session.show(road, CLEAR, frame, 1);

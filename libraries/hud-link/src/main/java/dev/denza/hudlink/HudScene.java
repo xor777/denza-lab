@@ -123,7 +123,7 @@ public final class HudScene {
             }
         }
         Published navigation = winners.get(HudRole.NAVIGATION);
-        HudMode mode = navigation != null && HudRole.fillsNavigation(navigation.values)
+        HudMode mode = navigation != null && HudRole.opensNavigation(navigation.source, navigation.values)
                 ? HudMode.NAVIGATION
                 : HudMode.OFF;
 

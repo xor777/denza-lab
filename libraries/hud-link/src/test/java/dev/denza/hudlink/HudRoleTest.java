@@ -49,6 +49,18 @@ public final class HudRoleTest {
     }
 
     @Test
+    public void theModulesRouteOpensNavigationByItselfAsBeforeTheCompositor() {
+        HudFields summaryOnly = new HudFields.Builder().number(Road.REMAINING_METERS, 1_000).build();
+        HudFields nothing = new HudFields.Builder().build();
+
+        assertTrue(HudRole.opensNavigation(HudSource.MODULE, summaryOnly));
+        assertTrue(HudRole.opensNavigation(HudSource.MODULE, nothing));
+        assertEquals(false, HudRole.opensNavigation(HudSource.CAPTURE, summaryOnly));
+        assertTrue(HudRole.opensNavigation(HudSource.CAPTURE,
+                new HudFields.Builder().number(Road.MANEUVER_METERS, 0).build()));
+    }
+
+    @Test
     public void theManoeuvreBlockIsFilledByTheMetresToTheManoeuvre() {
         assertTrue(HudRole.NAVIGATION.carries(Road.MANEUVER_METERS));
         assertTrue(HudRole.fillsNavigation(new HudFields.Builder().number(Road.MANEUVER_METERS, 0).build()));

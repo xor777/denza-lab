@@ -72,6 +72,17 @@ public final class HudOutput implements HudSink {
         changed();
     }
 
+    /**
+     * Another writer takes the HUD over - the host, when this is a source that drew by itself:
+     * this output drops what it was showing and stops its session without the clear.
+     */
+    public void handOver() {
+        handler.removeCallbacks(pumpNow);
+        handler.removeCallbacks(pumpLater);
+        queued = false;
+        compositor.handOver();
+    }
+
     private void changed() {
         if (!queued) {
             queued = true;
