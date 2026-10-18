@@ -8,7 +8,6 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.view.PixelCopy
 import android.view.Surface
-import dev.denza.hudlink.HudProtocol
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -19,8 +18,8 @@ internal sealed interface HudMapResult {
     /** [by] lies over the cut: nothing is sent. */
     data class Covered(val by: HudMapWindow) : HudMapResult
 
-    /** The map window's frame as its SOME/IP payload, and where its cursor came from. */
-    class Frame(val payload: ByteArray, val anchor: HudMapAnchorSource) : HudMapResult
+    /** The map window's frame as a PNG, and where its cursor came from. */
+    class Frame(val png: ByteArray, val anchor: HudMapAnchorSource) : HudMapResult
 }
 
 /**
@@ -28,9 +27,9 @@ internal sealed interface HudMapResult {
  *
  * The cut ([HudMapGeometry.crop]) is placed at the cursor as last found, drawn by the GPU at the
  * map window's own 300×180, keyed to black ([HudMapKey]), repainted pixel by pixel for the projector
- * ([HudMapPalette]; a day map stays as keyed), encoded as PNG and wrapped in the map event's
- * payload, all here, so the main thread only fires it. The cursor is looked for in Yandex's
- * window reduced to [HudMapGeometry.ANALYSIS_WIDTH] - not on every frame, but every
+ * ([HudMapPalette]; a day map stays as keyed) and encoded as PNG, all here, so the main thread
+ * only hands it to the compositor, which sends a lone frame as it is. The cursor is looked for in
+ * Yandex's window reduced to [HudMapGeometry.ANALYSIS_WIDTH] - not on every frame, but every
  * [SEARCH_INTERVAL_MS], whenever the window moves, and on every frame kept for tuning - and its
  * answer places the next frame's cut: Yandex keeps its cursor still on the screen while it follows
  * the car, so a frame's lag costs nothing.
@@ -124,7 +123,7 @@ internal class HudMapPipeline(private val capture: HudMapCapture?) : AutoCloseab
         if (HudMapPalette.isNight(ground)) palette.apply(mapPixels, mapPixels)
         val image = png.encode(mapPixels, HudMapGeometry.MAP_WIDTH, HudMapGeometry.MAP_HEIGHT)
         if (keep) capture?.save(analysisPng, image)
-        return HudMapResult.Frame(HudProtocol.mapPayload(image), anchor.source)
+        return HudMapResult.Frame(image, anchor.source)
     }
 
     /** Forgets the cursor, as a new route or a new start of the map should. */
@@ -353,19 +352,5 @@ internal class HudMapPng : AutoCloseable {
     override fun close() {
         bitmap?.recycle()
         bitmap = null
-    }
-
-    companion object {
-        /**
-         * The map event with an all-black frame: black is what the HUD does not draw, so this is
-         * how the window is emptied. Made once, on first use.
-         */
-        @JvmStatic
-        val blankPayload: ByteArray by lazy {
-            val black = IntArray(HudMapGeometry.MAP_WIDTH * HudMapGeometry.MAP_HEIGHT) { 0xFF000000.toInt() }
-            HudMapPng().use { encoder ->
-                HudProtocol.mapPayload(encoder.encode(black, HudMapGeometry.MAP_WIDTH, HudMapGeometry.MAP_HEIGHT))
-            }
-        }
     }
 }

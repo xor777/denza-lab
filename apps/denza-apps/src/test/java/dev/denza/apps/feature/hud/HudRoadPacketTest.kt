@@ -8,8 +8,8 @@ import org.junit.Test
 class HudRoadPacketTest {
     @Test
     fun fieldTwoIsTheStockConstantNotASequence() {
-        val first = varints(HudSomeIpClient.buildPayloadForTest(guidance(), null))
-        val second = varints(HudSomeIpClient.buildPayloadForTest(guidance(distance = 90), null))
+        val first = varints(HudCaptureSource.roadPacketForTest(guidance(), null))
+        val second = varints(HudCaptureSource.roadPacketForTest(guidance(distance = 90), null))
 
         assertEquals(2L, first.getValue(2))
         assertEquals(2L, second.getValue(2))
@@ -18,19 +18,29 @@ class HudRoadPacketTest {
 
     @Test
     fun theClearIsNavigationOffWithTheSameFieldTwo() {
-        assertEquals(mapOf(2 to 2L, 16 to 1L), varints(HudSomeIpClient.buildClearPayloadForTest()))
+        assertEquals(mapOf(2 to 2L, 16 to 1L), varints(HudCaptureSource.clearPacketForTest(guidance())))
+    }
+
+    @Test
+    fun anUnknownManoeuvreWithoutAPictureStillOpensNavigation() {
+        val fields = varints(HudCaptureSource.roadPacketForTest(guidance().copy(maneuver = HudManeuver.UNKNOWN), null))
+
+        // Field 9 is in every hint, so the manoeuvre block counts as filled, as before the compositor.
+        assertEquals(2L, fields.getValue(16))
+        assertEquals(100L, fields.getValue(9))
+        assertEquals(0L, fields.getValue(28))
     }
 
     @Test
     fun aSpeedSignGoesToFieldElevenInKilometresPerHour() {
-        val fields = varints(HudSomeIpClient.buildPayloadForTest(guidance(speedLimit = 60), null))
+        val fields = varints(HudCaptureSource.roadPacketForTest(guidance(speedLimit = 60), null))
 
         assertEquals(60L, fields.getValue(11))
     }
 
     @Test
     fun noSignLeavesFieldElevenOut() {
-        val fields = varints(HudSomeIpClient.buildPayloadForTest(guidance(), null))
+        val fields = varints(HudCaptureSource.roadPacketForTest(guidance(), null))
 
         assertFalse(fields.containsKey(11))
     }

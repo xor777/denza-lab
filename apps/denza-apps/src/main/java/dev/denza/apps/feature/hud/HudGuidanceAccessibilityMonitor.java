@@ -19,8 +19,6 @@ public final class HudGuidanceAccessibilityMonitor {
     private static final String TAG = "DenzaHudGuidance";
     private static final long POLL_INTERVAL_MS = 350L;
     private static final long EVENT_REFRESH_DELAY_MS = 40L;
-    private static final long HEARTBEAT_MS = 5000L;
-    private static final long AR_HEARTBEAT_MS = 350L;
 
     private final AccessibilityService service;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -29,7 +27,7 @@ public final class HudGuidanceAccessibilityMonitor {
         thread.setDaemon(true);
         return thread;
     });
-    private final HudSomeIpClient someIpClient;
+    private final HudCaptureSource capture;
     private final HudNativeSpeedLimitRunner speedLimit;
     private final HudArLocationSource locationSource;
     private final HudArApproximationTracker arTracker = new HudArApproximationTracker();
@@ -40,17 +38,15 @@ public final class HudGuidanceAccessibilityMonitor {
     private final SingleFlightReadRunner<HudGuidance> readRunner;
     private final HudMapRunner mapRunner;
     private boolean attached;
-    private long lastPublishedMs;
     private HudGuidance lastGuidance;
     private HudVehiclePose latestPose;
-    private boolean lastArActive;
     /** «YandexHUD» is installed: it writes the HUD itself, and only the car's sign is sent here. */
     private boolean navigatorDrawsHud;
     private boolean routeHeld;
 
     public HudGuidanceAccessibilityMonitor(AccessibilityService service) {
         this.service = service;
-        this.someIpClient = new HudSomeIpClient(service);
+        this.capture = new HudCaptureSource(service);
         this.speedLimit = new HudNativeSpeedLimitRunner(service);
         this.locationSource = new HudArLocationSource(service, pose -> latestPose = pose);
         this.readRunner = new SingleFlightReadRunner<>(
@@ -58,18 +54,18 @@ public final class HudGuidanceAccessibilityMonitor {
                 runnable -> handler.post(runnable),
                 () -> YandexGuidanceAccessibilityReader.read(service),
                 this::onReadFinished);
-        // The map's frames ride on the hints' session; both calls arrive on the main thread.
+        // The map's frames go to the compositor beside the hints; both calls arrive on the main thread.
         this.mapRunner = new HudMapRunner(
                 HudMapAutoSource.create(service),
                 new HudMapRunner.Publisher() {
                     @Override
-                    public void publish(byte[] payload) {
-                        someIpClient.publishMap(payload);
+                    public void publish(byte[] png) {
+                        capture.publishMap(png);
                     }
 
                     @Override
-                    public void blank() {
-                        someIpClient.clearMap(HudMapPng.getBlankPayload());
+                    public void clear() {
+                        capture.clearMap();
                     }
                 },
                 new File(service.getFilesDir(), HudMapCapture.DIRECTORY));
@@ -89,9 +85,9 @@ public final class HudGuidanceAccessibilityMonitor {
         locationSource.stop();
         arTracker.reset();
         latestPose = null;
-        // The map's black frame goes before the session's stop, and its thread ends here.
+        // The map's thread ends here; the compositor clears the HUD and stops the session.
         mapRunner.shutdown();
-        someIpClient.shutdown();
+        capture.shutdown();
         speedLimit.shutdown();
         HudGuidanceRuntime.onStopped();
     }
@@ -166,7 +162,7 @@ public final class HudGuidanceAccessibilityMonitor {
                 // Nothing goes to the HUD; a background read still builds on the last reading.
                 lastGuidance = guidance;
             } else {
-                publishToHud(guidance, sample, now, nowElapsed);
+                publishToHud(guidance, sample, nowElapsed);
             }
             HudGuidanceRuntime.onGuidance(guidance, sample.getCapturedAtMs());
             // Only a visible read carries the sign; a background route leaves the car's sign alone.
@@ -177,37 +173,29 @@ public final class HudGuidanceAccessibilityMonitor {
         } else if (freshness.routeLost(now)) {
             routeHeld = false;
             speedLimit.setTarget(null);
-            // The map's black frame before the road clear, while the session still holds. Neither
-            // goes without a session, so with «YandexHUD» nothing reaches its HUD from here.
+            // The map and the hints go together, and the compositor sends one clear for both;
+            // nothing without a session, so with «YandexHUD» nothing reaches its HUD from here.
             mapRunner.pause(isMapOurs());
-            someIpClient.clear();
+            capture.clear();
             lastGuidance = null;
             arTracker.reset();
-            lastArActive = false;
             HudGuidanceRuntime.onWaiting();
         }
         schedule(POLL_INTERVAL_MS);
     }
 
-    /** The road packet, AR with it, at once on a change and on the heartbeat between. */
-    private void publishToHud(
-            HudGuidance guidance, HudGuidanceSample sample, long now, long nowElapsed) {
+    /**
+     * The hints, AR with them, on every poll: the compositor's session sends a change at once and
+     * repeats an unchanged packet itself.
+     */
+    private void publishToHud(HudGuidance guidance, HudGuidanceSample sample, long nowElapsed) {
         HudNotificationArtworkRuntime.observe(guidance, sample.getCapturedAtMs());
         // The packet carries the step's held distance, which never grows within a maneuver;
         // the hints panel and the speed sign keep the reading as it is.
         HudArFrame frame = arTracker.resolve(guidance, latestPose, nowElapsed);
         HudGuidance published = frame.getGuidance();
-        HudArGeometry arGeometry = frame.getGeometry();
-        boolean changed = !published.equals(lastGuidance);
-        boolean arActive = arGeometry != null;
-        boolean arStateChanged = arActive != lastArActive;
-        long heartbeat = arActive ? AR_HEARTBEAT_MS : HEARTBEAT_MS;
-        if (changed || arStateChanged || now - lastPublishedMs >= heartbeat) {
-            someIpClient.publish(published, arGeometry);
-            lastGuidance = published;
-            lastPublishedMs = now;
-            lastArActive = arActive;
-        }
+        capture.publish(published, frame.getGeometry());
+        lastGuidance = published;
     }
 
     private boolean isMapOurs() {
@@ -240,19 +228,14 @@ public final class HudGuidanceAccessibilityMonitor {
         handler.removeCallbacks(eventPollRunnable);
         readRunner.deactivate();
         mapRunner.stop();
-        if (freshness.isHolding()) {
-            someIpClient.clear();
-        }
         locationSource.stop();
         arTracker.reset();
         latestPose = null;
-        someIpClient.shutdown();
+        capture.shutdown();
         speedLimit.setTarget(null);
         freshness.reset();
         routeHeld = false;
         lastGuidance = null;
-        lastPublishedMs = 0L;
-        lastArActive = false;
         HudGuidanceRuntime.onStopped();
     }
 

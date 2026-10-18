@@ -254,10 +254,10 @@ class YandexGuidanceParserTest {
             remainingTimeText = "48 мин",
             eta = "19:34",
         )
-        assertEquals("51 км", HudSomeIpClient.routeDistance(routeOnly))
+        assertEquals("51 км", HudCaptureSource.routeDistance(routeOnly))
         assertEquals(
             "5,6 км",
-            HudSomeIpClient.routeDistance(routeOnly.copy(
+            HudCaptureSource.routeDistance(routeOnly.copy(
                 nextRoadName = "Профсоюзная улица",
                 remainingDistanceMeters = 5_600,
             )),

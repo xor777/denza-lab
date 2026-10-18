@@ -86,13 +86,14 @@ class FeatureMapContractTest {
         val map: String = File(repo, "docs/feature-map.md").readText()
 
         /**
-         * Every Kotlin and Java source of the app and the shared library, tests included, and the
+         * Every Kotlin and Java source of the app and the shared libraries, tests included, and the
          * board's renderer, whose function names the map uses for what a tile looks like.
          */
         val sources: Map<File, String> = (
             listOf(
                 File(repo, "apps/denza-apps/src"),
                 File(repo, "libraries/dishare-bridge/src"),
+                File(repo, "libraries/hud-link/src"),
             ).flatMap { root ->
                 root.walkTopDown()
                     .filter { it.isFile && (it.extension == "kt" || it.extension == "java") }

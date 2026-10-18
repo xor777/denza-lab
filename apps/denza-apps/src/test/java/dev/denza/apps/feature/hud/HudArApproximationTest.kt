@@ -645,7 +645,7 @@ class HudArApproximationTest {
             val frame = tracker.resolve(guidance(maneuver = maneuver, distance = 104), null, NOW + 1_000L)
             assertNull(frame.geometry)
 
-            val fields = decodeEmbeddedMessage(HudSomeIpClient.buildPayloadForTest(frame.guidance, frame.geometry))
+            val fields = decodeEmbeddedMessage(HudCaptureSource.roadPacketForTest(frame.guidance, frame.geometry))
 
             assertEquals("maneuver=$maneuver", 100, fields.getValue(9).varint)
             (30..33).forEach { assertFalse(fields.containsKey(it)) }
@@ -655,7 +655,7 @@ class HudArApproximationTest {
     @Test
     fun `some ip payload uses verified AR field numbers and wire types`() {
         val ar = geometry(HudManeuver.LEFT)
-        val fields = decodeEmbeddedMessage(HudSomeIpClient.buildPayloadForTest(guidance(), ar))
+        val fields = decodeEmbeddedMessage(HudCaptureSource.roadPacketForTest(guidance(), ar))
 
         assertEquals(1, fields.getValue(19).wireType)
         assertEquals(1, fields.getValue(20).wireType)
@@ -673,7 +673,7 @@ class HudArApproximationTest {
 
     @Test
     fun `compact payload omits every AR field when approximation is unavailable`() {
-        val fields = decodeEmbeddedMessage(HudSomeIpClient.buildPayloadForTest(guidance(), null))
+        val fields = decodeEmbeddedMessage(HudCaptureSource.roadPacketForTest(guidance(), null))
         (19..22).forEach { assertFalse(fields.containsKey(it)) }
         (30..33).forEach { assertFalse(fields.containsKey(it)) }
     }

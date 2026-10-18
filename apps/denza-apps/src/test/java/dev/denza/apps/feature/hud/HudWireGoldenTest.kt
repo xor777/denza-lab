@@ -7,7 +7,8 @@ import org.junit.Test
 /**
  * The exact bytes this app sends the HUD, frozen. Field order and every byte are compared, not
  * only the decoded fields, so moving the encoder into `:hud-link` cannot change what reaches the
- * HUD. The values were taken from the encoder in `HudSomeIpClient` before that move.
+ * HUD. The values were taken from the encoder in `HudSomeIpClient` before that move, and still
+ * hold with the packet made by the `:hud-link` compositor from what [HudCaptureSource] publishes.
  */
 class HudWireGoldenTest {
 
@@ -36,12 +37,24 @@ class HudWireGoldenTest {
             navigatingRatio = 0.25,
         )
 
-        assertEquals(FULL_ROAD, hex(HudSomeIpClient.buildPayloadForTest(guidance, ar)))
+        assertEquals(FULL_ROAD, hex(HudCaptureSource.roadPacketForTest(guidance, ar)))
     }
 
     @Test
     fun theClearIsByteForByteTheSame() {
-        assertEquals(CLEAR_ROAD, hex(HudSomeIpClient.buildClearPayloadForTest()))
+        val guidance = HudGuidance(
+            maneuver = HudManeuver.LEFT,
+            roundaboutExitNumber = null,
+            instruction = "Поверните налево",
+            nextRoadName = "",
+            maneuverDistanceMeters = 100,
+            remainingDistanceMeters = null,
+            remainingTimeSeconds = null,
+            remainingTimeText = "",
+            eta = "",
+        )
+
+        assertEquals(CLEAR_ROAD, hex(HudCaptureSource.clearPacketForTest(guidance)))
     }
 
     @Test
