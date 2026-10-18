@@ -8,7 +8,7 @@ Behavior Method".
 
 ## Current state
 
-Updated 2026-10-08. What a session needs before it opens either archive.
+Updated 2026-10-18. What a session needs before it opens either archive.
 
 | Claim | Status | Since | Section |
 | --- | --- | --- | --- |
@@ -24,6 +24,8 @@ Updated 2026-10-08. What a session needs before it opens either archive.
 | jadx cannot evaluate the `BYDAutoFeatureIds` initializer; the resolved Feature-ID tables are `captures/ambient-light-20260923/data/fids-canfd.tsv` and `fids-can-classic.tsv` | firmware | 2026-09-23 | [Decompiling](#decompiling) |
 | Trees decompiled with `--no-res` have no `AndroidManifest.xml`; three reads of one failed | code | 2026-09-23 | [Decompiling](#decompiling) |
 | One Python environment, `.venv-firmware/` from `research/requirements-firmware.txt`, replaces three temporary ones under `/tmp` | code | 2026-10-08 | [Python environment](#python-environment) |
+| The current-car Cells/ClusterClient libraries have full `.text` disassembly, DWARF indexes, four decoded data tables and an extracted embedded Godot API; their runtime loading is not established | firmware | 2026-10-18 | [Native cluster corpus](#native-cluster-corpus) |
+| The current-car `cluster_hmi.pck` directory and all 375 GDScript token buffers are captured and decoded; the complete 467 MB PCK was not copied | firmware | 2026-10-18 | [Native cluster corpus](#native-cluster-corpus) |
 
 **Open questions**
 - The repeated decompiles (DiCarServer three times, MapHelper and AutoVideo twice) differ in
@@ -38,6 +40,7 @@ Updated 2026-10-08. What a session needs before it opens either archive.
 - [Reading an archive](#reading-an-archive) — the IVI and FSE readers, the layout they write.
 - [Where new work goes](#where-new-work-goes) — one directory per build, reports beside evidence.
 - [Decompiling](#decompiling) — the jadx command and its traps.
+- [Native cluster corpus](#native-cluster-corpus) — Cells/ClusterClient code, types, signals and embedded API.
 - [Python environment](#python-environment) — one venv for every reader.
 - [What is already there](#what-is-already-there) — the topic directories of September.
 
@@ -139,6 +142,35 @@ APKs: a few methods fail and the rest is usable.
   before the table existed (`docs/vehicle-data-findings.md`).
 - **Old decompiles:** a tree under `reverse/` predates the OTAs; `find` shows its version before
   anything is built on it.
+
+## Native cluster corpus
+
+[research/cluster-native/README.md](../research/cluster-native/README.md) owns the
+2026-10-18 offline analysis of `libCellsClusterDs.so` and
+`libClusterClient.android.release.so`, plus an indexed `BydClusterManager`.
+The original files are in `captures/firmware/pulled-from-car-20261018/native/`;
+their hashes matched the vehicle. Results live in `captures/cluster-native-20261018/`.
+The tracked [manifest](../research/cluster-native/corpus.json) records exact
+paths, hashes and counts. These live native pulls are not yet covered by the
+Java/extraction-manifest lookup above; consult this manifest before pulling them again.
+
+The corpus contains complete `.text` disassembly and function/call/string indexes,
+DWARF layouts and source-line mappings, 2,022 signal records, 1,373 HMI data items,
+102 configuration defaults and 81 plugin messages. Client also embeds compressed
+API metadata: 153 classes and 858 member/method/signal/constant entries, extracted
+into individual XML files and searchable TSV. The README maps modules to research
+topics and records selected code paths. These are static findings, not original
+C++ sources or proof that this Godot implementation runs on the current car.
+
+The same research directory now owns `cluster_hmi.pck` analysis. Its 15,005-entry
+directory is in `pck/directory.{json,tsv}`; all 375 `.gdc` scripts are in
+`pck/extracted/`, with token reconstructions in `pck/decoded/`. Each script was
+checked against the PCK directory MD5 and consumed completely by the decoder.
+`cluster_hmi.pck.header` is only the initial 2 MiB; consult `corpus.json` for
+the complete on-device package hash. `read_pck_header.py` and `decode_gdc.py`
+reproduce these offline indexes. Cells also has 1,030 decoded Android packed
+RELA records in `libCellsClusterDs/android-rela.tsv`; these are not applied
+relocations or live process values.
 
 ## Python environment
 

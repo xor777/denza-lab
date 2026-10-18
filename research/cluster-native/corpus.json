@@ -1,0 +1,131 @@
+{
+  "capture_date": "2026-10-18",
+  "source": "owner vehicle, ADB file pulls and matching device SHA-256",
+  "runtime_loading_verified": false,
+  "inputs": [
+    {
+      "local_path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "device_path": "/system/lib64/libCellsClusterDs.so",
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6",
+      "matches_live": true,
+      "size": 17834072
+    },
+    {
+      "local_path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "device_path": "/system/lib64/libClusterClient.android.release.so",
+      "sha256": "0cdcd130d471c6a5a6cc05e7ee04e644227b025f852f44bc686c63f1e9450bf3",
+      "matches_live": true,
+      "size": 29886784
+    },
+    {
+      "local_path": "captures/firmware/pulled-from-car-20261018/native/BydClusterManager",
+      "device_path": "/system/bin/BydClusterManager",
+      "sha256": "8e95f4aaf8edd4883be16eaa2047cc1bd02c9355597d791a1eaa2f609bde5fdd",
+      "matches_live": true,
+      "size": 79560
+    },
+    {
+      "local_path": "captures/firmware/pulled-from-car-20261018/native/startBydCluster.sh",
+      "device_path": "/system/bin/startBydCluster.sh",
+      "sha256": "4b36e88c572f489f82cc33c11d0a171bc25c074ca5362524fad7a50e59ce1d97",
+      "matches_live": true,
+      "size": 765
+    }
+  ],
+  "analysis_root": "captures/cluster-native-20261018",
+  "provenance_report": "captures/adas-speed-20261018/reports/cluster-native-provenance.json",
+  "verification_report": "captures/cluster-native-20261018/verification.json",
+  "counts": {
+    "libCellsClusterDs": {
+      "symbols": 32522,
+      "functions": 13352,
+      "strings": 2739,
+      "direct_calls": 54900,
+      "direct_tail_branches": 7,
+      "indirect_calls": 364,
+      "indirect_branches": 49,
+      "compilation_units": 66,
+      "line_rows": 256880,
+      "dwarf_functions": 80271,
+      "layouts": 10520,
+      "enums": 687
+    },
+    "libClusterClient": {
+      "symbols": 37626,
+      "functions": 11875,
+      "strings": 4317,
+      "direct_calls": 111498,
+      "direct_tail_branches": 2058,
+      "indirect_calls": 7826,
+      "indirect_branches": 389,
+      "compilation_units": 51,
+      "line_rows": 307355,
+      "dwarf_functions": 138442,
+      "layouts": 6886,
+      "enums": 863
+    },
+    "BydClusterManager": {
+      "symbols": 86,
+      "functions": 138,
+      "strings": 161,
+      "direct_calls": 668,
+      "direct_tail_branches": 34,
+      "indirect_calls": 143,
+      "indirect_branches": 16,
+      "compilation_units": 0,
+      "line_rows": 0,
+      "dwarf_functions": 0,
+      "layouts": 0,
+      "enums": 0
+    }
+  },
+  "table_counts": {
+    "can_signals": 2022,
+    "configuration.tsv": 102,
+    "data-items.tsv": 1373,
+    "plugin-messages.tsv": 81
+  },
+  "embedded_api": {
+    "elf_sha256": "0cdcd130d471c6a5a6cc05e7ee04e644227b025f852f44bc686c63f1e9450bf3",
+    "symbol": "_ZL20_doc_data_compressed",
+    "symbol_address": "0x170090",
+    "compressed_size": 59919,
+    "expanded_size": 392330,
+    "expanded_sha256": "b9924e1333833c9ffe38dc512a759232bcb1b77ab806d5628847f9b6dded2ecf",
+    "classes": 153,
+    "entries": 858,
+    "scope": "Embedded API metadata; no firmware execution or external documents."
+  },
+  "limitations": [
+    "No original C++ source reconstructed",
+    "Native high-level decompiler not run",
+    "Indirect calls not fully resolved",
+    "Static initializers are not live values",
+    "130 km/h operating-limit mechanism remains unknown"
+  ],
+  "godot_scripts": {
+    "device_path": "/system/lib64/cluster_hmi.pck",
+    "full_package_bytes": 466734224,
+    "full_package_live_sha256": "9fc84b671ab21024d432082a38a92fe576e5773747d0dcfe37ee76f745cb17e0",
+    "full_package_copied": false,
+    "header_path": "captures/cluster-native-20261018/cluster_hmi.pck.header",
+    "header_sha256": "505ff06c2738703308f04a07b87cc924c5890b27cb0c8c739a6d59b1772364bb",
+    "directory_entries": 15005,
+    "scripts_manifest": "captures/cluster-native-20261018/pck/scripts-manifest.json",
+    "decoded_manifest": "captures/cluster-native-20261018/pck/decoded/manifest.json",
+    "verification": "captures/cluster-native-20261018/pck/verification.json",
+    "format_sources": "captures/cluster-native-20261018/pck/format-source/sources.json",
+    "scripts": 375,
+    "source_bytes": 1548804,
+    "tokens": 348217,
+    "expanded_bytes": 5950660,
+    "all_md5_sha256_sizes_match": true,
+    "all_buffers_consumed": true,
+    "runtime_execution": false
+  },
+  "android_packed_rela": {
+    "records": 1030,
+    "table": "captures/cluster-native-20261018/libCellsClusterDs/android-rela.tsv",
+    "scope": "Android APS2 RELA only, not applied; ordinary RELA/RELR excluded"
+  }
+}

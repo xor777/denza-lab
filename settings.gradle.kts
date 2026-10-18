@@ -36,6 +36,9 @@ project(":hud-link").projectDir = file("libraries/hud-link")
 //     ./gradlew -Pexperiments :night-vision-probe:assembleDebug
 //     ./gradlew -Pexperiments :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 if (providers.gradleProperty("experiments").isPresent) {
+    include(":oversea-map-probe")
+    project(":oversea-map-probe").projectDir = file("experiments/oversea-map-probe")
+
     include(":alice-wheel-probe")
     project(":alice-wheel-probe").projectDir = file("experiments/alice-wheel-probe")
 
