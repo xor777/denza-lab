@@ -58,6 +58,9 @@ final class Plans {
          * framed edge to edge with a mark in each corner, so the glass shows any crop.
          */
         byte[] lanesPicture(int width, int height);
+
+        default byte[] gps() { return map(A); }
+        default byte[] emptyIcon() { return arrow(); }
     }
 
     private Plans() {
@@ -77,11 +80,71 @@ final class Plans {
                 return handover(true, art);
             case LANES:
                 return lanes(art);
+            case GPS_ONLY:
+                return gpsOnly(art);
+            case GPS_REFERENCE:
+                return gpsReference(art);
+            case GPS_GATE:
+                return gpsGate(art);
             case RESET:
                 return reset(art);
             default:
                 throw new IllegalArgumentException("No plan for " + scenario);
         }
+    }
+
+    /** Distinguishes a map gate from the renderer's treatment of an explicitly blank manoeuvre. */
+    private static List<Step> gpsOnly(Art art) {
+        List<Step> steps = new ArrayList<>();
+        steps.add(Step.open(A, "0; если 13, проверить, что другой писатель не отправляет кадры"));
+        String[] titles = {"A · GPS, навигация выключена", "B · GPS, пустой манёвр", "C · GPS, манёвр заполнен пробелами"};
+        for (int phase = 0; phase < 3; phase++) {
+            steps.add(Step.phase(titles[phase], "В окне карты только четыре полоски GPS. Есть ли лишний блок слева?", 5000));
+            for (int tick = 0; tick < 10; tick++) {
+                steps.add(Step.fire(A, HudProtocol.TOPIC_ROAD, SurfacePackets.gpsOnly(phase, art.emptyIcon())));
+                steps.add(Step.fire(A, HudProtocol.TOPIC_MAP, HudProtocol.mapPayload(art.gps())));
+                steps.add(Step.pause(TICK_MS));
+            }
+        }
+        steps.addAll(clearAndClose(A, Collections.singletonList(A), art));
+        afterReset(steps, AFTER_RESET_MS);
+        return steps;
+    }
+
+    private static List<Step> gpsReference(Art art) {
+        List<Step> steps = new ArrayList<>();
+        steps.add(Step.open(A, "0"));
+        String[] titles = {"Контроль: большая A в окне карты", "Тот же режим, GPS справа внизу", "Камера без маршрута и GPS"};
+        for (int phase = 0; phase < 3; phase++) {
+            steps.add(Step.phase(titles[phase], "Первые две фазы: заполненный манёвр A. Последняя: камера, 300 м, 60 км/ч.", 5000));
+            for (int tick = 0; tick < 10; tick++) {
+                steps.add(Step.fire(A, HudProtocol.TOPIC_ROAD, phase < 2
+                        ? SurfacePackets.sessionManeuver(A, art.letter(A))
+                        : SurfacePackets.warningManeuver(art.camera(), 300, "60 км/ч")));
+                steps.add(Step.fire(A, HudProtocol.TOPIC_MAP, HudProtocol.mapPayload(phase == 0 ? art.map(A) : art.gps())));
+                steps.add(Step.pause(TICK_MS));
+            }
+        }
+        steps.addAll(clearAndClose(A, Collections.singletonList(A), art));
+        afterReset(steps, AFTER_RESET_MS);
+        return steps;
+    }
+
+    private static List<Step> gpsGate(Art art) {
+        List<Step> steps = new ArrayList<>();
+        steps.add(Step.open(A, "0"));
+        String[] titles = {"A · GPS: 0 м, код прямо", "B · GPS: 1 м, нет манёвра", "C · GPS: 1 м, код прямо"};
+        for (int phase = 0; phase < 3; phase++) {
+            steps.add(Step.phase(titles[phase], "Есть ли GPS? Что лишнего видно слева: метры, подписи, стрелка?", 5000));
+            for (int tick = 0; tick < 10; tick++) {
+                steps.add(Step.fire(A, HudProtocol.TOPIC_ROAD, SurfacePackets.gpsGate(phase, art.emptyIcon())));
+                steps.add(Step.fire(A, HudProtocol.TOPIC_MAP, HudProtocol.mapPayload(art.gps())));
+                steps.add(Step.pause(TICK_MS));
+            }
+        }
+        steps.addAll(clearAndClose(A, Collections.singletonList(A), art));
+        afterReset(steps, AFTER_RESET_MS);
+        return steps;
     }
 
     /** Scenarios 1 and 2: the stock camera inputs one at a time, with navigation off or on. */

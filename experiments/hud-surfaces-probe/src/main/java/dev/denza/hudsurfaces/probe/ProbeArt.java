@@ -30,6 +30,25 @@ final class ProbeArt implements Plans.Art {
     private byte[] camera;
     private byte[] black;
     private byte[] lanes;
+    private byte[] gps;
+    private byte[] emptyIcon;
+
+    @Override public synchronized byte[] emptyIcon() {
+        if (emptyIcon == null) emptyIcon = png(Bitmap.createBitmap(80, 80, Bitmap.Config.ARGB_8888));
+        return emptyIcon;
+    }
+
+    @Override public synchronized byte[] gps() {
+        if (gps == null) {
+            Bitmap bitmap = Bitmap.createBitmap(MAP_WIDTH, MAP_HEIGHT, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            canvas.drawColor(Color.BLACK);
+            for (int i = 0; i < 4; i++) canvas.drawRect(272 + 6 * i, 174 - (i + 1) * 5,
+                    276 + 6 * i, 174, fill(Color.WHITE));
+            gps = png(bitmap);
+        }
+        return gps;
+    }
     private final Map<String, byte[]> lanePictures = new HashMap<>();
     private final Map<SessionId, byte[]> letters = new EnumMap<>(SessionId.class);
     private final Map<SessionId, byte[]> maps = new EnumMap<>(SessionId.class);

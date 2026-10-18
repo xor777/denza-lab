@@ -8,6 +8,9 @@ enum Scenario {
     HANDOVER_QUIET("handover-quiet", "4а · Передача: A замолкает"),
     HANDOVER_GAP("handover-gap", "4б · Передача: A уходит"),
     LANES("lanes", "5 · Картинка в окне полос"),
+    GPS_ONLY("gps-only", "6 · GPS в окне карты без манёвра"),
+    GPS_REFERENCE("gps-reference", "6б · Контроль карты и GPS"),
+    GPS_GATE("gps-gate", "6в · Нулевые метры и код манёвра"),
     RESET("reset", "Сбросить HUD");
 
     /** What `am start ... --es scenario <id>` names. */

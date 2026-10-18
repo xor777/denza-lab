@@ -17,6 +17,17 @@ import org.junit.Test;
 
 /** Each packet decoded and checked field by field against the stock meaning in the README. */
 public class SurfacePacketsTest {
+    @Test public void gpsOnlyDoesNotSendCameraLimitOrPretendThereIsAManeuver() {
+        for (int phase = 0; phase < 3; phase++) {
+            Map<Integer,Object> road = Proto.road(SurfacePackets.gpsOnly(phase, FakeArt.ARROW));
+            assertEquals(phase == 0 ? 1L : 2L, road.get(16));
+            assertEquals(0L, road.get(9));
+            assertEquals(0L, road.get(28));
+            assertEquals(phase == 2 ? " " : "", road.containsKey(10) ? Proto.text(road.get(10)) : "");
+            assertFalse(road.containsKey(11));
+            assertFalse(road.containsKey(17));
+        }
+    }
     /** Everything of the manoeuvre block and the route summary. */
     private static final int[] MANEUVER_BLOCK = {8, 9, 10, 26, 27, 28};
     private static final int[] CAMERA_INPUTS = {11, 13, 14, 15, 17, 18, 23};

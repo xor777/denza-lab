@@ -90,6 +90,25 @@ final class SurfacePackets {
     private SurfacePackets() {
     }
 
+    static byte[] gpsOnly(int phase, byte[] emptyIcon) {
+        if (phase < 0 || phase > 2) throw new IllegalArgumentException("GPS phase");
+        HudMessage message = head(phase != 0).number(Road.LANE_COUNT, 0)
+                .bytes(Road.MANEUVER_PNG, emptyIcon).number(Road.MANEUVER_METERS, 0)
+                .text(Road.ROAD_NAME, phase == 2 ? " " : "")
+                .text(Road.SUMMARY_DISTANCE, phase == 2 ? " " : "")
+                .text(Road.SUMMARY_TIME, phase == 2 ? " " : "")
+                .number(Road.STOCK_MANEUVER, 0);
+        return message.embedded(Road.ENVELOPE);
+    }
+
+    static byte[] gpsGate(int phase, byte[] emptyIcon) {
+        if (phase < 0 || phase > 2) throw new IllegalArgumentException("GPS gate phase");
+        return head(true).number(Road.LANE_COUNT, 0).bytes(Road.MANEUVER_PNG, emptyIcon)
+                .number(Road.MANEUVER_METERS, phase == 0 ? 0 : 1)
+                .text(Road.ROAD_NAME, " ").text(Road.SUMMARY_DISTANCE, " ").text(Road.SUMMARY_TIME, " ")
+                .number(Road.STOCK_MANEUVER, phase == 1 ? 0 : 11).embedded(Road.ENVELOPE);
+    }
+
     /** Metres to the camera on tick {@code tick} of a phase: 300, 290, ... never below 20. */
     static int cameraMeters(int tick) {
         return Math.max(CAMERA_MIN_M, CAMERA_START_M - CAMERA_STEP_M * tick);

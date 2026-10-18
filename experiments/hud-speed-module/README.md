@@ -13,7 +13,7 @@ Owner-only embedded adapter for the reviewed official HUD Speed **79.0**
 | Nearest **selected** warning, GPS loss, mph, ongoing average section, stale observation, service destruction | Emulator checks | `test-device/`, `src/test/`; capture directory below |
 | Card alongside route; maneuver and road-limit ownership retained, the card in the lane window | Emulator/JVM checks | Host instrumentation and `HudRadarSourceTest` |
 | Projector on this car, genuine moving detections, background entitlement, account/purchase, database refresh, sleep/wake | Not accepted | Requires vehicle/user scenarios |
-| Warning without a route | Not implemented | Native camera fields / temporary navigation mode still need the parked surface probe |
+| Active route required for HUD camera and GPS output | Owner decision, 2026-10-18; standalone work cancelled | Host prototype reverted; product APKs on car unchanged; probe evidence in architecture section 8 |
 
 ## Data and lifetime
 
@@ -60,6 +60,14 @@ replace the navigator's road limit, maneuver or AR fields, and produces no audio
 Stopping radar in HUD Speed stops output. Background service and overlay
 entitlement checks, subscription/account code, voice and camera database remain
 unchanged. Re-signing compatibility with account/purchase is not yet proved.
+
+## Native overlay setting (owner decision, 2026-10-18)
+
+Use HUD Speed's own **«Всплывающие уведомления»** (`showPopup`) to disable
+its floating window. This does not stop its radar; background entitlement and
+location permissions remain independent requirements. The owner switched it
+off and cancelled automatic overlay suppression. There is no takeover lease,
+no popup patch, and no new duplicate switch. The APK remains `79.0-mod.1`.
 
 ## Build
 
