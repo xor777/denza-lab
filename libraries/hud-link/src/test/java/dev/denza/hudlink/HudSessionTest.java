@@ -293,6 +293,18 @@ public final class HudSessionTest {
 
     /** Bound, started and the first sends out at {@code time}; the port forgets those calls. */
     @Test
+    public void aServiceAnotherSessionStartedIsSharedNotRetried() {
+        port.startAnswer = HudProtocol.ALREADY_STARTED;
+        session.show(ROAD_A, CLEAR, FRAME_1, 1);
+        changed();
+        session.onConnected();
+        changed();
+
+        assertCalls("0 bind", "0 start", "0 road road-A", "0 map frame-1");
+        assertEquals(Arrays.asList("binding", "started 13"), events);
+    }
+
+    @Test
     public void handingOverStopsAtOnceWithoutTheClearAndTheNextShowStartsAnew() {
         startedAt(0, ROAD_A, FRAME_1);
 

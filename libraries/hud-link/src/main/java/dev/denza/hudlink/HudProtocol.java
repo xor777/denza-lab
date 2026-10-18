@@ -19,6 +19,16 @@ public final class HudProtocol {
     public static final int TX_STOP = 5;
     public static final int TX_FIRE = 6;
 
+    /**
+     * The start's answer when another session already started the HUD service: this session
+     * joins it and can fire. The stock service keeps one set of sessions per service, starts the
+     * HAL for the first and answers 13 to every later one, and takes 13 from the HAL as started
+     * itself; stop ends the HAL only when the last session leaves; fire goes out through the one
+     * HAL client whichever session sends it (`SomeIpServerService.startSomeIpService` and
+     * `stopSomeIpService` in the OTA's SomeIpService).
+     */
+    public static final int ALREADY_STARTED = 13;
+
     /** The HUD navigation service, IVI service 266. */
     public static final long SERVICE_HUD_NAVI = 3097367205183488L;
     /** Event 0x8001, the road packet: field 1 of an outer message. */

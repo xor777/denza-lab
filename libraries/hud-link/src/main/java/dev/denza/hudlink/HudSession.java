@@ -326,7 +326,9 @@ public final class HudSession {
     private void start(long now) {
         int result = port.start();
         listener.onStarted(result);
-        if (result == 0) {
+        // 13: another session - the other writer just handing over, a probe - started the
+        // service; this one shares it.
+        if (result == 0 || result == HudProtocol.ALREADY_STARTED) {
             started = true;
             forgetSent();
         } else {

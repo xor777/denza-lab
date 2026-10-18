@@ -19,6 +19,8 @@ public final class HudSomeIp {
     public static final int FAILED = -200;
     /** {@link IBinder#transact} returned false: the service did not handle the code. */
     public static final int NOT_HANDLED = -201;
+    /** {@link #start}'s answer when another session already started the service: see {@link HudProtocol#ALREADY_STARTED}. */
+    public static final int ALREADY_STARTED = HudProtocol.ALREADY_STARTED;
 
     private HudSomeIp() {
     }
