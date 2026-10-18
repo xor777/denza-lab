@@ -1,5 +1,56 @@
 # HUD frames probe
 
+## N9 street field (2026-10-16)
+
+`HudStreetActivity` isolates `HudRoadInfoNotifyStruct.nextRoadName`, field 10.
+The N9's BydLaunchermap APK, SomeIpService APK and someip_stack.json match the
+reviewed corpus by SHA-256 (`captures/n9-hud-street-20261016/baseline/`). Stock
+`k.e.j.d.a/c` sends this as a string; the protobuf schema declares field 10.
+No font/length hypothesis is treated as established.
+
+On N9 the owner saw the changing 100/200/300 m and a symbol, but all three
+native street names were blank. A separate `picture-control` trial confirmed
+the arbitrary field-8 PNG: a magenta square with a white Cyrillic `А` appeared
+despite field 28 requesting a left arrow. Small `МОСКВА` below an arrow was
+not seen; large two-line `МОС` / `КВА` was seen inside the picture slot. Those
+image trials are diagnostic controls, **not a native street-field solution**.
+The owner explicitly requires the native field. FSE Inspector subsequently
+confirmed direct.config=1 and the exact corpus BydHud APK, whose scene does
+not create the street-name surface. Full evidence and limits:
+[N9 native street](../../docs/hud-projection-findings.md#hud-n9-native-street).
+
+Preconditions: P, speed 0, HUD enabled, no active route or other road sender.
+The host reads the service bindings and crash log and announces the trial.
+The probe clears the navigation packet, waits 800 ms, then sends at 2 Hz:
+100 m + `TEST`, 200 m + `МОСКВА`, 300 m + `北京路`, each for 12 s by default.
+The field-8 80×80 marker is a positive control for receipt; distances identify
+phases even if text is blank. Stock speed and vehicle properties are untouched.
+Expected result is each name beside its distance; visible marker/distances
+with blank names falsifies text rendering for these exact packets. A return
+code 0 alone is not glass evidence. Normal completion, Stop and destruction
+clear three times, withdraw the offer and unbind. No persistent setting changes.
+
+```sh
+adb -s 127.0.0.1:5555 shell am start -n dev.denza.hudframes.probe/.HudStreetActivity \
+  --es mode sweep --ei seconds 12
+# Individual phases: latin / cyrillic / chinese. Each is capped at 20 s.
+# Picture controls (200 m + native МОСКВА, still only 20 s maximum):
+# image: arrow with small word; picture-control: magenta А versus native ID 1;
+# street-card: large white МОС / КВА. These write pixels into field 8 only.
+# Optional roadClass 0..10 (default 7), counter 1 or 2 (default 2) isolate stock gates.
+adb -s 127.0.0.1:5555 shell am start -n dev.denza.hudframes.probe/.HudStreetActivity --es mode stop
+```
+
+Never force-stop a live trial: that skips clearing. If the process dies, run
+a one-second `latin` trial to rebind and clear; verify the normal scene and
+remove the disposable probe when testing ends. This probe does not alter the
+YandexHUD APK, Denza Apps or the parked street-shortening patch.
+
+Evidence: `captures/n9-hud-street-20261016/`, including each installed APK's
+hash, live logs and the owner's separate observations. The final tested APK
+is `hud-street-card-probe.apk`, SHA-256
+`1e08b08aa7b20b6e30767bf16050a390d6dc3741c91be05e8867bb0e65857344`.
+
 ## Native lane slot (2026-10-11)
 
 Separate `HudLanesActivity`, ordinary UID, no new permissions. This asks whether the

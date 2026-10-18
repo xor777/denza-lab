@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.denza.hudpermission.probe">
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="35" />
+    <permission android:name="com.yandex.permission.READ_CREDENTIALS" android:protectionLevel="signature" />
+    <application android:hasCode="false" android:label="HUD permission test fixture" />
+</manifest>
