@@ -70,7 +70,7 @@ final class HudPainter implements AutoCloseable {
         JSONObject size = theme.getJSONObject("size");
         placement = new HudEvents(events.getInt("max"), size.getInt("width"), size.getInt("height"), (float) events.getDouble("edge"),
                 (float) events.getDouble("cover"), (float) events.getDouble("gap"), (float) events.getDouble("merge"), (float) events.getDouble("span"),
-                rect(events.getJSONArray("cursor")), sides, sizes);
+                events.getInt("graze"), rect(events.getJSONArray("cursor")), sides, sizes);
     }
 
     void compose(HudMap.Shot shot, NavigatorSource.Frame frame) throws Exception {

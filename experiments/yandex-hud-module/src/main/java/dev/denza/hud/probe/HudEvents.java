@@ -29,15 +29,17 @@ final class HudEvents {
             "mobile-camera", "closed", "accident", "railway", "bump", "works", "school", "crossroad", "overtaking", "drawbridge", "police", "danger");
 
     final int max, width, height;
+    /** Route samples (3 px apart) a corner may touch when no side is clear; more and the icon is not drawn. */
+    final int graze;
     final float edge, cover, gap, merge, span;
     final float[] cursor;
     final String[] sides;
     /** Icon box sizes by kind, [w, h]. */
     final Map<String, float[]> sizes;
 
-    HudEvents(int max, int width, int height, float edge, float cover, float gap, float merge, float span,
+    HudEvents(int max, int width, int height, float edge, float cover, float gap, float merge, float span, int graze,
               float[] cursor, String[] sides, Map<String, float[]> sizes) {
-        this.max = max; this.width = width; this.height = height; this.edge = edge; this.cover = cover; this.gap = gap;
+        this.max = max; this.width = width; this.height = height; this.edge = edge; this.cover = cover; this.gap = gap; this.graze = graze;
         this.merge = merge; this.span = span; this.cursor = cursor; this.sides = sides; this.sizes = sizes;
     }
 
@@ -68,7 +70,8 @@ final class HudEvents {
     /**
      * The nearest {@link #max} places. Each tries the sides in order and takes the first that is on
      * screen, off the cursor, off the route and not under the icon placed before it by more than
-     * {@link #cover} of its area; failing that, the side with the least route under it.
+     * {@link #cover} of its area; failing that, the side with the least route under it if no more than
+     * {@link #graze} samples: at the cursor's nose the only side left lay on the route ahead (emulator, 2026-10-18).
      * route: x0, y0, x1, y1, ...
      */
     List<Placed> place(List<Mark> marks, float[] route) {
@@ -91,7 +94,7 @@ final class HudEvents {
                 if (score < bestScore) { bestScore = score; best = b; bestSide = sides[i]; }
                 if (score == i) break;
             }
-            if (best != null) placed.add(new Placed(mark, kind, bestSide, best));
+            if (best != null && bestScore / 10 <= graze) placed.add(new Placed(mark, kind, bestSide, best));
         }
         return placed;
     }

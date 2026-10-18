@@ -203,7 +203,9 @@ const assetNames=Object.values(ICONS).flatMap(i=>i.ops.filter(o=>o.op==='drawabl
 // spans at most span metres) are one place, shown by its most important event (RANK); only the nearest
 // two places are drawn, both at full strength. Clusters of icons were what annoyed on the glass
 // (owner, 2026-10-18); the cut alone is enough, a faded second icon is not wanted.
-const EVENTS={max:2,merge:50,span:120,edge:4,cursor:[134,120,32,44],cover:.2,gap:7,sides:['right','right-high','left','left-high','above','below'],
+// graze: route samples (3 px apart) an icon's corner may touch when no side is clear; more than that and
+// the icon is not drawn: at the cursor's nose the only side left lay on the route ahead (emulator, 2026-10-18).
+const EVENTS={max:2,merge:50,span:120,edge:4,cursor:[134,120,32,44],cover:.2,gap:7,graze:3,sides:['right','right-high','left','left-high','above','below'],
  lead:{width:1.6,halo:3.6},dot:[2.6,1.7]};
 const RANK=['camera-limit','camera','lane-camera','crossroad-camera','no-stopping-camera','mobile-camera','closed','accident','railway',
  'bump','works','school','crossroad','overtaking','drawbridge','police','danger'];
@@ -228,7 +230,7 @@ function sideBox(x,y,[w,h],side){
 }
 // Events in route order (distance in metres; without one, the order given) become places; each place
 // takes the sides in order and the first that is on screen, off the cursor, off the route and not under
-// the icon placed before it; failing that, the side with the least route under it.
+// the icon placed before it; failing that, the side with the least route under it if that is a graze.
 const iconKind=e=>e.kind==='camera'&&e.limit>0?'camera-limit':e.kind;
 function placesOf(events){
  const known=(events||[]).map((e,i)=>({...e,kind:iconKind(e),at:Number.isFinite(e.distance)?e.distance:i*1e6}))
@@ -258,7 +260,7 @@ function placeEvents(events,blocked,route){
    if(!best||score<best.score)best={side,box:b,score};
    if(score===i)break;
   }
-  if(best)placed.push({kind,x,y,side:best.side,box:best.box,limit:e.limit});
+  if(best&&Math.floor(best.score/10)<=EVENTS.graze)placed.push({kind,x,y,side:best.side,box:best.box,limit:e.limit});
  }
  return placed;
 }

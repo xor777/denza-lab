@@ -317,7 +317,7 @@ public final class ModuleTest {
         for(String kind:Arrays.asList("camera","bump","works","lane-camera","crossroad-camera","no-stopping-camera"))sizes.put(kind,new float[]{34,34});
         sizes.put("camera-limit",new float[]{38,38});
         float[] cursor={134,120,32,44};
-        HudEvents events=new HudEvents(2,300,180,4,.2f,7,50,120,cursor,new String[]{"right","right-high","left","left-high","above","below"},sizes);
+        HudEvents events=new HudEvents(2,300,180,4,.2f,7,50,120,3,cursor,new String[]{"right","right-high","left","left-high","above","below"},sizes);
         float[] route=HudEvents.samples(Arrays.asList(new float[]{150,145},new float[]{150,20}),3);
         java.util.List<HudEvents.Mark> marks=Arrays.asList(new HudEvents.Mark("b","bump",150,114,0,40),
                 new HudEvents.Mark("n","no-stopping-camera",150,78,0,118),new HudEvents.Mark("c","camera",150,72,50,126),
@@ -339,6 +339,17 @@ public final class ModuleTest {
         // At the top edge the icon slides down beside the route instead of dropping onto it.
         java.util.List<HudEvents.Placed> top=events.place(Arrays.asList(new HudEvents.Mark("t","camera",150,18,50,300)),route);
         check(top.size()==1&&top.get(0).side.startsWith("right")&&top.get(0).box[1]==0,"an icon at the top edge keeps beside the route");
+        // Driving up to a camera: beside the route all the way, gone at the cursor's nose instead of
+        // jumping onto the route ahead of it (emulator, 2026-10-18).
+        for(int y=24;y<=140;y+=2){
+            java.util.List<HudEvents.Placed> one=events.place(Arrays.asList(new HudEvents.Mark("a","camera",150,y,60,y)),route);
+            if(y<=110)check(one.size()==1,"shown beside the route at y="+y);
+            for(HudEvents.Placed p:one){
+                int under=0;
+                for(int i=0;i+1<route.length;i+=2)if(route[i]>=p.box[0]-2&&route[i]<=p.box[0]+p.box[2]+2&&route[i+1]>=p.box[1]-2&&route[i+1]<=p.box[1]+p.box[3]+2)under++;
+                check(under<=3,"never on the route ahead of the cursor: y="+y+" "+p.side);
+            }
+        }
     }
     /** Enumerate every reachable mapping; the builder verifies each resource exists in the pinned APK. */
     private static void assetNames() {

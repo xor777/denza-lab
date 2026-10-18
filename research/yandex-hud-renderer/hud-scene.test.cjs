@@ -64,6 +64,13 @@ test('road events: one icon a place, two places, beside the route, never over th
   assert(!(e.box[0]<cx+cw&&cx<e.box[0]+e.box[2]&&e.box[1]<cy+ch&&cy<e.box[1]+e.box[3]),e.kind+' over the cursor');
   assert(!route.some(p=>inside(e.box,p)),e.kind+' on the route');
  }
+ // Driving up to a camera: beside the route all the way, gone at the cursor's nose instead of jumping
+ // onto the route ahead of it (emulator, 2026-10-18).
+ for(let y=24;y<=140;y+=2){
+  const one=hud.build({...right,route,events:[{kind:'camera',distance:y,x:150,y,limit:60}]}).events;
+  if(y<=110)assert.equal(one.length,1,'shown beside the route at y='+y);
+  for(const e of one)assert(route.filter(p=>inside(e.box,p)).length<=hud.EVENTS.graze,'on the route at y='+y);
+ }
  const text=flat(scene.commands).find(c=>c.op==='text');
  assert.equal(text.value,'60');
  for(const icon of Object.values(hud.ICONS))assert(icon.size[0]>=33&&icon.size[0]<=40,'one plate size for every icon');
