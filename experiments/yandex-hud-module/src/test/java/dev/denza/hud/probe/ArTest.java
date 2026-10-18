@@ -66,6 +66,27 @@ public final class ArTest {
         check(clear.size()==3&&!clear.containsKey(30),"inactive snapshot drops every AR field");
         Map<Integer,Object> compact=decode(HudWire.road(true,hint,new byte[]{1},0,null,null));
         check(compact.containsKey(28)&&!compact.containsKey(19)&&!compact.containsKey(30),"AR loss preserves ordinary hint, drops geometry");
+        // The whole snapshot byte for byte, field order included, as HudWire wrote it before the
+        // encoder moved to :hud-link: the move cannot change what reaches the HUD.
+        NavigatorSource.Hint full=new NavigatorSource.Hint();
+        full.icon="right";full.stockId=2;full.distance=250;full.road="Тверская";
+        full.remainingMeters=12345;full.remainingSeconds=1234;full.speedLimit=60;
+        String road=hex(HudWire.road(true,full,new byte[]{(byte)0x89,'P',1},3,new byte[]{(byte)0x89,'P',2},ar));
+        check(road.equals(FULL_ROAD),"road snapshot byte for byte: "+road);
+    }
+
+    static final String FULL_ROAD=
+            "0a8a02100280010228033a0389500218b96020d209420389500148fa015210d0a2d0b2d0b5d180d181d0bad0b0d18f58"+
+            "3cd20107313220d0bad0bcda0109323120d0bcd0b8d0bde0010299010000000000804240a101645ddc4603804b40a801"+
+            "08b0018c01f2017b5b5b33372e302c35352e303030312c305d2c5b33372e302c35352e30303032352c305d2c5b33362e"+
+            "39393939322c35352e30303034352c305d2c5b33362e39393937322c35352e303030352c305d2c5b33362e3939393635"+
+            "2c35352e30303038322c305d2c5b33362e39393939312c35352e30303039352c305d5dfa011333362e39393939322c35"+
+            "352e30303034352c30810200000000000028408902185ca6da2642b73f";
+
+    private static String hex(byte[] bytes) {
+        StringBuilder out=new StringBuilder();
+        for(byte b:bytes)out.append(String.format("%02x",b&255));
+        return out.toString();
     }
 
     public static final class PolyPosition {
