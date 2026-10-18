@@ -133,6 +133,19 @@ public final class HudCompositorTest {
     }
 
     @Test
+    public void theMapWindowsPictureReachesAScreenBesideTheHud() {
+        List<String> seen = new ArrayList<>();
+        compositor.setFrameListener((window, png) -> seen.add(window + " " + (png == null ? "none" : frameName(HudProtocol.mapPayload(png)))));
+        compositor.fields(HudSource.CAPTURE, HudRole.MANEUVER, maneuver(250), 1_000);
+        frame(LONG);
+        connect();
+        // The hints end: the window shows nothing, and the listener is told so once.
+        runUntil(2_000);
+
+        assertEquals(Arrays.asList("MAP none", "MAP frame-0", "MAP none"), seen);
+    }
+
+    @Test
     public void aMapWithoutHintsNeverOpensTheSession() {
         frame(LONG);
         changed();

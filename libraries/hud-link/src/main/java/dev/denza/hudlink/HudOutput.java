@@ -72,6 +72,11 @@ public final class HudOutput implements HudSink {
         changed();
     }
 
+    /** Who sees the map window's picture change, on {@code handler}'s thread. */
+    public void setFrameListener(HudCompositor.FrameListener listener) {
+        compositor.setFrameListener(listener);
+    }
+
     /** Who hears the composition's road limit change, on {@code handler}'s thread. */
     public void setLimitListener(HudCompositor.LimitListener listener) {
         compositor.setLimitListener(listener);

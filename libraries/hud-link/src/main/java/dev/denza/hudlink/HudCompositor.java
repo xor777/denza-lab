@@ -27,8 +27,16 @@ public final class HudCompositor implements HudSink {
 
     private final HudClock clock;
     private final Renderer renderer;
+    /** The map window's picture as composed, for a screen beside the HUD; on the pump's thread. */
+    public interface FrameListener {
+        /** The window's picture changed: a PNG of its size, or null when it shows nothing. */
+        void onFrame(HudWindow window, byte[] png);
+    }
+
     private LimitListener limitListener;
     private Integer limit;
+    private FrameListener frameListener;
+    private byte[] picture;
     private final HudScene scene = new HudScene();
     private final HudSession session;
     private long frameVersion = -1L;
@@ -78,6 +86,10 @@ public final class HudCompositor implements HudSink {
         }
         frameVersion = -1L;
         frame = null;
+        picture = null;
+        if (frameListener != null) {
+            frameListener.onFrame(HudWindow.MAP, null);
+        }
         session.handOver();
     }
 
@@ -86,6 +98,14 @@ public final class HudCompositor implements HudSink {
         limitListener = listener;
         if (listener != null) {
             listener.onLimit(limit);
+        }
+    }
+
+    /** Who sees the map window's picture change; told the current one at once. */
+    public void setFrameListener(FrameListener listener) {
+        frameListener = listener;
+        if (listener != null) {
+            listener.onFrame(HudWindow.MAP, picture);
         }
     }
 
@@ -108,7 +128,11 @@ public final class HudCompositor implements HudSink {
         long version = now.version(HudWindow.MAP);
         if (version != frameVersion) {
             frameVersion = version;
-            frame = frame(now);
+            picture = picture(now);
+            frame = picture == null ? null : HudProtocol.mapPayload(picture);
+            if (frameListener != null) {
+                frameListener.onFrame(HudWindow.MAP, picture);
+            }
         }
         session.show(now.road(), now.clear(), frame, version);
         Integer kmh = now.roadLimitKmh();
@@ -121,14 +145,13 @@ public final class HudCompositor implements HudSink {
         return Math.min(session.pump(), now.nextChange);
     }
 
-    /** The map event for what the window shows; null when it shows nothing. */
-    private byte[] frame(HudComposition composition) {
+    /** The PNG of what the window shows; null when it shows nothing. */
+    private byte[] picture(HudComposition composition) {
         List<HudLayer> layers = composition.layers(HudWindow.MAP);
         if (layers.isEmpty()) {
             return null;
         }
         HudLayer alone = composition.passThrough(HudWindow.MAP);
-        byte[] png = alone != null ? alone.image.png() : renderer.render(HudWindow.MAP, layers);
-        return png == null ? null : HudProtocol.mapPayload(png);
+        return alone != null ? alone.image.png() : renderer.render(HudWindow.MAP, layers);
     }
 }
