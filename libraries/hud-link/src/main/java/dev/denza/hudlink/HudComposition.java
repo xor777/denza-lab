@@ -14,16 +14,28 @@ public final class HudComposition {
     private final EnumMap<HudRole, HudFields> values;
     private final EnumMap<HudWindow, List<HudLayer>> drawn;
     private final EnumMap<HudWindow, Long> versions;
+    private final HudFields limit;
 
     HudComposition(HudMode mode, EnumMap<HudRole, HudSource> owners,
             EnumMap<HudRole, HudFields> values, EnumMap<HudWindow, List<HudLayer>> drawn,
-            EnumMap<HudWindow, Long> versions, long nextChange) {
+            EnumMap<HudWindow, Long> versions, long nextChange, HudFields limit) {
         this.mode = mode;
         this.owners = owners;
         this.values = values;
         this.drawn = drawn;
         this.versions = versions;
         this.nextChange = nextChange;
+        this.limit = limit;
+    }
+
+    /**
+     * The road's limit, km/h, from the winner of {@link HudRole#ROAD_LIMIT} - with navigation or
+     * without: the car's own sign follows it even while nothing of ours is on the glass, as with a
+     * YandexHUD build that draws the HUD itself. Null when no source publishes one.
+     */
+    public Integer roadLimitKmh() {
+        Object value = limit == null ? null : limit.value(HudProtocol.Road.SPEED_LIMIT);
+        return value instanceof Long ? (int) (long) (Long) value : null;
     }
 
     /** The source shown for {@code role}; null when none is, and always without navigation. */

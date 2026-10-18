@@ -19,8 +19,16 @@ public final class HudCompositor implements HudSink {
         byte[] black(HudWindow window);
     }
 
+    /** The road's limit as the composition has it, for the car's own sign; on the pump's thread. */
+    public interface LimitListener {
+        /** The limit changed: km/h, or null when no source publishes one. */
+        void onLimit(Integer kmh);
+    }
+
     private final HudClock clock;
     private final Renderer renderer;
+    private LimitListener limitListener;
+    private Integer limit;
     private final HudScene scene = new HudScene();
     private final HudSession session;
     private long frameVersion = -1L;
@@ -73,6 +81,14 @@ public final class HudCompositor implements HudSink {
         session.handOver();
     }
 
+    /** Who hears {@link HudComposition#roadLimitKmh} change; told the current value at once. */
+    public void setLimitListener(LimitListener listener) {
+        limitListener = listener;
+        if (listener != null) {
+            listener.onLimit(limit);
+        }
+    }
+
     /** The service answered the session's binding. */
     public void onConnected() {
         session.onConnected();
@@ -95,6 +111,13 @@ public final class HudCompositor implements HudSink {
             frame = frame(now);
         }
         session.show(now.road(), now.clear(), frame, version);
+        Integer kmh = now.roadLimitKmh();
+        if (kmh == null ? limit != null : !kmh.equals(limit)) {
+            limit = kmh;
+            if (limitListener != null) {
+                limitListener.onLimit(kmh);
+            }
+        }
         return Math.min(session.pump(), now.nextChange);
     }
 

@@ -72,6 +72,11 @@ public final class HudOutput implements HudSink {
         changed();
     }
 
+    /** Who hears the composition's road limit change, on {@code handler}'s thread. */
+    public void setLimitListener(HudCompositor.LimitListener listener) {
+        compositor.setLimitListener(listener);
+    }
+
     /**
      * Another writer takes the HUD over - the host, when this is a source that drew by itself:
      * this output drops what it was showing and stops its session without the clear.

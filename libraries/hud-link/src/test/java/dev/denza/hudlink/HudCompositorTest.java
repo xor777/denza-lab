@@ -104,6 +104,35 @@ public final class HudCompositorTest {
     }
 
     @Test
+    public void theLimitAloneReachesTheSignAndOpensNothing() {
+        List<Integer> sign = new ArrayList<>();
+        compositor.setLimitListener(sign::add);
+        compositor.fields(HudSource.CAPTURE, HudRole.ROAD_LIMIT,
+                new HudFields.Builder().number(Road.SPEED_LIMIT, 60).build(), 1_000);
+        changed();
+        runUntil(3_000);
+
+        assertEquals(Arrays.asList(null, 60, null), sign);
+        assertEquals(new ArrayList<String>(), calls);
+    }
+
+    @Test
+    public void theSignFollowsTheModuleFirstAndTheCaptureAfterIt() {
+        List<Integer> sign = new ArrayList<>();
+        compositor.setLimitListener(sign::add);
+        compositor.fields(HudSource.CAPTURE, HudRole.ROAD_LIMIT,
+                new HudFields.Builder().number(Road.SPEED_LIMIT, 60).build(), LONG);
+        compositor.fields(HudSource.MODULE, HudRole.ROAD_LIMIT,
+                new HudFields.Builder().number(Road.SPEED_LIMIT, 90).build(), LONG);
+        changed();
+        compositor.withdraw(HudSource.MODULE);
+        changed();
+        changed();
+
+        assertEquals(Arrays.asList(null, 90, 60), sign);
+    }
+
+    @Test
     public void aMapWithoutHintsNeverOpensTheSession() {
         frame(LONG);
         changed();

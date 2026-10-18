@@ -17,15 +17,26 @@ public enum HudRole {
     MAP_MARKS(HudWindow.MAP, 200, MAP, new int[0], HudSource.MODULE, HudSource.CAPTURE),
     /** z 300: other sources' badges, a camera warning in the reserved corner. */
     MAP_BADGE(HudWindow.MAP, 300, null, new int[0], HudSource.RADAR),
+    /**
+     * z 300: what a source puts in the lane window, standing on the map instead while another
+     * source holds the lane window - the radar's warning when the navigator shows real lanes.
+     */
+    MAP_ASIDE(HudWindow.MAP, 300, null, new int[0], HudSource.RADAR),
     /** The manoeuvre block - picture, metres, street, summaries, stock code - and the remaining route. */
     MANEUVER(HudWindow.MANEUVER, 0, null, new int[] {
             Road.REMAINING_METERS, Road.REMAINING_SECONDS, Road.MANEUVER_PNG, Road.MANEUVER_METERS,
             Road.ROAD_NAME, Road.SUMMARY_DISTANCE, Road.SUMMARY_TIME, Road.STOCK_MANEUVER,
     }, HudSource.MODULE, HudSource.CAPTURE),
-    /** The lane picture and the number of lanes in it. */
+    /**
+     * The lane picture and the number of lanes in it: the navigator's lanes, and when it has none,
+     * the radar's warning (docs/hud-output-architecture.md, 7.4).
+     */
     LANES(HudWindow.LANES, 0, null, new int[] {Road.LANE_COUNT, Road.LANES_PNG},
-            HudSource.MODULE, HudSource.CAPTURE),
-    /** The road's limit, km/h. The car's own sign is written apart, by Denza Apps alone. */
+            HudSource.MODULE, HudSource.CAPTURE, HudSource.RADAR),
+    /**
+     * The road's limit, km/h: field 11, and the car's own sign, which only Denza Apps writes and
+     * which follows this role's winner with or without navigation ({@link HudComposition#roadLimitKmh}).
+     */
     ROAD_LIMIT(HudWindow.FIELDS, 0, null, new int[] {Road.SPEED_LIMIT},
             HudSource.MODULE, HudSource.CAPTURE),
     /** The AR arrow's geometry; the module's own before Denza Apps' approximation. */
@@ -62,6 +73,15 @@ public enum HudRole {
         this.follows = follows;
         this.fields = fields;
         this.sources = sources;
+    }
+
+    /**
+     * For a layer role: the role whose place it stands in for, or null. Its layers show only while
+     * their source does not win that role - {@link #MAP_ASIDE} while the radar does not hold the
+     * lane window.
+     */
+    public HudRole standsInFor() {
+        return this == MAP_ASIDE ? LANES : null;
     }
 
     /** A role of layers in a layered window, as against a role of road-packet fields. */

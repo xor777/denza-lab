@@ -51,6 +51,55 @@ public final class HudSceneTest {
     }
 
     @Test
+    public void theRadarHoldsTheLaneWindowWhileTheNavigatorShowsNoLanes() {
+        navigating(0);
+        radarInTheLaneWindow(0);
+
+        HudComposition composed = scene.compose(0);
+
+        assertEquals(HudSource.RADAR, composed.winner(HudRole.LANES));
+        assertEquals(3L, composed.fields(HudRole.LANES).value(Road.LANE_COUNT));
+        assertTrue("the stand-in stays off the map", composed.layers(HudWindow.MAP).isEmpty());
+    }
+
+    @Test
+    public void theNavigatorsLanesPushTheRadarsWarningOntoTheMap() {
+        navigating(0);
+        radarInTheLaneWindow(0);
+        scene.fields(HudSource.MODULE, HudRole.LANES, new HudFields.Builder()
+                .number(Road.LANE_COUNT, 4).bytes(Road.LANES_PNG, Pngs.header(164, 60)).build(), 500, 0);
+
+        HudComposition lanes = scene.compose(100);
+        assertEquals(HudSource.MODULE, lanes.winner(HudRole.LANES));
+        assertEquals(1, lanes.layers(HudWindow.MAP).size());
+        assertEquals(HudRole.MAP_ASIDE, lanes.layers(HudWindow.MAP).get(0).role);
+
+        // The lanes end: the warning goes back to the lane window, off the map.
+        HudComposition after = scene.compose(500);
+        assertEquals(HudSource.RADAR, after.winner(HudRole.LANES));
+        assertTrue(after.layers(HudWindow.MAP).isEmpty());
+    }
+
+    @Test
+    public void theRoadLimitStandsWithoutNavigationAndTheModulesComesFirst() {
+        scene.fields(HudSource.CAPTURE, HudRole.ROAD_LIMIT,
+                new HudFields.Builder().number(Road.SPEED_LIMIT, 60).build(), LONG, 0);
+
+        HudComposition alone = scene.compose(0);
+        assertEquals(HudMode.OFF, alone.mode);
+        assertNull(alone.winner(HudRole.ROAD_LIMIT));
+        assertNull(alone.road());
+        assertEquals(Integer.valueOf(60), alone.roadLimitKmh());
+
+        scene.fields(HudSource.MODULE, HudRole.ROAD_LIMIT,
+                new HudFields.Builder().number(Road.SPEED_LIMIT, 80).build(), LONG, 0);
+        assertEquals(Integer.valueOf(80), scene.compose(0).roadLimitKmh());
+        scene.withdraw(HudSource.CAPTURE);
+        scene.withdraw(HudSource.MODULE);
+        assertNull(scene.compose(0).roadLimitKmh());
+    }
+
+    @Test
     public void theMapsBaseIsOneSourceAndTheModuleWinsOverTheCapture() {
         navigating(0);
         scene.layer(HudSource.CAPTURE, "map", HudRole.MAP, WHOLE, Pngs.image(300, 180), 1f, LONG, 0);
@@ -268,6 +317,14 @@ public final class HudSceneTest {
     }
 
     /** A filled manoeuvre block from the capture, which opens navigation. */
+    /** The radar's warning in the lane window, and the same picture ready to stand on the map. */
+    private void radarInTheLaneWindow(long now) {
+        scene.fields(HudSource.RADAR, HudRole.LANES, new HudFields.Builder()
+                .number(Road.LANE_COUNT, 3).bytes(Road.LANES_PNG, Pngs.header(123, 60)).build(), LONG, now);
+        scene.layer(HudSource.RADAR, "warning", HudRole.MAP_ASIDE, new HudRect(6, 140, 110, 34),
+                Pngs.image(110, 34), 1f, LONG, now);
+    }
+
     private void navigating(long now) {
         scene.fields(HudSource.CAPTURE, HudRole.MANEUVER, new HudFields.Builder()
                 .number(Road.MANEUVER_METERS, 60).build(), LONG, now);

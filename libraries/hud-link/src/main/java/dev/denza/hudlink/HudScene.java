@@ -138,7 +138,8 @@ public final class HudScene {
             for (HudRole role : HudRole.values()) {
                 if (role.layered() && role.follows == null) {
                     HudSource owner = layerOwner(role);
-                    if (owner != null) {
+                    HudRole place = role.standsInFor();
+                    if (owner != null && (place == null || owners.get(place) != owner)) {
                         owners.put(role, owner);
                     }
                 }
@@ -170,7 +171,9 @@ public final class HudScene {
                 version(window, drawn.get(window));
             }
         }
-        return new HudComposition(mode, owners, values, drawn, new EnumMap<>(versions), nextChange);
+        Published limit = winners.get(HudRole.ROAD_LIMIT);
+        return new HudComposition(mode, owners, values, drawn, new EnumMap<>(versions), nextChange,
+                limit == null ? null : limit.values);
     }
 
     /** The source whose layers win {@code role}: the highest rank among those with a live one. */
