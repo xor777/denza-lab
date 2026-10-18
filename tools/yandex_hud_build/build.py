@@ -9,7 +9,7 @@ import subprocess
 import zipfile
 import xml.etree.ElementTree as ET
 from identity import BUILD_NUMBER, LABEL, VERSION_CODE, VERSION_NAME
-from manifest import LAUNCH_TARGET, SHARED_PERMISSION, edit
+from manifest import LAUNCH_TARGET, QUERIED_PACKAGES, SHARED_PERMISSION, edit
 from resources import ACCOUNT_TYPE, ORIGINAL_ACCOUNT_TYPE, isolate_account_type
 from stock_art import extract as stock_art
 
@@ -54,10 +54,11 @@ def verify_manifest(original, candidate, env):
         raise RuntimeError('Experimental launcher label missing on the launch activity')
     target(after).attrib[android + 'label'] = target(before).attrib[android + 'label']
     queries = after.find('queries')
-    added = [node for node in queries if node.tag == 'package'
-             and node.attrib == {android + 'name': 'com.ts.car.someip.service'}]
-    if len(added) != 1: raise RuntimeError('HUD query mismatch')
-    queries.remove(added[0])
+    for queried in QUERIED_PACKAGES:  # The HUD service, and Denza Apps as the host.
+        added = [node for node in queries if node.tag == 'package'
+                 and node.attrib == {android + 'name': queried}]
+        if len(added) != 1: raise RuntimeError('Package query mismatch: ' + queried)
+        queries.remove(added[0])
     shared = [node for node in before.findall('permission') if node.attrib.get(android + 'name') == SHARED_PERMISSION]
     if len(shared) != 1: raise RuntimeError('Expected one original shared signature permission')
     before.remove(shared[0])

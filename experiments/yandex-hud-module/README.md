@@ -167,7 +167,8 @@ Manifest changes are limited to `debuggable=true`, version name/code from
 `tools/yandex_hud_build/identity.py`, the label **YandexHUD** on the application and on
 `MapActivity` (the launcher alias has no label of its own and Android takes
 the target activity's, so the shortcut, the app list and recents show it), and
-one package-visibility query for the HUD service. The common declaration
+two package-visibility queries: the HUD service, and `dev.denza.apps`, whose host
+service the module binds (Android 11+ hides it otherwise). The common declaration
 `<permission name="com.yandex.permission.READ_CREDENTIALS">` is removed: a fork
 with our signer must not claim ownership of a signature permission shared by
 official Yandex apps. Its `uses-permission` request, all component guards and

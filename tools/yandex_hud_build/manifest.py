@@ -1,4 +1,9 @@
-"""Minimal binary-XML edit: query the HUD service and mark an experimental debug build.
+"""Minimal binary-XML edit: query the HUD service and the host, and mark an experimental debug build.
+
+Two package-visibility queries (Android 11+): the stock SOME/IP service the module writes the HUD
+through when it draws by itself, and Denza Apps, whose host service it binds to be hosted
+(docs/hud-output-architecture.md, 5). Without the second, bindService cannot see Denza Apps and
+the module always draws by itself.
 
 The application and MapActivity labels become LABEL: the launcher shortcut is an alias without a
 label of its own, which Android resolves through its target activity, so both are needed for the
@@ -15,6 +20,11 @@ from identity import LABEL, VERSION_CODE, VERSION_NAME
 U32 = lambda data, offset: struct.unpack_from('<I', data, offset)[0]
 LAUNCH_TARGET = 'ru.yandex.yandexmaps.app.MapActivity'
 SHARED_PERMISSION = 'com.yandex.permission.READ_CREDENTIALS'
+HUD_SERVICE_PACKAGE = 'com.ts.car.someip.service'
+# HudHostProtocol.PACKAGE in libraries/hud-link.
+HOST_PACKAGE = 'dev.denza.apps'
+# The <package> queries added, in order, at the end of <queries>.
+QUERIED_PACKAGES = (HUD_SERVICE_PACKAGE, HOST_PACKAGE)
 
 
 def chunks(data, start=8):
@@ -73,7 +83,8 @@ def edit(data):
         if utf8:
             size, pos = length(pool, pos, True)
         strings.append(bytes(pool[pos:pos + size * (1 if utf8 else 2)]).decode('utf-8' if utf8 else 'utf-16le'))
-    additions = ['com.ts.car.someip.service', VERSION_NAME, 'debuggable', LABEL]
+    # The host's package goes last, so the strings of the earlier edit keep their positions.
+    additions = [HUD_SERVICE_PACKAGE, VERSION_NAME, 'debuggable', LABEL, HOST_PACKAGE]
     if 'package' not in strings:
         additions.append('package')
     new_strings = strings + additions
@@ -102,8 +113,7 @@ def edit(data):
     ns = strings.index('http://schemas.android.com/apk/res/android')
     name = strings.index('name')
     package = new_strings.index('package')
-    query = new_strings.index(additions[0])
-    version = new_strings.index(additions[1])
+    version = new_strings.index(VERSION_NAME)
     debug = new_strings.index('debuggable')
     label = new_strings.index(LABEL)
     resources = next(chunk for kind, chunk in parts if kind == 0x180)
@@ -113,11 +123,15 @@ def edit(data):
     resource_ids[debug] = 0x0101000f  # android.R.attr.debuggable
     new_resources = struct.pack('<HHI', 0x180, 8, 8 + len(resource_ids) * 4)
     new_resources += struct.pack('<' + 'I' * len(resource_ids), *resource_ids)
-    # ResXMLTree_node + ResXMLTree_attrExt + one ResXMLTree_attribute.
-    package_start = struct.pack('<HHIII', 0x102, 16, 56, 0, 0xffffffff)
-    package_start += struct.pack('<II6H', 0xffffffff, package, 20, 20, 1, 0, 0, 0)
-    package_start += struct.pack('<IIIHBBI', ns, name, query, 8, 0, 3, query)
-    package_end = struct.pack('<HHIIIII', 0x103, 16, 24, 0, 0xffffffff, 0xffffffff, package)
+    def package_query(value):
+        """<package android:name=value/>: ResXMLTree_node + ResXMLTree_attrExt + one ResXMLTree_attribute, then its end."""
+        query = new_strings.index(value)
+        start_chunk = struct.pack('<HHIII', 0x102, 16, 56, 0, 0xffffffff)
+        start_chunk += struct.pack('<II6H', 0xffffffff, package, 20, 20, 1, 0, 0, 0)
+        start_chunk += struct.pack('<IIIHBBI', ns, name, query, 8, 0, 3, query)
+        end_chunk = struct.pack('<HHIIIII', 0x103, 16, 24, 0, 0xffffffff, 0xffffffff, package)
+        return start_chunk + end_chunk
+    queries = b''.join(package_query(value) for value in QUERIED_PACKAGES)
     output = bytearray(data[:8]); inserted = marked = numbered = debugged = labelled = removed = 0
     skipped_depth = 0
     for kind, chunk in parts:
@@ -165,7 +179,7 @@ def edit(data):
                     struct.pack_into('<HBBI', chunk, offset + 12, 8, 0, 0x10, VERSION_CODE)
                     numbered += 1
         if kind == 0x103 and strings[U32(chunk, 20)] == 'queries':
-            output.extend(package_start + package_end); inserted += 1
+            output.extend(queries); inserted += 1
         output.extend(chunk)
     if (inserted, marked, numbered, debugged, labelled, removed, skipped_depth) != (1, 1, 1, 1, 2, 1, 0):
         raise ValueError(f'Unexpected manifest shape: query={inserted} version={marked} debug={debugged}'
