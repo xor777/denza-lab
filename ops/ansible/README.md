@@ -85,6 +85,28 @@ The CLI remains the recovery and automation interface. Never install or edit
 the web service, sudoers policy, or systemd unit manually; rerun
 `playbooks/relay-host.yml` instead.
 
+## Download page
+
+`https://adbgw.ru` serves the latest Denza Apps, Yandex HUD and HUD Speed APKs
+([CAG-014](../../docs/car-adb-gateway-decision-log.md#cag-014)). sslh owns public
+port 443 in transparent mode: SSH goes to the relay sshd on `127.0.0.1:922`, TLS
+to Caddy on `127.0.0.1:943`. Caddy renews its Let's Encrypt certificate itself;
+port 80 answers ACME and redirects to HTTPS. The `downloads` role installs the
+page from `platform/downloads/www/`. APKs and `releases.json` in
+`/var/www/adbgw/apk` are runtime content: a playbook rerun never replaces them.
+Publish from the repository root:
+
+```bash
+python3 platform/downloads/publish.py denza-apps
+python3 platform/downloads/publish.py yandex-hud path/to/YandexHUD.apk
+python3 platform/downloads/publish.py hud-speed path/to/HUD-Speed-Denza.apk
+```
+
+Without a path, Denza Apps comes from the latest stable GitHub release. The
+script checks the APK's package, uploads it, and the host checks the hash before
+the page lists it and the app's previous APK is removed. `--dry-run` prints the
+entry without uploading.
+
 ## Provision a New VPS
 
 ```bash

@@ -1,0 +1,6 @@
+---
+# The admin API is off, so a configuration change needs a restart.
+- name: Restart download page web server
+  ansible.builtin.systemd_service:
+    name: caddy.service
+    state: restarted

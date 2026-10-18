@@ -160,3 +160,15 @@ to the replacement. The normative current design lives in
 - **Consequences and risks:** One additional tap in an infrequent, high-impact workflow.
 - **Evidence:** Two independent `AlertDialog` flows in `MainActivity`.
 - **Revisit if:** Managed policy provides equivalent informed consent outside the APK.
+
+<a id="cag-014"></a>
+## CAG-014 — Download Page Shares Port 443 Through sslh
+
+- **Status / date:** Accepted — 2026-10-18.
+- **Context:** The owner wants `https://adbgw.ru` to serve a static page with the latest Denza Apps, Yandex HUD and HUD Speed APKs. Port 443 is the pinned relay SSH endpoint (CAG-003), so a web server cannot simply take it.
+- **Decision:** `sslh-select` owns the public `0.0.0.0:443` and routes by the first bytes: SSH to the relay sshd on `127.0.0.1:922`, TLS to Caddy on `127.0.0.1:943`; plain SSH is also the on-timeout choice. sslh runs in transparent mode: an nft table (`ip cag_sslh`) marks sslh's backend connections and policy routing (fwmark 1 → table 100) returns the replies, so sshd and Caddy see the real client address. Caddy serves the page, terminates TLS with an ACME certificate and answers `:80` only for ACME and the redirect. APKs and `releases.json` are runtime content published by `platform/downloads/publish.py`, not Ansible variables.
+- **Rationale:** No client, pin or port changes. Real source addresses keep `PerSourcePenalties`, `PerSourceMaxStartups` and fail2ban per attacker; a non-transparent multiplexer would show every car as `127.0.0.1`, so one failing source would penalise all of them. Backend ports are loopback-only and privileged, and every relay key already carries its own `permitlisten`/`permitopen`, so no relay account can take a backend over.
+- **Alternatives:** Plain HTTP on 80 (browsers warn, APK downloads flagged); HTTPS on another port (awkward address); a non-transparent multiplexer (shared penalties, fail2ban blind); nginx `stream` with `ssl_preread` (same routing work, more configuration); a separate host or IP for the page.
+- **Consequences and risks:** sslh is now on the relay's entry path: if it stops, cars cannot connect while admin port 22 keeps working. `route_localnet=1` is set only together with the nft drops for `127.0.0.0/8` on non-loopback interfaces. A static-file web server joins the public surface. A client that waits for the server banner (ssh-keyscan; the app and CLI speak first) connects after the probe timeout, about 4 s with `sslh-select`; `sslh-ev` 2.1.4 never fires that timeout, which the verify playbook's keyscan caught. `select()` caps sslh at about 500 concurrent connections. IPv4 only; the host has no global IPv6 and no AAAA record.
+- **Evidence:** `ops/ansible/roles/relay_host` (sslh, tproxy, sshd backend) and `roles/downloads` (Caddy, page); `verify-relay-host.yml` checks the pinned fingerprint through public 443, the real client address on the sshd backend, HTTPS and the redirect; `platform/downloads/tests`.
+- **Revisit if:** The relay moves to its own host or address, IPv6 is enabled, or the page needs anything beyond static files.

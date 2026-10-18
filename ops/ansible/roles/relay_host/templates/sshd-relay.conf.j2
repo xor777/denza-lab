@@ -1,6 +1,9 @@
-# Managed by Ansible. Port 22 remains available for the administrator.
+# Managed by Ansible. Port 22 remains available for the administrator. The
+# relay listens on loopback behind sslh, which owns public port {{ relay_host_ssh_port }} (CAG-014).
 Port {{ relay_host_admin_ssh_port }}
-Port {{ relay_host_ssh_port }}
+ListenAddress 0.0.0.0:{{ relay_host_admin_ssh_port }}
+ListenAddress [::]:{{ relay_host_admin_ssh_port }}
+ListenAddress 127.0.0.1:{{ relay_host_ssh_backend_port }}
 GatewayPorts no
 AuthorizedKeysCommand {{ relay_host_root }}/authorized-keys.sh %u
 AuthorizedKeysCommandUser cag-authkeys
@@ -8,7 +11,7 @@ AuthorizedKeysCommandUser cag-authkeys
 Match LocalPort {{ relay_host_admin_ssh_port }}
     AllowUsers {{ admin_user }}
 
-Match LocalPort {{ relay_host_ssh_port }}
+Match LocalPort {{ relay_host_ssh_backend_port }}
     AllowUsers cag-device cag-client cag-enroll cag-pair cag-control
 
 Match all

@@ -30,6 +30,7 @@ configured only under the `experiments` property, as "Build Outputs" describes.
 | --- | --- | --- |
 | `docs/` | Stable project knowledge, decisions, and investigation summaries. | Update when behavior, commands, or known limitations change. |
 | `platform/relay/` | Car ADB Gateway relay state engine and restricted SSH/PAM commands. | Deploy only through `ops/ansible`; state updates must remain locked, atomic, and idempotent. |
+| `platform/downloads/` | The `https://adbgw.ru` download page and `publish.py`, which puts the latest APKs on it (CAG-014). | The page deploys through `ops/ansible`; APKs and `releases.json` are runtime content, published only with `publish.py`. |
 | `platform/cli/` | Cross-platform `cag` developer CLI for macOS/Linux. | Do not edit user SSH config; keep relay and vehicle host-key pinning strict. |
 | `ops/ansible/` | Repeatable relay host provisioning and verification. | Never place private keys/passwords in inventory; verify before any live deploy. |
 | `tools/` | Host-side scripts for one-off live experiments, including isolated FSE cross-device probes. | Promotion into an app follows `docs/governance.md`. Passenger-screen findings belong in `docs/fse-app-installation.md`. |

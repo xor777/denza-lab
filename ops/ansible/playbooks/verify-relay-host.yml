@@ -11,7 +11,7 @@
           - /usr/sbin/sshd
           - -T
           - -C
-          - user=cag-device,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_port }}
+          - user=cag-device,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_backend_port }}
       register: relay_verify_device_sshd
       changed_when: false
 
@@ -21,7 +21,7 @@
           - /usr/sbin/sshd
           - -T
           - -C
-          - user=cag-client,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_port }}
+          - user=cag-client,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_backend_port }}
       register: relay_verify_client_sshd
       changed_when: false
 
@@ -31,7 +31,7 @@
           - /usr/sbin/sshd
           - -T
           - -C
-          - user=cag-enroll,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_port }}
+          - user=cag-enroll,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_backend_port }}
       register: relay_verify_enroll_sshd
       changed_when: false
 
@@ -41,7 +41,7 @@
           - /usr/sbin/sshd
           - -T
           - -C
-          - user=cag-pair,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_port }}
+          - user=cag-pair,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_backend_port }}
       register: relay_verify_pair_sshd
       changed_when: false
 
@@ -51,7 +51,7 @@
           - /usr/sbin/sshd
           - -T
           - -C
-          - user=cag-control,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_port }}
+          - user=cag-control,addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_backend_port }}
       register: relay_verify_control_sshd
       changed_when: false
 
@@ -71,7 +71,7 @@
           - /usr/sbin/sshd
           - -T
           - -C
-          - user={{ admin_user }},addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_port }}
+          - user={{ admin_user }},addr=127.0.0.1,host=localhost,lport={{ relay_host_ssh_backend_port }}
       register: relay_verify_admin_on_relay_sshd
       changed_when: false
 
@@ -89,7 +89,9 @@
       ansible.builtin.assert:
         that:
           - "'port 22' in relay_verify_device_sshd.stdout"
-          - "'port 443' in relay_verify_device_sshd.stdout"
+          - "'port 443' not in relay_verify_device_sshd.stdout"
+          - "('listenaddress 127.0.0.1:' ~ relay_host_ssh_backend_port) in relay_verify_device_sshd.stdout"
+          - "('listenaddress 0.0.0.0:' ~ relay_host_ssh_backend_port) not in relay_verify_device_sshd.stdout"
           - "'allowtcpforwarding remote' in relay_verify_device_sshd.stdout"
           - "'allowstreamlocalforwarding no' in relay_verify_device_sshd.stdout"
           - "'permitlisten 127.0.0.1:*' in relay_verify_device_sshd.stdout"
@@ -431,15 +433,23 @@
           - relay_verify_fail2ban_limits.results[2].stdout | int == 900
 
     - name: Read listening TCP sockets
-      ansible.builtin.command: ss -H -lnt
+      ansible.builtin.command: ss -H -lntp
       register: relay_verify_sockets
       changed_when: false
 
-    - name: Require admin and relay SSH listeners
+    - name: Require admin SSH, sslh on the public relay port and loopback backends
+      vars:
+        listeners: "{{ relay_verify_sockets.stdout_lines }}"
       ansible.builtin.assert:
         that:
-          - "':22 ' in relay_verify_sockets.stdout"
-          - "':443 ' in relay_verify_sockets.stdout"
+          - "listeners | select('search', '0.0.0.0:22 .*sshd') | list | length == 1"
+          - "listeners | select('search', '0.0.0.0:' ~ relay_host_ssh_port ~ ' .*sslh') | list | length == 1"
+          - "listeners | select('search', ':' ~ relay_host_ssh_port ~ ' .*sshd') | list | length == 0"
+          - "listeners | select('search', '127.0.0.1:' ~ relay_host_ssh_backend_port ~ ' .*sshd') | list | length == 1"
+          - "listeners | select('search', ':' ~ relay_host_ssh_backend_port ~ ' ') | list | length == 1"
+          - "listeners | select('search', '127.0.0.1:' ~ relay_host_tls_backend_port ~ ' .*caddy') | list | length == 1"
+          - "listeners | select('search', ':' ~ relay_host_tls_backend_port ~ ' ') | list | length == 1"
+          - "listeners | select('search', ':80 .*caddy') | list | length == 1"
           - "('127.0.0.1:' ~ relay_host_web_port ~ ' ') in relay_verify_sockets.stdout"
           - "('0.0.0.0:' ~ relay_host_web_port ~ ' ') not in relay_verify_sockets.stdout"
           - "('[::]:' ~ relay_host_web_port ~ ' ') not in relay_verify_sockets.stdout"
@@ -465,6 +475,9 @@
       ansible.builtin.assert:
         that:
           - "'443/tcp' in relay_verify_ufw.stdout"
+          - "'80/tcp' in relay_verify_ufw.stdout"
+          - "(relay_host_ssh_backend_port | string) not in relay_verify_ufw.stdout"
+          - "(relay_host_tls_backend_port | string) not in relay_verify_ufw.stdout"
           - "(relay_host_web_port | string) not in relay_verify_ufw.stdout"
 
     - name: Read time synchronization state
@@ -495,6 +508,127 @@
           - relay_host_ed25519_fingerprint in relay_verify_host_key.stdout
           - relay_host_public_ipv4 in relay_verify_dns.stdout
 
+    # CAG-014: sslh owns the public relay port and must stay transparent.
+    - name: Read sslh and return-path service states  # noqa command-instead-of-module
+      ansible.builtin.command: "systemctl {{ item.0 }} {{ item.1 }}"
+      loop: "{{ ['is-active', 'is-enabled'] | product(['sslh.service', 'cag-sslh-tproxy.service', 'caddy.service']) | list }}"
+      register: relay_verify_mux_services
+      changed_when: false
+      failed_when: false
+
+    - name: Require active and enabled sslh, return path and web server
+      ansible.builtin.assert:
+        that:
+          - item.stdout == ('active' if item.item.0 == 'is-active' else 'enabled')
+      loop: "{{ relay_verify_mux_services.results }}"
+      loop_control:
+        label: "{{ item.item.1 }} {{ item.item.0 }}"
+
+    - name: Read the transparent return path
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - nft list table ip cag_sslh
+        - ip rule show
+        - "ip route show table {{ relay_host_sslh_route_table }}"
+        - sysctl -n net.ipv4.conf.all.route_localnet
+        - cat /etc/cag/sslh.cfg
+      register: relay_verify_tproxy
+      changed_when: false
+
+    - name: Require the return route, its loopback guards and transparent sslh
+      ansible.builtin.assert:
+        that:
+          - "'iifname != \"lo\" ip daddr 127.0.0.0/8 drop' in relay_verify_tproxy.results[0].stdout"
+          - "'oifname != \"lo\" ip saddr 127.0.0.0/8 drop' in relay_verify_tproxy.results[0].stdout"
+          - "'skuid' in relay_verify_tproxy.results[0].stdout"
+          - "('fwmark ' ~ relay_host_sslh_fwmark ~ ' lookup ' ~ relay_host_sslh_route_table) in relay_verify_tproxy.results[1].stdout"
+          - "'local default dev lo' in relay_verify_tproxy.results[2].stdout"
+          - "relay_verify_tproxy.results[3].stdout == '1'"
+          - "'transparent: true;' in relay_verify_tproxy.results[4].stdout"
+
+    - name: Read the pinned host key through the public relay port
+      delegate_to: localhost
+      become: false
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        ssh-keyscan -T 10 -t ed25519 -p {{ relay_host_ssh_port }} {{ relay_host_domain }} 2>/dev/null
+        | ssh-keygen -lf - -E sha256
+      args:
+        executable: /bin/bash
+      register: relay_verify_public_key
+      changed_when: false
+
+    - name: Require the pinned fingerprint behind sslh
+      ansible.builtin.assert:
+        that:
+          - relay_host_ed25519_fingerprint in relay_verify_public_key.stdout
+
+    - name: Read this controller's address as the relay sees it
+      become: false
+      ansible.builtin.command: printenv SSH_CLIENT
+      register: relay_verify_controller
+      changed_when: false
+
+    - name: Hold an SSH connection open through the public relay port
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - >-
+            import socket, time;
+            s = socket.create_connection(('{{ relay_host_domain }}', {{ relay_host_ssh_port }}), 10);
+            s.sendall(b'SSH-2.0-cag-verify\r\n'); s.recv(64); time.sleep(8)
+      async: 20
+      poll: 0
+      changed_when: false
+      register: relay_verify_held
+
+    - name: Read the sshd backend's peers while the connection is held
+      ansible.builtin.command: "ss -Htn state established '( sport = :{{ relay_host_ssh_backend_port }} )'"
+      register: relay_verify_backend_peers
+      until: (relay_verify_controller.stdout.split()[0] ~ ':') in relay_verify_backend_peers.stdout
+      retries: 6
+      delay: 1
+      changed_when: false
+
+    - name: Require sshd to see the client's own address, not loopback
+      ansible.builtin.assert:
+        that:
+          - (relay_verify_controller.stdout.split()[0] ~ ':') in relay_verify_backend_peers.stdout
+
+    - name: Fetch the download page over HTTPS
+      delegate_to: localhost
+      become: false
+      ansible.builtin.uri:
+        url: "https://{{ relay_host_domain }}/{{ item }}"
+        return_content: true
+        status_code: 200
+      loop:
+        - ""
+        - apk/releases.json
+      register: relay_verify_page
+      changed_when: false
+
+    - name: Fetch the plain-HTTP redirect
+      delegate_to: localhost
+      become: false
+      ansible.builtin.uri:
+        url: "http://{{ relay_host_domain }}/"
+        follow_redirects: none
+        status_code: 308
+      register: relay_verify_redirect
+      changed_when: false
+
+    - name: Require the page, its release list and the redirect
+      ansible.builtin.assert:
+        that:
+          - "'DENZA LAB' in relay_verify_page.results[0].content"
+          - relay_verify_page.results[0].strict_transport_security is defined
+          - relay_verify_page.results[1].json.version == 1
+          - relay_verify_redirect.location == ('https://' ~ relay_host_domain ~ '/')
+
     - name: Show relay verification summary
       ansible.builtin.debug:
         msg:
@@ -507,3 +641,5 @@
           web: "{{ relay_verify_web_service.results | map(attribute='stdout') | list }}"
           sockets: "{{ relay_verify_sockets.stdout_lines }}"
           ufw: "{{ relay_verify_ufw.stdout_lines }}"
+          sshd_backend_peers: "{{ relay_verify_backend_peers.stdout_lines }}"
+          releases: "{{ relay_verify_page.results[1].json.apps | default({}) | dict2items | map(attribute='key') | list }}"

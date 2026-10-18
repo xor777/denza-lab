@@ -1,0 +1,20 @@
+# Managed by Ansible. CAG-014: sslh owns the public relay port and hands each
+# connection to the relay sshd or to the download page by its first bytes.
+# Transparent mode keeps the client's address for sshd penalties and fail2ban.
+timeout: {{ relay_host_sslh_probe_timeout }};
+on-timeout: "ssh";
+transparent: true;
+numeric: true;
+# One journal line per connection instead of stdout and syslog both.
+verbose-connections: 1;
+
+listen:
+(
+    { host: "0.0.0.0"; port: "{{ relay_host_ssh_port }}"; keepalive: true; }
+);
+
+protocols:
+(
+    { name: "ssh"; host: "127.0.0.1"; port: "{{ relay_host_ssh_backend_port }}"; keepalive: true; },
+    { name: "tls"; host: "127.0.0.1"; port: "{{ relay_host_tls_backend_port }}"; }
+);

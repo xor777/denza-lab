@@ -1,0 +1,13 @@
+---
+# The adbgw.ru download page (CAG-014). TLS reaches Caddy from sslh on
+# loopback; port 80 serves ACME and the redirect only.
+downloads_domain: "{{ relay_host_domain }}"
+downloads_root: /var/www/adbgw
+downloads_publisher: "{{ admin_user }}"
+downloads_tls_port: "{{ relay_host_tls_backend_port }}"
+downloads_fonts:
+  - Jura-Medium.ttf
+  - Jura-OFL.txt
+  - Roboto-400.ttf
+  - Roboto-500.ttf
+  - Roboto-LICENSE.txt

@@ -1,9 +1,11 @@
 # Car ADB Gateway — Relay-Only Architecture
 
 Status: current design of the implementation in this repository, last checked
-2026-07-20. The lease and garbage-collection lifecycle passed local acceptance,
-an idempotent Ansible rollout, and live checks on `adbgw.ru`. Head-unit
-end-to-end and soak tests are still required before production use.
+2026-10-18. The lease and garbage-collection lifecycle passed local acceptance,
+an idempotent Ansible rollout, and live checks on `adbgw.ru`; on 2026-10-18 the
+public port moved behind a transparent sslh that also serves the download page
+([CAG-014](car-adb-gateway-decision-log.md#cag-014)). Head-unit end-to-end and
+soak tests are still required before production use.
 
 Car ADB Gateway is a standalone, vehicle-agnostic Android app for head units
 where ADB is available locally. It can be installed alongside the existing
@@ -37,7 +39,7 @@ displayed by an already enrolled vehicle cannot enroll another vehicle.
 Android head unit                         relay: adbgw.ru                 developer computer
 
 ADB 5037/5555 <- sshd 127.0.0.1:2222 <- SSH -R -> 127.0.0.1:device-port <- SSH -W -> cag CLI
-                    end-to-end SSH              OpenSSH/PAM, port 443       macOS or Linux
+                    end-to-end SSH       sslh :443 -> OpenSSH/PAM :922  macOS or Linux
 ```
 
 - The vehicle always initiates the outbound connection.
@@ -57,6 +59,13 @@ ADB 5037/5555 <- sshd 127.0.0.1:2222 <- SSH -R -> 127.0.0.1:device-port <- SSH -
 
 `ops/ansible` configures stock OpenSSH and the commands in `platform/relay/`.
 Port 22 remains the administrative endpoint; port 443 serves the application.
+sslh owns public port 443 in transparent mode and routes by the first bytes: SSH
+to the relay sshd on `127.0.0.1:922`, TLS to Caddy on `127.0.0.1:943`, which
+serves the `https://adbgw.ru` download page from `platform/downloads/`. An nft
+table and policy routing return the backends' replies to sslh, so sshd, its
+penalties and fail2ban see each client's own address
+([CAG-014](car-adb-gateway-decision-log.md#cag-014)). Port 80 answers ACME and
+the HTTPS redirect only.
 The administrator web UI listens only on relay loopback port `8787` and is
 reachable through an SSH local-forward on port 22. It has no public listener or
 second login prompt.
@@ -311,6 +320,11 @@ free local port and runs `adb connect`.
   a new enrollment invite from an administrator.
 - There is no application-level backup workflow; the accepted recovery boundary
   is the existing full-VM backup.
+- sslh sits on the relay's entry path: if it stops, vehicles and computers
+  cannot connect while port 22 still works. `sslh-select` handles about 500
+  concurrent connections; a client that waits for the server banner connects
+  after the probe timeout. The download page adds a static-file web server to
+  the public surface ([CAG-014](car-adb-gateway-decision-log.md#cag-014)).
 
 ## 8. Verification Status
 
@@ -334,6 +348,14 @@ Completed locally and on `adbgw.ru` for the lifecycle revision on 2026-07-18:
   devices, read-only `cag-authkeys` ACLs, active/enabled hourly GC, effective
   OpenSSH limits and penalties, fail2ban `5/10m/15m`, listener separation, UFW,
   NTP, DNS, and the pinned relay host key.
+
+On 2026-10-18 the sslh rollout (CAG-014) applied and converged, and
+`verify-relay-host.yml` passed 68 checks: the pinned host key through public
+port 443 (including a banner-waiting `ssh-keyscan`), the controller's own address
+on the sshd backend, sslh and the return path active, loopback-only backends,
+the Let's Encrypt HTTPS page, its release list and the port-80 redirect.
+`sslh-ev` 2.1.4 failed the banner-waiting check (its probe timeout never fires)
+and was replaced by `sslh-select`.
 
 Required before production:
 

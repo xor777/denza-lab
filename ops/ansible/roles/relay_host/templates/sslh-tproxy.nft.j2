@@ -1,0 +1,32 @@
+#!/usr/sbin/nft -f
+# Managed by Ansible. CAG-014: the return path for sslh's transparent backend
+# connections (sslh doc/tproxy.md, loopback backends). sslh connects to a
+# loopback backend from the client's address; the backend's replies are
+# marked here and routed back to sslh by fwmark {{ relay_host_sslh_fwmark }} -> table {{ relay_host_sslh_route_table }}.
+# route_localnet makes those replies routable; the two drops keep 127.0.0.0/8
+# from ever entering or leaving through a real interface.
+
+table ip cag_sslh
+delete table ip cag_sslh
+
+table ip cag_sslh {
+	chain raw_prerouting {
+		type filter hook prerouting priority raw; policy accept;
+		iifname != "lo" ip daddr 127.0.0.0/8 drop
+	}
+
+	chain mangle_postrouting {
+		type filter hook postrouting priority mangle; policy accept;
+		oifname != "lo" ip saddr 127.0.0.0/8 drop
+	}
+
+	chain nat_output {
+		type nat hook output priority -100; policy accept;
+		meta skuid "sslh" tcp flags & (fin | syn | rst | ack) == syn ct mark set {{ relay_host_sslh_fwmark }}
+	}
+
+	chain route_output {
+		type route hook output priority mangle; policy accept;
+		oifname != "lo" meta l4proto tcp ct mark {{ relay_host_sslh_fwmark }} meta mark set {{ relay_host_sslh_fwmark }}
+	}
+}

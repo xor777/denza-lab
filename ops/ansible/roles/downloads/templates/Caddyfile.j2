@@ -1,0 +1,36 @@
+# Managed by Ansible. The download page (CAG-014). sslh hands TLS to this
+# server on loopback; port 80 answers ACME and redirects to HTTPS.
+{
+	admin off
+	http_port 80
+	https_port {{ downloads_tls_port }}
+	auto_https disable_redirects
+	servers {
+		protocols h1 h2
+	}
+}
+
+{{ downloads_domain }} {
+	bind 127.0.0.1
+	root * {{ downloads_root }}
+	header {
+		-Server
+		Strict-Transport-Security "max-age=15552000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Content-Security-Policy "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+	}
+	@fonts path /fonts/*
+	header @fonts Cache-Control "public, max-age=2592000"
+	@fresh not path /fonts/*
+	header @fresh Cache-Control no-cache
+	@apk path /apk/*.apk
+	header @apk Content-Type application/vnd.android.package-archive
+	file_server {
+		hide .*
+	}
+}
+
+http://{{ downloads_domain }} {
+	redir https://{{ downloads_domain }}{uri} 308
+}

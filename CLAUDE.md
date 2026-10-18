@@ -55,7 +55,7 @@ and a contents list. Read that first; then `rg -n '^#{2,3} ' <doc>` and
 | The spectrum analyser, audio capture | [docs/audio-capture-findings.md](docs/audio-capture-findings.md) |
 | The car's own map | [docs/stock-map-findings.md](docs/stock-map-findings.md) |
 | CarPlay | [docs/carplay-findings.md](docs/carplay-findings.md) |
-| `:car-adb-gateway`, `platform/relay/` | [docs/car-adb-gateway-decision-log.md](docs/car-adb-gateway-decision-log.md) — a precondition for any change — and [docs/car-adb-gateway-architecture.md](docs/car-adb-gateway-architecture.md). |
+| `:car-adb-gateway`, `platform/relay/`, `platform/downloads/`, `ops/ansible/` | [docs/car-adb-gateway-decision-log.md](docs/car-adb-gateway-decision-log.md) — a precondition for any change — and [docs/car-adb-gateway-architecture.md](docs/car-adb-gateway-architecture.md). |
 
 Package paths are under `apps/denza-apps/src/main/java/dev/denza/apps/`.
 
@@ -156,7 +156,7 @@ The same form works for every module in the second table above.
   `legacy/denza-mirrors/` only as a frozen historical reference.
 - `:car-adb-gateway` is relay-only. Do not add a LAN listener or configurable
   relay without updating the CAG decision log first.
-- Deploy `platform/relay/` only through `ops/ansible`; keep code/grant transitions locked,
+- Deploy `platform/relay/` and the `platform/downloads/` page only through `ops/ansible`; keep code/grant transitions locked,
   atomic, and covered by relay tests.
 - New "poke the car" code goes to `tools/` (host) or a `…​.probe` package
   (on-device), never into a product package.
