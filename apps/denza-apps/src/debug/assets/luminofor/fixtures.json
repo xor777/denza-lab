@@ -40193,7 +40193,7 @@
       "turn": true,
       "sign": true,
       "map": true,
-      "cameras": "MAP"
+      "cameras": true
      },
      {
       "t": "group",
@@ -40223,18 +40223,6 @@
         "on": true
        }
       ]
-     },
-     {
-      "t": "section",
-      "label": "Где показывать камеры",
-      "body": {
-       "t": "segmented",
-       "labels": [
-        "Внизу карты",
-        "Под поворотом"
-       ],
-       "selected": 0
-      }
      }
     ]
    },
@@ -40244,7 +40232,6 @@
     "map": true,
     "sign": true,
     "cameras": true,
-    "place": "MAP",
     "navigator": "YANDEX",
     "radar": "ADAPTED"
    }
@@ -40798,7 +40785,7 @@
       "turn": true,
       "sign": true,
       "map": true,
-      "cameras": "LANES"
+      "cameras": true
      },
      {
       "t": "group",
@@ -40828,22 +40815,6 @@
         "on": true
        }
       ]
-     },
-     {
-      "t": "section",
-      "label": "Где показывать камеры",
-      "body": {
-       "t": "segmented",
-       "labels": [
-        "Внизу карты",
-        "Под поворотом"
-       ],
-       "selected": 1
-      }
-     },
-     {
-      "t": "note",
-      "text": "Когда навигатор показывает полосы, камеры на это время уходят вниз карты."
      }
     ]
    },
@@ -40853,7 +40824,6 @@
     "map": true,
     "sign": true,
     "cameras": true,
-    "place": "LANES",
     "navigator": "YANDEX_HUD",
     "radar": "ADAPTED"
    }
@@ -41407,7 +41377,7 @@
       "turn": true,
       "sign": true,
       "map": true,
-      "cameras": null
+      "cameras": false
      },
      {
       "t": "group",
@@ -41448,7 +41418,6 @@
     "map": true,
     "sign": true,
     "cameras": true,
-    "place": "MAP",
     "navigator": "YANDEX_HUD",
     "radar": "OFFICIAL"
    }
@@ -42002,7 +41971,7 @@
       "turn": true,
       "sign": true,
       "map": true,
-      "cameras": null
+      "cameras": false
      },
      {
       "t": "group",
@@ -42042,7 +42011,6 @@
     "map": true,
     "sign": true,
     "cameras": true,
-    "place": "MAP",
     "navigator": "YANDEX",
     "radar": "NONE"
    }
@@ -42596,7 +42564,7 @@
       "turn": false,
       "sign": false,
       "map": false,
-      "cameras": null
+      "cameras": false
      },
      {
       "t": "group",
@@ -42630,19 +42598,6 @@
         "enabled": false
        }
       ]
-     },
-     {
-      "t": "section",
-      "label": "Где показывать камеры",
-      "body": {
-       "t": "segmented",
-       "labels": [
-        "Внизу карты",
-        "Под поворотом"
-       ],
-       "selected": 0,
-       "enabled": false
-      }
      }
     ]
    },
@@ -42652,7 +42607,6 @@
     "map": true,
     "sign": true,
     "cameras": true,
-    "place": "MAP",
     "navigator": "NONE",
     "radar": "ADAPTED"
    }
@@ -43206,7 +43160,7 @@
       "turn": true,
       "sign": true,
       "map": true,
-      "cameras": null
+      "cameras": false
      },
      {
       "t": "group",
@@ -43249,7 +43203,6 @@
     "map": true,
     "sign": true,
     "cameras": true,
-    "place": "MAP",
     "navigator": "YANDEX_HUD_ALONE",
     "radar": "ADAPTED"
    }

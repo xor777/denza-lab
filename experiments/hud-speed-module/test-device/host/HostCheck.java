@@ -9,12 +9,12 @@ import java.util.*;
 /**
  * Seeds a route only on the emulator, observes the production host's compositor and saves cards.
  * The host passes only what the HUD panel lets through (HudHostOutput.admits), and a fresh install
- * has «Повороты» off: the run turns «Повороты» and «Камеры» on, with the warning at the bottom of
- * the map, and puts the driver's values back after.
+ * has «Повороты» off: the run turns «Повороты» and «Камеры» on and puts the driver's values back
+ * after. The warning is a card in the lane window (HudRole.LANES), the only place it has.
  */
 public final class HostCheck extends Instrumentation {
     private interface Step { void run() throws Exception; }
-    private Object sink,scene,module,radar,maneuver,limit,map,settings;
+    private Object sink,scene,module,radar,maneuver,limit,lanes,settings;
     private Object[] panel;
     private ClassLoader loader;
     private int gaps;
@@ -59,8 +59,8 @@ public final class HostCheck extends Instrumentation {
     private void setup() throws Exception {
         settings=loader.loadClass("dev.denza.apps.feature.hud.HudGuidanceSettings").getField("INSTANCE").get(null);
         android.content.Context context=getTargetContext();
-        Object[] before={invoke(settings,"isEnabled",context),invoke(settings,"areCamerasEnabled",context),invoke(settings,"cameraPlace",context)};
-        panel(true,true,Enum.valueOf((Class)loader.loadClass("dev.denza.apps.feature.hud.HudCameraPlace"),"MAP"));
+        Object[] before={invoke(settings,"isEnabled",context),invoke(settings,"areCamerasEnabled",context)};
+        panel(true,true);
         panel=before;
         Class<?> host=loader.loadClass("dev.denza.apps.feature.hud.HudHostOutput");
         Method get=host.getDeclaredMethod("get",android.content.Context.class); get.setAccessible(true);
@@ -68,7 +68,7 @@ public final class HostCheck extends Instrumentation {
         sink=invoke(output,"sink");
         scene=field(field(field(output,"output"),"compositor"),"scene");
         module=en("HudSource","MODULE"); radar=en("HudSource","RADAR");
-        maneuver=en("HudRole","MANEUVER"); limit=en("HudRole","ROAD_LIMIT"); map=en("HudWindow","MAP");
+        maneuver=en("HudRole","MANEUVER"); limit=en("HudRole","ROAD_LIMIT"); lanes=en("HudRole","LANES");
         Object b=loader.loadClass("dev.denza.hudlink.HudFields$Builder").getConstructor().newInstance();
         invoke(b,"number",9,450L); invoke(b,"text",10,"Проверка HUD Speed");
         invoke(sink,"fields",module,maneuver,invoke(b,"build"),30_000L);
@@ -89,11 +89,10 @@ public final class HostCheck extends Instrumentation {
         Object composition=invoke(scene,"compose",SystemClock.uptimeMillis());
         if(!module.equals(invoke(composition,"winner",maneuver)) || !module.equals(invoke(composition,"winner",limit)))
             throw new AssertionError("radar replaced navigation");
-        boolean visible=false;
-        // The warning only: HUD Speed's GPS bars stay while its radar runs, between warnings too.
-        for(Object layer:(List<?>)invoke(composition,"layers",map)) if(radar.equals(field(layer,"source")) && "warning".equals(field(layer,"id"))) {
-            visible=true;
-            byte[] png=(byte[])invoke(field(layer,"image"),"png"); int hash=Arrays.hashCode(png);
+        // The warning only: HUD Speed's GPS bars stay on the map while its radar runs, between warnings too.
+        boolean visible=radar.equals(invoke(composition,"winner",lanes));
+        if(visible) {
+            byte[] png=(byte[])invoke(invoke(composition,"fields",lanes),"value",7); int hash=Arrays.hashCode(png);
             if(pictures.add(hash)) {
                 File dir=new File(getTargetContext().getFilesDir(),"hud-speed-qa"); dir.mkdirs();
                 try(FileOutputStream out=new FileOutputStream(new File(dir,"card-"+pictures.size()+".png"))) { out.write(png); }
@@ -102,11 +101,10 @@ public final class HostCheck extends Instrumentation {
         if(previous && !visible) gaps++;
         previous=visible;
     }
-    /** «Повороты», «Камеры», «Где показывать камеры». */
+    /** «Повороты», «Камеры». */
     private void panel(Object... values) throws Exception {
         android.content.Context context=getTargetContext();
         invoke(settings,"setEnabled",context,values[0]); invoke(settings,"setCamerasEnabled",context,values[1]);
-        invoke(settings,"setCameraPlace",context,values[2]);
     }
     private Object en(String type,String value) throws Exception { return Enum.valueOf((Class)loader.loadClass("dev.denza.hudlink."+type),value); }
     private static Object field(Object owner,String name) throws Exception { Field f=owner.getClass().getDeclaredField(name); f.setAccessible(true); return f.get(owner); }

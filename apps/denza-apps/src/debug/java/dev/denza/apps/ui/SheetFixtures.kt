@@ -27,7 +27,6 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
-import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.feature.mirrors.MirrorsPosition
@@ -268,7 +267,6 @@ internal object SheetFixtures {
                 hudRadar = HudRadarInstall.valueOf(s.optString("radar", "NONE")),
                 hudSignEnabled = s.optBoolean("sign", true),
                 hudCamerasEnabled = s.optBoolean("cameras", true),
-                hudCameraPlace = HudCameraPlace.valueOf(s.optString("place", "MAP")),
             )
         }
         if (s.has("speakers")) {

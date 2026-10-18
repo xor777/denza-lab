@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet.Glass as G
-import dev.denza.apps.feature.hud.HudCameraPlace
 
 /**
  * The HUD panel's picture of the projection during a route: the board's `glass` block
@@ -150,19 +149,18 @@ private class GlassDrawing(private val c: Canvas) {
         }
         parts += Part("Карта", mp, up = true, on = glass.map)
 
+        // HUD Speed's picture of the lane window, at the lane rect's height from its left edge; on
+        // the map only its GPS bars.
         val warn = G.Warning
-        val t = warn.TILE * k
         val ln = r(G.LANES)
-        val strip = if (glass.cameras == HudCameraPlace.LANES) {
-            floatArrayOf(ln[0] + warn.MARGIN * k, ln[1] + ln[3] - t, warn.WIDTH * k, t)
-        } else {
-            floatArrayOf(mp[0] + warn.MARGIN * k, mp[1] + mp[3] - (warn.MARGIN + warn.TILE) * k, warn.WIDTH * k, t)
-        }
-        if (glass.cameras != null) {
-            val g = warn.GAP * k
+        val q = ln[3] / warn.HEIGHT
+        val strip = floatArrayOf(ln[0], ln[1], warn.WIDTH * q, ln[3])
+        if (glass.cameras) {
+            val t = warn.TILE * q
+            val g = warn.GAP * q
+            val y0 = strip[1] + (strip[3] - t) / 2
             for (i in 0..1) {
                 val x0 = strip[0] + i * (t + g)
-                val y0 = strip[1]
                 roundRect(x0, y0, t, t, t * 0.18f, WHITE)
                 val lw = t * 0.09f
                 stroke.apply {
@@ -181,7 +179,11 @@ private class GlassDrawing(private val c: Canvas) {
                     words("60", x0 + t / 2, centred(y0 + t * 0.54f, t * 0.5f), t * 0.5f, 1f, 500, G.Ink.DARK, center = true)
                 }
             }
-            words("350 м", strip[0] + 2 * (t + g) + g, centred(strip[1] + t * 0.54f, t * 0.46f), t * 0.46f, 1f, 500, WHITE)
+            val d = warn.DIGITS * q
+            val x1 = strip[0] + 2 * (t + g)
+            val base = centred(strip[1] + strip[3] / 2, d)
+            words("350", x1, base, d, 1f, 500, WHITE)
+            words("м", x1 + width("350", d, 500) + g / 2, base, d * warn.UNIT, 1f, 400, WHITE)
             val s = G.Gps.SIZE * k
             fill.color = G.Ink.GPS
             for (i in 0 until 4) {
@@ -193,7 +195,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(strip)
         }
-        parts += Part("Камеры", strip, up = false, on = glass.cameras != null)
+        parts += Part("Камеры", strip, up = false, on = glass.cameras)
 
         val label = G.Label
         val line = G.Line
@@ -254,11 +256,16 @@ private class GlassDrawing(private val c: Canvas) {
         str: String, x: Float, baseline: Float, size: Float, alpha: Float, weight: Int, color: Int,
         center: Boolean = false,
     ) {
+        val width = width(str, size, weight)
+        type.color = withAlpha(color, alpha)
+        c.drawText(str, if (center) x - width / 2 else x, baseline, type)
+    }
+
+    /** The board's `wordsW`: how wide [words] lays [str] down. */
+    private fun width(str: String, size: Float, weight: Int): Float {
         type.typeface = if (weight >= 500) MEDIUM else REGULAR
         type.textSize = size
-        type.color = withAlpha(color, alpha)
-        val width = type.measureText(str)
-        c.drawText(str, if (center) x - width / 2 else x, baseline, type)
+        return type.measureText(str)
     }
 
     /** The baseline that centres a line of [size] on [cy], as the board's `centred` puts it. */

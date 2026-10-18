@@ -15,24 +15,20 @@ public enum HudRole {
     MAP(HudWindow.MAP, 100, null, new int[0], HudSource.MODULE, HudSource.CAPTURE),
     /** z 200: marks the base's own source draws over its map; shown only from the source whose map is shown. */
     MAP_MARKS(HudWindow.MAP, 200, MAP, new int[0], HudSource.MODULE, HudSource.CAPTURE),
-    /** z 300: other sources' badges, a camera warning in the reserved corner. */
+    /** z 300: other sources' marks over the map - the radar's GPS bars. */
     MAP_BADGE(HudWindow.MAP, 300, null, new int[0], HudSource.RADAR),
-    /**
-     * z 300: what a source puts in the lane window, standing on the map instead while another
-     * source holds the lane window - the radar's warning when the navigator shows real lanes.
-     */
-    MAP_ASIDE(HudWindow.MAP, 300, null, new int[0], HudSource.RADAR),
     /** The manoeuvre block - picture, metres, street, summaries, stock code - and the remaining route. */
     MANEUVER(HudWindow.MANEUVER, 0, null, new int[] {
             Road.REMAINING_METERS, Road.REMAINING_SECONDS, Road.MANEUVER_PNG, Road.MANEUVER_METERS,
             Road.ROAD_NAME, Road.SUMMARY_DISTANCE, Road.SUMMARY_TIME, Road.STOCK_MANEUVER,
     }, HudSource.MODULE, HudSource.CAPTURE),
     /**
-     * The lane picture and the number of lanes in it: the navigator's lanes, and when it has none,
-     * the radar's warning (docs/hud-output-architecture.md, 7.4).
+     * The lane picture and the number of lanes in it: the radar's warning while it has one, the
+     * navigator's lanes otherwise - a camera ahead matters more than the lanes, the owner's choice
+     * of 2026-10-18 (docs/hud-output-architecture.md, 7.4). The warning has no other place.
      */
     LANES(HudWindow.LANES, 0, null, new int[] {Road.LANE_COUNT, Road.LANES_PNG},
-            HudSource.MODULE, HudSource.CAPTURE, HudSource.RADAR),
+            HudSource.RADAR, HudSource.MODULE, HudSource.CAPTURE),
     /**
      * The road's limit, km/h: field 11, and the car's own sign, which only Denza Apps writes and
      * which follows this role's winner with or without navigation ({@link HudComposition#roadLimitKmh}).
@@ -73,25 +69,6 @@ public enum HudRole {
         this.follows = follows;
         this.fields = fields;
         this.sources = sources;
-    }
-
-    /**
-     * For a layer role: the role whose place it stands in for, or null. Its layers show only while
-     * their source does not win that role - {@link #MAP_ASIDE} while the radar does not hold the
-     * lane window.
-     */
-    public HudRole standsInFor() {
-        return this == MAP_ASIDE ? LANES : null;
-    }
-
-    /**
-     * Whether {@code values}, published to this role, hold it against a lower-ranked source. An
-     * explicit nothing does not: the module sends «no lanes» (5 = 0) for the whole of a route, and
-     * that yields the lane window to the radar's warning; it is written only while no source has
-     * a picture for the window (docs/hud-output-architecture.md, 7.4).
-     */
-    public boolean holds(HudFields values) {
-        return this != LANES || values.has(Road.LANES_PNG);
     }
 
     /** A role of layers in a layered window, as against a role of road-packet fields. */

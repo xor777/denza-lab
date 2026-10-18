@@ -6,7 +6,6 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
-import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.ui.components.DenzaTileTone
@@ -32,9 +31,8 @@ class HudPanelTest {
         map: Boolean = true,
         sign: Boolean = true,
         cameras: Boolean = true,
-        place: HudCameraPlace = HudCameraPlace.MAP,
         busy: Boolean = false,
-    ) = HudPanel.of(navigator, radar, hints, map, sign, cameras, place, busy)
+    ) = HudPanel.of(navigator, radar, hints, map, sign, cameras, busy)
 
     private fun HudPanel.row(id: HudPanelRow.Id) = rows.first { it.id == id }
 
@@ -42,11 +40,8 @@ class HudPanelTest {
     fun everythingOnLightsTheWholeGlass() {
         val all = panel()
 
-        assertEquals(HudGlass(turn = true, sign = true, map = true, cameras = HudCameraPlace.MAP), all.glass)
+        assertEquals(HudGlass(turn = true, sign = true, map = true, cameras = true), all.glass)
         assertTrue(all.rows.all { it.checked && it.enabled })
-        assertEquals(HudCameraPlace.MAP, all.place)
-        assertTrue(all.placeEnabled)
-        assertNull(all.note)
     }
 
     @Test
@@ -58,8 +53,7 @@ class HudPanelTest {
             assertFalse("$id moves with the turns off", off.row(id).enabled)
             assertTrue("$id keeps its value", off.row(id).checked)
         }
-        assertFalse(off.placeEnabled)
-        assertEquals(HudGlass(turn = false, sign = false, map = false, cameras = null), off.glass)
+        assertEquals(HudGlass(turn = false, sign = false, map = false, cameras = false), off.glass)
     }
 
     @Test
@@ -71,18 +65,12 @@ class HudPanelTest {
     fun eachSwitchDarkensItsOwnPartOfTheGlass() {
         assertFalse(panel(map = false).glass.map)
         assertFalse(panel(sign = false).glass.sign)
-        assertNull(panel(cameras = false).glass.cameras)
-        assertFalse(panel(cameras = false).placeEnabled)
+        assertFalse(panel(cameras = false).glass.cameras)
     }
 
     @Test
-    fun underTheTurnSaysWhereTheCamerasGoWhileLanesShow() {
-        val lanes = panel(place = HudCameraPlace.LANES)
-
-        assertEquals(HudCameraPlace.LANES, lanes.glass.cameras)
-        assertEquals(HudPanel.LANES_NOTE, lanes.note)
-        assertEquals(HudPanel.LANES_NOTE, helpOf(TileId.HUD, lanes))
-        assertEquals("", helpOf(TileId.HUD, panel()))
+    fun thePictureAndTheLinesSayItAllWithoutAParagraph() {
+        assertEquals("", helpOf(TileId.HUD))
     }
 
     @Test
@@ -96,16 +84,15 @@ class HudPanelTest {
     }
 
     @Test
-    fun aHudSpeedWithoutTheAdapterIsSaidInOrangeAndPlacesNothing() {
+    fun aHudSpeedWithoutTheAdapterIsSaidInOrangeAndLightsNothing() {
         val official = panel(radar = HudRadarInstall.OFFICIAL)
         val cameras = official.row(HudPanelRow.Id.CAMERAS)
 
         assertEquals(DenzaTileTone.ATTENTION, cameras.tone)
         assertFalse(cameras.enabled)
         assertFalse(cameras.checked)
-        assertNull(official.place)
-        assertNull(official.glass.cameras)
-        assertNull(panel(radar = HudRadarInstall.NONE).place)
+        assertFalse(official.glass.cameras)
+        assertFalse(panel(radar = HudRadarInstall.NONE).glass.cameras)
         assertNull(panel(radar = HudRadarInstall.NONE).row(HudPanelRow.Id.CAMERAS).tone)
     }
 
@@ -113,22 +100,19 @@ class HudPanelTest {
     fun withoutANavigatorOnlyTheSpeedIsLeft() {
         val none = panel(navigator = HudNavigatorInstall.NONE)
 
-        assertEquals(HudGlass(turn = false, sign = false, map = false, cameras = null), none.glass)
+        assertEquals(HudGlass(turn = false, sign = false, map = false, cameras = false), none.glass)
         assertTrue(none.rows.none { it.enabled })
-        assertEquals(HudCameraPlace.MAP, none.place)
-        assertFalse(none.placeEnabled)
     }
 
     @Test
     fun aYandexHudThatDrawsItselfLeavesTheSignAsTheOneSwitch() {
         val alone = panel(navigator = HudNavigatorInstall.YANDEX_HUD_ALONE, hints = false)
 
-        assertEquals(HudGlass(turn = true, sign = true, map = true, cameras = null), alone.glass)
+        assertEquals(HudGlass(turn = true, sign = true, map = true, cameras = false), alone.glass)
         assertEquals(listOf(HudPanelRow.Id.SIGN), alone.rows.filter { it.enabled }.map { it.id })
         // The feature off leaves the sign off whatever its stored value; turning it on turns both.
         assertFalse(alone.row(HudPanelRow.Id.SIGN).checked)
         assertEquals(DenzaTileTone.ATTENTION, alone.row(HudPanelRow.Id.CAMERAS).tone)
-        assertNull(alone.place)
     }
 
     @Test
@@ -142,7 +126,6 @@ class HudPanelTest {
                     radar = HudRadarInstall.ADAPTED,
                     signEnabled = false,
                     camerasEnabled = false,
-                    cameraPlace = HudCameraPlace.LANES,
                 ),
             ),
         )
@@ -151,7 +134,6 @@ class HudPanelTest {
         assertEquals(HudRadarInstall.ADAPTED, read.hudRadar)
         assertFalse(read.hudSignEnabled)
         assertFalse(read.hudCamerasEnabled)
-        assertEquals(HudCameraPlace.LANES, read.hudCameraPlace)
         assertTrue(read.hudMapEnabled)
     }
 

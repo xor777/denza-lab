@@ -12,12 +12,18 @@ class HudRadarBadgeTest {
         HudRadarWarning(1L, true, 1, 1, title, meters, limit, 1, section, average)
 
     @Test
-    fun theLineIsMetresToTenKilometresFromOneOrTheSectionsAverage() {
-        assertEquals("350 м", HudRadarBadge.caption(warning("Камера", meters = 348)))
-        assertEquals("90 м", HudRadarBadge.caption(warning("Камера", meters = 92)))
-        assertEquals("1,0 км", HudRadarBadge.caption(warning("Камера", meters = 996)))
-        assertEquals("1,2 км", HudRadarBadge.caption(warning("Камера", meters = 1240)))
-        assertEquals("Ø 97", HudRadarBadge.caption(warning("Секционная камера", section = true, average = 97)))
+    fun theNumberIsMetresToTenKilometresFromOneOrTheSectionsAverageItsUnitApart() {
+        val camera = warning("Камера", meters = 348)
+        assertEquals("350", HudRadarBadge.amount(camera))
+        assertEquals("м", HudRadarBadge.unit(camera))
+        assertEquals("90", HudRadarBadge.amount(warning("Камера", meters = 92)))
+        assertEquals("1,0", HudRadarBadge.amount(warning("Камера", meters = 996)))
+        val far = warning("Камера", meters = 1240)
+        assertEquals("1,2", HudRadarBadge.amount(far))
+        assertEquals("км", HudRadarBadge.unit(far))
+        val section = warning("Секционная камера", section = true, average = 97)
+        assertEquals("Ø 97", HudRadarBadge.amount(section))
+        assertEquals("", HudRadarBadge.unit(section))
     }
 
     @Test

@@ -911,7 +911,7 @@
   // The HUD panel's picture of the projection during a route (spec.sheet.glass): BYD's own layout
   // scaled to the panel's width, black like the glass at night, each part named by a thin blue
   // line above the glass or below it. A part that is off is an empty dashed outline; the car's own
-  // speed is always there. b: { turn, sign, map, cameras: 'MAP' | 'LANES' | null }.
+  // speed is always there. b: { turn, sign, map, cameras }.
   const GL = SH.glass;
   function glass(c, b, x, y, w) {
     const V = GL.view, k = w / V[2], h = V[3] * k, gy = y + GL.label.room;
@@ -977,16 +977,15 @@
       words(c, '60', mp[0] + m[0] * k, centred(mp[1] + m[1] * k, m[2] * 0.87 * k), m[2] * 0.87 * k, 1, { w: 500, align: 'center', col: DARK });
     } else dashed(mp);
     parts.push({ text: 'Карта', at: mp, up: true, on: !!b.map });
-    // HUD Speed: its tile, its frame with the limit and the metres, at the bottom of the map or in
-    // the lane window under the turn; its GPS bars bottom right while it runs
-    const W = GL.warning, t = W.tile * k, ln = R(GL.rects.lanes);
-    const strip = b.cameras === 'LANES'
-      ? [ln[0] + W.margin * k, ln[1] + ln[3] - t, W.width * k, t]
-      : [mp[0] + W.margin * k, mp[1] + mp[3] - (W.margin + W.tile) * k, W.width * k, t];
+    // HUD Speed: its picture of the lane window under the turn, at the lane rect's height from its
+    // left edge - its tile, its frame with the limit, the metres in large digits and the unit small
+    // after them; never on the map, where only its GPS bars stand, on the bottom edge, while it runs
+    const W = GL.warning, ln = R(GL.rects.lanes), q = ln[3] / W.height;
+    const strip = [ln[0], ln[1], W.width * q, ln[3]];
     if (b.cameras) {
-      const g = W.gap * k;
+      const t = W.tile * q, g = W.gap * q, y0 = strip[1] + (strip[3] - t) / 2;
       [0, t + g].forEach((dx, i) => {
-        const x0 = strip[0] + dx, y0 = strip[1];
+        const x0 = strip[0] + dx;
         over(c, () => {
           c.fillStyle = '#FFFFFF'; c.beginPath(); c.roundRect(x0, y0, t, t, t * 0.18); c.fill();
           const lw = t * 0.09;
@@ -1000,7 +999,9 @@
         });
         if (i === 1) words(c, '60', x0 + t / 2, centred(y0 + t * 0.54, t * 0.5), t * 0.5, 1, { w: 500, align: 'center', col: DARK });
       });
-      words(c, '350 м', strip[0] + 2 * (t + g) + g, centred(strip[1] + t * 0.54, t * 0.46), t * 0.46, 1, { w: 500 });
+      const d = W.digits * q, x1 = strip[0] + 2 * (t + g), base = centred(strip[1] + strip[3] / 2, d);
+      words(c, '350', x1, base, d, 1, { w: 500 });
+      words(c, 'м', x1 + wordsW(c, '350', d, 500) + g / 2, base, d * W.unit, 1);
       const G = GL.gps, s = G.size * k;
       over(c, () => {
         c.fillStyle = GL.ink.gps;

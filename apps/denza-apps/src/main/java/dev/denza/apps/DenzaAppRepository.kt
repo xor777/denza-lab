@@ -37,7 +37,6 @@ import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.fse.FseInstallRuntime
 import dev.denza.apps.feature.fse.FseInstallState
-import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.hud.HudGuidanceRider
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
@@ -161,8 +160,6 @@ data class DenzaUiState(
     val hudSignEnabled: Boolean = true,
     /** «Камеры»: HUD Speed's warnings on the projection. */
     val hudCamerasEnabled: Boolean = true,
-    /** «Где показывать камеры». */
-    val hudCameraPlace: HudCameraPlace = HudCameraPlace.MAP,
     val speakerCovers: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPEAKER_COVERS),
     /**
      * A cover report on the wire, for the second «Поднять» is greyed.
@@ -519,7 +516,6 @@ object DenzaAppRepository {
             radar = HudInstalls.radar(context),
             signEnabled = HudGuidanceSettings.isSignEnabled(context),
             camerasEnabled = HudGuidanceSettings.areCamerasEnabled(context),
-            cameraPlace = HudGuidanceSettings.cameraPlace(context),
         )
         StateSlice.SPEAKER_COVERS -> SpeakerCoversReading(
             snapshot = SpeakerCoverStatus.snapshot(
@@ -891,14 +887,6 @@ object DenzaAppRepository {
         HudGuidanceSettings.setCamerasEnabled(context, enabled)
         HudHostRuntime.settingsChanged(context)
         invalidate(StateSlice.HUD_GUIDANCE, "hud cameras switch")
-    }
-
-    /** «Где показывать камеры»: takes effect with HUD Speed's next observation, within a second. */
-    fun setHudCameraPlace(place: HudCameraPlace) {
-        val context = appContext ?: return
-        HudGuidanceSettings.setCameraPlace(context, place)
-        HudHostRuntime.settingsChanged(context)
-        invalidate(StateSlice.HUD_GUIDANCE, "hud camera place")
     }
 
     /**

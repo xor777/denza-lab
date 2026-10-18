@@ -11,7 +11,7 @@ Owner-only embedded adapter for the reviewed official HUD Speed **79.0**
 | Five entry hooks in the real MainService, no OCR or visible overlay requirement | Built | `tools/hud_speed_build/PatchHooks.java`; SHA-pinned upstream APK |
 | Authenticated semantic IPC, host-rendered badge, one HUD writer | Implemented | `HudRadarWarning`, `HudHostEndpoint`, Denza Apps `HudRadarSource` |
 | Nearest **selected** warning, GPS loss, mph, ongoing average section, stale observation, service destruction | Emulator checks | `test-device/`, `src/test/`; capture directory below |
-| Card alongside route; maneuver, lanes and road-limit ownership retained | Emulator/JVM checks | Host instrumentation and `HudRadarSourceTest` |
+| Card alongside route; maneuver and road-limit ownership retained, the card in the lane window | Emulator/JVM checks | Host instrumentation and `HudRadarSourceTest` |
 | Projector on this car, genuine moving detections, background entitlement, account/purchase, database refresh, sleep/wake | Not accepted | Requires vehicle/user scenarios |
 | Warning without a route | Not implemented | Native camera fields / temporary navigation mode still need the parked surface probe |
 
@@ -44,16 +44,19 @@ Empty list/GPS loss clears it; process death and explicit detach withdraw the
 source. Host lookup retries every 5 seconds, including unanswered bindings.
 There is no standalone SOME/IP implementation in the adapted APK.
 
-The host draws the warning at the bottom of the 300×180 map, left of the
-cursor, with HUD Speed's own artwork read from the installed app by the names
-the adapter sends - the type's tile and the limit's frame from g.i.w(type) -
-and the metres, or a section's average, in large white digits; HUD Speed's GPS
-bars (ic_signal_1..4) stand in the bottom-right corner while the radar runs
-(docs/hud-output-architecture.md, 7.3). Wire version 2 carries the radar's
-state, the GPS level and the drawable names; without a warning the adapter
-re-sends its state every second so the bars do not lapse, and never re-stamps
-a warning. It publishes only RADAR/MAP_BADGE. It does not replace
-the navigator's road limit, maneuver, lane or AR fields, and produces no audio.
+The host draws the warning in the HUD's lane window, as a 246×60 picture with
+field 5 = 6, with HUD Speed's own artwork read from the installed app by the
+names the adapter sends - the type's tile and the limit's frame from
+g.i.w(type) - and the metres, or a section's average, in large white digits;
+HUD Speed's GPS bars (ic_signal_1..4) stand on the map's bottom edge while the
+radar runs (docs/hud-output-architecture.md, 7.4). Until 2026-10-18 the warning
+stood at the bottom of the map; on the glass it was small and faded at the
+window's edges, and the owner took it off the map. Wire version 2 carries the
+radar's state, the GPS level and the drawable names; without a warning the
+adapter re-sends its state every second so the bars do not lapse, and never
+re-stamps a warning. The host publishes it as RADAR/LANES, ahead of the
+navigator's lanes while it lasts, and the bars as RADAR/MAP_BADGE. It does not
+replace the navigator's road limit, maneuver or AR fields, and produces no audio.
 Stopping radar in HUD Speed stops output. Background service and overlay
 entitlement checks, subscription/account code, voice and camera database remain
 unchanged. Re-signing compatibility with account/purchase is not yet proved.
@@ -109,7 +112,7 @@ The source test calls the actual patched service with synthetic upstream camera
 objects. The host seeds a synthetic route, checks the real compositor and saves
 cards under Denza Apps `files/hud-speed-qa`. The host passes only what the HUD
 panel lets through, and a fresh install has «Повороты» off, so the host check
-turns «Повороты» and «Камеры» on (the warning at the bottom of the map) for the
+turns «Повороты» and «Камеры» on for the
 run and puts the previous values back before it finishes. These fixtures prove the bridge,
 not real camera detection or physical projector rendering. Tests are never
 embedded in either candidate APK.

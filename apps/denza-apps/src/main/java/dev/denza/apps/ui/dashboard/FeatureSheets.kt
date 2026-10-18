@@ -18,7 +18,6 @@ import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
-import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.speaker.SpeakerCoverApps
 import dev.denza.apps.ui.FSE_INSTALL_HELP
@@ -188,7 +187,7 @@ fun FeatureSheet(
         // посреди экрана. Ошибки живут в «Сервисе», и туда же эта строка уже попадает; на
         // центральной панели после действия есть состояние функции и объяснение, что она делает,
         // и третьего быть не должно (U5).
-        helpOf(id, hudPanelOf(state, busy)).takeIf { it.isNotBlank() }?.let { DenzaNote(it) }
+        helpOf(id).takeIf { it.isNotBlank() }?.let { DenzaNote(it) }
     }
 }
 
@@ -225,10 +224,10 @@ internal fun panelStatus(tile: DashboardTile, message: String): String = when (t
  * Short, present tense, no instructions the screen already gives. The `sheet-*` boards draw the
  * same paragraph, and `SheetBoardContractTest` holds the two together.
  *
- * The HUD's panel explains itself with its picture of the glass and the lines of its switches, so
- * its paragraph is [HudPanel.note]: one sentence when the cameras stand under the turn, else none.
+ * The HUD's panel explains itself with its picture of the glass and the lines of its switches, and
+ * has no paragraph.
  */
-internal fun helpOf(id: TileId, hud: HudPanel? = null): String = when (id) {
+internal fun helpOf(id: TileId): String = when (id) {
     TileId.CLUSTER ->
         "На приборную панель за рулём встаёт что-то одно: приборы или любое приложение " +
             "с машины. Короткое нажатие на плитку ставит его туда и убирает обратно."
@@ -241,7 +240,7 @@ internal fun helpOf(id: TileId, hud: HudPanel? = null): String = when (id) {
     TileId.SPLIT ->
         "При включении на рабочем столе появляется значок разделения экрана. " +
             "Он открывает выбор двух приложений, которые встанут рядом."
-    TileId.HUD -> hud?.note.orEmpty()
+    TileId.HUD -> ""
     TileId.WEATHER ->
         "Приложение забирает прогноз и отдаёт его штатному виджету погоды. " +
             "Своей погоды оно не рисует — виджет остаётся штатным."
@@ -520,16 +519,6 @@ private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boole
             tone = row.tone,
         )
     }
-    panel.place?.let { place ->
-        DenzaSection(HudPanel.PLACE_LABEL) {
-            DenzaSegmentedRow(
-                labels = HudPanel.PLACES,
-                selectedIndex = place.ordinal,
-                onSelect = { index -> actions.onSetHudCameraPlace(HudCameraPlace.entries[index]) },
-                enabled = panel.placeEnabled,
-            )
-        }
-    }
 }
 
 /** The HUD panel for [state]: what is installed and the switches. */
@@ -540,7 +529,6 @@ internal fun hudPanelOf(state: DenzaUiState, busy: Boolean): HudPanel = HudPanel
     map = state.hudMapEnabled,
     sign = state.hudSignEnabled,
     cameras = state.hudCamerasEnabled,
-    place = state.hudCameraPlace,
     busy = busy,
 )
 

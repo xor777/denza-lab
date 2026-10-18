@@ -7,7 +7,6 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
-import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 
 /**
@@ -86,9 +85,6 @@ interface DenzaActions {
 
     /** «Камеры»: HUD Speed's warnings on the projection. */
     val onSetHudCamerasEnabled: (Boolean) -> Unit
-
-    /** «Где показывать камеры». */
-    val onSetHudCameraPlace: (HudCameraPlace) -> Unit
 
     // «Динамики»
     val onToggleSpeakerCovers: (Boolean) -> Unit
@@ -173,7 +169,6 @@ open class IdleActions : DenzaActions {
     override val onSetHudMapEnabled: (Boolean) -> Unit = {}
     override val onSetHudSignEnabled: (Boolean) -> Unit = {}
     override val onSetHudCamerasEnabled: (Boolean) -> Unit = {}
-    override val onSetHudCameraPlace: (HudCameraPlace) -> Unit = {}
     override val onToggleSpeakerCovers: (Boolean) -> Unit = {}
     override val onRaiseSpeakerCovers: () -> Unit = {}
     override val onToggleCloudLink: (Boolean) -> Unit = {}

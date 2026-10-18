@@ -31,17 +31,13 @@ class SheetBoardContractTest {
         assertTrue("no panel board found", boards.any { it.second == TileId.HUD })
 
         boards.forEach { (id, tile, notes) ->
-            // The HUD's paragraph comes with its panel's state, and is none in most of them.
-            val hud = if (tile == TileId.HUD) HudPanelBoardContractTest.panelOf(state(id)) else null
             assertEquals(
                 "$id draws a paragraph the app does not write",
-                listOf(helpOf(tile, hud)).filter { it.isNotBlank() },
+                listOf(helpOf(tile)).filter { it.isNotBlank() },
                 notes,
             )
         }
     }
-
-    private fun state(id: String) = SpecJson.fixture(id)["state"] as Map<*, *>
 
     private companion object {
         val OWN_PANELS = setOf(TileId.SERVICE, TileId.DEFAULT_APPS)

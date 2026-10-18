@@ -1,6 +1,5 @@
 package dev.denza.apps.ui.dashboard
 
-import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.ui.components.DenzaTileTone
@@ -18,17 +17,9 @@ import dev.denza.apps.ui.components.DenzaTileTone
 internal data class HudPanel(
     val glass: HudGlass,
     val rows: List<HudPanelRow>,
-    /** «Где показывать камеры»: the chosen cell, or null when there are no cameras to place. */
-    val place: HudCameraPlace?,
-    val placeEnabled: Boolean,
-    /** A paragraph under the settings, or null. */
-    val note: String?,
 ) {
     companion object {
         const val SUBTITLE = "Так выглядит проекция во время маршрута"
-        val PLACES = listOf("Внизу карты", "Под поворотом")
-        const val PLACE_LABEL = "Где показывать камеры"
-        const val LANES_NOTE = "Когда навигатор показывает полосы, камеры на это время уходят вниз карты."
 
         fun of(
             navigator: HudNavigatorInstall,
@@ -37,7 +28,6 @@ internal data class HudPanel(
             map: Boolean,
             sign: Boolean,
             cameras: Boolean,
-            place: HudCameraPlace,
             busy: Boolean,
         ): HudPanel {
             val alone = navigator == HudNavigatorInstall.YANDEX_HUD_ALONE
@@ -87,19 +77,14 @@ internal data class HudPanel(
                 )
                 else -> HudPanelRow(HudPanelRow.Id.CAMERAS, CAMERAS_TITLE, "Из HUD Speed", cameras, hints && !busy)
             }
-            val placed = radar == HudRadarInstall.ADAPTED && !alone
-            val shown = ours && hints && radar == HudRadarInstall.ADAPTED && cameras
             return HudPanel(
                 glass = HudGlass(
                     turn = alone || (ours && hints),
                     sign = alone || (ours && hints && sign),
                     map = alone || (ours && hints && map),
-                    cameras = if (shown) place else null,
+                    cameras = ours && hints && radar == HudRadarInstall.ADAPTED && cameras,
                 ),
                 rows = listOf(turns, mapRow, signRow, camerasRow),
-                place = if (placed) place else null,
-                placeEnabled = placed && camerasRow.enabled && cameras,
-                note = if (placed && place == HudCameraPlace.LANES) LANES_NOTE else null,
             )
         }
 
@@ -123,12 +108,12 @@ internal data class HudPanelRow(
 
 /**
  * What the picture of the glass lights: each part on or an empty outline. The car's own speed is
- * always there. [cameras] is where HUD Speed's warning stands, or null for none - and then its GPS
- * bars are not drawn either.
+ * always there. [cameras] is HUD Speed's warning in the lane window under the turn - its one place
+ * since the owner took it off the map on 2026-10-18 - with its GPS bars on the map; off, neither.
  */
 internal data class HudGlass(
     val turn: Boolean,
     val sign: Boolean,
     val map: Boolean,
-    val cameras: HudCameraPlace?,
+    val cameras: Boolean,
 )

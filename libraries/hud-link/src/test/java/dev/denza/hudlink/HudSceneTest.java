@@ -51,52 +51,33 @@ public final class HudSceneTest {
     }
 
     @Test
-    public void theRadarHoldsTheLaneWindowWhileTheNavigatorShowsNoLanes() {
+    public void theRadarsWarningTakesTheLaneWindowOverTheNavigatorsLanes() {
         navigating(0);
-        radarInTheLaneWindow(0);
-
-        HudComposition composed = scene.compose(0);
-
-        assertEquals(HudSource.RADAR, composed.winner(HudRole.LANES));
-        assertEquals(3L, composed.fields(HudRole.LANES).value(Road.LANE_COUNT));
-        assertTrue("the stand-in stays off the map", composed.layers(HudWindow.MAP).isEmpty());
-    }
-
-    @Test
-    public void theNavigatorsLanesPushTheRadarsWarningOntoTheMap() {
-        navigating(0);
-        radarInTheLaneWindow(0);
         scene.fields(HudSource.MODULE, HudRole.LANES, new HudFields.Builder()
-                .number(Road.LANE_COUNT, 4).bytes(Road.LANES_PNG, Pngs.header(164, 60)).build(), 500, 0);
+                .number(Road.LANE_COUNT, 4).bytes(Road.LANES_PNG, Pngs.header(164, 60)).build(), LONG, 0);
+        radarInTheLaneWindow(0, 500);
 
-        HudComposition lanes = scene.compose(100);
-        assertEquals(HudSource.MODULE, lanes.winner(HudRole.LANES));
-        assertEquals(1, lanes.layers(HudWindow.MAP).size());
-        assertEquals(HudRole.MAP_ASIDE, lanes.layers(HudWindow.MAP).get(0).role);
+        HudComposition warning = scene.compose(100);
+        assertEquals(HudSource.RADAR, warning.winner(HudRole.LANES));
+        assertEquals(6L, warning.fields(HudRole.LANES).value(Road.LANE_COUNT));
+        assertTrue("nothing of the warning on the map", warning.layers(HudWindow.MAP).isEmpty());
 
-        // The lanes end: the warning goes back to the lane window, off the map.
+        // The warning is over: the navigator's lanes come back.
         HudComposition after = scene.compose(500);
-        assertEquals(HudSource.RADAR, after.winner(HudRole.LANES));
-        assertTrue(after.layers(HudWindow.MAP).isEmpty());
+        assertEquals(HudSource.MODULE, after.winner(HudRole.LANES));
+        assertEquals(4L, after.fields(HudRole.LANES).value(Road.LANE_COUNT));
     }
 
     @Test
-    public void theModulesNoLanesYieldsTheLaneWindowToTheRadar() {
+    public void theModulesNoLanesComesBackWhenTheWarningEnds() {
         // YandexHUD on a route: «no lanes» (5 = 0) in every frame, the whole way.
         scene.fields(HudSource.MODULE, HudRole.MANEUVER, new HudFields.Builder().build(), LONG, 0);
         scene.fields(HudSource.MODULE, HudRole.LANES, new HudFields.Builder()
                 .number(Road.LANE_COUNT, 0).build(), LONG, 0);
-        radarInTheLaneWindow(0);
-        scene.withdraw(HudSource.RADAR, HudRole.LANES);
-        scene.fields(HudSource.RADAR, HudRole.LANES, new HudFields.Builder()
-                .number(Road.LANE_COUNT, 3).bytes(Road.LANES_PNG, Pngs.header(123, 60)).build(), 500, 0);
+        radarInTheLaneWindow(0, 500);
 
-        HudComposition warning = scene.compose(0);
-        assertEquals(HudSource.RADAR, warning.winner(HudRole.LANES));
-        assertEquals(3L, warning.fields(HudRole.LANES).value(Road.LANE_COUNT));
-        assertTrue("the stand-in stays off the map", warning.layers(HudWindow.MAP).isEmpty());
+        assertEquals(HudSource.RADAR, scene.compose(0).winner(HudRole.LANES));
 
-        // The warning is over: the module's «no lanes» empties the window again.
         HudComposition after = scene.compose(500);
         assertEquals(HudSource.MODULE, after.winner(HudRole.LANES));
         assertEquals(0L, after.fields(HudRole.LANES).value(Road.LANE_COUNT));
@@ -340,12 +321,10 @@ public final class HudSceneTest {
     }
 
     /** A filled manoeuvre block from the capture, which opens navigation. */
-    /** The radar's warning in the lane window, and the same picture ready to stand on the map. */
-    private void radarInTheLaneWindow(long now) {
+    /** The radar's warning in the lane window, six cells wide, for {@code ttl} ms. */
+    private void radarInTheLaneWindow(long now, long ttl) {
         scene.fields(HudSource.RADAR, HudRole.LANES, new HudFields.Builder()
-                .number(Road.LANE_COUNT, 3).bytes(Road.LANES_PNG, Pngs.header(123, 60)).build(), LONG, now);
-        scene.layer(HudSource.RADAR, "warning", HudRole.MAP_ASIDE, new HudRect(6, 140, 110, 34),
-                Pngs.image(110, 34), 1f, LONG, now);
+                .number(Road.LANE_COUNT, 6).bytes(Road.LANES_PNG, Pngs.header(246, 60)).build(), ttl, now);
     }
 
     private void navigating(long now) {

@@ -65,11 +65,6 @@ final class HudHostOutput {
         HudRadarArt art = new HudRadarArt(context);
         radar = new HudRadarSource(sink, new HudRadarSource.Renderer() {
             @Override
-            public HudImage warning(HudRadarWarning warning) {
-                return HudRadarPainter.warning(warning, art);
-            }
-
-            @Override
             public HudImage lanes(HudRadarWarning warning) {
                 return HudRadarPainter.lanes(warning, art);
             }
@@ -105,8 +100,7 @@ final class HudHostOutput {
                         @Override
                         public void onRadar(HudRadarWarning warning) {
                             if (camerasShown()) {
-                                radar.publish(warning, SystemClock.elapsedRealtime(),
-                                        HudGuidanceSettings.INSTANCE.cameraPlace(context));
+                                radar.publish(warning, SystemClock.elapsedRealtime());
                             }
                         }
                     },

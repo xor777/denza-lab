@@ -9,7 +9,6 @@ object HudGuidanceSettings {
     private const val MAP = "map"
     private const val SIGN = "sign"
     private const val CAMERAS = "cameras"
-    private const val CAMERA_PLACE = "camera_place"
 
     /**
      * The one navigator whose guidance the windscreen repeats.
@@ -83,25 +82,4 @@ object HudGuidanceSettings {
             .putBoolean(CAMERAS, enabled)
             .apply()
     }
-
-    /** «Где показывать камеры»: at the bottom of the map, the default, or in the lane window. */
-    fun cameraPlace(context: Context): HudCameraPlace =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(CAMERA_PLACE, null)
-            ?.let { name -> HudCameraPlace.entries.firstOrNull { it.name == name } }
-            ?: HudCameraPlace.MAP
-
-    @SuppressLint("UseKtx")
-    fun setCameraPlace(context: Context, place: HudCameraPlace) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(CAMERA_PLACE, place.name)
-            .apply()
-    }
 }
-
-/**
- * Where HUD Speed's warning stands (docs/hud-output-architecture.md, 7.3 and 7.4): at the bottom
- * of the map window, or in the lane window under the turn, which the navigator's own lanes take
- * back while they show - the warning then stands at the bottom of the map.
- */
-enum class HudCameraPlace { MAP, LANES }

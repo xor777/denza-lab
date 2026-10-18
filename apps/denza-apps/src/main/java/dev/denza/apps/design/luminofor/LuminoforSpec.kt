@@ -391,19 +391,25 @@ object LuminoforSpec {
                 const val RADIUS: Float = 3f
             }
 
-            /** HUD Speed's strip in the map window, as `HudRadarPainter` and `HudRadarSource` place it. */
+            /**
+             * HUD Speed's picture of the lane window as `HudRadarPainter` paints it, in its own
+             * pixels; the panel draws it at [LANES]' height. [UNIT] is the unit's size beside the
+             * digits'.
+             */
             object Warning {
-                const val TILE: Float = 34f
+                const val WIDTH: Float = 246f
+                const val HEIGHT: Float = 60f
+                const val TILE: Float = 46f
                 const val GAP: Float = 4f
-                const val MARGIN: Float = 6f
-                const val WIDTH: Float = 124f
+                const val DIGITS: Float = 46f
+                const val UNIT: Float = 0.5f
             }
 
-            /** HUD Speed's GPS bars in the map window. */
+            /** HUD Speed's GPS bars in the map window, where `HudRadarSource` puts them. */
             object Gps {
-                const val X: Float = 272f
-                const val Y: Float = 152f
-                const val SIZE: Float = 22f
+                const val X: Float = 239f
+                const val Y: Float = 154f
+                const val SIZE: Float = 26f
             }
 
             object Ink {

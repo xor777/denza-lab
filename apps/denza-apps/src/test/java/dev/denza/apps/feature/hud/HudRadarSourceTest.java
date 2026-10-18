@@ -1,14 +1,13 @@
 package dev.denza.apps.feature.hud;
 
-import dev.denza.apps.design.luminofor.LuminoforSpec;
 import dev.denza.hudlink.*;
 import dev.denza.hudlink.HudProtocol.Road;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 /**
- * HUD Speed on the projection: its warning bottom left of the map or in the lane window, its GPS
- * bars bottom right, never the navigator's fields.
+ * HUD Speed on the projection: its warning in the lane window and nowhere else, ahead of the
+ * navigator's lanes; its GPS bars at the bottom right of the map; never the navigator's other fields.
  */
 public class HudRadarSourceTest {
     private final HudScene scene = new HudScene();
@@ -26,7 +25,6 @@ public class HudRadarSourceTest {
         return HudImage.png(png);
     }
     private final HudRadarSource radar = new HudRadarSource(sink, new HudRadarSource.Renderer() {
-        public HudImage warning(HudRadarWarning w) { return png(110, HudRadarPainter.TILE); }
         public HudImage lanes(HudRadarWarning w) { return png(HudRadarPainter.LANE_WIDTH, HudRadarPainter.LANE_HEIGHT); }
         public HudImage gps(int level) { return level > 0 ? png(HudRadarPainter.GPS, HudRadarPainter.GPS) : null; }
     });
@@ -37,85 +35,68 @@ public class HudRadarSourceTest {
         scene.fields(HudSource.MODULE,HudRole.MANEUVER,new HudFields.Builder().number(9,450).text(10,"Улица").build(),10000,now);
         scene.fields(HudSource.MODULE,HudRole.ROAD_LIMIT,new HudFields.Builder().number(11,90).build(),10000,now);
     }
+    private void navigatorLanes() {
+        scene.fields(HudSource.MODULE,HudRole.LANES,new HudFields.Builder()
+                .number(Road.LANE_COUNT,4).bytes(Road.LANES_PNG,png(164,60).png()).build(),10000,now);
+    }
     private HudLayer layer(String id) {
         for (HudLayer l : scene.compose(now).layers(HudWindow.MAP)) if (l.id.equals(id)) return l;
         return null;
     }
 
-    @Test public void theWarningSitsBottomLeftOfTheCursorAndTheBarsBottomRight() {
+    @Test public void theWarningTakesTheLaneWindowAndOnlyTheBarsStandOnTheMap() {
         now=1000; route();
-        radar.publish(warning(now),now,HudCameraPlace.MAP);
-        assertEquals(new HudRect(6,140,110,34),layer(HudRadarSource.WARNING).rect);
-        assertEquals(new HudRect(272,152,22,22),layer(HudRadarSource.GPS).rect);
-        // Clear of the cursor (hud-scene.js EVENTS.cursor [134,120,32,44]) and of the window's top.
-        assertTrue(HudRadarSource.warningRect(500).x+HudRadarSource.warningRect(500).width<=134);
+        radar.publish(warning(now),now);
+        HudComposition composed=scene.compose(now);
+        assertEquals(HudSource.RADAR,composed.winner(HudRole.LANES));
+        assertEquals((long) HudRadarPainter.LANE_CELLS,composed.fields(HudRole.LANES).value(Road.LANE_COUNT));
+        assertEquals(1,composed.layers(HudWindow.MAP).size());
+        assertEquals(new HudRect(239,154,26,26),layer(HudRadarSource.GPS).rect);
+        assertEquals(HudSource.MODULE,composed.winner(HudRole.MANEUVER));
+    }
+    @Test public void theGpsBarsSitOnTheBottomEdgeClearOfTheCursor() {
+        HudRect bars=HudRadarSource.gpsRect();
+        assertEquals(HudWindow.MAP.height,bars.y+bars.height);
+        // Right of the cursor (hud-scene.js EVENTS.cursor [134,120,32,44]).
+        assertTrue(bars.x>=134+32);
+        assertTrue(bars.x+bars.width<=HudWindow.MAP.width);
+    }
+    @Test public void aWarningStandsOverTheNavigatorsLanesUntilItEnds() {
+        now=1000; route(); navigatorLanes();
+        radar.publish(warning(now),now);
+        assertEquals(HudSource.RADAR,scene.compose(now).winner(HudRole.LANES));
+        // The observation lives 3 s: then the navigator's lanes are back.
+        assertEquals(HudSource.MODULE,scene.compose(4000).winner(HudRole.LANES));
+        assertEquals(4L,scene.compose(4000).fields(HudRole.LANES).value(Road.LANE_COUNT));
     }
     @Test public void delayedWarningExpiresAtTheOriginalDeadlineAndDoesNotReplaceNavigation() {
         now=2000; route();
-        radar.publish(warning(1000),now,HudCameraPlace.MAP);
+        radar.publish(warning(1000),now);
         HudComposition composed=scene.compose(2000);
-        assertEquals(2,composed.layers(HudWindow.MAP).size());
+        assertEquals(HudSource.RADAR,composed.winner(HudRole.LANES));
         assertEquals(HudSource.MODULE,composed.winner(HudRole.MANEUVER));
         assertEquals(HudSource.MODULE,composed.winner(HudRole.ROAD_LIMIT));
+        assertNull(scene.compose(4000).winner(HudRole.LANES));
         assertEquals(0,scene.compose(4000).layers(HudWindow.MAP).size());
         assertEquals(HudMode.NAVIGATION,scene.compose(4000).mode);
     }
     @Test public void aRunningRadarWithNothingToSayKeepsOnlyItsBars() {
-        now=1000; route();
-        radar.publish(warning(now),now,HudCameraPlace.MAP);
-        radar.publish(HudRadarWarning.idle(1100,HudRadarWarning.GPS_SEARCHING),now=1100,HudCameraPlace.MAP);
-        assertNull(layer(HudRadarSource.WARNING));
+        now=1000; route(); navigatorLanes();
+        radar.publish(warning(now),now);
+        radar.publish(HudRadarWarning.idle(1100,HudRadarWarning.GPS_SEARCHING),now=1100);
+        assertEquals(HudSource.MODULE,scene.compose(now).winner(HudRole.LANES));
         assertNotNull(layer(HudRadarSource.GPS));
     }
     @Test public void aStoppedRadarShowsNothing() {
         now=1000; route();
-        radar.publish(warning(now),now,HudCameraPlace.MAP);
-        radar.publish(HudRadarWarning.clear(1100),now=1100,HudCameraPlace.MAP);
+        radar.publish(warning(now),now);
+        radar.publish(HudRadarWarning.clear(1100),now=1100);
         assertTrue(scene.compose(1100).layers(HudWindow.MAP).isEmpty());
+        assertNull(scene.compose(1100).winner(HudRole.LANES));
         assertEquals(HudMode.NAVIGATION,scene.compose(1100).mode);
     }
-    @Test public void underTheTurnTheWarningTakesTheLaneWindowAndOnlyThat() {
-        now=1000; route();
-        radar.publish(warning(now),now,HudCameraPlace.LANES);
-        HudComposition composed=scene.compose(now);
-        assertEquals(HudSource.RADAR,composed.winner(HudRole.LANES));
-        assertEquals((long) HudRadarPainter.LANE_CELLS,composed.fields(HudRole.LANES).value(Road.LANE_COUNT));
-        assertNull(layer(HudRadarSource.WARNING));
-        assertNotNull(layer(HudRadarSource.GPS));
-        assertEquals(HudSource.MODULE,composed.winner(HudRole.MANEUVER));
-    }
-    @Test public void theNavigatorsLanesSendTheWarningToTheBottomOfTheMap() {
-        now=1000; route();
-        scene.fields(HudSource.MODULE,HudRole.LANES,new HudFields.Builder()
-                .number(Road.LANE_COUNT,4).bytes(Road.LANES_PNG,png(164,60).png()).build(),10000,now);
-        radar.publish(warning(now),now,HudCameraPlace.LANES);
-        assertEquals(HudSource.MODULE,scene.compose(now).winner(HudRole.LANES));
-        assertEquals(new HudRect(6,140,110,34),layer(HudRadarSource.WARNING).rect);
-        assertEquals(HudRole.MAP_ASIDE,layer(HudRadarSource.WARNING).role);
-    }
-    @Test public void movingBackToTheMapEmptiesTheLaneWindow() {
-        now=1000; route();
-        radar.publish(warning(now),now,HudCameraPlace.LANES);
-        radar.publish(warning(now),now,HudCameraPlace.MAP);
-        HudComposition composed=scene.compose(now);
-        assertNull(composed.winner(HudRole.LANES));
-        assertEquals(HudRole.MAP_BADGE,layer(HudRadarSource.WARNING).role);
-    }
-    @Test public void theGlassInThePanelDrawsTheStripWhereTheHostPutsIt() {
-        // spec.json sheet.glass, which the HUD panel's picture is drawn from.
-        LuminoforSpec.Sheet.Glass glass=LuminoforSpec.Sheet.Glass.INSTANCE;
-        assertEquals(HudRadarPainter.TILE,(int) LuminoforSpec.Sheet.Glass.Warning.TILE);
-        assertEquals(HudRadarPainter.GAP,(int) LuminoforSpec.Sheet.Glass.Warning.GAP);
-        assertEquals(HudRadarPainter.MAX_WIDTH,(int) LuminoforSpec.Sheet.Glass.Warning.WIDTH);
-        assertEquals(HudRadarSource.MARGIN,(int) LuminoforSpec.Sheet.Glass.Warning.MARGIN);
-        assertEquals(HudRadarSource.gpsRect(),new HudRect((int) LuminoforSpec.Sheet.Glass.Gps.X,
-                (int) LuminoforSpec.Sheet.Glass.Gps.Y,HudRadarPainter.GPS,HudRadarPainter.GPS));
-        assertEquals(HudRadarPainter.GPS,(int) LuminoforSpec.Sheet.Glass.Gps.SIZE);
-        assertEquals(HudWindow.MAP.width,(int) glass.getMAP()[2]);
-        assertEquals(HudWindow.MAP.height,(int) glass.getMAP()[3]);
-    }
     @Test public void radarDoesNotOpenAnUnverifiedStandaloneMode() {
-        now=1000; radar.publish(warning(now),now,HudCameraPlace.MAP);
+        now=1000; radar.publish(warning(now),now);
         assertEquals(HudMode.OFF,scene.compose(now).mode);
         assertTrue(scene.compose(now).layers(HudWindow.MAP).isEmpty());
     }

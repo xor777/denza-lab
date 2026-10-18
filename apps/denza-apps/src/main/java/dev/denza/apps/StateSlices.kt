@@ -8,7 +8,6 @@ import dev.denza.apps.feature.adb.AdbRescueSnapshot
 import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
-import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.hud.HudNavigatorInstall
 import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.feature.mirrors.MirrorsPosition
@@ -164,7 +163,6 @@ internal data class HudGuidanceReading(
     val radar: HudRadarInstall = HudRadarInstall.NONE,
     val signEnabled: Boolean = true,
     val camerasEnabled: Boolean = true,
-    val cameraPlace: HudCameraPlace = HudCameraPlace.MAP,
 ) : SliceReading {
     override val slice get() = StateSlice.HUD_GUIDANCE
 
@@ -175,7 +173,6 @@ internal data class HudGuidanceReading(
         hudRadar = radar,
         hudSignEnabled = signEnabled,
         hudCamerasEnabled = camerasEnabled,
-        hudCameraPlace = cameraPlace,
     )
 }
 

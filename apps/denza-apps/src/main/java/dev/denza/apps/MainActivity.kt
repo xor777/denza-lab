@@ -10,7 +10,6 @@ import dev.denza.apps.feature.adb.AdbRestore
 import dev.denza.apps.feature.adb.AdbRestoreManager
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
-import dev.denza.apps.feature.hud.HudCameraPlace
 import dev.denza.apps.feature.hud.HudMapGrant
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.navigation.NavigationTransferOverlay
@@ -118,8 +117,6 @@ internal object AppActions : DenzaActions {
         { enabled -> DenzaAppRepository.setHudSignEnabled(enabled) }
     override val onSetHudCamerasEnabled: (Boolean) -> Unit =
         { enabled -> DenzaAppRepository.setHudCamerasEnabled(enabled) }
-    override val onSetHudCameraPlace: (HudCameraPlace) -> Unit =
-        { place -> DenzaAppRepository.setHudCameraPlace(place) }
 
     override val onToggleSpeakerCovers: (Boolean) -> Unit =
         { enabled -> DenzaAppRepository.setSpeakerCoversEnabled(enabled) }
