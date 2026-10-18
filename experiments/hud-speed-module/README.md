@@ -107,7 +107,10 @@ both candidates **only on a disposable emulator**. Start
 Both enforce ranchu/goldfish; the compile-only MainService stub is never packaged.
 The source test calls the actual patched service with synthetic upstream camera
 objects. The host seeds a synthetic route, checks the real compositor and saves
-cards under Denza Apps `files/hud-speed-qa`. These fixtures prove the bridge,
+cards under Denza Apps `files/hud-speed-qa`. The host passes only what the HUD
+panel lets through, and a fresh install has «Повороты» off, so the host check
+turns «Повороты» and «Камеры» on (the warning at the bottom of the map) for the
+run and puts the previous values back before it finishes. These fixtures prove the bridge,
 not real camera detection or physical projector rendering. Tests are never
 embedded in either candidate APK.
 
@@ -166,7 +169,20 @@ emulator with a Denza Apps host from `4f74f32a` (`host-4f74/`). With a host from
 `23285efb` (after `f6c87bc8`) `HostCheck` fails «radar replaced navigation» for
 this build and for `79.0-DenzaHUD.1` alike; the source suite passes.
 
+> **Superseded 2026-10-18:** the check was stale, not the compositor: since
+> `20de75fe` the host applies the HUD panel's switches, and «Повороты» is off on
+> a fresh install, so the seeded route never reached the compositor. The check
+> now turns the switches on; see `acceptance-mod-78a40a30/` below.
+
+`acceptance-mod-78a40a30/` and `acceptance-denzahud-78a40a30/`, 2026-10-18: with
+the old check, a host from `f6c87bc8` passes and one from `20de75fe` fails on the
+first observation, before HUD Speed attaches (`bisect-oldcheck-*/`). With the
+fixed check (`device-checks-78a40a30/`) and a host from `78a40a30`
+(`host-78a40a30/`), both suites pass for `79.0-mod.1` and `79.0-DenzaHUD.1`:
+three cards, three clears, maneuver and road limit kept by the module.
+
 | Artifact | SHA-256 |
 |---|---|
 | `build-mod-4f74/HUD-Speed-79.0-mod.1.apk` | `e3f92aeb8b6576fe979fa25ee1f39e9eeff8a0fee3049ee515338cf214fad3a5` |
 | `host-4f74/denza-apps.apk` | `c8fa636127dc613d8cb66d497169520571c2ae4f87392b9c62798bfc122aa63c` |
+| `host-78a40a30/denza-apps.apk` | `64213475396e7f1308060ee731e3895c2eb6cf9de765c5cfec2ccea6e25a3123` |
