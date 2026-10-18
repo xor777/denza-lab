@@ -10,10 +10,15 @@ test('route selection stays off; start, cancel, restart',()=>{
  assert.deepEqual(hud.build({...right,guidanceActive:false}).commands,[]);
  assert.equal(hud.build(right).mode,'guidance');
 });
-test('lost position and rerouting clear roads, cursor, lanes and road events',()=>{
- for(const change of [{locationFresh:false},{rerouting:true}]){
-  const frame=hud.build({...right,...change});assert.equal(frame.drawMap,false);assert(frame.commands.every(c=>c.op==='text'));
- }
+test('no position, a long gap or a rebuild never blanks the window or prints a word',()=>{
+ const events=[{kind:'camera',x:150,y:70,limit:60}];
+ const held=hud.build({...right,events,staleMs:10000});
+ assert.equal(held.mode,'holding');assert.equal(held.mapAlpha,1);assert.equal(held.events.length,1);
+ const lost=hud.build({...right,events,staleMs:40000});
+ assert.equal(lost.mode,'lost');assert(lost.drawMap&&lost.mapAlpha<0.5);assert.equal(lost.events.length,0);
+ const rebuilt=hud.build({...right,events,rerouting:true});
+ assert.equal(rebuilt.mode,'rerouting');assert(rebuilt.drawMap&&rebuilt.routeAlpha<0.5&&rebuilt.mapAlpha===1);assert.equal(rebuilt.events.length,0);
+ for(const frame of [held,lost,rebuilt])assert(!flat(frame.commands).some(c=>c.op==='text'&&c.value!=='{limit}'&&!/^\d+$/.test(c.value)));
 });
 test('no manoeuvre text, icon or reserved header even if input has a manoeuvre',()=>{
  const scene=hud.build(right);
@@ -30,24 +35,36 @@ test('lane signs belong to the native HUD slot and never occupy the map',()=>{
  for(const lanes of [right.lanes,[{directions:['straight'],highlight:'straight'},{kind:'BUS_LANE',directions:[]}]])
   assert.deepEqual(hud.build({...right,lanes}),base);
 });
-test('route classes are saturated, mutually distinct and never dark on the additive glass',()=>{
+test('route classes are saturated, mutually distinct, bright on the glass but for the dark red very hard jam',()=>{
  const values=Object.values(hud.TRAFFIC);
  assert.equal(new Set(values).size,6);
  assert.notEqual(hud.TRAFFIC.UNKNOWN,hud.TRAFFIC.FREE);
- for(const [type,color] of Object.entries(hud.TRAFFIC))assert(Math.max(...hex(color))>=0xD0,type+' must stay bright');
+ for(const [type,color] of Object.entries(hud.TRAFFIC))if(type!=='VERY_HARD')assert(Math.max(...hex(color))>=0xD0,type+' must stay bright');
+ // Very hard is Yandex's dark red by the owner's choice (2026-10-18): red, dark, and a step under hard.
+ const [r,g,b]=hex(hud.TRAFFIC.VERY_HARD);
+ assert(r>=0x90&&r<=0xC0&&g<0x40&&b<0x20,'very hard is a dark red');
+ assert(hex(hud.TRAFFIC.HARD)[0]-r>=0x40,'very hard stays darker than hard');
  const hue=v=>{const [r,g,b]=hex(v).map(x=>x/255),max=Math.max(r,g,b),d=max-Math.min(r,g,b);
   const h=max===r?((g-b)/d)%6:max===g?(b-r)/d+2:(r-g)/d+4;return (h*60+360)%360;};
  const gap=(a,b)=>{const d=Math.abs(hue(a)-hue(b));return Math.min(d,360-d);};
  const T=hud.TRAFFIC;
  // Magenta also differs from red by a whole blue channel, so 35° is enough for that pair.
- for(const [a,b,min] of [['FREE','LIGHT',60],['LIGHT','HARD',60],['HARD','VERY_HARD',35],['FREE','UNKNOWN',45]])assert(gap(T[a],T[b])>=min,`${a}/${b}`);
+ for(const [a,b,min] of [['FREE','LIGHT',60],['LIGHT','HARD',60],['FREE','UNKNOWN',45]])assert(gap(T[a],T[b])>=min,`${a}/${b}`);
 });
-test('road events: nearest first, never over cursor or each other, former lane corner is free, limit shown on the sign',()=>{
- const lanes=[{directions:['straight'],highlight:'straight'}];
- const scene=hud.build({...right,lanes,events:[
+test('road events: cameras and crossings first, beside the route, never over the cursor, limit on the sign',()=>{
+ const route=[];for(let y=20;y<146;y+=3)route.push([150,y]);
+ const scene=hud.build({...right,route,events:[
   {kind:'camera',x:150,y:70,limit:60},{kind:'bump',x:150,y:74},{kind:'police',x:150,y:140},
   {kind:'danger',x:280,y:20},{kind:'railway',x:60,y:60},{kind:'chat',x:30,y:120},{kind:'works',x:2,y:90}]});
- assert.deepEqual(scene.events.map(e=>e.kind),['camera-limit','danger','railway']);
+ const kinds=scene.events.map(e=>e.kind);
+ assert.deepEqual(kinds.slice(0,2),['camera-limit','railway']);
+ assert(kinds.length<=hud.EVENTS.max&&!kinds.includes('chat')&&!kinds.includes('works'));
+ const inside=(b,[x,y])=>x>=b[0]-2&&x<=b[0]+b[2]+2&&y>=b[1]-2&&y<=b[1]+b[3]+2;
+ for(const e of scene.events){
+  const [cx,cy,cw,ch]=hud.EVENTS.cursor;
+  assert(!(e.box[0]<cx+cw&&cx<e.box[0]+e.box[2]&&e.box[1]<cy+ch&&cy<e.box[1]+e.box[3]),e.kind+' over the cursor');
+  assert(!route.some(p=>inside(e.box,p)),e.kind+' on the route');
+ }
  const text=flat(scene.commands).find(c=>c.op==='text');
  assert.equal(text.value,'60');
  assert.equal(hud.eventKind(['SPEED_CONTROL','POLICE']),'camera');
@@ -62,7 +79,8 @@ test('fixture traffic is one classification per route segment and everything sta
 });
 test('the module theme carries every template the painter needs',()=>{
  const theme=JSON.parse(JSON.stringify(hud.theme()));
- for(const key of ['mapStyle','traffic','jamTypes','route','icons','eventTags','eventPriority','events','finish','cursor'])assert(theme[key],key);
+ for(const key of ['mapStyle','traffic','jamTypes','route','icons','eventTags','eventPriority','events','states','finish','cursor','laneArt'])assert(theme[key],key);
+ for(const icon of Object.values(theme.icons))assert(icon.size.length===2&&icon.ops.length>0);
  for(const kind of new Set(Object.values(hud.EVENT_TAGS)))assert(theme.icons[kind],kind);
  assert(theme.icons['camera-limit']);
  assert.equal(theme.lanes,undefined);

@@ -28,21 +28,37 @@ final class NavigatorSource {
         double limitValue = Double.NaN;
         String iconKey() { return icon == null ? null : icon.equals("roundabout") ? icon + exit : icon; }
     }
+    /**
+     * mode: off; waiting (a route but no position yet: nothing drawn, nothing written); guidance (a
+     * position, fresh or held for up to {@link #DIM_AFTER_MS}); lost (held longer: the map dims, the
+     * icons go); rerouting (Navigator rebuilds the route: the old line dims, no hint). staleMs counts
+     * from the last fresh fix, 0 while fixes keep coming.
+     */
     static final class Frame {
         String mode = "off";
         boolean backgroundEnabled, resumed;
         Object route, position, point, windshield, location;
         double heading, latitude, cameraDistance = Double.NaN;
+        long staleMs;
         List<Lane> lanes = Collections.emptyList();
         Hint hint;
         boolean active() { return !mode.equals("off"); }
-        boolean drawMap() { return mode.equals("guidance"); }
+        boolean drawMap() { return mode.equals("guidance") || mode.equals("lost") || mode.equals("rerouting"); }
+        boolean onRoute() { return mode.equals("guidance") || mode.equals("lost"); }
     }
+    /** A fix older than this no longer counts as fresh; the picture holds on the last good one. */
+    static final long FRESH_MS = 3000;
+    /** Mirrors STATES.dimAfter in hud-scene.js: past it the held picture dims. */
+    static final long DIM_AFTER_MS = 30000;
     private final Reflect api;
     /** The last reason a hint could not be read, for the module log; the map goes on without it. */
     String hintFailure;
     private String lastStamp;
     private long lastChanged;
+    // The last good fix, held through a gap: satellites drop out under bridges and between towers.
+    private Object heldLocation, heldPoint, heldPosition;
+    private double heldHeading, heldLatitude;
+    private boolean held;
     NavigatorSource(Reflect api) { this.api = api; }
 
     @SuppressWarnings("unchecked") Frame read(Object guidance, boolean visible, long now) {
@@ -55,28 +71,38 @@ final class NavigatorSource {
         // getRouteStatus() is undefined before guidance has a route; on debug ART
         // its native enum conversion can abort the process, not throw a catchable error.
         if (!frame.resumed || frame.route == null || (!visible && !frame.backgroundEnabled)) {
-            lastStamp = null;
+            forget();
             return frame;
         }
         Object automotive = api.call(api.call(guidance, "navigation"), "getGuidance");
         String status = String.valueOf(api.call(automotive, "getRouteStatus"));
-        if (status.equals("ROUTE_FINISHED")) { lastStamp = null; return frame; }
-        if (status.equals("NOT_ON_ROUTE") || status.equals("ROUTE_LOST")) { frame.mode = "rerouting"; return frame; }
-        frame.mode = "waiting-location";
+        if (status.equals("ROUTE_FINISHED")) { forget(); return frame; }
+        boolean rerouting = status.equals("NOT_ON_ROUTE") || status.equals("ROUTE_LOST");
         Object classified = api.call(guidance, "getLocation");
         Object location = classified == null ? null : api.call(classified, "getLocation");
         String accuracy = classified == null ? "NONE" : String.valueOf(api.call(classified, "getLocationClass"));
-        frame.position = api.call(guidance, "getRoutePosition");
-        if (location == null || frame.position == null || !(accuracy.equals("FINE") || accuracy.equals("EXTRAPOLATED"))) return frame;
-        String stamp = String.valueOf(api.call(location, "getAbsoluteTimestamp"));
-        if (!stamp.equals(lastStamp)) { lastStamp = stamp; lastChanged = now; }
-        if (now - lastChanged > 3000) return frame;
-        frame.mode = "guidance";
-        frame.location = location;
-        frame.point = api.call(location, "getPosition");
-        frame.latitude = (Double) api.call(frame.point, "getLatitude");
-        Double heading = (Double) api.call(location, "getHeading");
-        frame.heading = heading == null ? 0 : heading;
+        Object position = api.call(guidance, "getRoutePosition");
+        if (location != null && position != null && (accuracy.equals("FINE") || accuracy.equals("EXTRAPOLATED"))) {
+            String stamp = String.valueOf(api.call(location, "getAbsoluteTimestamp"));
+            if (!stamp.equals(lastStamp)) {
+                lastStamp = stamp; lastChanged = now; held = true;
+                heldLocation = location; heldPosition = position;
+                heldPoint = api.call(location, "getPosition");
+                heldLatitude = (Double) api.call(heldPoint, "getLatitude");
+                Double heading = (Double) api.call(location, "getHeading");
+                if (heading != null) heldHeading = heading;
+            }
+        }
+        if (!held) { frame.mode = "waiting"; return frame; }
+        long age = now - lastChanged;
+        frame.staleMs = age > FRESH_MS ? age : 0;
+        frame.location = heldLocation;
+        frame.point = heldPoint;
+        frame.latitude = heldLatitude;
+        frame.heading = heldHeading;
+        frame.position = heldPosition;
+        if (rerouting) { frame.mode = "rerouting"; return frame; }
+        frame.mode = age > DIM_AFTER_MS ? "lost" : "guidance";
         Object next = api.call(guidance, "getNextManeuver");
         if (next != null) frame.cameraDistance = ((Number) api.call(next, "getDistance")).doubleValue();
         frame.windshield = api.call(automotive, "getWindshield");
@@ -94,25 +120,26 @@ final class NavigatorSource {
         if (lanes.isEmpty() || lanes.size() > 6) return frame;
         List<Lane> result = new ArrayList<>();
         for (Object lane : lanes) {
-            // A bus, tram or taxi lane keeps its place without arrows; a guessed direction would mislead.
+            // A bus, tram or taxi lane is drawn by its kind; its arrows are not ours to take.
             String kind = String.valueOf(api.call(lane, "getLaneKind"));
-            if (!kind.equals("PLAIN_LANE")) {
-                result.add(new Lane(kind, Collections.<String>emptyList(), null));
-                continue;
-            }
             List<String> directions = new ArrayList<>();
-            for (Object value : (List<?>) api.call(lane, "getDirections")) {
-                String name = laneName(String.valueOf(value));
-                if (name == null) return frame;
-                directions.add(name);
+            String highlight = null;
+            if (kind.equals("PLAIN_LANE") || kind.equals("UNKNOWN_KIND")) {
+                for (Object value : (List<?>) api.call(lane, "getDirections")) directions.add(laneName(String.valueOf(value)));
+                Object selected = api.call(lane, "getHighlightedDirection");
+                highlight = selected == null ? null : laneName(selected.toString());
+                if (highlight != null && !directions.contains(highlight)) highlight = null;
+                if (!directions.isEmpty()) kind = "PLAIN_LANE";
             }
-            Object selected = api.call(lane, "getHighlightedDirection");
-            String highlight = selected == null ? null : laneName(selected.toString());
-            if (directions.isEmpty() || (selected != null && (highlight == null || !directions.contains(highlight)))) return frame;
             result.add(new Lane(kind, directions, highlight));
         }
         frame.lanes = result;
         return frame;
+    }
+
+    private void forget() {
+        lastStamp = null; held = false;
+        heldLocation = heldPoint = heldPosition = null;
     }
 
     private Hint hint(Object route, Object automotive, Object windshield) {
@@ -212,9 +239,9 @@ final class NavigatorSource {
             case "RIGHT180": return "right180";
             case "LEFT_SHIFT": return "leftshift";
             case "RIGHT_SHIFT": return "rightshift";
-            case "LEFT_FROM_RIGHT": return "left90";
-            case "RIGHT_FROM_LEFT": return "right90";
-            default: return null;
+            case "LEFT_FROM_RIGHT": return "leftfromright";
+            case "RIGHT_FROM_LEFT": return "rightfromleft";
+            default: return "unknown";
         }
     }
 }

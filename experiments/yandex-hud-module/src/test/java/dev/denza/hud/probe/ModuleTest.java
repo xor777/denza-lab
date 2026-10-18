@@ -98,18 +98,28 @@ public final class ModuleTest {
         guidance.resumed=true;guidance.navigation.automotive.status="ROUTE_FINISHED";
         check(!source.read(guidance,true,6).active(),"finished route must stay off");
         guidance.navigation.automotive.status="ROUTE_LOST";
-        check(source.read(guidance,true,7).mode.equals("rerouting"),"lost route does not keep stale map");
+        check(source.read(guidance,true,7).mode.equals("waiting"),"no fix yet draws nothing, even while rebuilding");
         guidance.navigation.automotive.status="ON_ROUTE";
-        check(source.read(guidance,true,8).mode.equals("waiting-location"),"missing location does not keep stale map");
+        check(source.read(guidance,true,8).mode.equals("waiting")&&!source.read(guidance,true,8).drawMap(),"no fix yet draws nothing");
         guidance.route=null;
         check(!source.read(guidance,true,9).active(),"cancellation stays off");
         guidance.route=new Object();guidance.location=new Classified();
-        check(source.read(guidance,true,100).drawMap(),"fresh guidance draws the map");
-        check(!source.read(guidance,true,3101).drawMap(),"stale guidance cannot retain the map");
+        NavigatorSource.Frame held=source.read(guidance,true,100);
+        check(held.drawMap()&&held.mode.equals("guidance")&&held.staleMs==0,"fresh guidance draws the map");
+        held=source.read(guidance,true,3101);
+        check(held.mode.equals("guidance")&&held.staleMs==3001&&held.drawMap()&&held.point!=null,"a gap in fixes holds the picture");
+        held=source.read(guidance,true,30101);
+        check(held.mode.equals("lost")&&held.drawMap(),"a long gap dims the map, never blanks it");
         guidance.location.location.stamp++;
-        check(source.read(guidance,true,3200).drawMap(),"fresh sample recovers rendering");
+        held=source.read(guidance,true,30200);
+        check(held.mode.equals("guidance")&&held.staleMs==0,"a fresh fix recovers at once");
         guidance.location.accuracy="COARSE";
-        check(!source.read(guidance,true,3300).drawMap(),"coarse fix cannot draw a precise route");
+        held=source.read(guidance,true,30300);
+        check(held.mode.equals("guidance")&&held.drawMap()&&held.point!=null,"a coarse fix keeps the last good one");
+        guidance.navigation.automotive.status="ROUTE_LOST";
+        held=source.read(guidance,true,30400);
+        check(held.mode.equals("rerouting")&&held.drawMap()&&held.hint==null&&held.lanes.isEmpty(),"rebuilding keeps the map, without hint or lanes");
+        guidance.navigation.automotive.status="ON_ROUTE";
         check(NavigatorSource.speedLimit(16.666f)==60 && NavigatorSource.speedLimit(27.78f)==100,"road-event limits are m/s, shown in km/h");
         check(NavigatorSource.speedLimit(null)==0 && NavigatorSource.speedLimit(0f)==0 && NavigatorSource.speedLimit(Float.NaN)==0,"no limit, no number");
         // The hint comes from guidance itself: the passed manoeuvre is skipped, metres are measured
@@ -152,7 +162,7 @@ public final class ModuleTest {
         guidance.laneDistance=100d;windshield.lanes=java.util.Collections.emptyList();
         check(source.read(guidance,false,3900).lanes.isEmpty(),"missing lane sign clears during guidance");
         windshield.lanes=Arrays.<Object>asList(new LaneSign());
-        check(source.read(guidance,false,7000).lanes.isEmpty(),"stale position clears lanes");
+        check(source.read(guidance,false,7000).lanes.size()==1,"a held fix keeps the lanes");
         guidance.location.location.stamp++;guidance.config.enabled=false;
         check(source.read(guidance,false,7100).lanes.isEmpty(),"disabled background clears lanes");
         guidance.navigation.automotive.status="ROUTE_LOST";
@@ -166,13 +176,21 @@ public final class ModuleTest {
         List<NavigatorSource.Lane> sign=Arrays.asList(lane(null,"straightahead"),lane("straightahead","straightahead","left90"),lane("right90","straightahead","right90"));
         check(Arrays.equals(StockHudSymbols.lanes(sign),new String[]{"landback_hud_0","landfront_hud_20","landfront_hud_43"}),"stock unselected and partial recommended branches");
         check(Arrays.equals(StockHudSymbols.lanes(Arrays.asList(lane("left180","straightahead","left180"))),new String[]{"landfront_hud_95"}),"stock U-turn composite");
-        check(StockHudSymbols.lanes(Arrays.asList(lane("left45","left45","left90"))).length==0,"do not collapse distinct turns into one glyph");
-        check(StockHudSymbols.lanes(Arrays.asList(lane("leftshift","leftshift"))).length==0,"no guessed lane-shift arrow");
-        check(StockHudSymbols.lanes(Arrays.asList(lane("right90","left90"))).length==0,"highlight must belong to lane");
+        // Every lane gets a cell of BYD's pixels; nothing hides the row.
+        check(StockHudSymbols.cell(lane("left45","left45","left90")).equals("landfront_hud_1"),"slight and plain left share BYD's left arrow");
+        check(StockHudSymbols.cell(lane("leftshift","leftshift")).equals("shift:L:1")&&StockHudSymbols.cell(lane(null,"rightshift")).equals("shift:R:0"),"lane shift is BYD's shifted lane, mirrored for the right");
+        check(StockHudSymbols.cell(lane("right90","left90")).equals("landback_hud_1"),"a highlight outside the lane is ignored");
+        check(StockHudSymbols.cell(lane("leftfromright","straightahead","leftfromright")).equals("landfront_hud_21"),"a turn from the far lane is the plain turn");
+        check(StockHudSymbols.cell(lane(null,"unknown")).equals("landback_hud_22"),"an unknown arrow is BYD's empty lane");
+        check(StockHudSymbols.cell(lane("straightahead","left180","left90","straightahead","right90")).equals("landfront_hud_70"),"a combination BYD never drew loses its U-turn first");
         NavigatorSource.Lane bus=new NavigatorSource.Lane("BUS_LANE",java.util.Collections.<String>emptyList(),null);
         String[] reserved=StockHudSymbols.lanes(Arrays.asList(bus,lane("straightahead","straightahead"),bus));
-        check(reserved.length==3&&reserved[0]==null&&reserved[2]==null,"reserved lanes keep positions");
-        check(StockHudSymbols.lanes(Arrays.asList(bus,bus)).length==0,"no empty graphic");
+        check(Arrays.equals(reserved,new String[]{"landback_hud_15","landfront_hud_0","landback_hud_15"}),"a bus lane is BYD's bus in its place");
+        check(StockHudSymbols.cell(new NavigatorSource.Lane("TRAM_LANE",java.util.Collections.<String>emptyList(),null)).equals("tram:0")
+                &&StockHudSymbols.cell(new NavigatorSource.Lane("TAXI_LANE",java.util.Collections.<String>emptyList(),null)).equals("taxi:0"),"tram and taxi lanes have their own cells");
+        check(Arrays.equals(StockHudSymbols.assets("tram:1"),new String[]{"landfront_hud_15"})&&StockHudSymbols.assets("taxi:0").length==0
+                &&Arrays.equals(StockHudSymbols.assets("shift:R:0"),new String[]{"landfront_hud_d"}),"cells name the stock pictures they need");
+        placement();
         check(StockHudSymbols.lanes(java.util.Collections.nCopies(7,sign.get(0))).length==0,"never truncate an oversized sign");
         byte[] png={1,2,3};
         Map<Integer,Object> road=fields(HudWire.road(true,null,null,3,png));
@@ -197,17 +215,44 @@ public final class ModuleTest {
         hint.exit=11;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou11"),"unknown exit must not display a wrong number");
         hint.stockId=24;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou12"),"generic roundabout leave");
     }
+    /** Icons beside their point keep off the route and the cursor; cameras take places first. */
+    private static void placement() {
+        Map<String,float[]> sizes=new TreeMap<>();
+        sizes.put("camera-limit",new float[]{64,38});sizes.put("bump",new float[]{34,29.4f});sizes.put("works",new float[]{31.4f,31.4f});
+        float[] cursor={134,120,32,44};
+        HudEvents events=new HudEvents(4,300,180,4,.2f,7,cursor,new String[]{"right","right-high","left","left-high","above","below"},sizes);
+        java.util.List<float[]> line=Arrays.asList(new float[]{150,145},new float[]{150,20});
+        float[] route=HudEvents.samples(line,3);
+        java.util.List<HudEvents.Mark> marks=Arrays.asList(new HudEvents.Mark("b","bump",150,114,0),
+                new HudEvents.Mark("w","works",148,82,0),new HudEvents.Mark("c","camera",144,33,60));
+        java.util.List<HudEvents.Placed> placed=events.place(marks,route);
+        check(placed.size()==3&&placed.get(0).kind.equals("camera-limit"),"a camera with its limit is placed first");
+        for(HudEvents.Placed p:placed){
+            check(!HudEvents.overlaps(p.box,cursor,2),"an icon never covers the car: "+p.kind);
+            boolean onRoute=false;
+            for(int i=0;i+1<route.length;i+=2)if(route[i]>=p.box[0]-2&&route[i]<=p.box[0]+p.box[2]+2&&route[i+1]>=p.box[1]-2&&route[i+1]<=p.box[1]+p.box[3]+2)onRoute=true;
+            check(!onRoute,"an icon stands beside the route, not on it: "+p.kind+" "+p.side);
+        }
+        check(events.place(java.util.Collections.nCopies(6,new HudEvents.Mark("x","unknown-kind",100,100,0)),route).isEmpty(),"no icon for an unknown kind");
+        // At the top edge the icon slides down beside the route instead of dropping onto it.
+        java.util.List<HudEvents.Placed> top=events.place(Arrays.asList(new HudEvents.Mark("t","camera",150,18,50),new HudEvents.Mark("u","works",150,62,0)),route);
+        check(top.size()==2&&top.get(0).side.startsWith("right")&&top.get(0).box[1]==0&&!top.get(1).side.equals("below"),"an icon at the top edge keeps beside the route");
+    }
     /** Enumerate every reachable mapping; the builder verifies each resource exists in the pinned APK. */
     private static void assetNames() {
         java.util.Set<String> names=new java.util.TreeSet<>();
-        String[] directions={"straightahead","left90","right90","left180","right180"};
-        for(int mask=1;mask<32;mask++) {
+        String[] directions={"straightahead","left90","right90","left180","right180","leftshift","unknown"};
+        for(int mask=1;mask<128;mask++) {
             java.util.List<String> values=new java.util.ArrayList<>();
-            for(int bit=0;bit<5;bit++)if((mask&(1<<bit))!=0)values.add(directions[bit]);
+            for(int bit=0;bit<directions.length;bit++)if((mask&(1<<bit))!=0)values.add(directions[bit]);
             for(int highlight=-1;highlight<values.size();highlight++) {
                 NavigatorSource.Lane lane=new NavigatorSource.Lane("PLAIN_LANE",values,highlight<0?null:values.get(highlight));
-                names.addAll(Arrays.asList(StockHudSymbols.lanes(Arrays.asList(lane))));
+                for(String key:StockHudSymbols.lanes(Arrays.asList(lane)))names.addAll(Arrays.asList(StockHudSymbols.assets(key)));
             }
+        }
+        for(String kind:Arrays.asList("BUS_LANE","TRAM_LANE","TAXI_LANE"))for(String on:Arrays.asList(null,"x")){
+            NavigatorSource.Lane lane=new NavigatorSource.Lane(kind,java.util.Collections.<String>emptyList(),on);
+            names.addAll(Arrays.asList(StockHudSymbols.assets(StockHudSymbols.cell(lane))));
         }
         for(String action:Arrays.asList("STRAIGHT","LEFT","RIGHT","SLIGHT_LEFT","SLIGHT_RIGHT","HARD_LEFT","HARD_RIGHT","UTURN_LEFT","UTURN_RIGHT","FINISH","WAYPOINT","ENTER_ROUNDABOUT","LEAVE_ROUNDABOUT")) {
             String[] kind=NavigatorSource.manoeuvre(action);NavigatorSource.Hint hint=new NavigatorSource.Hint();

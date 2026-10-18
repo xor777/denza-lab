@@ -92,7 +92,7 @@ def main():
     run([java/'bin/javac', '--release', '8', '-encoding', 'UTF-8', '-d', unit_classes,
          link/'dev/denza/hudlink/HudMessage.java', link/'dev/denza/hudlink/HudProtocol.java',
          package/'HudWire.java', package/'Reflect.java', package/'NavigatorSource.java', package/'StockHudSymbols.java',
-         package/'HudAr.java', package/'HudArSource.java',
+         package/'HudAr.java', package/'HudArSource.java', package/'HudEvents.java',
          *sorted((ROOT/'experiments/yandex-hud-module/src/test/java/dev/denza/hud/probe').glob('*.java'))])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ModuleTest'])
     run([java/'bin/java', '-cp', unit_classes, 'dev.denza.hud.probe.ArTest'])

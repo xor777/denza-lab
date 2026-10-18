@@ -129,7 +129,8 @@ public final class ArTest {
         check(source.read(f,500,WALL)==null,"old manoeuvre cannot attach to replacement route");
         ((RoutePosition)f.hint.position).id="b";((RoutePosition)f.hint.followingPosition).id="b";
         check(source.read(f,600,WALL)!=null&&source.geometryBuilds==3,"new route positions recover");
-        for(String mode:new String[]{"waiting-location","off"}) {f.mode=mode;check(source.read(f,700,WALL)==null,"mode clears AR: "+mode);}
+        for(String mode:new String[]{"waiting","rerouting","lost","off"}) {f.mode=mode;check(source.read(f,700,WALL)==null,"mode clears AR: "+mode);}
+        f.mode="guidance";f.staleMs=4000;check(source.read(f,700,WALL)==null,"a held fix clears AR");f.staleMs=0;
         f.mode="guidance";f.location=new Object();
         check(source.read(f,800,WALL)==null&&source.failure!=null,"optional API failure stays within AR adapter");
     }

@@ -43,14 +43,21 @@ has not been changed by these build/test tools. Detailed evidence belongs to
   only in order along the line, so an earlier announcement rebuilds the line.
   Road events (`getEvents`: tags and the posted limit in m/s), speed bumps and
   railway crossings are cached per route and projected with `worldToScreen`
-  after the camera move, nearest first. While MapKit still shows its loading
+  after the camera move, nearest first. `HudEvents` places each icon beside its
+  point, off the route projected ahead and off the cursor (cameras, closures,
+  accidents and crossings first, at most four); each icon, with its lead line
+  and the dot on the road, is a MapKit placemark anchored on the dot, so it
+  turns with the map in MapKit's own frame. The camera's course is eased over
+  ~300 ms. A position from before a rebuild or off the route dims the line to a
+  third, hides the arrows and the icons. While MapKit still shows its loading
   placeholder (light grid, or the night clear colour with grid lines) the frame
   carries no map. It never moves the main map, sets a location provider,
   computes a second route or changes global MapKit start/stop state.
 - `HudPainter` owns two bitmaps and an overlay and executes the theme's drawing
   templates op for op as `research/yandex-hud-renderer/hud-scene.js` paints them
-  (exported by `tools/yandex_hud_build/theme.cjs`); it computes only placement:
-  which road events fit. Lane guidance never occupies the map.
+  (exported by `tools/yandex_hud_build/theme.cjs`) and renders the event icons
+  for HudMap's placemarks, Navigator's own pins by resource name in their day
+  variant. It never prints text in the window. Lane guidance never occupies the map.
   The design itself is described in the
   [renderer README](../../research/yandex-hud-renderer/README.md#what-it-renders).
   Black is the HUD's optical background convention, not true PNG transparency.
@@ -58,9 +65,13 @@ has not been changed by these build/test tools. Detailed evidence belongs to
   to the primary cyan BydLaunchermap resources. `StockHudArt` loads their original
   bytes from APK assets on the output worker, outside Android density scaling.
   Lane cells are 37×60 with 2 px side margins (41 px pitch), on optical black;
-  only the current row is encoded and cached. Special lanes keep empty cells.
-  Unsupported/ambiguous signs are hidden in full, never truncated or guessed.
-  45°/135° turns use the stock left/right symbol; lane shifts are unsupported.
+  only the current row is encoded and cached. Every lane gets a cell of BYD's
+  pixels: a bus lane is BYD's bus, a tram lane the bus with a pantograph, a taxi
+  lane BYD-grid checkers, a lane shift BYD's shifted-lane picture (mirrored for
+  the right, recoloured grey when not the lane to take), an unknown arrow BYD's
+  empty lane, a turn from the far lane the plain turn; a combination BYD never
+  drew drops its U-turns, then its outer branches. Only an oversized sign is
+  hidden. 45°/135° turns use the stock left/right symbol.
   Manoeuvres reuse original 80×80 PNG bytes without drawing or re-encoding.
 - `HudModule` polls at up to 10 fps while active, 2.5 Hz while off. MapKit and
   composition stay on main; PNG encoding and Binder calls share one worker.
@@ -71,8 +82,9 @@ has not been changed by these build/test tools. Detailed evidence belongs to
 - Hidden Navigator continues rendering **only** if stock background guidance
   is enabled and guidance remains resumed. No Activity is kept visible; the
   existing navigation service keeps its own process alive. Disabled background
-  guidance, cancellation and finish clear output. Missing/coarse/stale position
-  removes the moving map; no frozen route remains on a valid running loop.
+  guidance, cancellation and finish clear output. A missing, coarse or stale fix
+  holds the last good one: for 30 s nothing changes (map, hint, lanes), then the
+  map dims to a third and the icons go; AR runs only on a fresh fix.
 
 ## Transport
 
@@ -95,8 +107,9 @@ exit on the manoeuvre that leaves it), the route's `RoutePosition`
 Field 28 follows the stock BYD navigator: 13 enters and 24 leaves a roundabout
 (Denza Apps sends 25), 48 finish, 45 waypoint. Without these fields the HUD
 filled the manoeuvre window with its own Chinese captions. A changed hint goes
-out at once, at most four times a second, else every 500 ms. Rerouting and a
-lost position send 2/16 and explicit 5 = 0, without a lane image. A missing
+out at once, at most four times a second, else every 500 ms. Rerouting sends
+2/16 and explicit 5 = 0, without a hint or lane image; a held position keeps
+both. Before the first fix only 2/16 goes out. A missing
 lane sign also sends 5 = 0 while the route remains active. Field 6 (road class)
 is unchanged; no road is falsely labelled main road. Field 29 is unnecessary
 for the recovered image slot. Topic `1127042368241667` carries field 1 =

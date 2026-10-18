@@ -2,6 +2,7 @@ package dev.denza.hud.probe;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.PointF;
 import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -9,28 +10,30 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Owns only the offscreen map and its route. Never changes the main map or global location provider. */
 final class HudMap implements AutoCloseable {
-    /** Something on the route ahead, already in frame pixels; nearest first. */
-    static final class Mark {
-        final String kind; final float x, y; final int limit;
-        Mark(String kind, float x, float y, int limit) { this.kind = kind; this.x = x; this.y = y; this.limit = limit; }
-    }
-    /** Map pixels, or null while MapKit still shows its light loading grid. */
+    /** Map pixels with the event icons MapKit drew, or null while it still shows its light loading grid. */
     static final class Shot {
-        final Bitmap bitmap; final List<Mark> marks; final float[] finish;
-        Shot(Bitmap bitmap, List<Mark> marks, float[] finish) { this.bitmap = bitmap; this.marks = marks; this.finish = finish; }
+        final Bitmap bitmap; final float[] finish; final int placed;
+        Shot(Bitmap bitmap, float[] finish, int placed) { this.bitmap = bitmap; this.finish = finish; this.placed = placed; }
     }
     /** Route event, speed bump or railway crossing at a fixed place of the current geometry. */
     private static final class Spot {
         final String kind; final int index; final double fraction; final int limit;
         Spot(String kind, int index, double fraction, int limit) { this.kind = kind; this.index = index; this.fraction = fraction; this.limit = limit; }
         boolean after(int i, double f) { return index > i || (index == i && fraction > f); }
+        String key() { return index + ":" + Math.round(fraction * 1e6) + ":" + kind; }
     }
     private static final int CANDIDATES = 12;
+    /** How far ahead the route is projected for icons to keep off it, in screen pixels. */
+    private static final float ROUTE_REACH = 700;
+    /** Heading settles over about this long; a raw GPS course shakes the whole map. */
+    private static final double HEADING_MS = 300;
     private final Reflect api;
     private final JSONObject theme, routeStyle;
     private final Object offscreen, window, map, objects;
@@ -44,8 +47,12 @@ final class HudMap implements AutoCloseable {
     private int arrowIndex = -1;
     private double arrowFraction;
     private boolean trafficDirty = true, trafficOutdated;
-    private long trafficAt, cameraAt;
-    private double zoom = Double.NaN;
+    private long trafficAt, cameraAt, headingAt;
+    private double zoom = Double.NaN, heading = Double.NaN;
+    private boolean routeDimmed;
+    // Event icons are MapKit placemarks, one per spot, so they turn with the map in its own frame.
+    private final Map<String, Object> placemarks = new HashMap<>(), providers = new HashMap<>();
+    private final Map<String, String> placemarkIcons = new HashMap<>();
     int geometryBuilds, trafficUploads, spotReads;
 
     HudMap(Reflect api, JSONObject theme) throws Exception {
@@ -67,37 +74,149 @@ final class HudMap implements AutoCloseable {
         api.call(window, "setFocusPoint", api.make("com.yandex.mapkit.ScreenPoint", (float) focus.getDouble(0), (float) focus.getDouble(1)));
     }
 
-    Shot capture(NavigatorSource.Frame frame, long now) throws Exception {
+    Shot capture(NavigatorSource.Frame frame, long now, HudPainter painter) throws Exception {
         String id = String.valueOf(api.call(frame.route, "getRouteId"));
         if (!id.equals(routeId)) install(frame.route, id);
-        int index = (Integer) api.call(frame.position, "getSegmentIndex");
-        double fraction = (Double) api.call(frame.position, "getSegmentPosition");
-        if (index < 0 || index >= segmentCount || !Double.isFinite(fraction) || fraction < 0 || fraction > 1) throw new IllegalStateException("Invalid route position");
+        int index = -1;
+        double fraction = Double.NaN;
+        if (frame.position != null) {
+            index = (Integer) api.call(frame.position, "getSegmentIndex");
+            fraction = (Double) api.call(frame.position, "getSegmentPosition");
+        }
+        // A position from the route before a rebuild, or Navigator off its route: the map and the car
+        // stay, the line dims and nothing on it is drawn until a position on this route returns.
+        boolean onRoute = frame.onRoute() && index >= 0 && index < segmentCount && Double.isFinite(fraction) && fraction >= 0 && fraction <= 1;
         refreshTraffic(now);
-        arrows(frame.windshield, index, fraction);
-        Object start = api.make("com.yandex.mapkit.geometry.PolylinePosition", 0, 0d);
-        api.call(line, "hide", api.make("com.yandex.mapkit.geometry.Subpolyline", start, frame.position));
+        dimRoute(!onRoute);
+        if (onRoute) {
+            arrows(frame.windshield, index, fraction);
+            Object start = api.make("com.yandex.mapkit.geometry.PolylinePosition", 0, 0d);
+            api.call(line, "hide", api.make("com.yandex.mapkit.geometry.Subpolyline", start, frame.position));
+        } else hideArrows();
         double ahead = Math.max(130, Math.min(600, Double.isFinite(frame.cameraDistance) ? frame.cameraDistance * 1.2 : 350));
         double target = Math.max(14.6, Math.min(16.7, Math.log(156543.03392 * Math.cos(Math.toRadians(frame.latitude)) * 118 / ahead) / Math.log(2)));
         double step = Math.min(250, Math.max(0, now - cameraAt)) * .0008;
         zoom = Double.isNaN(zoom) ? target : zoom + Math.max(-step, Math.min(step, target - zoom));
         cameraAt = now;
-        api.call(map, "move", api.make("com.yandex.mapkit.map.CameraPosition", frame.point, (float) zoom, (float) frame.heading, 0f));
-        // Project after the move so marks and the screenshot share one camera.
-        List<Mark> marks = new ArrayList<>();
-        for (Spot spot : spots) {
-            if (marks.size() >= CANDIDATES) break;
-            if (!spot.after(index, fraction)) continue;
-            float[] p = inside(project(spot.index, spot.fraction));
-            if (p != null) marks.add(new Mark(spot.kind, p[0], p[1], spot.limit));
-        }
-        float[] finish = inside(project(segmentCount - 1, 1));
+        smoothHeading(frame.heading, now);
+        api.call(map, "move", api.make("com.yandex.mapkit.map.CameraPosition", frame.point, (float) zoom, (float) heading, 0f));
+        // Placement reads the camera just set; MapKit draws the placemarks with that same camera.
+        int placed = 0;
+        if (onRoute && frame.mode.equals("guidance")) {
+            List<HudEvents.Mark> marks = new ArrayList<>();
+            Map<String, Spot> byKey = new HashMap<>();
+            for (Spot spot : spots) {
+                if (marks.size() >= CANDIDATES) break;
+                if (!spot.after(index, fraction)) continue;
+                float[] p = inside(project(spot.index, spot.fraction));
+                if (p == null) continue;
+                marks.add(new HudEvents.Mark(spot.key(), spot.kind, p[0], p[1], spot.limit));
+                byKey.put(spot.key(), spot);
+            }
+            List<HudEvents.Placed> chosen = painter.placement.place(marks, routeAhead(index, fraction));
+            showPlacemarks(chosen, byKey, painter);
+            placed = chosen.size();
+        } else hidePlacemarks(Collections.<String>emptySet());
+        float[] finish = onRoute ? inside(project(segmentCount - 1, 1)) : null;
         Bitmap screenshot = (Bitmap) api.call(offscreen, "captureScreenshot");
         if (screenshot != null && loading(screenshot)) {
             screenshot.recycle();
-            return new Shot(null, Collections.<Mark>emptyList(), null);
+            return new Shot(null, null, 0);
         }
-        return new Shot(screenshot, marks, finish);
+        return new Shot(screenshot, finish, placed);
+    }
+
+    /** Eases the camera's course towards the fix's, the short way round; a stop keeps the last. */
+    private void smoothHeading(double raw, long now) {
+        if (Double.isNaN(heading)) heading = raw;
+        else {
+            double dt = Math.min(500, Math.max(0, now - headingAt));
+            double turn = ((raw - heading) % 360 + 540) % 360 - 180;
+            heading = ((heading + turn * (1 - Math.exp(-dt / HEADING_MS))) % 360 + 360) % 360;
+        }
+        headingAt = now;
+    }
+
+    /** The route ahead of the car on screen, as samples every 3 px, for icons to keep off it. */
+    private float[] routeAhead(int index, double fraction) {
+        List<float[]> polyline = new ArrayList<>();
+        float[] here = project(index, fraction);
+        if (here != null) polyline.add(here);
+        float travelled = 0;
+        for (int i = index + 1; i < latitudes.length && polyline.size() < 240; i++) {
+            float[] p = project(i, 0);
+            if (p == null) break;
+            if (!polyline.isEmpty()) {
+                float[] q = polyline.get(polyline.size() - 1);
+                travelled += (float) Math.hypot(p[0] - q[0], p[1] - q[1]);
+            }
+            polyline.add(p);
+            if (travelled > ROUTE_REACH) break;
+        }
+        return HudEvents.samples(polyline, 3);
+    }
+
+    private void showPlacemarks(List<HudEvents.Placed> chosen, Map<String, Spot> spotsByKey, HudPainter painter) throws Exception {
+        Set<String> shown = new HashSet<>();
+        for (HudEvents.Placed p : chosen) {
+            String key = p.mark.key;
+            Object placemark = placemarks.get(key);
+            if (placemark == null) {
+                Spot spot = spotsByKey.get(key);
+                placemark = newPlacemark(point(spot.index, spot.fraction));
+                api.call(placemark, "setZIndex", 100f);
+                placemarks.put(key, placemark);
+            }
+            HudPainter.EventIcon icon = painter.icon(p);
+            if (!icon.key.equals(placemarkIcons.get(key))) {
+                Object provider = providers.get(icon.key);
+                if (provider == null) {
+                    provider = api.call(api.type("com.yandex.runtime.image.ImageProvider"), "fromBitmap", icon.bitmap);
+                    providers.put(icon.key, provider);
+                }
+                Object style = api.make("com.yandex.mapkit.map.IconStyle");
+                api.call(style, "setAnchor", new PointF(icon.anchorX, icon.anchorY));
+                api.call(placemark, "setIcon", provider, style);
+                placemarkIcons.put(key, icon.key);
+            }
+            api.call(placemark, "setVisible", true);
+            shown.add(key);
+        }
+        hidePlacemarks(shown);
+    }
+
+    /** addPlacemark() then its point, or the older addPlacemark(Point) where MapKit has only that. */
+    private Object newPlacemark(Object point) {
+        Object placemark;
+        try { placemark = api.call(objects, "addPlacemark"); }
+        catch (IllegalStateException missing) {
+            if (!String.valueOf(missing.getMessage()).startsWith("Missing method")) throw missing;
+            return api.call(objects, "addPlacemark", point);
+        }
+        api.call(placemark, "setGeometry", point);
+        return placemark;
+    }
+
+    private void hidePlacemarks(Set<String> keep) {
+        for (Map.Entry<String, Object> entry : placemarks.entrySet())
+            if (!keep.contains(entry.getKey())) api.call(entry.getValue(), "setVisible", false);
+    }
+
+    /** The line at a third of its colour while Navigator is off it; black is the glass, so dimmer is fainter. */
+    private void dimRoute(boolean dim) throws Exception {
+        if (dim == routeDimmed) return;
+        float k = dim ? (float) theme.getJSONObject("states").getDouble("routeDim") : 1f;
+        JSONArray types = theme.getJSONArray("jamTypes");
+        for (int i = 0; i < types.length(); i++) {
+            int c = Color.parseColor(theme.getJSONObject("traffic").getString(types.getString(i)));
+            api.call(line, "setPaletteColor", i, Color.rgb(Math.round(Color.red(c) * k), Math.round(Color.green(c) * k), Math.round(Color.blue(c) * k)));
+        }
+        routeDimmed = dim;
+    }
+
+    private void hideArrows() {
+        for (Object arrow : arrows.values()) api.call(arrow, "setVisible", false);
+        arrows.clear();
     }
 
     /**
@@ -156,6 +275,7 @@ final class HudMap implements AutoCloseable {
         api.call(line, "setGradientLength", (float) routeStyle.getDouble("gradient"));
         api.call(line, "setTurnRadius", (float) routeStyle.getDouble("turnRadius"));
         if (colors != null) api.call(line, "setStrokeColors", colors);
+        routeDimmed = false;
         arrows.clear();
         arrowIndex = -1;
         arrowFraction = 0;
@@ -264,11 +384,15 @@ final class HudMap implements AutoCloseable {
         arrows.putAll(keep);
     }
 
-    private float[] project(int index, double fraction) {
+    private Object point(int index, double fraction) {
         int next = Math.min(index + 1, latitudes.length - 1);
         double lat = latitudes[index] + (latitudes[next] - latitudes[index]) * fraction;
         double lon = longitudes[index] + (longitudes[next] - longitudes[index]) * fraction;
-        Object screen = api.call(window, "worldToScreen", api.make("com.yandex.mapkit.geometry.Point", lat, lon));
+        return api.make("com.yandex.mapkit.geometry.Point", lat, lon);
+    }
+
+    private float[] project(int index, double fraction) {
+        Object screen = api.call(window, "worldToScreen", point(index, fraction));
         if (screen == null) return null;
         return new float[]{(Float) api.call(screen, "getX"), (Float) api.call(screen, "getY")};
     }
@@ -278,7 +402,11 @@ final class HudMap implements AutoCloseable {
     void clearRoute() {
         try { if (route != null && conditionsListener != null) api.call(route, "removeConditionsListener", conditionsListener); }
         finally {
-            route = null; conditionsListener = null; routeId = null; colors = null; trafficDirty = true;
+            route = null; conditionsListener = null; routeId = null; colors = null; trafficDirty = true; routeDimmed = false;
+            for (Object placemark : placemarks.values()) {
+                try { api.call(objects, "remove", placemark); } catch (RuntimeException error) { Log.w("DenzaYandexHud", "placemark removal failed", error); }
+            }
+            placemarks.clear(); placemarkIcons.clear();
             spots = Collections.emptyList(); arrows.clear(); arrowIndex = -1; latitudes = longitudes = null; geometry = null;
             try { if (line != null) api.call(objects, "remove", line); }
             finally { line = null; zoom = Double.NaN; }
