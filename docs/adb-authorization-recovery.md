@@ -22,7 +22,7 @@ currently inaccessible vehicle.
 | Accessibility cannot guarantee access to a completely hidden authorization window | firmware | [Dipilot identity rescue](#dipilot-identity-rescue-local-review-2026-10-08) |
 | Automatic restoration is on by default, uses the existing RSA key over STLS and rejoins runtime recovery; no car acceptance yet | local tests/build | [Autonomous restore](#autonomous-restore-implementation-2026-10-08) |
 | Wireless recovery requires an already authorized key; a remembered successful connection does not make that trust permanent | firmware | [Reopening 5555](#reopening-5555-through-wireless-debugging) |
-| «Сервис → Восстановление ADB» says whether there is access, what the first look after the last boot found and what the restore did, from a per-boot record a later open-port check does not overwrite; «Технические сведения» has one «Восстановление ADB» section with every reading once | code, emulator boards, 2026-10-18; not on the car | [The page after a boot](#the-page-after-a-boot-2026-10-18) |
+| «Сервис → Восстановление ADB» says whether there is access, what the first look after the last boot found and what the restore did, from a per-boot record a later open-port check does not overwrite; «Технические сведения» has one «Восстановление ADB» section with every reading once | code, emulator boards; on the car since 2026-10-18 18:18, record written, first reading after a reboot pending | [The page after a boot](#the-page-after-a-boot-2026-10-18) |
 
 ## Contents
 
@@ -758,7 +758,8 @@ bar. Screenshots and validation metadata live in `captures/adb-restore-20261008/
 
 ### The page after a boot (2026-10-18)
 
-Status: code, unit tests and emulator boards; **not on the car**.
+Status: code, unit tests and emulator boards; on the car since 2026-10-18 18:18 (`71c1686b`); the
+first reading after a reboot is still to come.
 
 The owner opened «Сервис → Восстановление ADB» and could not tell whether a restore was needed,
 whether one had been tried, or what had happened. The code explains it:
@@ -808,6 +809,12 @@ Boards `sheet-service-restore`, `sheet-service-restored`, `sheet-service-restore
 `one-sheet-service-restore` draw the three cases; `SheetFixtures` builds the record from the board's
 `adbRestore` times of day. Against the API-35 emulator the eight service boards that
 changed compared at 0.72–2.29 % of pixels moved (mean 0.84–1.97 levels), antialiasing only.
+
+On the car (2605 image), seconds after `adb install -r` on 2026-10-18 at 18:18, the record read
+back with `run-as` was `140|1792269809297|66880753|OPEN|0||0`: `BOOT_COUNT` is readable from the
+app's own UID (140), the boot is 17.10 at 23:43 (uptime 18.6 h), and the first look found the port
+open with nothing to restore. That first look is the install's, not the boot's: a record begins at
+the first look its process makes, and an update starts the process long after the boot.
 
 What the car has to show: after a full reboot on a 2605 image, the page says «был сразу» and
 «не понадобилось», and opening «Сервис» again does not change either.
