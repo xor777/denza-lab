@@ -5,8 +5,8 @@ import android.content.pm.PackageManager
 
 /**
  * Whether the installed Yandex Navigator is «YandexHUD», the owner's build with the HUD module
- * embedded (branch `experiment/yandex-hud-renderer`), which sends the hints, lanes, AR and the map
- * window to the HUD itself.
+ * embedded (`experiments/yandex-hud-module`, built by `tools/yandex_hud_build`), which sends the
+ * hints, lanes, AR and the map window to the HUD itself.
  *
  * It keeps Yandex's package name, so this app read it as Yandex and sent its own road packet and
  * map beside the module's. The SOME/IP service keeps the two sessions apart, and the HUD shows
@@ -30,11 +30,13 @@ object HudNavigatorBuild {
     const val FIRST_MARKER = "-denza-hud"
 
     /**
-     * The name since `53dd3d7f` (15.10): `tools/yandex_hud_build/identity.py` on that branch writes
+     * The name since `53dd3d7f` (15.10): `tools/yandex_hud_build/identity.py` writes
      * `{BASE_VERSION_NAME}-{LABEL}.{BUILD_NUMBER}` with the label `YandexHUD`, so
      * `29.8.1-YandexHUD.1`, the number growing with each distributed build and the base following
      * Yandex's APK. Matched as the label, a dot and the number closing the name, case and all; the
-     * rename alone, unmatched, put this app back on the HUD beside the module.
+     * rename alone, unmatched, put this app back on the HUD beside the module. Since the module
+     * came to main `HudNavigatorBuildTest` reads that file, so the next rename fails this app's
+     * tests instead of reaching the car.
      */
     private val NUMBERED = Regex("""-YandexHUD\.[0-9]+$""")
 

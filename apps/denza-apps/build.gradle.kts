@@ -237,7 +237,8 @@ dependencies {
  * strings the split crew's caption is held to, the Jura font the cluster's widths are measured
  * in, the sources the wiring contracts cut sections out of - a comment moves their anchors too -
  * the host recorder whose columns `VehicleCaptureTest` matches, the recorded drives
- * `VehicleLogReplayTest` replays, and this script, whose helper jar names
+ * `VehicleLogReplayTest` replays, YandexHUD's build identity `HudNavigatorBuildTest` recognises,
+ * and this script, whose helper jar names
  * `ShellProxyJarAssetsTest` holds to the ones the app stages. Until 2026-10-08 an edit to the
  * manifest alone left the task up to date and the manifest contracts unrun.
  */
@@ -253,6 +254,7 @@ tasks.withType<Test>().configureEach {
         file("src/main/res/font/jura_medium.ttf"),
         fileTree("src/main/java"),
         rootProject.file("tools/vehicle_log.py"),
+        rootProject.file("tools/yandex_hud_build/identity.py"),
         rootProject.fileTree("captures/vehicle-log") { include("*.csv") },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("contractSources")
     // The split's command log (SplitCommandLog in the tests): off unless -PsplitCommandLog=<file>
