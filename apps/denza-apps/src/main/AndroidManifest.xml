@@ -81,8 +81,8 @@
         <!--
             The HUD host: the YandexHUD module binds it from Navigator's process and publishes
             into this app's one compositor (docs/hud-output-architecture.md, 5). Exported
-            without a permission: HudHostGate admits only the Navigator package signed with the
-            YandexHUD key, on every attach.
+            without a permission: HudHostGate admits the pinned YandexHUD and HUD Speed adapter
+            packages with their dedicated certificates, on every attach.
         -->
         <service
             android:name=".feature.hud.HudHostService"

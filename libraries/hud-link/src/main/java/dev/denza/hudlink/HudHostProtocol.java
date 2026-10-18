@@ -28,6 +28,8 @@ public final class HudHostProtocol {
     public static final int TX_CALLS = 2;
     /** One-way: the source is done; everything it published goes. */
     public static final int TX_DETACH = 3;
+    /** One-way semantic observation, accepted only from RADAR; its own versioned format. */
+    public static final int TX_RADAR = 4;
 
     /** {@link #TX_ATTACH}'s answers. */
     public static final int ACCEPTED = 0;

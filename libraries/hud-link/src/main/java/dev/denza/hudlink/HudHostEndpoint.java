@@ -28,6 +28,9 @@ public final class HudHostEndpoint extends Binder {
         void onAttached(HudSource source, int uid);
 
         void onDetached(HudSource source, int uid);
+
+        /** Authenticated semantic radar input; default keeps older hosts source-compatible. */
+        default void onRadar(HudRadarWarning warning) { }
     }
 
     private final Handler handler;
@@ -81,6 +84,12 @@ public final class HudHostEndpoint extends Binder {
                 handler.post(() -> play(uid, batch));
                 return true;
             }
+            case HudHostProtocol.TX_RADAR: {
+                data.enforceInterface(HudHostProtocol.DESCRIPTOR);
+                final byte[] bytes = data.createByteArray();
+                handler.post(() -> radar(uid, bytes));
+                return true;
+            }
             case HudHostProtocol.TX_DETACH:
                 data.enforceInterface(HudHostProtocol.DESCRIPTOR);
                 handler.post(() -> detach(uid, null));
@@ -109,12 +118,22 @@ public final class HudHostEndpoint extends Binder {
 
     private void play(int uid, byte[] batch) {
         Attached caller = byUid(uid);
-        if (caller == null || batch == null) {
+        if (caller == null || caller.source == HudSource.RADAR || batch == null) {
             return;
         }
         if (!HudHostProtocol.replay(batch, caller.source, sink)) {
             Log.w(tag, "unreadable batch from " + caller.source);
         }
+    }
+
+    private void radar(int uid, byte[] bytes) {
+        Attached caller = byUid(uid);
+        if (caller == null || caller.source != HudSource.RADAR) return;
+        HudRadarWarning warning = HudRadarWarning.decode(bytes);
+        if (warning == null || warning.sampledAt < caller.lastRadarSample ||
+                warning.remainingMs(android.os.SystemClock.elapsedRealtime()) == 0) return;
+        caller.lastRadarSample = warning.sampledAt;
+        listener.onRadar(warning);
     }
 
     /** {@code token}: the attach that died, or null for whichever this uid holds. */
@@ -143,6 +162,7 @@ public final class HudHostEndpoint extends Binder {
         final HudSource source;
         final int uid;
         final IBinder token;
+        long lastRadarSample = -1;
 
         Attached(HudSource source, int uid, IBinder token) {
             this.source = source;

@@ -17,6 +17,7 @@ import dev.denza.hudlink.HudRole;
 import dev.denza.hudlink.HudSession;
 import dev.denza.hudlink.HudSink;
 import dev.denza.hudlink.HudSource;
+import dev.denza.hudlink.HudRadarWarning;
 
 /**
  * This app as the HUD's host (docs/hud-output-architecture.md, 4-5): the one compositor and session
@@ -33,6 +34,7 @@ final class HudHostOutput {
     private final HudOutput output;
     private final HudModuleLimit moduleLimit = new HudModuleLimit(SystemClock::uptimeMillis);
     private final Sink sink = new Sink();
+    private final HudRadarSource radar = new HudRadarSource(sink, HudRadarPainter::draw);
     private HudHostEndpoint endpoint;
     private boolean stopAsked;
 
@@ -68,6 +70,11 @@ final class HudHostOutput {
                         @Override
                         public void onDetached(HudSource source, int uid) {
                             HudHostRuntime.INSTANCE.onDetached(source);
+                        }
+
+                        @Override
+                        public void onRadar(HudRadarWarning warning) {
+                            radar.publish(warning, SystemClock.elapsedRealtime());
                         }
                     },
                     TAG);

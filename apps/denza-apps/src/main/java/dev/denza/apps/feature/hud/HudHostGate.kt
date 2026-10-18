@@ -8,7 +8,7 @@ import java.security.MessageDigest
 
 /**
  * Who may publish to this app's HUD from another app (docs/hud-output-architecture.md, 5): the
- * YandexHUD module, inside the Navigator package, signed with the owner's local experiment key.
+ * YandexHUD module and HUD Speed adapter, each with its package and dedicated local certificate.
  * Decided from the caller's uid on every attach, so a caller can neither publish as another source
  * nor pass for YandexHUD with Yandex's own package and another key - an official Navigator never
  * attaches.
@@ -24,6 +24,11 @@ object HudHostGate {
     val YANDEX_HUD_CERTIFICATES: Set<String> =
         setOf("df4100bda2c4f581c6bb5251746f1b2bdee2f7662ead31a46ef01ae25f9d39c6")
 
+    const val HUD_SPEED_PACKAGE = "air.StrelkaHUDFREE"
+    /** Dedicated local key, captures/hud-speed-signing/adapter.p12; tools/hud_speed_build. */
+    val HUD_SPEED_CERTIFICATES: Set<String> =
+        setOf("4e2b390deba4ee0b336f85d916a372ca0dfe3fd70a7379cb22fe778773f92202")
+
     /**
      * The source a caller with [packages] publishes as, or null: the Navigator package with a
      * YandexHUD certificate is the module. [certificates] gives a package's signer digests.
@@ -32,6 +37,9 @@ object HudHostGate {
         if (packages.any { it == HudGuidanceSettings.NAVIGATOR_PACKAGE &&
                 certificates(it).any(YANDEX_HUD_CERTIFICATES::contains) }) {
             HudSource.MODULE
+        } else if (packages.any { it == HUD_SPEED_PACKAGE &&
+                certificates(it) == HUD_SPEED_CERTIFICATES }) {
+            HudSource.RADAR
         } else {
             null
         }

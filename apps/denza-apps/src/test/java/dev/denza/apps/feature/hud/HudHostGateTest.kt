@@ -11,6 +11,16 @@ class HudHostGateTest {
     private val yandex = "0".repeat(64)
 
     @Test
+    fun onlyTheDedicatedHudSpeedSignerIsRadar() {
+        val radar = HudHostGate.HUD_SPEED_CERTIFICATES.single()
+        assertEquals(HudSource.RADAR, HudHostGate.admit(listOf("air.StrelkaHUDFREE")) { setOf(radar) })
+        assertNull(HudHostGate.admit(listOf("air.StrelkaHUDFREE")) { setOf(yandexHud) })
+        assertNull(HudHostGate.admit(listOf("air.StrelkaHUDFREE")) { setOf(yandex) })
+        assertNull(HudHostGate.admit(listOf("other.package")) { setOf(radar) })
+        assertNull(HudHostGate.admit(listOf("air.StrelkaHUDFREE")) { setOf(radar, yandex) })
+    }
+
+    @Test
     fun theNavigatorSignedWithTheYandexHudKeyIsTheModule() {
         assertEquals(
             HudSource.MODULE,

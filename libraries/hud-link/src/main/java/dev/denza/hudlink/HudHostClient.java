@@ -92,6 +92,14 @@ public final class HudHostClient {
 
     /** One batch, one-way; false when the host is gone (the loss also reaches the listener). */
     public boolean send(byte[] batch) {
+        return send(HudHostProtocol.TX_CALLS, batch);
+    }
+
+    public boolean sendRadar(HudRadarWarning warning) {
+        return send(HudHostProtocol.TX_RADAR, warning.encode());
+    }
+
+    private boolean send(int transaction, byte[] batch) {
         IBinder target = host;
         if (target == null) {
             return false;
@@ -100,8 +108,7 @@ public final class HudHostClient {
         try {
             data.writeInterfaceToken(HudHostProtocol.DESCRIPTOR);
             data.writeByteArray(batch);
-            target.transact(HudHostProtocol.TX_CALLS, data, null, IBinder.FLAG_ONEWAY);
-            return true;
+            return target.transact(transaction, data, null, IBinder.FLAG_ONEWAY);
         } catch (RemoteException | RuntimeException error) {
             Log.w(tag, "host send failed", error);
             postLost("host send failed");
