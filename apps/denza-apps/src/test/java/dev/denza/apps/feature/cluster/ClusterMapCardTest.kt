@@ -15,6 +15,23 @@ import org.junit.Test
 class ClusterMapCardTest {
 
     @Test
+    fun firmwareMayGroupTheDisplayFourMapUnderKeyTwo() {
+        // Recorded on the car: key 2 holds Map(displayId=4); key 4 is empty.
+        data class Window(val name: String, val displayId: Int)
+        val map = Window("MeterSmallScreenActivity", 4)
+        val groups = mapOf(
+            0 to listOf(Window("MainActivity", 0)),
+            2 to listOf(map),
+            3 to emptyList(),
+            4 to emptyList(),
+        )
+
+        assertEquals(listOf(map), ClusterMapCard.windowsOnDisplay(4, groups.values) { it.displayId })
+        assertTrue(ClusterMapCard.windowsOnDisplay(2, groups.values) { it.displayId }.isEmpty())
+        assertTrue(ClusterMapCard.windowsOnDisplay(4, emptyList<List<Window>>()) { it.displayId }.isEmpty())
+    }
+
+    @Test
     fun theCardIsTheStockSmallMapsViewWhereItReportsItself() {
         val view = Box(1960, 0, 2560, 720)
         val seen = listOf(

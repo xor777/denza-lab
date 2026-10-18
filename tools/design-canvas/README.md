@@ -58,6 +58,7 @@ that reports what collides.
 | `audit.py` | opens every board in headless Chrome and reports what collides |
 | `shot.py` | renders one board to a PNG at panel pixels, so it can be looked at |
 | `compare.py` | lays a board against a screenshot of the car and reports what moved |
+| `ClusterMapCard.dc.html` | the right card's map with soft edges, drawn by `ClusterMapCardRuntime.CardView`; `ClusterMapCardFixtureActivity` draws the same fixed picture for comparison |
 
 `Energy.dc.html`, `Battery.dc.html`, `Thermal.dc.html` and `Engine.dc.html` are
 kept as historical design evidence. Those head-unit pages are retired and are not

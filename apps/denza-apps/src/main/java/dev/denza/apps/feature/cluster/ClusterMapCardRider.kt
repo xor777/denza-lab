@@ -42,7 +42,11 @@ class ClusterMapCardRider : AccessibilityRider {
         }
         val selection = ClusterDisplayResolver.resolveCameraOverlay(service)
         val display = (selection as? ClusterDisplaySelection.Selected)?.display?.id
-        val windows = display?.let { service.windowsOnAllDisplays[it] }.orEmpty()
+        val byDisplay = service.windowsOnAllDisplays
+        val groups = (0 until byDisplay.size()).map { byDisplay.valueAt(it) }
+        val windows = display?.let { id ->
+            ClusterMapCard.windowsOnDisplay(id, groups) { it.displayId }
+        }.orEmpty()
         val seen = mutableListOf<ClusterMapCard.Seen>()
         val bounds = Rect()
         windows.forEach { window ->

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <activity
+            android:name=".debug.ClusterMapCardFixtureActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <!-- Draws a Luminofor board's fixture with the app's own code, for compare.py. -->
         <activity
             android:name=".debug.LuminoforFixtureActivity"

@@ -35,6 +35,14 @@ internal object ClusterMapCard {
     data class Seen(val packageName: String?, val viewId: String?, val bounds: Box)
 
     /**
+     * Use each window's display, not the enclosing accessibility list's key. On this car the
+     * live small-map window says displayId=4 but getWindowsOnAllDisplays groups it under key 2
+     * (2026-10-18, captures/cluster-card-20261018/debug-overlay/card-windows-by-id.txt).
+     */
+    fun <T> windowsOnDisplay(displayId: Int, groups: Iterable<List<T>>, windowDisplay: (T) -> Int): List<T> =
+        groups.flatMap { group -> group.filter { windowDisplay(it) == displayId } }
+
+    /**
      * The card among what the overlay display shows: the stock small map's view where it reports
      * itself, else [STOCK_BOX] while a stock map window is there at all; null without one - the
      * card shows something else, or nothing.

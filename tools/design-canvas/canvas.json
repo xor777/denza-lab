@@ -23,6 +23,15 @@
   ],
   "artboards": [
     {
+      "file": "ClusterMapCard.dc.html",
+      "x": 1620,
+      "y": 0,
+      "w": 600,
+      "h": 720,
+      "title": "Карта в правом окне · мягкие края",
+      "page": "page-cluster"
+    },
+    {
       "file": "Main.dc.html",
       "x": 0,
       "y": 0,

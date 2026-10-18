@@ -7,8 +7,11 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.Shader
 import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
@@ -161,13 +164,16 @@ internal object ClusterMapCardRuntime {
         }
     }
 
-    private class CardView(context: Context) : View(context) {
+    internal class CardView(context: Context) : View(context) {
         var card: ClusterMapCard.Box? = null
         var picture: Bitmap? = null
         private val black = Paint().apply { color = Color.BLACK }
         private val smooth = Paint(Paint.FILTER_BITMAP_FLAG)
         private val from = Rect()
         private val to = Rect()
+        private val edgePaint = Paint()
+        private val edgeBox = Rect()
+        private var edges = emptyList<Pair<RectF, Shader>>()
 
         override fun onDraw(canvas: Canvas) {
             val card = card ?: return
@@ -177,6 +183,38 @@ internal object ClusterMapCardRuntime {
             from.set(0, 0, picture.width, picture.height)
             to.set(box.left, box.top, box.right, box.bottom)
             canvas.drawBitmap(picture, from, to, smooth)
+            drawEdges(canvas)
+        }
+
+        /**
+         * Soft black edges, as in the stock small map's mask; only the picture's rim is shaded.
+         * The board is tools/design-canvas/ClusterMapCard.dc.html. Cache the four shaders until
+         * the picture's placement changes; a new map frame does not allocate new gradients.
+         */
+        private fun drawEdges(canvas: Canvas) {
+            if (edgeBox != to) {
+                edgeBox.set(to)
+                val left = to.left.toFloat()
+                val top = to.top.toFloat()
+                val right = to.right.toFloat()
+                val bottom = to.bottom.toFloat()
+                val horizontal = to.width() * 0.12f
+                val vertical = to.height() * (44f / 360f)
+                val colors = intArrayOf(Color.BLACK, 0xD7000000.toInt(), 0x80000000.toInt(), 0x28000000, Color.TRANSPARENT)
+                val stops = floatArrayOf(0f, .25f, .5f, .75f, 1f)
+                fun shade(rect: RectF, x0: Float, y0: Float, x1: Float, y1: Float): Pair<RectF, Shader> =
+                    rect to LinearGradient(x0, y0, x1, y1, colors, stops, Shader.TileMode.CLAMP)
+                edges = listOf(
+                    shade(RectF(left, top, left + horizontal, bottom), left, top, left + horizontal, top),
+                    shade(RectF(right - horizontal, top, right, bottom), right, top, right - horizontal, top),
+                    shade(RectF(left, top, right, top + vertical), left, top, left, top + vertical),
+                    shade(RectF(left, bottom - vertical, right, bottom), left, bottom, left, bottom - vertical),
+                )
+            }
+            for ((bounds, shader) in edges) {
+                edgePaint.shader = shader
+                canvas.drawRect(bounds, edgePaint)
+            }
         }
     }
 }

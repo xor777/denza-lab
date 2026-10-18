@@ -1,0 +1,30 @@
+<x-dc>
+<helmet><style>body{margin:0;background:#000}</style></helmet>
+<!-- The 600x720 right card. Same fixture as ClusterMapCardFixtureActivity.
+     Narrow, smooth black edges inspired by BydLaunchermap's mask 2; the middle stays clear.
+     Horizontal fade 72px, vertical fade 44px; alpha stops 255,215,128,40,0.
+     Render: python3 tools/design-canvas/shot.py ClusterMapCard -->
+<div style="width:600px; height:720px; background:#000">
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="720" viewBox="0 0 600 720">
+<defs>
+ <linearGradient id="shade">
+  <stop offset="0" stop-color="#000" stop-opacity="1"/>
+  <stop offset=".25" stop-color="#000" stop-opacity=".8431372549"/>
+  <stop offset=".5" stop-color="#000" stop-opacity=".5019607843"/>
+  <stop offset=".75" stop-color="#000" stop-opacity=".1568627451"/>
+  <stop offset="1" stop-color="#000" stop-opacity="0"/>
+ </linearGradient>
+</defs>
+<g transform="translate(0 180)">
+ <rect width="600" height="360" fill="#252a32"/>
+ <path d="M0 60H600M0 180H600M0 300H600M60 0V360M180 0V360M300 0V360M420 0V360M540 0V360" stroke="#414955" stroke-width="8"/>
+ <path d="M300 360V120H600" stroke="#439ffc" stroke-width="12" fill="none"/>
+ <path d="M300 242L284 276L300 268L316 276Z" fill="#fff"/>
+ <rect width="72" height="360" fill="url(#shade)"/>
+ <rect width="72" height="360" fill="url(#shade)" transform="translate(600 360) rotate(180)"/>
+ <rect width="44" height="600" fill="url(#shade)" transform="translate(600 0) rotate(90)"/>
+ <rect width="44" height="600" fill="url(#shade)" transform="translate(0 360) rotate(-90)"/>
+</g>
+</svg>
+</div>
+</x-dc>
