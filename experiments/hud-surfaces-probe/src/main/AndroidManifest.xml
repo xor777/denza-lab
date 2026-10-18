@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No permission is requested: the stock SOME/IP service accepts an ordinary UID. The probe
+         never writes vehicle or ADAS settings and never casts video. -->
+
+    <application
+        android:allowBackup="false"
+        android:label="HUD surfaces probe" />
+</manifest>

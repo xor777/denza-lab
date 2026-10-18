@@ -78,6 +78,9 @@ if (providers.gradleProperty("experiments").isPresent) {
     include(":hud-frames-probe")
     project(":hud-frames-probe").projectDir = file("experiments/hud-frames-probe")
 
+    include(":hud-surfaces-probe")
+    project(":hud-surfaces-probe").projectDir = file("experiments/hud-surfaces-probe")
+
     include(":fse-hud-inspector")
     project(":fse-hud-inspector").projectDir = file("experiments/fse-hud-inspector")
 
