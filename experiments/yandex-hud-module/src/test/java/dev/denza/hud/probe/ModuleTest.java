@@ -311,28 +311,34 @@ public final class ModuleTest {
         hint.exit=11;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou11"),"unknown exit must not display a wrong number");
         hint.stockId=24;check(StockHudSymbols.manoeuvre(hint).equals("ar_hud_sou12"),"generic roundabout leave");
     }
-    /** Icons beside their point keep off the route and the cursor; cameras take places first. */
+    /** One icon a place, the nearest two places, each beside the route and off the cursor. */
     private static void placement() {
         Map<String,float[]> sizes=new TreeMap<>();
-        sizes.put("camera-limit",new float[]{64,38});sizes.put("bump",new float[]{34,29.4f});sizes.put("works",new float[]{31.4f,31.4f});
+        for(String kind:Arrays.asList("camera","bump","works","lane-camera","crossroad-camera","no-stopping-camera"))sizes.put(kind,new float[]{34,34});
+        sizes.put("camera-limit",new float[]{38,38});
         float[] cursor={134,120,32,44};
-        HudEvents events=new HudEvents(4,300,180,4,.2f,7,cursor,new String[]{"right","right-high","left","left-high","above","below"},sizes);
-        java.util.List<float[]> line=Arrays.asList(new float[]{150,145},new float[]{150,20});
-        float[] route=HudEvents.samples(line,3);
-        java.util.List<HudEvents.Mark> marks=Arrays.asList(new HudEvents.Mark("b","bump",150,114,0),
-                new HudEvents.Mark("w","works",148,82,0),new HudEvents.Mark("c","camera",144,33,60));
+        HudEvents events=new HudEvents(2,300,180,4,.2f,7,50,120,cursor,new String[]{"right","right-high","left","left-high","above","below"},sizes);
+        float[] route=HudEvents.samples(Arrays.asList(new float[]{150,145},new float[]{150,20}),3);
+        java.util.List<HudEvents.Mark> marks=Arrays.asList(new HudEvents.Mark("b","bump",150,114,0,40),
+                new HudEvents.Mark("n","no-stopping-camera",150,78,0,118),new HudEvents.Mark("c","camera",150,72,50,126),
+                new HudEvents.Mark("x","crossroad-camera",150,68,0,134),new HudEvents.Mark("w","works",136,30,0,300));
+        java.util.List<HudEvents.Mark> places=events.places(marks);
+        check(places.size()==3&&places.get(1).key.equals("c"),"cameras at one crossing are one place, shown by the speed camera");
         java.util.List<HudEvents.Placed> placed=events.place(marks,route);
-        check(placed.size()==3&&placed.get(0).kind.equals("camera-limit"),"a camera with its limit is placed first");
+        check(placed.size()==2&&placed.get(0).kind.equals("bump")&&placed.get(1).kind.equals("camera-limit"),"the nearest two places, nothing more");
         for(HudEvents.Placed p:placed){
             check(!HudEvents.overlaps(p.box,cursor,2),"an icon never covers the car: "+p.kind);
             boolean onRoute=false;
             for(int i=0;i+1<route.length;i+=2)if(route[i]>=p.box[0]-2&&route[i]<=p.box[0]+p.box[2]+2&&route[i+1]>=p.box[1]-2&&route[i+1]<=p.box[1]+p.box[3]+2)onRoute=true;
             check(!onRoute,"an icon stands beside the route, not on it: "+p.kind+" "+p.side);
         }
-        check(events.place(java.util.Collections.nCopies(6,new HudEvents.Mark("x","unknown-kind",100,100,0)),route).isEmpty(),"no icon for an unknown kind");
+        java.util.List<HudEvents.Mark> bumps=Arrays.asList(new HudEvents.Mark("1","bump",150,110,0,60),new HudEvents.Mark("2","bump",150,96,0,100),
+                new HudEvents.Mark("3","bump",150,84,0,140),new HudEvents.Mark("4","bump",150,70,0,180),new HudEvents.Mark("5","bump",150,56,0,220));
+        check(events.places(bumps).size()==2,"a run of bumps splits after the span, not into one endless place");
+        check(events.place(java.util.Collections.nCopies(6,new HudEvents.Mark("x","unknown-kind",100,100,0,10)),route).isEmpty(),"no icon for an unknown kind");
         // At the top edge the icon slides down beside the route instead of dropping onto it.
-        java.util.List<HudEvents.Placed> top=events.place(Arrays.asList(new HudEvents.Mark("t","camera",150,18,50),new HudEvents.Mark("u","works",150,62,0)),route);
-        check(top.size()==2&&top.get(0).side.startsWith("right")&&top.get(0).box[1]==0&&!top.get(1).side.equals("below"),"an icon at the top edge keeps beside the route");
+        java.util.List<HudEvents.Placed> top=events.place(Arrays.asList(new HudEvents.Mark("t","camera",150,18,50,300)),route);
+        check(top.size()==1&&top.get(0).side.startsWith("right")&&top.get(0).box[1]==0,"an icon at the top edge keeps beside the route");
     }
     /** Enumerate every reachable mapping; the builder verifies each resource exists in the pinned APK. */
     private static void assetNames() {

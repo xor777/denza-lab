@@ -133,6 +133,7 @@ public final class HudModule {
                 if (busy || now < nextAttempt) return;
                 if (!frame.active()) { releaseDrawing(); return; }
                 if (painter == null) painter = new HudPainter(context, theme);
+                emulator.icons(painter);
                 HudMap.Shot shot = null;
                 try {
                     if (frame.drawMap()) {

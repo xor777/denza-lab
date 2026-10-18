@@ -1,6 +1,7 @@
 package dev.denza.hud.probe;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.os.Build;
 import android.util.Log;
 import org.json.JSONObject;
@@ -15,6 +16,7 @@ final class HudEmulatorControl {
     private long pollAt, themeAt, themeStamp, sequence, recorded, recordEvery, recordLimit;
     private String lastCommand = "";
     private String recordedRoute;
+    private boolean iconSheet;
     HudEmulatorControl(Context context, Reflect api) { this.context = context; this.api = api; }
 
     void poll(Object guidance, long now) {
@@ -51,11 +53,29 @@ final class HudEmulatorControl {
                 recordEvery = Math.max(1, value.getInt("every"));
                 recordLimit = Math.min(600, value.getInt("limit"));
                 recorded = 0;
+            } else if (action.equals("icons")) {
+                iconSheet = true; // written by the next frame that has a painter
             } else if (action.equals("background")) {
                 api.call(api.call(guidance, "bgConfigurator"), "setBackgroundOnRouteEnabled", value.getBoolean("enabled"));
             } else throw new IllegalArgumentException("Unknown emulator action");
             Log.i("DenzaYandexHud", "emulator action=" + action);
         } catch (Exception error) { Log.w("DenzaYandexHud", "emulator action failed", error); }
+    }
+
+    /** Emulator check of the real Android drawing: every icon and every posted limit, one PNG. */
+    void icons(HudPainter painter) {
+        if (!enabled || !iconSheet || painter == null) return;
+        iconSheet = false;
+        try {
+            String[] kinds = {"camera-limit", "camera", "closed", "bump", "railway", "accident", "works", "school", "police", "danger",
+                    "lane-camera", "crossroad-camera", "no-stopping-camera", "mobile-camera"};
+            int[] limits = {5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130};
+            Bitmap sheet = painter.sheet(kinds, limits);
+            try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), "denza-hud-icons.png"))) {
+                sheet.compress(Bitmap.CompressFormat.PNG, 100, out);
+            } finally { sheet.recycle(); }
+            Log.i("DenzaYandexHud", "emulator icons written");
+        } catch (Exception error) { Log.w("DenzaYandexHud", "emulator icons failed", error); }
     }
 
     /** Emulator design loop: a pushed theme replaces the APK asset without rebuilding; null when unchanged. */

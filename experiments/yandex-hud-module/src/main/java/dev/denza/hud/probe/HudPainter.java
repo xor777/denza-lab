@@ -34,8 +34,9 @@ final class HudPainter implements AutoCloseable {
     private final Map<JSONArray, Path> paths = new IdentityHashMap<>();
     private final ByteArrayOutputStream stream = new ByteArrayOutputStream(32768);
     private final Map<String, EventIcon> eventIcons = new HashMap<>();
-    private final Typeface medium = Typeface.create("sans-serif-medium", Typeface.NORMAL),
-            sign = Typeface.create("sans-serif-condensed", Typeface.BOLD);
+    private final Typeface medium = Typeface.create("sans-serif-medium", Typeface.NORMAL), sign;
+    private final Path glyphs = new Path();
+    private final RectF inkF = new RectF();
     private final float mapDim;
     final HudEvents placement;
     private String key;
@@ -44,6 +45,7 @@ final class HudPainter implements AutoCloseable {
 
     HudPainter(Context context, JSONObject theme) throws JSONException {
         this.context = context;
+        sign = signFace(context);
         // Navigator's icons in their day variant: its night ones are dark plates, invisible on the glass.
         Configuration dayMode = new Configuration(context.getResources().getConfiguration());
         dayMode.uiMode = (dayMode.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | Configuration.UI_MODE_NIGHT_NO;
@@ -67,7 +69,8 @@ final class HudPainter implements AutoCloseable {
         for (int i = 0; i < sides.length; i++) sides[i] = sideList.getString(i);
         JSONObject size = theme.getJSONObject("size");
         placement = new HudEvents(events.getInt("max"), size.getInt("width"), size.getInt("height"), (float) events.getDouble("edge"),
-                (float) events.getDouble("cover"), (float) events.getDouble("gap"), rect(events.getJSONArray("cursor")), sides, sizes);
+                (float) events.getDouble("cover"), (float) events.getDouble("gap"), (float) events.getDouble("merge"), (float) events.getDouble("span"),
+                rect(events.getJSONArray("cursor")), sides, sizes);
     }
 
     void compose(HudMap.Shot shot, NavigatorSource.Frame frame) throws Exception {
@@ -186,13 +189,18 @@ final class HudPainter implements AutoCloseable {
                     paint.setTypeface("HudSign".equals(c.optString("family")) ? sign : medium);
                     paint.setTextSize((float) (c.has("size3") && value.length() > 2 ? c.getDouble("size3") : c.getDouble("size")));
                     float tx = (float) c.getDouble("x"), ty = (float) c.getDouble("y");
-                    if (c.optString("align").equals("center")) {
-                        paint.setTextAlign(Paint.Align.CENTER);
-                        Paint.FontMetrics metrics = paint.getFontMetrics();
-                        ty -= (metrics.ascent + metrics.descent) / 2;
-                    }
-                    target.drawText(value, tx, ty, paint);
                     paint.setTextAlign(Paint.Align.LEFT);
+                    if (c.optString("align").equals("center")) {
+                        // Centred on the ink of the glyphs, not on the face's ascent and descent: those
+                        // differ from face to face and put a sign's digits off centre on the car. The
+                        // outline is measured and drawn as a path, so neither the whole-pixel text
+                        // bounds nor the text's pixel snapping move it.
+                        glyphs.reset();
+                        paint.getTextPath(value, 0, value.length(), 0, 0, glyphs);
+                        glyphs.computeBounds(inkF, true);
+                        glyphs.offset(tx - inkF.centerX(), ty - inkF.centerY());
+                        target.drawPath(glyphs, paint);
+                    } else target.drawText(value, tx, ty, paint);
                     paint.setTypeface(medium);
                     break;
                 }
@@ -210,6 +218,26 @@ final class HudPainter implements AutoCloseable {
                 default: throw new IllegalStateException("Unsupported drawing command " + op);
             }
         }
+    }
+
+    /**
+     * A sign's digits in Navigator's own bold face from its APK, so the car draws what the emulator was
+     * checked with; the system's condensed bold only if that asset is ever missing.
+     */
+    private static Typeface signFace(Context context) {
+        try { return Typeface.createFromAsset(context.getAssets(), "metrokit/fonts/YandexSans/YandexSansText-Bold.ttf"); }
+        catch (RuntimeException missing) { return Typeface.create("sans-serif-condensed", Typeface.BOLD); }
+    }
+
+    /** Emulator check: every icon kind once, then the limit sign for each limit, in one row of 48-px cells. */
+    Bitmap sheet(String[] kinds, int[] limits) throws JSONException {
+        Bitmap bitmap = Bitmap.createBitmap((kinds.length + limits.length) * 48, 48, Bitmap.Config.ARGB_8888);
+        Canvas target = new Canvas(bitmap);
+        target.drawColor(Color.BLACK);
+        for (int i = 0; i < kinds.length; i++) group(target, i * 48 + 24, 24, icons.getJSONObject(kinds[i]).getJSONArray("ops"), "60");
+        for (int i = 0; i < limits.length; i++)
+            group(target, (kinds.length + i) * 48 + 24, 24, icons.getJSONObject("camera-limit").getJSONArray("ops"), String.valueOf(limits[i]));
+        return bitmap;
     }
 
     private void fill(String color, float alpha) {

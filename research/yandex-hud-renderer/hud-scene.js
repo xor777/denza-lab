@@ -160,26 +160,31 @@ const shape=(d,style)=>({op:'shape',d,...style});
 const box=(x,y,w,h,r,style)=>({op:'roundRect',x,y,w,h,r,...style});
 const camGlyph=(cx,cy,k,color)=>[box(cx-6.4*k,cy-3.8*k,12.8*k,8.6*k,1.6*k,{fill:color}),box(cx-2.6*k,cy-5.8*k,5.2*k,2.6*k,.8*k,{fill:color}),
  circle(cx,cy+.5*k,2.9*k,{fill:W}),circle(cx,cy+.5*k,1.6*k,{fill:color})];
-// Icons are centred on 0,0; size is their box.
+// Icons are centred on 0,0; size is their box. Every icon is one plate about 34 px across, the limit
+// sign 38: on the glass a mixed set read as some huge and some guessed at (owner, 2026-10-18, after a
+// drive), the speed bump among the guessed.
 const ICONS={
- camera:{size:[30,30],ops:[circle(0,0,15.2,{fill:BK}),circle(0,0,14,{fill:W}),circle(0,0,12.3,{stroke:R,width:3.4}),...camGlyph(0,0,1.25,BK)]},
- // The camera stands beside its limit, the pair v3 drew, at full size: a camera badge on the sign was
- // too small to tell on the glass (owner, 2026-10-18).
- 'camera-limit':{size:[64,38],ops:[circle(-16,1,14.2,{fill:BK}),circle(-16,1,13,{fill:W}),circle(-16,1,11.4,{stroke:R,width:3.2}),...camGlyph(-16,1,1.15,BK),
-  circle(13,0,18.2,{fill:BK}),circle(13,0,17,{fill:W}),circle(13,0,14.4,{stroke:R,width:5.1}),
-  {op:'text',value:'{limit}',x:13,y:.6,size:17.5,size3:13.5,weight:700,family:'HudSign',color:BK,align:'center'}]},
- closed:{size:[28,28],ops:[circle(0,0,14.2,{fill:BK}),circle(0,0,13,{fill:R}),box(-8.4,-2.4,16.8,4.8,1,{fill:W})]}};
+ camera:{size:[34,34],ops:[circle(0,0,17.2,{fill:BK}),circle(0,0,16,{fill:W}),circle(0,0,14,{stroke:R,width:3.8}),...camGlyph(0,0,1.42,BK)]},
+ // A speed camera with a limit is its limit sign, one plate: the camera beside it doubled every
+ // camera on the glass, and where it stands on the route already says the limit is enforced there.
+ 'camera-limit':{size:[38,38],ops:[circle(0,0,19.2,{fill:BK}),circle(0,0,18,{fill:W}),circle(0,0,15.3,{stroke:R,width:5.4}),
+  {op:'text',value:'{limit}',x:0,y:0,size:19,size3:13.5,weight:700,family:'HudSign',color:BK,align:'center'}]},
+ closed:{size:[34,34],ops:[circle(0,0,17.2,{fill:BK}),circle(0,0,16,{fill:R}),box(-10,-2.8,20,5.6,1.2,{fill:W})]}};
 // Navigator's plates: pins are 60×68 with the plate in 8..52 × 6..50; the route's marks 28×32, plate 2..26 × 0..24.
 const plate=(name,w,h,view,clip)=>{const k=w/view[0];
  return {size:[(clip[2])*k,(clip[3])*k],ops:[{op:'drawable',name,x:-(clip[0]+clip[2]/2)*k,y:-(clip[1]+clip[3]/2)*k,w,h:view[1]*k,rotation:0,brightness:1,
   clip:[-(clip[2]/2)*k,-(clip[3]/2)*k,clip[2]*k,clip[3]*k]}]};};
-const pin=name=>plate(name,41,46.5,[60,68],[7,5,46,46]);
-const routeMark=name=>plate(name,34,38.9,[28,32],[1.5,0,25,24.5]);
+// Scaled so each plate is 34 px: Navigator's pins (plate 46 of 60) and route marks (plate 25 of 28).
+// A camera pin carries Navigator's camera badge, a 12-unit circle on the plate's top right corner, so
+// its clip takes the badge in whole.
+const pin=name=>plate(name,44.35,50.26,[60,68],[7,5,46,46]);
+const cameraPin=name=>plate(name,44.35,50.26,[60,68],[7,0,53,51]);
+const routeMark=name=>plate(name,38.08,43.52,[28,32],[1.5,0,25,24.5]);
 Object.assign(ICONS,{bump:routeMark('mapkit_styling_automotive_route_speed_bump'),railway:routeMark('mapkit_styling_automotive_route_railway_crossing'),
  accident:pin('pin_alerts_accident'),works:pin('pin_alerts_road_works'),danger:pin('pin_alerts_danger'),overtaking:pin('pin_alerts_overtaking'),
  crossroad:pin('pin_alerts_crossroad'),school:pin('pin_alerts_school_ahead'),drawbridge:pin('pin_alerts_drawbridge'),police:pin('pin_alerts_police'),
- 'lane-camera':pin('pin_alerts_lane_control'),'crossroad-camera':pin('pin_alerts_cross_road_control'),
- 'no-stopping-camera':pin('pin_alerts_no_stopping_control'),'mobile-camera':pin('pin_alerts_mobile_control')});
+ 'lane-camera':cameraPin('pin_alerts_lane_control'),'crossroad-camera':cameraPin('pin_alerts_cross_road_control'),
+ 'no-stopping-camera':cameraPin('pin_alerts_no_stopping_control'),'mobile-camera':pin('pin_alerts_mobile_control')});
 // Navigator's EventTag → icon. Chat, feedback and "other" carry nothing to act on and stay off the glass.
 const EVENT_TAGS={SPEED_CONTROL:'camera',TRAFFIC_CONTROL:'camera',ROAD_MARKING_CONTROL:'camera',MOBILE_CONTROL:'mobile-camera',
  LANE_CONTROL:'lane-camera',CROSS_ROAD_CONTROL:'crossroad-camera',NO_STOPPING_CONTROL:'no-stopping-camera',
@@ -194,8 +199,14 @@ function eventKind(tags){
 }
 const assetNames=Object.values(ICONS).flatMap(i=>i.ops.filter(o=>o.op==='drawable').map(o=>o.name));
 // gap: from the point to the icon's near edge; sides in the order tried.
-const EVENTS={max:4,edge:4,cursor:[134,120,32,44],cover:.2,gap:7,sides:['right','right-high','left','left-high','above','below'],
+// One icon a place, two places at most: events each within merge metres of the one before (a place
+// spans at most span metres) are one place, shown by its most important event (RANK); only the nearest
+// two places are drawn, both at full strength. Clusters of icons were what annoyed on the glass
+// (owner, 2026-10-18); the cut alone is enough, a faded second icon is not wanted.
+const EVENTS={max:2,merge:50,span:120,edge:4,cursor:[134,120,32,44],cover:.2,gap:7,sides:['right','right-high','left','left-high','above','below'],
  lead:{width:1.6,halo:3.6},dot:[2.6,1.7]};
+const RANK=['camera-limit','camera','lane-camera','crossroad-camera','no-stopping-camera','mobile-camera','closed','accident','railway',
+ 'bump','works','school','crossroad','overtaking','drawbridge','police','danger'];
 const overlaps=(a,b,pad=0)=>a[0]<b[0]+b[2]+pad&&b[0]<a[0]+a[2]+pad&&a[1]<b[1]+b[3]+pad&&b[1]<a[1]+a[3]+pad;
 const covered=(a,b)=>{const w=Math.min(a[0]+a[2],b[0]+b[2])-Math.max(a[0],b[0]),h=Math.min(a[1]+a[3],b[1]+b[3])-Math.max(a[1],b[1]);
  return w>0&&h>0&&w*h>EVENTS.cover*Math.min(a[2]*a[3],b[2]*b[3]);};
@@ -215,18 +226,28 @@ function sideBox(x,y,[w,h],side){
   default:return [x-w/2,y+g,w,h];
  }
 }
-// Cameras, closures, accidents and crossings take places first, then the rest, each group nearest
-// first. Each tries the sides in order and takes the first that is on screen, off the cursor, off the
-// route and not under an icon placed before it; failing that, the side with the least route under it.
-const FIRST=['camera','camera-limit','mobile-camera','lane-camera','crossroad-camera','no-stopping-camera','closed','accident','railway'];
+// Events in route order (distance in metres; without one, the order given) become places; each place
+// takes the sides in order and the first that is on screen, off the cursor, off the route and not under
+// the icon placed before it; failing that, the side with the least route under it.
+const iconKind=e=>e.kind==='camera'&&e.limit>0?'camera-limit':e.kind;
+function placesOf(events){
+ const known=(events||[]).map((e,i)=>({...e,kind:iconKind(e),at:Number.isFinite(e.distance)?e.distance:i*1e6}))
+  .filter(e=>ICONS[e.kind]&&Number.isFinite(e.x)&&Number.isFinite(e.y)).sort((a,b)=>a.at-b.at);
+ const places=[];
+ for(const e of known){
+  const last=places[places.length-1];
+  if(last&&e.at-last.end<=EVENTS.merge&&e.at-last.at<=EVENTS.span){
+   last.end=e.at;if(RANK.indexOf(e.kind)<RANK.indexOf(last.best.kind))last.best=e;continue;
+  }
+  places.push({at:e.at,end:e.at,best:e});
+ }
+ return places.map(p=>p.best);
+}
 function placeEvents(events,blocked,route){
- const placed=[],rank=e=>FIRST.includes(e.kind)?0:1;
- const order=(events||[]).map((e,i)=>({e,i})).sort((a,b)=>rank(a.e)-rank(b.e)||a.i-b.i).map(x=>x.e);
- for(const e of order){
+ const placed=[];
+ for(const e of placesOf(events)){
   if(placed.length>=EVENTS.max)break;
-  const kind=e.kind==='camera'&&e.limit>0?'camera-limit':e.kind,icon=ICONS[kind];
-  if(!icon||!Number.isFinite(e.x)||!Number.isFinite(e.y))continue;
-  const x=e.x,y=e.y;
+  const kind=e.kind,icon=ICONS[kind],x=e.x,y=e.y;
   if(x<EVENTS.edge||x>SIZE.width-EVENTS.edge||y<EVENTS.edge||y>SIZE.height-EVENTS.edge)continue;
   let best=null;
   for(const [i,side] of EVENTS.sides.entries()){
@@ -353,8 +374,13 @@ function paint(ctx,commands,assets={}){
   else if(c.op==='text'){
    const size=c.size3&&c.value.length>2?c.size3:c.size;
    ctx.font=`${c.weight||500} ${size}px ${c.family||'HudSans'},sans-serif`;ctx.fillStyle=c.color;
-   if(c.align==='center'){ctx.textAlign='center';ctx.textBaseline='middle';}else ctx.textBaseline='alphabetic';
-   ctx.fillText(c.value,c.x,c.y);
+   ctx.textAlign='left';ctx.textBaseline='alphabetic';
+   if(c.align==='center'){
+    // Centred on the ink of the glyphs, not on the font's ascent and descent: those differ from face
+    // to face and put a sign's digits off centre (owner, 2026-10-18). HudPainter does the same.
+    const m=ctx.measureText(c.value);
+    ctx.fillText(c.value,c.x-(m.actualBoundingBoxRight-m.actualBoundingBoxLeft)/2,c.y+(m.actualBoundingBoxAscent-m.actualBoundingBoxDescent)/2);
+   }else ctx.fillText(c.value,c.x,c.y);
   }
   else if(c.op==='drawable'){
    if(!assets[c.name])throw new Error('Missing stock drawable: '+c.name);

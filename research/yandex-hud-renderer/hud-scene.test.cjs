@@ -51,14 +51,13 @@ test('route classes are saturated, mutually distinct, bright on the glass but fo
  // Magenta also differs from red by a whole blue channel, so 35° is enough for that pair.
  for(const [a,b,min] of [['FREE','LIGHT',60],['LIGHT','HARD',60],['FREE','UNKNOWN',45]])assert(gap(T[a],T[b])>=min,`${a}/${b}`);
 });
-test('road events: cameras and crossings first, beside the route, never over the cursor, limit on the sign',()=>{
+test('road events: one icon a place, two places, beside the route, never over the cursor, limit on the sign',()=>{
  const route=[];for(let y=20;y<146;y+=3)route.push([150,y]);
  const scene=hud.build({...right,route,events:[
-  {kind:'camera',x:150,y:70,limit:60},{kind:'bump',x:150,y:74},{kind:'police',x:150,y:140},
-  {kind:'danger',x:280,y:20},{kind:'railway',x:60,y:60},{kind:'chat',x:30,y:120},{kind:'works',x:2,y:90}]});
- const kinds=scene.events.map(e=>e.kind);
- assert.deepEqual(kinds.slice(0,2),['camera-limit','railway']);
- assert(kinds.length<=hud.EVENTS.max&&!kinds.includes('chat')&&!kinds.includes('works'));
+  {kind:'bump',distance:40,x:150,y:112},
+  {kind:'no-stopping-camera',distance:120,x:149,y:72},{kind:'camera',distance:130,x:150,y:68,limit:60},{kind:'crossroad-camera',distance:140,x:150,y:64},
+  {kind:'danger',distance:400,x:280,y:20},{kind:'chat',distance:500,x:30,y:120}]});
+ assert.deepEqual(scene.events.map(e=>e.kind),['bump','camera-limit'],'nearest two places; three cameras at one crossing are one sign');
  const inside=(b,[x,y])=>x>=b[0]-2&&x<=b[0]+b[2]+2&&y>=b[1]-2&&y<=b[1]+b[3]+2;
  for(const e of scene.events){
   const [cx,cy,cw,ch]=hud.EVENTS.cursor;
@@ -67,6 +66,7 @@ test('road events: cameras and crossings first, beside the route, never over the
  }
  const text=flat(scene.commands).find(c=>c.op==='text');
  assert.equal(text.value,'60');
+ for(const icon of Object.values(hud.ICONS))assert(icon.size[0]>=33&&icon.size[0]<=40,'one plate size for every icon');
  assert.equal(hud.eventKind(['SPEED_CONTROL','POLICE']),'camera');
  assert.equal(hud.eventKind(['CHAT','FEEDBACK']),null);
 });

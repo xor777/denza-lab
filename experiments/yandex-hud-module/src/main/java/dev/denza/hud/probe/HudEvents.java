@@ -11,10 +11,12 @@ import java.util.Map;
  * Plain Java on purpose: the host tests run it without Android or the theme parser.
  */
 final class HudEvents {
-    /** An event on screen: its icon kind, its point on the route, the limit for a camera. */
+    /** An event on screen: its icon kind, its point on the route, metres to it along the route, the limit for a camera. */
     static final class Mark {
-        final String key, kind; final float x, y; final int limit;
-        Mark(String key, String kind, float x, float y, int limit) { this.key = key; this.kind = kind; this.x = x; this.y = y; this.limit = limit; }
+        final String key, kind; final float x, y; final int limit; final double distance;
+        Mark(String key, String kind, float x, float y, int limit, double distance) {
+            this.key = key; this.kind = kind; this.x = x; this.y = y; this.limit = limit; this.distance = distance;
+        }
     }
     /** A placed icon: the side it took and its box, in frame pixels. */
     static final class Placed {
@@ -22,32 +24,56 @@ final class HudEvents {
         Placed(Mark mark, String kind, String side, float[] box) { this.mark = mark; this.kind = kind; this.side = side; this.box = box; }
     }
 
-    static final List<String> FIRST = Arrays.asList("camera", "camera-limit", "mobile-camera", "lane-camera",
-            "crossroad-camera", "no-stopping-camera", "closed", "accident", "railway");
+    /** Which event of a place stands for it, most important first; mirrors RANK in hud-scene.js. */
+    static final List<String> RANK = Arrays.asList("camera-limit", "camera", "lane-camera", "crossroad-camera", "no-stopping-camera",
+            "mobile-camera", "closed", "accident", "railway", "bump", "works", "school", "crossroad", "overtaking", "drawbridge", "police", "danger");
 
     final int max, width, height;
-    final float edge, cover, gap;
+    final float edge, cover, gap, merge, span;
     final float[] cursor;
     final String[] sides;
     /** Icon box sizes by kind, [w, h]. */
     final Map<String, float[]> sizes;
 
-    HudEvents(int max, int width, int height, float edge, float cover, float gap, float[] cursor, String[] sides, Map<String, float[]> sizes) {
+    HudEvents(int max, int width, int height, float edge, float cover, float gap, float merge, float span,
+              float[] cursor, String[] sides, Map<String, float[]> sizes) {
         this.max = max; this.width = width; this.height = height; this.edge = edge; this.cover = cover; this.gap = gap;
-        this.cursor = cursor; this.sides = sides; this.sizes = sizes;
+        this.merge = merge; this.span = span; this.cursor = cursor; this.sides = sides; this.sizes = sizes;
     }
 
     /**
-     * Cameras, closures, accidents and crossings take places first, then the rest, each group in the
-     * order given (nearest first). Each tries the sides in order and takes the first that is on screen,
-     * off the cursor, off the route and not under an icon placed before it by more than {@link #cover}
-     * of its area; failing that, the side with the least route under it. route: x0, y0, x1, y1, ...
+     * One icon a place: events in route order, each within {@link #merge} metres of the one before and
+     * the place no longer than {@link #span}, are one place, shown by its most important event (RANK).
+     * Clusters of icons were what annoyed on the glass (owner, 2026-10-18).
+     */
+    List<Mark> places(List<Mark> marks) {
+        List<Mark> order = new ArrayList<>();
+        for (Mark mark : marks) if (sizes.containsKey(kind(mark)) && Float.isFinite(mark.x) && Float.isFinite(mark.y)) order.add(mark);
+        Collections.sort(order, (a, b) -> Double.compare(a.distance, b.distance));
+        List<Mark> result = new ArrayList<>();
+        double start = 0, end = 0;
+        for (Mark mark : order) {
+            int last = result.size() - 1;
+            if (last >= 0 && mark.distance - end <= merge && mark.distance - start <= span) {
+                end = mark.distance;
+                if (RANK.indexOf(kind(mark)) < RANK.indexOf(kind(result.get(last)))) result.set(last, mark);
+                continue;
+            }
+            result.add(mark);
+            start = end = mark.distance;
+        }
+        return result;
+    }
+
+    /**
+     * The nearest {@link #max} places. Each tries the sides in order and takes the first that is on
+     * screen, off the cursor, off the route and not under the icon placed before it by more than
+     * {@link #cover} of its area; failing that, the side with the least route under it.
+     * route: x0, y0, x1, y1, ...
      */
     List<Placed> place(List<Mark> marks, float[] route) {
-        List<Mark> order = new ArrayList<>(marks);
-        Collections.sort(order, (a, b) -> Integer.compare(rank(kind(a)), rank(kind(b)))); // stable: nearest stays first
         List<Placed> placed = new ArrayList<>();
-        for (Mark mark : order) {
+        for (Mark mark : places(marks)) {
             if (placed.size() >= max) break;
             String kind = kind(mark);
             float[] size = sizes.get(kind);
@@ -71,8 +97,6 @@ final class HudEvents {
     }
 
     static String kind(Mark mark) { return mark.kind.equals("camera") && mark.limit > 0 ? "camera-limit" : mark.kind; }
-
-    private static int rank(String kind) { return FIRST.contains(kind) ? 0 : 1; }
 
     /**
      * Beside the point the icon rises above it; '-high' lifts it wholly above, clear of the cursor.

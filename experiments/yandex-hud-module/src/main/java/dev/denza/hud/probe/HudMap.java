@@ -40,7 +40,7 @@ final class HudMap implements AutoCloseable {
     private Object line, route, geometry, conditionsListener;
     private String routeId;
     private int segmentCount;
-    private double[] latitudes, longitudes;
+    private double[] latitudes, longitudes, metres;
     private List<Integer> colors;
     private List<Spot> spots = Collections.emptyList();
     private final Map<String, Object> arrows = new HashMap<>();
@@ -110,7 +110,7 @@ final class HudMap implements AutoCloseable {
                 if (!spot.after(index, fraction)) continue;
                 float[] p = inside(project(spot.index, spot.fraction));
                 if (p == null) continue;
-                marks.add(new HudEvents.Mark(spot.key(), spot.kind, p[0], p[1], spot.limit));
+                marks.add(new HudEvents.Mark(spot.key(), spot.kind, p[0], p[1], spot.limit, along(spot.index, spot.fraction) - along(index, fraction)));
                 byKey.put(spot.key(), spot);
             }
             List<HudEvents.Placed> chosen = painter.placement.place(marks, routeAhead(index, fraction));
@@ -242,9 +242,11 @@ final class HudMap implements AutoCloseable {
         if (segmentCount < 1) throw new IllegalStateException("Empty route");
         latitudes = new double[points.size()];
         longitudes = new double[points.size()];
+        metres = new double[points.size()];
         for (int i = 0; i < points.size(); i++) {
             latitudes[i] = (Double) api.call(points.get(i), "getLatitude");
             longitudes[i] = (Double) api.call(points.get(i), "getLongitude");
+            if (i > 0) metres[i] = metres[i - 1] + metres(latitudes[i - 1], longitudes[i - 1], latitudes[i], longitudes[i]);
         }
         makeLine();
         route = next;
@@ -384,6 +386,18 @@ final class HudMap implements AutoCloseable {
         arrows.putAll(keep);
     }
 
+    /** Metres from the route's start to a polyline position, along the route. */
+    private double along(int index, double fraction) {
+        int next = Math.min(index + 1, metres.length - 1);
+        return metres[index] + (metres[next] - metres[index]) * fraction;
+    }
+
+    private static double metres(double lat1, double lon1, double lat2, double lon2) {
+        double p1 = Math.toRadians(lat1), p2 = Math.toRadians(lat2), dp = p2 - p1, dl = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+        return 2 * 6371008.8 * Math.asin(Math.min(1, Math.sqrt(a)));
+    }
+
     private Object point(int index, double fraction) {
         int next = Math.min(index + 1, latitudes.length - 1);
         double lat = latitudes[index] + (latitudes[next] - latitudes[index]) * fraction;
@@ -407,7 +421,7 @@ final class HudMap implements AutoCloseable {
                 try { api.call(objects, "remove", placemark); } catch (RuntimeException error) { Log.w("DenzaYandexHud", "placemark removal failed", error); }
             }
             placemarks.clear(); placemarkIcons.clear();
-            spots = Collections.emptyList(); arrows.clear(); arrowIndex = -1; latitudes = longitudes = null; geometry = null;
+            spots = Collections.emptyList(); arrows.clear(); arrowIndex = -1; latitudes = longitudes = metres = null; geometry = null;
             try { if (line != null) api.call(objects, "remove", line); }
             finally { line = null; zoom = Double.NaN; }
         }
