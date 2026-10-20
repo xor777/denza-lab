@@ -26,10 +26,12 @@ APP_FIXTURES = os.path.join(REPO, 'apps', 'denza-apps', 'src', 'debug', 'assets'
 CHROME = os.environ.get('DC_CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 
 # The faces are files in fonts/, inlined into each page: Jura is the very file the app ships in
-# res/font, Roboto 400 and 500 are Google Fonts' full TrueType. Fetching them per page from Google
+# res/font, Roboto 400 and 500 are Google Fonts' full TrueType, Roboto Mono (the scanner's figures)
+# the very files the app ships in res/font. Fetching them per page from Google
 # Fonts made the boards flaky - a subset or a weight not there yet when the canvas drew, and a
 # Cyrillic caption or a whole title came out in the fallback.
-FACES = [('Jura', 500, 'Jura-Medium.ttf'), ('Roboto', 400, 'Roboto-400.ttf'), ('Roboto', 500, 'Roboto-500.ttf')]
+FACES = [('Jura', 500, 'Jura-Medium.ttf'), ('Roboto', 400, 'Roboto-400.ttf'), ('Roboto', 500, 'Roboto-500.ttf'),
+         ('Roboto Mono', 400, 'RobotoMono-400.ttf'), ('Roboto Mono', 500, 'RobotoMono-500.ttf')]
 
 
 def font_css():
@@ -77,6 +79,8 @@ def page(body_script):
             f'<script>window.LUMINOFOR_SPEC = {spec};</script>'
             f'<script>window.DIAGNOSTIC_LAYOUT = {read("diagnostics.json")};</script>'
             f'<script>{read("diagnostics.js")}</script>'
+            f'<script>window.SCANNER_LAYOUT = {read("scanner.json")};</script>'
+            f'<script>{read("scanner.js")}</script>'
             f'<script>{read("fixtures.js")}</script>'
             f'<script>{read("luminofor.js")}</script>'
             f'<script>{body_script}</script></body></html>')
@@ -89,7 +93,7 @@ def board_page(bid, bare=False):
   const [board, scene] = window.LUMINOFOR_BOARDS[id];
   // bare: the cluster without the stock zones' hatching, which is board furniture the app never draws
   const fixture = %s ? Object.assign({}, scene, { keepout: false }) : scene;
-  const key = ['head', 'sheet', 'modal', 'diagnostics'].includes(board.kind) ? board.mode : board.kind;
+  const key = ['head', 'sheet', 'modal', 'diagnostics', 'scanner'].includes(board.kind) ? board.mode : board.kind;
   const size = %s[key];
   const cv = document.getElementById('c');
   cv.width = size[0]; cv.height = size[1];
@@ -99,7 +103,7 @@ def board_page(bid, bare=False):
   // the system's sans-serif, which is what the first PNGs showed: the sample names both scripts.
   // and load() can return before a subset is usable, so the board waits until check() says both
   // scripts of every face are there - a board once came out with its Cyrillic in the fallback.
-  const faces = ['500 20px Jura', '400 20px Roboto', '500 20px Roboto'];
+  const faces = ['500 20px Jura', '400 20px Roboto', '500 20px Roboto', '400 20px "Roboto Mono"', '500 20px "Roboto Mono"'];
   const sample = 'Aa0 АБВабвё·→';
   for (let i = 0; i < 60; i++) {
     try { await Promise.all(faces.map(f => document.fonts.load(f, sample))); await document.fonts.ready; } catch (e) {}
@@ -126,7 +130,7 @@ def chrome(args, out=None):
 
 def shoot(bid):
     kind = bid.split('-')[0]
-    key = {'main': 'full', 'sheet': 'full', 'modal': 'full', 'cluster': 'cluster', 'two': 'two', 'one': 'one', 'digits': 'digits'}[kind]
+    key = {'main': 'full', 'sheet': 'full', 'modal': 'full', 'cluster': 'cluster', 'two': 'two', 'one': 'one', 'digits': 'digits', 'scanner': 'full'}[kind]
     w, h, _ = SIZES[key]
     os.makedirs(SHOTS, exist_ok=True)
     # a cluster board is also shot bare, without the hatching, for compare.py

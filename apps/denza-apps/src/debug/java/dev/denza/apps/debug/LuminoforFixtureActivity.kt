@@ -79,6 +79,13 @@ class LuminoforFixtureActivity : ComponentActivity() {
         val board = StripFixtures.board(all, id)
         val fixture = StripFixtures.fixture(all, id)
 
+        if (board.getString("kind") == "scanner") {
+            // «Сервис → Диагностика», the scanner (luminofor/scanner.js): its boards come before
+            // its screens. Until a screen draws a board's fixture here, the corner stays black, so
+            // compare.py reports the whole board as missing instead of a dashboard as different.
+            setContent { Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) }
+            return
+        }
         if (board.getString("kind") == "diagnostics") {
             setContent {
                 DiagnosticSurface(DiagnosticFixtures.frame(fixture), Modifier.size(1280.dp, 680.dp),
