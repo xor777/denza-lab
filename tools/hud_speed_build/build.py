@@ -92,7 +92,7 @@ def main():
     key = ROOT/'captures/hud-speed-signing/adapter.p12'
     if not key.exists():
         raise RuntimeError('Owner signing key missing: restore captures/hud-speed-signing/adapter.p12; never silently rotate it')
-    result = args.out/'HUD-Speed-Denza-79.0-1.apk'
+    result = args.out/f'HUD-Speed-{VERSION_NAME}.apk'
     run([bt/'apksigner', 'sign', '--ks', key, '--ks-key-alias', 'hud-speed', '--ks-pass',
          'pass:denza-local-experiment', '--out', result, args.out/'aligned.apk'], env=env)
     signature = subprocess.check_output([str(bt/'apksigner'), 'verify', '--verbose', '--print-certs', str(result)], env=env, text=True)
