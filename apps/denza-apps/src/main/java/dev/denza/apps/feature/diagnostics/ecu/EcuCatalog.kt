@@ -185,6 +185,11 @@ internal object EcuCatalog {
         Ecu(EcuGroup.CABIN, "SWS", "Кнопки руля", "Кнопки руля", true, 0x711, IdentityBasis.F194,
             expectedF194 = "4D540011DE1E000000",
             aliases = listOf(cache("SWS_BYD_00100001", "4.00.07", "0.0.1"), cache("SWS_JOYSON_00100001", "4.00.07", "0.0.1"))),
+        // The head unit itself, through its MCU: the stock route list names 741/749 Media_BYD_00200001, and
+        // ProductLineOTA's media_softcode_mapping.json lists this F194 as the `mcu` module of the «denza»
+        // media software. ECUVersion.json keeps the media's combined code (…3401), not the MCU's, so no alias.
+        Ecu(EcuGroup.CABIN, "Media", "Головное устройство (MCU)", "ГУ · MCU", false, 0x741, IdentityBasis.F194,
+            expectedF194 = "4B450011E0930034E2"),
 
         // Climate and thermal management
         Ecu(EcuGroup.CLIMATE, "ACC", "Климат-контроль", "Климат", true, 0x7B3, IdentityBasis.F194,
@@ -215,7 +220,6 @@ internal object EcuCatalog {
             cache("CCS_BYD_00100001", "4.00.06", "0.0.5"), cache("SCPA_BYD_00100001", "4.00.06", "0.0.5")),
         unknown("RRCP", 0x7C6, "48580011DF02220000", cache("RRCP_BYD_00100001", "4.00.04", "0.0.3")),
         unknown("SEC", 0x7D6, "484900118C0A001000", cache("SEC_BYD_00100001", "1.11.36", "0.0.1")),
-        unknown("—", 0x741, "4B450011E0930034E2"),
     )
 
     private val byRequest: Map<Int, Ecu> = all.mapNotNull { e -> e.request?.let { it to e } }.toMap()

@@ -2511,7 +2511,16 @@ Aliases in the cache remain aliases, not extra installed modules.
 Seven bounded runs, **94 requests**, checked **70 distinct F194 addresses**
 (including the known ECM control). **33 returned a software code; 32 matched
 the cache**, including ECM and ADS. The unmatched `741` returned
-`4B450011E0930034E2`; it remains outside the cache match set. The full qualified
+`4B450011E0930034E2`; it remains outside the cache match set.
+
+> **Identified 2026-10-20:** `741/749` is the head unit itself, through its MCU. The stock route
+> list names it `HTH-2021_Media_BYD_00200001` (`captures/ota-status-20261018/phase1-live-check-sanitized.txt`
+> line 33), and ProductLineOTA's `res/raw/media_softcode_mapping.json` (pulled from this car) lists
+> `4B450011E0930034E2` as the `mcu` module of the «denza» media software whose combined code
+> `4B450011E093003401` is the one `ECUVersion.json` keeps. The cache misses it because it stores the
+> combined code, not the MCU's.
+
+The full qualified
 address/code/alias list and per-request results are in
 [`remaining-ecus-20261020.json`](../research/vehicle-diagnostics/remaining-ecus-20261020.json).
 This is an observed route set, not a complete count of physical ECUs.

@@ -53,7 +53,7 @@ class EcuCatalogContractTest {
         assertEquals(3, EcuCatalog.all.count { it.identity == IdentityBasis.NONE })
         assertEquals(
             mapOf(EcuGroup.POWERTRAIN to 8, EcuGroup.CHASSIS to 4, EcuGroup.ADAS to 7, EcuGroup.BODY to 6,
-                EcuGroup.CABIN to 4, EcuGroup.CLIMATE to 3, EcuGroup.LOW_VOLTAGE to 1, EcuGroup.UNKNOWN to 13),
+                EcuGroup.CABIN to 5, EcuGroup.CLIMATE to 3, EcuGroup.LOW_VOLTAGE to 1, EcuGroup.UNKNOWN to 12),
             EcuGroup.entries.associateWith { EcuCatalog.inGroup(it).size },
         )
         assertEquals("ECM", EcuCatalog.routed.first().abbreviation)
@@ -71,10 +71,12 @@ class EcuCatalogContractTest {
         EcuCatalog.all.filter { it.identity == IdentityBasis.F194 }.forEach {
             assertEquals(it.address, f194[it.request], it.expectedF194)
         }
-        // 741 is the one code the cache does not hold.
+        // 741 is the one code ECUVersion.json does not hold: it is the head unit's MCU, named by the
+        // stock route list and the media software mapping instead.
         assertEquals(listOf(0x741), remaining.getJSONArray("identities").objects()
             .filter { it.getJSONArray("cacheIdentities").length() == 0 }.map { address(it.getString("request")) })
-        assertEquals("нет в кэше", EcuCatalog.byRequest(0x741)!!.shortName)
+        assertEquals(EcuGroup.CABIN, EcuCatalog.byRequest(0x741)!!.group)
+        assertEquals("Media", EcuCatalog.byRequest(0x741)!!.abbreviation)
     }
 
     @Test
