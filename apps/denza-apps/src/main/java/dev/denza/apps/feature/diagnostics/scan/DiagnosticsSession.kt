@@ -40,7 +40,9 @@ import kotlinx.coroutines.launch
  *   the hub already said P and 0 km/h while the helper refused, the hub has to see the car leave
  *   and come back first, so a disagreement between the two costs one refused exchange, not a loop.
  * - [DiagFailure.ChannelBusy], [DiagFailure.ChannelLost], [DiagFailure.NoAccess],
- *   [DiagFailure.Refused] stop until [rescan].
+ *   [DiagFailure.Refused] stop until [rescan]. A busy or lost channel is also tried once more by
+ *   the next thing the user asks by hand - a module's read, its screen, its live data: one attempt
+ *   a request, never on its own.
  * Every `END err` closes the helper's stream and the next exchange starts a new helper (about
  * three seconds), so the session asks nothing it can see would be refused: before each exchange it
  * looks at the hub, and a car the hub sees out of P or moving pauses the work without a request.
@@ -98,7 +100,7 @@ internal class DiagnosticsSession(
     private sealed interface Halt {
         /** Not parked: resumes on its own; [awaitingLeave] while the hub must first see the car leave P. */
         data class Paused(val awaitingLeave: Boolean) : Halt
-        /** Busy, lost, no access: until [rescan]. */
+        /** Busy, lost, no access: until [rescan]; busy and lost also until a request by hand. */
         data class Stopped(val link: LinkState) : Halt
     }
 
@@ -163,7 +165,9 @@ internal class DiagnosticsSession(
     }
 
     override fun readModule(request: Int) = act {
-        if (EcuCatalog.byRequest(request) != null) userReads += request
+        if (EcuCatalog.byRequest(request) == null) return@act
+        userReads += request
+        retryStopped()
     }
 
     override fun setModuleOpen(request: Int, open: Boolean) = act {
@@ -171,6 +175,7 @@ internal class DiagnosticsSession(
         if (open) {
             this.open += request
             if (request !in idents) identPending += request
+            retryStopped()
         } else {
             this.open -= request
             identPending -= request
@@ -183,6 +188,7 @@ internal class DiagnosticsSession(
             live = request
             streams[request]?.resetMinMax()
             if (request !in idents) identPending += request
+            retryStopped()
         } else if (live == request) {
             live = null
         }
@@ -394,6 +400,19 @@ internal class DiagnosticsSession(
         link = state
         notice = text
         if (phase == ScanPhase.RUNNING || phase == ScanPhase.PAUSED) phase = ScanPhase.STOPPED
+    }
+
+    /**
+     * A request by hand on a channel that stopped busy or lost: the halt is lifted for one more
+     * attempt, and an autoscan that stopped with it goes on. A failure halts it again.
+     */
+    private fun retryStopped() {
+        val stopped = halt as? Halt.Stopped ?: return
+        if (stopped.link != LinkState.BUSY && stopped.link != LinkState.LOST) return
+        halt = null
+        notice = null
+        link = LinkState.IDLE
+        if (phase == ScanPhase.STOPPED) phase = ScanPhase.RUNNING
     }
 
     private fun resume() {

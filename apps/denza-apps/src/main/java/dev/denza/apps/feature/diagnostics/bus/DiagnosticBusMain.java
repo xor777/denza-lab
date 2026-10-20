@@ -49,6 +49,13 @@ public final class DiagnosticBusMain {
     static final String MANAGER_AT_REST = "r@-1_0&w@-1_0";
     static final int SILENCE_MS = 2_000;
     static final int IDLE_EXIT_MS = 60_000;
+    /**
+     * How long the start waits for the lock: the app drops an idle helper ten seconds before that
+     * helper's own clock ends it, and the one it starts next must not find the lock still held by
+     * the one that is on its way out (seen on the car 2026-10-20: 0.6 s apart).
+     */
+    static final int LOCK_WAIT_MS = 3_000;
+    static final int LOCK_POLL_MS = 100;
     static final int DEFAULT_GAP_MS = 100;
     static final int MAX_GAP_MS = 500;
     static final int MAX_TIMEOUT_MS = 6_000;
@@ -113,7 +120,12 @@ public final class DiagnosticBusMain {
             int uid = Process.myUid();
             if (uid != 2000) return "WRONG_UID uid " + uid;
             lockFile = new RandomAccessFile(LOCK_PATH, "rw");
+            long lockDeadline = SystemClock.uptimeMillis() + LOCK_WAIT_MS;
             lock = lockFile.getChannel().tryLock();
+            while (lock == null && SystemClock.uptimeMillis() < lockDeadline) {
+                SystemClock.sleep(LOCK_POLL_MS);
+                lock = lockFile.getChannel().tryLock();
+            }
             if (lock == null) return "LOCK_BUSY another reader holds the diagnostic lock";
             ShellProxyBootstrap.exemptHiddenApis();
             autoService = (IBinder) Class.forName("android.os.ServiceManager")

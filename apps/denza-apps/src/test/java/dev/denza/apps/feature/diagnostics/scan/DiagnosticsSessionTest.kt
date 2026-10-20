@@ -248,7 +248,7 @@ class DiagnosticsSessionTest {
     }
 
     @Test
-    fun aBusyChannelStopsEverythingUntilRescan() = runTest {
+    fun aBusyChannelStopsUntilRescanOrARequestByHand() = runTest {
         val bus = carNow { on(0x782, "22F194").fail(DiagFailure.ChannelBusy("FOREIGN_TRAFFIC")) }
         val s = session(bus)
         s.start()
@@ -259,21 +259,54 @@ class DiagnosticsSessionTest {
         assertEquals(DiagnosticsSession.BUSY_NOTICE, m.scan.notice)
         val asked = bus.requests.size
 
-        // Nothing on its own: not after a minute, not for a button.
+        // Nothing on its own: not after a minute.
         advanceTimeBy(60_000)
-        s.readModule(0x7E0)
         runCurrent()
         assertEquals(asked, bus.requests.size)
 
-        s.rescan()
+        // A button tries the channel once (on the car 2026-10-20 the section stood «Канал занят»
+        // under every screen until «Опросить снова»): the read first, then the stopped autoscan
+        // goes on from the block it stopped at.
+        s.readModule(0x7E0)
         runCurrent()
-        // The button first, then a whole new scan from ECM.
         assertEquals("7E0 22F194", bus.requests[asked])
+        assertEquals(1, bus.requests.drop(asked).count { it == "782 22F194" })
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         assertEquals(LinkState.OK, s.model.value.header.link)
         assertNull(s.model.value.scan.notice)
-        assertEquals(asked + 6 + 144, bus.requests.size)
+
+        val done = bus.requests.size
+        s.rescan()
+        runCurrent()
+        assertEquals("7E0 22F194", bus.requests[done])
+        assertEquals(done + 144, bus.requests.size)
         s.stop()
+    }
+
+    @Test
+    fun aScreenOpenedOnALostChannelTriesItOnceAndMissingAccessWaitsForRescan() = runTest {
+        val lost = carNow()
+        lost.failNext(DiagFailure.ChannelLost())
+        val s = session(lost)
+        s.start()
+        runCurrent()
+        assertEquals(LinkState.LOST, s.model.value.header.link)
+        s.setModuleOpen(0x7E3, true)
+        runCurrent()
+        assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
+        s.stop()
+
+        val denied = carNow()
+        denied.failNext(DiagFailure.NoAccess())
+        val t = session(denied)
+        t.start()
+        runCurrent()
+        t.setModuleOpen(0x7E3, true)
+        t.readModule(0x7E0)
+        runCurrent()
+        assertEquals(1, denied.exchanges.size)
+        assertEquals(LinkState.NO_ACCESS, t.model.value.header.link)
+        t.stop()
     }
 
     @Test
