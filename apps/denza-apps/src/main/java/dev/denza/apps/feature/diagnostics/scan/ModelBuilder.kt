@@ -165,7 +165,6 @@ internal class ModelBuilder(
             f194 != null -> parts += "ПО (F194) $f194"
         }
         (id?.obdStandard as? Polled.Got)?.value?.let { parts += "стандарт OBD (PID 1C) $it" }
-        if (id?.dids?.get(IdentDid.F197).let { it is Polled.Unsupported || it is Polled.Denied }) parts += "F197 не поддерживается"
         return parts.joinToString(" · ")
     }
 
@@ -269,7 +268,6 @@ internal class ModelBuilder(
             field("Формат DTC · 19 01", if (it.format == DtcFormat.OTHER) "не сообщён: 19 01 не отвечает" else "%02X · %s".format(it.format.id, formatName(it.format)))
         }
         if (!ecu.uds) field("UDS 19 и 22", "не поддерживает", forceMuted = true)
-        field(if (ecu.uds) "VIN · 22 F190" else "VIN · 09 02", "не запрашивали")
 
         val cache = mutableListOf(Field("Основание имени", ecu.identity.label))
         ecu.expectedF194?.let { cache += Field("Ожидаемый F194", it) }

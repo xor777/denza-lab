@@ -157,7 +157,7 @@ internal fun ServicePanel(
         rememberScrollState(if (each == firstPage && firstPageAtEnd) Int.MAX_VALUE else 0)
     }
     if (page == ServicePage.DIAGNOSTICS) {
-        dev.denza.apps.feature.diagnostics.VehicleDiagnosticsWindow { page = ServicePage.MAIN }
+        dev.denza.apps.feature.diagnostics.ui.DiagnosticsSection { page = ServicePage.MAIN }
         return
     }
     DenzaSheet(
@@ -261,7 +261,8 @@ private fun ServiceMain(
             }
         }
     }
-    // The diagnostic window is parked outside a `-Pdiagnostics` build (build.gradle.kts).
+    // The diagnostic section is parked outside a `-Pdiagnostics` build (build.gradle.kts) until the
+    // owner accepts it on the car (docs/vehicle-diagnostics-architecture.md, 1).
     val pages = listOfNotNull(
         ServicePage.DIAGNOSTICS.takeIf { BuildConfig.DIAGNOSTICS },
         ServicePage.RESTORE, ServicePage.MOBILE_INTERNET, ServicePage.SCREEN, ServicePage.TECHNICAL,
@@ -269,8 +270,8 @@ private fun ServiceMain(
     DenzaChoiceGroup(pages) { target ->
         when (target) {
             ServicePage.DIAGNOSTICS -> DenzaChoiceRow(
-                title = "Диагностика автомобиля",
-                value = "Системы, показания и коды неисправностей",
+                title = "Диагностика",
+                value = "Автоскан блоков, коды неисправностей, потоковые данные",
                 onClick = { onPage(target) },
             )
             ServicePage.RESTORE -> {

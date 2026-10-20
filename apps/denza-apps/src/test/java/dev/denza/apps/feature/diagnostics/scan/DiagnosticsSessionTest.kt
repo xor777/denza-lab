@@ -378,7 +378,10 @@ class DiagnosticsSessionTest {
 
         assertEquals(listOf("FMCU", "SMCU", "SMCU3", "ISG"), sys.drives.columns.map { it.abbreviation })
         assertEquals(listOf(0x7E3, 0x744, 0x745, 0x7E6), sys.drives.columns.map { it.request })
-        assertEquals(listOf("передний", "задний левый ≈", "задний правый ≈", "—"), sys.drives.rows[0].cells.map { it.text })
+        // the sides are in each row's source, «Л» and «П», as the board has them: no row of caveats
+        assertEquals("1039·46406018 · Л 285001A8 · П 285001B0", sys.drives.rows[0].source)
+        assertEquals(listOf("8", "7", "7", "—"), sys.drives.rows[0].cells.map { it.text })
+        assertTrue(sys.drives.notes.isEmpty())
         val dtc = sys.drives.rows.first { it.name == "Коды неисправностей" }
         assertEquals(listOf("0", "0", "0", "0"), dtc.cells.map { it.text })
         assertEquals("48370011E086001100", sys.drives.rows.first { it.name == "Номер ПО поставщика" }.cells[1].text)

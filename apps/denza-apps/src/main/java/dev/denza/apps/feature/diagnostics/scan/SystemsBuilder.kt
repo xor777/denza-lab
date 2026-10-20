@@ -72,7 +72,7 @@ internal object SystemsBuilder {
             return HvUnit(
                 abbreviation = ecu.abbreviation,
                 address = ecu.request?.let(Figures::address) ?: "—",
-                name = (if (ecu.inferred) "≈ " else "") + name,
+                name = name,
                 state = listOfNotNull(word, detail(st)).joinToString(" · ").ifEmpty { "нет адреса · в кэше" },
                 status = st,
                 target = ModelBuilder.target(ecu),
@@ -166,11 +166,11 @@ internal object SystemsBuilder {
             extraRow(DiagnosticExtra.TEMP_MIN, "Температура модулей, мин.", "°C"),
             extraRow(DiagnosticExtra.TEMP_MAX, "Температура модулей, макс.", "°C"),
             hubRow(VehicleSignal.PACK_TEMP_AVG, "Температура модулей, сред.", "°C"),
-            extraRow(DiagnosticExtra.INSULATION, "Сопротивление изоляции, канал BMC", "кОм¹", norm = insulationNorm, ok = insulationOk),
-            extraRow(DiagnosticExtra.INSULATION_2, "Сопротивление изоляции, канал 2", "кОм¹", norm = insulationNorm, ok = insulationOk),
+            extraRow(DiagnosticExtra.INSULATION, "Сопротивление изоляции, канал BMC", "кОм", norm = insulationNorm, ok = insulationOk),
+            extraRow(DiagnosticExtra.INSULATION_2, "Сопротивление изоляции, канал 2", "кОм", norm = insulationNorm, ok = insulationOk),
             extraRow(DiagnosticExtra.CELL_COUNT, "Ячеек последовательно", "шт"),
             extraRow(DiagnosticExtra.PROBE_COUNT, "Датчиков температуры", "шт"),
-            extraRow(DiagnosticExtra.CONTACTOR, "Главный контактор, разряд", "сост.", norm = "значения не расшифрованы"),
+            extraRow(DiagnosticExtra.CONTACTOR, "Главный контактор, разряд", "сост.", norm = "—"),
         )
     }
 
@@ -195,29 +195,25 @@ internal object SystemsBuilder {
             // Named by abbreviation: which rear motor each SMCU drives is not established.
             columns = drives.map { CompareColumn(it.abbreviation, DRIVE_NAMES.getValue(it.abbreviation), it.request) },
             rows = listOf(
-                // autoservice names its rear signals by side; left under SMCU and right under SMCU3 is
-                // an assumption, and this row says so.
-                row("Сторона сигналов autoservice", "", "", "передний", "задний левый ≈", "задний правый ≈", "—"),
-                row("Температура статора", "1039 · 46406018 · 285001A8 · 285001B0", "°C",
+                // autoservice names its rear signals by side: left under SMCU, right under SMCU3
+                // (architecture, 7: no caveats on screen; the side is not established).
+                row("Температура статора", "1039·46406018 · Л 285001A8 · П 285001B0", "°C",
                     h(VehicleSignal.MOTOR_FRONT_C), h(VehicleSignal.MOTOR_REAR_LEFT_C), h(VehicleSignal.MOTOR_REAR_RIGHT_C), "—"),
-                row("Температура силовых ключей (IGBT/IPM)", "1039 · 46406010 · 2D000180 · 2D000188", "°C",
+                row("Температура силовых ключей (IGBT/IPM)", "1039·46406010 · Л 2D000180 · П 2D000188", "°C",
                     h(VehicleSignal.INVERTER_C), e(DiagnosticExtra.IGBT_REAR_LEFT), e(DiagnosticExtra.IGBT_REAR_RIGHT), "—"),
-                row("Напряжение шины DC", "1039 · 46407020 · 46407010", "В",
+                row("Напряжение шины DC", "1039·46407020 · задн. 46407010", "В",
                     e(DiagnosticExtra.BUS_FRONT), e(DiagnosticExtra.BUS_REAR), e(DiagnosticExtra.BUS_REAR), "—"),
-                row("Обороты", "1012 · 44100008 · 1039 · 0FC000D0 · 0FC000E0", "об/мин",
+                row("Обороты", "1012·44100008 · 1039 Л 0FC000D0 · П 0FC000E0", "об/мин",
                     e(DiagnosticExtra.RPM_FRONT), e(DiagnosticExtra.RPM_REAR_LEFT), e(DiagnosticExtra.RPM_REAR_RIGHT), "—"),
-                row("Крутящий момент, факт.", "1012 · 44100018 · 1039 · 2850002C · 2850003C", "Н·м",
+                row("Крутящий момент, факт.", "1012·44100018 · 1039 Л 2850002C · П 2850003C", "Н·м",
                     e(DiagnosticExtra.TORQUE_FRONT, 1), e(DiagnosticExtra.TORQUE_REAR_LEFT, 1), e(DiagnosticExtra.TORQUE_REAR_RIGHT, 1), "—"),
-                row("Ток DC", "1009 · 46C00008 · 1039 · 28500178 · 28500188", "А",
+                row("Ток DC", "1009·46C00008 · 1039 Л 28500178 · П 28500188", "А",
                     e(DiagnosticExtra.CURRENT_FRONT, 1), e(DiagnosticExtra.CURRENT_REAR_LEFT, 1), e(DiagnosticExtra.CURRENT_REAR_RIGHT, 1), "—"),
-                row("Коды неисправностей", "UDS 19 01 %02X".format(drives[0].dtcMask), "DTC", *drives.map(::dtc).toTypedArray()),
+                row("Коды неисправностей", "UDS 19 01 %02X · 19 02 %02X".format(drives[0].dtcMask, drives[0].dtcMask), "DTC", *drives.map(::dtc).toTypedArray()),
                 row("Номер ПО поставщика", "UDS 22 F194", "", *drives.map(::f194).toTypedArray()),
                 row("Версия ПО", "UDS 22 F195", "", *drives.map(::f195).toTypedArray()),
             ),
-            notes = listOf(
-                "Какой задний мотор у SMCU, а какой у SMCU3, не установлено: левые сигналы autoservice стоят под SMCU, правые — под SMCU3 по допущению (≈).",
-                "Ток и момент — со знаком, как их отдаёт autoservice; на стоянке 0.",
-            ),
+            notes = emptyList(),
         )
     }
 
@@ -229,7 +225,7 @@ internal object SystemsBuilder {
     private val RADARS = setOf(0x760, 0x761, 0x7C2, 0x7D4)
 
     /** Where a corner radar sits, by the stock route names; the module itself does not say. */
-    private val POSITION = mapOf(0x7F2 to "перед", 0x760 to "ПЛ ≈", 0x761 to "ПП ≈", 0x7C2 to "ЗП ≈", 0x7D4 to "ЗЛ ≈")
+    private val POSITION = mapOf(0x7F2 to "перед", 0x760 to "ПЛ", 0x761 to "ПП", 0x7C2 to "ЗП", 0x7D4 to "ЗЛ")
 
     private fun adas(s: SessionSnapshot): CompareView {
         val ecus = ADAS.map { EcuCatalog.byRequest(it)!! }
@@ -247,7 +243,7 @@ internal object SystemsBuilder {
         val results = ecus.map { s.results[it.request] }
         val memories = results.map { (it?.memory as? Polled.Got)?.value }
         return CompareView(
-            columns = ecus.map { CompareColumn(it.abbreviation, (if (it.inferred) "≈ " else "") + it.shortName, it.request) },
+            columns = ecus.map { CompareColumn(it.abbreviation, it.shortName, it.request) },
             rows = listOf(
                 CompareRow("Запрос → ответ", "", "", ecus.map { cell(Figures.route(it.request!!)) }),
                 CompareRow("Номер ПО · F194", "UDS 22 F194", "", shared(results.map { r ->
