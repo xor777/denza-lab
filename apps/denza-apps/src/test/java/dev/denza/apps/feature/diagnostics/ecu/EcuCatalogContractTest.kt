@@ -38,6 +38,14 @@ class EcuCatalogContractTest {
     /** Their routes and the F194 each returned. */
     private val factoryF194: Map<Int, String> by lazy { factory.associate { it.getInt("requestId") to it.getString("softwareCode") } }
 
+    /** The CAN routes of the complete factory map outside the old catalog, F194 read live on 2026-10-20. */
+    private val candidates = research("factory-candidates-20261020.json")
+
+    /** The candidates that answered, with the F194 each returned. */
+    private val candidateF194: Map<Int, String> by lazy {
+        candidates.getJSONArray("identities").objects().associate { address(it.getString("request")) to it.getString("softwareCode") }
+    }
+
     /** Every address that answered anything at all, positive or negative. */
     private val answered: Set<Int> by lazy {
         val obdRows = listOf("run1", "run2_detail", "run3_ident", "run4_ident2").flatMap { obd.getJSONArray(it).objects() }
@@ -47,19 +55,19 @@ class EcuCatalogContractTest {
     }
 
     @Test
-    fun fortySixAddressesAllRoutedNineteenQualified() {
-        assertEquals(46, EcuCatalog.all.size)
-        assertEquals(46, EcuCatalog.all.count { it.request != null })
-        assertEquals(46, EcuCatalog.routed.size)
+    fun sixtyEightAddressesAllRoutedNineteenQualified() {
+        assertEquals(68, EcuCatalog.all.size)
+        assertEquals(68, EcuCatalog.all.count { it.request != null })
+        assertEquals(68, EcuCatalog.routed.size)
         assertEquals(19, EcuCatalog.all.count { it.dtcQualified })
-        assertEquals(46, EcuCatalog.all.map { it.request ?: it.abbreviation }.toSet().size)
-        assertEquals(40, EcuCatalog.all.count { it.identity == IdentityBasis.F194 })
+        assertEquals(68, EcuCatalog.all.map { it.request ?: it.abbreviation }.toSet().size)
+        assertEquals(62, EcuCatalog.all.count { it.identity == IdentityBasis.F194 })
         assertEquals(5, EcuCatalog.all.count { it.identity == IdentityBasis.STOCK_ROUTE })
         assertEquals(1, EcuCatalog.all.count { it.identity == IdentityBasis.OBD_ECU_NAME })
         assertEquals(0, EcuCatalog.all.count { it.identity == IdentityBasis.NONE })
         assertEquals(
-            mapOf(EcuGroup.POWERTRAIN to 8, EcuGroup.CHASSIS to 4, EcuGroup.ADAS to 7, EcuGroup.BODY to 6,
-                EcuGroup.CABIN to 5, EcuGroup.CLIMATE to 3, EcuGroup.LOW_VOLTAGE to 1, EcuGroup.UNKNOWN to 12),
+            mapOf(EcuGroup.POWERTRAIN to 8, EcuGroup.CHASSIS to 4, EcuGroup.ADAS to 7, EcuGroup.BODY to 11,
+                EcuGroup.CABIN to 9, EcuGroup.CLIMATE to 3, EcuGroup.LOW_VOLTAGE to 1, EcuGroup.UNKNOWN to 25),
             EcuGroup.entries.associateWith { EcuCatalog.inGroup(it).size },
         )
         assertEquals("ECM", EcuCatalog.routed.first().abbreviation)
@@ -75,7 +83,7 @@ class EcuCatalogContractTest {
             assertEquals(IdentityBasis.F194, ecu.identity)
         }
         EcuCatalog.all.filter { it.identity == IdentityBasis.F194 }.forEach {
-            assertEquals(it.address, (f194 + factoryF194)[it.request], it.expectedF194)
+            assertEquals(it.address, (f194 + factoryF194 + candidateF194)[it.request], it.expectedF194)
         }
         // 741 is the one code ECUVersion.json does not hold: it is the head unit's MCU, named by the
         // stock route list and the media software mapping instead.
@@ -88,16 +96,21 @@ class EcuCatalogContractTest {
     @Test
     fun noAddressThatNeverAnsweredIsCatalogued() {
         EcuCatalog.all.mapNotNull { it.request }.forEach {
-            assertTrue("%03X never answered".format(it), it in answered || it in factoryF194)
+            assertTrue("%03X never answered".format(it), it in answered || it in factoryF194 || it in candidateF194)
         }
         // The timeouts stay out. 7E4 timed out to OBD 01 00 and 19 01 FF on 2026-10-20 and is still in:
         // its F194 and 19 02 answered later that day (DCOBC).
         listOf(0x7E1, 0x780, 0x785, 0x797).forEach { assertNull("%03X".format(it), EcuCatalog.byRequest(it)) }
+        // Factory-map candidates that got gateway result 3, and the two not asked again for that reason.
+        val silent = candidates.getJSONArray("noAnswer").objects().map { address(it.getString("request")) } +
+            candidates.getJSONObject("excluded").keys().asSequence().map(::address).toList()
+        assertEquals(15, silent.size)
+        silent.forEach { assertNull("%03X".format(it), EcuCatalog.byRequest(it)) }
     }
 
     @Test
     fun cachedAliasesAndVersionsAreTheCachesOwn() {
-        remaining.getJSONArray("identities").objects().forEach { row ->
+        (remaining.getJSONArray("identities").objects() + candidates.getJSONArray("identities").objects()).forEach { row ->
             val ecu = EcuCatalog.byRequest(address(row.getString("request")))!!
             val expected = row.getJSONArray("cacheIdentities").objects()
                 .map { CachedIdentity(it.getString("ecuId"), it.getString("ecuSoftVer"), it.getString("ecuHardVer")) }
@@ -134,6 +147,38 @@ class EcuCatalogContractTest {
         // DCOBC's 19 01 got no response; its 19 02 answered. Every other ECU answers the count.
         assertEquals(listOf("DCOBC"), EcuCatalog.all.filter { !it.dtcCountAnswers }.map { it.abbreviation })
         assertNull(EcuCatalog.byRequest(0x7E4)!!.dtcFormat)
+    }
+
+    @Test
+    fun everyFactoryCandidateThatAnsweredIsCataloguedAndOnlyThoseFiveHundredsPass() {
+        assertEquals(22, candidateF194.size)
+        candidateF194.forEach { (request, code) ->
+            val ecu = EcuCatalog.byRequest(request)
+            assertNotNull("%03X answered F194 but is not in the catalog".format(request), ecu)
+            assertEquals("%03X".format(request), code, ecu!!.expectedF194)
+            assertEquals(IdentityBasis.F194, ecu.identity)
+            // Identity only: their DTC memory is the first read (acceptance, step 4).
+            assertTrue(ecu.address, ecu.uds && !ecu.obd && !ecu.dtcQualified && ecu.dtcFormat == null)
+        }
+        // 5E7 is the one code ECUVersion.json does not hold: the passenger computer's MCU, whose own OTA
+        // container carries this code on this route.
+        val fse = candidates.getJSONObject("fseMcuIdentity")
+        assertEquals(listOf(address(fse.getString("request"))), candidates.getJSONArray("identities").objects()
+            .filter { it.getJSONArray("cacheIdentities").length() == 0 }.map { address(it.getString("request")) })
+        val container = fse.getJSONObject("container")
+        assertEquals(0x5E7, container.getString("CanReqID").toInt())
+        assertEquals(0x5EF, container.getString("CanRecID").toInt())
+        val assy = EcuCatalog.byRequest(0x5E7)!!
+        assertEquals(container.getString("EcuSoftwareCode"), assy.expectedF194)
+        assertEquals(EcuGroup.CABIN, assy.group)
+        assertTrue(assy.aliases.isEmpty())
+        // The whitelist lets through exactly the 5xx routes that answered, address by address.
+        val fiveHundreds = candidateF194.keys.filter { it in 0x500..0x5FF }.toSet()
+        assertEquals(candidates.getJSONArray("productAllowlist5xx").strings().map(::address).toSet(), fiveHundreds)
+        assertEquals(13, fiveHundreds.size)
+        val id = byteArrayOf(0x22, 0xF1.toByte(), 0x94.toByte())
+        assertEquals(fiveHundreds, (0x000..0x6FF).filter { DiagnosticWhitelist.allowed(it, id) }.toSet())
+        assertEquals(fiveHundreds, EcuCatalog.all.mapNotNull { it.request }.filter { it < 0x700 }.toSet())
     }
 
     @Test
@@ -241,7 +286,8 @@ class EcuCatalogContractTest {
         assertEquals("ECM (UAES)", EcuCatalog.byRequest(0x7E0)!!.title)
         assertEquals(
             setOf("DCOBC", "LFCR", "RFCR", "RRCR", "LRCR", "IPA", "R_ZCU", "F_ZCU", "FL_L", "FL_R",
-                "INS", "AMP", "WCT", "SWS", "ACC", "TMIM", "PTC"),
+                "INS", "AMP", "WCT", "SWS", "ACC", "TMIM", "PTC",
+                "UWBMC", "UWBLFA", "UWBRFA", "UWBLRA", "UWBRRA", "HUD", "ETC", "CPD"),
             EcuCatalog.all.filter { it.inferred }.map { it.abbreviation }.toSet(),
         )
     }

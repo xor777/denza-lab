@@ -37,6 +37,10 @@ class DiagnosticWhitelistTest {
         (0x7E8..0x7EF).forEach { assertNotNull("%03X".format(it), allowed(it, "0101")) }
         assertNotNull(allowed(0x6FF, "22F194"))
         assertNotNull(allowed(0x7F8, "22F194"))
+        // 5xx only route by route: the factory-map routes that answered F194, not their neighbours.
+        listOf(0x582, 0x5B2, 0x5E7, 0x5F4).forEach { assertNull("%03X".format(it), allowed(it, "190109")) }
+        listOf(0x500, 0x581, 0x591, 0x5C4, 0x5F5, 0x5FF).forEach { assertNotNull("%03X".format(it), allowed(it, "22F194")) }
+        assertNotNull(allowed(0x582, "1101"))
         assertNotNull(allowed(0x18DA00F1, "22F194"))
     }
 

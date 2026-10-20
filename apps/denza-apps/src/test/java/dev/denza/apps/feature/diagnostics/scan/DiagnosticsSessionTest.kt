@@ -40,11 +40,11 @@ class DiagnosticsSessionTest {
         assertEquals(listOf("7E5 090A", "7E5 0101", "7E5 03", "7E5 07", "7E5 0A"), bus.requests.filter { it.startsWith("7E5 ") })
         // DCOBC's 19 01 never answers: its list alone, at once.
         assertEquals(listOf("7E4 22F194", "7E4 190209"), bus.requests.filter { it.startsWith("7E4 ") })
-        // 41 gates (40 F194 and one 09 0A), 44 counts, 3 lists, 12 OBD reads.
-        assertEquals(41, bus.requests.count { it.endsWith(" 22F194") || it.endsWith(" 090A") })
-        assertEquals(44, bus.requests.count { it.endsWith(" 190109") })
+        // 63 gates (62 F194 and one 09 0A), 66 counts, 3 lists, 12 OBD reads.
+        assertEquals(63, bus.requests.count { it.endsWith(" 22F194") || it.endsWith(" 090A") })
+        assertEquals(66, bus.requests.count { it.endsWith(" 190109") })
         assertEquals(listOf("7E4 190209", "720 190209", "747 190209"), bus.requests.filter { it.endsWith(" 190209") })
-        assertEquals(100, bus.requests.size)
+        assertEquals(144, bus.requests.size)
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         assertEquals(LinkState.OK, s.model.value.header.link)
         s.stop()
@@ -58,14 +58,14 @@ class DiagnosticsSessionTest {
         runCurrent()
         val m = s.model.value
 
-        // Board «Автоскан»: 46/46, 0 active, 10 in history, memory 19/46, MIL off.
-        assertEquals("46/46", m.scan.answered)
+        // Board «Автоскан» (still drawn with 46 modules): 68/68, 0 active, 10 in history, memory 19/68, MIL off.
+        assertEquals("68/68", m.scan.answered)
         assertEquals(0, m.scan.active)
         assertEquals(10, m.scan.history)
-        assertEquals("19/46", m.scan.memoryRead)
+        assertEquals("19/68", m.scan.memoryRead)
         assertEquals(MilState.OFF, m.scan.mil)
-        assertEquals(46, m.scan.done)
-        assertEquals(46, m.scan.total)
+        assertEquals(68, m.scan.done)
+        assertEquals(68, m.scan.total)
         assertEquals("13:31", m.scan.finishedAt)
         assertNull(m.scan.notice)
 
@@ -81,7 +81,7 @@ class DiagnosticsSessionTest {
             }
             assertEquals(r.abbreviation, expected, r.status)
         }
-        assertEquals(27, m.rows().count { it.status == ModuleStatus.UNREAD })
+        assertEquals(49, m.rows().count { it.status == ModuleStatus.UNREAD })
         assertEquals("8", m.row(0x720).history)
         assertEquals("0", m.row(0x720).active)
         assertEquals("2", m.row(0x747).history)
@@ -94,7 +94,7 @@ class DiagnosticsSessionTest {
         assertEquals("ECM · UAES", m.row(0x7E0).unit)
         assertEquals("Блок 743", m.row(0x743).name)
         assertEquals("8 бл. · прочитано 8", m.groups.first { it.id == "power" }.summary)
-        assertEquals("6 бл. · прочитано 4 · история 2 · DTC не читали 2", m.groups.first { it.id == "body" }.summary)
+        assertEquals("11 бл. · прочитано 4 · история 2 · DTC не читали 7", m.groups.first { it.id == "body" }.summary)
         assertEquals(Target.Module(0x744), m.rows().first { it.abbreviation == "SMCU" }.target)
         // DCOBC: the list alone, codes without a format stay raw, and the screen says why.
         val dcobc = m.modules.getValue(0x7E4)
@@ -126,7 +126,7 @@ class DiagnosticsSessionTest {
 
         // The scan is kept with every module's bytes.
         assertEquals(1, store.saved.size)
-        assertEquals(46, store.saved[0].reads.size)
+        assertEquals(68, store.saved[0].reads.size)
         s.stop()
     }
 
@@ -143,7 +143,7 @@ class DiagnosticsSessionTest {
         assertEquals(ModuleStatus.OTHER_ECU, m.row(0x7E3).status)
         assertEquals("—", m.row(0x7E3).active)
         assertEquals(false, m.modules.getValue(0x7E3).ident.matched)
-        assertEquals("18/46", m.scan.memoryRead)
+        assertEquals("18/68", m.scan.memoryRead)
         s.stop()
     }
 
@@ -155,7 +155,7 @@ class DiagnosticsSessionTest {
         runCurrent()
         assertEquals(listOf("7E2 22F194"), bus.requests.filter { it.startsWith("7E2 ") })
         assertEquals(ModuleStatus.NO_REPLY, s.model.value.row(0x7E2).status)
-        assertEquals("45/46", s.model.value.scan.answered)
+        assertEquals("67/68", s.model.value.scan.answered)
         s.stop()
     }
 
@@ -222,7 +222,7 @@ class DiagnosticsSessionTest {
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         assertNull(s.model.value.scan.notice)
         assertEquals(2, bus.requests.count { it == "7E2 22F194" })
-        assertEquals(101, bus.requests.size)
+        assertEquals(145, bus.requests.size)
         s.stop()
     }
 
@@ -242,7 +242,7 @@ class DiagnosticsSessionTest {
         car.readings = FakeCar.parked()
         advanceTimeBy(500)
         runCurrent()
-        assertEquals(100, bus.requests.size)
+        assertEquals(144, bus.requests.size)
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         s.stop()
     }
@@ -272,7 +272,7 @@ class DiagnosticsSessionTest {
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         assertEquals(LinkState.OK, s.model.value.header.link)
         assertNull(s.model.value.scan.notice)
-        assertEquals(asked + 6 + 100, bus.requests.size)
+        assertEquals(asked + 6 + 144, bus.requests.size)
         s.stop()
     }
 
@@ -353,7 +353,7 @@ class DiagnosticsSessionTest {
         val c = session(again, store = MemoryStore(scan), epoch = scan.finishedAtMillis + 11 * 60_000L)
         c.start()
         runCurrent()
-        assertEquals(100, again.requests.size)
+        assertEquals(144, again.requests.size)
         c.stop()
     }
 

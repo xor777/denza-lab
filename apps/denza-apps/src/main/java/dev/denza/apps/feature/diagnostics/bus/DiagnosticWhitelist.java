@@ -16,12 +16,21 @@ public final class DiagnosticWhitelist {
     /** Physical request ids; the ECU answers on request + 8, so the last is 0x7F7. */
     public static final int MIN_ADDRESS = 0x700;
     public static final int MAX_ADDRESS = 0x7F7;
+    /**
+     * The 5xx routes of the complete factory map that answered F194 on this car on 2026-10-20
+     * (research/vehicle-diagnostics/factory-candidates-20261020.json), one by one, not a range.
+     */
+    private static final int[] FACTORY_5XX = {
+        0x582, 0x590, 0x595, 0x597, 0x5A0, 0x5A7, 0x5B0, 0x5B1, 0x5B2, 0x5E0, 0x5E4, 0x5E7, 0x5F4,
+    };
     /** One CAN single frame: an OBD 01 with six PIDs is the longest request. */
     public static final int MAX_UDS_LENGTH = 7;
 
     /** Null when the request is allowed, otherwise why not, in a few words. */
     public static String refusal(int address, byte[] uds) {
-        if (address < MIN_ADDRESS || address > MAX_ADDRESS) return "address outside 700..7F7";
+        if ((address < MIN_ADDRESS || address > MAX_ADDRESS) && !factory5xx(address)) {
+            return "address outside 700..7F7 and the answering 5xx routes";
+        }
         if (address == 0x7DF) return "functional OBD address";
         if (address >= 0x7E8 && address <= 0x7EF) return "OBD response address";
         if (uds == null || uds.length == 0 || uds.length > MAX_UDS_LENGTH) return "UDS length outside 1..7";
@@ -49,6 +58,11 @@ public final class DiagnosticWhitelist {
 
     public static boolean allowed(int address, byte[] uds) {
         return refusal(address, uds) == null;
+    }
+
+    private static boolean factory5xx(int address) {
+        for (int allowed : FACTORY_5XX) if (allowed == address) return true;
+        return false;
     }
 
     private static boolean identification(int did) {

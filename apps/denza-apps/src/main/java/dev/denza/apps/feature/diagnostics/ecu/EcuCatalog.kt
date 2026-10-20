@@ -90,12 +90,24 @@ internal object EcuCatalog {
         "BSD_BYD_00100001" to "0.0.2", "BSD_WHST_00100001" to "0.0.2", "RRCR_chengtech_00100001" to "0.0.0",
     ).map { (id, hw) -> CachedIdentity("HTH-2021_$id", "4.00.12", hw) }
 
+    /** The UWB key's anchors: one software code, eight cached names, four routes named by position. */
+    private val UWB_ANCHOR_CODE = "3244001183C8002000"
+    private val UWB_ANCHOR_ALIASES = listOf(
+        "UWBLFA_KOSTAL", "UWBRFA_KOSTAL", "UWBLRA_KOSTAL", "UWBRRA_KOSTAL",
+        "UWBRRA_UAES", "UWBRFA_UAES", "UWBLRA_UAES", "UWBLFA_UAES",
+    ).map { CachedIdentity("HTH-2021_${it}_00100001", "4.00.88", "0.0.1") }
+
     private fun cache(id: String, sw: String, hw: String) = CachedIdentity("HTH-2021_$id", sw, hw)
     private fun route(id: String) = CachedIdentity("HTH-2021_$id")
 
     private fun radar(abbreviation: String, request: Int, name: String, short: String) = Ecu(
         EcuGroup.ADAS, abbreviation, name, short, inferred = true, request = request, identity = IdentityBasis.F194,
         expectedF194 = CORNER_RADAR_CODE, aliases = CORNER_RADAR_ALIASES,
+    )
+
+    private fun uwbAnchor(abbreviation: String, request: Int, name: String, short: String) = Ecu(
+        EcuGroup.BODY, abbreviation, name, short, inferred = true, request = request, identity = IdentityBasis.F194,
+        expectedF194 = UWB_ANCHOR_CODE, aliases = UWB_ANCHOR_ALIASES,
     )
 
     /** An ECU whose role is not established: its short name is the cached software version. */
@@ -183,6 +195,15 @@ internal object EcuCatalog {
             expectedF194 = "48330011DF2B000201", aliases = listOf(cache("FL_L_BYD_00100001", "4.00.18", "0.1.3"))),
         Ecu(EcuGroup.BODY, "FL_R", "Фара правая", "Фара П", true, 0x771, IdentityBasis.F194,
             expectedF194 = "48330011DF2C000202", aliases = listOf(cache("FL_R_BYD_00100001", "4.00.18", "0.1.3"))),
+        // The UWB key, from the complete factory map, F194 read live on 2026-10-20 (vehicle-data-findings,
+        // «Factory-map candidates»). The four anchors share one code; positions come from the route names.
+        Ecu(EcuGroup.BODY, "UWBMC", "Цифровой ключ UWB", "UWB-ключ", true, 0x7F3, IdentityBasis.F194,
+            expectedF194 = "3244001182C7000000",
+            aliases = listOf(cache("UWBMC_KOSTAL_00100001", "4.00.88", "0.0.1"), cache("UWBMC_UAES_00100001", "4.00.88", "0.0.1"))),
+        uwbAnchor("UWBLFA", 0x7F4, "Антенна UWB передняя левая", "UWB ПЛ"),
+        uwbAnchor("UWBRFA", 0x7F5, "Антенна UWB передняя правая", "UWB ПП"),
+        uwbAnchor("UWBLRA", 0x7F6, "Антенна UWB задняя левая", "UWB ЗЛ"),
+        uwbAnchor("UWBRRA", 0x7F7, "Антенна UWB задняя правая", "UWB ЗП"),
 
         // Cabin
         Ecu(EcuGroup.CABIN, "INS", "Комбинация приборов", "Приборы", true, 0x723, IdentityBasis.F194,
@@ -201,6 +222,22 @@ internal object EcuCatalog {
         // media software. ECUVersion.json keeps the media's combined code (…3401), not the MCU's, so no alias.
         Ecu(EcuGroup.CABIN, "Media", "Головное устройство (MCU)", "ГУ · MCU", false, 0x741, IdentityBasis.F194,
             expectedF194 = "4B450011E0930034E2"),
+        // The passenger computer, through its MCU, the same way: the factory map names 5E7/5EF ASSY_BYD_00100001,
+        // and the MCU container of its own OTA (mcu_42_2_3.xcd) carries this code with CanReqID 1511/CanRecID 1519.
+        // ECUVersion.json keeps the FSE software's combined code (…4201), so no alias.
+        Ecu(EcuGroup.CABIN, "ASSY", "Пассажирский компьютер (MCU)", "Пасс. ПК · MCU", false, 0x5E7, IdentityBasis.F194,
+            expectedF194 = "4B450011DF990042E2"),
+        // From the complete factory map, F194 read live on 2026-10-20; roles from the route names.
+        Ecu(EcuGroup.CABIN, "HUD", "Проекционный дисплей", "HUD", true, 0x7B0, IdentityBasis.F194,
+            expectedF194 = "48330011DE80000103", aliases = listOf(cache("HUD_BYD_00100001", "3.00.04", "0.1.3"))),
+        Ecu(EcuGroup.CABIN, "ETC", "Модуль оплаты проезда (ETC)", "ETC", true, 0x790, IdentityBasis.F194,
+            expectedF194 = "4B580011AD01990000",
+            aliases = listOf(cache("ETC_Genvict_00100001", "4.00.01", "1.1.0"), cache("ETC_Vanjee_00100001", "4.00.01", "1.1.0"),
+                cache("ETC_Julitech_00100001", "4.00.01", "1.1.0"))),
+        Ecu(EcuGroup.CABIN, "CPD", "Радар присутствия детей, задний", "Радар детей", true, 0x5E0, IdentityBasis.F194,
+            expectedF194 = "52420011DF9E000000",
+            aliases = listOf(cache("rear CPD radar_Valeo_00100001", "4.00.12", "0.0.3"),
+                cache("rear CPD radar_Mindcruise_00100001", "4.00.12", "0.0.3"))),
 
         // Climate and thermal management
         Ecu(EcuGroup.CLIMATE, "ACC", "Климат-контроль", "Климат", true, 0x7B3, IdentityBasis.F194,
@@ -231,6 +268,26 @@ internal object EcuCatalog {
             cache("CCS_BYD_00100001", "4.00.06", "0.0.5"), cache("SCPA_BYD_00100001", "4.00.06", "0.0.5")),
         unknown("RRCP", 0x7C6, "48580011DF02220000", cache("RRCP_BYD_00100001", "4.00.04", "0.0.3")),
         unknown("SEC", 0x7D6, "484900118C0A001000", cache("SEC_BYD_00100001", "1.11.36", "0.0.1")),
+        // From the complete factory map, F194 read live on 2026-10-20. Which wheel or seat each SDR serves,
+        // and what RWS, AQDM, R-NCM, IDC, VR, MCPA, RCP and FRL do, the replies do not say.
+        unknown("RWS-L", 0x582, "484B0011DF02030100", cache("RWS-L_BYD_00100001", "4.00.08", "0.0.5")),
+        unknown("RWS-R", 0x796, "484B0011DF02020100", cache("RWS-R_BYD_00100001", "4.00.08", "0.0.5")),
+        unknown("AQDM", 0x590, "4A440011DE014A0101", cache("AQDM_BYD_00100001", "3.00.08", "0.0.5")),
+        unknown("R-NCM", 0x595, "48490011A401162104", cache("R-NCM_BYD_00100001", "1.00.09", "0.0.1")),
+        unknown("IDC", 0x597, "4B4D0011DE01140600",
+            cache("IDC_BYD_00100001", "3.01.18", "1.5.0"), cache("IDC_BYD_00200001", "3.01.18", "1.5.0")),
+        unknown("VR", 0x5A0, "4A500011DE01130000", cache("VR_BYD_00100001", "2.00.05", "0.0.1")),
+        unknown("RR_SDR", 0x5A7, "48490011DF01050000",
+            cache("RR_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("RR_SDR_BYD_00100001", "4.00.07", "1.1.0")),
+        unknown("RL_SDR", 0x5B0, "48490011DF01040000",
+            cache("RL_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("RL_SDR_BYD_00100001", "4.00.07", "1.1.0")),
+        unknown("FR_SDR", 0x5B1, "48490011DF01030000",
+            cache("FR_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("FR_SDR_BYD_00100001", "4.00.07", "1.1.0")),
+        unknown("FL_SDR", 0x5B2, "48490011DF01020000",
+            cache("FL_SDR_WHST_00100001", "4.00.07", "1.1.0"), cache("FL_SDR_BYD_00100001", "4.00.07", "1.1.0")),
+        unknown("MCPA", 0x5E4, "514A0011DE7B000000", cache("MCPA_KOSTAL_00100001", "3.00.10", "0.0.4")),
+        unknown("RCP", 0x5F4, "48580011DF01750000", cache("RCP_BYD_00100001", "4.00.04", "0.0.3")),
+        unknown("FRL", 0x772, "48330011DEE3000000", cache("FRL_BYD_00100001", "4.00.01", "0.1.2")),
     )
 
     private val byRequest: Map<Int, Ecu> = all.mapNotNull { e -> e.request?.let { it to e } }.toMap()

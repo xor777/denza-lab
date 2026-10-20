@@ -16,8 +16,8 @@ import org.junit.Assert.assertEquals
  * - `722`, `726` (`FF`), `7E3`, `7E6`, `7E7` (`FF`, availability `09`) and `7E0`, `7E2` (`08`) counted
  *   zero, and nothing the product's mask holds that theirs did not was ever seen there.
  * OBD lists that counted zero are `43 00`, `47 00`, `4A 00`. Every other request gets what an
- * unanswered address gets on the car, the gateway's 3: the 27 identified modules whose memory the
- * research never read answer their gate and nothing else.
+ * unanswered address gets on the car, the gateway's 3: the 49 identified modules whose memory the
+ * research never read (22 of them the factory-map candidates) answer their gate and nothing else.
  */
 internal object CarNow {
     private val root = generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }
@@ -29,10 +29,12 @@ internal object CarNow {
     private val obd = research("obd-20261020.json")
     private val remaining = research("remaining-ecus-20261020.json")
     private val remainingRows = remaining.getJSONArray("runs").objects().flatMap { it.getJSONArray("rows").objects() }
+    private val candidateRows = research("factory-candidates-20261020.json").getJSONArray("runs").objects()
+        .flatMap { it.getJSONArray("rows").objects() }
 
-    /** Every F194 the car returned, by address: the remaining-ECU runs and run 4 of the OBD runs. */
+    /** Every F194 the car returned, by address: the remaining-ECU and factory-candidate runs and run 4 of the OBD runs. */
     val f194: Map<Int, String> by lazy {
-        remainingRows.filter { it.getString("uds") == "22F194" && it.optString("result") == "ok" }
+        (remainingRows + candidateRows).filter { it.getString("uds") == "22F194" && it.optString("result") == "ok" }
             .associate { it.getString("request").toInt(16) to it.getString("payload") } +
             obd.getJSONArray("run4_ident2").objects().filter { it.optString("result") == "ok" }
                 .associate { it.getString("request").toInt(16) to "62F194" + it.getString("value") }
