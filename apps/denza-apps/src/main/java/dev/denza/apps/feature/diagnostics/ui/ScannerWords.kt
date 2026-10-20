@@ -60,18 +60,20 @@ internal object ScannerWords {
     /** A memory that was read: its counts mean something. */
     fun read(status: ModuleStatus): Boolean = status == ModuleStatus.OK || status == ModuleStatus.HISTORY || status == ModuleStatus.ACTIVE
 
-    /** The topology tile's state word, beside the short name. */
+    /**
+     * The word a topology tile shows in place of its address: how many codes where the look says only
+     * that there are some, or what went wrong where looks are shared. Empty: the address, the look
+     * says the rest (OK, not read, no address).
+     */
     fun tileState(row: ModuleRowView): String = when (row.status) {
-        ModuleStatus.OK -> "OK"
         ModuleStatus.HISTORY -> "ИСТ ${row.history}"
         ModuleStatus.ACTIVE -> "АКТ ${row.active}"
-        ModuleStatus.UNREAD -> "не читали"
         ModuleStatus.POLLING -> "опрос"
         ModuleStatus.NO_REPLY -> "нет ответа"
         ModuleStatus.REFUSED -> "отказ"
         ModuleStatus.OTHER_ECU -> "другой блок"
         ModuleStatus.INCONSISTENT -> "не сходится"
-        ModuleStatus.NO_ROUTE -> ""
+        ModuleStatus.OK, ModuleStatus.UNREAD, ModuleStatus.NO_ROUTE -> ""
     }
 
     data class Link(val text: String, val dot: Int, val glow: Boolean)

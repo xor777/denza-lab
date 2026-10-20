@@ -190,7 +190,7 @@ internal object ScannerSpec {
         val ABBR_NAME = Style(11.5f, 15f)
         val TILE_ABBR = Style(13f, 16f, 500, mono = true)
         val TILE_ADDR = Style(11f, 16f, mono = true)
-        val TILE_NAME = Style(11.5f, 15f)
+        val TILE_NAME = Style(11f, 14f)
         val TILE_STATE = Style(10.5f, 15f, 500, track = 0.03f)
         val TOPO_LABEL = Style(11f, 16f, track = 0.07f)
         val HEAD_UNIT = Style(13f, 16f, 500)
@@ -339,14 +339,14 @@ internal object ScannerSpec {
     }
 
     object Topology {
-        const val COLUMN = 176f
+        const val COLUMN = 137f
         const val LEFT = 24f
-        const val TILE_W = 156f
-        const val TILE_H = 42f
+        const val TILE_W = 124f
+        const val TILE_H = 36f
         const val TILE_R = 5f
-        const val TILE_PAD_X = 8f
-        const val TILE_INSET = 14f
-        const val TILE_PITCH = 48f
+        const val TILE_PAD_X = 7f
+        const val TILE_INSET = 10f
+        const val TILE_PITCH = 40f
         const val TILE_ROW_GAP = 2f
         const val HEAD_X = 24f
         const val HEAD_Y = 170f
@@ -369,10 +369,12 @@ internal object ScannerSpec {
             listOf(Part("power")),
             listOf(Part("chassis"), Part("climate")),
             listOf(Part("assist")),
-            listOf(Part("body"), Part("lv")),
+            listOf(Part("body", 0, 9)),
+            listOf(Part("body", 9, 11, continued = true), Part("lv")),
             listOf(Part("salon")),
-            listOf(Part("misc", 0, 6)),
-            listOf(Part("misc", 6, 12, continued = true)),
+            listOf(Part("misc", 0, 9)),
+            listOf(Part("misc", 9, 17, continued = true)),
+            listOf(Part("misc", 17, 25, continued = true)),
         )
     }
 

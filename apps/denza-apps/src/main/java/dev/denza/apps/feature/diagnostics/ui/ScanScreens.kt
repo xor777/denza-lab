@@ -182,8 +182,11 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
     data class Placed(val x: Float, val y: Float, val row: ModuleRowView)
     val labels = mutableListOf<Triple<Float, Float, String>>()
     val tiles = mutableListOf<Placed>()
-    // the bus: [x0, y0, x1, y1] segments in dp
-    val bus = mutableListOf(floatArrayOf(p.HEAD_X + p.HEAD_W, p.TRUNK_Y, p.LEFT + 5 * p.COLUMN + p.BUS_INSET, p.TRUNK_Y))
+    // the bus: [x0, y0, x1, y1] segments in dp. The trunk runs from the head unit to the last column
+    // that opens a group; a column that continues a group hangs from the one before it.
+    val opens = p.COLUMNS.map { !it.first().continued }
+    val lastOpen = opens.lastIndexOf(true)
+    val bus = mutableListOf(floatArrayOf(p.HEAD_X + p.HEAD_W, p.TRUNK_Y, p.LEFT + lastOpen * p.COLUMN + p.BUS_INSET, p.TRUNK_Y))
     val live = mutableListOf<FloatArray>()
     val dead = mutableListOf<FloatArray>()
     p.COLUMNS.forEachIndexed { k, parts ->
@@ -207,12 +210,12 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
             }
         }
         if (last > 0f) {
-            if (k == p.COLUMNS.lastIndex) {
-                bus += floatArrayOf(bx - p.COLUMN, p.TAIL_Y, bx, p.TAIL_Y)
-                bus += floatArrayOf(bx, p.TAIL_Y, bx, last)
-            } else {
+            if (opens[k]) {
                 val from = if (k > 0) p.TRUNK_Y else p.TRUNK_FIRST_Y
                 bus += floatArrayOf(bx, from, bx, last)
+            } else {
+                bus += floatArrayOf(bx - p.COLUMN, p.TAIL_Y, bx, p.TAIL_Y)
+                bus += floatArrayOf(bx, p.TAIL_Y, bx, last)
             }
         }
     }
@@ -254,20 +257,20 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
 private fun Tile(r: ModuleRowView, modifier: Modifier, onClick: () -> Unit) {
     val p = ScannerSpec.Topology
     val look = tileLook(r.status)
+    val width = rememberWidths()
     Box(modifier.size(p.TILE_W.dp, p.TILE_H.dp).plate(look.fill, look.line, p.TILE_R, look.dash).tap(if (r.target != null) onClick else null)) {
         val ix = 1f + p.TILE_PAD_X
         val iw = p.TILE_W - 2f - 2f * p.TILE_PAD_X
         val top = (p.TILE_H - Type.TILE_ABBR.lh - p.TILE_ROW_GAP - Type.TILE_NAME.lh) / 2f
-        ScanText(r.abbreviation, Type.TILE_ABBR, look.ink, Modifier.at(ix, top))
-        ScanText(r.request?.let(ScannerWords::hex) ?: "нет адреса", Type.TILE_ADDR, look.addr, Modifier.endAt(ix + iw, top))
+        // the abbreviation and address over the short name; the state is the tile's look, and a word
+        // stands in place of the address only where the look cannot say it (a count, a failure)
         val state = ScannerWords.tileState(r)
-        Row(Modifier.at(ix, top + Type.TILE_ABBR.lh + p.TILE_ROW_GAP).width(iw.dp)) {
-            Box(Modifier.weight(1f)) { ScanText(r.short, Type.TILE_NAME, look.sub) }
-            if (state.isNotEmpty()) {
-                Spacer(Modifier.width(6.dp))
-                ScanText(state, Type.TILE_STATE, look.state)
-            }
-        }
+        val (right, style, ink) = if (state.isNotEmpty()) Triple(state, Type.TILE_STATE, look.state)
+            else Triple(r.request?.let(ScannerWords::hex) ?: "нет адреса", Type.TILE_ADDR, look.addr)
+        val rw = width(right, style)
+        ScanText(right, style, ink, Modifier.endAt(ix + iw, top + (Type.TILE_ABBR.lh - style.lh) / 2f))
+        ScanText(r.abbreviation, Type.TILE_ABBR, look.ink, Modifier.at(ix, top), maxWidth = iw - rw - 6f)
+        ScanText(r.short, Type.TILE_NAME, look.sub, Modifier.at(ix, top + Type.TILE_ABBR.lh + p.TILE_ROW_GAP), maxWidth = iw)
     }
 }
 

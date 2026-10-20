@@ -74,6 +74,9 @@ class ScannerWordsTest {
         assertTrue(ScannerWords.read(ModuleStatus.HISTORY))
         assertFalse(ScannerWords.read(ModuleStatus.UNREAD))
         assertEquals("ИСТ 8", ScannerWords.tileState(row(ModuleStatus.HISTORY, history = "8")))
+        // the look alone says OK and not read: the tile keeps its address
+        assertEquals("", ScannerWords.tileState(row(ModuleStatus.OK)))
+        assertEquals("", ScannerWords.tileState(row(ModuleStatus.UNREAD)))
     }
 
     @Test
