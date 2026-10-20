@@ -47,7 +47,27 @@ internal enum class DiagnosticExtra(
     RL_POSITION("rl_position", 1001, 957350004, 5, 1.0, 0.0, 1.0..3.0),
     RL_LOCK("rl_lock", 1041, -1066401780, 5, 1.0, 0.0, 1.0..2.0),
     RR_POSITION("rr_position", 1001, 957350006, 5, 1.0, 0.0, 1.0..3.0),
-    RR_LOCK("rr_lock", 1041, -1066401778, 5, 1.0, 0.0, 1.0..2.0);
+    RR_LOCK("rr_lock", 1041, -1066401778, 5, 1.0, 0.0, 1.0..2.0),
+
+    // The system screens of «Диагностика» (docs/vehicle-diagnostics-architecture.md, 6). Types are
+    // those the Z9GT catalog sweep of 2026-10-20 answered (captures/diagnostics-sweep-20261020):
+    // integers on 5, floats on 7 where the integer read was the no-data word. Parked they read 0,
+    // 5 °C IGBTs, and 0xFFFF for the rear-left rotation speed, which the range refuses as «н/д».
+    INSULATION_2("insulation_2", 1039, 0x26200010, 5, 1.0, 0.0, 0.0..65534.0),
+    PROBE_COUNT("probe_count", 1039, 0x43A00010, 5, 1.0, 0.0, 1.0..500.0),
+    /** Discharge main contactor state; the values are not decoded. */
+    CONTACTOR("contactor", 1032, 0x34400010, 5, 1.0, 0.0, 0.0..254.0),
+    IGBT_REAR_LEFT("igbt_rear_left", 1039, 0x2D000180, 5, 1.0, 0.0, -39.0..150.0),
+    IGBT_REAR_RIGHT("igbt_rear_right", 1039, 0x2D000188, 5, 1.0, 0.0, -39.0..150.0),
+    RPM_FRONT("rpm_front", 1012, 0x44100008, 5, 1.0, 0.0, -20000.0..20000.0),
+    RPM_REAR_LEFT("rpm_rear_left", 1039, 0x0FC000D0, 5, 1.0, 0.0, 0.0..20000.0),
+    RPM_REAR_RIGHT("rpm_rear_right", 1039, 0x0FC000E0, 5, 1.0, 0.0, 0.0..20000.0),
+    TORQUE_FRONT("torque_front", 1012, 0x44100018, 7, 1.0, 0.0, -5000.0..5000.0),
+    TORQUE_REAR_LEFT("torque_rear_left", 1039, 0x2850002C, 7, 1.0, 0.0, -5000.0..5000.0),
+    TORQUE_REAR_RIGHT("torque_rear_right", 1039, 0x2850003C, 7, 1.0, 0.0, -5000.0..5000.0),
+    CURRENT_FRONT("current_front", 1009, 0x46C00008, 7, 1.0, 0.0, -2000.0..2000.0),
+    CURRENT_REAR_LEFT("current_rear_left", 1039, 0x28500178, 7, 1.0, 0.0, -2000.0..2000.0),
+    CURRENT_REAR_RIGHT("current_rear_right", 1039, 0x28500188, 7, 1.0, 0.0, -2000.0..2000.0);
     fun decode(word: Int): Double? {
         // Same native no-data words as the shared AutoserviceShell; -1f is not a current.
         if (word == -10013 || word == -10011 || word == 0xBF800000.toInt()) return null
