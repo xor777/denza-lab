@@ -36,7 +36,8 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 | DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (stock tester and its 96-case function map: left body domain `LA_BCM`; OTA map's CDC/ZCU rows unexplained; BYD labels status28 «历史故障»); 2026-10-20 the same transport reaches the engine ECM `7E0` (OBD Mode 01/03/07/0A, UDS 19; MIL off, 0 codes) and `7E2`/`7E3`/`7E5`/`7E6`/`7E7`/`722`/`726`/`747`; full catalog sweep 2026-10-20: SoH99, cells 3333–3337 mV, service life oil75/brake fluid99/coolant50, GB alarms answer at the N9 baseline; LBMS `762→76A` zero/support09. Further chassis/ADAS addresses were qualified on 2026-10-20, below. Lamp0 means invalid, not off; captured engine lamp on. The first native window that showed these (readable DTC summaries, all eight status bits, 15 lamp GETs) never reached the car and was removed on 2026-10-20; the scanner in [vehicle-diagnostics-architecture.md](vehicle-diagnostics-architecture.md) replaced it and keeps the 43 scalar GETs (`DiagnosticExtras`) | live | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18); [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18); [Deeper sources](#deeper-sources-for-a-diagnostic-screen-2026-10-20); [Z9GT catalog sweep](#z9gt-catalog-sweep-2026-10-20); [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20) |
 | Remaining-ECU research: 70 F194 addresses checked, 33 positive, 32 exact cache matches, and `741` is the head unit's own MCU by the stock media software mapping; ABS/ESP782, EPS783, SRS7F1, ADC712 and MRR7F2 each return explicit zero DTC for mask09. OBD7E5 names itself BSCM-BrakeSystem. The later factory-map pass below resolves the rear-drive/DCOBC routes | live, research | 2026-10-20 | [Remaining ECU identities and chassis DTC](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) |
 | Complete factory metadata: 225 routing candidates; SMCU744/74C, SMCU3 745/74D and DCOBC7E4/7EC answered matching F194 and empty mask09 lists. DCOBC format remains unknown. A public Z9GT PHEV manual index now supplies engine/battery/drive DTC heading candidates, but has conflicting definitions and no ECU-software binding; no OEM dictionary is qualified. The diagnostic section shows those headings, translated, as candidate descriptions of format00 codes | live routes; dictionary open | 2026-10-20 | [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20); [Manual candidates](#oem-dtc-manual-candidates-2026-10-20) |
-| Factory-map candidates: of the 37 CAN routes outside the scanner catalog, 35 got one `22 F194` (`715`/`785` already had result 3); 22 answered. All 21 with a real code in `ECUVersion.json` returned it byte for byte, all 13 with only a zero placeholder got gateway result 3, and `5E7` returned the passenger computer's MCU code `4B450011DF990042E2` from its own OTA container. All 22 are in `EcuCatalog`; the 13 `5xx` responders are listed one by one in `DiagnosticWhitelist`. Their DTC memories are unread | live | 2026-10-20 | [Factory-map candidates](#factory-map-candidates-on-this-car-2026-10-20) |
+| Factory-map candidates: of the 37 CAN routes outside the scanner catalog, 35 got one `22 F194` (`715`/`785` already had result 3); 22 answered. All 21 with a real code in `ECUVersion.json` returned it byte for byte, all 13 with only a zero placeholder got gateway result 3, and `5E7` returned the passenger computer's MCU code `4B450011DF990042E2` from its own OTA container. All 22 are in `EcuCatalog`; the 13 `5xx` responders are listed one by one in `DiagnosticWhitelist`. Their DTC memories were first read by the scanner's autoscan on 2026-10-20: IDC `597` has four records, the rest none | live | 2026-10-20 | [Factory-map candidates](#factory-map-candidates-on-this-car-2026-10-20); [First autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) |
+| Scanner on the car: 68/68 answered and 68 memories read in 148 exchanges, 19.9 s, exchange 18 ms median, step 120 ms at gap 100; history in LA_BCM 8, R_ZCU 2, INS 2, Media 1, CCS/SCPA 1, IDC 4; a lock race after the first idle minute stopped the section (fixed, not yet seen on the car) | live | 2026-10-20 | [First autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
@@ -71,6 +72,7 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 - [Complete factory map and remaining powertrain DTC](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) — all 225 server routes, live rear drives/DCOBC and the OEM dictionary gap
 - [Factory-map candidates on this car](#factory-map-candidates-on-this-car-2026-10-20) — F194 at the 37 CAN routes outside the catalog: who is installed, the cache as an install marker, the passenger computer's MCU
 - [OEM DTC manual candidates](#oem-dtc-manual-candidates-2026-10-20) — model-specific public headings, conflicts, code-format and software-applicability gaps
+- [The scanner on the car: first autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) — the product's 68 blocks in 20 s, the history found, two defects fixed
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
 - [Raw CAN-FD callback (2026-09-03)](#raw-can-fd-callback-2026-09-03) — the passive shell-UID frame stream and its envelope
 - [Washer fluid level (2026-09-18, in progress)](#washer-fluid-level-2026-09-18-in-progress) — no name, no bit yet; firmware and raw-stream paths
@@ -2935,6 +2937,46 @@ Evidence for this pass is retained under
 list/diagnostic introduction with its revision and ECU applicability, plus the
 display-to-raw mapping for format01. A matching, already downloaded EOL script
 and its selection metadata remain another possible source on the head unit.
+
+### The scanner on the car: first autoscan (2026-10-20)
+
+The product section («Сервис → Диагностика», build `c2664f17` with `-Pdiagnostics`, APK
+SHA-256 `bdc6ffbc…63da5`) was installed over the 0.7.1 release at 19:23 and opened by the
+owner at 19:31, parked, 0 km/h. Steps 1–4 of the acceptance order
+([architecture, 9](vehicle-diagnostics-architecture.md#diag-arch-acceptance)); the saved
+scan is `captures/diagnostics-scanner-20261020/last-scan-1931.json` (untracked).
+
+- **Helper.** The staged `denza-diag-bus-<sha256>.jar` (14 010 bytes) went from
+  `app_process` to `READY` in 3.1 s, the 2 s of silence included. `autoservice` (PID 128)
+  and `com.byd.avc` (4634) were the same processes before and after; the crash buffer
+  stayed empty.
+- **Autoscan.** 68 of 68 routes answered `22 F194`; 68 memories were read with mask `09`.
+  148 exchanges in 19.9 s, no gateway non-answer, no negative response, no `7F xx 78`.
+  An exchange (`set()` to the last frame) took 18 ms at the median, 48 ms at p90 and
+  503 ms at most; request to request was 120 ms at the median (p90 158, max 670) at the
+  default 100 ms gap.
+- **Memories with records.** 62 blocks report none. The reported status is masked by each
+  block's availability (`09`: `0x28` reads `0x08`; IDC's availability is `0x29`).
+
+  | Block | Records | Read before |
+  | --- | --- | --- |
+  | `720` LA_BCM | `C1160-06`, `U029D-87`, `U0121-87`, `B2148-02`, `B2250-00`, `B225B-00`, `U0229-87`, `U022A-87` | the same eight, `19 02 FF` 2026-10-18 ([Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18)) |
+  | `747` R_ZCU | `C1170-09`, `B130E-01` | the same two ([OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20)) |
+  | `723` INS | `B23D9-02`, `U0266-87` | first read |
+  | `741` Media (head-unit MCU) | `B1AC8-00` | first read |
+  | `7A7` CCS/SCPA | `P230E-07` | first read |
+  | `597` IDC | `C1E20-49`, `C12D0-1C`, `C12D0-1D`, `C3200-7B`, status `0x28` | first read |
+
+- **Defect: a busy channel after the first idle minute.** At 19:33:20 the app dropped the
+  idle helper at its 50 s reuse limit and started the next one 0.6 s before the outgoing
+  helper had let go of the reader lock: `LOCK_BUSY`, and the section stood «Канал занят»
+  under every screen until «Опросить снова», live data included. Fixed in `50001ac8`: the
+  helper waits up to 3 s for the lock, and a busy or lost channel is tried once more by the
+  next request made by hand. Not yet seen on the car.
+- **Defect: a codes table longer than two rows** drew its rows under the status
+  explanation (LA_BCM, eight). Fixed in `f316d5f4`: the explanation stands under the last
+  code and the table scrolls.
+- Open: the stream (step 5) and the screens with the owner (step 6).
 
 ## Consumption journal
 
