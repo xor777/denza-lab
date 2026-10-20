@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics
 
+import dev.denza.apps.platform.shell.ServiceCallParcel
+
 /** Qualified scalar GETs from profile 170. Bounds reject sentinels, not diagnose faults. */
 internal enum class DiagnosticExtra(
     val key: String, val device: Int, val fid: Int, val transact: Int,
@@ -95,9 +97,13 @@ internal object DiagnosticExtraReader {
         val byKey = DiagnosticExtra.entries.associateBy { it.key }
         val values = sections.mapNotNull { section ->
             val signal = byKey[section.lineSequence().firstOrNull()?.trim()] ?: return@mapNotNull null
-            val value = DiagnosticSignals.value(section)?.let(signal::decode) ?: return@mapNotNull null
+            val value = word(section)?.let(signal::decode) ?: return@mapNotNull null
             signal to value
         }.toMap()
         return DiagnosticExtras(values, atMillis, atElapsed)
     }
+
+    /** The word of a successful `service call` reply: status 0, then one 32-bit value. */
+    private fun word(output: String): Int? = output.lineSequence().mapNotNull { ServiceCallParcel.oneLineWords(it) }
+        .firstOrNull { it.size == 2 && it[0] == 0 }?.get(1)
 }

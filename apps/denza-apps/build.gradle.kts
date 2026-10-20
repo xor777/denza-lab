@@ -160,9 +160,9 @@ android {
         // can tell builds apart during acceptance; it never drives the version.
         versionCode = 79
         versionName = "0.7.1"
-        // «Сервис → Диагностика автомобиля» is parked: it showed what the stock screens already
-        // show. Its code stays and builds; the row appears only in a build asked for with
-        // `-Pdiagnostics`, for the work that decides whether it returns.
+        // «Сервис → Диагностика» is parked until the owner accepts it on the car: its code builds,
+        // and the row appears only in a build asked for with `-Pdiagnostics`
+        // (docs/vehicle-diagnostics-architecture.md, 1).
         buildConfigField("boolean", "DIAGNOSTICS", providers.gradleProperty("diagnostics").isPresent.toString())
     }
 
@@ -218,11 +218,6 @@ android {
                 "VehicleSignalProxy",
                 "vehicle-signal-proxy.jar",
                 "feature/vehicle/signal/TargetedBydLightEventProxyMain.java",
-            )
-            packShellProxy(
-                "VehicleDtcProxy",
-                "vehicle-dtc-proxy.jar",
-                "feature/diagnostics/VehicleDtcProxyMain.java",
             )
             packShellProxy(
                 "DiagnosticBus",
