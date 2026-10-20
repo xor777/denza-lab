@@ -1214,7 +1214,7 @@
   const unread = (name, unit, abbr, short, req, opens) => ecu(name, unit, abbr, short, req, 'UDS', 'unread', null, null, opens);
   const autoscan = {
     top: scanTop(['Автоскан'], '16:31:07'),
-    counters: [['ОТВЕТИЛО', '43/46', 'white'], ['DTC АКТИВНЫХ', '0', 'white'], ['DTC В ИСТОРИИ', '10', 'text'], ['ПАМЯТЬ ПРОЧИТАНА', '16/43', 'text'], ['MIL', 'ВЫКЛ', 'text']],
+    counters: [['ОТВЕТИЛО', '46/46', 'white'], ['DTC АКТИВНЫХ', '0', 'white'], ['DTC В ИСТОРИИ', '10', 'text'], ['ПАМЯТЬ ПРОЧИТАНА', '19/46', 'text'], ['MIL', 'ВЫКЛ', 'text']],
     tabs: ['Список', 'Топология'],
     headUnit: ['ГУ · диагностика', '+8'],
     groups: [
@@ -1224,9 +1224,11 @@
         ecu('Контроллер переднего мотора', 'FMCU', 'FMCU', 'Перед. мотор', '7E3', 'UDS', 'ok', 0, 0, 'scanner-drives'),
         ecu('Контроллер мотор-генератора', 'ISG', 'ISG', 'Мотор-генер.', '7E6', 'UDS', 'ok', 0, 0, 'scanner-drives'),
         ecu('Система управления ВВБ', 'BMS', 'BMS', 'ВВБ', '7E7', 'UDS', 'ok', 0, 0, 'scanner-bms'),
-        ecu('≈ Контроллер заднего мотора Л', 'SMCU', 'SMCU', 'Задн. мотор ≈', null, null, 'none', null, null, 'scanner-drives'),
-        ecu('≈ Контроллер заднего мотора П', 'SMCU3', 'SMCU3', 'Задн. мотор ≈', null, null, 'none', null, null, 'scanner-drives'),
-        ecu('≈ Бортовое зарядное и DC-DC', 'DCOBC', 'DCOBC', 'OBC + DC-DC ≈', null, null, 'none', null, null, 'scanner-hv'),
+        // the factory map's routes (findings, «Complete factory map»): F194 as cached, mask 09 empty.
+        // Which rear motor each SMCU drives is not established: one name, the abbreviation tells them apart.
+        ecu('Контроллер заднего мотора', 'SMCU', 'SMCU', 'Задн. мотор', '744', 'UDS', 'ok', 0, 0, 'scanner-drives'),
+        ecu('Контроллер заднего мотора', 'SMCU3', 'SMCU3', 'Задн. мотор', '745', 'UDS', 'ok', 0, 0, 'scanner-drives'),
+        ecu('≈ Бортовое зарядное и DC-DC', 'DCOBC', 'DCOBC', 'OBC + DC-DC ≈', '7E4', 'UDS', 'ok', 0, 0, 'scanner-hv'),
       ] },
       { id: 'chassis', title: 'ШАССИ И БЕЗОПАСНОСТЬ', short: 'Шасси', topo: 'ШАССИ', ecus: [
         ecu('Тормозная система, стабилизация', 'ESP/IPB · Bosch', 'ESP/IPB', 'Тормоза, ESP', '782', 'UDS', 'ok', 0, 0, 'scanner-brakes'),
@@ -1277,7 +1279,7 @@
   };
   const scannerScan = Object.assign({}, autoscan, {
     footer: { buttons: [['Опросить снова', 'primary'], ['Только с DTC', 'quiet']],
-      notes: ['Имена — по номеру ПО (F194) и кэшу обновлений BYD · ≈ — по сокращению', '|', ['43 из 46 ответили', true]] },
+      notes: ['Имена — по номеру ПО (F194) и кэшу обновлений BYD · ≈ — по сокращению', '|', ['46 из 46 ответили', true]] },
   });
   const scannerTopology = Object.assign({}, autoscan, {
     footer: { buttons: [['Опросить снова', 'primary']], legendGap: 16,
@@ -1430,29 +1432,29 @@
   const scannerDrives = {
     top: scanTop(['Автоскан', 'Электропривод'], '15:04:45'),
     block: { title: 'Электропривод', aside: '· 3 мотора + мотор-генератор', counters: [['DTC', '0'], ['ШИНА П, В', '555'], ['ШИНА З, В', '556']],
-      line: 'FMCU 7E3 → 7EB · ISG 7E6 → 7EE · SMCU, SMCU3: адрес не найден · данные: шина сигналов (autoservice)' },
+      line: 'FMCU 7E3 → 7EB · SMCU 744 → 74C · SMCU3 745 → 74D · ISG 7E6 → 7EE · данные: шина сигналов (autoservice)' },
     tabs: { items: ['Сравнение моторов', 'DTC', 'Идентификация'], active: 0 },
-    units: [['Передний', 'FMCU · 7E3'], ['Задний левый', 'SMCU'], ['Задний правый', 'SMCU3'], ['Мотор-генератор', 'ISG · 7E6']],
+    units: [['FMCU · 7E3', 'передний'], ['SMCU · 744', 'задний'], ['SMCU3 · 745', 'задний'], ['ISG · 7E6', 'мотор-генератор']],
     // [parameter, signals, unit, [front, rear left, rear right, motor-generator]]
     rows: [
-      ['Температура статора', '1039 · 46406018 · 285001A8 · 285001B0', '°C', ['8', '7', '7', '—']],
-      ['Температура силовых ключей (IGBT/IPM)', '1039 · 46406010 · 2D000180 · 2D000188', '°C', ['9', '5', '5', '—']],
-      ['Напряжение шины DC', '1039 · 46407020 · 46407010', 'В', ['555', '556', '556', '—']],
-      ['Обороты', '1012 · 44100008 · 1039 · 0FC000D0 · 0FC000E0', 'об/мин', ['0', 'н/д', '0', '—']],
-      ['Крутящий момент, факт.', '1012 · 44100018 · 1039 · 2850002C · 2850003C', 'Н·м', ['0,0', '0,0', '0,0', '—']],
-      ['Ток DC', '1009 · 46C00008 · 1039 · 28500178 · 28500188', 'А', ['0,0', '0,0', '0,0', '—']],
-      ['Коды неисправностей', 'UDS 19 01 FF', 'DTC', ['0', 'нет адреса', 'нет адреса', '0']],
-      ['Номер ПО поставщика', 'UDS 22 F194', '', ['48370011E075000000', '—', '—', '48370011E0EA000000']],
-      ['Версия ПО', 'UDS 22 F195', '', ['9D78190A190C', '—', '—', '9D79190A1E0D']],
+      ['Температура статора', '1039·46406018 · Л 285001A8 · П 285001B0', '°C', ['8', '7', '7', '—']],
+      ['Температура силовых ключей (IGBT/IPM)', '1039·46406010 · Л 2D000180 · П 2D000188', '°C', ['9', '5', '5', '—']],
+      ['Напряжение шины DC', '1039·46407020 · задн. 46407010', 'В', ['555', '556', '556', '—']],
+      ['Обороты', '1012·44100008 · 1039 Л 0FC000D0 · П 0FC000E0', 'об/мин', ['0', 'н/д', '0', '—']],
+      ['Крутящий момент, факт.', '1012·44100018 · 1039 Л 2850002C · П 2850003C', 'Н·м', ['0,0', '0,0', '0,0', '—']],
+      ['Ток DC', '1009·46C00008 · 1039 Л 28500178 · П 28500188', 'А', ['0,0', '0,0', '0,0', '—']],
+      ['Коды неисправностей', 'UDS 19 01 09 · 19 02 09', 'DTC', ['0', '0', '0', '0']],
+      ['Номер ПО поставщика', 'UDS 22 F194', '', ['48370011E075000000', '48370011E086001100', '48370011E088001100', '48370011E0EA000000']],
+      ['Версия ПО', 'UDS 22 F195 · у SMCU, SMCU3 не читали', '', ['9D78190A190C', '—', '—', '9D79190A1E0D']],
     ],
     footer: { buttons: [back, ['Обновить', 'primary']],
-      notes: ['Задние моторы видны по шине сигналов; их память ошибок — адрес не найден · н/д — сигнал не отвечает'] },
+      notes: ['Сторона SMCU и SMCU3 не установлена: сигналы Л и П стоят в их колонках по допущению · н/д — сигнал не отвечает'] },
   };
 
   const scannerHv = {
     top: scanTop(['Автоскан', 'Высоковольтная система'], '15:04:45'),
     block: { title: 'Высоковольтная система', aside: '· ВВБ, привод, мотор-генератор', counters: [['U ВВБ', '553 В'], ['SOC', '74 %'], ['DTC', '0']],
-      line: 'BMS 7E7 · FMCU 7E3 · ISG 7E6 · ECM 7E0 · PTC 766 · нет адреса: SMCU, SMCU3, DCOBC · UDS + шина сигналов' },
+      line: 'UDS: BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · + сигналы' },
     tabs: { items: ['Схема', 'ВВБ · данные', 'Приводы · данные'], active: 0 },
     contactor: 'главный контактор',
     busLabel: 'ШИНА DC',
@@ -1463,22 +1465,22 @@
     units: [
       { abbr: 'FMCU', addr: '7E3', name: 'Инвертор передний', kind: 'ok', state: 'OK · IPM 9 °C', opens: 'scanner-drives' },
       { abbr: 'ISG', addr: '7E6', name: 'Мотор-генератор', kind: 'ok', state: 'OK · DTC 0', opens: 'scanner-drives' },
-      { abbr: 'SMCU', addr: '—', name: 'Инвертор задний Л', kind: 'none', state: 'IGBT 5 °C · сигналы', opens: 'scanner-drives' },
-      { abbr: 'SMCU3', addr: '—', name: 'Инвертор задний П', kind: 'none', state: 'IGBT 5 °C · сигналы', opens: 'scanner-drives' },
+      { abbr: 'SMCU', addr: '744', name: 'Инвертор задний', kind: 'ok', state: 'OK · DTC 0', opens: 'scanner-drives' },
+      { abbr: 'SMCU3', addr: '745', name: 'Инвертор задний', kind: 'ok', state: 'OK · DTC 0', opens: 'scanner-drives' },
       { abbr: 'ECM', addr: '7E0', name: 'ДВС', kind: 'ok', state: 'OK · MIL ВЫКЛ', opens: 'scanner-ecu-dtc' },
       { abbr: 'PTC', addr: '766', name: '≈ Нагреватель ВВ', kind: 'unread', state: 'ошибки не читали', opens: 'scanner-scan' },
-      { abbr: 'DCOBC', addr: '—', name: '≈ Зарядное + DC-DC', kind: 'none', state: 'нет адреса · в кэше' },
+      { abbr: 'DCOBC', addr: '7E4', name: '≈ Зарядное + DC-DC', kind: 'ok', state: 'OK · DTC 0', opens: 'scanner-scan' },
       { abbr: 'LBMS', addr: '762', name: 'АКБ 12 В · 13,7 В', kind: 'ok', state: 'OK · DTC 0' },
     ],
     machines: [
       { name: 'Передний мотор', values: 'статор 8 °C · 0 об/мин · 0 Н·м', live: true },
       { name: 'ДВС не работает', values: '0 об/мин · ОЖ 9 °C' },
-      { name: 'Задний левый мотор', values: 'статор 7 °C · н/д об/мин · 0 Н·м' },
-      { name: 'Задний правый мотор', values: 'статор 7 °C · 0 об/мин · 0 Н·м' },
+      { name: '≈ Задний левый мотор', values: 'статор 7 °C · н/д об/мин · 0 Н·м' },
+      { name: '≈ Задний правый мотор', values: 'статор 7 °C · 0 об/мин · 0 Н·м' },
     ],
     footer: { buttons: [['Обновить', 'primary']], legendGap: 18,
       legend: [['ok', 'блок отвечает по UDS'], ['unread', 'ответил, ошибки не читали'], ['none', 'адрес не найден'], ['mech', 'механическая связь']],
-      notes: ['Схема функциональная · ≈ по сокращению'] },
+      notes: ['Схема функциональная · ≈ по сокращению; сторона задних моторов не установлена'] },
   };
 
   // 782 and 7E5, read 2026-10-20

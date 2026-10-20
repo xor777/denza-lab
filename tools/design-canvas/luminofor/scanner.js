@@ -51,6 +51,7 @@
   function fit(c, str, s, max) {
     str = String(str);
     if (max == null || measure(c, str, s) <= max) return str;
+    if (root.SCANNER_CUTS) root.SCANNER_CUTS.push(str); // a debugging hook: what had to be cut
     while (str.length && measure(c, str + '…', s) > max) str = str.slice(0, -1);
     return str.replace(/\s+$/, '') + '…';
   }
@@ -297,7 +298,9 @@
   }
 
   // The footer: buttons from the left, then a legend; notes from the right, '|' a divider.
-  function footer(c, f) {
+  // present: the tile kinds the board draws - a legend entry for a kind nobody shows is left out.
+  const TILE_KINDS = ['ok', 'hist', 'unread', 'none'];
+  function footer(c, f, present) {
     const F = L.footer;
     fill(c, 0, F.top, W, F.height, 'bar');
     rule(c, 0, F.top, W);
@@ -306,7 +309,7 @@
     (f.buttons || []).forEach(([label, kind]) => { x += button(c, label, x, kind) + F.gap; });
     const gap = f.legendGap || F.gap;
     if (f.legend) x += gap - F.gap;
-    (f.legend || []).forEach(([kind, label]) => {
+    (f.legend || []).filter(([kind]) => !present || !TILE_KINDS.includes(kind) || present.has(kind)).forEach(([kind, label]) => {
       const S = F.legend;
       swatch(c, kind, x, top0 + (room - S.h) / 2);
       x += S.w + S.gap;
@@ -448,7 +451,7 @@
       const sw = state ? text(c, state, ix + iw, t2, 'tileState', k.state, { align: 'right' }) + 6 : 0;
       text(c, e.short, ix, t2, 'tileName', k.sub, { max: iw - sw });
     });
-    footer(c, f.footer);
+    footer(c, f.footer, new Set(tiles.map(([, , e]) => e.kind)));
   }
 
   // The status bits of a DTC, bit 0 first, as ISO 14229-1 names them.
@@ -860,7 +863,7 @@
       text(c, m.name, V.caption, my, 'machine', m.live ? 'white' : 'text');
       text(c, m.values, V.caption, my + style('machine').lh + 3, 'machineMono', 'dim');
     });
-    footer(c, f.footer);
+    footer(c, f.footer, new Set(f.units.map(u => u.kind)));
   }
 
   const SCREENS = { scan, topology, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, bms, drives, hv, brakes, adas };
