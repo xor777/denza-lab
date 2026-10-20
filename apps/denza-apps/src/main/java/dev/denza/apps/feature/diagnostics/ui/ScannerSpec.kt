@@ -192,6 +192,9 @@ internal object ScannerSpec {
         val TILE_ADDR = Style(11f, 16f, mono = true)
         val TILE_NAME = Style(11f, 14f)
         val TILE_STATE = Style(10.5f, 15f, 500, track = 0.03f)
+        /** The systems down the left: a system's name and its codes' mark. */
+        val RAIL_ITEM = Style(15f, 20f)
+        val RAIL_MARK = Style(11f, 16f, mono = true)
         val TOPO_LABEL = Style(11f, 16f, track = 0.07f)
         val HEAD_UNIT = Style(13f, 16f, 500)
         val HEAD_UNIT_HOPS = Style(11f, 16f, mono = true)
@@ -234,7 +237,7 @@ internal object ScannerSpec {
             "keyValue" to KEY_VALUE, "pidHead" to PID_HEAD, "pid" to PID, "bit" to BIT, "unitName" to UNIT_NAME,
             "unitTag" to UNIT_TAG, "rowSig" to ROW_SIG, "plateText" to PLATE_TEXT, "abbr" to ABBR,
             "abbrName" to ABBR_NAME, "tileAbbr" to TILE_ABBR, "tileAddr" to TILE_ADDR, "tileName" to TILE_NAME,
-            "tileState" to TILE_STATE, "topoLabel" to TOPO_LABEL, "headUnit" to HEAD_UNIT,
+            "tileState" to TILE_STATE, "railItem" to RAIL_ITEM, "railMark" to RAIL_MARK, "topoLabel" to TOPO_LABEL, "headUnit" to HEAD_UNIT,
             "headUnitHops" to HEAD_UNIT_HOPS, "hvAbbr" to HV_ABBR, "hvName" to HV_NAME, "hvState" to HV_STATE,
             "hvLabel" to HV_LABEL, "hvVolts" to HV_VOLTS, "packTitle" to PACK_TITLE, "packTag" to PACK_TAG,
             "packState" to PACK_STATE, "packKey" to PACK_KEY, "packValue" to PACK_VALUE, "machine" to MACHINE,

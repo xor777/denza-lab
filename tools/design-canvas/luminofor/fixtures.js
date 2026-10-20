@@ -864,6 +864,172 @@
   const scanner = screen => ({ kind: 'scanner', mode: 'full', screen });
 
   // board id -> [board, fixture]; px sizes are the displays' own
+  // The systems down the left (Tesla's service mode): the autoscan first, then one system a tab.
+  // A mark only where codes are: «ИСТ n» history, «АКТ n» active.
+  const sysRail = active => ({ active, items: [
+    { name: 'Автоскан', mark: ['68/68', 'faint'] }, '|',
+    { name: 'ВВ-система' }, { name: 'Тяговая батарея' }, { name: 'Электропривод' }, { name: 'Двигатель' },
+    { name: 'Шасси' }, { name: 'Безопасность' }, { name: 'Ассистенты' },
+    { name: 'Кузов', mark: ['ИСТ 10', 'ink4'] }, { name: 'Салон' }, { name: 'Климат' }, { name: 'Сеть 12 В' }, { name: 'Прочие блоки' },
+  ] });
+  const sysTop = (crumb, time, car) => scanTop([crumb], time, car);
+
+  const scannerSysScan = Object.assign({}, autoscan, {
+    top: sysTop('Автоскан', '16:31:07'),
+    rail: sysRail('Автоскан'),
+    block: { title: 'Автоскан', aside: '· 68 блоков', line: 'опрос 16:31 · 144 запроса за 20 с · маска DTC 09',
+      counters: [['ОТВЕТИЛО', '68/68'], ['DTC АКТ.', '0'], ['DTC ИСТ.', '10'], ['ПРОЧИТАНО', '19/68']] },
+    tabs: { items: ['Список', 'Топология'], active: 0 },
+    footer: { buttons: [['Опросить снова', 'primary'], ['Только с DTC', 'quiet']] },
+  });
+
+  const scannerSysEngine = Object.assign({}, { rows: scannerEcuLive.rows }, {
+    top: sysTop('Двигатель', '15:51:02', 'Z9 GT DM · P · ДВС работает'),
+    rail: sysRail('Двигатель'),
+    block: { title: 'Двигатель', aside: '· ECM 7E0 · UAES', line: '7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01 · 13 PID · опрос 4 Гц',
+      counters: [['MIL', 'ВЫКЛ'], ['DTC', '0'], ['ГОТОВН.', '4/9']] },
+    tabs: { items: ['Состояние', 'DTC и готовность', 'Блоки'], active: 0 },
+    footer: { buttons: [['Пауза', 'primary'], ['Выбор PID', 'quiet'], ['Сбросить мин/макс', 'quiet']] },
+  });
+
+  // the body's codes as the car gave them on 2026-10-20 (19 02 09: status masked to 0x08)
+  const bodyCode = (block, addr, code, ftb, ftbName, desc) => ({ block, addr, code, ftb, ftbName, desc, status: '0x08', word: 'подтверждённый' });
+  const scannerSysBody = {
+    top: sysTop('Кузов', '19:31:29'),
+    rail: sysRail('Кузов'),
+    block: { title: 'Кузов', aside: '· 11 блоков', line: 'LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны',
+      counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '10'], ['ПРОЧИТАНО', '11/11']] },
+    tabs: { items: ['Состояние', 'DTC', 'Блоки'], active: 1 },
+    codes: [
+      bodyCode('LA_BCM', '720', 'C1160-06', '06', 'Отказ алгоритма', 'Шасси · код производителя (C1xxx)'),
+      bodyCode('LA_BCM', '720', 'U029D-87', '87', 'Нет сообщения', 'Сеть · общий код SAE'),
+      bodyCode('LA_BCM', '720', 'U0121-87', '87', 'Нет сообщения', 'Сеть · общий код SAE'),
+      bodyCode('LA_BCM', '720', 'B2148-02', '02', 'Общий отказ сигнала', 'Кузов · общий код SAE'),
+      bodyCode('LA_BCM', '720', 'B2250-00', '00', 'Без подтипа', 'Кузов · общий код SAE'),
+      bodyCode('LA_BCM', '720', 'B225B-00', '00', 'Без подтипа', 'Кузов · общий код SAE'),
+      bodyCode('LA_BCM', '720', 'U0229-87', '87', 'Нет сообщения', 'Сеть · общий код SAE'),
+      bodyCode('LA_BCM', '720', 'U022A-87', '87', 'Нет сообщения', 'Сеть · общий код SAE'),
+      bodyCode('R_ZCU', '747', 'C1170-09', '09', 'Отказ компонента', 'Шасси · код производителя (C1xxx)'),
+      bodyCode('R_ZCU', '747', 'B130E-01', '01', 'Общий электрический отказ', 'Кузов · код производителя (B1xxx)'),
+    ],
+    footer: { buttons: [['Прочитать DTC', 'primary']], notes: [['19 01 09 · 19 02 09 · снимок 19:31:29', true]] },
+  };
+
+  // The systems' «Состояние» as schemes, the parked snapshot of 2026-10-20 (sweep and autoscan).
+  const u = (abbr, req, short, kind, history) => ({ abbr, req, short, kind: kind || 'ok', history });
+  const sysTabs = active => ({ items: ['Состояние', 'DTC', 'Блоки'], active });
+  const scannerSysChassis = {
+    top: sysTop('Шасси', '19:31:29'), rail: sysRail('Шасси'),
+    block: { title: 'Шасси', aside: '· 3 блока', line: 'ESP/IPB 782 · BSCM 7E5 · EPS 783 · шины: давление 1016, температура 1007', counterW: 130,
+      counters: [['ДАВЛЕНИЕ', '2,60–2,72'], ['DTC', '0'], ['ПРОЧИТАНО', '3/3']] },
+    tabs: sysTabs(0),
+    tyres: [
+      { side: 'L', axle: 'F', label: 'ШИНА ПЛ', pressure: '2,72', temp: '19 °C' },
+      { side: 'R', axle: 'F', label: 'ШИНА ПП', pressure: '2,60', temp: '8 °C' },
+      { side: 'L', axle: 'R', label: 'ШИНА ЗЛ', pressure: '2,70', temp: '17 °C' },
+      { side: 'R', axle: 'R', label: 'ШИНА ЗП', pressure: '2,62', temp: '8 °C' },
+    ],
+    units: { esp: u('ESP/IPB', '782', 'Тормоза, ESP'), eps: u('EPS', '783', 'Рулевое'), bscm: u('BSCM', '7E5', 'Тормоза · OBD') },
+    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
+  };
+  const door = (side, axle, label) => ({ side, axle, label, state: 'закрыта', detail: 'не заперта · окно 0 %' });
+  const scannerSysBodyState = {
+    top: sysTop('Кузов', '19:31:29'), rail: sysRail('Кузов'),
+    block: scannerSysBody.block,
+    tabs: sysTabs(0),
+    doors: [door('L', 'F', 'ДВЕРЬ ПЛ'), door('R', 'F', 'ДВЕРЬ ПП'), door('L', 'R', 'ДВЕРЬ ЗЛ'), door('R', 'R', 'ДВЕРЬ ЗП')],
+    units: {
+      uwb: u('UWBMC', '7F3', 'UWB-ключ'), front: u('F_ZCU', '722', 'Зона спереди'), back: u('B_ZCU', '726', 'Зона сзади'),
+      lampL: u('FL_L', '770', 'Фара Л'), lampR: u('FL_R', '771', 'Фара П'),
+      left: u('LA_BCM', '720', 'Кузов слева', 'hist', 8), right: u('R_ZCU', '747', 'Зона справа', 'hist', 2),
+    },
+    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
+  };
+  const scannerSysAdas = {
+    top: sysTop('Ассистенты', '19:31:29'), rail: sysRail('Ассистенты'),
+    block: { title: 'Ассистенты', aside: '· 7 блоков', line: 'ADC 712 · MRR 7F2 · угловые радары 760 761 7C2 7D4 · IPA 701',
+      counters: [['DTC', '0'], ['ПРОЧИТАНО', '7/7']] },
+    tabs: { items: ['Состояние', 'Сравнение', 'DTC', 'Блоки'], active: 0 },
+    units: {
+      mrr: u('MRR', '7F2', 'Радар передний'), fl: u('LFCR', '760', 'Угловой ПЛ'), fr: u('RFCR', '761', 'Угловой ПП'),
+      rl: u('LRCR', '7D4', 'Угловой ЗЛ'), rr: u('RRCR', '7C2', 'Угловой ЗП'), adc: u('ADC', '712', 'Контроллер ADAS'), ipa: u('IPA', '701', 'Парковка'),
+    },
+    footer: { buttons: [['Прочитать DTC', 'primary']], notes: [['19 01 09 · 19 02 09 · снимок 19:31:29', true]] },
+  };
+  const scannerSysDrives = {
+    top: sysTop('Электропривод', '19:31:29'), rail: sysRail('Электропривод'),
+    block: { title: 'Электропривод', aside: '· 5 блоков', line: 'VCU 7E2 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6',
+      counters: [['ШИНА ПЕРЕД', '555 В'], ['ШИНА ЗАД', '556 В'], ['DTC', '0']] },
+    tabs: { items: ['Состояние', 'Сравнение', 'DTC', 'Блоки'], active: 0 },
+    units: { vcu: u('VCU', '7E2', 'Силовая установка') },
+    rearBlocks: 'SMCU 744 · SMCU3 745',
+    front: { label: 'ПЕРЕДНИЙ МОТОР · FMCU 7E3', rows: ['статор 8 °C · IGBT 9 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
+    isg: { label: 'МОТОР-ГЕНЕРАТОР · ISG 7E6', rows: ['DTC 0 · ПО 9D79190A1E0D', 'ДВС не работает'] },
+    rearLeft: { label: 'ЗАДНИЙ ЛЕВЫЙ', rows: ['статор 7 °C · IGBT 5 °C', 'н/д об/мин · 0,0 Н·м · 0,0 А'] },
+    rearRight: { label: 'ЗАДНИЙ ПРАВЫЙ', rows: ['статор 7 °C · IGBT 5 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
+    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
+  };
+
+  const scannerSysHv = Object.assign({}, scannerHv, {
+    top: sysTop('ВВ-система', '19:31:29'), rail: sysRail('ВВ-система'),
+    block: Object.assign({}, scannerHv.block, { line: 'BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · LBMS 762' }),
+    pack: Object.assign({}, scannerHv.pack, { rows: [['U / I', '553 В · −4,5 А'], ['SOC / SOH', '74 % · 99 %'], ['Ячейки', '3 333–3 337 мВ'],
+      ['Разброс', '4 мВ'], ['Температура', '13…18 °C'], ['Изоляция', '14,4 · 19,7 МОм']] }),
+    tabs: sysTabs(0),
+    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
+  });
+  const scannerSysPack = {
+    top: sysTop('Тяговая батарея', '19:31:29'), rail: sysRail('Тяговая батарея'),
+    block: { title: 'Тяговая батарея', aside: '· BMS 7E7', line: 'напряжение и ток 1009 · SOC и SOH 1014 · ячейки и модули 1014 · изоляция 1039',
+      counters: [['U', '553 В'], ['SOC', '74 %'], ['DTC', '0']] },
+    tabs: { items: ['Состояние', 'Потоковые данные', 'Флаги GB/T 32960', 'DTC', 'Блоки'], active: 0 },
+    pack: { soc: 74, socText: '74 %', soh: '99 %', cells: '166 ячеек · 14 датчиков', volts: '553 В', current: '−4,5 А',
+      insulation: [['канал BMC', '14,4 МОм'], ['канал 2', '19,7 МОм']], isoNorm: 'норма ≥ 500 Ом/В · 277 кОм' },
+    ranges: [
+      { head: 'ЯЧЕЙКИ, мВ', value: '3 333–3 337', scale: [3000, 3700], span: [3333, 3337], lo: '3 000', hi: '3 700', note: 'разброс 4 мВ' },
+      { head: 'ТЕМПЕРАТУРА МОДУЛЕЙ, °C', value: '13–18', scale: [-20, 60], span: [13, 18], mark: 14, lo: '−20', hi: '60', note: 'средняя 14' },
+    ],
+    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
+  };
+  // the illustrative warm idle of «Потоковые данные», at its places on the air's way
+  const pt = (side, x, w, label, rows, at) => ({ side, x, w, label, rows, at });
+  const scannerSysEngineScheme = {
+    top: sysTop('Двигатель', '15:51:02', 'Z9 GT DM · P · ДВС работает'), rail: sysRail('Двигатель'),
+    block: { title: 'Двигатель', aside: '· ECM 7E0 · UAES', line: '7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01 · опрос 4 Гц',
+      counters: [['ОБОРОТЫ', '1 250'], ['MIL', 'ВЫКЛ'], ['ГОТОВН.', '4/9']] },
+    tabs: { items: ['Состояние', 'Потоковые данные', 'DTC и готовность', 'Блоки'], active: 0 },
+    points: [
+      pt('up', 110, 170, 'ВОЗДУХ НА ВПУСКЕ', ['IAT 24 °C']),
+      pt('down', 210, 170, 'ДРОССЕЛЬ', ['TPS 6,3 %']),
+      pt('up', 300, 150, 'КОЛЛЕКТОР', ['MAP 38 кПа']),
+      pt('up', 500, 240, 'ДВС', ['1 250 об/мин · LOAD 28 %', 'УОЗ 14,0° · ОЖ 91 °C'], 340),
+      pt('down', 500, 240, 'ТОПЛИВО', ['STFT +3,1 % · LTFT −2,3 %', 'петля замкнута (CL)'], 460),
+      pt('up', 765, 180, 'КАТАЛИЗАТОР', ['B1S1 512 °C'], 378),
+      pt('down', 880, 180, 'ДАТЧИК O2 B1S2', ['0,68 В'], 437),
+    ],
+    footer: { buttons: [['Пауза', 'primary'], ['Выбор PID', 'quiet']] },
+  };
+  const scannerSysClimate = {
+    top: sysTop('Климат', '19:31:29'), rail: sysRail('Климат'),
+    block: { title: 'Климат', aside: '· 3 блока', line: 'ACC 7B3 · TMIM 7B4 · PTC 766 · температуры 1000 · PM2.5 1008',
+      counters: [['САЛОН', '21 °C'], ['УЛИЦА', '12 °C'], ['DTC', '0']] },
+    tabs: sysTabs(0),
+    outside: { label: 'УЛИЦА', temp: '12 °C', pm: '18' },
+    cabin: { label: 'САЛОН', temp: '21 °C', pm: '5', inside: true },
+    units: { acc: u('ACC', '7B3', 'Климат-контроль'), ptc: u('PTC', '766', 'Нагреватель ВВ'), tmim: u('TMIM', '7B4', 'Терморегул.') },
+    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
+  };
+  const scannerSysLv = {
+    top: sysTop('Сеть 12 В', '19:31:29'), rail: sysRail('Сеть 12 В'),
+    block: { title: 'Сеть 12 В', aside: '· LBMS 762', line: 'DC-DC в DCOBC 7E4 · АКБ LBMS 762 · напряжение 1001',
+      counters: [['12 В', '13,7 В'], ['DTC', '0']] },
+    tabs: sysTabs(0),
+    hv: '553 В', lv: '13,7 В',
+    units: { dcdc: u('DCOBC', '7E4', 'DC-DC'), lbms: u('LBMS', '762', 'АКБ 12 В'),
+      loads: [u('F_ZCU', '722', 'Зона спереди'), u('LA_BCM', '720', 'Кузов слева', 'hist', 8), u('R_ZCU', '747', 'Зона справа', 'hist', 2), u('B_ZCU', '726', 'Зона сзади')] },
+    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
+  };
+
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
     'cluster-launch': [{ kind: 'cluster' }, scenes.launch],
@@ -937,6 +1103,18 @@
     'one-sheet-cast-apps': [{ kind: 'sheet', mode: 'one' }, sheets.castApps],
     'scanner-scan':      [scanner('scan'), scannerScan],
     'scanner-topology':  [scanner('topology'), scannerTopology],
+    'scanner-sys-scan':  [scanner('sysScan'), scannerSysScan],
+    'scanner-sys-engine': [scanner('sysLive'), scannerSysEngine],
+    'scanner-sys-body':  [scanner('sysDtc'), scannerSysBody],
+    'scanner-sys-chassis': [scanner('sysChassis'), scannerSysChassis],
+    'scanner-sys-body-state': [scanner('sysBodyState'), scannerSysBodyState],
+    'scanner-sys-adas':  [scanner('sysAdas'), scannerSysAdas],
+    'scanner-sys-drives': [scanner('sysDrives'), scannerSysDrives],
+    'scanner-sys-hv':    [scanner('sysHv'), scannerSysHv],
+    'scanner-sys-pack':  [scanner('sysPack'), scannerSysPack],
+    'scanner-sys-engine-scheme': [scanner('sysEngineScheme'), scannerSysEngineScheme],
+    'scanner-sys-climate': [scanner('sysClimate'), scannerSysClimate],
+    'scanner-sys-lv':    [scanner('sysLv'), scannerSysLv],
     'scanner-body-dtc':  [scanner('bodyDtc'), scannerBodyDtc],
     'scanner-ecu-dtc':   [scanner('ecuDtc'), scannerEcuDtc],
     'scanner-ecu-live':  [scanner('ecuLive'), scannerEcuLive],

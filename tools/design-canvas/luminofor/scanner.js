@@ -20,7 +20,9 @@
   'use strict';
   const L = root.SCANNER_LAYOUT;
   const C = L.colors, T = L.type;
-  const W = L.size[0], H = L.size[1];
+  // W is let: a system's page draws its content at the width the rail leaves (shell())
+  let W = L.size[0];
+  const H = L.size[1];
 
   /* ------------------------------------------------------------------ ink */
   const col = n => (n in C ? C[n] : n);
@@ -364,7 +366,12 @@
     header(c, f.top);
     summary(c, f.counters);
     tabs(c, { items: f.tabs, active: 0 }, f.groups.map(g => [g.short, String(g.ecus.length)]));
-    const S = L.scan, cols = columns(S.table.cols, 24, W - 48);
+    scanTable(c, f, L.scan.table.cols);
+    footer(c, f.footer);
+  }
+
+  function scanTable(c, f, colSpec) {
+    const S = L.scan, cols = columns(colSpec, 24, W - 48);
     const P = S.table.pad, NP = S.table.numPad;
     headRow(c, cols, ['СИСТЕМА', 'БЛОК', 'ЗАПРОС → ОТВЕТ', 'ПРОТОКОЛ', ['DTC АКТ.', 'right', NP], ['DTC ИСТ.', 'right', NP], 'СТАТУС'],
       S.table.top, S.table.head);
@@ -399,7 +406,414 @@
       }
     }
     c.restore();
+  }
+
+  /* --------------------------------------------- systems down the left */
+  // The section built around the car's systems, as Tesla's service mode is: the systems down the
+  // left, one system a tab, the autoscan of every block first; the rest of the screen is the
+  // chosen one's, its own tabs inside it. A system's mark says only what its look cannot: codes.
+  function rail(c, R) {
+    const S = L.rail, top = L.header.height, bottom = L.footer.top;
+    fill(c, 0, top, S.w, bottom - top, 'bar');
+    fill(c, S.w - 1, top, 1, bottom - top, 'rule');
+    let y = top + S.padTop;
+    R.items.forEach(it => {
+      if (it === '|') { y += S.sepGap; rule(c, S.padX, y, S.w - 2 * S.padX); y += S.sepGap + 1; return; }
+      const on = it.name === R.active;
+      if (on) { fill(c, 0, y, S.w - 1, S.item, 'pidFill'); fill(c, 0, y, S.bar, S.item, 'blue'); }
+      let r = S.w - S.padX;
+      if (it.mark) {
+        const [t, ink] = it.mark;
+        r -= text(c, t, r, mid(y, S.item, 'railMark'), 'railMark', ink, { align: 'right' }) + 8;
+      }
+      text(c, it.name, S.padX, mid(y, S.item, 'railItem'), 'railItem', on ? 'white' : 'dim', { max: r - S.padX });
+      y += S.item;
+    });
+  }
+
+  function shell(c, f, body) {
+    header(c, f.top);
+    rail(c, f.rail);
+    const full = W;
+    W = full - L.rail.w;
+    c.save(); c.translate(L.rail.w, 0);
+    try { body(); } finally { c.restore(); W = full; }
     footer(c, f.footer);
+  }
+
+  function sysScan(c, f) {
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); scanTable(c, f, L.rail.scanCols); });
+  }
+
+  function sysLive(c, f) {
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); liveTable(c, f, L.rail.liveCols); });
+  }
+
+  // A system's codes, every block's on one table: the block named on its first row, a rule
+  // between blocks; a row opens the block with its status bits.
+  function sysDtc(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block);
+      tabs(c, f.tabs);
+      const D = L.rail.dtc, cols = columns(D.cols, 24, W - 48), P = 12;
+      let y = headRow(c, cols, ['БЛОК', 'КОД', 'ТИП ОТКАЗА (FTB)', 'ОПИСАНИЕ', 'СТАТУС'], L.ecuLive.top, L.ecuLive.head);
+      let last = null;
+      for (const r of f.codes) {
+        const h = D.row;
+        if (r.block !== last && last !== null) rule(c, 24, y - 1, W - 48);
+        if (r.block !== last) {
+          text(c, r.block, cols[0][0] + P, mid(y, h, 'cell'), 'cell', 'white');
+          text(c, r.addr, cols[0][0] + P + measure(c, r.block, 'cell') + 8, mid(y, h, 'cellMono'), 'cellMono', 'faint');
+        }
+        last = r.block;
+        text(c, r.code, cols[1][0], mid(y, h, 'code'), 'code', 'white');
+        runs(c, [[r.ftb, 'cellNum', 'dim'], [' · ' + r.ftbName, 'cell', 'text']], cols[2][0], base(mid(y, h, 'cell'), 'cell'), cols[2][1] - 12);
+        text(c, r.desc, cols[3][0], mid(y, h, 'cell'), 'cell', 'text', { max: cols[3][1] - 16 });
+        runs(c, [[r.status, 'cellMono', 'text'], ['  ' + r.word, 'cellSmall', 'dim']], cols[4][0], base(mid(y, h, 'cell'), 'cell'), cols[4][1]);
+        const ch = L.scan.list.chevron, k = ch / 24, cx = cols[5][0] + (cols[5][1] - ch) / 2, cy = y + (h - ch) / 2;
+        stroke(c, `M${cx + 9 * k} ${cy + 5 * k}L${cx + 16 * k} ${cy + 12 * k}L${cx + 9 * k} ${cy + 19 * k}`, 'faint', 2 * k, null, 'round');
+        rule(c, 24, y + h, W - 48, 'hair');
+        y += h + 1;
+      }
+    });
+  }
+
+  /* ------------------------------------------------- the car from above */
+  // The body from above, front up, in lines: outline, glass, mirrors and wheels. Returns where the
+  // schemes hang things: the axles, the sides, the corners.
+  function car(c, cx, y0, h) {
+    const C = L.car, w = C.w, x0 = cx - w / 2;
+    c.save();
+    rrect(c, x0, y0, w, h, [C.noseR, C.noseR, C.tailR, C.tailR]);
+    c.fillStyle = col('plate'); c.fill();
+    c.lineWidth = 1.6; c.strokeStyle = col('wire3'); c.stroke();
+    c.restore();
+    const g = C.glass, ws = y0 + g.shield, rw = y0 + h - g.rear;
+    stroke(c, `M${x0 + g.inset} ${ws + 10}Q${cx} ${ws - 14} ${x0 + w - g.inset} ${ws + 10}`, 'wire3', 1.4);
+    stroke(c, `M${x0 + g.inset} ${rw - 8}Q${cx} ${rw + 12} ${x0 + w - g.inset} ${rw - 8}`, 'wire3', 1.4);
+    edge(c, x0 + g.roofInset, ws + 18, w - 2 * g.roofInset, rw - ws - 34, 'line3', 14);
+    const m = C.mirror;
+    stroke(c, `M${x0} ${ws + 4}l${-m[0]} ${-m[1] / 2}v${-m[1]}l${m[0]} ${m[1] / 2}`, 'wire3', 1.4);
+    stroke(c, `M${x0 + w} ${ws + 4}l${m[0]} ${-m[1] / 2}v${-m[1]}l${-m[0]} ${m[1] / 2}`, 'wire3', 1.4);
+    const [ww, wh] = C.wheel, front = y0 + C.axle, rear = y0 + h - C.axle;
+    [[x0, front], [x0 + w, front], [x0, rear], [x0 + w, rear]].forEach(([x, y]) => {
+      fill(c, x - ww / 2, y - wh / 2, ww, wh, 'pidFill', 4); edge(c, x - ww / 2, y - wh / 2, ww, wh, 'line4', 4);
+    });
+    return { x0, y0, w, h, cx, front, rear, left: x0 - ww / 2, right: x0 + w + ww / 2, mid: y0 + h / 2 };
+  }
+
+  // A callout: a plate of lines - [text, style, ink] or runs [[t, style, ink], ...] - and its leader
+  // to a point on the car, a dot at the end.
+  function callout(c, x, y, w, rows, kind, to) {
+    const O = L.callout, k = TILE[kind || 'ok'];
+    const h = 2 * O.padY + rows.reduce((a, r) => a + style(Array.isArray(r[0]) ? r[0][1] : r[1]).lh, 0) + (rows.length - 1) * O.gap;
+    if (to) {
+      const [tx, ty] = to, sx = tx < x ? x : x + w, sy = y + h / 2;
+      stroke(c, ty === sy ? `M${sx} ${sy}H${tx}` : `M${sx} ${sy}H${(sx + tx) / 2}V${ty}H${tx}`, 'wire4', 1.2);
+      c.beginPath(); c.arc(tx, ty, O.dot, 0, 2 * Math.PI); c.fillStyle = col('wire5'); c.fill();
+    }
+    fill(c, x, y, w, h, k.fill, O.r); edge(c, x, y, w, h, k.line, O.r);
+    let ty = y + O.padY;
+    rows.forEach(r => {
+      if (Array.isArray(r[0])) { runs(c, r, x + O.padX, base(ty, r[0][1]), w - 2 * O.padX); ty += style(r[0][1]).lh + O.gap; }
+      else { text(c, r[0], x + O.padX, ty, r[1], r[2], { max: w - 2 * O.padX }); ty += style(r[1]).lh + O.gap; }
+    });
+    return h;
+  }
+  const dot = (c, x, y, r, ink) => { c.beginPath(); c.arc(x, y, r, 0, 2 * Math.PI); c.fillStyle = col(ink); c.fill(); };
+  function machine(c, x, y, glyph, live) {
+    const R = L.callout.machineR;
+    c.beginPath(); c.arc(x, y, R, 0, 2 * Math.PI); c.fillStyle = col('ground'); c.fill();
+    stroke(c, (() => { const p = new Path2D(); p.arc(x, y, R, 0, 2 * Math.PI); return p; })(), live ? 'wire5' : 'wire4', 1.6, live ? null : [4, 3]);
+    const s = style('glyph');
+    glyphs(c, glyph, x - measure(c, glyph, s) / 2, y + 5, s, live ? 'text' : 'dim');
+  }
+
+  // Шасси: the wheels' tyres at their corners, the brake and steering blocks where they sit.
+  function sysChassis(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const cx = (W) / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout;
+      stroke(c, `M${K.x0} ${K.front}H${K.x0 + K.w}M${K.x0} ${K.rear}H${K.x0 + K.w}`, 'wire3', 1.4);
+      const lx = O.leftX, rx = W - O.leftX - O.w;
+      f.tyres.forEach(t => {
+        const left = t.side === 'L', y = t.axle === 'F' ? K.front : K.rear;
+        const rows = [[t.label, 'counterLabel', 'mute'], [[t.pressure, 'counter', 'white'], [' бар', 'unit', 'dim2']], [t.temp, 'cellMono', 'dim']];
+        const h = 2 * O.padY + style('counterLabel').lh + style('counter').lh + style('cellMono').lh + 2 * O.gap;
+        callout(c, left ? lx : rx, y - h / 2, O.w, rows, 'ok', [left ? K.left : K.right, y]);
+      });
+      const T = L.topology.tile;
+      unitTile(c, cx - T.w / 2, K.y0 + 22, f.units.esp);
+      stroke(c, `M${K.x0 + 20} ${K.front}H${K.x0 + K.w - 20}`, 'wire2', 3);
+      unitTile(c, cx - T.w / 2, K.front - T.h / 2, f.units.eps);
+      // the brake system's OBD interface above the left tyres, joined to its block
+      const by = K.y0 + 22 + T.h / 2, top = L.content.top;
+      stroke(c, `M${lx + T.w} ${top + T.h / 2}H${(lx + T.w + cx - T.w / 2) / 2}V${by}H${cx - T.w / 2}`, 'wire4', 1.2, [4, 3]);
+      unitTile(c, lx, top, f.units.bscm);
+    });
+  }
+
+  // Кузов: doors, locks and windows on the body; the zone controllers and lights where they sit;
+  // the UWB key with its four anchors.
+  function sysBodyState(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, T = L.topology.tile;
+      const D = L.car.doors, lx = O.leftX, rx = W - O.leftX - O.w;
+      // the doors as heavy strokes on the sides: closed lies on the body, open would swing out
+      f.doors.forEach(d => {
+        const left = d.side === 'L', x = left ? K.x0 : K.x0 + K.w;
+        const [a, b] = d.axle === 'F' ? D.front : D.rear;
+        stroke(c, `M${x} ${K.y0 + a}V${K.y0 + b}`, d.open ? 'orange' : 'blueSoft', 3);
+        const rows = [[d.label, 'counterLabel', 'mute'], [d.state, 'cell', 'white'], [d.detail, 'cellSmall', 'dim']];
+        const h = 2 * O.padY + style('counterLabel').lh + style('cell').lh + style('cellSmall').lh + 2 * O.gap;
+        callout(c, left ? lx : rx, K.y0 + (a + b) / 2 - h / 2, O.w, rows, 'ok', [x, K.y0 + (a + b) / 2]);
+      });
+      // UWB anchors at the corners, the key module in the middle, radio as dashed lines
+      const U = L.car.anchors, ux = cx - T.w / 2, uy = K.mid - T.h / 2;
+      [[K.x0 + U[0], K.y0 + U[1]], [K.x0 + K.w - U[0], K.y0 + U[1]], [K.x0 + U[0], K.y0 + K.h - U[1]], [K.x0 + K.w - U[0], K.y0 + K.h - U[1]]].forEach(([x, y]) => {
+        stroke(c, `M${x} ${y}L${cx} ${K.mid}`, 'line3', 1, [3, 3]);
+        dot(c, x, y, 4, 'blue');
+      });
+      unitTile(c, ux, uy, f.units.uwb);
+      unitTile(c, cx - T.w / 2, K.y0 + 22, f.units.front);
+      unitTile(c, cx - T.w / 2, K.y0 + K.h - 22 - T.h, f.units.back);
+      // the left and right body domains and the headlamps, beside the car
+      const side = (e, x, y, to) => {
+        stroke(c, `M${x < cx ? x + T.w : x} ${y + T.h / 2}H${to[0]}V${to[1]}`, 'wire4', 1.2);
+        dot(c, to[0], to[1], O.dot, 'wire5');
+        unitTile(c, x, y, e);
+      };
+      side(f.units.lampL, lx, L.content.top, [K.x0 + 26, K.y0 + 14]);
+      side(f.units.lampR, W - lx - T.w, L.content.top, [K.x0 + K.w - 26, K.y0 + 14]);
+      side(f.units.left, lx, K.y0 + L.car.domainY, [K.x0, K.y0 + L.car.domainY + T.h / 2]);
+      side(f.units.right, W - lx - T.w, K.y0 + L.car.domainY, [K.x0 + K.w, K.y0 + L.car.domainY + T.h / 2]);
+    });
+  }
+
+  // Ассистенты: every sensor where it sits on the car, its field of view as a faint wedge.
+  function sysAdas(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const A = L.adasCar, cx = W / 2, K = car(c, cx, A.top, A.h), T = L.topology.tile;
+      const wedge = (x, y, angle, spread, len) => {
+        const a0 = angle - spread / 2, a1 = angle + spread / 2;
+        c.save(); c.beginPath(); c.moveTo(x, y); c.arc(x, y, len, a0, a1); c.closePath();
+        c.fillStyle = col('blueShare'); c.fill(); c.strokeStyle = col('blueEdge'); c.lineWidth = 1; c.stroke(); c.restore();
+        dot(c, x, y, 4, 'blue');
+      };
+      const r = Math.PI / 180, cor = A.corner;
+      wedge(cx, K.y0 + 2, -90 * r, A.front.spread * r, A.front.len);
+      const pts = {
+        fl: [K.x0 + cor[0], K.y0 + cor[1], -135], fr: [K.x0 + K.w - cor[0], K.y0 + cor[1], -45],
+        rl: [K.x0 + cor[0], K.y0 + K.h - cor[1], 135], rr: [K.x0 + K.w - cor[0], K.y0 + K.h - cor[1], 45],
+      };
+      Object.values(pts).forEach(([x, y, a]) => wedge(x, y, a * r, A.corners.spread * r, A.corners.len));
+      const lx = L.callout.leftX, rx = W - lx - T.w;
+      const hang = (e, x, y, to) => {
+        stroke(c, `M${x < cx ? x + T.w : x} ${y + T.h / 2}H${(x < cx ? x + T.w + to[0] : x + to[0]) / 2}V${to[1]}H${to[0]}`, 'wire4', 1.2);
+        unitTile(c, x, y, e);
+      };
+      // the front radar's leader runs above the corner fields and drops into its own
+      stroke(c, `M${rx} ${A.mrrY + T.h / 2}H${cx}V${K.y0 + 2}`, 'wire4', 1.2);
+      unitTile(c, rx, A.mrrY, f.units.mrr);
+      hang(f.units.fl, lx, pts.fl[1] - T.h / 2, [pts.fl[0], pts.fl[1]]);
+      hang(f.units.fr, rx, pts.fr[1] - T.h / 2 + A.frDrop, [pts.fr[0], pts.fr[1]]);
+      hang(f.units.rl, lx, pts.rl[1] - T.h / 2, [pts.rl[0], pts.rl[1]]);
+      hang(f.units.rr, rx, pts.rr[1] - T.h / 2, [pts.rr[0], pts.rr[1]]);
+      unitTile(c, cx - T.w / 2, K.mid - T.h / 2 - A.adcLift, f.units.adc);
+      unitTile(c, cx - T.w / 2, K.y0 + K.h - 22 - T.h - A.ipaLift, f.units.ipa);
+    });
+  }
+
+  // Электропривод: the engine and generator and the front motor on the front axle, the two rear
+  // motors on the rear; their readings beside them. Which rear motor SMCU drives and which SMCU3
+  // is not established: the two blocks stand between the rear motors, bound to neither side.
+  function sysDrives(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, D = L.drivesCar, T = L.topology.tile;
+      const gx = cx - D.pair, mx = cx + D.pair;
+      // shafts: front motor to the front wheels, rear motors each to its wheel, engine to generator
+      stroke(c, `M${K.x0} ${K.front}H${gx - 22}M${mx + 22} ${K.front}H${K.x0 + K.w}M${gx + 22} ${K.front}H${mx - 22}`, 'wire3', 1.6);
+      stroke(c, `M${K.x0} ${K.rear}H${cx - D.pair - 22}M${cx + D.pair + 22} ${K.rear}H${K.x0 + K.w}`, 'wire3', 1.6);
+      const eng = D.engine;
+      fill(c, cx - eng.w / 2, K.y0 + eng.y, eng.w, eng.h, 'tileOk', 5); edge(c, cx - eng.w / 2, K.y0 + eng.y, eng.w, eng.h, 'line4', 5);
+      text(c, 'ДВС', cx, K.y0 + eng.y + (eng.h - style('cellAbbr').lh) / 2, 'cellAbbr', 'dim', { align: 'center' });
+      stroke(c, `M${gx} ${K.y0 + eng.y + eng.h}V${K.front - 22}`, 'wire3', 1.6);
+      // the VCU in the middle, its commands as dashed lines
+      const vy = K.mid - T.h / 2;
+      [[gx, K.front], [mx, K.front], [cx - D.pair, K.rear], [cx + D.pair, K.rear]].forEach(([x, y]) =>
+        stroke(c, `M${cx} ${y < K.mid ? vy : vy + T.h}L${x} ${y < K.mid ? y + 22 : y - 22}`, 'line3', 1, [3, 3]));
+      unitTile(c, cx - T.w / 2, vy, f.units.vcu);
+      machine(c, gx, K.front, 'G', true); machine(c, mx, K.front, 'M', true);
+      machine(c, cx - D.pair, K.rear, 'M', true); machine(c, cx + D.pair, K.rear, 'M', true);
+      text(c, f.rearBlocks, cx, K.rear + D.rearBlocksDy, 'cellAbbr', 'dim', { align: 'center' });
+      const lx = O.leftX - (D.boxW - O.w), rx = W - lx - D.boxW;
+      const box = (d, left, to) => {
+        const rows = [[d.label, 'counterLabel', 'mute'], ...d.rows.map(t => [t, 'cellMono', 'text'])];
+        const h = 2 * O.padY + style('counterLabel').lh + d.rows.length * style('cellMono').lh + d.rows.length * O.gap;
+        callout(c, left ? lx : rx, to[1] - h / 2, D.boxW, rows, 'ok', to);
+      };
+      box(f.front, false, [mx + 22, K.front]);
+      box(f.isg, true, [gx - 22, K.front]);
+      box(f.rearLeft, true, [cx - D.pair - 22, K.rear]);
+      box(f.rearRight, false, [cx + D.pair + 22, K.rear]);
+    });
+  }
+
+  function sysHv(c, f) {
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); hvBody(c, f, L.hvRail); });
+  }
+
+  // A range on a scale: the bar, the span the readings take on it, the scale's ends under it.
+  function rangeBar(c, x, y, w, scale, span, mark, labels) {
+    const R = L.rangeBar, at = v => x + (v - scale[0]) / (scale[1] - scale[0]) * w;
+    text(c, labels.head, x, y, 'counterLabel', 'mute');
+    text(c, labels.value, x + w, y - 3, 'valueBms', 'white', { align: 'right' });
+    const by = y + R.headGap;
+    fill(c, x, by, w, R.h, 'bitOff', R.h / 2);
+    const a = at(span[0]), b = Math.max(at(span[1]), a + R.minSpan);
+    glow(c, 6, 'rgba(67,159,252,0.7)', () => fill(c, a, by - 2, b - a, R.h + 4, 'blue', 2));
+    if (mark != null) fill(c, at(mark) - 0.75, by - 5, 1.5, R.h + 10, 'white');
+    text(c, labels.lo, x, by + R.h + R.tickGap, 'sig', 'faint');
+    text(c, labels.hi, x + w, by + R.h + R.tickGap, 'sig', 'faint', { align: 'right' });
+    if (labels.note) text(c, labels.note, x + w / 2, by + R.h + R.tickGap, 'sig', 'dim2', { align: 'center' });
+  }
+
+  // Тяговая батарея: the pack with its charge, its two poles to the DC bus, the insulation
+  // measured from them to the body; the cells' and modules' ranges beside it.
+  function sysPack(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const P = L.packScheme, p = f.pack;
+      fill(c, P.x, P.y, P.w, P.h, 'plate', P.r); edge(c, P.x, P.y, P.w, P.h, 'blueEdge', P.r);
+      const ih = P.h - 2 * P.pad, fh = ih * p.soc / 100;
+      fill(c, P.x + P.pad, P.y + P.pad + ih - fh, P.w - 2 * P.pad, fh, 'blueShare', 4);
+      fill(c, P.x + P.pad, P.y + P.pad + ih - fh, P.w - 2 * P.pad, 1.5, 'blueEdge');
+      const tx = P.x + P.pad + 14;
+      text(c, 'SOC', tx, P.y + P.pad + 14, 'counterLabel', 'mute');
+      text(c, p.socText, tx, P.y + P.pad + 32, 'counterBig', 'white');
+      // SOC in the empty part above the charge, SOH and the cells at the bottom, inside it
+      text(c, 'SOH', tx, P.y + P.h - P.pad - 100, 'counterLabel', 'mute');
+      text(c, p.soh, tx, P.y + P.h - P.pad - 82, 'counter', 'text');
+      text(c, p.cells, tx, P.y + P.h - P.pad - 32, 'cellSmall', 'dim');
+      const px = P.x + P.w, [yp, ym] = P.poles, bx = P.busX;
+      fill(c, px, yp - 8, 8, 16, 'line4', 2); fill(c, px, ym - 8, 8, 16, 'line4', 2);
+      stroke(c, `M${px + 8} ${yp}H${bx}M${px + 8} ${ym}H${bx}`, 'wire', 2.4);
+      text(c, 'HV+', px + 18, yp - 22, 'counterLabel', 'mute');
+      text(c, 'HV−', px + 18, ym + 8, 'counterLabel', 'mute');
+      text(c, 'ШИНА DC', bx, yp - 22, 'colHead', 'mute', { align: 'right' });
+      text(c, p.volts, bx, yp + 10, 'hvVolts', 'text', { align: 'right' });
+      text(c, p.current, bx, yp + 32, 'cellMono', 'dim', { align: 'right' });
+      // insulation: from both poles to the body
+      const I = P.iso, ix = I.x, iy = (yp + ym) / 2 - I.h / 2, mx = ix + I.w / 2;
+      stroke(c, `M${mx} ${yp}V${iy}M${mx} ${ym}V${iy + I.h}`, 'wire3', 1.6);
+      dot(c, mx, yp, 3, 'wire5'); dot(c, mx, ym, 3, 'wire5');
+      fill(c, ix, iy, I.w, I.h, 'tileOk', 6); edge(c, ix, iy, I.w, I.h, 'blueEdge', 6);
+      let y = iy + 12;
+      text(c, 'ИЗОЛЯЦИЯ НА КОРПУС', ix + 14, y, 'counterLabel', 'mute'); y += 22;
+      p.insulation.forEach(([k, v]) => { text(c, k, ix + 14, y, 'cellSmall', 'dim'); text(c, v, ix + I.w - 14, y, 'cellMono', 'white', { align: 'right' }); y += 22; });
+      text(c, p.isoNorm, ix + 14, y + 4, 'sig', 'faint');
+      const gx = ix + I.w + 30, gy = iy + I.h / 2;
+      stroke(c, `M${ix + I.w} ${gy}H${gx}V${gy + 8}M${gx - 12} ${gy + 8}H${gx + 12}M${gx - 8} ${gy + 13}H${gx + 8}M${gx - 4} ${gy + 18}H${gx + 4}`, 'wire3', 1.6);
+      text(c, 'корпус', gx, gy + 26, 'sig', 'faint', { align: 'center' });
+      const G = P.ranges;
+      f.ranges.forEach((r, i) => rangeBar(c, G.x, G.y + i * G.step, G.w, r.scale, r.span, r.mark, r));
+    });
+  }
+
+  // Двигатель: the air's way through it - inlet, throttle, manifold, cylinders, catalyst, oxygen
+  // sensor - each reading at its place on the way.
+  function sysEngineScheme(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const E = L.engineScheme, y = E.pipeY, hw = E.pipe / 2, Bk = E.block;
+      stroke(c, `M${E.x0} ${y - hw}H${Bk.x}M${E.x0} ${y + hw}H${Bk.x}`, 'wire3', 1.6);
+      stroke(c, `M${Bk.x + Bk.w} ${y - hw}H${E.x1}M${Bk.x + Bk.w} ${y + hw}H${E.x1}`, 'wire3', 1.6);
+      arrow(c, E.x0 - 34, y, E.x0 - 6, y);
+      arrow(c, E.x1 + 6, y, E.x1 + 34, y);
+      stroke(c, `M${E.throttle - 9} ${y + hw - 3}L${E.throttle + 9} ${y - hw + 3}`, 'wire5', 2.4);
+      dot(c, E.throttle, y, 2.6, 'wire5');
+      fill(c, Bk.x, Bk.y, Bk.w, Bk.h, 'tileOk', 8); edge(c, Bk.x, Bk.y, Bk.w, Bk.h, 'blueEdge', 8);
+      for (let i = 0; i < 4; i++) {
+        const cx = Bk.x + Bk.w * (i + 0.5) / 4;
+        c.beginPath(); c.arc(cx, Bk.y + Bk.h / 2, Bk.cyl, 0, 2 * Math.PI); c.strokeStyle = col('wire4'); c.lineWidth = 1.4; c.stroke();
+      }
+      const Ct = E.cat;
+      fill(c, Ct.x, y - Ct.h / 2, Ct.w, Ct.h, 'plate', 6); edge(c, Ct.x, y - Ct.h / 2, Ct.w, Ct.h, 'wire4', 6);
+      for (let x = Ct.x + 10; x < Ct.x + Ct.w - 6; x += 10) stroke(c, `M${x} ${y - Ct.h / 2 + 6}V${y + Ct.h / 2 - 6}`, 'line3', 1);
+      stroke(c, `M${E.o2} ${y + hw + 16}V${y + 2}`, 'wire5', 2.2);
+      fill(c, E.o2 - 5, y + hw + 14, 10, 10, 'quiet', 2); edge(c, E.o2 - 5, y + hw + 14, 10, 10, 'wire4', 2);
+      f.points.forEach(p => {
+        const up = p.side === 'up', edgeY = up ? (p.at || y - hw) : (p.at || y + hw);
+        const rows = [[p.label, 'counterLabel', 'mute'], ...p.rows.map(r => [r, 'cellMono', 'text'])];
+        const h = 2 * L.callout.padY + style('counterLabel').lh + p.rows.length * (style('cellMono').lh + L.callout.gap);
+        const by = up ? E.upY - h : E.downY;
+        stroke(c, `M${p.x} ${up ? by + h : by}V${edgeY}`, 'wire4', 1.2);
+        dot(c, p.x, edgeY, L.callout.dot, 'wire5');
+        callout(c, p.x - p.w / 2, by, p.w, rows, 'ok');
+      });
+    });
+  }
+
+  // A flow arrow between two points, its head at the end.
+  function arrow(c, x1, y1, x2, y2, ink) {
+    const a = Math.atan2(y2 - y1, x2 - x1), h = 8;
+    stroke(c, `M${x1} ${y1}L${x2} ${y2}M${x2 - h * Math.cos(a - 0.45)} ${y2 - h * Math.sin(a - 0.45)}L${x2} ${y2}L${x2 - h * Math.cos(a + 0.45)} ${y2 - h * Math.sin(a + 0.45)}`, ink || 'wire4', 1.6);
+  }
+
+  // Климат: outside air through the climate unit into the cabin; the HV heater and the thermal
+  // module at the unit.
+  function sysClimate(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const C = L.climateScheme, T = L.topology.tile;
+      const zone = (z, x) => {
+        fill(c, x, C.zoneY, C.zoneW, C.zoneH, z.inside ? 'tileOk' : 'plate', 10);
+        edge(c, x, C.zoneY, C.zoneW, C.zoneH, z.inside ? 'blueEdge' : 'line4', 10);
+        let y = C.zoneY + 20;
+        text(c, z.label, x + 22, y, 'counterLabel', 'mute'); y += 22;
+        text(c, z.temp, x + 22, y, 'counterBig', 'white'); y += 50;
+        text(c, 'PM2.5', x + 22, y, 'counterLabel', 'mute'); y += 18;
+        text(c, z.pm, x + 22, y, 'counter', 'text');
+      };
+      zone(f.outside, C.leftX);
+      zone(f.cabin, W - C.leftX - C.zoneW);
+      const ux = W / 2 - T.w / 2, uy = C.zoneY + C.zoneH / 2 - T.h / 2;
+      arrow(c, C.leftX + C.zoneW, uy + T.h / 2, ux - 4, uy + T.h / 2);
+      arrow(c, ux + T.w, uy + T.h / 2, W - C.leftX - C.zoneW - 4, uy + T.h / 2);
+      unitTile(c, ux, uy, f.units.acc);
+      stroke(c, `M${W / 2} ${uy + T.h}V${uy + T.h + C.stem}`, 'wire4', 1.2);
+      unitTile(c, ux, uy + T.h + C.stem, f.units.ptc);
+      stroke(c, `M${W / 2} ${uy}V${uy - C.stem}`, 'wire4', 1.2);
+      unitTile(c, ux, uy - C.stem - T.h, f.units.tmim);
+    });
+  }
+
+  // Сеть 12 В: the DC-DC from the HV bus onto the 12 V line, the battery under it, the body's
+  // controllers hanging off it.
+  function sysLv(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const N = L.lvScheme, T = L.topology.tile, y = N.busY;
+      text(c, 'ШИНА DC', N.x0, y - 44, 'colHead', 'mute');
+      text(c, f.hv, N.x0, y - 26, 'hvVolts', 'text');
+      stroke(c, `M${N.x0} ${y}H${N.dcdcX}`, 'wire', 2.4);
+      unitTile(c, N.dcdcX, y - T.h / 2, f.units.dcdc);
+      const lx = N.dcdcX + T.w;
+      stroke(c, `M${lx} ${y}H${N.x1}`, 'wire2', 2);
+      text(c, '12 В', lx + 16, y - 44, 'colHead', 'mute');
+      text(c, f.lv, lx + 16, y - 26, 'hvVolts', 'text');
+      stroke(c, `M${N.battX + T.w / 2} ${y}V${y + N.battDrop}`, 'wire2', 2);
+      unitTile(c, N.battX, y + N.battDrop, f.units.lbms);
+      f.units.loads.forEach((e, i) => {
+        const x = N.loadX + i * N.loadStep;
+        stroke(c, `M${x + T.w / 2} ${y}V${y + N.loadDrop}`, 'wire3', 1.4);
+        dot(c, x + T.w / 2, y, 2.6, 'wire5');
+        unitTile(c, x, y + N.loadDrop, e);
+      });
+    });
   }
 
   const TILE = {
@@ -449,18 +863,22 @@
     labels.forEach(([x, y, t]) => text(c, t, x, y, 'topoLabel', 'dim2'));
     // a tile: its abbreviation and address over its short name; its state is its look, and a block
     // with history says how many codes in place of the address
-    tiles.forEach(([x, y, e]) => {
-      const k = TILE[e.kind];
-      if (k.dash) edge(c, x, y, Ti.w, Ti.h, k.dash, Ti.r, [3, 3]);
-      else { fill(c, x, y, Ti.w, Ti.h, k.fill, Ti.r); edge(c, x, y, Ti.w, Ti.h, k.line, Ti.r); }
-      const ix = x + 1 + Ti.padX, iw = Ti.w - 2 - 2 * Ti.padX;
-      const top = y + (Ti.h - style('tileAbbr').lh - Ti.rowGap - style('tileName').lh) / 2;
-      const right = e.kind === 'hist' ? ['ИСТ ' + e.history, 'tileState', k.state] : [e.req || 'нет адреса', 'tileAddr', k.addr];
-      const rw = text(c, right[0], ix + iw, top + (style('tileAbbr').lh - style(right[1]).lh) / 2, right[1], right[2], { align: 'right' });
-      text(c, e.abbr, ix, top, 'tileAbbr', k.ink, { max: iw - rw - 6 });
-      text(c, e.short, ix, top + style('tileAbbr').lh + Ti.rowGap, 'tileName', k.sub, { max: iw });
-    });
+    tiles.forEach(([x, y, e]) => unitTile(c, x, y, e));
     footer(c, f.footer, new Set(tiles.map(([, , e]) => e.kind)));
+  }
+
+  // A block as the topology draws it: abbreviation and address over the short name, its state its
+  // look, «ИСТ n» in place of the address where it has history.
+  function unitTile(c, x, y, e) {
+    const Ti = L.topology.tile, k = TILE[e.kind];
+    if (k.dash) edge(c, x, y, Ti.w, Ti.h, k.dash, Ti.r, [3, 3]);
+    else { fill(c, x, y, Ti.w, Ti.h, k.fill, Ti.r); edge(c, x, y, Ti.w, Ti.h, k.line, Ti.r); }
+    const ix = x + 1 + Ti.padX, iw = Ti.w - 2 - 2 * Ti.padX;
+    const top = y + (Ti.h - style('tileAbbr').lh - Ti.rowGap - style('tileName').lh) / 2;
+    const right = e.kind === 'hist' ? ['ИСТ ' + e.history, 'tileState', k.state] : [e.req || 'нет адреса', 'tileAddr', k.addr];
+    const rw = text(c, right[0], ix + iw, top + (style('tileAbbr').lh - style(right[1]).lh) / 2, right[1], right[2], { align: 'right' });
+    text(c, e.abbr, ix, top, 'tileAbbr', k.ink, { max: iw - rw - 6 });
+    text(c, e.short, ix, top + style('tileAbbr').lh + Ti.rowGap, 'tileName', k.sub, { max: iw });
   }
 
   // The status bits of a DTC, bit 0 first, as ISO 14229-1 names them.
@@ -605,7 +1023,12 @@
     header(c, f.top);
     blockHead(c, f.block);
     tabs(c, f.tabs);
-    const E = L.ecuLive, cols = columns(E.cols, 24, W - 48);
+    liveTable(c, f, L.ecuLive.cols);
+    footer(c, f.footer);
+  }
+
+  function liveTable(c, f, colSpec) {
+    const E = L.ecuLive, cols = columns(colSpec, 24, W - 48);
     let y = headRow(c, cols, ['PID', 'ПАРАМЕТР', ['ЗНАЧЕНИЕ', 'right', 12], 'ЕД.', ['МИН', 'right', 12], ['МАКС', 'right', 12], 'НОРМА', 'ГРАФИК · 60 С'], E.top, E.head);
     for (const r of f.rows) {
       const h = E.row, rx = i => cols[i][0] + cols[i][1] - 12;
@@ -617,7 +1040,7 @@
       text(c, r.max, rx(5), mid(y, h, 'cellMono'), 'cellMono', 'dim2', { align: 'right' });
       text(c, r.norm, cols[6][0], mid(y, h, 'normMono'), 'normMono', 'faint');
       if (r.trace && r.trace.length) {
-        const S = E.spark, sx = cols[7][0], sy = y + (h - S.h) / 2, step = S.w / (r.trace.length - 1);
+        const S = E.spark, sx = cols[7][0], sy = y + (h - S.h) / 2, step = Math.min(S.w, cols[7][1] - 8) / (r.trace.length - 1);
         const p = new Path2D();
         r.trace.forEach((v, i) => { const py = sy + S.h - 2 - Math.max(0, Math.min(1, v)) * (S.h - 4); if (i) p.lineTo(sx + i * step, py); else p.moveTo(sx, py); });
         c.save(); c.lineJoin = 'round';
@@ -627,7 +1050,6 @@
       rule(c, 24, y + h, W - 48, 'hair');
       y += h + 1;
     }
-    footer(c, f.footer);
   }
 
   const TONE = { dim: 'mute', '': 'white' };
@@ -828,7 +1250,14 @@
     header(c, f.top);
     blockHead(c, f.block);
     tabs(c, f.tabs);
-    const V = L.hv, K = V.contactor, B = V.bus;
+    hvBody(c, f, L.hv);
+    footer(c, f.footer, new Set(f.units.map(u => u.kind)));
+  }
+
+  // The HV schema in a layout: the full-width board's, or the rail's narrower one without the
+  // machines' captions (their readings are «Электропривод»'s).
+  function hvBody(c, f, V) {
+    const K = V.contactor, B = V.bus;
     stroke(c, K.wire, 'wire', 2.4);
     stroke(c, K.blade, 'wire', 2);
     K.pins.forEach(([x, y]) => { c.beginPath(); c.arc(x, y, K.pin, 0, 2 * Math.PI); c.fillStyle = col('text'); c.fill(); });
@@ -877,15 +1306,14 @@
       text(c, u.name, ux, top + style('hvAbbr').lh + U.rowGap, 'hvName', k.sub, { max: uw });
       text(c, u.state, ux, top + style('hvAbbr').lh + style('hvName').lh + 2 * U.rowGap, 'hvState', k.state, { max: uw });
     });
-    f.machines.forEach((m, i) => {
+    if (V.captions) f.machines.forEach((m, i) => {
       const my = V.captions[i];
       text(c, m.name, V.caption, my, 'machine', m.live ? 'white' : 'text');
       text(c, m.values, V.caption, my + style('machine').lh + 3, 'machineMono', 'dim');
     });
-    footer(c, f.footer, new Set(f.units.map(u => u.kind)));
   }
 
-  const SCREENS = { scan, topology, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, bms, drives, hv, brakes, adas };
+  const SCREENS = { scan, topology, sysScan, sysLive, sysDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, bms, drives, hv, brakes, adas };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);
