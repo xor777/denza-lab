@@ -28,14 +28,31 @@ internal class DiagRequest(val address: Int, uds: ByteArray, val timeoutMs: Int 
     }
 }
 
-/** What one ECU said, or that it said nothing. A fault of the channel itself is a [DiagFailure]. */
+/**
+ * What one ECU said, or that it said nothing. A fault of the channel itself is a [DiagFailure].
+ *
+ * Every reply carries its timing as the car measured it, because the stream's chart and the
+ * acceptance's step are measured, not assumed: [latencyMs] runs from the helper's `set()` to the
+ * last frame of the answer, or to the decision that there is none; [receivedNanos] is that moment
+ * on the car's `SystemClock.elapsedRealtimeNanos`, so the gaps between two replies are the car's
+ * gaps and not the ADB stream's.
+ */
 internal sealed interface DiagReply {
     val request: DiagRequest
     /** Wall clock when the exchange ended. */
     val atMillis: Long
+    val latencyMs: Int
+    val receivedNanos: Long
 
     /** A complete answer: positive (service + 0x40) or negative (`7F <service> <nrc>`). */
-    class Answer(override val request: DiagRequest, uds: ByteArray, val frames: Int, override val atMillis: Long) : DiagReply {
+    class Answer(
+        override val request: DiagRequest,
+        uds: ByteArray,
+        val frames: Int,
+        override val atMillis: Long,
+        override val latencyMs: Int = 0,
+        override val receivedNanos: Long = 0L,
+    ) : DiagReply {
         private val bytes = uds.copyOf()
         val uds: ByteArray get() = bytes.copyOf()
         /** The negative response code, or null for a positive answer. */
@@ -44,10 +61,21 @@ internal sealed interface DiagReply {
     }
 
     /** The gateway said 3 (no response) or 4 (diagnostic timeout); 0 when the helper's own wait ran out. */
-    class NoReply(override val request: DiagRequest, val gatewayResult: Int, override val atMillis: Long) : DiagReply
+    class NoReply(
+        override val request: DiagRequest,
+        val gatewayResult: Int,
+        override val atMillis: Long,
+        override val latencyMs: Int = 0,
+        override val receivedNanos: Long = 0L,
+    ) : DiagReply
 
     /** The gateway said 5: busy. */
-    class GatewayBusy(override val request: DiagRequest, override val atMillis: Long) : DiagReply
+    class GatewayBusy(
+        override val request: DiagRequest,
+        override val atMillis: Long,
+        override val latencyMs: Int = 0,
+        override val receivedNanos: Long = 0L,
+    ) : DiagReply
 }
 
 /** The channel, not an ECU, failed. Nothing here is retried in a loop (architecture, 3.5). */
