@@ -135,13 +135,21 @@ internal fun ModuleHead(module: ModuleView, line: String) {
 
 @Composable
 private fun DtcFooter(module: ModuleView, back: FooterButton, read: () -> Unit) {
-    ScanFooter(listOf(back, FooterButton("Прочитать DTC", true, read)), if (module.obd != null) emptyList() else dtcNotes(module.dtc))
+    val notes = if (module.obd != null) listOfNotNull(module.dtc.source?.let { FooterNote.Words(it) }) else dtcNotes(module.dtc)
+    ScanFooter(listOf(back, FooterButton("Прочитать DTC", true, read)), notes)
 }
 
-/** A memory read's footnote: what was asked and when; a record outside the mask said first. */
+/**
+ * A memory read's footnote: what was asked and when; a record outside the mask said first, and the
+ * descriptions' source, when the screen shows one, before what was asked.
+ */
 internal fun dtcNotes(dtc: DtcView): List<FooterNote> {
-    val asked = listOfNotNull(dtc.footnote.takeIf { it.isNotEmpty() }?.let { FooterNote.Words(it, mono = true) })
-    return if (dtc.outsideMask) listOf(FooterNote.Words("Есть записи вне маски запроса")) + asked.flatMap { listOf(FooterNote.Divider, it) } else asked
+    val words = listOfNotNull(
+        FooterNote.Words("Есть записи вне маски запроса").takeIf { dtc.outsideMask },
+        dtc.source?.let { FooterNote.Words(it) },
+        dtc.footnote.takeIf { it.isNotEmpty() }?.let { FooterNote.Words(it, mono = true) },
+    )
+    return words.flatMapIndexed { i, n -> if (i == 0) listOf(n) else listOf(FooterNote.Divider, n) }
 }
 
 @Composable
@@ -167,6 +175,7 @@ internal fun DtcContent(module: ModuleView) {
 private fun CodesWithStatus(records: List<DtcRow>) {
     val b = ScannerSpec.BodyDtc
     var chosen by remember { mutableIntStateOf(0) }
+    val width = rememberWidths()
     Box(Modifier.fillMaxSize()) {
         val w = ScannerSpec.W - 48f
         val cols = ScannerSpec.columns(b.COLS, 24f, w)
@@ -184,9 +193,18 @@ private fun CodesWithStatus(records: List<DtcRow>) {
                 listOf(Triple(d.failureType, Type.CELL_NUM, Ink.DIM), Triple(" · ${d.failureName}", Type.CELL, Ink.WHITE)),
                 Modifier.at(cols[1].first, mid(y, h, Type.CELL)), maxWidth = cols[1].second, base = Type.CELL,
             )
-            val dt = y + (h - Type.CELL.lh - 2f - Type.NOTE.lh) / 2f
-            ScanText(d.group, Type.CELL, Ink.TEXT, Modifier.at(cols[2].first, dt), maxWidth = cols[2].second - 16f)
-            ScanText(d.note, Type.NOTE, Ink.FAINT, Modifier.at(cols[2].first, dt + Type.CELL.lh + 2f), maxWidth = cols[2].second - 16f)
+            val room = cols[2].second - 16f
+            val desc = d.description
+            if (desc != null) {
+                // the catalog's description in up to two lines, in place of the group
+                val lines = ScannerWords.twoLines(desc, room) { width(it, Type.CELL) }
+                val dt = y + (h - lines.size * Type.CELL.lh) / 2f
+                lines.forEachIndexed { i, l -> ScanText(l, Type.CELL, Ink.TEXT, Modifier.at(cols[2].first, dt + i * Type.CELL.lh), maxWidth = room) }
+            } else {
+                val dt = y + (h - Type.CELL.lh - (if (d.note.isNotEmpty()) 2f + Type.NOTE.lh else 0f)) / 2f
+                ScanText(d.group, Type.CELL, Ink.TEXT, Modifier.at(cols[2].first, dt), maxWidth = room)
+                if (d.note.isNotEmpty()) ScanText(d.note, Type.NOTE, Ink.FAINT, Modifier.at(cols[2].first, dt + Type.CELL.lh + 2f), maxWidth = room)
+            }
             ScanText(ScannerWords.hex2(d.status), Type.CELL_NUM, Ink.TEXT, Modifier.at(cols[3].first, mid(y, h, Type.CELL_NUM)))
             ScannerWords.BITS.indices.forEach { i ->
                 val (x, cw) = cols[4 + i]
@@ -316,7 +334,7 @@ private fun ObdFault(records: List<DtcRow>, obd: ObdView) {
     val d = ScannerSpec.EcuDtc
     val f = ScannerSpec.EcuFault
     val cols = ScannerSpec.columns(f.COLS, d.LEFT_X, d.LEFT_W)
-    HeadRow(cols, listOf(HeadLabel("КОД"), HeadLabel("ОПИСАНИЕ · SAE J2012"), HeadLabel("MIL")), d.TOP, d.HEAD)
+    HeadRow(cols, listOf(HeadLabel("КОД"), HeadLabel("ОПИСАНИЕ"), HeadLabel("MIL")), d.TOP, d.HEAD)
     Column(Modifier.at(d.LEFT_X, d.TOP + d.HEAD + 1f).width(d.LEFT_W.dp)) {
         records.forEach { r ->
             val lamp = ScannerWords.asksLamp(r.status)
@@ -330,10 +348,13 @@ private fun ObdFault(records: List<DtcRow>, obd: ObdView) {
                 Box(Modifier.width(cols[0].second.dp).padding(start = 12.dp)) {
                     ScanText(r.code, Type.CODE_FAULT, if (hot) Ink.ORANGE_INK else Ink.WHITE)
                 }
+                val (title, under) = ScannerWords.faultLines(r)
                 Column(Modifier.width(cols[1].second.dp)) {
-                    ScanText(r.failureName, Type.FAULT_TITLE, Ink.WHITE, maxWidth = cols[1].second - 12f)
-                    Spacer(Modifier.height(3.dp))
-                    ScanParagraph(r.note, Type.FAULT_NOTE, Ink.DIM2, cols[1].second - 12f)
+                    ScanParagraph(title, Type.FAULT_TITLE, Ink.WHITE, cols[1].second - 12f)
+                    if (under.isNotEmpty()) {
+                        Spacer(Modifier.height(3.dp))
+                        ScanParagraph(under, Type.FAULT_NOTE, Ink.DIM2, cols[1].second - 12f)
+                    }
                 }
                 Badge(if (lamp) "ВКЛ" else "ВЫКЛ", if (lamp) ScannerSpec.Tones.ON else ScannerSpec.Tones.UNREAD)
             }

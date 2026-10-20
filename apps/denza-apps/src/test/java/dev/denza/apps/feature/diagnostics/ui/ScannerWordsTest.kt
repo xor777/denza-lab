@@ -1,6 +1,9 @@
 package dev.denza.apps.feature.diagnostics.ui
 
 import dev.denza.apps.feature.diagnostics.scan.CompareColumn
+import dev.denza.apps.feature.diagnostics.protocol.DataQuality
+import dev.denza.apps.feature.diagnostics.scan.DtcRow
+import dev.denza.apps.feature.diagnostics.scan.DtcView
 import dev.denza.apps.feature.diagnostics.scan.Field
 import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
@@ -117,5 +120,34 @@ class ScannerWordsTest {
         val g = ModuleGroupView("misc", "НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО", "Прочие", "", List(12) { row(ModuleStatus.UNREAD) })
         assertEquals("НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО · 12", ScannerWords.topologyLabel(g, 2))
         assertEquals("ПРОЧИЕ · 12", ScannerWords.topologyLabel(g, 1))
+    }
+
+    @Test
+    fun aDescriptionTakesTwoLinesAtMostAndTheSecondCarriesTheRest() {
+        // one unit a character: the board's wrap() and the screen's break at the same spaces
+        val w = { t: String -> t.length.toFloat() }
+        assertEquals(listOf("Датчик атмосферного", "давления"), ScannerWords.wrap("Датчик атмосферного давления", 20f, w))
+        assertEquals(listOf("Контроллер левого", "заднего электродвигателя: перенапряжение"),
+            ScannerWords.twoLines("Контроллер левого заднего электродвигателя: перенапряжение", 20f, w))
+        assertEquals(listOf("BIC1"), ScannerWords.twoLines("BIC1", 20f, w))
+    }
+
+    @Test
+    fun aFaultRowLeadsWithTheDescriptionAndDrawsNoEmptyLine() {
+        val read = DtcRow("P2227-29", "29", "Неверный сигнал", "Силовая · общий код SAE", "", 0x09, 0xFF,
+            description = "Датчик атмосферного давления: неисправность сигнала")
+        assertEquals("Датчик атмосферного давления: неисправность сигнала" to "Неверный сигнал", ScannerWords.faultLines(read))
+        assertEquals("Неверный сигнал" to "", ScannerWords.faultLines(read.copy(description = null)))
+    }
+
+    @Test
+    fun theDescriptionsSourceIsSaidOnceInTheFooter() {
+        val dtc = DtcView(emptyList(), emptyList(), DataQuality.COMPLETE, outsideMask = false, footnote = "19 01 09 · 19 02 09",
+            source = "Описания: каталог мануала Z9GT PHEV, перевод")
+        assertEquals(
+            listOf(FooterNote.Words("Описания: каталог мануала Z9GT PHEV, перевод"), FooterNote.Divider, FooterNote.Words("19 01 09 · 19 02 09", mono = true)),
+            dtcNotes(dtc),
+        )
+        assertEquals(listOf(FooterNote.Words("19 01 09 · 19 02 09", mono = true)), dtcNotes(dtc.copy(source = null)))
     }
 }

@@ -3,6 +3,7 @@ package dev.denza.apps.feature.diagnostics.ui
 import dev.denza.apps.feature.diagnostics.scan.CompareColumn
 import dev.denza.apps.feature.diagnostics.scan.CompareView
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
+import dev.denza.apps.feature.diagnostics.scan.DtcRow
 import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.LinkState
 import dev.denza.apps.feature.diagnostics.scan.MilState
@@ -94,6 +95,34 @@ internal object ScannerWords {
     /** «7E0 → 7E8»: the request and the answer's address, request + 8. */
     fun route(request: Int?): String =
         if (request == null) "—" else "${hex(request)} → ${hex(request + 8)}"
+
+    /** Words broken at spaces into lines no wider than [max] (`scanner.js` `wrap()`). */
+    fun wrap(text: String, max: Float, width: (String) -> Float): List<String> {
+        val lines = mutableListOf<String>()
+        var line = ""
+        for (w in text.split(' ')) {
+            val t = if (line.isEmpty()) w else "$line $w"
+            if (line.isNotEmpty() && width(t) > max) { lines += line; line = w } else line = t
+        }
+        if (line.isNotEmpty()) lines += line
+        return lines
+    }
+
+    /** At most two lines: what does not fit the first goes on the second, which the screen cuts (`twoLines()`). */
+    fun twoLines(text: String, max: Float, width: (String) -> Float): List<String> {
+        val lines = wrap(text, max, width)
+        return if (lines.size <= 2) lines else listOf(lines[0], lines.drop(1).joinToString(" "))
+    }
+
+    /**
+     * A fault row's title and the line under it: the catalog's description over the failure type when
+     * there is one, else the failure type over the note; an empty line is not drawn.
+     */
+    fun faultLines(row: DtcRow): Pair<String, String> {
+        val title = row.description ?: row.failureName
+        val under = listOf(if (row.description != null) row.failureName else "", row.note).filter { it.isNotEmpty() }
+        return title to under.joinToString(" · ")
+    }
 
     fun hex(v: Int): String = Integer.toHexString(v).uppercase()
 

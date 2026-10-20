@@ -117,6 +117,11 @@
     return lines;
   }
   // A paragraph: lines of the style's lh from top; returns its height.
+  // At most two lines: what does not fit the first goes on the second, which text() cuts.
+  function twoLines(c, str, sn, max) {
+    const lines = wrap(c, str, sn, max);
+    return lines.length <= 2 ? lines : [lines[0], lines.slice(1).join(' ')];
+  }
   function para(c, str, x, top, sn, ink, max) {
     const lines = wrap(c, str, sn, max), lh = style(sn).lh;
     lines.forEach((l, i) => text(c, l, x, top + i * lh, sn, ink));
@@ -469,9 +474,16 @@
       const h = B.rowMin;
       text(c, d.code, cols[0][0] + 12, mid(y, h, 'code'), 'code', 'white');
       runs(c, [[d.ftb, 'cellNum', 'dim'], [' · ' + d.ftbName, 'cell', 'white']], cols[1][0], base(mid(y, h, 'cell'), 'cell'), cols[1][1]);
-      const dt = y + (h - style('cell').lh - (d.note ? 2 + style('note').lh : 0)) / 2;
-      text(c, d.group, cols[2][0], dt, 'cell', 'text', { max: cols[2][1] - 16 });
-      if (d.note) text(c, d.note, cols[2][0], dt + style('cell').lh + 2, 'note', 'faint', { max: cols[2][1] - 16 });
+      const room = cols[2][1] - 16;
+      if (d.desc) {
+        // the catalog's description in up to two lines, in place of the group
+        const lines = twoLines(c, d.desc, 'cell', room), dt = y + (h - lines.length * style('cell').lh) / 2;
+        lines.forEach((l, i) => text(c, l, cols[2][0], dt + i * style('cell').lh, 'cell', 'text', { max: room }));
+      } else {
+        const dt = y + (h - style('cell').lh - (d.note ? 2 + style('note').lh : 0)) / 2;
+        text(c, d.group, cols[2][0], dt, 'cell', 'text', { max: room });
+        if (d.note) text(c, d.note, cols[2][0], dt + style('cell').lh + 2, 'note', 'faint', { max: room });
+      }
       text(c, hex2(d.status), cols[3][0], mid(y, h, 'cellNum'), 'cellNum', 'text');
       BITS.forEach((_, i) => {
         const [x, w] = cols[4 + i], on = (d.status >> i) & 1, s = B.bit;
@@ -550,13 +562,16 @@
     const D = L.ecuDtc, Fa = L.ecuFault, Lf = D.left, cols = columns(Fa.cols, Lf.x, Lf.w);
     let y = headRow(c, cols, ['КОД', 'ОПИСАНИЕ', 'MIL'], D.top, D.head);
     const d = f.fault, room = cols[1][1] - 12;
-    const notes = wrap(c, d.note, 'faultNote', room);
-    const h = Math.max(Fa.rowMin, 2 * Fa.rowPad + style('faultTitle').lh + 3 + notes.length * style('faultNote').lh);
+    // the title is the catalog's description when it has one: it wraps; the note under it only if there is one
+    const titles = wrap(c, d.title, 'faultTitle', room), tl = style('faultTitle').lh;
+    const notes = d.note ? wrap(c, d.note, 'faultNote', room) : [];
+    const inner = titles.length * tl + (notes.length ? 3 + notes.length * style('faultNote').lh : 0);
+    const h = Math.max(Fa.rowMin, 2 * Fa.rowPad + inner);
     fill(c, Lf.x, y, Lf.w, h, 'orangeRow');
     text(c, d.code, cols[0][0] + 12, mid(y, h, 'codeFault'), 'codeFault', 'orangeInk');
-    const ty = y + (h - (style('faultTitle').lh + 3 + notes.length * style('faultNote').lh)) / 2;
-    text(c, d.title, cols[1][0], ty, 'faultTitle', 'white', { max: room });
-    notes.forEach((l, i) => text(c, l, cols[1][0], ty + style('faultTitle').lh + 3 + i * style('faultNote').lh, 'faultNote', 'dim2'));
+    const ty = y + (h - inner) / 2;
+    titles.forEach((l, i) => text(c, l, cols[1][0], ty + i * tl, 'faultTitle', 'white', { max: room }));
+    notes.forEach((l, i) => text(c, l, cols[1][0], ty + titles.length * tl + 3 + i * style('faultNote').lh, 'faultNote', 'dim2'));
     badge(c, d.mil, cols[2][0], y + (h - L.badge.h) / 2, 'on');
     rule(c, Lf.x, y + h, Lf.w, 'hair');
     y += h + 1 + Fa.listGap;

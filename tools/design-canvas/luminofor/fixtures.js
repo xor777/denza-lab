@@ -1335,7 +1335,8 @@
     top: scanTop(['Автоскан', 'ЭБУ двигателя'], '15:52:44', 'Z9 GT DM · P · ДВС работает'),
     block: ecmBlock('7E0 → 7E8 · OBD-II (SAE J1979) + UDS · ПО (F195) 9C4A19031900', [['MIL', 'ВКЛ', 'on'], ['DTC', '1'], ['ГОТОВН.', '7/9']]),
     tabs: Object.assign(ecmTabs(0), { alert: 0 }),
-    fault: { code: 'P0420', title: 'Старение кислородной ёмкости катализатора', mil: 'ВКЛ',
+    // title: the catalog's heading of P042000 (engine_ecm), as the screen draws a description
+    fault: { code: 'P0420', title: 'Старение трёхкомпонентного катализатора: снижена кислородная ёмкость', mil: 'ВКЛ',
       note: 'Сохранённый (Mode 03) · постоянный (Mode 0A) · UDS статус 0xAF: активный, подтверждённый, запрос MIL' },
     lists: [['СОХРАНЁННЫЕ', '1', 'Mode 03'], ['ОЖИДАЮЩИЕ', '0', 'Mode 07'], ['ПОСТОЯННЫЕ', '1', 'Mode 0A'], ['UDS ПОДТВ.', '1', '19 02 08']],
     pid01: { label: 'PID 01 · СОСТОЯНИЕ', line: 'MIL включена · DTC, включивших MIL: 1 · зажигание искровое', raw: '41 01 81 07 F5 30' },

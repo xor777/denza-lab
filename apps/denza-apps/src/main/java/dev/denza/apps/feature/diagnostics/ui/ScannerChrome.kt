@@ -284,7 +284,9 @@ internal fun ScanButton(label: String, primary: Boolean, onClick: () -> Unit, mo
             .height(f.BUTTON_H.dp)
             .plate(if (primary) Ink.PRIMARY_FILL else Ink.QUIET, if (primary) Ink.PRIMARY_EDGE else Ink.QUIET_LINE, f.BUTTON_R)
             .tap(onClick)
-            .padding(horizontal = (1f + f.BUTTON_PAD).dp),
+            // the label from the left edge only: the button is the words' unrounded width, and a
+            // right padding as well would leave them a fraction of a pixel short and cut them
+            .padding(start = (1f + f.BUTTON_PAD).dp),
     ) {
         ScanText(label, Type.BUTTON, if (primary) Ink.BLUE_INK else Ink.TEXT, Modifier.padding(top = ((f.BUTTON_H - Type.BUTTON.lh) / 2f).dp))
     }

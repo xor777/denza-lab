@@ -176,9 +176,12 @@ internal object ScannerFixtures {
                 dtc = DtcView(
                     asks = emptyList(),
                     records = objects(body.getJSONArray("codes")).map { c ->
-                        DtcRow(c.getString("code"), c.getString("ftb"), c.getString("ftbName"), c.getString("group"), c.getString("note"), c.getInt("status"), 0xFF)
+                        DtcRow(
+                            c.getString("code"), c.getString("ftb"), c.getString("ftbName"), c.getString("group"), c.optString("note"),
+                            c.getInt("status"), 0xFF, description = c.optString("desc").ifEmpty { null },
+                        )
                     },
-                    quality = DataQuality.COMPLETE, outsideMask = false, footnote = footnote(body),
+                    quality = DataQuality.COMPLETE, outsideMask = false, footnote = footnote(body), source = source(body),
                 ),
             ),
             ECM to ecm(all, id),
@@ -212,10 +215,14 @@ internal object ScannerFixtures {
 
     /** The footer's mono note less its «только чтение»: what was asked and when. */
     private fun footnote(f: JSONObject): String {
-        val notes = f.getJSONObject("footer").getJSONArray("notes")
+        val notes = f.getJSONObject("footer").optJSONArray("notes") ?: JSONArray()
         val mono = (0 until notes.length()).map { notes.get(it) }.filterIsInstance<JSONArray>().lastOrNull()?.getString(0) ?: ""
         return mono.removeSuffix("только чтение").removeSuffix(" · ")
     }
+
+    /** The footer's plain note, the descriptions' source; the mono ones are what was asked, «|» a divider. */
+    private fun source(f: JSONObject): String? = f.getJSONObject("footer").optJSONArray("notes")
+        ?.let { n -> (0 until n.length()).map { n.get(it) }.filterIsInstance<String>().firstOrNull { it != "|" } }
 
     private fun ask(name: String, service: String, count: String) = AskRow(name, service, count, asked = count.isNotEmpty() && count.all(Char::isDigit))
 
@@ -231,8 +238,10 @@ internal object ScannerFixtures {
             if (fault) ask(a.getString(0), a.getString(2), a.getString(1)) else ask(a.getString(0), a.getString(1), a.getString(2))
         }
         val records = if (!fault) emptyList() else dtcBoard.getJSONObject("fault").let { f ->
-            listOf(DtcRow(f.getString("code"), "", f.getString("title"), "", f.getString("note"), 0xAF, 0xFF))
+            // the board's title is the catalog's description; the row has no failure type of its own
+            listOf(DtcRow(f.getString("code"), "", "", "", f.optString("note"), 0xAF, 0xFF, description = f.getString("title")))
         }
+        val source = source(dtcBoard)
         val live = fixture(all, "scanner-ecu-live")
         val liveLine = live.getJSONObject("block").getString("line")
         val rate = Regex("опрос ([^·]+?) ·").find(liveLine)?.groupValues?.get(1) ?: "—"
@@ -241,7 +250,7 @@ internal object ScannerFixtures {
         return ModuleView(
             request = ECM, name = block.getString("title"), unit = block.getString("aside").removePrefix("· "),
             inferred = false, line = block.getString("line"), status = ModuleStatus.OK,
-            dtc = DtcView(emptyList(), records, if (fault) DataQuality.COMPLETE else DataQuality.COMPLETE_EMPTY, false, ""),
+            dtc = DtcView(emptyList(), records, if (fault) DataQuality.COMPLETE else DataQuality.COMPLETE_EMPTY, false, "", source = source),
             ident = IdentView(
                 own = fields(ident.getJSONArray("own")),
                 cache = fields(ident.getJSONArray("cache")),
@@ -312,7 +321,7 @@ internal object ScannerFixtures {
                 rows = arrays(drives.getJSONArray("rows")).map { r ->
                     CompareRow(r.getString(0), r.getString(1), r.getString(2), strings(r.getJSONArray(3)).map { CompareCell(it, muted = it in DIM_CELL) })
                 },
-                notes = strings(drives.getJSONObject("footer").getJSONArray("notes")),
+                notes = strings(drives.getJSONObject("footer").optJSONArray("notes") ?: JSONArray()),
             ),
             adas = adas(adas),
             brakeModules = listOf(ESP, BSCM),
@@ -335,7 +344,7 @@ internal object ScannerFixtures {
                     },
                 )
             },
-            notes = arrays(f.getJSONArray("notes")).map { "${it.getString(0)} ${it.getString(1)}" },
+            notes = arrays(f.optJSONArray("notes") ?: JSONArray()).map { "${it.getString(0)} ${it.getString(1)}" },
         )
     }
 
