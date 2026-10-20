@@ -67,6 +67,12 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   capture; original text was recovered through Chrome's native language UI.
   These are unqualified publisher titles, not verified OEM definitions or
   inferred raw codes. Protected manual pages and repair procedures are absent.
+  `oem-dtc-public-index-ru-20261020.json` is a machine translation of those
+  829 headings into Russian, keyed by subsystem/code/outline and pinned to the
+  index by `sourceSha256`; its header says it is translated headings, not OEM
+  text. The app ships both files unchanged as candidate descriptions
+  (docs/vehicle-diagnostics-architecture.md, §4); a new index needs a new
+  translation, or `OemDtcReferenceTest` fails.
 
 The promoted two-target allowlisted reader is `VehicleDtcProxyMain` in Denza Apps;
 `VehicleDiagnostics` supplies profile/P/speed checks, ownership and UI lifecycle.
