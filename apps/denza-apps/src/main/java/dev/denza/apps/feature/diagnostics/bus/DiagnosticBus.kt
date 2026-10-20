@@ -1,0 +1,73 @@
+package dev.denza.apps.feature.diagnostics.bus
+
+/**
+ * One physical request to one ECU on the car's diagnostic channel. [address] is the request id;
+ * the ECU answers on [reply]. Only what [DiagnosticWhitelist] allows can be made at all.
+ */
+internal class DiagRequest(val address: Int, uds: ByteArray, val timeoutMs: Int = DEFAULT_TIMEOUT_MS) {
+    private val bytes = uds.copyOf()
+    val uds: ByteArray get() = bytes.copyOf()
+    val reply: Int get() = address + 8
+
+    init {
+        DiagnosticWhitelist.refusal(address, bytes)?.let { throw IllegalArgumentException(it) }
+        require(timeoutMs in 1..MAX_TIMEOUT_MS) { "timeout outside 1..$MAX_TIMEOUT_MS ms" }
+    }
+
+    /** The helper's wire form: `<address> <uds> <timeout>`, upper-case hex. */
+    val line: String get() = "%03X %s %d".format(address, hex(bytes), timeoutMs)
+
+    override fun equals(other: Any?) = other is DiagRequest && other.address == address &&
+        other.timeoutMs == timeoutMs && other.bytes.contentEquals(bytes)
+    override fun hashCode() = (address * 31 + bytes.contentHashCode()) * 31 + timeoutMs
+    override fun toString() = "%03X %s".format(address, hex(bytes))
+
+    companion object {
+        const val DEFAULT_TIMEOUT_MS = 4_000
+        const val MAX_TIMEOUT_MS = 6_000
+    }
+}
+
+/** What one ECU said, or that it said nothing. A fault of the channel itself is a [DiagFailure]. */
+internal sealed interface DiagReply {
+    val request: DiagRequest
+    /** Wall clock when the exchange ended. */
+    val atMillis: Long
+
+    /** A complete answer: positive (service + 0x40) or negative (`7F <service> <nrc>`). */
+    class Answer(override val request: DiagRequest, uds: ByteArray, val frames: Int, override val atMillis: Long) : DiagReply {
+        private val bytes = uds.copyOf()
+        val uds: ByteArray get() = bytes.copyOf()
+        /** The negative response code, or null for a positive answer. */
+        val nrc: Int? get() = if (bytes.size >= 3 && bytes[0] == 0x7F.toByte()) bytes[2].toInt() and 0xFF else null
+        override fun toString() = "$request → ${hex(bytes)}"
+    }
+
+    /** The gateway said 3 (no response) or 4 (diagnostic timeout); 0 when the helper's own wait ran out. */
+    class NoReply(override val request: DiagRequest, val gatewayResult: Int, override val atMillis: Long) : DiagReply
+
+    /** The gateway said 5: busy. */
+    class GatewayBusy(override val request: DiagRequest, override val atMillis: Long) : DiagReply
+}
+
+/** The channel, not an ECU, failed. Nothing here is retried in a loop (architecture, 3.5). */
+internal sealed class DiagFailure(message: String, cause: Throwable? = null) : Exception(message, cause) {
+    /** No trusted local ADB, so no shell. */
+    class NoAccess(cause: Throwable? = null) : DiagFailure("no trusted ADB access", cause)
+    /** The car is not profile 170, not in P or not at 0 km/h; the request was not sent. */
+    class NotParked(val why: String) : DiagFailure(why)
+    /** Another reader holds the lock, the stock diagnostic manager is busy, or foreign traffic was seen. */
+    class ChannelBusy(val why: String) : DiagFailure(why)
+    /** The helper or its ADB stream went away. */
+    class ChannelLost(cause: Throwable? = null) : DiagFailure("diagnostic channel lost", cause)
+    /** The helper refused the line: a program error, never a car state. */
+    class Refused(val why: String) : DiagFailure(why)
+}
+
+/** The car's diagnostic channel: one exchange at a time, read-only by [DiagnosticWhitelist]. */
+internal interface DiagnosticBus : AutoCloseable {
+    /** Returns what the ECU said; throws [DiagFailure] when the channel itself failed. */
+    suspend fun exchange(request: DiagRequest): DiagReply
+}
+
+internal fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02X".format(it.toInt() and 0xFF) }
