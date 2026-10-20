@@ -1,0 +1,74 @@
+package dev.denza.apps.feature.diagnostics.scan
+
+import dev.denza.apps.feature.diagnostics.DiagnosticExtra
+import dev.denza.apps.feature.vehicle.VehicleAccess
+import dev.denza.apps.feature.vehicle.VehicleSignal
+import dev.denza.apps.feature.vehicle.VehicleTelemetry
+
+/**
+ * The car as the app already reads it, without the diagnostic channel: the shared
+ * `VehicleTelemetryHub` sweep (P, speed, the engine, the hot signals) and the `autoservice` GET
+ * batch of the system screens (architecture, 6). The session never asks the ECUs for these.
+ */
+internal data class CarReadings(
+    /** Hub values, each held only while it is fresh by its own poll's horizon. */
+    val hub: Map<VehicleSignal, Double> = emptyMap(),
+    /** Bumped once per new hub sweep, so a chart takes one sample per sweep and not per look. */
+    val sweep: Long = 0,
+    /** When this sweep was seen, on the car's `elapsedRealtimeNanos`. */
+    val atNanos: Long = 0,
+    /** The last `autoservice` batch, whatever its age; [extrasFresh] says whether it still counts. */
+    val extras: Map<DiagnosticExtra, Double> = emptyMap(),
+    val extrasFresh: Boolean = false,
+) {
+    val parked: Boolean? get() = hub[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 }
+    val speedKmh: Double? get() = hub[VehicleSignal.VEHICLE_SPEED]
+    val engineRunning: Boolean? get() = hub[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
+
+    /** P at 0 km/h by the hub: true, false, or null while either is unknown. */
+    val parkedStill: Boolean?
+        get() {
+            val p = parked
+            val v = speedKmh
+            return when {
+                p == false || (v != null && v > 0.0) -> false
+                p == true && v == 0.0 -> true
+                else -> null
+            }
+        }
+
+    /** A fresh extra, or null. */
+    fun extra(signal: DiagnosticExtra): Double? = if (extrasFresh) extras[signal] else null
+}
+
+/** Where [CarReadings] come from; opened and closed with the session. */
+internal interface CarFeed {
+    fun open()
+    fun read(): CarReadings
+    fun close()
+}
+
+/**
+ * Hub values held for their own horizon, the way the retired window held them: a new snapshot is
+ * a new read, the same snapshot is not, and a dropped sweep never makes cold data young again.
+ */
+internal class HeldTelemetry {
+    private var previous: VehicleTelemetry? = null
+    private val held = HashMap<VehicleSignal, Pair<Double, Long>>()
+
+    /** Count of new answered sweeps seen. */
+    var sweep = 0L
+        private set
+
+    fun read(t: VehicleTelemetry, nowMillis: Long): Map<VehicleSignal, Double> {
+        if (t.access != VehicleAccess.READY) {
+            held.clear()
+        } else if (t !== previous && !t.dropped) {
+            t.values.forEach { (key, value) -> held[key] = value to nowMillis }
+            sweep++
+        }
+        previous = t
+        held.entries.removeAll { (key, value) -> nowMillis - value.second >= (key.poll.staleSeconds * 1000).toLong() }
+        return held.mapValues { it.value.first }
+    }
+}

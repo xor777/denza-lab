@@ -227,6 +227,7 @@ internal data class LiveView(
 )
 
 internal data class LiveRow(
+    /** The Mode 01 PID; negative for a fast car signal beside the PIDs, whose [source] names it. */
     val pid: Int,
     /** «Температура ОЖ». */
     val name: String,
