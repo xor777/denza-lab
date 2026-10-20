@@ -142,7 +142,7 @@ the `experiments` property:
 ./gradlew -Pexperiments :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 ```
 
-The parked «Сервис → Диагностика автомобиля» row is built in only with
+The parked «Сервис → Диагностика» row is built in only with
 `-Pdiagnostics` (`./gradlew -Pdiagnostics :denza-apps:assembleDebug`).
 
 The same form works for every module in the second table above.

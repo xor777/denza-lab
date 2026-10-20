@@ -74,10 +74,11 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   (docs/vehicle-diagnostics-architecture.md, §4); a new index needs a new
   translation, or `OemDtcReferenceTest` fails.
 
-The promoted two-target allowlisted reader is `VehicleDtcProxyMain` in Denza Apps;
-`VehicleDiagnostics` supplies profile/P/speed checks, ownership and UI lifecycle.
-The exact packed helper was separately verified live on 2026-10-18. The native
-window was tested on the emulator; full in-car window acceptance is outstanding.
+The promoted two-target allowlisted reader was `VehicleDtcProxyMain` in Denza Apps,
+with `VehicleDiagnostics` supplying profile/P/speed checks, ownership and UI lifecycle.
+The exact packed helper was separately verified live on 2026-10-18; the native
+window was tested on the emulator only. Both were removed on 2026-10-20: the
+scanner's resident helper replaces them (docs/vehicle-diagnostics-architecture.md).
 Raw traces, artifact hashes and native screenshots are kept under the ignored
 `captures/diagnostics-menu-20261018/` and `captures/diagnostics-fill-20261018/`
 directories. The two-target helper SHA-256 is
