@@ -51,13 +51,29 @@ internal class ModelBuilder(
     /** The public DTC catalog: candidate headings as a record's description (architecture, 4). */
     private val catalog: () -> OemDtcIndex = { OemDtcIndex.EMPTY },
 ) {
-    fun build(s: SessionSnapshot): DiagnosticsModel = DiagnosticsModel(
-        header = Header(s.link, carLine(s.car), clock.seconds(s.nowMillis)),
-        scan = summary(s),
-        groups = EcuGroup.entries.map { group(s, it) },
-        modules = (s.results.keys + s.idents.keys + s.open).mapNotNull { r -> EcuCatalog.byRequest(r)?.let { r to module(s, it) } }.toMap(),
-        systems = SystemsBuilder.build(s, ::rowStatus),
-    )
+    fun build(s: SessionSnapshot): DiagnosticsModel {
+        val scan = summary(s)
+        val groups = EcuGroup.entries.map { group(s, it) }
+        val modules = (s.results.keys + s.idents.keys + s.open).mapNotNull { r -> EcuCatalog.byRequest(r)?.let { r to module(s, it) } }.toMap()
+        val pages = SystemPagesBuilder.Inputs(
+            s = s,
+            scan = scan,
+            rows = groups.flatMap { it.rows }.mapNotNull { r -> r.request?.let { it to r } }.toMap(),
+            modules = modules,
+            clock = clock,
+        )
+        // A page needs something to show: a scan, or a reading of the car.
+        val anything = s.phase != ScanPhase.NEVER || s.results.isNotEmpty() || s.car.hub.isNotEmpty() || s.car.extras.isNotEmpty()
+        return DiagnosticsModel(
+            header = Header(s.link, carLine(s.car), clock.seconds(s.nowMillis)),
+            scan = scan,
+            groups = groups,
+            modules = modules,
+            systems = SystemsBuilder.build(s, ::rowStatus),
+            rail = SystemPagesBuilder.rail(pages),
+            systemPages = if (anything) SystemPagesBuilder.pages(pages) else emptyMap(),
+        )
+    }
 
     // ------------------------------------------------------------------ autoscan
 

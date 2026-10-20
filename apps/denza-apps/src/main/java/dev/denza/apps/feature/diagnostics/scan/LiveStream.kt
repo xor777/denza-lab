@@ -128,9 +128,12 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
         car.values.forEach { it.resetMinMax() }
     }
 
+    /** Samples per second of the fastest PID over the last ten seconds; null before two samples. */
+    fun hz(): Double? = series.values.mapNotNull { it.rate() }.maxOrNull()
+
     /** Samples per second of the fastest PID over the last ten seconds, and the mean exchange time. */
     fun rate(): String {
-        val hz = series.values.mapNotNull { it.rate() }.maxOrNull() ?: return "—"
+        val hz = hz() ?: return "—"
         val ms = if (latencies.isEmpty()) return "—" else latencies.average().toInt()
         return "${Figures.number(hz, 1)} Гц · $ms мс"
     }
