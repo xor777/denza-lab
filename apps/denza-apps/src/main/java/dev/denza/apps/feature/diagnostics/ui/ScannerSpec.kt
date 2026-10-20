@@ -4,7 +4,7 @@ import kotlin.math.roundToInt
 
 /**
  * The scanner's numbers: `tools/design-canvas/luminofor/scanner.json`, which `scanner.js` draws the
- * twelve `scanner-*` boards from. Window dp. `ScannerSpecContractTest` holds every value here to the
+ * `scanner-*` boards from. Window dp. `ScannerSpecContractTest` holds every value here to the
  * JSON, so a board and a screen move in one change or neither moves.
  *
  * Colours are ARGB ints (the JSON's `rgba()` alpha rounded to 8 bits, as the canvas stores it); a
@@ -93,6 +93,7 @@ internal object ScannerSpec {
         val COUNTER_GLOW = rgba(0xFF9F19, 0.7f)
         val BIT_GLOW = rgba(0x439FFC, 0.8f)
         val TRACE_GLOW = rgba(0x439FFC, 0.6f)
+        val RANGE_GLOW = rgba(0x439FFC, 0.7f)
 
         /** The JSON's names, for the contract test. */
         val byName: Map<String, Int> = mapOf(
@@ -137,8 +138,6 @@ internal object ScannerSpec {
         val TITLE_ASIDE = Style(14f, 16f)
         val LINE = Style(13f, 17f, mono = true)
         val TAB = Style(15f, 18f)
-        val JUMP = Style(13f, 16f)
-        val JUMP_COUNT = Style(11.5f, 16f, mono = true)
         val COL_HEAD = Style(11f, 13f, track = 0.07f)
         val COL_HEAD_TIGHT = Style(11f, 13f, track = 0.06f)
         val BIT_HEAD = Style(10f, 12f, track = 0.02f)
@@ -185,7 +184,6 @@ internal object ScannerSpec {
         val UNIT_NAME = Style(13.5f, 17f)
         val UNIT_TAG = Style(11.5f, 15f, mono = true)
         val ROW_SIG = Style(11f, 14f, mono = true)
-        val PLATE_TEXT = Style(14f, 20f)
         val ABBR = Style(14f, 17f, 500, mono = true)
         val ABBR_NAME = Style(11.5f, 15f)
         val TILE_ABBR = Style(13f, 16f, 500, mono = true)
@@ -208,8 +206,6 @@ internal object ScannerSpec {
         val PACK_STATE = Style(11f, 13f, 500, track = 0.04f)
         val PACK_KEY = Style(12.5f, 19f)
         val PACK_VALUE = Style(14f, 19f, mono = true)
-        val MACHINE = Style(14f, 17f)
-        val MACHINE_MONO = Style(13f, 18f, mono = true)
         val GLYPH = Style(15f, 18f)
         val DRIVE_CELL = Style(15f, 18f, mono = true)
         val DRIVE_SMALL = Style(12f, 18f, mono = true)
@@ -224,7 +220,7 @@ internal object ScannerSpec {
         val byName: Map<String, Style> = mapOf(
             "crumb" to CRUMB, "crumbNow" to CRUMB_NOW, "meta" to META, "metaMono" to META_MONO,
             "counterLabel" to COUNTER_LABEL, "counterBig" to COUNTER_BIG, "counter" to COUNTER, "title" to TITLE,
-            "titleAside" to TITLE_ASIDE, "line" to LINE, "tab" to TAB, "jump" to JUMP, "jumpCount" to JUMP_COUNT,
+            "titleAside" to TITLE_ASIDE, "line" to LINE, "tab" to TAB,
             "colHead" to COL_HEAD, "colHeadTight" to COL_HEAD_TIGHT, "bitHead" to BIT_HEAD, "groupTitle" to GROUP_TITLE,
             "groupSummary" to GROUP_SUMMARY, "cell" to CELL, "cell14" to CELL14, "cellSmall" to CELL_SMALL,
             "cellMono" to CELL_MONO, "cellNum" to CELL_NUM, "cellAbbr" to CELL_ABBR, "cellAside" to CELL_ASIDE,
@@ -235,13 +231,13 @@ internal object ScannerSpec {
             "legend" to LEGEND, "plateLine" to PLATE_LINE, "plateMono" to PLATE_MONO, "listCount" to LIST_COUNT,
             "listService" to LIST_SERVICE, "faultTitle" to FAULT_TITLE, "faultNote" to FAULT_NOTE, "key" to KEY,
             "keyValue" to KEY_VALUE, "pidHead" to PID_HEAD, "pid" to PID, "bit" to BIT, "unitName" to UNIT_NAME,
-            "unitTag" to UNIT_TAG, "rowSig" to ROW_SIG, "plateText" to PLATE_TEXT, "abbr" to ABBR,
+            "unitTag" to UNIT_TAG, "rowSig" to ROW_SIG, "abbr" to ABBR,
             "abbrName" to ABBR_NAME, "tileAbbr" to TILE_ABBR, "tileAddr" to TILE_ADDR, "tileName" to TILE_NAME,
             "tileState" to TILE_STATE, "railItem" to RAIL_ITEM, "railMark" to RAIL_MARK, "topoLabel" to TOPO_LABEL, "headUnit" to HEAD_UNIT,
             "headUnitHops" to HEAD_UNIT_HOPS, "hvAbbr" to HV_ABBR, "hvName" to HV_NAME, "hvState" to HV_STATE,
             "hvLabel" to HV_LABEL, "hvVolts" to HV_VOLTS, "packTitle" to PACK_TITLE, "packTag" to PACK_TAG,
-            "packState" to PACK_STATE, "packKey" to PACK_KEY, "packValue" to PACK_VALUE, "machine" to MACHINE,
-            "machineMono" to MACHINE_MONO, "glyph" to GLYPH, "driveCell" to DRIVE_CELL, "driveSmall" to DRIVE_SMALL,
+            "packState" to PACK_STATE, "packKey" to PACK_KEY, "packValue" to PACK_VALUE,
+            "glyph" to GLYPH, "driveCell" to DRIVE_CELL, "driveSmall" to DRIVE_SMALL,
             "count16" to COUNT16, "adas11" to ADAS11, "adas12_5" to ADAS12_5, "adas13" to ADAS13,
             "adas14" to ADAS14, "adas16" to ADAS16,
         )
@@ -286,6 +282,8 @@ internal object ScannerSpec {
         const val HEIGHT = 56f
         const val TITLE_GAP = 5f
         const val COUNTER_W = 112f
+        /** A counter wider than [COUNTER_W] takes its widest value and [COUNTER_PAD] rounded up to this. */
+        const val COUNTER_STEP = 8f
         const val COUNTER_PAD = 16f
         const val COUNTER_GAP = 4f
         const val BADGE_GAP = 24f
@@ -297,8 +295,6 @@ internal object ScannerSpec {
         const val GAP = 28f
         const val UNDERLINE = 2f
         const val DOT_GAP = 8f
-        const val JUMP_GAP = 18f
-        const val JUMP_COUNT_GAP = 5f
     }
 
     object Footer {
@@ -329,7 +325,6 @@ internal object ScannerSpec {
     object Scan {
         const val TABLE_TOP = 168f
         const val TABLE_HEAD = 30f
-        val COLS = listOf(400f, 150f, 160f, 120f, 90f, 90f, 160f, FR)
         const val PAD = 12f
         const val NUM_PAD = 18f
         const val LIST_TOP = 199f
@@ -457,7 +452,7 @@ internal object ScannerSpec {
         const val TOP = 168f
         const val HEAD = 30f
         const val ROW = 27f
-        val COLS = listOf(150f, 380f, 130f, 80f, 220f, FR)
+        val COLS = listOf(150f, 330f, 120f, 70f, 220f, FR)
         const val VALUE_PAD = 14f
     }
 
@@ -473,14 +468,8 @@ internal object ScannerSpec {
         const val TOP = 168f
         const val HEAD = 50f
         const val ROW = 33f
-        val COLS = listOf(196f, FR, FR, FR, FR, FR, FR, FR)
-        const val PAD = 10f
-        const val NOTE_TOP = 536f
-        const val NOTE_PAD_X = 16f
-        const val NOTE_PAD_Y = 12f
-        const val NOTE_GAP = 24f
-        const val NOTE_R = 6f
-        const val COUNTER_W = 124f
+        val COLS = listOf(124f, FR, FR, FR, FR, FR, FR, FR)
+        const val PAD = 8f
     }
 
     object Brakes {
@@ -488,8 +477,6 @@ internal object ScannerSpec {
         const val HEAD = 30f
         const val ASK_ROW = 34f
         val ASK_COLS = listOf(FR, 110f, 140f)
-        const val OBD_ROW = 32f
-        val OBD_COLS = listOf(250f, FR)
         const val PLATE_GAP = 18f
         const val PLATE_PAD_X = 16f
         const val PLATE_PAD_Y = 14f
@@ -498,53 +485,213 @@ internal object ScannerSpec {
         const val BITS_H = 30f
         const val BITS_GAP = 4f
         const val BITS_R = 4f
-        const val ASIDE_GAP = 16f
-        const val ASIDE_PAD_X = 16f
-        const val ASIDE_PAD_Y = 12f
-        const val ASIDE_GAP2 = 4f
     }
 
+    /** The systems down the left (`rail()`), and the screens at the width it leaves. */
+    object Rail {
+        const val W = 216f
+        const val PAD_X = 20f
+        const val PAD_TOP = 10f
+        const val ITEM = 40f
+        const val SEP_GAP = 8f
+        const val BAR = 3f
+        val SCAN_COLS = listOf(290f, 120f, 150f, 100f, 80f, 80f, 150f, FR)
+        val LIVE_COLS = listOf(50f, 300f, 100f, 64f, 76f, 76f, 100f, FR)
+        const val TOPO_COLUMN = 112f
+        const val TOPO_TILE_W = 100f
+        const val TOPO_TILE_PAD_X = 5f
+        const val TOPO_TILE_INSET = 8f
+        val DTC_COLS = listOf(150f, 120f, 250f, FR, 190f, 40f)
+        const val DTC_ROW = 34f
+        const val ECU_LEFT_X = 24f
+        const val ECU_LEFT_W = 420f
+        const val ECU_RIGHT_X = 468f
+        const val ECU_RIGHT_W = 572f
+        val ECU_LIST_COLS = listOf(FR, 100f, 90f)
+        val ECU_MON_COLS = listOf(FR, 100f, 110f)
+        const val PENDING_X = 36f
+        const val PENDING_Y = 184f
+    }
+
+    /** Where a scheme may stand: under the tabs, over the footer. */
+    object Content {
+        const val TOP = 172f
+        const val BOTTOM = 620f
+    }
+
+    /** The car from above, front up (`car()`). */
+    object Car {
+        const val TOP = 196f
+        const val H = 400f
+        const val W = 176f
+        const val NOSE_R = 58f
+        const val TAIL_R = 44f
+        const val AXLE = 92f
+        const val WHEEL_W = 14f
+        const val WHEEL_H = 58f
+        const val MIRROR_W = 12f
+        const val MIRROR_H = 10f
+        const val SHIELD = 112f
+        const val REAR = 96f
+        const val GLASS_INSET = 12f
+        const val ROOF_INSET = 22f
+        val DOORS_FRONT = 124f to 212f
+        val DOORS_REAR = 216f to 300f
+        val ANCHORS = 22f to 86f
+        const val DOMAIN_Y = 300f
+    }
+
+    /** A plate of lines beside a scheme with its leader (`callout()`), and a machine's circle. */
+    object Callout {
+        const val LEFT_X = 96f
+        const val W = 220f
+        const val PAD_X = 12f
+        const val PAD_Y = 9f
+        const val GAP = 3f
+        const val R = 6f
+        const val DOT = 2.6f
+        const val MACHINE_R = 20f
+    }
+
+    object AdasCar {
+        const val TOP = 236f
+        const val H = 330f
+        val CORNER = 18f to 26f
+        const val FRONT_SPREAD = 40f
+        const val FRONT_LEN = 60f
+        const val CORNERS_SPREAD = 60f
+        const val CORNERS_LEN = 56f
+        const val MRR_Y = 176f
+        const val FR_DROP = 0f
+        const val ADC_LIFT = 0f
+        const val IPA_LIFT = 0f
+    }
+
+    object DrivesCar {
+        const val PAIR = 40f
+        const val BOX_W = 280f
+        const val ENGINE_Y = 20f
+        const val ENGINE_W = 92f
+        const val ENGINE_H = 30f
+        const val REAR_BLOCKS_DY = 34f
+    }
+
+    /** The HV schema at the rail's width (`hvBody()` on `hvRail`). */
     object Hv {
-        const val PACK_X = 240f
+        const val PACK_X = 216f
         const val PACK_Y = 230f
-        const val PACK_W = 280f
+        const val PACK_W = 260f
         const val PACK_H = 260f
         const val PACK_R = 8f
         const val PACK_PAD_X = 16f
         const val PACK_PAD_Y = 14f
         const val PACK_GAP = 9f
-        const val UNIT_W = 160f
+        const val UNIT_W = 150f
         const val UNIT_H = 56f
         const val UNIT_R = 6f
         const val UNIT_PAD_X = 10f
         const val UNIT_ROW_GAP = 2f
-        const val CONTACTOR_WIRE = "M520 360H548M580 360H620"
-        const val CONTACTOR_BLADE = "M548 360L576 348"
-        val CONTACTOR_PINS = listOf(548f to 360f, 580f to 360f)
+        const val CONTACTOR_WIRE = "M476 360H504M536 360H576"
+        const val CONTACTOR_BLADE = "M504 360L532 348"
+        val CONTACTOR_PINS = listOf(504f to 360f, 536f to 360f)
         const val CONTACTOR_PIN = 2.6f
-        val CONTACTOR_LABEL = Triple(546f, 368f, 70f)
-        const val TRUNK = "M620 210V540"
-        const val TAPS = "M620 210H680M620 320H680M620 440H680M620 540H680"
-        const val SHAFTS = "M840 210H886M840 320H886M840 440H886M840 540H886"
-        const val COUPLING = "M934 317H960M934 323H960"
-        const val FEEDS = "M200 260H240M200 378H240M120 406V500"
+        val CONTACTOR_LABEL = Triple(502f, 368f, 70f)
+        const val TRUNK = "M576 210V540"
+        const val TAPS = "M576 210H628M576 320H628M576 440H628M576 540H628"
+        const val SHAFTS = "M778 210H822M778 320H822M778 440H822M778 540H822"
+        const val COUPLING = "M870 317H888M870 323H888"
+        const val FEEDS = "M174 260H216M174 378H216M99 406V500"
 
         data class Machine(val x: Float, val y: Float, val glyph: String, val live: Boolean)
 
         val MACHINES = listOf(
-            Machine(910f, 210f, "M", true), Machine(910f, 320f, "G", true),
-            Machine(910f, 440f, "M", false), Machine(910f, 540f, "M", false),
+            Machine(846f, 210f, "M", true), Machine(846f, 320f, "G", true),
+            Machine(846f, 440f, "M", false), Machine(846f, 540f, "M", false),
         )
         const val MACHINE_R = 24f
-        const val BUS_LABEL_RIGHT = 612f
+        const val BUS_LABEL_RIGHT = 568f
         const val BUS_LABEL_Y = 203.5f
-        val VOLTS = listOf(630f to 236f, 630f to 466f)
+        val VOLTS = listOf(586f to 236f, 586f to 466f)
         val UNITS: Map<String, Pair<Float, Float>> = linkedMapOf(
-            "FMCU" to (680f to 182f), "ISG" to (680f to 292f), "SMCU" to (680f to 412f), "SMCU3" to (680f to 512f),
-            "ECM" to (960f to 292f), "PTC" to (40f to 232f), "DCOBC" to (40f to 350f), "LBMS" to (40f to 500f),
+            "FMCU" to (628f to 182f), "ISG" to (628f to 292f), "SMCU" to (628f to 412f), "SMCU3" to (628f to 512f),
+            "ECM" to (888f to 292f), "PTC" to (24f to 232f), "DCOBC" to (24f to 350f), "LBMS" to (24f to 500f),
         )
-        const val CAPTION = 948f
-        val CAPTIONS = listOf(194f, 356f, 424f, 524f)
+    }
+
+    /** A range on a scale (`rangeBar()`). */
+    object RangeBar {
+        const val H = 8f
+        const val HEAD_GAP = 24f
+        const val TICK_GAP = 8f
+        const val MIN_SPAN = 3f
+    }
+
+    object PackScheme {
+        const val X = 60f
+        const val Y = 196f
+        const val W = 230f
+        const val H = 380f
+        const val R = 12f
+        const val PAD = 10f
+        val POLES = 262f to 506f
+        const val BUS_X = 610f
+        const val ISO_X = 380f
+        const val ISO_W = 220f
+        const val ISO_H = 124f
+        const val RANGES_X = 720f
+        const val RANGES_Y = 224f
+        const val RANGES_W = 300f
+        const val RANGES_STEP = 120f
+    }
+
+    object EngineScheme {
+        const val X0 = 60f
+        const val X1 = 1000f
+        const val PIPE_Y = 400f
+        const val PIPE = 26f
+        const val THROTTLE = 210f
+        const val BLOCK_X = 400f
+        const val BLOCK_Y = 340f
+        const val BLOCK_W = 200f
+        const val BLOCK_H = 120f
+        const val CYL = 18f
+        const val CAT_X = 720f
+        const val CAT_W = 90f
+        const val CAT_H = 44f
+        const val O2 = 880f
+        const val UP_Y = 322f
+        const val DOWN_Y = 482f
+
+        /** A reading's place on the air's way: above or below the pipe, its x, its plate's width, where its leader ends. */
+        data class Point(val up: Boolean, val x: Float, val w: Float, val at: Float?)
+
+        /** By the JSON's names; [EnginePlace][dev.denza.apps.feature.diagnostics.scan.EnginePlace] in camel case. */
+        val POINTS: Map<String, Point> = linkedMapOf(
+            "inlet" to Point(true, 110f, 170f, null), "throttle" to Point(false, 210f, 170f, null),
+            "manifold" to Point(true, 300f, 150f, null), "blockTop" to Point(true, 500f, 240f, 340f),
+            "blockBottom" to Point(false, 500f, 240f, 460f), "catalyst" to Point(true, 765f, 180f, 378f),
+            "oxygen" to Point(false, 880f, 180f, 437f),
+        )
+    }
+
+    object ClimateScheme {
+        const val LEFT_X = 60f
+        const val ZONE_W = 240f
+        const val ZONE_H = 200f
+        const val ZONE_Y = 300f
+        const val STEM = 40f
+    }
+
+    object LvScheme {
+        const val X0 = 60f
+        const val X1 = 1030f
+        const val BUS_Y = 300f
+        const val DCDC_X = 190f
+        const val BATT_X = 360f
+        const val BATT_DROP = 90f
+        const val LOAD_X = 520f
+        const val LOAD_STEP = 130f
+        const val LOAD_DROP = 90f
     }
 
     /**

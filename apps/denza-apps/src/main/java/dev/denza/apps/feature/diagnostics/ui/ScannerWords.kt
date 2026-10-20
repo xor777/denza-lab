@@ -10,9 +10,11 @@ import dev.denza.apps.feature.diagnostics.scan.MilState
 import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
-import dev.denza.apps.feature.diagnostics.scan.SignalRow
+import dev.denza.apps.feature.diagnostics.scan.RailItem
+import dev.denza.apps.feature.diagnostics.scan.RailTone
+import dev.denza.apps.feature.diagnostics.scan.ScanPhase
+import dev.denza.apps.feature.diagnostics.scan.ScanSummary
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
-import dev.denza.apps.feature.diagnostics.scan.Target
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 
 /**
@@ -222,43 +224,6 @@ internal object ScannerWords {
     fun liveLine(request: Int, rows: Int, rate: String): String =
         "${route(request)} · Mode 01 · $rows PID · опрос $rate · график за 60 с"
 
-    /** The drives' line: the routed controllers, then those without an address. */
-    fun drivesLine(columns: List<CompareColumn>): String {
-        val routed = columns.filter { it.request != null }.joinToString(" · ") { "${it.abbreviation} ${route(it.request)}" }
-        val none = columns.filter { it.request == null }.joinToString(", ") { it.abbreviation }
-        return listOf(routed, if (none.isEmpty()) "" else "$none: адрес не найден", "данные: шина сигналов (autoservice)")
-            .filter { it.isNotEmpty() }.joinToString(" · ")
-    }
-
-    /** «· 3 мотора + мотор-генератор»: the drive columns, the generator named apart. */
-    fun drivesAside(columns: List<CompareColumn>): String {
-        val generators = columns.count { "генератор" in it.name.lowercase() }
-        val motors = columns.size - generators
-        val word = when {
-            motors % 10 == 1 && motors % 100 != 11 -> "мотор"
-            motors % 10 in 2..4 && motors % 100 !in 12..14 -> "мотора"
-            else -> "моторов"
-        }
-        return "· $motors $word" + if (generators > 0) " + мотор-генератор" else ""
-    }
-
-    /**
-     * The HV system's line: what is read by UDS - the pack and every unit on the schematic that
-     * leads somewhere, by address - those without an address, and the signals beside them.
-     */
-    fun hvLine(model: DiagnosticsModel, pack: Int?): String {
-        val packRow = pack?.let { row(model, it) }
-        val units = model.systems.hv.units
-        val routed = listOfNotNull(packRow?.let { "${it.abbreviation} ${hex(pack)}" }) +
-            units.filter { it.address.toIntOrNull(16) != null && it.target != null }.map { "${it.abbreviation} ${it.address}" }
-        val none = units.filter { it.address.toIntOrNull(16) == null }.joinToString(", ") { it.abbreviation }
-        return "UDS: " + (routed + listOfNotNull(if (none.isEmpty()) null else "нет адреса: $none") + "+ сигналы").joinToString(" · ")
-    }
-
-    /** A comparison's line: how many blocks and each one's request address. */
-    fun blocksLine(columns: List<CompareColumn>): String =
-        (listOf("${columns.size} блоков") + columns.map { c -> c.request?.let { "${c.abbreviation} ${hex(it)}" } ?: c.abbreviation }).joinToString(" · ")
-
     /** A comparison column's tag under its name: «FMCU · 7E3», or the abbreviation alone. */
     fun columnTag(c: CompareColumn): String = if (c.request == null) c.abbreviation else "${c.abbreviation} · ${hex(c.request)}"
 
@@ -266,27 +231,39 @@ internal object ScannerWords {
     fun row(model: DiagnosticsModel, request: Int): ModuleRowView? =
         model.groups.asSequence().flatMap { it.rows }.firstOrNull { it.request == request }
 
-    /** The ECU a system screen leads with: the row whose tap opens that screen. */
-    fun leadModule(model: DiagnosticsModel, screen: CarSystem): Int? = when (screen) {
-        CarSystem.CHASSIS -> model.systems.brakeModules.firstOrNull()
-        else -> model.groups.asSequence().flatMap { it.rows }
-            .firstOrNull { it.target == Target.System(screen) && it.request != null && it.status != ModuleStatus.NO_ROUTE }?.request
+    /** The rail: the session's, or before it has one «Автоскан» and every system without a mark. */
+    fun rail(model: DiagnosticsModel): List<RailItem> = model.rail.ifEmpty {
+        listOf(RailItem(null, "Автоскан", model.scan.answered.takeIf { it.isNotEmpty() }, RailTone.COUNT)) +
+            CarSystem.entries.map { RailItem(it, it.railName, null, RailTone.NONE) }
     }
 
-    /** DTC over [requests]: the records the autoscan counted, active and in history. */
-    fun dtcSum(model: DiagnosticsModel, requests: List<Int?>): String {
-        val rows = requests.filterNotNull().mapNotNull { row(model, it) }.filter { read(it.status) }
-        if (rows.isEmpty()) return "—"
-        return rows.sumOf { (it.active.toIntOrNull() ?: 0) + (it.history.toIntOrNull() ?: 0) }.toString()
+    /** A rail mark's ink: the autoscan's count quiet, history as the tiles have it, active in the car's orange. */
+    fun railInk(tone: RailTone): Int = when (tone) {
+        RailTone.NONE, RailTone.COUNT -> Ink.FAINT
+        RailTone.HISTORY -> Ink.INK4
+        RailTone.ACTIVE -> Ink.ORANGE
     }
 
-    /** «2 из 7»: the comparison's blocks whose memory was read. */
-    fun readOf(model: DiagnosticsModel, view: CompareView): String {
-        val read = view.columns.count { c -> c.request?.let { row(model, it) }?.let { read(it.status) } == true }
-        return "$read из ${view.columns.size}"
+    /** The autoscan's line under its title: when it ran, or how far it is, and the mask it reads with. */
+    fun scanLine(scan: ScanSummary): String {
+        val ran = when {
+            scan.phase == ScanPhase.RUNNING -> "опрос ${scan.done}/${scan.total}"
+            scan.finishedAt != null -> "опрос ${scan.finishedAt}"
+            else -> "опроса не было"
+        }
+        return "$ran · маска DTC 09"
     }
 
-    /** A signal's value with its unit, «553 В»; null when the row is not there. */
-    fun signal(rows: List<SignalRow>, nameHas: String): String? =
-        rows.firstOrNull { nameHas in it.name }?.let { if (it.unit.isEmpty()) it.value else "${it.value} ${it.unit}" }
+    /** «снимок 19:31:29» out of a memory read's footnote: when the system's readings were taken. */
+    fun snapshot(footnote: String): String? = footnote.split(" · ").lastOrNull { it.startsWith("снимок") }
+
+    /** «· 68 блоков». */
+    fun blocks(n: Int): String {
+        val word = when {
+            n % 10 == 1 && n % 100 != 11 -> "блок"
+            n % 10 in 2..4 && n % 100 !in 12..14 -> "блока"
+            else -> "блоков"
+        }
+        return "· $n $word"
+    }
 }

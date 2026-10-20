@@ -17,17 +17,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
-import dev.denza.apps.feature.diagnostics.scan.MilState
 import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
@@ -35,22 +31,24 @@ import dev.denza.apps.feature.diagnostics.scan.ScanPhase
 import dev.denza.apps.feature.diagnostics.scan.Target
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
-import kotlinx.coroutines.launch
 
 /*
- * «Автоскан»: the list of every catalogued ECU by system (`scanner.js` `scan()`) and the same ECUs
- * as tiles on the diagnostic bus (`topology()`).
+ * «Автоскан» beside the rail: every catalogued ECU by system as a list (`scanner.js` `sysScan()`)
+ * and as tiles on the diagnostic bus (`sysTopology()`, `topologyBody()`).
  */
 
-/** The autoscan's five figures. */
-internal fun scanCounters(model: DiagnosticsModel): List<Counter> {
+/** The autoscan's head: what answered, the codes, what was read. */
+@Composable
+private fun ScanHead(model: DiagnosticsModel) {
     val s = model.scan
-    return listOf(
-        Counter("ОТВЕТИЛО", s.answered, Ink.WHITE),
-        Counter("DTC АКТИВНЫХ", s.active?.toString() ?: "—", Ink.WHITE, on = (s.active ?: 0) > 0),
-        Counter("DTC В ИСТОРИИ", s.history?.toString() ?: "—", Ink.TEXT),
-        Counter("ПАМЯТЬ ПРОЧИТАНА", s.memoryRead, Ink.TEXT),
-        Counter("MIL", ScannerWords.mil(s.mil), Ink.TEXT, on = s.mil == MilState.ON),
+    BlockHead(
+        "Автоскан", ScannerWords.blocks(model.groups.sumOf { it.rows.size }), ScannerWords.scanLine(s),
+        counters = listOf(
+            Counter("ОТВЕТИЛО", s.answered),
+            Counter("DTC АКТ.", s.active?.toString() ?: "—", on = (s.active ?: 0) > 0),
+            Counter("DTC ИСТ.", s.history?.toString() ?: "—"),
+            Counter("ПРОЧИТАНО", s.memoryRead),
+        ),
     )
 }
 
@@ -61,15 +59,14 @@ internal fun scanButton(model: DiagnosticsModel, rescan: () -> Unit): FooterButt
     else -> FooterButton("Опросить снова", true, rescan)
 }
 
-/** A sentence for why the scan stopped, in the car's orange, in place of the footer's notes. */
-private fun noticeNotes(model: DiagnosticsModel, otherwise: List<FooterNote>): List<FooterNote> =
-    model.scan.notice?.let { listOf(FooterNote.Words(it)) } ?: otherwise
+/** A sentence for why the scan stopped, in the car's orange, as the footer's note. */
+private fun noticeNotes(model: DiagnosticsModel): List<FooterNote> = listOfNotNull(model.scan.notice?.let { FooterNote.Words(it) })
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ScanListPage(
     model: DiagnosticsModel,
-    header: @Composable () -> Unit,
+    frame: RailFrame,
     onTab: (Int) -> Unit,
     listState: LazyListState,
     onlyDtc: Boolean,
@@ -78,41 +75,20 @@ internal fun ScanListPage(
     rescan: () -> Unit,
 ) {
     val groups = remember(model.groups, onlyDtc) { ScannerWords.filter(model.groups, onlyDtc) }
-    // Each group's header index in the list: a header, then its rows.
-    val starts = remember(groups) { groups.runningFold(0) { at, g -> at + 1 + g.rows.size }.dropLast(1) }
-    val current by remember(starts) { derivedStateOf { starts.indexOfLast { it <= listState.firstVisibleItemIndex }.coerceAtLeast(0) } }
-    val scope = rememberCoroutineScope()
-    val answered = model.scan.answered.split('/')
-    ScannerPage(footer = {
+    RailPage(frame, footer = {
         ScanFooter(
             buttons = listOf(scanButton(model, rescan), FooterButton("Только с DTC", onlyDtc) { onOnlyDtc(!onlyDtc) }),
-            notes = noticeNotes(
-                model,
-                listOf(FooterNote.Words(if (answered.size == 2) "${answered[0]} из ${answered[1]} ответили" else model.scan.answered, mono = true)),
-            ),
-            noteInk = if (model.scan.notice != null) Ink.ORANGE_INK else Ink.FAINT,
+            notes = noticeNotes(model),
+            noteInk = Ink.ORANGE_INK,
         )
     }) {
-        header()
-        ScanSummaryBand(scanCounters(model))
-        ScanTabs(
-            listOf("Список", "Топология"), 0, onTab,
-            jumps = groups.mapIndexed { i, g ->
-                Jump(g.short, g.rows.size.toString(), i == current) { scope.launch { listState.scrollToItem(starts[i]) } }
-            },
-        )
+        ScanHead(model)
+        ScanTabs(listOf("Список", "Топология"), 0, onTab)
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val s = ScannerSpec.Scan
             val w = maxWidth.value - 48f
-            val cols = ScannerSpec.columns(s.COLS, 0f, w)
-            HeadRow(
-                ScannerSpec.columns(s.COLS, 24f, w),
-                listOf(
-                    HeadLabel("СИСТЕМА"), HeadLabel("БЛОК"), HeadLabel("ЗАПРОС → ОТВЕТ"), HeadLabel("ПРОТОКОЛ"),
-                    HeadLabel("DTC АКТ.", end = true, pad = s.NUM_PAD), HeadLabel("DTC ИСТ.", end = true, pad = s.NUM_PAD), HeadLabel("СТАТУС"),
-                ),
-                s.TABLE_TOP, s.TABLE_HEAD,
-            )
+            val cols = ScannerSpec.columns(ScannerSpec.Rail.SCAN_COLS, 0f, w)
+            ScanHeadRow(ScannerSpec.columns(ScannerSpec.Rail.SCAN_COLS, 24f, w), "СИСТЕМА", "БЛОК")
             val listH = maxHeight.value - (ScannerSpec.H - s.LIST_BOTTOM) - s.LIST_TOP
             LazyColumn(Modifier.at(24f, s.LIST_TOP).size(w.dp, listH.dp), state = listState) {
                 groups.forEach { g ->
@@ -124,6 +100,20 @@ internal fun ScanListPage(
             }
         }
     }
+}
+
+/** The list's column captions: the first two are the autoscan's «СИСТЕМА / БЛОК», a system's «БЛОК» and none. */
+@Composable
+internal fun ScanHeadRow(cols: List<Pair<Float, Float>>, first: String, second: String) {
+    val s = ScannerSpec.Scan
+    HeadRow(
+        cols,
+        listOf(
+            HeadLabel(first), HeadLabel(second), HeadLabel("ЗАПРОС → ОТВЕТ"), HeadLabel("ПРОТОКОЛ"),
+            HeadLabel("DTC АКТ.", end = true, pad = s.NUM_PAD), HeadLabel("DTC ИСТ.", end = true, pad = s.NUM_PAD), HeadLabel("СТАТУС"),
+        ),
+        s.TABLE_TOP, s.TABLE_HEAD,
+    )
 }
 
 @Composable
@@ -163,10 +153,24 @@ internal fun ScanRow(row: ModuleRowView, cols: List<Pair<Float, Float>>, onClick
     }
 }
 
-/** A tile's look by its status (`TILE` in the board). */
-private data class TileLook(val fill: Int?, val line: Int, val dash: Boolean, val ink: Int, val sub: Int, val state: Int, val addr: Int)
+/** A system's «Блоки»: its blocks as the autoscan's rows under the list's captions (`sysBlocks()`). */
+@Composable
+internal fun BlockRows(rows: List<ModuleRowView>, onOpen: (Target) -> Unit) {
+    val s = ScannerSpec.Scan
+    val width = LocalScanWidth.current - 48f
+    ScanHeadRow(ScannerSpec.columns(ScannerSpec.Rail.SCAN_COLS, 24f, width), "БЛОК", "")
+    val cols = ScannerSpec.columns(ScannerSpec.Rail.SCAN_COLS, 0f, width)
+    ScrollRows(s.LIST_TOP) {
+        Column(Modifier.padding(start = 24.dp).width(width.dp)) {
+            rows.forEach { r -> ScanRow(r, cols) { r.target?.let(onOpen) } }
+        }
+    }
+}
 
-private fun tileLook(status: ModuleStatus): TileLook = when (ScannerWords.chip(status).look) {
+/** A tile's look by its status (`TILE` in the board). */
+internal data class TileLook(val fill: Int?, val line: Int, val dash: Boolean, val ink: Int, val sub: Int, val state: Int, val addr: Int)
+
+internal fun tileLook(status: ModuleStatus): TileLook = when (ScannerWords.chip(status).look) {
     ScannerWords.Look.OK -> TileLook(Ink.TILE_OK, Ink.BLUE_EDGE, false, Ink.WHITE, Ink.DIM, Ink.BLUE_SOFT, Ink.FAINT)
     ScannerWords.Look.HIST -> TileLook(Ink.TILE_HIST, Ink.SEP, false, Ink.WHITE, Ink.DIM, Ink.INK4, Ink.FAINT)
     ScannerWords.Look.ON -> TileLook(Ink.TILE_HIST, Ink.ORANGE, false, Ink.WHITE, Ink.DIM, Ink.ORANGE_INK, Ink.FAINT)
@@ -174,9 +178,19 @@ private fun tileLook(status: ModuleStatus): TileLook = when (ScannerWords.chip(s
     ScannerWords.Look.NONE -> TileLook(null, Ink.LINE4, true, Ink.FAINT, Ink.FAINT2, Ink.FAINT2, Ink.FAINT2)
 }
 
+/** A tile's size: the topology's beside the rail, or the full one the schemes hang from the car. */
+internal data class TileSize(val w: Float, val padX: Float) {
+    companion object {
+        val SCHEME = TileSize(ScannerSpec.Topology.TILE_W, ScannerSpec.Topology.TILE_PAD_X)
+        val RAIL = TileSize(ScannerSpec.Rail.TOPO_TILE_W, ScannerSpec.Rail.TOPO_TILE_PAD_X)
+    }
+}
+
 @Composable
-internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Unit, onTab: (Int) -> Unit, onOpen: (Target) -> Unit, rescan: () -> Unit) {
+internal fun TopologyPage(model: DiagnosticsModel, frame: RailFrame, onTab: (Int) -> Unit, onOpen: (Target) -> Unit, rescan: () -> Unit) {
     val p = ScannerSpec.Topology
+    val column = ScannerSpec.Rail.TOPO_COLUMN
+    val inset = ScannerSpec.Rail.TOPO_TILE_INSET
     val byId = model.groups.associateBy { it.id }
     val spans = p.COLUMNS.flatten().groupingBy { it.id }.eachCount()
     data class Placed(val x: Float, val y: Float, val row: ModuleRowView)
@@ -186,11 +200,11 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
     // that opens a group; a column that continues a group hangs from the one before it.
     val opens = p.COLUMNS.map { !it.first().continued }
     val lastOpen = opens.lastIndexOf(true)
-    val bus = mutableListOf(floatArrayOf(p.HEAD_X + p.HEAD_W, p.TRUNK_Y, p.LEFT + lastOpen * p.COLUMN + p.BUS_INSET, p.TRUNK_Y))
+    val bus = mutableListOf(floatArrayOf(p.HEAD_X + p.HEAD_W, p.TRUNK_Y, p.LEFT + lastOpen * column + p.BUS_INSET, p.TRUNK_Y))
     val live = mutableListOf<FloatArray>()
     val dead = mutableListOf<FloatArray>()
     p.COLUMNS.forEachIndexed { k, parts ->
-        val x = p.LEFT + k * p.COLUMN
+        val x = p.LEFT + k * column
         val bx = x + p.BUS_INSET
         var y = p.FIRST_LABEL
         var last = 0f
@@ -198,12 +212,12 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
             val g = byId[part.id] ?: return@forEachIndexed
             val rows = g.rows.subList(part.from.coerceAtMost(g.rows.size), (part.to ?: g.rows.size).coerceAtMost(g.rows.size))
             if (gi > 0) y += p.GROUP_GAP
-            if (!part.continued) labels += Triple(x + p.TILE_INSET, y, ScannerWords.topologyLabel(g, spans[part.id] ?: 1))
+            if (!part.continued) labels += Triple(x + inset, y, ScannerWords.topologyLabel(g, spans[part.id] ?: 1))
             y += p.LABEL_H
             rows.forEach { r ->
-                tiles += Placed(x + p.TILE_INSET, y, r)
+                tiles += Placed(x + inset, y, r)
                 val m = y + p.TILE_H / 2f
-                val stub = floatArrayOf(bx, m, x + p.TILE_INSET, m)
+                val stub = floatArrayOf(bx, m, x + inset, m)
                 if (r.status == ModuleStatus.NO_ROUTE) dead += stub else live += stub
                 last = m
                 y += p.TILE_PITCH
@@ -214,12 +228,12 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
                 val from = if (k > 0) p.TRUNK_Y else p.TRUNK_FIRST_Y
                 bus += floatArrayOf(bx, from, bx, last)
             } else {
-                bus += floatArrayOf(bx - p.COLUMN, p.TAIL_Y, bx, p.TAIL_Y)
+                bus += floatArrayOf(bx - column, p.TAIL_Y, bx, p.TAIL_Y)
                 bus += floatArrayOf(bx, p.TAIL_Y, bx, last)
             }
         }
     }
-    ScannerPage(footer = {
+    RailPage(frame, footer = {
         ScanFooter(
             buttons = listOf(scanButton(model, rescan)),
             legend = ScannerWords.present(
@@ -227,12 +241,11 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
                 tiles.map { it.row.status },
             ),
             legendGap = 16f,
-            notes = noticeNotes(model, emptyList()),
-            noteInk = if (model.scan.notice != null) Ink.ORANGE_INK else Ink.FAINT,
+            notes = noticeNotes(model),
+            noteInk = Ink.ORANGE_INK,
         )
     }) {
-        header()
-        ScanSummaryBand(scanCounters(model))
+        ScanHead(model)
         ScanTabs(listOf("Список", "Топология"), 1, onTab)
         Canvas(Modifier.fillMaxSize()) {
             val sw = 1.5.dp.toPx()
@@ -249,21 +262,27 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
             ScanText("+8", Type.HEAD_UNIT_HOPS, Ink.FAINT, Modifier.endAt(p.HEAD_W - p.HEAD_PAD, mid(0f, p.HEAD_H, Type.HEAD_UNIT_HOPS)))
         }
         labels.forEach { (x, y, t) -> ScanText(t, Type.TOPO_LABEL, Ink.DIM2, Modifier.at(x, y)) }
-        tiles.forEach { (x, y, r) -> Tile(r, Modifier.at(x, y)) { r.target?.let(onOpen) } }
+        tiles.forEach { (x, y, r) -> Tile(r, x, y, TileSize.RAIL, onOpen) }
     }
 }
 
+/**
+ * A block as the topology draws it (`unitTile()`): its abbreviation and address over its short
+ * name; its state is its look, and a word stands in place of the address only where the look
+ * cannot say it (a count, a failure).
+ */
 @Composable
-private fun Tile(r: ModuleRowView, modifier: Modifier, onClick: () -> Unit) {
+internal fun Tile(r: ModuleRowView, x: Float, y: Float, size: TileSize, onOpen: (Target) -> Unit) {
     val p = ScannerSpec.Topology
     val look = tileLook(r.status)
     val width = rememberWidths()
-    Box(modifier.size(p.TILE_W.dp, p.TILE_H.dp).plate(look.fill, look.line, p.TILE_R, look.dash).tap(if (r.target != null) onClick else null)) {
-        val ix = 1f + p.TILE_PAD_X
-        val iw = p.TILE_W - 2f - 2f * p.TILE_PAD_X
+    Box(
+        Modifier.at(x, y).size(size.w.dp, p.TILE_H.dp).plate(look.fill, look.line, p.TILE_R, look.dash)
+            .tap(r.target?.let { { onOpen(it) } }),
+    ) {
+        val ix = 1f + size.padX
+        val iw = size.w - 2f - 2f * size.padX
         val top = (p.TILE_H - Type.TILE_ABBR.lh - p.TILE_ROW_GAP - Type.TILE_NAME.lh) / 2f
-        // the abbreviation and address over the short name; the state is the tile's look, and a word
-        // stands in place of the address only where the look cannot say it (a count, a failure)
         val state = ScannerWords.tileState(r)
         val (right, style, ink) = if (state.isNotEmpty()) Triple(state, Type.TILE_STATE, look.state)
             else Triple(r.request?.let(ScannerWords::hex) ?: "нет адреса", Type.TILE_ADDR, look.addr)
@@ -271,23 +290,5 @@ private fun Tile(r: ModuleRowView, modifier: Modifier, onClick: () -> Unit) {
         ScanText(right, style, ink, Modifier.endAt(ix + iw, top + (Type.TILE_ABBR.lh - style.lh) / 2f))
         ScanText(r.abbreviation, Type.TILE_ABBR, look.ink, Modifier.at(ix, top), maxWidth = iw - rw - 6f)
         ScanText(r.short, Type.TILE_NAME, look.sub, Modifier.at(ix, top + Type.TILE_ABBR.lh + p.TILE_ROW_GAP), maxWidth = iw)
-    }
-}
-
-/** ECUs as rows of the autoscan's table, for a system's «DTC» and «Идентификация» tabs. */
-@Composable
-internal fun ModuleRows(rows: List<ModuleRowView>, width: Float, onOpen: (Target) -> Unit) {
-    val s = ScannerSpec.Scan
-    val cols = ScannerSpec.columns(s.COLS, 0f, width)
-    HeadRow(
-        ScannerSpec.columns(s.COLS, 24f, width),
-        listOf(
-            HeadLabel("БЛОК"), HeadLabel(""), HeadLabel("ЗАПРОС → ОТВЕТ"), HeadLabel("ПРОТОКОЛ"),
-            HeadLabel("DTC АКТ.", end = true, pad = s.NUM_PAD), HeadLabel("DTC ИСТ.", end = true, pad = s.NUM_PAD), HeadLabel("СТАТУС"),
-        ),
-        s.TABLE_TOP, s.TABLE_HEAD,
-    )
-    Column(Modifier.at(24f, s.LIST_TOP).width(width.dp)) {
-        rows.forEach { r -> ScanRow(r, cols) { r.target?.let(onOpen) } }
     }
 }

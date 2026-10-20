@@ -29,9 +29,15 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Tone
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
 
 /*
- * The chrome every scanner screen shares - `scanner.js`'s `header`, `summary`, `blockHead`, `tabs`,
+ * The chrome every scanner screen shares - `scanner.js`'s `header`, `rail`, `blockHead`, `tabs`,
  * `footer`, `badge` and `button` - each a composable placed where the board places it.
  */
+
+/**
+ * How wide the screen's area is, dp: the window for a block's screen, what the rail leaves for the
+ * autoscan and a system (the board's `W` inside `shell()`).
+ */
+internal val LocalScanWidth = androidx.compose.runtime.staticCompositionLocalOf { ScannerSpec.W }
 
 internal data class Crumb(val text: String, val onClick: (() -> Unit)? = null)
 
@@ -110,26 +116,6 @@ internal fun ScanHeader(crumbs: List<Crumb>, link: String, linkDot: Int, glowDot
     }
 }
 
-/** The autoscan's summary: equal columns across the band, a rule between them. */
-@Composable
-internal fun ScanSummaryBand(counters: List<Counter>) {
-    val b = ScannerSpec.Block
-    val top = (b.HEIGHT - Type.COUNTER_LABEL.lh - b.COUNTER_GAP - Type.COUNTER_BIG.lh) / 2f
-    Row(Modifier.at(24f, b.TOP).padding(end = 48.dp).fillMaxWidth().height(b.HEIGHT.dp)) {
-        counters.forEachIndexed { i, c ->
-            if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().plate(Ink.RULE))
-            Box(Modifier.weight(1f).fillMaxHeight()) {
-                ScanText(c.label, Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(b.COUNTER_PAD, top))
-                ScanText(
-                    c.value, Type.COUNTER_BIG, if (c.on) Ink.ORANGE_INK else c.ink,
-                    Modifier.at(b.COUNTER_PAD, top + Type.COUNTER_LABEL.lh + b.COUNTER_GAP),
-                    glow = if (c.on) Ink.COUNTER_GLOW else null, glowBlur = 10f,
-                )
-            }
-        }
-    }
-}
-
 /**
  * A block's or a system's head: the title and its aside over the mono line, and at the right
  * either counters (an OBD responder, a system) or the status badge and the DTC count (a body block).
@@ -140,12 +126,16 @@ internal fun BlockHead(
     aside: String,
     line: String,
     counters: List<Counter> = emptyList(),
-    counterW: Float = ScannerSpec.Block.COUNTER_W,
     badge: Pair<String, Tone>? = null,
     dtc: String? = null,
 ) {
     val b = ScannerSpec.Block
     val lab = Type.COUNTER_LABEL
+    // a counter is 112 dp, or its widest value and a padding's room after it rounded up to 8 dp
+    // (the board's counterWidth())
+    val width = rememberWidths()
+    val widest = counters.maxOfOrNull { width(it.value, Type.COUNTER) } ?: 0f
+    val counterW = maxOf(b.COUNTER_W, kotlin.math.ceil((widest + b.COUNTER_PAD) / b.COUNTER_STEP) * b.COUNTER_STEP)
     Row(Modifier.at(0f, b.TOP).fillMaxWidth().height(b.HEIGHT.dp).padding(horizontal = 24.dp)) {
         val top = (b.HEIGHT - Type.TITLE.lh - b.TITLE_GAP - Type.LINE.lh) / 2f
         Column(Modifier.weight(1f).padding(top = top.dp)) {
@@ -181,11 +171,9 @@ internal fun BlockHead(
     }
 }
 
-internal data class Jump(val name: String, val count: String, val current: Boolean, val onClick: () -> Unit)
-
-/** The tab row with its rule; the autoscan's jump links to the groups at the right. */
+/** The tab row with its rule. */
 @Composable
-internal fun ScanTabs(items: List<String>, active: Int, onSelect: (Int) -> Unit, alert: Int? = null, jumps: List<Jump> = emptyList()) {
+internal fun ScanTabs(items: List<String>, active: Int, onSelect: (Int) -> Unit, alert: Int? = null) {
     val t = ScannerSpec.Tabs
     val top = (t.HEIGHT - Type.TAB.lh) / 2f
     val width = rememberWidths()
@@ -215,16 +203,6 @@ internal fun ScanTabs(items: List<String>, active: Int, onSelect: (Int) -> Unit,
             x += w + t.GAP
         }
         Box(Modifier.at(24f, t.HEIGHT).size((maxWidth.value - 48f).dp, 1.dp).plate(Ink.RULE))
-        val jtop = (t.HEIGHT - Type.JUMP.lh) / 2f
-        var r = maxWidth.value - 24f
-        jumps.asReversed().forEach { j ->
-            val wc = width(j.count, Type.JUMP_COUNT)
-            val wn = width(j.name, Type.JUMP)
-            ScanText(j.count, Type.JUMP_COUNT, Ink.FAINT2, Modifier.at(r - wc, jtop), baseline = Type.JUMP.baseline)
-            ScanText(j.name, Type.JUMP, if (j.current) Ink.WHITE else Ink.MUTE, Modifier.at(r - wc - t.JUMP_COUNT_GAP - wn, jtop))
-            Box(Modifier.at(r - wc - t.JUMP_COUNT_GAP - wn, 0f).size((wc + t.JUMP_COUNT_GAP + wn).dp, t.HEIGHT.dp).tap(j.onClick))
-            r -= wc + t.JUMP_COUNT_GAP + wn + t.JUMP_GAP
-        }
     }
 }
 

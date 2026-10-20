@@ -9,6 +9,10 @@ import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
+import dev.denza.apps.feature.diagnostics.scan.MilState
+import dev.denza.apps.feature.diagnostics.scan.RailTone
+import dev.denza.apps.feature.diagnostics.scan.ScanPhase
+import dev.denza.apps.feature.diagnostics.scan.ScanSummary
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -94,15 +98,30 @@ class ScannerWordsTest {
     }
 
     @Test
-    fun theDrivesLineAndAsideComeFromTheColumns() {
-        val cols = listOf(
-            CompareColumn("FMCU", "Передний", 0x7E3), CompareColumn("SMCU", "Задний левый", null),
-            CompareColumn("SMCU3", "Задний правый", null), CompareColumn("ISG", "Мотор-генератор", 0x7E6),
-        )
-        assertEquals("FMCU 7E3 → 7EB · ISG 7E6 → 7EE · SMCU, SMCU3: адрес не найден · данные: шина сигналов (autoservice)", ScannerWords.drivesLine(cols))
-        assertEquals("· 3 мотора + мотор-генератор", ScannerWords.drivesAside(cols))
-        assertEquals("FMCU · 7E3", ScannerWords.columnTag(cols[0]))
-        assertEquals("SMCU", ScannerWords.columnTag(cols[1]))
+    fun aComparisonColumnIsHeadedByItsBlock() {
+        assertEquals("FMCU · 7E3", ScannerWords.columnTag(CompareColumn("FMCU", "Передний", 0x7E3)))
+        assertEquals("SMCU", ScannerWords.columnTag(CompareColumn("SMCU", "Задний", null)))
+    }
+
+    @Test
+    fun theAutoscansHeadSaysWhenItRanAndTheSystemsTheirSnapshot() {
+        fun scan(phase: ScanPhase, at: String?) = ScanSummary(phase, 12, 68, at, "68/68", 0, 10, "19/68", MilState.OFF, null)
+        assertEquals("опрос 16:31 · маска DTC 09", ScannerWords.scanLine(scan(ScanPhase.DONE, "16:31")))
+        assertEquals("опрос 12/68 · маска DTC 09", ScannerWords.scanLine(scan(ScanPhase.RUNNING, "16:31")))
+        assertEquals("опроса не было · маска DTC 09", ScannerWords.scanLine(scan(ScanPhase.NEVER, null)))
+        assertEquals("снимок 19:31:29", ScannerWords.snapshot("19 01 09 · 19 02 09 · снимок 19:31:29"))
+        assertEquals(null, ScannerWords.snapshot("не читали"))
+        assertEquals("· 68 блоков", ScannerWords.blocks(68))
+        assertEquals("· 3 блока", ScannerWords.blocks(3))
+        assertEquals("· 1 блок", ScannerWords.blocks(1))
+        assertEquals("· 11 блоков", ScannerWords.blocks(11))
+    }
+
+    @Test
+    fun aRailMarkIsQuietUnlessCodesAreActive() {
+        assertEquals(ScannerSpec.Ink.FAINT, ScannerWords.railInk(RailTone.COUNT))
+        assertEquals(ScannerSpec.Ink.INK4, ScannerWords.railInk(RailTone.HISTORY))
+        assertEquals(ScannerSpec.Ink.ORANGE, ScannerWords.railInk(RailTone.ACTIVE))
     }
 
     @Test

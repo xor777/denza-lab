@@ -9,7 +9,7 @@ import kotlin.math.roundToInt
 /**
  * [ScannerSpec] against `tools/design-canvas/luminofor/scanner.json`, value by value.
  *
- * `scanner.js` draws the twelve `scanner-*` boards from the JSON and the screens in this package
+ * `scanner.js` draws the `scanner-*` boards from the JSON and the screens in this package
  * lay themselves out from [ScannerSpec], so this is the join between them, as
  * `LuminoforSpecContractTest` is for the dashboard: a colour, a text style or a column moved on one
  * side fails here until the other side moves in the same change.
@@ -135,11 +135,11 @@ class ScannerSpecContractTest {
         n(h.DOT_GLOW, "header", "dotGlow")
         val b = ScannerSpec.Block
         n(b.TOP, "block", "top"); n(b.HEIGHT, "block", "height"); n(b.TITLE_GAP, "block", "titleGap")
-        n(b.COUNTER_W, "block", "counterW"); n(b.COUNTER_PAD, "block", "counterPad")
+        n(b.COUNTER_W, "block", "counterW"); n(b.COUNTER_STEP, "block", "counterStep"); n(b.COUNTER_PAD, "block", "counterPad")
         n(b.COUNTER_GAP, "block", "counterGap"); n(b.BADGE_GAP, "block", "badgeGap")
         val t = ScannerSpec.Tabs
         n(t.TOP, "tabs", "top"); n(t.HEIGHT, "tabs", "height"); n(t.GAP, "tabs", "gap"); n(t.UNDERLINE, "tabs", "underline")
-        n(t.DOT_GAP, "tabs", "dotGap"); n(t.JUMP_GAP, "tabs", "jumpGap"); n(t.JUMP_COUNT_GAP, "tabs", "jumpCountGap")
+        n(t.DOT_GAP, "tabs", "dotGap")
         val f = ScannerSpec.Footer
         n(f.TOP, "footer", "top"); n(f.HEIGHT, "footer", "height"); n(f.GAP, "footer", "gap")
         n(f.BUTTON_H, "footer", "button", "h"); n(f.BUTTON_PAD, "footer", "button", "pad"); n(f.BUTTON_R, "footer", "button", "r")
@@ -156,7 +156,6 @@ class ScannerSpecContractTest {
     fun autoscanAndTopology() {
         val s = ScannerSpec.Scan
         n(s.TABLE_TOP, "scan", "table", "top"); n(s.TABLE_HEAD, "scan", "table", "head")
-        assertEquals(cols("scan", "table", "cols"), s.COLS)
         n(s.PAD, "scan", "table", "pad"); n(s.NUM_PAD, "scan", "table", "numPad")
         n(s.LIST_TOP, "scan", "list", "top"); n(s.LIST_BOTTOM, "scan", "list", "bottom")
         n(s.GROUP, "scan", "list", "group"); n(s.ROW, "scan", "list", "row"); n(s.RULE, "scan", "list", "rule")
@@ -239,64 +238,132 @@ class ScannerSpecContractTest {
         val a = ScannerSpec.Adas
         n(a.TOP, "adas", "top"); n(a.HEAD, "adas", "head"); n(a.ROW, "adas", "row"); n(a.PAD, "adas", "pad")
         assertEquals(cols("adas", "cols"), a.COLS)
-        n(a.NOTE_TOP, "adas", "note", "top"); n(a.NOTE_PAD_X, "adas", "note", "padX"); n(a.NOTE_PAD_Y, "adas", "note", "padY")
-        n(a.NOTE_GAP, "adas", "note", "gap"); n(a.NOTE_R, "adas", "note", "r"); n(a.COUNTER_W, "adas", "counterW")
 
         val b = ScannerSpec.Brakes
-        n(b.TOP, "brakes", "top"); n(b.HEAD, "brakes", "head"); n(b.ASK_ROW, "brakes", "askRow"); n(b.OBD_ROW, "brakes", "obdRow")
+        n(b.TOP, "brakes", "top"); n(b.HEAD, "brakes", "head"); n(b.ASK_ROW, "brakes", "askRow")
         assertEquals(cols("brakes", "askCols"), b.ASK_COLS)
-        assertEquals(cols("brakes", "obdCols"), b.OBD_COLS)
         n(b.PLATE_GAP, "brakes", "plateGap"); n(b.PLATE_PAD_X, "brakes", "plate", "padX"); n(b.PLATE_PAD_Y, "brakes", "plate", "padY")
         n(b.PLATE_GAP_IN, "brakes", "plate", "gap"); n(b.PLATE_R, "brakes", "plate", "r")
         n(b.BITS_H, "brakes", "bits", "h"); n(b.BITS_GAP, "brakes", "bits", "gap"); n(b.BITS_R, "brakes", "bits", "r")
-        n(b.ASIDE_GAP, "brakes", "aside", "gap"); n(b.ASIDE_PAD_X, "brakes", "aside", "padX")
-        n(b.ASIDE_PAD_Y, "brakes", "aside", "padY"); n(b.ASIDE_GAP2, "brakes", "aside", "gap2")
     }
+
+    private fun pair(vararg path: String): Pair<Float, Float> = (at(*path) as List<*>).let { (it[0] as Number).toFloat() to (it[1] as Number).toFloat() }
 
     @Test
     fun hvSchematic() {
         val v = ScannerSpec.Hv
-        n(v.PACK_X, "hv", "pack", "x"); n(v.PACK_Y, "hv", "pack", "y"); n(v.PACK_W, "hv", "pack", "w"); n(v.PACK_H, "hv", "pack", "h")
-        n(v.PACK_R, "hv", "pack", "r"); n(v.PACK_PAD_X, "hv", "pack", "padX"); n(v.PACK_PAD_Y, "hv", "pack", "padY")
-        n(v.PACK_GAP, "hv", "pack", "gap")
-        n(v.UNIT_W, "hv", "unit", "w"); n(v.UNIT_H, "hv", "unit", "h"); n(v.UNIT_R, "hv", "unit", "r")
-        n(v.UNIT_PAD_X, "hv", "unit", "padX"); n(v.UNIT_ROW_GAP, "hv", "unit", "rowGap")
-        assertEquals(at("hv", "contactor", "wire"), v.CONTACTOR_WIRE)
-        assertEquals(at("hv", "contactor", "blade"), v.CONTACTOR_BLADE)
-        assertEquals((at("hv", "contactor", "pins") as List<*>).map { (it as List<*>).let { p -> (p[0] as Number).toFloat() to (p[1] as Number).toFloat() } }, v.CONTACTOR_PINS)
-        n(v.CONTACTOR_PIN, "hv", "contactor", "pin")
-        n(v.CONTACTOR_LABEL.first, "hv", "contactor", "label", "0")
-        n(v.CONTACTOR_LABEL.second, "hv", "contactor", "label", "1")
-        n(v.CONTACTOR_LABEL.third, "hv", "contactor", "label", "2")
-        assertEquals(at("hv", "bus", "trunk"), v.TRUNK)
-        assertEquals(at("hv", "bus", "taps"), v.TAPS)
-        assertEquals(at("hv", "bus", "shafts"), v.SHAFTS)
-        assertEquals(at("hv", "bus", "coupling"), v.COUPLING)
-        assertEquals(at("hv", "bus", "feeds"), v.FEEDS)
-        val machines = (at("hv", "machines") as List<*>).map {
+        val h = "hvRail"
+        n(v.PACK_X, h, "pack", "x"); n(v.PACK_Y, h, "pack", "y"); n(v.PACK_W, h, "pack", "w"); n(v.PACK_H, h, "pack", "h")
+        n(v.PACK_R, h, "pack", "r"); n(v.PACK_PAD_X, h, "pack", "padX"); n(v.PACK_PAD_Y, h, "pack", "padY")
+        n(v.PACK_GAP, h, "pack", "gap")
+        n(v.UNIT_W, h, "unit", "w"); n(v.UNIT_H, h, "unit", "h"); n(v.UNIT_R, h, "unit", "r")
+        n(v.UNIT_PAD_X, h, "unit", "padX"); n(v.UNIT_ROW_GAP, h, "unit", "rowGap")
+        assertEquals(at(h, "contactor", "wire"), v.CONTACTOR_WIRE)
+        assertEquals(at(h, "contactor", "blade"), v.CONTACTOR_BLADE)
+        assertEquals((at(h, "contactor", "pins") as List<*>).indices.map { pair(h, "contactor", "pins", "$it") }, v.CONTACTOR_PINS)
+        n(v.CONTACTOR_PIN, h, "contactor", "pin")
+        n(v.CONTACTOR_LABEL.first, h, "contactor", "label", "0")
+        n(v.CONTACTOR_LABEL.second, h, "contactor", "label", "1")
+        n(v.CONTACTOR_LABEL.third, h, "contactor", "label", "2")
+        assertEquals(at(h, "bus", "trunk"), v.TRUNK)
+        assertEquals(at(h, "bus", "taps"), v.TAPS)
+        assertEquals(at(h, "bus", "shafts"), v.SHAFTS)
+        assertEquals(at(h, "bus", "coupling"), v.COUPLING)
+        assertEquals(at(h, "bus", "feeds"), v.FEEDS)
+        val machines = (at(h, "machines") as List<*>).map {
             val m = it as Map<*, *>
             ScannerSpec.Hv.Machine((m["x"] as Number).toFloat(), (m["y"] as Number).toFloat(), m["glyph"] as String, m["live"] == true)
         }
         assertEquals(machines, v.MACHINES)
-        n(v.MACHINE_R, "hv", "machineR")
-        n(v.BUS_LABEL_RIGHT, "hv", "busLabel", "right"); n(v.BUS_LABEL_Y, "hv", "busLabel", "y")
-        assertEquals((at("hv", "volts") as List<*>).map { (it as List<*>).let { p -> (p[0] as Number).toFloat() to (p[1] as Number).toFloat() } }, v.VOLTS)
-        val units = (at("hv", "units") as Map<*, *>).entries.associate { (k, p) ->
-            k as String to (p as List<*>).let { (it[0] as Number).toFloat() to (it[1] as Number).toFloat() }
-        }
+        n(v.MACHINE_R, h, "machineR")
+        n(v.BUS_LABEL_RIGHT, h, "busLabel", "right"); n(v.BUS_LABEL_Y, h, "busLabel", "y")
+        assertEquals((at(h, "volts") as List<*>).indices.map { pair(h, "volts", "$it") }, v.VOLTS)
+        val units = (at(h, "units") as Map<*, *>).keys.associate { k -> k as String to pair(h, "units", k) }
         assertEquals(units, v.UNITS)
-        n(v.CAPTION, "hv", "caption")
-        assertEquals((at("hv", "captions") as List<*>).map { (it as Number).toFloat() }, v.CAPTIONS)
+    }
+
+    @Test
+    fun theRailAndTheWidthItLeaves() {
+        val r = ScannerSpec.Rail
+        n(r.W, "rail", "w"); n(r.PAD_X, "rail", "padX"); n(r.PAD_TOP, "rail", "padTop"); n(r.ITEM, "rail", "item")
+        n(r.SEP_GAP, "rail", "sepGap"); n(r.BAR, "rail", "bar")
+        assertEquals(cols("rail", "scanCols"), r.SCAN_COLS)
+        assertEquals(cols("rail", "liveCols"), r.LIVE_COLS)
+        n(r.TOPO_COLUMN, "rail", "topology", "column"); n(r.TOPO_TILE_W, "rail", "topology", "tile", "w")
+        n(r.TOPO_TILE_PAD_X, "rail", "topology", "tile", "padX"); n(r.TOPO_TILE_INSET, "rail", "topology", "tile", "inset")
+        assertEquals(cols("rail", "dtc", "cols"), r.DTC_COLS)
+        n(r.DTC_ROW, "rail", "dtc", "row")
+        n(r.ECU_LEFT_X, "rail", "ecuDtc", "left", "x"); n(r.ECU_LEFT_W, "rail", "ecuDtc", "left", "w")
+        n(r.ECU_RIGHT_X, "rail", "ecuDtc", "right", "x"); n(r.ECU_RIGHT_W, "rail", "ecuDtc", "right", "w")
+        assertEquals(cols("rail", "ecuDtc", "listCols"), r.ECU_LIST_COLS)
+        assertEquals(cols("rail", "ecuDtc", "monCols"), r.ECU_MON_COLS)
+        n(r.PENDING_X, "rail", "pending", "x"); n(r.PENDING_Y, "rail", "pending", "y")
+        n(ScannerSpec.Content.TOP, "content", "top"); n(ScannerSpec.Content.BOTTOM, "content", "bottom")
+    }
+
+    @Test
+    fun theCarAndItsCallouts() {
+        val c = ScannerSpec.Car
+        n(c.TOP, "car", "top"); n(c.H, "car", "h"); n(c.W, "car", "w"); n(c.NOSE_R, "car", "noseR"); n(c.TAIL_R, "car", "tailR")
+        n(c.AXLE, "car", "axle"); n(c.WHEEL_W, "car", "wheel", "0"); n(c.WHEEL_H, "car", "wheel", "1")
+        n(c.MIRROR_W, "car", "mirror", "0"); n(c.MIRROR_H, "car", "mirror", "1")
+        n(c.SHIELD, "car", "glass", "shield"); n(c.REAR, "car", "glass", "rear"); n(c.GLASS_INSET, "car", "glass", "inset")
+        n(c.ROOF_INSET, "car", "glass", "roofInset")
+        assertEquals(pair("car", "doors", "front"), c.DOORS_FRONT)
+        assertEquals(pair("car", "doors", "rear"), c.DOORS_REAR)
+        assertEquals(pair("car", "anchors"), c.ANCHORS)
+        n(c.DOMAIN_Y, "car", "domainY")
+        val o = ScannerSpec.Callout
+        n(o.LEFT_X, "callout", "leftX"); n(o.W, "callout", "w"); n(o.PAD_X, "callout", "padX"); n(o.PAD_Y, "callout", "padY")
+        n(o.GAP, "callout", "gap"); n(o.R, "callout", "r"); n(o.DOT, "callout", "dot"); n(o.MACHINE_R, "callout", "machineR")
+        val a = ScannerSpec.AdasCar
+        n(a.TOP, "adasCar", "top"); n(a.H, "adasCar", "h"); assertEquals(pair("adasCar", "corner"), a.CORNER)
+        n(a.FRONT_SPREAD, "adasCar", "front", "spread"); n(a.FRONT_LEN, "adasCar", "front", "len")
+        n(a.CORNERS_SPREAD, "adasCar", "corners", "spread"); n(a.CORNERS_LEN, "adasCar", "corners", "len")
+        n(a.MRR_Y, "adasCar", "mrrY"); n(a.FR_DROP, "adasCar", "frDrop"); n(a.ADC_LIFT, "adasCar", "adcLift"); n(a.IPA_LIFT, "adasCar", "ipaLift")
+        val d = ScannerSpec.DrivesCar
+        n(d.PAIR, "drivesCar", "pair"); n(d.BOX_W, "drivesCar", "boxW"); n(d.ENGINE_Y, "drivesCar", "engine", "y")
+        n(d.ENGINE_W, "drivesCar", "engine", "w"); n(d.ENGINE_H, "drivesCar", "engine", "h"); n(d.REAR_BLOCKS_DY, "drivesCar", "rearBlocksDy")
+    }
+
+    @Test
+    fun theSchemes() {
+        val r = ScannerSpec.RangeBar
+        n(r.H, "rangeBar", "h"); n(r.HEAD_GAP, "rangeBar", "headGap"); n(r.TICK_GAP, "rangeBar", "tickGap"); n(r.MIN_SPAN, "rangeBar", "minSpan")
+        val p = ScannerSpec.PackScheme
+        n(p.X, "packScheme", "x"); n(p.Y, "packScheme", "y"); n(p.W, "packScheme", "w"); n(p.H, "packScheme", "h")
+        n(p.R, "packScheme", "r"); n(p.PAD, "packScheme", "pad"); assertEquals(pair("packScheme", "poles"), p.POLES)
+        n(p.BUS_X, "packScheme", "busX"); n(p.ISO_X, "packScheme", "iso", "x"); n(p.ISO_W, "packScheme", "iso", "w")
+        n(p.ISO_H, "packScheme", "iso", "h"); n(p.RANGES_X, "packScheme", "ranges", "x"); n(p.RANGES_Y, "packScheme", "ranges", "y")
+        n(p.RANGES_W, "packScheme", "ranges", "w"); n(p.RANGES_STEP, "packScheme", "ranges", "step")
+        val e = ScannerSpec.EngineScheme
+        val k = "engineScheme"
+        n(e.X0, k, "x0"); n(e.X1, k, "x1"); n(e.PIPE_Y, k, "pipeY"); n(e.PIPE, k, "pipe"); n(e.THROTTLE, k, "throttle")
+        n(e.BLOCK_X, k, "block", "x"); n(e.BLOCK_Y, k, "block", "y"); n(e.BLOCK_W, k, "block", "w"); n(e.BLOCK_H, k, "block", "h")
+        n(e.CYL, k, "block", "cyl"); n(e.CAT_X, k, "cat", "x"); n(e.CAT_W, k, "cat", "w"); n(e.CAT_H, k, "cat", "h")
+        n(e.O2, k, "o2"); n(e.UP_Y, k, "upY"); n(e.DOWN_Y, k, "downY")
+        val points = (at(k, "points") as Map<*, *>).entries.associate { (name, v) ->
+            val a = v as List<*>
+            name as String to ScannerSpec.EngineScheme.Point(a[0] == "up", (a[1] as Number).toFloat(), (a[2] as Number).toFloat(), (a.getOrNull(3) as? Number)?.toFloat())
+        }
+        assertEquals(points, e.POINTS)
+        val c = ScannerSpec.ClimateScheme
+        n(c.LEFT_X, "climateScheme", "leftX"); n(c.ZONE_W, "climateScheme", "zoneW"); n(c.ZONE_H, "climateScheme", "zoneH")
+        n(c.ZONE_Y, "climateScheme", "zoneY"); n(c.STEM, "climateScheme", "stem")
+        val l = ScannerSpec.LvScheme
+        n(l.X0, "lvScheme", "x0"); n(l.X1, "lvScheme", "x1"); n(l.BUS_Y, "lvScheme", "busY"); n(l.DCDC_X, "lvScheme", "dcdcX")
+        n(l.BATT_X, "lvScheme", "battX"); n(l.BATT_DROP, "lvScheme", "battDrop"); n(l.LOAD_X, "lvScheme", "loadX")
+        n(l.LOAD_STEP, "lvScheme", "loadStep"); n(l.LOAD_DROP, "lvScheme", "loadDrop")
     }
 
     @Test
     fun columnsShareWhatIsLeftAsTheBoardDoes() {
-        // the autoscan's last column takes 1232 - 1170
-        val c = ScannerSpec.columns(ScannerSpec.Scan.COLS, 24f, 1232f)
-        assertEquals(1194f, c[7].first, 1e-4f)
-        assertEquals(62f, c[7].second, 1e-4f)
+        // beside the rail the autoscan's last column takes 1016 - 970
+        val c = ScannerSpec.columns(ScannerSpec.Rail.SCAN_COLS, 24f, ScannerSpec.W - ScannerSpec.Rail.W - 48f)
+        assertEquals(994f, c[7].first, 1e-4f)
+        assertEquals(46f, c[7].second, 1e-4f)
         val g = ScannerSpec.columns(listOf(ScannerSpec.FR, ScannerSpec.FR), 0f, 100f, 10f)
         assertEquals(listOf(0f to 45f, 55f to 45f), g)
-        assertTrue(ScannerSpec.columns(ScannerSpec.Adas.COLS, 24f, 1232f).all { it.second > 0f })
+        assertTrue(ScannerSpec.columns(ScannerSpec.Adas.COLS, 24f, 1016f).all { it.second > 0f })
     }
 }

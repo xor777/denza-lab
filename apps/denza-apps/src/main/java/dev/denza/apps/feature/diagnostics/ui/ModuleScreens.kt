@@ -104,7 +104,7 @@ internal fun ModulePage(
         ScanTabs(tabs, tab, onTab, alert = if (obd?.mil == MilState.ON) TAB_DTC else null)
         when {
             ident -> IdentContent(module.ident)
-            live -> LiveTable(obd!!.live.rows, sample?.chartRange)
+            live -> LiveTable(obd!!.live.rows, sample?.chartRange, ScannerSpec.EcuLive.COLS)
             else -> DtcContent(module)
         }
         if (picking && obd != null) {
@@ -161,14 +161,28 @@ private fun IdentFooter(ident: IdentView, back: FooterButton, reread: () -> Unit
 
 /* ------------------------------------------------------------------ DTC */
 
+/**
+ * Where the DTC screens' two halves stand: a block's screen across the window, or ECM's
+ * «DTC и готовность» beside the rail (`scanner.json` `ecuDtc`, `rail.ecuDtc`).
+ */
+internal data class Halves(
+    val leftX: Float, val leftW: Float, val rightX: Float, val rightW: Float,
+    val listCols: List<Float>, val monCols: List<Float>,
+) {
+    companion object {
+        val FULL = ScannerSpec.EcuDtc.let { Halves(it.LEFT_X, it.LEFT_W, it.RIGHT_X, it.RIGHT_W, it.LIST_COLS, it.MON_COLS) }
+        val RAIL = ScannerSpec.Rail.let { Halves(it.ECU_LEFT_X, it.ECU_LEFT_W, it.ECU_RIGHT_X, it.ECU_RIGHT_W, it.ECU_LIST_COLS, it.ECU_MON_COLS) }
+    }
+}
+
 @Composable
-internal fun DtcContent(module: ModuleView) {
+internal fun DtcContent(module: ModuleView, halves: Halves = Halves.FULL) {
     val obd = module.obd
     when {
-        obd != null && module.dtc.records.isEmpty() -> { ObdLists(obd); Monitors(obd.monitors) }
-        obd != null -> { ObdFault(module.dtc.records, obd); Monitors(obd.monitors) }
+        obd != null && module.dtc.records.isEmpty() -> { ObdLists(obd, halves); Monitors(obd.monitors, halves) }
+        obd != null -> { ObdFault(module.dtc.records, obd, halves); Monitors(obd.monitors, halves) }
         module.dtc.records.isNotEmpty() -> CodesWithStatus(module.dtc.records)
-        else -> MaskAsks(module.dtc, ScannerSpec.EcuDtc.LEFT_X, ScannerSpec.EcuDtc.LEFT_W)
+        else -> MaskAsks(module.dtc, halves.leftX, halves.leftW)
     }
 }
 
@@ -183,7 +197,7 @@ private fun CodesWithStatus(records: List<DtcRow>) {
     val b = ScannerSpec.BodyDtc
     var chosen by remember { mutableIntStateOf(0) }
     val width = rememberWidths()
-    val w = ScannerSpec.W - 48f
+    val w = LocalScanWidth.current - 48f
     val cols = ScannerSpec.columns(b.COLS, 24f, w)
     val rowsTop = b.TOP + b.HEAD + 1f
     val rowsH = records.size * (b.ROW_MIN + 1f)
@@ -296,7 +310,7 @@ internal fun MaskAsks(dtc: DtcView, x: Float, w: Float) {
         Modifier.at(x, y + k.PLATE_GAP).width(w.dp).plate(Ink.PLATE, Ink.RULE, k.PLATE_R)
             .padding(horizontal = k.PLATE_PAD_X.dp, vertical = k.PLATE_PAD_Y.dp),
     ) {
-        ScanText("МАСКА ${String.format("%02X", MASK)} ВИДИТ ЗАПИСИ С ЭТИМИ БИТАМИ СТАТУСА", Type.COUNTER_LABEL, Ink.MUTE)
+        ScanText("МАСКА ${String.format("%02X", MASK)} · БИТЫ СТАТУСА", Type.COUNTER_LABEL, Ink.MUTE)
         Spacer(Modifier.height(k.PLATE_GAP_IN.dp))
         Row(Modifier.width(iw.dp).height(k.BITS_H.dp)) {
             ScannerWords.BITS.forEachIndexed { i, bit ->
@@ -321,9 +335,9 @@ private const val MASK = 0x09
 /* ---------------------------------------------------------------- OBD */
 
 @Composable
-private fun ObdLists(obd: ObdView) {
+private fun ObdLists(obd: ObdView, x: Halves) {
     val d = ScannerSpec.EcuDtc
-    val cols = ScannerSpec.columns(d.LIST_COLS, d.LEFT_X, d.LEFT_W)
+    val cols = ScannerSpec.columns(x.listCols, x.leftX, x.leftW)
     HeadRow(cols, listOf(HeadLabel("КОДЫ НЕИСПРАВНОСТЕЙ"), HeadLabel("СЕРВИС"), HeadLabel("DTC", end = true, pad = 12f)), d.TOP, d.HEAD)
     var y = d.TOP + d.HEAD + 1f
     obd.lists.forEach { a ->
@@ -333,20 +347,20 @@ private fun ObdLists(obd: ObdView) {
         ScanText(a.service, Type.CELL_MONO, Ink.DIM, Modifier.at(cols[1].first, mid(y, h, Type.CELL_MONO)))
         val st = if (num) Type.CELL_NUM else Type.NORM_MONO
         ScanText(a.count, st, if (num) Ink.WHITE else Ink.FAINT, Modifier.endAt(cols[2].first + cols[2].second - 12f, mid(y, h, st)))
-        Rule(d.LEFT_X, y + h, d.LEFT_W, Ink.HAIR)
+        Rule(x.leftX, y + h, x.leftW, Ink.HAIR)
         y += h + 1f
     }
-    Pid01Plate(obd, Modifier.at(d.LEFT_X, y + d.PLATE_GAP), d.LEFT_W)
+    Pid01Plate(obd, Modifier.at(x.leftX, y + d.PLATE_GAP), x.leftW)
 }
 
-/** A plate: PID 01's caption, its sentence and the raw reply. */
+/** A plate: PID 01's caption, its sentence - broken at spaces where the plate is narrow - and the raw reply. */
 @Composable
 private fun Pid01Plate(obd: ObdView, modifier: Modifier, w: Float) {
     val d = ScannerSpec.EcuDtc
     Column(modifier.width(w.dp).plate(Ink.PLATE, Ink.RULE, d.PLATE_R).padding(horizontal = d.PLATE_PAD_X.dp, vertical = d.PLATE_PAD_Y.dp)) {
         ScanText("PID 01 · СОСТОЯНИЕ", Type.COUNTER_LABEL, Ink.MUTE)
         Spacer(Modifier.height(d.PLATE_GAP_IN.dp))
-        ScanText(obd.milLine, Type.PLATE_LINE, Ink.WHITE, maxWidth = w - 2f * d.PLATE_PAD_X)
+        ScanParagraph(obd.milLine, Type.PLATE_LINE, Ink.WHITE, w - 2f * d.PLATE_PAD_X)
         Spacer(Modifier.height(d.PLATE_GAP_IN.dp))
         ScanText(obd.raw, Type.PLATE_MONO, Ink.FAINT)
     }
@@ -354,12 +368,12 @@ private fun Pid01Plate(obd: ObdView, modifier: Modifier, w: Float) {
 
 /** The OBD responder with records: each code over its sentence, then the four lists' counts. */
 @Composable
-private fun ObdFault(records: List<DtcRow>, obd: ObdView) {
+private fun ObdFault(records: List<DtcRow>, obd: ObdView, x: Halves) {
     val d = ScannerSpec.EcuDtc
     val f = ScannerSpec.EcuFault
-    val cols = ScannerSpec.columns(f.COLS, d.LEFT_X, d.LEFT_W)
+    val cols = ScannerSpec.columns(f.COLS, x.leftX, x.leftW)
     HeadRow(cols, listOf(HeadLabel("КОД"), HeadLabel("ОПИСАНИЕ"), HeadLabel("MIL")), d.TOP, d.HEAD)
-    Column(Modifier.at(d.LEFT_X, d.TOP + d.HEAD + 1f).width(d.LEFT_W.dp)) {
+    Column(Modifier.at(x.leftX, d.TOP + d.HEAD + 1f).width(x.leftW.dp)) {
         records.forEach { r ->
             val lamp = ScannerWords.asksLamp(r.status)
             val failed = r.status and 1 == 1
@@ -404,7 +418,7 @@ private fun ObdFault(records: List<DtcRow>, obd: ObdView) {
         }
         Box(Modifier.fillMaxWidth().height(1.dp).plate(Ink.RULE))
         Spacer(Modifier.height((1f + f.LIST_GAP - 1f).dp))
-        Pid01Plate(obd, Modifier, d.LEFT_W)
+        Pid01Plate(obd, Modifier, x.leftW)
     }
 }
 
@@ -415,9 +429,9 @@ private val MONITOR = mapOf(
 )
 
 @Composable
-private fun Monitors(list: List<MonitorRow>) {
+private fun Monitors(list: List<MonitorRow>, x: Halves) {
     val d = ScannerSpec.EcuDtc
-    val cols = ScannerSpec.columns(d.MON_COLS, d.RIGHT_X, d.RIGHT_W)
+    val cols = ScannerSpec.columns(x.monCols, x.rightX, x.rightW)
     HeadRow(cols, listOf(HeadLabel("ГОТОВНОСТЬ МОНИТОРОВ · С МОМЕНТА СБРОСА DTC"), HeadLabel("ТИП"), HeadLabel("СТАТУС")), d.TOP, d.HEAD)
     var y = d.TOP + d.HEAD + 1f
     list.forEach { m ->
@@ -430,18 +444,19 @@ private fun Monitors(list: List<MonitorRow>) {
         ScanText(m.kind, Type.UNIT, if (off) Ink.SEP else Ink.DIM2, Modifier.at(cols[1].first, mid(y, h, Type.UNIT)))
         val (label, tone) = MONITOR.getValue(m.state)
         Badge(label, tone, modifier = Modifier.at(cols[2].first, y + (h - ScannerSpec.Badge.H) / 2f))
-        Rule(d.RIGHT_X, y + h, d.RIGHT_W, Ink.HAIR)
+        Rule(x.rightX, y + h, x.rightW, Ink.HAIR)
         y += h + 1f
     }
 }
 
 /* ---------------------------------------------------------------- live */
 
+/** An OBD responder's live data (`liveTable()`): the block's columns across the window, the rail's beside it. */
 @Composable
-private fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange<Float>?) {
+internal fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange<Float>?, colSpec: List<Float>) {
     val e = ScannerSpec.EcuLive
-    val w = ScannerSpec.W - 48f
-    val cols = ScannerSpec.columns(e.COLS, 24f, w)
+    val w = LocalScanWidth.current - 48f
+    val cols = ScannerSpec.columns(colSpec, 24f, w)
     HeadRow(
         cols,
         listOf(
@@ -464,7 +479,7 @@ private fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange<
         ScanText(r.min, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(4), mid(y, h, Type.CELL_MONO)))
         ScanText(r.max, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(5), mid(y, h, Type.CELL_MONO)))
         ScanText(r.norm, Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[6].first, mid(y, h, Type.NORM_MONO)))
-        if (r.samples.isNotEmpty()) Spark(r, chartRange, Modifier.at(cols[7].first, y + (h - e.SPARK_H) / 2f))
+        if (r.samples.isNotEmpty()) Spark(r, chartRange, minOf(e.SPARK_W, cols[7].second - 8f), Modifier.at(cols[7].first, y + (h - e.SPARK_H) / 2f))
         Rule(24f, y + h, w, Ink.HAIR)
         y += h + 1f
     }
@@ -472,9 +487,9 @@ private fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange<
 
 /** The last 60 s on the car's clock: x by time, a gap where a reading is missing, never interpolated. */
 @Composable
-private fun Spark(r: LiveRow, range: ClosedFloatingPointRange<Float>?, modifier: Modifier) {
+private fun Spark(r: LiveRow, range: ClosedFloatingPointRange<Float>?, width: Float, modifier: Modifier) {
     val e = ScannerSpec.EcuLive
-    Canvas(modifier.size(e.SPARK_W.dp, e.SPARK_H.dp)) {
+    Canvas(modifier.size(width.dp, e.SPARK_H.dp)) {
         val last = r.samples.last().atNanos
         val span = 60_000_000_000L
         val values = r.samples.mapNotNull { it.value }
@@ -508,7 +523,7 @@ private fun Spark(r: LiveRow, range: ClosedFloatingPointRange<Float>?, modifier:
 
 /** «Выбор PID»: up to four parameters polled first. No board yet: the scanner's plate and rows. */
 @Composable
-private fun PidPicker(rows: List<LiveRow>, focus: List<Int>, onDone: (List<Int>) -> Unit, onCancel: () -> Unit) {
+internal fun PidPicker(rows: List<LiveRow>, focus: List<Int>, onDone: (List<Int>) -> Unit, onCancel: () -> Unit) {
     var chosen by remember { mutableStateOf(focus) }
     Box(Modifier.fillMaxSize().plate(0xB3000000.toInt()).tap(onCancel), contentAlignment = Alignment.Center) {
         Column(Modifier.width(520.dp).plate(Ink.BAR, Ink.RULE, 8f).tap {}.padding(16.dp)) {
