@@ -1,0 +1,301 @@
+package dev.denza.apps.feature.diagnostics.ui
+
+import dev.denza.apps.design.luminofor.SpecJson
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import kotlin.math.roundToInt
+
+/**
+ * [ScannerSpec] against `tools/design-canvas/luminofor/scanner.json`, value by value.
+ *
+ * `scanner.js` draws the twelve `scanner-*` boards from the JSON and the screens in this package
+ * lay themselves out from [ScannerSpec], so this is the join between them, as
+ * `LuminoforSpecContractTest` is for the dashboard: a colour, a text style or a column moved on one
+ * side fails here until the other side moves in the same change.
+ */
+class ScannerSpecContractTest {
+
+    @Suppress("UNCHECKED_CAST")
+    private val json: Map<String, Any?> by lazy { SpecJson.parse(SpecJson.read("luminofor/scanner.json")) as Map<String, Any?> }
+
+    private fun at(vararg path: String): Any? {
+        var v: Any? = json
+        for (key in path) {
+            v = when (v) {
+                is Map<*, *> -> v[key]
+                is List<*> -> v[key.toInt()]
+                else -> error("${path.joinToString(".")}: not a container at $key")
+            }
+        }
+        return v
+    }
+
+    private fun num(vararg path: String): Double = (at(*path) as? Number)?.toDouble() ?: error("${path.joinToString(".")} is not a number")
+
+    private fun n(actual: Float, vararg path: String) = assertEquals(path.joinToString("."), num(*path), actual.toDouble(), 1e-4)
+
+    private fun colour(s: String): Int = if (s.startsWith("#")) {
+        (0xFF shl 24) or s.removePrefix("#").toInt(16)
+    } else {
+        val (r, g, b, a) = s.removePrefix("rgba(").removeSuffix(")").split(",").map { it.trim().toDouble() }
+        ((a * 255).roundToInt() shl 24) or (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
+    }
+
+    private fun ink(name: String): Int = colour(at("colors", name) as String)
+
+    /** A column list: dp, or `"Nfr"` as -N. */
+    private fun cols(vararg path: String): List<Float> = (at(*path) as List<*>).map {
+        when (it) {
+            is Number -> it.toFloat()
+            is String -> -it.removeSuffix("fr").toFloat()
+            else -> error("${path.joinToString(".")}: $it")
+        }
+    }
+
+    @Test
+    fun size() {
+        n(ScannerSpec.W, "size", "0")
+        n(ScannerSpec.H, "size", "1")
+    }
+
+    @Test
+    fun fonts() {
+        val f = ScannerSpec.Fonts
+        n(f.ROBOTO_ASCENT, "fonts", "roboto", "ascent")
+        n(f.ROBOTO_DESCENT, "fonts", "roboto", "descent")
+        n(f.MONO_ASCENT, "fonts", "mono", "ascent")
+        n(f.MONO_DESCENT, "fonts", "mono", "descent")
+        n(f.MONO_ADVANCE, "fonts", "mono", "advance")
+        n(ScannerSpec.Fonts.Arrow.MONO_CELLS, "fonts", "arrow", "monoCells")
+        n(ScannerSpec.Fonts.Arrow.ROBOTO, "fonts", "arrow", "roboto")
+        n(ScannerSpec.Fonts.Arrow.Y, "fonts", "arrow", "y")
+        n(ScannerSpec.Fonts.Arrow.HEAD, "fonts", "arrow", "head")
+        n(ScannerSpec.Fonts.Arrow.SPREAD, "fonts", "arrow", "spread")
+        n(ScannerSpec.Fonts.Arrow.STROKE, "fonts", "arrow", "stroke")
+        assertEquals("Roboto", at("fonts", "roboto", "family"))
+        assertEquals("Roboto Mono", at("fonts", "mono", "family"))
+    }
+
+    @Test
+    fun everyColourBothWays() {
+        val names = (at("colors") as Map<*, *>).keys.map { it as String }
+        assertEquals("colours in scanner.json and ScannerSpec.Ink", names.toSet(), ScannerSpec.Ink.byName.keys)
+        names.forEach { name ->
+            assertEquals("colors.$name", Integer.toHexString(ink(name)), Integer.toHexString(ScannerSpec.Ink.byName.getValue(name)))
+        }
+    }
+
+    @Test
+    fun everyTextStyleBothWays() {
+        @Suppress("UNCHECKED_CAST")
+        val type = at("type") as Map<String, Map<String, Any?>>
+        assertEquals("text styles in scanner.json and ScannerSpec.Type", type.keys, ScannerSpec.Type.byName.keys)
+        type.forEach { (name, s) ->
+            val style = ScannerSpec.Type.byName.getValue(name)
+            assertEquals("type.$name.size", (s["size"] as Number).toFloat(), style.size, 1e-4f)
+            assertEquals("type.$name.lh", (s["lh"] as Number).toFloat(), style.lh, 1e-4f)
+            assertEquals("type.$name.w", (s["w"] as? Number)?.toInt() ?: 400, style.weight)
+            assertEquals("type.$name.mono", s["mono"] == true, style.mono)
+            assertEquals("type.$name.track", (s["track"] as? Number)?.toFloat() ?: 0f, style.track, 1e-4f)
+        }
+    }
+
+    @Test
+    fun baselineIsTheBoardsFormula() {
+        // scanner.js base(): top + (lh - (ascent + descent) * size) / 2 + ascent * size
+        val s = ScannerSpec.Type.CELL
+        assertEquals((18 - (0.9277 + 0.2441) * 14.5) / 2 + 0.9277 * 14.5, s.baseline.toDouble(), 1e-4)
+        val m = ScannerSpec.Type.CELL_MONO
+        assertEquals((18 - (1.0479 + 0.271) * 13.5) / 2 + 1.0479 * 13.5, m.baseline.toDouble(), 1e-4)
+        assertEquals(0.6001 * 13.5, m.arrowWidth.toDouble(), 1e-4)
+        assertEquals(0.8 * 11 + 0.07 * 11, ScannerSpec.Type.COL_HEAD.arrowWidth.toDouble(), 1e-4)
+    }
+
+    @Test
+    fun tones() {
+        @Suppress("UNCHECKED_CAST")
+        val tones = at("tones") as Map<String, Map<String, String>>
+        assertEquals(tones.keys, ScannerSpec.Tones.byName.keys)
+        tones.forEach { (name, t) ->
+            val tone = ScannerSpec.Tones.byName.getValue(name)
+            assertEquals("tones.$name.ink", ink(t.getValue("ink")), tone.ink)
+            assertEquals("tones.$name.fill", t["fill"]?.let(::ink), tone.fill)
+            assertEquals("tones.$name.line", t["line"]?.let(::ink), tone.line)
+        }
+    }
+
+    @Test
+    fun chrome() {
+        val h = ScannerSpec.Header
+        n(h.HEIGHT, "header", "height"); n(h.PAD_LEFT, "header", "padLeft"); n(h.PAD_RIGHT, "header", "padRight")
+        n(h.GAP, "header", "gap"); n(h.CLOSE_W, "header", "close", "w"); n(h.CLOSE_H, "header", "close", "h")
+        n(h.CLOSE_R, "header", "close", "r"); n(h.CLOSE_ICON, "header", "close", "icon")
+        n(h.CLOSE_STROKE, "header", "close", "stroke"); n(h.DOT, "header", "dot"); n(h.DOT_GAP, "header", "dotGap")
+        n(h.DOT_GLOW, "header", "dotGlow")
+        val b = ScannerSpec.Block
+        n(b.TOP, "block", "top"); n(b.HEIGHT, "block", "height"); n(b.TITLE_GAP, "block", "titleGap")
+        n(b.COUNTER_W, "block", "counterW"); n(b.COUNTER_PAD, "block", "counterPad")
+        n(b.COUNTER_GAP, "block", "counterGap"); n(b.BADGE_GAP, "block", "badgeGap")
+        val t = ScannerSpec.Tabs
+        n(t.TOP, "tabs", "top"); n(t.HEIGHT, "tabs", "height"); n(t.GAP, "tabs", "gap"); n(t.UNDERLINE, "tabs", "underline")
+        n(t.DOT_GAP, "tabs", "dotGap"); n(t.JUMP_GAP, "tabs", "jumpGap"); n(t.JUMP_COUNT_GAP, "tabs", "jumpCountGap")
+        val f = ScannerSpec.Footer
+        n(f.TOP, "footer", "top"); n(f.HEIGHT, "footer", "height"); n(f.GAP, "footer", "gap")
+        n(f.BUTTON_H, "footer", "button", "h"); n(f.BUTTON_PAD, "footer", "button", "pad"); n(f.BUTTON_R, "footer", "button", "r")
+        n(f.DIVIDER_W, "footer", "divider", "0"); n(f.DIVIDER_H, "footer", "divider", "1")
+        n(f.LEGEND_W, "footer", "legend", "w"); n(f.LEGEND_H, "footer", "legend", "h")
+        n(f.LEGEND_R, "footer", "legend", "r"); n(f.LEGEND_GAP, "footer", "legend", "gap")
+        val g = ScannerSpec.Badge
+        n(g.H, "badge", "h"); n(g.PAD, "badge", "pad"); n(g.R, "badge", "r")
+        n(g.SMALL_H, "badge", "small", "h"); n(g.SMALL_PAD, "badge", "small", "pad")
+        n(g.BIG_H, "badge", "big", "h"); n(g.BIG_PAD, "badge", "big", "pad")
+    }
+
+    @Test
+    fun autoscanAndTopology() {
+        val s = ScannerSpec.Scan
+        n(s.TABLE_TOP, "scan", "table", "top"); n(s.TABLE_HEAD, "scan", "table", "head")
+        assertEquals(cols("scan", "table", "cols"), s.COLS)
+        n(s.PAD, "scan", "table", "pad"); n(s.NUM_PAD, "scan", "table", "numPad")
+        n(s.LIST_TOP, "scan", "list", "top"); n(s.LIST_BOTTOM, "scan", "list", "bottom")
+        n(s.GROUP, "scan", "list", "group"); n(s.ROW, "scan", "list", "row"); n(s.RULE, "scan", "list", "rule")
+        n(s.GROUP_GAP, "scan", "list", "groupGap"); n(s.CHEVRON, "scan", "list", "chevron")
+
+        val p = ScannerSpec.Topology
+        n(p.COLUMN, "topology", "column"); n(p.LEFT, "topology", "left")
+        n(p.TILE_W, "topology", "tile", "w"); n(p.TILE_H, "topology", "tile", "h"); n(p.TILE_R, "topology", "tile", "r")
+        n(p.TILE_PAD_X, "topology", "tile", "padX"); n(p.TILE_INSET, "topology", "tile", "inset")
+        n(p.TILE_PITCH, "topology", "tile", "pitch"); n(p.TILE_ROW_GAP, "topology", "tile", "rowGap")
+        n(p.HEAD_X, "topology", "head", "x"); n(p.HEAD_Y, "topology", "head", "y"); n(p.HEAD_W, "topology", "head", "w")
+        n(p.HEAD_H, "topology", "head", "h"); n(p.HEAD_R, "topology", "head", "r"); n(p.HEAD_PAD, "topology", "head", "pad")
+        n(p.FIRST_LABEL, "topology", "firstLabel"); n(p.LABEL_H, "topology", "labelH"); n(p.GROUP_GAP, "topology", "groupGap")
+        n(p.TRUNK_Y, "topology", "trunkY"); n(p.TRUNK_FIRST_Y, "topology", "trunkFirstY"); n(p.TAIL_Y, "topology", "tailY")
+        n(p.BUS_INSET, "topology", "busInset")
+        val columns = (at("topology", "columns") as List<*>).map { column ->
+            (column as List<*>).map { part ->
+                val a = part as List<*>
+                ScannerSpec.Topology.Part(
+                    a[0] as String,
+                    (a.getOrNull(1) as? Number)?.toInt() ?: 0,
+                    (a.getOrNull(2) as? Number)?.toInt(),
+                    a.getOrNull(3) == "continued",
+                )
+            }
+        }
+        assertEquals(columns, p.COLUMNS)
+    }
+
+    @Test
+    fun blockScreens() {
+        val d = ScannerSpec.EcuDtc
+        n(d.LEFT_X, "ecuDtc", "left", "x"); n(d.LEFT_W, "ecuDtc", "left", "w")
+        n(d.RIGHT_X, "ecuDtc", "right", "x"); n(d.RIGHT_W, "ecuDtc", "right", "w")
+        n(d.TOP, "ecuDtc", "top"); n(d.HEAD, "ecuDtc", "head"); n(d.LIST_ROW, "ecuDtc", "listRow"); n(d.MON_ROW, "ecuDtc", "monRow")
+        assertEquals(cols("ecuDtc", "listCols"), d.LIST_COLS)
+        assertEquals(cols("ecuDtc", "monCols"), d.MON_COLS)
+        n(d.PLATE_GAP, "ecuDtc", "plateGap"); n(d.PLATE_PAD_X, "ecuDtc", "plate", "padX"); n(d.PLATE_PAD_Y, "ecuDtc", "plate", "padY")
+        n(d.PLATE_GAP_IN, "ecuDtc", "plate", "gap"); n(d.PLATE_R, "ecuDtc", "plate", "r")
+
+        val f = ScannerSpec.EcuFault
+        assertEquals(cols("ecuFault", "cols"), f.COLS)
+        n(f.ROW_MIN, "ecuFault", "rowMin"); n(f.ROW_PAD, "ecuFault", "rowPad"); n(f.LIST_GAP, "ecuFault", "listGap")
+        n(f.LIST_PAD_Y, "ecuFault", "listPad", "0"); n(f.LIST_PAD_X, "ecuFault", "listPad", "1"); n(f.LIST_GAP_IN, "ecuFault", "listGapIn")
+
+        val l = ScannerSpec.EcuLive
+        n(l.TOP, "ecuLive", "top"); n(l.HEAD, "ecuLive", "head"); n(l.ROW, "ecuLive", "row")
+        assertEquals(cols("ecuLive", "cols"), l.COLS)
+        n(l.SPARK_W, "ecuLive", "spark", "w"); n(l.SPARK_H, "ecuLive", "spark", "h")
+        n(l.SPARK_STROKE, "ecuLive", "spark", "stroke"); n(l.SPARK_GLOW, "ecuLive", "spark", "glow")
+
+        val i = ScannerSpec.EcuIdent
+        assertEquals(cols("ecuIdent", "ownCols"), i.OWN_COLS)
+        assertEquals(cols("ecuIdent", "cacheCols"), i.CACHE_COLS)
+        n(i.ROW, "ecuIdent", "row"); n(i.NOTE_GAP, "ecuIdent", "noteGap"); n(i.PID_GAP, "ecuIdent", "pidGap")
+        n(i.PID_HEAD_H, "ecuIdent", "pidHeadH"); n(i.PID_GRID_GAP, "ecuIdent", "pidGridGap")
+        assertEquals(num("ecuIdent", "pid", "cols").toInt(), i.PID_COLS)
+        n(i.PID_H, "ecuIdent", "pid", "h"); n(i.PID_CELL_GAP, "ecuIdent", "pid", "gap"); n(i.PID_R, "ecuIdent", "pid", "r")
+
+        val b = ScannerSpec.BodyDtc
+        n(b.TOP, "bodyDtc", "top"); n(b.HEAD, "bodyDtc", "head")
+        assertEquals(cols("bodyDtc", "cols"), b.COLS)
+        n(b.ROW_MIN, "bodyDtc", "rowMin"); n(b.BIT, "bodyDtc", "bit"); n(b.BIT_R, "bodyDtc", "bitR"); n(b.BELOW, "bodyDtc", "below")
+        n(b.EXPLAIN_W, "bodyDtc", "explainW"); n(b.EXPLAIN_GAP, "bodyDtc", "explainGap")
+        n(b.LEGEND_X, "bodyDtc", "legend", "x"); n(b.LEGEND_W, "bodyDtc", "legend", "w"); n(b.LEGEND_KEY, "bodyDtc", "legend", "key")
+        n(b.LEGEND_GAP, "bodyDtc", "legend", "gap"); n(b.LEGEND_ROW_GAP, "bodyDtc", "legend", "rowGap")
+    }
+
+    @Test
+    fun systemScreens() {
+        val m = ScannerSpec.Bms
+        n(m.TOP, "bms", "top"); n(m.HEAD, "bms", "head"); n(m.ROW, "bms", "row"); n(m.VALUE_PAD, "bms", "valuePad")
+        assertEquals(cols("bms", "cols"), m.COLS)
+
+        val d = ScannerSpec.Drives
+        n(d.TOP, "drives", "top"); n(d.HEAD, "drives", "head"); n(d.ROW, "drives", "row"); n(d.PAD, "drives", "pad")
+        assertEquals(cols("drives", "cols"), d.COLS)
+
+        val a = ScannerSpec.Adas
+        n(a.TOP, "adas", "top"); n(a.HEAD, "adas", "head"); n(a.ROW, "adas", "row"); n(a.PAD, "adas", "pad")
+        assertEquals(cols("adas", "cols"), a.COLS)
+        n(a.NOTE_TOP, "adas", "note", "top"); n(a.NOTE_PAD_X, "adas", "note", "padX"); n(a.NOTE_PAD_Y, "adas", "note", "padY")
+        n(a.NOTE_GAP, "adas", "note", "gap"); n(a.NOTE_R, "adas", "note", "r"); n(a.COUNTER_W, "adas", "counterW")
+
+        val b = ScannerSpec.Brakes
+        n(b.TOP, "brakes", "top"); n(b.HEAD, "brakes", "head"); n(b.ASK_ROW, "brakes", "askRow"); n(b.OBD_ROW, "brakes", "obdRow")
+        assertEquals(cols("brakes", "askCols"), b.ASK_COLS)
+        assertEquals(cols("brakes", "obdCols"), b.OBD_COLS)
+        n(b.PLATE_GAP, "brakes", "plateGap"); n(b.PLATE_PAD_X, "brakes", "plate", "padX"); n(b.PLATE_PAD_Y, "brakes", "plate", "padY")
+        n(b.PLATE_GAP_IN, "brakes", "plate", "gap"); n(b.PLATE_R, "brakes", "plate", "r")
+        n(b.BITS_H, "brakes", "bits", "h"); n(b.BITS_GAP, "brakes", "bits", "gap"); n(b.BITS_R, "brakes", "bits", "r")
+        n(b.ASIDE_GAP, "brakes", "aside", "gap"); n(b.ASIDE_PAD_X, "brakes", "aside", "padX")
+        n(b.ASIDE_PAD_Y, "brakes", "aside", "padY"); n(b.ASIDE_GAP2, "brakes", "aside", "gap2")
+    }
+
+    @Test
+    fun hvSchematic() {
+        val v = ScannerSpec.Hv
+        n(v.PACK_X, "hv", "pack", "x"); n(v.PACK_Y, "hv", "pack", "y"); n(v.PACK_W, "hv", "pack", "w"); n(v.PACK_H, "hv", "pack", "h")
+        n(v.PACK_R, "hv", "pack", "r"); n(v.PACK_PAD_X, "hv", "pack", "padX"); n(v.PACK_PAD_Y, "hv", "pack", "padY")
+        n(v.PACK_GAP, "hv", "pack", "gap")
+        n(v.UNIT_W, "hv", "unit", "w"); n(v.UNIT_H, "hv", "unit", "h"); n(v.UNIT_R, "hv", "unit", "r")
+        n(v.UNIT_PAD_X, "hv", "unit", "padX"); n(v.UNIT_ROW_GAP, "hv", "unit", "rowGap")
+        assertEquals(at("hv", "contactor", "wire"), v.CONTACTOR_WIRE)
+        assertEquals(at("hv", "contactor", "blade"), v.CONTACTOR_BLADE)
+        assertEquals((at("hv", "contactor", "pins") as List<*>).map { (it as List<*>).let { p -> (p[0] as Number).toFloat() to (p[1] as Number).toFloat() } }, v.CONTACTOR_PINS)
+        n(v.CONTACTOR_PIN, "hv", "contactor", "pin")
+        n(v.CONTACTOR_LABEL.first, "hv", "contactor", "label", "0")
+        n(v.CONTACTOR_LABEL.second, "hv", "contactor", "label", "1")
+        n(v.CONTACTOR_LABEL.third, "hv", "contactor", "label", "2")
+        assertEquals(at("hv", "bus", "trunk"), v.TRUNK)
+        assertEquals(at("hv", "bus", "taps"), v.TAPS)
+        assertEquals(at("hv", "bus", "shafts"), v.SHAFTS)
+        assertEquals(at("hv", "bus", "coupling"), v.COUPLING)
+        assertEquals(at("hv", "bus", "feeds"), v.FEEDS)
+        val machines = (at("hv", "machines") as List<*>).map {
+            val m = it as Map<*, *>
+            ScannerSpec.Hv.Machine((m["x"] as Number).toFloat(), (m["y"] as Number).toFloat(), m["glyph"] as String, m["live"] == true)
+        }
+        assertEquals(machines, v.MACHINES)
+        n(v.MACHINE_R, "hv", "machineR")
+        n(v.BUS_LABEL_RIGHT, "hv", "busLabel", "right"); n(v.BUS_LABEL_Y, "hv", "busLabel", "y")
+        assertEquals((at("hv", "volts") as List<*>).map { (it as List<*>).let { p -> (p[0] as Number).toFloat() to (p[1] as Number).toFloat() } }, v.VOLTS)
+        val units = (at("hv", "units") as Map<*, *>).entries.associate { (k, p) ->
+            k as String to (p as List<*>).let { (it[0] as Number).toFloat() to (it[1] as Number).toFloat() }
+        }
+        assertEquals(units, v.UNITS)
+        n(v.CAPTION, "hv", "caption")
+        assertEquals((at("hv", "captions") as List<*>).map { (it as Number).toFloat() }, v.CAPTIONS)
+    }
+
+    @Test
+    fun columnsShareWhatIsLeftAsTheBoardDoes() {
+        // the autoscan's last column takes 1232 - 1170
+        val c = ScannerSpec.columns(ScannerSpec.Scan.COLS, 24f, 1232f)
+        assertEquals(1194f, c[7].first, 1e-4f)
+        assertEquals(62f, c[7].second, 1e-4f)
+        val g = ScannerSpec.columns(listOf(ScannerSpec.FR, ScannerSpec.FR), 0f, 100f, 10f)
+        assertEquals(listOf(0f to 45f, 55f to 45f), g)
+        assertTrue(ScannerSpec.columns(ScannerSpec.Adas.COLS, 24f, 1232f).all { it.second > 0f })
+    }
+}
