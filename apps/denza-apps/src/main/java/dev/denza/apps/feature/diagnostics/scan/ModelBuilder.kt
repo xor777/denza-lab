@@ -405,8 +405,8 @@ internal class ModelBuilder(
 
         fun target(ecu: Ecu): Target? = when {
             ecu.request != null -> Target.Module(ecu.request)
-            ecu.abbreviation == "DCOBC" -> Target.System(SystemScreen.HV)
-            ecu.group == EcuGroup.POWERTRAIN -> Target.System(SystemScreen.DRIVES)
+            ecu.abbreviation == "DCOBC" -> Target.System(CarSystem.HV)
+            ecu.group == EcuGroup.POWERTRAIN -> Target.System(CarSystem.DRIVES)
             else -> null
         }
 

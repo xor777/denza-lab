@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
@@ -26,7 +27,7 @@ import dev.denza.apps.feature.diagnostics.scan.MilState
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
 import dev.denza.apps.feature.diagnostics.scan.ModuleView
 import dev.denza.apps.feature.diagnostics.scan.SignalRow
-import dev.denza.apps.feature.diagnostics.scan.SystemScreen
+import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.Target
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
@@ -39,31 +40,34 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
 
 /** What a system screen is called in the crumbs, and its tabs. */
 internal object Systems {
-    fun crumb(screen: SystemScreen): String = when (screen) {
-        SystemScreen.HV -> "Высоковольтная система"
-        SystemScreen.PACK -> "Система управления ВВБ"
-        SystemScreen.DRIVES -> "Электропривод"
-        SystemScreen.BRAKES -> "Тормозная система"
-        SystemScreen.ADAS -> "Ассистенты водителя"
+    fun crumb(screen: CarSystem): String = when (screen) {
+        CarSystem.HV -> "Высоковольтная система"
+        CarSystem.PACK -> "Система управления ВВБ"
+        CarSystem.DRIVES -> "Электропривод"
+        CarSystem.CHASSIS -> "Тормозная система"
+        CarSystem.ADAS -> "Ассистенты водителя"
+        // the other systems have no screen of this kind; the systems' rail replaces these (architecture, 7.2)
+        else -> screen.title
     }
 
-    fun tabs(screen: SystemScreen): List<String> = when (screen) {
-        SystemScreen.HV -> listOf("Схема", "ВВБ · данные", "Приводы · данные")
-        SystemScreen.PACK -> listOf("DTC", "Потоковые данные", "Флаги GB/T 32960", "Идентификация")
-        SystemScreen.DRIVES -> listOf("Сравнение моторов", "DTC", "Идентификация")
-        SystemScreen.BRAKES -> listOf("Ошибки DTC", "Идентификация")
-        SystemScreen.ADAS -> listOf("Сравнение блоков", "DTC", "Идентификация")
+    fun tabs(screen: CarSystem): List<String> = when (screen) {
+        CarSystem.HV -> listOf("Схема", "ВВБ · данные", "Приводы · данные")
+        CarSystem.PACK -> listOf("DTC", "Потоковые данные", "Флаги GB/T 32960", "Идентификация")
+        CarSystem.DRIVES -> listOf("Сравнение моторов", "DTC", "Идентификация")
+        CarSystem.CHASSIS -> listOf("Ошибки DTC", "Идентификация")
+        CarSystem.ADAS -> listOf("Сравнение блоков", "DTC", "Идентификация")
+        else -> listOf("DTC")
     }
 
     /** The tab a tap on the system opens: the battery's readings, every other system's first. */
-    fun firstTab(screen: SystemScreen): Int = if (screen == SystemScreen.PACK) 1 else 0
+    fun firstTab(screen: CarSystem): Int = if (screen == CarSystem.PACK) 1 else 0
 
 }
 
 @Composable
 internal fun SystemPage(
     model: DiagnosticsModel,
-    screen: SystemScreen,
+    screen: CarSystem,
     tab: Int,
     header: @Composable () -> Unit,
     onTab: (Int) -> Unit,
@@ -78,7 +82,7 @@ internal fun SystemPage(
     val tabs = Systems.tabs(screen)
     val refresh = { requests: List<Int?> -> requests.filterNotNull().forEach(actions::readModule) }
     when (screen) {
-        SystemScreen.PACK -> {
+        CarSystem.PACK -> {
             val rows = model.systems.pack
             val title = lead?.let(::moduleTitle) ?: Systems.crumb(screen)
             val counters = listOf(
@@ -106,7 +110,7 @@ internal fun SystemPage(
                 }
             }
         }
-        SystemScreen.DRIVES -> {
+        CarSystem.DRIVES -> {
             val view = model.systems.drives
             val requests = view.columns.map { it.request }
             val volts = model.systems.hv.busVoltages.map { it.removeSuffix(" В") }
@@ -126,9 +130,9 @@ internal fun SystemPage(
                 if (tab == 0) DrivesTable(view) else ModuleRows(requests.mapNotNull { r -> r?.let { ScannerWords.row(model, it) } }, ScannerSpec.W - 48f, onOpen)
             }
         }
-        SystemScreen.HV -> {
+        CarSystem.HV -> {
             val hv = model.systems.hv
-            val pack = ScannerWords.leadModule(model, SystemScreen.PACK)
+            val pack = ScannerWords.leadModule(model, CarSystem.PACK)
             val requests = listOf(pack) + hv.units.map { it.address.toIntOrNull(16) }
             ScannerPage(footer = {
                 when (tab) {
@@ -162,7 +166,7 @@ internal fun SystemPage(
                 }
             }
         }
-        SystemScreen.BRAKES -> {
+        CarSystem.CHASSIS -> {
             val obdRequest = model.systems.brakeModules.getOrNull(1)
             val obd = obdRequest?.let(module)
             ScannerPage(footer = {
@@ -193,7 +197,7 @@ internal fun SystemPage(
                 }
             }
         }
-        SystemScreen.ADAS -> {
+        CarSystem.ADAS -> {
             val view = model.systems.adas
             val requests = view.columns.map { it.request }
             ScannerPage(footer = {
@@ -212,6 +216,8 @@ internal fun SystemPage(
                 if (tab == 0) AdasTable(model, view) else ModuleRows(requests.mapNotNull { r -> r?.let { ScannerWords.row(model, it) } }, ScannerSpec.W - 48f, onOpen)
             }
         }
+        // the systems' pages (architecture, 7.2) take these screens' place
+        else -> LaunchedEffect(screen) { onBack() }
     }
 }
 
@@ -412,7 +418,7 @@ private fun HvScheme(model: DiagnosticsModel, packRequest: Int?, onOpen: (Target
     val chip = ScannerWords.chip(hv.packStatus)
     Box(
         Modifier.at(v.PACK_X, v.PACK_Y).size(v.PACK_W.dp, v.PACK_H.dp).plate(Ink.TILE_OK, Ink.BLUE_EDGE, v.PACK_R)
-            .tap { onOpen(Target.System(SystemScreen.PACK)) },
+            .tap { onOpen(Target.System(CarSystem.PACK)) },
     ) {
         val iw = v.PACK_W - 2f * v.PACK_PAD_X
         Column(Modifier.padding(horizontal = v.PACK_PAD_X.dp, vertical = v.PACK_PAD_Y.dp)) {

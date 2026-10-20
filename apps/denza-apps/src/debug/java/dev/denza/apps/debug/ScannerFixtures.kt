@@ -30,7 +30,7 @@ import dev.denza.apps.feature.diagnostics.scan.Sample
 import dev.denza.apps.feature.diagnostics.scan.ScanPhase
 import dev.denza.apps.feature.diagnostics.scan.ScanSummary
 import dev.denza.apps.feature.diagnostics.scan.SignalRow
-import dev.denza.apps.feature.diagnostics.scan.SystemScreen
+import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.SystemsView
 import dev.denza.apps.feature.diagnostics.scan.Target
 import dev.denza.apps.feature.diagnostics.ui.ScannerRoute
@@ -64,11 +64,11 @@ internal object ScannerFixtures {
         "scanner-ecu-dtc", "scanner-ecu-fault" -> ScannerRoute.Module(ECM, 0)
         "scanner-ecu-live" -> ScannerRoute.Module(ECM, 1)
         "scanner-ecu-ident" -> ScannerRoute.Module(ECM, 2)
-        "scanner-bms" -> ScannerRoute.System(SystemScreen.PACK, 1)
-        "scanner-drives" -> ScannerRoute.System(SystemScreen.DRIVES, 0)
-        "scanner-hv" -> ScannerRoute.System(SystemScreen.HV, 0)
-        "scanner-brakes" -> ScannerRoute.System(SystemScreen.BRAKES, 0)
-        "scanner-adas" -> ScannerRoute.System(SystemScreen.ADAS, 0)
+        "scanner-bms" -> ScannerRoute.System(CarSystem.PACK, 1)
+        "scanner-drives" -> ScannerRoute.System(CarSystem.DRIVES, 0)
+        "scanner-hv" -> ScannerRoute.System(CarSystem.HV, 0)
+        "scanner-brakes" -> ScannerRoute.System(CarSystem.CHASSIS, 0)
+        "scanner-adas" -> ScannerRoute.System(CarSystem.ADAS, 0)
         else -> ScannerRoute.Scan()
     }
 
@@ -157,11 +157,11 @@ internal object ScannerFixtures {
     private fun target(board: String, request: Int?): Target? = when (board) {
         "scanner-ecu-dtc" -> Target.Module(ECM)
         "scanner-body-dtc" -> Target.Module(R_ZCU)
-        "scanner-drives" -> Target.System(SystemScreen.DRIVES)
-        "scanner-bms" -> Target.System(SystemScreen.PACK)
-        "scanner-hv" -> Target.System(SystemScreen.HV)
-        "scanner-brakes" -> Target.System(SystemScreen.BRAKES)
-        "scanner-adas" -> Target.System(SystemScreen.ADAS)
+        "scanner-drives" -> Target.System(CarSystem.DRIVES)
+        "scanner-bms" -> Target.System(CarSystem.PACK)
+        "scanner-hv" -> Target.System(CarSystem.HV)
+        "scanner-brakes" -> Target.System(CarSystem.CHASSIS)
+        "scanner-adas" -> Target.System(CarSystem.ADAS)
         else -> request?.let { Target.Module(it) }
     }
 

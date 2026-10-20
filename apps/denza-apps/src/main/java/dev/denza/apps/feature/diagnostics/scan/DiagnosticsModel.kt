@@ -342,10 +342,8 @@ internal enum class ModuleStatus {
 /** Where a row, a tile or a box leads. */
 internal sealed interface Target {
     data class Module(val request: Int) : Target
-    data class System(val screen: SystemScreen) : Target
+    data class System(val screen: CarSystem) : Target
 }
-
-internal enum class SystemScreen { HV, PACK, DRIVES, BRAKES, ADAS }
 
 /** One ECU's screen: «Ошибки DTC», «Идентификация», and for an OBD responder readiness and live data. */
 internal data class ModuleView(

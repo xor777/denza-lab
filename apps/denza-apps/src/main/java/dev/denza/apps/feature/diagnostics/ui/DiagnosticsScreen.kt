@@ -17,7 +17,7 @@ import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
 import dev.denza.apps.feature.diagnostics.scan.DtcView
 import dev.denza.apps.feature.diagnostics.scan.IdentView
 import dev.denza.apps.feature.diagnostics.scan.ModuleView
-import dev.denza.apps.feature.diagnostics.scan.SystemScreen
+import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.Target
 
 /** Where inside the section the driver is. */
@@ -29,7 +29,7 @@ internal sealed interface ScannerRoute {
     data class Module(val request: Int, val tab: Int = 0) : ScannerRoute
 
     /** A system screen, at a tab of [Systems.tabs]. */
-    data class System(val screen: SystemScreen, val tab: Int = Systems.firstTab(screen)) : ScannerRoute
+    data class System(val screen: CarSystem, val tab: Int = Systems.firstTab(screen)) : ScannerRoute
 }
 
 /**

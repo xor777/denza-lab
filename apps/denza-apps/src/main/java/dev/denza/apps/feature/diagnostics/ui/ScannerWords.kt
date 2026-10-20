@@ -11,7 +11,7 @@ import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
 import dev.denza.apps.feature.diagnostics.scan.SignalRow
-import dev.denza.apps.feature.diagnostics.scan.SystemScreen
+import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.Target
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 
@@ -267,8 +267,8 @@ internal object ScannerWords {
         model.groups.asSequence().flatMap { it.rows }.firstOrNull { it.request == request }
 
     /** The ECU a system screen leads with: the row whose tap opens that screen. */
-    fun leadModule(model: DiagnosticsModel, screen: SystemScreen): Int? = when (screen) {
-        SystemScreen.BRAKES -> model.systems.brakeModules.firstOrNull()
+    fun leadModule(model: DiagnosticsModel, screen: CarSystem): Int? = when (screen) {
+        CarSystem.CHASSIS -> model.systems.brakeModules.firstOrNull()
         else -> model.groups.asSequence().flatMap { it.rows }
             .firstOrNull { it.target == Target.System(screen) && it.request != null && it.status != ModuleStatus.NO_ROUTE }?.request
     }
