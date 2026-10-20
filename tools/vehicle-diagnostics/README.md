@@ -14,6 +14,8 @@ and [the decoded evidence](../../research/vehicle-diagnostics/remaining-ecus-202
 | `dtc` | ECM control, then exact F194 identity and `19 01 09` / `19 02 09` for five qualified modules |
 | `catalog1`…`catalog4` | ECM control and up to eighteen remaining published address candidates, F194 only |
 | `obd-name` | ECM control; `09 00`, `09 04`, `09 0A` at the OBD-only `7E5` interface |
+| `factory-powertrain` | ECM control; exact cached F194 identity, count09 and list09 for factory-map SMCU744, SMCU3 745 and DCOBC7E4 |
+| `factory-dcobc-list` | ECM control, exact DCOBC F194, one bounded `19 02 09`; no count/format inference |
 
 Every request checks shell/profile170/P/zero speed/idle diagnostic manager;
 the process holds the same file lock as the packaged DTC reader. A passive
@@ -21,6 +23,15 @@ two-second window precedes the first request. ECM identity mismatch, unexpected
 traffic, invalid sequencing, DTC count/list mismatch or a changed guard stops
 the plan. Deadline90 s, per-request timeout4 s, no retries or arbitrary targets.
 There are no session, clear, security, routine, VIN/serial or OTA requests.
+
+The factory plans subsequently qualified all three targets. Both rear drives
+returned count0 and empty lists; DCOBC count timed out, but its separate bounded
+list returned an explicit empty `59 02 09`. That exception permits at most64
+records and16 frames, only for `factory-dcobc-list` at `7E4/190209`.
+DCOBC's format remains unknown. `PLAN_DONE` after a gateway timeout means the
+sequence ended, not that DTCs were read: require the validated `DTC_LIST`.
+See [decoded results](../../research/vehicle-diagnostics/factory-powertrain-dtc-20261020.json)
+and the raw runs under `captures/diagnostics-next-20261020/`.
 
 Compile this source with `ShellProxyBootstrap.java` using the repository's
 JDK17, Android35 stubs and d8 (`--min-api 33`). It is outside the app build.
@@ -213,3 +224,20 @@ ambiguous staging failure. This guard does not prove a different reader's
 cleanup correctness: the IDC error path can release its directory without a
 confirmed terminal watchdog. No new vehicle execution is scheduled; coordinate
 readers and confirm prior retirement before any future authorized session.
+
+**Follow-up 2026-10-20:** one newly authorized session succeeded, retaining all
+225 factory routing candidates in
+[`factory-ecu-map-20261020.json`](../../research/vehicle-diagnostics/factory-ecu-map-20261020.json).
+This approval is consumed too. No retry or further credential/export operation
+is authorized by that result. The independent postcheck confirmed closed ports,
+no helper/lease and an idle diagnostic manager.
+
+The current client discards repeated unused HTTP headers while rejecting
+duplicate framing/type/encoding fields, preserves the five real ECU names with
+ASCII spaces, and accepts the stock DoIP logical-address-only form without
+inventing pair fields. It still rejects malformed/ambiguous output.
+133 synthetic assertions passed on JVM and the head unit;23 host tests and
+independent checks against nine saved routes and all225 cached IDs passed before
+execution. The complete225-row projection was validated afterward. Evidence,
+reviewed sources, pins, authorization and cleanup are in
+`captures/diagnostics-next-20261020/`; no private input bytes are retained there.

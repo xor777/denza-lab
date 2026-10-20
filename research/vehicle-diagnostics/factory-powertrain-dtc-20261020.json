@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-20",
+  "vehicleProfile": 170,
+  "scope": "fixed read-only identification and DTC qualification, parked",
+  "mapSource": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+  "mapSha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac",
+  "cacheSource": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+  "cacheSha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+  "maskMeaning": "testFailed OR confirmedDTC; not whole-vehicle health or every monitor status",
+  "requestCount": 12,
+  "targets": [
+    {
+      "ecuId": "HTH-2021_SMCU_BYD_00200001",
+      "requestId": 1860,
+      "responseId": 1868,
+      "softwareCode": "48370011E086001100",
+      "identityMatchesStockCache": true,
+      "transport": "canfd",
+      "serverEcuChannel": "1",
+      "physicalBus": null,
+      "dtcRead": "live_verified_list",
+      "requestedStatusMask": 9,
+      "statusAvailabilityMask": 9,
+      "formatIdentifier": 0,
+      "countService": "live_verified",
+      "count": 0,
+      "records": [],
+      "recordCount": 0,
+      "manufacturerDictionary": "not_obtained",
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "ecuId": "HTH-2021_SMCU3_BYD_00100001",
+      "requestId": 1861,
+      "responseId": 1869,
+      "softwareCode": "48370011E088001100",
+      "identityMatchesStockCache": true,
+      "transport": "canfd",
+      "serverEcuChannel": "1",
+      "physicalBus": null,
+      "dtcRead": "live_verified_list",
+      "requestedStatusMask": 9,
+      "statusAvailabilityMask": 9,
+      "formatIdentifier": 0,
+      "countService": "live_verified",
+      "count": 0,
+      "records": [],
+      "recordCount": 0,
+      "manufacturerDictionary": "not_obtained",
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "ecuId": "HTH-2021_DCOBC_BYD_00100001",
+      "requestId": 2020,
+      "responseId": 2028,
+      "softwareCode": "48350011E04D000100",
+      "identityMatchesStockCache": true,
+      "transport": "can",
+      "serverEcuChannel": "2",
+      "physicalBus": null,
+      "dtcRead": "live_verified_list",
+      "requestedStatusMask": 9,
+      "statusAvailabilityMask": 9,
+      "formatIdentifier": null,
+      "countService": "gateway_response_timeout",
+      "count": null,
+      "records": [],
+      "recordCount": 0,
+      "manufacturerDictionary": "not_obtained",
+      "eligibleForProductAllowlist": false
+    }
+  ],
+  "runs": [
+    {
+      "source": "captures/diagnostics-next-20261020/powertrain-run/probe.txt",
+      "sourceSha256": "2c94d35b33881cb4e4bbd80f092cf1f742e4ae7ea4f7eec35a70996799575509",
+      "terminal": "END DTC_LIST_WITHOUT_QUALIFIED_COUNT frames=18",
+      "requests": [
+        {
+          "step": 0,
+          "requestId": 2016,
+          "request": "22F194",
+          "responseId": 2024,
+          "rawFrame": "0A07E80C01010162F19432440011E004000000",
+          "gatewayResult": 1,
+          "response": "62F19432440011E004000000",
+          "softwareCode": "32440011E004000000"
+        },
+        {
+          "step": 1,
+          "requestId": 1860,
+          "request": "22F194",
+          "responseId": 1868,
+          "rawFrame": "0A074C0C01010162F19448370011E086001100",
+          "gatewayResult": 1,
+          "response": "62F19448370011E086001100",
+          "softwareCode": "48370011E086001100"
+        },
+        {
+          "step": 2,
+          "requestId": 1860,
+          "request": "190109",
+          "responseId": 1868,
+          "rawFrame": "0A074C06010101590109000000",
+          "gatewayResult": 1,
+          "response": "590109000000",
+          "statusAvailabilityMask": 9,
+          "formatIdentifier": 0,
+          "count": 0
+        },
+        {
+          "step": 3,
+          "requestId": 1860,
+          "request": "190209",
+          "responseId": 1868,
+          "rawFrame": "0A074C03010101590209",
+          "gatewayResult": 1,
+          "response": "590209",
+          "statusAvailabilityMask": 9,
+          "records": []
+        },
+        {
+          "step": 4,
+          "requestId": 1861,
+          "request": "22F194",
+          "responseId": 1869,
+          "rawFrame": "0A074D0C01010162F19448370011E088001100",
+          "gatewayResult": 1,
+          "response": "62F19448370011E088001100",
+          "softwareCode": "48370011E088001100"
+        },
+        {
+          "step": 5,
+          "requestId": 1861,
+          "request": "190109",
+          "responseId": 1869,
+          "rawFrame": "0A074D06010101590109000000",
+          "gatewayResult": 1,
+          "response": "590109000000",
+          "statusAvailabilityMask": 9,
+          "formatIdentifier": 0,
+          "count": 0
+        },
+        {
+          "step": 6,
+          "requestId": 1861,
+          "request": "190209",
+          "responseId": 1869,
+          "rawFrame": "0A074D03010101590209",
+          "gatewayResult": 1,
+          "response": "590209",
+          "statusAvailabilityMask": 9,
+          "records": []
+        },
+        {
+          "step": 7,
+          "requestId": 2020,
+          "request": "22F194",
+          "responseId": 2028,
+          "rawFrame": "0A07EC0C01010162F19448350011E04D000100",
+          "gatewayResult": 1,
+          "response": "62F19448350011E04D000100",
+          "softwareCode": "48350011E04D000100"
+        },
+        {
+          "step": 8,
+          "requestId": 2020,
+          "request": "190109",
+          "responseId": 2028,
+          "rawFrame": "0A07EC1001010319010901FB0007E40319010955555555",
+          "gatewayResult": 3,
+          "interpretation": "gateway_response_timeout_not_a_DTC_count"
+        }
+      ],
+      "cleanup": {
+        "started": "2026-10-20T15:09:53.154066+00:00",
+        "ended": "2026-10-20T15:10:02.447481+00:00",
+        "stateUnchanged": true,
+        "crashBufferUnchanged": true,
+        "crashBufferBytes": 0,
+        "probePid": "",
+        "ownDex": "ABSENT",
+        "appHashUnchanged": true
+      },
+      "manifest": {
+        "tools/vehicle-diagnostics/RemainingEcuReadProbe.java": "01a0d1084d59723c829474857d29de7c1b1166694153b0ec3f15f2e247d503d8",
+        "apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211",
+        "captures/diagnostics-next-20261020/powertrain-build/dex/classes.dex": "71b4f5817aaa6701aaed8f4994b70908cd597511c4d1953fb317a992f1cf8c1b"
+      }
+    },
+    {
+      "source": "captures/diagnostics-next-20261020/dcobc-list-run/probe.txt",
+      "sourceSha256": "5cb436b3c9c0ad4e154dbdc970bf46b5f0a55d8784ef0059c9b9d8afb408259e",
+      "terminal": "END PLAN_DONE frames=6",
+      "requests": [
+        {
+          "step": 0,
+          "requestId": 2016,
+          "request": "22F194",
+          "responseId": 2024,
+          "rawFrame": "0A07E80C01010162F19432440011E004000000",
+          "gatewayResult": 1,
+          "response": "62F19432440011E004000000",
+          "softwareCode": "32440011E004000000"
+        },
+        {
+          "step": 1,
+          "requestId": 2020,
+          "request": "22F194",
+          "responseId": 2028,
+          "rawFrame": "0A07EC0C01010162F19448350011E04D000100",
+          "gatewayResult": 1,
+          "response": "62F19448350011E04D000100",
+          "softwareCode": "48350011E04D000100"
+        },
+        {
+          "step": 2,
+          "requestId": 2020,
+          "request": "190209",
+          "responseId": 2028,
+          "rawFrame": "0A07EC03010101590209",
+          "gatewayResult": 1,
+          "response": "590209",
+          "statusAvailabilityMask": 9,
+          "records": []
+        }
+      ],
+      "cleanup": {
+        "started": "2026-10-20T15:11:41.376540+00:00",
+        "ended": "2026-10-20T15:11:46.324569+00:00",
+        "stateUnchanged": true,
+        "crashBufferUnchanged": true,
+        "crashBufferBytes": 0,
+        "probePid": "",
+        "ownDex": "ABSENT",
+        "appHashUnchanged": true
+      },
+      "manifest": {
+        "tools/vehicle-diagnostics/RemainingEcuReadProbe.java": "6aa447288da7a3de0657aaa12cebf2cb0dd25dc03f004ea4773729f9be1cb73b",
+        "apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211",
+        "captures/diagnostics-next-20261020/dcobc-list-build/dex/classes.dex": "a263abbb547318a133d30b597514053f70a44630d7a43c6eb399ab500d04cd12"
+      }
+    }
+  ]
+}

@@ -362,10 +362,13 @@ public final class EcuMapMetadataProbe {
         ByteArrayOutputStream out=new ByteArrayOutputStream();out.write(headers.getBytes(StandardCharsets.US_ASCII));out.write(payload);return out.toByteArray();
     }
     static String httpLine(InputStream in,long end,int max) throws Exception {
+        return httpLine(in,end,max,false);
+    }
+    static String httpLine(InputStream in,long end,int max,boolean header) throws Exception {
         StringBuilder s=new StringBuilder();
         while(true) { int b=readOne(in,end);require(b>=0,"http_truncated");
             if(b=='\r') { require(readOne(in,end)=='\n',"http_line");return s.toString(); }
-            require(b>=32 && b<=126 && s.length()<max,"http_line");s.append((char)b);
+            require(((b>=32 && b<=126)||(header && b=='\t')) && s.length()<max,"http_line");s.append((char)b);
         }
     }
     static byte[] readHttp(InputStream in,long end) throws Exception {
@@ -373,10 +376,18 @@ public final class EcuMapMetadataProbe {
         if(status.matches("HTTP/1\\.[01] (?:401|403)(?: [ -~]*)?"))throw new Failure("http_auth");
         require(status.matches("HTTP/1\\.[01] 200(?: [ -~]*)?"),"http_status");
         Map<String,String> headers=new LinkedHashMap<>();int total=0;
+        List<String> used=Arrays.asList("content-type","content-encoding","content-length","transfer-encoding");
         while(true) {
-            String line=httpLine(in,end,4096);total+=line.length()+2;require(total<=16384,"http_headers");if(line.isEmpty())break;
-            int colon=line.indexOf(':');require(colon>0,"http_headers");String name=line.substring(0,colon).toLowerCase(Locale.ROOT);
-            require(name.matches("[!#$%&'*+.^_`|~0-9a-z-]+") && !headers.containsKey(name),"http_headers");headers.put(name,line.substring(colon+1).trim());
+            String line=httpLine(in,end,4096,true);total+=line.length()+2;require(total<=16384,"http_headers_limit");if(line.isEmpty())break;
+            int colon=line.indexOf(':');require(colon>0,"http_header_syntax");String name=line.substring(0,colon).toLowerCase(Locale.ROOT);
+            require(name.matches("[!#$%&'*+.^_`|~0-9a-z-]+"),"http_header_syntax");
+            // Repeated fields such as Set-Cookie are legal (RFC 9110 section 5.3).
+            // This one-shot client neither uses nor saves cookies or other unused
+            // fields. Keep the fields controlling body parsing unambiguous.
+            if(used.contains(name)) {
+                require(!headers.containsKey(name),"http_header_duplicate");
+                headers.put(name,line.substring(colon+1).trim());
+            }
         }
         String type=headers.get("content-type"); require(type!=null && type.matches("(?i)application/json(?:\\s*;\\s*charset=utf-8)?"),"http_content_type");
         String encoding=headers.get("content-encoding");require(encoding==null||"identity".equalsIgnoreCase(encoding),"http_encoding");
@@ -406,15 +417,24 @@ public final class EcuMapMetadataProbe {
         List<Object> result=new ArrayList<>();Set<String> identities=new HashSet<>();
         try { for(Object value:(List<?>)rows) {
             Map<String,Object> row=object(value), projected=new LinkedHashMap<>();Object id=row.get("ecuId");
-            require(id instanceof String && ((String)id).matches("[A-Za-z0-9_-]{1,128}") && identities.add((String)id),"ecu_identity");
+            // Stock ECUVersion.json includes "rear CPD radar" and "FULIN PM".
+            // Keep those ASCII spaces verbatim: they are part of the ECU key.
+            require(id instanceof String && ((String)id).matches("[A-Za-z0-9_ -]{1,128}") &&
+                !((String)id).trim().isEmpty() && identities.add((String)id),"ecu_identity");
             for(String field:FIELDS) if(row.containsKey(field)) {Object v=row.get(field);require(v==null || (v instanceof String && ((String)v).length()<=128),"ecu_field");projected.put(field,v);}
             Object pair=row.get("ecuDiaId"), transport=row.get("ecuReprogramType");
-            require(pair instanceof String && ((String)pair).matches("[0-9a-fA-F]{1,4}/[0-9a-fA-F]{1,4}"),"ecu_route");
-            String[] parts=((String)pair).split("/");int left=Integer.parseInt(parts[0],16),right=Integer.parseInt(parts[1],16);
+            Integer left=null,right=null;
+            if(pair!=null && !"".equals(pair)) {
+                require(pair instanceof String && ((String)pair).matches("[0-9a-fA-F]{1,4}/[0-9a-fA-F]{1,4}"),"ecu_route");
+                String[] parts=((String)pair).split("/");left=Integer.parseInt(parts[0],16);right=Integer.parseInt(parts[1],16);
+            }
             Map<String,Object> route=new LinkedHashMap<>();
-            if("can".equals(transport)||"canfd".equals(transport)) {route.put("kind","can");route.put("requestId",left);route.put("responseId",right);route.put("physicalBus",null);}
+            if("can".equals(transport)||"canfd".equals(transport)) {require(left!=null,"ecu_route");route.put("kind","can");route.put("requestId",left);route.put("responseId",right);route.put("physicalBus",null);}
             else if("ethernet".equals(transport)||"doip".equals(transport)) {
                 Object logical=row.get("logicAddress");require(logical==null || (logical instanceof String && (((String)logical).isEmpty()||((String)logical).matches("[0-9a-fA-F]{1,4}"))),"ecu_logical");
+                // Stock DoipDiagnostic accepts a logical address without a
+                // pair. Preserve the absent pair rather than inventing one.
+                require(left!=null || (logical instanceof String && !((String)logical).isEmpty()),"ecu_route");
                 route.put("kind","ethernet");route.put("pairTarget",left);route.put("pairClient",right);route.put("target",logical==null||"".equals(logical)?left:Integer.parseInt((String)logical,16));
             } else throw new Failure("ecu_transport");
             projected.put("route",route);projected.put("evidence","server_candidate_only");projected.put("eligibleForProductAllowlist",false);result.add(projected);

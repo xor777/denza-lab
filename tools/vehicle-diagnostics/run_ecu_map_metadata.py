@@ -51,7 +51,8 @@ version_invalid trust_invalid prefs_declaration prefs_invalid prefs_missing inpu
 missing_input0 missing_input1 missing_input2 missing_input3 input_access_denied
 transfer_header transfer_metadata transfer_name transfer_size transfer_md5 transfer_trailing
 truncated go_invalid go_eof go_timeout tls_protocol http_auth http_status http_truncated
-http_line http_headers http_content_type http_encoding http_framing http_length http_chunk
+http_line http_headers http_headers_limit http_header_syntax http_header_duplicate
+http_content_type http_encoding http_framing http_length http_chunk
 http_trailer http_trailing response_length application_auth application_registration
 application_status ecu_list invalid_ecu_projection privacy_projection json_object utf8
 json_trailing json_truncated json_limit json_key json_duplicate json_colon json_separator
@@ -117,25 +118,28 @@ def validate_result(value):
         if (row.get("evidence") != "server_candidate_only"
                 or row.get("eligibleForProductAllowlist") is not False
                 or type(row.get("ecuId")) is not str
-                or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", row["ecuId"])):
+                or not re.fullmatch(r"[A-Za-z0-9_ -]{1,128}", row["ecuId"])
+                or not row["ecuId"].strip()):
             raise Refused("invalid_ecu_schema")
         if row["ecuId"] in seen:
             raise Refused("duplicate_ecu_identity")
         seen.add(row["ecuId"])
         for field in ECU_FIELDS:
             item = row.get(field)
-            if item is not None and (type(item) is not str or
-                    not re.fullmatch(r"[A-Za-z0-9_./:-]{0,128}", item)):
+            pattern = r"[A-Za-z0-9_ -]{1,128}" if field == "ecuId" else r"[A-Za-z0-9_./:-]{0,128}"
+            if item is not None and (type(item) is not str or not re.fullmatch(pattern, item)):
                 raise Refused("invalid_ecu_field")
         pair = re.fullmatch(r"([0-9a-fA-F]{1,4})/([0-9a-fA-F]{1,4})", row.get("ecuDiaId") or "")
-        if not pair:
+        if not pair and row.get("ecuDiaId") not in (None, ""):
             raise Refused("invalid_ecu_route")
-        left, right = (int(x, 16) for x in pair.groups())
+        left, right = (int(x, 16) for x in pair.groups()) if pair else (None, None)
         if row.get("ecuReprogramType") in ("can", "canfd"):
+            if pair is None:
+                raise Refused("invalid_ecu_route")
             expected = {"kind": "can", "requestId": left, "responseId": right, "physicalBus": None}
         elif row.get("ecuReprogramType") in ("ethernet", "doip"):
             logical = row.get("logicAddress")
-            if logical and not re.fullmatch(r"[0-9a-fA-F]{1,4}", logical):
+            if (logical and not re.fullmatch(r"[0-9a-fA-F]{1,4}", logical)) or (not logical and pair is None):
                 raise Refused("invalid_ecu_route")
             expected = {"kind": "ethernet", "pairTarget": left, "pairClient": right,
                         "target": int(logical, 16) if logical else left}

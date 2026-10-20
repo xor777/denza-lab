@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * security access, clear, routine, functional request or arbitrary address input.
  * Candidate addresses come from the CarCoding BYD scan map, not a Z9GT map;
  * 0x712 was independently read by the ADS investigation on this Z9GT.
+ * The factory-powertrain plan instead uses the complete stock getEcuList
+ * obtained on 2026-10-20 and exact software identities from this car's cache.
  * A matching F194 from this car is required before assigning an ECU identity.
  * Uses the MCU's qualified request+8 route and the shared diagnostic-reader lock.
  */
@@ -54,6 +56,7 @@ public final class RemainingEcuReadProbe {
         "48450011DF83000000", "474E0011DF70000000"
     };
     static final List<Step> plan = new ArrayList<>();
+    static boolean standaloneDcobcList;
     static final class Step {
         final int address;
         final byte[] payload;
@@ -74,6 +77,31 @@ public final class RemainingEcuReadProbe {
         // Deliberately excludes VIN (09 02) and serial-number DIDs.
         for (int pid : new int[]{0, 4, 10})
             plan.add(new Step(0x7E5, new byte[]{9, (byte) pid}, null));
+    }
+    static void factoryPowertrainPlan() {
+        plan.add(new Step(0x7E0, identification(), hex(ECM_CODE)));
+        // Server routes: SMCU 744/74C canfd channel1, SMCU3 745/74D
+        // canfd channel1, DCOBC 7E4/7EC can channel2. The qualified MQTT
+        // envelope has no bus selector: a server route alone is not reachability.
+        int[] addresses = {0x744, 0x745, 0x7E4};
+        String[] codes = {"48370011E086001100", "48370011E088001100", "48350011E04D000100"};
+        for (int i = 0; i < addresses.length; i++) {
+            plan.add(new Step(addresses[i], identification(), codes[i]));
+            plan.add(new Step(addresses[i], new byte[]{0x19, 1, 9}, null));
+            plan.add(new Step(addresses[i], new byte[]{0x19, 2, 9}, null));
+        }
+    }
+    static void factoryDcobcListPlan() {
+        plan.add(new Step(0x7E0, identification(), hex(ECM_CODE)));
+        plan.add(new Step(0x7E4, identification(), "48350011E04D000100"));
+        // The exact DCOBC identity answered, but 19 01 09 timed out.
+        // Try only the independently bounded list; format remains unknown
+        // because 19 02 does not supply the DTCFormatIdentifier.
+        plan.add(new Step(0x7E4, new byte[]{0x19, 2, 9}, null));
+    }
+    static boolean standaloneListStep() {
+        return standaloneDcobcList && current.address == 0x7E4
+            && Arrays.equals(current.payload, new byte[]{0x19, 2, 9});
     }
     static void makePlan(boolean dtc) {
         if (!dtc) {
@@ -219,14 +247,16 @@ public final class RemainingEcuReadProbe {
                     + " supported=" + supportMask + " format=" + (data[3] & 255));
                 if (dtcCount > 64) { finish("DTC_COUNT_BOUND"); return; }
             } else {
-                if ((data.length - 3) % 4 != 0 || (data.length - 3) / 4 != dtcCount
-                        || (data[2] & 255) != supportMask) {
+                int records = (data.length - 3) / 4;
+                if ((data.length - 3) % 4 != 0 || records > 64 || (data[2] & 9) != 9
+                        || (!standaloneListStep() && (records != dtcCount || (data[2] & 255) != supportMask))) {
                     finish("DTC_LIST_COUNT_OR_MASK_MISMATCH"); return;
                 }
                 for (int i = 3; i < data.length; i += 4) {
                     if ((data[i + 3] & 9) == 0) { finish("DTC_FILTER_MISMATCH"); return; }
                 }
                 out("DTC_LIST req=" + Integer.toHexString(current.address) + " mask=09 payload=" + hex(data));
+                if (standaloneListStep()) out("DTC_LIST_FORMAT_UNKNOWN records=" + records);
             }
             endStep("DTC_COMPLETE");
         }
@@ -238,6 +268,7 @@ public final class RemainingEcuReadProbe {
             if (++step == plan.size()) { finish("PLAN_DONE"); return; }
             current = plan.get(step);
             if (current.payload[0] == 0x19 && current.payload[1] == 2
+                    && !standaloneListStep()
                     && (countAddress != current.address || dtcCount < 0 || dtcCount > 64)) {
                 finish("DTC_LIST_WITHOUT_QUALIFIED_COUNT"); return;
             }
@@ -262,12 +293,16 @@ public final class RemainingEcuReadProbe {
     public static void main(String[] args) {
         boolean dtc = args.length == 1 && args[0].equals("dtc");
         boolean obdName = args.length == 1 && args[0].equals("obd-name");
+        boolean factoryPowertrain = args.length == 1 && args[0].equals("factory-powertrain");
+        standaloneDcobcList = args.length == 1 && args[0].equals("factory-dcobc-list");
         int group = -1;
         for (int i = 0; i < 4; i++)
             if (args.length == 1 && args[0].equals("catalog" + (i + 1))) group = i;
-        if (args.length != 0 && !dtc && !obdName && group < 0)
-            throw new IllegalArgumentException("Fixed identification, dtc, obd-name or catalog1..4 plan");
-        if (obdName) obdNamePlan();
+        if (args.length != 0 && !dtc && !obdName && !factoryPowertrain && !standaloneDcobcList && group < 0)
+            throw new IllegalArgumentException("Fixed identification, dtc, obd-name, factory-powertrain, factory-dcobc-list or catalog1..4 plan");
+        if (standaloneDcobcList) factoryDcobcListPlan();
+        else if (factoryPowertrain) factoryPowertrainPlan();
+        else if (obdName) obdNamePlan();
         else if (group >= 0) catalogPlan(group);
         else makePlan(dtc);
         new Thread(() -> {

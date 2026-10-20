@@ -29,11 +29,22 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   `783`, SRS `7F1`, ADC `712` and front radar `7F2` each returned explicit zero
   count and list for DTC mask `09` (testFailed OR confirmedDTC).
   OBD `09 0A` identifies `7E5` as `BSCM-BrakeSystem`; its physical relationship
-  to `782` is unknown. SMCU/SMCU3/DCOBC routes remain unresolved. The fixed
+  to `782` is unknown. The later factory-map pass below resolves SMCU/SMCU3/DCOBC. The fixed
   shell reader is [`RemainingEcuReadProbe.java`](../../tools/vehicle-diagnostics/RemainingEcuReadProbe.java);
   its seven executed plans, source/dex hashes and cleanup evidence are in
   `captures/diagnostics-remaining-20261020/`. No product allowlist was changed.
   ADS reports DTC format `01`; the other four newly read modules report `00`.
+
+- `factory-ecu-map-20261020.json` retains all 225 sanitized factory `getEcuList`
+  records. They are server variants/candidates; transport, channel and DoIP
+  logical addresses remain distinct.
+- `factory-powertrain-dtc-20261020.json` records subsequent live identities
+  and DTC reads at SMCU `744/74C`, SMCU3 `745/74D` and DCOBC `7E4/7EC`.
+  All three returned empty lists for mask09. The drives also returned explicit
+  count0/format00. DCOBC's count timed out; its separately bounded list succeeded
+  but cannot establish the DTC format. Executed sources, raw traces, independent
+  replay and cleanup are in `captures/diagnostics-next-20261020/`.
+  No OEM dictionary was obtained and no product allowlist was changed.
 
 The promoted two-target allowlisted reader is `VehicleDtcProxyMain` in Denza Apps;
 `VehicleDiagnostics` supplies profile/P/speed checks, ownership and UI lifecycle.

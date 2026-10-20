@@ -189,6 +189,21 @@ class BoundaryTests(unittest.TestCase):
                                         "pairClient": 0xE80, "target": 0x1003})
         self.assertEqual(host.validate_result(value), value)
 
+    def test_stock_doip_logical_address_does_not_invent_a_pair(self):
+        for pair in (None, ""):
+            value = result()
+            value["ecus"][0].update(ecuReprogramType="ethernet", ecuDiaId=pair, logicAddress="071A",
+                                   route={"kind": "ethernet", "pairTarget": None,
+                                          "pairClient": None, "target": 0x71A})
+            self.assertEqual(host.validate_result(value), value)
+            value["ecus"][0]["logicAddress"] = ""
+            with self.assertRaises(host.Refused):
+                host.validate_result(value)
+        value = result()
+        value["ecus"][0]["ecuDiaId"] = ""
+        with self.assertRaises(host.Refused):
+            host.validate_result(value)
+
     def test_duplicate_json_error_text_and_non_json_never_propagate(self):
         for raw in (b'{"state":"RESULT","state":"PRIVATE"}',
                     b'{"state":"ERROR","code":"PRIVATE TOKEN"}', b'PRIVATE TOKEN'):
@@ -197,7 +212,9 @@ class BoundaryTests(unittest.TestCase):
 
     def test_only_allowlisted_error_code_and_stage_are_retained(self):
         for stage, code in (("input_cert", "missing_input0"), ("https", "http_auth"),
-                            ("projection", "application_registration"), ("input_validate", "token_missing")):
+                            ("projection", "application_registration"), ("input_validate", "token_missing"),
+                            ("https", "http_headers_limit"), ("https", "http_header_syntax"),
+                            ("https", "http_header_duplicate")):
             raw = json.dumps({"state": "ERROR", "stage": stage, "code": code}).encode()
             with self.assertRaises(host.HelperFailure) as caught:
                 host.parse_message(raw)
@@ -209,6 +226,21 @@ class BoundaryTests(unittest.TestCase):
             with self.assertRaises(host.Refused) as caught:
                 host.parse_message(raw)
             self.assertNotIsInstance(caught.exception, host.HelperFailure)
+
+    def test_stock_ecu_identifiers_preserve_ascii_spaces(self):
+        for ecu_id in ("HTH-2021_rear CPD radar_Valeo_00100001",
+                       "HTH-2021_rear CPD radar_Mindcruise_00100001",
+                       "HTH-2021_front CPD radar_Valeo_00200001",
+                       "HTH-2021_front CPD radar_Mindcruise_00100001",
+                       "HTH-2021_ECP_FULIN PM_00100001"):
+            value = result()
+            value["ecus"][0]["ecuId"] = ecu_id
+            self.assertEqual(host.validate_result(value)["ecus"][0]["ecuId"], ecu_id)
+        for ecu_id in (" ", "BAD\tID", "BAD\nID", "BAD\u00a0ID", "BAD/ID"):
+            value = result()
+            value["ecus"][0]["ecuId"] = ecu_id
+            with self.assertRaises(host.Refused):
+                host.validate_result(value)
 
     def test_nan_and_excessive_json_nesting_are_fixed_errors(self):
         for raw in (b'{"value":NaN}', b'[' * 2000 + b'0' + b']' * 2000):

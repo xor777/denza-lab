@@ -124,6 +124,36 @@ public final class EcuMapMetadataProbeTest {
         check(output.contains("\"responseId\":1568"));check(output.contains("\"ecuHardDid\":null"));check(!output.contains("PRIVATE_UNKNOWN"));
         check(output.contains("server_candidate_only"));check(output.contains("\"eligibleForProductAllowlist\":false"));
         EcuMapMetadataProbe.privacyCheck(projected,i);assertions++;
+        Map<String,Object> spacedRow=EcuMapMetadataProbe.object(EcuMapMetadataProbe.Json.parse(row()));
+        for(String stockId:new String[]{"HTH-2021_rear CPD radar_Valeo_00100001",
+                "HTH-2021_rear CPD radar_Mindcruise_00100001",
+                "HTH-2021_front CPD radar_Valeo_00200001",
+                "HTH-2021_front CPD radar_Mindcruise_00100001",
+                "HTH-2021_ECP_FULIN PM_00100001"}) {
+            spacedRow.put("ecuId",stockId);
+            List<Object> rows=EcuMapMetadataProbe.projectResponse(response(EcuMapMetadataProbe.Json.encode(spacedRow)));
+            check(stockId.equals(EcuMapMetadataProbe.object(rows.get(0)).get("ecuId")));
+        }
+        for(String invalidId:new String[]{" ","BAD\tID","BAD\nID","BAD\u00a0ID","BAD/ID"}) {
+            spacedRow.put("ecuId",invalidId);
+            failsWith("invalid_ecu_projection",()->EcuMapMetadataProbe.projectResponse(
+                response(EcuMapMetadataProbe.Json.encode(spacedRow))));
+        }
+        Map<String,Object> doipRow=EcuMapMetadataProbe.object(EcuMapMetadataProbe.Json.parse(row()));
+        doipRow.put("ecuReprogramType","ethernet");doipRow.put("logicAddress","071A");
+        for(String absentPair:new String[]{null,""}) {
+            doipRow.put("ecuDiaId",absentPair);
+            Map<String,Object> route=EcuMapMetadataProbe.object(EcuMapMetadataProbe.object(
+                EcuMapMetadataProbe.projectResponse(response(EcuMapMetadataProbe.Json.encode(doipRow))).get(0)).get("route"));
+            check(route.get("pairTarget")==null && route.get("pairClient")==null &&
+                ((Number)route.get("target")).intValue()==0x71A);
+        }
+        doipRow.remove("ecuDiaId");
+        check(EcuMapMetadataProbe.projectResponse(response(EcuMapMetadataProbe.Json.encode(doipRow))).size()==1);
+        doipRow.put("logicAddress","");
+        failsWith("invalid_ecu_projection",()->EcuMapMetadataProbe.projectResponse(response(EcuMapMetadataProbe.Json.encode(doipRow))));
+        doipRow.put("logicAddress","071A");doipRow.put("ecuReprogramType","canfd");
+        failsWith("invalid_ecu_projection",()->EcuMapMetadataProbe.projectResponse(response(EcuMapMetadataProbe.Json.encode(doipRow))));
         fails(()->EcuMapMetadataProbe.privacyCheck(Collections.singletonList(i.token),i));
         fails(()->EcuMapMetadataProbe.privacyCheck(Collections.singletonList("prefix"+i.uuid),i));
         fails(()->EcuMapMetadataProbe.projectResponse(response(row()+","+row())));
@@ -138,6 +168,39 @@ public final class EcuMapMetadataProbeTest {
         check(Arrays.equals(bytes(body),EcuMapMetadataProbe.readHttp(new ByteArrayInputStream(http("Content-Length: "+bytes(body).length+"\r\n",body)),end())));
         String chunk=Integer.toHexString(bytes(body).length)+"\r\n"+body+"\r\n0\r\n\r\n";
         check(Arrays.equals(bytes(body),EcuMapMetadataProbe.readHttp(new ByteArrayInputStream(http("Transfer-Encoding: chunked\r\n",chunk)),end())));
+        // A front proxy may repeat headers which this isolated client does not
+        // use. Never retain cookie values or reject an otherwise valid body.
+        String ignoredHeaders="Set-Cookie: SYNTHETIC_PRIVATE_COOKIE_A\r\n"+
+            "sEt-CoOkIe: SYNTHETIC_PRIVATE_COOKIE_B\r\nVary: Accept-Encoding\r\n"+
+            "Vary: Origin\r\nX-Trace: synthetic-a\r\nX-Trace: synthetic-b\r\n";
+        for(String framing:new String[]{"Content-Length: "+bytes(body).length+"\r\n",
+                "Transfer-Encoding: chunked\r\n",""}) {
+            String wireBody=framing.startsWith("Transfer")?chunk:body;
+            check(Arrays.equals(bytes(body),EcuMapMetadataProbe.readHttp(
+                new ByteArrayInputStream(http(ignoredHeaders+framing,wireBody)),end())));
+        }
+        check(Arrays.equals(bytes(body),EcuMapMetadataProbe.readHttp(new ByteArrayInputStream(
+            http("Content-Length:\t"+bytes(body).length+"\t\r\nX-Ignored:\tvalue\r\n",body)),end())));
+        for(String repeated:new String[]{
+                "Content-Length: 2\r\ncontent-length: 2\r\n",
+                "Content-Length: 2\r\nContent-Length: 3\r\n",
+                "Content-Type: application/json\r\n",
+                "Content-Encoding: identity\r\ncontent-encoding: gzip\r\n",
+                "Transfer-Encoding: chunked\r\ntransfer-encoding: chunked\r\n"}) {
+            failsWith("http_header_duplicate",()->EcuMapMetadataProbe.readHttp(
+                new ByteArrayInputStream(http(repeated,body)),end()));
+        }
+        for(String malformed:new String[]{"Bad header: value\r\n","MissingColon\r\n",
+                " Folded: value\r\n","\tFolded: value\r\n",": value\r\n"}) {
+            failsWith("http_header_syntax",()->EcuMapMetadataProbe.readHttp(
+                new ByteArrayInputStream(http(malformed,body)),end()));
+        }
+        String oversized=String.join("",Collections.nCopies(8,"X-Ignored: "+
+            String.join("",Collections.nCopies(2048,"x"))+"\r\n"));
+        failsWith("http_headers_limit",()->EcuMapMetadataProbe.readHttp(
+            new ByteArrayInputStream(http(oversized,body)),end()));
+        failsWith("http_line",()->EcuMapMetadataProbe.readHttp(
+            new ByteArrayInputStream(http("X-Ignored: bad\u0001value\r\n",body)),end()));
         for(byte[] h:new byte[][]{http("Content-Encoding: gzip\r\n",body),http("Content-Length: 2\r\nTransfer-Encoding: chunked\r\n",body),http("Content-Length: 2\r\nContent-Length: 2\r\n",body),http("Content-Length: 999\r\n",body),http("Content-Length: 2\r\n","{}extra"),bytes("HTTP/1.1 302 Redirect\r\nLocation: https://elsewhere.invalid/\r\n\r\n")})fails(()->EcuMapMetadataProbe.readHttp(new ByteArrayInputStream(h),end()));
         String request=new String(EcuMapMetadataProbe.httpRequest(i),StandardCharsets.UTF_8);
         check(request.startsWith("POST /ota/otaService/getEcuList HTTP/1.1\r\n"));check(request.contains("Authorization: basicSYNTHETIC_TOKEN_ONLY\r\n"));
