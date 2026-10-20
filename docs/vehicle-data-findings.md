@@ -35,9 +35,9 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 | N9 CAN coverage: GB/YUN add 72 address tuples without table writes. Expanded present/empty/refilled cycle saved: 68,432 / 68,296 / 66,613 messages, all 199 common tuples covered without loss. Of 223 separated bits, 49 reverse; 43 contradict older controls, and 6 extra-tuple bits overlap numeric range/consumption/insulation/SOC descriptors. No washer mapping is established; 3 intermittent refill tuples also occurred in older normal/empty captures | live three-state cycle, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (stock tester and its 96-case function map: left body domain `LA_BCM`; OTA map's CDC/ZCU rows unexplained; BYD labels status28 «历史故障»); 2026-10-20 the same transport reaches the engine ECM `7E0` (OBD Mode 01/03/07/0A, UDS 19; MIL off, 0 codes) and `7E2`/`7E3`/`7E5`/`7E6`/`7E7`/`722`/`726`/`747`; full catalog sweep 2026-10-20: SoH99, cells 3333–3337 mV, service life oil75/brake fluid99/coolant50, GB alarms answer at the N9 baseline; LBMS `762→76A` zero/support09. Further chassis/ADAS addresses were qualified on 2026-10-20, below. Native service diagnostics adds readable DTC summaries, qualified reference meanings, all eight status bits and a dated candidate inventory; 43 scalar and 15 lamp GETs refresh every5 s and expire at15 s. Lamp0 means invalid, not off; captured engine lamp on. Fourteen updated emulator views match their boards; new APK not installed on car | live reader; code window; emulator validation | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18); [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18); [Deeper sources](#deeper-sources-for-a-diagnostic-screen-2026-10-20); [Z9GT catalog sweep](#z9gt-catalog-sweep-2026-10-20); [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20) |
 | Remaining-ECU research: 70 F194 addresses checked, 33 positive, 32 exact cache matches, and `741` is the head unit's own MCU by the stock media software mapping; ABS/ESP782, EPS783, SRS7F1, ADC712 and MRR7F2 each return explicit zero DTC for mask09. OBD7E5 names itself BSCM-BrakeSystem. The later factory-map pass below resolves the rear-drive/DCOBC routes | live, research | 2026-10-20 | [Remaining ECU identities and chassis DTC](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) |
-| Complete factory metadata: 225 routing candidates retained from one approved getEcuList. SMCU744/74C, SMCU3 745/74D and DCOBC7E4/7EC subsequently answered exact cached F194 identities and empty DTC lists for mask09. DCOBC count timed out, so its DTC format is unknown. OEM dictionaries still missing; no product changes | live, research | 2026-10-20 | [Complete factory map and remaining powertrain DTC](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
+| Complete factory metadata: 225 routing candidates; SMCU744/74C, SMCU3 745/74D and DCOBC7E4/7EC answered matching F194 and empty mask09 lists. DCOBC format remains unknown. A public Z9GT PHEV manual index now supplies engine/battery/drive DTC heading candidates, but has conflicting definitions and no ECU-software binding; no OEM dictionary is qualified | live routes; dictionary open | 2026-10-20 | [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20); [Manual candidates](#oem-dtc-manual-candidates-2026-10-20) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
-| Stock Update is unsuitable for diagnosis-only use. The third isolated session validated local inputs, completed TLS and received HTTP 200, then refused response headers; application auth and ECU map remain unverified. Cleanup passed. Overlapping host lifetimes with the ADS log reader exposed reuse of its working directory; our reader now refuses reuse, qualified offline. No further session is authorized | live HTTP-header refusal; cross-reader coordination still required | 2026-10-18 | [Bounded observation and isolated metadata](#bounded-observation-and-isolated-metadata-2026-10-18) |
+| Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
 
 **Open questions**
@@ -68,6 +68,7 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 - [Additional diagnostic readings and LBMS](#additional-diagnostic-readings-and-lbms-2026-10-18) — 43 GETs, window polling and the second qualified ECU
 - [Remaining ECU identities and chassis DTC](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) — ABS/ESP, EPS, SRS, ADAS, radar, 32 cache matches and the brake OBD interface
 - [Complete factory map and remaining powertrain DTC](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) — all 225 server routes, live rear drives/DCOBC and the OEM dictionary gap
+- [OEM DTC manual candidates](#oem-dtc-manual-candidates-2026-10-20) — model-specific public headings, conflicts, code-format and software-applicability gaps
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
 - [Raw CAN-FD callback (2026-09-03)](#raw-can-fd-callback-2026-09-03) — the passive shell-UID frame stream and its envelope
 - [Washer fluid level (2026-09-18, in progress)](#washer-fluid-level-2026-09-18-in-progress) — no name, no bit yet; firmware and raw-stream paths
@@ -1915,7 +1916,13 @@ proof;18 Java lifecycle tests and16 host-runner tests also pass. The existing
 102-test offline research suite remains green. No stock check, new BydLog
 session, credential getter or ECU request was run for these checks.
 
-The separate metadata POST remains a possible route. Existing GCY backups are
+> **Superseded 2026-10-20:** the isolated metadata route subsequently succeeded
+> with separate one-session authorization and returned all 225 candidates — see
+> [Complete factory map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20).
+> The source analysis and earlier failed attempts below remain historical
+> evidence; this does not make the stock Check/Update workflow suitable.
+
+At this stage the separate metadata POST remained a possible route. Existing GCY backups are
 `/data/user/0/com.byd.otaupdate/files/dcrt.crt` and `files/dkey.key`; the cached
 token and UUID are in that package's `share_data_prefs.xml`. **Backups are
 first-write-only:** `SecurityKeyUtil:187–189` leaves an existing file unchanged,
@@ -2739,6 +2746,102 @@ and route metadata do not fill this gap. The seven-target software-code
 specification, original source anchors and hashes are retained in
 `captures/diagnostics-next-20261020/dictionaries/`; this specification was not
 sent to anyone. No unsupported factory descriptions were added.
+
+### OEM DTC manual candidates (2026-10-20)
+
+**A model-specific public index has been found; an applicable OEM dictionary
+has not yet been obtained.** The public contents of
+[2024 Z9GT 易三方 PHEV diagnostic manual](https://dongcheyun.com/p/23710)
+separate engine control, battery management, front drive, generator and the
+two rear drives. These are third-party catalog headings, not retrieved primary
+manual pages. Neither the original document revision nor applicability to the
+measured ECU software has been established. They are retained for acquisition
+and comparison, not installed as fault descriptions. The initial browser
+capture had automatic translation enabled. A second capture selected Chinese
+through Chrome's native translation UI and recovered all 829 original public
+headings; every subsystem/code/outline identity matched the first capture.
+Original publisher text still does not establish OEM authorship or applicability.
+
+| Public section | Observed heading coverage | What prevents qualification |
+| --- | --- | --- |
+| Engine electronic control | 496 DTC headings, 494 distinct seven-character display codes | No UAES/BYD supplier split or software-code binding; P222800 and P222900 each have two different titles |
+| Battery management | 206 DTC headings, 204 distinct display codes | P2BAE00 has two different titles in this same section; BMS033/software applicability unproved |
+| Front drive, generator, right rear drive, left rear drive | Respectively 31, 32, 32, 32 headings; 126 distinct codes across these four sections | Physical rear-side assignment and raw-code encoding remain unproved |
+
+The index itself is not consistent enough for an automatic import. In the BMS
+branch, `P2BAE00` appears both for a boost contactor fault and an extreme pack
+undervoltage condition. In the engine branch, the duplicate `P222800`/`P222900`
+titles distinguish electrical circuit faults from internal pressure-sensor
+diagnostics. These are **observed catalog conflicts**, not alternative verified
+meanings for this car. Do not resolve them by choosing the first row, by majority
+vote or by a generic SAE description. All three differences persist in the
+original Chinese capture. `P1A2000` is a separate duplicate whose Chinese titles
+differ only by a leading zero-width space; it is not counted as an
+incompatible-meaning conflict.
+
+Opening the engine introduction/list (`DTA1343324`, `DTA1343330`) and the BMS
+fault list (`DTA1248942`) returned a login requirement. The drive fault-list
+locators are `DTA1415144` (front), `DTA1415099` (generator), `DTA1414996`
+(right rear) and `DTA1414952` (left rear). Some front-drive/generator headings
+name Fudi (`弗迪方案`) and BorgWarner (`博格华纳方案`) variants; the initial
+browser translation rendered Fudi as BYD. A subsystem name alone cannot select the
+definition for our installed software. No login, purchase,
+protected-page retrieval or vehicle request was made. The public index supplies
+precise sections for a future authorized document acquisition; it does not
+establish the content or correctness of the protected tables.
+
+There is also a code-format gap. The actual `59 01` replies in
+[`obd-20261020.json`](../research/vehicle-diagnostics/obd-20261020.json)
+report format01 for FMCU7E3 and ISG7E6, while the public headings use P-prefixed
+display codes. Their conversion to the six-hex-digit raw UDS code needs an
+explicit OEM mapping. A J2012 conversion must not be assumed for format01.
+The two rear controllers report format00, but the public left/right sections
+still cannot be assigned to SMCU744 and SMCU3 745 without separate side evidence.
+Preserve the complete source display code, subsystem, outline locator and
+provenance; leave the raw-code mapping unknown until qualified.
+[`oem-dtc-acquisition-20261020.json`](../research/vehicle-diagnostics/oem-dtc-acquisition-20261020.json)
+pins the seven target identities, actual DTC formats, public document locators
+and missing evidence. The companion
+[`oem-dtc-public-index-20261020.json`](../research/vehicle-diagnostics/oem-dtc-public-index-20261020.json)
+retains all 829 observed subsystem/code/outline locators and short original
+Chinese headings in Git. Both retain source hashes; neither contains qualified
+fault definitions or protected manual procedures.
+
+A second public catalog,
+[Z9GT DMi diagnostic manual 2025](http://agame.vip/wendan/21331264), exposes
+50 filenames, 44 containing DTC-like titles. Its preview covers refrigerators
+and streaming mirrors only. It supplies neither engine/battery/drive tables
+nor OEM provenance. HTTPS certificate validation failed; the public HTTP
+catalog was read without credentials, and no protected document was requested.
+Its presence is an acquisition lead, not independent validation of the first
+catalog.
+
+The [manufacturer declaration published by MIIT](https://www.miit.gov.cn/datainfo/dljdclscqyjcpgg/xcpgs390ssew/art/2024/art_e01d997f2e9f4e12879a75c5c4d0c68c.html)
+provides a primary engine search anchor: model `QCJ7200AEHEV3`, whose linked
+rear photograph carries the Z9GT badge, uses `BYD479ZQA`, 1995 cc, 152 kW
+declared power / 150 kW net power. This identifies that published vehicle
+variant. It neither matches the owner's individual car nor binds
+`ECM_UAES_01200001` / `32440011E004000000` to any DTC table.
+
+The additional head-unit corpus pass examined 54 extracted factory APKs,
+1,930 parsed JSON resources, four nested ZIP inventories and the schema of an
+eight-table voice SQLite database. Three new decompiles distinguish misleading
+names: BydDataCheckTool writes shipping identifiers, BydSoftwareService manages
+service activation/purchase/training, and BydAutoManual caches user-manual
+pages/media without a DTC or ECU-software schema. `dtc_vendor` is the Device
+Tree Compiler. No additional applicable dictionary or passive getter emerged.
+This is bounded evidence: MyCar `app.gpak`/configuration binaries remain opaque,
+45 JSON files were unparsed, 21 large animations were checked by headers only,
+and two decompiles have documented gaps. It is not proof that every byte of
+the head unit lacks diagnostic definitions, and supplies no new reason to
+export private caches.
+
+Evidence for this pass is retained under
+`captures/diagnostics-oem-dtc-20261020/`, separated into `engine/`, `powertrain/`,
+`local/` and `public-catalog/`. The next useful input is the actual OEM fault
+list/diagnostic introduction with its revision and ECU applicability, plus the
+display-to-raw mapping for format01. A matching, already downloaded EOL script
+and its selection metadata remain another possible source on the head unit.
 
 ## Consumption journal
 

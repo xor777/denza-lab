@@ -1,0 +1,519 @@
+{
+  "schema": "denza-lab.oem-dtc-acquisition.v1",
+  "date": "2026-10-20",
+  "status": "research_only_not_a_fault_dictionary",
+  "profile": 170,
+  "modelScope": "CN Z9GT PHEV; exact manual revision and software applicability remain unverified",
+  "vehicleEvidence": [
+    {
+      "path": "research/vehicle-diagnostics/obd-20261020.json",
+      "sha256": "61243879c8ac46abc5f7f22e11197960bdbb9d63f94c2620b2893d6c2ee513e9"
+    },
+    {
+      "path": "research/vehicle-diagnostics/remaining-ecus-20261020.json",
+      "sha256": "1556d832e11864006c71671ff8bfdc51b7eb68cc2547adc31ac89dbcc600aeb5"
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-powertrain-dtc-20261020.json",
+      "sha256": "298a95f29f7cbdc11417e4a6d98135e8dd489e3b389058ccd80af80e2e7eda8a"
+    }
+  ],
+  "targets": [
+    {
+      "name": "ECM",
+      "softwareCode": "32440011E004000000",
+      "observedF194RequestAddress": "7E0",
+      "identityStatus": "observed_f194_and_cache_join",
+      "cacheCandidates": [
+        {
+          "ecuId": "HTH-2021_ECM_UAES_01200001",
+          "ecuSoftVer": "4.00.10",
+          "ecuHardVer": "1.0.0",
+          "factoryRequestResponsePair": "7E0/7E8"
+        }
+      ],
+      "dictionaryStatus": "no_qualified_oem_dictionary",
+      "factoryDtcDefinitions": [],
+      "observedDtcFormatIdentifier": 0,
+      "eligibleForProductDictionary": false
+    },
+    {
+      "name": "BMS033",
+      "softwareCode": "4A520011E00D00047B",
+      "observedF194RequestAddress": "7E7",
+      "identityStatus": "observed_f194_and_cache_join",
+      "cacheCandidates": [
+        {
+          "ecuId": "HTH-2021_BMS_BYD_03300001",
+          "ecuSoftVer": "3.48.07",
+          "ecuHardVer": "0.0.3",
+          "factoryRequestResponsePair": "7E7/7EF"
+        }
+      ],
+      "dictionaryStatus": "no_qualified_oem_dictionary",
+      "factoryDtcDefinitions": [],
+      "observedDtcFormatIdentifier": 0,
+      "eligibleForProductDictionary": false
+    },
+    {
+      "name": "FMCU",
+      "softwareCode": "48370011E075000000",
+      "observedF194RequestAddress": "7E3",
+      "identityStatus": "observed_f194_and_cache_join",
+      "cacheCandidates": [
+        {
+          "ecuId": "HTH-2021_FMCU_BYD_00100001",
+          "ecuSoftVer": "4.03.12",
+          "ecuHardVer": "0.0.5",
+          "factoryRequestResponsePair": "7E3/7EB"
+        }
+      ],
+      "dictionaryStatus": "no_qualified_oem_dictionary",
+      "factoryDtcDefinitions": [],
+      "observedDtcFormatIdentifier": 1,
+      "eligibleForProductDictionary": false,
+      "manualDisplayToRawMapping": "unverified; format01 must not use assumed SAE J2012 conversion"
+    },
+    {
+      "name": "ISG",
+      "softwareCode": "48370011E0EA000000",
+      "observedF194RequestAddress": "7E6",
+      "identityStatus": "observed_f194_and_cache_join",
+      "cacheCandidates": [
+        {
+          "ecuId": "HTH-2021_ISG_BYD_00100001",
+          "ecuSoftVer": "4.03.13",
+          "ecuHardVer": "0.0.5",
+          "factoryRequestResponsePair": "7E6/7EE"
+        }
+      ],
+      "dictionaryStatus": "no_qualified_oem_dictionary",
+      "factoryDtcDefinitions": [],
+      "observedDtcFormatIdentifier": 1,
+      "eligibleForProductDictionary": false,
+      "manualDisplayToRawMapping": "unverified; format01 must not use assumed SAE J2012 conversion"
+    },
+    {
+      "name": "SMCU",
+      "softwareCode": "48370011E086001100",
+      "observedF194RequestAddress": "744",
+      "identityStatus": "observed_f194_and_cache_join",
+      "cacheCandidates": [
+        {
+          "ecuId": "HTH-2021_SMCU_BYD_00200001",
+          "ecuSoftVer": "4.00.06",
+          "ecuHardVer": "0.0.2",
+          "factoryRequestResponsePair": "744/74C"
+        }
+      ],
+      "dictionaryStatus": "no_qualified_oem_dictionary",
+      "factoryDtcDefinitions": [],
+      "observedDtcFormatIdentifier": 0,
+      "eligibleForProductDictionary": false,
+      "physicalRearSide": null
+    },
+    {
+      "name": "SMCU3",
+      "softwareCode": "48370011E088001100",
+      "observedF194RequestAddress": "745",
+      "identityStatus": "observed_f194_and_cache_join",
+      "cacheCandidates": [
+        {
+          "ecuId": "HTH-2021_SMCU3_BYD_00100001",
+          "ecuSoftVer": "4.00.06",
+          "ecuHardVer": "0.0.2",
+          "factoryRequestResponsePair": "745/74D"
+        }
+      ],
+      "dictionaryStatus": "no_qualified_oem_dictionary",
+      "factoryDtcDefinitions": [],
+      "observedDtcFormatIdentifier": 0,
+      "eligibleForProductDictionary": false,
+      "physicalRearSide": null
+    },
+    {
+      "name": "ABS_ESP_IPB_BSC",
+      "softwareCode": "32330011DF0B000101",
+      "observedF194RequestAddress": "782",
+      "identityStatus": "observed_f194_and_cache_join",
+      "cacheCandidates": [
+        {
+          "ecuId": "HTH-2021_ESP_BOSCH_00100001",
+          "ecuSoftVer": "4.00.08",
+          "ecuHardVer": "0.0.4",
+          "factoryRequestResponsePair": "782/78A"
+        },
+        {
+          "ecuId": "HTH-2021_IPB_BOSCH_00100001",
+          "ecuSoftVer": "4.00.08",
+          "ecuHardVer": "0.0.4",
+          "factoryRequestResponsePair": "782/78A"
+        },
+        {
+          "ecuId": "HTH-2021_BSC_BYD_00100001",
+          "ecuSoftVer": "4.00.08",
+          "ecuHardVer": "0.0.4",
+          "factoryRequestResponsePair": "782/78A"
+        }
+      ],
+      "dictionaryStatus": "no_qualified_oem_dictionary",
+      "factoryDtcDefinitions": [],
+      "observedDtcFormatIdentifier": 0,
+      "eligibleForProductDictionary": false
+    }
+  ],
+  "publicManualLead": {
+    "url": "https://dongcheyun.com/p/23710",
+    "claimedTitle": "2024年腾势Z9GT易三方插混混动诊断手册",
+    "sourceType": "third_party_public_table_of_contents",
+    "primaryManualBodyRetrieved": false,
+    "oemProvenanceVerified": false,
+    "ecuSoftwareApplicabilityVerified": false,
+    "engine": {
+      "section": "发动机电控系统",
+      "headingCount": 496,
+      "distinctDisplayCodes": 494,
+      "conflictingCodes": [
+        "P222800",
+        "P222900"
+      ],
+      "introductionDocumentId": "DTA1343324",
+      "faultListDocumentId": "DTA1343330",
+      "faultListOutlineId": "outline_25_a",
+      "introductionOutlineId": "outline_22_a"
+    },
+    "battery": {
+      "section": "电池管理系统",
+      "headingCount": 206,
+      "distinctDisplayCodes": 204,
+      "conflictingCodes": [
+        "P2BAE00"
+      ],
+      "faultListDocumentId": "DTA1248942",
+      "faultListOutlineId": "outline_763_a"
+    },
+    "drives": {
+      "sectionHeadingCounts": {
+        "frontDrive": 31,
+        "generator": 32,
+        "rightRearDrive": 32,
+        "leftRearDrive": 32
+      },
+      "distinctDisplayCodesAcrossFourSections": 126,
+      "leftRightAddressBinding": null,
+      "faultListLocators": {
+        "frontDrive": {
+          "documentId": "DTA1415144",
+          "outlineId": "outline_540_a"
+        },
+        "generator": {
+          "documentId": "DTA1415099",
+          "outlineId": "outline_575_a"
+        },
+        "rightRearDrive": {
+          "documentId": "DTA1414996",
+          "outlineId": "outline_611_a"
+        },
+        "leftRearDrive": {
+          "documentId": "DTA1414952",
+          "outlineId": "outline_647_a"
+        }
+      },
+      "supplierQualification": "Public titles distinguish 弗迪方案 (Fudi) and 博格华纳方案 (BorgWarner); neither subsystem name nor BYD ECU ID alone selects the applicable software definition."
+    },
+    "eligibleForProductDictionary": false,
+    "sourceProjections": [
+      {
+        "path": "captures/diagnostics-oem-dtc-20261020/engine/ecm-toc-original-chinese-candidate.json",
+        "sha256": "bf4ae55ac9071486a7509c7fae44eb57c1818560814d6bdcfff76b3c5de08fd8"
+      },
+      {
+        "path": "captures/diagnostics-oem-dtc-20261020/powertrain/toc-candidates-original-chinese.json",
+        "sha256": "08d0a3c6c68e4c1b201e06d936a1746a6727842c027e3e4ba17451cd39f60e59"
+      }
+    ],
+    "titleLanguageCaveat": "Original Chinese public headings recovered through native browser UI; OEM authorship and revision still unverified. Initial automatic translation rendered Fudi as BYD.",
+    "trackedCodeLocatorIndex": "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+    "duplicateHeadings": [
+      {
+        "subsystem": "engine_ecm",
+        "displayCode": "P222800",
+        "outlineIds": [
+          "outline_29_a",
+          "outline_419_a"
+        ],
+        "kind": "different_original_chinese_titles",
+        "resolution": null
+      },
+      {
+        "subsystem": "engine_ecm",
+        "displayCode": "P222900",
+        "outlineIds": [
+          "outline_30_a",
+          "outline_418_a"
+        ],
+        "kind": "different_original_chinese_titles",
+        "resolution": null
+      },
+      {
+        "subsystem": "battery_management",
+        "displayCode": "P1A2000",
+        "outlineIds": [
+          "outline_764_a",
+          "outline_950_a"
+        ],
+        "kind": "same_original_title_except_leading_zero_width_space",
+        "resolution": null
+      },
+      {
+        "subsystem": "battery_management",
+        "displayCode": "P2BAE00",
+        "outlineIds": [
+          "outline_921_a",
+          "outline_925_a"
+        ],
+        "kind": "different_original_chinese_titles",
+        "resolution": null
+      }
+    ],
+    "earlierMixedLanguageProjections": [
+      {
+        "path": "captures/diagnostics-oem-dtc-20261020/engine/ecm-toc-candidate.json",
+        "sha256": "053c2d8bc32eb780b76a6426a9fb2aeb4b05f1647d49bf4d0624d3aba817f35b"
+      },
+      {
+        "path": "captures/diagnostics-oem-dtc-20261020/powertrain/toc-candidates.json",
+        "sha256": "8060249fddd0f47e265f5d730751e3f42b1691049a049d4c3ceb89a2b4671f2e"
+      }
+    ]
+  },
+  "requiredEvidence": {
+    "oemManual": {
+      "required": [
+        "original diagnostic manual/DTC index document identifier",
+        "revision and applicability",
+        "ECU variant and software applicability",
+        "original OEM DTC definition and code notation",
+        "source page/section",
+        "raw 24-bit code/subtype mapping if the manual uses a shorter display code"
+      ]
+    },
+    "eolScript": {
+      "plaintext": "Scripts/<forStation>/<scriptCode>-<scriptVersion>-script.txt",
+      "metadata": "Scripts/<forStation>/<scriptCode>-<scriptVersion>.json",
+      "required": [
+        "scriptCode/scriptVer/formatVer",
+        "data.attach[].ecuAbbrName",
+        "data.attach[].can and bus",
+        "data.attach[].dtcList[].code/desc",
+        "matching metadata version/stations/systemIds",
+        "independent OEM vehicle/software applicability evidence"
+      ]
+    }
+  },
+  "scope": "Public catalog and offline firmware research only in this pass; no authenticated requests, paid content, credential exports or vehicle commands.",
+  "knownBlockers": [
+    "Primary fault tables and diagnostic introductions require login.",
+    "Catalog conflicts cannot be resolved from headings.",
+    "No supplier/software applicability in the public engine branch.",
+    "FMCU/ISG format01 display-to-raw mapping missing.",
+    "SMCU/SMCU3 physical left/right side mapping missing.",
+    "Front drive/generator headings include supplier variants; applicable row cannot be selected by subsystem name alone."
+  ],
+  "candidateCaptureRoot": "captures/diagnostics-oem-dtc-20261020/",
+  "eligibleForProductDictionary": false,
+  "localCorpusAudit": {
+    "result": "no applicable new table or passive dictionary getter found",
+    "coverage": {
+      "existingFactoryNamedAndSizeMatchedApks": 54,
+      "parsedJsonResources": 1930,
+      "lottieJson": 807,
+      "shaderJson": 60,
+      "otherJson": 1063,
+      "largeJsonHeaderOnly": 21,
+      "unparsedJson": 45,
+      "nestedArchivesListed": 4,
+      "readonlySqliteSchemaTables": 8,
+      "newDecompiles": [
+        "BydDataCheckTool",
+        "BydSoftwareService",
+        "BydAutoManual"
+      ]
+    },
+    "findings": [
+      {
+        "component": "BydDataCheckTool",
+        "conclusion": "shipping version/serial/IMEI writer, no DTC table",
+        "anchor": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydDataCheckTool/sources/com/byd/byddatachecktool/FactoryDataCheckActivity.java:17"
+      },
+      {
+        "component": "BydSoftwareService",
+        "conclusion": "software activation, sale and learning status, no ECU diagnostic catalog",
+        "anchor": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydSoftwareService/sources/com/byd/softwareservice/serviceinterface/SoftwareServiceApi.java:28"
+      },
+      {
+        "component": "BydAutoManual",
+        "conclusion": "manual page/media cache schema, no DTC or ECU software applicability",
+        "anchor": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/ClassifyDbUtil.java:20"
+      },
+      {
+        "component": "Dtc SDK facade",
+        "conclusion": "FID constants and write-only diagnostic client; value-object getters do not query an ECU dictionary",
+        "anchor": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/dilink/acquisitionservice/IDiLinkDiagnosticClient.java:8"
+      },
+      {
+        "component": "dtc_vendor",
+        "conclusion": "Device Tree Compiler 1.4.4, not automotive diagnostics",
+        "anchor": "captures/firmware/ivi-34.1.33.2605218.1/vendor/bin/dtc_vendor"
+      }
+    ],
+    "limits": [
+      "No runtime, private-cache, credential or network access; no new vehicle/export approval used",
+      "Not all factory APKs extracted; existing-listing and index coverage only",
+      "Opaque MyCar app.gpak and config_*.bin not decoded; native resources not exhaustively decoded",
+      "21 large Lottie JSON header-only,45 JSON files unparsed",
+      "JADX gaps: SoftwareService12,AutoManual19; cited intact methods support conclusions",
+      "Metadata/FID/warning names do not qualify DTC descriptions"
+    ],
+    "sourceHashes": [
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydDataCheckTool/resources/AndroidManifest.xml",
+        "sha256": "0b57f1dfbb40148ef98ff1b842b4f5ce6e3718ebfc59269cba6ba004b4b9162c",
+        "lines": 33
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydDataCheckTool/sources/com/byd/byddatachecktool/FactoryDataCheckActivity.java",
+        "sha256": "3b06173d40171d1910ba89f7b32f7ee471423767a254b1189d3732cf3035d422",
+        "lines": 131
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydSoftwareService/resources/AndroidManifest.xml",
+        "sha256": "012c19dd6677b32c9f47d62fadfd3c5f9cf27508f81d4ac4dd7cc1aea9ff053e",
+        "lines": 245
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydSoftwareService/sources/com/byd/softwareservice/serviceinterface/SoftwareServiceApi.java",
+        "sha256": "487f8cedafbc7fa1e651a7dc8ab2ec8e679c8d107869272ac9d806fb327b6eb8",
+        "lines": 66
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydSoftwareService/sources/com/byd/softwareservice/serviceinterface/SoftwareServiceData.java",
+        "sha256": "a2d4b6066e50d56fff806e81ba0b530aba5449b1222adb67a8b37ffad858b9ce",
+        "lines": 152
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/resources/AndroidManifest.xml",
+        "sha256": "1dcc8033e0857586cba2022fdcdf4b68e2aaf916d46550d2cfbbb989cc13a839",
+        "lines": 92
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/ClassifyDbUtil.java",
+        "sha256": "fb2f968c52ab7c0f0b020efd0e7a75cc04c8623775aa39816de1d52326205a03",
+        "lines": 235
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/ManualRunnable.java",
+        "sha256": "5a0041b0c4de974febc22806f77cb6f63399149f3eb90389e26091d3d77346dc",
+        "lines": 105
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/fragment/ZipInfo.java",
+        "sha256": "4f694fca583242d24370311d0879e3b0c05f5ca708cee87e8d371dc37a109fb6",
+        "lines": 66
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/util/FileUtil.java",
+        "sha256": "cdf384ba98864a8e6ca89ecbd48803b6205542fb189c69f59c653f984c46cc3d",
+        "lines": 50
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/util/LocalPathUtil.java",
+        "sha256": "7d8fa449d617012cbeed4e98461cd464ae564b2da2b21002ff0f4b3ee512a212",
+        "lines": 82
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/video/db/VideoDbUtil.java",
+        "sha256": "e69b0581635abee40a35a754566aa764bcb27ac1a1402473cf19e2907f6b3504",
+        "lines": 172
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/fragment/ManualFragment.java",
+        "sha256": "57b185bc4013bcad14d935e09ce59d4fd82b189e77e4db8c813c45b3b468bf01",
+        "lines": 416
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/feature/dtc/Dtc.java",
+        "sha256": "a9baeb80509a7b76b21f691b17f4d7500e099fde6e5671433e131a10f07f2951",
+        "lines": 13
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/car/internal/diagnosis/DiagnosisManager.java",
+        "sha256": "93e6d73179cadd4f645c46f473eaafbf145087fc07b657f083a57525518b59ef",
+        "lines": 99
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/dilink/acquisitionservice/IDiLinkDiagnosticClient.java",
+        "sha256": "ac9ad140925f94d75291fba4c679f5c27f593ad3e2f13929b28fbd5c4feef163",
+        "lines": 17
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/dilink/acquisitionservice/IDiLinkDiagnosticData.java",
+        "sha256": "941553601a8b42e134e955a74147769ad579546fe4a9df1d09d4fab9d223581c",
+        "lines": 52
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/dilink/acquisitionservice/IDiLinkDiagnosticDataManager.java",
+        "sha256": "658aaeecc44db64216854a56acacd289cf5c0b4deeb21b219d8d16ceea1247bd",
+        "lines": 12
+      },
+      {
+        "path": "captures/hud-firmware-20260923/files-system.txt",
+        "sha256": "07d253d4af590e8d15bf84384ca44d84ff488a892c60bdeb6b522f25eda1c0f6",
+        "lines": 7054
+      },
+      {
+        "path": "captures/hud-firmware-20260923/files-vendor.txt",
+        "sha256": "0a7f7570a5008d1f83e54455ee5a287a6dc6b6df3698ae992a4a4404f8a89006",
+        "lines": 6354
+      },
+      {
+        "path": "captures/hud-firmware-20260923/files-product.txt",
+        "sha256": "1e46661f75510dfa92e4b6eee7ed4666ad5cc61ecb0b2847422752d62e3c0f49",
+        "lines": 283
+      }
+    ],
+    "reportPath": "captures/diagnostics-oem-dtc-20261020/local/README.md",
+    "reportSha256": "0a9f2a60370ec388f1b5a50358b13771c8077e84e2d77a1a0ec0e1bccce30b85"
+  },
+  "primaryEngineModelAnchor": {
+    "schema": 1,
+    "observedDate": "2026-10-20",
+    "sourceUrl": "https://www.miit.gov.cn/datainfo/dljdclscqyjcpgg/xcpgs390ssew/art/2024/art_e01d997f2e9f4e12879a75c5c4d0c68c.html",
+    "sourceType": "primary_manufacturer_declaration_published_by_Miit",
+    "homologationModel": "QCJ7200AEHEV3",
+    "brand": "腾势牌",
+    "manufacturer": "比亚迪汽车工业有限公司",
+    "powertrain": "plug-in hybrid",
+    "engineModel": "BYD479ZQA",
+    "engineDisplacementCc": 1995,
+    "declaredPowerKw": 152,
+    "netPowerKw": 150,
+    "modelBinding": {
+      "method": "rear photograph linked directly by this MIIT declaration, visually inspected",
+      "visibleBadge": "腾势 Z9GT",
+      "photoUrl": "https://www.miit.gov.cn/cms_files/filemanager/datainfo/cpgs/241889106e5a0e943193198589735713%40201264.jpg",
+      "localPhoto": "captures/diagnostics-oem-dtc-20261020/engine/miit-qcj7200aehev3-rear.jpg",
+      "photoSha256": "79780c6933e5297e2f4abda611a8929ab52fd160acfa256f570558311d5454df"
+    },
+    "vehicleSpecificVinMatchPerformed": false,
+    "targetEcuSupplierOrSoftwareIdentified": false,
+    "diagnosticCodeMeaningProvided": false,
+    "applicabilityLimit": "Binds this public Z9GT homologation variant to BYD479ZQA; does not bind owner vehicle VIN, UAES revision or DTC dictionary.",
+    "sourceCapturePath": "captures/diagnostics-oem-dtc-20261020/engine/primary-engine-identity.json",
+    "sourceCaptureSha256": "e478742ed740fcee0bbd6e5fe5fd7e3a3d3fbea26d4132636263de036ea04ebb"
+  }
+}

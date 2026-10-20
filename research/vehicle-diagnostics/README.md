@@ -46,6 +46,21 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   replay and cleanup are in `captures/diagnostics-next-20261020/`.
   No OEM dictionary was obtained and no product allowlist was changed.
 
+- `oem-dtc-acquisition-20261020.json` pins the seven target ECU/software
+  identities and the newly located public Z9GT PHEV manual index. It records
+  engine/BMS/drive heading counts, conflicting codes and exact introduction/list
+  document IDs where available. This is an acquisition index, not a fault
+  dictionary: original manual pages, software applicability and FMCU/ISG
+  format01 display-to-raw mapping are still missing. SMCU/SMCU3 rear-side
+  assignment remains unknown. Public catalog captures and the additional
+  offline stock-app audit are in `captures/diagnostics-oem-dtc-20261020/`.
+  `oem-dtc-public-index-20261020.json` preserves all 829 observed
+  subsystem/code/outline locators and original Chinese public headings in Git,
+  with source projection hashes. All identities match the initial mixed-language
+  capture; original text was recovered through Chrome's native language UI.
+  These are unqualified publisher titles, not verified OEM definitions or
+  inferred raw codes. Protected manual pages and repair procedures are absent.
+
 The promoted two-target allowlisted reader is `VehicleDtcProxyMain` in Denza Apps;
 `VehicleDiagnostics` supplies profile/P/speed checks, ownership and UI lifecycle.
 The exact packed helper was separately verified live on 2026-10-18. The native
