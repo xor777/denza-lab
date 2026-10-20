@@ -16,7 +16,228 @@ internal data class DiagnosticsModel(
     /** An ECU's own screen, by request address; present once it was scanned or opened. */
     val modules: Map<Int, ModuleView>,
     val systems: SystemsView,
+    /** The systems down the left, «Автоскан» first (architecture, 7.2). */
+    val rail: List<RailItem> = emptyList(),
+    /** Each system's page, by system; every [CarSystem] has one once a scan or a reading exists. */
+    val systemPages: Map<CarSystem, SystemPage> = emptyMap(),
 )
+
+/**
+ * The car's systems, in the rail's order (architecture, 7.2): [railName] down the left, [title] in
+ * the page's head. A block may stand in two systems - the BMS in the HV system and the pack, the
+ * PTC in the HV system and the climate - and counts in both.
+ */
+internal enum class CarSystem(val railName: String, val title: String) {
+    HV("ВВ-система", "Высоковольтная система"),
+    PACK("Тяговая батарея", "Тяговая батарея"),
+    DRIVES("Электропривод", "Электропривод"),
+    ENGINE("Двигатель", "Двигатель"),
+    CHASSIS("Шасси", "Шасси"),
+    SAFETY("Безопасность", "Безопасность"),
+    ADAS("Ассистенты", "Ассистенты"),
+    BODY("Кузов", "Кузов"),
+    CABIN("Салон", "Салон"),
+    CLIMATE("Климат", "Климат"),
+    LV("Сеть 12 В", "Сеть 12 В"),
+    OTHER("Прочие блоки", "Прочие блоки"),
+}
+
+/** A line of the rail: «Автоскан» ([system] null) or a system, its mark only where there are codes. */
+internal data class RailItem(
+    val system: CarSystem?,
+    val name: String,
+    /** «68/68» for the autoscan, «ИСТ 10», «АКТ 2»; null for none. */
+    val mark: String?,
+    val tone: RailTone,
+)
+
+internal enum class RailTone { NONE, COUNT, HISTORY, ACTIVE }
+
+/** A system's tabs; which ones it has is [SystemPage.tabs]. */
+internal enum class SystemTab(val label: String) {
+    /** The scheme, [SystemPage.scheme]. */
+    STATE("Состояние"),
+    /** The pack's readings ([SystemsView.pack]) or the engine's stream (ECM's [ObdView.live]). */
+    LIVE("Потоковые данные"),
+    /** The drives' or the driver-assistance blocks side by side ([SystemsView.drives], [SystemsView.adas]). */
+    COMPARE("Сравнение"),
+    GB_FLAGS("Флаги GB/T 32960"),
+    /** Every record of the system's blocks, [SystemPage.dtc]. */
+    DTC("DTC"),
+    /** The engine's: ECM's own DTC lists and readiness, as its block screen has them. */
+    DTC_READINESS("DTC и готовность"),
+    /** The system's blocks as the autoscan's rows; a row opens the block. */
+    BLOCKS("Блоки"),
+}
+
+internal data class SystemPage(
+    val system: CarSystem,
+    /** «· 11 блоков», «· BMS 7E7», «· ECM 7E0 · UAES». */
+    val aside: String,
+    /** The mono line under the title: its blocks and where its readings come from. */
+    val line: String,
+    /** The head's counters left to right: «DTC ИСТ.» → «10», «U» → «553 В». */
+    val counters: List<HeadCounter>,
+    val tabs: List<SystemTab>,
+    /** «Блоки»: its blocks as the autoscan's rows, in the catalog's order. */
+    val blocks: List<ModuleRowView>,
+    /** «DTC»: every record of its blocks, block by block in [blocks]' order. */
+    val dtc: List<SystemDtcRow>,
+    /** «19 01 09 · 19 02 09 · снимок 19:31:29»; «не читали» before any read. */
+    val dtcFootnote: String,
+    /** «Состояние»; null for a system without one (safety, cabin, other blocks). */
+    val scheme: Scheme?,
+)
+
+internal data class HeadCounter(val label: String, val value: String, val on: Boolean = false)
+
+/** One record on a system's «DTC»: the block named on its first row, the row opening the block. */
+internal data class SystemDtcRow(
+    val request: Int,
+    /** «LA_BCM». */
+    val block: String,
+    /** «720». */
+    val address: String,
+    /** «C1160-06». */
+    val code: String,
+    /** «06», «—». */
+    val failureType: String,
+    /** «Отказ алгоритма». */
+    val failureName: String,
+    /** The catalog's description, else the code's group: «Шасси · код производителя (C1xxx)». */
+    val description: String,
+    /** «0x08». */
+    val status: String,
+    /** «подтверждённый», «активный, подтверждённый». */
+    val word: String,
+    /** testFailed set: the row is drawn in the car's orange. */
+    val active: Boolean,
+)
+
+/** A wheel's or a door's corner of the car seen from above, front up. */
+internal enum class Corner { FL, FR, RL, RR }
+
+/** A plate of lines beside a scheme: «ПЕРЕДНИЙ МОТОР · FMCU 7E3» over its readings. */
+internal data class Callout(val label: String, val rows: List<String>)
+
+/**
+ * A system's «Состояние» (architecture, 7.2; boards `scanner-sys-*`). Tiles are the autoscan's
+ * rows ([ModuleRowView]): abbreviation, address, short name, status, history; null when the
+ * catalog has no such block. A value nobody read is «н/д», never zero.
+ */
+internal sealed interface Scheme {
+    /** The HV schema: [SystemsView.hv] at the rail's width. */
+    data object Hv : Scheme
+
+    data class Pack(
+        /** The charge's fill, 0..100; null leaves the pack empty. */
+        val soc: Float?,
+        val socText: String,
+        val soh: String,
+        /** «166 ячеек · 14 датчиков». */
+        val cells: String,
+        val volts: String,
+        val current: String,
+        /** «канал BMC» → «14,4 МОм». */
+        val insulation: List<Field>,
+        /** «норма ≥ 500 Ом/В · 277 кОм». */
+        val isoNorm: String,
+        val ranges: List<RangeView>,
+    ) : Scheme
+
+    data class Drives(
+        val vcu: ModuleRowView?,
+        val front: Callout,
+        val isg: Callout,
+        val rearLeft: Callout,
+        val rearRight: Callout,
+        /** «SMCU 744 · SMCU3 745»: the rear blocks, bound to neither side. */
+        val rearBlocks: String,
+        val engineRunning: Boolean,
+    ) : Scheme
+
+    /** The engine's air path; its readings come from ECM's stream, which runs while it is shown. */
+    data class Engine(val points: List<EnginePoint>) : Scheme
+
+    data class Chassis(
+        val tyres: List<Tyre>,
+        val esp: ModuleRowView?,
+        val eps: ModuleRowView?,
+        val bscm: ModuleRowView?,
+    ) : Scheme
+
+    data class Body(
+        val doors: List<Door>,
+        val front: ModuleRowView?,
+        val back: ModuleRowView?,
+        val left: ModuleRowView?,
+        val right: ModuleRowView?,
+        val lampLeft: ModuleRowView?,
+        val lampRight: ModuleRowView?,
+        val uwb: ModuleRowView?,
+        /** The four UWB anchors' statuses, FL FR RL RR. */
+        val anchors: List<ModuleStatus>,
+    ) : Scheme
+
+    data class Adas(
+        val front: ModuleRowView?,
+        val corners: Map<Corner, ModuleRowView>,
+        val controller: ModuleRowView?,
+        val parking: ModuleRowView?,
+    ) : Scheme
+
+    data class Climate(
+        val outside: ClimateZone,
+        val cabin: ClimateZone,
+        val unit: ModuleRowView?,
+        val heater: ModuleRowView?,
+        val thermal: ModuleRowView?,
+    ) : Scheme
+
+    data class Lv(
+        /** «553 В», the DC bus. */
+        val hv: String,
+        /** «13,7 В». */
+        val lv: String,
+        val dcdc: ModuleRowView?,
+        val battery: ModuleRowView?,
+        /** The body's controllers on the 12 V line. */
+        val loads: List<ModuleRowView>,
+    ) : Scheme
+}
+
+/** A range on a scale: «ЯЧЕЙКИ, мВ» 3 333–3 337 on 3 000…3 700. */
+internal data class RangeView(
+    val head: String,
+    val value: String,
+    val scale: ClosedFloatingPointRange<Float>,
+    /** What the readings take on the scale; null draws none. */
+    val span: ClosedFloatingPointRange<Float>?,
+    /** A mark across the bar: the modules' mean temperature. */
+    val mark: Float?,
+    val lo: String,
+    val hi: String,
+    val note: String,
+)
+
+internal enum class EnginePlace { INLET, THROTTLE, MANIFOLD, BLOCK_TOP, BLOCK_BOTTOM, CATALYST, OXYGEN }
+
+internal data class EnginePoint(val place: EnginePlace, val label: String, val rows: List<String>)
+
+internal data class Tyre(val corner: Corner, val label: String, val pressure: String, val temp: String)
+
+internal data class Door(
+    val corner: Corner,
+    val label: String,
+    /** «закрыта», «открыта», «приоткрыта», «н/д». */
+    val state: String,
+    /** «не заперта · окно 0 %». */
+    val detail: String,
+    /** Drawn swung out, in orange. */
+    val open: Boolean,
+)
+
+internal data class ClimateZone(val label: String, val temp: String, val pm: String, val inside: Boolean)
 
 internal data class Header(
     val link: LinkState,
