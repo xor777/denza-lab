@@ -33,7 +33,7 @@ Updated 2026-10-18. Which vehicle signals Denza Apps can read on this head unit,
 | Washer fluid level: no FID, name or CAN bit identified; `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` (`0x3D90201E`) is probably throttle cleaning, and its `0` proves nothing | open | 2026-09-23 | [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23) |
 | N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | N9 CAN coverage: GB/YUN add 72 address tuples without table writes. Expanded present/empty/refilled cycle saved: 68,432 / 68,296 / 66,613 messages, all 199 common tuples covered without loss. Of 223 separated bits, 49 reverse; 43 contradict older controls, and 6 extra-tuple bits overlap numeric range/consumption/insulation/SOC descriptors. No washer mapping is established; 3 intermittent refill tuples also occurred in older normal/empty captures | live three-state cycle, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
-| DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (stock tester and its 96-case function map: left body domain `LA_BCM`; OTA map's CDC/ZCU rows unexplained; BYD labels status28 «历史故障»); LBMS `762→76A` zero/support09. Other ECUs untested. Native service diagnostics adds readable DTC summaries, qualified reference meanings, all eight status bits and a dated candidate inventory; 43 scalar and 15 lamp GETs refresh every5 s and expire at15 s. Lamp0 means invalid, not off; captured engine lamp on. Fourteen updated emulator views match their boards; new APK not installed on car | live reader; code window; emulator validation | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18); [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18) |
+| DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (stock tester and its 96-case function map: left body domain `LA_BCM`; OTA map's CDC/ZCU rows unexplained; BYD labels status28 «历史故障»); LBMS `762→76A` zero/support09. Other ECUs untested. Native service diagnostics adds readable DTC summaries, qualified reference meanings, all eight status bits and a dated candidate inventory; 43 scalar and 15 lamp GETs refresh every5 s and expire at15 s. Lamp0 means invalid, not off; captured engine lamp on. Fourteen updated emulator views match their boards; new APK not installed on car | live reader; code window; emulator validation | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18); [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18); [Deeper sources](#deeper-sources-for-a-diagnostic-screen-2026-10-20) |
 | Head-unit cache: 225 ECU candidates/version records, including ECM UAES, BMS033, drives and ESP/IPB; 49 contain only defaults/negative markers. Both approved exports completed/closed ports; map keys, upgradeInfo and EOL task were absent. A separately captured stock `getEcuList` response yields eight complete routing records; none covers the requested powertrain/ABS targets. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. Exact target addresses/OEM dictionaries remain missing | live partial map; firmware routing; coverage open | 2026-10-18 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Stock response and alternate paths](#stock-response-prefix-and-alternate-paths-2026-10-18) |
 | Stock Update is unsuitable for diagnosis-only use. The third isolated session validated local inputs, completed TLS and received HTTP 200, then refused response headers; application auth and ECU map remain unverified. Cleanup passed. Overlapping host lifetimes with the ADS log reader exposed reuse of its working directory; our reader now refuses reuse, qualified offline. No further session is authorized | live HTTP-header refusal; cross-reader coordination still required | 2026-10-18 | [Bounded observation and isolated metadata](#bounded-observation-and-isolated-metadata-2026-10-18) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
@@ -2247,6 +2247,54 @@ If this field follows it, 13051 / 14128 are 13.1 / 14.1 MΩ. Likely, not
 proven on this car. The product's accepted range 0..65534 would pass `0xFFFE`
 as a value. A second field, `GB_INSULATION_VALUE` `0x26200010`, is unread.
 Status: firmware.
+
+### Deeper sources for a diagnostic screen (2026-10-20)
+
+The question was whether the car offers more than lamps, doors, tyres and one
+body module's memory. Corpus and the N9 sweep only; nothing was read on the
+Z9GT.
+
+**GB/T 32960 set.** `com.byd.feature.gb.Gb` in this car's SceneModesPlatform
+(SHA matches the car, [window-control-findings.md](window-control-findings.md))
+names about 200 fields. Among them:
+- about 40 alarm flags: cell over/under-voltage, cell inconsistency, cell
+  temperature difference, class-A over-temperature, thermal runaway, SOC jump,
+  pack mismatch, overcharge, insulation/leakage (three levels), HVIL, DC-DC
+  temperature and state, motor-controller over-temperature, over-current and
+  over-speed per controller, brake system, charging system;
+- per motor: speed, actual torque, DC current, IGBT and winding temperature,
+  operating mode;
+- probe numbers of the hottest and coldest pack points, cell and probe counts,
+  SOC correction factors;
+- lifetime discharged and regenerated energy
+  (`GB_ACTUAL_DISCHARGE_ENERGY_TOTAL` `0x2D000818`,
+  `GB_ACTUAL_RENEWABLE_ENERGY_TOTAL` `0x2D000828`);
+- chassis, energy and IA CAN status.
+
+On the N9's 2026-10-16 full sweep (`captures/washer-n9-20261016/*/fids.tsv`,
+device 1039) the nine `0x438000xx` flags all returned `1`, SOC-high and
+SOC-low alike, so `1` is not «alarm» there; the `0x244000xx` and
+`0x262000xx` flags returned `0`; thermal runaway returned `0xFFFF`. Per-field
+encoding is unproven and the HAL table has not been traced. Status: firmware;
+N9 live; Z9GT unread.
+
+**Service-life fields are not life.** On the N9 every fluid-life field (oil,
+transmission oil, brake fluid, both coolants, shock-absorber and differential
+oil; device 1001 `0x4BB000D0`–`0x4BB000F0`, device 1023 `0x38D000xx`) returned
+`0x9B` = 155. One value above 100 for every fluid reads as a default, not a
+remaining life. Engine oil level answered `0x26`, unit unknown.
+
+**Absent.** The catalog has no refrigerant pressures or temperatures, valve
+positions or pump speeds: no thermal-loop picture is possible from it.
+Compressor power (1005 `0x3D800038`) answered 672 on the N9.
+
+**Error memory beyond two modules.** Stock evidence gives three more read-only
+candidates: `0x747/0x74F` (right body domain: 47 stock script cases and the
+OTA map's `R_ZCU`), `0x726` (tailgate) and `0x722/0x72A` (`F_ZCU` in the OTA
+map). Engine, traction BMS, drives and ABS/ESP still have no address.
+
+What settles it for the Z9GT: one `tools/washer_capture.py` sweep, parked:
+scalar GETs only, about four minutes for two passes over every catalogued pair.
 
 ## Consumption journal
 
