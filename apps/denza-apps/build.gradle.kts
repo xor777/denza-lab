@@ -131,8 +131,8 @@ android {
         // versionName is the owner's product version - it changes only by their
         // explicit decision. versionCode is an internal build counter so the car
         // can tell builds apart during acceptance; it never drives the version.
-        versionCode = 78
-        versionName = "0.7.0"
+        versionCode = 79
+        versionName = "0.7.1"
         // «Сервис → Диагностика автомобиля» is parked: it showed what the stock screens already
         // show. Its code stays and builds; the row appears only in a build asked for with
         // `-Pdiagnostics`, for the work that decides whether it returns.
