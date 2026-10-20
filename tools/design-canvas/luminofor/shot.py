@@ -77,8 +77,6 @@ def page(body_script):
             f'<style>{font_css()}html,body{{margin:0;background:#000;overflow:hidden}}canvas{{display:block}}</style>'
             '</head><body><canvas id="c"></canvas>'
             f'<script>window.LUMINOFOR_SPEC = {spec};</script>'
-            f'<script>window.DIAGNOSTIC_LAYOUT = {read("diagnostics.json")};</script>'
-            f'<script>{read("diagnostics.js")}</script>'
             f'<script>window.SCANNER_LAYOUT = {read("scanner.json")};</script>'
             f'<script>{read("scanner.js")}</script>'
             f'<script>{read("fixtures.js")}</script>'
@@ -93,7 +91,7 @@ def board_page(bid, bare=False):
   const [board, scene] = window.LUMINOFOR_BOARDS[id];
   // bare: the cluster without the stock zones' hatching, which is board furniture the app never draws
   const fixture = %s ? Object.assign({}, scene, { keepout: false }) : scene;
-  const key = ['head', 'sheet', 'modal', 'diagnostics', 'scanner'].includes(board.kind) ? board.mode : board.kind;
+  const key = ['head', 'sheet', 'modal', 'scanner'].includes(board.kind) ? board.mode : board.kind;
   const size = %s[key];
   const cv = document.getElementById('c');
   cv.width = size[0]; cv.height = size[1];

@@ -1173,8 +1173,7 @@
 
   // board: { kind: 'cluster' | 'head' | 'digits', mode, page }; px scale is applied by the caller
   function drawBoard(c, board, fixture) {
-    if (board.kind === 'diagnostics') root.DiagnosticBoard.draw(c, fixture);
-    else if (board.kind === 'scanner') root.ScannerBoard.draw(c, board, fixture);
+    if (board.kind === 'scanner') root.ScannerBoard.draw(c, board, fixture);
     else if (board.kind === 'cluster') drawCluster(c, fixture);
     else if (board.kind === 'head') drawHead(c, board.mode, Object.assign({}, fixture, { page: board.page }));
     else if (board.kind === 'sheet') drawSheet(c, board.mode, Object.assign({}, fixture, { page: board.page || 'sound' }));
