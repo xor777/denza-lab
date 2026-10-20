@@ -19,6 +19,24 @@ class DiagDecoderTest {
     }
 
     @Test
+    fun aMemoryReadByTheListAloneKeepsItsCodesRaw() {
+        // DCOBC 7E4, 2026-10-20: 19 01 09 got no response, 19 02 09 answered 59 02 09 with no records.
+        val empty = ok(DiagDecoder.dtcMemoryFromList(answer(0x7E4, "190209", "590209"), null))
+        assertTrue(empty.isEmpty)
+        assertEquals(DtcFormat.OTHER, empty.format)
+        assertEquals(DataQuality.COMPLETE_EMPTY, Polled.Got(empty, 1_000).quality(1_000, 60_000))
+        // A record with no known format is not read as SAE.
+        val one = ok(DiagDecoder.dtcMemoryFromList(answer(0x7E4, "190209", "590209C1210009"), null))
+        assertEquals("C12100", one.records.single().code.display)
+        // Where a count once told the format, the list reads by it.
+        assertEquals("U0121-00", ok(DiagDecoder.dtcMemoryFromList(answer(0x744, "190209", "590209C1210009"), DtcFormat.SAE_J2012_00))
+            .records.single().code.display)
+        // A status bit outside the availability mask and a repeated code still refuse.
+        assertTrue(DiagDecoder.dtcMemoryFromList(answer(0x7E4, "190209", "590209C1210029"), null) is Decoded.Malformed)
+        assertTrue(DiagDecoder.dtcMemoryFromList(answer(0x7E4, "190209", "590209C1210009C1210009"), null) is Decoded.Malformed)
+    }
+
+    @Test
     fun softwareCodesAreHexAndNamesAreAscii() {
         // Run 4 and run 2 of 2026-10-20, as the trace recorded them.
         val f194 = ok(DiagDecoder.identification(answer(0x7E0, "22F194", "62F19432440011E004000000")))

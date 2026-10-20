@@ -32,6 +32,12 @@ class EcuCatalogContractTest {
         fromRemaining + fromRun4
     }
 
+    /** The three powertrain ECUs found by the complete factory map, read live on 2026-10-20. */
+    private val factory = research("factory-powertrain-dtc-20261020.json").getJSONArray("targets").objects()
+
+    /** Their routes and the F194 each returned. */
+    private val factoryF194: Map<Int, String> by lazy { factory.associate { it.getInt("requestId") to it.getString("softwareCode") } }
+
     /** Every address that answered anything at all, positive or negative. */
     private val answered: Set<Int> by lazy {
         val obdRows = listOf("run1", "run2_detail", "run3_ident", "run4_ident2").flatMap { obd.getJSONArray(it).objects() }
@@ -41,16 +47,16 @@ class EcuCatalogContractTest {
     }
 
     @Test
-    fun fortySixAddressesFortyThreeRoutedSixteenQualified() {
+    fun fortySixAddressesAllRoutedNineteenQualified() {
         assertEquals(46, EcuCatalog.all.size)
-        assertEquals(43, EcuCatalog.all.count { it.request != null })
-        assertEquals(43, EcuCatalog.routed.size)
-        assertEquals(16, EcuCatalog.all.count { it.dtcQualified })
+        assertEquals(46, EcuCatalog.all.count { it.request != null })
+        assertEquals(46, EcuCatalog.routed.size)
+        assertEquals(19, EcuCatalog.all.count { it.dtcQualified })
         assertEquals(46, EcuCatalog.all.map { it.request ?: it.abbreviation }.toSet().size)
-        assertEquals(37, EcuCatalog.all.count { it.identity == IdentityBasis.F194 })
+        assertEquals(40, EcuCatalog.all.count { it.identity == IdentityBasis.F194 })
         assertEquals(5, EcuCatalog.all.count { it.identity == IdentityBasis.STOCK_ROUTE })
         assertEquals(1, EcuCatalog.all.count { it.identity == IdentityBasis.OBD_ECU_NAME })
-        assertEquals(3, EcuCatalog.all.count { it.identity == IdentityBasis.NONE })
+        assertEquals(0, EcuCatalog.all.count { it.identity == IdentityBasis.NONE })
         assertEquals(
             mapOf(EcuGroup.POWERTRAIN to 8, EcuGroup.CHASSIS to 4, EcuGroup.ADAS to 7, EcuGroup.BODY to 6,
                 EcuGroup.CABIN to 5, EcuGroup.CLIMATE to 3, EcuGroup.LOW_VOLTAGE to 1, EcuGroup.UNKNOWN to 12),
@@ -69,7 +75,7 @@ class EcuCatalogContractTest {
             assertEquals(IdentityBasis.F194, ecu.identity)
         }
         EcuCatalog.all.filter { it.identity == IdentityBasis.F194 }.forEach {
-            assertEquals(it.address, f194[it.request], it.expectedF194)
+            assertEquals(it.address, (f194 + factoryF194)[it.request], it.expectedF194)
         }
         // 741 is the one code ECUVersion.json does not hold: it is the head unit's MCU, named by the
         // stock route list and the media software mapping instead.
@@ -82,10 +88,11 @@ class EcuCatalogContractTest {
     @Test
     fun noAddressThatNeverAnsweredIsCatalogued() {
         EcuCatalog.all.mapNotNull { it.request }.forEach {
-            assertTrue("%03X never answered".format(it), it in answered)
+            assertTrue("%03X never answered".format(it), it in answered || it in factoryF194)
         }
-        // The timeouts stay out.
-        listOf(0x7E1, 0x7E4, 0x780, 0x785, 0x797).forEach { assertNull("%03X".format(it), EcuCatalog.byRequest(it)) }
+        // The timeouts stay out. 7E4 timed out to OBD 01 00 and 19 01 FF on 2026-10-20 and is still in:
+        // its F194 and 19 02 answered later that day (DCOBC).
+        listOf(0x7E1, 0x780, 0x785, 0x797).forEach { assertNull("%03X".format(it), EcuCatalog.byRequest(it)) }
     }
 
     @Test
@@ -113,16 +120,31 @@ class EcuCatalogContractTest {
     }
 
     @Test
-    fun threeEcusWithoutARouteKeepTheirCachedCodes() {
-        val expected = remaining.getJSONArray("remaining").strings().associate { it.substringBefore(':') to it.substringAfter(':') }
-        val unrouted = EcuCatalog.all.filter { it.request == null }
-        assertEquals(expected.keys, unrouted.map { it.abbreviation }.toSet())
-        unrouted.forEach {
-            assertEquals(expected[it.abbreviation], it.cachedSoftwareCode)
-            assertEquals(IdentityBasis.NONE, it.identity)
-            assertEquals("нет адреса", it.address)
-            assertNull(it.reply)
-            assertTrue(!it.uds && !it.obd && !it.dtcQualified && it.inferred)
+    fun theThreeOnceWithoutARouteHaveTheirFactoryRoutes() {
+        val cached = remaining.getJSONArray("remaining").strings().associate { it.substringBefore(':') to it.substringAfter(':') }
+        assertEquals(setOf("SMCU", "SMCU3", "DCOBC"), cached.keys)
+        cached.forEach { (abbreviation, code) ->
+            val ecu = EcuCatalog.all.single { it.abbreviation == abbreviation }
+            assertEquals(abbreviation, code, ecu.expectedF194)
+            assertEquals(abbreviation, code, factoryF194[ecu.request])
+            assertEquals(IdentityBasis.F194, ecu.identity)
+            assertTrue(abbreviation, ecu.uds && !ecu.obd && ecu.dtcQualified)
+            assertNull(abbreviation, ecu.cachedSoftwareCode)
+        }
+        // DCOBC's 19 01 got no response; its 19 02 answered. Every other ECU answers the count.
+        assertEquals(listOf("DCOBC"), EcuCatalog.all.filter { !it.dtcCountAnswers }.map { it.abbreviation })
+        assertNull(EcuCatalog.byRequest(0x7E4)!!.dtcFormat)
+    }
+
+    @Test
+    fun factoryRoutesAgreeWithTheirResearchFile() {
+        assertEquals(setOf(0x744, 0x745, 0x7E4), factoryF194.keys)
+        factory.forEach { t ->
+            val ecu = EcuCatalog.byRequest(t.getInt("requestId"))!!
+            assertEquals(t.getInt("requestId") + 8, t.getInt("responseId"))
+            assertEquals(ecu.abbreviation, if (t.isNull("formatIdentifier")) null else t.getInt("formatIdentifier"), ecu.dtcFormat)
+            assertEquals(ecu.abbreviation, t.getString("countService") == "live_verified", ecu.dtcCountAnswers)
+            assertEquals(0, t.getInt("recordCount"))
         }
     }
 
@@ -130,7 +152,7 @@ class EcuCatalogContractTest {
     fun dtcQualifiedAreExactlyTheResearchReadsPlusTheBrakeObdInterface() {
         val read = remaining.getJSONArray("researchDtcReadAddresses").strings().map(::address).toSet()
         val brake = address(remaining.getJSONObject("obdBrakeIdentity").getString("request"))
-        assertEquals(read + brake, EcuCatalog.all.filter { it.dtcQualified }.mapNotNull { it.request }.toSet())
+        assertEquals(read + brake + factoryF194.keys, EcuCatalog.all.filter { it.dtcQualified }.mapNotNull { it.request }.toSet())
         // The format each one reported in 59 01 (run 1 count rows, remaining dtc run, 720 and LBMS of 10-18).
         val formats = mutableMapOf<Int, Int>()
         (obd.getJSONArray("run1").objects() + obd.getJSONArray("run2_detail").objects())
@@ -218,7 +240,7 @@ class EcuCatalogContractTest {
         }
         assertEquals("ECM (UAES)", EcuCatalog.byRequest(0x7E0)!!.title)
         assertEquals(
-            setOf("SMCU", "SMCU3", "DCOBC", "LFCR", "RFCR", "RRCR", "LRCR", "IPA", "R_ZCU", "F_ZCU", "FL_L", "FL_R",
+            setOf("DCOBC", "LFCR", "RFCR", "RRCR", "LRCR", "IPA", "R_ZCU", "F_ZCU", "FL_L", "FL_R",
                 "INS", "AMP", "WCT", "SWS", "ACC", "TMIM", "PTC"),
             EcuCatalog.all.filter { it.inferred }.map { it.abbreviation }.toSet(),
         )

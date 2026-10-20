@@ -242,6 +242,21 @@ internal object DtcCodec {
     fun emptyMemory(requestMask: Int, count: DtcCount): Decoded<DtcMemory> =
         if (count.count != 0) Decoded.Malformed("59 01 counts ${count.count}; the list is needed")
         else Decoded.Ok(DtcMemory(DtcStatus(requestMask and 0xFF), count.availability, count.format, emptyList()))
+
+    /**
+     * The memory of an ECU whose `19 01` does not answer (DCOBC): the list alone, its own checks
+     * only. `59 02` carries no format, so codes read as [format] where a count once told it, and
+     * stay raw ([DtcFormat.OTHER]) where none did - never SAE by analogy.
+     */
+    fun listOnlyMemory(requestMask: Int, list: DtcList, format: DtcFormat?): Decoded<DtcMemory> {
+        list.entries.firstOrNull { it.status.byte and list.availability.byte.inv() != 0 }?.let {
+            return Decoded.Malformed("%06X status %s outside availability %s".format(it.raw, it.status, list.availability))
+        }
+        if (list.entries.map { it.raw }.toSet().size != list.entries.size) return Decoded.Malformed("a code repeats")
+        val read = format ?: DtcFormat.OTHER
+        val records = list.entries.map { DtcRecord(DtcCode(it.raw, read, read.id), it.status) }
+        return Decoded.Ok(DtcMemory(DtcStatus(requestMask and 0xFF), list.availability, read, records))
+    }
 }
 
 internal fun ByteArray.unsigned(): IntArray = IntArray(size) { this[it].toInt() and 0xFF }

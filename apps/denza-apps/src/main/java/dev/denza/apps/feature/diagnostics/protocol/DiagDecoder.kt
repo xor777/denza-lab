@@ -42,6 +42,16 @@ internal object DiagDecoder {
         }
     }
 
+    /** A `19 02` alone, for an ECU whose `19 01` does not answer: see [DtcCodec.listOnlyMemory]. */
+    fun dtcMemoryFromList(list: DiagReply.Answer, format: DtcFormat?): Decoded<DtcMemory> {
+        val mask = list.request.uds.let { if (it.size == 3) it[2].toInt() and 0xFF else -1 }
+        return when (val l = dtcList(list)) {
+            is Decoded.Ok -> DtcCodec.listOnlyMemory(mask, l.value, format)
+            is Decoded.Negative -> l
+            is Decoded.Malformed -> l
+        }
+    }
+
     /** `22 <did>` → `62 <did> <data>`. */
     fun identification(answer: DiagReply.Answer): Decoded<Identification> =
         checked(answer, 0x22) { req, uds ->

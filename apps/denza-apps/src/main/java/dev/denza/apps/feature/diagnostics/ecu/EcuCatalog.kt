@@ -54,6 +54,12 @@ internal data class Ecu(
     val obd: Boolean = false,
     /** Its DTC memory was read live through this transport; the rest is the first read (acceptance, step 4). */
     val dtcQualified: Boolean = false,
+    /**
+     * `19 01` answers. DCOBC's does not (the gateway reports no response) while its `19 02` does:
+     * such an ECU's memory is read by the list alone, and its codes stay raw, since `59 02` carries
+     * no format.
+     */
+    val dtcCountAnswers: Boolean = true,
     /** DTCFormatIdentifier seen in a live `59 01`, null where none was read. */
     val dtcFormat: Int? = null,
     /** The `19 01/02` status mask (architecture, 5.2). */
@@ -118,12 +124,17 @@ internal object EcuCatalog {
         Ecu(EcuGroup.POWERTRAIN, "BMS", "Система управления ВВБ", "ВВБ", false, 0x7E7, IdentityBasis.F194,
             expectedF194 = "4A520011E00D00047B", aliases = listOf(cache("BMS_BYD_03300001", "3.48.07", "0.0.3")),
             dtcQualified = true, dtcFormat = 0x00),
-        Ecu(EcuGroup.POWERTRAIN, "SMCU", "Контроллер заднего мотора Л", "Задн. мотор", true, null, IdentityBasis.NONE,
-            cachedSoftwareCode = "48370011E086001100", aliases = listOf(cache("SMCU_BYD_00200001", "4.00.06", "0.0.2"))),
-        Ecu(EcuGroup.POWERTRAIN, "SMCU3", "Контроллер заднего мотора П", "Задн. мотор", true, null, IdentityBasis.NONE,
-            cachedSoftwareCode = "48370011E088001100", aliases = listOf(cache("SMCU3_BYD_00100001", "4.00.06", "0.0.2"))),
-        Ecu(EcuGroup.POWERTRAIN, "DCOBC", "Бортовое зарядное и DC-DC", "OBC + DC-DC", true, null, IdentityBasis.NONE,
-            cachedSoftwareCode = "48350011E04D000100", aliases = listOf(cache("DCOBC_BYD_00100001", "4.00.01", "0.0.2"))),
+        // Routes from the complete factory map, F194 and an empty mask-09 list read live on 2026-10-20
+        // (vehicle-data-findings, «Complete factory map»). Which rear motor each SMCU drives is not established.
+        Ecu(EcuGroup.POWERTRAIN, "SMCU", "Контроллер заднего мотора", "Задн. мотор", false, 0x744, IdentityBasis.F194,
+            expectedF194 = "48370011E086001100", aliases = listOf(cache("SMCU_BYD_00200001", "4.00.06", "0.0.2")),
+            dtcQualified = true, dtcFormat = 0x00),
+        Ecu(EcuGroup.POWERTRAIN, "SMCU3", "Контроллер заднего мотора", "Задн. мотор", false, 0x745, IdentityBasis.F194,
+            expectedF194 = "48370011E088001100", aliases = listOf(cache("SMCU3_BYD_00100001", "4.00.06", "0.0.2")),
+            dtcQualified = true, dtcFormat = 0x00),
+        Ecu(EcuGroup.POWERTRAIN, "DCOBC", "Бортовое зарядное и DC-DC", "OBC + DC-DC", true, 0x7E4, IdentityBasis.F194,
+            expectedF194 = "48350011E04D000100", aliases = listOf(cache("DCOBC_BYD_00100001", "4.00.01", "0.0.2")),
+            dtcQualified = true, dtcCountAnswers = false),
 
         // Chassis and safety
         Ecu(EcuGroup.CHASSIS, "ESP/IPB", "Тормозная система, стабилизация", "Тормоза, ESP", false, 0x782, IdentityBasis.F194,
