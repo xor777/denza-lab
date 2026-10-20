@@ -60,8 +60,6 @@ internal object Systems {
 
 }
 
-private val BACK_LABEL = "‹ Автоскан"
-
 @Composable
 internal fun SystemPage(
     model: DiagnosticsModel,
@@ -72,9 +70,10 @@ internal fun SystemPage(
     onBack: () -> Unit,
     onOpen: (Target) -> Unit,
     actions: DiagnosticsActions,
+    backLabel: String = ScannerStack.BACK_TO_SCAN,
     module: (Int) -> ModuleView?,
 ) {
-    val back = FooterButton(BACK_LABEL, false, onBack)
+    val back = FooterButton(backLabel, false, onBack)
     val lead = ScannerWords.leadModule(model, screen)?.let(module)
     val tabs = Systems.tabs(screen)
     val refresh = { requests: List<Int?> -> requests.filterNotNull().forEach(actions::readModule) }

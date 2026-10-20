@@ -62,8 +62,6 @@ internal data class ScannerSample(
     val chartRange: ClosedFloatingPointRange<Float>? = null,
 )
 
-private val BACK = "‹ Автоскан"
-
 @Composable
 internal fun ModulePage(
     module: ModuleView,
@@ -73,13 +71,15 @@ internal fun ModulePage(
     onBack: () -> Unit,
     actions: DiagnosticsActions,
     sample: ScannerSample?,
+    /** «‹ Автоскан», or the screen the module was opened from. */
+    backLabel: String = ScannerStack.BACK_TO_SCAN,
 ) {
     val obd = module.obd
     val tabs = moduleTabs(module)
     val live = obd != null && tab == 1
     val ident = tab == tabs.lastIndex
     var picking by remember { mutableStateOf(false) }
-    val back = FooterButton(BACK, false, onBack)
+    val back = FooterButton(backLabel, false, onBack)
     val footer: @Composable () -> Unit = {
         when {
             ident -> IdentFooter(module.ident, back) { actions.setModuleOpen(module.request, false); actions.setModuleOpen(module.request, true) }

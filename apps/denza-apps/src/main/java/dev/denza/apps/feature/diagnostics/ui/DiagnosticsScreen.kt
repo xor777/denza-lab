@@ -33,10 +33,46 @@ internal sealed interface ScannerRoute {
 }
 
 /**
+ * Where the driver has been inside the section, the autoscan at the bottom: a row, a tile or a box
+ * puts its screen on top, Back and «‹ …» take the top one off, so a module opened from the
+ * topology goes back to the topology and one opened from «Электропривод» goes back there. A tab is
+ * not a step: switching it changes the top screen in place.
+ */
+internal object ScannerStack {
+    const val BACK_TO_SCAN = "‹ Автоскан"
+
+    fun open(stack: List<ScannerRoute>, target: Target): List<ScannerRoute> = stack + when (target) {
+        is Target.Module -> ScannerRoute.Module(target.request)
+        is Target.System -> ScannerRoute.System(target.screen)
+    }
+
+    /** One step back; null when the autoscan itself is left, which closes the section. */
+    fun back(stack: List<ScannerRoute>): List<ScannerRoute>? = if (stack.size > 1) stack.dropLast(1) else null
+
+    /** The crumb «Автоскан»: everything over the autoscan goes, its own tab stays. */
+    fun toScan(stack: List<ScannerRoute>): List<ScannerRoute> = stack.take(1)
+
+    /** Down to the screen at [index] of the crumbs. */
+    fun toLevel(stack: List<ScannerRoute>, index: Int): List<ScannerRoute> = stack.take(index + 1)
+
+    fun retab(stack: List<ScannerRoute>, route: ScannerRoute): List<ScannerRoute> = stack.dropLast(1) + route
+
+    /** The name of a screen in the crumbs and on «‹ …»: the module's or the system's. */
+    fun title(route: ScannerRoute, moduleName: (Int) -> String?): String = when (route) {
+        is ScannerRoute.Scan -> "Автоскан"
+        is ScannerRoute.Module -> moduleName(route.request) ?: "Блок"
+        is ScannerRoute.System -> Systems.crumb(route.screen)
+    }
+
+    fun backLabel(stack: List<ScannerRoute>, moduleName: (Int) -> String?): String =
+        stack.getOrNull(stack.size - 2)?.let { "‹ " + title(it, moduleName) } ?: BACK_TO_SCAN
+}
+
+/**
  * «Сервис → Диагностика», the scanner (architecture, 7): the autoscan, an ECU's screen and the
  * system screens, laid out from the Luminofor `scanner-*` boards. Everything shown comes from
  * [model]; everything asked goes to [actions]. Inside the section a row, a tile or a box leads by
- * its [Target]; «‹ Автоскан», the crumb and Back return to the autoscan, and the cross or Back
+ * its [Target]; Back and «‹ …» return to the screen it was opened from ([ScannerStack]), a crumb to its screen, and the cross or Back
  * there leaves through [onClose].
  *
  * [start] and [sample] are for the debug fixtures: the board's screen, and the scale its live
@@ -50,17 +86,18 @@ internal fun DiagnosticsScreen(
     start: ScannerRoute = ScannerRoute.Scan(),
     sample: ScannerSample? = null,
 ) {
-    var route by remember { mutableStateOf(start) }
+    // the autoscan at the bottom; a fixture that opens on another screen has the autoscan under it
+    var stack by remember { mutableStateOf(if (start is ScannerRoute.Scan) listOf(start) else listOf(ScannerRoute.Scan(), start)) }
     var onlyDtc by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
-    val toScan = { route = ScannerRoute.Scan((route as? ScannerRoute.Scan)?.topology ?: false) }
-    val open = { t: Target ->
-        route = when (t) {
-            is Target.Module -> ScannerRoute.Module(t.request)
-            is Target.System -> ScannerRoute.System(t.screen)
-        }
-    }
-    BackHandler { if (route is ScannerRoute.Scan) onClose() else toScan() }
+    val route = stack.last()
+    val toScan = { stack = ScannerStack.toScan(stack) }
+    val back = { ScannerStack.back(stack)?.let { stack = it } ?: onClose() }
+    val open = { t: Target -> stack = ScannerStack.open(stack, t) }
+    val retab = { next: ScannerRoute -> stack = ScannerStack.retab(stack, next) }
+    val moduleName = { request: Int -> moduleOf(model, request)?.name }
+    val backLabel = ScannerStack.backLabel(stack, moduleName)
+    BackHandler { back() }
 
     // An ECU's screen asks for its identification and readiness once while open; the stream runs
     // only while «Потоковые данные» is in front.
@@ -79,31 +116,34 @@ internal fun DiagnosticsScreen(
     }
 
     val link = ScannerWords.link(model.header.link)
-    val header: @Composable (String?) -> Unit = { title ->
+    // the crumbs are the stack: each one but the last takes the screens above it off
+    val header: @Composable () -> Unit = {
         val crumbs = buildList {
             add(Crumb("Диагностика") { toScan() })
-            add(Crumb("Автоскан", if (title != null) toScan else null))
-            if (title != null) add(Crumb(title))
+            stack.forEachIndexed { i, step ->
+                val here = i == stack.lastIndex
+                add(Crumb(ScannerStack.title(step, moduleName), if (here) null else ({ stack = ScannerStack.toLevel(stack, i) })))
+            }
         }
         ScanHeader(crumbs, link.text, link.dot, link.glow, model.header.car, model.header.clock, onClose)
     }
 
     when (r) {
         is ScannerRoute.Scan -> if (r.topology) {
-            TopologyPage(model, { header(null) }, { route = ScannerRoute.Scan(it == 1) }, open, actions::rescan)
+            TopologyPage(model, header, { retab(ScannerRoute.Scan(it == 1)) }, open, actions::rescan)
         } else {
-            ScanListPage(model, { header(null) }, { route = ScannerRoute.Scan(it == 1) }, listState, onlyDtc, { onlyDtc = it }, open, actions::rescan)
+            ScanListPage(model, header, { retab(ScannerRoute.Scan(it == 1)) }, listState, onlyDtc, { onlyDtc = it }, open, actions::rescan)
         }
         is ScannerRoute.Module -> {
             val module = moduleOf(model, r.request)
             if (module == null) {
-                LaunchedEffect(r) { toScan() }
+                LaunchedEffect(r) { back() }
             } else {
-                ModulePage(module, r.tab, { header(module.name) }, { route = r.copy(tab = it) }, toScan, actions, sample)
+                ModulePage(module, r.tab, header, { retab(r.copy(tab = it)) }, back, actions, sample, backLabel)
             }
         }
         is ScannerRoute.System -> SystemPage(
-            model, r.screen, r.tab, { header(Systems.crumb(r.screen)) }, { route = r.copy(tab = it) }, toScan, open, actions,
+            model, r.screen, r.tab, header, { retab(r.copy(tab = it)) }, back, open, actions, backLabel,
         ) { moduleOf(model, it) }
     }
 }
