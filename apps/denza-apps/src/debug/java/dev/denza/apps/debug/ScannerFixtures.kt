@@ -303,9 +303,11 @@ internal object ScannerFixtures {
                 SignalRow(r.getString(0), r.getString(1), r.getString(2), r.getString(3), r.getString(4), ok = if (r.getString(5) == "OK") true else null, stale = false)
             },
             drives = CompareView(
+                // [«FMCU · 7E3», «передний»]: the block heads its column, its role under it
                 columns = arrays(drives.getJSONArray("units")).map { u ->
-                    val tag = u.getString(1).split(" · ")
-                    CompareColumn(tag[0], u.getString(0), tag.getOrNull(1)?.toInt(16))
+                    val (named, role) = u.getString(0) to u.getString(1)
+                    val block = (if (" · " in named) named else role).split(" · ")
+                    CompareColumn(block[0], if (" · " in named) role else named, block.getOrNull(1)?.toIntOrNull(16))
                 },
                 rows = arrays(drives.getJSONArray("rows")).map { r ->
                     CompareRow(r.getString(0), r.getString(1), r.getString(2), strings(r.getJSONArray(3)).map { CompareCell(it, muted = it in DIM_CELL) })

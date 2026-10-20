@@ -137,7 +137,10 @@ internal fun SystemPage(
                     2 -> ScanFooter(listOf(back, FooterButton("Обновить", true) { refresh(model.systems.drives.columns.map { it.request }) }), emptyList())
                     else -> ScanFooter(
                         listOf(FooterButton("Обновить", true) { refresh(requests) }),
-                        legend = listOf(Swatch.OK to "блок отвечает по UDS", Swatch.UNREAD to "ответил, ошибки не читали", Swatch.NONE to "адрес не найден", Swatch.MECH to "механическая связь"),
+                        legend = ScannerWords.present(
+                            listOf(Swatch.OK to "блок отвечает по UDS", Swatch.UNREAD to "ответил, ошибки не читали", Swatch.NONE to "адрес не найден", Swatch.MECH to "механическая связь"),
+                            hv.units.map { it.status },
+                        ),
                         legendGap = 18f,
                         notes = emptyList(),
                     )
@@ -263,8 +266,10 @@ internal fun DrivesTable(view: CompareView) {
     view.columns.take(4).forEachIndexed { i, c ->
         val (x, cw) = cols[1 + i]
         val top = d.TOP + (h0 - Type.UNIT_NAME.lh - 2f - Type.UNIT_TAG.lh) / 2f
-        ScanText(c.name, Type.UNIT_NAME, Ink.WHITE, Modifier.endAt(x + cw - d.PAD, top))
-        ScanText(ScannerWords.columnTag(c), Type.UNIT_TAG, Ink.FAINT, Modifier.endAt(x + cw - d.PAD, top + Type.UNIT_NAME.lh + 2f))
+        // a column is headed by its block - which rear motor each SMCU drives is not established -
+        // and its role stands under it
+        ScanText(ScannerWords.columnTag(c), Type.UNIT_NAME, Ink.WHITE, Modifier.endAt(x + cw - d.PAD, top))
+        ScanText(c.name, Type.UNIT_TAG, Ink.FAINT, Modifier.endAt(x + cw - d.PAD, top + Type.UNIT_NAME.lh + 2f))
     }
     ScanText("ЕД.", Type.COL_HEAD, Ink.MUTE, Modifier.at(cols[5].first, mid(d.TOP, h0, Type.COL_HEAD)))
     Rule(24f, d.TOP + h0, w)

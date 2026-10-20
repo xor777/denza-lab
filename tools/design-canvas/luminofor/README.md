@@ -319,5 +319,9 @@ corrections below.
 - Screen text without caveats (owner, 2026-10-20): data and names only - no ≈, footnotes,
   «только чтение» or «Пример»; the one source line is «Описания: каталог мануала Z9GT PHEV,
   перевод» in the footer of a codes screen that shows such descriptions (`scanner-ecu-fault`).
-- No screen draws these boards yet; `LuminoforFixtureActivity` leaves a `scanner` board black, so
-  `compare.py` reports it missing rather than different.
+- The screens are `feature/diagnostics/ui/` (`DiagnosticsScreen`): `ScannerSpec` is this JSON in
+  Kotlin, held by `ScannerSpecContractTest`; the debug build's `ScannerFixtures` turns a `scanner-*`
+  scene into the screens' model and `LuminoforFixtureActivity` draws the real section on it at the
+  board's screen. On 2026-10-20, before the text pass, the twelve compared at 1.39–1.96 % of pixels
+  moved, mean 0.9–1.3 levels: Chrome lays about 15 % more ink on a glyph than Android does from the
+  same font files.

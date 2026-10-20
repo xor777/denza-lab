@@ -100,6 +100,19 @@ class ScannerWordsTest {
     }
 
     @Test
+    fun aLegendExplainsOnlyTheKindsOnScreen() {
+        val legend = listOf(Swatch.OK to "OK", Swatch.NONE to "адрес не найден", Swatch.MECH to "механическая связь")
+        assertEquals(listOf(Swatch.OK, Swatch.MECH), ScannerWords.present(legend, listOf(ModuleStatus.OK)).map { it.first })
+        assertEquals(legend, ScannerWords.present(legend, listOf(ModuleStatus.OK, ModuleStatus.NO_ROUTE)))
+    }
+
+    @Test
+    fun aFastCarSignalHasNoPid() {
+        assertEquals("0C", ScannerWords.pid(0x0C))
+        assertEquals("—", ScannerWords.pid(-1))
+    }
+
+    @Test
     fun aGroupSpanningTwoColumnsKeepsItsWholeTitle() {
         val g = ModuleGroupView("misc", "НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО", "Прочие", "", List(12) { row(ModuleStatus.UNREAD) })
         assertEquals("НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО · 12", ScannerWords.topologyLabel(g, 2))

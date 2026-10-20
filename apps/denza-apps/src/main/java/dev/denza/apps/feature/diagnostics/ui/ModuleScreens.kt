@@ -409,7 +409,7 @@ private fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange<
     rows.forEach { r ->
         val h = e.ROW
         fun end(i: Int) = cols[i].first + cols[i].second - 12f
-        ScanText(String.format("%02X", r.pid), Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[0].first + 12f, mid(y, h, Type.NORM_MONO)))
+        ScanText(ScannerWords.pid(r.pid), Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[0].first + 12f, mid(y, h, Type.NORM_MONO)))
         ScanRuns(
             listOf(Triple("${r.name} ", Type.CELL, Ink.WHITE), Triple(r.abbreviation, Type.CELL_ASIDE, Ink.FAINT)),
             Modifier.at(cols[1].first, mid(y, h, Type.CELL)), maxWidth = cols[1].second,
@@ -476,7 +476,7 @@ private fun PidPicker(rows: List<LiveRow>, focus: List<Int>, onDone: (List<Int>)
                         chosen = if (on) chosen - r.pid else if (chosen.size < 4) chosen + r.pid else chosen
                     },
                 ) {
-                    ScanText(String.format("%02X", r.pid), Type.NORM_MONO, if (on) Ink.BLUE_SOFT else Ink.FAINT, Modifier.at(12f, mid(0f, 32f, Type.NORM_MONO)))
+                    ScanText(ScannerWords.pid(r.pid), Type.NORM_MONO, if (on) Ink.BLUE_SOFT else Ink.FAINT, Modifier.at(12f, mid(0f, 32f, Type.NORM_MONO)))
                     ScanRuns(
                         listOf(Triple("${r.name} ", Type.CELL, Ink.WHITE), Triple(r.abbreviation, Type.CELL_ASIDE, Ink.FAINT)),
                         Modifier.at(56f, mid(0f, 32f, Type.CELL)),

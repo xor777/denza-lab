@@ -219,7 +219,10 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
     ScannerPage(footer = {
         ScanFooter(
             buttons = listOf(scanButton(model, rescan)),
-            legend = listOf(Swatch.OK to "OK", Swatch.HIST to "DTC в истории", Swatch.UNREAD to "ответил, ошибки не читали", Swatch.NONE to "адрес не найден"),
+            legend = ScannerWords.present(
+                listOf(Swatch.OK to "OK", Swatch.HIST to "DTC в истории", Swatch.UNREAD to "ответил, ошибки не читали", Swatch.NONE to "адрес не найден"),
+                tiles.map { it.row.status },
+            ),
             legendGap = 16f,
             notes = noticeNotes(model, emptyList()),
             noteInk = if (model.scan.notice != null) Ink.ORANGE_INK else Ink.FAINT,

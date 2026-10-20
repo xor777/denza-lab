@@ -149,6 +149,25 @@ internal object ScannerWords {
         "Mode 03" to "СОХРАНЁННЫЕ", "Mode 07" to "ОЖИДАЮЩИЕ", "Mode 0A" to "ПОСТОЯННЫЕ", "19 02 08" to "UDS ПОДТВ.",
     )
 
+    /** A Mode 01 PID in hex; a fast car signal beside the PIDs (negative) has none. */
+    fun pid(pid: Int): String = if (pid < 0) "—" else String.format("%02X", pid)
+
+    /**
+     * A legend says only what the screen shows: an entry for a tile kind no tile has is left out
+     * (the board's `footer(…, present)`); entries that are not tile kinds stay.
+     */
+    fun present(legend: List<Pair<Swatch, String>>, statuses: List<ModuleStatus>): List<Pair<Swatch, String>> {
+        val shown = statuses.map { chip(it).look }.toSet()
+        fun kind(s: Swatch): Look? = when (s) {
+            Swatch.OK -> Look.OK
+            Swatch.HIST -> Look.HIST
+            Swatch.UNREAD -> Look.UNREAD
+            Swatch.NONE -> Look.NONE
+            Swatch.MECH -> null
+        }
+        return legend.filter { (s, _) -> kind(s)?.let { it in shown } ?: true }
+    }
+
     /** WIR, bit 7: the record asks for the lamp. */
     fun asksLamp(status: Int): Boolean = (status shr 7) and 1 == 1
 
@@ -193,8 +212,8 @@ internal object ScannerWords {
     }
 
     /**
-     * The HV system's line: the pack, every unit on the schematic that leads somewhere by its
-     * address, those without one, and where the readings come from.
+     * The HV system's line: what is read by UDS - the pack and every unit on the schematic that
+     * leads somewhere, by address - those without an address, and the signals beside them.
      */
     fun hvLine(model: DiagnosticsModel, pack: Int?): String {
         val packRow = pack?.let { row(model, it) }
@@ -202,7 +221,7 @@ internal object ScannerWords {
         val routed = listOfNotNull(packRow?.let { "${it.abbreviation} ${hex(pack)}" }) +
             units.filter { it.address.toIntOrNull(16) != null && it.target != null }.map { "${it.abbreviation} ${it.address}" }
         val none = units.filter { it.address.toIntOrNull(16) == null }.joinToString(", ") { it.abbreviation }
-        return (routed + listOfNotNull(if (none.isEmpty()) null else "нет адреса: $none") + "UDS + шина сигналов").joinToString(" · ")
+        return "UDS: " + (routed + listOfNotNull(if (none.isEmpty()) null else "нет адреса: $none") + "+ сигналы").joinToString(" · ")
     }
 
     /** A comparison's line: how many blocks and each one's request address. */
