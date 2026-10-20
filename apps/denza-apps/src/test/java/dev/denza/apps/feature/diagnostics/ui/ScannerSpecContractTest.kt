@@ -220,6 +220,7 @@ class ScannerSpecContractTest {
         n(b.TOP, "bodyDtc", "top"); n(b.HEAD, "bodyDtc", "head")
         assertEquals(cols("bodyDtc", "cols"), b.COLS)
         n(b.ROW_MIN, "bodyDtc", "rowMin"); n(b.BIT, "bodyDtc", "bit"); n(b.BIT_R, "bodyDtc", "bitR"); n(b.BELOW, "bodyDtc", "below")
+        n(b.BELOW_GAP, "bodyDtc", "belowGap")
         n(b.EXPLAIN_W, "bodyDtc", "explainW"); n(b.EXPLAIN_GAP, "bodyDtc", "explainGap")
         n(b.LEGEND_X, "bodyDtc", "legend", "x"); n(b.LEGEND_W, "bodyDtc", "legend", "w"); n(b.LEGEND_KEY, "bodyDtc", "legend", "key")
         n(b.LEGEND_GAP, "bodyDtc", "legend", "gap"); n(b.LEGEND_ROW_GAP, "bodyDtc", "legend", "rowGap")

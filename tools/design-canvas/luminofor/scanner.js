@@ -497,8 +497,10 @@
       rule(c, 24, y + h, W - 48, 'hair');
       y += h + 1;
     }
-    const E = f.explain, xw = B.explainW;
-    let ey = B.below;
+    // the explanation and the legend stand under the last code, never under a fixed line: a block
+    // with eight codes pushed them over its rows (on the car 2026-10-20); the app scrolls the rest
+    const E = f.explain, xw = B.explainW, below = Math.max(B.below, y + B.belowGap);
+    let ey = below;
     text(c, E.head, 24, ey, 'counterLabel', 'mute');
     ey += style('counterLabel').lh + B.explainGap;
     ey += para(c, E.lead, 24, ey, 'lead', 'white', xw) + B.explainGap;
@@ -506,7 +508,7 @@
     if (E.aside) para(c, E.aside, 24, ey, 'small', 'faint', xw);
     const G = B.legend;
     f.bits.forEach((ru, i) => {
-      const ly = B.below + i * (style('legend').lh + G.rowGap);
+      const ly = below + i * (style('legend').lh + G.rowGap);
       text(c, BITS[i], G.x, ly, 'legendKey', 'dim');
       text(c, 'бит ' + i + ' · ' + ru, G.x + G.key + G.gap, ly, 'legend', 'mute');
     });

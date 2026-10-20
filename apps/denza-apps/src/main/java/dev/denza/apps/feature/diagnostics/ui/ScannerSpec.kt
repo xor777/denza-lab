@@ -439,6 +439,8 @@ internal object ScannerSpec {
         const val BIT = 12f
         const val BIT_R = 3f
         const val BELOW = 328f
+        /** The explanation's distance under the last code when the codes reach past [BELOW]. */
+        const val BELOW_GAP = 19f
         const val EXPLAIN_W = 600f
         const val EXPLAIN_GAP = 8f
         const val LEGEND_X = 672f

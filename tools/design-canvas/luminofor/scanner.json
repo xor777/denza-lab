@@ -176,7 +176,7 @@
   "ecuFault": { "cols": [96, "1fr", 70], "rowMin": 64, "rowPad": 10, "listGap": 16, "listPad": [10, 12], "listGapIn": 4 },
   "ecuLive": { "top": 168, "head": 30, "row": 32, "cols": [56, 360, 116, 70, 82, 82, 110, "1fr"], "spark": { "w": 300, "h": 22, "stroke": 1.4, "glow": 3 } },
   "ecuIdent": { "ownCols": [240, "1fr"], "cacheCols": [200, "1fr"], "row": 32, "noteGap": 14, "pidGap": 22, "pidHeadH": 18, "pidGridGap": 8, "pid": { "cols": 12, "h": 24, "gap": 4, "r": 3 } },
-  "bodyDtc": { "top": 172, "head": 30, "cols": [130, 260, "1fr", 80, 46, 46, 46, 46, 46, 46, 46, 46], "rowMin": 52, "bit": 12, "bitR": 3, "below": 328, "explainW": 600, "explainGap": 8, "legend": { "x": 672, "w": 584, "key": 70, "gap": 12, "rowGap": 6 } },
+  "bodyDtc": { "top": 172, "head": 30, "cols": [130, 260, "1fr", 80, 46, 46, 46, 46, 46, 46, 46, 46], "rowMin": 52, "bit": 12, "bitR": 3, "below": 328, "belowGap": 19, "explainW": 600, "explainGap": 8, "legend": { "x": 672, "w": 584, "key": 70, "gap": 12, "rowGap": 6 } },
   "bms": { "top": 168, "head": 30, "row": 27, "cols": [150, 380, 130, 80, 220, "1fr"], "valuePad": 14 },
   "drives": { "top": 168, "head": 44, "row": 40, "cols": [320, "1fr", "1fr", "1fr", "1fr", 70], "pad": 20 },
   "adas": { "top": 168, "head": 50, "row": 33, "cols": [196, "1fr", "1fr", "1fr", "1fr", "1fr", "1fr", "1fr"], "pad": 10, "note": { "top": 536, "padX": 16, "padY": 12, "gap": 24, "r": 6 }, "counterW": 124 },

@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.diagnostics.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -170,60 +172,82 @@ internal fun DtcContent(module: ModuleView) {
     }
 }
 
-/** A body block's records: code, failure type, the group, the status byte and its eight bits. */
+/**
+ * A body block's records: code, failure type, the group, the status byte and its eight bits; the
+ * chosen record's status explained under the last one, the bits' legend beside it. The column
+ * heads stay; the rows and what is under them scroll between the heads and the footer, so a block
+ * with eight codes reads as one with two (on the car 2026-10-20 the explanation stood over them).
+ */
 @Composable
 private fun CodesWithStatus(records: List<DtcRow>) {
     val b = ScannerSpec.BodyDtc
     var chosen by remember { mutableIntStateOf(0) }
     val width = rememberWidths()
+    val w = ScannerSpec.W - 48f
+    val cols = ScannerSpec.columns(b.COLS, 24f, w)
+    val rowsTop = b.TOP + b.HEAD + 1f
+    val rowsH = records.size * (b.ROW_MIN + 1f)
+    val below = maxOf(b.BELOW, rowsTop + rowsH + b.BELOW_GAP)
     Box(Modifier.fillMaxSize()) {
-        val w = ScannerSpec.W - 48f
-        val cols = ScannerSpec.columns(b.COLS, 24f, w)
         HeadRow(cols, listOf(HeadLabel("КОД"), HeadLabel("ТИП ОТКАЗА (FTB)"), HeadLabel("ОПИСАНИЕ"), HeadLabel("СТАТУС")), b.TOP, b.HEAD, Type.COL_HEAD_TIGHT)
         ScannerWords.BITS.forEachIndexed { i, bit ->
             val (x, cw) = cols[4 + i]
             ScanText(bit, Type.BIT_HEAD, Ink.MUTE, Modifier.centreAt(x + cw / 2f, mid(b.TOP, b.HEAD, Type.BIT_HEAD)))
         }
-        records.forEachIndexed { r, d ->
-            val y = b.TOP + b.HEAD + 1f + r * (b.ROW_MIN + 1f)
-            val h = b.ROW_MIN
-            Box(Modifier.at(24f, y).size(w.dp, h.dp).tap { chosen = r })
-            ScanText(d.code, Type.CODE, Ink.WHITE, Modifier.at(cols[0].first + 12f, mid(y, h, Type.CODE)))
-            ScanRuns(
-                listOf(Triple(d.failureType, Type.CELL_NUM, Ink.DIM), Triple(" · ${d.failureName}", Type.CELL, Ink.WHITE)),
-                Modifier.at(cols[1].first, mid(y, h, Type.CELL)), maxWidth = cols[1].second, base = Type.CELL,
-            )
-            val room = cols[2].second - 16f
-            val desc = d.description
-            if (desc != null) {
-                // the catalog's description in up to two lines, in place of the group
-                val lines = ScannerWords.twoLines(desc, room) { width(it, Type.CELL) }
-                val dt = y + (h - lines.size * Type.CELL.lh) / 2f
-                lines.forEachIndexed { i, l -> ScanText(l, Type.CELL, Ink.TEXT, Modifier.at(cols[2].first, dt + i * Type.CELL.lh), maxWidth = room) }
-            } else {
-                val dt = y + (h - Type.CELL.lh - (if (d.note.isNotEmpty()) 2f + Type.NOTE.lh else 0f)) / 2f
-                ScanText(d.group, Type.CELL, Ink.TEXT, Modifier.at(cols[2].first, dt), maxWidth = room)
-                if (d.note.isNotEmpty()) ScanText(d.note, Type.NOTE, Ink.FAINT, Modifier.at(cols[2].first, dt + Type.CELL.lh + 2f), maxWidth = room)
+        Column(
+            Modifier.fillMaxSize()
+                .padding(top = rowsTop.dp, bottom = ScannerSpec.Footer.HEIGHT.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            // rows at their board offsets under the heads: y counts from the first row
+            Box(Modifier.fillMaxWidth().height(rowsH.dp)) {
+                records.forEachIndexed { r, d ->
+                    val y = r * (b.ROW_MIN + 1f)
+                    val h = b.ROW_MIN
+                    Box(Modifier.at(24f, y).size(w.dp, h.dp).tap { chosen = r })
+                    ScanText(d.code, Type.CODE, Ink.WHITE, Modifier.at(cols[0].first + 12f, mid(y, h, Type.CODE)))
+                    ScanRuns(
+                        listOf(Triple(d.failureType, Type.CELL_NUM, Ink.DIM), Triple(" · ${d.failureName}", Type.CELL, Ink.WHITE)),
+                        Modifier.at(cols[1].first, mid(y, h, Type.CELL)), maxWidth = cols[1].second, base = Type.CELL,
+                    )
+                    val room = cols[2].second - 16f
+                    val desc = d.description
+                    if (desc != null) {
+                        // the catalog's description in up to two lines, in place of the group
+                        val lines = ScannerWords.twoLines(desc, room) { width(it, Type.CELL) }
+                        val dt = y + (h - lines.size * Type.CELL.lh) / 2f
+                        lines.forEachIndexed { i, l -> ScanText(l, Type.CELL, Ink.TEXT, Modifier.at(cols[2].first, dt + i * Type.CELL.lh), maxWidth = room) }
+                    } else {
+                        val dt = y + (h - Type.CELL.lh - (if (d.note.isNotEmpty()) 2f + Type.NOTE.lh else 0f)) / 2f
+                        ScanText(d.group, Type.CELL, Ink.TEXT, Modifier.at(cols[2].first, dt), maxWidth = room)
+                        if (d.note.isNotEmpty()) ScanText(d.note, Type.NOTE, Ink.FAINT, Modifier.at(cols[2].first, dt + Type.CELL.lh + 2f), maxWidth = room)
+                    }
+                    ScanText(ScannerWords.hex2(d.status), Type.CELL_NUM, Ink.TEXT, Modifier.at(cols[3].first, mid(y, h, Type.CELL_NUM)))
+                    ScannerWords.BITS.indices.forEach { i ->
+                        val (x, cw) = cols[4 + i]
+                        StatusBit(on = (d.status shr i) and 1 == 1, supported = (d.availability shr i) and 1 == 1, Modifier.at(x + (cw - b.BIT) / 2f, y + (h - b.BIT) / 2f))
+                    }
+                    Rule(24f, y + h, w, Ink.HAIR)
+                }
             }
-            ScanText(ScannerWords.hex2(d.status), Type.CELL_NUM, Ink.TEXT, Modifier.at(cols[3].first, mid(y, h, Type.CELL_NUM)))
-            ScannerWords.BITS.indices.forEach { i ->
-                val (x, cw) = cols[4 + i]
-                StatusBit(on = (d.status shr i) and 1 == 1, supported = (d.availability shr i) and 1 == 1, Modifier.at(x + (cw - b.BIT) / 2f, y + (h - b.BIT) / 2f))
+            Spacer(Modifier.height((below - rowsTop - rowsH).dp))
+            val e = ScannerWords.explain(records[chosen.coerceIn(0, records.lastIndex)].status)
+            // as tall as the taller of the two: the legend's rows are placed, not stacked
+            Box(Modifier.fillMaxWidth().heightIn(min = (ScannerWords.BITS.size * (Type.LEGEND.lh + b.LEGEND_ROW_GAP)).dp)) {
+                Column(Modifier.at(24f, 0f)) {
+                    ScanText(e.head, Type.COUNTER_LABEL, Ink.MUTE)
+                    Spacer(Modifier.height(b.EXPLAIN_GAP.dp))
+                    ScanParagraph(e.lead, Type.LEAD, Ink.WHITE, b.EXPLAIN_W)
+                    Spacer(Modifier.height(b.EXPLAIN_GAP.dp))
+                    ScanParagraph(e.body, Type.BODY, Ink.DIM, b.EXPLAIN_W)
+                }
+                ScannerWords.BITS.forEachIndexed { i, bit ->
+                    val ly = i * (Type.LEGEND.lh + b.LEGEND_ROW_GAP)
+                    ScanText(bit, Type.LEGEND_KEY, Ink.DIM, Modifier.at(b.LEGEND_X, ly))
+                    ScanText("бит $i · ${ScannerWords.BIT_WORDS[i]}", Type.LEGEND, Ink.MUTE, Modifier.at(b.LEGEND_X + b.LEGEND_KEY + b.LEGEND_GAP, ly))
+                }
             }
-            Rule(24f, y + h, w, Ink.HAIR)
-        }
-        val e = ScannerWords.explain(records[chosen.coerceIn(0, records.lastIndex)].status)
-        Column(Modifier.at(24f, b.BELOW)) {
-            ScanText(e.head, Type.COUNTER_LABEL, Ink.MUTE)
-            Spacer(Modifier.height(b.EXPLAIN_GAP.dp))
-            ScanParagraph(e.lead, Type.LEAD, Ink.WHITE, b.EXPLAIN_W)
-            Spacer(Modifier.height(b.EXPLAIN_GAP.dp))
-            ScanParagraph(e.body, Type.BODY, Ink.DIM, b.EXPLAIN_W)
-        }
-        ScannerWords.BITS.forEachIndexed { i, bit ->
-            val ly = b.BELOW + i * (Type.LEGEND.lh + b.LEGEND_ROW_GAP)
-            ScanText(bit, Type.LEGEND_KEY, Ink.DIM, Modifier.at(b.LEGEND_X, ly))
-            ScanText("бит $i · ${ScannerWords.BIT_WORDS[i]}", Type.LEGEND, Ink.MUTE, Modifier.at(b.LEGEND_X + b.LEGEND_KEY + b.LEGEND_GAP, ly))
+            Spacer(Modifier.height(b.BELOW_GAP.dp))
         }
     }
 }
