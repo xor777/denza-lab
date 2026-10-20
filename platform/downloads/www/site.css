@@ -64,7 +64,8 @@ header { margin-bottom: 56px; }
 }
 .app:hover::before { opacity: 1; }
 
-.name { grid-area: name; align-self: end; font-weight: 500; font-size: 20px; line-height: 1.2; }
+.name { grid-area: name; align-self: end; color: inherit; text-decoration: none; font-weight: 500; font-size: 20px; line-height: 1.2; }
+a.name:hover { color: var(--blue-hi); }
 .what { grid-area: what; color: var(--grey); font-size: 15px; margin-top: 6px; }
 .meta {
   grid-area: meta; align-self: end;

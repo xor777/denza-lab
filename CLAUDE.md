@@ -160,7 +160,8 @@ The same form works for every module in the second table above.
   `legacy/denza-mirrors/` only as a frozen historical reference.
 - `:car-adb-gateway` is relay-only. Do not add a LAN listener or configurable
   relay without updating the CAG decision log first.
-- Deploy `platform/relay/` and the `platform/downloads/` page only through `ops/ansible`; keep code/grant transitions locked,
+- Deploy `platform/relay/` only through `ops/ansible`; the `platform/downloads/` page goes to GitHub Pages
+  with its `deploy_pages.sh`. Keep code/grant transitions locked,
   atomic, and covered by relay tests.
 - New "poke the car" code goes to `tools/` (host) or a `…​.probe` package
   (on-device), never into a product package.
