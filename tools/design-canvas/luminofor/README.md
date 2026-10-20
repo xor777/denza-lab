@@ -79,12 +79,17 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `one-sheet-cluster`, `one-sheet-cast-apps` | the same panels filling a one-third pane |
 | `modal-adb`, `one-modal-adb` | the ADB gate asking for the car's permission |
 | `sheet-service-restore`, `sheet-service-restored`, `sheet-service-restore-wifi`, `one-sheet-service-restore`, `modal-adb-wifi` | automatic ADB restoration: its page after the last boot - the port open at the first look, closed and opened again by the app (wide and in the one-third pane), closed with no Wi-Fi - a sentence, the switch and the boot's three rows; and the neutral Wi-Fi waiting gate |
-| `scanner-scan`, `scanner-topology` | the autoscan: all 68 addresses answering, by system, as a list (the first two systems, as the page opens) and as tiles on the diagnostic bus |
+| `scanner-sys-scan`, `scanner-sys-topology` | the systems down the left and «Автоскан» beside them: all 68 addresses answering, by system, as a list (the first two systems, as the page opens) and as tiles on the diagnostic bus |
+| `scanner-sys-chassis`, `-body-state`, `-adas`, `-drives` | «Состояние» on the car from above: tyres and the brake and steering blocks; doors, zones, lamps and the UWB key; every sensor and its field; the engine, generator and three motors with their readings |
+| `scanner-sys-hv`, `-pack`, `-engine-scheme`, `-climate`, `-lv` | «Состояние» as schemes: the HV schema at the rail's width; the pack with its charge, poles, insulation and ranges; the engine's air path (illustrative idle); outside air through the climate unit; the 12 V net |
+| `scanner-sys-body`, `scanner-sys-body-blocks` | a system's DTC across its blocks (the body's ten); its blocks as the autoscan's rows |
+| `scanner-sys-engine`, `scanner-sys-engine-dtc` | the engine's live data and its DTC lists and readiness at the rail's width |
+| `scanner-sys-pack-live`, `scanner-sys-pack-flags` | the pack's readings from the signal bus; its GB/T 32960 tab with nothing yet |
+| `scanner-sys-drives-compare`, `scanner-sys-adas-compare` | the drives and the seven driver-assistance blocks side by side at the rail's width |
 | `scanner-body-dtc` | a body block's memory: two historical DTC, their status bits as a matrix, status 0x28 explained |
 | `scanner-ecu-dtc`, `scanner-ecu-fault` | the ECM: DTC lists and monitor readiness as read; the same with an illustrative P0420 and MIL on |
 | `scanner-ecu-live`, `scanner-ecu-ident` | the ECM's live data (illustrative idle, 60 s traces); its identification and the cache's, the supported PIDs |
-| `scanner-bms`, `scanner-drives`, `scanner-hv` | the HV battery's readings, the four drives side by side, the HV system as a schematic |
-| `scanner-brakes`, `scanner-adas` | ESP/IPB 782 by mask 09 and its OBD interface 7E5; the seven driver-assistance blocks side by side |
+| `scanner-esp-dtc` | ESP/IPB 782 opened from «Шасси»: what was asked by mask 09, nothing came back |
 | `digits` | the wide figures, for the eye |
 
 ## How the app is held to it
@@ -226,9 +231,14 @@ Git history keeps the boards.
 
 The «Сервис → Диагностика» section ([docs/vehicle-diagnostics-architecture.md](../../../docs/vehicle-diagnostics-architecture.md))
 is drawn from the owner's canvas «Диагностика · инженерное меню», page «Сканер (v3)», approved
-2026-10-20. That page was HTML laid out by a browser; `scanner.js` draws its twelve boards on a
-canvas from `scanner.json` and the `scanner-*` fixtures, so a Compose screen can be laid over a
-board with `compare.py`. On 2026-10-20 the boards compared with the page itself (its HTML rendered
+2026-10-20. That page was HTML laid out by a browser; `scanner.js` draws its boards on a canvas
+from `scanner.json` and the `scanner-*` fixtures, so a Compose screen can be laid over a board with
+`compare.py`. The same evening the section was rebuilt around the car's systems
+([architecture](../../../docs/vehicle-diagnostics-architecture.md), 7.2): the `scanner-sys-*` boards
+put the systems down the left (`rail()`, `shell()`) and give every tab a board; the full-width
+autoscan and system boards (`scanner-scan`, `-topology`, `-bms`, `-drives`, `-hv`, `-brakes`,
+`-adas`) went, their drawing kept where a system board reuses it (`scanTable`, `topologyBody`,
+`hvBody`, `bmsTable`, `drivesTable`, `adasTable`, `maskAsks`). On 2026-10-20 the boards compared with the page itself (its HTML rendered
 with the same font files at 2x) at 0.5–1.8 % of pixels moved, mean under 2.1 levels, where nothing
 was changed on purpose; `scanner-topology`, `-body-dtc`, `-bms` and `-hv` moved further by the
 corrections below.
@@ -262,8 +272,9 @@ corrections below.
 - The blocks are `ecu/EcuCatalog.kt`'s 68, in its order and words: 741 and 5E7 are the head
   unit's and the passenger computer's MCUs, and 22 factory-map candidates that answered F194 join
   «Кузов» (the UWB key and its four anchors), «Салон» (ASSY, HUD, ETC, CPD) and the unassigned 25.
-  `scanner-topology` lays them in nine columns of 137 dp - Силовая | Шасси + Климат | Ассистенты |
-  Кузов 9 | Кузов 2 + 12 В | Салон | Прочие 9 / 8 / 8 - of 124 x 36 tiles at a 40 dp pitch: the
+  `scanner-sys-topology` lays them in nine columns of 112 dp beside the rail - Силовая | Шасси + Климат |
+  Ассистенты | Кузов 9 | Кузов 2 + 12 В | Салон | Прочие 9 / 8 / 8 - of 100 x 36 tiles at a 40 dp pitch
+  (the full-width board had 137 dp and 124 x 36): the
   abbreviation and address over the short name in 11 dp. A tile's state is its look alone; a block
   with history says «ИСТ n» in place of its address. A column that continues a group hangs from
   the column before it under that group's caption; the trunk ends at the last column that opens one.
@@ -278,8 +289,15 @@ corrections below.
   «только чтение» or «Пример»; the one source line is «Описания: каталог мануала Z9GT PHEV,
   перевод» in the footer of a codes screen that shows such descriptions (`scanner-ecu-fault`).
 - The screens are `feature/diagnostics/ui/` (`DiagnosticsScreen`): `ScannerSpec` is this JSON in
-  Kotlin, held by `ScannerSpecContractTest`; the debug build's `ScannerFixtures` turns a `scanner-*`
-  scene into the screens' model and `LuminoforFixtureActivity` draws the real section on it at the
-  board's screen. On 2026-10-20, before the text pass, the twelve compared at 1.39–1.96 % of pixels
-  moved, mean 0.9–1.3 levels: Chrome lays about 15 % more ink on a glyph than Android does from the
-  same font files.
+  Kotlin, held by `ScannerSpecContractTest`; the debug build's `ScannerFixtures` turns the `scanner-*`
+  scenes into the screens' model - the rail and every system's page from `scanner-sys-*` - and
+  `LuminoforFixtureActivity` draws the real section on it at the board's screen. On 2026-10-20,
+  before the text pass, the twelve full-width boards compared at 1.39–1.96 % of pixels moved, mean
+  0.9–1.3 levels: Chrome lays about 15 % more ink on a glyph than Android does from the same font
+  files. The systems' 19 boards and the six block boards compared that evening at 0.65–2.15 %
+  (mean 0.40–1.36 levels); the topology's 68 small tiles are the most, the schemes 0.65–1.19 %.
+- Corrected while the system boards were ported: «→» in text had been drawn by the schemes' flow
+  arrow, a second function of the same name, so every route on the system boards lost its arrow
+  (the flow arrow is `flow()` now); a counter is as wide as its value and a padding's room, rounded
+  up to 8 dp (`counterWidth()`; the chassis pressure ran into the next rule); the PID 01 plate
+  wraps where it is narrow; the engine's points stand at places named in `engineScheme.points`.
