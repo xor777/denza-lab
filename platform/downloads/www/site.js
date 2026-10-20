@@ -7,9 +7,9 @@ const REPO = "xor777/denza-lab";
 const RELEASES = `https://github.com/${REPO}/releases`;
 
 const APPS = [
-  { tag: "denza-apps-v", name: "Denza Apps", what: "Приборы, экран справа, проекция, камеры и звук" },
-  { tag: "yandex-hud-", name: "Yandex HUD", what: "Навигатор с картой и подсказками на проекции" },
-  { tag: "hud-speed-", name: "HUD Speed Mod", what: "Камеры и радары на проекции" },
+  { tag: "denza-apps-v", name: "Denza Apps", what: "Добавляет головному устройству то, чего нет в прошивке. Ставится первым." },
+  { tag: "yandex-hud-", name: "Yandex HUD", what: "Яндекс Навигатор с подсказками и картой на лобовом стекле. Ставится вместо обычного." },
+  { tag: "hud-speed-", name: "HUD Speed Mod", what: "HUD Speed с камерами и радарами на лобовом стекле. Ставится вместо обычного." },
 ];
 
 const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля",
