@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No permission is requested: Denza Apps puts its instruments on the same shared display
+         as an ordinary UID, and so does this. -->
+
+    <application
+        android:allowBackup="false"
+        android:label="Ореол · пробник">
+
+        <!-- The controls on the head unit; the picture is on the driver's display only while this
+             is in front. The preview extra draws the picture here instead, for a screenshot. -->
+        <activity
+            android:name=".GlowProbeActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

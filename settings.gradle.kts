@@ -87,6 +87,9 @@ if (providers.gradleProperty("experiments").isPresent) {
     include(":fse-hud-inspector")
     project(":fse-hud-inspector").projectDir = file("experiments/fse-hud-inspector")
 
+    include(":cluster-glow-probe")
+    project(":cluster-glow-probe").projectDir = file("experiments/cluster-glow-probe")
+
     // Frozen, maintenance-only (see CLAUDE.md). Kept buildable until it is retired.
     include(":denza-gateway")
     project(":denza-gateway").projectDir = file("legacy/denza-gateway")

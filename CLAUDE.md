@@ -116,6 +116,7 @@ The on-device probes and the frozen legacy app are configured only when the
 | `:fse-hud-inspector` | `experiments/fse-hud-inspector/` | `dev.denza.fsehud.probe` (FSE snapshot/export and a manual 20-second local arhud Activity; no vehicle setters or DiShare) |
 | `:avc-stock-probe` | `experiments/avc-stock-probe/` | `dev.denza.avcstock.probe` (disposable app-UID read and write of the stock AVC mode and turn-camera choice) |
 | `:alice-wheel-probe` | `experiments/alice-wheel-probe/` | `dev.denza.alicewheel.probe` (disposable foreground-only Navigator Alice voice-key interception) |
+| `:cluster-glow-probe` | `experiments/cluster-glow-probe/` | `dev.denza.clusterglow.probe` (disposable: the Contour's glow on the driver's display at a strength, shape and size picked on the head unit) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
 included in the root Gradle build.
