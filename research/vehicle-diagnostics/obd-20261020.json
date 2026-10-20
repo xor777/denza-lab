@@ -1,0 +1,945 @@
+{
+ "date": "2026-10-20",
+ "profile": 170,
+ "transport": "device 1033 TX 0xAA00010A / RX 0x9900010A, owner byte 0x0A, request id, length, UDS bytes",
+ "scope": "Read-only: OBD 01/03/07/0A, UDS 19 01/02 (masks FF/08/04), 22 F197/F18A/F195/F187/F191/F194. No VIN, sessions, clears, unlocks, writes, routines or 7DF. Car in P at 0 km/h.",
+ "probe": "research/vehicle-diagnostics/ObdAddressReadProbe.java",
+ "decoder": "research/vehicle-diagnostics/decode_obd_probe.py",
+ "run1": [
+  {
+   "step": 0,
+   "request": "07E0",
+   "uds": "0100",
+   "result": "ok",
+   "pid": "00",
+   "value": [
+    "01",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "0B",
+    "0C",
+    "0D",
+    "0E",
+    "0F",
+    "11",
+    "13",
+    "15",
+    "1C",
+    "1F",
+    "20"
+   ]
+  },
+  {
+   "step": 1,
+   "request": "07E0",
+   "uds": "1901FF",
+   "result": "ok",
+   "mask": "FF",
+   "format": 0,
+   "count": 258
+  },
+  {
+   "step": 2,
+   "request": "07E1",
+   "uds": "0100",
+   "result": "response timeout"
+  },
+  {
+   "step": 3,
+   "request": "07E1",
+   "uds": "1901FF",
+   "result": "response timeout"
+  },
+  {
+   "step": 4,
+   "request": "07E2",
+   "uds": "0100",
+   "result": "ok",
+   "pid": "00",
+   "value": [
+    "01",
+    "05",
+    "0C",
+    "0D",
+    "20"
+   ]
+  },
+  {
+   "step": 5,
+   "request": "07E2",
+   "uds": "1901FF",
+   "result": "ok",
+   "mask": "FF",
+   "format": 0,
+   "count": 842
+  },
+  {
+   "step": 6,
+   "request": "07E3",
+   "uds": "0100",
+   "result": "negative",
+   "nrc": "service not supported"
+  },
+  {
+   "step": 7,
+   "request": "07E3",
+   "uds": "1901FF",
+   "result": "ok",
+   "mask": "09",
+   "format": 1,
+   "count": 0
+  },
+  {
+   "step": 8,
+   "request": "07E4",
+   "uds": "0100",
+   "result": "response timeout"
+  },
+  {
+   "step": 9,
+   "request": "07E4",
+   "uds": "1901FF",
+   "result": "response timeout"
+  },
+  {
+   "step": 10,
+   "request": "07E5",
+   "uds": "0100",
+   "result": "ok",
+   "pid": "00",
+   "value": [
+    "01",
+    "04",
+    "05",
+    "0C",
+    "0D",
+    "20"
+   ]
+  },
+  {
+   "step": 11,
+   "request": "07E5",
+   "uds": "1901FF",
+   "result": "negative",
+   "nrc": "service not supported"
+  },
+  {
+   "step": 12,
+   "request": "07E6",
+   "uds": "0100",
+   "result": "negative",
+   "nrc": "service not supported"
+  },
+  {
+   "step": 13,
+   "request": "07E6",
+   "uds": "1901FF",
+   "result": "ok",
+   "mask": "09",
+   "format": 1,
+   "count": 0
+  },
+  {
+   "step": 14,
+   "request": "07E7",
+   "uds": "0100",
+   "result": "negative",
+   "nrc": "service not supported"
+  },
+  {
+   "step": 15,
+   "request": "07E7",
+   "uds": "1901FF",
+   "result": "ok",
+   "mask": "09",
+   "format": 0,
+   "count": 0
+  },
+  {
+   "step": 16,
+   "request": "0747",
+   "uds": "1901FF",
+   "result": "ok",
+   "mask": "FF",
+   "format": 0,
+   "count": 2
+  },
+  {
+   "step": 17,
+   "request": "0726",
+   "uds": "1901FF",
+   "result": "ok",
+   "mask": "FF",
+   "format": 0,
+   "count": 0
+  },
+  {
+   "step": 18,
+   "request": "0722",
+   "uds": "1901FF",
+   "result": "ok",
+   "mask": "FF",
+   "format": 0,
+   "count": 0
+  },
+  {
+   "step": 19,
+   "request": "07E0",
+   "uds": "03",
+   "result": "ok",
+   "codes": 0
+  },
+  {
+   "step": 20,
+   "request": "07E0",
+   "uds": "1902FF",
+   "result": "negative",
+   "nrc": "incorrect length or format"
+  },
+  {
+   "step": 21,
+   "request": "07E2",
+   "uds": "03",
+   "result": "ok",
+   "codes": 0
+  },
+  {
+   "step": 22,
+   "request": "07E2",
+   "uds": "1902FF",
+   "result": "negative",
+   "nrc": "incorrect length or format"
+  },
+  {
+   "step": 23,
+   "request": "07E5",
+   "uds": "03",
+   "result": "ok",
+   "codes": 0
+  },
+  {
+   "step": 24,
+   "request": "0747",
+   "uds": "1902FF",
+   "result": "ok",
+   "records": [
+    {
+     "code": "C1170-09",
+     "status": "28"
+    },
+    {
+     "code": "B130E-01",
+     "status": "28"
+    }
+   ]
+  }
+ ],
+ "run2_detail": [
+  {
+   "step": 0,
+   "request": "07E0",
+   "uds": "0101",
+   "result": "ok",
+   "pid": "01",
+   "value": {
+    "mil": false,
+    "dtc_count": 0,
+    "compression": false,
+    "raw": "00 07 F5 F4"
+   }
+  },
+  {
+   "step": 1,
+   "request": "07E0",
+   "uds": "0103",
+   "result": "ok",
+   "pid": "03",
+   "value": 0
+  },
+  {
+   "step": 2,
+   "request": "07E0",
+   "uds": "0104",
+   "result": "ok",
+   "pid": "04",
+   "value": 0.0
+  },
+  {
+   "step": 3,
+   "request": "07E0",
+   "uds": "0105",
+   "result": "ok",
+   "pid": "05",
+   "value": 9
+  },
+  {
+   "step": 4,
+   "request": "07E0",
+   "uds": "0106",
+   "result": "ok",
+   "pid": "06",
+   "value": 0.0
+  },
+  {
+   "step": 5,
+   "request": "07E0",
+   "uds": "0107",
+   "result": "ok",
+   "pid": "07",
+   "value": 0.0
+  },
+  {
+   "step": 6,
+   "request": "07E0",
+   "uds": "010B",
+   "result": "ok",
+   "pid": "0B",
+   "value": 101
+  },
+  {
+   "step": 7,
+   "request": "07E0",
+   "uds": "010C",
+   "result": "ok",
+   "pid": "0C",
+   "value": 0.0
+  },
+  {
+   "step": 8,
+   "request": "07E0",
+   "uds": "010D",
+   "result": "ok",
+   "pid": "0D",
+   "value": 0
+  },
+  {
+   "step": 9,
+   "request": "07E0",
+   "uds": "010E",
+   "result": "ok",
+   "pid": "0E",
+   "value": 0.0
+  },
+  {
+   "step": 10,
+   "request": "07E0",
+   "uds": "010F",
+   "result": "ok",
+   "pid": "0F",
+   "value": 12
+  },
+  {
+   "step": 11,
+   "request": "07E0",
+   "uds": "0111",
+   "result": "ok",
+   "pid": "11",
+   "value": 16.9
+  },
+  {
+   "step": 12,
+   "request": "07E0",
+   "uds": "0113",
+   "result": "ok",
+   "pid": "13",
+   "value": "00000011"
+  },
+  {
+   "step": 13,
+   "request": "07E0",
+   "uds": "0115",
+   "result": "ok",
+   "pid": "15",
+   "value": {
+    "volts": 1.275,
+    "trim": null
+   }
+  },
+  {
+   "step": 14,
+   "request": "07E0",
+   "uds": "011C",
+   "result": "ok",
+   "pid": "1C",
+   "value": 41
+  },
+  {
+   "step": 15,
+   "request": "07E0",
+   "uds": "011F",
+   "result": "ok",
+   "pid": "1F",
+   "value": 0
+  },
+  {
+   "step": 16,
+   "request": "07E0",
+   "uds": "0120",
+   "result": "ok",
+   "pid": "20",
+   "value": [
+    "21",
+    "23",
+    "2C",
+    "2D",
+    "2E",
+    "2F",
+    "30",
+    "31",
+    "33",
+    "34",
+    "3C",
+    "40"
+   ]
+  },
+  {
+   "step": 17,
+   "request": "07E0",
+   "uds": "0140",
+   "result": "ok",
+   "pid": "40",
+   "value": [
+    "41",
+    "42",
+    "43",
+    "44",
+    "45",
+    "46",
+    "47",
+    "49",
+    "4A",
+    "4C",
+    "54",
+    "56",
+    "60"
+   ]
+  },
+  {
+   "step": 18,
+   "request": "07E0",
+   "uds": "0160",
+   "result": "ok",
+   "pid": "60",
+   "value": [
+    "67",
+    "6B",
+    "7A",
+    "80"
+   ]
+  },
+  {
+   "step": 19,
+   "request": "07E0",
+   "uds": "07",
+   "result": "ok",
+   "codes": 0
+  },
+  {
+   "step": 20,
+   "request": "07E0",
+   "uds": "0A",
+   "result": "ok",
+   "codes": 0
+  },
+  {
+   "step": 21,
+   "request": "07E2",
+   "uds": "0101",
+   "result": "ok",
+   "pid": "01",
+   "value": {
+    "mil": false,
+    "dtc_count": 0,
+    "compression": false,
+    "raw": "00 04 00 00"
+   }
+  },
+  {
+   "step": 22,
+   "request": "07E2",
+   "uds": "0105",
+   "result": "ok",
+   "pid": "05",
+   "value": 28
+  },
+  {
+   "step": 23,
+   "request": "07E2",
+   "uds": "010C",
+   "result": "ok",
+   "pid": "0C",
+   "value": 0.0
+  },
+  {
+   "step": 24,
+   "request": "07E2",
+   "uds": "010D",
+   "result": "ok",
+   "pid": "0D",
+   "value": 0
+  },
+  {
+   "step": 25,
+   "request": "07E2",
+   "uds": "0120",
+   "result": "ok",
+   "pid": "20",
+   "value": [
+    "21",
+    "40"
+   ]
+  },
+  {
+   "step": 26,
+   "request": "07E2",
+   "uds": "0140",
+   "result": "ok",
+   "pid": "40",
+   "value": [
+    "41",
+    "42",
+    "49",
+    "4A"
+   ]
+  },
+  {
+   "step": 27,
+   "request": "07E2",
+   "uds": "07",
+   "result": "ok",
+   "codes": 0
+  },
+  {
+   "step": 28,
+   "request": "07E2",
+   "uds": "0A",
+   "result": "ok",
+   "codes": 0
+  },
+  {
+   "step": 29,
+   "request": "07E5",
+   "uds": "0101",
+   "result": "ok",
+   "pid": "01",
+   "value": {
+    "mil": false,
+    "dtc_count": 0,
+    "compression": false,
+    "raw": "00 04 00 00"
+   }
+  },
+  {
+   "step": 30,
+   "request": "07E5",
+   "uds": "0104",
+   "result": "ok",
+   "pid": "04",
+   "value": 0.0
+  },
+  {
+   "step": 31,
+   "request": "07E5",
+   "uds": "0105",
+   "result": "ok",
+   "pid": "05",
+   "value": 8
+  },
+  {
+   "step": 32,
+   "request": "07E5",
+   "uds": "010C",
+   "result": "ok",
+   "pid": "0C",
+   "value": 0.0
+  },
+  {
+   "step": 33,
+   "request": "07E5",
+   "uds": "010D",
+   "result": "ok",
+   "pid": "0D",
+   "value": 0
+  },
+  {
+   "step": 34,
+   "request": "07E5",
+   "uds": "0120",
+   "result": "ok",
+   "pid": "20",
+   "value": [
+    "30",
+    "40"
+   ]
+  },
+  {
+   "step": 35,
+   "request": "07E5",
+   "uds": "0140",
+   "result": "ok",
+   "pid": "40",
+   "value": [
+    "42",
+    "49"
+   ]
+  },
+  {
+   "step": 36,
+   "request": "07E5",
+   "uds": "07",
+   "result": "ok",
+   "codes": 0
+  },
+  {
+   "step": 37,
+   "request": "07E5",
+   "uds": "0A",
+   "result": "ok",
+   "codes": 0
+  },
+  {
+   "step": 38,
+   "request": "07E0",
+   "uds": "190108",
+   "result": "ok",
+   "mask": "FF",
+   "format": 0,
+   "count": 0
+  },
+  {
+   "step": 39,
+   "request": "07E0",
+   "uds": "190104",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 40,
+   "request": "07E0",
+   "uds": "190208",
+   "result": "ok",
+   "records": []
+  },
+  {
+   "step": 41,
+   "request": "07E0",
+   "uds": "190204",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 42,
+   "request": "07E2",
+   "uds": "190108",
+   "result": "ok",
+   "mask": "FF",
+   "format": 0,
+   "count": 0
+  },
+  {
+   "step": 43,
+   "request": "07E2",
+   "uds": "190104",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 44,
+   "request": "07E2",
+   "uds": "190208",
+   "result": "ok",
+   "records": []
+  },
+  {
+   "step": 45,
+   "request": "07E2",
+   "uds": "190204",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 46,
+   "request": "07E0",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 47,
+   "request": "07E0",
+   "uds": "22F18A",
+   "result": "ok",
+   "did": "F18A",
+   "value": "UAES"
+  },
+  {
+   "step": 48,
+   "request": "07E0",
+   "uds": "22F195",
+   "result": "ok",
+   "did": "F195",
+   "value": "9C4A19031900"
+  },
+  {
+   "step": 49,
+   "request": "07E2",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "general reject"
+  },
+  {
+   "step": 50,
+   "request": "07E2",
+   "uds": "22F18A",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 51,
+   "request": "07E2",
+   "uds": "22F195",
+   "result": "ok",
+   "did": "F195",
+   "value": "9F76190B1401"
+  },
+  {
+   "step": 52,
+   "request": "07E5",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "service not supported"
+  },
+  {
+   "step": 53,
+   "request": "07E5",
+   "uds": "22F18A",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 54,
+   "request": "07E5",
+   "uds": "22F195",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 55,
+   "request": "07E3",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 56,
+   "request": "07E3",
+   "uds": "22F18A",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 57,
+   "request": "07E3",
+   "uds": "22F195",
+   "result": "ok",
+   "did": "F195",
+   "value": "9D78190A190C"
+  },
+  {
+   "step": 58,
+   "request": "07E6",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 59,
+   "request": "07E6",
+   "uds": "22F18A",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 60,
+   "request": "07E6",
+   "uds": "22F195",
+   "result": "ok",
+   "did": "F195",
+   "value": "9D79190A1E0D"
+  },
+  {
+   "step": 61,
+   "request": "07E7",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 62,
+   "request": "07E7",
+   "uds": "22F18A",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 63,
+   "request": "07E7",
+   "uds": "22F195",
+   "result": "ok",
+   "did": "F195",
+   "value": "87F71A011402"
+  },
+  {
+   "step": 64,
+   "request": "0720",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 65,
+   "request": "0722",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 66,
+   "request": "0726",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 67,
+   "request": "0747",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 68,
+   "request": "0762",
+   "uds": "22F197",
+   "result": "negative",
+   "nrc": "request out of range"
+  }
+ ],
+ "run3_ident": [
+  {
+   "step": 0,
+   "request": "07E2",
+   "uds": "22F187",
+   "result": "negative",
+   "nrc": "general reject"
+  },
+  {
+   "step": 1,
+   "request": "07E2",
+   "uds": "22F191",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 2,
+   "request": "07E3",
+   "uds": "22F187",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 3,
+   "request": "07E3",
+   "uds": "22F191",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 4,
+   "request": "07E5",
+   "uds": "22F187",
+   "result": "negative",
+   "nrc": "service not supported"
+  },
+  {
+   "step": 5,
+   "request": "07E5",
+   "uds": "22F191",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 6,
+   "request": "07E6",
+   "uds": "22F187",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 7,
+   "request": "07E6",
+   "uds": "22F191",
+   "reply": "none in 4 s"
+  },
+  {
+   "step": 8,
+   "request": "07E7",
+   "uds": "22F187",
+   "result": "negative",
+   "nrc": "request out of range"
+  },
+  {
+   "step": 9,
+   "request": "07E7",
+   "uds": "22F191",
+   "reply": "none in 4 s"
+  }
+ ],
+ "run4_ident2": [
+  {
+   "step": 0,
+   "request": "07E0",
+   "uds": "22F194",
+   "result": "ok",
+   "did": "F194",
+   "value": "32440011E004000000"
+  },
+  {
+   "step": 1,
+   "request": "07E2",
+   "uds": "22F194",
+   "result": "ok",
+   "did": "F194",
+   "value": "32440011E07E007841"
+  },
+  {
+   "step": 2,
+   "request": "07E3",
+   "uds": "22F194",
+   "result": "ok",
+   "did": "F194",
+   "value": "48370011E075000000"
+  },
+  {
+   "step": 3,
+   "request": "07E5",
+   "uds": "22F194",
+   "result": "negative",
+   "nrc": "service not supported"
+  },
+  {
+   "step": 4,
+   "request": "07E6",
+   "uds": "22F194",
+   "result": "ok",
+   "did": "F194",
+   "value": "48370011E0EA000000"
+  },
+  {
+   "step": 5,
+   "request": "07E7",
+   "uds": "22F194",
+   "result": "ok",
+   "did": "F194",
+   "value": "4A520011E00D00047B"
+  }
+ ],
+ "identities": {
+  "7E0": "ECM_UAES_01200001",
+  "7E2": "VCU",
+  "7E3": "FMCU_BYD_00100001",
+  "7E6": "ISG_BYD_00100001",
+  "7E7": "BMS_BYD_03300001",
+  "7E5": null
+ }
+}

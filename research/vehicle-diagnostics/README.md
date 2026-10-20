@@ -15,6 +15,15 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
 - `readings-20261018.json` retains 43 qualified scalar GETs with raw words and
   device/FID/type/scale, replayed by `DiagnosticDataTest`. No vehicle identifiers.
 
+- `ObdAddressReadProbe.java` (2026-10-20, owner-approved, unbuilt) reads through
+  the same envelope with a fixed address list and a whitelist of read-only
+  services: OBD `01`/`03`/`07`/`0A`, UDS `19 01/02` and `22 F197/F18A/F195`.
+  It found the engine ECM at `7E0`, five more modules at `7E2`–`7E7` and
+  answers from `747`, `726` and `722`. `F194` names `7E2` VCU, `7E3` FMCU, `7E6` ISG
+  and `7E7` BMS against the OTA cache. `decode_obd_probe.py` turns its output into
+  `obd-20261020.json`. Raw runs are under the ignored
+  `captures/diagnostics-obd-20261020/`.
+
 The promoted two-target allowlisted reader is `VehicleDtcProxyMain` in Denza Apps;
 `VehicleDiagnostics` supplies profile/P/speed checks, ownership and UI lifecycle.
 The exact packed helper was separately verified live on 2026-10-18. The native
