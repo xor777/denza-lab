@@ -33,8 +33,9 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 | Washer fluid level: no FID, name or CAN bit identified; `INSTRUMENT_DD_FAULT_WASH_ELEC_GATE` (`0x3D90201E`) is probably throttle cleaning, and its `0` proves nothing | open | 2026-09-23 | [Read path verified](#read-path-verified-sensor-identity-still-unproved-2026-09-23) |
 | N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | N9 CAN coverage: GB/YUN add 72 address tuples without table writes. Expanded present/empty/refilled cycle saved: 68,432 / 68,296 / 66,613 messages, all 199 common tuples covered without loss. Of 223 separated bits, 49 reverse; 43 contradict older controls, and 6 extra-tuple bits overlap numeric range/consumption/insulation/SOC descriptors. No washer mapping is established; 3 intermittent refill tuples also occurred in older normal/empty captures | live three-state cycle, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
-| DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (stock tester and its 96-case function map: left body domain `LA_BCM`; OTA map's CDC/ZCU rows unexplained; BYD labels status28 «历史故障»); 2026-10-20 the same transport reaches the engine ECM `7E0` (OBD Mode 01/03/07/0A, UDS 19; MIL off, 0 codes) and `7E2`/`7E3`/`7E5`/`7E6`/`7E7`/`722`/`726`/`747`; full catalog sweep 2026-10-20: SoH99, cells 3333–3337 mV, service life oil75/brake fluid99/coolant50, GB alarms answer at the N9 baseline; LBMS `762→76A` zero/support09. Other ECUs untested. Native service diagnostics adds readable DTC summaries, qualified reference meanings, all eight status bits and a dated candidate inventory; 43 scalar and 15 lamp GETs refresh every5 s and expire at15 s. Lamp0 means invalid, not off; captured engine lamp on. Fourteen updated emulator views match their boards; new APK not installed on car | live reader; code window; emulator validation | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18); [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18); [Deeper sources](#deeper-sources-for-a-diagnostic-screen-2026-10-20); [Z9GT catalog sweep](#z9gt-catalog-sweep-2026-10-20); [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20) |
-| Head-unit cache: 225 ECU candidates/version records, including ECM UAES, BMS033, drives and ESP/IPB; 49 contain only defaults/negative markers. Both approved exports completed/closed ports; map keys, upgradeInfo and EOL task were absent. A separately captured stock `getEcuList` response yields eight complete routing records; none covers the requested powertrain/ABS targets. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. Exact target addresses/OEM dictionaries remain missing (addresses superseded 2026-10-20: the engine ECM `7E0` and `7E2`/`7E3`/`7E5`/`7E6`/`7E7` answer, [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20)) | live partial map; firmware routing; coverage open | 2026-10-18 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Stock response and alternate paths](#stock-response-prefix-and-alternate-paths-2026-10-18) |
+| DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (stock tester and its 96-case function map: left body domain `LA_BCM`; OTA map's CDC/ZCU rows unexplained; BYD labels status28 «历史故障»); 2026-10-20 the same transport reaches the engine ECM `7E0` (OBD Mode 01/03/07/0A, UDS 19; MIL off, 0 codes) and `7E2`/`7E3`/`7E5`/`7E6`/`7E7`/`722`/`726`/`747`; full catalog sweep 2026-10-20: SoH99, cells 3333–3337 mV, service life oil75/brake fluid99/coolant50, GB alarms answer at the N9 baseline; LBMS `762→76A` zero/support09. Further chassis/ADAS addresses were qualified on 2026-10-20, below. Native service diagnostics adds readable DTC summaries, qualified reference meanings, all eight status bits and a dated candidate inventory; 43 scalar and 15 lamp GETs refresh every5 s and expire at15 s. Lamp0 means invalid, not off; captured engine lamp on. Fourteen updated emulator views match their boards; new APK not installed on car | live reader; code window; emulator validation | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18); [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18); [Deeper sources](#deeper-sources-for-a-diagnostic-screen-2026-10-20); [Z9GT catalog sweep](#z9gt-catalog-sweep-2026-10-20); [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20) |
+| Remaining-ECU research: 70 F194 addresses checked, 33 positive, 32 exact cache matches; ABS/ESP782, EPS783, SRS7F1, ADC712 and MRR7F2 each return explicit zero DTC for mask09. OBD7E5 names itself BSCM-BrakeSystem. Rear SMCU/SMCU3 and DCOBC routes remain open; product reader unchanged | live, research | 2026-10-20 | [Remaining ECU identities and chassis DTC](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) |
+| Head-unit cache: 225 ECU candidates/version records, including ECM UAES, BMS033, drives and ESP/IPB; 49 contain only defaults/negative markers. Both approved exports completed/closed ports; map keys, upgradeInfo and EOL task were absent. A separately captured stock `getEcuList` response yields eight complete routing records; none covers the requested powertrain/ABS targets. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries and rear-drive/DCOBC routes remain missing (other addresses superseded 2026-10-20: the engine ECM `7E0` and `7E2`/`7E3`/`7E5`/`7E6`/`7E7` answer, [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20)) | live partial map; firmware routing; coverage open | 2026-10-18 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Stock response and alternate paths](#stock-response-prefix-and-alternate-paths-2026-10-18) |
 | Stock Update is unsuitable for diagnosis-only use. The third isolated session validated local inputs, completed TLS and received HTTP 200, then refused response headers; application auth and ECU map remain unverified. Cleanup passed. Overlapping host lifetimes with the ADS log reader exposed reuse of its working directory; our reader now refuses reuse, qualified offline. No further session is authorized | live HTTP-header refusal; cross-reader coordination still required | 2026-10-18 | [Bounded observation and isolated metadata](#bounded-observation-and-isolated-metadata-2026-10-18) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
 
@@ -64,6 +65,7 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 - [Combustion side of the hybrid (2026-08-23)](#combustion-side-of-the-hybrid-2026-08-23) — engine, generation, lamps, fuel, and the recorded start/stop cycles
 - [Diagnostics and DTC (2026-10-18)](#diagnostics-and-dtc-2026-10-18) — proven read transport, real records, status semantics and scan coverage
 - [Additional diagnostic readings and LBMS](#additional-diagnostic-readings-and-lbms-2026-10-18) — 43 GETs, window polling and the second qualified ECU
+- [Remaining ECU identities and chassis DTC](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) — ABS/ESP, EPS, SRS, ADAS, radar, 32 cache matches and the brake OBD interface
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
 - [Raw CAN-FD callback (2026-09-03)](#raw-can-fd-callback-2026-09-03) — the passive shell-UID frame stream and its envelope
 - [Washer fluid level (2026-09-18, in progress)](#washer-fluid-level-2026-09-18-in-progress) — no name, no bit yet; firmware and raw-stream paths
@@ -1218,7 +1220,7 @@ These are static leads, not an authoritative Z9GT ECU topology or tested DTC
 coverage. No address sweep was made. Engine, BMS, inverter, ABS/ESP, SRS, ADAS
 DTC reads and freeze-frame/extended records remain unproved.
 
-> **Superseded 2026-10-20:** `747`, `726` and `722` answer DTC reads, and so do the engine ECM `7E0` and `7E2`/`7E3`/`7E6`/`7E7` (`7E5` answers OBD) through the same transport; ABS/ESP, SRS and ADAS still have no address — see [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20).
+> **Superseded 2026-10-20:** `747`, `726` and `722` answer DTC reads, and so do the engine ECM `7E0` and `7E2`/`7E3`/`7E6`/`7E7` (`7E5` answers OBD) through the same transport — see [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20). The later [remaining-ECU run](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) also identified and read DTC from ABS/ESP `782`, EPS `783`, SRS `7F1`, ADAS `712` and front radar `7F2`.
 
 ### Rejected shortcuts and engineering-menu contract
 
@@ -2297,7 +2299,7 @@ candidates: `0x747/0x74F` (right body domain: 47 stock script cases and the
 OTA map's `R_ZCU`), `0x726` (tailgate) and `0x722/0x72A` (`F_ZCU` in the OTA
 map). Engine, traction BMS, drives and ABS/ESP still have no address.
 
-> **Superseded 2026-10-20:** all three answer, and the engine ECM answers at `7E0` with five more modules at `7E2`–`7E7`; only ABS/ESP, SRS and ADAS remain without an address — see [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20).
+> **Superseded 2026-10-20:** all three answer, and the engine ECM answers at `7E0` with five more modules at `7E2`–`7E7`; see [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20). The later [remaining-ECU run](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) also identified ABS/ESP, SRS, EPS and ADAS and read their DTC memories.
 
 What settles it for the Z9GT: one `tools/washer_capture.py` sweep, parked:
 scalar GETs only, about four minutes for two passes over every catalogued pair.
@@ -2432,11 +2434,16 @@ into `research/vehicle-diagnostics/obd-20261020.json`. Engine stopped, parked:
   pair, matching the cached SMCU/SMCU3 with identical versions. `7E7` matches
   a BMS by behaviour (mask 09). None of this is proven.
 
-  > **Superseded 2026-10-20:** `F194` names them. `7E3` is FMCU (front motor controller) and `7E6` is ISG, not the rear pair. `7E7` is BMS and `7E2` is VCU. Only `7E5` remains unnamed — see run 4 below.
+  > **Superseded 2026-10-20:** `F194` names them. `7E3` is FMCU (front motor controller) and `7E6` is ISG, not the rear pair. `7E7` is BMS and `7E2` is VCU — see run 4 below. The later [remaining-ECU run](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) names `7E5` through OBD `09 0A`: `BSCM-BrakeSystem`.
 - The instrument's engine lamp FID `0x28700026` read `0` (invalid) in today's
   sweep; on 2026-10-18 it read `1`. The ECM's own MIL bit is off.
 - Still without an address: ABS/ESP/IPB, SRS, ADAS. Their IDs are not in
   `7E0`–`7E7`.
+
+  > **Superseded later on 2026-10-20:** `782` is the ESP/IPB/BSC identity,
+  > `7F1` SRS and `712` ADC/ADAS. All three answer DTC reads. `7E5` calls
+  > itself `BSCM-BrakeSystem`; the physical relationship between its OBD
+  > interface and UDS `782` has not been established.
 
 **Run 3 plan (`ident`), owner-requested, same guards.** Ten fixed read-only
 requests: `22 F187` (spare part number) and `22 F191` (hardware number) to
@@ -2468,15 +2475,155 @@ matched:
 | `7E3 → 7EB` | `48370011E075000000` | `FMCU_BYD_00100001` | front motor controller |
 | `7E6 → 7EE` | `48370011E0EA000000` | `ISG_BYD_00100001` | starter-generator controller |
 | `7E7 → 7EF` | `4A520011E00D00047B` | `BMS_BYD_03300001` | traction battery BMS |
-| `7E5 → 7ED` | NRC `11` (no `0x22`) | — | unnamed; OBD only |
+| `7E5 → 7ED` | NRC `11` (no `0x22`) | — | OBD only; later `09 0A` names it `BSCM-BrakeSystem`, below |
 
-The rear motor controllers (SMCU `…E086…`, SMCU3 `…E088…`) and ESP/IPB
-(`32330011DF0B000101`) answer somewhere outside `7E0`–`7E7`. Checks before and
+This run did not identify the rear motor controllers (SMCU `…E086…`,
+SMCU3 `…E088…`) or ESP/IPB (`32330011DF0B000101`). Later reads found
+ESP/IPB at `782`, below. Lack of an answer does not establish where the rear
+controllers are routed.
+
+`726/72E` is `B_ZCU_BYD_00100001`, the rear zone controller, not only the
+tailgate. The ninth row of the stock `getEcuList` log names it and retains
+`ecuDiaId=726/72E`, `ecuReprogramType=canfd`, in
+`captures/ota-status-20261018/phase1-live-check-sanitized.txt` line 33.
+`ota-ecu-prefix-20261018.json` left that row out as truncated. These specific
+fields are complete; a software DID pair is not retained in that partial row. The
+corpus gives no static address for the rear motor controllers, ESP/IPB, SRS,
+EPS or `7E5`. Checks before and
 after were unchanged, and the crash buffer stayed empty.
 
-Status: live. Ten modules now answer DTC reads through this transport:
+Status at the end of run 4: live. Ten addresses answer DTC reads through this transport:
 `720`, `722`, `726`, `747`, `762`, `7E0`, `7E2`, `7E3`, `7E6`, `7E7`; `7E5`
 answers OBD.
+
+### Remaining ECU identities and chassis DTC (2026-10-20)
+
+The continuation recovered the Claude session «Диагностика» and resumed after
+its four OBD/UDS runs. The missing static table was not treated as evidence
+that an ECU was unreachable. Addresses from the diagnostic app developer's
+[BYD scan map](https://carcoding.app/en/ecu/brand/byd/) were only candidates.
+Discovery used one `22 F194` per fixed candidate. The five DTC targets were
+then reidentified before reading faults, and ECM was the control in every run:
+81 F194 requests in total. Returned bytes were matched exactly against the
+existing stock `ECUVersion.json`. Generic names were not imported.
+Aliases in the cache remain aliases, not extra installed modules.
+
+Seven bounded runs, **94 requests**, checked **70 distinct F194 addresses**
+(including the known ECM control). **33 returned a software code; 32 matched
+the cache**, including ECM and ADS. The unmatched `741` returned
+`4B450011E0930034E2`; it remains outside the cache match set. The full qualified
+address/code/alias list and per-request results are in
+[`remaining-ecus-20261020.json`](../research/vehicle-diagnostics/remaining-ecus-20261020.json).
+This is an observed route set, not a complete count of physical ECUs.
+
+#### Chassis and ADAS: identities and DTC read
+
+| Request → reply | Module / retained cache aliases | F194 | DTC support mask / format | Records matching `09` |
+| --- | --- | --- | --- | --- |
+| `782 → 78A` | ABS/ESP: `ESP_BOSCH`, `IPB_BOSCH`, `BSC_BYD` | `32330011DF0B000101` | `FF` / `00` | **0** |
+| `783 → 78B` | electric steering: `REPS_BYD`, `DPEPS_TRW` | `43430011DE6F000000` | `FB` / `00` | **0** |
+| `7F1 → 7F9` | airbags: `SRS_VEONEER` | `54500011E011000012` | `FB` / `00` | **0** |
+| `712 → 71A` | driver-assistance controller: `ADC_BYD` | `48450011DF83000000` | `09` / `01` | **0** |
+| `7F2 → 7FA` | front radar: `MRR_BYD/WHST/chengtech` | `474E0011DF70000000` | `09` / `00` | **0** |
+
+Each DTC read first rechecked the exact software code, then issued `19 01 09`
+and `19 02 09`. Count and list both explicitly returned zero. Mask `09`
+selects **testFailed OR confirmedDTC**: these results say nothing about
+pending-only or not-tested-only records. There is no claim that every monitor
+has run. ADS reports DTC format `01`, which must not be decoded as generic
+SAE format `00`. No manufacturer fault dictionary was recovered.
+
+ADS `712/71A` had already been identified in the separate
+[ADS investigation](adas-operating-limits.md#идентификация-конфигурации-ads)
+using owner byte `05`; this run independently reached it with owner `0A`.
+Its saved server route is **DoIP** target `071A`, client `001`. That is not a
+CAN request/reply pair. A future full factory map must interpret its transport
+before using an address.
+
+#### Other matched addresses
+
+| Request address | Factory cache identity, without guessing a physical role from the address |
+| --- | --- |
+| `701` | `IPA_BOSCH` |
+| `711` | `SWS_BYD/JOYSON` |
+| `713`, `742` | `MSRF_BYD`, `MSRZ_BYD` |
+| `723` | `INS_BYD` |
+| `724` | `PDCMB_BYD` |
+| `725` | `CS_BYD` |
+| `733` | `WCT_BJYG/TEME/ADAYO` |
+| `743` | `PDC-VCU_FDP/BYD`, code `48370011E002066441` — distinct from VCU `7E2` |
+| `750`, `7B5`, `7D2` | `DUCU_BYD`, `PUCU_BYD`, `MLUCU_BYD` |
+| `751` | `AMP_BYD` |
+| `754` | `HFRM_BYD` |
+| `760`, `761`, `7C2`, `7D4` | corner-radar family, shared code `474E0011DF82000000` |
+| `766` | `PTC_HGTECH` |
+| `770`, `771` | `FL_L_BYD`, `FL_R_BYD` |
+| `7A7` | `CCS_BYD/SCPA_BYD` |
+| `7B3` | `ACC_BYD` |
+| `7B4` | `TMIM_TUOPU` |
+| `7C6` | `RRCP_BYD` |
+| `7D6` | `SEC_BYD` |
+
+All response IDs in this run were request +8, matching the MCU receiver.
+The stock DevTools `EcuVersionManager` labels the four radar routes LFCR/RFCR/
+RRCR/LRCR respectively; F194 alone cannot distinguish their physical positions
+because all four have the same code. These additional modules were identified,
+but their DTC memories were not read in this pass.
+
+#### `7E5` identifies itself through standard OBD
+
+After UDS `22` had returned NRC `11`, the fixed OBD plan read `09 00`,
+`09 04` and `09 0A` (supported information, calibration identifier, ECU name).
+Mode `09` ECU-name semantics are documented by
+[ToyotaInfoTech RAMN](https://github.com/ToyotaInfoTech/RAMN/blob/main/docs/userguide/diag_tutorial.rst)
+and [py-obdii](https://py-obdii.readthedocs.io/en/latest/api/modes/mode_09.html).
+No VIN or serial was requested.
+
+- Supported information bitmap: `14400000` (`04`, `06`, `0A`).
+- Calibration ID: ASCII `4000825042253153`.
+- ECU name: ASCII **`BSCM-BrakeSystem`**, with trailing zero padding.
+
+Thus `7E5` is a brake-system OBD interface, not an unidentified traction
+controller. Whether it and UDS `782` are two interfaces of one physical unit
+is **unproved**; do not count them as two physical brake controllers.
+
+#### Guards, evidence and remaining gap
+
+`tools/vehicle-diagnostics/RemainingEcuReadProbe.java` runs only as shell,
+holds the shared `denza-dtc-read.lock`, observes the RX channel for two seconds,
+and checks profile170, P, zero speed and the idle manager **before each request**.
+The native Binder getter layouts (tx5 integer, tx7 float) were independently
+verified in `libbydauto.so` before the run. Every plan starts with the known
+ECM F194 control; DTC targets have additional identity gates. Callbacks are
+copied, serialized, bounded and checked for sequence, ID, DID/subfunction and
+count/list agreement. The independent deadline is 90 seconds (70 in the first
+identification build), with no retry.
+
+All seven runs retained P/zero speed, manager baseline and PIDs
+`autoservice=128`, `SpotInspection=3578`, `com.byd.avc=4634`.
+Crash buffers stayed empty; listeners unregistered, helper processes exited
+and their own dex files were removed. The installed app hash was unchanged
+before/after each run. No APK was installed, no session/clear/unlock/write/
+routine was issued, and neither BydLogTool nor a cloud request was used.
+Raw traces, exact executed source/dex hashes, plans, pre/post checks and
+independent offline reports remain under
+`captures/diagnostics-remaining-20261020/`.
+
+**Still missing:** routes for SMCU `48370011E086001100`, SMCU3
+`48370011E088001100` and DCOBC `48350011E04D000100`.
+None of those codes appeared among the 70 checked F194 addresses.
+Timeouts at candidates such as `780/785/797` do not prove absence from the car,
+and no address outside a source-backed candidate list was swept.
+The separate ADS metadata runs received 225 server records but retained only
+the ADC projection; the other routes cannot be reconstructed from its response
+hash. The remaining path is a transport-aware complete factory route projection
+or an exact local route source, rather than another assumption from a generic
+address label. Earlier one-session identity/export approvals are consumed.
+
+Research now demonstrates DTC reads at **15 addresses** in total, plus the
+OBD-only brake interface `7E5`. Product coverage is unchanged: the packaged
+reader still allows only `720` and `762`, and the service window is parked
+behind `-Pdiagnostics`. These findings have not been promoted into the UI.
 
 ## Consumption journal
 

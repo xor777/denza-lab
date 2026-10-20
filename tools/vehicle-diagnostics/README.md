@@ -1,4 +1,34 @@
-# OTA route observer
+# Vehicle diagnostic research tools
+
+## Remaining ECU reader (2026-10-20)
+
+`RemainingEcuReadProbe.java` is a shell `app_process` reader. Its fixed plans
+qualified additional addresses and DTC access on the owner's profile170 Z9GT.
+Results and limits are in
+[vehicle-data-findings.md](../../docs/vehicle-data-findings.md#remaining-ecu-identities-and-chassis-dtc-2026-10-20)
+and [the decoded evidence](../../research/vehicle-diagnostics/remaining-ecus-20261020.json).
+
+| Argument | Fixed operation |
+| --- | --- |
+| None | F194 at the ECM control and eleven chassis/ADAS/drive address candidates |
+| `dtc` | ECM control, then exact F194 identity and `19 01 09` / `19 02 09` for five qualified modules |
+| `catalog1`…`catalog4` | ECM control and up to eighteen remaining published address candidates, F194 only |
+| `obd-name` | ECM control; `09 00`, `09 04`, `09 0A` at the OBD-only `7E5` interface |
+
+Every request checks shell/profile170/P/zero speed/idle diagnostic manager;
+the process holds the same file lock as the packaged DTC reader. A passive
+two-second window precedes the first request. ECM identity mismatch, unexpected
+traffic, invalid sequencing, DTC count/list mismatch or a changed guard stops
+the plan. Deadline90 s, per-request timeout4 s, no retries or arbitrary targets.
+There are no session, clear, security, routine, VIN/serial or OTA requests.
+
+Compile this source with `ShellProxyBootstrap.java` using the repository's
+JDK17, Android35 stubs and d8 (`--min-api 33`). It is outside the app build.
+The executed source copies and manifests, build outputs, host pre/post checks
+and bounded runners are retained in `captures/diagnostics-remaining-20261020/`.
+The vehicle's app was not installed or replaced.
+
+## OTA route observer
 
 `OtaRouteObserver.java` is an isolated `app_process` helper, outside product APKs.
 It temporarily sets two logging properties to `D`, streams their `logcat` output,

@@ -24,6 +24,17 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   `obd-20261020.json`. Raw runs are under the ignored
   `captures/diagnostics-obd-20261020/`.
 
+- `remaining-ecus-20261020.json` continues those runs: 70 distinct F194 targets,
+  33 positive responses and 32 exact stock-cache matches. ABS/ESP `782`, EPS
+  `783`, SRS `7F1`, ADC `712` and front radar `7F2` each returned explicit zero
+  count and list for DTC mask `09` (testFailed OR confirmedDTC).
+  OBD `09 0A` identifies `7E5` as `BSCM-BrakeSystem`; its physical relationship
+  to `782` is unknown. SMCU/SMCU3/DCOBC routes remain unresolved. The fixed
+  shell reader is [`RemainingEcuReadProbe.java`](../../tools/vehicle-diagnostics/RemainingEcuReadProbe.java);
+  its seven executed plans, source/dex hashes and cleanup evidence are in
+  `captures/diagnostics-remaining-20261020/`. No product allowlist was changed.
+  ADS reports DTC format `01`; the other four newly read modules report `00`.
+
 The promoted two-target allowlisted reader is `VehicleDtcProxyMain` in Denza Apps;
 `VehicleDiagnostics` supplies profile/P/speed checks, ownership and UI lifecycle.
 The exact packed helper was separately verified live on 2026-10-18. The native
@@ -34,7 +45,8 @@ directories. The two-target helper SHA-256 is
 `33ce6a7242ad8f62b677af3f91f5e8491076e2cdaca63e13daabdb55038ecf0c`.
 Pass optional `lbms` as the decoder CLI third argument for its two trace files.
 Multi-frame replies, other ECUs, freeze frames and manufacturer code
-descriptions remain unqualified.
+descriptions remain unqualified for the packaged two-target reader. The later
+research probes above establish additional routes without promoting them.
 
 The next investigation is retained in `engine-evidence-20261018.json`,
 `powertrain-evidence-20261018.json` and `chassis-research-20261018.json`.
