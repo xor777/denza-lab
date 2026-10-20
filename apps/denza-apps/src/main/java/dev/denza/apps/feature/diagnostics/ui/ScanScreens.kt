@@ -88,11 +88,7 @@ internal fun ScanListPage(
             buttons = listOf(scanButton(model, rescan), FooterButton("Только с DTC", onlyDtc) { onOnlyDtc(!onlyDtc) }),
             notes = noticeNotes(
                 model,
-                listOf(
-                    FooterNote.Words("Имена — по номеру ПО (F194) и кэшу обновлений BYD · ≈ — по сокращению"),
-                    FooterNote.Divider,
-                    FooterNote.Words(if (answered.size == 2) "${answered[0]} из ${answered[1]} ответили" else model.scan.answered, mono = true),
-                ),
+                listOf(FooterNote.Words(if (answered.size == 2) "${answered[0]} из ${answered[1]} ответили" else model.scan.answered, mono = true)),
             ),
             noteInk = if (model.scan.notice != null) Ink.ORANGE_INK else Ink.FAINT,
         )
@@ -155,8 +151,7 @@ internal fun ScanRow(row: ModuleRowView, cols: List<Pair<Float, Float>>, onClick
     }
     val chip = ScannerWords.chip(row.status)
     Box(Modifier.fillMaxWidth().height((h + s.RULE).dp).tap(if (row.target != null) onClick else null)) {
-        val name = if (row.inferred) "≈ ${row.name}" else row.name
-        ScanText(name, Type.CELL, nameInk, Modifier.at(cols[0].first + s.PAD, mid(0f, h, Type.CELL)), maxWidth = cols[0].second - s.PAD)
+        ScanText(row.name, Type.CELL, nameInk, Modifier.at(cols[0].first + s.PAD, mid(0f, h, Type.CELL)), maxWidth = cols[0].second - s.PAD)
         ScanText(row.unit, Type.CELL_SMALL, Ink.DIM, Modifier.at(cols[1].first, mid(0f, h, Type.CELL_SMALL)), maxWidth = cols[1].second)
         ScanText(row.route, Type.CELL_MONO, Ink.DIM, Modifier.at(cols[2].first, mid(0f, h, Type.CELL_MONO)))
         ScanText(row.protocol, Type.CELL_SMALL, Ink.DIM, Modifier.at(cols[3].first, mid(0f, h, Type.CELL_SMALL)))
@@ -226,7 +221,7 @@ internal fun TopologyPage(model: DiagnosticsModel, header: @Composable () -> Uni
             buttons = listOf(scanButton(model, rescan)),
             legend = listOf(Swatch.OK to "OK", Swatch.HIST to "DTC в истории", Swatch.UNREAD to "ответил, ошибки не читали", Swatch.NONE to "адрес не найден"),
             legendGap = 16f,
-            notes = noticeNotes(model, listOf(FooterNote.Words("≈ — назначение по сокращению из кэша BYD · связи функциональные"))),
+            notes = noticeNotes(model, emptyList()),
             noteInk = if (model.scan.notice != null) Ink.ORANGE_INK else Ink.FAINT,
         )
     }) {

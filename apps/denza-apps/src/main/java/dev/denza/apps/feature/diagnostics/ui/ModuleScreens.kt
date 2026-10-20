@@ -51,18 +51,16 @@ internal const val TAB_DTC = 0
 internal fun moduleTabs(module: ModuleView): List<String> =
     if (module.obd != null) listOf("DTC и готовность", "Потоковые данные", "Идентификация") else listOf("Ошибки DTC", "Идентификация")
 
-internal fun moduleTitle(module: ModuleView): String = if (module.inferred) "≈ ${module.name}" else module.name
+/** A block by its name; a role read from an abbreviation is the catalog's business, not the screen's. */
+internal fun moduleTitle(module: ModuleView): String = module.name
 
-/** What a fixture adds that the session does not have: its caveat under the screen, its charts' scale. */
+/** What a fixture adds that the session does not have: its charts' scale. */
 internal data class ScannerSample(
-    /** The board's footer when its values are illustrative, in place of the screen's own notes. */
-    val footer: String? = null,
     /** The live charts' range; null scales each chart to its own last 60 s. */
     val chartRange: ClosedFloatingPointRange<Float>? = null,
 )
 
 private val BACK = "‹ Автоскан"
-private val READ_ONLY = FooterNote.Words("только чтение", mono = true)
 
 @Composable
 internal fun ModulePage(
@@ -93,10 +91,9 @@ internal fun ModulePage(
                         actions.setRecording(module.request, !obd.live.recording)
                     },
                 ),
-                notes = sample?.footer?.let { listOf(FooterNote.Words(it)) }
-                    ?: listOf(FooterNote.Words("частота и задержка — измеренные"), FooterNote.Divider, READ_ONLY),
+                notes = emptyList(),
             )
-            else -> DtcFooter(module, back, sample) { actions.readModule(module.request) }
+            else -> DtcFooter(module, back) { actions.readModule(module.request) }
         }
     }
     ScannerPage(footer = footer) {
@@ -137,29 +134,19 @@ internal fun ModuleHead(module: ModuleView, line: String) {
 }
 
 @Composable
-private fun DtcFooter(module: ModuleView, back: FooterButton, sample: ScannerSample?, read: () -> Unit) {
-    val buttons = listOf(back, FooterButton("Прочитать DTC", true, read))
-    val notes = when {
-        sample?.footer != null -> listOf(FooterNote.Words(sample.footer))
-        module.obd != null -> listOf(FooterNote.Words("Не готов ≠ неисправность: монитор ещё не выполнил тест после сброса DTC"), FooterNote.Divider, READ_ONLY)
-        else -> dtcNotes(module.dtc)
-    }
-    ScanFooter(buttons, notes)
+private fun DtcFooter(module: ModuleView, back: FooterButton, read: () -> Unit) {
+    ScanFooter(listOf(back, FooterButton("Прочитать DTC", true, read)), if (module.obd != null) emptyList() else dtcNotes(module.dtc))
 }
 
-/** A memory read's footnote: what was asked and when, read only; a record outside the mask said first. */
+/** A memory read's footnote: what was asked and when; a record outside the mask said first. */
 internal fun dtcNotes(dtc: DtcView): List<FooterNote> {
-    val read = if (dtc.footnote.isEmpty()) READ_ONLY else FooterNote.Words("${dtc.footnote} · только чтение", mono = true)
-    return if (dtc.outsideMask) listOf(FooterNote.Words("Есть записи вне маски запроса"), FooterNote.Divider, read) else listOf(read)
+    val asked = listOfNotNull(dtc.footnote.takeIf { it.isNotEmpty() }?.let { FooterNote.Words(it, mono = true) })
+    return if (dtc.outsideMask) listOf(FooterNote.Words("Есть записи вне маски запроса")) + asked.flatMap { listOf(FooterNote.Divider, it) } else asked
 }
 
 @Composable
 private fun IdentFooter(ident: IdentView, back: FooterButton, reread: () -> Unit) {
-    val asked = FooterNote.Words("22 F18A · F194 · F195 · только чтение", mono = true)
-    ScanFooter(
-        listOf(back, FooterButton("Прочитать снова", true, reread)),
-        if (ident.pids.isNotEmpty()) listOf(FooterNote.Words("Тёмные PID — служебные: список следующих"), FooterNote.Divider, asked) else listOf(asked),
-    )
+    ScanFooter(listOf(back, FooterButton("Прочитать снова", true, reread)), listOf(FooterNote.Words("22 F18A · F194 · F195", mono = true)))
 }
 
 /* ------------------------------------------------------------------ DTC */
@@ -214,10 +201,6 @@ private fun CodesWithStatus(records: List<DtcRow>) {
             ScanParagraph(e.lead, Type.LEAD, Ink.WHITE, b.EXPLAIN_W)
             Spacer(Modifier.height(b.EXPLAIN_GAP.dp))
             ScanParagraph(e.body, Type.BODY, Ink.DIM, b.EXPLAIN_W)
-            if (e.aside != null) {
-                Spacer(Modifier.height(b.EXPLAIN_GAP.dp))
-                ScanParagraph(e.aside, Type.SMALL, Ink.FAINT, b.EXPLAIN_W)
-            }
         }
         ScannerWords.BITS.forEachIndexed { i, bit ->
             val ly = b.BELOW + i * (Type.LEGEND.lh + b.LEGEND_ROW_GAP)
@@ -262,10 +245,10 @@ internal fun MaskAsks(dtc: DtcView, x: Float, w: Float) {
     }
     val iw = w - 2f * k.PLATE_PAD_X
     val result = when {
-        dtc.records.isNotEmpty() -> "Записей: ${dtc.records.size}."
+        dtc.records.isNotEmpty() -> "Записей: ${dtc.records.size}"
         dtc.quality == DataQuality.COMPLETE_EMPTY ->
-            "Записей нет: блок не видит отказа сейчас и не хранит подтверждённых, в том числе исторических."
-        else -> "Память не прочитана: ${dtc.quality.label}."
+            "Записей нет"
+        else -> dtc.quality.label.replaceFirstChar { it.uppercase() }
     }
     Column(
         Modifier.at(x, y + k.PLATE_GAP).width(w.dp).plate(Ink.PLATE, Ink.RULE, k.PLATE_R)
@@ -287,8 +270,6 @@ internal fun MaskAsks(dtc: DtcView, x: Float, w: Float) {
         }
         Spacer(Modifier.height(k.PLATE_GAP_IN.dp))
         ScanParagraph(result, Type.BODY_STRONG, Ink.WHITE, iw)
-        Spacer(Modifier.height(k.PLATE_GAP_IN.dp))
-        ScanParagraph("Ожидающие (PDTC) и ещё не проверенные коды этой маской не видны.", Type.SMALL, Ink.DIM2, iw)
     }
 }
 
@@ -532,13 +513,7 @@ internal fun IdentContent(ident: IdentView) {
     val i = ScannerSpec.EcuIdent
     var cols = ScannerSpec.columns(i.OWN_COLS, d.LEFT_X, d.LEFT_W)
     HeadRow(cols, listOf(HeadLabel("ОТВЕЧАЕТ БЛОК")), d.TOP, d.HEAD)
-    val yl = KeyRows(ident.own, cols, d.TOP + d.HEAD + 1f, i.ROW, d.LEFT_X, d.LEFT_W)
-    val note = when (ident.matched) {
-        true -> "Блок назван по совпадению номера ПО (F194) с кэшем обновлений: сам адрес блок не называет."
-        false -> "Номер ПО (F194) не совпал с кэшем: на этом адресе другой блок, его память ошибок не читали."
-        null -> null
-    }
-    if (note != null) ScanParagraph(note, Type.SMALL, Ink.FAINT, d.LEFT_W - 12f, Modifier.at(d.LEFT_X + 12f, yl + i.NOTE_GAP))
+    KeyRows(ident.own, cols, d.TOP + d.HEAD + 1f, i.ROW, d.LEFT_X, d.LEFT_W)
 
     cols = ScannerSpec.columns(i.CACHE_COLS, d.RIGHT_X, d.RIGHT_W)
     HeadRow(cols, listOf(HeadLabel("КЭШ ОБНОВЛЕНИЙ BYD")), d.TOP, d.HEAD)

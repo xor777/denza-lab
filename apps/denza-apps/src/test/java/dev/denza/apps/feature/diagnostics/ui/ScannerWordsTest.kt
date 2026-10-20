@@ -1,0 +1,108 @@
+package dev.denza.apps.feature.diagnostics.ui
+
+import dev.denza.apps.feature.diagnostics.scan.CompareColumn
+import dev.denza.apps.feature.diagnostics.scan.Field
+import dev.denza.apps.feature.diagnostics.scan.IdentView
+import dev.denza.apps.feature.diagnostics.scan.ModuleGroupView
+import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
+import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** What the scanner's screens derive from the model themselves. */
+class ScannerWordsTest {
+
+    private fun row(status: ModuleStatus, active: String = "0", history: String = "0", request: Int? = 0x720) = ModuleRowView(
+        request = request, abbreviation = "LA_BCM", unit = "LA_BCM", name = "Кузовной контроллер левый", short = "Кузов слева",
+        inferred = false, route = ScannerWords.route(request), protocol = "UDS", active = active, history = history,
+        status = status, target = null,
+    )
+
+    @Test
+    fun aHistoricalStatusIsReadOutBitByBit() {
+        // the R_ZCU's two records, 19 02 FF from 747 on 2026-10-20
+        val e = ScannerWords.explain(0x28)
+        assertEquals("СТАТУС 0x28 = 0010 1000", e.head)
+        assertEquals("Подтверждённый, неактивный (исторический).", e.lead)
+        assertEquals(
+            "CDTC = 1 и TFSLC = 1: отказ был зафиксирован после последнего сброса. " +
+                "TF = 0, TFTOC = 0 и TNCTOC = 0: в текущем цикле тест выполнен, отказа нет. WIR = 0: лампу не запрашивает.",
+            e.body,
+        )
+    }
+
+    @Test
+    fun anActiveConfirmedStatusAsksForTheLamp() {
+        val e = ScannerWords.explain(0xAF)
+        assertEquals("Активный, подтверждённый.", e.lead)
+        assertTrue(e.body.endsWith("WIR = 1: блок запрашивает лампу."))
+        assertTrue(ScannerWords.asksLamp(0xAF))
+        assertFalse(ScannerWords.asksLamp(0x28))
+    }
+
+    @Test
+    fun theReplyAddressIsTheRequestPlusEight() {
+        assertEquals("7E0 → 7E8", ScannerWords.route(0x7E0))
+        assertEquals("747 → 74F", ScannerWords.route(0x747))
+        assertEquals("—", ScannerWords.route(null))
+    }
+
+    @Test
+    fun onlyWithDtcKeepsTheRowsWhoseMemoryHoldsARecord() {
+        val g = ModuleGroupView(
+            "body", "КУЗОВ", "Кузов", "",
+            listOf(row(ModuleStatus.HISTORY, history = "8"), row(ModuleStatus.OK), row(ModuleStatus.UNREAD, "—", "—")),
+        )
+        val empty = g.copy(id = "lv", rows = listOf(row(ModuleStatus.OK)))
+        assertEquals(listOf(g, empty), ScannerWords.filter(listOf(g, empty), onlyDtc = false))
+        val kept = ScannerWords.filter(listOf(g, empty), onlyDtc = true)
+        assertEquals(listOf("body"), kept.map { it.id })
+        assertEquals(listOf(ModuleStatus.HISTORY), kept.single().rows.map { it.status })
+    }
+
+    @Test
+    fun everyStatusHasAChipAndOnlyReadOnesCount() {
+        ModuleStatus.entries.forEach { assertTrue(it.name, ScannerWords.chip(it).text.isNotEmpty()) }
+        assertEquals("OK", ScannerWords.chip(ModuleStatus.OK).text)
+        assertEquals("НЕТ АДРЕСА", ScannerWords.chip(ModuleStatus.NO_ROUTE).text)
+        assertEquals(ScannerWords.Look.UNREAD, ScannerWords.chip(ModuleStatus.UNREAD).look)
+        assertTrue(ScannerWords.read(ModuleStatus.HISTORY))
+        assertFalse(ScannerWords.read(ModuleStatus.UNREAD))
+        assertEquals("ИСТ 8", ScannerWords.tileState(row(ModuleStatus.HISTORY, history = "8")))
+    }
+
+    @Test
+    fun bitmapPidsAreTheServiceOnesAndTheAskedListStopsBeforeTheLast() {
+        val pids = "01 03 1F 20 21 40 41 60 67 80".split(' ')
+        assertEquals(listOf("20", "40", "60", "80"), pids.filter(ScannerWords::bitmapPid))
+        assertEquals("01 00, 01 20, 01 40, 01 60", ScannerWords.pidsAsked(pids))
+    }
+
+    @Test
+    fun theMatchIsCountedInTheBytesOfF194() {
+        val ident = IdentView(listOf(Field("Номер ПО поставщика · F194", "32440011E004000000")), emptyList(), true, emptyList())
+        assertEquals("побайтно, 9 байт", ScannerWords.matchedBytes(ident))
+        assertEquals(null, ScannerWords.matchedBytes(ident.copy(own = emptyList())))
+    }
+
+    @Test
+    fun theDrivesLineAndAsideComeFromTheColumns() {
+        val cols = listOf(
+            CompareColumn("FMCU", "Передний", 0x7E3), CompareColumn("SMCU", "Задний левый", null),
+            CompareColumn("SMCU3", "Задний правый", null), CompareColumn("ISG", "Мотор-генератор", 0x7E6),
+        )
+        assertEquals("FMCU 7E3 → 7EB · ISG 7E6 → 7EE · SMCU, SMCU3: адрес не найден · данные: шина сигналов (autoservice)", ScannerWords.drivesLine(cols))
+        assertEquals("· 3 мотора + мотор-генератор", ScannerWords.drivesAside(cols))
+        assertEquals("FMCU · 7E3", ScannerWords.columnTag(cols[0]))
+        assertEquals("SMCU", ScannerWords.columnTag(cols[1]))
+    }
+
+    @Test
+    fun aGroupSpanningTwoColumnsKeepsItsWholeTitle() {
+        val g = ModuleGroupView("misc", "НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО", "Прочие", "", List(12) { row(ModuleStatus.UNREAD) })
+        assertEquals("НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО · 12", ScannerWords.topologyLabel(g, 2))
+        assertEquals("ПРОЧИЕ · 12", ScannerWords.topologyLabel(g, 1))
+    }
+}

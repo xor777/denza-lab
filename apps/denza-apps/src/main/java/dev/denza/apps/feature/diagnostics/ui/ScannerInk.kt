@@ -14,6 +14,10 @@ import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -97,27 +101,36 @@ private fun Style.span(color: Int): SpanStyle = SpanStyle(
 private const val ARROW = '→'
 private const val ARROW_ID = "arrow"
 
-/** «→» as the board draws it, a line with a head, in a placeholder as wide as its `arrowW`. */
-private fun arrowContent(style: Style, color: Int): Map<String, InlineTextContent> = mapOf(
+/** Room for «→», as wide as the board's `arrowW`; the arrow itself is drawn by [arrows]. */
+private fun arrowRoom(style: Style): Map<String, InlineTextContent> = mapOf(
     ARROW_ID to InlineTextContent(
         Placeholder((style.arrowWidth / style.size).em, 0.5.em, PlaceholderVerticalAlign.AboveBaseline),
-    ) {
-        Canvas(Modifier.fillMaxSize()) {
-            val a = ScannerSpec.Fonts.Arrow
-            val z = size.height / 0.5f
-            val w = size.width - style.track * z
-            val pad = 0.07f * z
-            val y = size.height - a.Y * z
-            val x0 = pad
-            val x1 = w - pad
-            val c = ink(color)
-            val sw = a.STROKE * z
-            drawLine(c, Offset(x0, y), Offset(x1, y), sw, StrokeCap.Round)
-            drawLine(c, Offset(x1 - a.HEAD * z, y - a.SPREAD * z), Offset(x1, y), sw, StrokeCap.Round)
-            drawLine(c, Offset(x1 - a.HEAD * z, y + a.SPREAD * z), Offset(x1, y), sw, StrokeCap.Round)
-        }
-    },
+    ) {},
 )
+
+/**
+ * «→» as the board draws it - a line with a head, [Style.arrowWidth] wide, 0.3 em over the
+ * baseline of its own line - into every placeholder of the laid-out text.
+ */
+private fun Modifier.arrows(layout: () -> TextLayoutResult?, style: Style, color: Int): Modifier = drawWithContent {
+    drawContent()
+    val l = layout() ?: return@drawWithContent
+    val a = ScannerSpec.Fonts.Arrow
+    val z = style.size.sp.toPx()
+    val c = ink(color)
+    val sw = a.STROKE * z
+    l.placeholderRects.forEach { r ->
+        if (r == null) return@forEach
+        val line = l.getLineForVerticalPosition(r.center.y)
+        val y = l.getLineBaseline(line) - a.Y * z
+        val w = r.width - style.track * z
+        val x0 = r.left + 0.07f * z
+        val x1 = r.left + w - 0.07f * z
+        drawLine(c, Offset(x0, y), Offset(x1, y), sw, StrokeCap.Round)
+        drawLine(c, Offset(x1 - a.HEAD * z, y - a.SPREAD * z), Offset(x1, y), sw, StrokeCap.Round)
+        drawLine(c, Offset(x1 - a.HEAD * z, y + a.SPREAD * z), Offset(x1, y), sw, StrokeCap.Round)
+    }
+}
 
 private fun withArrows(parts: List<Pair<String, SpanStyle?>>): AnnotatedString = buildAnnotatedString {
     parts.forEach { (str, span) ->
@@ -135,11 +148,16 @@ private fun withArrows(parts: List<Pair<String, SpanStyle?>>): AnnotatedString =
  * The line box: as tall as the style's line height, the first baseline [baseline] below its top
  * (the style's own unless given - a count on its name's baseline), whatever Compose's leading.
  */
-private fun Modifier.lineBox(style: Style, baseline: Float?): Modifier = layout { m, c ->
+private fun Modifier.lineBox(style: Style, baseline: Float?, laid: Array<TextLayoutResult?>): Modifier = layout { m, c ->
     val p = m.measure(c.copy(minHeight = 0, maxHeight = Constraints.Infinity))
     val first = p[FirstBaseline]
     val b = (baseline ?: style.baseline).dp.toPx().roundToInt()
-    layout(p.width, style.lh.dp.roundToPx()) { p.place(0, b - first) }
+    // as wide as the board measures the words - their advances and every letter's spacing, the
+    // last one's too, which Android leaves off a line - not as the box Compose rounds them up
+    // into, so a right-aligned or centred line ends where the board's does
+    val track = style.track * style.size.sp.toPx()
+    val w = laid[0]?.let { (it.getLineRight(0) - it.getLineLeft(0) + track).roundToInt() } ?: p.width
+    layout(w, style.lh.dp.roundToPx()) { p.place(0, b - first) }
 }
 
 /** A glow as the board's `glow()`: Chrome's shadowBlur in dp, as a text shadow. */
@@ -167,16 +185,21 @@ internal fun ScanText(
 ) {
     val shadow = glowShadow(glow, glowBlur)
     val annotated = remember(text) { withArrows(listOf(text to null)) }
+    val arrow = ARROW in text
+    val laid = remember { mutableStateOf<TextLayoutResult?>(null) }
+    val held = remember { arrayOfNulls<TextLayoutResult>(1) }
     BasicText(
         text = annotated,
         modifier = modifier
             .then(if (maxWidth != null) Modifier.widthIn(max = maxWidth.coerceAtLeast(0f).dp) else Modifier)
-            .lineBox(style, baseline),
+            .lineBox(style, baseline, held)
+            .then(if (arrow) Modifier.arrows({ laid.value }, style, color) else Modifier),
         style = style.text(color, shadow),
+        onTextLayout = { held[0] = it; if (arrow) laid.value = it },
         overflow = TextOverflow.Ellipsis,
         softWrap = false,
         maxLines = 1,
-        inlineContent = if (ARROW in text) remember(style, color) { arrowContent(style, color) } else emptyMap(),
+        inlineContent = if (arrow) remember(style) { arrowRoom(style) } else emptyMap(),
     )
 }
 
@@ -190,16 +213,21 @@ internal fun ScanRuns(
 ) {
     val first = base
     val annotated = remember(runs) { withArrows(runs.map { (s, st, c) -> s to st.span(c) }) }
+    val arrow = runs.any { ARROW in it.first }
+    val laid = remember { mutableStateOf<TextLayoutResult?>(null) }
+    val held = remember { arrayOfNulls<TextLayoutResult>(1) }
     BasicText(
         text = annotated,
         modifier = modifier
             .then(if (maxWidth != null) Modifier.widthIn(max = maxWidth.coerceAtLeast(0f).dp) else Modifier)
-            .lineBox(first, null),
+            .lineBox(first, null, held)
+            .then(if (arrow) Modifier.arrows({ laid.value }, runs.first().second, runs.first().third) else Modifier),
+        onTextLayout = { held[0] = it; if (arrow) laid.value = it },
         style = runs.first().second.text(runs.first().third),
         overflow = TextOverflow.Ellipsis,
         softWrap = false,
         maxLines = 1,
-        inlineContent = if (runs.any { ARROW in it.first }) remember(first) { arrowContent(runs.first().second, runs.first().third) } else emptyMap(),
+        inlineContent = if (arrow) remember(first) { arrowRoom(runs.first().second) } else emptyMap(),
     )
 }
 
@@ -209,8 +237,12 @@ internal fun ScanRuns(
  */
 @Composable
 internal fun ScanParagraph(text: String, style: Style, color: Int, width: Float, modifier: Modifier = Modifier) {
+    val arrow = ARROW in text
+    val laid = remember { mutableStateOf<TextLayoutResult?>(null) }
     BasicText(
-        text = text,
+        text = remember(text) { withArrows(listOf(text to null)) },
+        onTextLayout = { if (arrow) laid.value = it },
+        inlineContent = if (arrow) remember(style) { arrowRoom(style) } else emptyMap(),
         modifier = modifier.width(width.dp).layout { m, c ->
             val p = m.measure(c.copy(minHeight = 0, maxHeight = Constraints.Infinity))
             val first = p[FirstBaseline]
@@ -218,7 +250,7 @@ internal fun ScanParagraph(text: String, style: Style, color: Int, width: Float,
             val b = style.baseline.dp.toPx().roundToInt()
             val lh = style.lh.dp.toPx()
             layout(p.width, (last - first + lh).roundToInt()) { p.place(0, b - first) }
-        },
+        }.then(if (arrow) Modifier.arrows({ laid.value }, style, color) else Modifier),
         style = style.text(color),
     )
 }
@@ -235,29 +267,39 @@ internal fun rememberWidths(): (String, Style) -> Float {
     return remember(measurer, density) {
         { text, style ->
             val r = measurer.measure(AnnotatedString(text), style.text(0), softWrap = false, maxLines = 1, density = density)
-            (r.getLineRight(0) - r.getLineLeft(0)) / density.density
+            (r.getLineRight(0) - r.getLineLeft(0)) / density.density + style.track * style.size
         }
     }
 }
 
 /* ------------------------------------------------------------- placing */
 
+/**
+ * Places at [x] px with its fraction kept: on the whole pixel below and the rest as the layer's
+ * translation, so text whose board column starts at 36.4 dp is not rounded to 36.5 or 36.
+ */
+private fun Placeable.PlacementScope.placeAt(p: Placeable, x: Float, y: Int) {
+    val whole = kotlin.math.floor(x)
+    val frac = x - whole
+    if (frac < 0.02f) p.place(whole.toInt(), y) else p.placeWithLayer(whole.toInt(), y) { translationX = frac }
+}
+
 /** At [x], [y] dp of the parent's top-left. */
 internal fun Modifier.at(x: Float, y: Float): Modifier = layout { m, c ->
     val p = m.measure(c.copy(minWidth = 0, minHeight = 0))
-    layout(p.width, p.height) { p.place(x.dp.roundToPx(), y.dp.roundToPx()) }
+    layout(p.width, p.height) { placeAt(p, x.dp.toPx(), y.dp.roundToPx()) }
 }
 
 /** Its end at [x]: the board's `align: 'right'`. */
 internal fun Modifier.endAt(x: Float, y: Float): Modifier = layout { m, c ->
     val p = m.measure(c.copy(minWidth = 0, minHeight = 0))
-    layout(p.width, p.height) { p.place((x.dp.toPx() - p.width).roundToInt(), y.dp.roundToPx()) }
+    layout(p.width, p.height) { placeAt(p, x.dp.toPx() - p.width, y.dp.roundToPx()) }
 }
 
 /** Its middle at [x]: the board's `align: 'center'`. */
 internal fun Modifier.centreAt(x: Float, y: Float): Modifier = layout { m, c ->
     val p = m.measure(c.copy(minWidth = 0, minHeight = 0))
-    layout(p.width, p.height) { p.place((x.dp.toPx() - p.width / 2f).roundToInt(), y.dp.roundToPx()) }
+    layout(p.width, p.height) { placeAt(p, x.dp.toPx() - p.width / 2f, y.dp.roundToPx()) }
 }
 
 /** A tap with no ripple: the scanner's surfaces are flat. */

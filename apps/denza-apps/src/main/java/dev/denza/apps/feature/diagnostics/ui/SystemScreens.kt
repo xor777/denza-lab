@@ -58,19 +58,6 @@ internal object Systems {
     /** The tab a tap on the system opens: the battery's readings, every other system's first. */
     fun firstTab(screen: SystemScreen): Int = if (screen == SystemScreen.PACK) 1 else 0
 
-    /*
-     * What the battery table's marks say. The rows carry the marks (`кОм¹`, `Ток ВВБ²`) but the model
-     * has no place for their footnotes yet, so the screen keeps them and shows each only when a row
-     * carries its mark.
-     */
-    private const val UNIT_NOTE = "¹ единица по GB/T 32960 (кОм), на этой машине не подтверждена"
-    private const val SIGN_NOTE = "² знак тока не подтверждён"
-
-    fun packNotes(rows: List<SignalRow>): List<FooterNote> {
-        val marks = rows.joinToString(" ") { it.name + it.unit }
-        val said = listOfNotNull(UNIT_NOTE.takeIf { '¹' in marks }, SIGN_NOTE.takeIf { '²' in marks })
-        return if (said.isEmpty()) emptyList() else listOf(FooterNote.Words(said.joinToString(" · ")))
-    }
 }
 
 private val BACK_LABEL = "‹ Автоскан"
@@ -105,8 +92,8 @@ internal fun SystemPage(
             ScannerPage(footer = {
                 when {
                     dtc -> ScanFooter(listOf(back, FooterButton("Прочитать DTC", true) { refresh(listOf(lead!!.request)) }), dtcNotes(lead!!.dtc))
-                    ident -> ScanFooter(listOf(back, FooterButton("Прочитать снова", true) { refresh(listOf(lead!!.request)) }), listOf(FooterNote.Words("22 F194 · F195 · только чтение", mono = true)))
-                    else -> ScanFooter(listOf(back, FooterButton("Обновить", true) { refresh(listOf(lead?.request)) }), Systems.packNotes(rows))
+                    ident -> ScanFooter(listOf(back, FooterButton("Прочитать снова", true) { refresh(listOf(lead!!.request)) }), listOf(FooterNote.Words("22 F194 · F195", mono = true)))
+                    else -> ScanFooter(listOf(back, FooterButton("Обновить", true) { refresh(listOf(lead?.request)) }), emptyList())
                 }
             }) {
                 header()
@@ -116,7 +103,7 @@ internal fun SystemPage(
                     dtc -> DtcContent(lead!!)
                     ident -> IdentContent(lead!!.ident)
                     tab == 1 -> PackTable(rows)
-                    else -> Pending("Флаги GB/T 32960 ещё не читаются: их разбор не подтверждён на этой машине.")
+                    else -> Pending("Нет данных")
                 }
             }
         }
@@ -125,7 +112,7 @@ internal fun SystemPage(
             val requests = view.columns.map { it.request }
             val volts = model.systems.hv.busVoltages.map { it.removeSuffix(" В") }
             ScannerPage(footer = {
-                ScanFooter(listOf(back, FooterButton("Обновить", true) { refresh(requests) }), listOf(FooterNote.Words(view.notes.joinToString(" · "))))
+                ScanFooter(listOf(back, FooterButton("Обновить", true) { refresh(requests) }), emptyList())
             }) {
                 header()
                 BlockHead(
@@ -146,13 +133,13 @@ internal fun SystemPage(
             val requests = listOf(pack) + hv.units.map { it.address.toIntOrNull(16) }
             ScannerPage(footer = {
                 when (tab) {
-                    1 -> ScanFooter(listOf(back, FooterButton("Обновить", true) { refresh(listOf(pack)) }), Systems.packNotes(model.systems.pack))
-                    2 -> ScanFooter(listOf(back, FooterButton("Обновить", true) { refresh(model.systems.drives.columns.map { it.request }) }), listOf(FooterNote.Words(model.systems.drives.notes.joinToString(" · "))))
+                    1 -> ScanFooter(listOf(back, FooterButton("Обновить", true) { refresh(listOf(pack)) }), emptyList())
+                    2 -> ScanFooter(listOf(back, FooterButton("Обновить", true) { refresh(model.systems.drives.columns.map { it.request }) }), emptyList())
                     else -> ScanFooter(
                         listOf(FooterButton("Обновить", true) { refresh(requests) }),
                         legend = listOf(Swatch.OK to "блок отвечает по UDS", Swatch.UNREAD to "ответил, ошибки не читали", Swatch.NONE to "адрес не найден", Swatch.MECH to "механическая связь"),
                         legendGap = 18f,
-                        notes = listOf(FooterNote.Words("Схема функциональная · ≈ по сокращению")),
+                        notes = emptyList(),
                     )
                 }
             }) {
@@ -178,7 +165,7 @@ internal fun SystemPage(
             val obd = obdRequest?.let(module)
             ScannerPage(footer = {
                 if (tab == 1) {
-                    ScanFooter(listOf(back, FooterButton("Прочитать снова", true) { refresh(listOf(lead?.request)) }), listOf(FooterNote.Words("22 F194 · F195 · только чтение", mono = true)))
+                    ScanFooter(listOf(back, FooterButton("Прочитать снова", true) { refresh(listOf(lead?.request)) }), listOf(FooterNote.Words("22 F194 · F195", mono = true)))
                 } else {
                     ScanFooter(listOf(back, FooterButton("Прочитать DTC", true) { refresh(model.systems.brakeModules) }), lead?.let { dtcNotes(it.dtc) } ?: emptyList())
                 }
@@ -199,7 +186,7 @@ internal fun SystemPage(
                     if (tab == 1) IdentContent(lead.ident) else {
                         val d = ScannerSpec.EcuDtc
                         if (lead.dtc.records.isEmpty()) MaskAsks(lead.dtc, d.LEFT_X, d.LEFT_W) else DtcContent(lead)
-                        if (obd != null) ObdInterface(obd, lead.request)
+                        if (obd != null) ObdInterface(obd)
                     }
                 }
             }
@@ -210,10 +197,7 @@ internal fun SystemPage(
             ScannerPage(footer = {
                 ScanFooter(
                     listOf(back, FooterButton("Прочитать DTC", true) { refresh(requests) }),
-                    listOf(
-                        FooterNote.Words("≈ — по метке штатного менеджера версий"), FooterNote.Divider,
-                        FooterNote.Words("22 F194 · 19 01 09 · 19 02 09 · только чтение", mono = true),
-                    ),
+                    listOf(FooterNote.Words("22 F194 · 19 01 09 · 19 02 09", mono = true)),
                 )
             }) {
                 header()
@@ -351,47 +335,18 @@ private fun AdasTable(model: DiagnosticsModel, view: CompareView) {
         Rule(24f, y + h, w, Ink.HAIR)
         y += h + 1f
     }
-    if (view.notes.isEmpty()) return
-    val inner = w - 2f * a.NOTE_PAD_X
-    val gaps = a.NOTE_GAP * (view.notes.size - 1)
-    val nw = (inner - gaps) / view.notes.size
-    Row(
-        Modifier.at(24f, a.NOTE_TOP).width(w.dp).plate(Ink.PLATE, Ink.RULE, a.NOTE_R)
-            .padding(horizontal = a.NOTE_PAD_X.dp, vertical = a.NOTE_PAD_Y.dp),
-    ) {
-        view.notes.forEachIndexed { i, note ->
-            if (i > 0) Spacer(Modifier.width(a.NOTE_GAP.dp))
-            val (lead, body) = ScannerWords.leadAndBody(note)
-            Column(Modifier.width(nw.dp)) {
-                ScanText(lead, Type.PLATE_TEXT, Ink.TEXT, maxWidth = nw)
-                Spacer(Modifier.height(3.dp))
-                if (body.isNotEmpty()) ScanParagraph(body, Type.SMALL, Ink.DIM2, nw)
-            }
-        }
-    }
 }
 
 /* -------------------------------------------------------------- brakes */
 
 /** The brakes' OBD interface, its own address beside the ESP/IPB module. */
 @Composable
-private fun ObdInterface(module: ModuleView, beside: Int) {
+private fun ObdInterface(module: ModuleView) {
     val d = ScannerSpec.EcuDtc
     val k = ScannerSpec.Brakes
     val cols = ScannerSpec.columns(k.OBD_COLS, d.RIGHT_X, d.RIGHT_W)
     HeadRow(cols, listOf(HeadLabel("ИНТЕРФЕЙС OBD · ${ScannerWords.route(module.request)}")), k.TOP, k.HEAD)
-    val y = KeyRows(module.ident.own, cols, k.TOP + k.HEAD + 1f, k.OBD_ROW, d.RIGHT_X, d.RIGHT_W)
-    Column(
-        Modifier.at(d.RIGHT_X, y + k.ASIDE_GAP).width(d.RIGHT_W.dp).plate(Ink.PLATE, Ink.RULE, 6f)
-            .padding(horizontal = k.ASIDE_PAD_X.dp, vertical = k.ASIDE_PAD_Y.dp),
-    ) {
-        ScanText("Один это блок с ${ScannerWords.hex(beside)} или два — не установлено.", Type.PLATE_TEXT, Ink.TEXT)
-        Spacer(Modifier.height(k.ASIDE_GAP2.dp))
-        ScanParagraph(
-            "В автоскане ${ScannerWords.hex(module.request)} — отдельный адрес, а не второй блок тормозов.",
-            Type.SMALL, Ink.DIM2, d.RIGHT_W - 2f * k.ASIDE_PAD_X,
-        )
-    }
+    KeyRows(module.ident.own, cols, k.TOP + k.HEAD + 1f, k.OBD_ROW, d.RIGHT_X, d.RIGHT_W)
 }
 
 /* ------------------------------------------------------------------ hv */

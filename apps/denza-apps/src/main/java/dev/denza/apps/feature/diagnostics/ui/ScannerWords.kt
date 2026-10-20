@@ -115,7 +115,7 @@ internal object ScannerWords {
         (if (columnsSpanned > 1) group.title else group.short.uppercase()) + " · " + group.rows.size
 
     /** A status byte, read out: what the codes table's matrix shows, in sentences. */
-    data class Explanation(val head: String, val lead: String, val body: String, val aside: String?)
+    data class Explanation(val head: String, val lead: String, val body: String)
 
     fun explain(status: Int): Explanation {
         fun bit(i: Int) = (status shr i) and 1
@@ -141,8 +141,7 @@ internal object ScannerWords {
             else -> "TF = 0, TFTOC = 0 и TNCTOC = 0: в текущем цикле тест выполнен, отказа нет."
         }
         sentences += if (bit(7) == 1) "WIR = 1: блок запрашивает лампу." else "WIR = 0: лампу не запрашивает."
-        val aside = if (confirmed && !tf) "Штатный тестер BYD показывает такой статус как «历史故障» — исторический DTC." else null
-        return Explanation("СТАТУС ${hex2(status)} = $binary", lead, sentences.joinToString(" "), aside)
+        return Explanation("СТАТУС ${hex2(status)} = $binary", lead, sentences.joinToString(" "))
     }
 
     /** The fault view's four counts: the OBD lists and the UDS confirmed read, by service. */
@@ -172,12 +171,6 @@ internal object ScannerWords {
     /** The live tab's line: the route, the mode, how many PIDs, the measured rate. */
     fun liveLine(request: Int, rows: Int, rate: String): String =
         "${route(request)} · Mode 01 · $rows PID · опрос $rate · график за 60 с"
-
-    /** A note under a comparison: its first sentence leads, the rest is the quieter paragraph. */
-    fun leadAndBody(note: String): Pair<String, String> {
-        val i = note.indexOf(". ")
-        return if (i < 0) note to "" else note.substring(0, i + 1) to note.substring(i + 2)
-    }
 
     /** The drives' line: the routed controllers, then those without an address. */
     fun drivesLine(columns: List<CompareColumn>): String {

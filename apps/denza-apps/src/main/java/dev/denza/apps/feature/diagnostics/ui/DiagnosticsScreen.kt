@@ -39,8 +39,8 @@ internal sealed interface ScannerRoute {
  * its [Target]; «‹ Автоскан», the crumb and Back return to the autoscan, and the cross or Back
  * there leaves through [onClose].
  *
- * [start] and [sample] are for the debug fixtures: the board's screen, and what a fixture says
- * that the session never would (its values are illustrative; its charts already scaled).
+ * [start] and [sample] are for the debug fixtures: the board's screen, and the scale its live
+ * traces are already in.
  */
 @Composable
 internal fun DiagnosticsScreen(

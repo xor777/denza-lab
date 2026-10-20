@@ -72,13 +72,9 @@ internal object ScannerFixtures {
         else -> ScannerRoute.Scan()
     }
 
-    /** A scene whose footer says its values are illustrative, and the live traces already in 0..1. */
-    fun sample(all: JSONObject, id: String): ScannerSample {
-        val note = fixture(all, id).optJSONObject("footer")?.optJSONArray("notes")?.let { n ->
-            (0 until n.length()).map { n.get(it) }.filterIsInstance<String>().firstOrNull { it.startsWith("Пример") }
-        }
-        return ScannerSample(footer = note, chartRange = 0f..1f)
-    }
+    /** The scenes' live traces are already 0..1 of their own range. */
+    @Suppress("UNUSED_PARAMETER")
+    fun sample(all: JSONObject, id: String): ScannerSample = ScannerSample(chartRange = 0f..1f)
 
     fun model(all: JSONObject, id: String): DiagnosticsModel {
         val scan = fixture(all, "scanner-scan")

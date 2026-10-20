@@ -299,7 +299,9 @@ internal fun Badge(text: String, tone: Tone, size: BadgeSize = BadgeSize.NORMAL,
         BadgeSize.NORMAL -> Triple(g.H, g.PAD, Type.BADGE)
         BadgeSize.BIG -> Triple(g.BIG_H, g.BIG_PAD, Type.BADGE_BIG)
     }
-    Box(modifier.height(h.dp).plate(tone.fill, tone.line, g.R).padding(horizontal = pad.dp)) {
+    // as wide as the board's: the words' unrounded width and the padding
+    val w = rememberWidths()(text, style) + 2f * pad
+    Box(modifier.size(w.dp, h.dp).plate(tone.fill, tone.line, g.R).padding(start = pad.dp)) {
         ScanText(text, style, tone.ink, Modifier.padding(top = ((h - style.lh) / 2f).dp))
     }
 }
