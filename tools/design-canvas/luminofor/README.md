@@ -290,8 +290,7 @@ corrections below.
   files as the app's `res/font/roboto_mono_*.ttf`.
 - «→» is drawn (`fonts.arrow`: one mono cell, or 0.8 em in Roboto), because neither Roboto nor
   Roboto Mono has U+2192 and a fallback face differs between Chrome and the car. A screen draws it
-  the same way. The one other fallback is «历史故障» on `scanner-body-dtc`, a quotation of the stock
-  tester; Chrome and Android fill it from their own CJK faces.
+  the same way.
 - The fixtures are data, not strings laid out: an ECU is its name, unit, abbreviation, short
   name, request address, protocol, kind (`ok`, `hist`, `unread`, `none`) and counts. The board
   derives what the page derived - the reply address (+8), a system's summary line, the badge, the
@@ -315,7 +314,10 @@ corrections below.
   for a tile kind no tile on the board has is left out (`footer`'s `present`), so the topology and
   the HV schematic no longer explain «адрес не найден». Which rear motor each SMCU drives is not
   established: both are «Контроллер заднего мотора», the drives' columns are headed by block, the
-  autoservice signals keep their sides as Л / П in the signal line, and the HV schematic's rear
-  motors carry ≈.
+  autoservice signals keep their sides as Л / П in the signal line, as do the HV schematic's rear
+  motors.
+- Screen text without caveats (owner, 2026-10-20): data and names only - no ≈, footnotes,
+  «только чтение» or «Пример»; the one source line is «Описания: каталог мануала Z9GT PHEV,
+  перевод» in the footer of a codes screen that shows such descriptions (`scanner-ecu-fault`).
 - No screen draws these boards yet; `LuminoforFixtureActivity` leaves a `scanner` board black, so
   `compare.py` reports it missing rather than different.

@@ -469,9 +469,9 @@
       const h = B.rowMin;
       text(c, d.code, cols[0][0] + 12, mid(y, h, 'code'), 'code', 'white');
       runs(c, [[d.ftb, 'cellNum', 'dim'], [' · ' + d.ftbName, 'cell', 'white']], cols[1][0], base(mid(y, h, 'cell'), 'cell'), cols[1][1]);
-      const dt = y + (h - style('cell').lh - 2 - style('note').lh) / 2;
+      const dt = y + (h - style('cell').lh - (d.note ? 2 + style('note').lh : 0)) / 2;
       text(c, d.group, cols[2][0], dt, 'cell', 'text', { max: cols[2][1] - 16 });
-      text(c, d.note, cols[2][0], dt + style('cell').lh + 2, 'note', 'faint', { max: cols[2][1] - 16 });
+      if (d.note) text(c, d.note, cols[2][0], dt + style('cell').lh + 2, 'note', 'faint', { max: cols[2][1] - 16 });
       text(c, hex2(d.status), cols[3][0], mid(y, h, 'cellNum'), 'cellNum', 'text');
       BITS.forEach((_, i) => {
         const [x, w] = cols[4 + i], on = (d.status >> i) & 1, s = B.bit;
@@ -487,7 +487,7 @@
     ey += style('counterLabel').lh + B.explainGap;
     ey += para(c, E.lead, 24, ey, 'lead', 'white', xw) + B.explainGap;
     ey += para(c, E.body, 24, ey, 'body', 'dim', xw) + B.explainGap;
-    para(c, E.aside, 24, ey, 'small', 'faint', xw);
+    if (E.aside) para(c, E.aside, 24, ey, 'small', 'faint', xw);
     const G = B.legend;
     f.bits.forEach((ru, i) => {
       const ly = B.below + i * (style('legend').lh + G.rowGap);
@@ -548,7 +548,7 @@
     blockHead(c, f.block);
     tabs(c, f.tabs);
     const D = L.ecuDtc, Fa = L.ecuFault, Lf = D.left, cols = columns(Fa.cols, Lf.x, Lf.w);
-    let y = headRow(c, cols, ['КОД', 'ОПИСАНИЕ · SAE J2012', 'MIL'], D.top, D.head);
+    let y = headRow(c, cols, ['КОД', 'ОПИСАНИЕ', 'MIL'], D.top, D.head);
     const d = f.fault, room = cols[1][1] - 12;
     const notes = wrap(c, d.note, 'faultNote', room);
     const h = Math.max(Fa.rowMin, 2 * Fa.rowPad + style('faultTitle').lh + 3 + notes.length * style('faultNote').lh);
@@ -628,7 +628,7 @@
     let cols = columns(I.ownCols, Lf.x, Lf.w);
     let y = headRow(c, cols, ['ОТВЕЧАЕТ БЛОК'], D.top, D.head);
     y = keyRows(c, f.own, cols, y, I.row, Lf.x, Lf.w);
-    para(c, f.note, Lf.x + 12, y + I.noteGap, 'small', 'faint', Lf.w - 12);
+    if (f.note) para(c, f.note, Lf.x + 12, y + I.noteGap, 'small', 'faint', Lf.w - 12);
     cols = columns(I.cacheCols, R.x, R.w);
     y = headRow(c, cols, ['КЭШ ОБНОВЛЕНИЙ BYD'], D.top, D.head);
     y = keyRows(c, f.cache, cols, y, I.row, R.x, R.w);
@@ -730,9 +730,8 @@
       rule(c, 24, y + h, W - 48, 'hair');
       y += h + 1;
     }
-    const N = A.note, nh = notePlate(c, f.notes, 24, N.top, W - 48, N);
+    if (f.notes) notePlate(c, f.notes, 24, A.note.top, W - 48, A.note);
     footer(c, f.footer);
-    return nh;
   }
   // Plates of a lead line over a quieter paragraph, side by side.
   function notePlate(c, notes, x, top, w, N) {
@@ -766,9 +765,9 @@
     }
     // the mask plate: which status bits the mask sees, what came back
     const P = Bk.plate, iw = Lf.w - 2 * P.padX, top = y + Bk.plateGap;
-    const bodyLines = wrap(c, f.mask.result, 'bodyStrong', iw), asideLines = wrap(c, f.mask.aside, 'small', iw);
-    const ph = 2 * P.padY + style('counterLabel').lh + P.gap + Bk.bits.h + P.gap + bodyLines.length * style('bodyStrong').lh + P.gap
-      + asideLines.length * style('small').lh + P.gap + style('plateMono').lh;
+    const bodyLines = wrap(c, f.mask.result, 'bodyStrong', iw), asideLines = f.mask.aside ? wrap(c, f.mask.aside, 'small', iw) : [];
+    const ph = 2 * P.padY + style('counterLabel').lh + P.gap + Bk.bits.h + P.gap + bodyLines.length * style('bodyStrong').lh
+      + (asideLines.length ? P.gap + asideLines.length * style('small').lh : 0) + (f.mask.raw ? P.gap + style('plateMono').lh : 0);
     fill(c, Lf.x, top, Lf.w, ph, 'plate', P.r); edge(c, Lf.x, top, Lf.w, ph, 'rule', P.r);
     let py = top + P.padY;
     const px = Lf.x + P.padX;
@@ -782,15 +781,14 @@
     });
     py += Bk.bits.h + P.gap;
     bodyLines.forEach(l => { text(c, l, px, py, 'bodyStrong', 'white'); py += style('bodyStrong').lh; });
-    py += P.gap;
-    asideLines.forEach(l => { text(c, l, px, py, 'small', 'dim2'); py += style('small').lh; });
-    py += P.gap;
-    text(c, f.mask.raw, px, py, 'plateMono', 'faint');
+    if (asideLines.length) { py += P.gap; asideLines.forEach(l => { text(c, l, px, py, 'small', 'dim2'); py += style('small').lh; }); }
+    if (f.mask.raw) { py += P.gap; text(c, f.mask.raw, px, py, 'plateMono', 'faint'); }
     // the OBD interface at 7E5
     cols = columns(Bk.obdCols, R.x, R.w);
     y = headRow(c, cols, [f.obdTitle], Bk.top, Bk.head);
     y = keyRows(c, f.obd, cols, y, Bk.obdRow, R.x, R.w);
     const A = Bk.aside;
+    if (!f.aside) { footer(c, f.footer); return; }
     const lines = wrap(c, f.aside[1], 'small', R.w - 2 * A.padX);
     const ah = 2 * A.padY + style('plateText').lh + A.gap2 + lines.length * style('small').lh;
     const at = y + A.gap;
