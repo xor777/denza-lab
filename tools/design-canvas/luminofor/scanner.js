@@ -415,7 +415,11 @@
     const P = L.topology, G = {};
     f.groups.forEach(g => { G[g.id] = g; });
     const Ti = P.tile;
-    let bus = `M${P.head.x + P.head.w} ${P.trunkY}H${P.left + 5 * P.column + P.busInset}`, live = '', dead = '';
+    // the trunk runs from the head unit to the last column that opens a group; a column that
+    // continues a group hangs from the one before it, under that group's caption
+    const opens = P.columns.map(parts => !parts[0][3]);
+    const lastOpen = opens.lastIndexOf(true);
+    let bus = `M${P.head.x + P.head.w} ${P.trunkY}H${P.left + lastOpen * P.column + P.busInset}`, live = '', dead = '';
     const labels = [], tiles = [];
     P.columns.forEach((parts, k) => {
       const x = P.left + k * P.column, bx = x + P.busInset;
@@ -433,7 +437,7 @@
           y += Ti.pitch;
         });
       });
-      bus += k === P.columns.length - 1 ? `M${bx - P.column} ${P.tailY}H${bx}V${last}` : `M${bx} ${k ? P.trunkY : P.trunkFirstY}V${last}`;
+      bus += opens[k] ? `M${bx} ${k ? P.trunkY : P.trunkFirstY}V${last}` : `M${bx - P.column} ${P.tailY}H${bx}V${last}`;
     });
     stroke(c, bus, 'bus', 1.5);
     stroke(c, live, 'busLive', 1.5);
@@ -443,18 +447,18 @@
     text(c, f.headUnit[0], Hb.x + Hb.pad, mid(Hb.y, Hb.h, 'headUnit'), 'headUnit', 'white');
     text(c, f.headUnit[1], Hb.x + Hb.w - Hb.pad, mid(Hb.y, Hb.h, 'headUnitHops'), 'headUnitHops', 'faint', { align: 'right' });
     labels.forEach(([x, y, t]) => text(c, t, x, y, 'topoLabel', 'dim2'));
+    // a tile: its abbreviation and address over its short name; its state is its look, and a block
+    // with history says how many codes in place of the address
     tiles.forEach(([x, y, e]) => {
       const k = TILE[e.kind];
       if (k.dash) edge(c, x, y, Ti.w, Ti.h, k.dash, Ti.r, [3, 3]);
       else { fill(c, x, y, Ti.w, Ti.h, k.fill, Ti.r); edge(c, x, y, Ti.w, Ti.h, k.line, Ti.r); }
       const ix = x + 1 + Ti.padX, iw = Ti.w - 2 - 2 * Ti.padX;
       const top = y + (Ti.h - style('tileAbbr').lh - Ti.rowGap - style('tileName').lh) / 2;
-      text(c, e.abbr, ix, top, 'tileAbbr', k.ink);
-      text(c, e.req || 'нет адреса', ix + iw, top, 'tileAddr', k.addr, { align: 'right' });
-      const state = e.kind === 'ok' ? 'OK' : e.kind === 'hist' ? 'ИСТ ' + e.history : e.kind === 'unread' ? 'не читали' : '';
-      const t2 = top + style('tileAbbr').lh + Ti.rowGap;
-      const sw = state ? text(c, state, ix + iw, t2, 'tileState', k.state, { align: 'right' }) + 6 : 0;
-      text(c, e.short, ix, t2, 'tileName', k.sub, { max: iw - sw });
+      const right = e.kind === 'hist' ? ['ИСТ ' + e.history, 'tileState', k.state] : [e.req || 'нет адреса', 'tileAddr', k.addr];
+      const rw = text(c, right[0], ix + iw, top + (style('tileAbbr').lh - style(right[1]).lh) / 2, right[1], right[2], { align: 'right' });
+      text(c, e.abbr, ix, top, 'tileAbbr', k.ink, { max: iw - rw - 6 });
+      text(c, e.short, ix, top + style('tileAbbr').lh + Ti.rowGap, 'tileName', k.sub, { max: iw });
     });
     footer(c, f.footer, new Set(tiles.map(([, , e]) => e.kind)));
   }

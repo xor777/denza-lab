@@ -119,7 +119,7 @@
     "abbrName":     { "size": 11.5, "lh": 15 },
     "tileAbbr":     { "size": 13,   "lh": 16, "mono": true, "w": 500 },
     "tileAddr":     { "size": 11,   "lh": 16, "mono": true },
-    "tileName":     { "size": 11.5, "lh": 15 },
+    "tileName":     { "size": 11,   "lh": 14 },
     "tileState":    { "size": 10.5, "lh": 15, "w": 500, "track": 0.03 },
     "topoLabel":    { "size": 11,   "lh": 16, "track": 0.07 },
     "headUnit":     { "size": 13,   "lh": 16, "w": 500 },
@@ -166,10 +166,11 @@
     "list": { "top": 199, "bottom": 620, "group": 28, "row": 30, "rule": 1, "groupGap": 14, "chevron": 14 }
   },
   "topology": {
-    "column": 176, "left": 24, "tile": { "w": 156, "h": 42, "r": 5, "padX": 8, "inset": 14, "pitch": 48, "rowGap": 2 },
+    "column": 137, "left": 24, "tile": { "w": 124, "h": 36, "r": 5, "padX": 7, "inset": 10, "pitch": 40, "rowGap": 2 },
     "head": { "x": 24, "y": 170, "w": 168, "h": 28, "r": 5, "pad": 10 },
     "firstLabel": 206, "labelH": 22, "groupGap": 8, "trunkY": 184, "trunkFirstY": 198, "tailY": 224, "busInset": 4,
-    "columns": [[["power"]], [["chassis"], ["climate"]], [["assist"]], [["body"], ["lv"]], [["salon"]], [["misc", 0, 6]], [["misc", 6, 12, "continued"]]]
+    "columns": [[["power"]], [["chassis"], ["climate"]], [["assist"]], [["body", 0, 9]], [["body", 9, 11, "continued"], ["lv"]], [["salon"]],
+      [["misc", 0, 9]], [["misc", 9, 17, "continued"]], [["misc", 17, 25, "continued"]]]
   },
   "ecuDtc": { "left": { "x": 24, "w": 588 }, "right": { "x": 644, "w": 612 }, "top": 172, "head": 30, "listRow": 34, "monRow": 32, "listCols": ["1fr", 130, 110], "monCols": ["1fr", 120, 110], "plateGap": 18, "plate": { "padX": 16, "padY": 14, "gap": 6, "r": 6 } },
   "ecuFault": { "cols": [96, "1fr", 70], "rowMin": 64, "rowPad": 10, "listGap": 16, "listPad": [10, 12], "listGapIn": 4 },

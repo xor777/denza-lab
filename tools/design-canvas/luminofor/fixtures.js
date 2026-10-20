@@ -1214,7 +1214,7 @@
   const unread = (name, unit, abbr, short, req, opens) => ecu(name, unit, abbr, short, req, 'UDS', 'unread', null, null, opens);
   const autoscan = {
     top: scanTop(['Автоскан'], '16:31:07'),
-    counters: [['ОТВЕТИЛО', '46/46', 'white'], ['DTC АКТИВНЫХ', '0', 'white'], ['DTC В ИСТОРИИ', '10', 'text'], ['ПАМЯТЬ ПРОЧИТАНА', '19/46', 'text'], ['MIL', 'ВЫКЛ', 'text']],
+    counters: [['ОТВЕТИЛО', '68/68', 'white'], ['DTC АКТИВНЫХ', '0', 'white'], ['DTC В ИСТОРИИ', '10', 'text'], ['ПАМЯТЬ ПРОЧИТАНА', '19/68', 'text'], ['MIL', 'ВЫКЛ', 'text']],
     tabs: ['Список', 'Топология'],
     headUnit: ['ГУ · диагностика', '+8'],
     groups: [
@@ -1252,15 +1252,25 @@
         ecu('Кузов, зона сзади', 'B_ZCU', 'B_ZCU', 'Зона сзади', '726', 'UDS', 'ok'),
         unread('Фара левая', 'FL_L', 'FL_L', 'Фара Л', '770'),
         unread('Фара правая', 'FL_R', 'FL_R', 'Фара П', '771'),
+        // the UWB key and its four anchors: factory-map candidates that answered F194 (ecu/EcuCatalog.kt)
+        unread('Цифровой ключ UWB', 'UWBMC', 'UWBMC', 'UWB-ключ', '7F3'),
+        unread('Антенна UWB передняя левая', 'UWBLFA', 'UWBLFA', 'UWB ПЛ', '7F4'),
+        unread('Антенна UWB передняя правая', 'UWBRFA', 'UWBRFA', 'UWB ПП', '7F5'),
+        unread('Антенна UWB задняя левая', 'UWBLRA', 'UWBLRA', 'UWB ЗЛ', '7F6'),
+        unread('Антенна UWB задняя правая', 'UWBRRA', 'UWBRRA', 'UWB ЗП', '7F7'),
       ] },
-      // 741 is the head unit's own MCU: the stock route 741/749 is HTH-2021_Media_BYD_00200001 and
-      // its F194 is the multimedia «mcu» module of the stock media_softcode_mapping.json.
+      // in ecu/EcuCatalog.kt's order and words: 741 and 5E7 are the head unit's and the passenger
+      // computer's own MCUs; HUD, ETC and CPD answered F194 from the factory map.
       { id: 'salon', title: 'САЛОН', short: 'Салон', topo: 'САЛОН', ecus: [
-        unread('Головное устройство (MCU)', 'Media', 'Media', 'ГУ · MCU', '741'),
         unread('Комбинация приборов', 'INS', 'INS', 'Приборы', '723'),
         unread('Усилитель звука', 'AMP', 'AMP', 'Усилитель', '751'),
         unread('Беспроводная зарядка', 'WCT', 'WCT', 'Беспр. ЗУ', '733'),
         unread('Кнопки руля', 'SWS', 'SWS', 'Кнопки руля', '711'),
+        unread('Головное устройство (MCU)', 'Media', 'Media', 'ГУ · MCU', '741'),
+        unread('Пассажирский компьютер (MCU)', 'ASSY', 'ASSY', 'Пасс. ПК · MCU', '5E7'),
+        unread('Проекционный дисплей', 'HUD', 'HUD', 'HUD', '7B0'),
+        unread('Модуль оплаты проезда (ETC)', 'ETC', 'ETC', 'ETC', '790'),
+        unread('Радар присутствия детей, задний', 'CPD', 'CPD', 'Радар детей', '5E0'),
       ] },
       { id: 'climate', title: 'КЛИМАТ И ТЕРМОРЕГУЛИРОВАНИЕ', short: 'Климат', topo: 'КЛИМАТ', ecus: [
         unread('Климат-контроль', 'ACC', 'ACC', 'Климат', '7B3'),
@@ -1274,12 +1284,16 @@
         ['PDC-VCU', '743', '4.17.18'], ['PDCMB', '724', '4.02.03'], ['CS', '725', '4.00.04'], ['MSRF', '713', '4.00.08'], ['MSRZ', '742', '4.00.08'],
         ['DUCU', '750', '4.00.11'], ['PUCU', '7B5', '4.00.10'], ['MLUCU', '7D2', '4.00.08'], ['HFRM', '754', '4.00.01'], ['CCS/SCPA', '7A7', '4.00.06'],
         ['RRCP', '7C6', '4.00.04'], ['SEC', '7D6', '1.11.36'],
+        ['RWS-L', '582', '4.00.08'], ['RWS-R', '796', '4.00.08'], ['AQDM', '590', '3.00.08'], ['R-NCM', '595', '1.00.09'],
+        ['IDC', '597', '3.01.18'], ['VR', '5A0', '2.00.05'], ['RR_SDR', '5A7', '4.00.07'], ['RL_SDR', '5B0', '4.00.07'],
+        ['FR_SDR', '5B1', '4.00.07'], ['FL_SDR', '5B2', '4.00.07'], ['MCPA', '5E4', '3.00.10'], ['RCP', '5F4', '4.00.04'],
+        ['FRL', '772', '4.00.01'],
       ].map(([abbr, req, soft]) => unread('Блок ' + req, abbr, abbr, 'ПО ' + soft, req)) },
     ],
   };
   const scannerScan = Object.assign({}, autoscan, {
     footer: { buttons: [['Опросить снова', 'primary'], ['Только с DTC', 'quiet']],
-      notes: [['46 из 46 ответили', true]] },
+      notes: [['68 из 68 ответили', true]] },
   });
   const scannerTopology = Object.assign({}, autoscan, {
     footer: { buttons: [['Опросить снова', 'primary']], legendGap: 16,

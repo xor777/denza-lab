@@ -49624,7 +49624,7 @@
    "counters": [
     [
      "ОТВЕТИЛО",
-     "46/46",
+     "68/68",
      "white"
     ],
     [
@@ -49639,7 +49639,7 @@
     ],
     [
      "ПАМЯТЬ ПРОЧИТАНА",
-     "19/46",
+     "19/68",
      "text"
     ],
     [
@@ -49964,6 +49964,51 @@
        "req": "771",
        "proto": "UDS",
        "kind": "unread"
+      },
+      {
+       "name": "Цифровой ключ UWB",
+       "unit": "UWBMC",
+       "abbr": "UWBMC",
+       "short": "UWB-ключ",
+       "req": "7F3",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Антенна UWB передняя левая",
+       "unit": "UWBLFA",
+       "abbr": "UWBLFA",
+       "short": "UWB ПЛ",
+       "req": "7F4",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Антенна UWB передняя правая",
+       "unit": "UWBRFA",
+       "abbr": "UWBRFA",
+       "short": "UWB ПП",
+       "req": "7F5",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Антенна UWB задняя левая",
+       "unit": "UWBLRA",
+       "abbr": "UWBLRA",
+       "short": "UWB ЗЛ",
+       "req": "7F6",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Антенна UWB задняя правая",
+       "unit": "UWBRRA",
+       "abbr": "UWBRRA",
+       "short": "UWB ЗП",
+       "req": "7F7",
+       "proto": "UDS",
+       "kind": "unread"
       }
      ]
     },
@@ -49973,15 +50018,6 @@
      "short": "Салон",
      "topo": "САЛОН",
      "ecus": [
-      {
-       "name": "Головное устройство (MCU)",
-       "unit": "Media",
-       "abbr": "Media",
-       "short": "ГУ · MCU",
-       "req": "741",
-       "proto": "UDS",
-       "kind": "unread"
-      },
       {
        "name": "Комбинация приборов",
        "unit": "INS",
@@ -50015,6 +50051,51 @@
        "abbr": "SWS",
        "short": "Кнопки руля",
        "req": "711",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Головное устройство (MCU)",
+       "unit": "Media",
+       "abbr": "Media",
+       "short": "ГУ · MCU",
+       "req": "741",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Пассажирский компьютер (MCU)",
+       "unit": "ASSY",
+       "abbr": "ASSY",
+       "short": "Пасс. ПК · MCU",
+       "req": "5E7",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Проекционный дисплей",
+       "unit": "HUD",
+       "abbr": "HUD",
+       "short": "HUD",
+       "req": "7B0",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Модуль оплаты проезда (ETC)",
+       "unit": "ETC",
+       "abbr": "ETC",
+       "short": "ETC",
+       "req": "790",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Радар присутствия детей, задний",
+       "unit": "CPD",
+       "abbr": "CPD",
+       "short": "Радар детей",
+       "req": "5E0",
        "proto": "UDS",
        "kind": "unread"
       }
@@ -50188,6 +50269,123 @@
        "req": "7D6",
        "proto": "UDS",
        "kind": "unread"
+      },
+      {
+       "name": "Блок 582",
+       "unit": "RWS-L",
+       "abbr": "RWS-L",
+       "short": "ПО 4.00.08",
+       "req": "582",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 796",
+       "unit": "RWS-R",
+       "abbr": "RWS-R",
+       "short": "ПО 4.00.08",
+       "req": "796",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 590",
+       "unit": "AQDM",
+       "abbr": "AQDM",
+       "short": "ПО 3.00.08",
+       "req": "590",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 595",
+       "unit": "R-NCM",
+       "abbr": "R-NCM",
+       "short": "ПО 1.00.09",
+       "req": "595",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 597",
+       "unit": "IDC",
+       "abbr": "IDC",
+       "short": "ПО 3.01.18",
+       "req": "597",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5A0",
+       "unit": "VR",
+       "abbr": "VR",
+       "short": "ПО 2.00.05",
+       "req": "5A0",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5A7",
+       "unit": "RR_SDR",
+       "abbr": "RR_SDR",
+       "short": "ПО 4.00.07",
+       "req": "5A7",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5B0",
+       "unit": "RL_SDR",
+       "abbr": "RL_SDR",
+       "short": "ПО 4.00.07",
+       "req": "5B0",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5B1",
+       "unit": "FR_SDR",
+       "abbr": "FR_SDR",
+       "short": "ПО 4.00.07",
+       "req": "5B1",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5B2",
+       "unit": "FL_SDR",
+       "abbr": "FL_SDR",
+       "short": "ПО 4.00.07",
+       "req": "5B2",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5E4",
+       "unit": "MCPA",
+       "abbr": "MCPA",
+       "short": "ПО 3.00.10",
+       "req": "5E4",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5F4",
+       "unit": "RCP",
+       "abbr": "RCP",
+       "short": "ПО 4.00.04",
+       "req": "5F4",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 772",
+       "unit": "FRL",
+       "abbr": "FRL",
+       "short": "ПО 4.00.01",
+       "req": "772",
+       "proto": "UDS",
+       "kind": "unread"
       }
      ]
     }
@@ -50205,7 +50403,7 @@
     ],
     "notes": [
      [
-      "46 из 46 ответили",
+      "68 из 68 ответили",
       true
      ]
     ]
@@ -50231,7 +50429,7 @@
    "counters": [
     [
      "ОТВЕТИЛО",
-     "46/46",
+     "68/68",
      "white"
     ],
     [
@@ -50246,7 +50444,7 @@
     ],
     [
      "ПАМЯТЬ ПРОЧИТАНА",
-     "19/46",
+     "19/68",
      "text"
     ],
     [
@@ -50571,6 +50769,51 @@
        "req": "771",
        "proto": "UDS",
        "kind": "unread"
+      },
+      {
+       "name": "Цифровой ключ UWB",
+       "unit": "UWBMC",
+       "abbr": "UWBMC",
+       "short": "UWB-ключ",
+       "req": "7F3",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Антенна UWB передняя левая",
+       "unit": "UWBLFA",
+       "abbr": "UWBLFA",
+       "short": "UWB ПЛ",
+       "req": "7F4",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Антенна UWB передняя правая",
+       "unit": "UWBRFA",
+       "abbr": "UWBRFA",
+       "short": "UWB ПП",
+       "req": "7F5",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Антенна UWB задняя левая",
+       "unit": "UWBLRA",
+       "abbr": "UWBLRA",
+       "short": "UWB ЗЛ",
+       "req": "7F6",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Антенна UWB задняя правая",
+       "unit": "UWBRRA",
+       "abbr": "UWBRRA",
+       "short": "UWB ЗП",
+       "req": "7F7",
+       "proto": "UDS",
+       "kind": "unread"
       }
      ]
     },
@@ -50580,15 +50823,6 @@
      "short": "Салон",
      "topo": "САЛОН",
      "ecus": [
-      {
-       "name": "Головное устройство (MCU)",
-       "unit": "Media",
-       "abbr": "Media",
-       "short": "ГУ · MCU",
-       "req": "741",
-       "proto": "UDS",
-       "kind": "unread"
-      },
       {
        "name": "Комбинация приборов",
        "unit": "INS",
@@ -50622,6 +50856,51 @@
        "abbr": "SWS",
        "short": "Кнопки руля",
        "req": "711",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Головное устройство (MCU)",
+       "unit": "Media",
+       "abbr": "Media",
+       "short": "ГУ · MCU",
+       "req": "741",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Пассажирский компьютер (MCU)",
+       "unit": "ASSY",
+       "abbr": "ASSY",
+       "short": "Пасс. ПК · MCU",
+       "req": "5E7",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Проекционный дисплей",
+       "unit": "HUD",
+       "abbr": "HUD",
+       "short": "HUD",
+       "req": "7B0",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Модуль оплаты проезда (ETC)",
+       "unit": "ETC",
+       "abbr": "ETC",
+       "short": "ETC",
+       "req": "790",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Радар присутствия детей, задний",
+       "unit": "CPD",
+       "abbr": "CPD",
+       "short": "Радар детей",
+       "req": "5E0",
        "proto": "UDS",
        "kind": "unread"
       }
@@ -50793,6 +51072,123 @@
        "abbr": "SEC",
        "short": "ПО 1.11.36",
        "req": "7D6",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 582",
+       "unit": "RWS-L",
+       "abbr": "RWS-L",
+       "short": "ПО 4.00.08",
+       "req": "582",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 796",
+       "unit": "RWS-R",
+       "abbr": "RWS-R",
+       "short": "ПО 4.00.08",
+       "req": "796",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 590",
+       "unit": "AQDM",
+       "abbr": "AQDM",
+       "short": "ПО 3.00.08",
+       "req": "590",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 595",
+       "unit": "R-NCM",
+       "abbr": "R-NCM",
+       "short": "ПО 1.00.09",
+       "req": "595",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 597",
+       "unit": "IDC",
+       "abbr": "IDC",
+       "short": "ПО 3.01.18",
+       "req": "597",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5A0",
+       "unit": "VR",
+       "abbr": "VR",
+       "short": "ПО 2.00.05",
+       "req": "5A0",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5A7",
+       "unit": "RR_SDR",
+       "abbr": "RR_SDR",
+       "short": "ПО 4.00.07",
+       "req": "5A7",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5B0",
+       "unit": "RL_SDR",
+       "abbr": "RL_SDR",
+       "short": "ПО 4.00.07",
+       "req": "5B0",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5B1",
+       "unit": "FR_SDR",
+       "abbr": "FR_SDR",
+       "short": "ПО 4.00.07",
+       "req": "5B1",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5B2",
+       "unit": "FL_SDR",
+       "abbr": "FL_SDR",
+       "short": "ПО 4.00.07",
+       "req": "5B2",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5E4",
+       "unit": "MCPA",
+       "abbr": "MCPA",
+       "short": "ПО 3.00.10",
+       "req": "5E4",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 5F4",
+       "unit": "RCP",
+       "abbr": "RCP",
+       "short": "ПО 4.00.04",
+       "req": "5F4",
+       "proto": "UDS",
+       "kind": "unread"
+      },
+      {
+       "name": "Блок 772",
+       "unit": "FRL",
+       "abbr": "FRL",
+       "short": "ПО 4.00.01",
+       "req": "772",
        "proto": "UDS",
        "kind": "unread"
       }

@@ -82,7 +82,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `main-diagnostics`, `main-diagnostics-battery`, `main-diagnostics-empty`, `main-diagnostics-stale` | native service diagnostics: ECU records, HV schematic, no data, retained DTC after a failed retry |
 | `main-diagnostics-code`, `main-diagnostics-code-unknown`, `main-diagnostics-coverage` | native DTC details with general-reference provenance, unknown OEM meaning, unread ECU coverage |
 | `main-diagnostics-engine`, `main-diagnostics-power-warnings`, `main-diagnostics-abs` | captured warning availability for EMS, HV/drives and ABS/ESP; invalid0 is never off |
-| `scanner-scan`, `scanner-topology` | the autoscan: all 46 addresses answering, by system, as a list (the first two systems, as the page opens) and as tiles on the diagnostic bus |
+| `scanner-scan`, `scanner-topology` | the autoscan: all 68 addresses answering, by system, as a list (the first two systems, as the page opens) and as tiles on the diagnostic bus |
 | `scanner-body-dtc` | a body block's memory: two historical DTC, their status bits as a matrix, status 0x28 explained |
 | `scanner-ecu-dtc`, `scanner-ecu-fault` | the ECM: DTC lists and monitor readiness as read; the same with an illustrative P0420 and MIL on |
 | `scanner-ecu-live`, `scanner-ecu-ident` | the ECM's live data (illustrative idle, 60 s traces); its identification and the cache's, the supported PIDs |
@@ -305,12 +305,16 @@ corrections below.
   of the bus at its top (it ran under the FMCU tile); a footer's back link is 36 dp like the
   buttons beside it (it was 38: a content-box link with a border); a counter box is its 112 dp plus
   its padding and rule, as the page had it.
-- Address 741 is the head unit's own MCU (stock route 741/749, `HTH-2021_Media_BYD_00200001`):
-  «Салон» has five blocks and «Назначение не установлено» twelve. On `scanner-topology` five plus
-  three tiles do not fit one column above the footer, so climate stands under the chassis and
-  the 12 V net under the body; the unassigned blocks fill the last two columns six and six.
+- The blocks are `ecu/EcuCatalog.kt`'s 68, in its order and words: 741 and 5E7 are the head
+  unit's and the passenger computer's MCUs, and 22 factory-map candidates that answered F194 join
+  «Кузов» (the UWB key and its four anchors), «Салон» (ASSY, HUD, ETC, CPD) and the unassigned 25.
+  `scanner-topology` lays them in nine columns of 137 dp - Силовая | Шасси + Климат | Ассистенты |
+  Кузов 9 | Кузов 2 + 12 В | Салон | Прочие 9 / 8 / 8 - of 124 x 36 tiles at a 40 dp pitch: the
+  abbreviation and address over the short name in 11 dp. A tile's state is its look alone; a block
+  with history says «ИСТ n» in place of its address. A column that continues a group hangs from
+  the column before it under that group's caption; the trunk ends at the last column that opens one.
 - The rear drives and DCOBC answer on their factory routes (SMCU 744, SMCU3 745, DCOBC 7E4; findings,
-  «Complete factory map»): 46 of 46 answer, 19 memories read, and no tile is dashed. A legend entry
+  «Complete factory map»): every address answers, 19 memories read, and no tile is dashed. A legend entry
   for a tile kind no tile on the board has is left out (`footer`'s `present`), so the topology and
   the HV schematic no longer explain «адрес не найден». Which rear motor each SMCU drives is not
   established: both are «Контроллер заднего мотора», the drives' columns are headed by block, the
