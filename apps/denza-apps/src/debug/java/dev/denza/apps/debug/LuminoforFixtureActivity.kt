@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.feature.diagnostics.DiagnosticSurface
+import dev.denza.apps.feature.diagnostics.ui.DiagnosticsScreen
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
@@ -80,10 +81,18 @@ class LuminoforFixtureActivity : ComponentActivity() {
         val fixture = StripFixtures.fixture(all, id)
 
         if (board.getString("kind") == "scanner") {
-            // «Сервис → Диагностика», the scanner (luminofor/scanner.js): its boards come before
-            // its screens. Until a screen draws a board's fixture here, the corner stays black, so
-            // compare.py reports the whole board as missing instead of a dashboard as different.
-            setContent { Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) }
+            // «Сервис → Диагностика», the scanner (luminofor/scanner.js): the real section on the
+            // board's scene as a DiagnosticsModel, opened at the board's screen, 1280 x 680 dp.
+            val model = ScannerFixtures.model(all, id)
+            val route = ScannerFixtures.route(id)
+            val sample = ScannerFixtures.sample(all, id)
+            setContent {
+                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black)) {
+                    Box(Modifier.size(1280.dp, 680.dp)) {
+                        DiagnosticsScreen(model, ScannerFixtures.noActions, onClose = {}, start = route, sample = sample)
+                    }
+                }
+            }
             return
         }
         if (board.getString("kind") == "diagnostics") {
