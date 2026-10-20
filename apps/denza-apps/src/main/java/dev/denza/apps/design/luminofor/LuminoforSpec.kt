@@ -133,10 +133,10 @@ object LuminoforSpec {
             const val THREADS_AMP_RANGE: Float = 13f
             const val THREADS_AMP_KW: Float = 200f
             const val THREADS_WIDTH: Float = 0.7f
-            const val GLOW_MAX: Float = 0.13f
+            const val GLOW_MAX: Float = 0.78f
             const val GLOW_FULL_KW: Float = 120f
-            const val GLOW_RADIUS: Float = 340f
-            const val GLOW_REACH_BELOW: Float = 40f
+            const val GLOW_RADIUS: Float = 544f
+            const val GLOW_REACH_BELOW: Float = 87.8f
         }
 
         object Trace {

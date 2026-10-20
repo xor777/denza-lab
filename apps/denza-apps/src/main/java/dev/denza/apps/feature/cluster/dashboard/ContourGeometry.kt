@@ -69,14 +69,18 @@ internal object ContourGeometry {
     /** The peak's mark fades from 0.6 by 0.07 a second, and never below 0.2. */
     fun peakIntensity(age: Float): Float = max(0.2f, 0.6f - age * 0.07f)
 
-    /** The zero's pool of light: 0.13·√(|P| / 120), saturated at 120 kW. */
+    /**
+     * The zero's pool of light: 0.78·√(|P| / 120), saturated at 120 kW. Six times the 0.13 it was
+     * drawn at until 2026-10-20, which no one could see on the car: the owner picked ×6 on the
+     * driver's display itself with `:cluster-glow-probe`.
+     */
     fun glowAlpha(kilowatts: Float): Float =
         Band.GLOW_MAX * sqrt(min(1f, abs(kilowatts) / Band.GLOW_FULL_KW))
 
     /** The glow is not drawn under this, which is where the board stops drawing it too. */
     const val GLOW_MIN: Float = 0.005f
 
-    /** How much taller than wide the glow's ellipse is: from the axis to the stock band and forty past. */
+    /** How much taller than wide the glow's ellipse is: from the axis to the stock band and 87.8 past. */
     const val GLOW_SQUASH: Float =
         (Cluster.STOCK_BOTTOM - Grid.AXIS + Band.GLOW_REACH_BELOW) / Band.GLOW_RADIUS
 

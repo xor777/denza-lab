@@ -22,7 +22,7 @@ Owned elsewhere: what an energy figure means, its words and its chart - [energy-
 | The driver's display shows one thing at a time: `Приборы` (this app's instruments, the default and the fallback, `FULL` only) or any application with a launch intent except this app and HOME (`ProjectablePackages.java`, asked again in `ClusterProxyMain.java` before every task mutation); there is no package list | code | 2026-09-23 | [How the driver reaches it](#how-the-driver-reaches-it), [Any application, not six navigators](#any-application-not-six-navigators) |
 | The instruments are the Luminofor triptych: `ClusterDashboardRenderer.kt` is the board ported onto `LightPen`, its anchors are `ContourGeometry.kt` on `LuminoforSpec`, the Kotlin copy of `spec.json`; a `View` on the base presentation, with no virtual display and no shell command | code | 2026-09-23 | [App-owned instrument dashboard](#app-owned-instrument-dashboard), [The Luminofor panel (2026-09-23)](#the-luminofor-panel-2026-09-23) |
 | Luminofor reached the car with main `001940ae` (APK `cd4c97de`) at 17:31 on 2026-09-23; the Contour before it was on the car from 2026-09-05 (build 44) | live | 2026-09-23 | [The firmware-model contract (2026-09-23)](#the-firmware-model-contract-2026-09-23), [What still waits for the car](#what-still-waits-for-the-car) |
-| The zero's glow is drawn exactly as the board draws it (`cluster-launch` on the emulator matched the board pixel for pixel, 2026-10-20), and the board's glow is faint: 4-23 of 255 at full power, 2-10 at 26 kW. On the car the owner has never seen it, full throttle included. `compare.py` cannot see it either, since it only counts a channel that moved by more than 24. The glow is below what the cluster shows. How bright it has to be is not measured; `:cluster-glow-probe` is built for that, installed on the car, not run yet | live | 2026-10-20 | [The glow is below what the cluster shows](#the-glow-is-below-what-the-cluster-shows-2026-10-20) |
+| The zero's glow is drawn exactly as the board draws it (`cluster-launch` on the emulator matched the board pixel for pixel, 2026-10-20), and the board's glow is faint: 4-23 of 255 at full power, 2-10 at 26 kW. On the car the owner has never seen it, full throttle included. `compare.py` cannot see it either, since it only counts a channel that moved by more than 24. On the car the owner picked six times the alpha and 1.6 times the size, in the design's shape, with `:cluster-glow-probe`. Since then the spec is `max 0.78, radius 544, reachBelow 87.8`: 145-156 of 255 at the centre at full power, 67-73 in the city. App and board agree, 0.48 % of pixels moved. Not on the car yet | live | 2026-10-20 | [The glow is below what the cluster shows](#the-glow-is-below-what-the-cluster-shows-2026-10-20) |
 | Recorded drives proved `POWER_KW` positive out of the pack (2026-09-22) and `GENERATION_KW` the engine's charge into the pack, zero while the engine drives the wheels (2026-09-24); so the engine's box stands only while the engine charges and leaves 10 s after `ENGINE_RUNNING` drops | live | 2026-09-24 | [What still waits for the car](#what-still-waits-for-the-car), [Why the engine's box does not flicker](#why-the-engines-box-does-not-flicker) |
 | Keep-outs come from `ClusterMapLayout`'s shade (`ClusterDashboardLayout.kt`): on 2560x720 a clear band 272-570 px, top reveals 614/512 x 272 px, a bottom reveal 600 x 330 px centred 120 px above the edge; tuned by eye, never measured | code | 2026-08-25 | [Where it may draw](#where-it-may-draw) |
 | `VehicleTelemetryHub.kt` polls for four `VehicleWatcher`s: `CLUSTER`, `STRIP`, the strip's trip clock `TRIP` (since 2026-10-09; it reads the park switch from the sweep) and the always-on `LEDGER`; `VehicleCapture` writes one CSV row a second on the car while `files/vehicle-capture/ENABLED` exists | code | 2026-10-09 | [Telemetry ownership](#telemetry-ownership), [The car's own recorder](#the-cars-own-recorder-vehiclecapture-2026-09-22) |
@@ -390,7 +390,30 @@ times 0-7), a shape (the design's linear fall-off or a soft one) and a size the
 owner sets on the head unit. At ×1 it matched `cluster-launch` to within one level
 on the emulator. Installed on the car on 2026-10-20 (`base.apk` SHA-256
 `856298c8…1cddd`, the same as `captures/cluster-glow-20261020/`). The display
-there is display 3, 2560 × 720. Not run yet.
+there is display 3, 2560 × 720.
+
+**Resolved the same day.** The owner ran the probe on the car, parked, for about
+two minutes (15:23:48-15:25:32 by the usage stats). The probe's own log lines
+did not survive in the car's buffer, but the window came and went as designed:
+type 2037 on display 3, removed when the screen was left. The owner picked
+strength ×6 and size ×1.6 and named no shape, so the design's linear fall-off
+stayed. The spec, `LuminoforSpec` and the boards moved together:
+
+| | Before | Now |
+| --- | --- | --- |
+| `cluster.band.glow.max` | 0.13 | 0.78 |
+| `radius` | 340 | 544 |
+| `reachBelow` | 40 | 87.8, so the ellipse is still 0.234 as tall as wide |
+
+The ellipse now spans x 355-2205 px and y 287-719 px of the 2560 × 720 display:
+up to the top of the clear band and down to the panel's edge. It is 145-156 of
+255 at the centre at full power, 67-73 at 26 kW and 13 at 1 kW, so a parked car
+drawing a kilowatt shows about what full throttle showed before. The new
+`cluster-launch`, `cluster-city` and `cluster-regen` boards equal the probe at
+×6 ×1.6 to within one level. The app's `LuminoforFixtureActivity` against the
+new boards moved 0.48-0.55 % of pixels by more than 24, a mean of 0.55 levels:
+antialiasing. With the glow this bright, `compare.py` would now see it missing
+at most powers; the blind spot below 24 levels remains for the filament's halo.
 
 ### What it shows, and what it deliberately does not: the Contour
 

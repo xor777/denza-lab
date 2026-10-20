@@ -21,6 +21,12 @@ The status line says what is on the driver's display and the glow's centre in le
 picture is up only while the probe's screen is in front. The scenes are boards, not readings, so
 use it parked.
 
+## Outcome (2026-10-20)
+
+On the car the owner picked ×6 and size ×1.6 in the design's shape. `spec.json` took it the same day
+(`max 0.78`, `radius 544`, `reachBelow 87.8`). The strengths are relative to the spec the scenes were
+rendered from, so scenes rendered after that change make ×1 the new glow.
+
 ## Build
 
 ```bash

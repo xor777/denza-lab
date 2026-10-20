@@ -107,7 +107,7 @@
       "headBlur": 14,
       "peakTick": [5, 1.4],
       "threads": { "base": 30, "perUnit": 0.45, "ampBase": 5, "ampRange": 13, "ampKw": 200, "width": 0.7 },
-      "glow": { "max": 0.13, "fullKw": 120, "radius": 340, "reachBelow": 40 }
+      "glow": { "max": 0.78, "fullKw": 120, "radius": 544, "reachBelow": 87.8 }
     },
     "trace": {
       "about": "Ten kilometres under the axis: zero on the figure's baseline, spending up to the contract's 60 over the figure's cap (0.71 x 52 = 36.92), returns down to its 20 over a descender of 13.",
