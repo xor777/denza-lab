@@ -184,6 +184,7 @@
   "rail": { "w": 216, "padX": 20, "padTop": 10, "item": 40, "sepGap": 8, "bar": 3,
     "scanCols": [290, 120, 150, 100, 80, 80, 150, "1fr"],
     "liveCols": [50, 300, 100, 64, 76, 76, 100, "1fr"],
+    "topology": { "column": 112, "tile": { "w": 100, "padX": 5, "inset": 8 } },
     "dtc": { "cols": [150, 120, 250, "1fr", 190, 40], "row": 34 } },
   "topology": {
     "column": 137, "left": 24, "tile": { "w": 124, "h": 36, "r": 5, "padX": 7, "inset": 10, "pitch": 40, "rowGap": 2 },

@@ -883,6 +883,11 @@
     footer: { buttons: [['Опросить снова', 'primary'], ['Только с DTC', 'quiet']] },
   });
 
+  const scannerSysTopology = Object.assign({}, scannerSysScan, {
+    tabs: { items: ['Список', 'Топология'], active: 1 },
+    footer: scannerTopology.footer,
+  });
+
   const scannerSysEngine = Object.assign({}, { rows: scannerEcuLive.rows }, {
     top: sysTop('Двигатель', '15:51:02', 'Z9 GT DM · P · ДВС работает'),
     rail: sysRail('Двигатель'),
@@ -1104,6 +1109,7 @@
     'scanner-scan':      [scanner('scan'), scannerScan],
     'scanner-topology':  [scanner('topology'), scannerTopology],
     'scanner-sys-scan':  [scanner('sysScan'), scannerSysScan],
+    'scanner-sys-topology': [scanner('sysTopology'), scannerSysTopology],
     'scanner-sys-engine': [scanner('sysLive'), scannerSysEngine],
     'scanner-sys-body':  [scanner('sysDtc'), scannerSysBody],
     'scanner-sys-chassis': [scanner('sysChassis'), scannerSysChassis],

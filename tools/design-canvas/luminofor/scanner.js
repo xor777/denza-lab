@@ -431,14 +431,14 @@
     });
   }
 
-  function shell(c, f, body) {
+  function shell(c, f, body, present) {
     header(c, f.top);
     rail(c, f.rail);
     const full = W;
     W = full - L.rail.w;
     c.save(); c.translate(L.rail.w, 0);
     try { body(); } finally { c.restore(); W = full; }
-    footer(c, f.footer);
+    footer(c, f.footer, present && present());
   }
 
   function sysScan(c, f) {
@@ -826,7 +826,19 @@
     header(c, f.top);
     summary(c, f.counters);
     tabs(c, { items: f.tabs, active: 1 });
-    const P = L.topology, G = {};
+    const kinds = topologyBody(c, f, L.topology);
+    footer(c, f.footer, kinds);
+  }
+
+  // The rail's autoscan: the same nine columns, narrower tiles at the width the rail leaves.
+  function sysTopology(c, f) {
+    let kinds;
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); kinds = topologyBody(c, f, Object.assign({}, L.topology, L.rail.topology, { tile: Object.assign({}, L.topology.tile, L.rail.topology.tile) })); }, () => kinds);
+  }
+
+  // The bus and the tiles in a layout; returns the tile kinds drawn, for the legend.
+  function topologyBody(c, f, P) {
+    const G = {};
     f.groups.forEach(g => { G[g.id] = g; });
     const Ti = P.tile;
     // the trunk runs from the head unit to the last column that opens a group; a column that
@@ -863,14 +875,14 @@
     labels.forEach(([x, y, t]) => text(c, t, x, y, 'topoLabel', 'dim2'));
     // a tile: its abbreviation and address over its short name; its state is its look, and a block
     // with history says how many codes in place of the address
-    tiles.forEach(([x, y, e]) => unitTile(c, x, y, e));
-    footer(c, f.footer, new Set(tiles.map(([, , e]) => e.kind)));
+    tiles.forEach(([x, y, e]) => unitTile(c, x, y, e, Ti));
+    return new Set(tiles.map(([, , e]) => e.kind));
   }
 
   // A block as the topology draws it: abbreviation and address over the short name, its state its
   // look, «ИСТ n» in place of the address where it has history.
-  function unitTile(c, x, y, e) {
-    const Ti = L.topology.tile, k = TILE[e.kind];
+  function unitTile(c, x, y, e, tile) {
+    const Ti = tile || L.topology.tile, k = TILE[e.kind];
     if (k.dash) edge(c, x, y, Ti.w, Ti.h, k.dash, Ti.r, [3, 3]);
     else { fill(c, x, y, Ti.w, Ti.h, k.fill, Ti.r); edge(c, x, y, Ti.w, Ti.h, k.line, Ti.r); }
     const ix = x + 1 + Ti.padX, iw = Ti.w - 2 - 2 * Ti.padX;
@@ -1313,7 +1325,7 @@
     });
   }
 
-  const SCREENS = { scan, topology, sysScan, sysLive, sysDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, bms, drives, hv, brakes, adas };
+  const SCREENS = { scan, topology, sysScan, sysTopology, sysLive, sysDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, bms, drives, hv, brakes, adas };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);
