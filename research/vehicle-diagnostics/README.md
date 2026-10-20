@@ -45,6 +45,13 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   but cannot establish the DTC format. Executed sources, raw traces, independent
   replay and cleanup are in `captures/diagnostics-next-20261020/`.
   No OEM dictionary was obtained and no product allowlist was changed.
+- `factory-candidates-20261020.json` records one `22 F194` at 35 of the 37 CAN
+  routes of that map outside the scanner catalog (`715`/`785` had result 3
+  already). 22 answered: 21 with their exact cache code, and `5E7` with the
+  passenger computer's MCU code from its own OTA container. The 13 cache
+  placeholders got result 3. All 22 joined `EcuCatalog`, and the 13 `5xx`
+  responders are listed one by one in `DiagnosticWhitelist`. Plan, builds, traces,
+  pre/post checks and the decoder are in `captures/diagnostics-candidates-20261020/`.
 
 - `oem-dtc-acquisition-20261020.json` pins the seven target ECU/software
   identities and the newly located public Z9GT PHEV manual index. It records

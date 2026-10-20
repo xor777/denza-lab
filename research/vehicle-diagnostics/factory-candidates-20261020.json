@@ -1,0 +1,1435 @@
+{
+  "schema": "denza-lab.factory-candidates.v1",
+  "date": "2026-10-20",
+  "profile": 170,
+  "probe": "tools/vehicle-diagnostics/RemainingEcuReadProbe.java",
+  "plan": {
+    "path": "captures/diagnostics-candidates-20261020/plan.json",
+    "sha256": "f1cc979335928061af0dc5f89b4bb5bd7be18e48351650af918374748aabdc78"
+  },
+  "candidateSource": {
+    "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+    "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+  },
+  "cache": {
+    "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+    "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+  },
+  "scope": "22 F194 only, one per address, no identity gate on candidates; ECM 7E0 F194 control first in each run; no retries",
+  "counts": {
+    "factoryCanCandidates": 37,
+    "read": 35,
+    "excluded": 2,
+    "requests": 37,
+    "positiveF194": 22,
+    "cacheMatched": 21,
+    "notInCache": 1,
+    "gatewayResult3": 13
+  },
+  "excluded": {
+    "0715": "gateway result 3 to F194 on 2026-10-20 (captures/diagnostics-remaining-20261020/catalog2-run)",
+    "0785": "gateway result 3 to F194 on 2026-10-20 (captures/diagnostics-remaining-20261020/ident-run)"
+  },
+  "identities": [
+    {
+      "request": "0582",
+      "response": "058A",
+      "softwareCode": "484B0011DF02030100",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_RWS-L_BYD_00100001",
+          "ecuSoftVer": "4.00.08",
+          "ecuHardVer": "0.0.5"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_RWS-L_BYD_00100001"
+      ]
+    },
+    {
+      "request": "0590",
+      "response": "0598",
+      "softwareCode": "4A440011DE014A0101",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_AQDM_BYD_00100001",
+          "ecuSoftVer": "3.00.08",
+          "ecuHardVer": "0.0.5"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_AQDM_BYD_00100001"
+      ]
+    },
+    {
+      "request": "0595",
+      "response": "059D",
+      "softwareCode": "48490011A401162104",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_R-NCM_BYD_00100001",
+          "ecuSoftVer": "1.00.09",
+          "ecuHardVer": "0.0.1"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_R-NCM_BYD_00100001"
+      ]
+    },
+    {
+      "request": "0597",
+      "response": "059F",
+      "softwareCode": "4B4D0011DE01140600",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_IDC_BYD_00100001",
+          "ecuSoftVer": "3.01.18",
+          "ecuHardVer": "1.5.0"
+        },
+        {
+          "ecuId": "HTH-2021_IDC_BYD_00200001",
+          "ecuSoftVer": "3.01.18",
+          "ecuHardVer": "1.5.0"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_IDC_BYD_00100001",
+        "HTH-2021_IDC_BYD_00200001"
+      ]
+    },
+    {
+      "request": "05A0",
+      "response": "05A8",
+      "softwareCode": "4A500011DE01130000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_VR_BYD_00100001",
+          "ecuSoftVer": "2.00.05",
+          "ecuHardVer": "0.0.1"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_VR_BYD_00100001"
+      ]
+    },
+    {
+      "request": "05A7",
+      "response": "05AF",
+      "softwareCode": "48490011DF01050000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_RR_SDR_WHST_00100001",
+          "ecuSoftVer": "4.00.07",
+          "ecuHardVer": "1.1.0"
+        },
+        {
+          "ecuId": "HTH-2021_RR_SDR_BYD_00100001",
+          "ecuSoftVer": "4.00.07",
+          "ecuHardVer": "1.1.0"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_RR_SDR_WHST_00100001",
+        "HTH-2021_RR_SDR_BYD_00100001"
+      ]
+    },
+    {
+      "request": "05B0",
+      "response": "05B8",
+      "softwareCode": "48490011DF01040000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_RL_SDR_WHST_00100001",
+          "ecuSoftVer": "4.00.07",
+          "ecuHardVer": "1.1.0"
+        },
+        {
+          "ecuId": "HTH-2021_RL_SDR_BYD_00100001",
+          "ecuSoftVer": "4.00.07",
+          "ecuHardVer": "1.1.0"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_RL_SDR_WHST_00100001",
+        "HTH-2021_RL_SDR_BYD_00100001"
+      ]
+    },
+    {
+      "request": "05B1",
+      "response": "05B9",
+      "softwareCode": "48490011DF01030000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_FR_SDR_WHST_00100001",
+          "ecuSoftVer": "4.00.07",
+          "ecuHardVer": "1.1.0"
+        },
+        {
+          "ecuId": "HTH-2021_FR_SDR_BYD_00100001",
+          "ecuSoftVer": "4.00.07",
+          "ecuHardVer": "1.1.0"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_FR_SDR_WHST_00100001",
+        "HTH-2021_FR_SDR_BYD_00100001"
+      ]
+    },
+    {
+      "request": "05B2",
+      "response": "05BA",
+      "softwareCode": "48490011DF01020000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_FL_SDR_WHST_00100001",
+          "ecuSoftVer": "4.00.07",
+          "ecuHardVer": "1.1.0"
+        },
+        {
+          "ecuId": "HTH-2021_FL_SDR_BYD_00100001",
+          "ecuSoftVer": "4.00.07",
+          "ecuHardVer": "1.1.0"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_FL_SDR_WHST_00100001",
+        "HTH-2021_FL_SDR_BYD_00100001"
+      ]
+    },
+    {
+      "request": "05E0",
+      "response": "05E8",
+      "softwareCode": "52420011DF9E000000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_rear CPD radar_Valeo_00100001",
+          "ecuSoftVer": "4.00.12",
+          "ecuHardVer": "0.0.3"
+        },
+        {
+          "ecuId": "HTH-2021_rear CPD radar_Mindcruise_00100001",
+          "ecuSoftVer": "4.00.12",
+          "ecuHardVer": "0.0.3"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_rear CPD radar_Valeo_00100001",
+        "HTH-2021_rear CPD radar_Mindcruise_00100001"
+      ]
+    },
+    {
+      "request": "05E4",
+      "response": "05EC",
+      "softwareCode": "514A0011DE7B000000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_MCPA_KOSTAL_00100001",
+          "ecuSoftVer": "3.00.10",
+          "ecuHardVer": "0.0.4"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_MCPA_KOSTAL_00100001"
+      ]
+    },
+    {
+      "request": "05E7",
+      "response": "05EF",
+      "softwareCode": "4B450011DF990042E2",
+      "cacheIdentities": [],
+      "serverVariants": [
+        "HTH-2021_ASSY_BYD_00100001"
+      ]
+    },
+    {
+      "request": "05F4",
+      "response": "05FC",
+      "softwareCode": "48580011DF01750000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_RCP_BYD_00100001",
+          "ecuSoftVer": "4.00.04",
+          "ecuHardVer": "0.0.3"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_RCP_BYD_00100001"
+      ]
+    },
+    {
+      "request": "0772",
+      "response": "077A",
+      "softwareCode": "48330011DEE3000000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_FRL_BYD_00100001",
+          "ecuSoftVer": "4.00.01",
+          "ecuHardVer": "0.1.2"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_FRL_BYD_00100001"
+      ]
+    },
+    {
+      "request": "0790",
+      "response": "0798",
+      "softwareCode": "4B580011AD01990000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_ETC_Genvict_00100001",
+          "ecuSoftVer": "4.00.01",
+          "ecuHardVer": "1.1.0"
+        },
+        {
+          "ecuId": "HTH-2021_ETC_Vanjee_00100001",
+          "ecuSoftVer": "4.00.01",
+          "ecuHardVer": "1.1.0"
+        },
+        {
+          "ecuId": "HTH-2021_ETC_Julitech_00100001",
+          "ecuSoftVer": "4.00.01",
+          "ecuHardVer": "1.1.0"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_ETC_Genvict_00100001",
+        "HTH-2021_ETC_Vanjee_00100001",
+        "HTH-2021_ETC_Julitech_00100001"
+      ]
+    },
+    {
+      "request": "0796",
+      "response": "079E",
+      "softwareCode": "484B0011DF02020100",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_RWS-R_BYD_00100001",
+          "ecuSoftVer": "4.00.08",
+          "ecuHardVer": "0.0.5"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_RWS-R_BYD_00100001"
+      ]
+    },
+    {
+      "request": "07B0",
+      "response": "07B8",
+      "softwareCode": "48330011DE80000103",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_HUD_BYD_00100001",
+          "ecuSoftVer": "3.00.04",
+          "ecuHardVer": "0.1.3"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_HUD_BYD_00100001"
+      ]
+    },
+    {
+      "request": "07F3",
+      "response": "07FB",
+      "softwareCode": "3244001182C7000000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_UWBMC_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBMC_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_UWBMC_KOSTAL_00100001",
+        "HTH-2021_UWBMC_UAES_00100001"
+      ]
+    },
+    {
+      "request": "07F4",
+      "response": "07FC",
+      "softwareCode": "3244001183C8002000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_UWBLFA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRFA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLRA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRRA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRRA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRFA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLRA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLFA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_UWBLFA_KOSTAL_00100001",
+        "HTH-2021_UWBLFA_UAES_00100001"
+      ]
+    },
+    {
+      "request": "07F5",
+      "response": "07FD",
+      "softwareCode": "3244001183C8002000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_UWBLFA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRFA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLRA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRRA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRRA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRFA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLRA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLFA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_UWBRFA_KOSTAL_00100001",
+        "HTH-2021_UWBRFA_UAES_00100001"
+      ]
+    },
+    {
+      "request": "07F6",
+      "response": "07FE",
+      "softwareCode": "3244001183C8002000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_UWBLFA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRFA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLRA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRRA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRRA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRFA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLRA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLFA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_UWBLRA_KOSTAL_00100001",
+        "HTH-2021_UWBLRA_UAES_00100001"
+      ]
+    },
+    {
+      "request": "07F7",
+      "response": "07FF",
+      "softwareCode": "3244001183C8002000",
+      "cacheIdentities": [
+        {
+          "ecuId": "HTH-2021_UWBLFA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRFA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLRA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRRA_KOSTAL_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRRA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRFA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLRA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLFA_UAES_00100001",
+          "ecuSoftVer": "4.00.88",
+          "ecuHardVer": "0.0.1"
+        }
+      ],
+      "serverVariants": [
+        "HTH-2021_UWBRRA_KOSTAL_00100001",
+        "HTH-2021_UWBRRA_UAES_00100001"
+      ]
+    }
+  ],
+  "noAnswer": [
+    {
+      "request": "0591",
+      "gatewayResult": 3,
+      "gatewayCode": "0200",
+      "serverVariants": [
+        "HTH-2021_PLR_BYD_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "0592",
+      "gatewayResult": 3,
+      "gatewayCode": "05E5",
+      "serverVariants": [
+        "HTH-2021_PLL_BYD_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "0596",
+      "gatewayResult": 3,
+      "gatewayCode": "01FD",
+      "serverVariants": [
+        "HTH-2021_ERP_BaoLong_00100001",
+        "HTH-2021_ERP_BaoLong_00200001",
+        "HTH-2021_ERP_BaoLong_00300001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "05A6",
+      "gatewayResult": 3,
+      "gatewayCode": "01FD",
+      "serverVariants": [
+        "HTH-2021_Mid-CPD-R_Valeo_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "05B7",
+      "gatewayResult": 3,
+      "gatewayCode": "01FB",
+      "serverVariants": [
+        "HTH-2021_DPAC1_BYD_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "05C0",
+      "gatewayResult": 3,
+      "gatewayCode": "05E3",
+      "serverVariants": [
+        "HTH-2021_DPAC2_BYD_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "05C4",
+      "gatewayResult": 3,
+      "gatewayCode": "05E8",
+      "serverVariants": [
+        "HTH-2021_RL_R_BYD_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "05C5",
+      "gatewayResult": 3,
+      "gatewayCode": "05E9",
+      "serverVariants": [
+        "HTH-2021_RL_L_BYD_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "05C6",
+      "gatewayResult": 3,
+      "gatewayCode": "05E7",
+      "serverVariants": [
+        "HTH-2021_TL_R_BYD_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "05C7",
+      "gatewayResult": 3,
+      "gatewayCode": "01FA",
+      "serverVariants": [
+        "HTH-2021_TL_L_BYD_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "05D7",
+      "gatewayResult": 3,
+      "gatewayCode": "05E3",
+      "serverVariants": [
+        "HTH-2021_front CPD radar_Valeo_00200001",
+        "HTH-2021_front CPD radar_Mindcruise_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "05F5",
+      "gatewayResult": 3,
+      "gatewayCode": "01FB",
+      "serverVariants": [
+        "HTH-2021_WCM_RM_BJYG_00100001",
+        "HTH-2021_WCM_RM_BJYG_00200001",
+        "HTH-2021_WCM_RM_TEME_00100001",
+        "HTH-2021_WCM_RM_ADAYO_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    },
+    {
+      "request": "0716",
+      "gatewayResult": 3,
+      "gatewayCode": "05E3",
+      "serverVariants": [
+        "HTH-2021_BWA_BOSCH_00100001"
+      ],
+      "cachePlaceholderOnly": true
+    }
+  ],
+  "fseMcuIdentity": {
+    "request": "05E7",
+    "response": "05EF",
+    "softwareCode": "4B450011DF990042E2",
+    "routeName": "HTH-2021_ASSY_BYD_00100001",
+    "cachedCombinedCode": "4B450011DF99004201",
+    "source": "captures/fse-hud-route-20260924/xcd-verified/manifest.json",
+    "sourceSha256": "b02b465463f42eb890f482b41bc019eac2505529d5d6ca4f063ae8ecb948b385",
+    "container": {
+      "EcuSoftwareCode": "4B450011DF990042E2",
+      "CanReqID": "1511",
+      "CanRecID": "1519",
+      "CanType": "CANFD",
+      "UpdateDevice": "MCU",
+      "EcuVersion": "1.00.01"
+    },
+    "meaning": "the passenger computer's MCU: its own OTA container names this code and route; ECUVersion.json keeps the combined FSE software code, as it does for the head unit (741)"
+  },
+  "runs": [
+    {
+      "name": "factory-candidates1",
+      "trace": "captures/diagnostics-candidates-20261020/candidates1-run/probe.txt",
+      "sha256": "2779549637a605f8594bdad597d455ce4c224a72f35ae09581eabd9052fd7f5b",
+      "requests": 19,
+      "completion": {
+        "argument": "factory-candidates1",
+        "started": "2026-10-20T15:34:41.139609+00:00",
+        "ended": "2026-10-20T15:35:03.397397+00:00",
+        "stateUnchanged": true,
+        "crashBufferUnchanged": true,
+        "crashBufferBytes": 0,
+        "probePid": "",
+        "ownDex": "ABSENT",
+        "appHashUnchanged": true
+      },
+      "rows": [
+        {
+          "step": 0,
+          "request": "07E0",
+          "uds": "22F194",
+          "payload": "62F19432440011E004000000",
+          "result": "ok",
+          "did": "F194",
+          "value": "32440011E004000000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_ECM_UAES_01200001",
+              "ecuSoftVer": "4.00.10",
+              "ecuHardVer": "1.0.0"
+            }
+          ]
+        },
+        {
+          "step": 1,
+          "request": "0582",
+          "uds": "22F194",
+          "payload": "62F194484B0011DF02030100",
+          "result": "ok",
+          "did": "F194",
+          "value": "484B0011DF02030100",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_RWS-L_BYD_00100001",
+              "ecuSoftVer": "4.00.08",
+              "ecuHardVer": "0.0.5"
+            }
+          ]
+        },
+        {
+          "step": 2,
+          "request": "0590",
+          "uds": "22F194",
+          "payload": "62F1944A440011DE014A0101",
+          "result": "ok",
+          "did": "F194",
+          "value": "4A440011DE014A0101",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_AQDM_BYD_00100001",
+              "ecuSoftVer": "3.00.08",
+              "ecuHardVer": "0.0.5"
+            }
+          ]
+        },
+        {
+          "step": 3,
+          "request": "0591",
+          "uds": "22F194",
+          "payload": "22F19402000005910322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "0200"
+        },
+        {
+          "step": 4,
+          "request": "0592",
+          "uds": "22F194",
+          "payload": "22F19405E50005920322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "05E5"
+        },
+        {
+          "step": 5,
+          "request": "0595",
+          "uds": "22F194",
+          "payload": "62F19448490011A401162104",
+          "result": "ok",
+          "did": "F194",
+          "value": "48490011A401162104",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_R-NCM_BYD_00100001",
+              "ecuSoftVer": "1.00.09",
+              "ecuHardVer": "0.0.1"
+            }
+          ]
+        },
+        {
+          "step": 6,
+          "request": "0596",
+          "uds": "22F194",
+          "payload": "22F19401FD0005960322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "01FD"
+        },
+        {
+          "step": 7,
+          "request": "0597",
+          "uds": "22F194",
+          "payload": "62F1944B4D0011DE01140600",
+          "result": "ok",
+          "did": "F194",
+          "value": "4B4D0011DE01140600",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_IDC_BYD_00100001",
+              "ecuSoftVer": "3.01.18",
+              "ecuHardVer": "1.5.0"
+            },
+            {
+              "ecuId": "HTH-2021_IDC_BYD_00200001",
+              "ecuSoftVer": "3.01.18",
+              "ecuHardVer": "1.5.0"
+            }
+          ]
+        },
+        {
+          "step": 8,
+          "request": "05A0",
+          "uds": "22F194",
+          "payload": "62F1944A500011DE01130000",
+          "result": "ok",
+          "did": "F194",
+          "value": "4A500011DE01130000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_VR_BYD_00100001",
+              "ecuSoftVer": "2.00.05",
+              "ecuHardVer": "0.0.1"
+            }
+          ]
+        },
+        {
+          "step": 9,
+          "request": "05A6",
+          "uds": "22F194",
+          "payload": "22F19401FD0005A60322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "01FD"
+        },
+        {
+          "step": 10,
+          "request": "05A7",
+          "uds": "22F194",
+          "payload": "62F19448490011DF01050000",
+          "result": "ok",
+          "did": "F194",
+          "value": "48490011DF01050000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_RR_SDR_WHST_00100001",
+              "ecuSoftVer": "4.00.07",
+              "ecuHardVer": "1.1.0"
+            },
+            {
+              "ecuId": "HTH-2021_RR_SDR_BYD_00100001",
+              "ecuSoftVer": "4.00.07",
+              "ecuHardVer": "1.1.0"
+            }
+          ]
+        },
+        {
+          "step": 11,
+          "request": "05B0",
+          "uds": "22F194",
+          "payload": "62F19448490011DF01040000",
+          "result": "ok",
+          "did": "F194",
+          "value": "48490011DF01040000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_RL_SDR_WHST_00100001",
+              "ecuSoftVer": "4.00.07",
+              "ecuHardVer": "1.1.0"
+            },
+            {
+              "ecuId": "HTH-2021_RL_SDR_BYD_00100001",
+              "ecuSoftVer": "4.00.07",
+              "ecuHardVer": "1.1.0"
+            }
+          ]
+        },
+        {
+          "step": 12,
+          "request": "05B1",
+          "uds": "22F194",
+          "payload": "62F19448490011DF01030000",
+          "result": "ok",
+          "did": "F194",
+          "value": "48490011DF01030000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_FR_SDR_WHST_00100001",
+              "ecuSoftVer": "4.00.07",
+              "ecuHardVer": "1.1.0"
+            },
+            {
+              "ecuId": "HTH-2021_FR_SDR_BYD_00100001",
+              "ecuSoftVer": "4.00.07",
+              "ecuHardVer": "1.1.0"
+            }
+          ]
+        },
+        {
+          "step": 13,
+          "request": "05B2",
+          "uds": "22F194",
+          "payload": "62F19448490011DF01020000",
+          "result": "ok",
+          "did": "F194",
+          "value": "48490011DF01020000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_FL_SDR_WHST_00100001",
+              "ecuSoftVer": "4.00.07",
+              "ecuHardVer": "1.1.0"
+            },
+            {
+              "ecuId": "HTH-2021_FL_SDR_BYD_00100001",
+              "ecuSoftVer": "4.00.07",
+              "ecuHardVer": "1.1.0"
+            }
+          ]
+        },
+        {
+          "step": 14,
+          "request": "05B7",
+          "uds": "22F194",
+          "payload": "22F19401FB0005B70322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "01FB"
+        },
+        {
+          "step": 15,
+          "request": "05C0",
+          "uds": "22F194",
+          "payload": "22F19405E30005C00322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "05E3"
+        },
+        {
+          "step": 16,
+          "request": "05C4",
+          "uds": "22F194",
+          "payload": "22F19405E80005C40322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "05E8"
+        },
+        {
+          "step": 17,
+          "request": "05C5",
+          "uds": "22F194",
+          "payload": "22F19405E90005C50322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "05E9"
+        },
+        {
+          "step": 18,
+          "request": "05C6",
+          "uds": "22F194",
+          "payload": "22F19405E70005C60322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "05E7"
+        }
+      ]
+    },
+    {
+      "name": "factory-candidates2",
+      "trace": "captures/diagnostics-candidates-20261020/candidates2-run/probe.txt",
+      "sha256": "671c15ffd02050340457bd4edef0bfa19296cb628089ca7da6965cf635bf3a47",
+      "requests": 18,
+      "completion": {
+        "argument": "factory-candidates2",
+        "started": "2026-10-20T15:35:33.959910+00:00",
+        "ended": "2026-10-20T15:35:50.566890+00:00",
+        "stateUnchanged": true,
+        "crashBufferUnchanged": true,
+        "crashBufferBytes": 0,
+        "probePid": "",
+        "ownDex": "ABSENT",
+        "appHashUnchanged": true
+      },
+      "rows": [
+        {
+          "step": 0,
+          "request": "07E0",
+          "uds": "22F194",
+          "payload": "62F19432440011E004000000",
+          "result": "ok",
+          "did": "F194",
+          "value": "32440011E004000000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_ECM_UAES_01200001",
+              "ecuSoftVer": "4.00.10",
+              "ecuHardVer": "1.0.0"
+            }
+          ]
+        },
+        {
+          "step": 1,
+          "request": "05C7",
+          "uds": "22F194",
+          "payload": "22F19401FA0005C70322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "01FA"
+        },
+        {
+          "step": 2,
+          "request": "05D7",
+          "uds": "22F194",
+          "payload": "22F19405E30005D70322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "05E3"
+        },
+        {
+          "step": 3,
+          "request": "05E0",
+          "uds": "22F194",
+          "payload": "62F19452420011DF9E000000",
+          "result": "ok",
+          "did": "F194",
+          "value": "52420011DF9E000000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_rear CPD radar_Valeo_00100001",
+              "ecuSoftVer": "4.00.12",
+              "ecuHardVer": "0.0.3"
+            },
+            {
+              "ecuId": "HTH-2021_rear CPD radar_Mindcruise_00100001",
+              "ecuSoftVer": "4.00.12",
+              "ecuHardVer": "0.0.3"
+            }
+          ]
+        },
+        {
+          "step": 4,
+          "request": "05E4",
+          "uds": "22F194",
+          "payload": "62F194514A0011DE7B000000",
+          "result": "ok",
+          "did": "F194",
+          "value": "514A0011DE7B000000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_MCPA_KOSTAL_00100001",
+              "ecuSoftVer": "3.00.10",
+              "ecuHardVer": "0.0.4"
+            }
+          ]
+        },
+        {
+          "step": 5,
+          "request": "05E7",
+          "uds": "22F194",
+          "payload": "62F1944B450011DF990042E2",
+          "result": "ok",
+          "did": "F194",
+          "value": "4B450011DF990042E2",
+          "cacheIdentities": []
+        },
+        {
+          "step": 6,
+          "request": "05F4",
+          "uds": "22F194",
+          "payload": "62F19448580011DF01750000",
+          "result": "ok",
+          "did": "F194",
+          "value": "48580011DF01750000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_RCP_BYD_00100001",
+              "ecuSoftVer": "4.00.04",
+              "ecuHardVer": "0.0.3"
+            }
+          ]
+        },
+        {
+          "step": 7,
+          "request": "05F5",
+          "uds": "22F194",
+          "payload": "22F19401FB0005F50322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "01FB"
+        },
+        {
+          "step": 8,
+          "request": "0716",
+          "uds": "22F194",
+          "payload": "22F19405E30007160322F19455555555",
+          "result": "response timeout",
+          "gatewayResult": 3,
+          "gatewayCode": "05E3"
+        },
+        {
+          "step": 9,
+          "request": "0772",
+          "uds": "22F194",
+          "payload": "62F19448330011DEE3000000",
+          "result": "ok",
+          "did": "F194",
+          "value": "48330011DEE3000000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_FRL_BYD_00100001",
+              "ecuSoftVer": "4.00.01",
+              "ecuHardVer": "0.1.2"
+            }
+          ]
+        },
+        {
+          "step": 10,
+          "request": "0790",
+          "uds": "22F194",
+          "payload": "62F1944B580011AD01990000",
+          "result": "ok",
+          "did": "F194",
+          "value": "4B580011AD01990000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_ETC_Genvict_00100001",
+              "ecuSoftVer": "4.00.01",
+              "ecuHardVer": "1.1.0"
+            },
+            {
+              "ecuId": "HTH-2021_ETC_Vanjee_00100001",
+              "ecuSoftVer": "4.00.01",
+              "ecuHardVer": "1.1.0"
+            },
+            {
+              "ecuId": "HTH-2021_ETC_Julitech_00100001",
+              "ecuSoftVer": "4.00.01",
+              "ecuHardVer": "1.1.0"
+            }
+          ]
+        },
+        {
+          "step": 11,
+          "request": "0796",
+          "uds": "22F194",
+          "payload": "62F194484B0011DF02020100",
+          "result": "ok",
+          "did": "F194",
+          "value": "484B0011DF02020100",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_RWS-R_BYD_00100001",
+              "ecuSoftVer": "4.00.08",
+              "ecuHardVer": "0.0.5"
+            }
+          ]
+        },
+        {
+          "step": 12,
+          "request": "07B0",
+          "uds": "22F194",
+          "payload": "62F19448330011DE80000103",
+          "result": "ok",
+          "did": "F194",
+          "value": "48330011DE80000103",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_HUD_BYD_00100001",
+              "ecuSoftVer": "3.00.04",
+              "ecuHardVer": "0.1.3"
+            }
+          ]
+        },
+        {
+          "step": 13,
+          "request": "07F3",
+          "uds": "22F194",
+          "payload": "62F1943244001182C7000000",
+          "result": "ok",
+          "did": "F194",
+          "value": "3244001182C7000000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_UWBMC_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBMC_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            }
+          ]
+        },
+        {
+          "step": 14,
+          "request": "07F4",
+          "uds": "22F194",
+          "payload": "62F1943244001183C8002000",
+          "result": "ok",
+          "did": "F194",
+          "value": "3244001183C8002000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_UWBLFA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRFA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLRA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRRA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRRA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRFA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLRA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLFA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            }
+          ]
+        },
+        {
+          "step": 15,
+          "request": "07F5",
+          "uds": "22F194",
+          "payload": "62F1943244001183C8002000",
+          "result": "ok",
+          "did": "F194",
+          "value": "3244001183C8002000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_UWBLFA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRFA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLRA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRRA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRRA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRFA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLRA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLFA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            }
+          ]
+        },
+        {
+          "step": 16,
+          "request": "07F6",
+          "uds": "22F194",
+          "payload": "62F1943244001183C8002000",
+          "result": "ok",
+          "did": "F194",
+          "value": "3244001183C8002000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_UWBLFA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRFA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLRA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRRA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRRA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRFA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLRA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLFA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            }
+          ]
+        },
+        {
+          "step": 17,
+          "request": "07F7",
+          "uds": "22F194",
+          "payload": "62F1943244001183C8002000",
+          "result": "ok",
+          "did": "F194",
+          "value": "3244001183C8002000",
+          "cacheIdentities": [
+            {
+              "ecuId": "HTH-2021_UWBLFA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRFA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLRA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRRA_KOSTAL_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRRA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBRFA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLRA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            },
+            {
+              "ecuId": "HTH-2021_UWBLFA_UAES_00100001",
+              "ecuSoftVer": "4.00.88",
+              "ecuHardVer": "0.0.1"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "productAllowlist5xx": [
+    "0582",
+    "0590",
+    "0595",
+    "0597",
+    "05A0",
+    "05A7",
+    "05B0",
+    "05B1",
+    "05B2",
+    "05E0",
+    "05E4",
+    "05E7",
+    "05F4"
+  ]
+}

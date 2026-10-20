@@ -16,6 +16,7 @@ and [the decoded evidence](../../research/vehicle-diagnostics/remaining-ecus-202
 | `obd-name` | ECM control; `09 00`, `09 04`, `09 0A` at the OBD-only `7E5` interface |
 | `factory-powertrain` | ECM control; exact cached F194 identity, count09 and list09 for factory-map SMCU744, SMCU3 745 and DCOBC7E4 |
 | `factory-dcobc-list` | ECM control, exact DCOBC F194, one bounded `19 02 09`; no count/format inference |
+| `factory-candidates1`, `factory-candidates2` | ECM control; F194 only at the 35 CAN routes of the complete factory map outside the scanner catalog, 18 then 17 addresses; `715`/`785` left out (result 3 already); codes matched offline |
 
 Every request checks shell/profile170/P/zero speed/idle diagnostic manager;
 the process holds the same file lock as the packaged DTC reader. A passive

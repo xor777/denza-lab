@@ -36,6 +36,7 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 | DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (stock tester and its 96-case function map: left body domain `LA_BCM`; OTA map's CDC/ZCU rows unexplained; BYD labels status28 «历史故障»); 2026-10-20 the same transport reaches the engine ECM `7E0` (OBD Mode 01/03/07/0A, UDS 19; MIL off, 0 codes) and `7E2`/`7E3`/`7E5`/`7E6`/`7E7`/`722`/`726`/`747`; full catalog sweep 2026-10-20: SoH99, cells 3333–3337 mV, service life oil75/brake fluid99/coolant50, GB alarms answer at the N9 baseline; LBMS `762→76A` zero/support09. Further chassis/ADAS addresses were qualified on 2026-10-20, below. Native service diagnostics adds readable DTC summaries, qualified reference meanings, all eight status bits and a dated candidate inventory; 43 scalar and 15 lamp GETs refresh every5 s and expire at15 s. Lamp0 means invalid, not off; captured engine lamp on. Fourteen updated emulator views match their boards; new APK not installed on car | live reader; code window; emulator validation | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18); [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18); [Deeper sources](#deeper-sources-for-a-diagnostic-screen-2026-10-20); [Z9GT catalog sweep](#z9gt-catalog-sweep-2026-10-20); [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20) |
 | Remaining-ECU research: 70 F194 addresses checked, 33 positive, 32 exact cache matches, and `741` is the head unit's own MCU by the stock media software mapping; ABS/ESP782, EPS783, SRS7F1, ADC712 and MRR7F2 each return explicit zero DTC for mask09. OBD7E5 names itself BSCM-BrakeSystem. The later factory-map pass below resolves the rear-drive/DCOBC routes | live, research | 2026-10-20 | [Remaining ECU identities and chassis DTC](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) |
 | Complete factory metadata: 225 routing candidates; SMCU744/74C, SMCU3 745/74D and DCOBC7E4/7EC answered matching F194 and empty mask09 lists. DCOBC format remains unknown. A public Z9GT PHEV manual index now supplies engine/battery/drive DTC heading candidates, but has conflicting definitions and no ECU-software binding; no OEM dictionary is qualified | live routes; dictionary open | 2026-10-20 | [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20); [Manual candidates](#oem-dtc-manual-candidates-2026-10-20) |
+| Factory-map candidates: of the 37 CAN routes outside the scanner catalog, 35 got one `22 F194` (`715`/`785` already had result 3); 22 answered. All 21 with a real code in `ECUVersion.json` returned it byte for byte, all 13 with only a zero placeholder got gateway result 3, and `5E7` returned the passenger computer's MCU code `4B450011DF990042E2` from its own OTA container. All 22 are in `EcuCatalog`; the 13 `5xx` responders are listed one by one in `DiagnosticWhitelist`. Their DTC memories are unread | live | 2026-10-20 | [Factory-map candidates](#factory-map-candidates-on-this-car-2026-10-20) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
@@ -68,6 +69,7 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 - [Additional diagnostic readings and LBMS](#additional-diagnostic-readings-and-lbms-2026-10-18) — 43 GETs, window polling and the second qualified ECU
 - [Remaining ECU identities and chassis DTC](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) — ABS/ESP, EPS, SRS, ADAS, radar, 32 cache matches and the brake OBD interface
 - [Complete factory map and remaining powertrain DTC](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) — all 225 server routes, live rear drives/DCOBC and the OEM dictionary gap
+- [Factory-map candidates on this car](#factory-map-candidates-on-this-car-2026-10-20) — F194 at the 37 CAN routes outside the catalog: who is installed, the cache as an install marker, the passenger computer's MCU
 - [OEM DTC manual candidates](#oem-dtc-manual-candidates-2026-10-20) — model-specific public headings, conflicts, code-format and software-applicability gaps
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
 - [Raw CAN-FD callback (2026-09-03)](#raw-can-fd-callback-2026-09-03) — the passive shell-UID frame stream and its envelope
@@ -2746,6 +2748,74 @@ and route metadata do not fill this gap. The seven-target software-code
 specification, original source anchors and hashes are retained in
 `captures/diagnostics-next-20261020/dictionaries/`; this specification was not
 sent to anyone. No unsupported factory descriptions were added.
+
+### Factory-map candidates on this car (2026-10-20)
+
+**22 of the 37 candidate CAN routes are installed; the cache predicted every one.**
+The complete factory map lists 37 CAN routes the scanner's catalog did not
+hold. They were server variants, not proven modules. Two owner-approved
+runs, `factory-candidates1` and `factory-candidates2`, read them with
+`RemainingEcuReadProbe`: one `22 F194` per address, ECM `7E0` as the control,
+18 and 17 addresses, 37 requests, no retries. `715` (INFC) and `785` (RMCU)
+were not asked again: each had already got result 3 that morning. The five
+DoIP routes are outside the transport.
+
+The written expectation was that a real code in `ECUVersion.json` means the
+module is fitted, and a zero placeholder means it is not. It held for every
+address:
+
+| Request → reply | Server route name(s) | F194 | Cache |
+| --- | --- | --- | --- |
+| `582 → 58A`, `796 → 79E` | RWS-L, RWS-R | `484B0011DF02030100`, `484B0011DF02020100` | match |
+| `590 → 598` | AQDM | `4A440011DE014A0101` | match |
+| `595 → 59D` | R-NCM | `48490011A401162104` | match |
+| `597 → 59F` | IDC (two variants) | `4B4D0011DE01140600` | match |
+| `5A0 → 5A8` | VR | `4A500011DE01130000` | match |
+| `5A7`, `5B0`, `5B1`, `5B2` | RR/RL/FR/FL SDR (BYD, WHST) | `48490011DF01050000`, `…01040000`, `…01030000`, `…01020000` | match |
+| `5E0 → 5E8` | rear CPD radar (Valeo, Mindcruise) | `52420011DF9E000000` | match |
+| `5E4 → 5EC` | MCPA (KOSTAL) | `514A0011DE7B000000` | match |
+| `5E7 → 5EF` | ASSY | `4B450011DF990042E2` | not in cache: the passenger computer's MCU, below |
+| `5F4 → 5FC` | RCP | `48580011DF01750000` | match |
+| `772 → 77A` | FRL | `48330011DEE3000000` | match |
+| `790 → 798` | ETC (Genvict, Vanjee, Julitech) | `4B580011AD01990000` | match |
+| `7B0 → 7B8` | HUD | `48330011DE80000103` | match |
+| `7F3 → 7FB` | UWBMC (KOSTAL, UAES) | `3244001182C7000000` | match |
+| `7F4`–`7F7` | UWB anchors LF/RF/LR/RR | `3244001183C8002000`, one code for all four | match |
+
+Gateway result 3 (no reply) at all 13 placeholder routes: `591` PLR, `592` PLL,
+`596` ERP, `5A6` Mid-CPD-R, `5B7` DPAC1, `5C0` DPAC2, `5C4`/`5C5` RL lamps,
+`5C6`/`5C7` TL lamps, `5D7` front CPD radar, `5F5` WCM_RM, `716` BWA.
+As before, result 3 means not reachable through this envelope, not proof that
+nothing is fitted. Every reply came from request + 8 in one frame. The
+gateway's second word in a result-3 frame varies (`01FA`–`01FD`, `0200`,
+`05E3`–`05E9`); its meaning is not established.
+
+`5E7` answers F194 with `4B450011DF990042E2`, which is not the `ASSY_BYD`
+cache code `4B450011DF99004201`. The server lists ASSY's software DID as
+`F294`, so a refusal of F194 was the expected outcome. Instead the code is the
+`EcuSoftwareCode` of the MCU container `mcu_42_2_3.xcd` in the passenger
+computer's own OTA, whose `CanReqID 1511` / `CanRecID 1519` are exactly
+`5E7`/`5EF` ([HUD findings 14.10.4](hud-projection-findings.md)). This is the
+head unit's `741` pattern: the cache keeps the combined software code (`…01`),
+and the MCU answers with its own code (`…E2`).
+
+Roles are not established by the replies. HUD, ETC, the child-presence radar
+and the UWB key follow from their route names. RWS, AQDM, R-NCM, IDC, VR, SDR,
+MCPA, RCP and FRL stay unnamed. The four UWB anchors share one code, like the
+corner radars, so only the route names separate their positions.
+
+Both runs held the lock, observed the passive window and checked profile 170,
+P, zero speed and the idle manager before every request. Before and after:
+`autoservice=128`, `SpotInspection=3578`, `com.byd.avc=4634`, crash buffers
+empty, app hash unchanged, own dex removed. Runs took 22 s and 17 s. No APK
+was installed. No session, clear, DTC, VIN or other DID was requested.
+
+Product consequence: all 22 joined `EcuCatalog`. The 13 `5xx` responders are
+listed one by one in `DiagnosticWhitelist`, beside the `700`–`7F7` range. None of
+their DTC memories has been read. Evidence:
+[`factory-candidates-20261020.json`](../research/vehicle-diagnostics/factory-candidates-20261020.json),
+with plan, builds, traces, pre/post checks and the decoder in
+`captures/diagnostics-candidates-20261020/`.
 
 ### OEM DTC manual candidates (2026-10-20)
 

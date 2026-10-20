@@ -51,6 +51,16 @@ public final class RemainingEcuReadProbe {
         0x7A1, 0x7A3, 0x7AA, 0x7B3, 0x7B5, 0x7B6, 0x7BB, 0x7C2, 0x7C3,
         0x7C6, 0x7D1, 0x7D2, 0x7D4
     };
+    // CAN routes of the complete factory map (factory-ecu-map-20261020.json) that the scanner's
+    // catalog does not hold: server variants, not installed modules. 0x715 and 0x785 are left out:
+    // each already got gateway result 3 to F194 on 2026-10-20 (catalog2, ident), and there are no
+    // repeats. Every reply is request + 8. F194 only; identities are matched offline, not gated.
+    static final int[] FACTORY_CANDIDATES = {
+        0x582, 0x590, 0x591, 0x592, 0x595, 0x596, 0x597, 0x5A0, 0x5A6,
+        0x5A7, 0x5B0, 0x5B1, 0x5B2, 0x5B7, 0x5C0, 0x5C4, 0x5C5, 0x5C6,
+        0x5C7, 0x5D7, 0x5E0, 0x5E4, 0x5E7, 0x5F4, 0x5F5, 0x716, 0x772,
+        0x790, 0x796, 0x7B0, 0x7F3, 0x7F4, 0x7F5, 0x7F6, 0x7F7
+    };
     static final String[] DTC_IDENTITIES = {
         "32330011DF0B000101", "43430011DE6F000000", "54500011E011000012",
         "48450011DF83000000", "474E0011DF70000000"
@@ -70,6 +80,11 @@ public final class RemainingEcuReadProbe {
         plan.add(new Step(0x7E0, identification(), hex(ECM_CODE)));
         for (int i = group * 18; i < Math.min(CATALOG.length, (group + 1) * 18); i++)
             plan.add(new Step(CATALOG[i], identification(), null));
+    }
+    static void factoryCandidatesPlan(int group) {
+        plan.add(new Step(0x7E0, identification(), hex(ECM_CODE)));
+        for (int i = group * 18; i < Math.min(FACTORY_CANDIDATES.length, (group + 1) * 18); i++)
+            plan.add(new Step(FACTORY_CANDIDATES[i], identification(), null));
     }
     static void obdNamePlan() {
         plan.add(new Step(0x7E0, identification(), hex(ECM_CODE)));
@@ -295,12 +310,15 @@ public final class RemainingEcuReadProbe {
         boolean obdName = args.length == 1 && args[0].equals("obd-name");
         boolean factoryPowertrain = args.length == 1 && args[0].equals("factory-powertrain");
         standaloneDcobcList = args.length == 1 && args[0].equals("factory-dcobc-list");
-        int group = -1;
+        int group = -1, candidates = -1;
         for (int i = 0; i < 4; i++)
             if (args.length == 1 && args[0].equals("catalog" + (i + 1))) group = i;
-        if (args.length != 0 && !dtc && !obdName && !factoryPowertrain && !standaloneDcobcList && group < 0)
-            throw new IllegalArgumentException("Fixed identification, dtc, obd-name, factory-powertrain, factory-dcobc-list or catalog1..4 plan");
-        if (standaloneDcobcList) factoryDcobcListPlan();
+        for (int i = 0; i < 2; i++)
+            if (args.length == 1 && args[0].equals("factory-candidates" + (i + 1))) candidates = i;
+        if (args.length != 0 && !dtc && !obdName && !factoryPowertrain && !standaloneDcobcList && group < 0 && candidates < 0)
+            throw new IllegalArgumentException("Fixed identification, dtc, obd-name, factory-powertrain, factory-dcobc-list, catalog1..4 or factory-candidates1..2 plan");
+        if (candidates >= 0) factoryCandidatesPlan(candidates);
+        else if (standaloneDcobcList) factoryDcobcListPlan();
         else if (factoryPowertrain) factoryPowertrainPlan();
         else if (obdName) obdNamePlan();
         else if (group >= 0) catalogPlan(group);
