@@ -36883,1625 +36883,6 @@
    }
   }
  ],
- "scanner-scan": [
-  {
-   "kind": "scanner",
-   "mode": "full",
-   "screen": "scan"
-  },
-  {
-   "top": {
-    "crumbs": [
-     "Диагностика",
-     "Автоскан"
-    ],
-    "link": "Связь OK",
-    "car": "Z9 GT DM · P · 0 км/ч",
-    "time": "16:31:07"
-   },
-   "counters": [
-    [
-     "ОТВЕТИЛО",
-     "68/68",
-     "white"
-    ],
-    [
-     "DTC АКТИВНЫХ",
-     "0",
-     "white"
-    ],
-    [
-     "DTC В ИСТОРИИ",
-     "10",
-     "text"
-    ],
-    [
-     "ПАМЯТЬ ПРОЧИТАНА",
-     "19/68",
-     "text"
-    ],
-    [
-     "MIL",
-     "ВЫКЛ",
-     "text"
-    ]
-   ],
-   "tabs": [
-    "Список",
-    "Топология"
-   ],
-   "headUnit": [
-    "ГУ · диагностика",
-    "+8"
-   ],
-   "groups": [
-    {
-     "id": "power",
-     "title": "СИЛОВАЯ УСТАНОВКА",
-     "short": "Силовая",
-     "topo": "СИЛОВАЯ",
-     "ecus": [
-      {
-       "name": "ЭБУ двигателя",
-       "unit": "ECM · UAES",
-       "abbr": "ECM",
-       "short": "Двигатель",
-       "req": "7E0",
-       "proto": "OBD-II, UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-ecu-dtc"
-      },
-      {
-       "name": "Контроллер силовой установки",
-       "unit": "VCU",
-       "abbr": "VCU",
-       "short": "Силовая уст.",
-       "req": "7E2",
-       "proto": "OBD-II, UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      },
-      {
-       "name": "Контроллер переднего мотора",
-       "unit": "FMCU",
-       "abbr": "FMCU",
-       "short": "Перед. мотор",
-       "req": "7E3",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-drives"
-      },
-      {
-       "name": "Контроллер мотор-генератора",
-       "unit": "ISG",
-       "abbr": "ISG",
-       "short": "Мотор-генер.",
-       "req": "7E6",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-drives"
-      },
-      {
-       "name": "Система управления ВВБ",
-       "unit": "BMS",
-       "abbr": "BMS",
-       "short": "ВВБ",
-       "req": "7E7",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-bms"
-      },
-      {
-       "name": "Контроллер заднего мотора",
-       "unit": "SMCU",
-       "abbr": "SMCU",
-       "short": "Задн. мотор",
-       "req": "744",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-drives"
-      },
-      {
-       "name": "Контроллер заднего мотора",
-       "unit": "SMCU3",
-       "abbr": "SMCU3",
-       "short": "Задн. мотор",
-       "req": "745",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-drives"
-      },
-      {
-       "name": "Бортовое зарядное и DC-DC",
-       "unit": "DCOBC",
-       "abbr": "DCOBC",
-       "short": "OBC + DC-DC",
-       "req": "7E4",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-hv"
-      }
-     ]
-    },
-    {
-     "id": "chassis",
-     "title": "ШАССИ И БЕЗОПАСНОСТЬ",
-     "short": "Шасси",
-     "topo": "ШАССИ",
-     "ecus": [
-      {
-       "name": "Тормозная система, стабилизация",
-       "unit": "ESP/IPB · Bosch",
-       "abbr": "ESP/IPB",
-       "short": "Тормоза, ESP",
-       "req": "782",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-brakes"
-      },
-      {
-       "name": "Тормозная система · интерфейс OBD",
-       "unit": "BSCM",
-       "abbr": "BSCM",
-       "short": "Тормоза · OBD",
-       "req": "7E5",
-       "proto": "OBD-II",
-       "kind": "ok",
-       "active": "0",
-       "history": "—",
-       "opens": "scanner-brakes"
-      },
-      {
-       "name": "Электроусилитель руля",
-       "unit": "EPS",
-       "abbr": "EPS",
-       "short": "Рулевое",
-       "req": "783",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      },
-      {
-       "name": "Подушки безопасности",
-       "unit": "SRS · Veoneer",
-       "abbr": "SRS",
-       "short": "Подушки",
-       "req": "7F1",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      }
-     ]
-    },
-    {
-     "id": "assist",
-     "title": "АССИСТЕНТЫ ВОДИТЕЛЯ",
-     "short": "Ассистенты",
-     "topo": "АССИСТЕНТЫ",
-     "ecus": [
-      {
-       "name": "Контроллер ассистентов",
-       "unit": "ADC",
-       "abbr": "ADC",
-       "short": "Ассистенты",
-       "req": "712",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Радар передний",
-       "unit": "MRR",
-       "abbr": "MRR",
-       "short": "Радар перед.",
-       "req": "7F2",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Угловой радар передний левый",
-       "unit": "LFCR",
-       "abbr": "LFCR",
-       "short": "Радар ПЛ",
-       "req": "760",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Угловой радар передний правый",
-       "unit": "RFCR",
-       "abbr": "RFCR",
-       "short": "Радар ПП",
-       "req": "761",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Угловой радар задний правый",
-       "unit": "RRCR",
-       "abbr": "RRCR",
-       "short": "Радар ЗП",
-       "req": "7C2",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Угловой радар задний левый",
-       "unit": "LRCR",
-       "abbr": "LRCR",
-       "short": "Радар ЗЛ",
-       "req": "7D4",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Парковочный ассистент",
-       "unit": "IPA · Bosch",
-       "abbr": "IPA",
-       "short": "Парковка",
-       "req": "701",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      }
-     ]
-    },
-    {
-     "id": "body",
-     "title": "КУЗОВ",
-     "short": "Кузов",
-     "topo": "КУЗОВ",
-     "ecus": [
-      {
-       "name": "Кузовной контроллер левый",
-       "unit": "LA_BCM",
-       "abbr": "LA_BCM",
-       "short": "Кузов слева",
-       "req": "720",
-       "proto": "UDS",
-       "kind": "hist",
-       "active": "0",
-       "history": "8"
-      },
-      {
-       "name": "Кузов, зона справа",
-       "unit": "R_ZCU",
-       "abbr": "R_ZCU",
-       "short": "Зона справа",
-       "req": "747",
-       "proto": "UDS",
-       "kind": "hist",
-       "active": "0",
-       "history": "2",
-       "opens": "scanner-body-dtc"
-      },
-      {
-       "name": "Кузов, зона спереди",
-       "unit": "F_ZCU",
-       "abbr": "F_ZCU",
-       "short": "Зона спереди",
-       "req": "722",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      },
-      {
-       "name": "Кузов, зона сзади",
-       "unit": "B_ZCU",
-       "abbr": "B_ZCU",
-       "short": "Зона сзади",
-       "req": "726",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      },
-      {
-       "name": "Фара левая",
-       "unit": "FL_L",
-       "abbr": "FL_L",
-       "short": "Фара Л",
-       "req": "770",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Фара правая",
-       "unit": "FL_R",
-       "abbr": "FL_R",
-       "short": "Фара П",
-       "req": "771",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Цифровой ключ UWB",
-       "unit": "UWBMC",
-       "abbr": "UWBMC",
-       "short": "UWB-ключ",
-       "req": "7F3",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Антенна UWB передняя левая",
-       "unit": "UWBLFA",
-       "abbr": "UWBLFA",
-       "short": "UWB ПЛ",
-       "req": "7F4",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Антенна UWB передняя правая",
-       "unit": "UWBRFA",
-       "abbr": "UWBRFA",
-       "short": "UWB ПП",
-       "req": "7F5",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Антенна UWB задняя левая",
-       "unit": "UWBLRA",
-       "abbr": "UWBLRA",
-       "short": "UWB ЗЛ",
-       "req": "7F6",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Антенна UWB задняя правая",
-       "unit": "UWBRRA",
-       "abbr": "UWBRRA",
-       "short": "UWB ЗП",
-       "req": "7F7",
-       "proto": "UDS",
-       "kind": "unread"
-      }
-     ]
-    },
-    {
-     "id": "salon",
-     "title": "САЛОН",
-     "short": "Салон",
-     "topo": "САЛОН",
-     "ecus": [
-      {
-       "name": "Комбинация приборов",
-       "unit": "INS",
-       "abbr": "INS",
-       "short": "Приборы",
-       "req": "723",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Усилитель звука",
-       "unit": "AMP",
-       "abbr": "AMP",
-       "short": "Усилитель",
-       "req": "751",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Беспроводная зарядка",
-       "unit": "WCT",
-       "abbr": "WCT",
-       "short": "Беспр. ЗУ",
-       "req": "733",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Кнопки руля",
-       "unit": "SWS",
-       "abbr": "SWS",
-       "short": "Кнопки руля",
-       "req": "711",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Головное устройство (MCU)",
-       "unit": "Media",
-       "abbr": "Media",
-       "short": "ГУ · MCU",
-       "req": "741",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Пассажирский компьютер (MCU)",
-       "unit": "ASSY",
-       "abbr": "ASSY",
-       "short": "Пасс. ПК · MCU",
-       "req": "5E7",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Проекционный дисплей",
-       "unit": "HUD",
-       "abbr": "HUD",
-       "short": "HUD",
-       "req": "7B0",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Модуль оплаты проезда (ETC)",
-       "unit": "ETC",
-       "abbr": "ETC",
-       "short": "ETC",
-       "req": "790",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Радар присутствия детей, задний",
-       "unit": "CPD",
-       "abbr": "CPD",
-       "short": "Радар детей",
-       "req": "5E0",
-       "proto": "UDS",
-       "kind": "unread"
-      }
-     ]
-    },
-    {
-     "id": "climate",
-     "title": "КЛИМАТ И ТЕРМОРЕГУЛИРОВАНИЕ",
-     "short": "Климат",
-     "topo": "КЛИМАТ",
-     "ecus": [
-      {
-       "name": "Климат-контроль",
-       "unit": "ACC",
-       "abbr": "ACC",
-       "short": "Климат",
-       "req": "7B3",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Модуль терморегулирования",
-       "unit": "TMIM · Tuopu",
-       "abbr": "TMIM",
-       "short": "Терморег.",
-       "req": "7B4",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Высоковольтный нагреватель",
-       "unit": "PTC · HGTECH",
-       "abbr": "PTC",
-       "short": "Нагреватель",
-       "req": "766",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-hv"
-      }
-     ]
-    },
-    {
-     "id": "lv",
-     "title": "ЭЛЕКТРОСЕТЬ 12 В",
-     "short": "12 В",
-     "topo": "12 В",
-     "ecus": [
-      {
-       "name": "АКБ 12 В",
-       "unit": "LBMS",
-       "abbr": "LBMS",
-       "short": "АКБ 12 В",
-       "req": "762",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      }
-     ]
-    },
-    {
-     "id": "misc",
-     "title": "НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО",
-     "short": "Прочие",
-     "topo": "НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО",
-     "ecus": [
-      {
-       "name": "Блок 743",
-       "unit": "PDC-VCU",
-       "abbr": "PDC-VCU",
-       "short": "ПО 4.17.18",
-       "req": "743",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 724",
-       "unit": "PDCMB",
-       "abbr": "PDCMB",
-       "short": "ПО 4.02.03",
-       "req": "724",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 725",
-       "unit": "CS",
-       "abbr": "CS",
-       "short": "ПО 4.00.04",
-       "req": "725",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 713",
-       "unit": "MSRF",
-       "abbr": "MSRF",
-       "short": "ПО 4.00.08",
-       "req": "713",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 742",
-       "unit": "MSRZ",
-       "abbr": "MSRZ",
-       "short": "ПО 4.00.08",
-       "req": "742",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 750",
-       "unit": "DUCU",
-       "abbr": "DUCU",
-       "short": "ПО 4.00.11",
-       "req": "750",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7B5",
-       "unit": "PUCU",
-       "abbr": "PUCU",
-       "short": "ПО 4.00.10",
-       "req": "7B5",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7D2",
-       "unit": "MLUCU",
-       "abbr": "MLUCU",
-       "short": "ПО 4.00.08",
-       "req": "7D2",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 754",
-       "unit": "HFRM",
-       "abbr": "HFRM",
-       "short": "ПО 4.00.01",
-       "req": "754",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7A7",
-       "unit": "CCS/SCPA",
-       "abbr": "CCS/SCPA",
-       "short": "ПО 4.00.06",
-       "req": "7A7",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7C6",
-       "unit": "RRCP",
-       "abbr": "RRCP",
-       "short": "ПО 4.00.04",
-       "req": "7C6",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7D6",
-       "unit": "SEC",
-       "abbr": "SEC",
-       "short": "ПО 1.11.36",
-       "req": "7D6",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 582",
-       "unit": "RWS-L",
-       "abbr": "RWS-L",
-       "short": "ПО 4.00.08",
-       "req": "582",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 796",
-       "unit": "RWS-R",
-       "abbr": "RWS-R",
-       "short": "ПО 4.00.08",
-       "req": "796",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 590",
-       "unit": "AQDM",
-       "abbr": "AQDM",
-       "short": "ПО 3.00.08",
-       "req": "590",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 595",
-       "unit": "R-NCM",
-       "abbr": "R-NCM",
-       "short": "ПО 1.00.09",
-       "req": "595",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 597",
-       "unit": "IDC",
-       "abbr": "IDC",
-       "short": "ПО 3.01.18",
-       "req": "597",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5A0",
-       "unit": "VR",
-       "abbr": "VR",
-       "short": "ПО 2.00.05",
-       "req": "5A0",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5A7",
-       "unit": "RR_SDR",
-       "abbr": "RR_SDR",
-       "short": "ПО 4.00.07",
-       "req": "5A7",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5B0",
-       "unit": "RL_SDR",
-       "abbr": "RL_SDR",
-       "short": "ПО 4.00.07",
-       "req": "5B0",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5B1",
-       "unit": "FR_SDR",
-       "abbr": "FR_SDR",
-       "short": "ПО 4.00.07",
-       "req": "5B1",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5B2",
-       "unit": "FL_SDR",
-       "abbr": "FL_SDR",
-       "short": "ПО 4.00.07",
-       "req": "5B2",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5E4",
-       "unit": "MCPA",
-       "abbr": "MCPA",
-       "short": "ПО 3.00.10",
-       "req": "5E4",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5F4",
-       "unit": "RCP",
-       "abbr": "RCP",
-       "short": "ПО 4.00.04",
-       "req": "5F4",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 772",
-       "unit": "FRL",
-       "abbr": "FRL",
-       "short": "ПО 4.00.01",
-       "req": "772",
-       "proto": "UDS",
-       "kind": "unread"
-      }
-     ]
-    }
-   ],
-   "footer": {
-    "buttons": [
-     [
-      "Опросить снова",
-      "primary"
-     ],
-     [
-      "Только с DTC",
-      "quiet"
-     ]
-    ],
-    "notes": [
-     [
-      "68 из 68 ответили",
-      true
-     ]
-    ]
-   }
-  }
- ],
- "scanner-topology": [
-  {
-   "kind": "scanner",
-   "mode": "full",
-   "screen": "topology"
-  },
-  {
-   "top": {
-    "crumbs": [
-     "Диагностика",
-     "Автоскан"
-    ],
-    "link": "Связь OK",
-    "car": "Z9 GT DM · P · 0 км/ч",
-    "time": "16:31:07"
-   },
-   "counters": [
-    [
-     "ОТВЕТИЛО",
-     "68/68",
-     "white"
-    ],
-    [
-     "DTC АКТИВНЫХ",
-     "0",
-     "white"
-    ],
-    [
-     "DTC В ИСТОРИИ",
-     "10",
-     "text"
-    ],
-    [
-     "ПАМЯТЬ ПРОЧИТАНА",
-     "19/68",
-     "text"
-    ],
-    [
-     "MIL",
-     "ВЫКЛ",
-     "text"
-    ]
-   ],
-   "tabs": [
-    "Список",
-    "Топология"
-   ],
-   "headUnit": [
-    "ГУ · диагностика",
-    "+8"
-   ],
-   "groups": [
-    {
-     "id": "power",
-     "title": "СИЛОВАЯ УСТАНОВКА",
-     "short": "Силовая",
-     "topo": "СИЛОВАЯ",
-     "ecus": [
-      {
-       "name": "ЭБУ двигателя",
-       "unit": "ECM · UAES",
-       "abbr": "ECM",
-       "short": "Двигатель",
-       "req": "7E0",
-       "proto": "OBD-II, UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-ecu-dtc"
-      },
-      {
-       "name": "Контроллер силовой установки",
-       "unit": "VCU",
-       "abbr": "VCU",
-       "short": "Силовая уст.",
-       "req": "7E2",
-       "proto": "OBD-II, UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      },
-      {
-       "name": "Контроллер переднего мотора",
-       "unit": "FMCU",
-       "abbr": "FMCU",
-       "short": "Перед. мотор",
-       "req": "7E3",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-drives"
-      },
-      {
-       "name": "Контроллер мотор-генератора",
-       "unit": "ISG",
-       "abbr": "ISG",
-       "short": "Мотор-генер.",
-       "req": "7E6",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-drives"
-      },
-      {
-       "name": "Система управления ВВБ",
-       "unit": "BMS",
-       "abbr": "BMS",
-       "short": "ВВБ",
-       "req": "7E7",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-bms"
-      },
-      {
-       "name": "Контроллер заднего мотора",
-       "unit": "SMCU",
-       "abbr": "SMCU",
-       "short": "Задн. мотор",
-       "req": "744",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-drives"
-      },
-      {
-       "name": "Контроллер заднего мотора",
-       "unit": "SMCU3",
-       "abbr": "SMCU3",
-       "short": "Задн. мотор",
-       "req": "745",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-drives"
-      },
-      {
-       "name": "Бортовое зарядное и DC-DC",
-       "unit": "DCOBC",
-       "abbr": "DCOBC",
-       "short": "OBC + DC-DC",
-       "req": "7E4",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-hv"
-      }
-     ]
-    },
-    {
-     "id": "chassis",
-     "title": "ШАССИ И БЕЗОПАСНОСТЬ",
-     "short": "Шасси",
-     "topo": "ШАССИ",
-     "ecus": [
-      {
-       "name": "Тормозная система, стабилизация",
-       "unit": "ESP/IPB · Bosch",
-       "abbr": "ESP/IPB",
-       "short": "Тормоза, ESP",
-       "req": "782",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-brakes"
-      },
-      {
-       "name": "Тормозная система · интерфейс OBD",
-       "unit": "BSCM",
-       "abbr": "BSCM",
-       "short": "Тормоза · OBD",
-       "req": "7E5",
-       "proto": "OBD-II",
-       "kind": "ok",
-       "active": "0",
-       "history": "—",
-       "opens": "scanner-brakes"
-      },
-      {
-       "name": "Электроусилитель руля",
-       "unit": "EPS",
-       "abbr": "EPS",
-       "short": "Рулевое",
-       "req": "783",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      },
-      {
-       "name": "Подушки безопасности",
-       "unit": "SRS · Veoneer",
-       "abbr": "SRS",
-       "short": "Подушки",
-       "req": "7F1",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      }
-     ]
-    },
-    {
-     "id": "assist",
-     "title": "АССИСТЕНТЫ ВОДИТЕЛЯ",
-     "short": "Ассистенты",
-     "topo": "АССИСТЕНТЫ",
-     "ecus": [
-      {
-       "name": "Контроллер ассистентов",
-       "unit": "ADC",
-       "abbr": "ADC",
-       "short": "Ассистенты",
-       "req": "712",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Радар передний",
-       "unit": "MRR",
-       "abbr": "MRR",
-       "short": "Радар перед.",
-       "req": "7F2",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Угловой радар передний левый",
-       "unit": "LFCR",
-       "abbr": "LFCR",
-       "short": "Радар ПЛ",
-       "req": "760",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Угловой радар передний правый",
-       "unit": "RFCR",
-       "abbr": "RFCR",
-       "short": "Радар ПП",
-       "req": "761",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Угловой радар задний правый",
-       "unit": "RRCR",
-       "abbr": "RRCR",
-       "short": "Радар ЗП",
-       "req": "7C2",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Угловой радар задний левый",
-       "unit": "LRCR",
-       "abbr": "LRCR",
-       "short": "Радар ЗЛ",
-       "req": "7D4",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      },
-      {
-       "name": "Парковочный ассистент",
-       "unit": "IPA · Bosch",
-       "abbr": "IPA",
-       "short": "Парковка",
-       "req": "701",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-adas"
-      }
-     ]
-    },
-    {
-     "id": "body",
-     "title": "КУЗОВ",
-     "short": "Кузов",
-     "topo": "КУЗОВ",
-     "ecus": [
-      {
-       "name": "Кузовной контроллер левый",
-       "unit": "LA_BCM",
-       "abbr": "LA_BCM",
-       "short": "Кузов слева",
-       "req": "720",
-       "proto": "UDS",
-       "kind": "hist",
-       "active": "0",
-       "history": "8"
-      },
-      {
-       "name": "Кузов, зона справа",
-       "unit": "R_ZCU",
-       "abbr": "R_ZCU",
-       "short": "Зона справа",
-       "req": "747",
-       "proto": "UDS",
-       "kind": "hist",
-       "active": "0",
-       "history": "2",
-       "opens": "scanner-body-dtc"
-      },
-      {
-       "name": "Кузов, зона спереди",
-       "unit": "F_ZCU",
-       "abbr": "F_ZCU",
-       "short": "Зона спереди",
-       "req": "722",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      },
-      {
-       "name": "Кузов, зона сзади",
-       "unit": "B_ZCU",
-       "abbr": "B_ZCU",
-       "short": "Зона сзади",
-       "req": "726",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      },
-      {
-       "name": "Фара левая",
-       "unit": "FL_L",
-       "abbr": "FL_L",
-       "short": "Фара Л",
-       "req": "770",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Фара правая",
-       "unit": "FL_R",
-       "abbr": "FL_R",
-       "short": "Фара П",
-       "req": "771",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Цифровой ключ UWB",
-       "unit": "UWBMC",
-       "abbr": "UWBMC",
-       "short": "UWB-ключ",
-       "req": "7F3",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Антенна UWB передняя левая",
-       "unit": "UWBLFA",
-       "abbr": "UWBLFA",
-       "short": "UWB ПЛ",
-       "req": "7F4",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Антенна UWB передняя правая",
-       "unit": "UWBRFA",
-       "abbr": "UWBRFA",
-       "short": "UWB ПП",
-       "req": "7F5",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Антенна UWB задняя левая",
-       "unit": "UWBLRA",
-       "abbr": "UWBLRA",
-       "short": "UWB ЗЛ",
-       "req": "7F6",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Антенна UWB задняя правая",
-       "unit": "UWBRRA",
-       "abbr": "UWBRRA",
-       "short": "UWB ЗП",
-       "req": "7F7",
-       "proto": "UDS",
-       "kind": "unread"
-      }
-     ]
-    },
-    {
-     "id": "salon",
-     "title": "САЛОН",
-     "short": "Салон",
-     "topo": "САЛОН",
-     "ecus": [
-      {
-       "name": "Комбинация приборов",
-       "unit": "INS",
-       "abbr": "INS",
-       "short": "Приборы",
-       "req": "723",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Усилитель звука",
-       "unit": "AMP",
-       "abbr": "AMP",
-       "short": "Усилитель",
-       "req": "751",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Беспроводная зарядка",
-       "unit": "WCT",
-       "abbr": "WCT",
-       "short": "Беспр. ЗУ",
-       "req": "733",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Кнопки руля",
-       "unit": "SWS",
-       "abbr": "SWS",
-       "short": "Кнопки руля",
-       "req": "711",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Головное устройство (MCU)",
-       "unit": "Media",
-       "abbr": "Media",
-       "short": "ГУ · MCU",
-       "req": "741",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Пассажирский компьютер (MCU)",
-       "unit": "ASSY",
-       "abbr": "ASSY",
-       "short": "Пасс. ПК · MCU",
-       "req": "5E7",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Проекционный дисплей",
-       "unit": "HUD",
-       "abbr": "HUD",
-       "short": "HUD",
-       "req": "7B0",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Модуль оплаты проезда (ETC)",
-       "unit": "ETC",
-       "abbr": "ETC",
-       "short": "ETC",
-       "req": "790",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Радар присутствия детей, задний",
-       "unit": "CPD",
-       "abbr": "CPD",
-       "short": "Радар детей",
-       "req": "5E0",
-       "proto": "UDS",
-       "kind": "unread"
-      }
-     ]
-    },
-    {
-     "id": "climate",
-     "title": "КЛИМАТ И ТЕРМОРЕГУЛИРОВАНИЕ",
-     "short": "Климат",
-     "topo": "КЛИМАТ",
-     "ecus": [
-      {
-       "name": "Климат-контроль",
-       "unit": "ACC",
-       "abbr": "ACC",
-       "short": "Климат",
-       "req": "7B3",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Модуль терморегулирования",
-       "unit": "TMIM · Tuopu",
-       "abbr": "TMIM",
-       "short": "Терморег.",
-       "req": "7B4",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Высоковольтный нагреватель",
-       "unit": "PTC · HGTECH",
-       "abbr": "PTC",
-       "short": "Нагреватель",
-       "req": "766",
-       "proto": "UDS",
-       "kind": "unread",
-       "opens": "scanner-hv"
-      }
-     ]
-    },
-    {
-     "id": "lv",
-     "title": "ЭЛЕКТРОСЕТЬ 12 В",
-     "short": "12 В",
-     "topo": "12 В",
-     "ecus": [
-      {
-       "name": "АКБ 12 В",
-       "unit": "LBMS",
-       "abbr": "LBMS",
-       "short": "АКБ 12 В",
-       "req": "762",
-       "proto": "UDS",
-       "kind": "ok",
-       "active": "0",
-       "history": "0"
-      }
-     ]
-    },
-    {
-     "id": "misc",
-     "title": "НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО",
-     "short": "Прочие",
-     "topo": "НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО",
-     "ecus": [
-      {
-       "name": "Блок 743",
-       "unit": "PDC-VCU",
-       "abbr": "PDC-VCU",
-       "short": "ПО 4.17.18",
-       "req": "743",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 724",
-       "unit": "PDCMB",
-       "abbr": "PDCMB",
-       "short": "ПО 4.02.03",
-       "req": "724",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 725",
-       "unit": "CS",
-       "abbr": "CS",
-       "short": "ПО 4.00.04",
-       "req": "725",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 713",
-       "unit": "MSRF",
-       "abbr": "MSRF",
-       "short": "ПО 4.00.08",
-       "req": "713",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 742",
-       "unit": "MSRZ",
-       "abbr": "MSRZ",
-       "short": "ПО 4.00.08",
-       "req": "742",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 750",
-       "unit": "DUCU",
-       "abbr": "DUCU",
-       "short": "ПО 4.00.11",
-       "req": "750",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7B5",
-       "unit": "PUCU",
-       "abbr": "PUCU",
-       "short": "ПО 4.00.10",
-       "req": "7B5",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7D2",
-       "unit": "MLUCU",
-       "abbr": "MLUCU",
-       "short": "ПО 4.00.08",
-       "req": "7D2",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 754",
-       "unit": "HFRM",
-       "abbr": "HFRM",
-       "short": "ПО 4.00.01",
-       "req": "754",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7A7",
-       "unit": "CCS/SCPA",
-       "abbr": "CCS/SCPA",
-       "short": "ПО 4.00.06",
-       "req": "7A7",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7C6",
-       "unit": "RRCP",
-       "abbr": "RRCP",
-       "short": "ПО 4.00.04",
-       "req": "7C6",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 7D6",
-       "unit": "SEC",
-       "abbr": "SEC",
-       "short": "ПО 1.11.36",
-       "req": "7D6",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 582",
-       "unit": "RWS-L",
-       "abbr": "RWS-L",
-       "short": "ПО 4.00.08",
-       "req": "582",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 796",
-       "unit": "RWS-R",
-       "abbr": "RWS-R",
-       "short": "ПО 4.00.08",
-       "req": "796",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 590",
-       "unit": "AQDM",
-       "abbr": "AQDM",
-       "short": "ПО 3.00.08",
-       "req": "590",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 595",
-       "unit": "R-NCM",
-       "abbr": "R-NCM",
-       "short": "ПО 1.00.09",
-       "req": "595",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 597",
-       "unit": "IDC",
-       "abbr": "IDC",
-       "short": "ПО 3.01.18",
-       "req": "597",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5A0",
-       "unit": "VR",
-       "abbr": "VR",
-       "short": "ПО 2.00.05",
-       "req": "5A0",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5A7",
-       "unit": "RR_SDR",
-       "abbr": "RR_SDR",
-       "short": "ПО 4.00.07",
-       "req": "5A7",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5B0",
-       "unit": "RL_SDR",
-       "abbr": "RL_SDR",
-       "short": "ПО 4.00.07",
-       "req": "5B0",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5B1",
-       "unit": "FR_SDR",
-       "abbr": "FR_SDR",
-       "short": "ПО 4.00.07",
-       "req": "5B1",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5B2",
-       "unit": "FL_SDR",
-       "abbr": "FL_SDR",
-       "short": "ПО 4.00.07",
-       "req": "5B2",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5E4",
-       "unit": "MCPA",
-       "abbr": "MCPA",
-       "short": "ПО 3.00.10",
-       "req": "5E4",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 5F4",
-       "unit": "RCP",
-       "abbr": "RCP",
-       "short": "ПО 4.00.04",
-       "req": "5F4",
-       "proto": "UDS",
-       "kind": "unread"
-      },
-      {
-       "name": "Блок 772",
-       "unit": "FRL",
-       "abbr": "FRL",
-       "short": "ПО 4.00.01",
-       "req": "772",
-       "proto": "UDS",
-       "kind": "unread"
-      }
-     ]
-    }
-   ],
-   "footer": {
-    "buttons": [
-     [
-      "Опросить снова",
-      "primary"
-     ]
-    ],
-    "legendGap": 16,
-    "legend": [
-     [
-      "ok",
-      "OK"
-     ],
-     [
-      "hist",
-      "DTC в истории"
-     ],
-     [
-      "unread",
-      "ответил, ошибки не читали"
-     ],
-     [
-      "none",
-      "адрес не найден"
-     ]
-    ]
-   }
-  }
- ],
  "scanner-sys-scan": [
   {
    "kind": "scanner",
@@ -38573,7 +36954,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-ecu-dtc"
+       "opens": true
       },
       {
        "name": "Контроллер силовой установки",
@@ -38584,7 +36965,8 @@
        "proto": "OBD-II, UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       },
       {
        "name": "Контроллер переднего мотора",
@@ -38596,7 +36978,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-drives"
+       "opens": true
       },
       {
        "name": "Контроллер мотор-генератора",
@@ -38608,7 +36990,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-drives"
+       "opens": true
       },
       {
        "name": "Система управления ВВБ",
@@ -38620,7 +37002,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-bms"
+       "opens": true
       },
       {
        "name": "Контроллер заднего мотора",
@@ -38632,7 +37014,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-drives"
+       "opens": true
       },
       {
        "name": "Контроллер заднего мотора",
@@ -38644,7 +37026,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-drives"
+       "opens": true
       },
       {
        "name": "Бортовое зарядное и DC-DC",
@@ -38656,7 +37038,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-hv"
+       "opens": true
       }
      ]
     },
@@ -38676,7 +37058,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-brakes"
+       "opens": true
       },
       {
        "name": "Тормозная система · интерфейс OBD",
@@ -38688,7 +37070,7 @@
        "kind": "ok",
        "active": "0",
        "history": "—",
-       "opens": "scanner-brakes"
+       "opens": true
       },
       {
        "name": "Электроусилитель руля",
@@ -38699,7 +37081,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       },
       {
        "name": "Подушки безопасности",
@@ -38710,7 +37093,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       }
      ]
     },
@@ -38730,7 +37114,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Радар передний",
@@ -38742,7 +37126,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Угловой радар передний левый",
@@ -38752,7 +37136,7 @@
        "req": "760",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Угловой радар передний правый",
@@ -38762,7 +37146,7 @@
        "req": "761",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Угловой радар задний правый",
@@ -38772,7 +37156,7 @@
        "req": "7C2",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Угловой радар задний левый",
@@ -38782,7 +37166,7 @@
        "req": "7D4",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Парковочный ассистент",
@@ -38792,7 +37176,7 @@
        "req": "701",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       }
      ]
     },
@@ -38811,7 +37195,8 @@
        "proto": "UDS",
        "kind": "hist",
        "active": "0",
-       "history": "8"
+       "history": "8",
+       "opens": true
       },
       {
        "name": "Кузов, зона справа",
@@ -38823,7 +37208,7 @@
        "kind": "hist",
        "active": "0",
        "history": "2",
-       "opens": "scanner-body-dtc"
+       "opens": true
       },
       {
        "name": "Кузов, зона спереди",
@@ -38834,7 +37219,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       },
       {
        "name": "Кузов, зона сзади",
@@ -38845,7 +37231,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       },
       {
        "name": "Фара левая",
@@ -38854,7 +37241,8 @@
        "short": "Фара Л",
        "req": "770",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Фара правая",
@@ -38863,7 +37251,8 @@
        "short": "Фара П",
        "req": "771",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Цифровой ключ UWB",
@@ -38872,7 +37261,8 @@
        "short": "UWB-ключ",
        "req": "7F3",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Антенна UWB передняя левая",
@@ -38881,7 +37271,8 @@
        "short": "UWB ПЛ",
        "req": "7F4",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Антенна UWB передняя правая",
@@ -38890,7 +37281,8 @@
        "short": "UWB ПП",
        "req": "7F5",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Антенна UWB задняя левая",
@@ -38899,7 +37291,8 @@
        "short": "UWB ЗЛ",
        "req": "7F6",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Антенна UWB задняя правая",
@@ -38908,7 +37301,8 @@
        "short": "UWB ЗП",
        "req": "7F7",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       }
      ]
     },
@@ -38925,7 +37319,8 @@
        "short": "Приборы",
        "req": "723",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Усилитель звука",
@@ -38934,7 +37329,8 @@
        "short": "Усилитель",
        "req": "751",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Беспроводная зарядка",
@@ -38943,7 +37339,8 @@
        "short": "Беспр. ЗУ",
        "req": "733",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Кнопки руля",
@@ -38952,7 +37349,8 @@
        "short": "Кнопки руля",
        "req": "711",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Головное устройство (MCU)",
@@ -38961,7 +37359,8 @@
        "short": "ГУ · MCU",
        "req": "741",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Пассажирский компьютер (MCU)",
@@ -38970,7 +37369,8 @@
        "short": "Пасс. ПК · MCU",
        "req": "5E7",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Проекционный дисплей",
@@ -38979,7 +37379,8 @@
        "short": "HUD",
        "req": "7B0",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Модуль оплаты проезда (ETC)",
@@ -38988,7 +37389,8 @@
        "short": "ETC",
        "req": "790",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Радар присутствия детей, задний",
@@ -38997,7 +37399,8 @@
        "short": "Радар детей",
        "req": "5E0",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       }
      ]
     },
@@ -39014,7 +37417,8 @@
        "short": "Климат",
        "req": "7B3",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Модуль терморегулирования",
@@ -39023,7 +37427,8 @@
        "short": "Терморег.",
        "req": "7B4",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Высоковольтный нагреватель",
@@ -39033,7 +37438,7 @@
        "req": "766",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-hv"
+       "opens": true
       }
      ]
     },
@@ -39052,7 +37457,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       }
      ]
     },
@@ -39069,7 +37475,8 @@
        "short": "ПО 4.17.18",
        "req": "743",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 724",
@@ -39078,7 +37485,8 @@
        "short": "ПО 4.02.03",
        "req": "724",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 725",
@@ -39087,7 +37495,8 @@
        "short": "ПО 4.00.04",
        "req": "725",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 713",
@@ -39096,7 +37505,8 @@
        "short": "ПО 4.00.08",
        "req": "713",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 742",
@@ -39105,7 +37515,8 @@
        "short": "ПО 4.00.08",
        "req": "742",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 750",
@@ -39114,7 +37525,8 @@
        "short": "ПО 4.00.11",
        "req": "750",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7B5",
@@ -39123,7 +37535,8 @@
        "short": "ПО 4.00.10",
        "req": "7B5",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7D2",
@@ -39132,7 +37545,8 @@
        "short": "ПО 4.00.08",
        "req": "7D2",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 754",
@@ -39141,7 +37555,8 @@
        "short": "ПО 4.00.01",
        "req": "754",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7A7",
@@ -39150,7 +37565,8 @@
        "short": "ПО 4.00.06",
        "req": "7A7",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7C6",
@@ -39159,7 +37575,8 @@
        "short": "ПО 4.00.04",
        "req": "7C6",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7D6",
@@ -39168,7 +37585,8 @@
        "short": "ПО 1.11.36",
        "req": "7D6",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 582",
@@ -39177,7 +37595,8 @@
        "short": "ПО 4.00.08",
        "req": "582",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 796",
@@ -39186,7 +37605,8 @@
        "short": "ПО 4.00.08",
        "req": "796",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 590",
@@ -39195,7 +37615,8 @@
        "short": "ПО 3.00.08",
        "req": "590",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 595",
@@ -39204,7 +37625,8 @@
        "short": "ПО 1.00.09",
        "req": "595",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 597",
@@ -39213,7 +37635,8 @@
        "short": "ПО 3.01.18",
        "req": "597",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5A0",
@@ -39222,7 +37645,8 @@
        "short": "ПО 2.00.05",
        "req": "5A0",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5A7",
@@ -39231,7 +37655,8 @@
        "short": "ПО 4.00.07",
        "req": "5A7",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5B0",
@@ -39240,7 +37665,8 @@
        "short": "ПО 4.00.07",
        "req": "5B0",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5B1",
@@ -39249,7 +37675,8 @@
        "short": "ПО 4.00.07",
        "req": "5B1",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5B2",
@@ -39258,7 +37685,8 @@
        "short": "ПО 4.00.07",
        "req": "5B2",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5E4",
@@ -39267,7 +37695,8 @@
        "short": "ПО 3.00.10",
        "req": "5E4",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5F4",
@@ -39276,7 +37705,8 @@
        "short": "ПО 4.00.04",
        "req": "5F4",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 772",
@@ -39285,7 +37715,8 @@
        "short": "ПО 4.00.01",
        "req": "772",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       }
      ]
     }
@@ -39346,7 +37777,7 @@
    "block": {
     "title": "Автоскан",
     "aside": "· 68 блоков",
-    "line": "опрос 16:31 · 144 запроса за 20 с · маска DTC 09",
+    "line": "опрос 16:31 · маска DTC 09",
     "counters": [
      [
       "ОТВЕТИЛО",
@@ -39451,7 +37882,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-ecu-dtc"
+       "opens": true
       },
       {
        "name": "Контроллер силовой установки",
@@ -39462,7 +37893,8 @@
        "proto": "OBD-II, UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       },
       {
        "name": "Контроллер переднего мотора",
@@ -39474,7 +37906,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-drives"
+       "opens": true
       },
       {
        "name": "Контроллер мотор-генератора",
@@ -39486,7 +37918,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-drives"
+       "opens": true
       },
       {
        "name": "Система управления ВВБ",
@@ -39498,7 +37930,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-bms"
+       "opens": true
       },
       {
        "name": "Контроллер заднего мотора",
@@ -39510,7 +37942,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-drives"
+       "opens": true
       },
       {
        "name": "Контроллер заднего мотора",
@@ -39522,7 +37954,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-drives"
+       "opens": true
       },
       {
        "name": "Бортовое зарядное и DC-DC",
@@ -39534,7 +37966,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-hv"
+       "opens": true
       }
      ]
     },
@@ -39554,7 +37986,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-brakes"
+       "opens": true
       },
       {
        "name": "Тормозная система · интерфейс OBD",
@@ -39566,7 +37998,7 @@
        "kind": "ok",
        "active": "0",
        "history": "—",
-       "opens": "scanner-brakes"
+       "opens": true
       },
       {
        "name": "Электроусилитель руля",
@@ -39577,7 +38009,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       },
       {
        "name": "Подушки безопасности",
@@ -39588,7 +38021,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       }
      ]
     },
@@ -39608,7 +38042,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Радар передний",
@@ -39620,7 +38054,7 @@
        "kind": "ok",
        "active": "0",
        "history": "0",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Угловой радар передний левый",
@@ -39630,7 +38064,7 @@
        "req": "760",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Угловой радар передний правый",
@@ -39640,7 +38074,7 @@
        "req": "761",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Угловой радар задний правый",
@@ -39650,7 +38084,7 @@
        "req": "7C2",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Угловой радар задний левый",
@@ -39660,7 +38094,7 @@
        "req": "7D4",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       },
       {
        "name": "Парковочный ассистент",
@@ -39670,7 +38104,7 @@
        "req": "701",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-adas"
+       "opens": true
       }
      ]
     },
@@ -39689,7 +38123,8 @@
        "proto": "UDS",
        "kind": "hist",
        "active": "0",
-       "history": "8"
+       "history": "8",
+       "opens": true
       },
       {
        "name": "Кузов, зона справа",
@@ -39701,7 +38136,7 @@
        "kind": "hist",
        "active": "0",
        "history": "2",
-       "opens": "scanner-body-dtc"
+       "opens": true
       },
       {
        "name": "Кузов, зона спереди",
@@ -39712,7 +38147,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       },
       {
        "name": "Кузов, зона сзади",
@@ -39723,7 +38159,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       },
       {
        "name": "Фара левая",
@@ -39732,7 +38169,8 @@
        "short": "Фара Л",
        "req": "770",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Фара правая",
@@ -39741,7 +38179,8 @@
        "short": "Фара П",
        "req": "771",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Цифровой ключ UWB",
@@ -39750,7 +38189,8 @@
        "short": "UWB-ключ",
        "req": "7F3",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Антенна UWB передняя левая",
@@ -39759,7 +38199,8 @@
        "short": "UWB ПЛ",
        "req": "7F4",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Антенна UWB передняя правая",
@@ -39768,7 +38209,8 @@
        "short": "UWB ПП",
        "req": "7F5",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Антенна UWB задняя левая",
@@ -39777,7 +38219,8 @@
        "short": "UWB ЗЛ",
        "req": "7F6",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Антенна UWB задняя правая",
@@ -39786,7 +38229,8 @@
        "short": "UWB ЗП",
        "req": "7F7",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       }
      ]
     },
@@ -39803,7 +38247,8 @@
        "short": "Приборы",
        "req": "723",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Усилитель звука",
@@ -39812,7 +38257,8 @@
        "short": "Усилитель",
        "req": "751",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Беспроводная зарядка",
@@ -39821,7 +38267,8 @@
        "short": "Беспр. ЗУ",
        "req": "733",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Кнопки руля",
@@ -39830,7 +38277,8 @@
        "short": "Кнопки руля",
        "req": "711",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Головное устройство (MCU)",
@@ -39839,7 +38287,8 @@
        "short": "ГУ · MCU",
        "req": "741",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Пассажирский компьютер (MCU)",
@@ -39848,7 +38297,8 @@
        "short": "Пасс. ПК · MCU",
        "req": "5E7",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Проекционный дисплей",
@@ -39857,7 +38307,8 @@
        "short": "HUD",
        "req": "7B0",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Модуль оплаты проезда (ETC)",
@@ -39866,7 +38317,8 @@
        "short": "ETC",
        "req": "790",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Радар присутствия детей, задний",
@@ -39875,7 +38327,8 @@
        "short": "Радар детей",
        "req": "5E0",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       }
      ]
     },
@@ -39892,7 +38345,8 @@
        "short": "Климат",
        "req": "7B3",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Модуль терморегулирования",
@@ -39901,7 +38355,8 @@
        "short": "Терморег.",
        "req": "7B4",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Высоковольтный нагреватель",
@@ -39911,7 +38366,7 @@
        "req": "766",
        "proto": "UDS",
        "kind": "unread",
-       "opens": "scanner-hv"
+       "opens": true
       }
      ]
     },
@@ -39930,7 +38385,8 @@
        "proto": "UDS",
        "kind": "ok",
        "active": "0",
-       "history": "0"
+       "history": "0",
+       "opens": true
       }
      ]
     },
@@ -39947,7 +38403,8 @@
        "short": "ПО 4.17.18",
        "req": "743",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 724",
@@ -39956,7 +38413,8 @@
        "short": "ПО 4.02.03",
        "req": "724",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 725",
@@ -39965,7 +38423,8 @@
        "short": "ПО 4.00.04",
        "req": "725",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 713",
@@ -39974,7 +38433,8 @@
        "short": "ПО 4.00.08",
        "req": "713",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 742",
@@ -39983,7 +38443,8 @@
        "short": "ПО 4.00.08",
        "req": "742",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 750",
@@ -39992,7 +38453,8 @@
        "short": "ПО 4.00.11",
        "req": "750",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7B5",
@@ -40001,7 +38463,8 @@
        "short": "ПО 4.00.10",
        "req": "7B5",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7D2",
@@ -40010,7 +38473,8 @@
        "short": "ПО 4.00.08",
        "req": "7D2",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 754",
@@ -40019,7 +38483,8 @@
        "short": "ПО 4.00.01",
        "req": "754",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7A7",
@@ -40028,7 +38493,8 @@
        "short": "ПО 4.00.06",
        "req": "7A7",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7C6",
@@ -40037,7 +38503,8 @@
        "short": "ПО 4.00.04",
        "req": "7C6",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 7D6",
@@ -40046,7 +38513,8 @@
        "short": "ПО 1.11.36",
        "req": "7D6",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 582",
@@ -40055,7 +38523,8 @@
        "short": "ПО 4.00.08",
        "req": "582",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 796",
@@ -40064,7 +38533,8 @@
        "short": "ПО 4.00.08",
        "req": "796",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 590",
@@ -40073,7 +38543,8 @@
        "short": "ПО 3.00.08",
        "req": "590",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 595",
@@ -40082,7 +38553,8 @@
        "short": "ПО 1.00.09",
        "req": "595",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 597",
@@ -40091,7 +38563,8 @@
        "short": "ПО 3.01.18",
        "req": "597",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5A0",
@@ -40100,7 +38573,8 @@
        "short": "ПО 2.00.05",
        "req": "5A0",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5A7",
@@ -40109,7 +38583,8 @@
        "short": "ПО 4.00.07",
        "req": "5A7",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5B0",
@@ -40118,7 +38593,8 @@
        "short": "ПО 4.00.07",
        "req": "5B0",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5B1",
@@ -40127,7 +38603,8 @@
        "short": "ПО 4.00.07",
        "req": "5B1",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5B2",
@@ -40136,7 +38613,8 @@
        "short": "ПО 4.00.07",
        "req": "5B2",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5E4",
@@ -40145,7 +38623,8 @@
        "short": "ПО 3.00.10",
        "req": "5E4",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 5F4",
@@ -40154,7 +38633,8 @@
        "short": "ПО 4.00.04",
        "req": "5F4",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       },
       {
        "name": "Блок 772",
@@ -40163,7 +38643,8 @@
        "short": "ПО 4.00.01",
        "req": "772",
        "proto": "UDS",
-       "kind": "unread"
+       "kind": "unread",
+       "opens": true
       }
      ]
     }
@@ -40224,7 +38705,7 @@
    "block": {
     "title": "Автоскан",
     "aside": "· 68 блоков",
-    "line": "опрос 16:31 · 144 запроса за 20 с · маска DTC 09",
+    "line": "опрос 16:31 · маска DTC 09",
     "counters": [
      [
       "ОТВЕТИЛО",
@@ -40280,6 +38761,96 @@
    "screen": "sysLive"
   },
   {
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Двигатель"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · ДВС работает",
+    "time": "15:51:02"
+   },
+   "rail": {
+    "active": "Двигатель",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси"
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон"
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     },
+     {
+      "name": "Прочие блоки"
+     }
+    ]
+   },
+   "block": {
+    "title": "Двигатель",
+    "aside": "· ECM 7E0 · UAES",
+    "line": "7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01 · опрос 4 Гц",
+    "counters": [
+     [
+      "ОБОРОТЫ",
+      "1 250"
+     ],
+     [
+      "MIL",
+      "ВЫКЛ"
+     ],
+     [
+      "ГОТОВН.",
+      "4/9"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC и готовность",
+     "Блоки"
+    ],
+    "active": 1
+   },
    "rows": [
     {
      "pid": "05",
@@ -41169,95 +39740,6 @@
      ]
     }
    ],
-   "top": {
-    "crumbs": [
-     "Диагностика",
-     "Двигатель"
-    ],
-    "link": "Связь OK",
-    "car": "Z9 GT DM · P · ДВС работает",
-    "time": "15:51:02"
-   },
-   "rail": {
-    "active": "Двигатель",
-    "items": [
-     {
-      "name": "Автоскан",
-      "mark": [
-       "68/68",
-       "faint"
-      ]
-     },
-     "|",
-     {
-      "name": "ВВ-система"
-     },
-     {
-      "name": "Тяговая батарея"
-     },
-     {
-      "name": "Электропривод"
-     },
-     {
-      "name": "Двигатель"
-     },
-     {
-      "name": "Шасси"
-     },
-     {
-      "name": "Безопасность"
-     },
-     {
-      "name": "Ассистенты"
-     },
-     {
-      "name": "Кузов",
-      "mark": [
-       "ИСТ 10",
-       "ink4"
-      ]
-     },
-     {
-      "name": "Салон"
-     },
-     {
-      "name": "Климат"
-     },
-     {
-      "name": "Сеть 12 В"
-     },
-     {
-      "name": "Прочие блоки"
-     }
-    ]
-   },
-   "block": {
-    "title": "Двигатель",
-    "aside": "· ECM 7E0 · UAES",
-    "line": "7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01 · 13 PID · опрос 4 Гц",
-    "counters": [
-     [
-      "MIL",
-      "ВЫКЛ"
-     ],
-     [
-      "DTC",
-      "0"
-     ],
-     [
-      "ГОТОВН.",
-      "4/9"
-     ]
-    ]
-   },
-   "tabs": {
-    "items": [
-     "Состояние",
-     "DTC и готовность",
-     "Блоки"
-    ],
-    "active": 0
-   },
    "footer": {
     "buttons": [
      [
@@ -41563,7 +40045,6 @@
     "title": "Шасси",
     "aside": "· 3 блока",
     "line": "ESP/IPB 782 · BSCM 7E5 · EPS 783 · шины: давление 1016, температура 1007",
-    "counterW": 130,
     "counters": [
      [
       "ДАВЛЕНИЕ",
@@ -42151,15 +40632,6 @@
    "screen": "sysHv"
   },
   {
-   "top": {
-    "crumbs": [
-     "Диагностика",
-     "ВВ-система"
-    ],
-    "link": "Связь OK",
-    "car": "Z9 GT DM · P · 0 км/ч",
-    "time": "19:31:29"
-   },
    "block": {
     "title": "Высоковольтная система",
     "aside": "· ВВБ, привод, мотор-генератор",
@@ -42178,14 +40650,6 @@
      ]
     ],
     "line": "BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · LBMS 762"
-   },
-   "tabs": {
-    "items": [
-     "Состояние",
-     "DTC",
-     "Блоки"
-    ],
-    "active": 0
    },
    "contactor": "главный контактор",
    "busLabel": "ШИНА DC",
@@ -42230,56 +40694,49 @@
      "addr": "7E3",
      "name": "Инвертор передний",
      "kind": "ok",
-     "state": "OK · IPM 9 °C",
-     "opens": "scanner-drives"
+     "state": "OK · IPM 9 °C"
     },
     {
      "abbr": "ISG",
      "addr": "7E6",
      "name": "Мотор-генератор",
      "kind": "ok",
-     "state": "OK · DTC 0",
-     "opens": "scanner-drives"
+     "state": "OK · DTC 0"
     },
     {
      "abbr": "SMCU",
      "addr": "744",
      "name": "Инвертор задний",
      "kind": "ok",
-     "state": "OK · DTC 0",
-     "opens": "scanner-drives"
+     "state": "OK · DTC 0"
     },
     {
      "abbr": "SMCU3",
      "addr": "745",
      "name": "Инвертор задний",
      "kind": "ok",
-     "state": "OK · DTC 0",
-     "opens": "scanner-drives"
+     "state": "OK · DTC 0"
     },
     {
      "abbr": "ECM",
      "addr": "7E0",
      "name": "ДВС",
      "kind": "ok",
-     "state": "OK · MIL ВЫКЛ",
-     "opens": "scanner-ecu-dtc"
+     "state": "OK · MIL ВЫКЛ"
     },
     {
      "abbr": "PTC",
      "addr": "766",
      "name": "Нагреватель ВВ",
      "kind": "unread",
-     "state": "ошибки не читали",
-     "opens": "scanner-scan"
+     "state": "ошибки не читали"
     },
     {
      "abbr": "DCOBC",
      "addr": "7E4",
      "name": "Зарядное + DC-DC",
      "kind": "ok",
-     "state": "OK · DTC 0",
-     "opens": "scanner-scan"
+     "state": "OK · DTC 0"
     },
     {
      "abbr": "LBMS",
@@ -42308,19 +40765,14 @@
      "values": "статор 7 °C · 0 об/мин · 0 Н·м"
     }
    ],
-   "footer": {
-    "buttons": [
-     [
-      "Обновить",
-      "primary"
-     ]
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "ВВ-система"
     ],
-    "notes": [
-     [
-      "снимок 19:31:29",
-      true
-     ]
-    ]
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "19:31:29"
    },
    "rail": {
     "active": "ВВ-система",
@@ -42373,6 +40825,28 @@
      {
       "name": "Прочие блоки"
      }
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 0
+   },
+   "footer": {
+    "buttons": [
+     [
+      "Обновить",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "снимок 19:31:29",
+      true
+     ]
     ]
    }
   }
@@ -42642,73 +41116,55 @@
    },
    "points": [
     {
-     "side": "up",
-     "x": 110,
-     "w": 170,
+     "place": "inlet",
      "label": "ВОЗДУХ НА ВПУСКЕ",
      "rows": [
       "IAT 24 °C"
      ]
     },
     {
-     "side": "down",
-     "x": 210,
-     "w": 170,
+     "place": "throttle",
      "label": "ДРОССЕЛЬ",
      "rows": [
       "TPS 6,3 %"
      ]
     },
     {
-     "side": "up",
-     "x": 300,
-     "w": 150,
+     "place": "manifold",
      "label": "КОЛЛЕКТОР",
      "rows": [
       "MAP 38 кПа"
      ]
     },
     {
-     "side": "up",
-     "x": 500,
-     "w": 240,
+     "place": "blockTop",
      "label": "ДВС",
      "rows": [
       "1 250 об/мин · LOAD 28 %",
       "УОЗ 14,0° · ОЖ 91 °C"
-     ],
-     "at": 340
+     ]
     },
     {
-     "side": "down",
-     "x": 500,
-     "w": 240,
+     "place": "blockBottom",
      "label": "ТОПЛИВО",
      "rows": [
       "STFT +3,1 % · LTFT −2,3 %",
       "петля замкнута (CL)"
-     ],
-     "at": 460
+     ]
     },
     {
-     "side": "up",
-     "x": 765,
-     "w": 180,
+     "place": "catalyst",
      "label": "КАТАЛИЗАТОР",
      "rows": [
       "B1S1 512 °C"
-     ],
-     "at": 378
+     ]
     },
     {
-     "side": "down",
-     "x": 880,
-     "w": 180,
+     "place": "oxygen",
      "label": "ДАТЧИК O2 B1S2",
      "rows": [
       "0,68 В"
-     ],
-     "at": 437
+     ]
     }
    ],
    "footer": {
@@ -43014,6 +41470,1469 @@
     "notes": [
      [
       "снимок 19:31:29",
+      true
+     ]
+    ]
+   }
+  }
+ ],
+ "scanner-sys-engine-dtc": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysEngineDtc"
+  },
+  {
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Двигатель"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · ДВС работает",
+    "time": "15:51:02"
+   },
+   "rail": {
+    "active": "Двигатель",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси"
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон"
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     },
+     {
+      "name": "Прочие блоки"
+     }
+    ]
+   },
+   "block": {
+    "title": "Двигатель",
+    "aside": "· ECM 7E0 · UAES",
+    "line": "7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01 · опрос 4 Гц",
+    "counters": [
+     [
+      "ОБОРОТЫ",
+      "1 250"
+     ],
+     [
+      "MIL",
+      "ВЫКЛ"
+     ],
+     [
+      "ГОТОВН.",
+      "4/9"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC и готовность",
+     "Блоки"
+    ],
+    "active": 2
+   },
+   "lists": [
+    [
+     "Сохранённые (Stored)",
+     "Mode 03",
+     "0"
+    ],
+    [
+     "Ожидающие (Pending)",
+     "Mode 07",
+     "0"
+    ],
+    [
+     "Постоянные (Permanent)",
+     "Mode 0A",
+     "0"
+    ],
+    [
+     "Подтверждённые, UDS",
+     "19 02 08",
+     "0"
+    ],
+    [
+     "Ожидающие, UDS",
+     "19 02 04",
+     "нет ответа"
+    ]
+   ],
+   "pid01": {
+    "label": "PID 01 · СОСТОЯНИЕ",
+    "line": "MIL выключена · DTC, включивших MIL: 0 · зажигание искровое",
+    "raw": "41 01 00 07 F5 F4"
+   },
+   "monitors": [
+    [
+     "Пропуски воспламенения",
+     "MIS",
+     "непрерывный",
+     "ready"
+    ],
+    [
+     "Топливная система",
+     "FUEL",
+     "непрерывный",
+     "ready"
+    ],
+    [
+     "Контроль компонентов",
+     "CCM",
+     "непрерывный",
+     "ready"
+    ],
+    [
+     "Катализатор",
+     "CAT",
+     "разовый",
+     "ready"
+    ],
+    [
+     "Система улавливания паров",
+     "EVAP",
+     "разовый",
+     "waiting"
+    ],
+    [
+     "Фильтр частиц бензиновый",
+     "GPF",
+     "разовый",
+     "waiting"
+    ],
+    [
+     "Датчики кислорода",
+     "O2S",
+     "разовый",
+     "waiting"
+    ],
+    [
+     "Подогрев датчиков кислорода",
+     "O2S HTR",
+     "разовый",
+     "waiting"
+    ],
+    [
+     "Рециркуляция ОГ / фазы ГРМ",
+     "EGR/VVT",
+     "разовый",
+     "waiting"
+    ],
+    [
+     "Подогрев катализатора",
+     "HCAT",
+     "—",
+     "absent"
+    ],
+    [
+     "Вторичный воздух",
+     "AIR",
+     "—",
+     "absent"
+    ]
+   ],
+   "footer": {
+    "buttons": [
+     [
+      "Прочитать DTC",
+      "primary"
+     ]
+    ]
+   }
+  }
+ ],
+ "scanner-sys-body-blocks": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysBlocks"
+  },
+  {
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Кузов"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "19:31:29"
+   },
+   "rail": {
+    "active": "Кузов",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси"
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон"
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     },
+     {
+      "name": "Прочие блоки"
+     }
+    ]
+   },
+   "block": {
+    "title": "Кузов",
+    "aside": "· 11 блоков",
+    "line": "LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны",
+    "counters": [
+     [
+      "DTC АКТ.",
+      "0"
+     ],
+     [
+      "DTC ИСТ.",
+      "10"
+     ],
+     [
+      "ПРОЧИТАНО",
+      "11/11"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 2
+   },
+   "ecus": [
+    {
+     "name": "Кузовной контроллер левый",
+     "unit": "LA_BCM",
+     "abbr": "LA_BCM",
+     "short": "Кузов слева",
+     "req": "720",
+     "proto": "UDS",
+     "kind": "hist",
+     "active": "0",
+     "history": "8",
+     "opens": true
+    },
+    {
+     "name": "Кузов, зона справа",
+     "unit": "R_ZCU",
+     "abbr": "R_ZCU",
+     "short": "Зона справа",
+     "req": "747",
+     "proto": "UDS",
+     "kind": "hist",
+     "active": "0",
+     "history": "2",
+     "opens": true
+    },
+    {
+     "name": "Кузов, зона спереди",
+     "unit": "F_ZCU",
+     "abbr": "F_ZCU",
+     "short": "Зона спереди",
+     "req": "722",
+     "proto": "UDS",
+     "kind": "ok",
+     "active": "0",
+     "history": "0",
+     "opens": true
+    },
+    {
+     "name": "Кузов, зона сзади",
+     "unit": "B_ZCU",
+     "abbr": "B_ZCU",
+     "short": "Зона сзади",
+     "req": "726",
+     "proto": "UDS",
+     "kind": "ok",
+     "active": "0",
+     "history": "0",
+     "opens": true
+    },
+    {
+     "name": "Фара левая",
+     "unit": "FL_L",
+     "abbr": "FL_L",
+     "short": "Фара Л",
+     "req": "770",
+     "proto": "UDS",
+     "kind": "unread",
+     "opens": true
+    },
+    {
+     "name": "Фара правая",
+     "unit": "FL_R",
+     "abbr": "FL_R",
+     "short": "Фара П",
+     "req": "771",
+     "proto": "UDS",
+     "kind": "unread",
+     "opens": true
+    },
+    {
+     "name": "Цифровой ключ UWB",
+     "unit": "UWBMC",
+     "abbr": "UWBMC",
+     "short": "UWB-ключ",
+     "req": "7F3",
+     "proto": "UDS",
+     "kind": "unread",
+     "opens": true
+    },
+    {
+     "name": "Антенна UWB передняя левая",
+     "unit": "UWBLFA",
+     "abbr": "UWBLFA",
+     "short": "UWB ПЛ",
+     "req": "7F4",
+     "proto": "UDS",
+     "kind": "unread",
+     "opens": true
+    },
+    {
+     "name": "Антенна UWB передняя правая",
+     "unit": "UWBRFA",
+     "abbr": "UWBRFA",
+     "short": "UWB ПП",
+     "req": "7F5",
+     "proto": "UDS",
+     "kind": "unread",
+     "opens": true
+    },
+    {
+     "name": "Антенна UWB задняя левая",
+     "unit": "UWBLRA",
+     "abbr": "UWBLRA",
+     "short": "UWB ЗЛ",
+     "req": "7F6",
+     "proto": "UDS",
+     "kind": "unread",
+     "opens": true
+    },
+    {
+     "name": "Антенна UWB задняя правая",
+     "unit": "UWBRRA",
+     "abbr": "UWBRRA",
+     "short": "UWB ЗП",
+     "req": "7F7",
+     "proto": "UDS",
+     "kind": "unread",
+     "opens": true
+    }
+   ],
+   "footer": {
+    "buttons": [
+     [
+      "Прочитать DTC",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "19 01 09 · 19 02 09 · снимок 19:31:29",
+      true
+     ]
+    ]
+   }
+  }
+ ],
+ "scanner-sys-pack-live": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysPackLive"
+  },
+  {
+   "rows": [
+    [
+     "1009·44400008",
+     "Напряжение ВВБ",
+     "553",
+     "В",
+     "—",
+     ""
+    ],
+    [
+     "1009·44400018",
+     "Ток ВВБ",
+     "−4,5",
+     "А",
+     "—",
+     ""
+    ],
+    [
+     "1014·44400030",
+     "Уровень заряда (SOC)",
+     "74",
+     "%",
+     "—",
+     ""
+    ],
+    [
+     "1014·44400028",
+     "Состояние (SOH), оценка BMS",
+     "99",
+     "%",
+     "≥ 80",
+     "OK"
+    ],
+    [
+     "1014·44600010",
+     "Напряжение ячейки, мин.",
+     "3 333",
+     "мВ",
+     "—",
+     ""
+    ],
+    [
+     "1014·44600030",
+     "Напряжение ячейки, макс.",
+     "3 337",
+     "мВ",
+     "—",
+     ""
+    ],
+    [
+     "расчёт",
+     "Разброс напряжений ячеек",
+     "4",
+     "мВ",
+     "—",
+     ""
+    ],
+    [
+     "1014·44700010",
+     "Температура модулей, мин.",
+     "13",
+     "°C",
+     "—",
+     ""
+    ],
+    [
+     "1014·44700020",
+     "Температура модулей, макс.",
+     "18",
+     "°C",
+     "—",
+     ""
+    ],
+    [
+     "1014·44700038",
+     "Температура модулей, сред.",
+     "14",
+     "°C",
+     "—",
+     ""
+    ],
+    [
+     "1039·43A00018",
+     "Сопротивление изоляции, канал BMC",
+     "14 429",
+     "кОм",
+     "≥ 500 Ом/В (≥ 277 кОм)",
+     "OK"
+    ],
+    [
+     "1039·26200010",
+     "Сопротивление изоляции, канал 2",
+     "19 675",
+     "кОм",
+     "≥ 500 Ом/В (≥ 277 кОм)",
+     "OK"
+    ],
+    [
+     "1001·43A00008",
+     "Ячеек последовательно",
+     "166",
+     "шт",
+     "—",
+     ""
+    ],
+    [
+     "1039·43A00010",
+     "Датчиков температуры",
+     "14",
+     "шт",
+     "—",
+     ""
+    ],
+    [
+     "1032·34400010",
+     "Главный контактор, разряд",
+     "1",
+     "сост.",
+     "—",
+     ""
+    ]
+   ],
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Тяговая батарея"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "19:31:29"
+   },
+   "rail": {
+    "active": "Тяговая батарея",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси"
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон"
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     },
+     {
+      "name": "Прочие блоки"
+     }
+    ]
+   },
+   "block": {
+    "title": "Тяговая батарея",
+    "aside": "· BMS 7E7",
+    "line": "напряжение и ток 1009 · SOC и SOH 1014 · ячейки и модули 1014 · изоляция 1039",
+    "counters": [
+     [
+      "U",
+      "553 В"
+     ],
+     [
+      "SOC",
+      "74 %"
+     ],
+     [
+      "DTC",
+      "0"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "Флаги GB/T 32960",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1
+   },
+   "footer": {
+    "buttons": [
+     [
+      "Обновить",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "снимок 19:31:29",
+      true
+     ]
+    ]
+   }
+  }
+ ],
+ "scanner-sys-pack-flags": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysPending"
+  },
+  {
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Тяговая батарея"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "19:31:29"
+   },
+   "rail": {
+    "active": "Тяговая батарея",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси"
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон"
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     },
+     {
+      "name": "Прочие блоки"
+     }
+    ]
+   },
+   "block": {
+    "title": "Тяговая батарея",
+    "aside": "· BMS 7E7",
+    "line": "напряжение и ток 1009 · SOC и SOH 1014 · ячейки и модули 1014 · изоляция 1039",
+    "counters": [
+     [
+      "U",
+      "553 В"
+     ],
+     [
+      "SOC",
+      "74 %"
+     ],
+     [
+      "DTC",
+      "0"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "Флаги GB/T 32960",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 2
+   },
+   "pending": "Нет данных",
+   "footer": {
+    "buttons": [
+     [
+      "Обновить",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "снимок 19:31:29",
+      true
+     ]
+    ]
+   }
+  }
+ ],
+ "scanner-sys-drives-compare": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysDrivesCompare"
+  },
+  {
+   "units": [
+    [
+     "FMCU · 7E3",
+     "передний"
+    ],
+    [
+     "SMCU · 744",
+     "задний"
+    ],
+    [
+     "SMCU3 · 745",
+     "задний"
+    ],
+    [
+     "ISG · 7E6",
+     "мотор-генератор"
+    ]
+   ],
+   "rows": [
+    [
+     "Температура статора",
+     "1039·46406018 · Л 285001A8 · П 285001B0",
+     "°C",
+     [
+      "8",
+      "7",
+      "7",
+      "—"
+     ]
+    ],
+    [
+     "Температура силовых ключей (IGBT/IPM)",
+     "1039·46406010 · Л 2D000180 · П 2D000188",
+     "°C",
+     [
+      "9",
+      "5",
+      "5",
+      "—"
+     ]
+    ],
+    [
+     "Напряжение шины DC",
+     "1039·46407020 · задн. 46407010",
+     "В",
+     [
+      "555",
+      "556",
+      "556",
+      "—"
+     ]
+    ],
+    [
+     "Обороты",
+     "1012·44100008 · 1039 Л 0FC000D0 · П 0FC000E0",
+     "об/мин",
+     [
+      "0",
+      "н/д",
+      "0",
+      "—"
+     ]
+    ],
+    [
+     "Крутящий момент, факт.",
+     "1012·44100018 · 1039 Л 2850002C · П 2850003C",
+     "Н·м",
+     [
+      "0,0",
+      "0,0",
+      "0,0",
+      "—"
+     ]
+    ],
+    [
+     "Ток DC",
+     "1009·46C00008 · 1039 Л 28500178 · П 28500188",
+     "А",
+     [
+      "0,0",
+      "0,0",
+      "0,0",
+      "—"
+     ]
+    ],
+    [
+     "Коды неисправностей",
+     "UDS 19 01 09 · 19 02 09",
+     "DTC",
+     [
+      "0",
+      "0",
+      "0",
+      "0"
+     ]
+    ],
+    [
+     "Номер ПО поставщика",
+     "UDS 22 F194",
+     "",
+     [
+      "48370011E075000000",
+      "48370011E086001100",
+      "48370011E088001100",
+      "48370011E0EA000000"
+     ]
+    ],
+    [
+     "Версия ПО",
+     "UDS 22 F195",
+     "",
+     [
+      "9D78190A190C",
+      "—",
+      "—",
+      "9D79190A1E0D"
+     ]
+    ]
+   ],
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Электропривод"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "19:31:29"
+   },
+   "rail": {
+    "active": "Электропривод",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси"
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон"
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     },
+     {
+      "name": "Прочие блоки"
+     }
+    ]
+   },
+   "block": {
+    "title": "Электропривод",
+    "aside": "· 5 блоков",
+    "line": "VCU 7E2 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6",
+    "counters": [
+     [
+      "ШИНА ПЕРЕД",
+      "555 В"
+     ],
+     [
+      "ШИНА ЗАД",
+      "556 В"
+     ],
+     [
+      "DTC",
+      "0"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Сравнение",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1
+   },
+   "footer": {
+    "buttons": [
+     [
+      "Обновить",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "снимок 19:31:29",
+      true
+     ]
+    ]
+   }
+  }
+ ],
+ "scanner-sys-adas-compare": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysAdasCompare"
+  },
+  {
+   "units": [
+    [
+     "ADC",
+     "Контроллер ADAS",
+     true
+    ],
+    [
+     "MRR",
+     "Радар передний",
+     true
+    ],
+    [
+     "LFCR",
+     "Угловой ПЛ",
+     false
+    ],
+    [
+     "RFCR",
+     "Угловой ПП",
+     false
+    ],
+    [
+     "RRCR",
+     "Угловой ЗП",
+     false
+    ],
+    [
+     "LRCR",
+     "Угловой ЗЛ",
+     false
+    ],
+    [
+     "IPA",
+     "Парковка",
+     false
+    ]
+   ],
+   "rows": [
+    {
+     "name": "Запрос → ответ",
+     "cells": [
+      {
+       "t": "712 → 71A",
+       "ink": "dim",
+       "size": 13
+      },
+      {
+       "t": "7F2 → 7FA",
+       "ink": "dim",
+       "size": 13
+      },
+      {
+       "t": "760 → 768",
+       "ink": "dim",
+       "size": 13
+      },
+      {
+       "t": "761 → 769",
+       "ink": "dim",
+       "size": 13
+      },
+      {
+       "t": "7C2 → 7CA",
+       "ink": "dim",
+       "size": 13
+      },
+      {
+       "t": "7D4 → 7DC",
+       "ink": "dim",
+       "size": 13
+      },
+      {
+       "t": "701 → 709",
+       "ink": "dim",
+       "size": 13
+      }
+     ]
+    },
+    {
+     "name": "Номер ПО · F194",
+     "cells": [
+      {
+       "t": "48450011DF83000000",
+       "size": 11
+      },
+      {
+       "t": "474E0011DF70000000",
+       "size": 11
+      },
+      {
+       "t": "474E0011DF82000000",
+       "size": 11,
+       "shared": true,
+       "ink": "blueInk"
+      },
+      {
+       "t": "474E0011DF82000000",
+       "size": 11,
+       "shared": true,
+       "ink": "blueInk"
+      },
+      {
+       "t": "474E0011DF82000000",
+       "size": 11,
+       "shared": true,
+       "ink": "blueInk"
+      },
+      {
+       "t": "474E0011DF82000000",
+       "size": 11,
+       "shared": true,
+       "ink": "blueInk"
+      },
+      {
+       "t": "32330011DF42000000",
+       "size": 11
+      }
+     ]
+    },
+    {
+     "name": "Имя в кэше BYD",
+     "cells": [
+      {
+       "t": "ADC_BYD",
+       "size": 12.5
+      },
+      {
+       "t": "MRR · 3 вар.",
+       "size": 12.5
+      },
+      {
+       "t": "12 вариантов",
+       "size": 12.5,
+       "shared": true,
+       "ink": "dim"
+      },
+      {
+       "t": "12 вариантов",
+       "size": 12.5,
+       "shared": true,
+       "ink": "dim"
+      },
+      {
+       "t": "12 вариантов",
+       "size": 12.5,
+       "shared": true,
+       "ink": "dim"
+      },
+      {
+       "t": "12 вариантов",
+       "size": 12.5,
+       "shared": true,
+       "ink": "dim"
+      },
+      {
+       "t": "IPA_BOSCH",
+       "size": 12.5
+      }
+     ]
+    },
+    {
+     "name": "Версия ПО · кэш",
+     "cells": [
+      {
+       "t": "4.14.07"
+      },
+      {
+       "t": "4.00.05"
+      },
+      {
+       "t": "4.00.12",
+       "shared": true
+      },
+      {
+       "t": "4.00.12",
+       "shared": true
+      },
+      {
+       "t": "4.00.12",
+       "shared": true
+      },
+      {
+       "t": "4.00.12",
+       "shared": true
+      },
+      {
+       "t": "4.00.09"
+      }
+     ]
+    },
+    {
+     "name": "Положение",
+     "cells": [
+      {
+       "t": "—"
+      },
+      {
+       "t": "перед"
+      },
+      {
+       "t": "ПЛ"
+      },
+      {
+       "t": "ПП"
+      },
+      {
+       "t": "ЗП"
+      },
+      {
+       "t": "ЗЛ"
+      },
+      {
+       "t": "—"
+      }
+     ]
+    },
+    {
+     "name": "Связь",
+     "cells": [
+      {
+       "t": "CAN · DoIP",
+       "ink": "orangeInk"
+      },
+      {
+       "t": "CAN"
+      },
+      {
+       "t": "CAN"
+      },
+      {
+       "t": "CAN"
+      },
+      {
+       "t": "CAN"
+      },
+      {
+       "t": "CAN"
+      },
+      {
+       "t": "CAN"
+      }
+     ]
+    },
+    {
+     "name": "Доступность DTC",
+     "cells": [
+      {
+       "t": "09"
+      },
+      {
+       "t": "09"
+      },
+      {
+       "t": "—"
+      },
+      {
+       "t": "—"
+      },
+      {
+       "t": "—"
+      },
+      {
+       "t": "—"
+      },
+      {
+       "t": "—"
+      }
+     ]
+    },
+    {
+     "name": "Формат DTC",
+     "cells": [
+      {
+       "t": "01 · не SAE",
+       "ink": "orangeInk",
+       "size": 13
+      },
+      {
+       "t": "00 · SAE",
+       "size": 13
+      },
+      {
+       "t": "—"
+      },
+      {
+       "t": "—"
+      },
+      {
+       "t": "—"
+      },
+      {
+       "t": "—"
+      },
+      {
+       "t": "—"
+      }
+     ]
+    },
+    {
+     "name": "DTC · маска 09",
+     "cells": [
+      {
+       "t": "0",
+       "size": 16
+      },
+      {
+       "t": "0",
+       "size": 16
+      },
+      {
+       "t": "не читали",
+       "size": 12.5
+      },
+      {
+       "t": "не читали",
+       "size": 12.5
+      },
+      {
+       "t": "не читали",
+       "size": 12.5
+      },
+      {
+       "t": "не читали",
+       "size": 12.5
+      },
+      {
+       "t": "не читали",
+       "size": 12.5
+      }
+     ]
+    }
+   ],
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Ассистенты"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "19:31:29"
+   },
+   "rail": {
+    "active": "Ассистенты",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси"
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон"
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     },
+     {
+      "name": "Прочие блоки"
+     }
+    ]
+   },
+   "block": {
+    "title": "Ассистенты",
+    "aside": "· 7 блоков",
+    "line": "ADC 712 · MRR 7F2 · угловые радары 760 761 7C2 7D4 · IPA 701",
+    "counters": [
+     [
+      "DTC",
+      "0"
+     ],
+     [
+      "ПРОЧИТАНО",
+      "7/7"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Сравнение",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 1
+   },
+   "footer": {
+    "buttons": [
+     [
+      "Прочитать DTC",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "19 01 09 · 19 02 09 · снимок 19:31:29",
       true
      ]
     ]
@@ -44564,570 +44483,18 @@
    }
   }
  ],
- "scanner-bms": [
+ "scanner-esp-dtc": [
   {
    "kind": "scanner",
    "mode": "full",
-   "screen": "bms"
+   "screen": "blockMask"
   },
   {
    "top": {
     "crumbs": [
      "Диагностика",
-     "Автоскан",
-     "Система управления ВВБ"
-    ],
-    "link": "Связь OK",
-    "car": "Z9 GT DM · P · 0 км/ч",
-    "time": "15:04:45"
-   },
-   "block": {
-    "title": "Система управления ВВБ",
-    "aside": "· BMS · BYD",
-    "counters": [
-     [
-      "SOC",
-      "74 %"
-     ],
-     [
-      "SOH",
-      "99 %"
-     ],
-     [
-      "DTC",
-      "0"
-     ]
-    ],
-    "line": "7E7 → 7EF · UDS · ПО (F194) 4A520011E00D00047B · данные: шина сигналов (autoservice)"
-   },
-   "tabs": {
-    "items": [
-     "DTC",
-     "Потоковые данные",
-     "Флаги GB/T 32960",
-     "Идентификация"
-    ],
-    "active": 1
-   },
-   "rows": [
-    [
-     "1009·44400008",
-     "Напряжение ВВБ",
-     "553",
-     "В",
-     "—",
-     ""
-    ],
-    [
-     "1009·44400018",
-     "Ток ВВБ",
-     "−4,5",
-     "А",
-     "—",
-     ""
-    ],
-    [
-     "1014·44400030",
-     "Уровень заряда (SOC)",
-     "74",
-     "%",
-     "—",
-     ""
-    ],
-    [
-     "1014·44400028",
-     "Состояние (SOH), оценка BMS",
-     "99",
-     "%",
-     "≥ 80",
-     "OK"
-    ],
-    [
-     "1014·44600010",
-     "Напряжение ячейки, мин.",
-     "3 333",
-     "мВ",
-     "—",
-     ""
-    ],
-    [
-     "1014·44600030",
-     "Напряжение ячейки, макс.",
-     "3 337",
-     "мВ",
-     "—",
-     ""
-    ],
-    [
-     "расчёт",
-     "Разброс напряжений ячеек",
-     "4",
-     "мВ",
-     "—",
-     ""
-    ],
-    [
-     "1014·44700010",
-     "Температура модулей, мин.",
-     "13",
-     "°C",
-     "—",
-     ""
-    ],
-    [
-     "1014·44700020",
-     "Температура модулей, макс.",
-     "18",
-     "°C",
-     "—",
-     ""
-    ],
-    [
-     "1014·44700038",
-     "Температура модулей, сред.",
-     "14",
-     "°C",
-     "—",
-     ""
-    ],
-    [
-     "1039·43A00018",
-     "Сопротивление изоляции, канал BMC",
-     "14 429",
-     "кОм",
-     "≥ 500 Ом/В (≥ 277 кОм)",
-     "OK"
-    ],
-    [
-     "1039·26200010",
-     "Сопротивление изоляции, канал 2",
-     "19 675",
-     "кОм",
-     "≥ 500 Ом/В (≥ 277 кОм)",
-     "OK"
-    ],
-    [
-     "1001·43A00008",
-     "Ячеек последовательно",
-     "166",
-     "шт",
-     "—",
-     ""
-    ],
-    [
-     "1039·43A00010",
-     "Датчиков температуры",
-     "14",
-     "шт",
-     "—",
-     ""
-    ],
-    [
-     "1032·34400010",
-     "Главный контактор, разряд",
-     "1",
-     "сост.",
-     "—",
-     ""
-    ]
-   ],
-   "footer": {
-    "buttons": [
-     [
-      "‹ Автоскан",
-      "quiet"
-     ],
-     [
-      "Обновить",
-      "primary"
-     ]
-    ]
-   }
-  }
- ],
- "scanner-drives": [
-  {
-   "kind": "scanner",
-   "mode": "full",
-   "screen": "drives"
-  },
-  {
-   "top": {
-    "crumbs": [
-     "Диагностика",
-     "Автоскан",
-     "Электропривод"
-    ],
-    "link": "Связь OK",
-    "car": "Z9 GT DM · P · 0 км/ч",
-    "time": "15:04:45"
-   },
-   "block": {
-    "title": "Электропривод",
-    "aside": "· 3 мотора + мотор-генератор",
-    "counters": [
-     [
-      "DTC",
-      "0"
-     ],
-     [
-      "ШИНА П, В",
-      "555"
-     ],
-     [
-      "ШИНА З, В",
-      "556"
-     ]
-    ],
-    "line": "FMCU 7E3 → 7EB · SMCU 744 → 74C · SMCU3 745 → 74D · ISG 7E6 → 7EE · данные: шина сигналов (autoservice)"
-   },
-   "tabs": {
-    "items": [
-     "Сравнение моторов",
-     "DTC",
-     "Идентификация"
-    ],
-    "active": 0
-   },
-   "units": [
-    [
-     "FMCU · 7E3",
-     "передний"
-    ],
-    [
-     "SMCU · 744",
-     "задний"
-    ],
-    [
-     "SMCU3 · 745",
-     "задний"
-    ],
-    [
-     "ISG · 7E6",
-     "мотор-генератор"
-    ]
-   ],
-   "rows": [
-    [
-     "Температура статора",
-     "1039·46406018 · Л 285001A8 · П 285001B0",
-     "°C",
-     [
-      "8",
-      "7",
-      "7",
-      "—"
-     ]
-    ],
-    [
-     "Температура силовых ключей (IGBT/IPM)",
-     "1039·46406010 · Л 2D000180 · П 2D000188",
-     "°C",
-     [
-      "9",
-      "5",
-      "5",
-      "—"
-     ]
-    ],
-    [
-     "Напряжение шины DC",
-     "1039·46407020 · задн. 46407010",
-     "В",
-     [
-      "555",
-      "556",
-      "556",
-      "—"
-     ]
-    ],
-    [
-     "Обороты",
-     "1012·44100008 · 1039 Л 0FC000D0 · П 0FC000E0",
-     "об/мин",
-     [
-      "0",
-      "н/д",
-      "0",
-      "—"
-     ]
-    ],
-    [
-     "Крутящий момент, факт.",
-     "1012·44100018 · 1039 Л 2850002C · П 2850003C",
-     "Н·м",
-     [
-      "0,0",
-      "0,0",
-      "0,0",
-      "—"
-     ]
-    ],
-    [
-     "Ток DC",
-     "1009·46C00008 · 1039 Л 28500178 · П 28500188",
-     "А",
-     [
-      "0,0",
-      "0,0",
-      "0,0",
-      "—"
-     ]
-    ],
-    [
-     "Коды неисправностей",
-     "UDS 19 01 09 · 19 02 09",
-     "DTC",
-     [
-      "0",
-      "0",
-      "0",
-      "0"
-     ]
-    ],
-    [
-     "Номер ПО поставщика",
-     "UDS 22 F194",
-     "",
-     [
-      "48370011E075000000",
-      "48370011E086001100",
-      "48370011E088001100",
-      "48370011E0EA000000"
-     ]
-    ],
-    [
-     "Версия ПО",
-     "UDS 22 F195",
-     "",
-     [
-      "9D78190A190C",
-      "—",
-      "—",
-      "9D79190A1E0D"
-     ]
-    ]
-   ],
-   "footer": {
-    "buttons": [
-     [
-      "‹ Автоскан",
-      "quiet"
-     ],
-     [
-      "Обновить",
-      "primary"
-     ]
-    ]
-   }
-  }
- ],
- "scanner-hv": [
-  {
-   "kind": "scanner",
-   "mode": "full",
-   "screen": "hv"
-  },
-  {
-   "top": {
-    "crumbs": [
-     "Диагностика",
-     "Автоскан",
-     "Высоковольтная система"
-    ],
-    "link": "Связь OK",
-    "car": "Z9 GT DM · P · 0 км/ч",
-    "time": "15:04:45"
-   },
-   "block": {
-    "title": "Высоковольтная система",
-    "aside": "· ВВБ, привод, мотор-генератор",
-    "counters": [
-     [
-      "U ВВБ",
-      "553 В"
-     ],
-     [
-      "SOC",
-      "74 %"
-     ],
-     [
-      "DTC",
-      "0"
-     ]
-    ],
-    "line": "UDS: BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · + сигналы"
-   },
-   "tabs": {
-    "items": [
-     "Схема",
-     "ВВБ · данные",
-     "Приводы · данные"
-    ],
-    "active": 0
-   },
-   "contactor": "главный контактор",
-   "busLabel": "ШИНА DC",
-   "volts": [
-    "555 В",
-    "556 В"
-   ],
-   "pack": {
-    "title": "ВВБ",
-    "tag": "BMS · 7E7",
-    "state": "OK · DTC 0",
-    "rows": [
-     [
-      "Напряжение / ток",
-      "553 В · −4,5 А"
-     ],
-     [
-      "SOC / SOH",
-      "74 % · 99 %"
-     ],
-     [
-      "Ячейки, мин–макс",
-      "3 333–3 337 мВ"
-     ],
-     [
-      "Разброс",
-      "4 мВ"
-     ],
-     [
-      "Температура",
-      "13…18 °C"
-     ],
-     [
-      "Изоляция",
-      "14,4 · 19,7 МОм"
-     ]
-    ]
-   },
-   "units": [
-    {
-     "abbr": "FMCU",
-     "addr": "7E3",
-     "name": "Инвертор передний",
-     "kind": "ok",
-     "state": "OK · IPM 9 °C",
-     "opens": "scanner-drives"
-    },
-    {
-     "abbr": "ISG",
-     "addr": "7E6",
-     "name": "Мотор-генератор",
-     "kind": "ok",
-     "state": "OK · DTC 0",
-     "opens": "scanner-drives"
-    },
-    {
-     "abbr": "SMCU",
-     "addr": "744",
-     "name": "Инвертор задний",
-     "kind": "ok",
-     "state": "OK · DTC 0",
-     "opens": "scanner-drives"
-    },
-    {
-     "abbr": "SMCU3",
-     "addr": "745",
-     "name": "Инвертор задний",
-     "kind": "ok",
-     "state": "OK · DTC 0",
-     "opens": "scanner-drives"
-    },
-    {
-     "abbr": "ECM",
-     "addr": "7E0",
-     "name": "ДВС",
-     "kind": "ok",
-     "state": "OK · MIL ВЫКЛ",
-     "opens": "scanner-ecu-dtc"
-    },
-    {
-     "abbr": "PTC",
-     "addr": "766",
-     "name": "Нагреватель ВВ",
-     "kind": "unread",
-     "state": "ошибки не читали",
-     "opens": "scanner-scan"
-    },
-    {
-     "abbr": "DCOBC",
-     "addr": "7E4",
-     "name": "Зарядное + DC-DC",
-     "kind": "ok",
-     "state": "OK · DTC 0",
-     "opens": "scanner-scan"
-    },
-    {
-     "abbr": "LBMS",
-     "addr": "762",
-     "name": "АКБ 12 В · 13,7 В",
-     "kind": "ok",
-     "state": "OK · DTC 0"
-    }
-   ],
-   "machines": [
-    {
-     "name": "Передний мотор",
-     "values": "статор 8 °C · 0 об/мин · 0 Н·м",
-     "live": true
-    },
-    {
-     "name": "ДВС не работает",
-     "values": "0 об/мин · ОЖ 9 °C"
-    },
-    {
-     "name": "Задний мотор левый",
-     "values": "статор 7 °C · н/д об/мин · 0 Н·м"
-    },
-    {
-     "name": "Задний мотор правый",
-     "values": "статор 7 °C · 0 об/мин · 0 Н·м"
-    }
-   ],
-   "footer": {
-    "buttons": [
-     [
-      "Обновить",
-      "primary"
-     ]
-    ],
-    "legendGap": 18,
-    "legend": [
-     [
-      "ok",
-      "блок отвечает по UDS"
-     ],
-     [
-      "unread",
-      "ответил, ошибки не читали"
-     ],
-     [
-      "none",
-      "адрес не найден"
-     ],
-     [
-      "mech",
-      "механическая связь"
-     ]
-    ]
-   }
-  }
- ],
- "scanner-brakes": [
-  {
-   "kind": "scanner",
-   "mode": "full",
-   "screen": "brakes"
-  },
-  {
-   "top": {
-    "crumbs": [
-     "Диагностика",
-     "Автоскан",
-     "Тормозная система"
+     "Шасси",
+     "Тормозная система, стабилизация"
     ],
     "link": "Связь OK",
     "car": "Z9 GT DM · P · 0 км/ч",
@@ -45136,19 +44503,13 @@
    "block": {
     "title": "Тормозная система, стабилизация",
     "aside": "· ESP/IPB · Bosch",
-    "counters": [
-     [
-      "DTC",
-      "0"
-     ],
-     [
-      "МАСКА",
-      "09"
-     ],
-     [
-      "MIL",
-      "ВЫКЛ"
-     ]
+    "badge": [
+     "ok",
+     "OK"
+    ],
+    "dtc": [
+     "DTC",
+     "0"
     ],
     "line": "782 → 78A · UDS · доступность DTC FF · формат 00 (SAE J2012) · F194 32330011DF0B000101"
    },
@@ -45186,53 +44547,10 @@
     "value": 9,
     "result": "Записей нет"
    },
-   "obdTitle": "ИНТЕРФЕЙС OBD · 7E5 → 7ED",
-   "obd": [
-    [
-     "Имя ЭБУ · 09 0A",
-     "BSCM-BrakeSystem",
-     ""
-    ],
-    [
-     "Калибровка · 09 04",
-     "4000825042253153",
-     ""
-    ],
-    [
-     "MIL · DTC · PID 01",
-     "выкл · 0",
-     ""
-    ],
-    [
-     "Сохранённые · Mode 03",
-     "0",
-     ""
-    ],
-    [
-     "Ожидающие · Mode 07",
-     "0",
-     ""
-    ],
-    [
-     "Постоянные · Mode 0A",
-     "0",
-     ""
-    ],
-    [
-     "Поддерживаемые PID",
-     "01 04 05 0C 0D 20",
-     "text"
-    ],
-    [
-     "UDS 19 и 22",
-     "не поддерживает · NRC 11",
-     "dim"
-    ]
-   ],
    "footer": {
     "buttons": [
      [
-      "‹ Автоскан",
+      "‹ Шасси",
       "quiet"
      ],
      [
@@ -45242,399 +44560,7 @@
     ],
     "notes": [
      [
-      "19 01 09 · 19 02 09 · 09 0A",
-      true
-     ]
-    ]
-   }
-  }
- ],
- "scanner-adas": [
-  {
-   "kind": "scanner",
-   "mode": "full",
-   "screen": "adas"
-  },
-  {
-   "top": {
-    "crumbs": [
-     "Диагностика",
-     "Автоскан",
-     "Ассистенты водителя"
-    ],
-    "link": "Связь OK",
-    "car": "Z9 GT DM · P · 0 км/ч",
-    "time": "16:32:20"
-   },
-   "block": {
-    "title": "Ассистенты водителя",
-    "aside": "· контроллер, радары, парковка",
-    "counters": [
-     [
-      "DTC",
-      "0"
-     ],
-     [
-      "ПРОЧИТАНО",
-      "2 из 7"
-     ]
-    ],
-    "line": "7 блоков · ADC 712 · MRR 7F2 · угловые радары 760 761 7C2 7D4 · IPA 701"
-   },
-   "tabs": {
-    "items": [
-     "Сравнение блоков",
-     "DTC",
-     "Идентификация"
-    ],
-    "active": 0
-   },
-   "units": [
-    [
-     "ADC",
-     "Контроллер ADAS",
-     true
-    ],
-    [
-     "MRR",
-     "Радар передний",
-     true
-    ],
-    [
-     "LFCR",
-     "Угловой ПЛ",
-     false
-    ],
-    [
-     "RFCR",
-     "Угловой ПП",
-     false
-    ],
-    [
-     "RRCR",
-     "Угловой ЗП",
-     false
-    ],
-    [
-     "LRCR",
-     "Угловой ЗЛ",
-     false
-    ],
-    [
-     "IPA",
-     "Парковка",
-     false
-    ]
-   ],
-   "rows": [
-    {
-     "name": "Запрос → ответ",
-     "cells": [
-      {
-       "t": "712 → 71A",
-       "ink": "dim",
-       "size": 13
-      },
-      {
-       "t": "7F2 → 7FA",
-       "ink": "dim",
-       "size": 13
-      },
-      {
-       "t": "760 → 768",
-       "ink": "dim",
-       "size": 13
-      },
-      {
-       "t": "761 → 769",
-       "ink": "dim",
-       "size": 13
-      },
-      {
-       "t": "7C2 → 7CA",
-       "ink": "dim",
-       "size": 13
-      },
-      {
-       "t": "7D4 → 7DC",
-       "ink": "dim",
-       "size": 13
-      },
-      {
-       "t": "701 → 709",
-       "ink": "dim",
-       "size": 13
-      }
-     ]
-    },
-    {
-     "name": "Номер ПО · F194",
-     "cells": [
-      {
-       "t": "48450011DF83000000",
-       "size": 11
-      },
-      {
-       "t": "474E0011DF70000000",
-       "size": 11
-      },
-      {
-       "t": "474E0011DF82000000",
-       "size": 11,
-       "shared": true,
-       "ink": "blueInk"
-      },
-      {
-       "t": "474E0011DF82000000",
-       "size": 11,
-       "shared": true,
-       "ink": "blueInk"
-      },
-      {
-       "t": "474E0011DF82000000",
-       "size": 11,
-       "shared": true,
-       "ink": "blueInk"
-      },
-      {
-       "t": "474E0011DF82000000",
-       "size": 11,
-       "shared": true,
-       "ink": "blueInk"
-      },
-      {
-       "t": "32330011DF42000000",
-       "size": 11
-      }
-     ]
-    },
-    {
-     "name": "Имя в кэше BYD",
-     "cells": [
-      {
-       "t": "ADC_BYD",
-       "size": 12.5
-      },
-      {
-       "t": "MRR · 3 вар.",
-       "size": 12.5
-      },
-      {
-       "t": "12 вариантов",
-       "size": 12.5,
-       "shared": true,
-       "ink": "dim"
-      },
-      {
-       "t": "12 вариантов",
-       "size": 12.5,
-       "shared": true,
-       "ink": "dim"
-      },
-      {
-       "t": "12 вариантов",
-       "size": 12.5,
-       "shared": true,
-       "ink": "dim"
-      },
-      {
-       "t": "12 вариантов",
-       "size": 12.5,
-       "shared": true,
-       "ink": "dim"
-      },
-      {
-       "t": "IPA_BOSCH",
-       "size": 12.5
-      }
-     ]
-    },
-    {
-     "name": "Версия ПО · кэш",
-     "cells": [
-      {
-       "t": "4.14.07"
-      },
-      {
-       "t": "4.00.05"
-      },
-      {
-       "t": "4.00.12",
-       "shared": true
-      },
-      {
-       "t": "4.00.12",
-       "shared": true
-      },
-      {
-       "t": "4.00.12",
-       "shared": true
-      },
-      {
-       "t": "4.00.12",
-       "shared": true
-      },
-      {
-       "t": "4.00.09"
-      }
-     ]
-    },
-    {
-     "name": "Положение",
-     "cells": [
-      {
-       "t": "—"
-      },
-      {
-       "t": "перед"
-      },
-      {
-       "t": "ПЛ"
-      },
-      {
-       "t": "ПП"
-      },
-      {
-       "t": "ЗП"
-      },
-      {
-       "t": "ЗЛ"
-      },
-      {
-       "t": "—"
-      }
-     ]
-    },
-    {
-     "name": "Связь",
-     "cells": [
-      {
-       "t": "CAN · DoIP",
-       "ink": "orangeInk"
-      },
-      {
-       "t": "CAN"
-      },
-      {
-       "t": "CAN"
-      },
-      {
-       "t": "CAN"
-      },
-      {
-       "t": "CAN"
-      },
-      {
-       "t": "CAN"
-      },
-      {
-       "t": "CAN"
-      }
-     ]
-    },
-    {
-     "name": "Доступность DTC",
-     "cells": [
-      {
-       "t": "09"
-      },
-      {
-       "t": "09"
-      },
-      {
-       "t": "—"
-      },
-      {
-       "t": "—"
-      },
-      {
-       "t": "—"
-      },
-      {
-       "t": "—"
-      },
-      {
-       "t": "—"
-      }
-     ]
-    },
-    {
-     "name": "Формат DTC",
-     "cells": [
-      {
-       "t": "01 · не SAE",
-       "ink": "orangeInk",
-       "size": 13
-      },
-      {
-       "t": "00 · SAE",
-       "size": 13
-      },
-      {
-       "t": "—"
-      },
-      {
-       "t": "—"
-      },
-      {
-       "t": "—"
-      },
-      {
-       "t": "—"
-      },
-      {
-       "t": "—"
-      }
-     ]
-    },
-    {
-     "name": "DTC · маска 09",
-     "cells": [
-      {
-       "t": "0",
-       "size": 16
-      },
-      {
-       "t": "0",
-       "size": 16
-      },
-      {
-       "t": "не читали",
-       "size": 12.5
-      },
-      {
-       "t": "не читали",
-       "size": 12.5
-      },
-      {
-       "t": "не читали",
-       "size": 12.5
-      },
-      {
-       "t": "не читали",
-       "size": 12.5
-      },
-      {
-       "t": "не читали",
-       "size": 12.5
-      }
-     ]
-    }
-   ],
-   "footer": {
-    "buttons": [
-     [
-      "‹ Автоскан",
-      "quiet"
-     ],
-     [
-      "Прочитать DTC",
-      "primary"
-     ]
-    ],
-    "notes": [
-     [
-      "22 F194 · 19 01 09 · 19 02 09",
+      "19 01 09 · 19 02 09",
       true
      ]
     ]

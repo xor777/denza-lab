@@ -223,23 +223,15 @@
     glow(c, Hd.dotGlow, 'blue', () => fill(c, r - Hd.dot, (room - Hd.dot) / 2, Hd.dot, Hd.dot, 'blue', Hd.dot / 2));
   }
 
-  // The autoscan's summary: equal columns stretched to the band, a rule between them.
-  function summary(c, counters) {
-    const B = L.block, n = counters.length, pad = B.counterPad;
-    const cw = (W - 48 - n * pad - (n - 1)) / n;
-    const lab = style('counterLabel'), val = style('counterBig');
-    const top = B.top + (B.height - lab.lh - B.counterGap - val.lh) / 2;
-    counters.forEach(([label, value, ink], i) => {
-      const x = 24 + i * (cw + pad) + Math.max(0, i - 1) + (i ? 1 : 0);
-      if (i) vrule(c, x - 1, B.top, B.height);
-      text(c, label, x + pad, top, 'counterLabel', 'mute');
-      text(c, value, x + pad, top + lab.lh + B.counterGap, 'counterBig', ink || 'white');
-    });
-  }
-
   // A block's or a system's head: title and its aside over the mono line; counters at the right.
+  // A counter is as wide as the block's 112 dp, or as its widest value and a padding's room after
+  // it, rounded up to 8 dp.
+  function counterWidth(c, counters) {
+    const B = L.block, widest = Math.max(0, ...(counters || []).map(([, v]) => measure(c, v, 'counter')));
+    return Math.max(B.counterW, Math.ceil((widest + B.counterPad) / B.counterStep) * B.counterStep);
+  }
   function blockHead(c, b) {
-    const B = L.block, cw = b.counterW || B.counterW;
+    const B = L.block, cw = counterWidth(c, b.counters);
     const lab = style('counterLabel'), val = style('counter');
     let right = W - 24;
     if (b.counters) {
@@ -275,7 +267,7 @@
     text(c, b.line, 24, top + t.lh + B.titleGap, 'line', 'dim2', { max: room });
   }
 
-  function tabs(c, t, jumps) {
+  function tabs(c, t) {
     const N = L.tabs, s = style('tab'), top = N.top + (N.height - s.lh) / 2;
     let x = 24;
     t.items.forEach((label, i) => {
@@ -290,18 +282,6 @@
       x += w + N.gap;
     });
     rule(c, 24, N.top + N.height, W - 48);
-    if (jumps) {
-      const j = style('jump');
-      let r = W - 24;
-      for (let i = jumps.length - 1; i >= 0; i--) {
-        const [name, count] = jumps[i];
-        const by = base(N.top + (N.height - j.lh) / 2, j);
-        const wc = measure(c, count, 'jumpCount'), wn = measure(c, name, 'jump');
-        glyphs(c, count, r - wc, by, style('jumpCount'), 'faint2');
-        glyphs(c, name, r - wc - N.jumpCountGap - wn, by, j, i ? 'mute' : 'white');
-        r -= wc + N.jumpCountGap + wn + N.jumpGap;
-      }
-    }
   }
 
   // The footer: buttons from the left, then a legend; notes from the right, '|' a divider.
@@ -362,14 +342,6 @@
     return parts.join(' · ');
   }
 
-  function scan(c, f) {
-    header(c, f.top);
-    summary(c, f.counters);
-    tabs(c, { items: f.tabs, active: 0 }, f.groups.map(g => [g.short, String(g.ecus.length)]));
-    scanTable(c, f, L.scan.table.cols);
-    footer(c, f.footer);
-  }
-
   function scanTable(c, f, colSpec) {
     const S = L.scan, cols = columns(colSpec, 24, W - 48);
     const P = S.table.pad, NP = S.table.numPad;
@@ -388,24 +360,29 @@
       y += Li.group;
       for (const e of g.ecus) {
         if (y >= Li.bottom) break;
-        const ink = e.kind === 'none' ? 'faint' : e.kind === 'unread' ? 'ink3' : 'white';
-        const h = Li.row;
-        text(c, e.name, cols[0][0] + P, mid(y, h, 'cell'), 'cell', ink, { max: cols[0][1] - P });
-        text(c, e.unit, cols[1][0], mid(y, h, 'cellSmall'), 'cellSmall', 'dim', { max: cols[1][1] });
-        text(c, reply(e.req), cols[2][0], mid(y, h, 'cellMono'), 'cellMono', 'dim');
-        text(c, e.proto || '—', cols[3][0], mid(y, h, 'cellSmall'), 'cellSmall', 'dim');
-        text(c, read(e) ? e.active : '—', cols[4][0] + cols[4][1] - NP, mid(y, h, 'cellNum'), 'cellNum', ink, { align: 'right' });
-        text(c, read(e) ? e.history : '—', cols[5][0] + cols[5][1] - NP, mid(y, h, 'cellNum'), 'cellNum', ink, { align: 'right' });
-        badge(c, KIND_BADGE[e.kind], cols[6][0], y + (h - L.badge.h) / 2, e.kind);
-        if (e.opens) {
-          const k = Li.chevron / 24, cx = cols[7][0] + (cols[7][1] - Li.chevron) / 2, cy = y + (h - Li.chevron) / 2;
-          stroke(c, `M${cx + 9 * k} ${cy + 5 * k}L${cx + 16 * k} ${cy + 12 * k}L${cx + 9 * k} ${cy + 19 * k}`, 'faint', 2 * k, null, 'round');
-        }
-        rule(c, 24, y + h, W - 48, 'hair');
-        y += h + Li.rule;
+        y = scanRow(c, e, cols, y);
       }
     }
     c.restore();
+  }
+
+  // The autoscan's row of one block: name, unit, route, protocol, both counts, the chip, a chevron.
+  function scanRow(c, e, cols, y) {
+    const S = L.scan, P = S.table.pad, NP = S.table.numPad, Li = S.list, h = Li.row;
+    const ink = e.kind === 'none' ? 'faint' : e.kind === 'unread' ? 'ink3' : 'white';
+    text(c, e.name, cols[0][0] + P, mid(y, h, 'cell'), 'cell', ink, { max: cols[0][1] - P });
+    text(c, e.unit, cols[1][0], mid(y, h, 'cellSmall'), 'cellSmall', 'dim', { max: cols[1][1] });
+    text(c, reply(e.req), cols[2][0], mid(y, h, 'cellMono'), 'cellMono', 'dim');
+    text(c, e.proto || '—', cols[3][0], mid(y, h, 'cellSmall'), 'cellSmall', 'dim');
+    text(c, read(e) ? e.active : '—', cols[4][0] + cols[4][1] - NP, mid(y, h, 'cellNum'), 'cellNum', ink, { align: 'right' });
+    text(c, read(e) ? e.history : '—', cols[5][0] + cols[5][1] - NP, mid(y, h, 'cellNum'), 'cellNum', ink, { align: 'right' });
+    badge(c, KIND_BADGE[e.kind], cols[6][0], y + (h - L.badge.h) / 2, e.kind);
+    if (e.opens) {
+      const k = Li.chevron / 24, cx = cols[7][0] + (cols[7][1] - Li.chevron) / 2, cy = y + (h - Li.chevron) / 2;
+      stroke(c, `M${cx + 9 * k} ${cy + 5 * k}L${cx + 16 * k} ${cy + 12 * k}L${cx + 9 * k} ${cy + 19 * k}`, 'faint', 2 * k, null, 'round');
+    }
+    rule(c, 24, y + h, W - 48, 'hair');
+    return y + h + Li.rule;
   }
 
   /* --------------------------------------------- systems down the left */
@@ -461,12 +438,13 @@
       for (const r of f.codes) {
         const h = D.row;
         if (r.block !== last && last !== null) rule(c, 24, y - 1, W - 48);
+        if (r.active) fill(c, 24, y, W - 48, h, 'orangeRow');
         if (r.block !== last) {
           text(c, r.block, cols[0][0] + P, mid(y, h, 'cell'), 'cell', 'white');
           text(c, r.addr, cols[0][0] + P + measure(c, r.block, 'cell') + 8, mid(y, h, 'cellMono'), 'cellMono', 'faint');
         }
         last = r.block;
-        text(c, r.code, cols[1][0], mid(y, h, 'code'), 'code', 'white');
+        text(c, r.code, cols[1][0], mid(y, h, 'code'), 'code', r.active ? 'orangeInk' : 'white');
         runs(c, [[r.ftb, 'cellNum', 'dim'], [' · ' + r.ftbName, 'cell', 'text']], cols[2][0], base(mid(y, h, 'cell'), 'cell'), cols[2][1] - 12);
         text(c, r.desc, cols[3][0], mid(y, h, 'cell'), 'cell', 'text', { max: cols[3][1] - 16 });
         runs(c, [[r.status, 'cellMono', 'text'], ['  ' + r.word, 'cellSmall', 'dim']], cols[4][0], base(mid(y, h, 'cell'), 'cell'), cols[4][1]);
@@ -476,6 +454,43 @@
         y += h + 1;
       }
     });
+  }
+
+  // A system's «Блоки»: its blocks as the autoscan's rows, each opening the block.
+  function sysBlocks(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const S = L.scan, cols = columns(L.rail.scanCols, 24, W - 48), NP = S.table.numPad;
+      let y = headRow(c, cols, ['БЛОК', '', 'ЗАПРОС → ОТВЕТ', 'ПРОТОКОЛ', ['DTC АКТ.', 'right', NP], ['DTC ИСТ.', 'right', NP], 'СТАТУС'],
+        S.table.top, S.table.head);
+      for (const e of f.ecus) y = scanRow(c, e, cols, y);
+    });
+  }
+
+  // A tab with nothing to show yet: one sentence where the table would stand.
+  function sysPending(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      text(c, f.pending, L.rail.pending.x, L.rail.pending.y, 'cell', 'dim');
+    });
+  }
+
+  // The pack's readings from the signal bus.
+  function sysPackLive(c, f) {
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); bmsTable(c, f); });
+  }
+
+  // The drives or the driver-assistance blocks side by side.
+  function sysDrivesCompare(c, f) {
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); drivesTable(c, f); });
+  }
+  function sysAdasCompare(c, f) {
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); adasTable(c, f); });
+  }
+
+  // The engine's DTC lists and monitor readiness, the block's own screen at the rail's width.
+  function sysEngineDtc(c, f) {
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); obdLists(c, f, L.rail.ecuDtc); });
   }
 
   /* ------------------------------------------------- the car from above */
@@ -731,8 +746,8 @@
       const E = L.engineScheme, y = E.pipeY, hw = E.pipe / 2, Bk = E.block;
       stroke(c, `M${E.x0} ${y - hw}H${Bk.x}M${E.x0} ${y + hw}H${Bk.x}`, 'wire3', 1.6);
       stroke(c, `M${Bk.x + Bk.w} ${y - hw}H${E.x1}M${Bk.x + Bk.w} ${y + hw}H${E.x1}`, 'wire3', 1.6);
-      arrow(c, E.x0 - 34, y, E.x0 - 6, y);
-      arrow(c, E.x1 + 6, y, E.x1 + 34, y);
+      flow(c, E.x0 - 34, y, E.x0 - 6, y);
+      flow(c, E.x1 + 6, y, E.x1 + 34, y);
       stroke(c, `M${E.throttle - 9} ${y + hw - 3}L${E.throttle + 9} ${y - hw + 3}`, 'wire5', 2.4);
       dot(c, E.throttle, y, 2.6, 'wire5');
       fill(c, Bk.x, Bk.y, Bk.w, Bk.h, 'tileOk', 8); edge(c, Bk.x, Bk.y, Bk.w, Bk.h, 'blueEdge', 8);
@@ -746,19 +761,19 @@
       stroke(c, `M${E.o2} ${y + hw + 16}V${y + 2}`, 'wire5', 2.2);
       fill(c, E.o2 - 5, y + hw + 14, 10, 10, 'quiet', 2); edge(c, E.o2 - 5, y + hw + 14, 10, 10, 'wire4', 2);
       f.points.forEach(p => {
-        const up = p.side === 'up', edgeY = up ? (p.at || y - hw) : (p.at || y + hw);
+        const [side, x, w, at] = E.points[p.place], up = side === 'up', edgeY = up ? (at || y - hw) : (at || y + hw);
         const rows = [[p.label, 'counterLabel', 'mute'], ...p.rows.map(r => [r, 'cellMono', 'text'])];
         const h = 2 * L.callout.padY + style('counterLabel').lh + p.rows.length * (style('cellMono').lh + L.callout.gap);
         const by = up ? E.upY - h : E.downY;
-        stroke(c, `M${p.x} ${up ? by + h : by}V${edgeY}`, 'wire4', 1.2);
-        dot(c, p.x, edgeY, L.callout.dot, 'wire5');
-        callout(c, p.x - p.w / 2, by, p.w, rows, 'ok');
+        stroke(c, `M${x} ${up ? by + h : by}V${edgeY}`, 'wire4', 1.2);
+        dot(c, x, edgeY, L.callout.dot, 'wire5');
+        callout(c, x - w / 2, by, w, rows, 'ok');
       });
     });
   }
 
   // A flow arrow between two points, its head at the end.
-  function arrow(c, x1, y1, x2, y2, ink) {
+  function flow(c, x1, y1, x2, y2, ink) {
     const a = Math.atan2(y2 - y1, x2 - x1), h = 8;
     stroke(c, `M${x1} ${y1}L${x2} ${y2}M${x2 - h * Math.cos(a - 0.45)} ${y2 - h * Math.sin(a - 0.45)}L${x2} ${y2}L${x2 - h * Math.cos(a + 0.45)} ${y2 - h * Math.sin(a + 0.45)}`, ink || 'wire4', 1.6);
   }
@@ -781,8 +796,8 @@
       zone(f.outside, C.leftX);
       zone(f.cabin, W - C.leftX - C.zoneW);
       const ux = W / 2 - T.w / 2, uy = C.zoneY + C.zoneH / 2 - T.h / 2;
-      arrow(c, C.leftX + C.zoneW, uy + T.h / 2, ux - 4, uy + T.h / 2);
-      arrow(c, ux + T.w, uy + T.h / 2, W - C.leftX - C.zoneW - 4, uy + T.h / 2);
+      flow(c, C.leftX + C.zoneW, uy + T.h / 2, ux - 4, uy + T.h / 2);
+      flow(c, ux + T.w, uy + T.h / 2, W - C.leftX - C.zoneW - 4, uy + T.h / 2);
       unitTile(c, ux, uy, f.units.acc);
       stroke(c, `M${W / 2} ${uy + T.h}V${uy + T.h + C.stem}`, 'wire4', 1.2);
       unitTile(c, ux, uy + T.h + C.stem, f.units.ptc);
@@ -822,14 +837,6 @@
     unread: { fill: 'tileUnread', line: 'line3', ink: 'ink2', sub: 'dim', state: 'dim2', addr: 'faint' },
     none:   { dash: 'line4', ink: 'faint', sub: 'faint2', state: 'faint2', addr: 'faint2' },
   };
-  function topology(c, f) {
-    header(c, f.top);
-    summary(c, f.counters);
-    tabs(c, { items: f.tabs, active: 1 });
-    const kinds = topologyBody(c, f, L.topology);
-    footer(c, f.footer, kinds);
-  }
-
   // The rail's autoscan: the same nine columns, narrower tiles at the width the rail leaves.
   function sysTopology(c, f) {
     let kinds;
@@ -946,8 +953,9 @@
   }
 
   const MONITOR = { ready: ['ГОТОВ', 'ready'], waiting: ['НЕ ГОТОВ', 'waiting'], absent: ['НЕ ПОДДЕРЖ.', 'absent'] };
-  function monitors(c, list) {
-    const D = L.ecuDtc, R = D.right, cols = columns(D.monCols, R.x, R.w);
+  // X: where the two halves stand - the block screen's (L.ecuDtc) or the rail's (L.rail.ecuDtc).
+  function monitors(c, list, X) {
+    const D = L.ecuDtc, R = (X || D).right, cols = columns((X || D).monCols, R.x, R.w);
     let y = headRow(c, cols, ['ГОТОВНОСТЬ МОНИТОРОВ · С МОМЕНТА СБРОСА DTC', 'ТИП', 'СТАТУС'], D.top, D.head);
     for (const [name, abbr, type, state] of list) {
       const h = D.monRow, off = state === 'absent';
@@ -959,14 +967,16 @@
       y += h + 1;
     }
   }
-  // A plate: a caption, a line and the raw reply; returns its bottom.
+  // A plate: a caption, a line - broken at spaces where the plate is narrow - and the raw reply;
+  // returns its bottom.
   function pidPlate(c, p, x, top, w) {
-    const P = L.ecuDtc.plate;
-    const h = 2 * P.padY + style('counterLabel').lh + style('plateLine').lh + style('plateMono').lh + 2 * P.gap;
+    const P = L.ecuDtc.plate, lines = wrap(c, p.line, 'plateLine', w - 2 * P.padX);
+    const h = 2 * P.padY + style('counterLabel').lh + lines.length * style('plateLine').lh + style('plateMono').lh + 2 * P.gap;
     fill(c, x, top, w, h, 'plate', P.r); edge(c, x, top, w, h, 'rule', P.r);
     let y = top + P.padY;
     text(c, p.label, x + P.padX, y, 'counterLabel', 'mute'); y += style('counterLabel').lh + P.gap;
-    text(c, p.line, x + P.padX, y, 'plateLine', 'white', { max: w - 2 * P.padX }); y += style('plateLine').lh + P.gap;
+    lines.forEach(l => { text(c, l, x + P.padX, y, 'plateLine', 'white'); y += style('plateLine').lh; });
+    y += P.gap;
     text(c, p.raw, x + P.padX, y, 'plateMono', 'faint');
     return top + h;
   }
@@ -975,7 +985,13 @@
     header(c, f.top);
     blockHead(c, f.block);
     tabs(c, f.tabs);
-    const D = L.ecuDtc, Lf = D.left, cols = columns(D.listCols, Lf.x, Lf.w);
+    obdLists(c, f, L.ecuDtc);
+    footer(c, f.footer);
+  }
+
+  // The OBD lists with PID 01 under them on the left, the monitors on the right.
+  function obdLists(c, f, X) {
+    const D = L.ecuDtc, Lf = X.left, cols = columns(X.listCols, Lf.x, Lf.w);
     let y = headRow(c, cols, ['КОДЫ НЕИСПРАВНОСТЕЙ', 'СЕРВИС', ['DTC', 'right', 12]], D.top, D.head);
     for (const [name, service, count] of f.lists) {
       const h = D.listRow, num = /^\d+$/.test(count);
@@ -987,8 +1003,7 @@
       y += h + 1;
     }
     pidPlate(c, f.pid01, Lf.x, y + D.plateGap, Lf.w);
-    monitors(c, f.monitors);
-    footer(c, f.footer);
+    monitors(c, f.monitors, X);
   }
 
   function ecuFault(c, f) {
@@ -1109,10 +1124,7 @@
     footer(c, f.footer);
   }
 
-  function bms(c, f) {
-    header(c, f.top);
-    blockHead(c, f.block);
-    tabs(c, f.tabs);
+  function bmsTable(c, f) {
     const B = L.bms, cols = columns(B.cols, 24, W - 48);
     let y = headRow(c, cols, ['СИГНАЛ', 'ПАРАМЕТР', ['ЗНАЧЕНИЕ', 'right', B.valuePad], 'ЕД.', 'НОРМА', 'ОЦЕНКА'], B.top, B.head);
     for (const [sig, name, value, unit, norm, mark] of f.rows) {
@@ -1126,14 +1138,10 @@
       rule(c, 24, y + h, W - 48, 'hair');
       y += h + 1;
     }
-    footer(c, f.footer);
   }
 
   const DIM_CELL = ['—', 'н/д', 'нет адреса', 'не читали'];
-  function drives(c, f) {
-    header(c, f.top);
-    blockHead(c, f.block);
-    tabs(c, f.tabs);
+  function drivesTable(c, f) {
     const D = L.drives, cols = columns(D.cols, 24, W - 48);
     const h0 = D.head;
     text(c, 'ПАРАМЕТР', cols[0][0] + 12, mid(D.top, h0, 'colHead'), 'colHead', 'mute');
@@ -1157,13 +1165,9 @@
       rule(c, 24, y + h, W - 48, 'hair');
       y += h + 1;
     }
-    footer(c, f.footer);
   }
 
-  function adas(c, f) {
-    header(c, f.top);
-    blockHead(c, Object.assign({ counterW: L.adas.counterW }, f.block));
-    tabs(c, f.tabs);
+  function adasTable(c, f) {
     const A = L.adas, cols = columns(A.cols, 24, W - 48);
     text(c, 'ПАРАМЕТР', cols[0][0] + 12, mid(A.top, A.head, 'colHead'), 'colHead', 'mute');
     f.units.forEach(([abbr, name, isRead], i) => {
@@ -1185,29 +1189,20 @@
       rule(c, 24, y + h, W - 48, 'hair');
       y += h + 1;
     }
-    if (f.notes) notePlate(c, f.notes, 24, A.note.top, W - 48, A.note);
-    footer(c, f.footer);
-  }
-  // Plates of a lead line over a quieter paragraph, side by side.
-  function notePlate(c, notes, x, top, w, N) {
-    const cols = columns(notes.map(() => '1fr'), x + N.padX, w - 2 * N.padX, N.gap);
-    const heights = notes.map(([, body], i) => style('plateText').lh + 3 + wrap(c, body, 'small', cols[i][1]).length * style('small').lh);
-    const h = 2 * N.padY + Math.max(...heights);
-    fill(c, x, top, w, h, 'plate', N.r); edge(c, x, top, w, h, 'rule', N.r);
-    notes.forEach(([lead, body], i) => {
-      const [nx, nw] = cols[i];
-      text(c, lead, nx, top + N.padY, 'plateText', 'text', { max: nw });
-      para(c, body, nx, top + N.padY + style('plateText').lh + 3, 'small', 'dim2', nw);
-    });
-    return h;
   }
 
-  function brakes(c, f) {
+  // A UDS block whose memory gave nothing back: what was asked, and which status bits the mask sees.
+  function blockMask(c, f) {
     header(c, f.top);
     blockHead(c, f.block);
     tabs(c, f.tabs);
-    const Bk = L.brakes, D = L.ecuDtc, Lf = D.left, R = D.right;
-    let cols = columns(Bk.askCols, Lf.x, Lf.w);
+    maskAsks(c, f, L.ecuDtc.left);
+    footer(c, f.footer);
+  }
+
+  function maskAsks(c, f, Lf) {
+    const Bk = L.brakes;
+    const cols = columns(Bk.askCols, Lf.x, Lf.w);
     let y = headRow(c, cols, ['ЧТО ЗАПРОШЕНО', 'СЕРВИС', ['DTC', 'right', 12]], Bk.top, Bk.head);
     for (const [name, service, count] of f.asks) {
       const h = Bk.askRow, asked = /^\d+$/.test(count);
@@ -1220,9 +1215,8 @@
     }
     // the mask plate: which status bits the mask sees, what came back
     const P = Bk.plate, iw = Lf.w - 2 * P.padX, top = y + Bk.plateGap;
-    const bodyLines = wrap(c, f.mask.result, 'bodyStrong', iw), asideLines = f.mask.aside ? wrap(c, f.mask.aside, 'small', iw) : [];
-    const ph = 2 * P.padY + style('counterLabel').lh + P.gap + Bk.bits.h + P.gap + bodyLines.length * style('bodyStrong').lh
-      + (asideLines.length ? P.gap + asideLines.length * style('small').lh : 0) + (f.mask.raw ? P.gap + style('plateMono').lh : 0);
+    const bodyLines = wrap(c, f.mask.result, 'bodyStrong', iw);
+    const ph = 2 * P.padY + style('counterLabel').lh + P.gap + Bk.bits.h + P.gap + bodyLines.length * style('bodyStrong').lh;
     fill(c, Lf.x, top, Lf.w, ph, 'plate', P.r); edge(c, Lf.x, top, Lf.w, ph, 'rule', P.r);
     let py = top + P.padY;
     const px = Lf.x + P.padX;
@@ -1236,21 +1230,6 @@
     });
     py += Bk.bits.h + P.gap;
     bodyLines.forEach(l => { text(c, l, px, py, 'bodyStrong', 'white'); py += style('bodyStrong').lh; });
-    if (asideLines.length) { py += P.gap; asideLines.forEach(l => { text(c, l, px, py, 'small', 'dim2'); py += style('small').lh; }); }
-    if (f.mask.raw) { py += P.gap; text(c, f.mask.raw, px, py, 'plateMono', 'faint'); }
-    // the OBD interface at 7E5
-    cols = columns(Bk.obdCols, R.x, R.w);
-    y = headRow(c, cols, [f.obdTitle], Bk.top, Bk.head);
-    y = keyRows(c, f.obd, cols, y, Bk.obdRow, R.x, R.w);
-    const A = Bk.aside;
-    if (!f.aside) { footer(c, f.footer); return; }
-    const lines = wrap(c, f.aside[1], 'small', R.w - 2 * A.padX);
-    const ah = 2 * A.padY + style('plateText').lh + A.gap2 + lines.length * style('small').lh;
-    const at = y + A.gap;
-    fill(c, R.x, at, R.w, ah, 'plate', 6); edge(c, R.x, at, R.w, ah, 'rule', 6);
-    text(c, f.aside[0], R.x + A.padX, at + A.padY, 'plateText', 'text');
-    lines.forEach((l, i) => text(c, l, R.x + A.padX, at + A.padY + style('plateText').lh + A.gap2 + i * style('small').lh, 'small', 'dim2'));
-    footer(c, f.footer);
   }
 
   const HV_UNIT = {
@@ -1258,16 +1237,8 @@
     unread: { fill: 'tileUnread', line: 'line3', ink: 'ink2', sub: 'dim', state: 'dim2' },
     none:   { fill: 'ground', dash: 'line4', ink: 'dim', sub: 'mute', state: 'faint' },
   };
-  function hv(c, f) {
-    header(c, f.top);
-    blockHead(c, f.block);
-    tabs(c, f.tabs);
-    hvBody(c, f, L.hv);
-    footer(c, f.footer, new Set(f.units.map(u => u.kind)));
-  }
-
-  // The HV schema in a layout: the full-width board's, or the rail's narrower one without the
-  // machines' captions (their readings are «Электропривод»'s).
+  // The HV schema at the rail's width, without the machines' captions (their readings are
+  // «Электропривод»'s).
   function hvBody(c, f, V) {
     const K = V.contactor, B = V.bus;
     stroke(c, K.wire, 'wire', 2.4);
@@ -1318,14 +1289,9 @@
       text(c, u.name, ux, top + style('hvAbbr').lh + U.rowGap, 'hvName', k.sub, { max: uw });
       text(c, u.state, ux, top + style('hvAbbr').lh + style('hvName').lh + 2 * U.rowGap, 'hvState', k.state, { max: uw });
     });
-    if (V.captions) f.machines.forEach((m, i) => {
-      const my = V.captions[i];
-      text(c, m.name, V.caption, my, 'machine', m.live ? 'white' : 'text');
-      text(c, m.values, V.caption, my + style('machine').lh + 3, 'machineMono', 'dim');
-    });
   }
 
-  const SCREENS = { scan, topology, sysScan, sysTopology, sysLive, sysDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, bms, drives, hv, brakes, adas };
+  const SCREENS = { sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);

@@ -66,8 +66,6 @@
     "titleAside":   { "size": 14,   "lh": 16 },
     "line":         { "size": 13,   "lh": 17, "mono": true },
     "tab":          { "size": 15,   "lh": 18 },
-    "jump":         { "size": 13,   "lh": 16 },
-    "jumpCount":    { "size": 11.5, "lh": 16, "mono": true },
     "colHead":      { "size": 11,   "lh": 13, "track": 0.07 },
     "colHeadTight": { "size": 11,   "lh": 13, "track": 0.06 },
     "bitHead":      { "size": 10,   "lh": 12, "track": 0.02 },
@@ -114,7 +112,6 @@
     "unitName":     { "size": 13.5, "lh": 17 },
     "unitTag":      { "size": 11.5, "lh": 15, "mono": true },
     "rowSig":       { "size": 11,   "lh": 14, "mono": true },
-    "plateText":    { "size": 14,   "lh": 20 },
     "abbr":         { "size": 14,   "lh": 17, "mono": true, "w": 500 },
     "abbrName":     { "size": 11.5, "lh": 15 },
     "tileAbbr":     { "size": 13,   "lh": 16, "mono": true, "w": 500 },
@@ -136,8 +133,6 @@
     "packState":    { "size": 11,   "lh": 13, "w": 500, "track": 0.04 },
     "packKey":      { "size": 12.5, "lh": 19 },
     "packValue":    { "size": 14,   "lh": 19, "mono": true },
-    "machine":      { "size": 14,   "lh": 17 },
-    "machineMono":  { "size": 13,   "lh": 18, "mono": true },
     "glyph":        { "size": 15,   "lh": 18 },
     "driveCell":    { "size": 15,   "lh": 18, "mono": true },
     "driveSmall":   { "size": 12,   "lh": 18, "mono": true },
@@ -149,8 +144,8 @@
     "adas16":       { "size": 16,   "lh": 18, "mono": true }
   },
   "header": { "height": 48, "padLeft": 24, "padRight": 12, "gap": 18, "close": { "w": 40, "h": 36, "r": 6, "icon": 14, "stroke": 1.4 }, "dot": 7, "dotGap": 7, "dotGlow": 6 },
-  "block": { "top": 60, "height": 56, "titleGap": 5, "counterW": 112, "counterPad": 16, "counterGap": 4, "badgeGap": 24 },
-  "tabs": { "top": 124, "height": 36, "gap": 28, "underline": 2, "dotGap": 8, "jumpGap": 18, "jumpCountGap": 5 },
+  "block": { "top": 60, "height": 56, "titleGap": 5, "counterW": 112, "counterStep": 8, "counterPad": 16, "counterGap": 4, "badgeGap": 24 },
+  "tabs": { "top": 124, "height": 36, "gap": 28, "underline": 2, "dotGap": 8 },
   "footer": { "top": 628, "height": 52, "gap": 10, "button": { "h": 36, "pad": 16, "r": 6 }, "divider": [1, 20], "legend": { "w": 16, "h": 10, "r": 2, "gap": 7 } },
   "badge": { "h": 20, "pad": 8, "r": 4, "small": { "h": 18, "pad": 7 }, "big": { "h": 24, "pad": 10 } },
   "tones": {
@@ -164,7 +159,7 @@
     "on":      { "ink": "orangeInk", "fill": "orangeFill" }
   },
   "scan": {
-    "table": { "top": 168, "head": 30, "cols": [400, 150, 160, 120, 90, 90, 160, "1fr"], "pad": 12, "numPad": 18 },
+    "table": { "top": 168, "head": 30, "pad": 12, "numPad": 18 },
     "list": { "top": 199, "bottom": 620, "group": 28, "row": 30, "rule": 1, "groupGap": 14, "chevron": 14 }
   },
   "content": { "top": 172, "bottom": 620 },
@@ -178,14 +173,18 @@
   "hvRail": {"pack": {"x": 216, "y": 230, "w": 260, "h": 260, "r": 8, "padX": 16, "padY": 14, "gap": 9}, "unit": {"w": 150, "h": 56, "r": 6, "padX": 10, "rowGap": 2}, "contactor": {"wire": "M476 360H504M536 360H576", "blade": "M504 360L532 348", "pins": [[504, 360], [536, 360]], "pin": 2.6, "label": [502, 368, 70]}, "bus": {"trunk": "M576 210V540", "taps": "M576 210H628M576 320H628M576 440H628M576 540H628", "shafts": "M778 210H822M778 320H822M778 440H822M778 540H822", "coupling": "M870 317H888M870 323H888", "feeds": "M174 260H216M174 378H216M99 406V500"}, "machines": [{"x": 846, "y": 210, "glyph": "M", "live": true}, {"x": 846, "y": 320, "glyph": "G", "live": true}, {"x": 846, "y": 440, "glyph": "M"}, {"x": 846, "y": 540, "glyph": "M"}], "machineR": 24, "busLabel": {"right": 568, "y": 203.5}, "volts": [[586, 236], [586, 466]], "units": {"FMCU": [628, 182], "ISG": [628, 292], "SMCU": [628, 412], "SMCU3": [628, 512], "ECM": [888, 292], "PTC": [24, 232], "DCOBC": [24, 350], "LBMS": [24, 500]}},
   "rangeBar": {"h": 8, "headGap": 24, "tickGap": 8, "minSpan": 3},
   "packScheme": {"x": 60, "y": 196, "w": 230, "h": 380, "r": 12, "pad": 10, "poles": [262, 506], "busX": 610, "iso": {"x": 380, "w": 220, "h": 124}, "ranges": {"x": 720, "y": 224, "w": 300, "step": 120}},
-  "engineScheme": {"x0": 60, "x1": 1000, "pipeY": 400, "pipe": 26, "throttle": 210, "block": {"x": 400, "y": 340, "w": 200, "h": 120, "cyl": 18}, "cat": {"x": 720, "w": 90, "h": 44}, "o2": 880, "upY": 322, "downY": 482},
+  "engineScheme": {"x0": 60, "x1": 1000, "pipeY": 400, "pipe": 26, "throttle": 210, "block": {"x": 400, "y": 340, "w": 200, "h": 120, "cyl": 18}, "cat": {"x": 720, "w": 90, "h": 44}, "o2": 880, "upY": 322, "downY": 482,
+    "points": {"inlet": ["up", 110, 170], "throttle": ["down", 210, 170], "manifold": ["up", 300, 150], "blockTop": ["up", 500, 240, 340],
+      "blockBottom": ["down", 500, 240, 460], "catalyst": ["up", 765, 180, 378], "oxygen": ["down", 880, 180, 437]}},
   "climateScheme": {"leftX": 60, "zoneW": 240, "zoneH": 200, "zoneY": 300, "stem": 40},
   "lvScheme": {"x0": 60, "x1": 1030, "busY": 300, "dcdcX": 190, "battX": 360, "battDrop": 90, "loadX": 520, "loadStep": 130, "loadDrop": 90},
   "rail": { "w": 216, "padX": 20, "padTop": 10, "item": 40, "sepGap": 8, "bar": 3,
     "scanCols": [290, 120, 150, 100, 80, 80, 150, "1fr"],
     "liveCols": [50, 300, 100, 64, 76, 76, 100, "1fr"],
     "topology": { "column": 112, "tile": { "w": 100, "padX": 5, "inset": 8 } },
-    "dtc": { "cols": [150, 120, 250, "1fr", 190, 40], "row": 34 } },
+    "dtc": { "cols": [150, 120, 250, "1fr", 190, 40], "row": 34 },
+    "ecuDtc": { "left": { "x": 24, "w": 420 }, "right": { "x": 468, "w": 572 }, "listCols": ["1fr", 100, 90], "monCols": ["1fr", 100, 110] },
+    "pending": { "x": 36, "y": 184 } },
   "topology": {
     "column": 137, "left": 24, "tile": { "w": 124, "h": 36, "r": 5, "padX": 7, "inset": 10, "pitch": 40, "rowGap": 2 },
     "head": { "x": 24, "y": 170, "w": 168, "h": 28, "r": 5, "pad": 10 },
@@ -198,21 +197,8 @@
   "ecuLive": { "top": 168, "head": 30, "row": 32, "cols": [56, 360, 116, 70, 82, 82, 110, "1fr"], "spark": { "w": 300, "h": 22, "stroke": 1.4, "glow": 3 } },
   "ecuIdent": { "ownCols": [240, "1fr"], "cacheCols": [200, "1fr"], "row": 32, "noteGap": 14, "pidGap": 22, "pidHeadH": 18, "pidGridGap": 8, "pid": { "cols": 12, "h": 24, "gap": 4, "r": 3 } },
   "bodyDtc": { "top": 172, "head": 30, "cols": [130, 260, "1fr", 80, 46, 46, 46, 46, 46, 46, 46, 46], "rowMin": 52, "bit": 12, "bitR": 3, "below": 328, "belowGap": 19, "explainW": 600, "explainGap": 8, "legend": { "x": 672, "w": 584, "key": 70, "gap": 12, "rowGap": 6 } },
-  "bms": { "top": 168, "head": 30, "row": 27, "cols": [150, 380, 130, 80, 220, "1fr"], "valuePad": 14 },
+  "bms": { "top": 168, "head": 30, "row": 27, "cols": [150, 330, 120, 70, 220, "1fr"], "valuePad": 14 },
   "drives": { "top": 168, "head": 44, "row": 40, "cols": [320, "1fr", "1fr", "1fr", "1fr", 70], "pad": 20 },
-  "adas": { "top": 168, "head": 50, "row": 33, "cols": [196, "1fr", "1fr", "1fr", "1fr", "1fr", "1fr", "1fr"], "pad": 10, "note": { "top": 536, "padX": 16, "padY": 12, "gap": 24, "r": 6 }, "counterW": 124 },
-  "brakes": { "top": 172, "head": 30, "askRow": 34, "askCols": ["1fr", 110, 140], "obdRow": 32, "obdCols": [250, "1fr"], "plateGap": 18, "plate": { "padX": 16, "padY": 14, "gap": 10, "r": 6 }, "bits": { "h": 30, "gap": 4, "r": 4 }, "aside": { "gap": 16, "padX": 16, "padY": 12, "gap2": 4 } },
-  "hv": {
-    "pack": { "x": 240, "y": 230, "w": 280, "h": 260, "r": 8, "padX": 16, "padY": 14, "gap": 9 },
-    "unit": { "w": 160, "h": 56, "r": 6, "padX": 10, "rowGap": 2 },
-    "contactor": { "wire": "M520 360H548M580 360H620", "blade": "M548 360L576 348", "pins": [[548, 360], [580, 360]], "pin": 2.6, "label": [546, 368, 70] },
-    "bus": { "trunk": "M620 210V540", "taps": "M620 210H680M620 320H680M620 440H680M620 540H680", "shafts": "M840 210H886M840 320H886M840 440H886M840 540H886", "coupling": "M934 317H960M934 323H960", "feeds": "M200 260H240M200 378H240M120 406V500" },
-    "machines": [{ "x": 910, "y": 210, "glyph": "M", "live": true }, { "x": 910, "y": 320, "glyph": "G", "live": true }, { "x": 910, "y": 440, "glyph": "M" }, { "x": 910, "y": 540, "glyph": "M" }],
-    "machineR": 24,
-    "busLabel": { "right": 612, "y": 203.5 },
-    "volts": [[630, 236], [630, 466]],
-    "units": { "FMCU": [680, 182], "ISG": [680, 292], "SMCU": [680, 412], "SMCU3": [680, 512], "ECM": [960, 292], "PTC": [40, 232], "DCOBC": [40, 350], "LBMS": [40, 500] },
-    "caption": 948,
-    "captions": [194, 356, 424, 524]
-  }
+  "adas": { "top": 168, "head": 50, "row": 33, "cols": [124, "1fr", "1fr", "1fr", "1fr", "1fr", "1fr", "1fr"], "pad": 8 },
+  "brakes": { "top": 172, "head": 30, "askRow": 34, "askCols": ["1fr", 110, 140], "plateGap": 18, "plate": { "padX": 16, "padY": 14, "gap": 10, "r": 6 }, "bits": { "h": 30, "gap": 4, "r": 4 } }
 }
