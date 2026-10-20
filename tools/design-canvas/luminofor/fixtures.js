@@ -260,9 +260,9 @@
   // that opens its panel; the car's access grows its buttons only when there is no access. The
   // instruments' screen and the technical readings are pages, and the version is the foot.
   const SVC_VERSION = { t: 'footnote', text: 'Denza Apps 0.6.2 · сборка 53' };
-  // the restore's row says what it did after the last boot, in its colour when it needs somebody
+  // the restore's row says what it did after the last boot, in its colour when it needs somebody.
+  // «Диагностика автомобиля» is parked: its row exists only in a `-Pdiagnostics` build, not here.
   const svcMore = (restore, tone) => ({ t: 'group', rows: [
-    { kind: 'choice', title: 'Диагностика автомобиля', summary: 'Системы, показания и коды неисправностей' },
     { kind: 'choice', title: 'Восстановление ADB', summary: restore, tone },
     { kind: 'choice', title: 'Мобильный интернет', summary: 'Штатный контроль трафика' },
     { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },

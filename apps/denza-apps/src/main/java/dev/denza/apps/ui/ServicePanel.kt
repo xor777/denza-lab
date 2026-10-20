@@ -261,7 +261,12 @@ private fun ServiceMain(
             }
         }
     }
-    DenzaChoiceGroup(listOf(ServicePage.DIAGNOSTICS, ServicePage.RESTORE, ServicePage.MOBILE_INTERNET, ServicePage.SCREEN, ServicePage.TECHNICAL)) { target ->
+    // The diagnostic window is parked outside a `-Pdiagnostics` build (build.gradle.kts).
+    val pages = listOfNotNull(
+        ServicePage.DIAGNOSTICS.takeIf { BuildConfig.DIAGNOSTICS },
+        ServicePage.RESTORE, ServicePage.MOBILE_INTERNET, ServicePage.SCREEN, ServicePage.TECHNICAL,
+    )
+    DenzaChoiceGroup(pages) { target ->
         when (target) {
             ServicePage.DIAGNOSTICS -> DenzaChoiceRow(
                 title = "Диагностика автомобиля",

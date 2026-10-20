@@ -212,6 +212,10 @@ one did:
 
 ## Vehicle diagnostics
 
+Parked on 2026-10-20: the «Сервис» row that opens this window is built only with
+`-Pdiagnostics`, so the `sheet-service*` boards no longer draw it. The
+`main-diagnostics-*` boards below still hold the window's code.
+
 `diagnostics.json` owns the diagnostic viewport, colours, subsystem geometry and
 node locations; the identical product asset is checked by `DiagnosticBoardContractTest`.
 `diagnostics.js` renders these boards, and `DiagnosticRenderer` draws the native
