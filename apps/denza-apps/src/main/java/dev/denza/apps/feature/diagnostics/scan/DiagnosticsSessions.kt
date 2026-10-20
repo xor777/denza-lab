@@ -48,6 +48,7 @@ internal object DiagnosticsSessions {
         val dir = File(app.filesDir, DIRECTORY)
         val zone = ZoneId.systemDefault()
         val log: (String) -> Unit = { Log.i(TAG, it) }
+        val catalog by lazy { OemDtcAssets.load(app.assets::open, log) }
         return DiagnosticsSession(
             buses = { ResidentDiagnosticBus.create(app) },
             store = FileScanStore(dir),
@@ -55,6 +56,7 @@ internal object DiagnosticsSessions {
             sinks = CsvStreamSinks(dir, zone),
             zone = zone,
             log = log,
+            catalog = { catalog },
         )
     }
 

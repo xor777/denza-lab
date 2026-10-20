@@ -5,6 +5,7 @@ import dev.denza.apps.feature.diagnostics.bus.DiagReply
 import dev.denza.apps.feature.diagnostics.bus.DiagRequest
 import dev.denza.apps.feature.diagnostics.bus.DiagnosticBus
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
+import dev.denza.apps.feature.diagnostics.protocol.OemDtcIndex
 import java.time.ZoneId
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CancellationException
@@ -57,9 +58,14 @@ internal class DiagnosticsSession(
     private val context: CoroutineContext = Dispatchers.IO,
     private val tickMs: Long = TICK_MS,
     private val log: (String) -> Unit = {},
+    /**
+     * The public DTC catalog's candidate headings (architecture, 4); loaded on first use, which the
+     * work loop makes first so a stored scan's records do not parse it on the caller's thread.
+     */
+    private val catalog: () -> OemDtcIndex = { OemDtcIndex.EMPTY },
 ) : DiagnosticsActions {
     private val clock = ScanClock(zone)
-    private val builder = ModelBuilder(clock)
+    private val builder = ModelBuilder(clock, catalog)
     private val lock = Any()
 
     private var scope: CoroutineScope? = null
@@ -118,7 +124,10 @@ internal class DiagnosticsSession(
             wake = Channel(Channel.CONFLATED)
             val s = CoroutineScope(context + SupervisorJob(context[Job]))
             scope = s
-            s.launch { work() }
+            s.launch {
+                catalog()
+                work()
+            }
             s.launch { tick() }
             publish()
         }

@@ -2,6 +2,7 @@ package dev.denza.apps.feature.diagnostics.scan
 
 import dev.denza.apps.feature.diagnostics.bus.FakeDiagnosticBus
 import dev.denza.apps.feature.diagnostics.bus.hex
+import dev.denza.apps.feature.diagnostics.protocol.OemDtcIndex
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import java.time.Instant
 import java.time.ZoneOffset
@@ -72,6 +73,7 @@ internal object Fixtures {
         store: ScanStore = MemoryStore(),
         sinks: StreamSinks = StreamSinks { null },
         epoch: Long = EPOCH,
+        catalog: () -> OemDtcIndex = { OemDtcIndex.EMPTY },
     ) = DiagnosticsSession(
         buses = { bus },
         store = store,
@@ -81,6 +83,7 @@ internal object Fixtures {
         zone = ZoneOffset.UTC,
         // Cancelled with the test, which does not wait for the session's endless clock.
         context = backgroundScope.coroutineContext,
+        catalog = catalog,
     )
 
     /**

@@ -6,6 +6,7 @@ import dev.denza.apps.feature.diagnostics.ecu.Ecu
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.ecu.EcuGroup
 import dev.denza.apps.feature.diagnostics.protocol.DiagDecoder
+import dev.denza.apps.feature.diagnostics.protocol.DtcCandidate
 import dev.denza.apps.feature.diagnostics.protocol.DtcCode
 import dev.denza.apps.feature.diagnostics.protocol.DtcFormat
 import dev.denza.apps.feature.diagnostics.protocol.DtcMemory
@@ -15,6 +16,7 @@ import dev.denza.apps.feature.diagnostics.protocol.Monitor
 import dev.denza.apps.feature.diagnostics.protocol.MonitorStatus
 import dev.denza.apps.feature.diagnostics.protocol.ObdDtcMode
 import dev.denza.apps.feature.diagnostics.protocol.ObdPids
+import dev.denza.apps.feature.diagnostics.protocol.OemDtcIndex
 import dev.denza.apps.feature.diagnostics.protocol.Polled
 import dev.denza.apps.feature.diagnostics.protocol.quality
 import dev.denza.apps.feature.diagnostics.protocol.MonitorState as ObdMonitorState
@@ -44,7 +46,11 @@ internal class SessionSnapshot(
  * screens never decode a byte or read the catalog (architecture, 7). Names follow the board
  * «Сканер (v3)»; a value nobody read is said to be unread, never zero.
  */
-internal class ModelBuilder(private val clock: ScanClock) {
+internal class ModelBuilder(
+    private val clock: ScanClock,
+    /** The public DTC catalog: candidate headings as a record's description (architecture, 4). */
+    private val catalog: () -> OemDtcIndex = { OemDtcIndex.EMPTY },
+) {
     fun build(s: SessionSnapshot): DiagnosticsModel = DiagnosticsModel(
         header = Header(s.link, carLine(s.car), clock.seconds(s.nowMillis)),
         scan = summary(s),
@@ -197,6 +203,20 @@ internal class ModelBuilder(private val clock: ScanClock) {
             else -> AskRow("Список по той же маске", "19 02 $mask", "не запрашивали", false)
         }
         val m = (memory as? Polled.Got)?.value
+        val records = m?.records.orEmpty().map { rec ->
+            val lookup = catalog().lookup(ecu.request!!, rec.code)
+            DtcRow(
+                code = rec.code.display,
+                failureType = rec.code.failureType?.let { "%02X".format(it) } ?: "—",
+                failureName = failureName(rec.code),
+                group = codeGroup(rec.code),
+                note = "",
+                status = rec.status.byte,
+                availability = m!!.availability.byte,
+                description = CatalogText.description(lookup.candidates),
+                reference = lookup.candidates.map(CatalogText::reference),
+            )
+        }
         val asked = listOfNotNull(countReply?.let { "19 01 $mask" }, listReply?.let { "19 02 $mask" })
         return DtcView(
             asks = listOf(
@@ -205,20 +225,11 @@ internal class ModelBuilder(private val clock: ScanClock) {
                 AskRow("Ожидающие", "19 02 04", "не запрашивали", false),
                 AskRow("Все записи, с непроверенными", "19 02 FF", "не запрашивали", false),
             ),
-            records = m?.records.orEmpty().map { rec ->
-                DtcRow(
-                    code = rec.code.display,
-                    failureType = rec.code.failureType?.let { "%02X".format(it) } ?: "—",
-                    failureName = failureName(rec.code),
-                    group = codeGroup(rec.code),
-                    note = NO_DICTIONARY,
-                    status = rec.status.byte,
-                    availability = m!!.availability.byte,
-                )
-            },
+            records = records,
             quality = memory.quality(s.nowMillis, FRESH_MS),
             outsideMask = r?.outsideMask ?: false,
             footnote = (asked + listOfNotNull(stamp)).joinToString(" · ").ifEmpty { "не читали" },
+            source = CATALOG_SOURCE.takeIf { records.any { it.description != null } },
         )
     }
 
@@ -231,7 +242,7 @@ internal class ModelBuilder(private val clock: ScanClock) {
     private fun obdRow(code: String, mode: ObdDtcMode): DtcRow {
         // An OBD mode says one thing about its codes; the other status bits are not reported.
         val bit = if (mode == ObdDtcMode.PENDING) 0x04 else 0x08
-        return DtcRow(code, "—", "Mode %02X · %s".format(mode.service, mode.label), codeGroup(code), NO_DICTIONARY, bit, bit)
+        return DtcRow(code, "—", "Mode %02X · %s".format(mode.service, mode.label), codeGroup(code), "", bit, bit)
     }
 
     private fun ident(ecu: Ecu, r: ModuleResult?, id: IdentResult?): IdentView {
@@ -346,7 +357,8 @@ internal class ModelBuilder(private val clock: ScanClock) {
         /** A scan read older than this is «устарело»; the same age that starts a new scan on opening. */
         const val FRESH_MS = 10 * 60_000L
         const val CAR = "Z9 GT DM"
-        const val NO_DICTIONARY = "Расшифровка BYD недоступна"
+        /** The footer of a DTC screen that shows a description from the public catalog: said once, not per row. */
+        const val CATALOG_SOURCE = "Описания: каталог мануала Z9GT PHEV, перевод"
 
         private val GROUP_IDS = mapOf(
             EcuGroup.POWERTRAIN to "power", EcuGroup.CHASSIS to "chassis", EcuGroup.ADAS to "assist",
@@ -470,4 +482,28 @@ internal class ModelBuilder(private val clock: ScanClock) {
             return "$CAR · $gear · $tail"
         }
     }
+}
+
+/**
+ * The public catalog's headings as a record's screen text (architecture, 4): the Russian heading is the
+ * description itself, with no mark and no source - the source is said once, in the screen's footer
+ * ([ModelBuilder.CATALOG_SOURCE]). Two different headings of one section are both shown, «A / B»; the
+ * rear drives' two sections, when they disagree, as «Л: A / П: B». Nothing else is added.
+ */
+internal object CatalogText {
+    fun description(candidates: List<DtcCandidate>): String? {
+        if (candidates.isEmpty()) return null
+        val sided = candidates.mapNotNull { it.side }.distinct().size > 1
+        return candidates.joinToString(" / ") { c ->
+            val side = c.side?.takeIf { sided }?.let { "${it.short}: " } ?: ""
+            side + c.titleRu
+        }
+    }
+
+    fun reference(c: DtcCandidate) = DtcReference(
+        code = c.displayCode,
+        titleRu = c.titleRu,
+        titleZh = c.titleZh,
+        locators = c.locators.map { "${it.section.key} · ${it.outlineId}" },
+    )
 }

@@ -149,6 +149,11 @@ internal data class DtcView(
     val outsideMask: Boolean,
     /** «19 01 09 · 19 02 09 · снимок 16:31:07». */
     val footnote: String,
+    /**
+     * «Описания: каталог мануала Z9GT PHEV, перевод» when at least one row has a
+     * [DtcRow.description]; the source of every description on the screen, said once. Null otherwise.
+     */
+    val source: String? = null,
 )
 
 internal data class AskRow(
@@ -170,12 +175,36 @@ internal data class DtcRow(
     val failureName: String,
     /** «Шасси · код производителя (C1xxx)». */
     val group: String,
-    /** «Расшифровка BYD недоступна». */
+    /**
+     * The word of a qualified BYD dictionary when there is one; empty now - there is none, and the
+     * row says nothing about it (owner's decision 2026-10-20).
+     */
     val note: String,
     /** The ISO 14229-1 status byte; the screen draws its eight bits. */
     val status: Int,
     /** The availability mask: a bit outside it is drawn as not supported. */
     val availability: Int,
+    /**
+     * The row's description: the Russian heading the public catalog gives this code in this module's
+     * section, as plain text - «Датчик атмосферного давления: неисправность сигнала». Two headings of
+     * one section are «A / B»; the rear drives' sections, when they differ, «Л: A / П: B». Null where
+     * the catalog has nothing: another module, format 01, a format nobody reported, a code it does
+     * not list. Its source is the screen's footer ([DtcView.source]), never the row.
+     */
+    val description: String? = null,
+    /** What [description] is made of, with the Chinese original; not drawn on the row. */
+    val reference: List<DtcReference> = emptyList(),
+)
+
+/** One heading of the public catalog behind a [DtcRow.description]. */
+internal data class DtcReference(
+    /** «P222729». */
+    val code: String,
+    val titleRu: String,
+    /** The public Chinese heading the translation was made from. */
+    val titleZh: String,
+    /** «engine_ecm · outline_26_a»: where it stands in the index; both rear sections when equal there. */
+    val locators: List<String>,
 )
 
 internal data class Field(val key: String, val value: String, val muted: Boolean = false)
