@@ -38,9 +38,9 @@ internal data class HudPanel(
             }
             val ours = !none && !alone
             val turns = when {
-                none -> HudPanelRow(HudPanelRow.Id.TURNS, "Повороты", "Появятся с Яндекс Навигатором или YandexHUD", hints, false)
-                alone -> HudPanelRow(HudPanelRow.Id.TURNS, "Повороты", SELF, true, false)
-                else -> HudPanelRow(HudPanelRow.Id.TURNS, "Повороты", from, hints, !busy)
+                none -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, "Появятся с Яндекс Навигатором или YandexHUD", hints, false)
+                alone -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, SELF, true, false)
+                else -> HudPanelRow(HudPanelRow.Id.TURNS, TURNS_TITLE, from, hints, !busy)
             }
             val mapRow = when {
                 none -> HudPanelRow(HudPanelRow.Id.MAP, "Карта", "Появится с Яндекс Навигатором или YandexHUD", map, false)
@@ -51,10 +51,10 @@ internal data class HudPanel(
             // the one switch, and turning it on turns the feature on with it.
             val signRow = when {
                 none -> HudPanelRow(HudPanelRow.Id.SIGN, SIGN_TITLE, "Появится с навигатором", sign, false)
-                alone -> HudPanelRow(HudPanelRow.Id.SIGN, SIGN_TITLE, "На знаке машины, из YandexHUD", hints && sign, !busy)
+                alone -> HudPanelRow(HudPanelRow.Id.SIGN, SIGN_TITLE, "На штатном месте, из YandexHUD", hints && sign, !busy)
                 else -> HudPanelRow(
                     HudPanelRow.Id.SIGN, SIGN_TITLE,
-                    "На знаке машины, " + from.replaceFirstChar { it.lowercase() }, sign, hints && !busy,
+                    "На штатном месте, " + from.replaceFirstChar { it.lowercase() }, sign, hints && !busy,
                 )
             }
             val camerasRow = when {
@@ -89,8 +89,10 @@ internal data class HudPanel(
         }
 
         private const val SELF = "YandexHUD выводит сам"
+        private const val TURNS_TITLE = "Манёвры"
         private const val SIGN_TITLE = "Ограничение скорости"
-        private const val CAMERAS_TITLE = "Камеры"
+        // HUD Speed's own words: its base is of «потенциальных опасностей», cameras among them.
+        private const val CAMERAS_TITLE = "Камеры и опасности"
     }
 }
 

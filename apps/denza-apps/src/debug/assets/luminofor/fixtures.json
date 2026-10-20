@@ -45313,7 +45313,7 @@
       "rows": [
        {
         "kind": "switch",
-        "title": "Повороты",
+        "title": "Манёвры",
         "summary": "Из Яндекс Навигатора",
         "on": true
        },
@@ -45326,12 +45326,12 @@
        {
         "kind": "switch",
         "title": "Ограничение скорости",
-        "summary": "На знаке машины, из Яндекс Навигатора",
+        "summary": "На штатном месте, из Яндекс Навигатора",
         "on": true
        },
        {
         "kind": "switch",
-        "title": "Камеры",
+        "title": "Камеры и опасности",
         "summary": "Из HUD Speed",
         "on": true
        }
@@ -45905,7 +45905,7 @@
       "rows": [
        {
         "kind": "switch",
-        "title": "Повороты",
+        "title": "Манёвры",
         "summary": "Из YandexHUD",
         "on": true
        },
@@ -45918,12 +45918,12 @@
        {
         "kind": "switch",
         "title": "Ограничение скорости",
-        "summary": "На знаке машины, из YandexHUD",
+        "summary": "На штатном месте, из YandexHUD",
         "on": true
        },
        {
         "kind": "switch",
-        "title": "Камеры",
+        "title": "Камеры и опасности",
         "summary": "Из HUD Speed",
         "on": true
        }
@@ -46497,7 +46497,7 @@
       "rows": [
        {
         "kind": "switch",
-        "title": "Повороты",
+        "title": "Манёвры",
         "summary": "Из YandexHUD",
         "on": true
        },
@@ -46510,12 +46510,12 @@
        {
         "kind": "switch",
         "title": "Ограничение скорости",
-        "summary": "На знаке машины, из YandexHUD",
+        "summary": "На штатном месте, из YandexHUD",
         "on": true
        },
        {
         "kind": "switch",
-        "title": "Камеры",
+        "title": "Камеры и опасности",
         "summary": "Этот HUD Speed показывает их только у себя на экране. Нужна сборка с адаптером",
         "on": false,
         "enabled": false,
@@ -47091,7 +47091,7 @@
       "rows": [
        {
         "kind": "switch",
-        "title": "Повороты",
+        "title": "Манёвры",
         "summary": "Из Яндекс Навигатора",
         "on": true
        },
@@ -47104,12 +47104,12 @@
        {
         "kind": "switch",
         "title": "Ограничение скорости",
-        "summary": "На знаке машины, из Яндекс Навигатора",
+        "summary": "На штатном месте, из Яндекс Навигатора",
         "on": true
        },
        {
         "kind": "switch",
-        "title": "Камеры",
+        "title": "Камеры и опасности",
         "summary": "Появятся, если поставить HUD Speed с адаптером",
         "on": false,
         "enabled": false
@@ -47684,7 +47684,7 @@
       "rows": [
        {
         "kind": "switch",
-        "title": "Повороты",
+        "title": "Манёвры",
         "summary": "Появятся с Яндекс Навигатором или YandexHUD",
         "on": true,
         "enabled": false
@@ -47705,7 +47705,7 @@
        },
        {
         "kind": "switch",
-        "title": "Камеры",
+        "title": "Камеры и опасности",
         "summary": "Из HUD Speed, во время маршрута в навигаторе",
         "on": true,
         "enabled": false
@@ -48280,7 +48280,7 @@
       "rows": [
        {
         "kind": "switch",
-        "title": "Повороты",
+        "title": "Манёвры",
         "summary": "YandexHUD выводит сам",
         "on": true,
         "enabled": false
@@ -48295,12 +48295,12 @@
        {
         "kind": "switch",
         "title": "Ограничение скорости",
-        "summary": "На знаке машины, из YandexHUD",
+        "summary": "На штатном месте, из YandexHUD",
         "on": true
        },
        {
         "kind": "switch",
-        "title": "Камеры",
+        "title": "Камеры и опасности",
         "summary": "Эта сборка YandexHUD не оставляет им места. В новой сборке они есть",
         "on": false,
         "enabled": false,

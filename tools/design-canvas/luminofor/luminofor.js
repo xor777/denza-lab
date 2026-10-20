@@ -927,18 +927,17 @@
     words(c, '64', sp[0] + sp[2] / 2, sp[1] + sp[3] * 0.84, sp[3] * 0.78, 1, { w: 500, align: 'center' });
     words(c, 'км/ч', un[0] + un[2] / 2, un[1] + un[3] * 0.72, un[3] * 0.72, 0.7, { align: 'center' });
     const parts = [];
-    // the limit: the stock sign, white in a red ring
+    // the limit as the glass draws its own sign: a thin red ring on nothing, white digits
     const sg = R(GL.rects.sign);
     if (b.sign) {
       const cx = sg[0] + sg[2] / 2, cy = sg[1] + sg[3] / 2, rr = sg[2] * 0.42;
       over(c, () => {
-        c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(cx, cy, rr, 0, Math.PI * 2); c.fill();
-        c.strokeStyle = RED; c.lineWidth = rr * 0.2; c.beginPath(); c.arc(cx, cy, rr * 0.9, 0, Math.PI * 2); c.stroke();
+        c.strokeStyle = RED; c.lineWidth = rr * 0.1; c.beginPath(); c.arc(cx, cy, rr * 0.95, 0, Math.PI * 2); c.stroke();
       });
-      words(c, '60', cx, centred(cy, rr * 0.95), rr * 0.95, 1, { w: 500, align: 'center', col: DARK });
+      words(c, '60', cx, centred(cy, rr * 0.95), rr * 0.95, 1, { w: 500, align: 'center' });
     } else dashed(sg);
     parts.push({ text: 'Ограничение', at: sg, up: true, on: !!b.sign });
-    // the turn: an arrow and the metres to it
+    // the manoeuvre: an arrow and the metres to it
     const tn = R(GL.rects.turn), ds = R(GL.rects.distance), turnBox = [tn[0], tn[1], ds[0] + ds[2] - tn[0], ds[3]];
     if (b.turn) {
       over(c, () => {
@@ -950,7 +949,7 @@
       });
       words(c, '350 м', ds[0], centred(ds[1] + ds[3] * 0.42, ds[3] * 0.62), ds[3] * 0.62, 1, { w: 500 });
     } else dashed(turnBox);
-    parts.push({ text: 'Поворот', at: turnBox, up: true, on: !!b.turn });
+    parts.push({ text: 'Манёвр', at: turnBox, up: true, on: !!b.turn });
     // the map window: an illustration of the navigator's map with one of its own marks
     const mp = R(GL.rects.map), M = GL.map;
     if (b.map) over(c, () => {
@@ -1011,7 +1010,7 @@
         }
       });
     } else dashed(strip);
-    parts.push({ text: 'Камеры', at: strip, up: false, on: !!b.cameras });
+    parts.push({ text: 'Камеры и опасности', at: strip, up: false, on: !!b.cameras });
     // each part named by a thin line, above the glass or below it
     const L = GL.label, LN = GL.line;
     parts.forEach(p => {

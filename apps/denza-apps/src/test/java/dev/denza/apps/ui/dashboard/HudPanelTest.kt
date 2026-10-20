@@ -17,7 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The HUD panel's rules: «Повороты» is the feature's switch and the rest stand on it; what is
+ * The HUD panel's rules: «Манёвры» is the feature's switch and the rest stand on it; what is
  * installed is said in the lines and lit in the picture; the tile's press moves the hints alone.
  */
 class HudPanelTest {
@@ -75,12 +75,12 @@ class HudPanelTest {
 
     @Test
     fun theSourceIsSaidInTheLinesNotInRowsOfItsOwn() {
-        assertEquals(listOf("Повороты", "Карта", "Ограничение скорости", "Камеры"), panel().rows.map { it.title })
+        assertEquals(listOf("Манёвры", "Карта", "Ограничение скорости", "Камеры и опасности"), panel().rows.map { it.title })
         assertEquals("Из Яндекс Навигатора", panel().row(HudPanelRow.Id.TURNS).summary)
-        assertEquals("На знаке машины, из Яндекс Навигатора", panel().row(HudPanelRow.Id.SIGN).summary)
+        assertEquals("На штатном месте, из Яндекс Навигатора", panel().row(HudPanelRow.Id.SIGN).summary)
         val hosted = panel(navigator = HudNavigatorInstall.YANDEX_HUD)
         assertEquals("Из YandexHUD", hosted.row(HudPanelRow.Id.MAP).summary)
-        assertEquals("На знаке машины, из YandexHUD", hosted.row(HudPanelRow.Id.SIGN).summary)
+        assertEquals("На штатном месте, из YandexHUD", hosted.row(HudPanelRow.Id.SIGN).summary)
     }
 
     @Test

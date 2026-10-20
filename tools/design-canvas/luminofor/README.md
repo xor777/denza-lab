@@ -64,10 +64,10 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `main-car-neutral`, `-charging`, `-closed`, `one-car-closed` | «Батарея» in white; on the charger; the shell closed, at two widths |
 | `two-sound`, `two-car`, `one-sound`, `one-car` | the two-thirds and one-third panes |
 | `sheet-cluster`, `-mirrors`, `-simulcast`, `-speakers`, `-locale`, `-broken` | a tile's settings panel over the dashboard |
-| `sheet-hud` | the HUD panel: the glass during a route (the `glass` block), then «Повороты», «Карта», «Ограничение скорости», «Камеры» from ordinary Yandex and HUD Speed with its adapter, the cameras in the lane window under the turn and only their GPS bars on the map |
+| `sheet-hud` | the HUD panel: the glass during a route (the `glass` block), then «Манёвры», «Карта», «Ограничение скорости», «Камеры и опасности» from ordinary Yandex and HUD Speed with its adapter, the cameras in the lane window under the turn and only their GPS bars on the map |
 | `sheet-hud-yandexhud` | the same with YandexHUD through the host |
-| `sheet-hud-speed-official` | HUD Speed from the store: «Камеры» off, said in orange |
-| `sheet-hud-no-speed` | no HUD Speed: «Камеры» off, grey |
+| `sheet-hud-speed-official` | HUD Speed from the store: «Камеры и опасности» off, said in orange |
+| `sheet-hud-no-speed` | no HUD Speed: «Камеры и опасности» off, grey |
 | `sheet-hud-no-navigator` | no Yandex: only the speed on the glass, every line saying what it waits for |
 | `sheet-hud-yandexhud-alone` | a YandexHUD built before the host: it draws turns and map itself, the sign is the one switch |
 | `sheet-cast-apps`, `sheet-defaults` | a panel's page of applications, the default-apps panel |

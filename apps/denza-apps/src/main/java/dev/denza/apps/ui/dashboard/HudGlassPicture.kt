@@ -71,9 +71,9 @@ private class GlassDrawing(private val c: Canvas) {
             val cx = sg[0] + sg[2] / 2
             val cy = sg[1] + sg[3] / 2
             val rr = sg[2] * 0.42f
-            circle(cx, cy, rr, WHITE)
-            ring(cx, cy, rr * 0.9f, rr * 0.2f, G.Ink.RED)
-            words("60", cx, centred(cy, rr * 0.95f), rr * 0.95f, 1f, 500, G.Ink.DARK, center = true)
+            // As the glass draws its own sign: a thin red ring on nothing, white digits.
+            ring(cx, cy, rr * 0.95f, rr * 0.1f, G.Ink.RED)
+            words("60", cx, centred(cy, rr * 0.95f), rr * 0.95f, 1f, 500, WHITE, center = true)
         } else {
             dashed(sg)
         }
@@ -104,7 +104,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(turnBox)
         }
-        parts += Part("Поворот", turnBox, up = true, on = glass.turn)
+        parts += Part("Манёвр", turnBox, up = true, on = glass.turn)
 
         val mp = r(G.MAP)
         val m = G.Map
@@ -195,7 +195,7 @@ private class GlassDrawing(private val c: Canvas) {
         } else {
             dashed(strip)
         }
-        parts += Part("Камеры", strip, up = false, on = glass.cameras)
+        parts += Part("Камеры и опасности", strip, up = false, on = glass.cameras)
 
         val label = G.Label
         val line = G.Line
