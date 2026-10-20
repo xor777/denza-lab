@@ -198,6 +198,13 @@ android {
                 "feature/diagnostics/VehicleDtcProxyMain.java",
             )
             packShellProxy(
+                "DiagnosticBus",
+                "diagnostic-bus.jar",
+                "feature/diagnostics/bus/DiagnosticBusMain.java",
+                "feature/diagnostics/bus/DiagnosticWhitelist.java",
+                "feature/diagnostics/bus/DiagnosticFrameAssembler.java",
+            )
+            packShellProxy(
                 "NavigationProxy",
                 "navigation-proxy.jar",
                 "feature/navigation/ClusterProxyMain.java",
