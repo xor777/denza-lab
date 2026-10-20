@@ -14,4 +14,3 @@
   roles:
     - role: base
     - role: relay_host
-    - role: downloads

@@ -307,74 +307,17 @@
     proto: tcp
     comment: CAG relay SSH
 
-- name: Install the relay port multiplexer without starting it
-  ansible.builtin.apt:
-    name: sslh
-    state: present
-    policy_rc_d: 101
+- name: Read installed services
+  ansible.builtin.service_facts:
 
-- name: Create the relay multiplexer configuration directory
-  ansible.builtin.file:
-    path: /etc/cag
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
-- name: Install the relay multiplexer routing
-  ansible.builtin.template:
-    src: sslh.cfg.j2
-    dest: /etc/cag/sslh.cfg
-    owner: root
-    group: root
-    mode: "0644"
-  register: relay_host_sslh_config
-
-- name: Install the transparent return path rules
-  ansible.builtin.template:
-    src: sslh-tproxy.nft.j2
-    dest: /etc/cag/sslh-tproxy.nft
-    owner: root
-    group: root
-    mode: "0644"
-    validate: /usr/sbin/nft -c -f %s
-  register: relay_host_sslh_tproxy_rules
-
-- name: Install the transparent return path service
-  ansible.builtin.template:
-    src: cag-sslh-tproxy.service.j2
-    dest: /etc/systemd/system/cag-sslh-tproxy.service
-    owner: root
-    group: root
-    mode: "0644"
-  register: relay_host_sslh_tproxy_unit
-
-- name: Create the relay multiplexer drop-in directory
-  ansible.builtin.file:
-    path: /etc/systemd/system/sslh.service.d
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
-- name: Run sslh-select transparently from the relay configuration
-  ansible.builtin.template:
-    src: sslh-cag.conf.j2
-    dest: /etc/systemd/system/sslh.service.d/cag.conf
-    owner: root
-    group: root
-    mode: "0644"
-  register: relay_host_sslh_unit
-
-- name: Load the transparent return path
+# CAG-015: the download page moved to GitHub Pages. sslh, its return path and
+# Caddy leave the relay, and sshd takes the public relay port back.
+- name: Release the public relay port held by sslh
   ansible.builtin.systemd_service:
-    name: cag-sslh-tproxy.service
-    enabled: true
-    state: >-
-      {{ 'restarted' if relay_host_sslh_tproxy_rules.changed or relay_host_sslh_tproxy_unit.changed
-         else 'started' }}
-    daemon_reload: true
-  ignore_errors: "{{ ansible_check_mode }}"
+    name: sslh.service
+    state: stopped
+    enabled: false
+  when: "'sslh.service' in ansible_facts.services"
 
 - name: Install relay SSH restrictions
   ansible.builtin.template:
@@ -385,15 +328,41 @@
     mode: "0644"
   notify: Validate and reload relay ssh
 
-- name: Move the relay sshd to its loopback backend before sslh takes the public port
+- name: Give the public relay port back to sshd before removing the rest
   ansible.builtin.meta: flush_handlers
 
-- name: Hand the public relay port to sslh
+- name: Stop the retired return path and web server
   ansible.builtin.systemd_service:
-    name: sslh.service
-    enabled: true
-    state: >-
-      {{ 'restarted' if relay_host_sslh_config.changed or relay_host_sslh_unit.changed
-         else 'started' }}
-    daemon_reload: true
-  ignore_errors: "{{ ansible_check_mode }}"
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - cag-sslh-tproxy.service
+    - caddy.service
+  when: item in ansible_facts.services
+
+- name: Remove the retired multiplexer and web server
+  ansible.builtin.apt:
+    name:
+      - sslh
+      - caddy
+    state: absent
+    purge: true
+
+- name: Remove the retired multiplexer and download page files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/system/sslh.service.d
+    - /etc/systemd/system/cag-sslh-tproxy.service
+    - /etc/cag
+    - /var/www/adbgw
+  notify: Forget retired relay units
+
+- name: Close the retired HTTP port
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+    delete: true
