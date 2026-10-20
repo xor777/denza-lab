@@ -120,6 +120,33 @@ abstract class PackShellProxy : DefaultTask() {
     }
 }
 
+/**
+ * Research files the app reads as they are: copied byte for byte into a generated assets directory
+ * under [directory], so the file in `research/` stays the only copy and nothing is transcribed by
+ * hand. The diagnostic section's public DTC catalog and its Russian titles come this way
+ * (`OemDtcAssets`); `OemDtcReferenceTest` holds the names here to the ones the app opens and reads
+ * the same files through the app's own parser.
+ */
+abstract class ResearchAssets : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val sources: ConfigurableFileCollection
+
+    @get:Input
+    abstract val directory: Property<String>
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val root = outputDirectory.get().asFile
+        root.deleteRecursively()
+        val target = root.resolve(directory.get()).apply { mkdirs() }
+        sources.files.forEach { file -> file.copyTo(target.resolve(file.name), overwrite = true) }
+    }
+}
+
 android {
     namespace = "dev.denza.apps"
     compileSdk = 37
@@ -210,6 +237,20 @@ android {
                 "feature/navigation/ClusterProxyMain.java",
                 "feature/navigation/ProjectablePackages.java",
             )
+            // The public DTC index of the Z9GT PHEV manual and its Russian titles: candidate headings for
+            // the diagnostic section, never a dictionary (docs/vehicle-diagnostics-architecture.md, 4).
+            val oemDtc = tasks.register<ResearchAssets>(
+                "copy${variant.name.replaceFirstChar(Char::titlecase)}OemDtcAssets",
+            ) {
+                listOf(
+                    "oem-dtc-public-index-20261020.json",
+                    "oem-dtc-public-index-ru-20261020.json",
+                ).forEach { name ->
+                    sources.from(rootProject.layout.projectDirectory.file("research/vehicle-diagnostics/$name"))
+                }
+                directory.set("diagnostics")
+            }
+            variant.sources.assets?.addGeneratedSourceDirectory(oemDtc, ResearchAssets::outputDirectory)
         }
     }
 
