@@ -10,6 +10,7 @@ app is held to what these files draw.
 | `spec.json` | every number: colours, type, the wide figures' paths, the cluster grid, the strip boxes and positions in window dp for all three widths |
 | `luminofor.js` | the drawing code - the approved page's renderer, reading `spec.json` and one fixture |
 | `fixtures.js` | the frozen scenes: the data and the exact strings each board is drawn with |
+| `scanner.json`, `scanner.js` | «Сервис → Диагностика», the scanner: its numbers (colours, text styles with their line heights, each screen's columns and rows) and its drawing code |
 | `shot.py` | renders every board to `../_shots/luminofor/<id>.png` at the displays' own pixels; `--fixtures` exports the scenes to the app's debug assets |
 | `compare.py` | lays a screenshot of the app over its board and reports what moved |
 
@@ -46,7 +47,7 @@ python3 shot.py --fixtures       # after editing fixtures.js
 python3 compare.py main-sound app.png
 ```
 
-Boards are shot by headless Chrome with Jura and Roboto from `fonts/` (OFL and Apache, their
+Boards are shot by headless Chrome with Jura, Roboto and Roboto Mono from `fonts/` (OFL, their
 licences beside them), inlined into the page so a render never waits on the network or falls back
 to a system face mid-word. The cluster board is 2560 x 720, the head unit 2560 x 1360 (1280 x 680
 dp at 2.0), the panes 1656 and 832 wide - the pixels the car has. A cluster board is also written
@@ -81,6 +82,12 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `main-diagnostics`, `main-diagnostics-battery`, `main-diagnostics-empty`, `main-diagnostics-stale` | native service diagnostics: ECU records, HV schematic, no data, retained DTC after a failed retry |
 | `main-diagnostics-code`, `main-diagnostics-code-unknown`, `main-diagnostics-coverage` | native DTC details with general-reference provenance, unknown OEM meaning, unread ECU coverage |
 | `main-diagnostics-engine`, `main-diagnostics-power-warnings`, `main-diagnostics-abs` | captured warning availability for EMS, HV/drives and ABS/ESP; invalid0 is never off |
+| `scanner-scan`, `scanner-topology` | the autoscan: 43 of 46 addresses by system as a list (the first two systems, as the page opens) and as tiles on the diagnostic bus |
+| `scanner-body-dtc` | a body block's memory: two historical DTC, their status bits as a matrix, status 0x28 explained |
+| `scanner-ecu-dtc`, `scanner-ecu-fault` | the ECM: DTC lists and monitor readiness as read; the same with an illustrative P0420 and MIL on |
+| `scanner-ecu-live`, `scanner-ecu-ident` | the ECM's live data (illustrative idle, 60 s traces); its identification and the cache's, the supported PIDs |
+| `scanner-bms`, `scanner-drives`, `scanner-hv` | the HV battery's readings, the four drives side by side, the HV system as a schematic |
+| `scanner-brakes`, `scanner-adas` | ESP/IPB 782 by mask 09 and its OBD interface 7E5; the seven driver-assistance blocks side by side |
 | `digits` | the wide figures, for the eye |
 
 ## How the app is held to it
@@ -260,3 +267,48 @@ route-list paging and an unread HV subsystem → coverage were exercised through
 real native hit targets. The final suite passed 2,270 unit tests, including 43
 diagnostic tests, and debug assembly passed. This does not add vehicle acceptance
 or newly qualified DTC targets. Evidence: `captures/diagnostics-ui-enriched-20261018/`.
+
+## The scanner
+
+The «Сервис → Диагностика» section ([docs/vehicle-diagnostics-architecture.md](../../../docs/vehicle-diagnostics-architecture.md))
+is drawn from the owner's canvas «Диагностика · инженерное меню», page «Сканер (v3)», approved
+2026-10-20. That page was HTML laid out by a browser; `scanner.js` draws its twelve boards on a
+canvas from `scanner.json` and the `scanner-*` fixtures, so a Compose screen can be laid over a
+board with `compare.py`. On 2026-10-20 the boards compared with the page itself (its HTML rendered
+with the same font files at 2x) at 0.5–1.8 % of pixels moved, mean under 2.1 levels, where nothing
+was changed on purpose; `scanner-topology`, `-body-dtc`, `-bms` and `-hv` moved further by the
+corrections below.
+
+- Its own language, not the dashboard's: an engineering tool in the stock tester's sense - flat
+  plates (`#0A0C0F` bars, `#1A1E24` rules), white and greys, the dock's `#439FFC` for what answered,
+  the car's orange only for MIL on. Glow only where the page had one: the link dot, a set status
+  bit, the live traces, MIL on.
+- Every text style in `scanner.json` → `type` has a size, a weight and a line height; a word's
+  baseline is `top + (lh - (ascent + descent) * size) / 2 + ascent * size` with the face's own
+  ascent and descent (`fonts`), which is a Compose `lineHeight` with
+  `LineHeightStyle(Center, Trim.None)`. Figures, addresses and raw bytes are Roboto Mono, the same
+  files as the app's `res/font/roboto_mono_*.ttf`.
+- «→» is drawn (`fonts.arrow`: one mono cell, or 0.8 em in Roboto), because neither Roboto nor
+  Roboto Mono has U+2192 and a fallback face differs between Chrome and the car. A screen draws it
+  the same way. The one other fallback is «历史故障» on `scanner-body-dtc`, a quotation of the stock
+  tester; Chrome and Android fill it from their own CJK faces.
+- The fixtures are data, not strings laid out: an ECU is its name, unit, abbreviation, short
+  name, request address, protocol, kind (`ok`, `hist`, `unread`, `none`) and counts. The board
+  derives what the page derived - the reply address (+8), a system's summary line, the badge, the
+  topology tile's state - so a screen derives the same from its model. The live traces are 61
+  points of 0..1, the last 60 s.
+- Where the page had a layout fault the board was corrected, and the screen follows the board:
+  the FTB column of a body block is 260 dp, not 220 (`01 · Общий электрический отказ` wrapped and
+  made its row taller), and the explanation under the codes starts at 328, not 316 (it sat 7 dp
+  under the table); the ECM's DTC column is 110 dp with «нет ответа» in 13 dp mono (it broke in
+  two lines); a BMS row is 27 dp, not 28 (the fifteenth row ran under the footer); the HV pack is
+  280 dp wide at x 240 (two of its labels wrapped under their values), and «ШИНА DC» stands left
+  of the bus at its top (it ran under the FMCU tile); a footer's back link is 36 dp like the
+  buttons beside it (it was 38: a content-box link with a border); a counter box is its 112 dp plus
+  its padding and rule, as the page had it.
+- Address 741 is the head unit's own MCU (stock route 741/749, `HTH-2021_Media_BYD_00200001`):
+  «Салон» has five blocks and «Назначение не установлено» twelve. On `scanner-topology` five plus
+  three tiles do not fit one column above the footer, so climate stands under the chassis and
+  the 12 V net under the body; the unassigned blocks fill the last two columns six and six.
+- No screen draws these boards yet; `LuminoforFixtureActivity` leaves a `scanner` board black, so
+  `compare.py` reports it missing rather than different.
