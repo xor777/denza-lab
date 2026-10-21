@@ -17,6 +17,11 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   local corpus. Run parser/namespace/quality tests with
   `python3 -B -m unittest discover -s research/vehicle-diagnostics -p test_build_stream_coverage.py`.
   [Coverage and implementation boundaries](../../docs/vehicle-data-findings.md#complete-streaming-source-inventory-2026-10-21).
+- `stream-selection-20261021.json`: the scanner's source table, selected offline from the
+  three catalogs above and the 2026-10-20 sweep: per system the readings of its live table
+  and scheme (device, FID, transaction, scale, offset, range, invalid encodings, Russian
+  words, confidence), the rejected families and why, and the corrections C1–C4.
+  `DiagnosticExtras` cites it and `StreamSelectionTest` holds the code to it.
 
 - `diagnostic-cache-access-20261021.json`: installed-source identity and one
   approved two-file export; RUNNING_TASK, afterRunRes and package-description
