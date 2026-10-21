@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "state": "live_history_read_complete_no_baseline_found",
+  "authorization": "Existing general owner permission for any read-only diagnostic actions on car/server.",
+  "findings": {
+    "gcyRepairHistory": "key_missing_in_user0_preferences",
+    "ghyRepairHistory": "key_missing_in_user0_preferences",
+    "diagnosisInventoryPreference": "key_missing_in_both_clients",
+    "resultDirectories": "export_status1_for_gcy_ghy_productline",
+    "expectedServerVersionMatrixReceived": false,
+    "applicableOtaObtained": false,
+    "iviArchiveModules": {
+      "moduleInfo": [
+        "Android",
+        "Mcu",
+        "Dsp",
+        "Anc",
+        "Screen",
+        "Camera"
+      ],
+      "dataSections": [
+        "Android",
+        "Mcu",
+        "Dsp",
+        "Anc",
+        "Screen"
+      ]
+    },
+    "upgradeDetailsRole": "Stock UpgradeDetailsFileManager decrypts archive then selects HTML for display; not a typed ECU matrix."
+  },
+  "session": {
+    "path": "captures/ota-history-20261021/session.json",
+    "sha256": "ae37fdd5ba0e658cd1361a859c353f86d46278dd976db40e0d30d7debfd979ec"
+  },
+  "files": [
+    {
+      "source": "/data/user/0/com.byd.otaupdate/shared_prefs/share_data_prefs.xml",
+      "status": "read",
+      "rawSizeBytes": 705,
+      "rawSha256": "d3d4eced92d1c21ce7fe63e211449f2ff2d9face92376505f35e8329ce87c2ca",
+      "preferences": {
+        "repairUpgradeEcuListInfo": {
+          "status": "key_missing"
+        },
+        "ecuDiagnosisResultListInfo": {
+          "status": "key_missing"
+        }
+      }
+    },
+    {
+      "source": "/data/user/0/com.byd.otaupdate2/shared_prefs/share_data_prefs.xml",
+      "status": "read",
+      "rawSizeBytes": 510,
+      "rawSha256": "f6ff21515857ae16bc1af67889a5602fb2b2977279119b7adf90f843d0548756",
+      "preferences": {
+        "repairUpgradeEcuListInfo": {
+          "status": "key_missing"
+        },
+        "ecuDiagnosisResultListInfo": {
+          "status": "key_missing"
+        }
+      }
+    },
+    {
+      "source": "/data/ota_package/ota/result/upgradeInfo.json",
+      "status": "parent_missing"
+    },
+    {
+      "source": "/data/ota_package/ota/result/ecuOtaResult.json",
+      "status": "parent_missing"
+    },
+    {
+      "source": "/data/ota_package/ota/result/backUpEcuOtaResult.json",
+      "status": "parent_missing"
+    },
+    {
+      "source": "/data/ota_package/ota_ghy/result/upgradeInfo.json",
+      "status": "parent_missing"
+    },
+    {
+      "source": "/data/ota_package/ota_ghy/result/ecuOtaResult.json",
+      "status": "parent_missing"
+    },
+    {
+      "source": "/data/ota_package/ota_ghy/result/backUpEcuOtaResult.json",
+      "status": "parent_missing"
+    },
+    {
+      "source": "/data/ota_package/ota_productline/result/upgradeInfo.json",
+      "status": "parent_missing"
+    },
+    {
+      "source": "/data/ota_package/ota_productline/result/ecuOtaResult.json",
+      "status": "parent_missing"
+    },
+    {
+      "source": "/data/ota_package/ota_productline/result/backUpEcuOtaResult.json",
+      "status": "parent_missing"
+    }
+  ],
+  "cleanup": {
+    "exportClosed": true,
+    "watchdogTerminal": true,
+    "leaseReleased": true,
+    "forwardRemoved": true,
+    "postApkIdentityVerified": true,
+    "crashBufferUnchanged": true,
+    "postExportPortsAbsent": true
+  },
+  "operations": {
+    "ecuRequests": 0,
+    "oemRequests": 0,
+    "hardwareSignatures": 0,
+    "javaHelperLaunched": false,
+    "packagesDownloaded": 0,
+    "installs": 0
+  },
+  "sources": {
+    "preferences": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/base/util/SpUtil.java",
+      "sha256": "7144642264555ac45ca3f7cae7101daaf85957b4ba474bb19fc2e291c9409cdd"
+    },
+    "repairStore": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b"
+    },
+    "repairWriter": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/bootcompleted/BootCompletedBroadcastPresenter.java",
+      "sha256": "78db56a6c1c92f2161b30277655d6564684cc77c3d085f4ba9d498f062f44038"
+    },
+    "repairSubstitution": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DiagnosePresenter.java",
+      "sha256": "c7d9c943ba4c8f06efbe35e580bb58767c84376a9fc89c09465edb50e65a30ab"
+    },
+    "resultSchema": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/model/OtaResultEcuInfo.java",
+      "sha256": "8a236cad31d2e698631fdb18ab8d19d093bc6d0bec1b73794e6cd51ea6ad4909"
+    },
+    "resultEnvelope": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/model/UpgradeResultSubmitInfo.java",
+      "sha256": "4f6c8a898ca3fc8c3dba30d3c5c338d741fa6f6d292b167e04aeed8c066d3285"
+    },
+    "detailsHtml": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/UpgradeDetailsFileManager.java",
+      "sha256": "a1136ddbac3c351e0021d8b9fa7024770468692cd309fd4f945861f4998945c4"
+    },
+    "productLinePaths": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/IPlatformDiff.java",
+      "sha256": "ee6f8c18752d085fd0c4fa00c11938417862ac557943d5c125bd78671d16bb4d"
+    },
+    "exportListing": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydLogTool/sources/com/byd/bydlogtool/socket/filetransfer/FileTransferHandler.java",
+      "sha256": "587a8dec0f3720f9e762feb8aae4df08df99431a380aa15465cc80667b15d011"
+    },
+    "iviConfig": {
+      "path": "captures/telematics-20260923/readable-firmware/Config-readable.xml",
+      "sha256": "f6f7cfc212bbf5b60f4a3159e1e132c85b587267fdfa25e97c22c319a1111179"
+    },
+    "iviConfigOutline": {
+      "path": "captures/ota-history-20261021/ivi-config-outline.json",
+      "sha256": "444d4d6c83408c6220da535a575a232732858e431b4e245e815ff4ca63c46756"
+    }
+  },
+  "limits": [
+    "Current preferences do not establish whether repair substitutions happened on 18 October.",
+    "Server status 1 means the export process reports a missing/non-directory parent, not a complete forensic inventory.",
+    "No diagnostic-computer archive or full-car campaign baseline is available from these files.",
+    "Raw private XML was not retained, so offline checks verify report integrity and source behavior, not reparse the original XML."
+  ],
+  "reader": {
+    "path": "tools/vehicle-diagnostics/read_ota_history.py",
+    "sha256": "70853071a955b7b4b103cc845a37bc7aca6ec176db020dab521021dcb54b9ad7"
+  },
+  "readerTests": {
+    "path": "tools/vehicle-diagnostics/test_read_ota_history.py",
+    "sha256": "490257b160fdfaf35835891524ce316d4c090f043948ee28eaf070c0011ba170"
+  }
+}
