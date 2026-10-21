@@ -22,6 +22,7 @@ import dev.denza.apps.feature.diagnostics.protocol.OemDtcIndex
 import dev.denza.apps.feature.diagnostics.protocol.Polled
 import dev.denza.apps.feature.diagnostics.protocol.quality
 import dev.denza.apps.feature.diagnostics.protocol.MonitorState as ObdMonitorState
+import java.time.format.DateTimeFormatter
 
 /** Everything the session knows at one moment, handed to [ModelBuilder] under its lock. */
 internal class SessionSnapshot(
@@ -45,6 +46,8 @@ internal class SessionSnapshot(
     val param: ParamView? = null,
     /** «Ячейки» while the screens hold them (architecture, 6.3). */
     val packCells: PackCellsView? = null,
+    /** What the scanner remembers of the software codes: an update's row in «Идентификация» (5.5). */
+    val software: SoftwareHistory = SoftwareHistory(),
 )
 
 /**
@@ -172,7 +175,7 @@ internal class ModelBuilder(
             line = line(ecu, r, id),
             status = rowStatus(s, ecu),
             dtc = dtc(s, ecu, r),
-            ident = ident(ecu, r, id),
+            ident = ident(ecu, r, id, s.software),
             obd = if (ecu.obd) obd(s, ecu, r, id) else null,
         )
     }
@@ -269,8 +272,12 @@ internal class ModelBuilder(
         return DtcRow(code, "—", "Mode %02X · %s".format(mode.service, mode.label), codeGroup(code), "", bit, bit)
     }
 
-    private fun ident(ecu: Ecu, r: ModuleResult?, id: IdentResult?): IdentView {
+    private fun ident(ecu: Ecu, r: ModuleResult?, id: IdentResult?, software: SoftwareHistory): IdentView {
         val own = mutableListOf(Field("Запрос → ответ", Figures.route(ecu.request!!)))
+        /** The last update the history saw at [key], under the row it is about (5.5). */
+        fun updated(key: SoftwareKey) {
+            software.lastChange(key)?.let { own += updateField(it) }
+        }
         val muted = setOf("не читали", "нет ответа", "не запрашивали", "шлюз занят", "несогласованный ответ")
         fun field(key: String, value: String, forceMuted: Boolean = false) {
             own += Field(key, value, forceMuted || value in muted || value.startsWith("не отдаёт"))
@@ -281,6 +288,7 @@ internal class ModelBuilder(
                 val p = id?.dids?.get(did)?.takeIf { it !is Polled.NotPolled }
                     ?: if (did == IdentDid.F194) r?.identity ?: Polled.NotPolled else Polled.NotPolled
                 field("${DID_LABELS.getValue(did)} · 22 ${did.hex}", identText(p))
+                if (did == IdentDid.F195) updated(SoftwareKey(ecu.request))
             }
         } else {
             field("Протоколы", "OBD-II (SAE J1979)")
@@ -304,6 +312,7 @@ internal class ModelBuilder(
         ecu.children.forEach { child ->
             val p = id?.children?.firstOrNull { it.first == child }?.second ?: Polled.NotPolled
             field("${child.shortName} · 22 ${child.hex}", childText(child, p, id?.read))
+            updated(SoftwareKey(ecu.request, child.did))
         }
 
         // The cache's side is the record the role was proved by; the answer is not judged against it (5.1).
@@ -470,6 +479,17 @@ internal class ModelBuilder(
             is Polled.Inconsistent -> "несогласованный ответ"
             is Polled.Got -> "прочитано"
         }
+
+        /**
+         * «ПО обновлено · 12.11.2026» - «был 87F71A011402 · 4A520011E00D00047B»: the last change the code
+         * history saw (5.5), the version first where it was known, kept until the next change.
+         */
+        fun updateField(change: SoftwareChange): Field = Field(
+            "ПО обновлено · ${DATE.format(change.detected)}",
+            "был " + listOfNotNull(change.oldVersion, change.oldCode).joinToString(" · "),
+        )
+
+        private val DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
         fun identText(p: Polled<*>): String = when (p) {
             // A DID's reading is its decoded record; the row is its text, not the record.

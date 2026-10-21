@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.diagnostics.ecu
 
+import java.time.LocalDate
+
 /** Systems as the scanner lists them, in screen order (architecture, 5). */
 internal enum class EcuGroup(val title: String, val short: String) {
     POWERTRAIN("СИЛОВАЯ УСТАНОВКА", "Силовая"),
@@ -51,7 +53,8 @@ internal data class ChildIdentity(
     val ecuId: String,
     /**
      * The nine-byte software code the parent returned on 2026-10-21 and the cache keeps: how the module
-     * was named. Not compared with an answer: an update changes it.
+     * was named, and the first entry of its code history (5.5). Not compared with an answer: an update
+     * changes it.
      */
     val snapshotCode: String,
 ) {
@@ -73,8 +76,9 @@ internal data class Ecu(
     val identity: IdentityBasis,
     /**
      * The software code `22 F194` returned on this car, as the updater's `ECUVersion.json` kept it on
-     * 2026-10-18: the record the role was proved by. Not the gate: an update changes the code while
-     * the address and the role stay, and the gate passes on any software code (5.1).
+     * 2026-10-18 ([EcuCatalog.SNAPSHOT_DATE]): the record the role was proved by, and the first entry of
+     * the block's code history (5.5). Not the gate: an update changes the code while the address and
+     * the role stay, and the gate passes on any software code (5.1).
      */
     val snapshotF194: String? = null,
     /** The name OBD `09 0A` must return, for an ECU identified that way: a name does not change with software. */
@@ -118,6 +122,12 @@ internal data class Ecu(
 }
 
 internal object EcuCatalog {
+    /**
+     * The day of the updater's `ECUVersion.json` the catalog's codes were taken from: what the code
+     * history (5.5) remembers of a key it never read.
+     */
+    val SNAPSHOT_DATE: LocalDate = LocalDate.of(2026, 10, 18)
+
     /** The corner-radar family: one software code, twelve cached names, four routes. */
     private val CORNER_RADAR_CODE = "474E0011DF82000000"
     private val CORNER_RADAR_ALIASES = listOf(

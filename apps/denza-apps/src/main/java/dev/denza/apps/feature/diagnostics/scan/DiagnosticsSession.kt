@@ -64,8 +64,12 @@ import kotlinx.coroutines.launch
  * «Продолжить». [setCellsPaused] leaves the subscription and keeps the drawn sweep; resuming
  * subscribes again; leaving the tab ends the pause.
  *
- * Only [ScanStore] and [StreamSinks] touch files and only [CarFeed] touches the hub; the rest is
- * plain Kotlin on a [DiagnosticBus], tested on the scripted fake.
+ * **The code history** (5.5): every good software code a read brings - the autoscan's F194 gate, an
+ * opened block's F194 and F195, the modules behind it - goes through [SoftwareHistory], loaded from
+ * [software] when the work starts and written back by the worker whenever it learned something.
+ *
+ * Only [ScanStore], [SoftwareStore] and [StreamSinks] touch files and only [CarFeed] touches the hub;
+ * the rest is plain Kotlin on a [DiagnosticBus], tested on the scripted fake.
  */
 internal class DiagnosticsSession(
     private val buses: () -> DiagnosticBus,
@@ -84,10 +88,13 @@ internal class DiagnosticsSession(
     private val catalog: () -> OemDtcIndex = { OemDtcIndex.EMPTY },
     /** The car's `elapsedRealtimeNanos`, the clock the helper stamps the BMS pages with. */
     private val carNanos: () -> Long = System::nanoTime,
+    /** The code history's file (5.5); read and written on the worker, never on the caller's thread. */
+    private val software: SoftwareStore = MemorySoftwareStore(),
 ) : DiagnosticsActions {
     private val clock = ScanClock(zone)
     private val builder = ModelBuilder(clock, catalog)
     private val lock = Any()
+    private val saving = Any()
 
     private var scope: CoroutineScope? = null
     private var bus: DiagnosticBus? = null
@@ -118,6 +125,9 @@ internal class DiagnosticsSession(
     private var cellsStopped = false
     /** The gap last asked of the bus; a new bus starts at its launch parameter. */
     private var gapAsked = STREAM_GAP_MS
+    /** What the scanner remembers of the software codes (5.5): read from [software] once, then kept here. */
+    private var codes = SoftwareHistory()
+    private var codesLoaded = false
 
     /** The parameter page: what it reads, its trace, and its own gap. */
     private class ParamState(val spec: ParamSpec) {
@@ -356,10 +366,19 @@ internal class DiagnosticsSession(
 
     private suspend fun work() {
         val stored = runCatching { store.load() }.onFailure { log("diagnostics: last scan unreadable: $it") }.getOrNull()
+        // Once a process: after that the memory is ahead of the file, which a closing worker may still be writing.
+        val history = if (synchronized(lock) { codesLoaded }) null
+            else runCatching { software.load() }.onFailure { log("diagnostics: code history unreadable: $it") }.getOrDefault(SoftwareHistory())
         synchronized(lock) {
+            if (history != null && !codesLoaded) {
+                codes = history
+                codesLoaded = true
+            }
             val now = wallClock()
             val age = stored?.let { now - it.finishedAtMillis }
             if (stored != null) {
+                // Not fed to the code history: its codes were learned when it was live, and read again
+                // they could only undo a change seen since.
                 stored.reads.forEach { r -> EcuCatalog.byRequest(r.request)?.let { results[r.request] = ModuleResult(it, r) } }
                 finishedAt = stored.finishedAtMillis
                 phase = ScanPhase.DONE
@@ -445,8 +464,10 @@ internal class DiagnosticsSession(
                         publish()
                     }
                 }
-                val save = synchronized(lock) {
-                    results[job.request] = ModuleResult(ecu, read)
+                val (save, learned) = synchronized(lock) {
+                    val result = ModuleResult(ecu, read)
+                    results[job.request] = result
+                    val fresh = learn(SoftwareReads.of(result), read.atMillis)
                     var persist = false
                     if (job is Work.Scan) {
                         scanIndex++
@@ -460,17 +481,20 @@ internal class DiagnosticsSession(
                         persist = phase == ScanPhase.DONE && finishedAt != null
                     }
                     publish()
-                    if (persist) stored() else null
+                    (if (persist) stored() else null) to fresh
                 }
                 save?.let { s -> runCatching { store.save(s) }.onFailure { log("diagnostics: last scan not saved: $it") } }
+                if (learned) keep()
             }
             is Work.Ident -> {
                 val read = IdentProcedure.read(ecu, wallClock, ::ask)
-                synchronized(lock) {
-                    idents[job.request] = IdentResult(ecu, read)
+                val learned = synchronized(lock) {
+                    val ident = IdentResult(ecu, read)
+                    idents[job.request] = ident
                     identPending -= job.request
-                    publish()
+                    learn(SoftwareReads.of(ident), read.atMillis).also { publish() }
                 }
+                if (learned) keep()
             }
             is Work.Stream -> {
                 val reply = ask(job.ask)
@@ -496,6 +520,29 @@ internal class DiagnosticsSession(
                 }
             }
         }
+    }
+
+    /** [reads], made at [atMillis], into the history; whether it learned anything. Under [lock]. */
+    private fun learn(reads: List<SoftwareRead>, atMillis: Long): Boolean {
+        val next = codes.seen(reads, clock.day(atMillis))
+        if (next === codes) return false
+        next.records.forEach { (key, r) ->
+            val change = r.lastChange
+            if (change != null && change !== codes.records[key]?.lastChange) {
+                log("diagnostics: ${key.id} software ${change.oldCode} → ${change.newCode}")
+            }
+        }
+        codes = next
+        return true
+    }
+
+    /**
+     * Writes the history down, on the worker: always the latest, one write at a time, so a worker that
+     * is closing cannot put back an older one after the next section's.
+     */
+    private fun keep() = synchronized(saving) {
+        val latest = synchronized(lock) { codes }
+        runCatching { software.save(latest) }.onFailure { log("diagnostics: code history not saved: $it") }
     }
 
     /** One exchange; a halt of any kind ends the unit of work with [Aborted]. */
@@ -665,6 +712,7 @@ internal class DiagnosticsSession(
         nowMillis = wallClock(),
         param = paramView(),
         packCells = cells?.view(carNanos(), cellsStopped),
+        software = codes,
     )
 
     private fun publish() {

@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.diagnostics.scan
 
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -41,6 +42,9 @@ internal class ScanClock(private val zone: ZoneId) {
     private val minutes = DateTimeFormatter.ofPattern("HH:mm")
     private val seconds = DateTimeFormatter.ofPattern("HH:mm:ss")
     private val dated = DateTimeFormatter.ofPattern("dd.MM HH:mm")
+
+    /** The day [millis] falls on, here: what the code history dates a change by (5.5). */
+    fun day(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
 
     /** «16:31:07». */
     fun seconds(millis: Long): String = seconds.format(Instant.ofEpochMilli(millis).atZone(zone))

@@ -33,7 +33,7 @@ internal fun DiagnosticsSession.Companion.of(context: Context): DiagnosticsSessi
 /**
  * Main-process composition root of the diagnostic section: the resident bus, the shared hub under
  * [VehicleWatcher.DIAGNOSTICS], the `autoservice` GET batch every five seconds, and the files under
- * `filesDir/diagnostics/`. Secondary processes may not create car transports.
+ * `filesDir/diagnostics/`: the last scan, the code history (`software-codes.json`), the recordings. Secondary processes may not create car transports.
  */
 internal object DiagnosticsSessions {
     @Volatile private var instance: DiagnosticsSession? = null
@@ -61,6 +61,7 @@ internal object DiagnosticsSessions {
             log = log,
             catalog = { catalog },
             carNanos = SystemClock::elapsedRealtimeNanos,
+            software = FileSoftwareStore(dir),
         )
     }
 

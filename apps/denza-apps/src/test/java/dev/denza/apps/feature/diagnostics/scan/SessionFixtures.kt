@@ -85,6 +85,7 @@ internal object Fixtures {
         sinks: StreamSinks = StreamSinks { null },
         epoch: Long = EPOCH,
         catalog: () -> OemDtcIndex = { OemDtcIndex.EMPTY },
+        software: SoftwareStore = MemorySoftwareStore(),
     ) = DiagnosticsSession(
         buses = { bus },
         store = store,
@@ -95,6 +96,7 @@ internal object Fixtures {
         // Cancelled with the test, which does not wait for the session's endless clock.
         context = backgroundScope.coroutineContext,
         catalog = catalog,
+        software = software,
     )
 
     /**
