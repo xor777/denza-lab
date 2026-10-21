@@ -106,7 +106,7 @@ class IdentificationTest {
         assertEquals("62 F2 14 48 33 00 11 DF C6", rows.at("Комб. фонарь правый · 22 F214").value)
         assertEquals("не отдаёт · NRC 31", rows.at("Фонарь TL левый · 22 F064").value)
         assertTrue(rows.at("Фонарь TL левый · 22 F064").muted)
-        assertEquals("48330011DFD5000299 · не совпал с кэшем", rows.at("Фонарь TL правый · 22 F234").value)
+        assertEquals("another code is shown as it came", "48330011DFD5000299", rows.at("Фонарь TL правый · 22 F234").value)
         // The massage row of a parent the gateway left unanswered.
         val silent = FakeDiagnosticBus()
         silent.on(0x7D2, "22F194").answer(CarNow.f194.getValue(0x7D2))

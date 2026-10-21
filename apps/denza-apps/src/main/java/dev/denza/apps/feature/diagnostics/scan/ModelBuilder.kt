@@ -481,11 +481,12 @@ internal class ModelBuilder(
         }
 
         /**
-         * A child's row (architecture, 5.4): its code; the code and «не совпал с кэшем» when the parent
-         * reports another; the answer's bytes as they came when the answer is not a code at all.
+         * A child's row (architecture, 5.4): its code as the parent reports it - an update changes it,
+         * so it is not judged against the code the catalog was built from; the answer's bytes as they
+         * came when the answer is not a code at all.
          */
         fun childText(child: ChildIdentity, p: Polled<String>, read: ModuleRead?): String = when (p) {
-            is Polled.Got -> if (p.value == child.expectedCode) p.value else "${p.value} · не совпал с кэшем"
+            is Polled.Got -> p.value
             is Polled.Inconsistent -> (read?.reply(IdentProcedure.childRequest(child)) as? DiagReply.Answer)
                 ?.let { Figures.spaced(hex(it.uds)) } ?: word(p)
             else -> identText(p)
