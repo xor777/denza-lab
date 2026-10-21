@@ -158,6 +158,11 @@ class IdentificationTest {
         val bus = FakeDiagnosticBus().apply { CarNow.scriptEcmIdent(this) }
         bus.on(0x7E0, "22F194").answer(CarNow.f194.getValue(0x7E0))
         val rows = own(read(0x7E0, bus)).getValue(0x7E0)
+        // The four DIDs as their text: the supplier in ASCII, the codes in hex, a refusal in words.
+        assertEquals("UAES", rows.at("Поставщик · 22 F18A").value)
+        assertEquals("32440011E004000000", rows.at("Номер ПО поставщика · 22 F194").value)
+        assertEquals("9C4A19031900", rows.at("Версия ПО · 22 F195").value)
+        assertEquals("не отдаёт · NRC 31", rows.at("Имя системы · 22 F197").value)
         assertEquals("ECM-EngineControl", rows.at("Имя блока · 09 0A").value)
         assertEquals("Z31L07AB01", rows.at("Калибровка · 09 04").value)
         assertEquals("13 199,7 км", rows.at("Пробег (ECM) · PID A6").value)

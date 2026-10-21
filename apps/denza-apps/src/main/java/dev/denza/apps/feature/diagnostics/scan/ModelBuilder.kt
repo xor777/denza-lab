@@ -12,6 +12,7 @@ import dev.denza.apps.feature.diagnostics.protocol.DtcCode
 import dev.denza.apps.feature.diagnostics.protocol.DtcFormat
 import dev.denza.apps.feature.diagnostics.protocol.DtcMemory
 import dev.denza.apps.feature.diagnostics.protocol.IdentDid
+import dev.denza.apps.feature.diagnostics.protocol.Identification
 import dev.denza.apps.feature.diagnostics.protocol.Ignition
 import dev.denza.apps.feature.diagnostics.protocol.Monitor
 import dev.denza.apps.feature.diagnostics.protocol.MonitorStatus
@@ -471,7 +472,8 @@ internal class ModelBuilder(
         }
 
         fun identText(p: Polled<*>): String = when (p) {
-            is Polled.Got -> p.value.toString().ifEmpty { "пусто" }
+            // A DID's reading is its decoded record; the row is its text, not the record.
+            is Polled.Got -> when (val v = p.value) { is Identification -> v.text; else -> v.toString() }.ifEmpty { "пусто" }
             is Polled.Denied -> "не отдаёт · NRC ${p.nrc.hex}"
             is Polled.Unsupported -> "не отдаёт" + (p.nrc?.let { " · NRC ${it.hex}" } ?: "")
             else -> word(p)
