@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "SIM availability after correct process-local Android telephony bootstrap",
+  "sources": {
+    "activityThread": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/app/ActivityThread.java",
+      "sha256": "2ff1bb6f3d3b509e7740eba8f5d7352f7273fe7284663c12ed2df544bebcec01"
+    },
+    "contextImpl": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/app/ContextImpl.java",
+      "sha256": "8347e6e8aa92fafa96bb7762ab888ea3699a2f81bcbc5e9e47e137fdeb5cf92f"
+    },
+    "telephonyManager": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/telephony/TelephonyManager.java",
+      "sha256": "1f144f7139af8861446c4db278921489057a9ea2463bf3688bc82d5185976854"
+    },
+    "subscriptionManager": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/telephony/SubscriptionManager.java",
+      "sha256": "102545b749991e6beab8ffb817e83959401d50a42a09d6a57d0731e0f997fc18"
+    },
+    "telephonyInitializer": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/telephony/TelephonyFrameworkInitializer.java",
+      "sha256": "6cf709e1ae6c078b2b3330b1da8eeeec4ef68f1ca5a139ca2420da50b520dd1d"
+    },
+    "telephonyServiceManager": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/os/TelephonyServiceManager.java",
+      "sha256": "a574ce73722682aa30a331ef7ff98fa62e53e47fde54275a90e25c1f416a261a"
+    }
+  },
+  "runs": [
+    {
+      "name": "build-v2",
+      "build": {
+        "path": "captures/ota-sim-inputs-20261021/build-v2/build.json",
+        "sha256": "c226fc28f8bf6c31bafb5b05b54db427f5362b6c804e3f16c63e70bd79cf3b0b"
+      },
+      "snapshot": {
+        "path": "captures/ota-sim-inputs-20261021/read/inputs.json",
+        "sha256": "f74abb6c1310e9db3dc21c5887b7d91fd6ef41389e4974e4db0d75ab4efb0efe"
+      },
+      "stdout": {
+        "path": "captures/ota-sim-inputs-20261021/read/stdout.txt",
+        "sha256": "0172e4e909c830a1b9363150bf143f1e038ae14dedc5a99d69d47c73900dacb9"
+      },
+      "preflight": {
+        "path": "captures/ota-sim-inputs-20261021/read/preflight/status.json",
+        "sha256": "d7228ceccf4561bfbf57300e2eb35730069525d2160d3d9e9a1a7e2d0b4fb3ca"
+      },
+      "postflight": {
+        "path": "captures/ota-sim-inputs-20261021/read/postflight/status.json",
+        "sha256": "bb766ef97c6200ee1f113b8bc827ed278cd86782744f65d63616725a8ac5b74c"
+      },
+      "preProcesses": {
+        "path": "captures/ota-sim-inputs-20261021/read/preflight/processes.txt",
+        "sha256": "0dd3144dc174595ca070ed5dd346ef0eae9c380e18031360283e33458f87c25e"
+      },
+      "postProcesses": {
+        "path": "captures/ota-sim-inputs-20261021/read/postflight/processes.txt",
+        "sha256": "7e023e9983280c9cfbd07952f28c1390acb06ef881032d643e57180bb998fd01"
+      }
+    },
+    {
+      "name": "build-v3",
+      "build": {
+        "path": "captures/ota-sim-inputs-20261021/build-v3/build.json",
+        "sha256": "6813a5be15740f1e35c35597802224f4052b70064b485f6b2a105085ba0afc86"
+      },
+      "snapshot": {
+        "path": "captures/ota-sim-inputs-20261021/read-v3/inputs.json",
+        "sha256": "7d451fee078f071029f80a1462df8a25cf645dd62b3940bcd682932c273c94bb"
+      },
+      "stdout": {
+        "path": "captures/ota-sim-inputs-20261021/read-v3/stdout.txt",
+        "sha256": "0d118f8dddacd15a9cb034dad37d50ecd193182e7049f426ae878e2138d461d1"
+      },
+      "preflight": {
+        "path": "captures/ota-sim-inputs-20261021/read-v3/preflight/status.json",
+        "sha256": "ccbcdfae2e791e7011d6f1c8efb58620146e8afcad85d847f5c4f487715fca93"
+      },
+      "postflight": {
+        "path": "captures/ota-sim-inputs-20261021/read-v3/postflight/status.json",
+        "sha256": "eb80b4cb0608e04634e19b6a094801c45e5a0dd0ade6e204063ee0659034e99e"
+      },
+      "preProcesses": {
+        "path": "captures/ota-sim-inputs-20261021/read-v3/preflight/processes.txt",
+        "sha256": "61d0fd055dbeb7fd4fec4ac6c8f892788cc36807411ac359a192f244a3e26f5e"
+      },
+      "postProcesses": {
+        "path": "captures/ota-sim-inputs-20261021/read-v3/postflight/processes.txt",
+        "sha256": "cf2459e40a193f54aa44eb142d71a8ce77c2556c8a932c34757e00188e5ec989"
+      }
+    },
+    {
+      "name": "build-v4",
+      "build": {
+        "path": "captures/ota-sim-inputs-20261021/build-v4/build.json",
+        "sha256": "76bd9e70a4c0f2eabd171a7baabc0aeeca21b2897898f47895809fe7024c182f"
+      },
+      "snapshot": {
+        "path": "captures/ota-sim-inputs-20261021/read-v4/inputs.json",
+        "sha256": "566d5a8f385cbcbc233029c37faba524f845b0cbd95dcc1870b5c7a821ac5e8d"
+      },
+      "stdout": {
+        "path": "captures/ota-sim-inputs-20261021/read-v4/stdout.txt",
+        "sha256": "37b5aa5de11c8c75ae43541c84979e570daae587186624080d9a770d399b4891"
+      },
+      "preflight": {
+        "path": "captures/ota-sim-inputs-20261021/read-v4/preflight/status.json",
+        "sha256": "0140a2fe91f96c3b1057ec9686b543568422dfda4ae811159257acc5cce47331"
+      },
+      "postflight": {
+        "path": "captures/ota-sim-inputs-20261021/read-v4/postflight/status.json",
+        "sha256": "be0d308fd3c0641cf26bf83e214c634f46619e15d2b95db5674b335609ba9dcc"
+      },
+      "preProcesses": {
+        "path": "captures/ota-sim-inputs-20261021/read-v4/preflight/processes.txt",
+        "sha256": "bcca7caea4643d90883611bcdf01dd9c1ede7168c2fac675f269fa226d88f41c"
+      },
+      "postProcesses": {
+        "path": "captures/ota-sim-inputs-20261021/read-v4/postflight/processes.txt",
+        "sha256": "a067a7d788642e32d07f1d228fee09dc303417c89c2c0a9717349a2926361914"
+      }
+    }
+  ],
+  "summary": {
+    "cloudRequests": 0,
+    "ecuCalls": 0,
+    "bootstrapWasMissingInHelper": true,
+    "defaultSubscriptionId": 1,
+    "defaultDataSubscriptionId": 1,
+    "defaultVoiceSubscriptionId": 1,
+    "simState": 5,
+    "gsmSimState": "LOADED",
+    "activeSubscriptions": 1,
+    "defaultIccidPresent": true,
+    "iccidLength": 20,
+    "iccidMatchesRilProperty": true,
+    "iccidValueRetained": false
+  },
+  "limits": [
+    "Initial missing ICCID and default subscription -1 were helper bootstrap artifacts, not established vehicle state.",
+    "The final snapshot is from shell using the actual UID-owned package; no stock OTA manager or SIM state setter was invoked.",
+    "Initialization assigns an object in the helper process only. ServiceRegisterer.register is never called."
+  ]
+}

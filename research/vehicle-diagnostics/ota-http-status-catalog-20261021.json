@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "exact HTTP status from one getEcuList",
+  "summary": {
+    "httpStatus": 401,
+    "applicationStatusObtained": false,
+    "routeIpsObtained": false,
+    "cleanupVerified": true,
+    "postflightAtUtc": "2026-10-21T14:13:59.209184+00:00",
+    "cloudRequestLimit": 1,
+    "ecuCalls": 0,
+    "loginPerformed": false
+  },
+  "sources": {
+    "stockLoginManager": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/base/manager/login/LoginManager.java",
+      "sha256": "4f53dce569e65afd9266b19ddd5b4f25a5b37803d4bcb5070c246641e7c5c498"
+    },
+    "stockTokenRetry": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/base/token/TokenDealFunction.java",
+      "sha256": "3c95b2f25f8007cec19804b7e96e51cea43bf9b1a423f04f79988391b4a3fc2b"
+    },
+    "build": {
+      "path": "captures/ota-http-status-catalog-20261021/build/build.json",
+      "sha256": "05eef1d082388a6a981544f3373f0babfd4b942d74d2e67484f8e02c9a7e8dd0"
+    },
+    "tokenLoginUtil": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/base/token/TokenLoginUtil.java",
+      "sha256": "b9e595cdf2e4ab93fe9660a92822f71fa219ab5360552341a8fc49bd179d7264"
+    }
+  },
+  "session": {
+    "path": "captures/ota-http-status-catalog-20261021/read/session/session.json",
+    "sha256": "409670037e3995d70d5997cf025d3132d3812476d22d54d647e38ca6c3182cdf"
+  },
+  "preflight": {
+    "path": "captures/ota-http-status-catalog-20261021/read/preflight/status.json",
+    "sha256": "a9112b1d61a4b0ca011fe33b8cb22c837210d0e1cf68190b6356d5fcc574325e"
+  },
+  "postflight": {
+    "path": "captures/ota-http-status-catalog-20261021/read/postflight/status.json",
+    "sha256": "0637e405a04c3c7c4ae04cd7699851736294a7ebb26490a49b89adada74ddcf9"
+  },
+  "preProcesses": {
+    "path": "captures/ota-http-status-catalog-20261021/read/preflight/processes.txt",
+    "sha256": "e3fe21048edb767b6508d889568e966116f681ee1b9db5844bf72d9ca84b88ec"
+  },
+  "postProcesses": {
+    "path": "captures/ota-http-status-catalog-20261021/read/postflight/processes.txt",
+    "sha256": "c593afa85f845b3525d92f9de8334f8885adc0477e276662b783c693a436582c"
+  },
+  "healthComparison": {
+    "path": "captures/ota-http-status-catalog-20261021/read/health-comparison.json",
+    "sha256": "29df43fba3e0b792182a308e4565f0776b221ddf85f0f4dda584e1dd6442bf29"
+  },
+  "limits": [
+    "This fresh response is HTTP401; the previous collapsed401/403 response cannot be relabeled retrospectively.",
+    "A401 triggers stock token login, but expiry is not proved and does not explain the earlier application111.",
+    "No response body, token, identity or private key was retained by this request.",
+    "This request did not invoke login, registration, ECU queries, native OTA, download or installation."
+  ]
+}

@@ -1,0 +1,304 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "isolated in-memory login followed by ECU catalog",
+  "summary": {
+    "loginStatus": "100",
+    "catalogStatus": "100",
+    "catalogRecords": 225,
+    "previousCatalogFieldsUnchanged": true,
+    "ethernetRecords": 8,
+    "uniqueEthernetIps": 5,
+    "finalCloudRequests": 2,
+    "earlierRunsCloudRequests": 0,
+    "newTokenPersisted": false,
+    "registrationInvoked": false,
+    "nativeOtaInvoked": false,
+    "ecuCalls": 0,
+    "applicableUpdatePlanObtained": false,
+    "postflightAtUtc": "2026-10-21T14:32:15.977899+00:00"
+  },
+  "sources": {
+    "loginParams": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/base/token/TokenLoginUtil.java",
+      "sha256": "b9e595cdf2e4ab93fe9660a92822f71fa219ab5360552341a8fc49bd179d7264"
+    },
+    "stockTokenRetry": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/base/token/TokenDealFunction.java",
+      "sha256": "3c95b2f25f8007cec19804b7e96e51cea43bf9b1a423f04f79988391b4a3fc2b"
+    },
+    "stockLoginManager": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/base/manager/login/LoginManager.java",
+      "sha256": "4f53dce569e65afd9266b19ddd5b4f25a5b37803d4bcb5070c246641e7c5c498"
+    },
+    "stockApiHeaders": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/Api.java",
+      "sha256": "4c6a8681e4b4689eac7957ed6acf2e5c00b6bdc9099b97c662eace5364096515"
+    },
+    "stockGetters": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/UpdateOTAHelper.java",
+      "sha256": "be1dbad54bd84f6ea21d716111057c9a906fb1fda7d8be585ec1022fd5ab1646"
+    },
+    "activityThread": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/app/ActivityThread.java",
+      "sha256": "2ff1bb6f3d3b509e7740eba8f5d7352f7273fe7284663c12ed2df544bebcec01"
+    },
+    "contextImpl": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/app/ContextImpl.java",
+      "sha256": "8347e6e8aa92fafa96bb7762ab888ea3699a2f81bcbc5e9e47e137fdeb5cf92f"
+    },
+    "telephonyManager": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/telephony/TelephonyManager.java",
+      "sha256": "1f144f7139af8861446c4db278921489057a9ea2463bf3688bc82d5185976854"
+    },
+    "subscriptionManager": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/telephony/SubscriptionManager.java",
+      "sha256": "102545b749991e6beab8ffb817e83959401d50a42a09d6a57d0731e0f997fc18"
+    },
+    "telephonyInitializer": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/telephony/TelephonyFrameworkInitializer.java",
+      "sha256": "6cf709e1ae6c078b2b3330b1da8eeeec4ef68f1ca5a139ca2420da50b520dd1d"
+    },
+    "telephonyServiceManager": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/os/TelephonyServiceManager.java",
+      "sha256": "a574ce73722682aa30a331ef7ff98fa62e53e47fde54275a90e25c1f416a261a"
+    }
+  },
+  "priorCatalog": {
+    "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+    "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+  },
+  "runs": [
+    {
+      "build": {
+        "path": "captures/ota-login-catalog-20261021/build-v3/build.json",
+        "sha256": "7f2f84276150da736c6d991d1d35cfa75d0c867062ac88ba1068763b2701b81b"
+      },
+      "session": {
+        "path": "captures/ota-login-catalog-20261021/read/session/session.json",
+        "sha256": "73cf9f882e18eccd820c682eaad428d71fa77fed0a0cbead999622f1eb3cdccc"
+      },
+      "preflight": {
+        "path": "captures/ota-login-catalog-20261021/read/preflight/status.json",
+        "sha256": "3b27f837164cb08cd6df46cc970d729f95fd69ba6d3fa18f6dc4784bdc6a5739"
+      },
+      "postflight": {
+        "path": "captures/ota-login-catalog-20261021/read/postflight/status.json",
+        "sha256": "099e8e5b5aa4eb4f1c43d2a588667f26668bb492cd171a8be544c27f588be0fe"
+      },
+      "preProcesses": {
+        "path": "captures/ota-login-catalog-20261021/read/preflight/processes.txt",
+        "sha256": "0a11fdbf21f43ed7cebe98a021724c657fa3c10b7af03b855431f80cba6eb379"
+      },
+      "postProcesses": {
+        "path": "captures/ota-login-catalog-20261021/read/postflight/processes.txt",
+        "sha256": "acd1e8d4b516c9edc1a9d7154298cfc05897d58d5e72b5a2a925a97cca7d7186"
+      },
+      "healthComparison": {
+        "path": "captures/ota-login-catalog-20261021/read/health-comparison.json",
+        "sha256": "a274f31dd155706906bca77062117f9df36909d26699e768503be48e554ad27c"
+      },
+      "name": "build-v3",
+      "outcome": {
+        "goSent": false,
+        "status": "refused",
+        "helperError": {
+          "stage": "login_inputs",
+          "code": "login_inputs_iccid"
+        }
+      }
+    },
+    {
+      "build": {
+        "path": "captures/ota-login-catalog-20261021/build-v4/build.json",
+        "sha256": "96e8d2e46ce0f9cb468b54893557b28b32d0b39cb1069b712bc2e5a4f1d6f667"
+      },
+      "session": {
+        "path": "captures/ota-login-catalog-20261021/read-v4/session/session.json",
+        "sha256": "2f4ed5fbd186169cbae56b891103e7bd51c56f6124a4e96d5cd69fe18ce370f5"
+      },
+      "preflight": {
+        "path": "captures/ota-login-catalog-20261021/read-v4/preflight/status.json",
+        "sha256": "2c56e551fc72170c10b50a4dfe7c9b5f8f6092b1ae87ce9a6ce67abea06a4b1c"
+      },
+      "postflight": {
+        "path": "captures/ota-login-catalog-20261021/read-v4/postflight/status.json",
+        "sha256": "d6e789fe376d5262622727612c09549177c10f684d17d3830163a290f67a5e4b"
+      },
+      "preProcesses": {
+        "path": "captures/ota-login-catalog-20261021/read-v4/preflight/processes.txt",
+        "sha256": "99dfe67a0da1b1dacd239fd0746a7afa06a0cfe5718c68396be4e535d5d37a9a"
+      },
+      "postProcesses": {
+        "path": "captures/ota-login-catalog-20261021/read-v4/postflight/processes.txt",
+        "sha256": "79c0c0b5659430eee60d9c272edc199679f913b32e3b985f8d2fb5a2508ca9b6"
+      },
+      "healthComparison": {
+        "path": "captures/ota-login-catalog-20261021/read-v4/health-comparison.json",
+        "sha256": "a274f31dd155706906bca77062117f9df36909d26699e768503be48e554ad27c"
+      },
+      "name": "build-v4",
+      "outcome": {
+        "goSent": false,
+        "status": "refused",
+        "helperError": {
+          "stage": "login_inputs",
+          "code": "login_inputs_package"
+        }
+      }
+    },
+    {
+      "build": {
+        "path": "captures/ota-login-catalog-20261021/build-v5/build.json",
+        "sha256": "9dd0945709fd6e34b517ebb8a7f493da0d04c3c673d2c4fa1df8557f4023acb5"
+      },
+      "session": {
+        "path": "captures/ota-login-catalog-20261021/read-v5/session/session.json",
+        "sha256": "a8d7602e87b9152478e3d345c4f1f247e43a572cc465992382f023585c70f2cb"
+      },
+      "preflight": {
+        "path": "captures/ota-login-catalog-20261021/read-v5/preflight/status.json",
+        "sha256": "75a806fdc5ac5ca407361b02855d59cad9175933088662756cb58187b4d71100"
+      },
+      "postflight": {
+        "path": "captures/ota-login-catalog-20261021/read-v5/postflight/status.json",
+        "sha256": "45aa66d97b429a1e36a1580b14032018d7600c4e54371bbefdde197aa254f716"
+      },
+      "preProcesses": {
+        "path": "captures/ota-login-catalog-20261021/read-v5/preflight/processes.txt",
+        "sha256": "acf4388aa8234a1d6d12620360b5dfbc0608fa9203e35a7ba5605cbda647f1cf"
+      },
+      "postProcesses": {
+        "path": "captures/ota-login-catalog-20261021/read-v5/postflight/processes.txt",
+        "sha256": "54bf4f13d47e4a78762aae4a271d8b5324861b429f06956312622fc8535c9395"
+      },
+      "healthComparison": {
+        "path": "captures/ota-login-catalog-20261021/read-v5/health-comparison.json",
+        "sha256": "a274f31dd155706906bca77062117f9df36909d26699e768503be48e554ad27c"
+      },
+      "name": "build-v5",
+      "outcome": {
+        "goSent": false,
+        "status": "refused",
+        "helperError": {
+          "stage": "login_inputs",
+          "code": "login_inputs_iccid_missing"
+        }
+      }
+    },
+    {
+      "build": {
+        "path": "captures/ota-login-catalog-20261021/build-v6/build.json",
+        "sha256": "24ad243a9f90d292a2a3d287f1e53b8ab45ecce636e99849c4951b67b9de1936"
+      },
+      "session": {
+        "path": "captures/ota-login-catalog-20261021/read-v6/session/session.json",
+        "sha256": "b25c92eac265ccfe75bd543afb14bad235c0de134446277d4e5f382470da02ba"
+      },
+      "preflight": {
+        "path": "captures/ota-login-catalog-20261021/read-v6/preflight/status.json",
+        "sha256": "0b97d24668df9a19a0e128403bc2f74b657b24955c52e8b47221c956e818c4e0"
+      },
+      "postflight": {
+        "path": "captures/ota-login-catalog-20261021/read-v6/postflight/status.json",
+        "sha256": "ae513547d29de3c984b4ba2785e8e0fbd4fb07ca93ae1116e5f55e449a6558e5"
+      },
+      "preProcesses": {
+        "path": "captures/ota-login-catalog-20261021/read-v6/preflight/processes.txt",
+        "sha256": "9c65e755d9c6ff051e23ec58434c4676ff5f464331fc358dd97405c651dcdab9"
+      },
+      "postProcesses": {
+        "path": "captures/ota-login-catalog-20261021/read-v6/postflight/processes.txt",
+        "sha256": "fa8cd0aad9b4bce06697f26f6d715b7d3fa6724514c70e742c5cd3d67b3cc190"
+      },
+      "healthComparison": {
+        "path": "captures/ota-login-catalog-20261021/read-v6/health-comparison.json",
+        "sha256": "a274f31dd155706906bca77062117f9df36909d26699e768503be48e554ad27c"
+      },
+      "name": "build-v6",
+      "outcome": {
+        "goSent": true,
+        "status": "complete",
+        "helperError": null
+      }
+    }
+  ],
+  "ethernetRoutes": {
+    "path": "captures/ota-login-catalog-20261021/read-v6/ethernet-routes.json",
+    "sha256": "4b54d560eab488fb6c8065962054f71031aa822b9e6719f5fbc9bcf83a927fd9"
+  },
+  "routeSummary": [
+    {
+      "ecuId": "HTH-2021_CDC_SOC_BYD_00100001",
+      "ecuIp": "192.168.195.11",
+      "logicAddress": "0010",
+      "ecuDId": "F195/F194",
+      "ecuHardDid": "F193",
+      "ecuConfigDid": ""
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-L_RoboSense_00100001",
+      "ecuIp": "192.168.195.5",
+      "logicAddress": "078C",
+      "ecuDId": "F195/F194",
+      "ecuHardDid": "F193",
+      "ecuConfigDid": ""
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-L_HESAI_00100001",
+      "ecuIp": "192.168.195.5",
+      "logicAddress": "078C",
+      "ecuDId": "F195/F194",
+      "ecuHardDid": "F193",
+      "ecuConfigDid": ""
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-R_RoboSense_00100001",
+      "ecuIp": "192.168.195.7",
+      "logicAddress": "073E",
+      "ecuDId": "F195/F194",
+      "ecuHardDid": "F193",
+      "ecuConfigDid": ""
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-R_HESAI_00100001",
+      "ecuIp": "192.168.195.7",
+      "logicAddress": "073E",
+      "ecuDId": "F195/F194",
+      "ecuHardDid": "F193",
+      "ecuConfigDid": ""
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-M_RoboSense_00100001",
+      "ecuIp": "192.168.195.16",
+      "logicAddress": "075F",
+      "ecuDId": "F195/F194",
+      "ecuHardDid": "F193",
+      "ecuConfigDid": ""
+    },
+    {
+      "ecuId": "HTH-2021_ADC_BYD_00100001",
+      "ecuIp": "192.168.195.3",
+      "logicAddress": "071A",
+      "ecuDId": "F195/F194",
+      "ecuHardDid": "F193",
+      "ecuConfigDid": "FF95/FF94"
+    },
+    {
+      "ecuId": "HTH-2021_CDC_FPGA_BYD_00100001",
+      "ecuIp": "192.168.195.11",
+      "logicAddress": "0010",
+      "ecuDId": "F295/F294",
+      "ecuHardDid": "F293",
+      "ecuConfigDid": ""
+    }
+  ],
+  "limits": [
+    "A new login restored catalog access; expired versus revoked old token is not distinguished.",
+    "This later HTTP401 and its resolution do not establish the earlier application111 cause.",
+    "Catalog rows are server candidates, not proof of ECU presence or expected campaign versions.",
+    "No DoIP connection, session03, ECU read, versionSync, checkVersion, package download or installation was performed in these sessions.",
+    "Build-v3/v4/v5 were helper-context/bootstrap failures before GO; their null ICCID does not establish missing SIM data.",
+    "The first two offline builds failed a host-only accelerated timer race; build-v3 onward adds a fixture barrier without changing production watchdog code."
+  ]
+}
