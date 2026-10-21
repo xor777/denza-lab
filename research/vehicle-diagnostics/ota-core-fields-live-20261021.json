@@ -1,0 +1,514 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "fresh fixed22 reads compared with retained OTA cache",
+  "summary": {
+    "runs": 5,
+    "requests": 38,
+    "selectedEcuRecords": 11,
+    "positiveResponses": 38,
+    "cacheMatches": 38,
+    "mismatches": 0,
+    "cloudRequests": 0,
+    "apkInstalls": 0,
+    "allLifecycleVerified": true
+  },
+  "runs": [
+    {
+      "name": "body-main-v2",
+      "plan": "body-main",
+      "requests": 10,
+      "startedAtUtc": "2026-10-21T13:14:11.859589+00:00",
+      "postflightAtUtc": "2026-10-21T13:14:19.583840+00:00",
+      "session": {
+        "path": "captures/ota-core-fields-20261021/body-main-v2/session.json",
+        "sha256": "06905e3f0267cf9b148a3f25245619c312a0b3e5be09ced80eb7037394b861bc"
+      },
+      "protocol": {
+        "path": "captures/ota-core-fields-20261021/body-main-v2/protocol.txt",
+        "sha256": "0deee9ea92ef1facf8e22429d9ae9e97b078c2d5c8f1cf71a1d576064af082cc"
+      },
+      "preflight": {
+        "path": "captures/ota-core-fields-20261021/body-main-v2/preflight/status.json",
+        "sha256": "8fdfc707bad00c3705634740ec2ab4ac2ee4d0ca3abec14df59295ce694630d8"
+      },
+      "postflight": {
+        "path": "captures/ota-core-fields-20261021/body-main-v2/postflight/status.json",
+        "sha256": "f49302a2465890133680158d4feaa49965a9b8ca7fed17b9bd5e98187078e9c6"
+      },
+      "preProcesses": {
+        "path": "captures/ota-core-fields-20261021/body-main-v2/preflight/processes.txt",
+        "sha256": "f0925c7402df7a4213d80f4db00de42c3228c25f568bf037dc29e5ce5d71f632"
+      },
+      "postProcesses": {
+        "path": "captures/ota-core-fields-20261021/body-main-v2/postflight/processes.txt",
+        "sha256": "efa1fc767af0c4281159662adb9e2d222db7fd83180adbf0f70ff771b365eb12"
+      }
+    },
+    {
+      "name": "body-rear",
+      "plan": "body-rear",
+      "requests": 7,
+      "startedAtUtc": "2026-10-21T13:14:31.414340+00:00",
+      "postflightAtUtc": "2026-10-21T13:14:37.481691+00:00",
+      "session": {
+        "path": "captures/ota-core-fields-20261021/body-rear/session.json",
+        "sha256": "a306ef21d07d42a7bd3157960db7236e125370153fff439f755f178ff409f6b9"
+      },
+      "protocol": {
+        "path": "captures/ota-core-fields-20261021/body-rear/protocol.txt",
+        "sha256": "1b594156f2dfbd4c68802fc62dcb88e137e8892362fbdea584d459b2b887f31d"
+      },
+      "preflight": {
+        "path": "captures/ota-core-fields-20261021/body-rear/preflight/status.json",
+        "sha256": "e28601d6294c25412c1042b2fcc3c974b71d357cba23e973411ee646ad242aa5"
+      },
+      "postflight": {
+        "path": "captures/ota-core-fields-20261021/body-rear/postflight/status.json",
+        "sha256": "5f55c25fce1203b0b9b6f3d1efd421a19bf84c85bb4bea8c395d7cbae4709c11"
+      },
+      "preProcesses": {
+        "path": "captures/ota-core-fields-20261021/body-rear/preflight/processes.txt",
+        "sha256": "595c7454c0978f64309b0557e0624d93e151b9b2ab0bae9b931b385de88967ca"
+      },
+      "postProcesses": {
+        "path": "captures/ota-core-fields-20261021/body-rear/postflight/processes.txt",
+        "sha256": "364cc0093caa785a6fa16069cc2c04cfaaea63c8bfcbb27aeba75fdc48931bde"
+      }
+    },
+    {
+      "name": "power-main",
+      "plan": "power-main",
+      "requests": 9,
+      "startedAtUtc": "2026-10-21T13:14:53.915602+00:00",
+      "postflightAtUtc": "2026-10-21T13:15:01.006093+00:00",
+      "session": {
+        "path": "captures/ota-core-fields-20261021/power-main/session.json",
+        "sha256": "5caeda27d0efde8058913816cd261caa360928b49c3104607a5b0ae555885308"
+      },
+      "protocol": {
+        "path": "captures/ota-core-fields-20261021/power-main/protocol.txt",
+        "sha256": "4d8ec339d8d48c1e5cc83024bd3da0ce971ae295b2f68db67efd7ea2d39144de"
+      },
+      "preflight": {
+        "path": "captures/ota-core-fields-20261021/power-main/preflight/status.json",
+        "sha256": "eba11425a10ed9f52e4bf03decf90957a4bd04b590f3b3d0e5e77fbe93b8c29c"
+      },
+      "postflight": {
+        "path": "captures/ota-core-fields-20261021/power-main/postflight/status.json",
+        "sha256": "c5690e008001d62e96308eba18aedf2fb91b8a4dfa6ee7945ccc0cc2148f261e"
+      },
+      "preProcesses": {
+        "path": "captures/ota-core-fields-20261021/power-main/preflight/processes.txt",
+        "sha256": "7d06e542e1763e6387444305ae16a2cdc68a2e1477ff54428494d4e492c480cc"
+      },
+      "postProcesses": {
+        "path": "captures/ota-core-fields-20261021/power-main/postflight/processes.txt",
+        "sha256": "fe68acb1e79d8505f5915918a7a827ca8e73b80ba834ad172954bf7c2d943715"
+      }
+    },
+    {
+      "name": "drives-front",
+      "plan": "drives-front",
+      "requests": 6,
+      "startedAtUtc": "2026-10-21T13:15:15.975849+00:00",
+      "postflightAtUtc": "2026-10-21T13:15:21.731765+00:00",
+      "session": {
+        "path": "captures/ota-core-fields-20261021/drives-front/session.json",
+        "sha256": "4be322f9249c1d6e88cac0bbc4f245cb4877a090752b9a9de29a4d685908d350"
+      },
+      "protocol": {
+        "path": "captures/ota-core-fields-20261021/drives-front/protocol.txt",
+        "sha256": "5a0c855404cdf3687752d60025c8b7ae0602bd71d726e78059f7b425474674fd"
+      },
+      "preflight": {
+        "path": "captures/ota-core-fields-20261021/drives-front/preflight/status.json",
+        "sha256": "a48d2498a78149d5e3ca1aaa339f71144e8f643b4548c794416abd2551cbeb0f"
+      },
+      "postflight": {
+        "path": "captures/ota-core-fields-20261021/drives-front/postflight/status.json",
+        "sha256": "3594fa413ec0ac586b871835c18b45c3989cd6ee0e524991ad834b641475d531"
+      },
+      "preProcesses": {
+        "path": "captures/ota-core-fields-20261021/drives-front/preflight/processes.txt",
+        "sha256": "eb84a53853221db62604271161559fa2b2fffab7f12bb0e0a61f8cfa7bd7aa99"
+      },
+      "postProcesses": {
+        "path": "captures/ota-core-fields-20261021/drives-front/postflight/processes.txt",
+        "sha256": "1e1b5b412f7bd753adb7522b44e381cf409acd9c688a41a9f15f664a7ef4bac7"
+      }
+    },
+    {
+      "name": "drives-rear",
+      "plan": "drives-rear",
+      "requests": 6,
+      "startedAtUtc": "2026-10-21T13:15:48.461587+00:00",
+      "postflightAtUtc": "2026-10-21T13:15:53.944803+00:00",
+      "session": {
+        "path": "captures/ota-core-fields-20261021/drives-rear/session.json",
+        "sha256": "eec637fa638885db47b5c088604188e126e202f745842d4401df7e8f5ce045b0"
+      },
+      "protocol": {
+        "path": "captures/ota-core-fields-20261021/drives-rear/protocol.txt",
+        "sha256": "ed2e4b9b6d4f5c26850c25dfdb6819a97f7d29d3016139d51e48460e8a0f1c54"
+      },
+      "preflight": {
+        "path": "captures/ota-core-fields-20261021/drives-rear/preflight/status.json",
+        "sha256": "e621844aa72f0072ece897e928f308807f50a5e5d60975bba7f84621ccc3f163"
+      },
+      "postflight": {
+        "path": "captures/ota-core-fields-20261021/drives-rear/postflight/status.json",
+        "sha256": "8c17b1ad8a82e0185505b55e5b36c1cab651375878dc3bb93bec5580155e148a"
+      },
+      "preProcesses": {
+        "path": "captures/ota-core-fields-20261021/drives-rear/preflight/processes.txt",
+        "sha256": "08ad936bc402713428f9a9632527907da63e187f8ddf7220ffdbb8b677cdc54b"
+      },
+      "postProcesses": {
+        "path": "captures/ota-core-fields-20261021/drives-rear/postflight/processes.txt",
+        "sha256": "b3bb2fe5670d9fa211888ac936337f6eed362e33fc97bdd2f807dacd9060331a"
+      }
+    }
+  ],
+  "selectedEcus": {
+    "HTH-2021_CDC_BYD_00100001": {
+      "address": "720",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "4B310011E0019A0002",
+          "cached": "4B310011E0019A0002",
+          "responseHex": "62F1944B310011E0019A0002",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "4.00.53",
+          "cached": "4.00.53",
+          "responseHex": "62F1959C751A050E01",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.4.1",
+          "cached": "0.4.1",
+          "responseHex": "62F1932918030200",
+          "match": true
+        },
+        "ecuConfigCode": {
+          "actual": "4B50FF11E0019A0002",
+          "cached": "4B50FF11E0019A0002",
+          "responseHex": "62FF944B50FF11E0019A0002",
+          "match": true
+        },
+        "ecuConfigVer": {
+          "actual": "4.00.02",
+          "cached": "4.00.02",
+          "responseHex": "62FF959C421A031A01",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_B_ZCU_BYD_00100001": {
+      "address": "726",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "4B310011E001760100",
+          "cached": "4B310011E001760100",
+          "responseHex": "62F1944B310011E001760100",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "4.00.42",
+          "cached": "4.00.42",
+          "responseHex": "62F1959C6A1A011701",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.4.2",
+          "cached": "0.4.2",
+          "responseHex": "62F1932A18030000",
+          "match": true
+        },
+        "ecuConfigCode": {
+          "actual": "4B31FF11E001760002",
+          "cached": "4B31FF11E001760002",
+          "responseHex": "62FF944B31FF11E001760002",
+          "match": true
+        },
+        "ecuConfigVer": {
+          "actual": "1.00.03",
+          "cached": "1.00.03",
+          "responseHex": "62FF95271318060B03",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_R_ZCU_BYD_00100001": {
+      "address": "747",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "4B310011E001770002",
+          "cached": "4B310011E001770002",
+          "responseHex": "62F1944B310011E001770002",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "4.00.54",
+          "cached": "4.00.54",
+          "responseHex": "62F1959C761A071001",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.4.1",
+          "cached": "0.4.1",
+          "responseHex": "62F1932918030000",
+          "match": true
+        },
+        "ecuConfigCode": {
+          "actual": "4B31FF11E001770002",
+          "cached": "4B31FF11E001770002",
+          "responseHex": "62FF944B31FF11E001770002",
+          "match": true
+        },
+        "ecuConfigVer": {
+          "actual": "1.00.02",
+          "cached": "1.00.02",
+          "responseHex": "62FF95271218050D01",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_F_ZCU_BYD_00100001": {
+      "address": "722",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "4B310011E001540100",
+          "cached": "4B310011E001540100",
+          "responseHex": "62F1944B310011E001540100",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.4.1",
+          "cached": "0.4.1",
+          "responseHex": "62F1932918030000",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_ECM_UAES_01200001": {
+      "address": "7E0",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "32440011E004000000",
+          "cached": "32440011E004000000",
+          "responseHex": "62F19432440011E004000000",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "4.00.10",
+          "cached": "4.00.10",
+          "responseHex": "62F1959C4A19031900",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "1.0.0",
+          "cached": "1.0.0",
+          "responseHex": "62F1936413040100",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_BMS_BYD_03300001": {
+      "address": "7E7",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "4A520011E00D00047B",
+          "cached": "4A520011E00D00047B",
+          "responseHex": "62F1944A520011E00D00047B",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "3.48.07",
+          "cached": "3.48.07",
+          "responseHex": "62F19587F71A011402",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.0.3",
+          "cached": "0.0.3",
+          "responseHex": "62F1930318070900",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_DCOBC_BYD_00100001": {
+      "address": "7E4",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "48350011E04D000100",
+          "cached": "48350011E04D000100",
+          "responseHex": "62F19448350011E04D000100",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "4.00.01",
+          "cached": "4.00.01",
+          "responseHex": "62F1959C4119071400",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.0.2",
+          "cached": "0.0.2",
+          "responseHex": "62F1930217080200",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_FMCU_BYD_00100001": {
+      "address": "7E3",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "48370011E075000000",
+          "cached": "48370011E075000000",
+          "responseHex": "62F19448370011E075000000",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "4.03.12",
+          "cached": "4.03.12",
+          "responseHex": "62F1959D78190A190C",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.0.5",
+          "cached": "0.0.5",
+          "responseHex": "62F1930518070100",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_ISG_BYD_00100001": {
+      "address": "7E6",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "48370011E0EA000000",
+          "cached": "48370011E0EA000000",
+          "responseHex": "62F19448370011E0EA000000",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "4.03.13",
+          "cached": "4.03.13",
+          "responseHex": "62F1959D79190A1E0D",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.0.5",
+          "cached": "0.0.5",
+          "responseHex": "62F1930518070100",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_SMCU_BYD_00200001": {
+      "address": "744",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "48370011E086001100",
+          "cached": "48370011E086001100",
+          "responseHex": "62F19448370011E086001100",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "4.00.06",
+          "cached": "4.00.06",
+          "responseHex": "62F1959C4619051406",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.0.2",
+          "cached": "0.0.2",
+          "responseHex": "62F1930216071500",
+          "match": true
+        }
+      }
+    },
+    "HTH-2021_SMCU3_BYD_00100001": {
+      "address": "745",
+      "fields": {
+        "ecuSoftCode": {
+          "actual": "48370011E088001100",
+          "cached": "48370011E088001100",
+          "responseHex": "62F19448370011E088001100",
+          "match": true
+        },
+        "ecuSoftVer": {
+          "actual": "4.00.06",
+          "cached": "4.00.06",
+          "responseHex": "62F1959C4619051406",
+          "match": true
+        },
+        "ecuHardVer": {
+          "actual": "0.0.2",
+          "cached": "0.0.2",
+          "responseHex": "62F1930216071500",
+          "match": true
+        }
+      }
+    }
+  },
+  "firstAttempt": {
+    "outcome": "stopped at preflight before staging or diagnostic send",
+    "reason": "Conservative name check matched resident product light subscriber denza_vehicle_signals; source inspected and exact process name excluded. Shared diagnostic lock, pre-send guards and traffic rejection retained.",
+    "session": {
+      "path": "captures/ota-core-fields-20261021/body-main/session.json",
+      "sha256": "e3550d7cc34730a12ddb9e8965b9045dbb111ce4c3eaa323b9b68c314ab5812a"
+    },
+    "preflightProcesses": {
+      "path": "captures/ota-core-fields-20261021/body-main/preflight/processes.txt",
+      "sha256": "2cfaab8ea0677b79adc88359bdb01e15c1a7cb2611c8a02a7b02bc1880d097bf"
+    }
+  },
+  "sources": {
+    "tool": {
+      "path": "tools/vehicle-diagnostics/ota_cached_field_read.py",
+      "sha256": "47961ed4a84d78e48a9093fc680a7170b792f8857e60d5abb6c1df71d74f3ce8"
+    },
+    "build": {
+      "path": "captures/ota-core-fields-20261021/build-v2/build.json",
+      "sha256": "818da55b6915e6a132f7f8be6da28eba727f5e5bb41b7bc33a3042b78235300c"
+    },
+    "factoryMap": {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    "cache": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    "parserReplay": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/CanDiagnostic.java",
+      "sha256": "dddfd8038e59a2d8d15bf86d3f1fb0cee5078f0aa22ee9f87d1632281384f85a"
+    },
+    "parserReplayManifest": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/source-methods.json",
+      "sha256": "e53d717638ebe6cbfb88fd930b7e9309b06c56c79482b3f3b4cde30244763dc6"
+    },
+    "productLightSubscriber": {
+      "path": "apps/denza-apps/src/main/java/dev/denza/apps/feature/vehicle/signal/TargetedBydLightEventProxyMain.java",
+      "sha256": "4b02f0a06afaa1a0f15623bebd1036c1703f9fe3be78b1a9f0eb73c0c0e4381f"
+    },
+    "productLightLaunch": {
+      "path": "apps/denza-apps/src/main/java/dev/denza/apps/feature/vehicle/signal/TargetedBydLightEventSource.kt",
+      "sha256": "4a1f132cd43a23896662da04840dc6655249fda869c7b04d9728a37fced43e36"
+    }
+  },
+  "limits": [
+    "These11 selected factory records are not the225-record cloud candidate list.",
+    "Front ZCU F195/FF94/FF95 were read in earlier sessions; this new group reads only its F194/F193.",
+    "ECUs with empty ecuConfigDid were not queried for configuration; default cache configuration fields are not physical measurements.",
+    "All raw responses are reconstructed UDS on the qualified diagnostic gateway, not a passive physical CAN capture.",
+    "Stock parser prefix output is checked offline with retained method bodies and synthetic OTA envelope; extra data bytes are preserved with unknown meaning.",
+    "Identity gate must match before later fields; no cloud values or strategy are rewritten automatically.",
+    "Matching cache does not prove compatible backend baseline. Exact expected ECU tuple and applicable package remain unknown."
+  ],
+  "conclusion": "No stale or wrongly parsed value was found in38 selected fields. Do not repeat unchanged checkVersion based on this result alone; other namespaces and backend expected values remain unverified."
+}
