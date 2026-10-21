@@ -1,0 +1,219 @@
+{
+  "schema": "denza-lab.battery-semantics-next-depth.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "sha256": "6c7b1946ccbe6a979bf51b96397c8bece89c5c598a85f3bb8dedac9d573c61ce",
+      "bytes": 254608
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "sha256": "e6c432670a31cdc89c226ebdf7c9be54583a4468839a2673cbc50ae6e94f2dfb",
+      "bytes": 124432
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libgbdataservice.so",
+      "sha256": "1e05eb04108ccfbcdc481ffeba708e6c1b31d4fac67905a3c0466999342663d6",
+      "bytes": 22968
+    }
+  ],
+  "sourceAnchorCount": 38,
+  "staticClaims": [
+    {
+      "claim": "GB raw individual cell/probe codes are copied unchanged after endian reversal into sections8/9",
+      "evidence": [
+        "gbdataservice:E650..E778",
+        "gbacqservice:195C0..19698"
+      ],
+      "limits": "No complete per-code validity or physical mapping"
+    },
+    {
+      "claim": "Each raw cell word is multiplied by literal0.001 in both stock aggregate sum implementations",
+      "evidence": [
+        "gbdataservice:CD40..D068,rodata4AD8",
+        "gbacqservice:13394..13484,13604..137C8,rodata8258"
+      ],
+      "limits": "This report proves arithmetic; no human-readable per-element unit label in downstream chain"
+    },
+    {
+      "claim": "FD payload7 and LE16payload1..2 serialize as83 byte BE16 extension",
+      "evidence": [
+        "gbdataservice:EBAC..EBF4",
+        "gbdataservice:E1F0..E21C,E510..E548"
+      ],
+      "limits": "Field engineering meanings unproved; payload3..6 ignored by FD branch"
+    },
+    {
+      "claim": "Native completion flags are element-count latches and do not establish all-page coverage or age",
+      "evidence": [
+        "gbdataservice:EB90..EBA8,ED20..ED50",
+        "gbdataservice-member-xrefs.json",
+        "gbacqservice:1B2D8..1B328"
+      ],
+      "limits": "No page loss/repeat asserted for retained clean logs"
+    },
+    {
+      "claim": "Stock disk serialization adds a packaging timestamp and wrapper without per-page timing",
+      "evidence": [
+        "gbdataservice:constructor1C070/vtable1C098->9D60",
+        "gbdataservice:9D60..9EE4,C5D0..C768,C7F0..CCF8"
+      ],
+      "limits": "Does not prove original ECU acquisition time"
+    },
+    {
+      "claim": "Stock aggregate positions are one-based logical indices; subsystem constants/splits are packaging",
+      "evidence": [
+        "gbdataservice:CD40..D068,E638..E778",
+        "gbacqservice:193AC..19648"
+      ],
+      "limits": "No physical module/probe map"
+    },
+    {
+      "claim": "Native arrays do not excludeFE/FF/FFFE/FFFF at copy; aggregate skips probe0",
+      "evidence": [
+        "gbdataservice:EAA8..EB8C,EC6C..ED1C,CE3C..CE44,CF6C..CF74,D02C..D034",
+        "gbacqservice:1AD74..1AE10,1AF60..1B2F4,13424..13428"
+      ],
+      "limits": "No semantic invalid-code domain established"
+    }
+  ],
+  "unresolved": [
+    "Per-cell engineering/display unit contract",
+    "Complete invalid domains including zero andFE/FF/FFFE/FFFF",
+    "Physical battery module/cell/probe binding",
+    "FD field meanings",
+    "ECU acquisition freshness independent of callback and packaging time",
+    "Current runtime BMS policy"
+  ],
+  "fdSavedObservations": [
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+      "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73",
+      "records": [
+        {
+          "seq": 229,
+          "tNs": 144930866094520,
+          "payload": "fdfb13d10ccb0c47",
+          "payload7Raw": 71,
+          "payload1_2Le16Raw": 5115,
+          "payload3_4Le16IgnoredByFdBranch": 3281,
+          "payload5_6Le16IgnoredByFdBranch": 3275,
+          "serializedExtensionHex": "834713fb"
+        },
+        {
+          "seq": 489,
+          "tNs": 144936571039135,
+          "payload": "fddc13d50cd00c48",
+          "payload7Raw": 72,
+          "payload1_2Le16Raw": 5084,
+          "payload3_4Le16IgnoredByFdBranch": 3285,
+          "payload5_6Le16IgnoredByFdBranch": 3280,
+          "serializedExtensionHex": "834813dc"
+        },
+        {
+          "seq": 750,
+          "tNs": 144942275152290,
+          "payload": "fdf613d10ccc0c49",
+          "payload7Raw": 73,
+          "payload1_2Le16Raw": 5110,
+          "payload3_4Le16IgnoredByFdBranch": 3281,
+          "payload5_6Le16IgnoredByFdBranch": 3276,
+          "serializedExtensionHex": "834913f6"
+        }
+      ],
+      "successivePayload7Modulo256Deltas": [
+        1,
+        1
+      ],
+      "observation": "payload7 increments by1 on successive retained FD records; field semantics remain unproved"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/gb.log",
+      "sha256": "62bed104174519b8448dc48d09053502c40cdec24cc013447f1628dfecbde2e0",
+      "records": [
+        {
+          "seq": 135,
+          "tNs": 145199005375459,
+          "payload": "fd8613f00ced0c76",
+          "payload7Raw": 118,
+          "payload1_2Le16Raw": 4998,
+          "payload3_4Le16IgnoredByFdBranch": 3312,
+          "payload5_6Le16IgnoredByFdBranch": 3309,
+          "serializedExtensionHex": "83761386"
+        },
+        {
+          "seq": 394,
+          "tNs": 145204712413228,
+          "payload": "fd7f13f10cee0c77",
+          "payload7Raw": 119,
+          "payload1_2Le16Raw": 4991,
+          "payload3_4Le16IgnoredByFdBranch": 3313,
+          "payload5_6Le16IgnoredByFdBranch": 3310,
+          "serializedExtensionHex": "8377137f"
+        },
+        {
+          "seq": 653,
+          "tNs": 145210415972383,
+          "payload": "fdb813ec0ce80c78",
+          "payload7Raw": 120,
+          "payload1_2Le16Raw": 5048,
+          "payload3_4Le16IgnoredByFdBranch": 3308,
+          "payload5_6Le16IgnoredByFdBranch": 3304,
+          "serializedExtensionHex": "837813b8"
+        },
+        {
+          "seq": 913,
+          "tNs": 145216118925614,
+          "payload": "fd8b13f00ced0c79",
+          "payload7Raw": 121,
+          "payload1_2Le16Raw": 5003,
+          "payload3_4Le16IgnoredByFdBranch": 3312,
+          "payload5_6Le16IgnoredByFdBranch": 3309,
+          "serializedExtensionHex": "8379138b"
+        }
+      ],
+      "successivePayload7Modulo256Deltas": [
+        1,
+        1,
+        1
+      ],
+      "observation": "payload7 increments by1 on successive retained FD records; field semantics remain unproved"
+    }
+  ],
+  "nextCarObservation": "Only with separate owner authorization: bounded saved passive GB plus already-qualified pack-current/pack-voltage/SOC getters in device monotonic time over an ordinary stationary load transition; no synthetic values/setters. Physical mapping instead needs applicable service schematic or labeled stock engineering view.",
+  "reproducer": "captures/diagnostics-next-depth-20261021/battery/reproducer.py",
+  "report": "captures/diagnostics-next-depth-20261021/battery/report.md",
+  "aggregateStoredContract": {
+    "nonzeroBranch": "For retained166cells: trunc(float32(sum ofrawCellWord*double0.001)*10), with intermediatefloat rounding; then low16bits stored",
+    "zeroBranch": "If truncated result equalszero, store-2/u16FFFE instead",
+    "evidence": [
+      "gbdataservice:D274,D294..D2A0",
+      "gbacqservice:13484..13490"
+    ],
+    "limit": "Aggregate output sentinel does not prove per-cell invalid domain; positive retained166cell observations unaffected"
+  },
+  "queueTimestampBoundary": {
+    "source": "gbdataservice:9E28..9E30,CB28",
+    "role": "Queue metadata and later filename suffix",
+    "notInWrappedBody": "Body copied from queue entry+0xC atC8AC..C8CC; timestamp metadata is excluded",
+    "limit": "Not a per-page acquisition timestamp"
+  },
+  "captureBase": "captures/diagnostics-next-depth-20261021/battery",
+  "retainedEvidence": {
+    "path": "captures/diagnostics-next-depth-20261021/battery/evidence.json",
+    "sha256": "6cf7d68f7eaab791460cce9ea9c56e713090f75f00425320cab5953ca5fb2afd",
+    "bytes": 7857
+  },
+  "retainedReport": {
+    "path": "captures/diagnostics-next-depth-20261021/battery/report.md",
+    "sha256": "0384de8c0888c39a5e22f22033e427ae1c6b11525ee48c21806402be3b6097e3",
+    "bytes": 11902
+  },
+  "independentReview": {
+    "path": "captures/diagnostics-next-depth-20261021/engine/battery-review.json",
+    "sha256": "e812f1f7ca3bcb3e2112d3c375dbc1c03e2f1357ae93febc6164e90e7b74d856",
+    "bytes": 5595
+  }
+}

@@ -1,0 +1,419 @@
+{
+  "schema": "denza-lab.oem-dtc-next-depth.v1",
+  "date": "2026-10-21",
+  "scope": "Offline local corpus; no car/ADB/IPC/network/private API/cache/credentials; only this capture directory written",
+  "qualified_dtc_definitions": [],
+  "qualified_target_record_schemas": [],
+  "targets": [
+    {
+      "name": "ECM",
+      "route": "7E0",
+      "softwareCode": "32440011E004000000",
+      "historicalFormat": 0,
+      "applicableDictionaryRecovered": false,
+      "snapshotSchemaRecovered": false,
+      "extendedSchemaRecovered": false
+    },
+    {
+      "name": "BMS033",
+      "route": "7E7",
+      "softwareCode": "4A520011E00D00047B",
+      "historicalFormat": 0,
+      "applicableDictionaryRecovered": false,
+      "snapshotSchemaRecovered": false,
+      "extendedSchemaRecovered": false
+    },
+    {
+      "name": "FMCU",
+      "route": "7E3",
+      "softwareCode": "48370011E075000000",
+      "historicalFormat": 1,
+      "applicableDictionaryRecovered": false,
+      "snapshotSchemaRecovered": false,
+      "extendedSchemaRecovered": false
+    },
+    {
+      "name": "ISG",
+      "route": "7E6",
+      "softwareCode": "48370011E0EA000000",
+      "historicalFormat": 1,
+      "applicableDictionaryRecovered": false,
+      "snapshotSchemaRecovered": false,
+      "extendedSchemaRecovered": false
+    },
+    {
+      "name": "SMCU",
+      "route": "744",
+      "softwareCode": "48370011E086001100",
+      "historicalFormat": 0,
+      "applicableDictionaryRecovered": false,
+      "snapshotSchemaRecovered": false,
+      "extendedSchemaRecovered": false
+    },
+    {
+      "name": "SMCU3",
+      "route": "745",
+      "softwareCode": "48370011E088001100",
+      "historicalFormat": 0,
+      "applicableDictionaryRecovered": false,
+      "snapshotSchemaRecovered": false,
+      "extendedSchemaRecovered": false
+    },
+    {
+      "name": "ABS_ESP_IPB_BSC",
+      "route": "782",
+      "softwareCode": "32330011DF0B000101",
+      "historicalFormat": 0,
+      "applicableDictionaryRecovered": false,
+      "snapshotSchemaRecovered": false,
+      "extendedSchemaRecovered": false
+    }
+  ],
+  "new_gpak_coverage": {
+    "apk": "captures/split-firmware-20260923/system/system/app/BydMyCar/BydMyCar.apk",
+    "apk_sha256": "ebd1f91d77c76f03da09b2d7ae087ab72afd9443df6f187f09c4c64efa706751",
+    "member": "assets/Data/pack_data/app.gpak",
+    "member_bytes": 386036017,
+    "member_sha256": "512b328fcec9314ec0ed044ede2fe7e00a8dd6e807885b0786f7b6425a5870e9",
+    "directory_count": 7146,
+    "checks": {
+      "name_ranges_contiguous": true,
+      "unique_nonempty_data_ranges_contiguous": true,
+      "exact_size_coverage": true,
+      "unique_utf8_names": true
+    },
+    "inspected_resources": 6012,
+    "inspected_payload_bytes": 12813226,
+    "text_classifications": {
+      "utf8_text": 1595,
+      "empty": 56,
+      "json": 4361
+    },
+    "precise_diagnostic_name_matches": [],
+    "semantic_hit_resources": [],
+    "skipped_text_resources": [],
+    "config_applicability": "Only strict syntactic FeatureList decoding. Exact provider/mapper/config filename references absent from all four DEX string tables; existing older DiCarServer mapper must not supply semantics for MyCar-only keys. Native loaders and runtime selection remain unproved.",
+    "dex_loader_audit": [
+      {
+        "member": "classes.dex",
+        "bytes": 7277316,
+        "sha256": "0f9785a70581a6fcc562868d70d5c4fca4e0ac6c5567e2a17cfe260a06af5dd4",
+        "string_count": 66657,
+        "precise_loader_or_mapper_hits": []
+      },
+      {
+        "member": "classes2.dex",
+        "bytes": 3246396,
+        "sha256": "be00c7e0cf9600a3654777a4d4371cf28409afa96071fb64424cad8298af897a",
+        "string_count": 43181,
+        "precise_loader_or_mapper_hits": []
+      },
+      {
+        "member": "classes3.dex",
+        "bytes": 4342600,
+        "sha256": "960dde3b0dfb3fdf3124b6bf85c1ba87f42463e6df757606f2f11b077632a4b4",
+        "string_count": 34275,
+        "precise_loader_or_mapper_hits": []
+      },
+      {
+        "member": "classes4.dex",
+        "bytes": 4206064,
+        "sha256": "cefbb2bc9cea62bbff219de594680472ad5b3f3ee57d6c6524117aeb18b24d70",
+        "string_count": 30022,
+        "precise_loader_or_mapper_hits": []
+      }
+    ]
+  },
+  "profile_diff_summary": [
+    {
+      "access": "read",
+      "added": 26,
+      "removed": 11,
+      "changed": 0
+    },
+    {
+      "access": "write",
+      "added": 23,
+      "removed": 9,
+      "changed": 0
+    },
+    {
+      "access": "read_write",
+      "added": 24,
+      "removed": 0,
+      "changed": 0
+    }
+  ],
+  "new_named_target_property_declarations": [],
+  "native_client": {
+    "scope": "Offline native client response tasks only. No firmware execution, car, IPC or network.",
+    "source": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+      "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161",
+      "bytes": 1091824
+    },
+    "tasks": [
+      {
+        "kind": "snapshot",
+        "client": "0xaea8c",
+        "builder": "0x9f568",
+        "vtable": "0x100838",
+        "task": "0xc3de8",
+        "copy_high": "0xc3efc",
+        "copy_middle": "0xc3f00",
+        "copy_low_status": "0xc3f04",
+        "payload_start": "0xc3f20",
+        "vtable_relative_pointer_values": [
+          "0xc3cd4",
+          "0xc3d44",
+          "0xc3db0",
+          "0xbee3c",
+          "0xbeea0",
+          "0xc3de8"
+        ],
+        "instruction_checks": {
+          "copy_high": {
+            "address": "0xc3efc",
+            "bytes": "08084039",
+            "instruction": "ldrb w8, [x0, #2]"
+          },
+          "copy_middle": {
+            "address": "0xc3f00",
+            "bytes": "0a0c4039",
+            "instruction": "ldrb w10, [x0, #3]"
+          },
+          "copy_low_status": {
+            "address": "0xc3f04",
+            "bytes": "0b084079",
+            "instruction": "ldrh w11, [x0, #4]"
+          },
+          "payload_start": {
+            "address": "0xc3f20",
+            "bytes": "02180091",
+            "instruction": "add x2, x0, #6"
+          }
+        },
+        "positive_response_projection": {
+          "source_bytes_2_to_5": "DTC high, middle, low and status bytes copied without lookup",
+          "source_bytes_6_to_end": "copied verbatim into opaque output vector; no record/DID/scale decode in this task"
+        }
+      },
+      {
+        "kind": "extended",
+        "client": "0xaf52c",
+        "builder": "0x9fa40",
+        "vtable": "0x100a90",
+        "task": "0xc4b38",
+        "copy_high": "0xc4c4c",
+        "copy_middle": "0xc4c50",
+        "copy_low_status": "0xc4c54",
+        "payload_start": "0xc4c70",
+        "vtable_relative_pointer_values": [
+          "0xc4a24",
+          "0xc4a94",
+          "0xc4b00",
+          "0xbee3c",
+          "0xbeea0",
+          "0xc4b38"
+        ],
+        "instruction_checks": {
+          "copy_high": {
+            "address": "0xc4c4c",
+            "bytes": "08084039",
+            "instruction": "ldrb w8, [x0, #2]"
+          },
+          "copy_middle": {
+            "address": "0xc4c50",
+            "bytes": "0a0c4039",
+            "instruction": "ldrb w10, [x0, #3]"
+          },
+          "copy_low_status": {
+            "address": "0xc4c54",
+            "bytes": "0b084079",
+            "instruction": "ldrh w11, [x0, #4]"
+          },
+          "payload_start": {
+            "address": "0xc4c70",
+            "bytes": "02180091",
+            "instruction": "add x2, x0, #6"
+          }
+        },
+        "positive_response_projection": {
+          "source_bytes_2_to_5": "DTC high, middle, low and status bytes copied without lookup",
+          "source_bytes_6_to_end": "copied verbatim into opaque output vector; no record/DID/scale decode in this task"
+        }
+      }
+    ],
+    "client_binding": "Snapshot client stores image-relative vtable VA100838 at AEB94-AEBA4; extended client stores VA100A90 at AF62C-AF644. Sixth table entry is the corresponding 492-byte task. File pointers are image-relative addresses, never loaded/executed.",
+    "result": "The client parses the common DTC/status prefix and retains all subsequent bytes. It provides zero per-ECU record names, record lengths, DID meanings, units or code descriptions.",
+    "limits": [
+      "Native result layout is not the Android Parcel wire format",
+      "No actual snapshot/extended ECU response was queried or replayed",
+      "Local head-unit UDS server/CDcmConfig tables are a different direction and supply no remote ECU binding",
+      "No new OEM DTC text or format01 raw/display mapping recovered"
+    ]
+  },
+  "sources": {
+    "snapshot_dto": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/DTCSnapshotEntity.java",
+      "sha256": "0dd3fb7355436736e73f526bcb5e36de2e851915bd03a50bc789fabf299d2cca",
+      "bytes": 3805,
+      "lines": [
+        [
+          21,
+          31
+        ],
+        [
+          51,
+          58
+        ]
+      ]
+    },
+    "extended_dto": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/DTCExtendedEntity.java",
+      "sha256": "7d141341853116619b72881d198e2b1e71b64e2a2f2a0734d528be4f748b85a4",
+      "bytes": 3802,
+      "lines": [
+        [
+          21,
+          31
+        ],
+        [
+          51,
+          58
+        ]
+      ]
+    },
+    "dtc_record": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/DTCMaskRecord.java",
+      "sha256": "fb2a1c711ef9cd7cd6b2a49b069a2767434284f975ec13e9de41b115c9ac7a8f",
+      "bytes": 3969,
+      "lines": [
+        [
+          21,
+          33
+        ]
+      ]
+    },
+    "dtc_and_status": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/DTCAndStatusRecord.java",
+      "sha256": "2180ae7a4fa3a06792466f52826f134978929d59a879c97d72026f107fd2f2f0",
+      "bytes": 3767,
+      "lines": [
+        [
+          21,
+          31
+        ]
+      ]
+    },
+    "sdk_client": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/IUdsClient.java",
+      "sha256": "78be6f930d5d2088f0d5d7e3d06df804c8bf2cb5b611da4ed7d2ac631f88450f",
+      "bytes": 61443,
+      "lines": [
+        [
+          420,
+          441
+        ],
+        [
+          875,
+          921
+        ]
+      ]
+    },
+    "psdk_wrapper": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/psdk/UdsClient.java",
+      "sha256": "01149431edbe7f96933168e4e3728f4bcd4e4f28b9e736a075b290becdb72ef9",
+      "bytes": 9406,
+      "lines": [
+        [
+          110,
+          118
+        ]
+      ]
+    },
+    "target_identity_snapshot": {
+      "path": "research/vehicle-diagnostics/oem-dtc-acquisition-20261020.json",
+      "sha256": "682ab0b1c304a5e117e5e4b2c1fa530b4f053f7a1ff28268c303bc03dcd6d9b3",
+      "bytes": 20983
+    },
+    "prior_scenario_route": {
+      "path": "research/vehicle-diagnostics/factory-scenario-origin-20261021.json",
+      "sha256": "5d05824fd134c2ec60101711ecaa611a678cfd07bd24cd78cfeaecded83a6a20",
+      "bytes": 31651
+    },
+    "prior_uds_scope": {
+      "path": "research/vehicle-diagnostics/uds-measurement-evidence-20261021.json",
+      "sha256": "c4ac264c0930ebe5ca844a631b8050e18f75ef04d3e592579923f9efb4744d5d",
+      "bytes": 15407
+    },
+    "prior_resource_audit": {
+      "path": "captures/diagnostics-oem-dtc-20261020/local/README.md",
+      "sha256": "0a9f2a60370ec388f1b5a50358b13771c8077e84e2d77a1a0ec0e1bccce30b85",
+      "bytes": 9586,
+      "lines": [
+        [
+          12,
+          39
+        ],
+        [
+          138,
+          148
+        ]
+      ]
+    },
+    "profile_decoder": {
+      "path": "research/vehicle-diagnostics/decode_dicar_config.py",
+      "sha256": "d3ee72a96a64a486f045216fee36324b1b85b3800d122ef5f636b655dfe4dc3b",
+      "bytes": 11823,
+      "lines": [
+        [
+          25,
+          64
+        ]
+      ]
+    },
+    "native_inspector": {
+      "path": "research/cluster-native/inspect_native.py",
+      "sha256": "c8020b0720d33a327122ae5f039c7fc494ffe4ec0df300a3fccbd3202b2e7d0d",
+      "bytes": 19791,
+      "lines": [
+        [
+          360,
+          382
+        ]
+      ]
+    }
+  },
+  "limits": [
+    "GPAK text and names were examined; binary graphics resources were not semantically decoded",
+    "MyCar profile syntactic compatibility does not bind runtime loader/mapper or hardware",
+    "Exact method-name Java search cannot exclude reflection/native/absent code or generic EOL SID19 handling",
+    "No format01 display/raw mapping recovered",
+    "Historical target identities were not refreshed"
+  ],
+  "missing_artifact_route": "An offline revisioned target ECU/software applicable OEM diagnostic package with populated exact DTC code/description plus snapshot DID/extended record layouts; no new endpoint or cache request inferred",
+  "exact_method_consumer_audit": {
+    "scope": "Exact snapshot/extended client method-name search in all Java decompiles under captures/firmware and reverse; no strings sweep of other binaries",
+    "roots": [
+      "captures/firmware",
+      "reverse"
+    ],
+    "java_files": 184045,
+    "matching_files": 6,
+    "non_sdk_wrapper_files": [],
+    "method_regex": "\\b(?:readDtcSnapshotRecordByDtcNumber|readDTCSnapshotRecordByDTCNumber|readDtcExtDataRecordByDtcNumber|readDTCExtDataRecordByDTCNumber)\\b",
+    "limits": "Dynamic/reflection/native paths, missing decompiles, EOL generic SID19 scripts and OEM external tools are not excluded by this search."
+  },
+  "captureBase": "captures/diagnostics-next-depth-20261021/dtc",
+  "retainedReport": {
+    "path": "captures/diagnostics-next-depth-20261021/dtc/report.md",
+    "sha256": "05e67c4b9930ea4a8859b8a9e168dbde8b7acb56d11a6377332f46149090f550",
+    "bytes": 9347
+  },
+  "retainedEvidence": {
+    "path": "captures/diagnostics-next-depth-20261021/dtc/evidence.json",
+    "sha256": "1b4515fbf42a5319abb45922c75f53fc67fabdcd0434999a76f0a583aed3b7e2",
+    "bytes": 13670
+  }
+}

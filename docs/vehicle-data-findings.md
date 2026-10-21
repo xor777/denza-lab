@@ -40,6 +40,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Scanner on the car: 68/68 answered and 68 memories read in 148 exchanges, 19.9 s, exchange 18 ms median, step 120 ms at gap 100; history in LA_BCM 8, R_ZCU 2, INS 2, Media 1, CCS/SCPA 1, IDC 4; a lock race after the first idle minute stopped the section (fixed; three restarts on the car without it, 19:46–20:11) | live | 2026-10-20 | [First autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) |
 | Exact-model Xtool catalog: 172 Z9GT DM system/variant rows name all 25 catalog entries whose role was unknown; SMCU744 is left rear, SMCU3 745 right rear by cross-source token/factory/F194 join. Eight child software identities have candidate reads through already answered parents; 30 stock FIDs have source evidence. No new vehicle requests, product changes or software-qualified OEM DTC definitions | model-specific vendor catalog + firmware; live validation open | 2026-10-21 | [ECU roles and reverse crosswalk](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) |
 | Diagnostic research: 81 CAN + 5 DoIP routes, 9,799 readable declarations and 58 MCU field descriptors. The later Z9GT passive pass received 6,949 records / 186 tuples, then 913 GB records with scalar correlation. Stock native decoders establish paged arrays for 166 cells and 14 probes; probe min/max/mean agree with qualified GETs. Cell sweeps span about5.5s and are not atomic. No new ECU addresses or applicable OEM DTC dictionary | live passive availability + firmware-backed arrays; physical placement and full validity open | 2026-10-21 | [Deep inventory](#deep-inventory-and-telemetry-beyond-identification-2026-10-21); [Signal origins](#signal-origins-and-passive-qualification-2026-10-21); [Live battery pages](#live-passive-streams-and-paged-battery-telemetry-2026-10-21) |
+| Deeper source consumers: saved drive configuration7 selects18 fields for three drives; stock engine packing substitutes zero unless state3. Battery native completion is a sticky element-count latch, not page coverage or freshness. Wheel producer gate is bound to panorama command AA000048; steering uses six-byte99000198 on value change. MyCar GPAK and native UDS client yielded no applicable OEM DTC definitions or record schemas | firmware + saved-source replay; new buffer live qualification open | 2026-10-21 | [Consumer semantics and remaining tests](#consumer-semantics-and-remaining-tests-2026-10-21) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
@@ -77,6 +78,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [Deep inventory and telemetry beyond identification](#deep-inventory-and-telemetry-beyond-identification-2026-10-21) — complete route accounting, readable property profiles, battery/drive/engine and chassis data paths, local-HU versus remote UDS DIDs
 - [Signal origins and passive qualification](#signal-origins-and-passive-qualification-2026-10-21) — MCU field layouts, native conversion/validity, wheel packet, factory scenario limits and the bounded next-car plan
 - [Live passive streams and paged battery telemetry](#live-passive-streams-and-paged-battery-telemetry-2026-10-21) — Z9GT GB/BigData/YUN, stock cell/probe array decoders, timed scalar correlation and rolling-sweep limits
+- [Consumer semantics and remaining tests](#consumer-semantics-and-remaining-tests-2026-10-21) — three-drive selection, engine conditional zeros, battery completion, wheel gate, timestamped steering and bounded dictionary search
 - [OEM DTC manual candidates](#oem-dtc-manual-candidates-2026-10-20) — model-specific public headings, conflicts, code-format and software-applicability gaps
 - [The scanner on the car: first autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) — the product's 68 blocks in 20 s, the history found, two defects fixed
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
@@ -3212,8 +3214,9 @@ traces MCU producer `18AA36` from CAN122/channel1 to `1049/99000059`: exactly12
 bytes, four unsigned12 values stored in big-endian16 words, then four one-bit
 status bytes. Order is FL, FR, RL, RR by descriptor/name crosswalk. The source
 status bits are payload byte1 bits5,4,6,7 in that order. A firmware gate can
-suppress production; its current value and installed-image applicability are
-unknown. HAL forwards the packet unchanged. Its initial `MCU_OFFLINE` cache
+suppress production. The later [consumer follow-up](#consumer-semantics-and-remaining-tests-2026-10-21)
+binds that gate's setter to panorama command `AA000048`; its current value and
+installed-image applicability remain unknown. HAL forwards the packet unchanged. Its initial `MCU_OFFLINE` cache
 value has11 bytes and is not a measurement.
 
 The offline [`decode_wheel_packet.py`](../research/vehicle-diagnostics/decode_wheel_packet.py)
@@ -3376,6 +3379,133 @@ in `gb-correlation/`. Further work can now proceed offline: resolve remaining
 units/invalid markers and physical ordering, design freshness-aware array reads,
 then qualify a diagnostic display. No array reader was added to the product in
 this research pass.
+
+### Consumer semantics and remaining tests (2026-10-21)
+
+This continuation read only the existing owner firmware and completed captures.
+It made no vehicle, ADB, network, factory-app or credential request and changed no
+product reader or UI. Three Sol6.1/xhigh workers investigated engine/drives,
+battery semantics and DTC definitions; independent source reviews checked the
+battery and chassis conclusions. The reusable artifacts below retain source
+hashes and exact instruction addresses. This is a source-level advance, not a
+new live ECU or telemetry qualification.
+
+**The stock collector selects concrete fields for three drives.**
+[`engine-drive-consumers-20261021.json`](../research/vehicle-diagnostics/engine-drive-consumers-20261021.json)
+traces `gbacqservice:130A0`, called by `gbDataPack:18880`. Device1023/FID
+`34100038=7` selects the three-drive branch. The owner sweep returned7 in both
+passes on20October; that is retained configuration evidence, not a current read.
+
+| Stock field | Front | Rear left | Rear right |
+| --- | --- | --- | --- |
+| State | 1023/2D0001D1 | 1023/2D0001D5 | 1023/2D0001D7 |
+| Rotation speed | 1012/44100008 | 1039/0FC000D0 | 1039/0FC000E0 |
+| Torque | 1012/44100018 | 1039/2850002C | 1039/2850003C |
+| IGBT temperature | 1039/46406010 | 1039/2D000180 | 1039/2D000188 |
+| Motor temperature | 1039/46406018 | 1039/285001A8 | 1039/285001B0 |
+| DC-side current | 1009/46C00008 | 1039/28500178 | 1039/28500188 |
+
+These are logical native devices/FIDs and stock field labels, not newly bound
+UDS addresses or measured physical positions. The artifact distinguishes GET
+type, MCU/HAL conversion and subsequent GB transport encoding. Do not apply the
+GB offset/scale to an already decoded API output. The collector ignores getter
+return statuses in these paths: saved rear-left speed `FFFF` would become
+`19999` after its `u16(API+20000)` packing. That is a source-derived counterexample,
+not an observed packet. Preserve unavailable/error separately from ordinary zero.
+
+The engine branch reads1012/`10D00008` only when1012/`10D00038` equals3;
+otherwise it serializes speed0, including during state1 cranking. Historical
+owner rows have nonzero RPM while state1. This does not change the product's
+independently qualified `engineRunning >= 1` rule. Both10D/20D raw speed fields
+pass a HAL quarter-scale converter; primary144 speed is a13-bit field whose
+known unavailable code is1FFF. API outputs have already passed those converters.
+No working coolant/boost/lambda/ISG-specific source was recovered. Default GB
+collection tables are retained as bytes, but service configuration takes priority;
+neither a table's existence nor a write to it is an availability result.
+
+**Battery assembly needs its own completeness and age rules.**
+[`battery-stock-semantics-20261021.json`](../research/vehicle-diagnostics/battery-stock-semantics-20261021.json)
+closes the native path from43C/43D buffers through serialization, queue and disk.
+Both services sum individual cell words using the exact literal0.001, while
+individual array words themselves are copied unchanged. For166cells the nonzero
+aggregate is multiplied by10 before truncation; `gbdataservice` substitutesFFFE
+when the truncated aggregate is zero. These are proved arithmetic operations,
+kept separate from a human-readable engineering-unit/validity contract.
+
+Native "complete" counts received elements and leaves readiness latched. It
+does not require every page position, reject repeats or retain per-page age.
+Repeated page0 alone could satisfy the element counter; this is a source-level
+counterexample, not a claim of loss or duplicates in the completed owner logs.
+Later packets can therefore contain a rolling mixture of page ages. The existing
+offline decoder's sequential-page checks remain stricter, and even an accepted
+5.5-second sweep is not simultaneous. Queue time and the later filename timestamp
+cannot establish individual measurement freshness.
+
+The specialFD branch serializes `83 <payload7> <payload2> <payload1>` outside the
+cell/probe arrays. Seven retained FD records show byte7 advancing by1 within
+each window, but no counter/current/voltage meaning is assigned to either field.
+Native copies retainFE/FF/FFFE/FFFF; skipping zero in a temperature aggregate is
+not a complete sensor-validity rule. Extrema indices are one-based logical array
+positions. Hardcoded subsystem counts and a200-cell packet split do not locate
+physical battery modules or probes.
+
+**The wheel gate and a separate steering path are now explicit.**
+[`chassis-source-followup-20261021.json`](../research/vehicle-diagnostics/chassis-source-followup-20261021.json)
+binds MCU gate getter16B6B4 and setter16B6BC to the same RAM byte; command table
+CD984 assigns the setter `AA000048`. The actual SDK names it
+`PANORAMA_TRANSPARENCE_SWITCH_SET`, called by stock `CarTransparent`. Current gate
+value and the selected AVC branch remain unknown; its separate getter is not
+proved to read back this MCU byte. No panorama setter or camera activation was
+used. The new offline [`decode_wheel_source.py`](../research/vehicle-diagnostics/decode_wheel_source.py)
+reconstructs candidate12-byte packets from exact CAN122/sub0/channel1/8-byte
+records. All20 saved source frames are zero. That proves neither nonzero speed
+scale nor receipt of the resulting99000059 event.
+
+CAN11F/channel1 custom handler18AD04 emits `1023/99000198`, six bytes: signed-angle
+word in big-endian order plus an opaque32-bit value. It explicitly extracts source
+payload bytes0..1, overriding its generic descriptor's coordinates. It emits only
+when the angle changes. The stock AVC typed-buffer GET/listener uses
+`SETTING_11F_CONTENT_TIMESTAMP`; `SteerAngleUtil` applies signed16 × float32(0.1).
+The retained GB stream contains20 exact11F/sub0/channel1/5-byte frames, all raw264,
+giving that consumer's candidate26.3999996. No99000198 event was captured. Clock
+unit/epoch, angle validity and physical unit remain unqualified. Old scalar
+11F00008 cannot substitute for this custom channel1 route; lack of a new callback
+at a fixed angle alone does not prove stale reception.
+
+Brake342 fields use MCU channel2 and HAL normalization, but the retained342
+frames are channel0/1. Yaw222/channel1 was absent. Neither supports a new decoder
+from a matching hexadecimal ID alone, and neither binds a new ABS/EPS ECU address.
+
+**The next dictionary sources were checked without inventing definitions.**
+[`dtc-source-followup-20261021.json`](../research/vehicle-diagnostics/dtc-source-followup-20261021.json)
+records a bounded MyCar GPAK audit:7,146 indexed entries and6,012 inspected text
+resources, including4,361 nonempty parsed JSONs,56 empty JSONs and75 scripts.
+No diagnostic definition was found in that scope; binary graphics were not
+semantically decoded. Its property profiles differ from DiCarServer, but the
+exact runtime loader/mapper remains unbound, so the new numeric keys were not
+promoted as named sensors.
+
+The native `libuds` snapshot/extended tasks copy response bytes2..5 as raw
+DTC/status and bytes6..end verbatim. They supply no ECU-specific record names,
+DID units, scales or code descriptions. Thus those APIs cannot supply a readable
+freeze frame without the matching record schema. No new applicable OEM DTC
+dictionary, format01 display/raw mapping or remote sensor DID was obtained.
+
+**The next live work has finite questions.**
+[`next-car-source-validation-20261021.json`](../research/vehicle-diagnostics/next-car-source-validation-20261021.json)
+keeps the completed earlier plan immutable. Existing scalar reads can check the
+drive selector and compare the three engine-speed paths during an owner-controlled
+normal engine event. Typed wheel/steering correlation needs a bounded isolated
+SDK reader first; batteryFD correlation needs exact known scalar reads and common
+device timestamps. Neither warrants another identical broad availability scan.
+Eight child-code candidates through known parents remain unexecuted; the decoder
+exists, but a dedicated allowlisted request runner is still needed. DoIP remains
+blocked on endpoint binding and an understood ownership/timeout path. None of
+these reads alone can recover missing OEM descriptions or physical battery layout.
+
+The offline parser suite passes154 tests, including six new wheel-source boundary
+cases. Raw source excerpts, full resource index, reproducers and independent reviews
+remain under `captures/diagnostics-next-depth-20261021/`; binaries stay untracked.
 
 ### OEM DTC manual candidates (2026-10-20)
 

@@ -1,0 +1,297 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "state": "offline_unexecuted_followup_candidates",
+  "vehicleRequests": 0,
+  "purpose": "Answer concrete remaining source/validity questions; keep completed21Oct availability plan immutable.",
+  "sources": [
+    {
+      "path": "research/vehicle-diagnostics/engine-drive-consumers-20261021.json",
+      "sha256": "558996ec969904ab0e07d547a41369b7d88f39bf3c2600efd43551dcd2b8f1c2",
+      "bytes": 35470
+    },
+    {
+      "path": "research/vehicle-diagnostics/chassis-source-followup-20261021.json",
+      "sha256": "e1b22b9f6aa33de60395f785d9764d6eabe1fe98da00147bb2dd983f90657e6d",
+      "bytes": 8104
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-child-identification-candidates-20261021.json",
+      "sha256": "51e4348620854c0c1e683202e7ce61764a28b9795fc87d812f4049b35aee2339",
+      "bytes": 10820
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-route-topology-20261021.json",
+      "sha256": "c5b8b112599f66f97ae8ae1f993d8ab40ea2bad88fcec6db6ec93355f6fa2ef0",
+      "bytes": 216725
+    }
+  ],
+  "preconditions": [
+    "One live-session owner and no competing diagnostics",
+    "Preserve trusted ADB/SSH transport and keys",
+    "Refresh profile170/CANFD,stationaryP baseline,health and source identity before actual run",
+    "No automatic vehicle state changes; engine/load transitions only owner-controlled normal operation",
+    "Capture per-read status and monotonic start/end times; no cached value presented as a fresh sensor sample"
+  ],
+  "engineAndDriveScalars": {
+    "kind": "finite existing-source scalar confirmation only; no action executed",
+    "preconditions": [
+      "one session owner, profile 170/CANFD, parked baseline and idle diagnostic manager",
+      "hash-match HAL/framework; keep installed MCU version distinct from hash",
+      "reuse existing trusted transport, no install/restart"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "reads": [
+          {
+            "device": 1023,
+            "fid": "0x34100038",
+            "tx": 5
+          }
+        ],
+        "count": 1,
+        "expected": "7 selects documented three-drive branch; any other result stops this branch."
+      },
+      {
+        "step": 2,
+        "reads": [
+          {
+            "device": 1012,
+            "fid": "0x10D00038",
+            "tx": 5
+          },
+          {
+            "device": 1012,
+            "fid": "0x10D00008",
+            "tx": 5
+          },
+          {
+            "device": 1012,
+            "fid": "0x20D00008",
+            "tx": 5
+          },
+          {
+            "device": 1012,
+            "fid": "0x14400012",
+            "tx": 5
+          }
+        ],
+        "maximumSeconds": 10,
+        "maximumBatches": 10,
+        "condition": "Use only an already occurring owner controlled engine event if separately authorized; do not start engine or change vehicle state for this candidate. If stopped, record availability only and stop, no claim of nonzero qualification.",
+        "expected": "Preserve original status, raw bits, typed values and device arrival times.0x1FFF primary RPM is missing; exactly state 1 is not zero RPM evidence; do not apply raw * .25 to already converted API."
+      },
+      {
+        "step": 3,
+        "reads": [
+          {
+            "device": 1012,
+            "fid": "0x44100008",
+            "tx": 5
+          },
+          {
+            "device": 1039,
+            "fid": "0x0FC000D0",
+            "tx": 5
+          },
+          {
+            "device": 1039,
+            "fid": "0x0FC000E0",
+            "tx": 5
+          }
+        ],
+        "count": 1,
+        "expected": "Existing qualified scalar readers only. Rear left FFFF remains unavailable; parked zeros cannot qualify sign/scale, physical placement or sensor freshness."
+      }
+    ],
+    "exclusions": [
+      "no repeated passive window unless new state hypothesis and authorization",
+      "no collection table writes",
+      "no new absent GET guesses",
+      "no channel 0 layout on channel 1",
+      "no DTC or UDS requests",
+      "no engine-start or vehicle-state setters"
+    ],
+    "acceptance": "Exact complete parcel status and type, timestamped bounded reads, health and unregister/exit if a callback reader is used. Failure/unavailable are kept separately from zero."
+  },
+  "typedBuffers": {
+    "implementationState": "Needs isolated bounded SDK-buffer reader and teardown review; not an executable live plan yet",
+    "targets": [
+      {
+        "device": 1049,
+        "fid": "0x99000059",
+        "expectedBytes": 12,
+        "SDK": "BYDAutoSpecialDevice.getWheelSpeed + listener",
+        "question": "Does wheel event/cache exist with present gate state?",
+        "correlation": {
+          "stream": "bigdata",
+          "canId": "0x122",
+          "subId": 0,
+          "channel": 1,
+          "bytes": 8
+        }
+      },
+      {
+        "device": 1023,
+        "fid": "0x99000198",
+        "expectedBytes": 6,
+        "SDK": "BYDAutoSettingDevice typed byte[] get + listener",
+        "question": "Does timestamped steering buffer match existing CAN11F source?",
+        "correlation": {
+          "stream": "gb",
+          "canId": "0x11F",
+          "subId": 0,
+          "channel": 1,
+          "bytes": 5
+        }
+      }
+    ],
+    "maximumSecondsPerTarget": 20,
+    "sequentialTargets": true,
+    "acceptance": [
+      "Typed length/status validation and raw bytes retained",
+      "Bounded queue,unregister,exit,no drops/errors; before/after health",
+      "Do not interpret absent event at fixed angle as failed sensor; MCU emits only on change",
+      "Do not infer wheel scale from parked zeros or use separate panorama getter as gate readback"
+    ],
+    "exclusions": [
+      "No AA000048 SET or camera activation",
+      "No i32-only Binder10/12 parcels",
+      "No driving requested for initial availability",
+      "No product install"
+    ]
+  },
+  "battery": {
+    "existingEvidence": "Full166cell/14probe sequential arrays already reconstructed; no repeat needed merely to prove availability",
+    "nextQuestion": "FD fields and per-page age against established pack voltage/current/SOC under an ordinary stationary load transition",
+    "implementationState": "Needs exact existing scalar manifest,device timestamps and bounded combined observer before execution",
+    "maximumSeconds": 20,
+    "noSyntheticFaults": true,
+    "cannotAnswerByCorrelation": [
+      "Physical cell/module/probe placement",
+      "Complete invalid-code vocabulary",
+      "Manufacturer DTC meanings"
+    ]
+  },
+  "childIdentities": {
+    "state": "Eight existing read candidates still unexecuted; no new address invented",
+    "requests": [
+      {
+        "labelRu": "Массаж переднего левого сиденья",
+        "route": {
+          "kind": "can",
+          "requestId": 1872,
+          "responseId": 1880,
+          "physicalBus": null
+        },
+        "requestHex": "22F8C4",
+        "expectedPrefixHex": "62F8C4"
+      },
+      {
+        "labelRu": "Массаж переднего правого сиденья",
+        "route": {
+          "kind": "can",
+          "requestId": 1973,
+          "responseId": 1981,
+          "physicalBus": null
+        },
+        "requestHex": "22F8D4",
+        "expectedPrefixHex": "62F8D4"
+      },
+      {
+        "labelRu": "Массаж заднего левого сиденья",
+        "route": {
+          "kind": "can",
+          "requestId": 2002,
+          "responseId": 2010,
+          "physicalBus": null
+        },
+        "requestHex": "22F8E4",
+        "expectedPrefixHex": "62F8E4"
+      },
+      {
+        "labelRu": "Массаж заднего правого сиденья",
+        "route": {
+          "kind": "can",
+          "requestId": 2002,
+          "responseId": 2010,
+          "physicalBus": null
+        },
+        "requestHex": "22F8F4",
+        "expectedPrefixHex": "62F8F4"
+      },
+      {
+        "labelRu": "Левый комбинированный задний фонарь",
+        "route": {
+          "kind": "can",
+          "requestId": 1830,
+          "responseId": 1838,
+          "physicalBus": null
+        },
+        "requestHex": "22F204",
+        "expectedPrefixHex": "62F204"
+      },
+      {
+        "labelRu": "Правый комбинированный задний фонарь",
+        "route": {
+          "kind": "can",
+          "requestId": 1830,
+          "responseId": 1838,
+          "physicalBus": null
+        },
+        "requestHex": "22F214",
+        "expectedPrefixHex": "62F214"
+      },
+      {
+        "labelRu": "Левый задний фонарь TL",
+        "route": {
+          "kind": "can",
+          "requestId": 1830,
+          "responseId": 1838,
+          "physicalBus": null
+        },
+        "requestHex": "22F064",
+        "expectedPrefixHex": "62F064"
+      },
+      {
+        "labelRu": "Правый задний фонарь TL",
+        "route": {
+          "kind": "can",
+          "requestId": 1830,
+          "responseId": 1838,
+          "physicalBus": null
+        },
+        "requestHex": "22F234",
+        "expectedPrefixHex": "62F234"
+      }
+    ],
+    "maximumRequests": 8,
+    "retries": 0,
+    "services": [
+      "22"
+    ],
+    "implementationState": "Offline decoder exists; separate exact allowlisted probe with ownership/timeout gate needed before live execution",
+    "interpretation": "Child code under a parent route is not a separate DTC memory or physical CAN address"
+  },
+  "doip": {
+    "state": "Not ready",
+    "missing": [
+      "ecuIp endpoint binding",
+      "Single-session ownership and actual native timeout/retry contract",
+      "Read path that does not copy stock session03 transitions without a specific reason"
+    ],
+    "actions": 0
+  },
+  "dictionary": {
+    "state": "No new applicable OEM definitions",
+    "needed": "Versioned package binding target ECU/software to exact DTC codes and snapshot/extended schemas",
+    "liveImplication": "More raw DTC reads cannot by themselves produce descriptions"
+  },
+  "excluded": [
+    "ECU clear/reset/write/security access/routines",
+    "Factory app,BydLogTool,cloud credentials,OTA",
+    "Collection-table writes",
+    "Broad scanning or guessing sensor DIDs"
+  ]
+}

@@ -231,6 +231,34 @@ Raw recordings, bounded disassembly and independent reviews stay in the ignored
 offline JSON snapshots remain historical evidence; the live artifacts supersede
 their earlier lack of complete battery arrays.
 
+The [consumer-semantics follow-up](../../docs/vehicle-data-findings.md#consumer-semantics-and-remaining-tests-2026-10-21)
+keeps the next source layer separate from live acceptance:
+
+- `engine-drive-consumers-20261021.json`: saved configuration7 selects18 stock
+  fields for three drives; engine speed is sampled only at state3. Raw/HAL/GB
+  transforms and ignored getter statuses are explicit. No new coolant or
+  ISG-specific live source is claimed.
+- `battery-stock-semantics-20261021.json`: untouched arrays, literal0.001 cell
+  summation, FD extension83, sticky element-count completion and packaging-time
+  limits. Native readiness is not page coverage or freshness; physical module
+  layout and complete invalid-code vocabulary remain open.
+- `chassis-source-followup-20261021.json`: panorama commandAA000048 writes the
+  MCU wheel-event gate; custom CAN11F/channel1 emits six-byte99000198 only on
+  angle change. Exact saved source frames are replayed, without claiming receipt
+  of either ready-made Android buffer. `decode_wheel_source.py` and its six tests
+  reconstruct wheel candidates offline; units/freshness remain unknown.
+- `dtc-source-followup-20261021.json`: MyCar GPAK directory/text coverage and
+  exact native snapshot/extended tasks. No applicable OEM DTC definition or
+  record schema was found. The profile diff has no qualified new named sensors.
+- `next-car-source-validation-20261021.json`: finite, unexecuted follow-up
+  candidates, with scalar-ready versus buffer/child-runner preparation separated.
+  The old completed `next-car-validation-20261021.json` remains immutable.
+
+Every promoted JSON points to its capture evidence, source hashes and reproducers
+under `captures/diagnostics-next-depth-20261021/`. This pass makes no vehicle,
+network, factory-app, credential or product request. All154 offline parser tests
+pass; source reviews do not imply on-car acceptance.
+
 The promoted two-target allowlisted reader was `VehicleDtcProxyMain` in Denza Apps,
 with `VehicleDiagnostics` supplying profile/P/speed checks, ownership and UI lifecycle.
 The exact packed helper was separately verified live on 2026-10-18; the native

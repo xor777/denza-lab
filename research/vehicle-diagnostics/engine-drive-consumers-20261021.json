@@ -1,0 +1,1114 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "sha256": "6c7b1946ccbe6a979bf51b96397c8bece89c5c598a85f3bb8dedac9d573c61ce",
+      "bytes": 254608
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "sha256": "02ad8c66c2339ae0eabef661e12dda088ed2e616967bfac308c609e970dead66",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/hal-registrations.json",
+      "sha256": "25700ad3c7cb9b489c745eac7082b2d8e80b574e4708b0ea7b2988ba4e5bef4b",
+      "bytes": 2055268
+    },
+    {
+      "path": "captures/washer-firmware-20260923/rx-table-candidates.json",
+      "sha256": "2421c9c4f47082e90e44b1d36674d9efdd09e0d814f87fc837fc54fc0631b91f",
+      "bytes": 3126323
+    },
+    {
+      "path": "captures/diagnostics-next-depth-20261021/engine/gb-fid-initializer-values.json",
+      "sha256": "296dff0d2fba8a2b43d4ac00e15ea8ec1b62e4f62fbf39d0a31e163159b8afc6",
+      "bytes": 29286
+    },
+    {
+      "path": "captures/vehicle-log/vehicle-20260918-183009.csv",
+      "sha256": "02f8fc664927eb25d4000fa5b5fdad24a9cd190beb6738211e7bba24194783c9",
+      "bytes": 2378865
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/streams-analysis.json",
+      "sha256": "e49571e45cbe1a90b27a1d0eafc6c87d247fb8da60bce431d36910fcbdaa3845",
+      "bytes": 128641
+    },
+    {
+      "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+      "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885",
+      "bytes": 542428
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "sha256": "e6c432670a31cdc89c226ebdf7c9be54583a4468839a2673cbc50ae6e94f2dfb",
+      "bytes": 124432
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libgbdataservice.so",
+      "sha256": "1e05eb04108ccfbcdc481ffeba708e6c1b31d4fac67905a3c0466999342663d6",
+      "bytes": 22968
+    }
+  ],
+  "scope": {
+    "vehicleRequests": 0,
+    "ADB": 0,
+    "network": 0,
+    "extractOrDecompile": 0,
+    "productChanges": false,
+    "sharedDocsOrResearchChanges": false
+  },
+  "vehicleContext": "owner Z9GT profile170 CANFD. Current HAL match comes from prior21Oct live record. MCU reports matching version only; installed bytes remain unmatched.20Oct sweep configuration is historical evidence, not a new live read.",
+  "engine": {
+    "stockConsumer": "gbacqservice130A0, called at188E0 from gbDataPack 18880",
+    "state": {
+      "device": 1012,
+      "fid": "0x10D00038",
+      "readVA": "1438C..143B0",
+      "MCUbitWidth": 3,
+      "HALconverter": "E0C90 accepts uint32 < 8, otherwise -10014; no change to accepted in-place value"
+    },
+    "conditionalSpeed": {
+      "device": 1012,
+      "fid": "0x10D00008",
+      "readVA": "143B4..143FC",
+      "condition": "Only state exactly 3 triggers speed read; all other states set serialized speed 0. Current product >= 1 engine-running contract intentionally differs.",
+      "APItoGBEncoding": "u16(API), no extra scale",
+      "HALconverter": "5F550 accepts uint32 <= 40000; signed32->float32 * 0.25->truncate-to-int; rejects larger with -10014",
+      "newUnit": null,
+      "existingUnit": "RPM qualified historically, not newly inferred"
+    },
+    "primarySpeed": {
+      "fid": "0x14400012",
+      "HALconverter": "E0BE0 no-op",
+      "MCUfieldBits": 13,
+      "invalidCode": "0x1FFF is allones of producer13bit field; invalid semantics independently established by existing live evidence, not converter filter"
+    },
+    "alternateSpeed20D": {
+      "fid": "0x20D00008",
+      "HALconverter": "5F550 same quarter-scale converter as 10D"
+    },
+    "serializationGate": "18880 at18B00..18B8C omits section4 when charge state byte==1 or energyType byte 3D300 == 1; byte==1 gate is separate from engine state",
+    "returnStatus": "No branch checks BYDAutoManager getInt/getDouble return codes in the selected engine sampling path. Zero can arise from initialization/conditional substitution.",
+    "mcuBindings": [
+      {
+        "fid": "0x10D00008",
+        "lookupKey": "0xe0010d00",
+        "descriptorVA": "0xd95a8",
+        "propertyRecordVA": "0x8d774",
+        "handlerVA": "0x18a09c",
+        "coordinatesOneBasedByteLSB0": [
+          1,
+          0,
+          2,
+          7
+        ],
+        "minimumPayloadBytes": 2,
+        "rawCanId": "0x0000010D",
+        "rawChannel": 0,
+        "extraction": "unsigned little-endian bitfield without narrow sign extension, MCU149E90/18A09C proved in prior origin report",
+        "serializedBytes": 2,
+        "cacheRAM": "0xfeef3418",
+        "installedMCUHashMatched": false
+      },
+      {
+        "fid": "0x10D00038",
+        "lookupKey": "0xe0010d00",
+        "descriptorVA": "0xd95c0",
+        "propertyRecordVA": "0x8d78c",
+        "handlerVA": "0x18a09c",
+        "coordinatesOneBasedByteLSB0": [
+          7,
+          0,
+          7,
+          2
+        ],
+        "minimumPayloadBytes": 7,
+        "rawCanId": "0x0000010D",
+        "rawChannel": 0,
+        "extraction": "unsigned little-endian bitfield without narrow sign extension, MCU149E90/18A09C proved in prior origin report",
+        "serializedBytes": 1,
+        "cacheRAM": "0xfeef3420",
+        "installedMCUHashMatched": false
+      },
+      {
+        "fid": "0x14400012",
+        "lookupKey": "0xe0014400",
+        "descriptorVA": "0xd9cec",
+        "propertyRecordVA": "0x8deb8",
+        "handlerVA": "0x18a09c",
+        "coordinatesOneBasedByteLSB0": [
+          2,
+          2,
+          3,
+          6
+        ],
+        "minimumPayloadBytes": 3,
+        "rawCanId": "0x00000144",
+        "rawChannel": 0,
+        "extraction": "unsigned little-endian bitfield without narrow sign extension, MCU149E90/18A09C proved in prior origin report",
+        "serializedBytes": 2,
+        "cacheRAM": "0xfeef3684",
+        "installedMCUHashMatched": false
+      },
+      {
+        "fid": "0x20D00008",
+        "lookupKey": "0xe0020d00",
+        "descriptorVA": "0xde00c",
+        "propertyRecordVA": "0x921d8",
+        "handlerVA": "0x18a09c",
+        "coordinatesOneBasedByteLSB0": [
+          1,
+          0,
+          2,
+          7
+        ],
+        "minimumPayloadBytes": 2,
+        "rawCanId": "0x0000020D",
+        "rawChannel": 0,
+        "extraction": "unsigned little-endian bitfield without narrow sign extension, MCU149E90/18A09C proved in prior origin report",
+        "serializedBytes": 2,
+        "cacheRAM": "0xfeef4948",
+        "installedMCUHashMatched": false
+      }
+    ]
+  },
+  "drives": {
+    "selector": {
+      "device": 1023,
+      "fid": "0x34100038",
+      "name": "SET_DRIVE_CONFIG_TYPE",
+      "readAndBranchVA": "13908..13950",
+      "selectedValue": 7,
+      "retainedSweep": [
+        {
+          "sourceLine": 16446,
+          "text": "FID\t1\t74787674346843\t1023\t0x34100038\t0x00000007\t"
+        },
+        {
+          "sourceLine": 26450,
+          "text": "FID\t2\t74895282940465\t1023\t0x34100038\t0x00000007\t"
+        }
+      ],
+      "meaning": "Value7 selects exactly three output records here; does not bind logical fields to UDS ECU addresses."
+    },
+    "protocolSelector": {
+      "CANFD": "3D2C4 set from sys.car.protocol string==CANFD at1EC9C..1ED04; source FID constants from CANFD or recorded-protocol selection in1DFF0",
+      "limits": "A runtime selection written after load is not established by offline byte existence."
+    },
+    "routes": [
+      {
+        "driveLabelFromStockFieldNames": "front",
+        "field": "state",
+        "device": 1023,
+        "fid": "0x2D0001D1",
+        "CANFDGlobal": "0x3e0f4",
+        "getKind": "getInt",
+        "consumerVA": "1398C..139AC",
+        "APItoGBEncoding": "state map",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 16058,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74783514595843,
+            "intWord": "0x00000003",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 26062,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74891113448772,
+            "intWord": "0x00000003",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x13b480",
+            "fid": 754975185,
+            "storage_type": 0,
+            "converter": 920544,
+            "device": 1023,
+            "type": 2,
+            "registration": "0x13b4a8",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_left",
+        "field": "state",
+        "device": 1023,
+        "fid": "0x2D0001D5",
+        "CANFDGlobal": "0x3e0f8",
+        "getKind": "getInt",
+        "consumerVA": "13FE0..13FF4",
+        "APItoGBEncoding": "state map",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 16060,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74783535546843,
+            "intWord": "0x00000003",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 26064,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74891134630234,
+            "intWord": "0x00000003",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x13b4f8",
+            "fid": 754975189,
+            "storage_type": 0,
+            "converter": 920544,
+            "device": 1023,
+            "type": 2,
+            "registration": "0x13b520",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_right",
+        "field": "state",
+        "device": 1023,
+        "fid": "0x2D0001D7",
+        "CANFDGlobal": "0x3e0fc",
+        "getKind": "getInt",
+        "consumerVA": "1405C..14070",
+        "APItoGBEncoding": "state map",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 16061,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74783545938843,
+            "intWord": "0x00000003",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 26065,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74891145081080,
+            "intWord": "0x00000003",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x13b534",
+            "fid": 754975191,
+            "storage_type": 0,
+            "converter": 920544,
+            "device": 1023,
+            "type": 2,
+            "registration": "0x13b55c",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "front",
+        "field": "speed",
+        "device": 1012,
+        "fid": "0x44100008",
+        "CANFDGlobal": "0x3e10c",
+        "getKind": "getInt",
+        "consumerVA": "14150..1416C",
+        "APItoGBEncoding": "u16(u16(API)+20000)",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 14470,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74766475179534,
+            "intWord": "0x00000000",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 24474,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74874060150233,
+            "intWord": "0x00000000",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x17a3e4",
+            "fid": 1141899272,
+            "storage_type": 3,
+            "device": 1012,
+            "converter": 507056,
+            "type": 2,
+            "registration": "0x17a414",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_left",
+        "field": "speed",
+        "device": 1039,
+        "fid": "0x0FC000D0",
+        "CANFDGlobal": "0x3e110",
+        "getKind": "getInt",
+        "consumerVA": "14180..14198",
+        "APItoGBEncoding": "u16(u16(API)+20000)",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19314,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74818725503230,
+            "intWord": "0x0000FFFF",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 29318,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926213511775,
+            "intWord": "0x0000FFFF",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x105c54",
+            "fid": 264241360,
+            "storage_type": 1,
+            "converter": 920544,
+            "device": 1039,
+            "type": 2,
+            "registration": "0x105c7c",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_right",
+        "field": "speed",
+        "device": 1039,
+        "fid": "0x0FC000E0",
+        "CANFDGlobal": "0x3e114",
+        "getKind": "getInt",
+        "consumerVA": "141A4..141C0",
+        "APItoGBEncoding": "u16(u16(API)+20000)",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19315,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74818735977307,
+            "intWord": "0x00000000",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 29319,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926223906544,
+            "intWord": "0x00000000",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x105c90",
+            "fid": 264241376,
+            "storage_type": 1,
+            "converter": 920544,
+            "device": 1039,
+            "type": 2,
+            "registration": "0x105cb8",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "front",
+        "field": "torque",
+        "device": 1012,
+        "fid": "0x44100018",
+        "CANFDGlobal": "0x3e118",
+        "getKind": "getDouble writes float32",
+        "consumerVA": "141CC..141E8",
+        "APItoGBEncoding": "u16(trunc(float32(API)*10+20000))",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 14471,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74766486073303,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          },
+          {
+            "sourceLine": 24475,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74874071494002,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x17a42c",
+            "fid": 1141899288,
+            "storage_type": 4,
+            "converter": 390720,
+            "device": 1012,
+            "type": 2,
+            "registration": "0x17a45c",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_left",
+        "field": "torque",
+        "device": 1039,
+        "fid": "0x2850002C",
+        "CANFDGlobal": "0x3e11c",
+        "getKind": "getDouble writes float32",
+        "consumerVA": "141FC..14228",
+        "APItoGBEncoding": "u16(trunc(float32(API)*10+20000))",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19342,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819024093307,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          },
+          {
+            "sourceLine": 29346,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926516006621,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x12e0b8",
+            "fid": 676331564,
+            "storage_type": 4,
+            "device": 1039,
+            "converter": 921280,
+            "type": 2,
+            "registration": "0x12e0e8",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_right",
+        "field": "torque",
+        "device": 1039,
+        "fid": "0x2850003C",
+        "CANFDGlobal": "0x3e120",
+        "getKind": "getDouble writes float32",
+        "consumerVA": "14234..14258",
+        "APItoGBEncoding": "u16(trunc(float32(API)*10+20000))",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19343,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819034673614,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          },
+          {
+            "sourceLine": 29347,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926527380390,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x12e0fc",
+            "fid": 676331580,
+            "storage_type": 4,
+            "device": 1039,
+            "converter": 921280,
+            "type": 2,
+            "registration": "0x12e12c",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "front",
+        "field": "IGBT_temperature",
+        "device": 1039,
+        "fid": "0x46406010",
+        "CANFDGlobal": "0x3e100",
+        "getKind": "getInt",
+        "consumerVA": "140DC..140F4",
+        "APItoGBEncoding": "u8(u8(API)+40)",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19388,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819512849922,
+            "intWord": "0x00000009",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 29392,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74927014588467,
+            "intWord": "0x00000009",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x17da94",
+            "fid": 1178624016,
+            "storage_type": 1,
+            "converter": 393712,
+            "device": 1039,
+            "type": 2,
+            "registration": "0x17dabc",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_left",
+        "field": "IGBT_temperature",
+        "device": 1039,
+        "fid": "0x2D000180",
+        "CANFDGlobal": "0x3e104",
+        "getKind": "getInt",
+        "consumerVA": "14100..1411C",
+        "APItoGBEncoding": "u8(u8(API)+40)",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19356,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819173342230,
+            "intWord": "0x00000005",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 29360,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926667110621,
+            "intWord": "0x00000005",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x13b0a4",
+            "fid": 754975104,
+            "storage_type": 0,
+            "device": 1039,
+            "converter": 921808,
+            "type": 2,
+            "registration": "0x13b0d4",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_right",
+        "field": "IGBT_temperature",
+        "device": 1039,
+        "fid": "0x2D000188",
+        "CANFDGlobal": "0x3e108",
+        "getKind": "getInt",
+        "consumerVA": "14128..14144",
+        "APItoGBEncoding": "u8(u8(API)+40)",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19357,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819183870307,
+            "intWord": "0x00000005",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 29361,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926677507851,
+            "intWord": "0x00000005",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x13b0e8",
+            "fid": 754975112,
+            "storage_type": 0,
+            "device": 1039,
+            "converter": 921808,
+            "type": 2,
+            "registration": "0x13b118",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "front",
+        "field": "motor_temperature",
+        "device": 1039,
+        "fid": "0x46406018",
+        "CANFDGlobal": "0x3e124",
+        "getKind": "getInt",
+        "consumerVA": "14264..14288",
+        "APItoGBEncoding": "u8(u8(API)+40)",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19389,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819524247537,
+            "intWord": "0x00000008",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 29393,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74927025091775,
+            "intWord": "0x00000008",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x17dad0",
+            "fid": 1178624024,
+            "storage_type": 1,
+            "converter": 393712,
+            "device": 1039,
+            "type": 2,
+            "registration": "0x17daf8",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_left",
+        "field": "motor_temperature",
+        "device": 1039,
+        "fid": "0x285001A8",
+        "CANFDGlobal": "0x3e128",
+        "getKind": "getInt",
+        "consumerVA": "14294..142B0",
+        "APItoGBEncoding": "u8(u8(API)+40)",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19350,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819109553307,
+            "intWord": "0x00000007",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 29354,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926603801390,
+            "intWord": "0x00000007",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x12e47c",
+            "fid": 676331944,
+            "storage_type": 0,
+            "converter": 921808,
+            "device": 1039,
+            "type": 2,
+            "registration": "0x12e4a4",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_right",
+        "field": "motor_temperature",
+        "device": 1039,
+        "fid": "0x285001B0",
+        "CANFDGlobal": "0x3e12c",
+        "getKind": "getInt",
+        "consumerVA": "142BC..142D8",
+        "APItoGBEncoding": "u8(u8(API)+40)",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19351,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819120101922,
+            "intWord": "0x00000007",
+            "floatWord": ""
+          },
+          {
+            "sourceLine": 29355,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926614296082,
+            "intWord": "0x00000007",
+            "floatWord": ""
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x12e4b8",
+            "fid": 676331952,
+            "storage_type": 0,
+            "converter": 921808,
+            "device": 1039,
+            "type": 2,
+            "registration": "0x12e4e0",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "front",
+        "field": "DC_current",
+        "device": 1009,
+        "fid": "0x46C00008",
+        "CANFDGlobal": "0x3e130",
+        "getKind": "getDouble writes float32",
+        "consumerVA": "142E4..14300",
+        "APItoGBEncoding": "u16(trunc(float32(API)*10+10000))",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 14177,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74763344232149,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          },
+          {
+            "sourceLine": 24181,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74870928425617,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x17dec4",
+            "fid": 1186988040,
+            "storage_type": 4,
+            "converter": 390544,
+            "device": 1009,
+            "type": 2,
+            "registration": "0x17def4",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_left",
+        "field": "DC_current",
+        "device": 1039,
+        "fid": "0x28500178",
+        "CANFDGlobal": "0x3e134",
+        "getKind": "getDouble writes float32",
+        "consumerVA": "14314..1433C",
+        "APItoGBEncoding": "u16(trunc(float32(API)*10+10000))",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19346,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819066799460,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          },
+          {
+            "sourceLine": 29350,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926559550236,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x12e374",
+            "fid": 676331896,
+            "storage_type": 4,
+            "device": 1039,
+            "converter": 921280,
+            "type": 2,
+            "registration": "0x12e3a4",
+            "kind": "get"
+          }
+        ]
+      },
+      {
+        "driveLabelFromStockFieldNames": "rear_right",
+        "field": "DC_current",
+        "device": 1039,
+        "fid": "0x28500188",
+        "CANFDGlobal": "0x3e138",
+        "getKind": "getDouble writes float32",
+        "consumerVA": "14348..1436C",
+        "APItoGBEncoding": "u16(trunc(float32(API)*10+10000))",
+        "unitNewlyProved": null,
+        "retainedSweep": [
+          {
+            "sourceLine": 19347,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819077390307,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          },
+          {
+            "sourceLine": 29351,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926571984082,
+            "intWord": "0xFFFFD8E3",
+            "floatWord": "0x00000000"
+          }
+        ],
+        "HALregistrations": [
+          {
+            "init": "0x12e3b8",
+            "fid": 676331912,
+            "storage_type": 4,
+            "device": 1039,
+            "converter": 921280,
+            "type": 2,
+            "registration": "0x12e3e8",
+            "kind": "get"
+          }
+        ]
+      }
+    ],
+    "stateMap": {
+      "producerRawToGBOutput": {
+        "0": 3,
+        "1": 1,
+        "2": 2,
+        "3": 4,
+        "254": 254,
+        "255": 255,
+        "other": 254
+      },
+      "proof": "jump tables 8274/827C/8280 and branches 139AC..140D0",
+      "meaning": "Wire enumeration only; healthy/fault/propulsion direction meanings unproved."
+    },
+    "outputRecordOrder": [
+      "front",
+      "rear_left",
+      "rear_right"
+    ],
+    "orderProof": "1399C establishes count 3 and serials 1/2/3; 140D0..14388 populates records at 3CDAC with stride 14. Names come from retained property declarations; physical connector positions not independently measured.",
+    "counterexample": {
+      "device": 1039,
+      "fid": "0x0FC000D0",
+      "retainedAPI": 65535,
+      "nativeConsumerOperation": "u16(u16(API)+20000)",
+      "serializedWouldBe": 19999,
+      "acceptAsMeasurement": false
+    },
+    "validity": "Selected sampling branch does not test getter return codes or a per-reading age; API-to-GB serialization is not an invalid/sentinel filter and must never be applied to an existing API value as a correction."
+  },
+  "collectionConfig": {
+    "handler": "26900 setGBExConfig",
+    "choice": "On energyType change to 1 or 2, persisted/service config length at +F6A takes priority; if zero, energy 1 selects 3CDD8/33 records, energy 2 selects 3CFE8/34 records. These are defaults, not current table state.",
+    "recordBytesArtifact": "gb-default-table-bytes.json",
+    "serializer": "27100 writes ID big-endian, opaque selector bytes and zero-based selected byte spans; default table tail semantics not generalized into a passive decoder here.",
+    "caution": "This chain can send collection configuration to HAL; no handler was invoked and this is not an authorized way to enable missing tuples."
+  },
+  "retainedCycleCrosscheck": {
+    "sourcePath": "captures/vehicle-log/vehicle-20260918-183009.csv",
+    "identity": "owner Z9 historical parked-cycle context per vehicle-data-findings, not N9; not current installed-image applicability",
+    "sampleTiming": "one CSV row samples multiple GETs sequentially, not a simultaneous acquisition",
+    "crankingRows": [
+      {
+        "sourceLine": 96,
+        "time": "2026-09-18T18:31:43.688",
+        "mono_s": "94.336",
+        "engine_running": "1",
+        "engine_rpm": "286",
+        "engine_rpm_20d": "975",
+        "raw_engine_running": "00000001",
+        "raw_engine_rpm": "0000011e",
+        "raw_engine_rpm_20d": "000003cf",
+        "stockGBconditionalSpeedWouldBe": 0
+      },
+      {
+        "sourceLine": 1048,
+        "time": "2026-09-18T18:47:38.925",
+        "mono_s": "1049.471",
+        "engine_running": "1",
+        "engine_rpm": "107",
+        "engine_rpm_20d": "918",
+        "raw_engine_running": "00000001",
+        "raw_engine_rpm": "0000006b",
+        "raw_engine_rpm_20d": "00000396",
+        "stockGBconditionalSpeedWouldBe": 0
+      }
+    ],
+    "primary1360WhileRunning": {
+      "rows": 144,
+      "firstTime": "2026-09-18T18:31:46.682",
+      "lastTime": "2026-09-18T18:34:10.133",
+      "20DMin": 1323,
+      "20DMax": 1378
+    },
+    "claimLimit": "This confirms different temporal behavior; the data do not prove ECU setpoint semantics or a particular sensor source."
+  },
+  "latestTupleAvailability": [
+    {
+      "stream": "gb",
+      "tuples": []
+    },
+    {
+      "stream": "bigdata",
+      "tuples": []
+    },
+    {
+      "stream": "yun",
+      "tuples": [
+        {
+          "canId": "0x0000046C",
+          "subId": 0,
+          "channel": 0,
+          "payloadBytes": 8,
+          "callbackEnvelopeBytes": 18,
+          "count": 15
+        }
+      ]
+    }
+  ],
+  "deadEnds": [
+    "No new engine coolant, intake, lambda, boost, oil pressure numeric or generator/ISG-specific engineering source was qualified. GB consumer uses existing engineRPM and fuel-consumption last-distance fields, not missing324 descriptors.",
+    "Defaults contain CAN 387/channel selector 0 but no 10D/144/20D/324 default. Defaults cannot explain live selected stream without current service-config content; no table mutation or new live read proposed.",
+    "Latest YUN includes 46C/sub0/channel0/8 bytes, but no MCU descriptor for 46C00008 in the retained strict generic table. Existing HAL arithmetic plus hexadecimal resemblance is insufficient to assign a CAN byte layout.",
+    "gbdataservice and its binder client library give no new engine/drives numerical consumer strings. The concrete new chain is gbacqservice."
+  ],
+  "nextCarValidationCandidate": {
+    "kind": "finite existing-source scalar confirmation only; no action executed",
+    "preconditions": [
+      "one session owner, profile 170/CANFD, parked baseline and idle diagnostic manager",
+      "hash-match HAL/framework; keep installed MCU version distinct from hash",
+      "reuse existing trusted transport, no install/restart"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "reads": [
+          {
+            "device": 1023,
+            "fid": "0x34100038",
+            "tx": 5
+          }
+        ],
+        "count": 1,
+        "expected": "7 selects documented three-drive branch; any other result stops this branch."
+      },
+      {
+        "step": 2,
+        "reads": [
+          {
+            "device": 1012,
+            "fid": "0x10D00038",
+            "tx": 5
+          },
+          {
+            "device": 1012,
+            "fid": "0x10D00008",
+            "tx": 5
+          },
+          {
+            "device": 1012,
+            "fid": "0x20D00008",
+            "tx": 5
+          },
+          {
+            "device": 1012,
+            "fid": "0x14400012",
+            "tx": 5
+          }
+        ],
+        "maximumSeconds": 10,
+        "maximumBatches": 10,
+        "condition": "Use only an already occurring owner controlled engine event if separately authorized; do not start engine or change vehicle state for this candidate. If stopped, record availability only and stop, no claim of nonzero qualification.",
+        "expected": "Preserve original status, raw bits, typed values and device arrival times.0x1FFF primary RPM is missing; exactly state 1 is not zero RPM evidence; do not apply raw * .25 to already converted API."
+      },
+      {
+        "step": 3,
+        "reads": [
+          {
+            "device": 1012,
+            "fid": "0x44100008",
+            "tx": 5
+          },
+          {
+            "device": 1039,
+            "fid": "0x0FC000D0",
+            "tx": 5
+          },
+          {
+            "device": 1039,
+            "fid": "0x0FC000E0",
+            "tx": 5
+          }
+        ],
+        "count": 1,
+        "expected": "Existing qualified scalar readers only. Rear left FFFF remains unavailable; parked zeros cannot qualify sign/scale, physical placement or sensor freshness."
+      }
+    ],
+    "exclusions": [
+      "no repeated passive window unless new state hypothesis and authorization",
+      "no collection table writes",
+      "no new absent GET guesses",
+      "no channel 0 layout on channel 1",
+      "no DTC or UDS requests",
+      "no engine-start or vehicle-state setters"
+    ],
+    "acceptance": "Exact complete parcel status and type, timestamped bounded reads, health and unregister/exit if a callback reader is used. Failure/unavailable are kept separately from zero."
+  },
+  "captureBase": "captures/diagnostics-next-depth-20261021/engine",
+  "retainedReport": {
+    "path": "captures/diagnostics-next-depth-20261021/engine/report.md",
+    "sha256": "8f7344e4527b7716d732062391eb869eb354c95ccd34c520f6b78e2c6c9f389e",
+    "bytes": 10405
+  },
+  "retainedEvidence": {
+    "path": "captures/diagnostics-next-depth-20261021/engine/engine-drives-consumer-evidence.json",
+    "sha256": "5b9ca833cad60b3b4db43ba1abc7b834ab3510cf74562306adf3a8cb8bbc9710",
+    "bytes": 34971
+  }
+}

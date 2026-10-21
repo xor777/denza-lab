@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleRequests": 0,
+  "captureBase": "captures/diagnostics-next-depth-20261021/chassis",
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/panorama/BYDAutoPanoramaDevice.java",
+      "sha256": "e0664927195d366ed2c570e7e2a4b5ae82039f63bebfc2fcc5fbd9e4eea9e7ae",
+      "bytes": 22962
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/special/BYDAutoSpecialDevice.java",
+      "sha256": "6b23ad6feb645deaff6746d5987a3994245c18f289aee9334d272e7e514a0881",
+      "bytes": 5762
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/AutoVideo-avc/sources/com/byd/avc/util/devicestates/CarTransparent.java",
+      "sha256": "492c26e5490e35edfa3bd1c4f18f2896bacba3f2a71a8da5c4288a73ee66a2d9",
+      "bytes": 2829
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/AutoVideo-avc/sources/com/byd/avc/util/bydauto/AVCBYDAutoSettingDevice.java",
+      "sha256": "ca76769683001109b3834b19c01d84e5ea93fdfafe5ffc0082f4c5dc137d70df",
+      "bytes": 54414
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/AutoVideo-avc/sources/com/byd/avc/util/active/msg/steerangle/SteerAngleUtil.java",
+      "sha256": "38e3aa8b6d9db84c81399a6e4ec734a1f33ab57a8068573fb54e79a27c13c4c5",
+      "bytes": 2883
+    },
+    {
+      "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+      "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885",
+      "bytes": 542428
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+      "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73",
+      "bytes": 104178
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/bigdata.log",
+      "sha256": "da69531362b51225ee031eb7586c296b547ccc0be088030539305ea558a72a8a",
+      "bytes": 393848
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/yun.log",
+      "sha256": "1ac2c832623fd04af5996260ee92f6ea26005f531a462fe269ad360f694ab1df",
+      "bytes": 359879
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_wheel_source.py",
+      "sha256": "a7a250d0b759032f204870c50a34037b7a3223927a24571d4da5f7465c5570ba",
+      "bytes": 1696
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_wheel_packet.py",
+      "sha256": "e2daa0f1549f13a3e8a5f39cfecaadcdfab01f47df42c014db67fda786079768",
+      "bytes": 2653
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_battery_pages.py",
+      "sha256": "2a2fab159c0ac9776d348aa546f80256df11ca9a00842c03d3d0ba2d5d3dae6c",
+      "bytes": 11023
+    }
+  ],
+  "sourceAnchors": [
+    {
+      "va": "0xcd984",
+      "words": [
+        "0xaa000048",
+        "0x16b6bc",
+        "0x0"
+      ]
+    },
+    {
+      "va": "0xa66f8",
+      "words": [
+        "0x99000198",
+        "0x6",
+        "0xfeefb43a"
+      ]
+    },
+    {
+      "va": "0xa3170",
+      "words": [
+        "0x11f00408",
+        "0x2",
+        "0xfeefa30c"
+      ]
+    },
+    {
+      "va": "0x16b6b4",
+      "bytes": "a407055632657f00"
+    },
+    {
+      "va": "0x16b6bc",
+      "bytes": "060807f004158217010084070d1632657f00"
+    }
+  ],
+  "wheel": {
+    "sourceTuple": {
+      "canId": "0x122",
+      "subId": 0,
+      "channel": 1,
+      "bytes": 8
+    },
+    "route": "MCU18AA36 -> dev1049/FID99000059,12B -> unchanged HAL cache -> BYDAutoSpecialDevice.getWheelSpeed/listener",
+    "gate": {
+      "getterVA": "0x16B6B4",
+      "setterVA": "0x16B6BC",
+      "gpOffset": "0x329960",
+      "ramAddress": "0xFEF071C8",
+      "command": "0xAA000048",
+      "commandTableVA": "0xCD984",
+      "SDKName": "PANORAMA_TRANSPARENCE_SWITCH_SET",
+      "acceptedSDKInputs": [
+        0,
+        1
+      ],
+      "stockCaller": "CarTransparent.setPanoDevicesCarTransparent",
+      "qualification": "Proved static setter-to-same-byte gate binding; current state and selected stock branch unknown",
+      "readbackLimit": "getPanoTransparence uses a separate field, not proved MCU gate readback",
+      "setterExecuted": false
+    },
+    "savedSourceFrames": 20,
+    "savedPayloads": [
+      "0000000000000000"
+    ],
+    "packetObserved": false,
+    "physicalUnits": null,
+    "freshness": null,
+    "nextObservation": "Typed SDK buffer snapshot plus bounded listener and matching passive frames. No panorama setter, camera activation or malformed Binder10/12 parcel."
+  },
+  "steering": {
+    "sourceTuple": {
+      "canId": "0x11F",
+      "subId": 0,
+      "channel": 1,
+      "bytes": 5
+    },
+    "lookup": "D85EC keyE1011F00 -> descriptorEEFA4 -> handler18AD04",
+    "producer": "18AD04..18ADA6 custom handler explicitly extracts LE16 payload0..1 (overriding generic descriptor coords);196F94 unchanged gate; only changed values emit A66F8/99000198/6B",
+    "layout": "BE16 angle word + BE32 return value from1A619A",
+    "timestampSemantics": "opaque32bit; unit, epoch, rollover and relation to callback time unproved",
+    "nativeRegistration": "dev1023/FID99000198 storage7,get/type2 at1A4A0C..1A4A34",
+    "SDKName": "SETTING_11F_CONTENT_TIMESTAMP",
+    "consumer": "AVCBYDAutoSettingDevice typed byte[] GET and listeners -> SteerAngleUtil.countAngle(byte[])",
+    "arithmetic": "signed BE16 * Java float32(0.1), returned as double",
+    "physicalUnit": null,
+    "invalidCodes": null,
+    "eventObserved": false,
+    "scalarLimit": "No11F00408 GET registration;11F is absent from18-ID normalization list. Do not substitute channel0 scalar11F00008.",
+    "savedSourceFrames": 20,
+    "savedCandidates": [
+      [
+        264,
+        26.399999618530273
+      ]
+    ],
+    "liveAvailability": "20 exact CAN11F/sub0/channel1/5B source frames in retained owner window; no99000198 event captured. Packet availability remains unproved.",
+    "ageLimit": "MCU emits on value change; elapsed callback age alone cannot distinguish an unchanged angle from stopped reception.",
+    "observedSourceStream": "gb"
+  },
+  "otherChassis": {
+    "brake": "34200810/19 MCU descriptors use channel2, HAL normalizes342 to native34200010/19 atdev1013. Saved342 frames are channel0/1 only; no channel2 brake decode is qualified.",
+    "yaw": "22200408 dev1043 converter668B0; MCU unsigned12 at CAN222/channel1. No exact source frame in retained three-stream window;22200427 status has registration but no exact MCU descriptor match.",
+    "physicalEcuAssignment": "Telemetry namespace is not a diagnostic ECU identity; these source paths do not bind new ABS/EPS routes."
+  },
+  "applicability": "Owner HAL hash matched during prior live pass; MCU bytes from owner OTA, installed MCU reports matching version only.",
+  "parsedSourceCounts": {
+    "gb.log": 911,
+    "bigdata.log": 2909,
+    "yun.log": 3129
+  },
+  "replay": {
+    "path": "captures/diagnostics-next-depth-20261021/chassis/source-replay.json",
+    "sha256": "37ac56daecab82d3a9a963ab0898e04fe40795e4bbd4423efd03c989aab79ff8",
+    "bytes": 54865
+  },
+  "reproducer": {
+    "path": "captures/diagnostics-next-depth-20261021/chassis/build_evidence.py",
+    "sha256": "fe03dd0aa32f5af5ce59f2866abf6a0101aee0f2dc0dd90c199f7c00c91f5d93",
+    "bytes": 7694
+  },
+  "retainedReport": null,
+  "retainedEvidence": {
+    "path": "captures/diagnostics-next-depth-20261021/chassis/evidence.json",
+    "sha256": "4ec2f2a41252eda306eccedc66305b6b18459e2fffaf5d2f510ea59aa6ae6f91",
+    "bytes": 7622
+  },
+  "independentReview": {
+    "path": "captures/diagnostics-next-depth-20261021/battery/chassis-review.json",
+    "sha256": "0a1b4ca64874bda659a668c2f9222d1361ed29cc3d00087ebcdeea81ca81a80e",
+    "bytes": 14622
+  }
+}
