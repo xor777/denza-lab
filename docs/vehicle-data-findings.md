@@ -2860,7 +2860,9 @@ and supplier name. It does not qualify a particular software revision's behavior
 
 The following resolves all 25 entries currently built with `unknown(...)` in
 `EcuCatalog`, plus the two rear-drive sides. Product labels have not been changed
-in this research pass. Exact codes, factory IDs and source row IDs are in
+in this research pass (updated 2026-10-21: the product took them the same day — the
+catalog in `99235dc9`, the diagnostic systems in `d991bf99`; see
+[architecture 5](vehicle-diagnostics-architecture.md#diag-arch-catalog)). Exact codes, factory IDs and source row IDs are in
 [`ecu-role-evidence-20261021.json`](../research/vehicle-diagnostics/ecu-role-evidence-20261021.json).
 
 | Address / token | Model-specific role |
