@@ -69,8 +69,8 @@ internal data class DtcLookup(
  * headings conflict in places.
  *
  * Format 00 is matched by the record's J2012 code without the dash, `C1170-09` ↔ `C117009`; format 01
- * only from FMCU 7E3, laid out the same way ([catalogCode]). ISG's format 01 needs a mapping nobody has
- * established; any other format has no display.
+ * only from FMCU 7E3 and ISG 7E6, laid out the same way ([catalogCode]). Another module's format 01
+ * needs a mapping nobody has established; any other format has no display.
  */
 internal class OemDtcIndex(val headings: List<OemHeading>) {
     private val bySectionCode: Map<Pair<OemSection, String>, List<OemHeading>> =
@@ -108,10 +108,13 @@ internal class OemDtcIndex(val headings: List<OemHeading>) {
         }
 
         /**
-         * The modules whose format-01 codes are looked up laid out as J2012: FMCU 7E3 alone. Its live
-         * `19 0A` registry of 32 codes (2026-10-21, `research/vehicle-diagnostics/supported-dtc-20261021.json`)
-         * read that way holds all 31 `front_drive` headings, `1BE201` alone has none. The match
-         * establishes it, not a firmware rule, and only for FMCU: ISG 7E6 is not searched.
+         * The modules whose format-01 codes are looked up laid out as J2012: FMCU 7E3 and ISG 7E6, the
+         * modules [J2012.FORMAT_01_LAID_OUT] shows so. Read that way, FMCU's live `19 0A` registry of 32
+         * codes (2026-10-21, `research/vehicle-diagnostics/supported-dtc-20261021.json`) holds all 31
+         * `front_drive` headings, `1BE201` alone has none; ISG's complete one of 57 records, 56 codes
+         * (`isg-supported-dictionary-candidates-20261021.json`) holds all 32 `generator` headings, 24
+         * codes have none (`P1841-00`, `P2B12`…`P2B1E`). The matches establish it for these two, not a
+         * firmware rule: any other module's format 01 is not searched.
          */
         val FORMAT_01_AS_J2012: Set<Int> = J2012.FORMAT_01_LAID_OUT
 

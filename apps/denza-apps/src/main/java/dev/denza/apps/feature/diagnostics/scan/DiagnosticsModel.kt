@@ -579,7 +579,7 @@ internal data class AskRow(
 )
 
 internal data class DtcRow(
-    /** «C1170-09», or six hex digits for format 01. */
+    /** «C1170-09»; FMCU's and ISG's format 01 laid out the same way, another module's six hex digits. */
     val code: String,
     /** «09». */
     val failureType: String,
@@ -600,7 +600,7 @@ internal data class DtcRow(
      * The row's description: the Russian heading the public catalog gives this code in this module's
      * section, as plain text - «Датчик атмосферного давления: неисправность сигнала». Two headings of
      * the section are «A / B». Null where the catalog has nothing: another module, format 01 other than
-     * FMCU's, a format nobody reported, a code it does not list. Its source is the screen's footer
+     * FMCU's and ISG's, a format nobody reported, a code it does not list. Its source is the screen's footer
      * ([DtcView.source]), never the row.
      */
     val description: String? = null,

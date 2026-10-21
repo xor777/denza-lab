@@ -212,18 +212,58 @@ class OemDtcReferenceTest {
     }
 
     @Test
+    fun isgFormatZeroOneRegistryFindsEveryGeneratorHeading() {
+        // ISG's complete live `19 0A` of 2026-10-21: 57 records, 56 codes, C1D487 twice, all format 01.
+        val isg = JSONObject(research.resolve("isg-supported-dictionary-candidates-20261021.json").readText())
+        assertEquals(1, isg.getJSONObject("target").getInt("dtcFormatIdentifier"))
+        val registry = isg.getJSONObject("rawRegistryObservation").getJSONArray("records").objects().map { it.getString("raw24Hex") }
+        assertEquals(57, registry.size)
+        assertEquals(56, registry.toSet().size)
+
+        val found = registry.toSet().associateWith { raw ->
+            val code = DtcCode(raw.toInt(16), DtcFormat.ISO_14229_1)
+            index.lookup(0x7E6, code).also { r ->
+                assertNull(raw, r.skipped)
+                assertFalse(raw, r.conflict)
+            }.candidates
+        }
+        // Laid out as J2012, the registry holds the generator's 32 headings, each once.
+        assertTrue(found.values.all { it.size <= 1 })
+        val generator = index.headings.filter { it.section == OemSection.GENERATOR }
+        assertEquals(32, generator.size)
+        assertEquals(generator.map { it.outlineId }.sorted(), found.values.flatten().map { it.outlineId }.sorted())
+        // 24 codes have none, the research's own count: P1841-00 and P2B12…P2B1E.
+        val hypothesis = isg.getJSONObject("UNPROVEN_reverseNotationHypothesis")
+        val bare = found.filterValues { it.isEmpty() }.keys
+        assertEquals(24, bare.size)
+        assertEquals(hypothesis.getJSONArray("rawCodesWithoutHypotheticalHeading").let { a -> (0 until a.length()).map { a.getString(it) } }.toSet(), bare)
+        val bases = bare.map { DtcCode(it.toInt(16), DtcFormat.ISO_14229_1, asJ2012 = true).base }.toSet()
+        assertEquals(setOf("P1841") + (0x12..0x1E).map { "P2B%02X".format(it) }, bases)
+        // The research's own reverse of the 32 headings agrees code for code.
+        hypothesis.getJSONArray("rows").objects().forEach { r ->
+            val code = DtcCode(r.getString("hypotheticalRaw24Hex").toInt(16), DtcFormat.ISO_14229_1)
+            assertEquals(r.getString("publicDisplayCode"), OemDtcIndex.catalogCode(0x7E6, code))
+        }
+        // The two supplier-variant headings keep both suppliers' texts: no variant is chosen.
+        listOf(0x183800, 0x183F00).forEach { raw ->
+            val text = CatalogText.description(index.lookup(0x7E6, DtcCode(raw, DtcFormat.ISO_14229_1)).candidates)!!
+            assertTrue(text, text.contains("(вариант Fudi) / ") && text.endsWith("(вариант BorgWarner)"))
+        }
+    }
+
+    @Test
     fun formatZeroOneElsewhereAndUnknownFormatsAreNotSearched() {
-        // ISG reports format 01 too: its mapping is not established, so its codes are not searched.
-        val isg = index.lookup(0x7E6, DtcCode(0x180219, DtcFormat.ISO_14229_1))
-        assertEquals(LookupSkip.FORMAT_01, isg.skipped)
-        assertTrue(isg.candidates.isEmpty())
-        assertEquals("сопоставление формата 01 с каталогом не установлено", isg.skipped!!.reason)
-        assertNull(OemDtcIndex.catalogCode(0x7E6, DtcCode(0x180219, DtcFormat.ISO_14229_1)))
-        assertEquals(setOf(0x7E3), OemDtcIndex.FORMAT_01_AS_J2012)
-        // Format 01 from any other module with a section is not laid out as J2012 either.
-        assertEquals(LookupSkip.FORMAT_01, index.lookup(0x7E0, DtcCode(0x222729, DtcFormat.ISO_14229_1)).skipped)
+        assertEquals(setOf(0x7E3, 0x7E6), OemDtcIndex.FORMAT_01_AS_J2012)
+        // Format 01 from any other module with a section is not laid out as J2012: its mapping is not established.
+        val ecm = index.lookup(0x7E0, DtcCode(0x222729, DtcFormat.ISO_14229_1))
+        assertEquals(LookupSkip.FORMAT_01, ecm.skipped)
+        assertTrue(ecm.candidates.isEmpty())
+        assertEquals("сопоставление формата 01 с каталогом не установлено", ecm.skipped!!.reason)
+        assertNull(OemDtcIndex.catalogCode(0x7E0, DtcCode(0x222729, DtcFormat.ISO_14229_1)))
+        assertEquals(LookupSkip.FORMAT_01, index.lookup(0x744, DtcCode(0x1B0301, DtcFormat.ISO_14229_1)).skipped)
         assertEquals(LookupSkip.FORMAT_UNKNOWN, index.lookup(0x7E0, DtcCode(0x222729, DtcFormat.OTHER, 0x7F)).skipped)
         assertEquals(LookupSkip.FORMAT_UNKNOWN, index.lookup(0x7E3, DtcCode(0x1B0019, DtcFormat.OTHER, 0x7F)).skipped)
+        assertEquals(LookupSkip.FORMAT_UNKNOWN, index.lookup(0x7E6, DtcCode(0x180219, DtcFormat.OTHER, 0x7F)).skipped)
     }
 
     @Test
@@ -249,8 +289,8 @@ class OemDtcReferenceTest {
         index.headings.forEach { h ->
             val raw = rawOf(h.displayCode)
             val module = modules.getValue(h.section)
-            // FMCU reports format 01; every other module with a section, format 00.
-            val code = if (module == 0x7E3) DtcCode(raw, DtcFormat.ISO_14229_1) else j2012(raw)
+            // FMCU and ISG report format 01; every other module with a section, format 00.
+            val code = if (module in setOf(0x7E3, 0x7E6)) DtcCode(raw, DtcFormat.ISO_14229_1) else j2012(raw)
             assertEquals(h.displayCode, OemDtcIndex.catalogCode(module, code))
             val found = index.lookup(module, code)
             assertTrue(h.toString(), found.candidates.any { c -> c.locators.any { it.outlineId == h.outlineId } })
@@ -307,6 +347,34 @@ class OemDtcReferenceTest {
         assertEquals(listOf("P1B0019"), row.reference.map { it.code })
         assertEquals(listOf(listOf("front_drive · outline_542_a")), row.reference.map { it.locators })
         assertEquals(ModelBuilder.CATALOG_SOURCE, fmcu.source)
+        s.stop()
+    }
+
+    @Test
+    fun theEngineLaysAnIsgRecordOutAsJ2012AndKeepsARepeat() = runTest {
+        // ISG's format 01 reads as J2012, like FMCU's (architecture 4); a code listed twice is two rows.
+        val bus = carNow {
+            on(0x7E6, "190109").answer("590109010003")
+            on(0x7E6, "190209").answer("59020918021909C1D48708C1D48708")
+        }
+        val s = session(bus, catalog = { index })
+        s.start()
+        runCurrent()
+
+        val isg = s.model.value.modules.getValue(0x7E6).dtc
+        assertEquals(listOf("P1802-19", "U01D4-87", "U01D4-87"), isg.records.map { it.code })
+        assertEquals(listOf("19", "87", "87"), isg.records.map { it.failureType })
+        assertEquals(listOf("Ток цепи выше порога", "Нет сообщения", "Нет сообщения"), isg.records.map { it.failureName })
+        assertEquals(
+            listOf("Генератор: перегрузка по току") +
+                List(2) { "Контроллер генератора: неисправность связи с контроллером автомобиля (VCU)" },
+            isg.records.map { it.description },
+        )
+        assertEquals(
+            listOf("generator · outline_576_a", "generator · outline_607_a", "generator · outline_607_a"),
+            isg.records.map { r -> r.reference.single().locators.single() },
+        )
+        assertEquals(ModelBuilder.CATALOG_SOURCE, isg.source)
         s.stop()
     }
 

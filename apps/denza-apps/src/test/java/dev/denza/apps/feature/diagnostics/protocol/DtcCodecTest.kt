@@ -199,6 +199,8 @@ class DtcCodecTest {
         assertEquals(56, memory.records.map { it.code.raw }.toSet().size)
         assertEquals(listOf(27, 39), memory.records.indices.filter { memory.records[it].code.rawHex == "C1D487" })
         assertTrue(memory.records.all { it.status.byte == 0 })
+        // ISG's format 01 laid out as J2012: both occurrences read U01D4-87.
+        assertEquals(listOf("U01D4-87", "U01D4-87"), listOf(27, 39).map { memory.records[it].code.display })
     }
 
     @Test
@@ -221,15 +223,21 @@ class DtcCodecTest {
     }
 
     @Test
-    fun formatZeroOneIsLaidOutAsJ2012AtFmcuAlone() {
+    fun formatZeroOneIsLaidOutAsJ2012AtFmcuAndIsg() {
         // FMCU 7E3 (architecture 4): `1B0019` → P1B00-19, its failure type named; `C1D487` → U01D4-87.
         val fmcu = (DiagDecoder.dtcMemory(answer(0x7E3, "190109", "590109010002"), answer(0x7E3, "190209", "5902091B001909C1D48709")) as Decoded.Ok).value
         assertEquals(listOf("P1B00-19", "U01D4-87"), fmcu.records.map { it.code.display })
         assertEquals(listOf(0x19, 0x87), fmcu.records.map { it.code.failureType })
-        // ISG 7E6 reports format 01 too, and keeps its six digits: its layout is not established.
-        val isg = (DiagDecoder.dtcMemory(answer(0x7E6, "190109", "590109010001"), answer(0x7E6, "190209", "5902091B001909")) as Decoded.Ok).value
-        assertEquals("1B0019", isg.records.single().code.display)
-        assertEquals(null, isg.records.single().code.failureType)
+        // ISG 7E6 the same way since 2026-10-21 (owner): `180219` → P1802-19, `2B1E01` → P2B1E-01.
+        val isg = (DiagDecoder.dtcMemory(answer(0x7E6, "190109", "590109010002"), answer(0x7E6, "190209", "59020918021909" + "2B1E0108")) as Decoded.Ok).value
+        assertEquals(listOf("P1802-19", "P2B1E-01"), isg.records.map { it.code.display })
+        assertEquals(listOf(0x19, 0x01), isg.records.map { it.code.failureType })
+        assertEquals(listOf("180219", "2B1E01"), isg.records.map { it.code.rawHex })
+        assertEquals(setOf(0x7E3, 0x7E6), J2012.FORMAT_01_LAID_OUT)
+        // Another module's format 01 keeps its six digits: no registry has established its layout.
+        val ads = (DiagDecoder.dtcMemory(answer(0x712, "190109", "590109010001"), answer(0x712, "190209", "59020918021909")) as Decoded.Ok).value
+        assertEquals("180219", ads.records.single().code.display)
+        assertEquals(null, ads.records.single().code.failureType)
     }
 
     @Test

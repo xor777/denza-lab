@@ -51,7 +51,7 @@ internal enum class DtcFormat(val id: Int, val title: String) {
  * A three-byte DTC as its format reads it. Format 00 is SAE J2012: letter, four characters and
  * the failure type (`C1170-09`). Format 01 has no letter: six hex digits (`517009`) - except a
  * module in [J2012.FORMAT_01_LAID_OUT], whose format-01 codes are laid out as J2012 ([asJ2012]):
- * FMCU's `1B0019` reads `P1B00-19`. Any other format: the raw bytes.
+ * FMCU's `1B0019` reads `P1B00-19`, ISG's `180219` `P1802-19`. Any other format: the raw bytes.
  */
 internal data class DtcCode(val raw: Int, val format: DtcFormat, val formatId: Int = format.id, val asJ2012: Boolean = false) {
     val rawHex: String get() = "%06X".format(raw and 0xFFFFFF)
@@ -84,12 +84,15 @@ internal object J2012 {
 
     /**
      * The modules whose format-01 codes are laid out as J2012 - the letter from the first byte's top
-     * two bits, the code's digits, the third byte the failure type: FMCU 7E3 alone. Its live `19 0A`
-     * registry of 32 codes (2026-10-21, `research/vehicle-diagnostics/supported-dtc-20261021.json`)
-     * read that way holds all 31 `front_drive` headings of the manual's index; the match establishes
-     * it, not a firmware rule, and only for FMCU (architecture, 4). The owner chose to show them so.
+     * two bits, the code's digits, the third byte the failure type: FMCU 7E3 and ISG 7E6, each by the
+     * owner's decision of 2026-10-21 (architecture, 4). Read that way, FMCU's live `19 0A` registry of
+     * 32 codes (`research/vehicle-diagnostics/supported-dtc-20261021.json`) holds all 31 `front_drive`
+     * headings of the manual's index, and ISG's complete one of 57 records, 56 codes
+     * (`isg-supported-dictionary-candidates-20261021.json`) all 32 `generator` headings. The stock
+     * tester's `MatchUtils.log1902` prints a 24-bit code the same way whatever the format. The
+     * registries' match establishes it for these two modules, not a firmware rule for every format 01.
      */
-    val FORMAT_01_LAID_OUT: Set<Int> = setOf(0x7E3)
+    val FORMAT_01_LAID_OUT: Set<Int> = setOf(0x7E3, 0x7E6)
 
     /** [memory] of the module at [address], its format-01 codes laid out where [FORMAT_01_LAID_OUT] says. */
     fun laidOut(address: Int, memory: DtcMemory): DtcMemory =
