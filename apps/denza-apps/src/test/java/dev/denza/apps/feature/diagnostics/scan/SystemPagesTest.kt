@@ -263,7 +263,8 @@ class SystemPagesTest {
         val drives = model.page(CarSystem.DRIVES).scheme as Scheme.Drives
         assertEquals(Callout("ПЕРЕДНИЙ МОТОР · FMCU 7E3", listOf("статор 8 °C · IGBT 9 °C", "0 об/мин · 0,0 Н·м · 0,0 А")), drives.front)
         // ISG's F195 is read with its screen; until then the software is its F194.
-        assertEquals(Callout("МОТОР-ГЕНЕРАТОР · ISG 7E6", listOf("DTC 0 · ПО 48370011E0EA000000", "ДВС не работает")), drives.isg)
+        // Parked, nothing about generation was read: the energy system's state is «н/д».
+        assertEquals(Callout("МОТОР-ГЕНЕРАТОР · ISG 7E6", listOf("DTC 0 · ПО 48370011E0EA000000", "ДВС не работает", "энергосистема: н/д")), drives.isg)
         // The rear callouts name their side and the block that drives it: SMCU the left, SMCU3 the right.
         assertEquals(Callout("ЗАДНИЙ ЛЕВЫЙ · SMCU 744", listOf("статор 7 °C · IGBT 5 °C", "н/д об/мин · 0,0 Н·м · 0,0 А")), drives.rearLeft)
         assertEquals(Callout("ЗАДНИЙ ПРАВЫЙ · SMCU3 745", listOf("статор 7 °C · IGBT 5 °C", "0 об/мин · 0,0 Н·м · 0,0 А")), drives.rearRight)
@@ -379,6 +380,26 @@ class SystemPagesTest {
         val counts = scanned(parked.copy(extras = parked.extras - DiagnosticExtra.PROBE_COUNT + probes))
         assertEquals("166 ячеек · н/д датчиков", (counts.page(CarSystem.PACK).scheme as Scheme.Pack).cells)
         assertEquals("н/д", counts.systems.pack.single { it.name == "Датчиков температуры" }.value)
+    }
+
+    @Test
+    fun theGeneratorsCalloutSaysTheEnergySystemsGenerationState() = runTest {
+        // BYDAutoEnergyDevice: 1 GENERATING, 2 END, 3 ERROR; 0 is INVALID, not «off».
+        fun isg(state: Double?): String {
+            val hub = if (state == null) parked.hub else parked.hub + (VehicleSignal.GENERATION_STATE to state)
+            return (scanned(parked.copy(hub = hub)).page(CarSystem.DRIVES).scheme as Scheme.Drives).isg.rows.last()
+        }
+        assertEquals("энергосистема: генерирует", isg(1.0))
+        assertEquals("энергосистема: завершено", isg(2.0))
+        assertEquals("энергосистема: ошибка", isg(3.0))
+        assertEquals("энергосистема: н/д", isg(0.0))
+        assertEquals("энергосистема: н/д", isg(4.0))
+        assertEquals("энергосистема: н/д", isg(null))
+        assertEquals(listOf("н/д", "генерирует", "завершено", "ошибка", "н/д", "н/д"),
+            listOf(0.0, 1.0, 2.0, 3.0, 31.0, 255.0).map(SystemPagesBuilder::generation))
+        assertEquals("н/д", SystemPagesBuilder.generation(null))
+        // Polled with the hub's cold sweep, as the energy device reads it.
+        assertEquals(1006 to 0x34F0000A, VehicleSignal.GENERATION_STATE.device to VehicleSignal.GENERATION_STATE.fid)
     }
 
     @Test

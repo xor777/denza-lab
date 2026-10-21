@@ -419,6 +419,7 @@ internal object SystemPagesBuilder {
             isg = Callout("МОТОР-ГЕНЕРАТОР · ${tag(isg.request!!)}", listOf(
                 "DTC $isgDtc · ПО $software",
                 when (running) { true -> "ДВС работает"; false -> "ДВС не работает"; null -> "ДВС $NA" },
+                "энергосистема: ${generation(car.hub[VehicleSignal.GENERATION_STATE])}",
             )),
             // autoservice names the rear signals by side; SMCU drives the left rear motor, SMCU3 the right.
             rearLeft = Callout("ЗАДНИЙ ЛЕВЫЙ · ${tag(0x744)}", motor(hub(VehicleSignal.MOTOR_REAR_LEFT_C), car.extra(DiagnosticExtra.IGBT_REAR_LEFT),
@@ -428,6 +429,17 @@ internal object SystemPagesBuilder {
             engineRunning = running == true,
         )
     }
+
+    /**
+     * The energy system's generation state `1006·34F0000A`, as the stock `BYDAutoEnergyDevice` names
+     * it (`ENERGY_POWER_GENERATING` 1, `_GENERATION_END` 2, `_GENERATION_ERROR` 3; research
+     * isg-source-boundary-20261021.json). It is the energy system's word, not ISG 7E6's own, so the
+     * generator's callout says «энергосистема». 0 is the stock INVALID, not «off»: it, any other code
+     * and no reading are «н/д».
+     */
+    val GENERATION_WORDS = mapOf(1 to "генерирует", 2 to "завершено", 3 to "ошибка")
+
+    fun generation(value: Double?): String = value?.toInt()?.let { GENERATION_WORDS[it] } ?: NA
 
     /** The latest sample of a stream row: null where it never came or the last exchange was a gap. */
     private fun last(row: LiveRow?): Double? = row?.samples?.lastOrNull()?.value?.toDouble()

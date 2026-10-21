@@ -973,7 +973,8 @@
     tabs: { items: ['Состояние', 'Сравнение', 'DTC', 'Блоки'], active: 0 },
     units: { vcu: u('VCU', '7E2', 'Силовая установка'), pdc: u('PDC-VCU', '743', 'Силовой домен') },
     front: { label: 'ПЕРЕДНИЙ МОТОР · FMCU 7E3', rows: ['статор 8 °C · IGBT 9 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
-    isg: { label: 'МОТОР-ГЕНЕРАТОР · ISG 7E6', rows: ['DTC 0 · ПО 9D79190A1E0D', 'ДВС не работает'] },
+    // the energy system's generation state 1006·34F0000A, not ISG's own: parked it reads 0, the stock INVALID
+    isg: { label: 'МОТОР-ГЕНЕРАТОР · ISG 7E6', rows: ['DTC 0 · ПО 9D79190A1E0D', 'ДВС не работает', 'энергосистема: н/д'] },
     rearLeft: { label: 'ЗАДНИЙ ЛЕВЫЙ · SMCU 744', rows: ['статор 7 °C · IGBT 5 °C', 'н/д об/мин · 0,0 Н·м · 0,0 А'] },
     rearRight: { label: 'ЗАДНИЙ ПРАВЫЙ · SMCU3 745', rows: ['статор 7 °C · IGBT 5 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
