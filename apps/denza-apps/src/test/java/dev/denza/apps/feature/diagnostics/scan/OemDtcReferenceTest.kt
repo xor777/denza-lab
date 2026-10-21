@@ -289,7 +289,7 @@ class OemDtcReferenceTest {
     }
 
     @Test
-    fun theEngineDescribesAnFmcuRecordAndKeepsItsCodeAsItCame() = runTest {
+    fun theEngineLaysAnFmcuRecordOutAsJ2012() = runTest {
         val bus = carNow {
             on(0x7E3, "190109").answer("590109010001")
             on(0x7E3, "190209").answer("5902091B001909")
@@ -300,8 +300,9 @@ class OemDtcReferenceTest {
 
         val fmcu = s.model.value.modules.getValue(0x7E3).dtc
         val row = fmcu.records.single()
-        assertEquals("1B0019", row.code)
-        assertEquals("Формат 01: тип отказа не выделяется", row.failureName)
+        // FMCU's format 01 reads as J2012 (architecture 4): the letter, the code, the failure type.
+        assertEquals("P1B00-19", row.code)
+        assertEquals("Ток цепи выше порога", row.failureName)
         assertEquals("Передний тяговый электродвигатель: перегрузка по току", row.description)
         assertEquals(listOf("P1B0019"), row.reference.map { it.code })
         assertEquals(listOf(listOf("front_drive · outline_542_a")), row.reference.map { it.locators })

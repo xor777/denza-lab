@@ -113,7 +113,7 @@ internal class OemDtcIndex(val headings: List<OemHeading>) {
          * read that way holds all 31 `front_drive` headings, `1BE201` alone has none. The match
          * establishes it, not a firmware rule, and only for FMCU: ISG 7E6 is not searched.
          */
-        val FORMAT_01_AS_J2012: Set<Int> = setOf(0x7E3)
+        val FORMAT_01_AS_J2012: Set<Int> = J2012.FORMAT_01_LAID_OUT
 
         /**
          * The catalog's seven characters for a [code] [request] reported; null where there is no mapping.
@@ -122,7 +122,7 @@ internal class OemDtcIndex(val headings: List<OemHeading>) {
          * two bits, the code's digits, the third byte - `1B0019` → `P1B0019`, `C1D487` → `U01D487`.
          */
         fun catalogCode(request: Int, code: DtcCode): String? = when {
-            code.format == DtcFormat.SAE_J2012_00 -> J2012.compact(code.raw)
+            code.base != null -> J2012.compact(code.raw)
             code.format == DtcFormat.ISO_14229_1 && request in FORMAT_01_AS_J2012 -> J2012.compact(code.raw)
             else -> null
         }

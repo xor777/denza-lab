@@ -193,6 +193,18 @@ class DtcCodecTest {
     }
 
     @Test
+    fun formatZeroOneIsLaidOutAsJ2012AtFmcuAlone() {
+        // FMCU 7E3 (architecture 4): `1B0019` → P1B00-19, its failure type named; `C1D487` → U01D4-87.
+        val fmcu = (DiagDecoder.dtcMemory(answer(0x7E3, "190109", "590109010002"), answer(0x7E3, "190209", "5902091B001909C1D48709")) as Decoded.Ok).value
+        assertEquals(listOf("P1B00-19", "U01D4-87"), fmcu.records.map { it.code.display })
+        assertEquals(listOf(0x19, 0x87), fmcu.records.map { it.code.failureType })
+        // ISG 7E6 reports format 01 too, and keeps its six digits: its layout is not established.
+        val isg = (DiagDecoder.dtcMemory(answer(0x7E6, "190109", "590109010001"), answer(0x7E6, "190209", "5902091B001909")) as Decoded.Ok).value
+        assertEquals("1B0019", isg.records.single().code.display)
+        assertEquals(null, isg.records.single().code.failureType)
+    }
+
+    @Test
     fun statusBitsAreEightIndependentFlags() {
         assertEquals(listOf("TF", "TFTOC", "PDTC", "CDTC", "TNCSLC", "TFSLC", "TNCTOC", "WIR"), StatusBit.entries.map { it.short })
         assertEquals(listOf(1, 2, 4, 8, 16, 32, 64, 128), StatusBit.entries.map { it.mask })

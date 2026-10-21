@@ -49,18 +49,20 @@ internal enum class DtcFormat(val id: Int, val title: String) {
 
 /**
  * A three-byte DTC as its format reads it. Format 00 is SAE J2012: letter, four characters and
- * the failure type (`C1170-09`). Format 01 has no letter: six hex digits (`517009`), never
- * P/C/B/U - only the catalog lookup lays FMCU's out as J2012 to find a heading
- * ([OemDtcIndex.catalogCode]). Any other format: the raw bytes.
+ * the failure type (`C1170-09`). Format 01 has no letter: six hex digits (`517009`) - except a
+ * module in [J2012.FORMAT_01_LAID_OUT], whose format-01 codes are laid out as J2012 ([asJ2012]):
+ * FMCU's `1B0019` reads `P1B00-19`. Any other format: the raw bytes.
  */
-internal data class DtcCode(val raw: Int, val format: DtcFormat, val formatId: Int = format.id) {
+internal data class DtcCode(val raw: Int, val format: DtcFormat, val formatId: Int = format.id, val asJ2012: Boolean = false) {
     val rawHex: String get() = "%06X".format(raw and 0xFFFFFF)
 
-    /** `C1170` for format 00, null otherwise. */
-    val base: String? get() = if (format == DtcFormat.SAE_J2012_00) J2012.base(raw shr 8) else null
+    private val j2012: Boolean get() = format == DtcFormat.SAE_J2012_00 || asJ2012
 
-    /** The failure type byte of format 00, null otherwise. */
-    val failureType: Int? get() = if (format == DtcFormat.SAE_J2012_00) raw and 0xFF else null
+    /** `C1170` for format 00 and a laid-out format 01, null otherwise. */
+    val base: String? get() = if (j2012) J2012.base(raw shr 8) else null
+
+    /** The failure type byte of format 00 and a laid-out format 01, null otherwise. */
+    val failureType: Int? get() = if (j2012) raw and 0xFF else null
 
     /** SAE J2012-DA general meaning of [failureType], null when unnamed. Not a BYD definition. */
     val failureTypeName: String? get() = failureType?.let(FailureTypes::name)
@@ -79,6 +81,20 @@ internal object J2012 {
 
     /** Three bytes in J2012's layout without the dash, as the manual's catalog lists a code: `C117009`. */
     fun compact(threeBytes: Int): String = base(threeBytes shr 8) + "%02X".format(threeBytes and 0xFF)
+
+    /**
+     * The modules whose format-01 codes are laid out as J2012 - the letter from the first byte's top
+     * two bits, the code's digits, the third byte the failure type: FMCU 7E3 alone. Its live `19 0A`
+     * registry of 32 codes (2026-10-21, `research/vehicle-diagnostics/supported-dtc-20261021.json`)
+     * read that way holds all 31 `front_drive` headings of the manual's index; the match establishes
+     * it, not a firmware rule, and only for FMCU (architecture, 4). The owner chose to show them so.
+     */
+    val FORMAT_01_LAID_OUT: Set<Int> = setOf(0x7E3)
+
+    /** [memory] of the module at [address], its format-01 codes laid out where [FORMAT_01_LAID_OUT] says. */
+    fun laidOut(address: Int, memory: DtcMemory): DtcMemory =
+        if (memory.format != DtcFormat.ISO_14229_1 || address !in FORMAT_01_LAID_OUT) memory
+        else memory.copy(records = memory.records.map { it.copy(code = it.code.copy(asJ2012 = true)) })
 }
 
 /**

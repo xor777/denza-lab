@@ -36,7 +36,7 @@ internal object DiagDecoder {
             return Decoded.Malformed("count and list are not one ECU and one mask")
         }
         return when (val l = dtcList(list)) {
-            is Decoded.Ok -> DtcCodec.memory(mask, c, l.value)
+            is Decoded.Ok -> DtcCodec.memory(mask, c, l.value).laidOut(count.request.address)
             is Decoded.Negative -> l
             is Decoded.Malformed -> l
         }
@@ -46,7 +46,7 @@ internal object DiagDecoder {
     fun dtcMemoryFromList(list: DiagReply.Answer, format: DtcFormat?): Decoded<DtcMemory> {
         val mask = list.request.uds.let { if (it.size == 3) it[2].toInt() and 0xFF else -1 }
         return when (val l = dtcList(list)) {
-            is Decoded.Ok -> DtcCodec.listOnlyMemory(mask, l.value, format)
+            is Decoded.Ok -> DtcCodec.listOnlyMemory(mask, l.value, format).laidOut(list.request.address)
             is Decoded.Negative -> l
             is Decoded.Malformed -> l
         }
@@ -120,4 +120,7 @@ internal object DiagDecoder {
         if (u[0] != service + 0x40) return Decoded.Malformed("answer %02X to service %02X".format(u[0], service))
         return body(req, uds)
     }
+
+    private fun Decoded<DtcMemory>.laidOut(address: Int): Decoded<DtcMemory> =
+        if (this is Decoded.Ok) Decoded.Ok(J2012.laidOut(address, value)) else this
 }

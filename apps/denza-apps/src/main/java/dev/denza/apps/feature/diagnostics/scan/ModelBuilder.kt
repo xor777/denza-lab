@@ -511,8 +511,8 @@ internal class ModelBuilder(
         }
 
         fun failureName(code: DtcCode): String = when {
-            code.format == DtcFormat.ISO_14229_1 -> "Формат 01: тип отказа не выделяется"
-            code.format != DtcFormat.SAE_J2012_00 -> "Формат ${"%02X".format(code.formatId and 0xFF)}: сырые байты"
+            code.base == null && code.format == DtcFormat.ISO_14229_1 -> "Формат 01: тип отказа не выделяется"
+            code.base == null -> "Формат ${"%02X".format(code.formatId and 0xFF)}: сырые байты"
             else -> code.failureTypeName?.replaceFirstChar { it.uppercase() } ?: "Тип отказа не назван в SAE J2012-DA"
         }
 
