@@ -70,6 +70,33 @@ class DiagnosticBusLinesTest {
     }
 
     @Test
+    fun theGapIsOneLineAndItsAnswerTheSameLine() {
+        assertEquals("g 20", DiagnosticBusLines.gap(20))
+        assertEquals("g 0", DiagnosticBusLines.gap(0))
+        assertEquals("g 500", DiagnosticBusLines.gap(500))
+        assertThrows(IllegalArgumentException::class.java) { DiagnosticBusLines.gap(501) }
+        assertThrows(IllegalArgumentException::class.java) { DiagnosticBusLines.gap(-1) }
+
+        DiagnosticBusLines.gapTook(20, "g 20\r\n")
+        listOf("", "g 40", "g 20\ng 20", "ok", "g", "g 020", "n 0 3 20 1", "g 20 ok").forEach { payload ->
+            assertThrows(payload, DiagFailure.Refused::class.java) { DiagnosticBusLines.gapTook(20, payload) }
+        }
+    }
+
+    @Test
+    fun theHelperTakesAGapOnlyInItsOwnForm() {
+        assertEquals(20, DiagnosticBusMain.gapOf("g 20"))
+        assertEquals(0, DiagnosticBusMain.gapOf("g 0"))
+        assertEquals(500, DiagnosticBusMain.gapOf("g  500"))
+        // Anything else is refused like an unknown line.
+        listOf("g", "g 501", "g -1", "g 1000", "g 20 30", "g x", "g 2.5", "gap 20", "G 20", "x 1 7E0 010C 20").forEach {
+            assertEquals(it, -1, DiagnosticBusMain.gapOf(it))
+        }
+        // The app's line is the helper's.
+        listOf(0, 20, 40, 80, 100, 500).forEach { assertEquals(it, DiagnosticBusMain.gapOf(DiagnosticBusLines.gap(it))) }
+    }
+
+    @Test
     fun theStreamsRefusalCarriesTheHelpersCode() {
         val refusal = DiagnosticBusLines.refusal(IOException("the resident helper refused: err GUARD_PARK gear 3"))
         assertEquals("GUARD_PARK", refusal?.code)

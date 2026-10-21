@@ -21,6 +21,22 @@ internal object DiagnosticBusLines {
         return "x $seq ${request.line}"
     }
 
+    /** `g <ms>`: the helper's gap from its next exchange on. */
+    fun gap(ms: Int): String {
+        require(ms in 0..ResidentDiagnosticBus.MAX_GAP_MS) { "gap outside 0..${ResidentDiagnosticBus.MAX_GAP_MS} ms" }
+        return "g $ms"
+    }
+
+    /**
+     * The answer to [gap] for [ms]: the one line `g <ms>`, the gap now in force. Anything else is
+     * a helper that does not speak this protocol, a program error.
+     */
+    fun gapTook(ms: Int, payload: String) {
+        val lines = payload.split('\n').map(String::trim).filter(String::isNotEmpty)
+        val line = lines.singleOrNull() ?: throw malformed(payload)
+        if (line != "g $ms") throw malformed(line)
+    }
+
     /**
      * The one line between `BEGIN` and `END ok`, as a reply to [request] sent as [seq]. Anything
      * else - another seq, a second line, a word out of place - is a helper that does not speak

@@ -31,6 +31,21 @@ class FakeDiagnosticBusTest {
     }
 
     @Test
+    fun theGapIsRecordedAndRunsTheCarClockFromTheNextExchange() = runBlocking<Unit> {
+        val bus = FakeDiagnosticBus(gapMs = 100, latencyMs = 30)
+        bus.on(0x7E0, "010C").answer("410C0FA0")
+        val first = bus.exchange(rpm)
+        bus.setGap(20)
+        val second = bus.exchange(rpm)
+        bus.setGap(40)
+        val third = bus.exchange(rpm)
+        assertEquals(listOf(20, 40), bus.gaps)
+        assertEquals(50_000_000L, second.receivedNanos - first.receivedNanos)
+        assertEquals(70_000_000L, third.receivedNanos - second.receivedNanos)
+        assertThrows(IllegalArgumentException::class.java) { bus.setGap(501) }
+    }
+
+    @Test
     fun anUnscriptedAddressIsSilentAndFailuresAreLogged() = runBlocking {
         val bus = FakeDiagnosticBus()
         assertEquals(3, (bus.exchange(count) as DiagReply.NoReply).gatewayResult)

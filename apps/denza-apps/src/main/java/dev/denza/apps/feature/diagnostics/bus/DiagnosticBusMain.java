@@ -26,9 +26,14 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Packed with {@link DiagnosticWhitelist} and {@link DiagnosticFrameAssembler} and nothing else
  * of the app, and run by {@code app_process} on an ADB stream of its own. It takes
- * {@code x <seq> <address> <uds> <timeout-ms>} and {@code quit}; every other word is refused. The
- * whitelist is checked here again, because this process, not the app, is the one that can write
- * to the bus.
+ * {@code x <seq> <address> <uds> <timeout-ms>}, {@code g <gap-ms>} and {@code quit}; every other
+ * word is refused. The whitelist is checked here again, because this process, not the app, is the
+ * one that can write to the bus.
+ *
+ * <p>{@code g <ms>} sets the gap between exchanges, 0 to 500 ms, from the next exchange on, and is
+ * answered with the same {@code g <ms>} between BEGIN and {@code END ok}: the gap now in force. The
+ * gap a helper starts with is its launch parameter; the parameter page asks for less while it polls
+ * one PID (architecture, 6.2).
  *
  * <p>It starts by taking the shared reader lock for its whole life, checking that the car is
  * parked, registering for the answers and then listening for two seconds: a frame in that silence
@@ -65,7 +70,8 @@ public final class DiagnosticBusMain {
     private final String begin;
     private final String end;
     private final String ready;
-    private final int gapMs;
+    /** Set by the request thread between two exchanges, read by the main looper at the next one. */
+    private volatile int gapMs;
     private final DiagnosticFrameAssembler assembler = new DiagnosticFrameAssembler();
     private Handler main;
     private RandomAccessFile lockFile;
@@ -227,8 +233,9 @@ public final class DiagnosticBusMain {
                 String request = line.trim();
                 if (request.isEmpty()) continue;
                 if ("quit".equals(request)) break;
-                Exchange exchange = parse(request);
-                if (exchange.error == null) {
+                boolean gapLine = request.split(" +")[0].equals("g");
+                Exchange exchange = gapLine ? gap(request) : parse(request);
+                if (!gapLine && exchange.error == null) {
                     String verdict = fatal;
                     if (verdict != null) {
                         exchange.finish(null, verdict, true);
@@ -253,6 +260,34 @@ public final class DiagnosticBusMain {
             // The stream is the session; without it there is nobody to answer.
         }
         exit(0);
+    }
+
+    /**
+     * {@code g <ms>}: the gap from the next exchange on, answered {@code g <ms>}. A session that is
+     * already over answers its verdict, as an {@code x} line would; a malformed line is refused
+     * like any unknown one.
+     */
+    private Exchange gap(String line) {
+        Exchange exchange = new Exchange();
+        int ms = gapOf(line);
+        String verdict = fatal;
+        if (verdict != null) {
+            exchange.finish(null, verdict, true);
+        } else if (ms < 0) {
+            exchange.finish(null, "REFUSED g <ms> with ms 0..500 required", false);
+        } else {
+            gapMs = ms;
+            exchange.finish("g " + ms, null, false);
+        }
+        return exchange;
+    }
+
+    /** The gap a {@code g <ms>} line asks for, or -1 for any other line. */
+    static int gapOf(String line) {
+        String[] words = line.trim().split(" +");
+        if (words.length != 2 || !"g".equals(words[0]) || !words[1].matches("[0-9]{1,3}")) return -1;
+        int ms = Integer.parseInt(words[1]);
+        return ms <= MAX_GAP_MS ? ms : -1;
     }
 
     private Exchange parse(String line) {

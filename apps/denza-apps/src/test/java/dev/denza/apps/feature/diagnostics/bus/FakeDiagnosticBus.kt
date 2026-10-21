@@ -19,6 +19,9 @@ import kotlinx.coroutines.sync.withLock
  * Timing is a fake car clock: each reply's [DiagReply.receivedNanos] is the previous one plus the
  * [gapMs] and the step's latency, so a stream chart built on it has the gaps it would have on the
  * car. [delayMs] makes each exchange take virtual time under `runTest`.
+ *
+ * [setGap] is the helper's `g <ms>`: it is recorded in [gaps] and becomes [gapMs], so the fake car
+ * clock runs at the gap the engine asked for from the next exchange on.
  */
 internal class FakeDiagnosticBus(
     var gapMs: Int = 100,
@@ -63,6 +66,10 @@ internal class FakeDiagnosticBus(
     var closed = false
         private set
 
+    /** Every [setGap] in order. */
+    val gaps: List<Int> get() = synchronized(this) { gapLog.toList() }
+    private val gapLog = mutableListOf<Int>()
+
     val exchanges: List<Exchange> get() = synchronized(this) { log.toList() }
 
     /** `7E0 190109` per exchange, in order. */
@@ -85,6 +92,12 @@ internal class FakeDiagnosticBus(
             reply(request, step).also { log += Exchange(request, it.getOrNull(), it.exceptionOrNull() as DiagFailure?) }
         }
         outcome.getOrThrow()
+    }
+
+    override fun setGap(ms: Int) = synchronized(this) {
+        require(ms in 0..ResidentDiagnosticBus.MAX_GAP_MS) { "gap outside 0..${ResidentDiagnosticBus.MAX_GAP_MS} ms" }
+        gapLog += ms
+        gapMs = ms
     }
 
     override fun close() = synchronized(this) { closed = true }

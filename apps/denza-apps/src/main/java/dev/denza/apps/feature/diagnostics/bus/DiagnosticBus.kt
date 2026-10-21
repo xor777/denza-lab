@@ -96,6 +96,13 @@ internal sealed class DiagFailure(message: String, cause: Throwable? = null) : E
 internal interface DiagnosticBus : AutoCloseable {
     /** Returns what the ECU said; throws [DiagFailure] when the channel itself failed. */
     suspend fun exchange(request: DiagRequest): DiagReply
+
+    /**
+     * The helper's gap between two exchanges, 0..500 ms, from the next exchange on (architecture,
+     * 3.3, `g <ms>`). A helper opened later gets it too; the gap a helper starts with stays the
+     * launch parameter.
+     */
+    fun setGap(ms: Int)
 }
 
 internal fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02X".format(it.toInt() and 0xFF) }

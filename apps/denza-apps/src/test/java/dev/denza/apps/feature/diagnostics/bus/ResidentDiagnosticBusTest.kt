@@ -95,6 +95,60 @@ class ResidentDiagnosticBusTest {
     }
 
     @Test
+    fun aGapGoesDownTheLinkBeforeTheNextExchangeAndANewHelperIsToldAgain() = runBlocking<Unit> {
+        val car = Car()
+        val bus = car.bus()
+        // The launch parameter is the gap already: nothing to say.
+        bus.setGap(120)
+        car.answer("n 0 3 18 1\n")
+        bus.exchange(count)
+        assertEquals(listOf("stage", "start n1", "n1 x 0 782 190109 4000"), car.events)
+
+        // Asked for 20: one line before the next exchange, and not again while it holds.
+        bus.setGap(20)
+        assertEquals(3, car.events.size)
+        car.answer("g 20\n")
+        car.answer("n 1 3 18 2\n")
+        car.answer("n 2 3 18 3\n")
+        bus.exchange(count)
+        bus.exchange(count)
+        assertEquals(listOf("n1 g 20", "n1 x 1 782 190109 4000", "n1 x 2 782 190109 4000"), car.events.drop(3))
+
+        // A lost helper: the new one starts at its launch parameter and is told 20 again.
+        car.lose()
+        car.answer("g 20\n")
+        car.answer("n 4 3 18 4\n")
+        bus.exchange(count)
+        assertEquals(
+            listOf("n1 x 3 782 190109 4000", "close n1", "stage", "start n2", "n2 g 20", "n2 x 4 782 190109 4000"),
+            car.events.drop(6),
+        )
+
+        // Back to the launch gap is a line too.
+        bus.setGap(120)
+        car.answer("g 120\n")
+        car.answer("n 5 3 18 5\n")
+        bus.exchange(count)
+        assertEquals(listOf("n2 g 120", "n2 x 5 782 190109 4000"), car.events.drop(12))
+        assertThrows(IllegalArgumentException::class.java) { bus.setGap(501) }
+    }
+
+    @Test
+    fun aGapAnsweredOtherwiseIsAProgramErrorAndARefusedOneTheHelpersCode() {
+        val car = Car()
+        val bus = car.bus()
+        bus.setGap(20)
+        car.answer("g 40\n")
+        assertThrows(DiagFailure.Refused::class.java) { runBlocking { bus.exchange(count) } }
+        assertEquals(listOf("stage", "start n1", "n1 g 20", "close n1"), car.events)
+
+        // A helper whose session is over answers the gap with its verdict.
+        car.refuse("GUARD_PARK", "gear 3")
+        assertThrows(DiagFailure.NotParked::class.java) { runBlocking { bus.exchange(count) } }
+        assertEquals(listOf("stage", "start n2", "n2 g 20", "close n2"), car.events.drop(4))
+    }
+
+    @Test
     fun aLostLinkIsOpenedAgainOnceAndTheRequestSentAgain() = runBlocking {
         val car = Car()
         val bus = car.bus()

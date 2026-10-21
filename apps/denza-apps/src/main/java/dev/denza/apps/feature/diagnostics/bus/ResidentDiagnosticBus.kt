@@ -57,6 +57,11 @@ internal class ResidentSessionLink(private val session: LocalAdbClient.ResidentS
  * closes the stream ([LocalAdbClient.ResidentSession.request] closes on every failure), so the
  * exchange after it starts a new helper.
  *
+ * The gap between exchanges starts as [gapMs], the launch parameter of every helper. [setGap] asks
+ * for another from the next exchange on: before that exchange the link is sent `g <ms>` whenever the
+ * helper's gap is not the one asked for - so a helper opened after a loss is told again - and the
+ * answer must be the same `g <ms>`.
+ *
  * A cancelled exchange closes its link at once: the socket's close is what interrupts a blocked
  * read, and the helper ends with its stream. [close] does the same from any thread.
  */
@@ -74,6 +79,9 @@ internal class ResidentDiagnosticBus(
     @Volatile private var link: DiagnosticBusLink? = null
     @Volatile private var closed = false
     private var lastUsed = 0L
+    /** The gap the caller asked for, and the one the open helper holds. */
+    @Volatile private var wantedGap = gapMs
+    private var linkGap = gapMs
     private var sequence = 0
 
     init {
@@ -90,6 +98,11 @@ internal class ResidentDiagnosticBus(
         }
     }
 
+    override fun setGap(ms: Int) {
+        require(ms in 0..MAX_GAP_MS) { "gap outside 0..$MAX_GAP_MS ms" }
+        wantedGap = ms
+    }
+
     override fun close() {
         closed = true
         link?.close()
@@ -99,9 +112,20 @@ internal class ResidentDiagnosticBus(
     private suspend fun attempt(request: DiagRequest): DiagReply {
         if (closed) throw DiagFailure.ChannelLost(IllegalStateException("the diagnostic bus is closed"))
         val live = reusable() ?: open()
+        val gap = wantedGap
+        if (linkGap != gap) {
+            val answer = call(live) { live.request(DiagnosticBusLines.gap(gap), RESPONSE_GRACE_MS) }
+            try {
+                DiagnosticBusLines.gapTook(gap, answer)
+            } catch (malformed: DiagFailure) {
+                drop(live)
+                throw malformed
+            }
+            linkGap = gap
+        }
         val seq = sequence++
         val payload = call(live) {
-            live.request(DiagnosticBusLines.request(seq, request), request.timeoutMs + gapMs + RESPONSE_GRACE_MS)
+            live.request(DiagnosticBusLines.request(seq, request), request.timeoutMs + linkGap + RESPONSE_GRACE_MS)
         }
         lastUsed = clock()
         return try {
@@ -125,6 +149,7 @@ internal class ResidentDiagnosticBus(
         val id = nonce()
         val opened = links(id)
         link = opened
+        linkGap = gapMs
         call(opened) { opened.start(launchCommand(stage(), id, gapMs), READY_TIMEOUT_MS) }
         if (closed) {
             drop(opened)
