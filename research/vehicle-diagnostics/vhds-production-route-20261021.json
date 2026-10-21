@@ -1,0 +1,250 @@
+{
+  "schema": "denza-lab.vhds-production-route.v1",
+  "date": "2026-10-21",
+  "vehicleOperations": 0,
+  "networkRequests": 0,
+  "firmwareExecutions": 0,
+  "newEcuAddresses": 0,
+  "newDtcDefinitions": 0,
+  "binary": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+  "captureBase": "captures/vhds-production-route-20261021",
+  "finding": "Production source loads configuration through bound callbacks; remoteOrder inputType0x100 is only the previously found direct test entry. Actual car configuration and sending Binder client remain unrecovered.",
+  "productionEntry": {
+    "functions": [
+      "0x16b20 VHDS::setAccStatus(int)",
+      "0x18300 VHDS::reportNetWorkStatus(int)"
+    ],
+    "conditions": "ACC field object+0x228 ==2, network condition, request-in-progress bit clear; launches handleReqConfig using C++ bound member/thread proxy0x2cce0. These are source branches, not runtime observation.",
+    "worker": "0x18550 VHDS::handleReqConfig()",
+    "vinLength": 17,
+    "repeatPolicy": "At most10 attempts per queried list in inspected worker while ACC state remains2. Empty list, request-again flags or uptime condition can select a query; unchanged populated list can be reused. No policy was invoked."
+  },
+  "routes": [
+    {
+      "type": 4,
+      "denzaProductionUrl": "https://nega-cn.denzacloud.com:8082/apiService/car/health/querySignalConfigData",
+      "callback": "0x1c620 VHDS::parseAllInOneTriggerList",
+      "callbackType": 4,
+      "schema": "resultData[]: signal,childrenId,startBit,endBit,values,logic,checkId,checkType,checkDidList; exact field conversion already pinned in vhds-diagnostic-trigger-path-20261021.json"
+    },
+    {
+      "type": 2,
+      "denzaProductionUrl": "https://nega-cn.denzacloud.com:8082/apiService/car/health/queryEcuListData",
+      "callback": "0x1ed20 VHDS::parseECUList",
+      "callbackType": 0,
+      "schema": "resultData[].ecuDiaId (hex string), diag[].sid, diag[].list[].did (string length at most8). These define diagnostic requests, not human-readable DTC descriptions."
+    }
+  ],
+  "callbackBinding": {
+    "wrapperVptr": "0x4a670",
+    "invokeSlot": "0x30",
+    "relocationOffset": "0x4a6a0",
+    "relocationType": 1027,
+    "target": "0x2d4f0",
+    "rule": "Wrapper member pointer+8, adjustment+0x10=0, object+0x18; invokes target with unchanged string reference and loaded uint8 callback type. Original bytes establish nonvirtual dispatch."
+  },
+  "selection": {
+    "brandProperty": "ro.build.car.series",
+    "denzaValue": "denza",
+    "denzaEnum": 0,
+    "testProperty": "persist.sys.cloudtest",
+    "requestBodyBuilder": "0x27c50 encode_req_ecu_list",
+    "parameterFields": {
+      "vin": "stock vehicle VIN",
+      "carType": "decimal string of a stock configuration GET; not inferred from model name",
+      "version": "numeric constant0, not the ECU software version",
+      "timestamp": "current seconds"
+    },
+    "boundary": "Outer envelope contains stock client/nonce/signing fields. No secret-returning routine was decompiled, no secret extracted and no signing/authentication/request attempted. These request selectors alone do not bind a downloaded definition to ECU software."
+  },
+  "cache": {
+    "signalPath": "/data/vhds/trigger_list_cfg/allone.txt",
+    "signalResponseWrittenBeforeResultCodeGate": true,
+    "write": "saveTriggerListCfg0x179e0, fopen wb, original response body; source curl success branch writes before atoi(resultCode)==0 callback gate",
+    "ecuListPersistedByInspectedBranch": false,
+    "ecuResponse": "Response log and parser callback are established; no call to saveTriggerListCfg in the type2 response branch. The only observed external incoming call to that writer is0x22174 with type4.",
+    "otherWriterPath": "triggerlistconfig.txt is the writer fallback for non4, not evidence that queryEcuListData is persisted there.",
+    "readbackBoundary": "Prior metadata returned Permission denied for these private paths; existence/content and runtime loader/cache use remain unknown. Stored error/malformed body is possible; require independent JSON/schema/identity validation."
+  },
+  "inventoryHits": [
+    "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libvhds.so",
+    "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds"
+  ],
+  "inventoryBoundary": "42 unique ELF files among indexed kind=file rows; matching symbols/literals only in daemon/interface. Excludes loose unindexed binaries, APK-embedded libraries and dynamic/stringless clients; no whole-system absence claim.",
+  "nextEvidence": [
+    "Retained passive VHDS response log lines with complete resultData and provenance for type2/type4, keeping VIN/ICCID/signing envelope out of published results.",
+    "Read existing allone.txt only through an authorized read-only acquisition; verify complete JSON, resultCode, real identifiers and applicability before interpreting signal->request mappings. Do not start a service or feed the parser to obtain it.",
+    "Record current installed binary identity, brand/test/network properties and capture time before treating source route as active. No state-changing property, network query, task launch or CAN-table write is part of this report."
+  ],
+  "limits": [
+    "No current daemon presence/permissions/network reachability or server response is established.",
+    "Ghidra independent ELF load-image attestation unsupported; measured .text hash and base checked separately.",
+    "REA function references include same-function jumps; they were not treated as callers. Indirect source path is corroborated by original callback/thread-wrapper bytes.",
+    "No actual ECU address, OEM DTC definition, unit, warning-to-DTC join or factory payload was recovered by this root branch.",
+    "The factory parser and downstream sender are effectful; finding a production entry does not qualify it as a read-only getter."
+  ],
+  "pseudocodeAnchors": {
+    "0x118550": [
+      "getVin",
+      "sVar8 != 0x11",
+      "param_1 + 0x228",
+      "parseAllInOneTriggerList",
+      "(param_1,4,&local_230)",
+      "parseECUList",
+      "(param_1,2,local_260)"
+    ],
+    "0x118300": [
+      "[Network]request config from server.",
+      "__arg[1] = _ZN4VHDS15handleReqConfigEv",
+      "pthread_create"
+    ],
+    "0x116b20": [
+      "[Acc On]request config from server.",
+      "puVar9[1] = _ZN4VHDS15handleReqConfigEv"
+    ],
+    "0x11fd90": [
+      "persist.sys.cloudtest",
+      "querySignalConfigData",
+      "queryEcuListData"
+    ],
+    "0x1294f0": [
+      "ro.build.car.series",
+      "system[0:denza,1:dynasty,2:ocean,3:F,4:yangwang]"
+    ],
+    "0x127c50": [
+      "\"carType\"",
+      "\"version\"",
+      "cJSON_CreateNumber(0)",
+      "\"timestamp\""
+    ],
+    "0x1179e0": [
+      "\"allone.txt\"",
+      "\"triggerlistconfig.txt\"",
+      "param_3 != 4"
+    ],
+    "0x1210e0": [
+      "\"resultCode\"",
+      "local_154[0] = 4",
+      "local_154[0] = 0",
+      "(*plVar17 + 0x30)"
+    ],
+    "0x11ed20": [
+      "\"resultData\"",
+      "\"ecuDiaId\"",
+      "strtoll",
+      "8 < sVar16"
+    ]
+  },
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+      "bytes": 318376,
+      "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/byte-corroboration.json",
+      "bytes": 607523,
+      "sha256": "79018df6e6cecb86f75bfc8fb7b52d5210ee44d9d136e676eb3798ffc814dcd0"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/firmware-index.tsv",
+      "bytes": 120560,
+      "sha256": "d7d85cfaa35cd0d36f5c1cbfd25af5114f90aafb3158ede79dfbd5960ae98dc3"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/native-client-inventory.json",
+      "bytes": 42876,
+      "sha256": "728e63596dd5b7149090e1c7f0baf1ee38bcc0c9e4cea1b4e19d0bd59742807d"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_vhds_production_route.py",
+      "bytes": 7051,
+      "sha256": "80e8eb85c25fb7bfc00601d3e2f3fa0e15eb9da6bdfe817d9555a46fb365702b"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/cache-incoming.json.gz",
+      "bytes": 4920,
+      "sha256": "d8161a656e1208c9354b97557b458e35d1b857de130a4dcd37f068c38634c378"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/callback-and-threads.json.gz",
+      "bytes": 3615,
+      "sha256": "b597566fb5f24bf946c0108f08528459c95dc8b48128db7734b02ca1a3446706"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/calls.json.gz",
+      "bytes": 664,
+      "sha256": "072325b607d1ff9febe3a577abdb35b880fec2196a63c14f33b059e640a9f16b"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/close.json.gz",
+      "bytes": 188,
+      "sha256": "4a577f1d2ae6729229c91134642e914e3dbcfa1e1ff804e5bc1b995b78c8b97d"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/config-entry.json.gz",
+      "bytes": 31587,
+      "sha256": "ba68b222e3f2ccfd8ba3447542dfbfe0f359c2e64f91aa0cb8872d313fdc5932"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/config-model.json.gz",
+      "bytes": 16801,
+      "sha256": "b74bd193a91fc3c271367a1a1d5ec63ca056c9d4b06cf98f9594f72a5af05e41"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/config-production.json.gz",
+      "bytes": 17311,
+      "sha256": "c822404f4ff4f60488058e58730939aca8134e918258dca143d0cb93ad6f4d33"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/initialize.json.gz",
+      "bytes": 696,
+      "sha256": "0583d6bf63a018b799ea80ed17da83552d213d7da0b64d19b53bded8d4581ab6"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/load-image.json.gz",
+      "bytes": 46974,
+      "sha256": "47784472b8e384731b301134fb6b89a7795e750c5613a9ab2769e914a8b5e3a8"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/open.json.gz",
+      "bytes": 402,
+      "sha256": "fe14268b2748aafa15b59b0da4ae64be4dbd658a65ca1fbb3b9f1196fc3c01ea"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/parser-incoming.json.gz",
+      "bytes": 14349,
+      "sha256": "3118e55971e4422a29ce913bab2c6016f45d8ea620c911513f1eab3cc0149971"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/receipt.json.gz",
+      "bytes": 257,
+      "sha256": "9790223dd8c65cefa48b6ef6891dcfa8f786580613836f26486a2dec52e0c15e"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/req-incoming.json.gz",
+      "bytes": 9319,
+      "sha256": "ede5e97d243d2dc3028571a0a92fb09935233ade004a8e01840ed1653a6cdde4"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/rea/tools.json.gz",
+      "bytes": 545935,
+      "sha256": "6e69120cbb7256b74fb1b6a9e3ebe22845781fbc49f048a3a02df248c68223fd"
+    },
+    {
+      "path": "captures/vhds-production-route-20261021/retained-response-log-search.json",
+      "bytes": 148737,
+      "sha256": "d160e3dcb8ae3f2293c3b9f02a7c30cb6a5d4e0ef20000fab0af4a75c987e850"
+    }
+  ],
+  "retainedLogSearch": {
+    "path": "captures/vhds-production-route-20261021/retained-response-log-search.json",
+    "files": 748,
+    "bytes": 139930162,
+    "hitFiles": 0,
+    "skippedLarge": [
+      "captures/hud-live-20260923/video-start.log"
+    ],
+    "boundary": "Existing captures files named *.log or *logcat*.txt, excluding rea/build/node_modules and files larger than40MiB; exact response/endpoint markers. Metadata only; no log text copied."
+  }
+}

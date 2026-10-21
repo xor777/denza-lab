@@ -1,0 +1,727 @@
+{
+  "schema": "denza-lab.remaining-ecu-identity.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "scope": "Source-only continuation: distinguish parent-reported identity, logical route and physical ECU. No new installed-role qualification.",
+  "operations": {
+    "vehicleRequests": 0,
+    "networkRequests": 0,
+    "firmwareExecutions": 0,
+    "archiveExtractions": 0,
+    "installations": 0,
+    "credentialsAccesses": 0
+  },
+  "sources": {
+    "factory": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/factory.json",
+      "bytes": 118681,
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac",
+      "originalPath": "research/vehicle-diagnostics/factory-ecu-map-20261020.json"
+    },
+    "cache": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/cache.json",
+      "bytes": 39890,
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+      "originalPath": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json"
+    },
+    "previousRoleGaps": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/previousRoleGaps.json",
+      "bytes": 19003,
+      "sha256": "36c7a9af4f301f27a39f4c263e4b7a718c60dc02ba252cf22374b6c1011208bb",
+      "originalPath": "research/vehicle-diagnostics/child-role-gaps-20261021.json"
+    },
+    "catalogPage1": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/catalogPage1.json",
+      "bytes": 102078,
+      "sha256": "cff4385a997711efdc83deeaceaedc99b01379096a81a3fe29a7b01880932e3b",
+      "originalPath": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-DM-661-rows-p1.json"
+    },
+    "catalogPage2": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/catalogPage2.json",
+      "bytes": 73828,
+      "sha256": "47a55df9cf5e489b96d89caa2956f717aee84d0c49f02dfff636a3945e027926",
+      "originalPath": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-DM-661-rows-p2.json"
+    },
+    "brakeRaw": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/brakeRaw.txt",
+      "bytes": 978,
+      "sha256": "9bdb5ba176acb56c634635796755f651b96d52c859080587ff8dd3af259a988f",
+      "originalPath": "captures/diagnostics-remaining-20261020/obd-name-run/probe.txt"
+    },
+    "espRaw": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/espRaw.txt",
+      "bytes": 2359,
+      "sha256": "a2acc0d16a5eee6c0321bb72664dafa611323eef2a61ff82afad19cf55d70384",
+      "originalPath": "captures/diagnostics-remaining-20261020/ident-run/probe.txt"
+    },
+    "childrenRaw": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/childrenRaw.txt",
+      "bytes": 2594,
+      "sha256": "b428eb70b7413f0bd00afe724bb98e66fcff8b4ea59cc55ef29de799d0713d6b",
+      "originalPath": "captures/diagnostics-unattended-20261021/children/live-01/probe.txt"
+    },
+    "childrenReport": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/childrenReport.json",
+      "bytes": 19935,
+      "sha256": "0603bad3baee9c37ebf22b215925685f216f4753416824b0528ea393db173b51",
+      "originalPath": "research/vehicle-diagnostics/child-identities-live-20261021.json"
+    },
+    "stockSender": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/stockSender.java",
+      "bytes": 5685,
+      "sha256": "63ec26c3071857713148667c747f4be4381b0d23fd185bb5ef530dcea87cecdb",
+      "originalPath": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/uds/UdsAutoApiSender.java"
+    },
+    "stockListener": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/stockListener.java",
+      "bytes": 5144,
+      "sha256": "763ff978917adaeb3e1ec89d7d973873654dc8ff051668ab8fcf158880395766",
+      "originalPath": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/uds/EolUdsListener.java"
+    },
+    "corpusIndex": {
+      "path": "captures/remaining-ecu-identity-20261021/sources/corpusIndex.tsv",
+      "bytes": 120560,
+      "sha256": "d7d85cfaa35cd0d36f5c1cbfd25af5114f90aafb3158ede79dfbd5960ae98dc3",
+      "originalPath": "captures/firmware-index.tsv"
+    }
+  },
+  "image": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+    "bytes": 1933312,
+    "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+    "loadBase": "0x40000",
+    "globalPointer": "0xfebdd868",
+    "architecture": "RH850, V850:LE:32:v850e3v5",
+    "installedImageHashQualified": false
+  },
+  "artifacts": {
+    "nativeRanges": {
+      "path": "captures/remaining-ecu-identity-20261021/mcu-ranges.json",
+      "bytes": 107387,
+      "sha256": "ecaa47ca764b6950a3b1844446b4eddc97f27351780d22adb15271e2b2d1436c"
+    },
+    "nativeAssembly": {
+      "path": "captures/remaining-ecu-identity-20261021/mcu-ranges.asm",
+      "bytes": 29177,
+      "sha256": "1e206ef6109d1ff4aee3ec797f1a24c05e8862915ef480dd16bb7ca1dafad844"
+    }
+  },
+  "nativeDecoder": "pypcode 4.0.1; independent host disassembly, not firmware execution",
+  "nativeAnchors": [
+    {
+      "va": "0x16c856",
+      "instruction": [
+        "jarl",
+        "0x15147e, lp"
+      ],
+      "meaning": "Callback forwards input buffer to generic diagnostic dispatcher."
+    },
+    {
+      "va": "0x1508c8",
+      "instruction": [
+        "ld.bu",
+        "0x1[r29], r1"
+      ],
+      "meaning": "Read request high byte from input byte1."
+    },
+    {
+      "va": "0x1508cc",
+      "instruction": [
+        "ld.bu",
+        "0x2[r29], r2"
+      ],
+      "meaning": "Read request low byte from input byte2."
+    },
+    {
+      "va": "0x1508d4",
+      "instruction": [
+        "st.h",
+        "r1, -0x145fa[gp]"
+      ],
+      "meaning": "Store supplied BE16 request in GP-145FA."
+    },
+    {
+      "va": "0x150946",
+      "instruction": [
+        "addi",
+        "-0x741, r1, r0"
+      ],
+      "meaning": "Only request 741 selects internal host-MCU service branch."
+    },
+    {
+      "va": "0x15094a",
+      "instruction": [
+        "bne",
+        "0x1511fa"
+      ],
+      "meaning": "Both 782 and 7E5 select same nonself sender."
+    },
+    {
+      "va": "0x15120e",
+      "instruction": [
+        "ld.hu",
+        "-0x145fa[gp], r1"
+      ],
+      "meaning": "Load stored external request ID."
+    },
+    {
+      "va": "0x151214",
+      "instruction": [
+        "st.h",
+        "r1, 0x6[sp]"
+      ],
+      "meaning": "Copy request into frameID at stack+6 (frame+2)."
+    },
+    {
+      "va": "0x151218",
+      "instruction": [
+        "st.b",
+        "r0, 0x4[sp]"
+      ],
+      "meaning": "Set internal frame selector 0."
+    },
+    {
+      "va": "0x15128e",
+      "instruction": [
+        "jarl",
+        "0x1515a0, lp"
+      ],
+      "meaning": "Append transcript before enqueuing, without route-name lookup."
+    },
+    {
+      "va": "0x151296",
+      "instruction": [
+        "jarl",
+        "0x169a6e, lp"
+      ],
+      "meaning": "Enqueue same frame."
+    },
+    {
+      "va": "0x151692",
+      "instruction": [
+        "ld.hu",
+        "0x2[r29], r1"
+      ],
+      "meaning": "Transcript reads supplied frameID; writes to transcript, not original frame."
+    },
+    {
+      "va": "0x169abe",
+      "instruction": [
+        "jarl",
+        "0x1b3ed4, lp"
+      ],
+      "meaning": "Selector 0 enqueue copies complete 4C-byte internal frame."
+    },
+    {
+      "va": "0x169b84",
+      "instruction": [
+        "ld.hu",
+        "0x2[r29], r7"
+      ],
+      "meaning": "Drain passes frameID as lower sender second argument."
+    },
+    {
+      "va": "0x169b90",
+      "instruction": [
+        "jarl",
+        "0x1a5578, lp"
+      ],
+      "meaning": "Call lower sender 1A5578."
+    },
+    {
+      "va": "0x1a55a0",
+      "instruction": [
+        "mov",
+        "r7, r28"
+      ],
+      "meaning": "Save supplied frameID in r28."
+    },
+    {
+      "va": "0x1a55a8",
+      "instruction": [
+        "movhi",
+        "0x4000, r0, r24"
+      ],
+      "meaning": "Load 0x40000000 flag word."
+    },
+    {
+      "va": "0x1a55dc",
+      "instruction": [
+        "cmp",
+        "r0, r27"
+      ],
+      "meaning": "Select internal selector 0 branch."
+    },
+    {
+      "va": "0x1a55e0",
+      "instruction": [
+        "mov",
+        "0x2, r23"
+      ],
+      "meaning": "Selector 0 uses numeric tx handle 2; no physical network name inferred."
+    },
+    {
+      "va": "0x1a55ea",
+      "instruction": [
+        "mov",
+        "r28, r1"
+      ],
+      "meaning": "Copy unchanged frameID to descriptor word."
+    },
+    {
+      "va": "0x1a55ec",
+      "instruction": [
+        "or",
+        "r24, r1"
+      ],
+      "meaning": "Add 0x40000000 flags, preserving arbitration ID bits."
+    },
+    {
+      "va": "0x1a55fc",
+      "instruction": [
+        "jarl",
+        "0x1c4666, lp"
+      ],
+      "meaning": "Pass numeric tx handle 2 and descriptor to 1C4666."
+    },
+    {
+      "va": "0x1c46a0",
+      "instruction": [
+        "mov",
+        "0x1fffffff, r24"
+      ],
+      "meaning": "Lower writer loads ID mask 1FFFFFFF."
+    },
+    {
+      "va": "0x1c4768",
+      "instruction": [
+        "ld.w",
+        "0x4[r28], r1"
+      ],
+      "meaning": "Read same descriptor ID/flags word."
+    },
+    {
+      "va": "0x1c4774",
+      "instruction": [
+        "and",
+        "r24, r1"
+      ],
+      "meaning": "Retain low 29 bits including standard 11-bit address."
+    },
+    {
+      "va": "0x1c4776",
+      "instruction": [
+        "or",
+        "r2, r1"
+      ],
+      "meaning": "OR 0x20000000 flag."
+    },
+    {
+      "va": "0x1c4778",
+      "instruction": [
+        "sst.w",
+        "r1, 0x0[ep]"
+      ],
+      "meaning": "Store word into tx-buffer ID slot."
+    },
+    {
+      "va": "0x1528f0",
+      "instruction": [
+        "ld.hu",
+        "-0x145fa[gp], r1"
+      ],
+      "meaning": "Reload external request for response matching."
+    },
+    {
+      "va": "0x1528fa",
+      "instruction": [
+        "add",
+        "0x8, r1"
+      ],
+      "meaning": "Expected reply is request plus 8."
+    },
+    {
+      "va": "0x1528fe",
+      "instruction": [
+        "bne",
+        "0x152fdc"
+      ],
+      "meaning": "Reject other reply IDs."
+    }
+  ],
+  "nativeInstructionCount": 631,
+  "result": "no_new_exact_child_role_or_physical_brake_join; host_address_preservation_boundary_extended",
+  "newFindings": [
+    {
+      "claim": "Extended prior queue-level trace through full MCU wrapper 1A5578..1A56D0 and lower tx-buffer writer 1C4666..1C486E. Selector 0 uses numeric tx handle 2 and preserves supplied low 11-bit arbitration ID.",
+      "evidence": "mcu-ranges.json/can-transmit-wrapper and can-transmit-buffer-writer; checked against pinned original MCU bytes.",
+      "implication": "At this traced host-MCU encoding boundary, 7E5 and 782 remain distinct addresses. The host does not rewrite either into the other here. A downstream gateway mapping or two endpoints implemented by one physical controller remain possible."
+    },
+    {
+      "claim": "Two remaining INS code DIDs are reused in other factory namespaces: F394 at INS 723 and ERP 596; F494 at INS 723 and TRCAAL 720.",
+      "implication": "DID alone is not a component-role key; route plus DID plus applicable exact identity is required. These collisions do not resolve INS MCU/audio."
+    }
+  ],
+  "retainedFindings": [
+    "All nine named subroles remain unbound. Cached full code, route and DID stay together; suffixes, numerical order and catalog name pools are not a joining rule.",
+    "Eight previously observed child software identities remain parent-reported identities behind four logical CAN parents. They add no new CAN address and qualify neither physical child-unit boundaries nor separate DTC memories.",
+    "782 retains ESP_BOSCH/IPB_BOSCH/BSC_BYD candidate aliases and exact code 32330011DF0B000101. OBD 7E5 retains CALID 4000825042253153 and BSCM-BrakeSystem name. There is no common exact identity across the two formats."
+  ],
+  "nextNarrowObservation": [
+    {
+      "gap": "INS MCU/audio; FRL left/right/environment; CDC/ZCU switch",
+      "needed": "An applicable supplier/scanner definition or existing component record explicitly joining exact parent route+child DID/full software code with descriptive role. Re-reading same child code or hardware version does not close absent name join.",
+      "vehicleRequestQualifiedByThisReport": false
+    },
+    {
+      "gap": "Whether 7E5 and 782 are interfaces of one physical brake unit",
+      "needed": "A software/hardware-applicable routing definition explicitly mapping both addresses to one component, or a documented common unique physical-unit identifier available through both interfaces. Shared role/version/CALID prefixes and pairs of zero-DTC replies cannot establish this.",
+      "vehicleRequestQualifiedByThisReport": false
+    }
+  ],
+  "limits": [
+    "Owner-supplied MCU package is pinned; no installed MCU hash was obtained. Saved historical live transcripts are rechecked, not refreshed.",
+    "Lower-layer result is static tx-ID encoding evidence for explicitly traced generic nonself path. It is not a new bus capture, wiring map, physical channel label or execution acceptance.",
+    "Numeric tx handle 2 and frame selector 0 are implementation indexes, not physical network names. Flag bits are retained without assigning undocumented hardware meanings.",
+    "No global absence claim is made for dictionaries or role definitions. Unexamined images, compressed regions and downstream gateways stay outside this bounded continuation.",
+    "Frozen corpus index documents lookup provenance only; checker does not depend on mutable live index or previous reports whose historical index drifted.",
+    "No new service/DID request, product allowlist change, physical unit count or child DTC-memory support is qualified."
+  ],
+  "checker": {
+    "path": "research/vehicle-diagnostics/check_remaining_ecu_identity.py",
+    "defaultCommand": "python3 research/vehicle-diagnostics/check_remaining_ecu_identity.py",
+    "redisassemblyCommand": "PYTHONPATH=/private/tmp/denza-pypcode-20261018 /opt/homebrew/bin/python3.13 research/vehicle-diagnostics/check_remaining_ecu_identity.py --redisassemble",
+    "decoderTemporaryPathIsDurable": false,
+    "sha256": "6993fbcb9cd341ce61632d4ce7a4a8cae4ed5419ed6e3e5823cd70f27db3affa"
+  },
+  "verifiedFacts": {
+    "factoryCandidates": 225,
+    "exactModelCatalogRows": 172,
+    "remainingNamedRoles": [
+      {
+        "factoryRecordIndex": 169,
+        "ecuId": "HTH-2021_INS_BYD_00400001",
+        "route": "723/72B",
+        "softwareCodeDid": "F394",
+        "cachedSoftwareCode": "4B450011E0250037C1",
+        "candidateNamedRoles": [
+          {
+            "rowId": 1406,
+            "systemZh": "多媒体网/组合仪表_开阳MCU(比亚迪)(INS_MCU)"
+          },
+          {
+            "rowId": 1407,
+            "systemZh": "多媒体网/组合仪表_音源模块(比亚迪)(INS2)"
+          }
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 170,
+        "ecuId": "HTH-2021_INS_BYD_00500001",
+        "route": "723/72B",
+        "softwareCodeDid": "F494",
+        "cachedSoftwareCode": "4B450011E0250037D1",
+        "candidateNamedRoles": [
+          {
+            "rowId": 1406,
+            "systemZh": "多媒体网/组合仪表_开阳MCU(比亚迪)(INS_MCU)"
+          },
+          {
+            "rowId": 1407,
+            "systemZh": "多媒体网/组合仪表_音源模块(比亚迪)(INS2)"
+          }
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 137,
+        "ecuId": "HTH-2021_FRL_BYD_00300001",
+        "route": "747/74F",
+        "softwareCodeDid": "F644",
+        "cachedSoftwareCode": "48330011DEE3003B7A",
+        "candidateNamedRoles": [
+          {
+            "rowId": 1390,
+            "systemZh": "顶棚RLIN5网/前室内灯氛围灯左灯头(比亚迪)(FRL1)"
+          },
+          {
+            "rowId": 1391,
+            "systemZh": "顶棚RLIN5网/前室内灯氛围灯右灯头(比亚迪)(FRL2)"
+          },
+          {
+            "rowId": 1392,
+            "systemZh": "顶棚RLIN5网/前室内环境灯(比亚迪)(FRL3)"
+          }
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 138,
+        "ecuId": "HTH-2021_FRL_BYD_00200001",
+        "route": "747/74F",
+        "softwareCodeDid": "F654",
+        "cachedSoftwareCode": "48330011DEE3003B7B",
+        "candidateNamedRoles": [
+          {
+            "rowId": 1390,
+            "systemZh": "顶棚RLIN5网/前室内灯氛围灯左灯头(比亚迪)(FRL1)"
+          },
+          {
+            "rowId": 1391,
+            "systemZh": "顶棚RLIN5网/前室内灯氛围灯右灯头(比亚迪)(FRL2)"
+          },
+          {
+            "rowId": 1392,
+            "systemZh": "顶棚RLIN5网/前室内环境灯(比亚迪)(FRL3)"
+          }
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 140,
+        "ecuId": "HTH-2021_FRL_BYD_00400001",
+        "route": "747/74F",
+        "softwareCodeDid": "FB24",
+        "cachedSoftwareCode": "48330011DEE3003BB2",
+        "candidateNamedRoles": [
+          {
+            "rowId": 1390,
+            "systemZh": "顶棚RLIN5网/前室内灯氛围灯左灯头(比亚迪)(FRL1)"
+          },
+          {
+            "rowId": 1391,
+            "systemZh": "顶棚RLIN5网/前室内灯氛围灯右灯头(比亚迪)(FRL2)"
+          },
+          {
+            "rowId": 1392,
+            "systemZh": "顶棚RLIN5网/前室内环境灯(比亚迪)(FRL3)"
+          }
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 5,
+        "ecuId": "HTH-2021_CDC_BYD_00200001",
+        "route": "720/728",
+        "softwareCodeDid": "C294",
+        "cachedSoftwareCode": "4A500111DF019A0101",
+        "candidateNamedRoles": [
+          {
+            "rowId": 1455,
+            "systemZh": "诊断网/跨域计算平台_交换机(比亚迪)(CDC_JH)"
+          }
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 10,
+        "ecuId": "HTH-2021_F_ZCU_BYD_00200001",
+        "route": "720/728",
+        "softwareCodeDid": "C394",
+        "cachedSoftwareCode": "4A500111DF01540101",
+        "candidateNamedRoles": [
+          {
+            "rowId": 1397,
+            "systemZh": "多媒体网/前域控制器_交换机(比亚迪)(F_ZCU_CJ)"
+          }
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 7,
+        "ecuId": "HTH-2021_R_ZCU_BYD_00200001",
+        "route": "720/728",
+        "softwareCodeDid": "C494",
+        "cachedSoftwareCode": "48450111DF01770101",
+        "candidateNamedRoles": [
+          {
+            "rowId": 1398,
+            "systemZh": "多媒体网/右域控制器_交换机(比亚迪)(R_ZCU_CJ)"
+          }
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 9,
+        "ecuId": "HTH-2021_B_ZCU_BYD_00200001",
+        "route": "720/728",
+        "softwareCodeDid": "C594",
+        "cachedSoftwareCode": "48450111DF01760101",
+        "candidateNamedRoles": [
+          {
+            "rowId": 1396,
+            "systemZh": "多媒体网/后域控制器_交换机(比亚迪)(B_ZCU_CJ)"
+          }
+        ],
+        "qualifiedNamedSubrole": null
+      }
+    ],
+    "sameDidAtDifferentFactoryRoutes": [
+      {
+        "did": "F394",
+        "rows": [
+          {
+            "factoryRecordIndex": 169,
+            "ecuId": "HTH-2021_INS_BYD_00400001",
+            "route": "723/72B"
+          },
+          {
+            "factoryRecordIndex": 215,
+            "ecuId": "HTH-2021_ERP_BaoLong_00300001",
+            "route": "596/59E"
+          }
+        ]
+      },
+      {
+        "did": "F494",
+        "rows": [
+          {
+            "factoryRecordIndex": 66,
+            "ecuId": "HTH-2021_TRCAAL_BYD_00B00001",
+            "route": "720/728"
+          },
+          {
+            "factoryRecordIndex": 170,
+            "ecuId": "HTH-2021_INS_BYD_00500001",
+            "route": "723/72B"
+          }
+        ]
+      }
+    ],
+    "brakeObdIdentity": [
+      {
+        "requestIdHex": "7E5",
+        "responseIdHex": "7ED",
+        "requestHex": "0904",
+        "payloadHex": "49040134303030383235303432323533313533",
+        "text": "4000825042253153"
+      },
+      {
+        "requestIdHex": "7E5",
+        "responseIdHex": "7ED",
+        "requestHex": "090A",
+        "payloadHex": "490A014253434D2D4272616B6553797374656D00000000",
+        "text": "BSCM-BrakeSystem"
+      }
+    ],
+    "espIdentity": {
+      "requestIdHex": "782",
+      "responseIdHex": "78A",
+      "softwareCode": "32330011DF0B000101",
+      "factoryAliases": [
+        {
+          "factoryRecordIndex": 191,
+          "ecuId": "HTH-2021_ESP_BOSCH_00100001",
+          "route": "782/78A",
+          "softwareCodeDid": "F194",
+          "cachedSoftwareCode": "32330011DF0B000101"
+        },
+        {
+          "factoryRecordIndex": 192,
+          "ecuId": "HTH-2021_IPB_BOSCH_00100001",
+          "route": "782/78A",
+          "softwareCodeDid": "F194",
+          "cachedSoftwareCode": "32330011DF0B000101"
+        },
+        {
+          "factoryRecordIndex": 193,
+          "ecuId": "HTH-2021_BSC_BYD_00100001",
+          "route": "782/78A",
+          "softwareCodeDid": "F194",
+          "cachedSoftwareCode": "32330011DF0B000101"
+        }
+      ]
+    },
+    "brakePhysicalRelationship": null,
+    "existingQualifiedChildIdentities": [
+      {
+        "ecuId": "HTH-2021_SMF_L_DFL_00100001",
+        "requestIdHex": "750",
+        "responseIdHex": "758",
+        "softwareCodeDid": "F8C4",
+        "softwareCode": "47380011DFE3000102",
+        "physicalBus": null,
+        "physicalUnitIdentity": null,
+        "childDtcMemoryQualified": false
+      },
+      {
+        "ecuId": "HTH-2021_SMF_R_DFL_00100001",
+        "requestIdHex": "7B5",
+        "responseIdHex": "7BD",
+        "softwareCodeDid": "F8D4",
+        "softwareCode": "47380011DFE2000200",
+        "physicalBus": null,
+        "physicalUnitIdentity": null,
+        "childDtcMemoryQualified": false
+      },
+      {
+        "ecuId": "HTH-2021_SMR_L_DFL_00100001",
+        "requestIdHex": "7D2",
+        "responseIdHex": "7DA",
+        "softwareCodeDid": "F8E4",
+        "softwareCode": "47380011DFE0001C00",
+        "physicalBus": null,
+        "physicalUnitIdentity": null,
+        "childDtcMemoryQualified": false
+      },
+      {
+        "ecuId": "HTH-2021_SMR_R_DFL_00100001",
+        "requestIdHex": "7D2",
+        "responseIdHex": "7DA",
+        "softwareCodeDid": "F8F4",
+        "softwareCode": "47380011DFE1001D00",
+        "physicalBus": null,
+        "physicalUnitIdentity": null,
+        "childDtcMemoryQualified": false
+      },
+      {
+        "ecuId": "HTH-2021_RL_L_BYD_00200001",
+        "requestIdHex": "726",
+        "responseIdHex": "72E",
+        "softwareCodeDid": "F204",
+        "softwareCode": "48330011DFC5000201",
+        "physicalBus": null,
+        "physicalUnitIdentity": null,
+        "childDtcMemoryQualified": false
+      },
+      {
+        "ecuId": "HTH-2021_RL_R_BYD_00200001",
+        "requestIdHex": "726",
+        "responseIdHex": "72E",
+        "softwareCodeDid": "F214",
+        "softwareCode": "48330011DFC6000202",
+        "physicalBus": null,
+        "physicalUnitIdentity": null,
+        "childDtcMemoryQualified": false
+      },
+      {
+        "ecuId": "HTH-2021_TL_L_BYD_00200001",
+        "requestIdHex": "726",
+        "responseIdHex": "72E",
+        "softwareCodeDid": "F064",
+        "softwareCode": "48330011DFB2000203",
+        "physicalBus": null,
+        "physicalUnitIdentity": null,
+        "childDtcMemoryQualified": false
+      },
+      {
+        "ecuId": "HTH-2021_TL_R_BYD_00200001",
+        "requestIdHex": "726",
+        "responseIdHex": "72E",
+        "softwareCodeDid": "F234",
+        "softwareCode": "48330011DFD5000204",
+        "physicalBus": null,
+        "physicalUnitIdentity": null,
+        "childDtcMemoryQualified": false
+      }
+    ],
+    "standardIdEncodingProjection": {
+      "testedNumericIds": 2048,
+      "distinctEncodedWords": 2048,
+      "7E5": "0x200007e5",
+      "782": "0x20000782",
+      "sameEncodedId": false
+    }
+  }
+}

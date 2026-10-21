@@ -54,6 +54,10 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | MCU raw dispatch precedes diagnostic rejection but requires existing table entries. Four HAL streams delivered3664 callbacks, zero target7E8/7EE; OTA/SecretOBD stayed silent. MCU/HAL and the five-transaction libvhds interface qualify no existing-table readback. Extracted vhds registers conditional MQTT rows347/channel0 and4BF/44A/channel2, plus parsed configuration. Four exact private config paths denied shell stat; runtime tables and the SecretOBD writer remain unknown | source writer found; current file access and live visibility bounded | 2026-10-21 | [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Table readback boundary](#collection-table-readback-boundary-2026-10-21) |
 | Exact definitions: six BMS misses and P2BAE00 conflict remain unresolved. ISG has32 conditional public-heading matches and24 raw misses; format01 mapping is unqualified. Stock descriptions come from exact numeric keys in original downloaded script data.attach[].dtcList. The file path and task-selection chain are traced, but no applicable ISG script or selection tuple was recovered; no new qualified definitions or warning links | exact source located; applicable content missing | 2026-10-21 | [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21); [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
 | VHDS configuration can relate a CAN-field condition to an ECU/service/parameter list. The traced direct loader has a test-property gate; no actual task was recovered. The CAN-trigger data path selects prefix02. Sibling owner03 uses DID-oriented framing and rejects a1035-byte response too; it is no ECM registry bypass. No new address, definition or specific warning-to-DTC link | offline schema and transport limits; runtime configuration missing | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
+| Factory script lifecycle: production EOL ingress is traced, and normal completion/startup cleanup can remove Scripts and the saved task. This does not prove the cause of this car's empty cache; original applicable ECM/BMS/drive dictionaries remain missing | offline Java source | 2026-10-21 | [Stock script source](#stock-isg-reader-and-factory-script-source-2026-10-21) |
+| The MCU transmit path preserves distinct7E5/782 request IDs; physical BSCM/ESP identity remains open. F394 and F494 each occur on different factory routes, so a DID alone cannot assign a child role | offline original-byte and catalog proof | 2026-10-21 | [ECU roles](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) |
+| Drive scalar source: torque input bounds/cache rejection and mode-dependent speed FID aliases are traced. A converted -1 can be valid and rejected samples can leave old cache values; units/freshness and dedicated ISG numeric ownership remain unqualified | offline byte proof plus historical GET rows | 2026-10-21 | [Battery validity](#battery-validity-and-collection-gates-2026-10-21) |
+| VHDS production source requests signal and ECU diagnostic configurations through callbacks, independently of the test-only direct entry. Signal replies are written to allone.txt before the result-code gate; ECU-list persistence is not established. Actual payloads and OEM DTC meanings remain missing | offline REA and original-byte proof | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | REA continuation closes the VHDS Binder ABI: transaction5 dispatches through the constructor-installed IVHDS vptr and the minus8 thunk to remoteOrder. publishService names the service vhds. The sending client, actual configuration and runtime applicability remain unknown; no new ECU address or DTC meaning | offline constructor and original-byte proof | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | Front-drive DC-current rejected conversion preserves the previous float cache; rear converters differ and six temperature paths preserve FE/FF. Adjacent charging-current CAN444/channel2 now has a complete dual-cache/GB-consumer trace; the18-ID normalization excludes345/44A. Generation state0 is explicitly INVALID. Priority BMS units and dedicated ISG numeric telemetry remain unqualified | firmware + retained observations, not new physical-unit qualification | 2026-10-21 | [Scalar quality](#powertrain-scalar-quality-and-cache-limits-2026-10-21); [Current consumers and ISG](#adjacent-current-consumers-and-isg-boundary-2026-10-21) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
@@ -3025,6 +3029,30 @@ filters, independent review and source audit are under
 `captures/diagnostics-ecu-roles-20261021/{cabin,chassis,manual,root}/` (ignored).
 This pass made zero vehicle requests and changed no product code or allowlist.
 
+**Remaining identity boundary, 2026-10-21 continuation.** The MCU trace now
+covers the full generic wrapper `1A5578..1A56D0` and lower transmit-buffer writer
+`1C4666..1C486E`. The traced selector0 maps to numeric transmit handle2; the
+caller adds `40000000`, then the lower routine masks with `1FFFFFFF` and adds
+`20000000`. Thus the low request IDs `7E5` and `782` remain distinct at that
+boundary (`200007E5` versus `20000782`). This excludes an alias in this inspected
+host path, not downstream gateway aliasing or two addresses of one physical
+brake controller. The numeric handle does not by itself name a physical bus.
+
+A DID is also not a global component name: factory routing records use `F394`
+for both INS/`723` and ERP/`596`, and `F494` for both INS/`723` and TRCAAL/`720`.
+The eight retained child software identities remain parent-reported identities,
+not eight new CAN addresses or separately qualified DTC memories. All nine
+child roles and the physical BSCM/ESP relationship remain open. A useful next
+source must bind route plus DID/full identity to a role, or establish a common
+unique physical identity; repeating the same software reads is insufficient.
+
+The retained report is
+[`remaining-ecu-identity-20261021.json`](../research/vehicle-diagnostics/remaining-ecu-identity-20261021.json).
+`python3 research/vehicle-diagnostics/check_remaining_ecu_identity.py` checks
+12 frozen sources and 11 RH850 ranges/631 instructions; the optional
+`--redisassemble` replays the existing `pypcode` decoder. No native REA/raw
+RH850 import, vehicle or network operation was used.
+
 ### Deep inventory and telemetry beyond identification (2026-10-21)
 
 This is an offline research pass over the owner's existing firmware and retained
@@ -4170,6 +4198,51 @@ anchors,8 mappings,19 raw frames and2 saved GETs. This provides concrete factory
 message meanings for a warning reader; it does not fill the missing
 software-applicable DTC dictionary or warning-to-DTC/ECU mapping.
 
+**Drive scalar validity and protocol selection, 2026-10-21 continuation.**
+The original HAL bytes bind `motortorque` (`5F640`) to device1012/FID44100018
+and `motorspeedfr` (`7BCB0`) to the following CANFD input/cache routes. These
+are numeric conversion contracts; no new physical unit or UDS ECU ownership
+is inferred from the function names.
+
+| Input FID → API/cache FID (device1012) | Mode condition | Accepted unsigned raw input | API numeric conversion |
+| --- | --- | --- | --- |
+| `44100018 → 44100018` (float) | Torque converter | `0..10000` | float32 `raw × 0.1 − 500` |
+| `44100008 → 44100008` | `46D00428 != 2` | `0..30000` | `raw − 15000` |
+| `25100008 → 25100008` | `46D00428 != 2` | `0..60000` | `raw − 30000` |
+| `46D00408 → 44100008` | `46D00428 == 2` | `0..65533` | `raw − 32000` |
+| `46D00418 → 25100008` | `46D00428 == 2` | `0..65533` | `raw − 32000` |
+
+Out-of-domain values return `-10014`; for torque the return occurs before the
+output write, and the downstream type4 dispatch skips the float-cache update.
+A previous zero can therefore survive a rejected raw `FFFF`. This is a static
+counterexample to interpreting a cached zero as a fresh valid measurement,
+not an observed faulty update. Conversely, raw4990 is accepted and converts to
+`-1.0`; that numeric value alone cannot distinguish genuine converted data from
+a getter fallback. Freshness and status need their own evidence.
+
+The mode selector is the exact CANFD `ENGINE_DRIVE_MOTOR_RPM_NEW_PROTOCOL_FLAG`
+FID `46D00428`. Every getter result other than2 selects the older branch,
+including an error/uninitialized result. Two retained GET rows from the earlier
+catalog sweep report mode0; they do not prove the selector value at a later
+signal update. The earlier snapshot also confirms typed access for torque:
+the int getter returns `-10013`, while the float getter returns0. No cell-array
+freshness contract, missing physical unit or dedicated ISG numeric source was
+closed in this pass.
+
+The larger HAL REA import exhausted its configured1GiB heap. The following
+batch returned nine unresolved procedure results; neither the envelope's
+`isError=false` nor those results are claimed as successful decompilation.
+The evidence here instead uses independently mapped original ELF bytes,
+Capstone disassembly, Android packed relocations and the retained AutoID
+expression evaluator. The owned REA session closed with source unchanged and
+no remaining scratch entries.
+
+[`battery-drive-telemetry-20261021.json`](../research/vehicle-diagnostics/battery-drive-telemetry-20261021.json)
+and `python3 research/vehicle-diagnostics/check_battery_drive_telemetry.py`
+retain 12 pinned sources, ten ranges/418 instructions, twelve saved GET rows,
+and exhaustive16-bit-domain arithmetic projections. Those projections execute
+host arithmetic only, not the firmware. No product or car change was made.
+
 ### Warning to DTC linkage and GB alarm boundary (2026-10-21)
 
 **No direct warning-ID to DTC or sending-ECU mapping has been established.**
@@ -4808,6 +4881,43 @@ and [`check_isg_format_source_applicability.py`](../research/vehicle-diagnostics
 No engine, battery or drive factory definition or warning-to-DTC link is added
 by this pass.
 
+**Production script ingress and cache lifecycle, 2026-10-21 continuation.**
+The existing SpotInspection source connects `MainApp → BydMqttManager →
+MqttMessageReceiver → EolExecutorV3`: command2 selects the download runner,
+command4 selects the script runner. For its Di5.1 branch, EOL uses MQTT V2
+RX1037/TX1038 (legacy topics21/23). Development and production enum entries
+share those numbers, so the channel alone does not identify the remote sender.
+The incoming command still supplies the script selection tuple; its metadata
+is not a recovered ECU-software applicability matrix.
+
+The empty Scripts directory has a concrete source-level explanation that was
+previously untraced: once all stations are marked FINISH, `finishStation`
+calls `stopTask`, which deletes `RUNNING_TASK`, station sessions, the whole
+Scripts cache and persistent outgoing MQTT messages. This is independent of
+`needClearData`, whose separate branch can delete a station's files earlier.
+Initialization without a restored task also clears task data; the sold-vehicle
+gate can call `stopTask` before listener registration. The file deletion attempt can also fail. None of these paths was
+observed running here, so they are possible explanations, not a proven cause
+of this car's empty cache. Starting the app to inspect it can itself remove
+remaining evidence.
+
+A genuine prior result report can preserve `scriptCode`, `scriptVersion` and
+`forStation`: the result uploader serializes and logs these before encryption.
+The persisted MQTT retry is an outgoing encrypted response, not an incoming
+catalog, and cleanup is not a durable archive. Such a report can recover a
+selection tuple but cannot replace the original `data.attach[].dtcList` or
+prove ECU software applicability. The filename-only local audit also found no
+matching cache names; it does not cover opaque archives or private car storage.
+
+No matching script, new ECM/BMS/drive factory definition or warning-to-DTC join
+was recovered. The useful object remains an existing original script/export
+with its tuple, hashes and applicability, or an already retained report that
+identifies that tuple. The source and replay are
+[`factory-dtc-script-route-20261021.json`](../research/vehicle-diagnostics/factory-dtc-script-route-20261021.json)
+and `python3 research/vehicle-diagnostics/check_factory_dtc_script_route.py`
+(27 source files, 49 exact excerpts, 227 checks). No task was started and no
+credentials or encrypted wrappers were acquired or decoded.
+
 ### VHDS diagnostic tasks and owner03 boundary (2026-10-21)
 
 **The factory daemon contains a configurable CAN-condition-to-diagnostic
@@ -4827,8 +4937,10 @@ invalid characters becoming zero. This is a description of the existing
 parser, not a validation rule to copy into a reader. The parser also writes
 MQTT monitor-table entries. It must not be invoked just to inspect its input.
 The only direct parser call found by the bounded scan is in `1B7F0`: input
-type `0x100` and `sys.vhds.test_enable=1` select that path. This does not prove
-normal production loading or exclude indirect callers. No actual payload
+type `0x100` and `sys.vhds.test_enable=1` select that direct path. **The later
+production-route pass below closes the indirect source-loading gap:**
+`handleReqConfig` binds this parser as a network-response callback without
+that test gate. The earlier bounded report remains unchanged. No actual payload
 establishes which ECU or warning our car uses through this mechanism.
 
 The CAN matcher checks configured ID/sub-ID and the extracted field. Its
@@ -4865,8 +4977,9 @@ that constructor/ABI gap; the original bounded report remains unchanged.
 `VHDS::publishService` at `2ACD0` constructs the object and supplies the name
 `vhds` to the service manager. This is a source registration path, not an
 observed service, successful registration or permission test. The actual
-calling client and configuration payload are still missing, and the known
-`0x100`/test-property loader gate still applies. The constructor also names
+calling Binder client and configuration payload are still missing. The
+`0x100`/test-property gate applies to that direct Binder entry; the production
+callback route below has different conditions. The constructor also names
 its embedded `RemoteDiagTransferAndElecHandler` and `EdrDiagHandler` objects;
 these software classes do not identify additional physical ECUs.
 
@@ -4879,6 +4992,61 @@ retained and this pass's empty temporary workspace removed. See
 [`rea-vhds-binder-route-20261021.json`](../research/vehicle-diagnostics/rea-vhds-binder-route-20261021.json)
 and replay with `.venv-firmware/bin/python
 research/vehicle-diagnostics/check_rea_vhds_binder_route.py`.
+
+**Production configuration route: callbacks hidden from direct-call search.**
+On the same owner ELF, `setAccStatus` (`16B20`) and `reportNetWorkStatus`
+(`18300`) can launch `handleReqConfig` (`18550`) through a bound member/thread
+proxy. The source requires ACC field `+228 == 2`, its network condition and
+an unset request-in-progress bit; the worker checks the VIN length and list
+refresh conditions. These are static predicates, not observations of the
+current vehicle. No daemon, property setter or network request was invoked.
+
+The worker binds two different parsers to `curlURLToServer` (`210E0`):
+
+| Request type | Denza production URL path on `nega-cn.denzacloud.com:8082` | Consumer / callback type | Retained response evidence |
+| --- | --- | --- | --- |
+| 4 | `/apiService/car/health/querySignalConfigData` | `parseAllInOneTriggerList` (`1C620`), type4 | Source writes `/data/vhds/trigger_list_cfg/allone.txt` with `wb` before checking the parsed result code; then invokes the parser on code0 |
+| 2 | `/apiService/car/health/queryEcuListData` | `parseECUList` (`1ED20`), type0 | Source logs and parses the response; this branch has no established cache write |
+
+`GetUrl` selects the Denza branch from `ro.build.car.series=denza` and the
+production/test host from `persist.sys.cloudtest`. The shared request parameter
+builder supplies VIN, a decimal-string `carType` from a stock configuration
+GET, numeric `version=0`, and a timestamp. That zero is not an ECU software
+version and does not qualify any dictionary's software applicability. The
+stock signing envelope was not used and no secret-returning function was
+analysed. The ECU response schema includes `resultData[].ecuDiaId`, `diag[].sid`
+and `diag[].list[].did`; these are request specifications, not DTC descriptions.
+The signal schema can potentially connect warning/telemetry bits to a diagnostic
+request, but its actual values for this car remain missing.
+
+The binding is corroborated independently: instructions at `18680..186A8`
+store the `1C620` member pointer and this object into a wrapper with vptr
+`4A670`; virtual slot `+30` has ELF relative relocation `4A6A0 → 2D4F0`.
+That wrapper forwards the response string and callback byte to the stored
+member. Type2 constructs the same wrapper with `1ED20`. This resolves a real
+indirect caller that the earlier direct `BL` search did not enumerate.
+
+Do not equate a cache's existence with a valid configuration: `allone.txt`
+can contain a nonzero-result or malformed response. `triggerlistconfig.txt`
+is the writer's non4 fallback name; it is **not** proof that the ECU-list
+response is stored there. Prior metadata reads of these private paths returned
+`Permission denied`, so even current existence is unknown. The next useful
+acquisition is an existing, complete signal-response file or passive response
+log, with JSON/result/schema and vehicle applicability checked independently.
+Starting this loader can configure collection and downstream diagnostic work;
+it is not a read-only getter.
+
+Replay: `.venv-firmware/bin/python
+research/vehicle-diagnostics/check_vhds_production_route.py`, with the report
+[`vhds-production-route-20261021.json`](../research/vehicle-diagnostics/vhds-production-route-20261021.json).
+Thirteen original-byte ranges (16,736 bytes / 4,184 instructions), 31 focused
+anchors, callback relocation and the measured `+100000` REA address delta pass.
+The independent ELF attestation remains unsupported; the loaded `.text` hash
+matches the original section. A bounded inventory of 42 indexed extracted
+ELFs found the VHDS names only in its daemon/interface, not a sending client;
+unindexed and APK-embedded clients are outside that result. The owned REA
+session closed with unchanged source hash and an empty temporary workspace.
+No actual ECU address, factory DTC definition or warning-to-DTC join is added.
 
 **Sibling owner03 is not a route around the ECM response-size limit.** The
 VHDS sibling sender `3F460` uses prefix `03`, with an existing stock receiver

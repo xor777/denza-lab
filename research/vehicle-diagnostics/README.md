@@ -103,6 +103,30 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   list capacity or an independent raw-response lane. No live alternate-owner
   request was made. Run
   `python3 research/vehicle-diagnostics/check_ecm_owner3_route.py`.
+- `factory-dtc-script-route-20261021.json` traces the production EOL client,
+  factory-task cleanup and the result-report selection tuple. Completion and
+  initialization can delete Scripts, so an empty cache is not a history of
+  factory activity. No applicable dictionary was found. Replay with
+  `python3 research/vehicle-diagnostics/check_factory_dtc_script_route.py`.
+- `remaining-ecu-identity-20261021.json` extends the RH850 trace through the
+  transmit-buffer writer: `7E5` and `782` retain distinct request IDs at that
+  boundary, without proving physical separation. Route-specific DID collisions
+  prevent assigning the nine child roles by DID alone. Replay with
+  `python3 research/vehicle-diagnostics/check_remaining_ecu_identity.py`;
+  `--redisassemble` independently runs the existing RH850 decoder.
+- `battery-drive-telemetry-20261021.json` pins torque bounds and configuration-
+  dependent speed aliases, rejection-before-cache-update and the legitimate
+  converted `-1` collision. Original bytes and saved GETs support the result;
+  the HAL REA session exhausted its heap and is explicitly not decompilation
+  proof. Units, freshness and dedicated ISG ownership remain open. Run
+  `python3 research/vehicle-diagnostics/check_battery_drive_telemetry.py`.
+- `vhds-production-route-20261021.json` resolves production configuration loading
+  through bound callbacks: type4 signal configuration and type2 ECU diagnostic
+  requests have different parsers/cache behavior. The signal response is saved
+  to `allone.txt` before result-code validation; ECU-list persistence is not
+  established. No live request, real payload, address or factory DTC definition
+  was added. Thirteen ELF ranges/4,184 instructions corroborate the REA result.
+  Run `.venv-firmware/bin/python research/vehicle-diagnostics/check_vhds_production_route.py`.
 - `rea-vhds-binder-route-20261021.json` uses the installed REA CLI to close
   the constructor/virtual-slot gap: Binder transaction5 reaches
   `VHDS::remoteOrder(int,const void*,int)`, and the source publishes service

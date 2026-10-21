@@ -1,0 +1,212 @@
+{
+  "schema": "denza-lab.factory-dtc-script-route.v1",
+  "date": "2026-10-21",
+  "scope": "Existing owner corpus and source only; no vehicle, adb, network, task/stock-service start, token/credential acquisition, decoding of encrypted wrappers, firmware execution or OTA access",
+  "status": "production_ingress_and_ephemeral_cache_lifecycle_source_verified_matching_dictionary_missing",
+  "captureBase": "captures/factory-dtc-script-route-20261021",
+  "selectedTuple": null,
+  "newQualifiedDefinitions": 0,
+  "newWarningDtcLinks": 0,
+  "actions": {
+    "vehicleOperations": 0,
+    "adbOperations": 0,
+    "networkOperations": 0,
+    "taskStarts": 0,
+    "stockServiceStarts": 0,
+    "credentialAcquisitions": 0,
+    "encryptedWrapperDecodes": 0,
+    "otaOperations": 0,
+    "firmwareExecutions": 0,
+    "newNativeSessions": 0
+  },
+  "evidence": {
+    "sourceManifest": {
+      "path": "captures/factory-dtc-script-route-20261021/source-evidence.json",
+      "sha256": "350e666eb7fb85493798c964346b20d7be2f483798bbd7c6ce8d706dfdb55629",
+      "bytes": 77024
+    },
+    "cacheFilenames": {
+      "path": "captures/factory-dtc-script-route-20261021/cache-filenames.json",
+      "sha256": "f4d1461f4a31568d2a0479bf86d8093f63c6ff2b48c7c21217e4c2ccb544355c",
+      "bytes": 827
+    },
+    "builder": {
+      "path": "captures/factory-dtc-script-route-20261021/build_evidence.py",
+      "sha256": "8e05e5746582792bc50e16d31536f98be7af01ab1c159e33763f05bc4da5e2ee",
+      "bytes": 5527
+    },
+    "reportText": {
+      "path": "captures/factory-dtc-script-route-20261021/report.md",
+      "sha256": "4c41d92df1bd294454bcb28dd39341b5b2302f9b8b510e088cb9dc42dd53a976",
+      "bytes": 8320
+    }
+  },
+  "newFacts": [
+    {
+      "id": "production_ingress",
+      "claim": "Default MainApp holder registers EOL_PRODUCT_LINE via MqttServiceManager and forwards IBYDCloudMqttListener bytes into the EOL v3 download/run runners.",
+      "sources": [
+        "main_app",
+        "mqtt_holder",
+        "mqtt_manager",
+        "mqtt_receive",
+        "message_decode",
+        "executor_v3"
+      ]
+    },
+    {
+      "id": "channel_boundary",
+      "claim": "EOL_DEV and EOL_PRODUCT_LINE both use V2 RX1037/TX1038 and V1 topics21/23. Di5.1 selects V2. The channel alone does not identify the backend sender.",
+      "sources": [
+        "mqtt_topics",
+        "mqtt_version",
+        "remote_systems",
+        "header_decode"
+      ]
+    },
+    {
+      "id": "automatic_completion_cleanup",
+      "claim": "finishStation sets FINISH; if every station is FINISH, stopTask removes persisted task, station sessions, whole Scripts cache and persistent outgoing queue, regardless of needClearData.",
+      "sources": [
+        "task_lifecycle",
+        "script_storage",
+        "mqtt_send"
+      ]
+    },
+    {
+      "id": "startup_is_not_passive",
+      "claim": "init with no saved task clears task data. If sold gate applies, manager init calls stopTask before listener registration. Starting the app is not a passive acquisition of old cache.",
+      "sources": [
+        "main_app",
+        "mqtt_manager",
+        "sold_gate",
+        "debug_gate",
+        "task_lifecycle"
+      ]
+    },
+    {
+      "id": "station_cleanup",
+      "claim": "needClearData=true additionally deletes the station directory at run finish; explicit remote cleanup and timeout can also reach deletion.",
+      "sources": [
+        "run_command",
+        "run_selection_finish",
+        "remote_cleanup",
+        "task_lifecycle",
+        "script_storage"
+      ]
+    },
+    {
+      "id": "result_tuple_survival",
+      "claim": "Result.report.scriptInfo and status/failure scriptList contain code/version/station before encryption, unlike transient afterRunRes command data. Debug report and response logs include the tuple. No applicable report was recovered.",
+      "sources": [
+        "result_uploader",
+        "result_schema",
+        "mqtt_send",
+        "eol_log"
+      ]
+    },
+    {
+      "id": "queue_persistence_limit",
+      "claim": "Outgoing messages are saved before send and removed on success. clearSendCache copies to RAM, clears persistent entries, then schedules up to8 resend iterations; it is not a durable post-task archive.",
+      "sources": [
+        "mqtt_send",
+        "mqtt_cache"
+      ]
+    },
+    {
+      "id": "system_metadata_is_not_software_binding",
+      "claim": "DownloadResponseVO.systemIds is EcuInfo(systemId,priority,funcType); this source schema has no software/calibration matrix. A backend VIN selector or script-step identity conditions remain possible and unobserved.",
+      "sources": [
+        "response_metadata",
+        "metadata_system",
+        "header_decode",
+        "script_content",
+        "script_identity",
+        "run_selection_finish"
+      ]
+    }
+  ],
+  "result": {
+    "observedProductionTask": false,
+    "observedCauseOfEmptyCache": null,
+    "backendModelSoftwareRuleRecovered": false,
+    "matchingOriginalPlaintextScriptRecovered": false,
+    "qualifiedEcuSoftwareDictionary": false
+  },
+  "localFilenameAudit": {
+    "roots": [
+      "captures",
+      "reverse"
+    ],
+    "regularFileCounts": {
+      "captures": 441901,
+      "reverse": 106254
+    },
+    "matchingFiles": 0,
+    "payloadsRead": false,
+    "archivesDecoded": false,
+    "pattern": "Scripts/SpotIns path components; -script.txt/-script.json basenames; exact SpotInspection preference XML basename",
+    "limits": "Named paths only; no conclusion about opaque archives, innocuously named payloads, vehicle private storage or later concurrent additions"
+  },
+  "exactNextAcquisition": {
+    "object": "Already legitimate OEM/factory original plaintext script plus metadata sibling and redacted applicability manifest from its holder",
+    "manifestFields": [
+      "scriptCode",
+      "scriptVersion",
+      "forStation",
+      "scriptFormatVer",
+      "systemIds",
+      "source/hash/date",
+      "model/software applicability provenance"
+    ],
+    "tupleLead": "Existing original factory report/status payload or original factory-side selection manifest; do not initiate a task to manufacture one",
+    "excludedFields": [
+      "authorization material",
+      "headers",
+      "private vehicle identifiers",
+      "encrypted wrappers"
+    ],
+    "targets": [
+      {
+        "ecu": "ECM",
+        "software": "32440011E004000000",
+        "calid": "Z31L07AB01"
+      },
+      {
+        "ecu": "BMS033",
+        "software": "4A520011E00D00047B"
+      },
+      {
+        "ecu": "FMCU",
+        "software": "48370011E075000000",
+        "format": "01"
+      },
+      {
+        "ecu": "ISG",
+        "software": "48370011E0EA000000",
+        "format": "01"
+      },
+      {
+        "ecu": "SMCU",
+        "software": "48370011E086001100",
+        "format": "00"
+      },
+      {
+        "ecu": "SMCU3",
+        "software": "48370011E088001100",
+        "format": "00"
+      }
+    ],
+    "importer": "research/vehicle-diagnostics/import_oem_eol.py",
+    "immediateVehicleActionJustified": false
+  },
+  "limitations": [
+    "Source control flow is not evidence that a real task took the path or that cleanup caused current empty cache",
+    "Possible RemoteSystemEnum sender labels do not identify an observed sender",
+    "No source supplies the target exact dictionary or converts format01 for product use",
+    "Result tuple does not supply original dtcList or establish software applicability",
+    "No claim uses the ambiguous decompiled nonempty-list branch of syncStationScript",
+    "Previous broad resource/content/log audits are reused and pinned, not represented as new scans"
+  ],
+  "replay": "PYTHONDONTWRITEBYTECODE=1 python3 research/vehicle-diagnostics/check_factory_dtc_script_route.py"
+}

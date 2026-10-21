@@ -1,0 +1,386 @@
+{
+  "schema": "denza-lab.battery-drive-telemetry.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "firmwareExecutions": 0,
+  "productChanges": false,
+  "newEngineeringUnitsProved": 0,
+  "scope": "New source qualification of front torque rejection and configuration-dependent motor-speed aliases; typed-cache interpretation and offline analysis limits. No new cell unit, invalid-code semantics, freshness clock or ISG ownership is inferred.",
+  "nativeEvidence": "captures/battery-drive-telemetry-20261021/native-evidence.json",
+  "autoIDConstants": "captures/battery-drive-telemetry-20261021/autoid-selected-fields.json",
+  "autoIDEvaluator": "captures/battery-drive-telemetry-20261021/evaluate_autoid.py",
+  "snapshotSource": "captures/diagnostics-sweep-20261020/fids.tsv",
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/engine/Engine.java",
+      "sha256": "a93d55a9778ee8f4357cd74cc1ce546fa4e6e0ead630c58275ce70b8ae6422e3",
+      "bytes": 12252
+    },
+    {
+      "path": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "sha256": "02ad8c66c2339ae0eabef661e12dda088ed2e616967bfac308c609e970dead66",
+      "bytes": 1778932
+    },
+    {
+      "path": "tools/VehicleStateSnapshot.java",
+      "sha256": "0a1f833fa1281217f3218ba00db81b425075b25282714fa92c770d25f4f5f40f",
+      "bytes": 6043
+    },
+    {
+      "path": "captures/battery-drive-telemetry-20261021/native-evidence.json",
+      "sha256": "6f27dddee3f1a7aa65a1e8476995629845abcdf3f31336f88392fc1b64509bb2",
+      "bytes": 62676
+    },
+    {
+      "path": "captures/battery-drive-telemetry-20261021/autoid-selected-fields.json",
+      "sha256": "3fba70a8a046f12f009e72255a605b8c3e76da0619f084f76663b964e5ca35ea",
+      "bytes": 3545
+    },
+    {
+      "path": "captures/battery-drive-telemetry-20261021/evaluate_autoid.py",
+      "sha256": "22d47b07f2913537592d8c8476f8cb81cae11ba8d0571a02d6b97fabc4497356",
+      "bytes": 6107
+    },
+    {
+      "path": "captures/battery-drive-telemetry-20261021/hal/load-image.json.gz",
+      "sha256": "1b98608e25f12e54bded93dc8e1d0e1129e091c8aa254c8822f85326ad6dff5c",
+      "bytes": 3638
+    },
+    {
+      "path": "captures/battery-drive-telemetry-20261021/hal/scalar-functions.json.gz",
+      "sha256": "35c0eec348a189105be341cf7cbfc5175b2409af6a2bf2eef62cb4dca109c681",
+      "bytes": 69836
+    },
+    {
+      "path": "captures/battery-drive-telemetry-20261021/hal/receipt.json.gz",
+      "sha256": "a4080fa521f33892c9989e14467a26b0cf40b33bb3406285a66d7fafca9f17ad",
+      "bytes": 267
+    },
+    {
+      "path": "captures/battery-drive-telemetry-20261021/rea-batch-summary.json",
+      "sha256": "c102b0a08f3df1117b6ade0967671299da4662cd4e0ec50099f2a23ff8cfa93f",
+      "bytes": 2236
+    },
+    {
+      "path": "research/cluster-native/extract_android_rela.py",
+      "sha256": "3a77e508b2fc4c70581d52e497a06d2b30fcc1f4918a90204552b642c2c4d142",
+      "bytes": 3540
+    }
+  ],
+  "newFindings": [
+    {
+      "id": "front-torque-domain",
+      "sourceSymbol": "byd_auto_hal::FunctionTable::motortorque",
+      "ELFVA": "0x5F640",
+      "size": 68,
+      "binding": {
+        "device": 1012,
+        "FID": "0x44100018",
+        "registrationELFVA": "0x17A42C..0x17A45C",
+        "registrationStorageType": 4,
+        "converterPointerRelocation": "0x1D4BD0->0x5F640"
+      },
+      "acceptedUnsigned32Domain": [
+        0,
+        10000
+      ],
+      "expression": "float32(float32(int32(raw))*float32(0x3DCCCCCD) - 500.0)",
+      "rejectedStatus": -10014,
+      "rejectBeforeOutputWrite": true,
+      "numericOutputDomain": [
+        -500.0,
+        500.0
+      ],
+      "boundaryExamples": [
+        {
+          "raw": 0,
+          "API": -500.0
+        },
+        {
+          "raw": 4990,
+          "API": -1.0
+        },
+        {
+          "raw": 5000,
+          "API": 0.0
+        },
+        {
+          "raw": 10000,
+          "API": 500.0
+        },
+        {
+          "raw": 10001,
+          "status": -10014
+        },
+        {
+          "raw": 65535,
+          "status": -10014
+        }
+      ],
+      "downstream": "The type4 float-update branch B14E4..B1518 skips setFloatValue on rejection. Thus a prior torque0.0 may remain GET0.0 after rejected65535 in this path. This is a static counterexample, not a captured faulty update.",
+      "limits": "No Nm label or front drive-to-UDS ECU binding was recovered. The rejecting domain is a converter contract, not a meaning for ECU sentinelFFFF."
+    },
+    {
+      "id": "speed-protocol-dependent-alias",
+      "sourceSymbol": "byd_auto_hal::FunctionTable::motorspeedfr",
+      "ELFVA": "0x7BCB0",
+      "size": 304,
+      "modeSelector": {
+        "CANFDFID": "0x46D00428",
+        "AutoIDOffset": "0x4B58",
+        "stockName": "ENGINE_DRIVE_MOTOR_RPM_NEW_PROTOCOL_FLAG",
+        "selection": "FeatureMapper::getIntValue result exactly2 selects new path; every other integer result selects old path, including uninitialized65535 or negative getter error."
+      },
+      "registrationEvidence": "44100008 at17A3CC..17A414;25100008 at126AF4..126B38;46D00408/18 at17E4C4..17E550 all register storageType3 with converter7BCB0 via APS2 pointer1D6A30. Mode46D00428 is registered separately immediately afterward. These prove configured code routes, not current source delivery.",
+      "CANFDRoutes": [
+        {
+          "mode": "exactly2",
+          "incomingFID": "0x46D00408",
+          "outputCacheFID": "0x44100008",
+          "acceptedU32": [
+            0,
+            65533
+          ],
+          "APIExpression": "raw-32000"
+        },
+        {
+          "mode": "exactly2",
+          "incomingFID": "0x46D00418",
+          "outputCacheFID": "0x25100008",
+          "acceptedU32": [
+            0,
+            65533
+          ],
+          "APIExpression": "raw-32000"
+        },
+        {
+          "mode": "other",
+          "incomingFID": "0x44100008",
+          "outputCacheFID": "0x44100008",
+          "acceptedU32": [
+            0,
+            30000
+          ],
+          "APIExpression": "raw-15000"
+        },
+        {
+          "mode": "other",
+          "incomingFID": "0x25100008",
+          "outputCacheFID": "0x25100008",
+          "acceptedU32": [
+            0,
+            60000
+          ],
+          "APIExpression": "raw-30000"
+        }
+      ],
+      "rejectedStatus": -10014,
+      "rejectBehavior": "Wrong source for selected mode or out-of-domain source returns-10014. Some failures write the destinationFID into the temporary tuple first, but no accepted output value. Dispatcher B1258..B1280,B182C..B184C skips all tuple-cache stores on nonzero failure.",
+      "retainedContext": "Two saved mode GETs returned0, consistent with old branch if that value held when the producer update was converted. The GET and source updates are not atomic; raw source and mode acquisition time were not retained together.",
+      "limits": "25100008 is the generic logical rear-motor path in this converter, not the two selected rear-left/right GB fields0FC000D0/E0. Neither251 nor46D is bound to the ISG. No source CAN layout is inferred from FID digits and no RPM unit is newly qualified."
+    },
+    {
+      "id": "typed-cache-value-is-not-status",
+      "integerGetter": "FeatureMapper::getIntValue826A0: absent/null entry returns-10011; present entry tag other than1 returns-10013; tag1 returns stored integer unchanged.",
+      "floatGetter": "FeatureMapper::getFloatValue829A0: absent/null or tag other than2 returnsfloat-1; tag2 returns storedfloat unchanged. Neither path checks acquisition age or last conversion status.",
+      "snapshotProbe": "VehicleStateSnapshot.java74..89 first reads transaction5 and falls back to transaction7 only when the integer reply is-10013. The float bits are the second sequential reply, not the first request status.",
+      "retainedContext": "Six saved torque rows(front,leftrear,rightrear;two passes) have intwordFFFFD8E3 and floatword00000000. These are consistent with the float cache class, and cannot alone establish unavailable torque, measured zero, freshness, orISG output.",
+      "collision": "Front torque accepted raw4990 converts tofloat-1, numerically identical to float-getter missing/wrong-type fallback. A numeric float alone cannot distinguish these paths."
+    }
+  ],
+  "bindingRelocations": [
+    {
+      "packedRelocationSectionFileOffset": "0x286b0",
+      "packedRelocationSectionBytes": 15050,
+      "packedRelocationSectionSHA256": "4081b2bb48e40d0bbea00862382b695edc947a3ed3579db552e8435a8650468e",
+      "locationELFVA": "0x1d4bd0",
+      "type": 1025,
+      "symbolName": "_ZN12byd_auto_hal13FunctionTable11motortorqueERKjRKiPv",
+      "symbolIndex": 538,
+      "symbolEntryFileOffset": "0x3518",
+      "symbolEntryBytes": "640e000012000e0040f60500000000004400000000000000",
+      "addend": 0,
+      "resolvedTargetELFVA": "0x5f640"
+    },
+    {
+      "packedRelocationSectionFileOffset": "0x286b0",
+      "packedRelocationSectionBytes": 15050,
+      "packedRelocationSectionSHA256": "4081b2bb48e40d0bbea00862382b695edc947a3ed3579db552e8435a8650468e",
+      "locationELFVA": "0x1d6a30",
+      "type": 1025,
+      "symbolName": "_ZN12byd_auto_hal13FunctionTable12motorspeedfrERKjRKiPv",
+      "symbolIndex": 879,
+      "symbolEntryFileOffset": "0x5510",
+      "symbolEntryBytes": "e8ac000012000e00b0bc0700000000003001000000000000",
+      "addend": 0,
+      "resolvedTargetELFVA": "0x7bcb0"
+    }
+  ],
+  "retainedObservations": [
+    {
+      "line": 14414,
+      "text": "FID\t1\t74765875729688\t1012\t0x25100008\t0xFFFFFFFF\t",
+      "device": 1012,
+      "fid": "0x25100008",
+      "pass": 1,
+      "elapsedRealtimeNanos": 74765875729688,
+      "intWord": "0xFFFFFFFF",
+      "floatWord": ""
+    },
+    {
+      "line": 14470,
+      "text": "FID\t1\t74766475179534\t1012\t0x44100008\t0x00000000\t",
+      "device": 1012,
+      "fid": "0x44100008",
+      "pass": 1,
+      "elapsedRealtimeNanos": 74766475179534,
+      "intWord": "0x00000000",
+      "floatWord": ""
+    },
+    {
+      "line": 14471,
+      "text": "FID\t1\t74766486073303\t1012\t0x44100018\t0xFFFFD8E3\t0x00000000",
+      "device": 1012,
+      "fid": "0x44100018",
+      "pass": 1,
+      "elapsedRealtimeNanos": 74766486073303,
+      "intWord": "0xFFFFD8E3",
+      "floatWord": "0x00000000"
+    },
+    {
+      "line": 14475,
+      "text": "FID\t1\t74766530351842\t1012\t0x46D00428\t0x00000000\t",
+      "device": 1012,
+      "fid": "0x46D00428",
+      "pass": 1,
+      "elapsedRealtimeNanos": 74766530351842,
+      "intWord": "0x00000000",
+      "floatWord": ""
+    },
+    {
+      "line": 19342,
+      "text": "FID\t1\t74819024093307\t1039\t0x2850002C\t0xFFFFD8E3\t0x00000000",
+      "device": 1039,
+      "fid": "0x2850002C",
+      "pass": 1,
+      "elapsedRealtimeNanos": 74819024093307,
+      "intWord": "0xFFFFD8E3",
+      "floatWord": "0x00000000"
+    },
+    {
+      "line": 19343,
+      "text": "FID\t1\t74819034673614\t1039\t0x2850003C\t0xFFFFD8E3\t0x00000000",
+      "device": 1039,
+      "fid": "0x2850003C",
+      "pass": 1,
+      "elapsedRealtimeNanos": 74819034673614,
+      "intWord": "0xFFFFD8E3",
+      "floatWord": "0x00000000"
+    },
+    {
+      "line": 24418,
+      "text": "FID\t2\t74873465320079\t1012\t0x25100008\t0xFFFFFFFF\t",
+      "device": 1012,
+      "fid": "0x25100008",
+      "pass": 2,
+      "elapsedRealtimeNanos": 74873465320079,
+      "intWord": "0xFFFFFFFF",
+      "floatWord": ""
+    },
+    {
+      "line": 24474,
+      "text": "FID\t2\t74874060150233\t1012\t0x44100008\t0x00000000\t",
+      "device": 1012,
+      "fid": "0x44100008",
+      "pass": 2,
+      "elapsedRealtimeNanos": 74874060150233,
+      "intWord": "0x00000000",
+      "floatWord": ""
+    },
+    {
+      "line": 24475,
+      "text": "FID\t2\t74874071494002\t1012\t0x44100018\t0xFFFFD8E3\t0x00000000",
+      "device": 1012,
+      "fid": "0x44100018",
+      "pass": 2,
+      "elapsedRealtimeNanos": 74874071494002,
+      "intWord": "0xFFFFD8E3",
+      "floatWord": "0x00000000"
+    },
+    {
+      "line": 24479,
+      "text": "FID\t2\t74874113634848\t1012\t0x46D00428\t0x00000000\t",
+      "device": 1012,
+      "fid": "0x46D00428",
+      "pass": 2,
+      "elapsedRealtimeNanos": 74874113634848,
+      "intWord": "0x00000000",
+      "floatWord": ""
+    },
+    {
+      "line": 29346,
+      "text": "FID\t2\t74926516006621\t1039\t0x2850002C\t0xFFFFD8E3\t0x00000000",
+      "device": 1039,
+      "fid": "0x2850002C",
+      "pass": 2,
+      "elapsedRealtimeNanos": 74926516006621,
+      "intWord": "0xFFFFD8E3",
+      "floatWord": "0x00000000"
+    },
+    {
+      "line": 29347,
+      "text": "FID\t2\t74926527380390\t1039\t0x2850003C\t0xFFFFD8E3\t0x00000000",
+      "device": 1039,
+      "fid": "0x2850003C",
+      "pass": 2,
+      "elapsedRealtimeNanos": 74926527380390,
+      "intWord": "0xFFFFD8E3",
+      "floatWord": "0x00000000"
+    }
+  ],
+  "batteryAndISGLimits": {
+    "battery": "No new engineering unit, full per-element invalid domain, physical cell/probe map or acquisition clock was found. Existing paged-array and collection-policy findings are preserved; this report does not repeat them as new discoveries.",
+    "ISG": "No dedicated numeric DID/scale/unit/invalid contract was recovered for7E6 identity48370011E0EA000000. The newly qualified speed alias rules supply no ECU ownership and do not justify calling generic rear motor251 or46D anISG source.",
+    "currentLimits": "34500008/18/28 and44A00020 remain raw; CAN444 currentcompat arithmetic is not transferred to them."
+  },
+  "REA": {
+    "loadImageReply": "captures/battery-drive-telemetry-20261021/hal/load-image.json.gz",
+    "batchReply": "captures/battery-drive-telemetry-20261021/hal/scalar-functions.json.gz",
+    "receipt": "captures/battery-drive-telemetry-20261021/hal/receipt.json.gz",
+    "loadImageSeconds": 181.113,
+    "loadImageResult": "resource_constraint; operation-scoped output reports java.lang.OutOfMemoryError: Java heap space with configured1G",
+    "batchSeconds": 239.991,
+    "batchEnvelopeIsError": false,
+    "procedureIdentitiesKnown": 0,
+    "usablePseudocodeResults": 0,
+    "interpretation": "Envelope success is not semantic success. All9 procedure identities are unknown; resource/timeout item errors are retained. No HAL REA pseudocode or loaded-memory attestation is claimed.",
+    "attemptedAddresses": "Prior small-ELF base0x100000 was used for the queued requests; this HAL import did not attest that base. Only independent ELF VA/file-offset mappings are accepted here.",
+    "cleanup": "close_binary succeeded; server exit0; scratchEntries[]; SHA256 before/after equal. No kill or shared workspace removal."
+  },
+  "nextTargetedReads": [
+    {
+      "question": "Physical units and complete sentinels",
+      "neededEvidence": "A software-matched OEM data-list/packet definition or a source consumer that explicitly couples the exact field to a human-readable unit and invalid-state behavior. Further plausible parked values do not supply that contract.",
+      "vehicleActionProposed": false
+    },
+    {
+      "question": "ISG numerical telemetry",
+      "neededEvidence": "Applicable7E6 numerical data-list definition forF19448370011E0EA000000 with read request, type,scale,unit, invalid and operating-state rules. Repeating identity/DTC reads or relabelling rear drives does not close it.",
+      "vehicleActionProposed": false
+    },
+    {
+      "question": "If the owner later requests dynamic speed qualification",
+      "neededEvidence": "A separately authorized finite passive source/mode/output capture with device monotonic timestamps. Preserve rawinput FID,mode FID and callback age; do not apply a second correction to an existing converted scalar.",
+      "vehicleActionProposed": false
+    }
+  ],
+  "checker": "python3 research/vehicle-diagnostics/check_battery_drive_telemetry.py",
+  "captureBase": "captures/battery-drive-telemetry-20261021"
+}
