@@ -705,7 +705,43 @@ internal data class SystemsView(
     val brakeModules: List<Int>,
     /** The OEM warning the instrument cluster (INS 723) is asked to show; the cabin's scheme says it. */
     val clusterWarning: ClusterWarningView = SystemsBuilder.clusterWarning(null),
+    /** «Тяговая батарея · Флаги GB/T 32960»; its readings come only while the tab is in front. */
+    val gbFlags: GbFlagsView = GbFlags.view(CarReadings()),
 )
+
+/**
+ * «Тяговая батарея · Флаги GB/T 32960» (architecture, 7.2; boards `scanner-sys-pack-flags`,
+ * `-flags-alarm`): GB/T 32960.3's general alarm flags as this car's stock reporter sets them, each
+ * from one reading of device 1039, grouped and in the standard's bit order. [GbFlags.view] makes it.
+ */
+internal data class GbFlagsView(
+    /** «ОБЩИЕ ТРЕВОГИ GB/T 32960.3 · 14». */
+    val head: String,
+    /** «ТРЕВОГ» → «0», lit when a flag is raised; «н/д» while no flag was read. */
+    val counters: List<HeadCounter>,
+    /** «БАТАРЕЯ», then «ПРИВОД И ВЫСОКОЕ НАПРЯЖЕНИЕ». */
+    val groups: List<GbFlagGroup>,
+)
+
+internal data class GbFlagGroup(val title: String, val flags: List<GbFlagView>)
+
+/** One flag as a tile: «бит 16», its FID, its name, its word and the code read. */
+internal data class GbFlagView(
+    /** Its bit in GB/T 32960.3 table 18. */
+    val bit: Int,
+    /** «2440003E»: the device-1039 FID the reporter sets it from. */
+    val fid: String,
+    /** «Блокировка ВВ (HVIL)». */
+    val name: String,
+    /** The code read; null when nothing came. */
+    val raw: Int?,
+    val state: GbFlagState,
+    /** «норма», «тревога», «н/д». */
+    val word: String,
+)
+
+/** [OK]: read and not raised; [ALARM]: raised; [NONE]: not read. */
+internal enum class GbFlagState { OK, ALARM, NONE }
 
 /**
  * The instrument cluster's OEM warning (`1007·26100008`), [SystemsBuilder.clusterWarning]: a stock
@@ -813,6 +849,6 @@ internal interface DiagnosticsActions {
     fun setCellsVisible(visible: Boolean)
     /** «Пауза» / «Продолжить» on «Ячейки»: paused, nothing is listened to and the drawn sweep stays; leaving the tab ends it. */
     fun setCellsPaused(paused: Boolean)
-    /** A page with GETs of its own shown or left - «Салон · Состояние»: they join the `autoservice` batch only while it is (architecture, 6). */
+    /** A page with GETs of its own shown or left - «Салон · Состояние», «Флаги GB/T 32960»: they join the `autoservice` batch only while it is (architecture, 6). */
     fun setExtrasVisible(page: ExtraPage, visible: Boolean)
 }

@@ -26,6 +26,7 @@ internal object SystemsBuilder {
         adas = adas(s),
         brakeModules = listOf(0x782, 0x7E5),
         clusterWarning = clusterWarning(s.car.extra(DiagnosticExtra.OEM_WARNING)),
+        gbFlags = GbFlags.view(s.car),
     )
 
     private fun hub(car: CarReadings, signal: VehicleSignal, decimals: Int = 0) =

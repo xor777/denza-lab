@@ -152,8 +152,13 @@ internal fun SystemPageScreen(
         if (cells) current.value.setCellsVisible(true)
         onDispose { if (cells) current.value.setCellsVisible(false) }
     }
-    // a page's own GETs join the batch only while it is in front: the cabin's scheme (architecture, 6)
-    val extras = if (page.system == CarSystem.CABIN && tab == SystemTab.STATE) ExtraPage.CABIN else null
+    // a page's own GETs join the batch only while it is in front: the cabin's scheme, the pack's
+    // GB/T 32960 flags (architecture, 6)
+    val extras = when {
+        page.system == CarSystem.CABIN && tab == SystemTab.STATE -> ExtraPage.CABIN
+        tab == SystemTab.GB_FLAGS -> ExtraPage.GB_FLAGS
+        else -> null
+    }
     DisposableEffect(extras) {
         extras?.let { current.value.setExtrasVisible(it, true) }
         onDispose { extras?.let { current.value.setExtrasVisible(it, false) } }

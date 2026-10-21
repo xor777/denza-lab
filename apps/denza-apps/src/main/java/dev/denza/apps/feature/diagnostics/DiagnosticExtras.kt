@@ -154,7 +154,37 @@ internal enum class DiagnosticExtra(
     READING_RL("reading_rl", 1004, 0x3FE0000E, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
     READING_RR("reading_rr", 1004, 0x3FE00010, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
     /** The HUD's switch, the feedback: 1 on, 2 off. */
-    HUD("hud", 1023, 0x38B0001C, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN);
+    HUD("hud", 1023, 0x38B0001C, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
+
+    // «Тяговая батарея · Флаги GB/T 32960» (architecture 7.2): the 14 device-1039 readings from which the
+    // stock reporter gbacqservice sets GB/T 32960.3's general alarm flags (research
+    // gb-alarm-dtc-boundary-20261021.json, alarmInputs), integers on 5 as the sweep of 2026-10-20 read
+    // them, in the standard's bit order. Raw codes; which raise a flag is scan/GbFlags. The reporter's
+    // predicate was qualified on 0..255; 255 is taken as the byte's no-data code and, with 65535, refused.
+    /** Bit 0, the pack's temperature difference. */
+    GB_TEMP_DIFF("gb_temp_diff", 1039, 0x43800008, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    /** Bit 1, the pack's high temperature. */
+    GB_PACK_HOT("gb_pack_hot", 1039, 0x2440000C, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    /** Bits 2 and 3, the pack's over- and undervoltage. */
+    GB_PACK_OVERVOLT("gb_pack_overvolt", 1039, 0x4380000E, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_PACK_UNDERVOLT("gb_pack_undervolt", 1039, 0x43800010, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    /** Bits 7 and 8, SOC high and SOC jump. */
+    GB_SOC_HIGH("gb_soc_high", 1039, 0x43800014, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_SOC_JUMP("gb_soc_jump", 1039, 0x43800016, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    /** Bits 9 and 10, the pack's mismatch and the cells' poor consistency. */
+    GB_PACK_MISMATCH("gb_pack_mismatch", 1039, 0x4380000C, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_CELL_CONSISTENCY("gb_cell_consistency", 1039, 0x4380000A, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    /** Bits 12 and 14, the DC-DC's temperature and state. */
+    GB_DCDC_TEMP("gb_dcdc_temp", 1039, 0x26C00010, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_DCDC_STATE("gb_dcdc_state", 1039, 0x26C00022, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    /** Bit 15, the motor controller's temperature. */
+    GB_CONTROLLER_TEMP("gb_controller_temp", 1039, 0x2400000C, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    /** Bit 16, the high-voltage interlock. */
+    GB_HVIL("gb_hvil", 1039, 0x2440003E, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    /** Bit 17, the drive motor's temperature. */
+    GB_MOTOR_TEMP("gb_motor_temp", 1039, 0x2400000A, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    /** Bit 18, the pack's overcharge. */
+    GB_OVERCHARGE("gb_overcharge", 1039, 0x43800012, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS);
 
     fun decode(word: Int): Double? {
         // Same native no-data words as the shared AutoserviceShell; -1f is not a current.
@@ -184,6 +214,8 @@ internal data class DiagnosticExtras(
 internal enum class ExtraPage {
     /** «Салон · Состояние». */
     CABIN,
+    /** «Тяговая батарея · Флаги GB/T 32960». */
+    GB_FLAGS,
 }
 
 internal object DiagnosticExtraReader {
