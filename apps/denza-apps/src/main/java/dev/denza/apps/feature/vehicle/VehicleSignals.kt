@@ -47,6 +47,14 @@ internal enum class VehiclePoll(
 ) {
     HOT(2f),
     COLD(25f),
+
+    /**
+     * Asked in every sweep like [HOT], and drawn by nobody: what the car announces rather than what
+     * it measures. Its readings never join the telemetry snapshot, so a car whose buses are asleep
+     * still reads as a car with no answer even when an announcement field answers from its cache.
+     * The horizon is [HOT]'s; nothing reads it.
+     */
+    EVENT(2f),
 }
 
 /**
@@ -90,6 +98,12 @@ internal enum class VehicleKind {
     SPEED_KMH,
 
     /**
+     * The cluster's selected text warning: the ten-bit id `popup_nads.json` names, `0` for none.
+     * An id, not a quantity - nothing is scaled and no value inside the field is refused.
+     */
+    WARNING_CODE,
+
+    /**
      * A two-state switch. Only `0` and `1` are answers.
      *
      * Narrower than [FLAG] on purpose: a lamp word carries several bits and any of them may be
@@ -112,6 +126,7 @@ internal enum class VehicleKind {
         FLAG -> value in 0.0..255.0
         SWITCH -> value == 0.0 || value == 1.0
         SPEED_KMH -> value in 0.0..300.0
+        WARNING_CODE -> value in 0.0..1023.0 && value == Math.floor(value)
     }
 }
 
@@ -233,6 +248,16 @@ internal enum class VehicleSignal(
     GENERATION_KW(1006, 0x2610001F, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.POWER_KW),
     GENERATION_STATE(1006, 0x34F0000A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
 
+    // ---- event: what the car announces ----
+    /**
+     * The warning the instrument cluster is asked to show: `DOMAIN_261_10_21_TEXT_INFO`, the low ten
+     * bits of CAN `0x261`, one id at a time (`0x13F` a door or the bonnet open, `0x1DD` «请加注洗涤液»).
+     * Read live as shell on the Z9GT on 2026-10-21 - `0` parked, `0x13F` → `0x7D` → `0` around a door
+     * - and recorded by `WarningRecorder`, which is its only reader. See docs/vehicle-data-findings.md,
+     * "Warning recorder".
+     */
+    TEXT_WARNING(1007, 0x26100008, VehicleTransact.INT, VehiclePoll.EVENT, VehicleKind.WARNING_CODE),
+
     // Sixteen warning lamps used to follow, and the pack's state of health and its insulation
     // resistance stood above. Nothing on this panel ever read any of them: the Contour draws no
     // lamp grid - a row of dots that are green every second of every drive is an inventory, and a
@@ -248,6 +273,7 @@ internal enum class VehicleSignal(
     companion object {
         val HOT: List<VehicleSignal> = entries.filter { it.poll == VehiclePoll.HOT }
         val COLD: List<VehicleSignal> = entries.filter { it.poll == VehiclePoll.COLD }
+        val EVENT: List<VehicleSignal> = entries.filter { it.poll == VehiclePoll.EVENT }
     }
 }
 

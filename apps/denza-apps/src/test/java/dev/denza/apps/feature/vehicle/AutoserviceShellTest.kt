@@ -159,6 +159,9 @@ class AutoserviceShellTest {
             ),
             VehicleSignal.COLD.map { it.name }.toSet(),
         )
+        // Asked in every sweep for the warning recorder, and kept out of both sets above so the
+        // energy figures and the link's verdict never see it.
+        assertEquals(setOf("TEXT_WARNING"), VehicleSignal.EVENT.map { it.name }.toSet())
     }
 
     @Test

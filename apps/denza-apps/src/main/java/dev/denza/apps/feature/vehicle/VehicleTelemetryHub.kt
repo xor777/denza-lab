@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
+import dev.denza.apps.feature.warning.WarningRecorder
 import dev.denza.disharebridge.LocalAdbClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -100,6 +101,13 @@ internal class VehicleTelemetryHub(context: Context) {
     private val capture = VehicleCapture.of(app.filesDir, SystemClock::elapsedRealtime) { why ->
         Log.w(TAG, "Запись сигналов машины остановлена: $why")
     }
+
+    /**
+     * The cluster's warning slot, asked in the same batch while the recorder is on and handed over
+     * answered or not ([VehiclePoll.EVENT]). It never joins the snapshot: a slot that answers from
+     * its cache must not make a sleeping car look like one that answered.
+     */
+    private val warnings = WarningRecorder.of(app)
 
     @Volatile
     var snapshot: VehicleTelemetry = VehicleTelemetry()
@@ -265,7 +273,9 @@ internal class VehicleTelemetryHub(context: Context) {
                 val session = shell ?: DenzaLocalAdb.client(app).openPersistentShell().also { shell = it }
                 val includeCold = forceCold || SystemClock.elapsedRealtime() >= coldDueAt
                 val hot = VehicleSignal.HOT
-                val batch = if (includeCold) hot + VehicleSignal.COLD else hot
+                val asksSlot = warnings.wantsSlot()
+                val batch = (if (includeCold) hot + VehicleSignal.COLD else hot) +
+                    (if (asksSlot) VehicleSignal.EVENT else emptyList())
                 val output = try {
                     session.shell(
                         AutoserviceShell.command(batch),
@@ -276,6 +286,7 @@ internal class VehicleTelemetryHub(context: Context) {
                 } catch (error: Exception) {
                     shell?.runCatching { close() }
                     shell = null
+                    if (asksSlot) warnings.sample(null)
                     val failure = if (error is LocalAdbClient.AuthorizationRequiredException) {
                         VehicleReadFailure.AUTHORIZATION
                     } else {
@@ -295,6 +306,8 @@ internal class VehicleTelemetryHub(context: Context) {
 
                 backoff.reset()
                 val parsed = AutoserviceShell.parse(output, batch)
+                val slot = parsed[VehicleSignal.TEXT_WARNING]
+                if (asksSlot) warnings.sample(slot?.toInt())
 
                 if (includeCold) {
                     forceCold = false
@@ -331,9 +344,10 @@ internal class VehicleTelemetryHub(context: Context) {
                 }
 
                 // Last, and out of the same map the panel is now reading: a recording of what the
-                // screen showed, not of something computed beside it. It never throws and it never
-                // writes more than a row a second, whatever this cadence is.
-                capture.sample(merged)
+                // screen showed, not of something computed beside it - and the warning slot, which no
+                // screen draws, in its own column. It never throws and it never writes more than a
+                // row a second, whatever this cadence is.
+                capture.sample(if (slot == null) merged else merged + (VehicleSignal.TEXT_WARNING to slot))
 
                 delay(sweepMs)
             }
