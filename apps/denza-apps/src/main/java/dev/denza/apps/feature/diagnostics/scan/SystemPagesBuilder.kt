@@ -553,28 +553,28 @@ internal object SystemPagesBuilder {
     fun subject(noun: String, word: String, alert: Boolean): CabinRow =
         words(true, (if (noun in word) "" else "$noun: ") to CabinTone.PLAIN, word to lit(alert))
 
+    /** Whether [e]'s fresh code is one its card names a fault or an alarm ([StateWords.alerts]), as a live row's orange. */
+    private fun alarm(car: CarReadings, e: DiagnosticExtra): Boolean = CarStates.of(e)?.alert(car.extra(e)) == true
+
     /**
      * A tyre's pressure judgement and its leak, as TPMS gives them (stream-selection, «Шасси»): high or
-     * low pressure and a quick or slow leak are warnings; «норма», another code and «н/д» are not.
+     * low pressure and a quick or slow leak are the card's alarms, in orange; «норма», another code
+     * and «н/д» are not.
      */
     fun tyreStates(car: CarReadings, c: Corner): List<CabinRow> {
         val p = PRESSURE_STATES.getValue(c)
         val l = LEAKS.getValue(c)
         return listOf(
-            subject("давление", word(car, p), alert = car.extra(p)?.toInt() in 1..2),
-            subject("утечка", word(car, l), alert = car.extra(l)?.toInt() in 1..2),
+            subject("давление", word(car, p), alert = alarm(car, p)),
+            subject("утечка", word(car, l), alert = alarm(car, l)),
         )
     }
 
-    /** «система: норма · батареи: норма» under «TPMS»: no signal or a fault, and flat sensor batteries, in orange. */
-    fun tpms(car: CarReadings): WordPlate {
-        val state = car.extra(DiagnosticExtra.TPMS_STATE)?.toInt()
-        val battery = car.extra(DiagnosticExtra.TPMS_BATTERY)?.toInt()
-        return WordPlate("TPMS", listOf(words(true,
-            "система: " to CabinTone.PLAIN, word(car, DiagnosticExtra.TPMS_STATE) to lit(state == 2 || state == 3),
-            " · батареи: " to CabinTone.PLAIN, word(car, DiagnosticExtra.TPMS_BATTERY) to lit(battery == 1),
-        )))
-    }
+    /** «система: норма · батареи: норма» under «TPMS»: the system's fault and flat sensor batteries in orange. */
+    fun tpms(car: CarReadings): WordPlate = WordPlate("TPMS", listOf(words(true,
+        "система: " to CabinTone.PLAIN, word(car, DiagnosticExtra.TPMS_STATE) to lit(alarm(car, DiagnosticExtra.TPMS_STATE)),
+        " · батареи: " to CabinTone.PLAIN, word(car, DiagnosticExtra.TPMS_BATTERY) to lit(alarm(car, DiagnosticExtra.TPMS_BATTERY)),
+    )))
 
     /** The calipers by `getEPBState`: applying or applied hold, releasing or released do not, 4 is a fault. */
     fun epbLook(raw: Double?): EpbLook? = when (raw?.toInt()) {
@@ -587,7 +587,7 @@ internal object SystemPagesBuilder {
     /** «EPB затянут», «EPB отказ» with the fault in orange. */
     fun epb(car: CarReadings): Epb {
         val look = epbLook(car.extra(DiagnosticExtra.EPB))
-        return Epb(look, words(true, "EPB " to CabinTone.PLAIN, word(car, DiagnosticExtra.EPB) to lit(look == EpbLook.FAULT)))
+        return Epb(look, words(true, "EPB " to CabinTone.PLAIN, word(car, DiagnosticExtra.EPB) to lit(alarm(car, DiagnosticExtra.EPB))))
     }
 
     /**

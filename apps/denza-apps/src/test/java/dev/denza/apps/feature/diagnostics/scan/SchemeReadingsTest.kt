@@ -71,10 +71,9 @@ class SchemeReadingsTest {
         assertEquals(plain("система: норма · батареи: норма"), row(0.0, 0.0))
         assertEquals(plain("система: самопроверка · батареи: норма"), row(1.0, 0.0))
         assertEquals(plain("система: отключена · батареи: норма"), row(4.0, 0.0))
-        // no signal and a fault, flat batteries: orange
-        listOf(2.0 to "нет сигнала", 3.0 to "отказ").forEach { (code, word) ->
-            assertEquals(CabinRow(listOf(CabinRun("система: "), CabinRun(word, CabinTone.ALERT), CabinRun(" · батареи: норма")), true), row(code, 0.0))
-        }
+        assertEquals(plain("система: нет сигнала · батареи: норма"), row(2.0, 0.0))
+        // the codes the card names a fault or an alarm (StateWords.alerts), as a live row's: orange
+        assertEquals(CabinRow(listOf(CabinRun("система: "), CabinRun("отказ", CabinTone.ALERT), CabinRun(" · батареи: норма")), true), row(3.0, 0.0))
         assertEquals(CabinRow(listOf(CabinRun("система: норма · батареи: "), CabinRun("разряжены", CabinTone.ALERT)), true), row(0.0, 1.0))
         assertEquals(plain("система: н/д · батареи: н/д"), row(null, null))
     }
