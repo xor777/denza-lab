@@ -16,7 +16,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Transacts `10`/`12` with `i32`-only parcels SIGSEGV'd `/system/bin/autoservice`; native scalar reads use only `5`/`7`, never `6` (`VehicleSignals.kt`, `VehicleTransact`); the separate DTC transport uses the qualified SDK buffer API | code | 2026-08-22 | [Binder](#binder) |
 | Device ids: `1000` AC, `1001` bodywork, `1006` energy, `1009` charging, `1011` gearbox, `1012` engine, `1013` speed, `1014` statistic/BMS, `1039` GB (motors, bus V), `1061` big data | live | 2026-08-22 | [Binder](#binder) |
 | Every `BYDAutoFeatureIds` constant, resolved for this car: untracked `captures/ambient-light-20260923/data/fids-canfd.tsv` (and `fids-can-classic.tsv`), tab-separated `<class or TOP>`, `<NAME>`, `<signed decimal>`, built by `resolve_clinit.py` because jadx cannot evaluate the static initializer; look ids up there, not by hand | firmware | 2026-09-23 | [autoservice FID protocol](#autoservice-fid-protocol) |
-| The product polls 8 hot ids (pack power, pack V, odometer, park, speed, rpm, engine running, generation) every 100 ms while the cluster, strip's car page or diagnostic section is up and every 1 s otherwise, plus 12 cold ids every 10 s; readings expire after 2 s / 25 s. That sweep is the only reader of the park switch: the strip's trip clock takes it from there under `VehicleWatcher.TRIP` (`VehicleSignals.kt`, `VehicleTelemetryHub.kt`, `TripParkFeed.kt`) | code | 2026-10-09 | [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) |
+| The product polls 8 hot ids (pack power, pack V, odometer, park, speed, rpm, engine running, generation) every 100 ms while the cluster, strip's car page or diagnostic section is up and every 1 s otherwise, plus 12 cold ids every 10 s; readings expire after 2 s / 25 s. One event id rides in every sweep while the warning recorder is on (`TEXT_WARNING`, `VehiclePoll.EVENT`) and never joins the telemetry snapshot. That sweep is the only reader of the park switch: the strip's trip clock takes it from there under `VehicleWatcher.TRIP` (`VehicleSignals.kt`, `VehicleTelemetryHub.kt`, `TripParkFeed.kt`) | code | 2026-10-09 | [Vehicle telemetry wiring](#vehicle-telemetry-wiring-2026-08-22-to-2026-08-27) |
 | Pack power `0x14400020` (dev 1012, catalog `ENGINE_POWER`) is positive out of the pack, on a charger and in motion (`VehicleConvention.POWER_POSITIVE_IS_DISCHARGE`) | live | 2026-09-22 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
 | `GENERATION_KW` `0x2610001F` (dev 1006) is the engine's charge into the pack: 8–10 kW generating in P, `0` while the engine drives the wheels; `0x2ED00010` (catalog `ENGINE_CHARGE_POWER`) is pack power, not generation | live | 2026-09-24 | [Energy contract §8](energy-display-contract.md#8-open-and-what-closes-each) |
 | `ENGINE_RUNNING` `0x10D00038`: `0` stopped, `1` cranking, `3` running; the product tests `≥ 1` (`VehicleTelemetry.kt`); `ENGINE_RPM` `0x14400012` answers `0x1FFF` (13-bit "not available") with the engine off, parked or moving; `VehicleSignal.invalid` refuses it before decoding | live | 2026-09-22 | [Second parked cycle](#second-parked-cycle-2026-09-18-recorded-the-contour-on-the-cluster); [A resting reading is not the same as a resting ECU](#a-resting-reading-is-not-the-same-as-a-resting-ecu) |
@@ -32,6 +32,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Refuted: `0x44700028` / 10 is remaining energy (a ~100 kWh pack). It is state of charge ×10; nothing on the Binder gives the pack size; Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car); [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
 | Washer goal is only a reliable refill warning, not measured level: OEM `1DD` is sufficient if its low-fluid delivery is qualified. MCU receives the selected enum; native name is `DOMAIN_261_10_21_TEXT_INFO`, not a concrete sender identity. CDC/INS/ZCU diagnostic routes do not establish warning ownership. No real low-fluid1DD observed; N9 saved states all13F, liquid-present Z9GT baseline0. Service reports sensors on both cars; direct level DID is optional and no draining requested | firmware receive path proved; producer and low-fluid delivery unverified | 2026-10-21 | [Washer diagnostic leads](#washer-warning-and-diagnostic-leads-2026-10-21); [Receiver and presentation](#washer-receiver-and-presentation-boundary-2026-10-21); [Producer boundary](#washer-warning-producer-boundary-2026-10-21) |
 | Z9GT typed `onTextInfoChanged` works from a finite shell process: baseline0 then callbacks13F→7D→0, with independently recorded LF door opening/closing. First90s run was silent; owner gesture timing there is uncertain. No initial replay guarantee, physical low-fluid1DD, ordinary app-UID or persistent/background acceptance. Both temporary processes unregistered/exited; jars removed and health stable | live shell callback qualification; washer trigger open | 2026-10-21 | [Direct warning listener](#direct-warning-listener-on-z9gt-2026-10-21) |
+| Warning recorder in the app: `1007/0x26100008` read as shell in the existing vehicle sweep (0.1 s with a screen up, 1 s otherwise), every change, app start and loss of the car kept in a 2 × 2 MB ring, every code with first/last/count in a summary that outlives the ring; «Сервис → Предупреждения машины», on by default, export to «Загрузки/Denza Apps». Names from the car's own `popup_nads.json` with a bundled Russian translation. Not on the car yet; a change shorter than one sweep can pass unseen | code | 2026-10-21 | [Warning recorder](#warning-recorder-2026-10-21) |
 | Empty N9 warning audit:557 delivered CAN261 records all13F; all557 frames and8 scalar passes have an open body element, with no all-closed control or continuous empty-transition coverage. MCU interval-only export can omit synthetic transient warnings, but N9's active mode is unknown. UI suppression alone does not explain raw13F. The not-READY explanation is withdrawn: HAL maps raw power3 to API2. Neither warning priority nor an actual missed1DD is proved | negative observation confirmed; cause unresolved | 2026-10-21 | [N9 missing-warning audit](#n9-missing-warning-audit-2026-10-21) |
 | N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | N9 CAN coverage: GB/YUN add 72 address tuples without table writes. Expanded present/empty/refilled cycle saved: 68,432 / 68,296 / 66,613 messages, all 199 common tuples covered without loss. Of 223 separated bits, 49 reverse; 43 contradict older controls, and 6 extra-tuple bits overlap numeric range/consumption/insulation/SOC descriptors. No washer mapping is established; 3 intermittent refill tuples also occurred in older normal/empty captures | live three-state cycle, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
@@ -117,6 +118,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
   - [Warning producer boundary](#washer-warning-producer-boundary-2026-10-21) — exact DOMAIN protocol name, renderer versus ECU, and missing transmitter/composer identity
   - [N9 missing-warning audit](#n9-missing-warning-audit-2026-10-21) — confirmed empty reservoir, sampling/transition gaps and rejected power-value inference
   - [Direct warning listener](#direct-warning-listener-on-z9gt-2026-10-21) — typed scalar callbacks and timed door control, without draining
+  - [Warning recorder](#warning-recorder-2026-10-21) — the slot recorded by the app for weeks, so a natural run-out answers whether 1DD arrives
 - [Targeted turn-signal events (2026-09-04)](#targeted-turn-signal-events-2026-09-04) — the two-FID light listener, its hub, and the camera contracts it fed
 - [Interior ambient light colour (2026-09-23, in progress)](#interior-ambient-light-colour-2026-09-23-in-progress) — where the cabin lamp colour lives and how it could be read
 - [Legacy BYDAuto events and system logs](#legacy-bydauto-events-and-system-logs) — the 2026-06-27 probe and system-log observations
@@ -5672,6 +5674,44 @@ selects1DD, who produces it, why empty N9 lacked it, or whether13F outranks it.
 Ordinary app-UID access, background/reconnect reliability and lossless warning
 history are also not established. Zero is not a fluid-OK indication. This is
 an observation tool, not a shipped refill notification or a running monitor.
+
+### Warning recorder (2026-10-21)
+
+**Why:** the remaining question - does a low reservoir select `1DD` on this car - needs an
+observation that spans the moment the fluid actually runs out, with the body closed. A deliberate
+emptying or a disconnected sensor is not available, and the service is slow; the reservoir will
+run low on its own in normal use, and the washer spraying air is the owner's independent
+confirmation of the moment. The recorder makes that observation without anyone at a laptop.
+
+**What it reads:** `getInt(1007, 0x26100008)` (`VehicleSignal.TEXT_WARNING`) in the batch the
+vehicle hub already sends through the shell (`VehicleTelemetryHub`), so it runs for the life of the
+process with no wake lock, service or second shell. The cadence is the hub's: 100 ms while the
+cluster, the strip's car page or the diagnostics are up, 1 s otherwise. A GET reads the HAL cache,
+which the receive path updates on every frame (see the receiver boundary above), so the slot is
+seen as it stands at each sweep; a value that comes and goes within one sweep is missed. The 13F,
+7D and 0 seen by the typed listener each lasted several seconds. The id is a separate poll class
+(`VehiclePoll.EVENT`): it never reaches the energy figures, and a slot answering from its cache
+cannot make a sleeping car look like an answering one.
+
+**What it keeps** (`WarningJournal`, `filesDir/warnings/`): every change of the slot (`A → B → A`
+kept, repeats not written), every app start, the car's first answer after a start or a loss (with
+what the slot held), and every loss - 10 s without an answer, or 30 s between two calls while
+linked (the head unit asleep), stamped from the last answer. Two ring files of 2 MB; the page holds
+the newest 200 events. A separate summary keeps every code's first and last sighting and count and
+outlives the ring. A line cut by a power loss is skipped. Names come from the car's
+`/system/bin/config/popup_nads.json` (world-readable on the Z9GT) through the bundled
+`warnings/popup_ru.tsv` (577 texts; one dictionary entry, `263`, is an image without text); an id
+the dictionary lacks is shown as the bare code.
+
+**Reading it:** a `1DD` in «Коды» after the washer ran dry is the qualified delivery the product
+needs. If the reservoir runs dry and the record holds `Машина отвечает` stretches with the slot at
+`0` and no `1DD` across ignition cycles, the warning is not being sent to the head unit - the
+question then belongs to the sending controller's input or configuration, which only the dealer's
+tool reads. `0` is never «fluid OK»: the slot carries one warning at a time.
+
+Code: `feature/warning/` (`WarningJournal`, `WarningRecorder`, `WarningNames`, `WarningText`),
+`ServiceWarningsPage`; tests `WarningJournalTest`, `WarningTextTest`, `WarningBoardContractTest`;
+boards `sheet-service-warnings`, `-off`, `one-sheet-service-warnings`. Not installed on the car yet.
 
 ### N9 paired-state capture (2026-10-16)
 
