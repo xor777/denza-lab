@@ -1,0 +1,527 @@
+{
+  "schema": "denza-lab.bms-current-consumers.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "newEngineeringUnitsProved": 0,
+  "scope": "New adjacent charging-current dual-cache and GB consumer chain; four priority STATISTIC fields remain raw and unresolved. No shared-doc, product, car, OTA or collection-table changes.",
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "sha256": "6c7b1946ccbe6a979bf51b96397c8bece89c5c598a85f3bb8dedac9d573c61ce",
+      "bytes": 254608
+    },
+    {
+      "path": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "sha256": "02ad8c66c2339ae0eabef661e12dda088ed2e616967bfac308c609e970dead66",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/washer-firmware-20260923/rx-table-candidates.json",
+      "sha256": "2421c9c4f47082e90e44b1d36674d9efdd09e0d814f87fc837fc54fc0631b91f",
+      "bytes": 3126323
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/powertrain/autoid-selected-fields.json",
+      "sha256": "c974ae735c3acf47d679356f8fc642206f768ede8fb64ae588d980e5fbe23918",
+      "bytes": 3785
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/powertrain/evaluate_autoid.py",
+      "sha256": "ba38ecc7a2629eb5bb2af97f6b12f44dd80e9873a7ee9fee3b8fed816e42b4d2",
+      "bytes": 6121
+    },
+    {
+      "path": "captures/diagnostics-next-depth-20261021/engine/gb-fid-initializer-values.json",
+      "sha256": "296dff0d2fba8a2b43d4ac00e15ea8ec1b62e4f62fbf39d0a31e163159b8afc6",
+      "bytes": 29286
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/hal-registrations.json",
+      "sha256": "25700ad3c7cb9b489c745eac7082b2d8e80b574e4708b0ea7b2988ba4e5bef4b",
+      "bytes": 2055268
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/bigdata.log",
+      "sha256": "da69531362b51225ee031eb7586c296b547ccc0be088030539305ea558a72a8a",
+      "bytes": 393848
+    }
+  ],
+  "applicability": {
+    "vehicle": "Owner Z9GT PHEV profile170 CANFD, retained20/21Oct observations",
+    "HAL": "Canonical OTA hash matched to current car in earlier21Oct run; not newly read here",
+    "MCU": "Owner OTA descriptor bytes; installed MCU version matched previously but not installed-byte-hash matched",
+    "constructorEvaluation": "31550 whitelisted constant-expression steps for CANFD1/Toyota0, synthetic object/stack only, no calls. Five out-of-range literal-load-and-return thunks are included at1CF744..1CF76C. Classic and Toyota variants retained as negative comparisons."
+  },
+  "selectiveCanonicalization": {
+    "function": "HAL updateParameters B0A70",
+    "tableVA": "0x42C44",
+    "CANids": [
+      "0x344",
+      "0x341",
+      "0x3D9",
+      "0x342",
+      "0x444",
+      "0x36D",
+      "0x262",
+      "0x242",
+      "0x43A",
+      "0x294",
+      "0x438",
+      "0x244",
+      "0x26C",
+      "0x240",
+      "0x41A",
+      "0x46C",
+      "0x449",
+      "0x286"
+    ],
+    "producerFIDMask": "0xFFFFF3FF",
+    "operationVA": "B0D20..B0D50",
+    "exceptionFID": "0x44900818 is explicitly not canonicalized",
+    "effect": "For a listed CAN ID only, clears FID bits10/11 before getter type lookup and converter dispatch. This does not change raw callback channel metadata.",
+    "example": {
+      "MCU": "0x44400818",
+      "canonical": "0x44400018",
+      "inputCANChannel": 2
+    },
+    "priorityExcluded": [
+      "0x345",
+      "0x44A"
+    ],
+    "doNotGeneralize": "Do not strip channel bits on every FID. Neither345 nor44A is in this set."
+  },
+  "chargingCurrentDualCache": {
+    "inputDevice": 1009,
+    "canonicalInputFID": "0x44400018",
+    "inputMCU": {
+      "tableKey": "0xE2044400",
+      "descriptorVA": "0xF1A7C",
+      "propertyVA": "0xA5C48",
+      "MCUFID": "0x44400818",
+      "coordinatesOneBasedByteLSB0": [
+        3,
+        0,
+        4,
+        7
+      ],
+      "unsignedBits": 16,
+      "sourceCANid": "0x444",
+      "sourceChannel": 2,
+      "descriptorBytes": "030004079ca01800485c0a00",
+      "propertyBytes": "180840440200000054b1effe"
+    },
+    "HALregistrationVA": "0x17A798",
+    "storageSelector": 6,
+    "converterVA": "0x7F710",
+    "converterName": "FunctionTable::currentcompat",
+    "AutoIDFieldsCANFD": {
+      "0x4298": "0x44400018",
+      "0x429c": "0xC4400018"
+    },
+    "outputs": [
+      {
+        "device": 1009,
+        "fid": "0x44400018",
+        "type": "float32",
+        "formula": "float32(float32(int32(wire)*float32(0x3DCCCCCD))-500.0)",
+        "unitsNewlyProved": null
+      },
+      {
+        "device": 1009,
+        "fid": "0xC4400018",
+        "type": "float32",
+        "formula": "float32(int32(wire))",
+        "registrationVA": "0x1A9A0C",
+        "unitsNewlyProved": null
+      }
+    ],
+    "updateDispatch": "Type6 jump-table at42BDA selects B108C. Converter writes a16-byte two-FID/two-float tuple; B1FA4 stores first float, B20A8 stores second float. Numeric duplicate suppression is separate for each output. Getter statuses/freshness remain separate.",
+    "validation": "Converter compares input FID only. No field-range or raw FE/FF/FFFF rejection. It returns-10014 for a mismatched FID, not for a high wire value. This does not qualify a sourceFFFF meaning.",
+    "retainedGETs": {
+      "source": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "rawAlias": [
+        {
+          "line": 13924,
+          "pass": 1,
+          "elapsedRealtimeNanos": 74760628733072,
+          "intWord": "0xFFFFD8E3",
+          "floatWord": "0x459AD800",
+          "float32": 4955.0
+        },
+        {
+          "line": 23928,
+          "pass": 2,
+          "elapsedRealtimeNanos": 74868216762848,
+          "intWord": "0xFFFFD8E3",
+          "floatWord": "0x459AD800",
+          "float32": 4955.0
+        }
+      ],
+      "converted": [
+        {
+          "line": 14160,
+          "pass": 1,
+          "elapsedRealtimeNanos": 74763163939842,
+          "intWord": "0xFFFFD8E3",
+          "floatWord": "0xC0900000",
+          "float32": -4.5
+        },
+        {
+          "line": 24164,
+          "pass": 2,
+          "elapsedRealtimeNanos": 74870747103848,
+          "intWord": "0xFFFFD8E3",
+          "floatWord": "0xC0900000",
+          "float32": -4.5
+        }
+      ],
+      "algebraAgreement": "Both passes have raw alias4955.0 and converted-4.5, exactly matching the stock float32 operations. GETs within each pass are sequential, about2.5s apart, not an atomic source acquisition."
+    },
+    "recentRawReplay": {
+      "source": "captures/diagnostics-live-20261021/073428-passive/bigdata.log",
+      "records": [
+        {
+          "line": 23,
+          "sequence": 21,
+          "elapsedRealtimeNanos": 144972283481907,
+          "mcuCounterRaw": 71526723,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        },
+        {
+          "line": 170,
+          "sequence": 168,
+          "elapsedRealtimeNanos": 144973284367138,
+          "mcuCounterRaw": 71527725,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 316,
+          "sequence": 314,
+          "elapsedRealtimeNanos": 144974284850215,
+          "mcuCounterRaw": 71528725,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 463,
+          "sequence": 461,
+          "elapsedRealtimeNanos": 144975288031984,
+          "mcuCounterRaw": 71529727,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 613,
+          "sequence": 611,
+          "elapsedRealtimeNanos": 144976287363138,
+          "mcuCounterRaw": 71530728,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 758,
+          "sequence": 756,
+          "elapsedRealtimeNanos": 144977289639061,
+          "mcuCounterRaw": 71531728,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 905,
+          "sequence": 903,
+          "elapsedRealtimeNanos": 144978289702446,
+          "mcuCounterRaw": 71532728,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        },
+        {
+          "line": 1050,
+          "sequence": 1048,
+          "elapsedRealtimeNanos": 144979291684061,
+          "mcuCounterRaw": 71533730,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        },
+        {
+          "line": 1200,
+          "sequence": 1198,
+          "elapsedRealtimeNanos": 144980290585292,
+          "mcuCounterRaw": 71534730,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        },
+        {
+          "line": 1340,
+          "sequence": 1338,
+          "elapsedRealtimeNanos": 144981292396907,
+          "mcuCounterRaw": 71535731,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        },
+        {
+          "line": 1484,
+          "sequence": 1482,
+          "elapsedRealtimeNanos": 144982293765907,
+          "mcuCounterRaw": 71536732,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        },
+        {
+          "line": 1634,
+          "sequence": 1632,
+          "elapsedRealtimeNanos": 144983292123369,
+          "mcuCounterRaw": 71537733,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 1780,
+          "sequence": 1778,
+          "elapsedRealtimeNanos": 144984294815446,
+          "mcuCounterRaw": 71538734,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 1921,
+          "sequence": 1919,
+          "elapsedRealtimeNanos": 144985295485523,
+          "mcuCounterRaw": 71539734,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 2066,
+          "sequence": 2064,
+          "elapsedRealtimeNanos": 144986296458754,
+          "mcuCounterRaw": 71540735,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 2218,
+          "sequence": 2216,
+          "elapsedRealtimeNanos": 144987299920908,
+          "mcuCounterRaw": 71541737,
+          "payload": "20028813634a484d",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 544
+        },
+        {
+          "line": 2368,
+          "sequence": 2366,
+          "elapsedRealtimeNanos": 144988298228677,
+          "mcuCounterRaw": 71542737,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        },
+        {
+          "line": 2506,
+          "sequence": 2504,
+          "elapsedRealtimeNanos": 144989299784985,
+          "mcuCounterRaw": 71543738,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        },
+        {
+          "line": 2653,
+          "sequence": 2651,
+          "elapsedRealtimeNanos": 144990298471754,
+          "mcuCounterRaw": 71544739,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        },
+        {
+          "line": 2799,
+          "sequence": 2797,
+          "elapsedRealtimeNanos": 144991303778139,
+          "mcuCounterRaw": 71545739,
+          "payload": "21028813634a484c",
+          "wireCurrentU16LE": 5000,
+          "wireVoltageU16LE": 545
+        }
+      ],
+      "observedWireCurrentValues": [
+        5000
+      ],
+      "wireToHALAlgebraResult": 0.0,
+      "limit": "Recent raw data are a different time window from20Oct GETs. No time-paired API or physical current/sign claim is made."
+    }
+  },
+  "stockGBCurrentConsumer": {
+    "binary": "gbacqservice",
+    "functionVA": "0x130A0",
+    "selectionVA": "0x134A0..0x13528",
+    "globalsCANFD": {
+      "0x3E0D8": "0x28600016",
+      "0x3E0DC": "0x28600018",
+      "0x3E0E0": "0xC4400018"
+    },
+    "configGetter": {
+      "device": 1039,
+      "fid": "0x28600016",
+      "stockName": "GB_CURRENT_DATA_GET_CONFIG"
+    },
+    "whenConfigExactly2": {
+      "getterDevice": 1039,
+      "getterFID": "0x28600018",
+      "stockName": "GB_BATTERY_CCURRENT",
+      "getterType": "int",
+      "encoding": "u16(u16(API_integer)-20000)",
+      "VA": "134D0..134F4"
+    },
+    "otherwise": {
+      "getterDevice": 1009,
+      "getterFID": "0xC4400018",
+      "getterType": "float32",
+      "encoding": "u16(trunc(float32(API_float+5000.0)))",
+      "VA": "134F8..13524",
+      "retainedAliasExample": {
+        "rawAlias": 4955.0,
+        "encodedU16": 9955,
+        "encodedHex": "0x26E3"
+      }
+    },
+    "destinations": [
+      "0x3D4E4",
+      "0x3DE54"
+    ],
+    "retainedConfig": [
+      {
+        "line": 19352,
+        "pass": 1,
+        "elapsedRealtimeNanos": 74819130672999,
+        "intWord": "0x00000000",
+        "integer": 0
+      },
+      {
+        "line": 29356,
+        "pass": 2,
+        "elapsedRealtimeNanos": 74926624855159,
+        "intWord": "0x00000000",
+        "integer": 0
+      }
+    ],
+    "retainedAlternateCurrent": [
+      {
+        "line": 19353,
+        "pass": 1,
+        "elapsedRealtimeNanos": 74819141429922,
+        "intWord": "0x00000000",
+        "integer": 0
+      },
+      {
+        "line": 29357,
+        "pass": 2,
+        "elapsedRealtimeNanos": 74926635331544,
+        "intWord": "0x00000000",
+        "integer": 0
+      }
+    ],
+    "quality": "Selected calls do not branch on getter return status, source invalid code or acquisition age. A config0/default selects fallback; it does not make alternate-current0 a sensor reading. Raw alias and converted float are related but do not supply the scale/sign of44A00020.",
+    "notAPhysicalUnitProof": "GB-looking offsets and function names alone are not an engineering-unit standard."
+  },
+  "priorityBMSBoundary": {
+    "fields": [
+      "1014/44A00020",
+      "1014/34500008",
+      "1014/34500018",
+      "1014/34500028"
+    ],
+    "result": "No new unit/sign/invalid qualification. Existing generic unsigned source widths and identity HAL converters remain authoritative. No labelled numeric consumer for these four was recovered. Adjacent444/286 formulas must not be transferred.",
+    "newBoundedSearch": "All locally retained Java/GDScript/JSON sources undercaptures and reverse for exact four names, numeric decimal FIDs and hex keys, excluding declaration/mappers; only previously known declaration maps and retained research were returned. No remote lookup.",
+    "labelledConsumerFound": false
+  },
+  "nextReadOnlyTest": {
+    "purpose": "Close current source freshness and contemporaneous raw/API agreement for adjacent444 chain only, not the44A/345 physical scale",
+    "maximumSeconds": 12,
+    "maximumBatches": 6,
+    "operations": "On a later authorized parked session, simultaneously retain receive-only CAN444/channel2/sub0/8-byte source and bracket it with already-existing typed GETs1009/C4400018 tx7,1009/44400018 tx7,1039/28600016 tx5; if config2 also1039/28600018 tx5. Use an already occurring owner-controlled ordinary load change only if separately authorized. No state setter, new DID, collection config, app restart or engine start.",
+    "acceptance": "Preserve full parcel status/raw bits, device monotonic times, callback count/drop/error/unregister. Require matching source tuple and changing raw alias; static coincidence is not freshness. Do not promote units/sign from this test alone.",
+    "priorityUnitsNextSource": "An exact labelled stock consumer/qualified primary protocol or independently calibrated current reference is still required for44A/345; additional parked zeros cannot close it."
+  },
+  "anchors": [
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x7f710",
+      "endExclusive": "0x7f788",
+      "bytes": "c80a00f0087140f9095388520a0940f94a6969b8090040b93f010a6ba1020054490000b989538852080940f9e0031f2a086969b8480400b9a8999952200040bd88b9a77200d8215e0101271e487fb8520008211e0101271e0028211e400800bd200040bd00d8215e400c00bdc0035fd6a0e38412c0035fd6",
+      "meaning": "two-current output tuple"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xb0d20",
+      "endExclusive": "0xb0d54",
+      "bytes": "e8cf40b9090381520992a8721f01096b2001005461fcffb062fcffd0037514122158089142b80c91e0031f2ae3cf00b9b87a0494",
+      "meaning": "selected CAN normalization mask"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x42c44",
+      "endExclusive": "0x42c8c",
+      "bytes": "4403000041030000d903000042030000440400006d03000062020000420200003a0400009402000038040000440200006c020000400200001a0400006c0400004904000086020000",
+      "meaning": "eighteen CAN ID constants"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xb108c",
+      "endExclusive": "0xb10d0",
+      "bytes": "600240f9e1330391e2230391e3c30891ff1f01f9ff1b01f9137b04941f781e72200f0054e40f592961fcff9062fcffd0e503002a2158089142403191200080529c000014",
+      "meaning": "type6 tuple conversion"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xb1f90",
+      "endExclusive": "0xb20b0",
+      "bytes": "e8c30891e93342b902210091600240f9e92301b9e1830491fe7604942001003461fcff9062fcffd0e33342b92158089142483291e0031f2a1a7604940c000014e83342b9e1830491607740f9e82301b934770494e103002ae23342b9e03b42bde0031baae30b40f942780494e83742b968510034600240f9e1830491e82301b92c7704941f140071600000541f280071e1000054e83742b9e9c30891600240f922310091e82301b91c000014e83742b9e1830491600240f9e83f42bde82301b90477049400d5a07e68fcfff0010146fd00c0221e0020611e65010054e03f42bd41fcfff0e33742b962fcffd02158089142182f9100c0221e60008052e975049467020014e8c30891e93742b902310091600240f9e92301b9e1830491bd760494",
+      "meaning": "two float stores"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x1a99cc",
+      "endExclusive": "0x1a9a10",
+      "bytes": "08038052890080520888b872e1730091e00314aae9a30329ef980094400100b4287e805249008052e20300aa170c00f9e1830091080800b9091000b9e00314aa0d990094",
+      "meaning": "raw alias float registration"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x134a0",
+      "endExclusive": "0x13550",
+      "bytes": "480100f002d940b9e3430091201541f9e1818052ff1300b9ffff002999940094e91340b9887e41f93f09007161010054490100f022dd40b9001541f9e3230091e18180528f940094e8134079e9c389120801090b0d000014490100f022e140b9001541f9e3130091217e80528994009408008852e00740bd88b3a8720101271e0028211e0800381e897e41f9e343009122c340b9c17e80525c0100d088cb0979201541f9490100d028a91c79ff1300b9",
+      "meaning": "stock current source selection and packing"
+    }
+  ],
+  "captureBase": "captures/diagnostics-followup-20261021/powertrain"
+}

@@ -190,9 +190,12 @@ internal object ObdPids {
         percent("Положение педали D", 0x49),
         percent("Положение педали E", 0x4A),
         percent("Заданное положение дросселя", 0x4C),
-        ObdPid(0x54, "Давление паров EVAP", 2) { one(word(it, 0).toShort().toDouble(), "Па", 0) },
+        ObdPid(0x54, "Давление паров EVAP", 2) { one(word(it, 0) - 32767.0, "Па", 0) },
         ObdPid(0x56, "Долгосрочная коррекция по 2-му датчику O2", 2) { b ->
-            ObdValue.Numbers(listOf(ObdQuantity("B1", trim(b[0]), "%", 1), ObdQuantity("B3", trim(b[1]), "%", 1)))
+            ObdValue.Numbers(listOfNotNull(
+                ObdQuantity("B1", trim(b[0]), "%", 1),
+                b.getOrNull(1)?.let { ObdQuantity("B3", trim(it), "%", 1) },
+            ))
         },
         ObdPid(0x67, "Температура ОЖ, датчики", 3) { b ->
             ObdValue.Numbers(listOfNotNull(
@@ -308,7 +311,11 @@ internal object ObdCodec {
                 out += PidReading(pid, uds.copyOfRange(i + 1, b.size).hexString(), ObdValue.Raw)
                 break
             }
-            val end = i + 1 + def.length
+            // J1979 B67: PID56's bank3 byte is conditional. The captured
+            // single-PID 41 56 80 is unambiguous; a batch needs bank topology
+            // before a shorter record can be split, so do not guess there.
+            val dataLength = if (pid == 0x56 && i == 1 && b.size == 3) 1 else def.length
+            val end = i + 1 + dataLength
             if (end > b.size) return Decoded.Malformed("PID %02X needs %d bytes, %d came".format(pid, def.length, b.size - i - 1))
             val data = b.copyOfRange(i + 1, end)
             out += PidReading(pid, uds.copyOfRange(i + 1, end).hexString(), def.decode(data))

@@ -1,0 +1,726 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "scope": "Finite read-only ECM completion and Mode09 calibration/name at standstill; no engine start, VIN/CVN, APK install, ECU writes, retries or OTA action.",
+  "route": {
+    "request": "7E0",
+    "response": "7E8",
+    "F194": "32440011E004000000",
+    "calibrationId": "Z31L07AB01",
+    "ecuNameAsciiEscaped": "ECM\\0-EngineControl\\0\\0"
+  },
+  "sources": [
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/app-baseline.json",
+      "sha256": "4bcdaba4d1793161b32722707f193169dccf1040d2ca16eaa497e4320f55a105"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/calibration-plan.json",
+      "sha256": "674d0f124ab2417491a19e03360b957fe7ecce575e10dc35601253e0a303e30e"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/processes.txt",
+      "sha256": "102c5d1fc5918eb60325cd2b25ec979028154f125065319c9bdbd87b5f8787ee"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/final-health/status.json",
+      "sha256": "241ec71a2b455f61593d5cc79b347080f1bfb9b944c08c87c3bab0d3ad96f144"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/health.py",
+      "sha256": "eb8f1a43ee1ca946b959664588806137a0216d229be82050db78b20b93cf9103"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-01/protocol.txt",
+      "sha256": "25d379729696234910c21cde3b93fdcf233cb7f3e1ed1ed401053c4a606f52bd"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-01/result.json",
+      "sha256": "f28149fbd3a0058aa0396da74cd44a90470788ee4e00697fa75322f8772a0958"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-01/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-02/protocol.txt",
+      "sha256": "cd457b8395dd01d383e3dca2f153916154a35575352e42c85b5b350f85a52303"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-02/result.json",
+      "sha256": "c19116038751b737d5f66dc2c798fe33834f54ea5808643fcbc3c6029ad3cfcf"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-02/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-03/protocol.txt",
+      "sha256": "608972b43ff53c347eb9093fad32c1fcbdf0750cc2e1464be31175849264b19a"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-03/result.json",
+      "sha256": "62258c0610331ad7437099240d56654026428cf09580ac70a9b5790fae96c1fc"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-03/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/plan.json",
+      "sha256": "d592320b0e91f3feb8ab0dd5c894e8695de43b2ae03a0194592041945d0fc5d9"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/processes.txt",
+      "sha256": "b69dd01972326aa1d48ac3af85e98aaa2899b97fa51dd6dcf64ef88c03d45465"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/postflight/status.json",
+      "sha256": "41a7474a539fbdd18f1d0b72feb63270c3c9d0c4d26f06377f9c5920ef63d908"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/processes.txt",
+      "sha256": "68d9d9553e176875c680bef0c124f45d9c37ddf3a75840b935b030bf8ebf6067"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight/status.json",
+      "sha256": "d0ebab9b200d7b8bd4bb20ed6be2b69fa1ce4fbb8fa4e0120dbd41635d952eb2"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/processes.txt",
+      "sha256": "63f5916b92456b4ecf104635a4fced3abeba19dd09bbe40d85a4b0a0df032c4c"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/preflight-initial/status.json",
+      "sha256": "a937565f53cbcdd0d861456ececebbb792f612e12b2efd7adba5d367fa326f19"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/run-calibration.py",
+      "sha256": "5a2796df26d5d9829ee40c13df25ad9aebe84a0f00d72e08a6c3dcec1115cd01"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/run-info-support.py",
+      "sha256": "f18217ab74aad97c96b883eefc5767e0922bb188d442f67179371a5c010a1cc8"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/run.py",
+      "sha256": "840941fcaaee0f2ae3655a1ea9e4a4850806ce881d1a283ac458f0e0cb8bfed6"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/source/Obd.kt",
+      "sha256": "fe273719c98bcf9b80468de33f4722fd3a967851356cac8dc1635bcdeb0cd56f"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/build.json",
+      "sha256": "a7b1da0b1660a59b1ca4152689f272d52f109b98349627a6220ed1a5356f4a32"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/DiagnosticBusMain.java",
+      "sha256": "270fb956d084d7e959de75cde2655dd928df282dd90c1d6ad0eeac47f0a3a187"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/DiagnosticFrameAssembler.java",
+      "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/DiagnosticWhitelist.java",
+      "sha256": "8168494292c1f344686cccc4888c2337b8bfbea377c51ab9f4b9efba26422dd4"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/ShellProxyBootstrap.java",
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecm-obd-telemetry-20261021.json",
+      "sha256": "f48b48c94fa955568822d92245b1970a708cf6c9d9e39c7af1e07c70b6925129"
+    },
+    {
+      "path": "research/vehicle-diagnostics/obd-20261020.json",
+      "sha256": "61243879c8ac46abc5f7f22e11197960bdbb9d63f94c2620b2893d6c2ee513e9"
+    }
+  ],
+  "runs": [
+    {
+      "resultPath": "captures/diagnostics-followup-20261021/engine/live-01/result.json",
+      "protocolPath": "captures/diagnostics-followup-20261021/engine/live-01/protocol.txt",
+      "outcome": "stopped_on_short_0156",
+      "wireResponses": [
+        {
+          "seq": 1,
+          "requestHex": "22F194",
+          "responseHex": "62F19432440011E004000000",
+          "frames": 1,
+          "latencyMs": 20,
+          "receivedNanos": 153937610379903
+        },
+        {
+          "seq": 2,
+          "requestHex": "0100",
+          "responseHex": "4100BE3EA813",
+          "frames": 1,
+          "latencyMs": 14,
+          "receivedNanos": 153938125015903
+        },
+        {
+          "seq": 3,
+          "requestHex": "0120",
+          "responseHex": "4120A01FB011",
+          "frames": 1,
+          "latencyMs": 12,
+          "receivedNanos": 153938638141518
+        },
+        {
+          "seq": 4,
+          "requestHex": "0140",
+          "responseHex": "4140FED01401",
+          "frames": 1,
+          "latencyMs": 15,
+          "receivedNanos": 153939154639057
+        },
+        {
+          "seq": 5,
+          "requestHex": "010C",
+          "responseHex": "410C0000",
+          "frames": 1,
+          "latencyMs": 13,
+          "receivedNanos": 153939669265826
+        },
+        {
+          "seq": 6,
+          "requestHex": "0101",
+          "responseHex": "41010007F5F4",
+          "frames": 1,
+          "latencyMs": 16,
+          "receivedNanos": 153940187128288
+        },
+        {
+          "seq": 7,
+          "requestHex": "0121",
+          "responseHex": "41210000",
+          "frames": 1,
+          "latencyMs": 10,
+          "receivedNanos": 153940699065749
+        },
+        {
+          "seq": 8,
+          "requestHex": "012C",
+          "responseHex": "412C00",
+          "frames": 1,
+          "latencyMs": 12,
+          "receivedNanos": 153941213781518
+        },
+        {
+          "seq": 9,
+          "requestHex": "012D",
+          "responseHex": "412D80",
+          "frames": 1,
+          "latencyMs": 13,
+          "receivedNanos": 153941729610134
+        },
+        {
+          "seq": 10,
+          "requestHex": "012E",
+          "responseHex": "412E00",
+          "frames": 1,
+          "latencyMs": 18,
+          "receivedNanos": 153942250044288
+        },
+        {
+          "seq": 11,
+          "requestHex": "0130",
+          "responseHex": "413001",
+          "frames": 1,
+          "latencyMs": 12,
+          "receivedNanos": 153942764318749
+        },
+        {
+          "seq": 12,
+          "requestHex": "0131",
+          "responseHex": "41310095",
+          "frames": 1,
+          "latencyMs": 13,
+          "receivedNanos": 153943278498980
+        },
+        {
+          "seq": 13,
+          "requestHex": "0141",
+          "responseHex": "4141000775F5",
+          "frames": 1,
+          "latencyMs": 15,
+          "receivedNanos": 153943795361442
+        },
+        {
+          "seq": 14,
+          "requestHex": "0143",
+          "responseHex": "41430000",
+          "frames": 1,
+          "latencyMs": 18,
+          "receivedNanos": 153944315185519
+        },
+        {
+          "seq": 15,
+          "requestHex": "0145",
+          "responseHex": "414510",
+          "frames": 1,
+          "latencyMs": 13,
+          "receivedNanos": 153944829887365
+        },
+        {
+          "seq": 16,
+          "requestHex": "0147",
+          "responseHex": "41472A",
+          "frames": 1,
+          "latencyMs": 17,
+          "receivedNanos": 153945349121826
+        },
+        {
+          "seq": 17,
+          "requestHex": "0149",
+          "responseHex": "414925",
+          "frames": 1,
+          "latencyMs": 15,
+          "receivedNanos": 153945865338749
+        },
+        {
+          "seq": 18,
+          "requestHex": "014A",
+          "responseHex": "414A24",
+          "frames": 1,
+          "latencyMs": 10,
+          "receivedNanos": 153946378944596
+        },
+        {
+          "seq": 19,
+          "requestHex": "014C",
+          "responseHex": "414C04",
+          "frames": 1,
+          "latencyMs": 13,
+          "receivedNanos": 153946894752596
+        },
+        {
+          "seq": 20,
+          "requestHex": "0154",
+          "responseHex": "4154E8B6",
+          "frames": 1,
+          "latencyMs": 18,
+          "receivedNanos": 153947414830365
+        },
+        {
+          "seq": 21,
+          "requestHex": "0156",
+          "responseHex": "415680",
+          "frames": 1,
+          "latencyMs": 13,
+          "receivedNanos": 153947930430750
+        }
+      ]
+    },
+    {
+      "resultPath": "captures/diagnostics-followup-20261021/engine/live-02/result.json",
+      "protocolPath": "captures/diagnostics-followup-20261021/engine/live-02/protocol.txt",
+      "outcome": "complete",
+      "wireResponses": [
+        {
+          "seq": 1,
+          "requestHex": "22F194",
+          "responseHex": "62F19432440011E004000000",
+          "frames": 1,
+          "latencyMs": 26,
+          "receivedNanos": 153974261085136
+        },
+        {
+          "seq": 2,
+          "requestHex": "010C",
+          "responseHex": "410C0000",
+          "frames": 1,
+          "latencyMs": 15,
+          "receivedNanos": 153974778269520
+        },
+        {
+          "seq": 3,
+          "requestHex": "0900",
+          "responseHex": "490055404000",
+          "frames": 1,
+          "latencyMs": 15,
+          "receivedNanos": 153975298411674
+        }
+      ]
+    },
+    {
+      "resultPath": "captures/diagnostics-followup-20261021/engine/live-03/result.json",
+      "protocolPath": "captures/diagnostics-followup-20261021/engine/live-03/protocol.txt",
+      "outcome": "complete",
+      "wireResponses": [
+        {
+          "seq": 1,
+          "requestHex": "22F194",
+          "responseHex": "62F19432440011E004000000",
+          "frames": 1,
+          "latencyMs": 22,
+          "receivedNanos": 154010401005215
+        },
+        {
+          "seq": 2,
+          "requestHex": "010C",
+          "responseHex": "410C0000",
+          "frames": 1,
+          "latencyMs": 14,
+          "receivedNanos": 154010918057523
+        },
+        {
+          "seq": 3,
+          "requestHex": "0900",
+          "responseHex": "490055404000",
+          "frames": 1,
+          "latencyMs": 39,
+          "receivedNanos": 154011458665753
+        },
+        {
+          "seq": 4,
+          "requestHex": "0904",
+          "responseHex": "4904015A33314C303741423031000000000000",
+          "frames": 1,
+          "latencyMs": 18,
+          "receivedNanos": 154011979708292
+        },
+        {
+          "seq": 5,
+          "requestHex": "090A",
+          "responseHex": "490A0145434D002D456E67696E65436F6E74726F6C0000",
+          "frames": 1,
+          "latencyMs": 23,
+          "receivedNanos": 154012504255600
+        }
+      ]
+    }
+  ],
+  "decodedValues": {
+    "2C": {
+      "value": 0.0,
+      "unit": "%"
+    },
+    "2E": {
+      "value": 0.0,
+      "unit": "%"
+    },
+    "45": {
+      "value": 6.2745098039215685,
+      "unit": "%"
+    },
+    "47": {
+      "value": 16.470588235294116,
+      "unit": "%"
+    },
+    "49": {
+      "value": 14.509803921568627,
+      "unit": "%"
+    },
+    "4A": {
+      "value": 14.117647058823529,
+      "unit": "%"
+    },
+    "4C": {
+      "value": 1.5686274509803921,
+      "unit": "%"
+    },
+    "2D": {
+      "value": 0.0,
+      "unit": "%"
+    },
+    "21": {
+      "value": 0,
+      "unit": "km"
+    },
+    "31": {
+      "value": 149,
+      "unit": "km"
+    },
+    "30": {
+      "value": 1,
+      "unit": "count"
+    },
+    "43": {
+      "value": 0.0,
+      "unit": "%"
+    },
+    "54": {
+      "value": 26807,
+      "unit": "Pa"
+    },
+    "56": {
+      "value": 0.0,
+      "unit": "%",
+      "bank": "B1"
+    }
+  },
+  "mode09SupportedInfoTypes": [
+    2,
+    4,
+    6,
+    8,
+    10,
+    18
+  ],
+  "mode09NotRead": [
+    2,
+    6,
+    8,
+    18
+  ],
+  "newMode01CompleteShape": [
+    "21",
+    "2C",
+    "2D",
+    "2E",
+    "30",
+    "31",
+    "41",
+    "43",
+    "45",
+    "47",
+    "49",
+    "4A",
+    "4C",
+    "54"
+  ],
+  "shortPid56": {
+    "request": "0156",
+    "reply": "415680",
+    "transportComplete": true,
+    "dataBytes": 1,
+    "interpretation": "The collector stopped on its fixed two-byte schema without retry. Later J1979 table B67 establishes conditional bank3 byte: returned80 decodes B1=0%; no B3 value or physical bank absence inferred. Single-PID codec corrected; short batches require topology.",
+    "productChanged": true,
+    "productExpectedDataBytesBeforeCorrection": 2,
+    "source": "https://www.autonerdz.com/yabbfiles/Attachments/1979v3.pdf table B67"
+  },
+  "readinessRaw": {
+    "sinceClear": "0007F5F4",
+    "thisCycle": "000775F5",
+    "MIL": false,
+    "OBDDtcCount": 0,
+    "engineRpm": 0
+  },
+  "counterBoundary": "Warm-up count1 and149km since clear are ECU reports. They do not identify when/who/why a reset occurred. This pass did not clear codes.",
+  "mode01Coverage": {
+    "advertisedIncludingContinuationMarkers": 48,
+    "continuationMarkers": 5,
+    "nonBitmapPidsWithPositiveReplyAcrossRetainedPasses": 43,
+    "notSensorCount": true,
+    "allSemanticsQualified": false
+  },
+  "priorTelemetryPath": "research/vehicle-diagnostics/ecm-obd-telemetry-20261021.json",
+  "originalObdPath": "research/vehicle-diagnostics/obd-20261020.json",
+  "helper": {
+    "jarSha256": "b765db9f1bac0f36e94a40dc02986cd2d683feaae37d3a49ee233ed5db5e342d",
+    "sourceSnapshots": "captures/diagnostics-unattended-20261021/engine-obd/source",
+    "unchanged": true,
+    "sharedLock": true,
+    "perRequestGuards": true,
+    "gapMs": 500
+  },
+  "healthPaths": [
+    "captures/diagnostics-followup-20261021/engine/preflight",
+    "captures/diagnostics-followup-20261021/engine/postflight",
+    "captures/diagnostics-followup-20261021/engine/final-health"
+  ],
+  "stockProcesses": [
+    "128 autoservice",
+    "521 gbacqservice",
+    "523 gbdataservice",
+    "4634 com.byd.avc"
+  ],
+  "appBaseline": {
+    "oldHash": "e02262e8a992c91228bb8222c2604e2a6b7eee84ff5d61aa1088a529e78cba54",
+    "newHash": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+    "changedBeforePass": true,
+    "localApkExactMatch": true,
+    "sameThroughPass": true,
+    "installedByThisPass": false,
+    "initialMismatchRecorded": true
+  },
+  "publicReferences": [
+    {
+      "url": "https://www.csselectronics.com/pages/obd2-pid-table-on-board-diagnostics-j1979",
+      "role": "standard scalar names/arithmetic; not BYD sensor validity",
+      "retrieved": "web tool; direct urllib403, no complete local page copy"
+    },
+    {
+      "url": "https://python-obd.readthedocs.io/en/latest/Command%20Tables/",
+      "role": "Mode09 type naming only, not current-car implementation proof"
+    },
+    {
+      "url": "https://www.autonerdz.com/yabbfiles/Attachments/1979v3.pdf",
+      "role": "Original SAE J1979 MAY2007 table B67: conditional byte B of PID56; do not infer hardware placement."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/brendan-w/python-OBD/master/obd/decoders.py",
+      "role": "evap_pressure_alt implements unsigned16 minus32767, independently matches CSS table."
+    }
+  ],
+  "limits": [
+    "One stopped-engine snapshot; no warmed or loaded engine diagnosis.",
+    "Advertised/received PID count is not physical sensor count or current sensor freshness.",
+    "Mode09 replied in one vendor fragment; not proof of physical CAN frame count or multipart assembly.",
+    "Internal NUL in ECU name retained explicitly, not silently deleted.",
+    "No OEM software-bound DTC dictionary obtained; CALID is an additional acquisition key.",
+    "Only local PID54/56 codec and regression changes; no schedule/UI changes and no APK installation."
+  ],
+  "codecCorrections": {
+    "54": {
+      "oldWrongValue": -5962,
+      "formula": "unsigned16 minus32767 Pa",
+      "correctedValue": 26807
+    },
+    "56": {
+      "scope": "unambiguous one-byte single-PID response",
+      "B1Percent": 0,
+      "B3Value": null,
+      "hardwareAbsenceInferred": false
+    },
+    "installedOnCar": false
+  }
+}

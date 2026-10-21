@@ -1,0 +1,287 @@
+{
+  "schema": "denza-lab.oem-dtc-public-source-followup.v1",
+  "date": "2026-10-21",
+  "status": "new_primary_public_acquisition_channels_but_no_applicable_dtc_dictionary",
+  "scope": "Finite public web and existing owner text corpus only; this worker made no vehicle/ADB/IPC/cloud-diagnostic request, login, account application, credential access, protected-document request or guessed manual URL.",
+  "qualified_oem_dtc_definitions": [],
+  "qualified_software_bindings": [],
+  "qualified_format01_display_raw_mappings": [],
+  "ecm_calibration_anchor": {
+    "source": "captures/diagnostics-followup-20261021/engine/live-03/result.json",
+    "provenance": "Read-only reuse of the parent session captured response; this worker did not query the vehicle.",
+    "software_code": "32440011E004000000",
+    "request": "0904",
+    "response_hex": "4904015A33314C303741423031000000000000",
+    "record_payload_bytes": 16,
+    "calibration_id_ascii": "Z31L07AB01",
+    "trailing_zero_bytes": 6,
+    "public_software_or_dictionary_join": null,
+    "local_text_search": {
+      "tokens": [
+        "Z31L07AB01",
+        "Z31L07",
+        "5A33314C303741423031"
+      ],
+      "roots": [
+        "captures/firmware",
+        "reverse",
+        "research",
+        "captures/diagnostics*"
+      ],
+      "file_globs": [
+        "*.json",
+        "*.xml",
+        "*.txt",
+        "*.java",
+        "*.c",
+        "*.cpp",
+        "*.h",
+        "*.smali",
+        "*.strings",
+        "*.log"
+      ],
+      "rg_exit_code": 0,
+      "matching_files_before_this_report": [
+        "captures/diagnostics-followup-20261021/engine/live-03/protocol.txt",
+        "captures/diagnostics-followup-20261021/engine/live-03/result.json"
+      ],
+      "limit": "Only named text extensions; not arbitrary binary payloads or archives. New report files containing the ID were written afterward."
+    }
+  },
+  "public_primary_channel_findings": [
+    {
+      "channel": "BYD automobile environmental information",
+      "url": "https://www.bydglobal.com/cn/auto-environmental-information",
+      "homepage_link_verified": true,
+      "observed_inputs": [
+        "model environmental disclosure number: 信息公开编号",
+        "individual vehicle: VIN"
+      ],
+      "linked_entry_script": "https://www.bydglobal.com/component/bydglobal-cn/socialResponsibilityEsg/carEnvironmentalInfo/carEnvironmentalInfo_SPA4z2_e.js",
+      "number_for_qcj7200aehev3": null,
+      "vehicle_identifier_submitted": false,
+      "search_request_submitted": false,
+      "manual_or_obd_table_obtained": false,
+      "boundary": "This is an official public document-acquisition channel. Its landing and linked script establish search inputs only; they do not establish available Z9GT data, DTC coverage or ECU software applicability."
+    },
+    {
+      "channel": "VECC public query",
+      "url": "https://info.vecc.org.cn/ve/index",
+      "link_verified_in_public_vecc_home": true,
+      "fetch_result": "bounded urllib timeout; web fetch also timed out",
+      "query_submitted": false,
+      "boundary": "No negative inference about whether the model exists in the unavailable service."
+    },
+    {
+      "channel": "Publicly indexed overseas BYD TIS workshop page",
+      "url": "https://eutis.bydauto.com/tis/file/manual/wsm/722/en_US/DTRM326712.html",
+      "http_status": 200,
+      "title": "Power-off and power-on of high-voltage electrical system",
+      "discovery": "Exact URL returned by public web search, then read as an unauthenticated GET; no URL construction or access-control workaround.",
+      "path_model_selector": "722",
+      "model_identity_qualified": false,
+      "z9gt_applicability_qualified": false,
+      "content_class": "Workshop procedure mentioning VDS and battery DTC conditions, not a fault-code table.",
+      "new_precision": "A login-gated TIS landing does not imply every workshop page is inaccessible: this one served primary HTML publicly. This observation is limited to this URL, not the protected Chinese DTA pages."
+    },
+    {
+      "channel": "Self-published BYD Europe Aftersales Digitalization Helpdesk account instructions",
+      "url": "https://bydeurope-support.freshdesk.com/support/solutions/articles/79000148151-tis-account-instruction",
+      "listed_modified_date": "2025-12-11",
+      "linked_login": "https://eutis.bydauto.com/tis/os",
+      "application_or_message_sent": false,
+      "boundary": "Published account application guidance, commonly expecting a DMS account; not proof of public eligibility or CN Z9GT coverage. Portal affiliation has not been independently verified from an official-domain backlink."
+    },
+    {
+      "channel": "Same support portal parts training",
+      "url": "https://bydeurope-support.freshdesk.com/support/solutions/articles/79000148064-dms-spare-parts-external-ordering-training",
+      "listed_modified_date": "2025-12-08",
+      "listed_tis": "http://tis.byd.com/tis/index",
+      "observed_scope": "Overseas EPC/parts workflow; VIN or model/year selection and part-number replacement checking.",
+      "boundary": "Shows the published selection workflow only; no engine or battery DTC dictionary and no exact software applicability."
+    }
+  ],
+  "cross_model_catalog_observation": {
+    "source": "captures/diagnostics-followup-20261021/oem/yangwang-u8-public-index.html",
+    "url": "https://en.17vin.com/automotive_repair_manual_wiring_diagrams/Yangwang/8333.html",
+    "claimed_other_model": "2024 Yangwang U8",
+    "source_type": "third_party_public_English_table_of_contents; not verified OEM authorship/revision",
+    "comparison_index": "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+    "method": "Collect complete seven-character P/C/B/U codes at the beginning of node-text spans; compare exact code strings, without title translation or short-code expansion.",
+    "overlap": {
+      "rear_left": {
+        "z9gt_distinct_codes": 32,
+        "exact_code_overlap": 32
+      },
+      "rear_right": {
+        "z9gt_distinct_codes": 32,
+        "exact_code_overlap": 31
+      },
+      "front_drive": {
+        "z9gt_distinct_codes": 31,
+        "exact_code_overlap": 1
+      },
+      "generator": {
+        "z9gt_distinct_codes": 32,
+        "exact_code_overlap": 2
+      },
+      "battery_management": {
+        "z9gt_distinct_codes": 204,
+        "exact_code_overlap": 160
+      },
+      "engine_ecm": {
+        "z9gt_distinct_codes": 494,
+        "exact_code_overlap": 14
+      }
+    },
+    "rear_difference": {
+      "z9gt_candidate_without_exact_u8_match": "P1B0419",
+      "u8_index_heading_code": "P1B0429",
+      "resolution": null,
+      "boundary": "Observed index difference only; neither a proven typo nor a qualified alternative definition."
+    },
+    "inference": "The rear code ranges are not unique Z9GT/software fingerprints. Cross-model code overlap cannot select installed ECU software, prove OEM definitions, or resolve format01 encoding.",
+    "qualified_dtc_definitions": 0
+  },
+  "selected_public_queries": [
+    {
+      "queries": [
+        "\"QCJ7200AEHEV3\" \"OBD\"",
+        "\"BYD479ZQA\" filetype:pdf",
+        "\"QCJ7200AEHEV3\" \"公开编号\"",
+        "\"QCJ7200AEHEV3\" site:vecc.org.cn",
+        "\"QCJ7200AEHEV1\" site:vecc.org.cn"
+      ],
+      "result": "No relevant publicly retrieved OBD information table or disclosure identifier; MIIT model declaration and MEE model-name summaries are not ECU/DTC dictionaries."
+    },
+    {
+      "queries": [
+        "\"32440011E004000000\"",
+        "\"32440011\" \"ECM\"",
+        "\"BMS_BYD_03300001\"",
+        "\"BYD479ZQA\" \"UAES\"",
+        "\"腾势\" \"诊断\" \"联合汽车电子\""
+      ],
+      "result": "No relevant target software/DTC table recovered in these finite public queries."
+    },
+    {
+      "queries": [
+        "site:eutis.bydauto.com \"DTC\"",
+        "site:eutis.bydauto.com/tis/file/manual \"Fault code list\"",
+        "site:eutis.bydauto.com \"P1B0301\"",
+        "site:eutis.bydauto.com/tis/file/manual \"diagnosis\"",
+        "site:eutis.bydauto.com/tis/file/manual \"BMS\"",
+        "site:eutis.bydauto.com/tis/file/manual \"engine\"",
+        "site:tis.bydauto.com.cn \"Z9GT\"",
+        "site:eutis.bydauto.com \"Z9GT\"",
+        "site:tis.byd.com \"DTA1343330\"",
+        "site:bydauto.com \"DTA1414952\""
+      ],
+      "result": "One indexed primary workshop procedure was found and independently served without login; no applicable target fault table or software binding recovered."
+    },
+    {
+      "queries": [
+        "\"Z31L07AB01\"",
+        "\"Z31L07AB01\" BYD",
+        "\"Z31L07AB01\" calibration",
+        "\"Z31L07\" 比亚迪"
+      ],
+      "result": "No relevant public calibration/software/manual association recovered; broad prefix-only searches returned irrelevant binary-index noise and were not treated as matches."
+    }
+  ],
+  "limits": [
+    "Finite search results do not prove no applicable public document exists.",
+    "No login or paywall was bypassed; no protected Chinese manual document ID was reconstructed into a fetch URL.",
+    "No manufacturer cloud diagnostic or authenticated endpoint was contacted.",
+    "No fault was induced; no vehicle commands were made by this worker.",
+    "Standard code notation, observed catalog overlap and target software applicability remain separate gates.",
+    "CALID is a newly retained search key, not a dictionary or proof of manual compatibility."
+  ],
+  "retained_sources": [
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/byd-home.html",
+      "bytes": 143039,
+      "sha256": "e8c139156e5974adf107f0bb65f1ec2ae8cdf54dc595b362b4a1fdcda2842b38",
+      "url": "https://www.bydglobal.com/cn",
+      "access": "public_unauthenticated_get",
+      "role": "public_source"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/byd-emissions-public.html",
+      "bytes": 99673,
+      "sha256": "2d4e16bc9981eb5b804b1f8e05405fe31a97725c5c4c648fc5da837bf9275c6d",
+      "url": "https://www.bydglobal.com/cn/auto-environmental-information",
+      "access": "public_unauthenticated_get",
+      "role": "public_source"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/byd-emissions-public-entry.js",
+      "bytes": 5584,
+      "sha256": "a23d1e28c9b27ba6ee2f0240257f3a8105714474b6633166c9f4d60026833163",
+      "url": "https://www.bydglobal.com/component/bydglobal-cn/socialResponsibilityEsg/carEnvironmentalInfo/carEnvironmentalInfo_SPA4z2_e.js",
+      "access": "public_unauthenticated_get",
+      "role": "public_source"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/vecc-home.html",
+      "bytes": 116578,
+      "sha256": "04c213fe4f417b19bf2325493d039f0e4fcb781169e1ef8595174777456b9a97",
+      "url": "https://www.vecc.org.cn/",
+      "access": "public_unauthenticated_get",
+      "role": "public_source"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/tis-public-hv-example.html",
+      "bytes": 26330,
+      "sha256": "a3a7d569bd5be9f9b44e5760058affe48cbd0b80a0e4b9630ed2fda3d459c22b",
+      "url": "https://eutis.bydauto.com/tis/file/manual/wsm/722/en_US/DTRM326712.html",
+      "access": "public_unauthenticated_get",
+      "role": "public_source"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/tis-account-support.html",
+      "bytes": 187920,
+      "sha256": "1c06bed9607dc43e4bb8b0ce8c50ee89c9acb4fe87d3f37aac004138aae85b85",
+      "url": "https://bydeurope-support.freshdesk.com/support/solutions/articles/79000148151-tis-account-instruction",
+      "access": "public_unauthenticated_get",
+      "role": "public_source"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/tis-parts-support.html",
+      "bytes": 303406,
+      "sha256": "90ae96ae458b37c14f770446a2bfbdf5858ea4c197f889b12989cacb81def0c4",
+      "url": "https://bydeurope-support.freshdesk.com/support/solutions/articles/79000148064-dms-spare-parts-external-ordering-training",
+      "access": "public_unauthenticated_get",
+      "role": "public_source"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/oem/yangwang-u8-public-index.html",
+      "bytes": 1979146,
+      "sha256": "07a73aa4ea257e3fa2cecfc04e0129fb3e0ae3384a02dd224665386afaf14ef7",
+      "url": "https://en.17vin.com/automotive_repair_manual_wiring_diagrams/Yangwang/8333.html",
+      "access": "public_unauthenticated_get",
+      "role": "catalog_observation_not_primary_oem_definitions"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/engine/live-03/result.json",
+      "bytes": 1291,
+      "sha256": "62258c0610331ad7437099240d56654026428cf09580ac70a9b5790fae96c1fc",
+      "role": "existing_owner_evidence_read_only"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+      "bytes": 85175,
+      "sha256": "093df5ab92416ca017e7dbb67c0685584abdcfe3fd62e3c10e9a0331c3c6cff1",
+      "role": "existing_owner_evidence_read_only"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-acquisition-20261020.json",
+      "bytes": 20983,
+      "sha256": "682ab0b1c304a5e117e5e4b2c1fa530b4f053f7a1ff28268c303bc03dcd6d9b3",
+      "role": "existing_owner_evidence_read_only"
+    }
+  ],
+  "capture_base": "captures/diagnostics-followup-20261021/oem",
+  "reproducer": "python3 research/vehicle-diagnostics/dtc_check_public_source_followup.py",
+  "next_artifact": "A revisioned OEM DTC definition table with explicit ECM CALID Z31L07AB01 / F194 32440011E004000000 or other target ECU/software applicability; independent raw/display mapping remains required for FMCU/ISG format01."
+}

@@ -32,6 +32,15 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   `check_ecm_obd_telemetry.py` validates54 source hashes, request/response pairing,
   advertised support, arithmetic and four health snapshots without vehicle I/O.
   Product polling/decoders were not changed by this research.
+- `ecm-completion-20261021.json` adds29 wire replies:14 remaining Mode01
+  records of the expected shape, single-bank `415680`, and ECM CALID
+  `Z31L07AB01` with its self-description. The collector stopped on PID56 without
+  retry; its conditional bank3 byte was later resolved from J1979 and the local
+  codec corrected, along with PID54's unsigned offset. Two supported Mode09
+  passes completed. All43 advertised
+  non-bitmap PIDs have now replied across retained passes, not43 qualified
+  sensors. `check_ecm_completion.py` checks source hashes, exact stop/cleanup,
+  scalar arithmetic, the new pre-existing APK baseline and nine damaged traces.
 - `powertrain-scalar-quality-20261021.json` traces13 drive/BMS scalar fields:
   a rejected front-current update preserves the old float cache, rear converters
   use a different range/offset, and initial cache values can narrow into ordinary
@@ -39,6 +48,16 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   or newly qualified engineering units. `check_powertrain_scalar_quality.py`
   checks49 instruction anchors,12 MCU records,26 saved observations and full
   bounded16-bit/8-bit arithmetic domains offline.
+- `bms-current-consumers-20261021.json` closes the adjacent charging-current
+  chain: CAN444/channel2, selective FID canonicalization, two float caches and
+  the stock GB current-source selector. Two historical GET pairs agree with
+  the converter; the20 raw frames are a different time window. The18-ID
+  canonicalization allowlist excludes345/44A, whose units remain unknown.
+  `isg-source-boundary-20261021.json` pins the generation-state enum
+  (0 INVALID,1 GENERATING,2 END,3 ERROR) and three broadcast candidates, none
+  bound to ISG ECU telemetry. `bms-current-checker.py`, run with
+  `.venv-firmware/bin/python`, checks15 sources,8 native anchors,3 AutoID
+  variants,65536 inputs and59 retained frames without vehicle I/O.
 
 - `remaining-ecus-20261020.json` continues those runs: 70 distinct F194 targets,
   33 positive responses and 32 exact stock-cache matches. ABS/ESP `782`, EPS
@@ -98,12 +117,26 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   login-gated acquisition lead; no protected dictionary or matching revision was
   retrieved. Exact native anchors, public-source hashes and a bounded offline
   reproducer remain under its `captureBase`.
+- `oem-dtc-public-source-followup-20261021.json` adds the official BYD
+  environmental-document channel and one publicly served overseas TIS workshop
+  page; neither supplies a software-applicable Z9GT DTC table. Exact CALID
+  searches found no public binding. Cross-model catalog overlap (63/64 rear-drive
+  codes also in U8) rules out treating those ranges as a unique model fingerprint.
+  `dtc_check_public_source_followup.py` checks11 sources and the retained
+  comparisons. No new OEM definitions or format01 mapping were qualified.
 - `ota-strategy-mismatch-20261021.json` and
   `check_ota_strategy_mismatch.py` preserve the separate OTA investigation:
   exact104/111 replies, request-version provenance and225 cached ECU tuples,
   repair-history substitution and cached-plan/lockSync limits. Neither a new
   update offer nor a cause-specific ECU was established. The owner document is
   [OTA findings](../../docs/ota-update-findings.md#стратегия-ota-и-кэш-productlineota-2026-10-21).
+- `ota-strategy-followup-20261021.json` traces status111 to the stock strategy
+  cache cleanup, resolves the normal Media software-code mapping and isolates
+  the only all-FF config tuple (F_ZCU) as a comparison candidate, not a proven
+  mismatch cause. It also corrects the old needCheck timestamp ordering in
+  `ota-strategy-mismatch-20261021.json`; cache absence after the failed check
+  was not established. `check_ota_strategy_followup.py` checks43 pinned
+  references. This was offline research with no OTA request or update action.
 
 - `xtool-z9gt-dm-20261021.json` preserves 172 exact-model Xtool system/variant
   rows (`PS_TENGSHIEV` 6.61, Z9GT/Z9GT DM), source pointers/hashes and an exact-token

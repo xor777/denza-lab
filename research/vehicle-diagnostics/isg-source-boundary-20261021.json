@@ -1,0 +1,490 @@
+{
+  "schema": "denza-lab.isg-source-boundary.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "sha256": "02ad8c66c2339ae0eabef661e12dda088ed2e616967bfac308c609e970dead66",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+      "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73",
+      "bytes": 104178
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/yun.log",
+      "sha256": "1ac2c832623fd04af5996260ee92f6ea26005f531a462fe269ad360f694ab1df",
+      "bytes": 359879
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/energy/BYDAutoEnergyDevice.java",
+      "sha256": "d280a95625946bed54ea8327ddb0d01d6c8d8823c4b2a73bb36619fd7f3a3519",
+      "bytes": 11645
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/energy/AbsBYDAutoEnergyListener.java",
+      "sha256": "0f349ac15888fd639674f1d78ba2387b37d0716b9ba877181b14b0a5437ef1fe",
+      "bytes": 3317
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-live-data-support-20261021.json",
+      "sha256": "4e63583367fe02918c1ba1986eae60736f93b2afc8dce6fa685f729d29a17451",
+      "bytes": 87015
+    }
+  ],
+  "ISG": {
+    "identityF194": "48370011E0EA000000",
+    "factoryEcuId": "HTH-2021_ISG_BYD_00100001",
+    "roleBasis": "Retained current-car/factory F194 and model-specific Xtool tokenISG; reused context, not a new identity read",
+    "telemetryDIDQualified": false,
+    "noCrossBinding": "No wire->numeric consumer->ISG ECU binding was recovered. A role-qualified7E6 or vendor liveData flag does not identify any of these broadcast source ECUs.",
+    "requestRoute": "7E6"
+  },
+  "generationStateEnum": {
+    "stockClass": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/energy/BYDAutoEnergyDevice.java",
+    "constants": [
+      {
+        "name": "ENERGY_POWER_GENERATING",
+        "value": 1,
+        "line": 40,
+        "text": "public static final int ENERGY_POWER_GENERATING = 1;"
+      },
+      {
+        "name": "ENERGY_POWER_GENERATION_END",
+        "value": 2,
+        "line": 41,
+        "text": "public static final int ENERGY_POWER_GENERATION_END = 2;"
+      },
+      {
+        "name": "ENERGY_POWER_GENERATION_ERROR",
+        "value": 3,
+        "line": 42,
+        "text": "public static final int ENERGY_POWER_GENERATION_ERROR = 3;"
+      },
+      {
+        "name": "ENERGY_POWER_GENERATION_INVALID",
+        "value": 0,
+        "line": 43,
+        "text": "public static final int ENERGY_POWER_GENERATION_INVALID = 0;"
+      },
+      {
+        "name": "ENERGY_POWER_GENERATION_VALUE_MAX",
+        "value": 31,
+        "line": 44,
+        "text": "public static final int ENERGY_POWER_GENERATION_VALUE_MAX = 31;"
+      },
+      {
+        "name": "ENERGY_POWER_GENERATION_VALUE_MIN",
+        "value": 1,
+        "line": 45,
+        "text": "public static final int ENERGY_POWER_GENERATION_VALUE_MIN = 1;"
+      }
+    ],
+    "getter": "BYDAutoEnergyDevice.getPowerGenerationState lines184..188 reads literal888143882 ==34F0000A. AbsBYDAutoEnergyListener lines64..67 passes only0..3 to onPowerGenerationStateChanged.",
+    "values": {
+      "0": "INVALID",
+      "1": "GENERATING",
+      "2": "END",
+      "3": "ERROR"
+    },
+    "consequence": "A raw0 of this field is explicitly the stock invalid enum, not a verified generator-off or ECU-health result. This does not overturn independently observed stopped/running behavior; its validity scope is the vendor generation-state API.",
+    "notAnISGStateProof": true
+  },
+  "broadcastCandidates": [
+    {
+      "name": "ENERGY_POWER_GENERATION_VALUE",
+      "device": 1006,
+      "fid": "0x2610001F",
+      "coordinatesOneBasedByteLSB0": [
+        3,
+        7,
+        4,
+        3
+      ],
+      "sourceCANid": "0x261",
+      "sourceChannel": 0,
+      "MCUdescriptorVA": "0xdf920",
+      "MCUpropertyVA": "0x93aec",
+      "descriptorBytes": "030704039ca01800ec3a0900",
+      "propertyBytes": "1f001026010000009851effe",
+      "HALconverterVA": "0xe0be0",
+      "wireToAPI": "unchanged integer",
+      "retainedGET": [
+        {
+          "line": 13000,
+          "pass": 1,
+          "elapsedRealtimeNanos": 74750648560456,
+          "intWord": "0x00000000",
+          "integer": 0
+        },
+        {
+          "line": 23004,
+          "pass": 2,
+          "elapsedRealtimeNanos": 74858314925617,
+          "intWord": "0x00000000",
+          "integer": 0
+        }
+      ],
+      "recentRaw": {
+        "source": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+        "records": [
+          {
+            "line": 39,
+            "payload": "000c7c30001ed059",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 86,
+            "payload": "000c7c30001e1019",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 132,
+            "payload": "000c7c30001e50d9",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 178,
+            "payload": "000c7c30001e9099",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 224,
+            "payload": "000c7c30001ed059",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 270,
+            "payload": "000c7c30001e1019",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 315,
+            "payload": "000c7c30001e50d9",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 362,
+            "payload": "000c7c30001e9099",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 409,
+            "payload": "000c7c30001ed059",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 456,
+            "payload": "000c7c30001e1019",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 501,
+            "payload": "000c7c30001e50d9",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 547,
+            "payload": "000c7c30001e9099",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 593,
+            "payload": "000c7c30001ed059",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 640,
+            "payload": "000c7c30001e1019",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 685,
+            "payload": "000c7c30001e50d9",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 731,
+            "payload": "000c7c30001e9099",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 777,
+            "payload": "000c7c30001ed059",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 825,
+            "payload": "000c7c30001e1019",
+            "wire": 0,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 871,
+            "payload": "000c7c30001e50d9",
+            "wire": 0,
+            "HALAlgebra": 0
+          }
+        ],
+        "count": 19
+      },
+      "ISGECUBinding": null,
+      "newUnit": null
+    },
+    {
+      "name": "ENERGY_POWER_GENERATION_STATE",
+      "device": 1006,
+      "fid": "0x34F0000A",
+      "coordinatesOneBasedByteLSB0": [
+        1,
+        2,
+        1,
+        3
+      ],
+      "sourceCANid": "0x34F",
+      "sourceChannel": 0,
+      "MCUdescriptorVA": "0xe5aac",
+      "MCUpropertyVA": "0x99c78",
+      "descriptorBytes": "010201039ca01800789c0900",
+      "propertyBytes": "0a00f03401000000f871effe",
+      "HALconverterVA": "0xe0be0",
+      "wireToAPI": "unchanged integer",
+      "retainedGET": [
+        {
+          "line": 13012,
+          "pass": 1,
+          "elapsedRealtimeNanos": 74750785335533,
+          "intWord": "0x00000000",
+          "integer": 0
+        },
+        {
+          "line": 23016,
+          "pass": 2,
+          "elapsedRealtimeNanos": 74858442123155,
+          "intWord": "0x00000000",
+          "integer": 0
+        }
+      ],
+      "recentRaw": {
+        "source": "captures/diagnostics-live-20261021/073428-passive/yun.log",
+        "records": [],
+        "count": 0
+      },
+      "ISGECUBinding": null,
+      "newUnit": null
+    },
+    {
+      "name": "ENGINE_CHARGE_POWER",
+      "device": 1012,
+      "fid": "0x2ED00010",
+      "coordinatesOneBasedByteLSB0": [
+        2,
+        0,
+        3,
+        3
+      ],
+      "sourceCANid": "0x2ED",
+      "sourceChannel": 0,
+      "MCUdescriptorVA": "0xe313c",
+      "MCUpropertyVA": "0x97308",
+      "descriptorBytes": "020003039ca0180008730900",
+      "propertyBytes": "1000d02e020000004064effe",
+      "HALconverterVA": "0x102ea0",
+      "wireToAPI": "int32(wire)-1000",
+      "retainedGET": [
+        {
+          "line": 14458,
+          "pass": 1,
+          "elapsedRealtimeNanos": 74766348016457,
+          "intWord": "0xFFFFFFFE",
+          "integer": -2
+        },
+        {
+          "line": 24462,
+          "pass": 2,
+          "elapsedRealtimeNanos": 74873933014310,
+          "intWord": "0xFFFFFFFE",
+          "integer": -2
+        }
+      ],
+      "recentRaw": {
+        "source": "captures/diagnostics-live-20261021/073428-passive/yun.log",
+        "records": [
+          {
+            "line": 38,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 205,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 365,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 522,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 677,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 844,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 1000,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 1152,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 1305,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 1478,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 1635,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 1807,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 1962,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 2125,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 2284,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 2450,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 2602,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 2761,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 2917,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          },
+          {
+            "line": 3071,
+            "payload": "06e80300c0ff30f3",
+            "wire": 1000,
+            "HALAlgebra": 0
+          }
+        ],
+        "count": 20
+      },
+      "ISGECUBinding": null,
+      "newUnit": null
+    }
+  ],
+  "negativeScope": {
+    "currentAndTorque": "No distinct ISG speed/torque/current or temperature source was bound in the framework FID catalog, retained CAN descriptors, stock GB drive sampler or local labelled consumer search. Three-driveGB selection7 is front/rear-left/rear-right and must not be relabelled as generator.",
+    "ECUDID": "No primary/software-matched7E6 numerical DID dictionary was found; no guessed read to7E6 proposed."
+  },
+  "nextReadOnlyQualification": {
+    "minimalSource": "An applicable factory numerical data-list definition for installedISG F19448370011E0EA000000, including request DID/subfunction, type, unit, scale, invalid and operating-state rules. Without it, a repeated7E6 identity/DTC read adds no telemetry.",
+    "existingBroadcastTest": "If separately authorized during an owner-controlled ordinary engine event, timestamp existing GETs1006/2610001F,1006/34F0000A,1012/2ED00010 alongside existing engine state/speed for at most10s/10batches; preserve0asINVALID for34F. This tests response behavior only, not ISG ownership or A/Nm/rpm units.",
+    "stateChanges": false
+  },
+  "anchors": [
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x102ea0",
+      "endExclusive": "0x102eb4",
+      "bytes": "280040b9e0031f2a08a10f51480000b9c0035fd6",
+      "meaning": "ENGINE_CHARGE_POWER subtract1000, no invalid filter"
+    }
+  ],
+  "captureBase": "captures/diagnostics-followup-20261021/powertrain"
+}

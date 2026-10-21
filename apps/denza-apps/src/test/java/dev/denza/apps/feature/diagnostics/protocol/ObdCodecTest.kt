@@ -177,7 +177,7 @@ class ObdCodecTest {
         assertEquals(13.8, q("4142" + "35E8").value, 1e-9)
         assertEquals("13,80 В", q("414235E8").text)
         assertEquals(360.0, q("413C" + "0FA0").value, 1e-9) // 4000 / 10 - 40
-        assertEquals(-32768.0, q("41548000").value, 0.0)
+        assertEquals(1.0, q("41548000").value, 0.0)
         assertEquals(1.0, q("41348000" + "8000").value, 1e-9)
         assertEquals(0.0, q("413480008000", 1).value, 1e-9)
         assertEquals("1,000", q("41448000").text)
@@ -189,6 +189,36 @@ class ObdCodecTest {
         val coolant = ok(ObdCodec.pids(hexBytes("4167013100"))).single().value as ObdValue.Numbers
         assertEquals(listOf("датчик 1"), coolant.quantities.map { it.label })
         assertEquals(9.0, coolant.quantities[0].value, 0.0)
+    }
+
+    @Test
+    fun evapVaporPressureUsesOffsetForTheCapturedEcmReply() {
+        // Z9GT, engine stopped, 2026-10-21: 41 54 E8 B6. PID54 is
+        // unsigned16 - 32767 Pa (CSS Electronics table / python-OBD), not int16.
+        fun pressure(reply: String) =
+            (ok(ObdCodec.pids(hexBytes(reply))).single().value as ObdValue.Numbers).quantities.single()
+        assertEquals(26807.0, pressure("4154E8B6").value, 0.0)
+        assertEquals("Па", pressure("4154E8B6").unit)
+        assertEquals(-32767.0, pressure("41540000").value, 0.0)
+        assertEquals(0.0, pressure("41547FFF").value, 0.0)
+        assertEquals(1.0, pressure("41548000").value, 0.0)
+        assertEquals(32768.0, pressure("4154FFFF").value, 0.0)
+    }
+
+    @Test
+    fun singleSecondaryOxygenTrimDoesNotInventBankThree() {
+        // Live Z9GT response. J1979 table B67 makes byte B conditional on bank3.
+        val read = ok(DiagDecoder.obdPids(answer(0x7E0, "0156", "415680"))).readings.single()
+        val values = (read.value as ObdValue.Numbers).quantities
+        assertEquals("80", read.rawHex)
+        assertEquals(listOf("B1"), values.map { it.label })
+        assertEquals(0.0, values.single().value, 0.0)
+        val both = (ok(ObdCodec.pids(hexBytes("41568090"))).single().value as ObdValue.Numbers).quantities
+        assertEquals(listOf("B1", "B3"), both.map { it.label })
+        assertEquals(12.5, both[1].value, 0.0)
+        assertTrue(ObdCodec.pids(hexBytes("4156")) is Decoded.Malformed)
+        // Without bank topology, do not guess a one-byte length inside a batch.
+        assertTrue(DiagDecoder.obdPids(answer(0x7E0, "01560C", "4156800C0000")) is Decoded.Malformed)
     }
 
     @Test
