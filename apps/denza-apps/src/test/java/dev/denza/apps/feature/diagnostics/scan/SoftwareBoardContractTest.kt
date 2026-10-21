@@ -36,7 +36,7 @@ class SoftwareBoardContractTest {
         val version = "%04X".format(number.replace(".", "").toInt()) + rest
         // Before the update the history knew the snapshot's code with the version an opening read.
         val software = MemorySoftwareStore(
-            SoftwareHistory().seen(SoftwareRead(SoftwareKey(0x7E7), "4A520011E00D00047B", "87F71A011402"), LocalDate.of(2026, 10, 20)),
+            SoftwareHistory().seen(SoftwareRead(SoftwareKey(0x7E7), "4A520011E00D00047B", "87F61A011402"), LocalDate.of(2026, 10, 20)),
         )
         val bus = carNow(epoch = BOARD_DAY) {
             repeat(4) { on(0x7E7, "22F194").answer("62F194$code") }

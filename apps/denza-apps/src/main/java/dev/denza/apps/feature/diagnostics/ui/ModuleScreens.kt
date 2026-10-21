@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -574,8 +575,34 @@ internal fun KeyRows(rows: List<Field>, cols: List<Pair<Float, Float>>, top: Flo
     return y
 }
 
+/**
+ * «Идентификация»: the block's own rows on the left, «Как опознан» and the PIDs on the right, at the
+ * board's offsets. A block with many rows (B_ZCU with its lamps, an «ПО обновлено» row more) runs
+ * past the footer, so the tab scrolls under the tabs as the codes table does; at rest it is the board.
+ */
 @Composable
 internal fun IdentContent(ident: IdentView) {
+    val d = ScannerSpec.EcuDtc
+    val i = ScannerSpec.EcuIdent
+    val first = d.TOP + d.HEAD + 1f
+    val left = first + ident.own.size * (i.ROW + 1f)
+    val pidRows = (ident.pids.size + i.PID_COLS - 1) / i.PID_COLS
+    val right = first + ident.cache.size * (i.ROW + 1f) +
+        if (ident.pids.isEmpty()) 0f else i.PID_GAP + i.PID_HEAD_H + i.PID_GRID_GAP + pidRows * (i.PID_H + i.PID_CELL_GAP)
+    Column(
+        Modifier.fillMaxSize()
+            .padding(top = d.TOP.dp, bottom = ScannerSpec.Footer.HEIGHT.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        // the content keeps its page offsets: shifted up by the scroller's own top
+        Box(Modifier.fillMaxWidth().height((maxOf(left, right) - d.TOP + i.ROW).dp)) {
+            Box(Modifier.fillMaxSize().offset(y = (-d.TOP).dp)) { IdentRows(ident) }
+        }
+    }
+}
+
+@Composable
+private fun IdentRows(ident: IdentView) {
     val d = ScannerSpec.EcuDtc
     val i = ScannerSpec.EcuIdent
     var cols = ScannerSpec.columns(i.OWN_COLS, i.LEFT_X, i.LEFT_W)
