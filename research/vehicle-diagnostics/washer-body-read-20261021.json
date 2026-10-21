@@ -1,0 +1,169 @@
+{
+  "schema": "denza-lab.washer-body-read-source-audit.v1",
+  "date": "2026-10-21",
+  "scope": "Offline owner corpus and finite public primary-source research. No vehicle, ADB, UDS, IPC, cloud diagnostic, authenticated/private API, actuator, installation, reset or physical-fluid operation by this worker.",
+  "result": "no_source_qualified_washer_level_read_request",
+  "qualifiedReadRequests": [],
+  "qualifiedSensorPartNumbers": [],
+  "qualifiedSensorWiring": [],
+  "qualifiedWasherSensorDtcDefinitions": [],
+  "reportedPhysicalSensor": {
+    "source": "Owner clarification relayed by the parent session on 2026-10-21",
+    "claim": "The service says a washer-level sensor is present on both N9 and Z9GT.",
+    "independentlyVerifiedCircuit": false,
+    "scope": "Retain as an owner/service claim. It does not identify a part number, pin, owning ECU or read DID, and does not authorize a physical experiment."
+  },
+  "sources": [
+    {
+      "role": "factory_actuator_scenarios_not_sensor_table",
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/assets/pl_gcy_uds_-script-20240821.json",
+      "sha256": "0fe43a16f239ce2efd048f28c375cd1fd41d179a7739fea968959fa85c04d616"
+    },
+    {
+      "role": "public_scanner_model_capability_crosswalk",
+      "path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json",
+      "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24"
+    },
+    {
+      "role": "public_scanner_field_schema_audit",
+      "path": "research/vehicle-diagnostics/xtool-public-capabilities-20261021.json",
+      "sha256": "733e923b82082150275080ca9f6a09f697f38c0179c348d845563e5ad166a719"
+    },
+    {
+      "role": "original_public_scanner_model_rows",
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-DM-661-rows-p1.json",
+      "sha256": "cff4385a997711efdc83deeaceaedc99b01379096a81a3fe29a7b01880932e3b"
+    },
+    {
+      "role": "original_public_scanner_field_schema",
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-fields-DENZA661-CN.json",
+      "sha256": "853ae04e20a77278bffe5547043512b7b419e1952640a558a76c7d01af5ba5a7"
+    },
+    {
+      "role": "independent_factory_route_crosswalk",
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    {
+      "role": "retained_prior_scan_not_a_new_vehicle_read",
+      "path": "captures/diagnostics-scanner-20261020/last-scan-1931.json",
+      "sha256": "cc54c867d6f2f9eacf565af62943767ac5e6e3d2c38de3a892a39d5adef797e4"
+    },
+    {
+      "role": "retained_front_zcu_identity_and_config_read_not_a_level_definition",
+      "path": "research/vehicle-diagnostics/ota-zcu-config-live-20261021.json",
+      "sha256": "41b48856ea1c4f439c8c25180b2d36e20edd43a4374b9229ce0928df16d01f10"
+    }
+  ],
+  "factoryWasherBoundary": {
+    "pointer": "/data/16",
+    "systemName": "雨刮洗涤系统",
+    "cases": 6,
+    "frontWasherCases": ["主动控制前洗涤开", "主动控制前洗涤关"],
+    "frontWasherRoute": {"request": "747", "response": "74F", "catalogFamily": "R_ZCU", "catalogRoleZh": "右域控制器"},
+    "frontWasherServicesInOrder": ["10", "27", "2F"],
+    "frontWasherControlIdentifier": "3362",
+    "frontWiperRoute": {"request": "720", "response": "728"},
+    "frontWiperControlIdentifier": "3360",
+    "sourceDefinesLevelRead": false,
+    "sourceDefinesSensorWiringOwner": false,
+    "sourceDefinesRearWasherOrHeadlampWasherLevel": false,
+    "interpretation": "The labels name front-washer actuation and front-wiper speed actuation. R_ZCU means right zone in the model catalog, not rear. Actuator ownership does not establish reservoir sensor input ownership.",
+    "rejectedInference": "The control identifier in 2F 3362 does not establish support, safety, semantics or encoding of 22 3362. No such derived request is qualified or queued."
+  },
+  "scannerCapabilityBoundary": {
+    "entryUrl": "https://en.xtooltech.com/function-lists",
+    "viewerUrl": "https://www.xtooltech.com/funcquery/index.html?#/Diagnosis?lang=CN&configName=E2PRO_CN_V01&packId=PS_TENGSHIEV&packVer=6.61",
+    "package": "PS_TENGSHIEV",
+    "version": "6.61",
+    "model": "Z9GT/Z9GT DM",
+    "bodyRows": [
+      {"rowId": 1394, "token": "F_ZCU", "request": "722", "liveData": true},
+      {"rowId": 1395, "token": "R_ZCU", "request": "747", "liveData": true}
+    ],
+    "fieldId": 16,
+    "fieldName": "live_data",
+    "dataType": "SupportEnum",
+    "namedLevelParameter": null,
+    "did": null,
+    "recordOffsetOrBit": null,
+    "engineeringUnit": null,
+    "sensorFaultVersusLowFluidEncoding": null,
+    "interpretation": "Both exact model rows advertise support for reading live data. This public schema supplies capability flags, not a named live-data record or a DID/decoder. Its actuation identifiers are a different metadata field."
+  },
+  "priorDtcScanBoundary": {
+    "R_ZCU": {"request": "747", "countReply": "590109000002", "listReply": "59020951700908930E0108", "active": 0, "history": 2},
+    "F_ZCU": {"request": "722", "countReply": "590109000000", "active": 0, "history": 0},
+    "applicableWasherDefinitionRecovered": false,
+    "interpretation": "These are prior generic DTC scan replies. The retained source does not name either R_ZCU historical record as a washer sensor fault, and the absence of active DTCs is not a fluid-level measurement."
+  },
+  "frontZcuIdentityAnchor": {
+    "source": "research/vehicle-diagnostics/ota-zcu-config-live-20261021.json",
+    "request": "722",
+    "response": "72A",
+    "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+    "softwareIdentificationDid": "F194",
+    "softwareCode": "4B310011E001540100",
+    "configurationDids": ["FF94", "FF95"],
+    "configurationData": ["FFFFFFFFFFFFFFFFFF", "FFFFFFFFFFFF"],
+    "washerLevelMeaning": null,
+    "interpretation": "Another retained authorized session already read this identity and these configuration/version fields. They provide an identification anchor for a future document acquisition, not a fluid-level record. Its authorization is not adopted and no request is repeated here."
+  },
+  "boundedLocalSearch": {
+    "SpotInspectionAssets": {
+      "root": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/assets",
+      "extensions": [".json", ".xml", ".txt"],
+      "pattern": "洗涤|洗滌|washer|Washer|玻璃水|液位",
+      "matchingFiles": ["pl_gcy_uds_-script-20240821.json"],
+      "meaning": "Finite string search of retained assets only; not proof that an ECU lacks a sensor or an unavailable factory database lacks a level definition."
+    },
+    "BydAutoManual": {
+      "root": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual",
+      "extensions": [".json", ".xml", ".html", ".java"],
+      "matches": [
+        {"path": "sources/com/byd/feature/body/Body.java", "line": 508, "symbol": "BODYWORK_FRONT_WASHER_MEDIA_CMD_EXEC", "value": "0x20E09040"},
+        {"path": "sources/com/byd/feature/body/Body.java", "line": 1665, "symbol": "BODYWORK_REAR_WASHER_MEDIA_CMD_EXEC", "value": "0x20E09044"}
+      ],
+      "meaning": "The retained APK contains front/rear media-command literals, not a local washer-level manual, sensor circuit or read DID. No manual server or private API was called."
+    }
+  },
+  "publicPrimaryFollowup": {
+    "evidence": "captures/washer-diagnostics-20261021/body-read/public-primary-evidence.json",
+    "result": "No applicable CN Z9GT DM body-controller washer-level record, sensor pinout, part number or sensor-circuit DTC definition recovered in these finite queries.",
+    "ownerManual": {
+      "entryUrl": "https://www.denza.com/br/denza-z9gt.html",
+      "linkedUrl": "https://www.denza.com/material/__CN/denza-site/denza-brazil/manuten%C3%A7%C3%A3o/Z9GT_MP_26061_Site.pdf",
+      "publisher": "DENZA / BYD Auto Industry Co., Ltd.",
+      "title": "DENZA Z9GT MANUAL DO PROPRIETÁRIO",
+      "pages": 244,
+      "market": "Brazil; entry page identifies Z9GT EV",
+      "cnDmApplicabilityQualified": false,
+      "relevantPrintedPages": [64, 65, 217, 220, 221],
+      "scope": "Owner controls and reservoir maintenance, not a diagnostic/workshop data dictionary. Washer-level sensor circuit/DID/part number is not supplied by the reviewed relevant sections."
+    }
+  },
+  "qualificationGaps": [
+    "Reservoir sensor part, electrical operating principle, connector/pin and owning ECU are unknown from these sources.",
+    "No source-defined read service/identifier and response length, offset/bit, byte order, scale/unit or categorical values.",
+    "No applicable definitions for low fluid versus sensor open circuit, short circuit, invalid/not available or stale data.",
+    "No applicable software/variant binding for a level-data record. Xtool model support is not a binding to installed ECU software.",
+    "Warning 1DD is an HMI warning identity; this audit does not establish that retained native code is the active implementation or that it exposes a direct physical input."
+  ],
+  "nextAcquisitionTarget": {
+    "priority": "authoritative body diagnostic data definition plus sensor circuit for CN Z9GT DM",
+    "requiredPackage": [
+      "Exact Z9GT DM year/variant and document revision, with the washer reservoir sensor component/connector pins and the ECU input they reach.",
+      "The corresponding F_ZCU/R_ZCU/LA_BCM data-stream definition or OEM diagnostic ODX/PDX/CDD/export: named reservoir level input, explicit read request and response decoder.",
+      "Separate normal/low-fluid and sensor-circuit-fault/invalid definitions, including validity and freshness behavior.",
+      "Controller software applicability and identification anchor; F_ZCU 722 F194=4B310011E001540100 is already retained. Its FF94/FF95 configuration/version data, control identifiers, generic DTC lists and cross-model manuals do not substitute for a level definition."
+    ],
+    "acquisitionBoundary": "Acquire documents/export through an ordinary public or already authorized document channel. This is a target description, not permission to log in, request protected URLs, interact with a scanner on the car, manipulate fluid, or change the whitelist.",
+    "acceptableAlternative": "An already existing legitimate scanner export containing the named level parameter, actual request/reply and ECU identity may locate the record. This worker did not obtain or request a new on-car scanner session."
+  },
+  "limitations": [
+    "Bounded negative evidence: no claim that no washer-level DID exists anywhere.",
+    "No physical sensor-state validation. The owner's present-fluid Z9GT control is retained by the parent session; it was not remeasured here.",
+    "No conclusion about N9/profile168; direct diagnostic transport qualification on Z9GT/profile170 does not transfer.",
+    "No shared docs, product code or DiagnosticWhitelist edits and no commit by this worker."
+  ]
+}

@@ -1,0 +1,929 @@
+{
+  "schema": "denza-lab.washer-sensor-origin.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "goalCriterion": "A reliable factory add-washer-fluid indication is sufficient; a direct level measurement or separate DID is optional.",
+  "boundaries": {
+    "vehicleCalls": 0,
+    "ADBCalls": 0,
+    "networkCalls": 0,
+    "firmwareExecuted": false,
+    "installedMCUHashMatched": false,
+    "sensorOrActuatorManipulations": 0
+  },
+  "sources": [
+    {
+      "name": "mcu",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "name": "hal",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "name": "catalog",
+      "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+      "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885",
+      "bytes": 542428
+    },
+    {
+      "name": "framework",
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "sha256": "608e55ecb4cb889a5016d182b32a3ee3c0ab633656b3bcb7a0607eb2d6ec604a",
+      "bytes": 149289
+    },
+    {
+      "name": "dicar",
+      "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/instrument/Instrument.java",
+      "sha256": "56b0b1c8166acae7fb213a239982e4fa243fe3570e789e673515de409873263f",
+      "bytes": 80276
+    },
+    {
+      "name": "provider",
+      "path": "captures/washer-firmware-20260923/diagnostic-apks/CarStatusProvider.apk",
+      "sha256": "2acb271ff231a9fb91152bb5ed4af0f79eecfb51f8e50016eeb3ed87f19e207c",
+      "bytes": 16798
+    },
+    {
+      "name": "registrations",
+      "path": "captures/diagnostics-origin-20261021/powertrain/hal-registrations.json",
+      "sha256": "25700ad3c7cb9b489c745eac7082b2d8e80b574e4708b0ea7b2988ba4e5bef4b",
+      "bytes": 2055268
+    }
+  ],
+  "consumers": {
+    "android": "MCU scalar stream -> auto.default.so -> autoservice integer cache/indicator callback",
+    "nativeCluster": "Native Cells reads its cluster transport directly through spidev_cluster; it is not shown here as a Binder/autoservice consumer.",
+    "scope": "This report traces the MCU ingress and Android branch. The native cluster admission/rendering branch is owned by the separate warning-condition audit."
+  },
+  "upstreamIngress": {
+    "directCallAnchors": [
+      {
+        "pc": "0x1c5494",
+        "target": "0x1c54f2",
+        "bytes": "80ff5e00"
+      },
+      {
+        "pc": "0x1c5578",
+        "target": "0x1a5716",
+        "bytes": "beff9e01"
+      },
+      {
+        "pc": "0x1a57a8",
+        "target": "0x1a54a8",
+        "bytes": "bfff00fd"
+      },
+      {
+        "pc": "0x1a5516",
+        "target": "0x17069c",
+        "bytes": "bcff86b1"
+      },
+      {
+        "pc": "0x17082a",
+        "target": "0x1704ac",
+        "bytes": "bfff82fc"
+      },
+      {
+        "pc": "0x1704d0",
+        "target": "0x17055e",
+        "bytes": "80ff8e00"
+      },
+      {
+        "pc": "0x17052a",
+        "target": "0x17042c",
+        "bytes": "bfff02ff"
+      },
+      {
+        "pc": "0x170452",
+        "target": "0x196c22",
+        "bytes": "82ffd067"
+      },
+      {
+        "pc": "0x18a0e4",
+        "target": "0x149e90",
+        "bytes": "bbffacfd"
+      },
+      {
+        "pc": "0x18a0f0",
+        "target": "0x196f94",
+        "bytes": "80ffa4ce"
+      },
+      {
+        "pc": "0x18a0fc",
+        "target": "0x196efa",
+        "bytes": "80fffecd"
+      },
+      {
+        "pc": "0x196f22",
+        "target": "0x15cb58",
+        "bytes": "bcff365c"
+      }
+    ],
+    "operations": [
+      "1C5302 reads receive-register ID/metadata and payload words through controller base pointers, then calls1C54F2",
+      "1C54F2 normalizes ID/FD flags and caps classic payload length8, then calls1A5716",
+      "1A5716 copies the received payload into per-channel staging buffers; physical interface0 maps to logical channel0 at1A577E..1A57A8",
+      "1A54A8 reads staged ID/length/data and passes them to17069C without selecting an OEM warning ID",
+      "17069C copies channel/ID/length/payload/counter into the receive queue; channel0 body at1706DC..170722",
+      "1707D8 drains receive queues; channel0 calls1704AC at17082A"
+    ],
+    "receiverRegisterBaseTable": [
+      {
+        "record": 0,
+        "controlBase": "0xffd00000",
+        "messageBase": "0xffd00700",
+        "scope": "Only table record0 interpreted; number and applicability of additional controller records not established."
+      }
+    ],
+    "conclusion": "The traced entry is an ingress/FIFO-to-queue-to-field write path. No reservoir contact is interpreted in these selected functions."
+  },
+  "receiver": {
+    "frameKey": "0xe0026100",
+    "keyFormula": "0xe0000000 | (channel << 24) | (CAN_ID << 8) | sub",
+    "rxLookup": [
+      {
+        "bucket": "0x8a0",
+        "slot": "0xcff64",
+        "pointer": "0xd637c",
+        "key": "0xe0026100"
+      }
+    ],
+    "frameTableVA": "0xd637c",
+    "framePreHookVA": "0x0",
+    "descriptorCount": 25,
+    "warning": {
+      "va": "0xdf890",
+      "coordinates": [
+        1,
+        0,
+        2,
+        1
+      ],
+      "handler": "0x18a09c",
+      "propertyVA": "0x93a5c",
+      "fid": "0x26100008",
+      "scalarBytes": 2,
+      "cacheRAM": "0xfeef5168",
+      "catalogNames": [
+        "INSTRUMENT_DD_FAULT_NOTICE_261"
+      ]
+    },
+    "otherFields": [
+      {
+        "va": "0xdf884",
+        "coordinates": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handler": "0x176966",
+        "propertyVA": "0x93a50",
+        "fid": "0x26100000",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5164",
+        "catalogNames": [
+          "BODYWORK_ONLINE_HAS_0x026100"
+        ]
+      },
+      {
+        "va": "0xdf890",
+        "coordinates": [
+          1,
+          0,
+          2,
+          1
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93a5c",
+        "fid": "0x26100008",
+        "scalarBytes": 2,
+        "cacheRAM": "0xfeef5168",
+        "catalogNames": [
+          "INSTRUMENT_DD_FAULT_NOTICE_261"
+        ]
+      },
+      {
+        "va": "0xdf89c",
+        "coordinates": [
+          2,
+          4,
+          2,
+          4
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93a68",
+        "fid": "0x26100014",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef516c",
+        "catalogNames": [
+          "INSTRUMENT_DD_LEFT_FRONT_DOOR_STATE"
+        ]
+      },
+      {
+        "va": "0xdf8a8",
+        "coordinates": [
+          2,
+          5,
+          2,
+          5
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93a74",
+        "fid": "0x26100015",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5170",
+        "catalogNames": [
+          "INSTRUMENT_DD_RIGHT_FRONT_DOOR_STATE"
+        ]
+      },
+      {
+        "va": "0xdf8b4",
+        "coordinates": [
+          2,
+          6,
+          2,
+          6
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93a80",
+        "fid": "0x26100016",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5174",
+        "catalogNames": [
+          "INSTRUMENT_DD_LEFT_REAR_DOOR_STATE"
+        ]
+      },
+      {
+        "va": "0xdf8c0",
+        "coordinates": [
+          2,
+          7,
+          2,
+          7
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93a8c",
+        "fid": "0x26100017",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5178",
+        "catalogNames": [
+          "INSTRUMENT_DD_RIGHT_REAR_DOOR_STATE"
+        ]
+      },
+      {
+        "va": "0xdf8cc",
+        "coordinates": [
+          3,
+          0,
+          3,
+          0
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93a98",
+        "fid": "0x26100018",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef517c",
+        "catalogNames": [
+          "INSTRUMENT_DD_LUGGAGE_DOOR_STATE"
+        ]
+      },
+      {
+        "va": "0xdf8d8",
+        "coordinates": [
+          3,
+          1,
+          3,
+          1
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93aa4",
+        "fid": "0x26100019",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5180",
+        "catalogNames": [
+          "INSTRUMENT_DD_HOOD_STATE"
+        ]
+      },
+      {
+        "va": "0xdf8e4",
+        "coordinates": [
+          3,
+          2,
+          3,
+          2
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93ab0",
+        "fid": "0x2610001a",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5184",
+        "catalogNames": [
+          "INSTRUMENT_DD_MAIN_DRIVER_SAFETYBELT_STATE"
+        ]
+      },
+      {
+        "va": "0xdf8f0",
+        "coordinates": [
+          3,
+          3,
+          3,
+          3
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93abc",
+        "fid": "0x2610001b",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5188",
+        "catalogNames": [
+          "INSTRUMENT_DD_DEPUTY_SAFETYBELT_STATE"
+        ]
+      },
+      {
+        "va": "0xdf8fc",
+        "coordinates": [
+          3,
+          4,
+          3,
+          4
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93ac8",
+        "fid": "0x2610001c",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef518c",
+        "catalogNames": [
+          "INSTRUMENT_DD_REAR_LEFT_SAFETYBELT_STATE"
+        ]
+      },
+      {
+        "va": "0xdf908",
+        "coordinates": [
+          3,
+          5,
+          3,
+          5
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93ad4",
+        "fid": "0x2610001d",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5190",
+        "catalogNames": [
+          "INSTRUMENT_DD_REAR_MID_SAFETYBELT_STATE"
+        ]
+      },
+      {
+        "va": "0xdf914",
+        "coordinates": [
+          3,
+          6,
+          3,
+          6
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93ae0",
+        "fid": "0x2610001e",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5194",
+        "catalogNames": [
+          "INSTRUMENT_DD_REAR_RIGHT_SAFETYBELT_STATE"
+        ]
+      },
+      {
+        "va": "0xdf920",
+        "coordinates": [
+          3,
+          7,
+          4,
+          3
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93aec",
+        "fid": "0x2610001f",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef5198",
+        "catalogNames": [
+          "ENERGY_POWER_GENERATION_VALUE"
+        ]
+      },
+      {
+        "va": "0xdf92c",
+        "coordinates": [
+          4,
+          6,
+          4,
+          7
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93af8",
+        "fid": "0x26100026",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef519c",
+        "catalogNames": [
+          "INSTRUMENT_DD_ENERGY_INTENSITY_FEEDBACK"
+        ]
+      },
+      {
+        "va": "0xdf938",
+        "coordinates": [
+          5,
+          0,
+          5,
+          2
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93b04",
+        "fid": "0x26100028",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51a0",
+        "catalogNames": [
+          "INSTRUMENT_DD_TEXT_COLOR"
+        ]
+      },
+      {
+        "va": "0xdf944",
+        "coordinates": [
+          5,
+          3,
+          5,
+          5
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93b10",
+        "fid": "0x2610002b",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51a4",
+        "catalogNames": [
+          "INSTRUMENT_ICA_ACTIVATION_WORKING_STATUS"
+        ]
+      },
+      {
+        "va": "0xdf950",
+        "coordinates": [
+          5,
+          6,
+          6,
+          0
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93b1c",
+        "fid": "0x2610002e",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51a8",
+        "catalogNames": [
+          "INSTRUMENT_ICA_ACTIVATION_WORKING_STATUS_COLOR"
+        ]
+      },
+      {
+        "va": "0xdf95c",
+        "coordinates": [
+          6,
+          1,
+          6,
+          1
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93b28",
+        "fid": "0x26100031",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51ac",
+        "catalogNames": []
+      },
+      {
+        "va": "0xdf968",
+        "coordinates": [
+          6,
+          2,
+          6,
+          2
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93b34",
+        "fid": "0x26100032",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51b0",
+        "catalogNames": [
+          "INSTRUMENT_DD_SPACING_STATE"
+        ]
+      },
+      {
+        "va": "0xdf974",
+        "coordinates": [
+          6,
+          3,
+          6,
+          3
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93b40",
+        "fid": "0x26100033",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51b4",
+        "catalogNames": []
+      },
+      {
+        "va": "0xdf980",
+        "coordinates": [
+          6,
+          5,
+          6,
+          7
+        ],
+        "handler": "0x18c85e",
+        "propertyVA": "0x93b4c",
+        "fid": "0x26100035",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51b8",
+        "catalogNames": [
+          "INSTRUMENT_DD_SOUND_FREQ"
+        ]
+      },
+      {
+        "va": "0xdf98c",
+        "coordinates": [
+          7,
+          0,
+          7,
+          3
+        ],
+        "handler": "0x18c792",
+        "propertyVA": "0x93b58",
+        "fid": "0x26100038",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51bc",
+        "catalogNames": [
+          "INSTRUMENT_DD_SOUND_TYPE"
+        ]
+      },
+      {
+        "va": "0xdf998",
+        "coordinates": [
+          7,
+          4,
+          7,
+          7
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93b64",
+        "fid": "0x2610003c",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51c0",
+        "catalogNames": []
+      },
+      {
+        "va": "0xdf9a4",
+        "coordinates": [
+          8,
+          0,
+          8,
+          7
+        ],
+        "handler": "0x18a09c",
+        "propertyVA": "0x93b70",
+        "fid": "0x26100040",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef51c4",
+        "catalogNames": []
+      }
+    ],
+    "operations": [
+      "1704AC derives receive key from channel and CAN ID",
+      "17055E resolves the RX record; its pre-descriptor hook is null for this record",
+      "17042C iterates 25 descriptors; 196C22 calls each descriptor handler",
+      "18A09C accepts payload length >=2, calls 149E90 with bytes1..2/bits0..1",
+      "196F94 compares unsigned extracted value with *0xFEEF5168 and stores it if different",
+      "196EFA chooses scalar15CB58 for this FID and size2",
+      "15CB58 emits FID26100008 and two cached value bytes in big endian",
+      "HAL updateParameters reads the scalar; identity converterE0BE0 returns success",
+      "HAL B13C8 stores integer then emits indicator callback with device1007/FID/value"
+    ],
+    "synthesizes1DD": false,
+    "special1DDConditionInSelectedReceiver": false,
+    "physicalSenderECU": null,
+    "interpretation": "The selected MCU receive path transports an already selected warning enum. It does not derive1DD from a separate washer-level input."
+  },
+  "propertyLookup": {
+    "lookupVA": "0x196ec0",
+    "tableBase": "0xf2184",
+    "buckets": 26163,
+    "steps": [
+      {
+        "bucket": "0x57b3",
+        "slot": "0x108050",
+        "pointer": "0x93a5c",
+        "key": "0x26100008"
+      }
+    ],
+    "interpretation": "The second literal pointer to93A5C is this property hash slot, not another warning producer."
+  },
+  "txLookup": {
+    "lookupVA": "0x1703c0",
+    "tableBase": "0xbc55c",
+    "buckets": 8838,
+    "steps": [
+      {
+        "bucket": "0x794",
+        "slot": "0xbe3ac",
+        "pointer": "0xc7bf4",
+        "key": "0x32b1e010"
+      },
+      {
+        "bucket": "0x795",
+        "slot": "0xbe3b0",
+        "pointer": "0x0",
+        "key": null
+      }
+    ],
+    "wholeTableMatches": [],
+    "interpretation": "The normal property TX table contains no26100008 record. This does not exclude arbitrary raw/diagnostic transmission."
+  },
+  "online": {
+    "property": "0x26100000",
+    "cache": "0xfeef5164",
+    "arrivalHandler": "0x176966",
+    "timeoutHandler": "0x1769ec",
+    "timerArgument": 5000,
+    "interpretation": "Separate online property: arrival writes1 if appropriate; timer callback writes0. It is not the warning cache FEEF5168. Timer unit is not newly established here."
+  },
+  "halRegistrations": [
+    {
+      "init": "0x128cc8",
+      "fid": 638582792,
+      "storage_type": 1,
+      "converter": 920544,
+      "device": 1007,
+      "type": 2,
+      "registration": "0x128cf0",
+      "kind": "get"
+    }
+  ],
+  "namedInputSearch": {
+    "catalogRows": 10348,
+    "washerNames": [
+      {
+        "owner": "TOP",
+        "name": "INSTRUMENT_DD_FAULT_WASH_ELEC_GATE",
+        "fid": "0x3d90201e"
+      },
+      {
+        "owner": "Bodywork",
+        "name": "BODYWORK_CAR_WASH_MODE_CONFIG",
+        "fid": "0x2f4001c2"
+      },
+      {
+        "owner": "Bodywork",
+        "name": "BODYWORK_ELECTRIC_PEDAL_WASH_MODE_FEEDBACK",
+        "fid": "0x4c9000e2"
+      },
+      {
+        "owner": "Instrument",
+        "name": "INSTRUMENT_DD_FAULT_WASH_ELEC_GATE",
+        "fid": "0x3d90201e"
+      },
+      {
+        "owner": "Setting",
+        "name": "SETTING_VEHICLE_WASH_PROTECT_FUNTION_EXIT_REASON",
+        "fid": "0x4960501e"
+      },
+      {
+        "owner": "Setting",
+        "name": "SETTING_VEHICLE_WASH_PROTECT_FUNTION_FLAG",
+        "fid": "0x3a700032"
+      },
+      {
+        "owner": "Setting",
+        "name": "SETTING_VEHICLE_WASH_PROTECT_FUNTION_STATUS",
+        "fid": "0x3a700030"
+      },
+      {
+        "owner": "Setting",
+        "name": "SETTING_VEHICLE_WASH_PROTECT_FUNTION_STATUS_SET",
+        "fid": "0x4ef0303e"
+      }
+    ],
+    "combinedWiperLevelNames": [
+      {
+        "owner": "TOP",
+        "name": "WIPER_FRONT_WIPER_LEVEL",
+        "fid": "0x13300010"
+      },
+      {
+        "owner": "Sensor",
+        "name": "SENSOR_WIPER_SPEED_SET",
+        "fid": "0x1d80002d"
+      }
+    ],
+    "directLevelDefinitionProved": false,
+    "ambiguity": "WASH_ELEC_GATE is module-state selector30. No source definition binds it to washer fluid or popup1DD; WIPER_FRONT_WIPER_LEVEL names wiper speed."
+  },
+  "provider": {
+    "dexSHA256": "ca3cece9514279142dc81ed501ffa6a231cea6b899fb5781a845b80a9058c5c2",
+    "dexStrings": 134,
+    "directWasherMatches": [],
+    "scope": "Exact strings of the7248byte retained CarStatusProvider DEX only; not a proof that all providers or ECUs lack a level input."
+  },
+  "sourceByteRanges": [
+    {
+      "binary": "mcu",
+      "name": "bus-fifo-reader",
+      "startVA": "0x1c5302",
+      "endExclusiveVA": "0x1c54f2",
+      "sha256": "9d2f55a2888a87086cb18638678412940f1ca3a43f7051b10b1c13f2273086f8",
+      "bytesHex": "031e88ff63ff750063cf5d0063df550063a7710063af6d0063b7690063bf650063c7610063d7590063e7510063ef4d0006d807c89900f9f61c00c5f19e07c90cb4349bf71100010ed800c2f2c1f1800e07ff010d3b0f1500880ac1e607009c0061e204ead21d62e208eaa21d63e2ca0520ee1000d51564e2ca0520ee2000851565e2ca0520ee3000b50d66e2ca0520ee4000e505200e800067e2e00f34eb00d2d57df9f61c00c5f19e07490db4349bf71100010e0059c7f2c1f104a5f9f61c00c5f19e07490db4349bf71100010e0059c7f2c1f1005d635f0900f9f61c00c5f19e07490db4349bf71100010e0059c7f2c1f102c5f9f61c009b171100c5f19e07490db434c712010e0059c20901ae0c0018f09cf2c5f1be07c5c4e4183bf7150084f2def60700c5f1be0745b4e418f8b1a30518b0160e03001c1242090158825a635f050000bab50d1708c20a23f60c00c1f1d509210f0100010d41ba235f0500ebb9b1f5f9f61c00c5f19e07c90cb4349bf71100010ef800c2f2c1f1200eff00010d234f09001b30184063a70100233e0c0080ff5e0041d29a00f9f61c00c5f19e07c90cb4349bf71100010ed800c2f2c1f1000d810ac105fdd1f107e9fe23ff750023ef4d0023e7510023df550023d7590023cf5d0023c7610023bf650023b7690023af6d0023a77100031e78007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "normalize-received-frame",
+      "startVA": "0x1c54f2",
+      "endExclusiveVA": "0x1c55c8",
+      "sha256": "afd42e8bc793b932acc4ef8a0909dddb2c0cdeeaa6946dc7218d3e768c35cb11",
+      "bytesHex": "031ed4ff63ff290063ef110063e7150063df190063d71d0063cf210063c7250023c72d0009d808e807d006e01808830ae905400e0040630f0900e5056307090068eaa30508ea1b08c10ae90d2106ffffff1f5b09401600800111230f09000209630f0900a50d230f09002206ffffff1f5b110209630f09009c370900233f09001d4088001a48beff9e010ac8e0c9b215fc0f0900630f0c00bc0f0500430f0e0063d7010063ef040023360800233e0000bdff1ceb23ff290023ef110023e7150023df190023d71d0023cf210023c72500031e2c007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "receive-interface",
+      "startVA": "0x1a5716",
+      "endExclusiveVA": "0x1a5800",
+      "sha256": "db182ae707be3e130515ae688a59d647269c98ce933997352dd94f0551ff6ec4",
+      "bytesHex": "031ee8ff63ff150063cf110063d70d0063df090063e7050063ef010006c8990007d008d89b0009e000ea1908610ad11dc205640aa235954d84078fd437028407cdd8380200eab50d9c0f01003e0634f4befeddf1800b41e241ea9d00fbe9d1f50232bfff30fda53584070fd3360284074ddf360200eab50d9c0f01003e069cf3befeddf1800b41e241ea9d00fbe9d1f50032bfff00fda51d8407cfd7360284070ddc370200eab50d9c0f01003e06e8f3befeddf1800b41e241ea9d00fbe9d1f50132bfffd0fca5050000015223ff150023ef010023e7050023df090023d70d0023cf1100031e18007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "stage-received-frame",
+      "startVA": "0x1a54a8",
+      "endExclusiveVA": "0x1a5578",
+      "sha256": "1c38a6d01c9d4e23885f440e5f30ccd6f88dce3e9e5a2e8ae0a232dccf30e209",
+      "bytesHex": "031eecff63ff110063ef050063df0d0063e7090006e89d0000da1d08610ad105a20d620ae20db51580ffca0c8407cf53bb65e50d80ffbe0c84074f52bb65850d80ffb20c84070f53bb65a505000080ffa40cfdf64c00210694f3befe1d30c1f172389e4f49001e46080063570100bcff86b1fdf64c002106ffffffbfc4f19e0709e3360241e1e0e99a1d1c06bff8c2051c0621f8ba1501da1b30bbffd641bbff203ffd464c00210694f3befe1c30c141883f49004842bfffb84823ff110023ef050023e7090023df0d00031e14007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "enqueue-received-frame",
+      "startVA": "0x17069c",
+      "endExclusiveVA": "0x1707d8",
+      "sha256": "22d319d0bb7e4ff8a01951325fe90286edde7e7310fcd8f2417637d5211a4404",
+      "bytesHex": "031ee4ff63ff190063ef010063e7050063df090063d70d0063cf110063c7150023c71d0009e09c0008c807d0da0006d89b001b08610ad105822d620aa24dd56d840789f732658407c90f32650015e111b21d8407890f326501ee04005ddf00007dd702005de704007dc749001d36050019381c4084ffc437840789f73265000d84078f0f3265a54d840709f033658407490833650015e111b21d84070908336501ee04005ddf00007dd702005de704007dc749001d36050019381c4084ff7c37840709f03365000d84070f083365e525840789f033658407c90833650015e111b21d84078908336501ee04005ddf00007dd702005de704007dc749001d36050019381c4084ff3437840789f03365000d84078f083365a505000023ff190023ef010023e7050023df090023d70d0023cf110023c71500031e1c007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "receive-queue-drain",
+      "startVA": "0x1707d8",
+      "endExclusiveVA": "0x1708dc",
+      "sha256": "a93e279480a16185f456787c0f0674029b6a41f1183773ae3e0722829332064a",
+      "bytesHex": "031eecff63ff110063e70d0063ef09008407c90f3265840789173265e111a2358407c90f326501ee0400fde703001c0600fbf90d1c0680fac10d233600001d3e0500084284ffb83623360000beff108d1d30bfff82fc1d30bdff141c1d30bcff5ecc1d30beff5e6e1d30beff86201d30bdff7ec38407c9f73265000d8407cf0f3265840749083365840709103365e111821584074908336501ee04001d30bfff36fc840749f03365000d84074f0833658407c9083365840789103365e111a21d8407c908336501ee0400fde703001c0600fbe9051c0680fab105befffaab1d30bffff4fb8407c9f03365000d8407cf08336523ff110023ef090023e70d00031e14007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "rx-dispatch",
+      "startVA": "0x1704ac",
+      "endExclusiveVA": "0x17055e",
+      "sha256": "2feb563c1b331eaeefa25b7bd0e0a13f2ffad5adb4ebce929553bb0a52b89642",
+      "bytesHex": "541a63ff090063ef010063e7050006e89d370100401600e0d8320231fd170300c812023180ff8e000ae0e0e19a159d370100401600e0d8320231fd170300c8120231bd170500023180ff6a000ae0e0e1921d3c0f0500e009820d3c0f05001d30e1c760f9e051e20da407950e2962840ac9051d30beff1c7700001c301d38bfff02ff1d3080ff0c06beff58c89d370100beff6e3c6152ea059d3f01001d30beffdc3c23ff090023ef010023e705004c1a7f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "rx-hash-lookup",
+      "startVA": "0x17055e",
+      "endExclusiveVA": "0x170598",
+      "sha256": "e0a33ada56c43af234a2a9e97bf4497093b4dbcc87090bf2ea82f98710b99e51",
+      "bytesHex": "0610029820969e15f29ffe0ad50d009de299ba051e509515019e010020969e15f29ffe9a13080198c29ac599930709f0aa10e0f1daed00527f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "descriptor-loop",
+      "startVA": "0x17042c",
+      "endExclusiveVA": "0x170478",
+      "sha256": "eef17733fbc52ef7c12189ce10f597c08f6910e6f3d85b7aee701fcdee8d8133",
+      "bytesHex": "501a63ff0d0063df090063e7050063ef010006e007d800eab50dfd0e0c003c370d001b38c13182ffd06741ea9d009c0f0900e1e9b1f523ff0d0023ef010023e7050023df0900031e10007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "descriptor-indirect-call",
+      "startVA": "0x196c22",
+      "endExclusiveVA": "0x196c50",
+      "sha256": "e91154e1478c2a23798a71cfd927672619cd71eb4ee0678aac70548e8521adb9",
+      "bytesHex": "541a63ff090063e7050063ef010006e807e03d0f05001d301c38e1c760f923ff090023ef010023e705004c1a7f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "unsigned-extractor-handler",
+      "startVA": "0x18a09c",
+      "endExclusiveVA": "0x18a11c",
+      "sha256": "26c0b5b2ab59c16bdcf75e38d00033cfa9effd3514cd4354b9ca6aa9d6ff50f1",
+      "bytesHex": "031eecff63ff110063e7090063ef050063df0d0006e807e09d0f03009c170500e111b9050052a5259d3f01009d4f0300bd0f0300bd4701005f3a5f4a1c36050087008900630f0100bbffacfd0ad83d3709001b3880ffa4cee051f2053d37090080fffecd0152a505005223ff110023ef050023e7090023df0d00031e14007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "unsigned-little-endian-extractor",
+      "startVA": "0x149e90",
+      "endExclusiveVA": "0x149f0c",
+      "sha256": "9f6dca7b56891a806ef50b4afc813288a5b1c020529ba72617d25b0f2ff0525d",
+      "bytesHex": "837f01000980900008889100071082000690f011fa0d070aaf092076ff00e177a20802f0d2f160704e09f10fa2981350d52502f0d2f16070f177a29808720e08b1098100950d02f0d2f16070e177c0000e99480a810041128200f011d1f50772af71206eff00ee6fa27010f0d2f160684d71e177c0000e9913507f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "compare-and-write-cache",
+      "startVA": "0x196f94",
+      "endExclusiveVA": "0x196fb4",
+      "sha256": "8213b00257508b21e390bb48d9b7162f144fe948df42f4a4f1d5fd0f2fd15f2a",
+      "bytesHex": "06080710e009ba050052a50d21f70900009de299c20501150152a50500527f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "select-scalar-emitter",
+      "startVA": "0x196efa",
+      "endExclusiveVA": "0x196f3a",
+      "sha256": "f5770ea036ff0674585dca9804e2954482afdc2affb7173602f5f03e413972ba",
+      "bytesHex": "581a63ff050063ef010006e8e0e9aa05a5153d170100400e0080e111990d9d0f0500640adb051d30bcff365cc5051d30bcff085d23ff050023ef0100481a7f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "serialize-scalar",
+      "startVA": "0x15cb58",
+      "endExclusiveVA": "0x15cc32",
+      "sha256": "3a3d3f1771c6b87a9397e463578c8735b8f7fd045f5400ca788f91c5d8e6ba2a",
+      "bytesHex": "541a63ff090063ef050006e89d1705008407890b2d624512c209010604ff992580ff90018407490b2d62e009e20d840749332d622906fac9150063070100033a014280ff6e39c50d2806fac915000332013a004a80ff243884074f532d6200008407c90a2d62840789132d62450ac111000aa50d03f2a1f1ddf1009b4112429fffff410a8100640ae1f59d9f05004112429fffff000ae50d9df705003d97090041125ff2a1f1d2f1009b429fffff410a81009d9f0500f30981f59d9705008407899b2d624592d29984078f9b2d6223ff090023ef05004c1a7f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "online-arrival",
+      "startVA": "0x176966",
+      "endExclusiveVA": "0x1769ec",
+      "sha256": "a20845c34f800ccaf382e84920483f5fde3935df0f2c022a9a730f978e22605e",
+      "bytesHex": "501a63ff0d0063e7090063ef050006e807e03df7090004f5000d610ac105820d620a8a2d3d370900013abfff88a38407090c3565e00992153d0f09008407093435652906ec691700203e8813630f01000042beff509be50d3d4f09002806ec69170020368813003abeff029a84070f543565005223ff0d0023ef050023e70900031e10007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "online-timeout",
+      "startVA": "0x1769ec",
+      "endExclusiveVA": "0x176a4e",
+      "sha256": "9fb8d30f181f2752bc66e548c1ddd4405a53e948cb46232717113d3a3f6674ff",
+      "bytesHex": "501a63ff0d0063df090063e7050063ef010006d807e01ce88407090c3565e009920d840709343565beff009c84070f0435653df70900000d610a9a0d1d30003abfffeca2e051b205beff586323ff0d0023ef010023e7050023df0900031e10007f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "property-lookup",
+      "startVA": "0x196ec0",
+      "endExclusiveVA": "0x196efa",
+      "sha256": "faf299cb9abfaef7bfbabce9562ff62a619f660e546cdca508b6c5a8a5d58e8b",
+      "bytesHex": "0610029820963366f29ffe0ad50d009de299ba051e509515019e010020963366f29ffe9a13080198c29ac599930709f23315e0f1daed00527f00"
+    },
+    {
+      "binary": "mcu",
+      "name": "tx-property-lookup",
+      "startVA": "0x1703c0",
+      "endExclusiveVA": "0x1703fa",
+      "sha256": "696efdbbdf58aba6290dfb436b10b248d21703e6d3d9f0922b57e9e2350b7985",
+      "bytesHex": "0610029820968622f29ffe0ad50d009de299ba051e509515019e010020968622f29ffe9a13080198c29ac599930789f77a0ee0f1daed00527f00"
+    },
+    {
+      "binary": "hal",
+      "name": "warning-registration",
+      "startVA": "0x128c74",
+      "endExclusiveVA": "0x128cf4",
+      "sha256": "afc66a895205dc0eaebc70bdbff4cdd2cc3536a957973b80b04a4377843dff42",
+      "bytesHex": "08c2a452e1730091e00314aaffa30329479c0294400100b4287d805249008052e20300aa160c00f9e1830091080800b9091000b9e00314aa659c0294130180522800805213c2a472e1730091e00314aae8cf0329369c0294400100b4e87d805249008052e20300aa170c00f9e1830091080800b9091000b9e00314aa549c0294"
+    },
+    {
+      "binary": "hal",
+      "name": "identity-converter",
+      "startVA": "0xe0be0",
+      "endExclusiveVA": "0xe0be8",
+      "sha256": "2b59db05426e0f313d72b30f3398c65721de2562a59dc46ceeba224f98d0b876",
+      "bytesHex": "e0031f2ac0035fd6"
+    },
+    {
+      "binary": "hal",
+      "name": "wire-integer-input",
+      "startVA": "0xb0d80",
+      "endExclusiveVA": "0xb0e44",
+      "sha256": "33c00403fe8f37aaa392b6ce5457fa71bc98a9e1a3ca7c961a29ee2d81db3a6e",
+      "bytesHex": "e1330391e8c700b9608e4ef8cd7b0494f603002a600240f9e1330391c57b0494c8260051ffc300b91f0d0031e00b00b9a8040054e8c740b91f1100714804005489fcffd029552f918a0000102b6968384a090b8b40011fd6400900d000d02e91c87a0494e07340f940e300b51d070014e84a79b8391300110809c05a11000014e84a7938390700110e000014e84a7978390b0011083d10530809c05a09000014e842398b390f0011090140390a05403908094039293d1053491d18332801082ae8cb00b9"
+    },
+    {
+      "binary": "hal",
+      "name": "convert-int-cache-callback",
+      "startVA": "0xb12e8",
+      "endExclusiveVA": "0xb13fc",
+      "sha256": "efab6285bcc0d7792e5e8e549a22304660996c2e2c077f0b050b54a025fb60a2",
+      "bytesHex": "600240f9e1330391e2230391e3230391f9030faa7d7a0494e8cf40b9f703002a090282520950a9721f01096b20c60054ff7a1e7260010054e40f592961fcff9042fcfff02158089142ac059120008052e503172a3d790494fc0f40f9ba050014fc0f40f9df0a0071c0030054600240f9e1330391f4cb40b9ec7904949f02006b01030054e3cf40b90e000014080700511f09007128220054883f8c52600240f98102088be1790494fc0f40f91f03006b61290054883f8c52698340f9236968b861fcff9062fcfff0e4cb40b92158089142b43991600080521c7904949a050014600240f9e1330391e2230391d7790494e3cf40b9200d0035e8cb40b9e0031baae10b40b9e203032ae40b40f9e303082a167b0494"
+    }
+  ],
+  "finiteDescriptorChecks": 65536,
+  "missingEvidence": [
+    "Required to qualify the add-fluid indication: actual low-fluid delivery of1DD on the applicable car is not established. The path and OEM meaning are statically established.",
+    "For further offline origin research: software-applicable CAN261 producer firmware or source definition that selects1DD, including equipment/configuration gates",
+    "Physical origin remains unbound: CAN ID/channel and actuator747 do not establish the sending ECU or reservoir-input owner",
+    "Optional, not a prerequisite for the requested add-fluid indicator: direct sensor measurement, DID, wiring pin and circuit-DTC definition"
+  ],
+  "limits": [
+    "The owner reports a sensor fitted on both N9 and Z9GT. This work does not challenge that premise or infer sensor absence from the API catalog.",
+    "This is a bounded call/table/write-path audit, not an exhaustive proof over every instruction or arbitrary RAM writer.",
+    "No claim that0 is fluid-OK, that13F masks1DD, or that WASH_ELEC_GATE is the reservoir switch.",
+    "No level DID, applicable circuit DTC, sensor pin, wiring owner or upstream suppression config proved."
+  ]
+}

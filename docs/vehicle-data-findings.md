@@ -30,7 +30,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Turn signals: shell-UID listener on `0x1330002C` (raw lever phase, never names a side) and `0x38A0002C` (lamps: `1` off, `2` left, `4` right, `6` hazard) behind `VehicleSignalHub` (`TurnSignalEventProtocol.kt`) | live | 2026-09-04 | [Targeted turn-signal events](#targeted-turn-signal-events-2026-09-04) |
 | Refuted: the stock AVC window alone opens a Denza camera (window-only contract). Since 2026-09-23 Show needs AVC's card **and** the lamps on that side, and the lamps leaving close it | refuted | 2026-09-23 | [Firmware-model contract](instrument-display-findings.md#the-firmware-model-contract-2026-09-23) |
 | Refuted: `0x44700028` / 10 is remaining energy (a ~100 kWh pack). It is state of charge ×10; nothing on the Binder gives the pack size; Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car); [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
-| Washer: OEM warning `1DD` explicitly says add washer fluid; admitted by the native warning set and readable through generic `1007/26100008`. No dedicated level FID/DID or sensor ownership proved. N9 saved GB states all have body-warning `13F`; current liquid-present Z9GT reads0 and its popup file matches the corpus. Stock front-washer actuation route747 is a controller lead, not a sensor definition. Owner requires no deliberate draining | firmware + live normal control, signal open | 2026-10-21 | [Washer diagnostic leads](#washer-warning-and-diagnostic-leads-2026-10-21) |
+| Washer goal is only a reliable refill warning, not measured level: OEM `1DD` is sufficient if its low-fluid delivery is qualified. MCU receive/cache and generic `1007/26100008` path traced; native/Godot consume the warning, not a reservoir input. No real low-fluid1DD observed; N9 saved states all13F, liquid-present Z9GT0. Service reports sensors on both cars. Direct level DID remains an optional fallback; no draining requested | firmware path proved; low-fluid delivery unverified | 2026-10-21 | [Washer diagnostic leads](#washer-warning-and-diagnostic-leads-2026-10-21); [Receiver and presentation](#washer-receiver-and-presentation-boundary-2026-10-21) |
 | N9 washer experiment: four broad captures and passive controls saved. The promising `0x324` byte-24 mapping `92=empty / 93=OK` is refuted: it changed `93 → 92` during an unchanged-level watch, with the owner confirming no washer use or fluid changes. Actual field meaning and washer-level signal remain unidentified | mapping refuted live, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | N9 CAN coverage: GB/YUN add 72 address tuples without table writes. Expanded present/empty/refilled cycle saved: 68,432 / 68,296 / 66,613 messages, all 199 common tuples covered without loss. Of 223 separated bits, 49 reverse; 43 contradict older controls, and 6 extra-tuple bits overlap numeric range/consumption/insulation/SOC descriptors. No washer mapping is established; 3 intermittent refill tuples also occurred in older normal/empty captures | live three-state cycle, signal open | 2026-10-16 | [N9 paired-state capture](#n9-paired-state-capture-2026-10-16) |
 | DTC: dev1033 TX `AA00010A` / RX `9900010A`, profile170; exact packaged helper verified `19 01 FF` + `19 02 FF`: `720→728` eight records/status28 (stock tester and its 96-case function map: left body domain `LA_BCM`; OTA map's CDC/ZCU rows unexplained; BYD labels status28 «历史故障»); 2026-10-20 the same transport reaches the engine ECM `7E0` (OBD Mode 01/03/07/0A, UDS 19; MIL off, 0 codes) and `7E2`/`7E3`/`7E5`/`7E6`/`7E7`/`722`/`726`/`747`; full catalog sweep 2026-10-20: SoH99, cells 3333–3337 mV, service life oil75/brake fluid99/coolant50, GB alarms answer at the N9 baseline; LBMS `762→76A` zero/support09. Further chassis/ADAS addresses were qualified on 2026-10-20, below. Lamp0 means invalid, not off; captured engine lamp on. The first native window that showed these (readable DTC summaries, all eight status bits, 15 lamp GETs) never reached the car and was removed on 2026-10-20; the scanner in [vehicle-diagnostics-architecture.md](vehicle-diagnostics-architecture.md) replaced it and keeps the 43 scalar GETs (`DiagnosticExtras`) | live | 2026-10-18 | [Diagnostics and DTC](#diagnostics-and-dtc-2026-10-18); [Native window](#native-diagnostic-window-and-packaged-reader-2026-10-18); [Readable DTC](#readable-dtc-codes-and-native-detail-view-2026-10-18); [Plain-language inputs](#plain-language-inputs-reporting-module-status-labels-insulation-2026-10-18); [Deeper sources](#deeper-sources-for-a-diagnostic-screen-2026-10-20); [Z9GT catalog sweep](#z9gt-catalog-sweep-2026-10-20); [OBD and more modules](#obd-and-more-modules-through-the-same-transport-2026-10-20) |
@@ -58,7 +58,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - Whether a DC stop (`CHARGE_GUN` = `3`) should read as charging: a recorded stop at a charger known to be DC ([energy contract §8](energy-display-contract.md#8-open-and-what-closes-each)).
 - The pack's real capacity: the owner's paperwork or one full charge session.
 - Traction-voltage sag under load: `pack_volt` read across a full-throttle pull (the 2026-09-24 recording has the column; not analysed here).
-- Which physical signal is the washer level: an authoritative sensor-to-ECU definition, or a controlled two-state capture with `tools/raw_can_turn_probe.sh`.
+- Whether the concrete car delivers OEM refill warning1DD when fluid is low. A reliable binary warning satisfies the feature; a separate level/sensor DID is only a fallback. No further deliberate emptying is requested.
 - Which palette this car uses: one read of `SET_IAL_COLOR_CONFIG`, or the owner naming the cabin colour.
 - Whether a normal APK can register the raw CAN-FD listener, DiCar's ambient-light listener or the vendor SCP IMU sensors: one isolated probe each.
 - The remaining Z9GT `persist.sys.*` vehicle-id properties: a qualified dump; `persist.sys.AutoType=170` is confirmed on 2026-10-18.
@@ -103,7 +103,8 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [The scanner on the car: first autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) — the product's 68 blocks in 20 s, the history found, two defects fixed
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
 - [Raw CAN-FD callback (2026-09-03)](#raw-can-fd-callback-2026-09-03) — the passive shell-UID frame stream and its envelope
-- [Washer fluid level (2026-09-18, in progress)](#washer-fluid-level-2026-09-18-in-progress) — no name, no bit yet; firmware and raw-stream paths
+- [Washer fluid level (2026-09-18, in progress)](#washer-fluid-level-2026-09-18-in-progress) — named refill warning1DD, traced receiver and display gates; no delivery observed in the empty N9 test
+  - [Receiver and presentation boundary](#washer-receiver-and-presentation-boundary-2026-10-21) — ready-made CAN warning versus physical trigger; direct level DID optional
 - [Targeted turn-signal events (2026-09-04)](#targeted-turn-signal-events-2026-09-04) — the two-FID light listener, its hub, and the camera contracts it fed
 - [Interior ambient light colour (2026-09-23, in progress)](#interior-ambient-light-colour-2026-09-23-in-progress) — where the cabin lamp colour lives and how it could be read
 - [Legacy BYDAuto events and system logs](#legacy-bydauto-events-and-system-logs) — the 2026-06-27 probe and system-log observations
@@ -4871,6 +4872,14 @@ collection table.
 
 ### Washer warning and diagnostic leads (2026-10-21)
 
+**Feature acceptance, clarified by the owner:** warn that it is time to add
+fluid. Neither litres, a continuous level, nor a direct sensor DID is required.
+A reliably delivered OEM low-fluid warning is sufficient. Treat the service's
+statement that a sensor is installed on **both N9 and Z9GT** as the working
+premise for tracing the path, not as a reason to demand another physical test.
+Firmware support alone does not independently verify the installed circuit;
+that qualification must not turn sensor proof into an extra product requirement.
+
 The new diagnostic/cluster corpus supplies two concrete leads beyond unnamed
 bit correlations. Neither is a qualified physical sensor input yet.
 
@@ -4912,10 +4921,12 @@ file SHA256 still matches `ec3355e9…3fe4aad`. No UDS request, setter, actuator
 unlock, reset, installation or fluid manipulation was performed. This is one
 normal-labelled control, not sensor validation.
 
-Next work can stay entirely non-disruptive: trace the source/configuration of
-warning1DD and seek a source-defined level-input DID for the appropriate body
-controller. DTC presence is not equivalent to low fluid; no applicable circuit
-DTC has been identified. No blind DID sweep or product-whitelist expansion.
+Next work can stay entirely non-disruptive: qualify delivery of warning1DD on
+the concrete car and trace its upstream source/configuration where needed.
+A source-defined body-controller level-input DID is a fallback, not a condition
+for accepting the warning route. DTC presence is not equivalent to low fluid;
+no applicable circuit DTC has been identified. No blind DID sweep or
+product-whitelist expansion.
 Retain N9 and Z9GT evidence separately. Only an explicit future agreement may
 add a physical experiment; do not ask for another deliberate emptying here.
 
@@ -4925,6 +4936,93 @@ source hashes, original1DD admission instructions, six stock wiper/washer cases,
 three loss-checked GB windows and eight checksum-verified scalar reads.
 Results and the current read-only control are in ignored
 `captures/washer-diagnostics-20261021/`.
+
+### Washer receiver and presentation boundary (2026-10-21)
+
+Three parallel offline audits traced the receiver, the display conditions and
+possible body diagnostic reads. They did not install code or manipulate the
+car. **The useful result is an existing read path for a named refill warning,
+not a proven low-fluid trigger on either car.** Lack of a level DID does not
+invalidate this path, and no claim that the physical sensor is absent follows.
+
+**Receive path, not just a string search.** In the retained IVI MCU image,
+receive-register reader1C5302 passes the incoming payload through
+`1C54F2 → 1A5716 → 1A54A8 → 17069C → 1707D8 → 1704AC`:
+normalization, payload copying and the receive queue, not warning selection.
+RX key `E0026100` resolves to table `D637C`: no pre-descriptor hook,25 fields.
+Descriptor `DF890` uses generic unsigned extractor `18A09C/149E90` for the low
+ten bits of CAN261/sub0/channel0. Property `93A5C` stores the resulting enum
+at RAM `FEEF5168` through `196F94`; `196EFA/15CB58` emits FID26100008 and its
+unchanged value. The Android HAL registers it for device1007 at128CC8, applies
+the identity converterE0BE0, caches it and emits the indicator callback.
+This selected receiver path does **not** calculate1DD from a reservoir input.
+
+The other pointer at108050 is a generic property-lookup bucket, not a second
+producer. The normal property TX table has no26100008 entry. These are bounded
+call/table/write-path findings, not an exhaustive proof about arbitrary memory
+writes or raw/diagnostic transmissions. The physical CAN sender remains
+unidentified; CAN ID/channel and the pump's747 address do not identify it.
+The MCU image is from the owner's retained OTA; its installed hash was not
+read. The native cluster's direct `spidev_cluster` receiver is a **separate
+consumer**, not downstream of the Android HAL/Binder path. The raw device node
+was not opened for this investigation.
+
+**Conditions for showing1DD in the examined native/Godot implementation:**
+
+| Layer | Condition / consequence |
+|---|---|
+| Native normal publication | `26F00000==1`, `26F00028==3`, `26100000==1`, plus warning admission-set membership;1DD is admitted without a model/config branch at that insertion |
+| Generic native suppression | `m_bhide261WarningInfo` must be false; if `m_bIsDowTriggerStatus` is true, power `12D0002A` must be3 |
+| Timing | Generic500ms delay when projection `40C0C016` is2/3; no washer-specific debounce identified. A100ms previous-warning247 branch exists but its activation is unproved |
+| Godot arbitration | Charge/discharge and scene-mode hide1DD; OFF/DOW/large toast and competing non261/phone popups can also prevent or defer display |
+| Raw observation | These display gates do not clear raw `1007/26100008`; the separately published `commonWarningInfoId` can be0 |
+
+All375 decoded Godot scripts contain only one477/washer-enum reference, the
+declaration `WARN_ID_ADD_WASH_LIQUID=477`. The normal dictionary renderer handles
+it. No washer-specific level threshold, latch, expiry or persisted history was
+identified in this presentation path. Debug HIDE/SHOW261 commands were found
+but **not executed**. Presentation suppression cannot by itself explain the
+absence of1DD in the raw captures.
+
+**Additional Z9GT read-only control,16:02:51 Moscow:** integer GETs returned
+`1007/26100008=0`, `1001/26F00000=1`, `1001/26100000=1`,
+`1007/26F00028=4`, `1001/12D0002A=2`, `1007/40C0C016=0`.
+Profile170/CANFD, diagnostic manager idle, autoservice PID128 before/after.
+Framework, both native cluster libraries, manager, startup script and popup
+hashes match the retained sources. However, `/proc/3778/maps` for
+`com.byd.cluster` was permission-denied: the current native/Godot implementation's
+loading is **not verified**. View4 fails the examined native view3 gate, but
+does not explain raw0 or establish the cause of absent washer notifications.
+The retained plan and snapshot are `captures/washer-diagnostics-20261021/live-gates/`;
+snapshot SHA256 `0ead6aa856f6a1693ca1925d25dc72cf21a8a4a84d31ff4e684cf07947a9eba0`.
+No UDS, setters, debug commands, restarts or fluid manipulations were used.
+
+**Optional diagnostic fallback:** the40 stock tester assets contain only the
+six wiper/washer actuator scenarios above. Exact-model Xtool rows1394/1395
+advertise F_ZCU/R_ZCU live data as `SupportEnum`, without a parameter/DID/decoder.
+R_ZCU means **right zone**, not rear. A finite28-query public-source search
+yielded no applicable CN Z9GT DM level-read definition or sensor-circuit DTC.
+The [official Brazilian Z9GT owner manual](https://www.denza.com/material/__CN/denza-site/denza-brazil/manuten%C3%A7%C3%A3o/Z9GT_MP_26061_Site.pdf)
+describes washer operation/maintenance, not this diagnostic contract; its
+applicability to this CN DM car is unqualified. None of this proves that a
+diagnostic level record does not exist. Already-retained F_ZCU722 identification
+`F194=4B310011E001540100` is an acquisition anchor, not a level read; FF94/FF95
+all-FF replies likewise provide no level semantics.
+
+**Product boundary:** receipt of1DD is a concrete OEM request to refill, but
+no saved real empty-reservoir observation has yet qualified its delivery.
+Raw0 or another selected warning must not be labelled “washer fluid OK” or
+used as proof of a refill: this is one multiplexed warning, not all conditions.
+There is no requirement to obtain litres or a separate switch value before
+using a qualified1DD route. Product code and diagnostic whitelist are unchanged.
+
+Reproducible reports and checks in `research/vehicle-diagnostics/`:
+`washer-sensor-origin-20261021.json` / `check_washer_sensor_origin.py`,
+`washer-warning-conditions-20261021.json` / `check_washer_warning_conditions.py`,
+and `washer-body-read-20261021.json` / `check_washer_body_read.py`.
+Run each checker with `python3`; all operate offline by default. Original bytes,
+bounded disassembly, decoded-script provenance and public-search evidence are
+retained under `captures/washer-diagnostics-20261021/` and the existing corpus.
 
 ### N9 paired-state capture (2026-10-16)
 

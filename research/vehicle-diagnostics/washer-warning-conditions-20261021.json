@@ -1,0 +1,647 @@
+{
+  "schema": "denza-lab.washer-warning-conditions.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "warningId": "0x1DD",
+  "warningIdDecimal": 477,
+  "applicability": {
+    "runtimeClusterLoadingVerified": false,
+    "physicalSensorProven": false,
+    "source": "retained owner firmware and native cluster implementation; installed hashes alone do not prove execution"
+  },
+  "dictionary": {
+    "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+    "index": 318,
+    "original": {
+      "id": "1DD",
+      "text": "请加注洗涤液",
+      "textColor": "0xEEF5FFFF",
+      "icon": "res://scenes/popup/popup_261/resources/images/0x1DD.png"
+    },
+    "enum": "WARN_ID_ADD_WASH_LIQUID",
+    "enumLine": 2644,
+    "translation": "Add washer fluid; own translation, not OEM Russian"
+  },
+  "native": {
+    "rawInput": {
+      "device": 1007,
+      "fid": "0x26100008",
+      "type": "getInt / native UINT16",
+      "can": "0x261/sub0/channel0",
+      "formula": "(b0 | b1 << 8) & 0x3FF"
+    },
+    "required": [
+      {
+        "device": 1001,
+        "fid": "0x26F00000",
+        "nativeType": "UINT8",
+        "value": 1,
+        "name": "BODYWORK_ONLINE_HAS_0x026F00"
+      },
+      {
+        "device": 1007,
+        "fid": "0x26F00028",
+        "nativeType": "UINT8",
+        "value": 3,
+        "name": "INSTRUMET_VIEW_INTERFACE"
+      },
+      {
+        "device": 1001,
+        "fid": "0x26100000",
+        "nativeType": "UINT8",
+        "value": 1,
+        "name": "BODYWORK_ONLINE_HAS_0x026100"
+      }
+    ],
+    "admission": "1DD is inserted unconditionally at0x17EBE4 into m_warningInfoSet offset0x88; set membership required",
+    "genericSuppression": [
+      {
+        "member": "m_bhide261WarningInfo",
+        "offset": "0x133",
+        "default": false,
+        "rule": "true suppresses1DD; clusterDebug267 hides and268 shows whole261 stream"
+      },
+      {
+        "member": "m_bIsDowTriggerStatus",
+        "offset": "0x135",
+        "default": false,
+        "rule": "true suppresses1DD only when power FID12D0002A !=3",
+        "message": "BUSINESS_MSG_ID_IS_DOW_WARNING_INFO=0x8010"
+      }
+    ],
+    "idSpecificBranches": [
+      "0x64",
+      "0x13F",
+      "0x165..0x167",
+      "0xAE",
+      "0x1EC",
+      "0x1EE",
+      "0x262",
+      "0x267",
+      "0x268",
+      "0x269",
+      "0x238",
+      "0x263"
+    ],
+    "washerSpecificBranches": 0,
+    "power": {
+      "device": 1001,
+      "fid": "0x12D0002A",
+      "nativeType": "UINT8",
+      "okValue": 3
+    },
+    "output": {
+      "member": "m_u16WarningInfoIndex",
+      "offset": "0x20",
+      "item": "0x320/commonWarningInfoId",
+      "semantics": "unchanged admitted identifier; native gate rejection sets0; raw input remains separate"
+    },
+    "timers": [
+      {
+        "condition": "previous-warning member0x140 ==0x247",
+        "milliseconds": 100,
+        "scope": "generic branch exists; constructor initializes0; no subsequent direct field writer found within BusinessUi2 corpus, so actual activation is unproved"
+      },
+      {
+        "condition": "projection FID40C0C016 cached member0x142 is2 or3 and current warning is nonzero",
+        "milliseconds": 500,
+        "scope": "callback reads then-current warning member0x20; other nonzero modes stop force timer and publish immediately; zero publishes0 immediately"
+      }
+    ],
+    "projection": {
+      "device": 1007,
+      "fid": "0x40C0C016",
+      "nativeType": "UINT8",
+      "name": "Instrument.INSTRUMENT_RIGHT_PROJECTION_SET"
+    },
+    "persistence": "Examined warning function and Popup261Mgr have current-value caches, no washer latch, debounce, reservoir sampling or persisted washer history. This does not rule out upstream ECU persistence or other implementations.",
+    "debugBoundary": "clusterDebug268 directly republishes raw26100008 and is a debug bypass of normal admission/gates; no debug command was issued"
+  },
+  "godot": {
+    "chain": [
+      "sig_warn_id",
+      "right_area_arb.slot_recv_pop_261",
+      "sig_trip_popup_261",
+      "Popup261Mgr",
+      "uppercase %X exact popup_nads.json lookup",
+      "ScenePopup261",
+      "PopupNormal"
+    ],
+    "hiddenWhen": [
+      "invalid dictionary key",
+      "SCENE_CHARGE or SCENE_DIS_CHARGE",
+      "SCENE_SCENE_MODE (only319/0x13F is exempt)",
+      "SCENE_OFF with show_dow_ui or large toast",
+      "ordinary scene with right non261 popup",
+      "active phone popup can defer new nonphone261 until phone timeout"
+    ],
+    "noWasherSpecialCase": "Only477/WARN_ID_ADD_WASH_LIQUID reference in all375 decodedGD files is enum hmi_def.gd2644;1DD uses default normal renderer and exact1DD dictionary key; power-specific key rewriting applies only35/0x23",
+    "color": "Source RGBA0xEEF5FFFF; general day-mode substitution0x262D33FF, night retains source",
+    "cache": "right_area stores received cs_warn_id_261 and selected warn_id_261 before visibility arbitration; check_right_area_show can reevaluate a cached nonzero warning when scene changes; no washer-specific popup expiry"
+  },
+  "observation": {
+    "rawWithoutPopup": true,
+    "reason": "GET1007/26100008 reads raw scalar independent of native UI and Godot suppression; CAN low10bits can also carry1DD while popup is hidden",
+    "limits": [
+      "raw0 is no current selected warning, not an all-conditions-OK assertion",
+      "single multiplexed enum cannot expose simultaneously masked conditions",
+      "this implementation consumes a completed warning number and does not generate1DD from a reservoir input",
+      "no recovered sensor wiring, ECU owner, level DID, threshold, reservoir debounce, warning priority policy or warning-to-DTC mapping"
+    ],
+    "liveContext": "Root-owned read-only control saved separately at captures/washer-diagnostics-20261021/live-gates/snapshot.txt; this report performs no live operations"
+  },
+  "sources": [
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/dwarf-enums.jsonl",
+      "bytes": 8109790,
+      "sha256": "04c7e6cdd6c6e51a0aa329ba57c7cdc6037fcfe724264ad5f17ebaa61da22367"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/dwarf-layouts.jsonl",
+      "bytes": 4731363,
+      "sha256": "aba58decb6352bf0275714de687a40f1f8f6fdd4178f7a5a427c8d842b9defa9"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/common_mgr.gd",
+      "bytes": 85166,
+      "sha256": "d32a64329a778c1ad40b25f3bd40693cb901305ca3b79a6d45b0f6e57913c2a8"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "bytes": 21485,
+      "sha256": "3ce530f38ed3e15dba27167cc13796a5cda67fbd9f3a4c65b62ee8f1981867a9"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/global_define/hmi_def.gd",
+      "bytes": 89650,
+      "sha256": "37a912b342e557e492efca03f6d9cb62ba6c4bb37fc177cae9249b6dcee83181"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "bytes": 18592,
+      "sha256": "a20cb6f86718aad2a38134ae616eacfb90d81b63888f7689451a8eb49ae84ce4"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_add/popup_data_mgr.gd",
+      "bytes": 18238,
+      "sha256": "07f52d61eb50cd47bf0c579800c4d664a9fbb1523d103e3d0078dc1a90843454"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_add/popup_json.gd",
+      "bytes": 10473,
+      "sha256": "6fe878021fcf7f79eeabd8efb4bc46ad287448affacb5a584bacce51ec31a1d5"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/manifest.json",
+      "bytes": 204663,
+      "sha256": "e374a9457d9dd11281d8b86af8a477142336808310cd371518ddcac1a92b2036"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "bytes": 2918,
+      "sha256": "9bd75c95edaec5faf1ceafdec6304804e18127fdd3082b9d365900ce8ff03b8a"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_normal.gd",
+      "bytes": 1536,
+      "sha256": "9de2545f423e6dcf151da6406397ce67d218649c9dafdf6856efd25d982ea8f6"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_view_mgr.gd",
+      "bytes": 14796,
+      "sha256": "1c10889187c9a9fb54878c952c02a0b93efe9f67576cae5fb0bc9a8a2aad934a"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/base_services/common_mgr.gdc",
+      "bytes": 43495,
+      "sha256": "08dc577bf905fdc805f0c43dcbffb5803508b37778d87dfdd20bf5cca0f78ca1"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gdc",
+      "bytes": 11772,
+      "sha256": "24beb48b6329d9837c8efc15378e3808949d45e004480d7b1eb82af40b80e172"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/global_define/hmi_def.gdc",
+      "bytes": 85736,
+      "sha256": "fc472e70df9e3a9b7e173afdc4159a6145a3536f5207f8dd93590aeec6098d6e"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_261_mgr.gdc",
+      "bytes": 10946,
+      "sha256": "cd13037ada5f30df51dedc7d0521b992266476d1d94b1d1b223477bbf9577367"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_add/popup_data_mgr.gdc",
+      "bytes": 11575,
+      "sha256": "fda4007e444975498f895408d79b2dcb46446ed24b6d6d43c032898b763386c1"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_add/popup_json.gdc",
+      "bytes": 6914,
+      "sha256": "58f573f6ac25fc6188ebd18e53fb924c02540beff91f6e01e93c2602677d0778"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_261/scripts/popup_261.gdc",
+      "bytes": 2203,
+      "sha256": "3e08b6df65afb02937468cc02d3087e529b5ba0ff768e4a483c0731709930054"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_comp/scripts/popup_normal.gdc",
+      "bytes": 1254,
+      "sha256": "43372cbc481a3ad0a3523490a01792bfc4d2fcc495d32dd364c707f94d5ec783"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_comp/scripts/popup_view_mgr.gdc",
+      "bytes": 9280,
+      "sha256": "90483b1e7fbb5d4679cd0f7450bbfafdc4dec757bb5eb1260ae5c3f5e4530421"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/scripts-manifest.json",
+      "bytes": 148639,
+      "sha256": "ad8c441b96e8f8e6da9c90d54cb855c602c37f99d1d6baf5c8988c058777ce74"
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/can-signals.tsv",
+      "bytes": 200710,
+      "sha256": "022f2fe417b0b5f6b7bd64bcb5abe65c60c4529945e00fd4803d54f54656f3b9"
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/configuration.tsv",
+      "bytes": 11050,
+      "sha256": "0a6f78598b4d811f785725226a2b247ec42f8afe83943b407c6121e70b2250d6"
+    },
+    {
+      "path": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "bytes": 1778932,
+      "sha256": "02ad8c66c2339ae0eabef661e12dda088ed2e616967bfac308c609e970dead66"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "bytes": 17834072,
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "bytes": 29886784,
+      "sha256": "0cdcd130d471c6a5a6cc05e7ee04e644227b025f852f44bc686c63f1e9450bf3"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+      "bytes": 142434,
+      "sha256": "ec3355e9736ea6b2dd67a2c3a3a15c3d20d8e3ddfb1c400db54c7236a3fe4aad"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+      "bytes": 1967702,
+      "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+      "bytes": 105805,
+      "sha256": "31ad419cbe050cb7731e99d3d7a6755932202a4e17746651ecfc4e457bff62b3"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "bytes": 149289,
+      "sha256": "608e55ecb4cb889a5016d182b32a3ee3c0ab633656b3bcb7a0607eb2d6ec604a"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-warning-mappings-20261021.json",
+      "bytes": 43103,
+      "sha256": "02e7e63f67128e49cf145fba03e739fef8ffffc314c3554c6d42fa2ac3b3b2c2"
+    }
+  ],
+  "gdcInputs": [
+    {
+      "path": "res://common/base_services/common_mgr.gdc",
+      "offset": 2023344,
+      "size": 43495,
+      "md5": "11e18d136dedcf0cf359a38d3ad0a55a",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/base_services/common_mgr.gdc",
+      "sha256": "08dc577bf905fdc805f0c43dcbffb5803508b37778d87dfdd20bf5cca0f78ca1"
+    },
+    {
+      "path": "res://common/base_services/ui_logic_arbitrate/right_area_arbitrate.gdc",
+      "offset": 2003760,
+      "size": 11772,
+      "md5": "ea0d91e5826b7289f9f3383ec17cd5c3",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gdc",
+      "sha256": "24beb48b6329d9837c8efc15378e3808949d45e004480d7b1eb82af40b80e172"
+    },
+    {
+      "path": "res://common/scene_services/popup_261_mgr.gdc",
+      "offset": 2377840,
+      "size": 10946,
+      "md5": "13d59ee6f8d37b073da70ec93a0e1f38",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_261_mgr.gdc",
+      "sha256": "cd13037ada5f30df51dedc7d0521b992266476d1d94b1d1b223477bbf9577367"
+    },
+    {
+      "path": "res://common/scene_services/popup_add/popup_data_mgr.gdc",
+      "offset": 2249680,
+      "size": 11575,
+      "md5": "ebeacc516d1049f327f5a8a6d28a5311",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_add/popup_data_mgr.gdc",
+      "sha256": "fda4007e444975498f895408d79b2dcb46446ed24b6d6d43c032898b763386c1"
+    },
+    {
+      "path": "res://common/scene_services/popup_add/popup_json.gdc",
+      "offset": 2261264,
+      "size": 6914,
+      "md5": "8dac12c934b573f8e371ac982bb1c9c4",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_add/popup_json.gdc",
+      "sha256": "58f573f6ac25fc6188ebd18e53fb924c02540beff91f6e01e93c2602677d0778"
+    },
+    {
+      "path": "res://common/global_define/hmi_def.gdc",
+      "offset": 2120288,
+      "size": 85736,
+      "md5": "385b4a1c5ff514ed731d719175c40165",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/global_define/hmi_def.gdc",
+      "sha256": "fc472e70df9e3a9b7e173afdc4159a6145a3536f5207f8dd93590aeec6098d6e"
+    },
+    {
+      "path": "res://scenes/popup/popup_261/scripts/popup_261.gdc",
+      "offset": 356778256,
+      "size": 2203,
+      "md5": "271fe50f68612be5ccfdc447169369c9",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_261/scripts/popup_261.gdc",
+      "sha256": "3e08b6df65afb02937468cc02d3087e529b5ba0ff768e4a483c0731709930054"
+    },
+    {
+      "path": "res://scenes/popup/popup_comp/scripts/popup_view_mgr.gdc",
+      "offset": 436461024,
+      "size": 9280,
+      "md5": "2b2d5b854ddf1afe4ad90e2e536681e4",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_comp/scripts/popup_view_mgr.gdc",
+      "sha256": "90483b1e7fbb5d4679cd0f7450bbfafdc4dec757bb5eb1260ae5c3f5e4530421"
+    },
+    {
+      "path": "res://scenes/popup/popup_comp/scripts/popup_normal.gdc",
+      "offset": 436425888,
+      "size": 1254,
+      "md5": "42c41e7547c4faeafeef20a16ca225fc",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_comp/scripts/popup_normal.gdc",
+      "sha256": "43372cbc481a3ad0a3523490a01792bfc4d2fcc495d32dd364c707f94d5ec783"
+    }
+  ],
+  "nativeByteAnchors": [
+    {
+      "label": "complete BusinessUi2::updateWarningInfo including every ID-specific branch",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x182dc0",
+      "bytes": "ff8303d1fd7b0da9fd43039148d03bd5081540f9a8831ff8a0031bf8a8035bf8e81700f9e8031faaa8831af8680d00b0088146f9000140f961648052ed8a0694a0831af8e8031f2ae83700b9a8431a38680d00b0087546f9e81f00f9000140f901dea452c7840694e93740b9e81f40f9a0431a38a9031a38000140f90105805201dea472bf840694e93740b9e81f40f9a0031a38a9c31938000140f901c2a452b8840694e93740b9e81f40f9a0c31938a9c31b78000140f90101805201c2a472d0840694e93740b9e81f40f9a0c31b78e9a30139000140f901018052014ea772a8840694e93740b9e81f40f9e0a30139e9930139000140f9014ea752a1840694e93740b9e81f40f9e0930139e9830139000140f941058052015aa27299840694e93740b9e81f40f9e0830139e9730139000140f9e103805201c2a47291840694e0730139a8435a3808050071c100005401000014a8035a38080d00712002005401000014e01740f9e8031f2ae82700b90840007901049052e2031faa118c0694e01740f98b8d0694e81740f9e22740b9003540f9c10080525a8c0694e2000014a8c35938080500712002005401000014e01740f9e8031f2ae82300b90840007901049052e2031faafe8b0694e01740f9788d0694e81740f9e22340b9003540f9c1008052478c0694cf000014e81740f900210291a8c35b78a8831bb8a12301d1bc090094200200b501000014e01740f9e8031f2ae81f00b90840007901049052e2031faae78b0694e01740f9618d0694e81740f9e21f40b9003540f9c1008052308c0694b8000014e81740f9e9031f2ae963013929008052e963013908cd4439a800003601000014e8031f2ae863013901000014a8c35b7808910171e100005401000014e01740f9628d069408000012e863013901000014a8c35b7808fd0471e100005401000014e01740f9558d069408000012e863013901000014a8c35b78089505716b01005401000014a8c35b78089d0571ec00005401000014e01740f9508d069408000012e863013901000014a8c35b7808b902712101005401000014a0835af8e1734139e2031f2a3d8a069428008052e863013901000014a8c35b7808b10771c000005401000014a8c35b7808b90771e100005401000014e01740f93c8d069408000012e863013901000014a8c35b7808890971c001005401000014a8c35b78089d09714001005401000014a8c35b7808a10971c000005401000014a8c35b7808a50971e100005401000014e01740f92b8d069408000012e863013901000014a8c35b7808e10871e100005401000014e01740f9268d069408000012e863013901000014e8834139080d00712001005401000014e81740f908d54439a800003601000014e8031f2ae863013901000014e8834139080d00712001005401000014a8c35b78088d0971a100005401000014e8031f2ae863013901000014e8634139c805003601000014e81740f908814279081d09714103005401000014e81740f9087540f9e80700f9a81301d1e82b00f9e12b40f9a00301d1e00b00f9700a0094e00740f9e10b40f9820c8052e3031f2ac785069401000014a00301d1b885069410000014e02700f9e803012ae84700b9a00301d1b28506942b000014e01740f9a8c35b780840007901049052e2031faa438b0694e01740f9bd8c069401000014e81740f9003540f9c1008052220080528b8b069413000014e81740f9007540f9a3850694e01740f9e8031f2ae80700b90840007901049052e2031faa308b0694e01740f9aa8c0694e81740f9e20740b9003540f9c1008052798b06940100001448d03bd5081540f9a9835ff8080109ebe100005401000014fd7b4da9ff830391c0035fd6e02740f9bd810694c4810694"
+    },
+    {
+      "label": "1DD inserted into initialized common admission set",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x17ebe4",
+      "bytes": "a83b8052e82705b9e1931491a4160094"
+    },
+    {
+      "label": "constructor: hide261 and DOW false, previous-warning zero, projection mode zero",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x17b2dc",
+      "bytes": "09c904391fcd04391fd104391fd5043900e10491e48aff9701000014e80f40f91f8102791f090539"
+    },
+    {
+      "label": "complete common display publish including 500ms mode2/3 branch",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1826e0",
+      "bytes": "ff4302d1fd7b08a9fd03029148d03bd5081540f9a8831ff8e01f00f9e81f40f9e90308aae90f00f9084140798801003501000014680d00b0088146f9000140f901648052a38c0694e80f40f901414079e2031f2aa38c069430000014e80f40f90809453908090071e000005401000014e80f40f908094539080d00712103005401000014e80f40f9097940f9e90700f9e81b00f9e11b40f9e0030191e00b00f9780e0094e00740f9e10b40f9823e8052e3031f2a6f88069401000014e00301916088069414000014e01700f9e803012ae82700b9e00301915a88069418000014e80f40f9007940f95a880694680d00b0088146f9000140f901648052758c0694e80f40f901414079e2031f2a758c0694010000140100001448d03bd5081540f9a9835ff8080109ebe100005401000014fd7b48a9ff430291c0035fd6e01740f9788406947f840694"
+    },
+    {
+      "label": "500ms callback reads current m_u16WarningInfoIndex and publishes item320",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x18e4e0",
+      "bytes": "ff8300d1fd7b01a9fd430091e00700f9e80740f9080140f9e80300f9080d00b0088146f9000140f901648052295d0694e80340f901414079e8031f2a02010012285d069401000014080d00b0089544f9"
+    },
+    {
+      "label": "100ms callback publishes from captured pointer; no washer-specific duration",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x18cb40",
+      "bytes": "ff8300d1fd7b01a9fd430091e00700f9e80740f9e80300f9080d00f0088146f9000140f90164805292630694e80340f9080140f901014079e8031f2a0201001290630694fd7b41a9ff830091c0035fd6"
+    },
+    {
+      "label": "debug hide267 and show268 branches",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x185f18",
+      "bytes": "e84f40b9082d04718102005401000014e91740f92800805228cd0439480d00d0088146f9000140f9016480529b7e0694e2031f2ae20700b9e103022a9b7e0694e81740f9e20740b9003540f9c10080525680069421000014e84f40b908310471a103005401000014e91740f9e8031f2ae80300b928cd0439e83300b9480d00d0087546f9000140f90101805201c2a47286780694083c0012e83300b9480d00d0088146f9000140f9016480527b7e0694e20340b9e13340b97c7e0694e81740f9003540f9c10080522200805237800694"
+    },
+    {
+      "label": "projection FID40C0C016 updates cached mode then display",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1864d4",
+      "bytes": "e80b40f9bf531e38000140f9c10298520118a87216770694e90f40f9a0531e38a8535e38290945390801096be000005401000014e00f40f9a8535e3808080539178006940100001411000014"
+    },
+    {
+      "label": "DOW business message stores payload bool then recalculates warning",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x187648",
+      "bytes": "e90740f9ff1300f9a8035ef8e81300f9e81340f9080140392a0080520801001208050071e8179f1a08010a0a28d5043901000014480d0090089544f9080140b9080500718c01005401000014e80740f908d54439030100128000805221f7fff021a02d91e2f6ffd042fc1991337106940100001401000014e00740f9b37b069435000014"
+    },
+    {
+      "label": "warning FID callback dispatch",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x183db0",
+      "bytes": "e81340b90901805209c2a4720801096b6004005401000014e81340b9e903805209c2a4720801096b00040054"
+    },
+    {
+      "label": "warning callback update target",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x183e4c",
+      "bytes": "e00740f9d08906941a000014e00740f9cd89069417000014"
+    },
+    {
+      "label": "online261 and online26F callback dispatch",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1847cc",
+      "bytes": "e81340b909c2a4520801096b4008005401000014e81340b909dea4520801096b8005005401000014"
+    },
+    {
+      "label": "DataItem320 handler stores WarnId and defers sig_warn_id",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x4455a8",
+      "bytes": "688e42f862820139021900b974825ff8b47600b461eaffd021a80791e0630091e2031f2a71ac0194e2e9fff042180e91a8c300d1e1630091e00314aae30313aa26f50494"
+    }
+  ],
+  "sourceLineAnchors": [
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/common_mgr.gd",
+      "line": 589,
+      "text": "    g_HmiGlobal . cluster_client . sig_warn_id . connect ( right_area_arb . slot_recv_pop_261 )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 480,
+      "text": "    cs_warn_id_261 = warnId"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 502,
+      "text": "    warn_id_261 = warnId"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 431,
+      "text": "    if Popup261Mgr . is_popup_id_valid ( warn_id_261 ) :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 45,
+      "text": "    if warn_id_261 and warn_id_261 . warn_id > 0 :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 570,
+      "text": "    if not Popup261Mgr . is_popup_id_valid ( warnId ) :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 572,
+      "text": "    elif g_HmiGlobal . common_mgr . cur_main_scene_type == GlobalDef . SceneList . SCENE_CHARGE or"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 577,
+      "text": "    elif g_HmiGlobal . common_mgr . cur_main_scene_type == GlobalDef . SceneList . SCENE_SCENE_MODE :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 580,
+      "text": "        if warnId . warn_id == 319 :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 585,
+      "text": "        if g_HmiGlobal . common_mgr . show_dow_ui :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 587,
+      "text": "        elif g_HmiGlobal . common_mgr . middle_area_arb . is_have_large_toast ( ) :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 595,
+      "text": "        if g_HmiGlobal . common_mgr . middle_area_arb . is_have_right_n261_popup ( ) :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 491,
+      "text": "            Logger . info ( \"cur pop bt_phone type:%d and is showing. no pop new 261\" % warn_id_261 . warn_id )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 607,
+      "text": "    g_HmiGlobal . common_mgr . sig_trip_popup_261 . emit ( popuped_261 , warnId , showPos , showType )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 10,
+      "text": "const JSON_NAME_261 : String = \"popup_nads.json\""
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 397,
+      "text": "    var search : String = \"%X\" % id"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 403,
+      "text": "    popup_261data . _json_data = popup_json . search_data_from_id ( JSON_NAME_261 , search )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 408,
+      "text": "    popup_261data . _visible = isShow"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 412,
+      "text": "        popup_261data . _id = warnId . warn_id"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 19,
+      "text": "    elif popup_json . check_popup_id ( JSON_NAME_261 , \"id\" , ( \"%X\" % warnId . warn_id ) ) >= 0 :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_add/popup_json.gd",
+      "line": 140,
+      "text": "            if json_data [ \"dictionary\" ] [ i ] [ id_type ] == id_search :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/global_define/hmi_def.gd",
+      "line": 2644,
+      "text": "    WARN_ID_ADD_WASH_LIQUID = 477 ,"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "line": 83,
+      "text": "        data . _text = data . _json_data [ \"text\" ]"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "line": 84,
+      "text": "        data . _text_color = Color ( data . _json_data [ \"textColor\" ] . hex_to_int ( ) )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "line": 50,
+      "text": "        popup_mgr . popup_261data . _text = tr ( text )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "line": 90,
+      "text": "        data . _visible = false"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_view_mgr.gd",
+      "line": 238,
+      "text": "        _ : arr = box_261_style . get ( 25 )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_view_mgr.gd",
+      "line": 278,
+      "text": "    if data . _text_color == Color ( 4009099263 ) :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_normal.gd",
+      "line": 20,
+      "text": "        BoxIconLabel . text = data . _text"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+      "line": 823,
+      "text": "    private static int mDeviceType = 1001;"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+      "line": 966,
+      "text": "        int level = super.get(mDeviceType, BYDAutoFeatureIds.BODYWORK_POWER_LEVEL);"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "line": 886,
+      "text": "    private static int mDeviceType = 1007;"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "line": 3156,
+      "text": "        int value = super.get(mDeviceType, BYDAutoFeatureIds.INSTRUMET_VIEW_INTERFACE);"
+    }
+  ]
+}
