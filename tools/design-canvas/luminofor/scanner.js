@@ -1334,15 +1334,17 @@
   }
 
   // [first] heads the first column: «PID» on an OBD stream, «УСТР.» on the pack's readings, whose
-  // rows carry the device there and the FID beside the name; a value outside its norm is orange.
+  // rows carry the device there and the FID beside the name; a value outside its norm is orange. A
+  // state's word longer than its column reaches back over what the name leaves free, as far as 12 after it.
   function liveTable(c, f, colSpec, first) {
     const E = L.ecuLive, cols = columns(colSpec, 24, W - 48);
     let y = headRow(c, cols, [first || 'PID', 'ПАРАМЕТР', ['ЗНАЧЕНИЕ', 'right', 12], 'ЕД.', ['МИН', 'right', 12], ['МАКС', 'right', 12], 'НОРМА', 'ГРАФИК · 60 С'], E.top, E.head);
     for (const r of f.rows) {
       const h = E.row, rx = i => cols[i][0] + cols[i][1] - 12;
       text(c, r.pid, cols[0][0] + 12, mid(y, h, 'normMono'), 'normMono', 'faint');
-      runs(c, [[r.name + ' ', 'cell', 'white'], [r.abbr, 'cellAside', 'faint']], cols[1][0], base(mid(y, h, 'cell'), 'cell'), cols[1][1]);
-      text(c, r.value, rx(2), mid(y, h, 'value'), 'value', r.out ? 'orange' : 'white', { align: 'right' });
+      const nameEnd = runs(c, [[r.name + ' ', 'cell', 'white'], [r.abbr, 'cellAside', 'faint']], cols[1][0], base(mid(y, h, 'cell'), 'cell'), cols[1][1]);
+      const room = Math.max(cols[2][1] - 12, rx(2) - nameEnd - 12);
+      text(c, r.value, rx(2), mid(y, h, 'value'), 'value', r.out ? 'orange' : 'white', { align: 'right', max: room });
       text(c, r.unit, cols[3][0], mid(y, h, 'unit'), 'unit', 'dim2');
       text(c, r.min, rx(4), mid(y, h, 'cellMono'), 'cellMono', 'dim2', { align: 'right' });
       text(c, r.max, rx(5), mid(y, h, 'cellMono'), 'cellMono', 'dim2', { align: 'right' });

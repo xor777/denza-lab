@@ -501,6 +501,7 @@ private fun LiveRows(
     onParam: ((ParamKey) -> Unit)?,
 ) {
     val e = ScannerSpec.EcuLive
+    val width = rememberWidths()
     var y = top
     rows.forEach { r ->
         val h = e.ROW
@@ -513,8 +514,11 @@ private fun LiveRows(
             listOf(Triple("${r.name} ", Type.CELL, Ink.WHITE), Triple(r.abbreviation, Type.CELL_ASIDE, Ink.FAINT)),
             Modifier.at(cols[1].first, mid(y, h, Type.CELL)), maxWidth = cols[1].second,
         )
-        // a value stays in its column, whatever its length
-        ScanText(r.value, Type.VALUE, if (r.outOfNorm) Ink.ORANGE else Ink.WHITE, Modifier.endAt(end(2), mid(y, h, Type.VALUE)), maxWidth = cols[2].second - 12f)
+        // a value stays in its column, or - a state's longer word - reaches back over what the name
+        // leaves free, as far as 12 dp after it
+        val nameEnd = cols[1].first + minOf(cols[1].second, width("${r.name} ", Type.CELL) + width(r.abbreviation, Type.CELL_ASIDE))
+        val room = maxOf(cols[2].second - 12f, end(2) - nameEnd - 12f)
+        ScanText(r.value, Type.VALUE, if (r.outOfNorm) Ink.ORANGE else Ink.WHITE, Modifier.endAt(end(2), mid(y, h, Type.VALUE)), maxWidth = room)
         ScanText(r.unit, Type.UNIT, Ink.DIM2, Modifier.at(cols[3].first, mid(y, h, Type.UNIT)))
         ScanText(r.min, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(4), mid(y, h, Type.CELL_MONO)))
         ScanText(r.max, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(5), mid(y, h, Type.CELL_MONO)))
