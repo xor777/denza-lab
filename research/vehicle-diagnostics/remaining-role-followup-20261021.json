@@ -1,0 +1,1224 @@
+{
+  "schema": "denza-lab.remaining-child-role-followup.v1",
+  "date": "2026-10-21",
+  "scope": "Offline audit of nine retained INS/FRL/CDC-ZCU namespaces. Existing local raw catalog and firmware sources only. OTA branch and private metadata sources left aside.",
+  "result": "no_new_exact_named_child_role_binding",
+  "actions": {
+    "vehicleRequests": 0,
+    "adbCalls": 0,
+    "networkRequests": 0,
+    "firmwareExecutions": 0,
+    "extractions": 0,
+    "decompiles": 0,
+    "otaActions": 0,
+    "productEdits": 0
+  },
+  "inputs": {
+    "factory": {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    "cache": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    "catalog": {
+      "path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json",
+      "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24"
+    },
+    "previousRoleGap": {
+      "path": "research/vehicle-diagnostics/child-role-gaps-20261021.json",
+      "sha256": "36c7a9af4f301f27a39f4c263e4b7a718c60dc02ba252cf22374b6c1011208bb"
+    },
+    "rawCatalogPage1": {
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-DM-661-rows-p1.json",
+      "sha256": "cff4385a997711efdc83deeaceaedc99b01379096a81a3fe29a7b01880932e3b"
+    },
+    "rawCatalogPage2": {
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-DM-661-rows-p2.json",
+      "sha256": "47a55df9cf5e489b96d89caa2956f717aee84d0c49f02dfff636a3945e027926"
+    },
+    "stockFunctionMap": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/assets/pl_gcy_uds_-script-20240821.json",
+      "sha256": "0fe43a16f239ce2efd048f28c375cd1fd41d179a7739fea968959fa85c04d616"
+    },
+    "stockLowPower": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/res/raw/low_power_script.json",
+      "sha256": "c3883631aa7f336d7c5d3da2af6a3549c988d166704106425bc9be9535cb064f"
+    },
+    "devtoolsVersionManager": {
+      "path": "captures/adb-firmware-20261006/jadx-devtools/sources/c/a/a/i0/a.java",
+      "sha256": "8d7750490f3b5e0d02dd7e47e488beb815d8e64e45c25b4ce6b42fb5fcc6050e"
+    },
+    "frameworkVersionDevice": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/version/BYDAutoVersionDevice.java",
+      "sha256": "0ae00836ffbbb256e5929992ecc3bb96f8c195f4338def087ab281a5ea89781e"
+    }
+  },
+  "newPrecision": [
+    "All nine complete nine-byte software codes occur in exactly one of the 225 retained cache rows. There is no second, descriptively named cache alias to use as a whole-code join.",
+    "The nine exact-model raw catalog rows each have 33 fields, not a hidden DID/address/software-code payload. The read_ecu_information column is a support flag. All nine actuation_test/special_functions fields are unavailable; this retained data offers no detail-title expansion for these rows.",
+    "The local function script names 96 cases at 720, 47 at 747, four at 726, and ten each at 770/771. None contains any of the nine target code DIDs, and 723 has no case. These parent function names cannot bind a child namespace.",
+    "The named DevTools version manager has 11 configured request addresses and 12 response-address cases; none is a target parent route. Its named radar/ADAS mappings do not supply a hidden child-role map.",
+    "The stock framework instrument-version getter is one ASCII buffer at device1027/FID458157, with no child selector. Its companion query is a setter. Neither closes the INS MCU-versus-audio join."
+  ],
+  "roleBoundaries": [
+    {
+      "group": "INS",
+      "factoryNamespaces": [
+        "723/F394",
+        "723/F494"
+      ],
+      "catalogCandidateNames": [
+        "INS_MCU: комбинация приборов, MCU 开阳 (Kaiyang)",
+        "INS2: комбинация приборов, модуль источника звука"
+      ],
+      "status": "Two named catalog roles, no exact assignment to either DID. Factory BYD supplier token and C1/D1 software-code ending are not a manufacturer or role definition. Even assuming these two pools describe the same children, both assignments remain consistent."
+    },
+    {
+      "group": "FRL",
+      "factoryNamespaces": [
+        "747/F644",
+        "747/F654",
+        "747/FB24"
+      ],
+      "catalogCandidateNames": [
+        "FRL1: левый световой модуль атмосферного освещения переднего салонного светильника",
+        "FRL2: правый световой модуль атмосферного освещения переднего салонного светильника",
+        "FRL3: передний внутренний светильник окружающего освещения"
+      ],
+      "status": "Three named roles, no exact DID assignment. Factory 003/002/004 suffixes do not correspond to Xtool FRL1/2/3 by a documented rule. Even assuming a bijection, all six assignments remain consistent."
+    },
+    {
+      "group": "CDC_ZCU",
+      "factoryNamespaces": [
+        "720/C294: CDC",
+        "720/C394: F_ZCU",
+        "720/C494: R_ZCU",
+        "720/C594: B_ZCU"
+      ],
+      "catalogCandidateNames": [
+        "CDC_JH: коммутатор междоменной вычислительной платформы",
+        "F_ZCU_CJ: коммутатор переднего зонального контроллера",
+        "R_ZCU_CJ: коммутатор правого зонального контроллера",
+        "B_ZCU_CJ: коммутатор заднего зонального контроллера"
+      ],
+      "status": "Exact factory-family ownership is preserved, including right for R_ZCU. No source says the 00200001/Cx94 namespaces are these switch submodules. Matching one switch row per family is a candidate, not an exact join. Parent720 stock LA_BCM/CDC naming discrepancy is not resolved."
+    }
+  ],
+  "qualifiedRoleResolvingMetadataReads": [],
+  "rejectedReadDirections": [
+    {
+      "direction": "Repeat the nine source-backed child software-code or version DIDs",
+      "reason": "Would qualify a live parent-reported identity/cache comparison, but cannot add the absent role-name join. Do not present this as resolving the nine roles."
+    },
+    {
+      "direction": "Read the nine source-backed hardware DIDs F393/F493/F643/F653/FB23/C293/C393/C493/C593",
+      "reason": "Known fields are hardware versions, already retained for the first five (0.0.1 or 0.1.x), and 7F22 markers for Cx93. There is no retained version-to-role dictionary. A hardware-version reply is not a manufacturer part number or a named role."
+    },
+    {
+      "direction": "Read parent F18A/F197, or invent corresponding F397/F497/C297 child-name DIDs",
+      "reason": "Parent identification cannot select a child namespace. No inspected source defines a target-specific child name/supplier DID; inventing one by numeric suffix is not a source-backed metadata read."
+    },
+    {
+      "direction": "Call generic queryInstrumentVersion or getter as a child-role test",
+      "reason": "The query is a setter; the getter is a generic instrument ASCII version with no target child selection or role binding."
+    },
+    {
+      "direction": "Expand Xtool ECU information support into a namespace/measurement definition",
+      "reason": "Raw column is √, not a detail-record key. Stored exact-model response and inspected frontend support no namespace information for these rows."
+    }
+  ],
+  "missingEvidenceThatWouldCloseTheJoin": [
+    "A diagnostic-tool or supplier definition explicitly joining one of the exact child DIDs/factory IDs/full software codes to the named role.",
+    "A model/software-applicable existing component record with a verified role and the exact complete software code. Numeric order, shared prefix, parent address and family token alone are insufficient."
+  ],
+  "limits": [
+    "No broad corpus search was rerun. Earlier bounded negative search remains in child-role-gaps-20261021.json; this pass audits concrete raw rows and named-reader/function-map schemas.",
+    "The finite source checks do not establish that no OEM/tool/supplier definition exists elsewhere.",
+    "The cached software/hardware values have not been refreshed. No new live child identity, physical placement, separate child DTC memory or product allowlist claim follows.",
+    "Only existing retained sources are used; no current network/catalog refresh or OTA investigation was performed."
+  ],
+  "verifiedFacts": {
+    "factoryRows": 225,
+    "cacheRows": 225,
+    "targetCount": 9,
+    "newQualifiedNamedSubroles": 0,
+    "targets": [
+      {
+        "factoryRecordIndex": 169,
+        "factoryPointer": "/ecus/169",
+        "cachePointer": "/ecuInfo/169",
+        "factoryRecord": {
+          "ecuId": "HTH-2021_INS_BYD_00400001",
+          "ecuDiaId": "723/72B",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "",
+          "ecuDId": "F395/F394",
+          "ecuHardDid": "F393",
+          "ecuConfigDid": "",
+          "seq": "3720",
+          "route": {
+            "kind": "can",
+            "requestId": 1827,
+            "responseId": 1835,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        "cachedRecord": {
+          "ecuSoftCode": "4B450011E0250037C1",
+          "ecuConfigCode": "000000000000000000",
+          "ecuHardVer": "0.0.1",
+          "ecuId": "HTH-2021_INS_BYD_00400001",
+          "ecuConfigVer": "0.00.00",
+          "ecuSoftVer": "4.00.04"
+        },
+        "exactCodeMatchesInAll225CacheRows": [
+          {
+            "index": 169,
+            "ecuId": "HTH-2021_INS_BYD_00400001"
+          }
+        ],
+        "candidateRoleRowIds": [
+          1406,
+          1407
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 170,
+        "factoryPointer": "/ecus/170",
+        "cachePointer": "/ecuInfo/170",
+        "factoryRecord": {
+          "ecuId": "HTH-2021_INS_BYD_00500001",
+          "ecuDiaId": "723/72B",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "",
+          "ecuDId": "F495/F494",
+          "ecuHardDid": "F493",
+          "ecuConfigDid": "",
+          "seq": "3721",
+          "route": {
+            "kind": "can",
+            "requestId": 1827,
+            "responseId": 1835,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        "cachedRecord": {
+          "ecuSoftCode": "4B450011E0250037D1",
+          "ecuConfigCode": "000000000000000000",
+          "ecuHardVer": "0.0.1",
+          "ecuId": "HTH-2021_INS_BYD_00500001",
+          "ecuConfigVer": "0.00.00",
+          "ecuSoftVer": "3.00.00"
+        },
+        "exactCodeMatchesInAll225CacheRows": [
+          {
+            "index": 170,
+            "ecuId": "HTH-2021_INS_BYD_00500001"
+          }
+        ],
+        "candidateRoleRowIds": [
+          1406,
+          1407
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 137,
+        "factoryPointer": "/ecus/137",
+        "cachePointer": "/ecuInfo/137",
+        "factoryRecord": {
+          "ecuId": "HTH-2021_FRL_BYD_00300001",
+          "ecuDiaId": "747/74F",
+          "ecuReprogramType": "can",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "",
+          "ecuDId": "F645/F644",
+          "ecuHardDid": "F643",
+          "ecuConfigDid": "",
+          "seq": "3150",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        "cachedRecord": {
+          "ecuSoftCode": "48330011DEE3003B7A",
+          "ecuConfigCode": "000000000000000000",
+          "ecuHardVer": "0.1.1",
+          "ecuId": "HTH-2021_FRL_BYD_00300001",
+          "ecuConfigVer": "0.00.00",
+          "ecuSoftVer": "3.00.04"
+        },
+        "exactCodeMatchesInAll225CacheRows": [
+          {
+            "index": 137,
+            "ecuId": "HTH-2021_FRL_BYD_00300001"
+          }
+        ],
+        "candidateRoleRowIds": [
+          1390,
+          1391,
+          1392
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 138,
+        "factoryPointer": "/ecus/138",
+        "cachePointer": "/ecuInfo/138",
+        "factoryRecord": {
+          "ecuId": "HTH-2021_FRL_BYD_00200001",
+          "ecuDiaId": "747/74F",
+          "ecuReprogramType": "can",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "",
+          "ecuDId": "F655/F654",
+          "ecuHardDid": "F653",
+          "ecuConfigDid": "",
+          "seq": "3151",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        "cachedRecord": {
+          "ecuSoftCode": "48330011DEE3003B7B",
+          "ecuConfigCode": "000000000000000000",
+          "ecuHardVer": "0.1.1",
+          "ecuId": "HTH-2021_FRL_BYD_00200001",
+          "ecuConfigVer": "0.00.00",
+          "ecuSoftVer": "3.00.04"
+        },
+        "exactCodeMatchesInAll225CacheRows": [
+          {
+            "index": 138,
+            "ecuId": "HTH-2021_FRL_BYD_00200001"
+          }
+        ],
+        "candidateRoleRowIds": [
+          1390,
+          1391,
+          1392
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 140,
+        "factoryPointer": "/ecus/140",
+        "cachePointer": "/ecuInfo/140",
+        "factoryRecord": {
+          "ecuId": "HTH-2021_FRL_BYD_00400001",
+          "ecuDiaId": "747/74F",
+          "ecuReprogramType": "can",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "",
+          "ecuDId": "FB25/FB24",
+          "ecuHardDid": "FB23",
+          "ecuConfigDid": "",
+          "seq": "3153",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        "cachedRecord": {
+          "ecuSoftCode": "48330011DEE3003BB2",
+          "ecuConfigCode": "000000000000000000",
+          "ecuHardVer": "0.1.3",
+          "ecuId": "HTH-2021_FRL_BYD_00400001",
+          "ecuConfigVer": "0.00.00",
+          "ecuSoftVer": "2.00.02"
+        },
+        "exactCodeMatchesInAll225CacheRows": [
+          {
+            "index": 140,
+            "ecuId": "HTH-2021_FRL_BYD_00400001"
+          }
+        ],
+        "candidateRoleRowIds": [
+          1390,
+          1391,
+          1392
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 5,
+        "factoryPointer": "/ecus/5",
+        "cachePointer": "/ecuInfo/5",
+        "factoryRecord": {
+          "ecuId": "HTH-2021_CDC_BYD_00200001",
+          "ecuDiaId": "720/728",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "0010",
+          "ecuDId": "C295/C294",
+          "ecuHardDid": "C293",
+          "ecuConfigDid": "",
+          "seq": "301",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        "cachedRecord": {
+          "ecuSoftCode": "4A500111DF019A0101",
+          "ecuConfigCode": "7F22",
+          "ecuHardVer": "7F22",
+          "ecuId": "HTH-2021_CDC_BYD_00200001",
+          "ecuConfigVer": "7F22",
+          "ecuSoftVer": "2.11.04"
+        },
+        "exactCodeMatchesInAll225CacheRows": [
+          {
+            "index": 5,
+            "ecuId": "HTH-2021_CDC_BYD_00200001"
+          }
+        ],
+        "candidateRoleRowIds": [
+          1455
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 10,
+        "factoryPointer": "/ecus/10",
+        "cachePointer": "/ecuInfo/10",
+        "factoryRecord": {
+          "ecuId": "HTH-2021_F_ZCU_BYD_00200001",
+          "ecuDiaId": "720/728",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "0010",
+          "ecuDId": "C395/C394",
+          "ecuHardDid": "C393",
+          "ecuConfigDid": "",
+          "seq": "352",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        "cachedRecord": {
+          "ecuSoftCode": "4A500111DF01540101",
+          "ecuConfigCode": "7F22",
+          "ecuHardVer": "7F22",
+          "ecuId": "HTH-2021_F_ZCU_BYD_00200001",
+          "ecuConfigVer": "7F22",
+          "ecuSoftVer": "2.11.02"
+        },
+        "exactCodeMatchesInAll225CacheRows": [
+          {
+            "index": 10,
+            "ecuId": "HTH-2021_F_ZCU_BYD_00200001"
+          }
+        ],
+        "candidateRoleRowIds": [
+          1397
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 7,
+        "factoryPointer": "/ecus/7",
+        "cachePointer": "/ecuInfo/7",
+        "factoryRecord": {
+          "ecuId": "HTH-2021_R_ZCU_BYD_00200001",
+          "ecuDiaId": "720/728",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "0010",
+          "ecuDId": "C495/C494",
+          "ecuHardDid": "C493",
+          "ecuConfigDid": "",
+          "seq": "341",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        "cachedRecord": {
+          "ecuSoftCode": "48450111DF01770101",
+          "ecuConfigCode": "7F22",
+          "ecuHardVer": "7F22",
+          "ecuId": "HTH-2021_R_ZCU_BYD_00200001",
+          "ecuConfigVer": "7F22",
+          "ecuSoftVer": "2.11.02"
+        },
+        "exactCodeMatchesInAll225CacheRows": [
+          {
+            "index": 7,
+            "ecuId": "HTH-2021_R_ZCU_BYD_00200001"
+          }
+        ],
+        "candidateRoleRowIds": [
+          1398
+        ],
+        "qualifiedNamedSubrole": null
+      },
+      {
+        "factoryRecordIndex": 9,
+        "factoryPointer": "/ecus/9",
+        "cachePointer": "/ecuInfo/9",
+        "factoryRecord": {
+          "ecuId": "HTH-2021_B_ZCU_BYD_00200001",
+          "ecuDiaId": "720/728",
+          "ecuReprogramType": "canfd",
+          "ecuChannel": "0",
+          "networkNumber": null,
+          "logicAddress": "0010",
+          "ecuDId": "C595/C594",
+          "ecuHardDid": "C593",
+          "ecuConfigDid": "",
+          "seq": "351",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "evidence": "server_candidate_only",
+          "eligibleForProductAllowlist": false
+        },
+        "cachedRecord": {
+          "ecuSoftCode": "48450111DF01760101",
+          "ecuConfigCode": "7F22",
+          "ecuHardVer": "7F22",
+          "ecuId": "HTH-2021_B_ZCU_BYD_00200001",
+          "ecuConfigVer": "7F22",
+          "ecuSoftVer": "2.11.02"
+        },
+        "exactCodeMatchesInAll225CacheRows": [
+          {
+            "index": 9,
+            "ecuId": "HTH-2021_B_ZCU_BYD_00200001"
+          }
+        ],
+        "candidateRoleRowIds": [
+          1396
+        ],
+        "qualifiedNamedSubrole": null
+      }
+    ],
+    "exactRawCatalogRows": [
+      {
+        "rowId": 1390,
+        "page": 1,
+        "pointer": "/data/Data/66",
+        "rawRow": {
+          "id": 1390,
+          "packid": null,
+          "lang": null,
+          "brand": "腾势汽车",
+          "version": "V6.61",
+          "year": null,
+          "series": null,
+          "displacement": null,
+          "engine_type": null,
+          "chassis": null,
+          "part": null,
+          "area": null,
+          "model": "Z9GT/Z9GT DM",
+          "system": "顶棚RLIN5网/前室内灯氛围灯左灯头(比亚迪)(FRL1)",
+          "system_type": null,
+          "read_ecu_information": "√",
+          "read_trouble_code": "×",
+          "clear_trouble_code": "×",
+          "live_data": "×",
+          "read_freeze_frame": "×",
+          "actuation_test": "×",
+          "special_functions": "×",
+          "ecu_configuration": null,
+          "coding": null,
+          "programming": null,
+          "component_protection": null,
+          "parameterized": null,
+          "boot_functions": null,
+          "maintenance": "×",
+          "system_decoupling": null,
+          "raw_brand": null,
+          "raw_model": null,
+          "is_offline": null
+        }
+      },
+      {
+        "rowId": 1391,
+        "page": 1,
+        "pointer": "/data/Data/67",
+        "rawRow": {
+          "id": 1391,
+          "packid": null,
+          "lang": null,
+          "brand": "腾势汽车",
+          "version": "V6.61",
+          "year": null,
+          "series": null,
+          "displacement": null,
+          "engine_type": null,
+          "chassis": null,
+          "part": null,
+          "area": null,
+          "model": "Z9GT/Z9GT DM",
+          "system": "顶棚RLIN5网/前室内灯氛围灯右灯头(比亚迪)(FRL2)",
+          "system_type": null,
+          "read_ecu_information": "√",
+          "read_trouble_code": "×",
+          "clear_trouble_code": "×",
+          "live_data": "×",
+          "read_freeze_frame": "×",
+          "actuation_test": "×",
+          "special_functions": "×",
+          "ecu_configuration": null,
+          "coding": null,
+          "programming": null,
+          "component_protection": null,
+          "parameterized": null,
+          "boot_functions": null,
+          "maintenance": "×",
+          "system_decoupling": null,
+          "raw_brand": null,
+          "raw_model": null,
+          "is_offline": null
+        }
+      },
+      {
+        "rowId": 1392,
+        "page": 1,
+        "pointer": "/data/Data/68",
+        "rawRow": {
+          "id": 1392,
+          "packid": null,
+          "lang": null,
+          "brand": "腾势汽车",
+          "version": "V6.61",
+          "year": null,
+          "series": null,
+          "displacement": null,
+          "engine_type": null,
+          "chassis": null,
+          "part": null,
+          "area": null,
+          "model": "Z9GT/Z9GT DM",
+          "system": "顶棚RLIN5网/前室内环境灯(比亚迪)(FRL3)",
+          "system_type": null,
+          "read_ecu_information": "√",
+          "read_trouble_code": "×",
+          "clear_trouble_code": "×",
+          "live_data": "×",
+          "read_freeze_frame": "×",
+          "actuation_test": "×",
+          "special_functions": "×",
+          "ecu_configuration": null,
+          "coding": null,
+          "programming": null,
+          "component_protection": null,
+          "parameterized": null,
+          "boot_functions": null,
+          "maintenance": "×",
+          "system_decoupling": null,
+          "raw_brand": null,
+          "raw_model": null,
+          "is_offline": null
+        }
+      },
+      {
+        "rowId": 1396,
+        "page": 1,
+        "pointer": "/data/Data/72",
+        "rawRow": {
+          "id": 1396,
+          "packid": null,
+          "lang": null,
+          "brand": "腾势汽车",
+          "version": "V6.61",
+          "year": null,
+          "series": null,
+          "displacement": null,
+          "engine_type": null,
+          "chassis": null,
+          "part": null,
+          "area": null,
+          "model": "Z9GT/Z9GT DM",
+          "system": "多媒体网/后域控制器_交换机(比亚迪)(B_ZCU_CJ)",
+          "system_type": null,
+          "read_ecu_information": "√",
+          "read_trouble_code": "×",
+          "clear_trouble_code": "×",
+          "live_data": "×",
+          "read_freeze_frame": "×",
+          "actuation_test": "×",
+          "special_functions": "×",
+          "ecu_configuration": null,
+          "coding": null,
+          "programming": null,
+          "component_protection": null,
+          "parameterized": null,
+          "boot_functions": null,
+          "maintenance": "×",
+          "system_decoupling": null,
+          "raw_brand": null,
+          "raw_model": null,
+          "is_offline": null
+        }
+      },
+      {
+        "rowId": 1397,
+        "page": 1,
+        "pointer": "/data/Data/73",
+        "rawRow": {
+          "id": 1397,
+          "packid": null,
+          "lang": null,
+          "brand": "腾势汽车",
+          "version": "V6.61",
+          "year": null,
+          "series": null,
+          "displacement": null,
+          "engine_type": null,
+          "chassis": null,
+          "part": null,
+          "area": null,
+          "model": "Z9GT/Z9GT DM",
+          "system": "多媒体网/前域控制器_交换机(比亚迪)(F_ZCU_CJ)",
+          "system_type": null,
+          "read_ecu_information": "√",
+          "read_trouble_code": "×",
+          "clear_trouble_code": "×",
+          "live_data": "×",
+          "read_freeze_frame": "×",
+          "actuation_test": "×",
+          "special_functions": "×",
+          "ecu_configuration": null,
+          "coding": null,
+          "programming": null,
+          "component_protection": null,
+          "parameterized": null,
+          "boot_functions": null,
+          "maintenance": "×",
+          "system_decoupling": null,
+          "raw_brand": null,
+          "raw_model": null,
+          "is_offline": null
+        }
+      },
+      {
+        "rowId": 1398,
+        "page": 1,
+        "pointer": "/data/Data/74",
+        "rawRow": {
+          "id": 1398,
+          "packid": null,
+          "lang": null,
+          "brand": "腾势汽车",
+          "version": "V6.61",
+          "year": null,
+          "series": null,
+          "displacement": null,
+          "engine_type": null,
+          "chassis": null,
+          "part": null,
+          "area": null,
+          "model": "Z9GT/Z9GT DM",
+          "system": "多媒体网/右域控制器_交换机(比亚迪)(R_ZCU_CJ)",
+          "system_type": null,
+          "read_ecu_information": "√",
+          "read_trouble_code": "√",
+          "clear_trouble_code": "×",
+          "live_data": "×",
+          "read_freeze_frame": "×",
+          "actuation_test": "×",
+          "special_functions": "×",
+          "ecu_configuration": null,
+          "coding": null,
+          "programming": null,
+          "component_protection": null,
+          "parameterized": null,
+          "boot_functions": null,
+          "maintenance": "×",
+          "system_decoupling": null,
+          "raw_brand": null,
+          "raw_model": null,
+          "is_offline": null
+        }
+      },
+      {
+        "rowId": 1406,
+        "page": 1,
+        "pointer": "/data/Data/82",
+        "rawRow": {
+          "id": 1406,
+          "packid": null,
+          "lang": null,
+          "brand": "腾势汽车",
+          "version": "V6.61",
+          "year": null,
+          "series": null,
+          "displacement": null,
+          "engine_type": null,
+          "chassis": null,
+          "part": null,
+          "area": null,
+          "model": "Z9GT/Z9GT DM",
+          "system": "多媒体网/组合仪表_开阳MCU(比亚迪)(INS_MCU)",
+          "system_type": null,
+          "read_ecu_information": "√",
+          "read_trouble_code": "×",
+          "clear_trouble_code": "×",
+          "live_data": "×",
+          "read_freeze_frame": "×",
+          "actuation_test": "×",
+          "special_functions": "×",
+          "ecu_configuration": null,
+          "coding": null,
+          "programming": null,
+          "component_protection": null,
+          "parameterized": null,
+          "boot_functions": null,
+          "maintenance": "×",
+          "system_decoupling": null,
+          "raw_brand": null,
+          "raw_model": null,
+          "is_offline": null
+        }
+      },
+      {
+        "rowId": 1407,
+        "page": 1,
+        "pointer": "/data/Data/83",
+        "rawRow": {
+          "id": 1407,
+          "packid": null,
+          "lang": null,
+          "brand": "腾势汽车",
+          "version": "V6.61",
+          "year": null,
+          "series": null,
+          "displacement": null,
+          "engine_type": null,
+          "chassis": null,
+          "part": null,
+          "area": null,
+          "model": "Z9GT/Z9GT DM",
+          "system": "多媒体网/组合仪表_音源模块(比亚迪)(INS2)",
+          "system_type": null,
+          "read_ecu_information": "√",
+          "read_trouble_code": "×",
+          "clear_trouble_code": "×",
+          "live_data": "×",
+          "read_freeze_frame": "×",
+          "actuation_test": "×",
+          "special_functions": "×",
+          "ecu_configuration": null,
+          "coding": null,
+          "programming": null,
+          "component_protection": null,
+          "parameterized": null,
+          "boot_functions": null,
+          "maintenance": "×",
+          "system_decoupling": null,
+          "raw_brand": null,
+          "raw_model": null,
+          "is_offline": null
+        }
+      },
+      {
+        "rowId": 1455,
+        "page": 2,
+        "pointer": "/data/Data/31",
+        "rawRow": {
+          "id": 1455,
+          "packid": null,
+          "lang": null,
+          "brand": "腾势汽车",
+          "version": "V6.61",
+          "year": null,
+          "series": null,
+          "displacement": null,
+          "engine_type": null,
+          "chassis": null,
+          "part": null,
+          "area": null,
+          "model": "Z9GT/Z9GT DM",
+          "system": "诊断网/跨域计算平台_交换机(比亚迪)(CDC_JH)",
+          "system_type": null,
+          "read_ecu_information": "√",
+          "read_trouble_code": "×",
+          "clear_trouble_code": "×",
+          "live_data": "×",
+          "read_freeze_frame": "×",
+          "actuation_test": "×",
+          "special_functions": "×",
+          "ecu_configuration": null,
+          "coding": null,
+          "programming": null,
+          "component_protection": null,
+          "parameterized": null,
+          "boot_functions": null,
+          "maintenance": "×",
+          "system_decoupling": null,
+          "raw_brand": null,
+          "raw_model": null,
+          "is_offline": null
+        }
+      }
+    ],
+    "catalogFieldsPerTargetRow": 33,
+    "catalogNamespaceJoinColumnsPresent": [],
+    "stockFunctionMap": {
+      "routes": [
+        {
+          "requestId": "720",
+          "caseCount": 96,
+          "systemCaseCounts": {
+            "儿童锁系统": 2,
+            "充电口灯系统": 6,
+            "口盖系统": 2,
+            "后视镜系统": 6,
+            "喇叭系统": 2,
+            "座椅灯光系统": 4,
+            "座椅调节系统": 16,
+            "座椅通风加热系统": 8,
+            "氛围灯系统": 4,
+            "灯光系统2": 6,
+            "管柱系统": 8,
+            "背光系统": 12,
+            "车窗系统": 8,
+            "门把手系统": 4,
+            "门锁防盗系统": 4,
+            "雨刮洗涤系统": 4
+          },
+          "allCaseDids": [
+            "22C2",
+            "2542",
+            "2543",
+            "2544",
+            "2545",
+            "2546",
+            "2547",
+            "2548",
+            "2549",
+            "3030",
+            "3031",
+            "3060",
+            "30C2",
+            "30C3",
+            "30F0",
+            "30F1",
+            "30F2",
+            "3120",
+            "3121",
+            "3153",
+            "32C0",
+            "32C1",
+            "32C4",
+            "32C5",
+            "3300",
+            "3360",
+            "3390",
+            "33C0",
+            "33C1",
+            "33F0",
+            "33F1",
+            "33F2",
+            "33F3",
+            "3540",
+            "3541",
+            "3542",
+            "3543",
+            "3544",
+            "3545",
+            "35C0",
+            "3737",
+            "3738",
+            "3739",
+            "373A",
+            "373B"
+          ]
+        },
+        {
+          "requestId": "726",
+          "caseCount": 4,
+          "systemCaseCounts": {
+            "后背门系统": 4
+          },
+          "allCaseDids": [
+            "34A0",
+            "34A1"
+          ]
+        },
+        {
+          "requestId": "747",
+          "caseCount": 47,
+          "systemCaseCounts": {
+            "儿童锁系统": 2,
+            "口盖系统": 2,
+            "后视镜系统": 6,
+            "座椅灯光系统": 4,
+            "氛围灯系统": 6,
+            "灯光系统2": 12,
+            "遮阳帘天窗系统": 5,
+            "门把手系统": 4,
+            "门锁防盗系统": 4,
+            "雨刮洗涤系统": 2
+          },
+          "allCaseDids": [
+            "3032",
+            "3033",
+            "3063",
+            "3091",
+            "3092",
+            "30C0",
+            "30C4",
+            "30C5",
+            "30F3",
+            "30F4",
+            "30F5",
+            "3120",
+            "3121",
+            "3122",
+            "3330",
+            "3331",
+            "3362",
+            "3391",
+            "33C2",
+            "33C3",
+            "35C2",
+            "373C",
+            "373D",
+            "373E",
+            "373F"
+          ]
+        },
+        {
+          "requestId": "770",
+          "caseCount": 10,
+          "systemCaseCounts": {
+            "座椅灯光系统": 10
+          },
+          "allCaseDids": [
+            "2001",
+            "2002",
+            "2003",
+            "2004",
+            "2005"
+          ]
+        },
+        {
+          "requestId": "771",
+          "caseCount": 10,
+          "systemCaseCounts": {
+            "座椅灯光系统": 10
+          },
+          "allCaseDids": [
+            "2001",
+            "2002",
+            "2003",
+            "2004",
+            "2005"
+          ]
+        }
+      ],
+      "targetCodeDidsPresent": [],
+      "scope": "Bundled script, vehicle/software applicability unqualified; no execution"
+    },
+    "stockLowPowerNamedRoutes": [
+      {
+        "pointer": "/data/attach/0",
+        "ecuAbbrName": "LA_BCM",
+        "ecuName": "左车身域控制器",
+        "bus": {
+          "net": 0,
+          "type": "CANFD"
+        },
+        "can": {
+          "arbBaud": 500000,
+          "datBaud": 2000000,
+          "frameFormat": 0,
+          "reqCanId": 1824,
+          "rspCanId": [
+            1832
+          ]
+        }
+      },
+      {
+        "pointer": "/data/attach/1",
+        "ecuAbbrName": "LBMS",
+        "ecuName": "低压电池管理系统",
+        "bus": {
+          "net": 0,
+          "type": "CANFD"
+        },
+        "can": {
+          "arbBaud": 500000,
+          "datBaud": 2000000,
+          "frameFormat": 0,
+          "reqCanId": 1890,
+          "rspCanId": [
+            1898
+          ]
+        }
+      }
+    ],
+    "devtoolsVersionManager": {
+      "requestIds": [
+        "7F2",
+        "760",
+        "761",
+        "7D4",
+        "7C2",
+        "704",
+        "701",
+        "784",
+        "736",
+        "730",
+        "786"
+      ],
+      "responseIds": [
+        "709",
+        "70C",
+        "71A",
+        "738",
+        "73E",
+        "7CA",
+        "7DC",
+        "7FA",
+        "768",
+        "769",
+        "78D",
+        "78E"
+      ],
+      "targetParentRouteIntersection": []
+    },
+    "genericInstrumentVersion": {
+      "deviceId": 1027,
+      "getBufferFidDecimal": 458157,
+      "querySetterFidDecimal": 626182,
+      "anchors": [
+        {
+          "line": 27,
+          "literal": "private static int mDeviceType = 1027;"
+        },
+        {
+          "line": 77,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 118,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 142,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 160,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 169,
+          "literal": "int result = super.set(mDeviceType, 626182, 626182);"
+        },
+        {
+          "line": 175,
+          "literal": "byte[] vbyte = super.getBuffer(mDeviceType, 458157);"
+        },
+        {
+          "line": 184,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 208,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 232,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 256,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 280,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 304,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 328,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 352,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 376,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        },
+        {
+          "line": 400,
+          "literal": "String version = new String(vbyte, \"US-ASCII\");"
+        }
+      ],
+      "childNamespaceSelector": null,
+      "scope": "Generic instrument version string, no MCU/audio child-name or software-code join"
+    }
+  },
+  "rawAudit": {
+    "path": "captures/diagnostics-followup-20261021/remaining-roles/verified-facts.json",
+    "sha256": "5fda0c444173cd6aa8b822e73275a2f4069f477e1bac0079fa10d256a66e07e1"
+  },
+  "checker": {
+    "path": "research/vehicle-diagnostics/check_remaining_roles_followup.py",
+    "command": "python3 research/vehicle-diagnostics/check_remaining_roles_followup.py"
+  },
+  "rawFunctionCases": {
+    "path": "captures/diagnostics-followup-20261021/remaining-roles/stock-function-cases.json",
+    "sha256": "da876ff7ba40f5781aa157870f4b43e6216310b98ca82ae17ee316a543cbe5e6",
+    "scope": "Offline source-selected case labels/pointers and DID membership; retained for audit only, not a live execution plan."
+  }
+}

@@ -1,0 +1,521 @@
+{
+  "schema": "denza-lab.brake-vcu-obd-completion.v1",
+  "date": "2026-10-21",
+  "scope": "Finite read-only parked pass, engine stopped; no retry, write, session change, new DID, VIN, CVN, APK install or OTA. Existing immutable helper, fixed23 requests.",
+  "captureBase": "captures/diagnostics-followup-20261021/brake-vcu",
+  "sources": [
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/app-baseline.json",
+      "sha256": "4bcdaba4d1793161b32722707f193169dccf1040d2ca16eaa497e4320f55a105"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/health.py",
+      "sha256": "eb8f1a43ee1ca946b959664588806137a0216d229be82050db78b20b93cf9103"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/live-01/protocol.txt",
+      "sha256": "e4ee168ad296bbccb56832326c5b59c16c8f43df43b92733db6229b93c71153a"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/live-01/result.json",
+      "sha256": "ad6115e6f5fafda574cd55df3d9b275471871e4b53cce7e3382cbe1992942305"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/live-01/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/plan.json",
+      "sha256": "26b5ed2240151272f34aec74fcf998731c6d3acad5e4897a6a6e0839e6e086ef"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/processes.txt",
+      "sha256": "3b85e7439e83b990e3b457f9916e93fb75b6d1a569044ecfd035e1c7712c1a73"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/postflight/status.json",
+      "sha256": "4d4426e3f8cf637f5907c90c72c9ba78549cd05c874b72dccdbfcc2fb8d2990e"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/processes.txt",
+      "sha256": "1c82f28adbcc181d20b5f293ac8ff7ee893b7fa6f00c0946db40d2673750fc45"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/preflight/status.json",
+      "sha256": "30bcf8fc5034536fa281fabf69c9300d15bbcf4eef0dcc5a30f3328b3c2a72bf"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/brake-vcu/run.py",
+      "sha256": "0f9dd297a0269034149aa96fbc2b8f0fdd57737f6a885f199a96ad94cda74ca6"
+    },
+    {
+      "path": "research/vehicle-diagnostics/obd-20261020.json",
+      "sha256": "61243879c8ac46abc5f7f22e11197960bdbb9d63f94c2620b2893d6c2ee513e9"
+    },
+    {
+      "path": "research/vehicle-diagnostics/remaining-ecus-20261020.json",
+      "sha256": "1556d832e11864006c71671ff8bfdc51b7eb68cc2547adc31ac89dbcc600aeb5"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/diagnostic-bus.jar",
+      "sha256": "b765db9f1bac0f36e94a40dc02986cd2d683feaae37d3a49ee233ed5db5e342d"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/build.json",
+      "sha256": "a7b1da0b1660a59b1ca4152689f272d52f109b98349627a6220ed1a5356f4a32"
+    }
+  ],
+  "identities": {
+    "7E0": {
+      "F194": "32440011E004000000",
+      "role": "ECM control"
+    },
+    "7E2": {
+      "F194": "32440011E07E007841",
+      "role": "VCU"
+    },
+    "7E5": {
+      "calibrationId": "4000825042253153",
+      "name": "BSCM-BrakeSystem",
+      "physicalRelationshipTo782": "unproved; not evidence of two physical brake controllers"
+    }
+  },
+  "wireResponses": [
+    {
+      "seq": 1,
+      "targetHex": "7E0",
+      "requestHex": "22F194",
+      "responseHex": "62F19432440011E004000000",
+      "frames": 1,
+      "latencyMs": 15,
+      "receivedNanos": 155581826132078
+    },
+    {
+      "seq": 2,
+      "targetHex": "7E0",
+      "requestHex": "010C",
+      "responseHex": "410C0000",
+      "frames": 1,
+      "latencyMs": 14,
+      "receivedNanos": 155582340814155
+    },
+    {
+      "seq": 3,
+      "targetHex": "7E5",
+      "requestHex": "0900",
+      "responseHex": "490014400000",
+      "frames": 1,
+      "latencyMs": 16,
+      "receivedNanos": 155582858860924
+    },
+    {
+      "seq": 4,
+      "targetHex": "7E5",
+      "requestHex": "0904",
+      "responseHex": "49040134303030383235303432323533313533",
+      "frames": 1,
+      "latencyMs": 20,
+      "receivedNanos": 155583380852309
+    },
+    {
+      "seq": 5,
+      "targetHex": "7E5",
+      "requestHex": "090A",
+      "responseHex": "490A014253434D2D4272616B6553797374656D00000000",
+      "frames": 1,
+      "latencyMs": 15,
+      "receivedNanos": 155583898263462
+    },
+    {
+      "seq": 6,
+      "targetHex": "7E5",
+      "requestHex": "0100",
+      "responseHex": "410098180001",
+      "frames": 1,
+      "latencyMs": 17,
+      "receivedNanos": 155584417006539
+    },
+    {
+      "seq": 7,
+      "targetHex": "7E5",
+      "requestHex": "0120",
+      "responseHex": "412000010001",
+      "frames": 1,
+      "latencyMs": 13,
+      "receivedNanos": 155584931657232
+    },
+    {
+      "seq": 8,
+      "targetHex": "7E5",
+      "requestHex": "0140",
+      "responseHex": "414040800000",
+      "frames": 1,
+      "latencyMs": 14,
+      "receivedNanos": 155585447847386
+    },
+    {
+      "seq": 9,
+      "targetHex": "7E5",
+      "requestHex": "0130",
+      "responseHex": "413001",
+      "frames": 1,
+      "latencyMs": 7,
+      "receivedNanos": 155585956956693
+    },
+    {
+      "seq": 10,
+      "targetHex": "7E5",
+      "requestHex": "0142",
+      "responseHex": "414235C9",
+      "frames": 1,
+      "latencyMs": 14,
+      "receivedNanos": 155586473362770
+    },
+    {
+      "seq": 11,
+      "targetHex": "7E5",
+      "requestHex": "0149",
+      "responseHex": "414900",
+      "frames": 1,
+      "latencyMs": 11,
+      "receivedNanos": 155586986435078
+    },
+    {
+      "seq": 12,
+      "targetHex": "7E2",
+      "requestHex": "22F194",
+      "responseHex": "62F19432440011E07E007841",
+      "frames": 1,
+      "latencyMs": 15,
+      "receivedNanos": 155587502488693
+    },
+    {
+      "seq": 13,
+      "targetHex": "7E2",
+      "requestHex": "0100",
+      "responseHex": "410088180001",
+      "frames": 1,
+      "latencyMs": 15,
+      "receivedNanos": 155588018547693
+    },
+    {
+      "seq": 14,
+      "targetHex": "7E2",
+      "requestHex": "0120",
+      "responseHex": "412080000001",
+      "frames": 1,
+      "latencyMs": 19,
+      "receivedNanos": 155588539224617
+    },
+    {
+      "seq": 15,
+      "targetHex": "7E2",
+      "requestHex": "0140",
+      "responseHex": "4140C0C00000",
+      "frames": 1,
+      "latencyMs": 10,
+      "receivedNanos": 155589051075155
+    },
+    {
+      "seq": 16,
+      "targetHex": "7E2",
+      "requestHex": "0121",
+      "responseHex": "41210000",
+      "frames": 1,
+      "latencyMs": 22,
+      "receivedNanos": 155589574844001
+    },
+    {
+      "seq": 17,
+      "targetHex": "7E2",
+      "requestHex": "0141",
+      "responseHex": "414100040000",
+      "frames": 1,
+      "latencyMs": 12,
+      "receivedNanos": 155590090716694
+    },
+    {
+      "seq": 18,
+      "targetHex": "7E2",
+      "requestHex": "0142",
+      "responseHex": "41423514",
+      "frames": 1,
+      "latencyMs": 18,
+      "receivedNanos": 155590610843771
+    },
+    {
+      "seq": 19,
+      "targetHex": "7E2",
+      "requestHex": "0149",
+      "responseHex": "414900",
+      "frames": 1,
+      "latencyMs": 17,
+      "receivedNanos": 155591129978847
+    },
+    {
+      "seq": 20,
+      "targetHex": "7E2",
+      "requestHex": "014A",
+      "responseHex": "414A00",
+      "frames": 1,
+      "latencyMs": 21,
+      "receivedNanos": 155591652381309
+    },
+    {
+      "seq": 21,
+      "targetHex": "7E0",
+      "requestHex": "0105",
+      "responseHex": "410532",
+      "frames": 1,
+      "latencyMs": 15,
+      "receivedNanos": 155592170037848
+    },
+    {
+      "seq": 22,
+      "targetHex": "7E2",
+      "requestHex": "0105",
+      "responseHex": "410546",
+      "frames": 1,
+      "latencyMs": 17,
+      "receivedNanos": 155592690151155
+    },
+    {
+      "seq": 23,
+      "targetHex": "7E5",
+      "requestHex": "0105",
+      "responseHex": "410532",
+      "frames": 1,
+      "latencyMs": 11,
+      "receivedNanos": 155593202311694
+    }
+  ],
+  "newParameters": [
+    {
+      "target": "7E5",
+      "request": "0130",
+      "response": "413001",
+      "standardName": "Warm-ups since DTC clear",
+      "unit": "count",
+      "value": 1,
+      "physicalSourceQualified": false
+    },
+    {
+      "target": "7E5",
+      "request": "0142",
+      "response": "414235C9",
+      "standardName": "Control module voltage",
+      "unit": "V",
+      "value": 13.769,
+      "physicalSourceQualified": false
+    },
+    {
+      "target": "7E5",
+      "request": "0149",
+      "response": "414900",
+      "standardName": "Accelerator pedal D",
+      "unit": "%",
+      "value": 0,
+      "physicalSourceQualified": false
+    },
+    {
+      "target": "7E2",
+      "request": "0121",
+      "response": "41210000",
+      "standardName": "Distance travelled with MIL on",
+      "unit": "km",
+      "value": 0,
+      "physicalSourceQualified": false
+    },
+    {
+      "target": "7E2",
+      "request": "0141",
+      "response": "414100040000",
+      "standardName": "Readiness this driving cycle",
+      "unit": "raw",
+      "value": "00040000",
+      "physicalSourceQualified": false
+    },
+    {
+      "target": "7E2",
+      "request": "0142",
+      "response": "41423514",
+      "standardName": "Control module voltage",
+      "unit": "V",
+      "value": 13.588,
+      "physicalSourceQualified": false
+    },
+    {
+      "target": "7E2",
+      "request": "0149",
+      "response": "414900",
+      "standardName": "Accelerator pedal D",
+      "unit": "%",
+      "value": 0,
+      "physicalSourceQualified": false
+    },
+    {
+      "target": "7E2",
+      "request": "014A",
+      "response": "414A00",
+      "standardName": "Accelerator pedal E",
+      "unit": "%",
+      "value": 0,
+      "physicalSourceQualified": false
+    }
+  ],
+  "advertisedNonBitmapCoverage": {
+    "7E2": {
+      "pids": [
+        "01",
+        "05",
+        "0C",
+        "0D",
+        "21",
+        "41",
+        "42",
+        "49",
+        "4A"
+      ],
+      "count": 9,
+      "allRepliedAcrossRetainedPasses": true
+    },
+    "7E5": {
+      "pids": [
+        "01",
+        "04",
+        "05",
+        "0C",
+        "0D",
+        "30",
+        "42",
+        "49"
+      ],
+      "count": 8,
+      "allRepliedAcrossRetainedPasses": true
+    }
+  },
+  "coolantComparison": {
+    "request": "0105",
+    "standardFormula": "A-40 degrees Celsius",
+    "values": [
+      {
+        "target": "7E0",
+        "response": "410532",
+        "nominalC": 10,
+        "receivedNanos": 155592170037848
+      },
+      {
+        "target": "7E2",
+        "response": "410546",
+        "nominalC": 30,
+        "receivedNanos": 155592690151155
+      },
+      {
+        "target": "7E5",
+        "response": "410532",
+        "nominalC": 10,
+        "receivedNanos": 155593202311694
+      }
+    ],
+    "windowNanos": 1032273846,
+    "finding": "The same standard PID differs by ECU in a short sequential parked window. Store source ECU with value; do not silently merge or label7E5 as brake temperature. Physical sensor, forwarded value, ECU mapping and freshness remain unresolved."
+  },
+  "bounds": {
+    "gapMs": 500,
+    "perRequestMs": 4000,
+    "overallHostSeconds": 100,
+    "responses": 23,
+    "latencyMsMin": 7,
+    "latencyMsMax": 22
+  },
+  "health": {
+    "preflight": "captures/diagnostics-followup-20261021/brake-vcu/preflight/status.json",
+    "postflight": "captures/diagnostics-followup-20261021/brake-vcu/postflight/status.json",
+    "installedApkSha256": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+    "sameStockPids": true,
+    "emptyCrashBuffers": true,
+    "jarRemoved": true,
+    "helperAbsent": true,
+    "helperExitCode": 0
+  },
+  "limits": [
+    "OBD monitoring/counters are not brake-specific sensor diagnostics. No wheel speed, brake pressure or steering measurement was obtained from these PIDs.",
+    "Code-read counters do not identify who cleared memory or when. This pass did not clear or reread DTC.",
+    "Advertised support and valid payload shape do not prove physical sensor validity, topology or acquisition freshness.",
+    "Voltage values are separate ECU-reported readings; no comparison to a calibrated electrical meter.",
+    "Readiness raw00040000 is a monitor bitfield, not a DTC code or proof that an entire system passed diagnostics.",
+    "No product polling/catalog/decoder/UI change was made by this pass."
+  ]
+}

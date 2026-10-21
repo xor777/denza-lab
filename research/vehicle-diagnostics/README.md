@@ -41,6 +41,13 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   non-bitmap PIDs have now replied across retained passes, not43 qualified
   sensors. `check_ecm_completion.py` checks source hashes, exact stop/cleanup,
   scalar arithmetic, the new pre-existing APK baseline and nine damaged traces.
+- `brake-vcu-obd-completion-20261021.json` adds23 bounded replies and8 new
+  advertised parameters: all8 BSCM and9 VCU non-bitmap PIDs have now replied.
+  Sequential coolant PID05 replies differ by ECU (ECM10°C, VCU30°C, BSCM10°C),
+  so the source must remain attached to the value. This provides no new
+  brake-specific sensors or physical relationship between BSCM7E5 and ESP782.
+  `check_brake_vcu_completion.py` checks33 sources, coverage/arithmetic/health
+  and six damaged transcripts. No product changes or APK installation.
 - `powertrain-scalar-quality-20261021.json` traces13 drive/BMS scalar fields:
   a rejected front-current update preserves the old float cache, rear converters
   use a different range/offset, and initial cache values can narrow into ordinary
@@ -58,6 +65,24 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   bound to ISG ECU telemetry. `bms-current-checker.py`, run with
   `.venv-firmware/bin/python`, checks15 sources,8 native anchors,3 AutoID
   variants,65536 inputs and59 retained frames without vehicle I/O.
+- `battery-validity-followup-20261021.json` separates count validity, native
+  array cache/completion and collection-policy status from battery health.
+  It proves the count255 cache/callback divergence and models duplicate pages
+  setting completion while slots retain initial zeros. Six native reason
+  strings describe collection gates;14 charging-state and2 contactor labels
+  belong to separate APIs, not cell fault/balancing codes.
+  `.venv-firmware/bin/python research/vehicle-diagnostics/battery-validity-checker.py`
+  checks16 sources,15 native anchors,4 text anchors,65536 count inputs,
+  24576 policy combinations and40 retained metadata frames. No vehicle changes.
+- `oem-warning-mappings-20261021.json` traces8 priority warning IDs to original
+  Chinese messages and colors in the628-entry car-matched popup dictionary,
+  with separately labelled Russian translations. MCU CAN261/channel0 low10bits
+  feed1007/26100008, then the native/Godot popup chain. Raw0 and hidden-popup0
+  are not ECU-health results. Active cluster loading, fault ownership and
+  warning-to-DTC mappings remain unproved.
+  `.venv-firmware/bin/python research/vehicle-diagnostics/check_oem_warning_mappings.py`
+  checks43 sources,9 original token buffers,27 native anchors,25 line anchors,
+  8 mappings,19 retained frames and2 historical GETs without vehicle I/O.
 
 - `remaining-ecus-20261020.json` continues those runs: 70 distinct F194 targets,
   33 positive responses and 32 exact stock-cache matches. ABS/ESP `782`, EPS
@@ -146,6 +171,12 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   crosswalk to the factory map and previous live inventory. Rows include supplier
   alternatives and LIN children; they are not 172 installed ECUs. This is a
   diagnostic-tool manufacturer's catalog, not an OEM DTC dictionary.
+- `remaining-role-followup-20261021.json` audits the nine unresolved INS/FRL/
+  CDC-ZCU child namespaces. Full codes are unique across225 cache rows; nine
+  raw catalog rows and named stock function/version readers supply no exact
+  role join. It explains why repeated identity/hardware reads cannot close
+  that gap and proposes no guessed child-name DID.
+  `check_remaining_roles_followup.py` reproduces the source checks offline.
 - `ecu-role-evidence-20261021.json` joins the model names to factory identities
   and observed F194 for all 25 previously unnamed catalog entries and the two
   rear drives. It retains Russian labels, source row IDs and limits. Product

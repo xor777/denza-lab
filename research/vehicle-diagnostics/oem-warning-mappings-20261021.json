@@ -1,0 +1,1010 @@
+{
+  "schema": "denza-lab.oem-warning-mappings.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "warningMappings": 8,
+  "dtcMappings": 0,
+  "applicability": {
+    "firmware": "owner IVI 34.1.33.2605218.1",
+    "nativeAndPopupCapture": "2026-10-18 owner-vehicle pulls; recorded matching live SHA-256",
+    "runtimeClusterLoadingVerified": false,
+    "installedMCUImageVerified": false,
+    "noFaultWasInduced": true
+  },
+  "dictionary": {
+    "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+    "version": "20250408",
+    "language": "zh",
+    "entries": 628,
+    "warningZeroInDictionary": false,
+    "scope": "Eight selected static message meanings; not a DTC dictionary or proof of installed optional components."
+  },
+  "property": {
+    "fid": "0x26100008",
+    "decimal": 638582792,
+    "device": 1007,
+    "transaction": 5,
+    "type": "getInt",
+    "frameworkGetter": "BYDAutoInstrumentDevice.getTextInfo",
+    "nativeCanDataType": "UINT16",
+    "fieldWidthBits": 10,
+    "domain": [
+      0,
+      1023
+    ],
+    "halStorageType": 1,
+    "halRegistrationVA": "0x128cc8",
+    "halConverterVA": "0xe0be0",
+    "halConverterBehavior": "No operation; returns success0, no scaling.",
+    "retainedGET": [
+      {
+        "line": 13191,
+        "passNumber": 1,
+        "elapsedRealtimeNanos": 74752721713303,
+        "word": "0x00000000"
+      },
+      {
+        "line": 23195,
+        "passNumber": 2,
+        "elapsedRealtimeNanos": 74860374643848,
+        "word": "0x00000000"
+      }
+    ],
+    "currentFreshness": "Historical captures only; no new live read."
+  },
+  "mcu": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+    "loadBase": "0x40000",
+    "frameTableVA": "0xd637c",
+    "frameTableKey": "0xe0026100",
+    "canId": "0x261",
+    "channel": 0,
+    "subId": 0,
+    "descriptorVA": "0xdf890",
+    "propertyVA": "0x93a5c",
+    "coordinatesOneBasedByteLSB0": [
+      1,
+      0,
+      2,
+      1
+    ],
+    "handlerVA": "0x18a09c",
+    "bitExtractorVA": "0x149e90",
+    "algorithm": "(payload[0] | (payload[1] << 8)) & 0x03FF; payload must be from CAN0x261/sub0/channel0.",
+    "fieldIsEnumNotFaultBitmap": true,
+    "underlyingFaultOwnerUnknown": true,
+    "retainedFrames": [
+      {
+        "line": 39,
+        "envelopeHex": "0000026100000442b6e1000c7c30001ed059",
+        "payloadHex": "000c7c30001ed059",
+        "warningId": 0
+      },
+      {
+        "line": 86,
+        "envelopeHex": "0000026100000442bad0000c7c30001e1019",
+        "payloadHex": "000c7c30001e1019",
+        "warningId": 0
+      },
+      {
+        "line": 132,
+        "envelopeHex": "0000026100000442beca000c7c30001e50d9",
+        "payloadHex": "000c7c30001e50d9",
+        "warningId": 0
+      },
+      {
+        "line": 178,
+        "envelopeHex": "0000026100000442c2b9000c7c30001e9099",
+        "payloadHex": "000c7c30001e9099",
+        "warningId": 0
+      },
+      {
+        "line": 224,
+        "envelopeHex": "0000026100000442c6ac000c7c30001ed059",
+        "payloadHex": "000c7c30001ed059",
+        "warningId": 0
+      },
+      {
+        "line": 270,
+        "envelopeHex": "0000026100000442ca9f000c7c30001e1019",
+        "payloadHex": "000c7c30001e1019",
+        "warningId": 0
+      },
+      {
+        "line": 315,
+        "envelopeHex": "0000026100000442ce95000c7c30001e50d9",
+        "payloadHex": "000c7c30001e50d9",
+        "warningId": 0
+      },
+      {
+        "line": 362,
+        "envelopeHex": "0000026100000442d286000c7c30001e9099",
+        "payloadHex": "000c7c30001e9099",
+        "warningId": 0
+      },
+      {
+        "line": 409,
+        "envelopeHex": "0000026100000442d679000c7c30001ed059",
+        "payloadHex": "000c7c30001ed059",
+        "warningId": 0
+      },
+      {
+        "line": 456,
+        "envelopeHex": "0000026100000442da69000c7c30001e1019",
+        "payloadHex": "000c7c30001e1019",
+        "warningId": 0
+      },
+      {
+        "line": 501,
+        "envelopeHex": "0000026100000442de5d000c7c30001e50d9",
+        "payloadHex": "000c7c30001e50d9",
+        "warningId": 0
+      },
+      {
+        "line": 547,
+        "envelopeHex": "0000026100000442e24d000c7c30001e9099",
+        "payloadHex": "000c7c30001e9099",
+        "warningId": 0
+      },
+      {
+        "line": 593,
+        "envelopeHex": "0000026100000442e63d000c7c30001ed059",
+        "payloadHex": "000c7c30001ed059",
+        "warningId": 0
+      },
+      {
+        "line": 640,
+        "envelopeHex": "0000026100000442ea32000c7c30001e1019",
+        "payloadHex": "000c7c30001e1019",
+        "warningId": 0
+      },
+      {
+        "line": 685,
+        "envelopeHex": "0000026100000442ee24000c7c30001e50d9",
+        "payloadHex": "000c7c30001e50d9",
+        "warningId": 0
+      },
+      {
+        "line": 731,
+        "envelopeHex": "0000026100000442f217000c7c30001e9099",
+        "payloadHex": "000c7c30001e9099",
+        "warningId": 0
+      },
+      {
+        "line": 777,
+        "envelopeHex": "0000026100000442f60c000c7c30001ed059",
+        "payloadHex": "000c7c30001ed059",
+        "warningId": 0
+      },
+      {
+        "line": 825,
+        "envelopeHex": "0000026100000442f9fd000c7c30001e1019",
+        "payloadHex": "000c7c30001e1019",
+        "warningId": 0
+      },
+      {
+        "line": 871,
+        "envelopeHex": "0000026100000442fdee000c7c30001e50d9",
+        "payloadHex": "000c7c30001e50d9",
+        "warningId": 0
+      }
+    ],
+    "retainedFrameCount": 19,
+    "retainedWarningIds": [
+      0
+    ],
+    "example": "000c7c30001ed059 givesU16LE0x0C00 but warningID0 because upper6bits do not belong to the warning field.",
+    "limitation": "OTA producer route is statically recovered; current-car MCU image has not been hash-matched. Retained raw frames agree structurally with historical GET0; they are not timestamp-paired."
+  },
+  "chain": [
+    "MCU channel 0 CAN 0x261/sub 0: descriptor 0xDF890 extracts 10 bits and associates property 0x26100008.",
+    "Framework getTextInfo reads device 1007/FID 0x26100008 as integer; native Binder transaction 5 takes two int32 arguments.",
+    "BusinessUi2::updateWarningInfo at 0x182DC0 reads UINT16 FID 0x26100008, gates visibility and admits an ID only if in its initialized set.",
+    "Admitted value is stored unchanged at this+0x20; updateCommonWarningInfoDisplay at 0x1826E0 publishes integer DataItem 0x320 (800 decimal)/commonWarningInfoId, directly or by a 500 ms timer.",
+    "PopupMsgHandle::OnDataItemUpdateInt at 0x44554C: the DataItem 0x320 (800 decimal) jump table leads to 0x4455A8; value is stored in WarnId.warn_id at offset 24 decimal and deferred emit_signal(sig_warn_id,WarnId).",
+    "common_mgr connects sig_warn_id→right_area_arb.slot_recv_pop_261; arbitration emits sig_trip_popup_261.",
+    "Popup261Mgr stores warnId.warn_id, formats uppercase hexadecimal %X, and performs an exact string lookup by id in the popup_nads.json dictionary.",
+    "ScenePopup261 copies original icon/text/textColor, passes text through tr(), then PopupNormal assigns label text/font color. Translation/theme/layout may affect final output."
+  ],
+  "gates": {
+    "nativeRequired": [
+      "FID 0x26F00000 == 1",
+      "FID 0x26F00028 == 3",
+      "FID 0x26100000 == 1",
+      "warning ID in BusinessUi2 allowlist"
+    ],
+    "nativeAdditional": "this+0x133 suppresses; this+0x135 suppresses if FID 0x12D0002A != 3. Special IDs have additional gates; the selected eight have none of those ID-specific branches. Existing cached ID 0x247 can delay the next publication by 100 ms. Display mode 2/3 schedules publication after 500 ms.",
+    "uiAdditional": "Charge/discharge scenes suppress; scene-mode suppresses except ID 319 decimal; scene-off/downstream popup/menu/phone arbitration also controls visibility.",
+    "zeroMeaning": "commonWarningInfoId == 0 clears/hides the popup, including when gates reject a nonzero raw ID. Raw warning ID 0 has no dictionary entry. Neither zero establishes ECU health, a universal OFF state or absence of stored DTCs."
+  },
+  "mappings": [
+    {
+      "warningIdHex": "0x1B",
+      "warningIdDecimal": 27,
+      "sourceDictionaryIndex": 4,
+      "sourceLine": 31,
+      "original": {
+        "id": "1B",
+        "text": "制动系统故障，请安全停车并联系服务店",
+        "textColor": "0xE60008FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x1B-0x62.png"
+      },
+      "ruTranslation": "Неисправность тормозной системы; безопасно остановитесь и обратитесь в сервис.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "красный цвет OEM-текста",
+      "enum": "WARN_ID_CHECK_BRAKE_SYSTEM",
+      "enumLine": 2306,
+      "allowlistVA": "0x17c544",
+      "severityNumeric": null,
+      "severityBasis": "Original textColor RGBA and instruction wording only; no ECU severity number recovered.",
+      "owningECU": null,
+      "dtcMappingProven": false
+    },
+    {
+      "warningIdHex": "0x1E",
+      "warningIdDecimal": 30,
+      "sourceDictionaryIndex": 7,
+      "sourceLine": 49,
+      "original": {
+        "id": "1E",
+        "text": "发动机冷却液温度过高，请安全停车并联系服务店",
+        "textColor": "0xE60008FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x1E-0x1F.png"
+      },
+      "ruTranslation": "Слишком высокая температура охлаждающей жидкости ДВС; безопасно остановитесь и обратитесь в сервис.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "красный цвет OEM-текста",
+      "enum": "WARN_ID_ENGINE_OVERHEAT",
+      "enumLine": 2309,
+      "allowlistVA": "0x17c5a4",
+      "severityNumeric": null,
+      "severityBasis": "Original textColor RGBA and instruction wording only; no ECU severity number recovered.",
+      "owningECU": null,
+      "dtcMappingProven": false
+    },
+    {
+      "warningIdHex": "0x20",
+      "warningIdDecimal": 32,
+      "sourceDictionaryIndex": 9,
+      "sourceLine": 61,
+      "original": {
+        "id": "20",
+        "text": "机油压力不足，请安全停车并联系服务店",
+        "textColor": "0xE60008FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x20.png"
+      },
+      "ruTranslation": "Недостаточное давление масла; безопасно остановитесь и обратитесь в сервис.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "красный цвет OEM-текста",
+      "enum": "WARN_ID_LOW_OIL_PRESSURE",
+      "enumLine": 2311,
+      "allowlistVA": "0x17c5e4",
+      "severityNumeric": null,
+      "severityBasis": "Original textColor RGBA and instruction wording only; no ECU severity number recovered.",
+      "owningECU": null,
+      "dtcMappingProven": false
+    },
+    {
+      "warningIdHex": "0x46",
+      "warningIdDecimal": 70,
+      "sourceDictionaryIndex": 41,
+      "sourceLine": 253,
+      "original": {
+        "id": "46",
+        "text": "请检查ABS系统",
+        "textColor": "0xF18D00FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x46.png"
+      },
+      "ruTranslation": "Проверьте систему ABS.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "оранжевый цвет OEM-текста",
+      "enum": "WARN_ID_CHECK_ABS",
+      "enumLine": 2342,
+      "allowlistVA": "0x17c9c4",
+      "severityNumeric": null,
+      "severityBasis": "Original textColor RGBA and instruction wording only; no ECU severity number recovered.",
+      "owningECU": null,
+      "dtcMappingProven": false
+    },
+    {
+      "warningIdHex": "0x5D",
+      "warningIdDecimal": 93,
+      "sourceDictionaryIndex": 53,
+      "sourceLine": 325,
+      "original": {
+        "id": "5D",
+        "text": "动力电池电量低，驱动功率受限",
+        "textColor": "0xF18D00FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x5C-0x5D-0x78.png"
+      },
+      "ruTranslation": "Низкий заряд тяговой батареи; мощность привода ограничена.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "оранжевый цвет OEM-текста",
+      "enum": "WARN_ID_LOW_BAT_TO_POWER_LIMITED",
+      "enumLine": 2354,
+      "allowlistVA": "0x17cb44",
+      "severityNumeric": null,
+      "severityBasis": "Original textColor RGBA and instruction wording only; no ECU severity number recovered.",
+      "owningECU": null,
+      "dtcMappingProven": false
+    },
+    {
+      "warningIdHex": "0x21",
+      "warningIdDecimal": 33,
+      "sourceDictionaryIndex": 10,
+      "sourceLine": 67,
+      "original": {
+        "id": "21",
+        "text": "系统故障，请安全停车并联系服务店",
+        "textColor": "0xE60008FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x21-0x171-SUV.png"
+      },
+      "ruTranslation": "Неисправность системы; безопасно остановитесь и обратитесь в сервис.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "красный цвет OEM-текста",
+      "enum": "WARN_ID_POWER_SYSTEM_ERROR",
+      "enumLine": 2312,
+      "allowlistVA": "0x17c604",
+      "severityNumeric": null,
+      "severityBasis": "Original textColor RGBA and instruction wording only; no ECU severity number recovered.",
+      "owningECU": null,
+      "dtcMappingProven": false
+    },
+    {
+      "warningIdHex": "0x47",
+      "warningIdDecimal": 71,
+      "sourceDictionaryIndex": 42,
+      "sourceLine": 259,
+      "original": {
+        "id": "47",
+        "text": "请检查四驱系统",
+        "textColor": "0xF18D00FF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x47.png"
+      },
+      "ruTranslation": "Проверьте систему полного привода.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "оранжевый цвет OEM-текста",
+      "enum": "WARN_ID_CHECK_4WD_SYSTEM",
+      "enumLine": 2343,
+      "allowlistVA": "0x17c9e4",
+      "severityNumeric": null,
+      "severityBasis": "Original textColor RGBA and instruction wording only; no ECU severity number recovered.",
+      "owningECU": null,
+      "dtcMappingProven": false
+    },
+    {
+      "warningIdHex": "0x358",
+      "warningIdDecimal": 856,
+      "sourceDictionaryIndex": 573,
+      "sourceLine": 3445,
+      "original": {
+        "id": "358",
+        "text": "电池温度高，加速性能下降",
+        "textColor": "0xEEF5FFFF",
+        "icon": "res://scenes/popup/popup_261/resources/images/0x342.png"
+      },
+      "ruTranslation": "Высокая температура батареи; ускорение ухудшено.",
+      "translationIsOEM": false,
+      "translationAttribution": "Наш перевод китайского OEM-текста; не заводская русская локализация.",
+      "severityLabel": "светлый цвет OEM-текста",
+      "enum": "WARN_ID_BATTERY_OVERHEAT_DECREASED_ACCELERATION_PERFORMANCE",
+      "enumLine": 2930,
+      "allowlistVA": "0x180b24",
+      "severityNumeric": null,
+      "severityBasis": "Original textColor RGBA and instruction wording only; no ECU severity number recovered.",
+      "owningECU": null,
+      "dtcMappingProven": false
+    }
+  ],
+  "gdcInputs": [
+    {
+      "path": "res://common/base_services/common_mgr.gdc",
+      "offset": 2023344,
+      "size": 43495,
+      "md5": "11e18d136dedcf0cf359a38d3ad0a55a",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/base_services/common_mgr.gdc",
+      "sha256": "08dc577bf905fdc805f0c43dcbffb5803508b37778d87dfdd20bf5cca0f78ca1"
+    },
+    {
+      "path": "res://common/base_services/ui_logic_arbitrate/right_area_arbitrate.gdc",
+      "offset": 2003760,
+      "size": 11772,
+      "md5": "ea0d91e5826b7289f9f3383ec17cd5c3",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gdc",
+      "sha256": "24beb48b6329d9837c8efc15378e3808949d45e004480d7b1eb82af40b80e172"
+    },
+    {
+      "path": "res://common/scene_services/popup_261_mgr.gdc",
+      "offset": 2377840,
+      "size": 10946,
+      "md5": "13d59ee6f8d37b073da70ec93a0e1f38",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_261_mgr.gdc",
+      "sha256": "cd13037ada5f30df51dedc7d0521b992266476d1d94b1d1b223477bbf9577367"
+    },
+    {
+      "path": "res://common/scene_services/popup_add/popup_json.gdc",
+      "offset": 2261264,
+      "size": 6914,
+      "md5": "8dac12c934b573f8e371ac982bb1c9c4",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_add/popup_json.gdc",
+      "sha256": "58f573f6ac25fc6188ebd18e53fb924c02540beff91f6e01e93c2602677d0778"
+    },
+    {
+      "path": "res://common/scene_services/popup_add/popup_data_mgr.gdc",
+      "offset": 2249680,
+      "size": 11575,
+      "md5": "ebeacc516d1049f327f5a8a6d28a5311",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_add/popup_data_mgr.gdc",
+      "sha256": "fda4007e444975498f895408d79b2dcb46446ed24b6d6d43c032898b763386c1"
+    },
+    {
+      "path": "res://common/global_define/hmi_def.gdc",
+      "offset": 2120288,
+      "size": 85736,
+      "md5": "385b4a1c5ff514ed731d719175c40165",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/common/global_define/hmi_def.gdc",
+      "sha256": "fc472e70df9e3a9b7e173afdc4159a6145a3536f5207f8dd93590aeec6098d6e"
+    },
+    {
+      "path": "res://scenes/popup/popup_261/scripts/popup_261.gdc",
+      "offset": 356778256,
+      "size": 2203,
+      "md5": "271fe50f68612be5ccfdc447169369c9",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_261/scripts/popup_261.gdc",
+      "sha256": "3e08b6df65afb02937468cc02d3087e529b5ba0ff768e4a483c0731709930054"
+    },
+    {
+      "path": "res://scenes/popup/popup_comp/scripts/popup_view_mgr.gdc",
+      "offset": 436461024,
+      "size": 9280,
+      "md5": "2b2d5b854ddf1afe4ad90e2e536681e4",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_comp/scripts/popup_view_mgr.gdc",
+      "sha256": "90483b1e7fbb5d4679cd0f7450bbfafdc4dec757bb5eb1260ae5c3f5e4530421"
+    },
+    {
+      "path": "res://scenes/popup/popup_comp/scripts/popup_normal.gdc",
+      "offset": 436425888,
+      "size": 1254,
+      "md5": "42c41e7547c4faeafeef20a16ca225fc",
+      "flags": 0,
+      "local": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_comp/scripts/popup_normal.gdc",
+      "sha256": "43372cbc481a3ad0a3523490a01792bfc4d2fcc495d32dd364c707f94d5ec783"
+    }
+  ],
+  "sourceLineAnchors": [
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/common_mgr.gd",
+      "line": 589,
+      "text": "    g_HmiGlobal . cluster_client . sig_warn_id . connect ( right_area_arb . slot_recv_pop_261 )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 480,
+      "text": "    cs_warn_id_261 = warnId"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 607,
+      "text": "    g_HmiGlobal . common_mgr . sig_trip_popup_261 . emit ( popuped_261 , warnId , showPos , showType )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "line": 570,
+      "text": "    if not Popup261Mgr . is_popup_id_valid ( warnId ) :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 10,
+      "text": "const JSON_NAME_261 : String = \"popup_nads.json\""
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 93,
+      "text": "    common_mgr . sig_trip_popup_261 . connect ( slot_trip_popup_261 )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 397,
+      "text": "    var search : String = \"%X\" % id"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 403,
+      "text": "    popup_261data . _json_data = popup_json . search_data_from_id ( JSON_NAME_261 , search )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 412,
+      "text": "        popup_261data . _id = warnId . warn_id"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "line": 265,
+      "text": "    sig_popup_261_changed . emit ( popup_261data )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_add/popup_json.gd",
+      "line": 86,
+      "text": "    var file : String = OS . get_executable_path ( ) . get_base_dir ( ) . path_join ( \"config/\" + file_name )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_add/popup_json.gd",
+      "line": 88,
+      "text": "        file = \"../config/\" + file_name"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_add/popup_json.gd",
+      "line": 140,
+      "text": "            if json_data [ \"dictionary\" ] [ i ] [ id_type ] == id_search :"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_add/popup_json.gd",
+      "line": 208,
+      "text": "    index = check_popup_id ( file_name , \"id\" , id_str )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "line": 41,
+      "text": "        popup_mgr . sig_popup_261_changed . connect ( slot_popup_261_changed )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "line": 83,
+      "text": "        data . _text = data . _json_data [ \"text\" ]"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "line": 84,
+      "text": "        data . _text_color = Color ( data . _json_data [ \"textColor\" ] . hex_to_int ( ) )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "line": 50,
+      "text": "        popup_mgr . popup_261data . _text = tr ( text )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_view_mgr.gd",
+      "line": 238,
+      "text": "        _ : arr = box_261_style . get ( 25 )"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_normal.gd",
+      "line": 20,
+      "text": "        BoxIconLabel . text = data . _text"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_normal.gd",
+      "line": 21,
+      "text": "        BoxIconLabel . add_theme_color_override ( \"font_color\" , data . _text_color )"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "line": 886,
+      "text": "    private static int mDeviceType = 1007;"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "line": 1944,
+      "text": "        int value = super.get(mDeviceType, 638582792);"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/AbsBYDAutoDevice.java",
+      "line": 217,
+      "text": "            return bYDAutoDeviceManager.getInt(device, event);"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/BYDAutoManager.java",
+      "line": 157,
+      "text": "        int ret = nativeGetInt(deviceType, eventType);"
+    }
+  ],
+  "nativeByteAnchors": [
+    {
+      "label": "warning UINT16 FID argument/read",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x182e78",
+      "bytes": "0101805201c2a472d0840694"
+    },
+    {
+      "label": "raw warning saved without numeric translation",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x183260",
+      "bytes": "e01740f9a8c35b780840007901049052e2031faa438b0694e01740f9bd8c0694"
+    },
+    {
+      "label": "common ID integer publish",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1827d8",
+      "bytes": "01648052758c0694e80f40f901414079e2031f2a758c0694"
+    },
+    {
+      "label": "zero common ID integer publish",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x182708",
+      "bytes": "084140798801003501000014680d00b0088146f9000140f901648052a38c0694e80f40f901414079e2031f2aa38c0694"
+    },
+    {
+      "label": "native visibility and allowlist gates",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x182f04",
+      "bytes": "a8435a3808050071c100005401000014a8035a38080d00712002005401000014e01740f9e8031f2ae82700b90840007901049052e2031faa118c0694e01740f98b8d0694e81740f9e22740b9003540f9c10080525a8c0694e2000014a8c35938080500712002005401000014e01740f9e8031f2ae82300b90840007901049052e2031faafe8b0694e01740f9788d0694e81740f9e22340b9003540f9c1008052478c0694cf000014e81740f900210291a8c35b78a8831bb8a12301d1bc090094200200b501000014e01740f9e8031f2ae81f00b90840007901049052e2031faae78b0694e01740f9618d0694e81740f9e21f40b9003540f9c1008052308c0694b8000014e81740f9e9031f2ae963013929008052e963013908cd4439a800003601000014e8031f2ae863013901000014"
+    },
+    {
+      "label": "native additional suppression gate",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x183184",
+      "bytes": "01000014e8834139080d00712001005401000014e81740f908d54439a800003601000014e8031f2ae863013901000014"
+    },
+    {
+      "label": "client DataItem 0x320 (800 decimal) dispatch",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x445584",
+      "bytes": "28800c511fad047108060054a9eaffd0293101918a0000102b7968784a090b8b40011fd6688e42f8"
+    },
+    {
+      "label": "client WarnId field and signal",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x4455a8",
+      "bytes": "688e42f862820139021900b974825ff8b47600b461eaffd021a80791e0630091e2031f2a71ac0194e2e9fff042180e91a8c300d1e1630091e00314aae30313aa26f50494"
+    },
+    {
+      "label": "client jump table first halfword",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x19b04c",
+      "bytes": "0000"
+    },
+    {
+      "label": "client emit_signal C string",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x1931ea",
+      "bytes": "656d69745f7369676e616c00"
+    },
+    {
+      "label": "client sig_warn_id C string",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x184386",
+      "bytes": "7369675f7761726e5f696400"
+    },
+    {
+      "label": "binder tx5 jump-table halfword",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "va": "0xda0e",
+      "bytes": "bf00"
+    },
+    {
+      "label": "binder tx5 scalar integer block",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "va": "0x157dc",
+      "bytes": "81220091e00315aa9b430094e0510036e00315aa9c430094f603002ae00315aa99430094880240f9e203002aa38300d1e00314aae103162abf031eb8082540f900013fd6e103002ae00313aaa2430094a1035eb8e00313aa9f43009479020014"
+    },
+    {
+      "label": "manager getInt virtual offset",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "va": "0x1d414",
+      "bytes": "080040f9e103152ae203142ae30313aa082540f900013fd6"
+    },
+    {
+      "label": "HAL get registration",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x128cc8",
+      "bytes": "369c0294400100b4e87d805249008052e20300aa170c00f9e1830091080800b9091000b9e00314aa549c0294"
+    },
+    {
+      "label": "HAL identity/no-op converter",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xe0be0",
+      "bytes": "e0031f2ac0035fd6"
+    },
+    {
+      "label": "MCU frame table",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "va": "0xd637c",
+      "bytes": "006102e0000000001900000084f80d00"
+    },
+    {
+      "label": "MCU warning descriptor",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "va": "0xdf890",
+      "bytes": "010002019ca018005c3a0900"
+    },
+    {
+      "label": "MCU warning property record",
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "va": "0x93a5c",
+      "bytes": "08001026020000006851effe"
+    },
+    {
+      "label": "allowlist 1B",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x17c544",
+      "bytes": "68038052e8fb09b9e1e327914c200094"
+    },
+    {
+      "label": "allowlist 1E",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x17c5a4",
+      "bytes": "c8038052e8ef09b9e1b3279134200094"
+    },
+    {
+      "label": "allowlist 20",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x17c5e4",
+      "bytes": "08048052e8e709b9e193279124200094"
+    },
+    {
+      "label": "allowlist 46",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x17c9c4",
+      "bytes": "c8088052e86b09b9e1a325912c1f0094"
+    },
+    {
+      "label": "allowlist 5D",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x17cb44",
+      "bytes": "a80b8052e83b09b9e1e32491cc1e0094"
+    },
+    {
+      "label": "allowlist 21",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x17c604",
+      "bytes": "28048052e8e309b9e18327911c200094"
+    },
+    {
+      "label": "allowlist 47",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x17c9e4",
+      "bytes": "e8088052e86709b9e1932591241f0094"
+    },
+    {
+      "label": "allowlist 358",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x180b24",
+      "bytes": "086b8052e83f01b9e1f30491d40e0094"
+    }
+  ],
+  "limitations": [
+    "These are OEM UI warning enumerations, not SAE/UDS DTCs; no warning→DTC, warning→ECUsoftware or root-cause correspondence is proved.",
+    "Colors are original JSON RGBA presentation values. No numeric fault severity or lamp category is inferred.",
+    "For ID 0x358, popup_view_mgr.check_color_model replaces source 0xEEF5FFFF by 0x262D33FF in DAY mode; other locales/themes/layouts are not live verified.",
+    "ID 0x21 native enum is POWER_SYSTEM_ERROR but actual current JSON text is generic systems failure; do not manufacture traction-battery specificity.",
+    "ID 0x358 says battery temperature high; the text alone does not identify a particular pack sensor, ECU or DTC.",
+    "The native cluster files match the retained vehicle snapshot, but their actual loading/use on the cluster remains unverified.",
+    "Godot decoded GD is token reconstruction; original comments are absent. Source token buffers, manifests and hashes are pinned.",
+    "Original text is passed through translation and optional resolution-specific translations; this report pins Chinese source messages, not a captured live rendered warning.",
+    "No new extraction, library execution, vehicle/ADB operation, cloud call, credentials or network was used."
+  ],
+  "sources": [
+    {
+      "path": "captures/adas-speed-20261018/reports/followup-provenance.json",
+      "sha256": "62f1a0e5ab79565f9472ac6db2e3539a1cf8c64699cf51cc1e76c26dd8e6da4f",
+      "bytes": 2511
+    },
+    {
+      "path": "captures/cluster-native-20261018/libClusterClient/dwarf-layouts.jsonl",
+      "sha256": "26d5e1db849e3105a41b725ee8ac7eb52084d68fcad9db25f3d289ffbfafab7e",
+      "bytes": 3729596
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/common_mgr.gd",
+      "sha256": "d32a64329a778c1ad40b25f3bd40693cb901305ca3b79a6d45b0f6e57913c2a8",
+      "bytes": 85166
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gd",
+      "sha256": "3ce530f38ed3e15dba27167cc13796a5cda67fbd9f3a4c65b62ee8f1981867a9",
+      "bytes": 21485
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/global_define/hmi_def.gd",
+      "sha256": "37a912b342e557e492efca03f6d9cb62ba6c4bb37fc177cae9249b6dcee83181",
+      "bytes": 89650
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_261_mgr.gd",
+      "sha256": "a20cb6f86718aad2a38134ae616eacfb90d81b63888f7689451a8eb49ae84ce4",
+      "bytes": 18592
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_add/popup_data_mgr.gd",
+      "sha256": "07f52d61eb50cd47bf0c579800c4d664a9fbb1523d103e3d0078dc1a90843454",
+      "bytes": 18238
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/scene_services/popup_add/popup_json.gd",
+      "sha256": "6fe878021fcf7f79eeabd8efb4bc46ad287448affacb5a584bacce51ec31a1d5",
+      "bytes": 10473
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/manifest.json",
+      "sha256": "e374a9457d9dd11281d8b86af8a477142336808310cd371518ddcac1a92b2036",
+      "bytes": 204663
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_261/scripts/popup_261.gd",
+      "sha256": "9bd75c95edaec5faf1ceafdec6304804e18127fdd3082b9d365900ce8ff03b8a",
+      "bytes": 2918
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_normal.gd",
+      "sha256": "9de2545f423e6dcf151da6406397ce67d218649c9dafdf6856efd25d982ea8f6",
+      "bytes": 1536
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/scenes/popup/popup_comp/scripts/popup_view_mgr.gd",
+      "sha256": "1c10889187c9a9fb54878c952c02a0b93efe9f67576cae5fb0bc9a8a2aad934a",
+      "bytes": 14796
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/base_services/common_mgr.gdc",
+      "sha256": "08dc577bf905fdc805f0c43dcbffb5803508b37778d87dfdd20bf5cca0f78ca1",
+      "bytes": 43495
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/base_services/ui_logic_arbitrate/right_area_arbitrate.gdc",
+      "sha256": "24beb48b6329d9837c8efc15378e3808949d45e004480d7b1eb82af40b80e172",
+      "bytes": 11772
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/global_define/hmi_def.gdc",
+      "sha256": "fc472e70df9e3a9b7e173afdc4159a6145a3536f5207f8dd93590aeec6098d6e",
+      "bytes": 85736
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_261_mgr.gdc",
+      "sha256": "cd13037ada5f30df51dedc7d0521b992266476d1d94b1d1b223477bbf9577367",
+      "bytes": 10946
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_add/popup_data_mgr.gdc",
+      "sha256": "fda4007e444975498f895408d79b2dcb46446ed24b6d6d43c032898b763386c1",
+      "bytes": 11575
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/common/scene_services/popup_add/popup_json.gdc",
+      "sha256": "58f573f6ac25fc6188ebd18e53fb924c02540beff91f6e01e93c2602677d0778",
+      "bytes": 6914
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_261/scripts/popup_261.gdc",
+      "sha256": "3e08b6df65afb02937468cc02d3087e529b5ba0ff768e4a483c0731709930054",
+      "bytes": 2203
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_comp/scripts/popup_normal.gdc",
+      "sha256": "43372cbc481a3ad0a3523490a01792bfc4d2fcc495d32dd364c707f94d5ec783",
+      "bytes": 1254
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/extracted/scenes/popup/popup_comp/scripts/popup_view_mgr.gdc",
+      "sha256": "90483b1e7fbb5d4679cd0f7450bbfafdc4dec757bb5eb1260ae5c3f5e4530421",
+      "bytes": 9280
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/scripts-manifest.json",
+      "sha256": "ad8c441b96e8f8e6da9c90d54cb855c602c37f99d1d6baf5c8988c058777ce74",
+      "bytes": 148639
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/can-signals.tsv",
+      "sha256": "022f2fe417b0b5f6b7bd64bcb5abe65c60c4529945e00fd4803d54f54656f3b9",
+      "bytes": 200710
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/data-items.tsv",
+      "sha256": "0f812a8be3bd1ff48945322d0e1b5993a21436d11b2a1c7577651573468f21cc",
+      "bytes": 162442
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+      "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73",
+      "bytes": 104178
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/hal-registrations.json",
+      "sha256": "25700ad3c7cb9b489c745eac7082b2d8e80b574e4708b0ea7b2988ba4e5bef4b",
+      "bytes": 2055268
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/mcu-149e90.asm",
+      "sha256": "ba0c0ef08b5b5e2c91f105d33f0f21ee425593103afcf2717eda46bd7334ce95",
+      "bytes": 2367
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/mcu-17042c.asm",
+      "sha256": "6c50d1286750bb0cf273117bbe8763f03d637443459ac344ac44ecfb9c4f04a0",
+      "bytes": 1161
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/mcu-1704ac.asm",
+      "sha256": "3e706778f6f3d39c27be67c483829b2091d1e51ba88138c78218b3a6c2a3bc7e",
+      "bytes": 2819
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/mcu-170926.asm",
+      "sha256": "bd9c48d5366f4ef747e85489a1c5f37d4cc02d70906acce2c1fb4757c20e3ee1",
+      "bytes": 3420
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/mcu-18a09c.asm",
+      "sha256": "a289da799a0fd82fb3e752294cf21cadde63bb8db0ece042744aa341b340f2fd",
+      "bytes": 1915
+    },
+    {
+      "path": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "sha256": "02ad8c66c2339ae0eabef661e12dda088ed2e616967bfac308c609e970dead66",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbydauto.so",
+      "sha256": "1730ca60779d7d45f2976a947172f6c0b4b5145d763d07bc257d809275537362",
+      "bytes": 189096
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6",
+      "bytes": 17834072
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "sha256": "0cdcd130d471c6a5a6cc05e7ee04e644227b025f852f44bc686c63f1e9450bf3",
+      "bytes": 29886784
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+      "sha256": "ec3355e9736ea6b2dd67a2c3a3a15c3d20d8e3ddfb1c400db54c7236a3fe4aad",
+      "bytes": 142434
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/BYDAutoManager.java",
+      "sha256": "723632c4f73d88b4bf788508242cf396e432e587c2f8b0cc69fa89434fc434ba",
+      "bytes": 17353
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/AbsBYDAutoDevice.java",
+      "sha256": "7d5b3fa0658a899bf85ac9a8f00287a39cba799887feac42a115a97731bbe7cf",
+      "bytes": 17501
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+      "sha256": "608e55ecb4cb889a5016d182b32a3ee3c0ab633656b3bcb7a0607eb2d6ec604a",
+      "bytes": 149289
+    },
+    {
+      "path": "captures/washer-firmware-20260923/rx-table-candidates.json",
+      "sha256": "2421c9c4f47082e90e44b1d36674d9efdd09e0d814f87fc837fc54fc0631b91f",
+      "bytes": 3126323
+    },
+    {
+      "path": "research/cluster-native/corpus.json",
+      "sha256": "38b4dee02df27518058b818b3183bc04d01655ea4176dde6965ada5b896e6823",
+      "bytes": 4756
+    }
+  ]
+}

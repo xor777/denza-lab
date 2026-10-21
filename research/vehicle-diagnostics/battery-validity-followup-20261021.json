@@ -1,0 +1,870 @@
+{
+  "schema": "denza-lab.battery-validity-followup.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "productChanges": false,
+  "scope": "Finite source audit of43A metadata/count validity,43C/43D arrays,FD policy gates, source-zero/cache ambiguity and separate labelled contactor/charging API states. No new unit, physical cell map, balancing flag or health classifier.",
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "sha256": "e6c432670a31cdc89c226ebdf7c9be54583a4468839a2673cbc50ae6e94f2dfb",
+      "bytes": 124432
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "sha256": "6c7b1946ccbe6a979bf51b96397c8bece89c5c598a85f3bb8dedac9d573c61ce",
+      "bytes": 254608
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "sha256": "02ad8c66c2339ae0eabef661e12dda088ed2e616967bfac308c609e970dead66",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+      "sha256": "83590d4cc9e5b2988b3c15d8ceadee63faa0457f9ae002c82f3c0388be764544",
+      "bytes": 38625
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/ota/BYDAutoOtaDevice.java",
+      "sha256": "7af0d89de146df5dc7b76674890cc12cfb5af8f4bba1b8b8551d611f47d4237d",
+      "bytes": 17312
+    },
+    {
+      "path": "captures/ambient-light-20260923/jadx/BydPersonalCenter/sources/com/byd/report/biz/DataCollectionPresenterAlgorithm.java",
+      "sha256": "1c0e24587eeab205aeef894f39371a94331a1bd1df43254215bbd09eae48374d",
+      "bytes": 145572
+    },
+    {
+      "path": "captures/washer-firmware-20260923/rx-table-candidates.json",
+      "sha256": "2421c9c4f47082e90e44b1d36674d9efdd09e0d814f87fc837fc54fc0631b91f",
+      "bytes": 3126323
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/battery-validity/gbdata-fid-initializer-values.json",
+      "sha256": "dd098bdbdb7eab0465d91f8a036bd20f34a8e3e977cd9f9f0553a526d578138b",
+      "bytes": 16298
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/battery-validity/evaluate_gbdata_ids.py",
+      "sha256": "b24d63a21fa3b64b277b29184c28413ba28b90d0f4dfcd74ae65d1436a6de4ac",
+      "bytes": 3683
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/battery-validity/validity_models.py",
+      "sha256": "e63ba84d39484d9b493a299a6e13288b844efbe0804d00f5d7cb7b6dbe62f08a",
+      "bytes": 3087
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/battery-validity/boundary-cases.json",
+      "sha256": "e3bf2afe600b7ce4ba3facd59df22b2d36daf858d9e045a23fbaa4ecdbf49188",
+      "bytes": 885
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_battery_pages.py",
+      "sha256": "2a2fab159c0ac9776d348aa546f80256df11ca9a00842c03d3d0ba2d5d3dae6c",
+      "bytes": 11023
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+      "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73",
+      "bytes": 104178
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/gb.log",
+      "sha256": "62bed104174519b8448dc48d09053502c40cdec24cc013447f1628dfecbde2e0",
+      "bytes": 104402
+    }
+  ],
+  "newFindings": [
+    "43A byte5FF has a proved negative role in native HEV telemetry policy, not a per-cell fault/invalid meaning and not a qualifiedSOC reading.",
+    "BMS policy codes have explicit native reason strings for disabled collection paths. They are not battery-health states.",
+    "Count-source validity differs by entry path: sync range/marker gate, raw43A byte gate and later callback signed upper bound are not equivalent.",
+    "HAL count filterFF updates scalar cache255 before returning2; these type0 updates suppress the new callback through duplicate suppression. A retained native array count can therefore disagree with a new invalid scalar cache.",
+    "Native array buffers begin as zeros. A count-complete latch can coexist with uncopied zero slots after duplicate pages; no array-value read alone distinguishes those zeros from transmitted zeros.",
+    "Human-readable charging/fault and discharge-main-contactor labels exist on separate34400018/34400010 APIs. The traced array paths do not attach those labels to a cell/probe code."
+  ],
+  "applicability": {
+    "car": "Owner Z9GT PHEV profile170 CANFD retained20/21Oct data",
+    "HAL": "Prior live byte-hash match, not newly read",
+    "MCU": "Owner OTA bytes; installed version matched previously, no installed MCU byte-hash match",
+    "runtimePolicy": "Not read. No currentpersist.sys.gb.switch_71data_state or gbdataservice internal-state read. Retained raw callbacks do not establish that this service currently uploads or chooses policy1."
+  },
+  "countsAndSupport": {
+    "stockGETs": [
+      {
+        "device": 1001,
+        "fid": "0x43A00008",
+        "name": "BODYWORK_BATTERY_SINGLE_NUM",
+        "observations": [
+          {
+            "sourceLine": 11581,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74735404259840,
+            "rawWord": "0x000000A6",
+            "integer": 166
+          },
+          {
+            "sourceLine": 21585,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74843131610539,
+            "rawWord": "0x000000A6",
+            "integer": 166
+          }
+        ]
+      },
+      {
+        "device": 1039,
+        "fid": "0x43A00010",
+        "name": "GB_BATTERY_PROBE_NUM",
+        "observations": [
+          {
+            "sourceLine": 19374,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74819365445922,
+            "rawWord": "0x0000000E",
+            "integer": 14
+          },
+          {
+            "sourceLine": 29378,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926861699159,
+            "rawWord": "0x0000000E",
+            "integer": 14
+          }
+        ]
+      },
+      {
+        "device": 1009,
+        "fid": "0x22D05810",
+        "name": "CHARGING_BATTERY_VOLTAGE_CELL_NUM",
+        "observations": [
+          {
+            "sourceLine": 13990,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74761344538534,
+            "rawWord": "0x000003FF",
+            "integer": 1023
+          },
+          {
+            "sourceLine": 23994,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74868921772079,
+            "rawWord": "0x000003FF",
+            "integer": 1023
+          }
+        ],
+        "note": "Retained1023 is outside the native extended-count accepted range; it does not override accepted166 primary count."
+      },
+      {
+        "device": 1039,
+        "fid": "0x24400012",
+        "name": "GB_BATTERY_VERSION_FLAG",
+        "observations": [
+          {
+            "sourceLine": 19323,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74818820326230,
+            "rawWord": "0x00000004",
+            "integer": 4
+          },
+          {
+            "sourceLine": 29327,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74926308389082,
+            "rawWord": "0x00000004",
+            "integer": 4
+          }
+        ],
+        "note": "Value4 alone is not a cell-health or feature-support enum; no such semantic map established."
+      }
+    ],
+    "HALCountFilter": {
+      "registration": "43A00008 init178270/reg1782A0 and43A00010 init1782B8/reg1782E0, storage selector0",
+      "converter": "669D0 FunctionTable::filter0xFF",
+      "exactBehavior": "wire!=255: return0 unchanged. wire255: directly FeatureMapper::setIntValue(fid,255), return2. Generic int update B1318 accepts0/2, then type0 duplicate comparison finds the same just-stored255 and exits before sendIndicatorCallback. This qualifies source-count255 treatment, not any per-cellFFFF.",
+      "noRangeOrAgeGate": "Zero,254 and other non255 values pass this converter; no acquisition timestamp is checked."
+    },
+    "syncBYDAuto": "gbdataservice A840..A95C and gbacqservice12DB4..12EF0: unsigned(value-1)<=297 and(value&~1)!=254 ->1..298 excluding254/255. Primary255 alone attempts extended22D05810; extended gate still1..298, plus an unreachable-in-that-range1022/1023 test. Probe storage masks acceptedvalue to8bits.",
+    "raw43AMetadata": "gbdataservice E9A0..EA2C: while shared initialized flag205==0, accepts each byte1..253. A valid cell count OR valid probe count sets that shared flag; later43A count bytes are ignored until another code path changes counts. One valid count can therefore freeze the other at its prior/initial value.",
+    "onChangedEvent": "gbdataservice F380..F3C0 and F478..F4BC sets sharedinitialized flag before signedvalue<=299 check; accepted cell storedu16, probe storedvalue&255. It has no lower-bound or254/255 marker gate. HAL source filtering still governs whether a count255 callback is emitted.",
+    "countBoundaryCases": [
+      {
+        "value": 0,
+        "syncPrimaryAccept": false,
+        "syncExtendedAccept": false,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 0
+      },
+      {
+        "value": 1,
+        "syncPrimaryAccept": true,
+        "syncExtendedAccept": true,
+        "pageMetadataAccept": true,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 1
+      },
+      {
+        "value": 14,
+        "syncPrimaryAccept": true,
+        "syncExtendedAccept": true,
+        "pageMetadataAccept": true,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 14
+      },
+      {
+        "value": 166,
+        "syncPrimaryAccept": true,
+        "syncExtendedAccept": true,
+        "pageMetadataAccept": true,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 166
+      },
+      {
+        "value": 253,
+        "syncPrimaryAccept": true,
+        "syncExtendedAccept": true,
+        "pageMetadataAccept": true,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 253
+      },
+      {
+        "value": 254,
+        "syncPrimaryAccept": false,
+        "syncExtendedAccept": true,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 254
+      },
+      {
+        "value": 255,
+        "syncPrimaryAccept": false,
+        "syncExtendedAccept": true,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 255
+      },
+      {
+        "value": 256,
+        "syncPrimaryAccept": true,
+        "syncExtendedAccept": true,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 0
+      },
+      {
+        "value": 298,
+        "syncPrimaryAccept": true,
+        "syncExtendedAccept": true,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 42
+      },
+      {
+        "value": 299,
+        "syncPrimaryAccept": false,
+        "syncExtendedAccept": false,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 43
+      },
+      {
+        "value": 300,
+        "syncPrimaryAccept": false,
+        "syncExtendedAccept": false,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": false,
+        "callbackProbeStoredIfAccepted": null
+      },
+      {
+        "value": 1022,
+        "syncPrimaryAccept": false,
+        "syncExtendedAccept": false,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": false,
+        "callbackProbeStoredIfAccepted": null
+      },
+      {
+        "value": 1023,
+        "syncPrimaryAccept": false,
+        "syncExtendedAccept": false,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": false,
+        "callbackProbeStoredIfAccepted": null
+      },
+      {
+        "value": 65535,
+        "syncPrimaryAccept": false,
+        "syncExtendedAccept": false,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": false,
+        "callbackProbeStoredIfAccepted": null
+      },
+      {
+        "value": -1,
+        "syncPrimaryAccept": false,
+        "syncExtendedAccept": false,
+        "pageMetadataAccept": false,
+        "callbackSignedAccept": true,
+        "callbackProbeStoredIfAccepted": 255
+      }
+    ],
+    "retainedSupport": [
+      {
+        "source": {
+          "path": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+          "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73",
+          "bytes": 104178
+        },
+        "43ARecords": 20,
+        "cellCount": 166,
+        "probeCount": 14,
+        "metadataByte5Values": [
+          70,
+          71,
+          72,
+          73,
+          74,
+          75,
+          76,
+          77,
+          78,
+          79,
+          80,
+          81,
+          82,
+          83,
+          84,
+          85,
+          86,
+          87,
+          88,
+          89
+        ],
+        "metadataFFCount": 0,
+        "sourceTimesAreArrivalNotAcquisition": true
+      },
+      {
+        "source": {
+          "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/gb.log",
+          "sha256": "62bed104174519b8448dc48d09053502c40cdec24cc013447f1628dfecbde2e0",
+          "bytes": 104402
+        },
+        "43ARecords": 20,
+        "cellCount": 166,
+        "probeCount": 14,
+        "metadataByte5Values": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23
+        ],
+        "metadataFFCount": 0,
+        "sourceTimesAreArrivalNotAcquisition": true
+      }
+    ],
+    "result": "Both saved streams have20 exact43A/channel2/sub0/payload8 records with166/14. These counts pass all ordinary non-error gates and define56 cell pages,3 probe pages. This proves observed layout/configuration, not full ECU capability or healthy cells."
+  },
+  "nativeBMSPolicy": {
+    "function": "gbdataservice B4B0 getBMSPolicyStatus(false)",
+    "policyCode1": "Only return1 qualifies FD special packing branch. It is the remaining enabled collection policy after gates, not healthy battery.",
+    "reasons": [
+      {
+        "code": 4,
+        "stringVA": "0x53bb",
+        "textUTF8": "[%s:%d]status : %d,云端开关 关闭",
+        "englishMeaning": "cloud switch is off"
+      },
+      {
+        "code": 2,
+        "stringVA": "0x5046",
+        "textUTF8": "[%s:%d]status : %d,纯电0x34a_7.2-7.3报文开关 关闭",
+        "englishMeaning": "EV34A monitor switch is off"
+      },
+      {
+        "code": 3,
+        "stringVA": "0x532e",
+        "textUTF8": "[%s:%d]status : %d,混动0x4f7_01_2.6-2.7开关 关闭",
+        "englishMeaning": "HEV4F7 monitor switch is off"
+      },
+      {
+        "code": 5,
+        "stringVA": "0x52d8",
+        "textUTF8": "[%s:%d]status : %d,纯电时 0x43B_5.0-5.7值等于0xF0才启用,0x43B_5.0-5.7 = %02x",
+        "englishMeaning": "EV43B payload byte5 must equalF0"
+      },
+      {
+        "code": 6,
+        "stringVA": "0x520d",
+        "textUTF8": "[%s:%d]status : %d,混动时,必须为域控才启用,当前是非域控",
+        "englishMeaning": "HEV requires domain-control mode, current mode is not"
+      },
+      {
+        "code": 8,
+        "stringVA": "0x4efe",
+        "textUTF8": "[%s:%d]status : %d,混动时,0x43A_5.0-5.7值不是0xFF的时候才启用,0x43A_5.0-5.7 = %02x",
+        "englishMeaning": "HEV43A payload byte5 must differ fromFF"
+      }
+    ],
+    "CANFDInitializerBindings": {
+      "0x1e160": "0x43A00008",
+      "0x1e168": "0x4F701800",
+      "0x1e16c": "0x34A00800",
+      "0x1e17c": "0x34A0083A",
+      "0x1e180": "0x4F701816",
+      "0x1e214": "0x43B00028",
+      "0x1e240": "0x43A00010",
+      "0x1e260": "0x43A00028",
+      "0x1e278": "0x22D05810"
+    },
+    "HEVInputs": {
+      "cloudSwitchProperty": "persist.sys.gb.switch_71data_state exactly1",
+      "onlineFID": "1001/4F701800 BODYWORK_ONLINE_HAS_0x24F701",
+      "monitorFID": "1005/4F701816 POWER_BATTERY_BIGDATA_MONITOR_HEV",
+      "CANFDFlag": "global1E148 froma separate exactsys.car.protocol==CANFD comparison10500..10564; this flag does not use the recorded-protocol fallback",
+      "metadataFID": "1014/43A00028 STATISTIC_ESTIMATE_SOC_V1, payload byte5; onlyFF/noFF semantics established here"
+    },
+    "HEVPolicyFormula": "status starts1 when cloud switch1, else4; if online!=1 set3 whenCANFD else6; if online==1 andmonitor0 set3; ifCANFDfalse set6; ifmetadata255 set8 last. Remainingstatus1 requires online1,monitor!=0,CANFDtrue,metadata!=255 andcloudswitch1.",
+    "retainedInputs": [
+      {
+        "device": 1001,
+        "fid": "0x4F701800",
+        "observations": [
+          {
+            "sourceLine": 12000,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74739898706302,
+            "rawWord": "0x00000001",
+            "integer": 1
+          },
+          {
+            "sourceLine": 22004,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74847626486308,
+            "rawWord": "0x00000001",
+            "integer": 1
+          }
+        ]
+      },
+      {
+        "device": 1005,
+        "fid": "0x4F701816",
+        "observations": [
+          {
+            "sourceLine": 12984,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74750473586841,
+            "rawWord": "0x00000001",
+            "integer": 1
+          },
+          {
+            "sourceLine": 22988,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74858144079847,
+            "rawWord": "0x00000001",
+            "integer": 1
+          }
+        ]
+      },
+      {
+        "device": 1014,
+        "fid": "0x43A00028",
+        "observations": [
+          {
+            "sourceLine": 14616,
+            "pass": 1,
+            "elapsedRealtimeNanos": 74768051987150,
+            "rawWord": "0x0000002C",
+            "integer": 44
+          },
+          {
+            "sourceLine": 24620,
+            "pass": 2,
+            "elapsedRealtimeNanos": 74875620507233,
+            "rawWord": "0x00000098",
+            "integer": 152
+          }
+        ]
+      }
+    ],
+    "43AReceiverGate": "EA30..EA44 also rejects43A byte5FF before the HEV custom0x84 branch; it does not erase cell/probe rolling buffers or reset completion flags. FD pageEBAC..EBF4 additionally requires initializedflag andpolicy1, then combinedcompleteflag beforeDE80.",
+    "notAFaultClassifier": "Native reason strings describe remote/local collection configuration, protocol architecture and metadata availability. None labels cell balancing, contactor position or electrical fault."
+  },
+  "arraysAndZero": {
+    "initialization": "gbdataservice constructor9330..9448 initializes flags/counters andzeroes cell/probe storage; initialzero does not carry an acquired bit per slot.",
+    "copyValidity": "43C EAA8..EB8C and43D EC6C..ED1C copy raw values after count/position checks. No per-valueFE/FF/FFFE/FFFF filter and no status/contactor/balance field is attached. Final fill slots outside declared14/166 are a structural boundary, not a code-wide fault dictionary.",
+    "aggregateValidity": "Probe raw0 skipped inCD40..D068, whileFE/FF remain numerical candidates; cell0/FFFE/FFFF are not filtered. This is an aggregate algorithm rule, not evidence that0 means sensor fault orFF means a specific physical condition.",
+    "completionAndFreshness": "Existing sticky count latches201/202/203 track copied element counts, not unique page coverage, last source time or per-slot freshness. Page age and capture boundary must remain external metadata.",
+    "sourceDerivedCounterexamples": {
+      "duplicatePageZero": {
+        "complete": true,
+        "cellLatch": true,
+        "probeLatch": true,
+        "zeroCellSlotsWithinDeclaredCount": 163,
+        "zeroProbeSlotsWithinDeclaredCount": 8,
+        "cellReceivedCounter": 0,
+        "probeReceivedCounter": 0
+      },
+      "sequentialCompletePages": {
+        "complete": true,
+        "cellLatch": true,
+        "probeLatch": true,
+        "zeroCellSlotsWithinDeclaredCount": 0,
+        "zeroProbeSlotsWithinDeclaredCount": 0,
+        "cellReceivedCounter": 0,
+        "probeReceivedCounter": 0
+      },
+      "partialCountInitialization": {
+        "initialized": true,
+        "cells": 166,
+        "probes": 0
+      },
+      "filterFFCacheAndSubscriber": {
+        "priorScalarCache": 166,
+        "priorConsumerCount": 166,
+        "wireUpdate": 255,
+        "newScalarCache": 255,
+        "converterReturn": 2,
+        "newCountCallbackEmittedInType0Path": false,
+        "consumerCountRetained": 166,
+        "observedLive": false
+      }
+    },
+    "counterexampleLimit": "All boundary models are offline source-derived counterexamples. No malformed/repeated/sentinel update was sent to the car, and no such failure is alleged for the clean savedlogs.",
+    "canDistinguishRealZeroFromCache": false,
+    "evidenceNeeded": "A per-slot acquired/age map built from exact raw callback sequence can distinguish never-received slots within that reader session; it still cannot prove ECU acquisition freshness or physical validity. Scalar cached GET alone has neither."
+  },
+  "humanReadableStatesOutsideArrays": {
+    "enumConstants": [
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 69,
+        "name": "CHARGING_BATTERY_STATE_BREAKDOWN_AC",
+        "value": 8
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 70,
+        "name": "CHARGING_BATTERY_STATE_BREAKDOWN_C10",
+        "value": 5
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 71,
+        "name": "CHARGING_BATTERY_STATE_BREAKDOWN_CHARGER",
+        "value": 7
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 72,
+        "name": "CHARGING_BATTERY_STATE_BREAKDOWN_CHARGING_GUN",
+        "value": 6
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 73,
+        "name": "CHARGING_BATTERY_STATE_CHARGING",
+        "value": 1
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 74,
+        "name": "CHARGING_BATTERY_STATE_CHARGING_PAUSE",
+        "value": 13
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 75,
+        "name": "CHARGING_BATTERY_STATE_CHARG_FINISH",
+        "value": 2
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 76,
+        "name": "CHARGING_BATTERY_STATE_CHARG_TERMINATE",
+        "value": 4
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 77,
+        "name": "CHARGING_BATTERY_STATE_DISCHARG",
+        "value": 3
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 78,
+        "name": "CHARGING_BATTERY_STATE_DISCHARG_CBU",
+        "value": 10
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 79,
+        "name": "CHARGING_BATTERY_STATE_DISCHARG_FINISH",
+        "value": 12
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 80,
+        "name": "CHARGING_BATTERY_STATE_READY",
+        "value": 0
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 81,
+        "name": "CHARGING_BATTERY_STATE_SCHEDULE",
+        "value": 9
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+        "line": 82,
+        "name": "CHARGING_BATTERY_STATE_TIMEOUT",
+        "value": 11
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/ota/BYDAutoOtaDevice.java",
+        "line": 24,
+        "name": "CONTACTOR_STATE_CONNECT",
+        "value": 1
+      },
+      {
+        "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/ota/BYDAutoOtaDevice.java",
+        "line": 25,
+        "name": "CONTACTOR_STATE_DISCONNECT",
+        "value": 0
+      }
+    ],
+    "chargingAPI": {
+      "device": 1009,
+      "fid": "0x34400018",
+      "stockName": "CHARGING_BATTERRY_DEVICE_STATE",
+      "consumer": "BydPersonalCenter DataCollectionPresenterAlgorithm chargingListener lines478..506 explicitly branches0READY,1CHARGING,2FINISH,4TERMINATE; framework provides additional fault/pause/schedule labels.",
+      "observations": [
+        {
+          "sourceLine": 14100,
+          "pass": 1,
+          "elapsedRealtimeNanos": 74762516051149,
+          "rawWord": "0x00000001",
+          "integer": 1
+        },
+        {
+          "sourceLine": 24104,
+          "pass": 2,
+          "elapsedRealtimeNanos": 74870100866310,
+          "rawWord": "0x00000001",
+          "integer": 1
+        }
+      ],
+      "nativeBoundary": "HAL registration1512B8 uses FunctionTable::modeconfig7C9E0; MCU producer1937C8 is custom. This report qualifies the stock Java API labels, not a new raw-MCU decoder or per-cell error definition.",
+      "notBMSHealth": "The state describes charge/discharge workflow; its named breakdown values do not identify a failing cell."
+    },
+    "contactorAPI": {
+      "device": 1032,
+      "fid": "0x34400010",
+      "stockName": "OTA_DISCHARGE_MAIN_CONTACTOR_STATE",
+      "labelMap": {
+        "0": "DISCONNECT",
+        "1": "CONNECT"
+      },
+      "observations": [
+        {
+          "sourceLine": 17986,
+          "pass": 1,
+          "elapsedRealtimeNanos": 74804333975844,
+          "rawWord": "0x00000001",
+          "integer": 1
+        },
+        {
+          "sourceLine": 27990,
+          "pass": 2,
+          "elapsedRealtimeNanos": 74911786579235,
+          "rawWord": "0x00000001",
+          "integer": 1
+        }
+      ],
+      "producer": "MCU344/channel2, descriptorF0900 coords[2,0,2,1] ->34400810, generic unsigned2bits; listed344 HAL normalization ->34400010, identity E0BE0.",
+      "limits": "Only0/1 are named in this stock API. Source2/3 remain unknown, not automatically unavailable/fault. GET1 is a retained API-connected label, not independently measured physical contact position/health or cell validity."
+    },
+    "cellBalancing": "No per-cell balancing flag/enum or physical balancing-state mapping recovered in the bounded receiver/aggregate/packer/FD policy paths and retained framework FID-name search."
+  },
+  "boundedSearch": {
+    "nativeFunctions": [
+      "gbdataservice91D0 constructor",
+      "A7A0 syncBYDAuto",
+      "B4B0 policy",
+      "CD40 aggregate",
+      "D500 feature handling",
+      "DD40/E910 custom pages",
+      "DE80 packetcopy",
+      "F1F0 scalarcallback",
+      "FD60 FID initializer",
+      "HAL669D0 countfilter/B1318 intupdate",
+      "gbacqservice12C80 sync/1ABD0 receiver/130A0 aggregate"
+    ],
+    "literalSearch": "BMS/battery/valid/invalid/balance/contactor/error strings in two native services and exact stock FID enums. Not an assertion that other uninspected firmware/diagnostic tools have no such data."
+  },
+  "nextFiniteSource": "For physical per-cell fault/balancing validity obtain an applicable primary BMS/software packet or stock diagnostic data-list definition. Further parked all-good arrays or guessedFFFF semantics do not close that gap. No new vehicle test requested by this offline result.",
+  "anchors": [
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x669d0",
+      "endExclusive": "0x66a14",
+      "bytes": "fd7bbfa9fd030091280040b91ffd037141010054a80b0090087140f9e20301aae10300aa000540f94ea4059440008052fd7bc1a8c0035fd6e0031f2afd7bc1a8c0035fd6",
+      "meaning": "countFF direct cache update andreturn2"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x178240",
+      "endExclusive": "0x1782e4",
+      "bytes": "49008052e20300aa170c00f9e1830091080800b9091000b9e00314aaf95e019468024811e1730091e00314aaffa30329cc5e0194f50200b0b51e40f9400100b4287d805249008052e20300aa150c00f9e1830091080800b9091000b9e00314aae85e019413028052e17300911374a872e00314aaffcf0329ba5e0194400100b4e881805249008052e20300aa150c00f9e1830091080800b9091000b9e00314aad85e0194",
+      "meaning": "two count registrations point tofilterFF"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0x10500",
+      "endExclusive": "0x10568",
+      "bytes": "102e0094bc835d38680240b2b4835ef8a1ffffb021fc0a919f0300720001949a0c2e0094f303002a7c0f0037a8835a38a80f0037a8035c3868000036a0035df8182d00947f020071690000d0296141b9e8179f1a6b0000d06a0000d04a6541b94d04805268210539",
+      "meaning": "separate actualCANFD domain flag"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xb1318",
+      "endExclusive": "0xb13fc",
+      "bytes": "ff7a1e7260010054e40f592961fcff9042fcfff02158089142ac059120008052e503172a3d790494fc0f40f9ba050014fc0f40f9df0a0071c0030054600240f9e1330391f4cb40b9ec7904949f02006b01030054e3cf40b90e000014080700511f09007128220054883f8c52600240f98102088be1790494fc0f40f91f03006b61290054883f8c52698340f9236968b861fcff9062fcfff0e4cb40b92158089142b43991600080521c7904949a050014600240f9e1330391e2230391d7790494e3cf40b9200d0035e8cb40b9e0031baae10b40b9e203032ae40b40f9e303082a167b0494",
+      "meaning": "inttype0 duplicate/cache/callback sequence"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xa840",
+      "endExclusive": "0xa960",
+      "bytes": "e50740b9a80400511fa5047128020054a8781f121ff90371c001005428008052c1fffff0c2ffffd0c3ffffd021b0189142202f916816083963a43791651a04796000805265220479042d805227000014bffc0371a1030054601640f9a8000090027942b9e3130091217e80529d440094c1fffff0c2ffffd0c3ffffd0e50740b921b0189142e4309163a4379160008052442e80520f440094e80740b9090500513fa504714802005409791f123ff90f71e00100542900805269160839681a0479682204790a000014c1fffff0c2fffff0c3ffffd021b01891425c0e9163a43791c0008052642f8052fa430094601640f9a8000090024142b9e3130091e181805278440094e50740b9a80400511fa5047168020054a8781f121ff9037100020054",
+      "meaning": "startupcountvalidity andfallback"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xf380",
+      "endExclusive": "0xf3c4",
+      "bytes": "880a40f9290080527fae047109150839cc0c0054880a40f9a1ffffd0a2ffffb0a3ffffb021b0189142202f911319047963883491880a40f9600080528456815213210479",
+      "meaning": "cellcallback countgate"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xf478",
+      "endExclusive": "0xf4c8",
+      "bytes": "880a40f9290080527fae0471091508390c050054880a40f9a1ffffd0a2ffffb0a3ffffb021b0189142a0359113390839681e0012890a40f96388349160008052c45d815228150479880a40f905154479",
+      "meaning": "probecallbackcountgate"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xe9a0",
+      "endExclusive": "0xea44",
+      "bytes": "6816483968040035e80600511ff10371e8010054a1fffff0a2fffff0a3fffff0a51e00122800805221b01891427438916370219160008052e4278152651a04796522047968160839ca330094880600511ff10371e8010054a1fffff0a2fffff0a3fffff02800805221b01891425c2c916370219160008052c4288152e503142a743a08397416047968160839b933009468f247391ffd0371c02c00541d1200941f080071",
+      "meaning": "43Ashared countlatch andFFmetadata gate"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xb4b0",
+      "endExclusive": "0xb774",
+      "bytes": "ffc302d1fd7b07a9fdc30191f74300f9f65709a9f44f0aa9f30300aa56d03bd500e4006fc0ffffd0f503012ac81640f900a02e91e1030091e2031faaa8831ff8e0c3843ce08301ade08300ade003803d08410094e8034079b70200521fc500718800805214159f1aa001005497010037c1ffffd0c2ffffd0c3ffffb021b0189142ec0e9163f4339160008052444d80528500805294008052f2400094591f00941f0400718101005468a647391f050071e102005468ae4739490080521f010071e8079f1a9412891a0801172a280200361b0000144b1f00941f080071c10d005468aa47391f0500712105005468b24739690080521f010071e8079f1a9412891a0801172a680400362d000014750a0036c1ffffd0c2ffffd0c3ffffb021b018914218019163f4339160008052a44e80524500805254008052ca40009468f641b9a90080521fc10371e8179f1a9402891a0801172a080a0037c1ffffd0c2ffffd0c3ffffb066f641b921b0189142600b9163f4339160008052a44f8052a5008052b4008052b74000944300001415070036c1ffffd0c2ffffd0c3ffffb021b0189142b80c9163f4339160008052045180526500805274008052aa400094880000f008214539c90080521f010071e8079f1a9412891a0801172a88010037c1ffffd0c2ffffd0c3ffffb021b018914234089163f433916000805204528052c5008052d40080529740009468f241b9090180521ffd0371e8079f1a9412891a0801172aa8030037c1ffffd0c2ffffb0c3ffffb066f241b921b0189142f83b9163f4339160008052045380520501805214018052844000941000001468f641b9490080521fc10371a80080520a000014880000f008214539690080526af241b9cb0080521f0100716801891a090180525ffd03713401881ac81640f9a9835ff81f0109eb01010054e003142af74340f9f44f4aa9f65749a9fd7b47a9ffc30291c0035fd670400094",
+      "meaning": "nativeBMSPolicy exactbranches"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xebac",
+      "endExclusive": "0xebf4",
+      "bytes": "6816483908210034e00313aae1031f2a3df2ff97fff60371410500541f0400710105005468e6079169fe4739080140796992093968ce0479680e4839481f0034e00313aaa4fcff97",
+      "meaning": "FDpolicy andcompletion gate"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0x92e0",
+      "endExclusive": "0x9448",
+      "bytes": "480080527fa20739090080122a008012609a0991e1031f2a68a60739024d805268aa0739682a08917fae07397fb2073969f201b969f601b9c91f80527f0208397f0608397f0a08397f0e08397f1208397f1608397f1a08397f1e08397f2208391f0100b9c8ff9f52695a0839c9df9f527f3a08396832047968720891692a0479694a047969aa08910a0100f9084c9d527f2204797f9a08396852047968ca08917ff208397f4202b97f1209397f4a02b97f3209397f5202b97f5209397f5a02b97f7209397f6202b97f9209391f0100f93f0100f953490094f41f8052603e139168de2191e1031f2a424d805275ea1c9177ea2191782a2291743a13391f0100794849009400e4006f140300b9f4ffff90c2fffff094b21891688e2191423c2c9160008052a00200ade10314aaa00201ada40c8052a00202ada00203ada00204ada00205ada00206ada00207ada00208ada04a803df5ffff90b5e211910001803de30315aaff7200f8",
+      "meaning": "zero cache andflags initialization"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xeaa8",
+      "endExclusive": "0xeba8",
+      "bytes": "6a1648392a290034aa1e00124a05350b4b791f537fd10471882800546c7a4e7971422b8b6a164479700100328f05001134fa1c391f020a6b6f7a0e79600500541fd20471282700547142308b8f090011700900111f020a6b2efa1c396f7a0e79400400547fc90471082600547042308b8f0d00116e0d0011df010a6b0dfa1c396f7a0e79200300547fc50471e82400546e422e8b8f1100116d110011bf010a6bc3f91c396f7a0e79000200547fc10471c82300546e422d8b8f1500116d150011bf010a6bc9f91c396f7a0e79e00000547fbd0471a822005469422d8b8f19001128f91c396f7a0e794a0d00345f212f6b080d005428008052680a08397f7a0e79",
+      "meaning": "probe rawcopy/elementcounter"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xec6c",
+      "endExclusive": "0xed50",
+      "bytes": "a81e00120a05350b48791f531f7d0971a81a00540d010032bf7d0971481a00546baa49796f6613916eea4739691a44796c05001170e64739ee4928384e050011df01096bf0492d386caa0979400300541f750971881800540d0900110e0d00116c0900116f66139170f247394a09001171ee47395f01096bf0492d38f1492e386caa0979800100541f6d0971c81600540a110011081500116c0d00116d6613916efa47396ff64739ae492a38af4928386caa0979c90000343f212c6b8800005428008052680608397faa097968064839a8140034680a48396814003428008052680e0839",
+      "meaning": "cell rawcopy/elementcounter"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xce34",
+      "endExclusive": "0xce80",
+      "bytes": "3f010aeb420200540a00098b4af95c39ea0100347f010a6b820000542b0500110a0822390b0c2239ff010a6b68000054ef000035c90000b5290500110a102239091422390200001408e4002f",
+      "meaning": "probezero aggregate skip"
+    },
+    {
+      "source": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbdataservice",
+      "va": "0xffd0",
+      "endExclusive": "0x10500",
+      "bytes": "0f0180520a0280528902152a0f70a8720a74a872eb010b324ce11f113f01007171118c1a490115320c0181524d011d324c010c2a4811891a09018052a4118c1acc07805209c4a4720d0180520e0380528c00a0720ddaa572300115320e88a672e80300b9a3118c1a2811901a0d038052d0029a5201028a52cb011532bf0200710dd6a572b000a07201b2a672ab118b1a3010901acd0280528104925216028052420480520dc8a472012aa972165aa2720254a47221108d1a4610961a4d028252420286522db2a77202b2a6721c06805247108d1aa2ea98524d6120116201a072e80700b91c88a872130680525e108d1a08029452020284528503153213a6a57248b3a772022aa9726d12851a4810881a9f020071c2f78652d7118b1a2b919a520e028b528b01a0720e5aa47205038052d8118b1a0b028a52a201a0720588b8720bb2a772ce028052bb10821a0e0ca572e5e397527a11901a8b5901114c02805210229452c20900114500a072ec010c2af001a0725910851ad3118b1a8511901aeb3389526c0780520b01a0720c88a47282118b1a8b0492520b4aa972000280526c11811a4b0480520b28a5720e0284526111861a4b028652001aa8720bb2a7724a6100110e4aa972090058116b11871a4a119e1a90138d1ace11881abf02346a680000d0151105392811801a49438052c03e94520920b3724001a072060180520910891a070180526d0000d0a87101b9680000d0116101b9710000d0298a02b906f6a1720784a672c9700011f17000112911911a710000d03baa02b908008152c05c8c5211008352740000d0898e02b9491f84520894a672e000a07211eea9728900a072550580520010881a2911911ad46a0011159aa372b412941a6d0000d0a06d01b96d0000d0a96901b9690000d0346501b9690000d0377502b9690000d0387902b9690000d03a9d02b9600000d019a402b9740000d084b202b904018052a9018052a001805204fea57209aaa072004aa17294001e32f5011e320910891a8012951a740000d093a202b993280011f42900116d0000d0a97102b97312941a740000d0838602b983001f32f4011f326910941a6d0000d0a02102b96d0000d0b32d02b96d0000d0a91d02b9ed0340b9690000d0e0051f32e007c03dbf031df82d4102b9690000d025c102b989041f322911801a600000d002bc02b980200011e22100116d0000d0a92502b90910821a600000d001b802b901018052c010871a0142a272a22997526d0000d0a92902b94910811a620000d040b402b9620000d00d02945201018052499002b9620000d050ac02b94db3a7728204945200018052ad51001142b3a6720180a4720002a5724d108d1a30001e3202001e320910811a5010901a620000d04e9402b94e058052620000d04d9802b98d5b81520e1aa672ad00a072620000d0494402b9a9118e1a6d0000d0b03902b9ed0740b9700000d0ce290011a0139c3cbfff3aa9b3a300d10d4a02b96d0000d0a95902b929001f320d001f3290300011e0310011a911891a0d12801a90380011e0390011750000d0a93e02b91012801a89108f1a770000d0ed3202b9760000d0d03602b9ed011c320f05805210889a52780000d0091b02b989001c320f76a872f001a07229118d1a0d128f1a8f989d52ef00a072a00301d1ee118e1a6f0000d0e95102b9690000d0a16301d1790000d02d1702b92e5502b9690000d02c4d02b9490780520801092a69b19b528900a072cca784522811881a7b0000d0c9028052ac01a0722902092abf831bf8687f01b9080480528911891a6c0000d08b8102b97a0000d0a8031c38a8a300d1498301b9690000d02a6102b9",
+      "meaning": "CANFD FIDconstantinitializer"
+    }
+  ],
+  "textAnchors": [
+    {
+      "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+      "firstLine": 69,
+      "lastLine": 82,
+      "text": "    public static final int CHARGING_BATTERY_STATE_BREAKDOWN_AC = 8;\n    public static final int CHARGING_BATTERY_STATE_BREAKDOWN_C10 = 5;\n    public static final int CHARGING_BATTERY_STATE_BREAKDOWN_CHARGER = 7;\n    public static final int CHARGING_BATTERY_STATE_BREAKDOWN_CHARGING_GUN = 6;\n    public static final int CHARGING_BATTERY_STATE_CHARGING = 1;\n    public static final int CHARGING_BATTERY_STATE_CHARGING_PAUSE = 13;\n    public static final int CHARGING_BATTERY_STATE_CHARG_FINISH = 2;\n    public static final int CHARGING_BATTERY_STATE_CHARG_TERMINATE = 4;\n    public static final int CHARGING_BATTERY_STATE_DISCHARG = 3;\n    public static final int CHARGING_BATTERY_STATE_DISCHARG_CBU = 10;\n    public static final int CHARGING_BATTERY_STATE_DISCHARG_FINISH = 12;\n    public static final int CHARGING_BATTERY_STATE_READY = 0;\n    public static final int CHARGING_BATTERY_STATE_SCHEDULE = 9;\n    public static final int CHARGING_BATTERY_STATE_TIMEOUT = 11;"
+    },
+    {
+      "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/ota/BYDAutoOtaDevice.java",
+      "firstLine": 24,
+      "lastLine": 25,
+      "text": "    public static final int CONTACTOR_STATE_CONNECT = 1;\n    public static final int CONTACTOR_STATE_DISCONNECT = 0;"
+    },
+    {
+      "source": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/ota/BYDAutoOtaDevice.java",
+      "firstLine": 283,
+      "lastLine": 287,
+      "text": "    public int getDischargeMainContactorState() {\n        int state = super.get(mDeviceType, BYDAutoFeatureIds.OTA_DISCHARGE_MAIN_CONTACTOR_STATE);\n        Log.d(TAG, \"getDischargeMainContactorState: state is \" + state);\n        return state;\n    }"
+    },
+    {
+      "source": "captures/ambient-light-20260923/jadx/BydPersonalCenter/sources/com/byd/report/biz/DataCollectionPresenterAlgorithm.java",
+      "firstLine": 478,
+      "lastLine": 506,
+      "text": "            if (i == BYDAutoFeatureIds.CHARGING_BATTERRY_DEVICE_STATE) {\n                int i2 = bYDAutoEventValue.intValue;\n                BydAutoLogUtil.w(DataCollectionPresenterAlgorithm.TAG, \"onDataEventChanged:AbsBYDAutoChargingListener: CHARGING_BATTERRY_DEVICE_STATE -> \" + i2);\n                if (i2 == 0) {\n                    BydAutoLogUtil.i(DataCollectionPresenterAlgorithm.TAG, \"onDataEventChanged:AbsBYDAutoChargingListener: CHARGING_BATTERY_STATE_READY\");\n                    return;\n                }\n                if (i2 != 1) {\n                    if (i2 == 2) {\n                        BydAutoLogUtil.i(DataCollectionPresenterAlgorithm.TAG, \"onDataEventChanged:AbsBYDAutoChargingListener: CHARGE_FINISH\");\n                    } else if (i2 != 4) {\n                        return;\n                    }\n                    if (DataCollectionPresenterAlgorithm.this.isCharging) {\n                        DataCollectionPresenterAlgorithm.this.isCharging = false;\n                        DataCollectionPresenterAlgorithm dataCollectionPresenterAlgorithm = DataCollectionPresenterAlgorithm.this;\n                        dataCollectionPresenterAlgorithm.mTotalElecConsume = dataCollectionPresenterAlgorithm.lastElec = dataCollectionPresenterAlgorithm.mBeginElecConsume = dataCollectionPresenterAlgorithm.mStatisticDevice.getTotalElecConValue();\n                        BydAutoLogUtil.i(DataCollectionPresenterAlgorithm.TAG, \"onDataEventChanged:AbsBYDAutoChargingListener: CHARGE_TERMINATE, 重置mTotalElecConsume = mBeginElecConsume = \" + DataCollectionPresenterAlgorithm.this.mBeginElecConsume);\n                        return;\n                    }\n                    return;\n                }\n                DataCollectionPresenterAlgorithm.this.isCharging = true;\n                double d = DataCollectionPresenterAlgorithm.this.mTotalElecConsume - DataCollectionPresenterAlgorithm.this.mBeginElecConsume;\n                if (d < 0.0d) {\n                    d = 0.0d;\n                }\n                DataCollectionPresenterAlgorithm.this.evConsumeList.add(new BydAutoElectricConsumptionBean(d, TimeUtils.millis2String(System.currentTimeMillis())));\n                BydAutoLogUtil.i(DataCollectionPresenterAlgorithm.TAG, \"onDataEventChanged:AbsBYDAutoChargingListener: CHARGING_BATTERY_STATE_CHARGING, evConsume = \" + DataCollectionPresenterAlgorithm.this.evConsume + \", mTotalElecConsume = \" + DataCollectionPresenterAlgorithm.this.mTotalElecConsume + \", mBeginElecConsume = \" + DataCollectionPresenterAlgorithm.this.mBeginElecConsume);"
+    }
+  ],
+  "captureBase": "captures/diagnostics-followup-20261021/battery-validity",
+  "checker": "research/vehicle-diagnostics/battery-validity-checker.py"
+}
