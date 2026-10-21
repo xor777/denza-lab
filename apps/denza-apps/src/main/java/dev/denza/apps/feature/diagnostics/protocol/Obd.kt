@@ -288,7 +288,7 @@ internal sealed interface VehicleInfo {
     data class Supported(val infoTypes: List<Int>) : VehicleInfo
     /** `09 04`: calibration identifiers, 16 ASCII bytes each. */
     data class CalibrationIds(val ids: List<String>) : VehicleInfo
-    /** `09 0A`: the ECU's own name, 20 ASCII bytes. */
+    /** `09 0A`: the ECU's own name, 20 ASCII bytes, «ECM-EngineControl» ([ObdCodec.ecuName]). */
     data class EcuName(val name: String) : VehicleInfo
 }
 
@@ -337,7 +337,7 @@ internal object ObdCodec {
         return Decoded.Ok(ObdDtcs(mode, codes))
     }
 
-    /** `49 00 <bitmap>`, `49 04 <n> <16 bytes>×n`, `49 0A 01 <20 bytes>`. */
+    /** `49 00 <bitmap>`, `49 04 <n> <16 bytes>×n`, `49 0A 01 <20 bytes>` ([ecuName]). */
     fun vehicleInfo(uds: ByteArray): Decoded<VehicleInfo> {
         val b = uds.unsigned()
         if (b.size < 2 || b[0] != 0x49) return Decoded.Malformed("not 49")
@@ -355,10 +355,25 @@ internal object ObdCodec {
             }
             0x0A -> {
                 if (b.size != 23 || b[2] != 1) return Decoded.Malformed("49 0A is not one 20-byte name")
-                val name = Ascii.trimmed(uds.copyOfRange(3, 23)) ?: return Decoded.Malformed("49 0A is not ASCII")
+                val name = ecuName(uds.copyOfRange(3, 23)) ?: return Decoded.Malformed("49 0A is not ASCII")
                 Decoded.Ok(VehicleInfo.EcuName(name))
             }
             else -> Decoded.Malformed("info type %02X not asked".format(b[1]))
         }
+    }
+
+    /**
+     * SAE J1979 ECUNAME: the acronym in four bytes padded with NUL, `-`, then the text in fifteen
+     * padded with NUL. ECM sends `ECM\0-EngineControl\0\0` (2026-10-21), which reads «ECM-EngineControl»;
+     * the brake interface's `BSCM-BrakeSystem` fills its acronym. A name not laid out that way is read
+     * as plain ASCII; null when it does not print.
+     */
+    fun ecuName(data: ByteArray): String? {
+        if (data.size == 20 && data[4] == '-'.code.toByte()) {
+            val acronym = Ascii.trimmed(data.copyOfRange(0, 4))
+            val text = Ascii.trimmed(data.copyOfRange(5, 20))
+            if (acronym != null && text != null) return "$acronym-$text"
+        }
+        return Ascii.trimmed(data)
     }
 }

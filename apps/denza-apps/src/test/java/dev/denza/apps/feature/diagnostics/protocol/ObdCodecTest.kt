@@ -281,6 +281,27 @@ class ObdCodecTest {
     }
 
     @Test
+    fun theEngineNamesItselfTheJ1979Way() {
+        // ecm-completion 2026-10-21, run 3: 09 00, 09 04, 09 0A as the car answered them.
+        val ecm = JSONObject(File(root, "research/vehicle-diagnostics/ecm-completion-20261021.json").readText())
+        val wire = ecm.getJSONArray("runs").objects().flatMap { it.getJSONArray("wireResponses").objects() }
+        fun reply(uds: String) = wire.last { it.getString("requestHex") == uds }.getString("responseHex")
+        val supported = ok(DiagDecoder.vehicleInfo(answer(0x7E0, "0900", reply("0900")))) as VehicleInfo.Supported
+        assertEquals(listOf(0x02, 0x04, 0x06, 0x08, 0x0A, 0x12), supported.infoTypes)
+        val calId = ok(DiagDecoder.vehicleInfo(answer(0x7E0, "0904", reply("0904")))) as VehicleInfo.CalibrationIds
+        assertEquals(listOf(ecm.getJSONObject("route").getString("calibrationId")), calId.ids)
+        assertEquals(listOf("Z31L07AB01"), calId.ids)
+        // The acronym is NUL-padded inside the name: «ECM\0-EngineControl\0\0», not a broken string.
+        assertEquals("ECM\\0-EngineControl\\0\\0", ecm.getJSONObject("route").getString("ecuNameAsciiEscaped"))
+        val name = ok(DiagDecoder.vehicleInfo(answer(0x7E0, "090A", reply("090A")))) as VehicleInfo.EcuName
+        assertEquals("ECM-EngineControl", name.name)
+        // Not the J1979 layout: plain ASCII, or nothing when a NUL sits inside.
+        assertEquals("ENGINECONTROLMODULE1", ObdCodec.ecuName("ENGINECONTROLMODULE1".toByteArray()))
+        assertEquals(null, ObdCodec.ecuName(hexBytes("45434D00" + "45" + "6E67696E65436F6E74726F6C0000")))
+        assertEquals(null, ObdCodec.ecuName(hexBytes("00000000" + "2D" + "456E67696E65436F6E74726F6C0000")))
+    }
+
+    @Test
     fun obdServiceTheEcuDoesNotOfferIsUnsupported() {
         // Run 1: 7E3 01 00 → 7F 01 11.
         val p = Polled.of(answer(0x7E3, "0100", "7F0111")) { DiagDecoder.obdPids(it) }
