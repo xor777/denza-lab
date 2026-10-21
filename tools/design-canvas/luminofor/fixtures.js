@@ -750,6 +750,26 @@
       notes: [['22 F18A · F194 · F195', true]] },
   };
 
+  // «Идентификация» of a UDS block after an over-the-air update (architecture 5.5): the BMS with the
+  // row the code history leaves under its F195. Illustrative: the new F194 and F195 and the day are made
+  // up; the old version and code are what the BMS answered on 2026-10-20 and the update cache kept on
+  // 2026-10-18, F18A and F197 as it answered them then.
+  const scannerEcuIdentUpdated = {
+    top: scanTop(['Автоскан', 'Система управления ВВБ'], '10:14:05'),
+    block: { title: 'Система управления ВВБ', aside: '· BMS', badge: ['ok', 'OK'], dtc: ['DTC', '0'],
+      line: '7E7 → 7EF · UDS · маска доступности 09 · формат DTC 00 (SAE J2012) · ПО (F195) 87F71A0B0C03' },
+    tabs: { items: ['Ошибки DTC', 'Идентификация'], active: 1 },
+    // [key, value, tone: '' white | 'dim']
+    own: [['Запрос → ответ', '7E7 → 7EF', ''], ['Протоколы', 'UDS (ISO 14229)', ''], ['Поставщик · 22 F18A', 'нет ответа', 'dim'],
+      ['Номер ПО поставщика · 22 F194', '4A520011E00D00048C', ''], ['Версия ПО · 22 F195', '87F71A0B0C03', ''],
+      ['ПО обновлено · 12.11.2026', 'был 87F71A011402 · 4A520011E00D00047B', ''],
+      ['Имя системы · 22 F197', 'не отдаёт · NRC 31', 'dim'], ['Формат DTC · 19 01', '00 · SAE J2012', '']],
+    cache: [['Основание имени', '22 F194', ''], ['Идентификатор', 'HTH-2021_BMS_BYD_03300001', ''], ['Версия ПО', '3.48.07', ''],
+      ['Версия железа', '0.0.3', '']],
+    pids: [],
+    footer: { buttons: [back, ['Прочитать снова', 'primary']], notes: [['22 F18A · F194 · F195', true]] },
+  };
+
   // The parked sweep of 2026-10-20 (readings in docs/vehicle-data-findings.md): the pack's readings.
   const packReadings = {
     // [signal, parameter, value, unit, norm, mark]
@@ -1330,6 +1350,7 @@
     'scanner-ecu-live':  [scanner('ecuLive'), scannerEcuLive],
     'scanner-ecu-fault': [scanner('ecuFault'), scannerEcuFault],
     'scanner-ecu-ident': [scanner('ecuIdent'), scannerEcuIdent],
+    'scanner-ecu-ident-updated': [scanner('ecuIdent'), scannerEcuIdentUpdated],
     'scanner-esp-dtc':   [scanner('blockMask'), scannerEspDtc],
     'digits':         [{ kind: 'digits' }, {}]
   };

@@ -83,6 +83,7 @@ internal object ScannerFixtures {
     private const val R_ZCU = 0x747
     private const val ESP = 0x782
     private const val BSCM = 0x7E5
+    private const val BMS = 0x7E7
 
     private val scan = ScannerRoute.Scan()
 
@@ -119,6 +120,7 @@ internal object ScannerFixtures {
             "scanner-ecu-dtc", "scanner-ecu-fault" -> listOf(scan, ScannerRoute.Module(ECM, 0))
             "scanner-ecu-live" -> listOf(scan, ScannerRoute.Module(ECM, 1))
             "scanner-ecu-ident" -> listOf(scan, ScannerRoute.Module(ECM, 2))
+            "scanner-ecu-ident-updated" -> listOf(scan, ScannerRoute.Module(BMS, 1))
             "scanner-esp-dtc" -> listOf(scan, ScannerRoute.System(CarSystem.CHASSIS), ScannerRoute.Module(ESP, 0))
             else -> listOf(scan)
         }
@@ -591,6 +593,7 @@ internal object ScannerFixtures {
                 ),
             ),
             ECM to ecm(all, id),
+            BMS to updated(fixture(all, "scanner-ecu-ident-updated")),
             ESP to blockModule(ESP, esp.getJSONObject("block"), ModuleStatus.OK).copy(
                 dtc = DtcView(
                     asks = arrays(esp.getJSONArray("asks")).map { a -> ask(a.getString(0), a.getString(1), a.getString(2)) },
@@ -599,6 +602,11 @@ internal object ScannerFixtures {
             ),
         )
     }
+
+    /** The BMS after an update (architecture 5.5): its head and «Идентификация» with «ПО обновлено». */
+    private fun updated(f: JSONObject): ModuleView = blockModule(BMS, f.getJSONObject("block"), ModuleStatus.OK).copy(
+        ident = IdentView(fields(f.getJSONArray("own")), fields(f.getJSONArray("cache")), strings(f.getJSONArray("pids"))),
+    )
 
     /** A block from a board's head: title (≈ when inferred), «· unit», the mono line. */
     private fun blockModule(request: Int, block: JSONObject, status: ModuleStatus): ModuleView {
