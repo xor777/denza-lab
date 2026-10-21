@@ -1,0 +1,802 @@
+{
+  "schema": "denza-lab.washer-n9-origin.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleCalls": 0,
+  "networkCalls": 0,
+  "newFaultsOrFluidManipulations": 0,
+  "premise": "N9 reservoir was empty and sensors are fitted on both N9 and Z9GT, as reported by the owner/service. This report does not dispute either fact.",
+  "observations": {
+    "model": 168,
+    "matchedAndroidHashes": [
+      {
+        "phase": "liquid-present",
+        "hashes": {
+          "/system/framework/framework.jar": "aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c",
+          "/system/lib64/hw/auto.default.so": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+          "/system/lib64/libbydautoservice.so": "98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65"
+        }
+      },
+      {
+        "phase": "empty",
+        "hashes": {
+          "/system/framework/framework.jar": "aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c",
+          "/system/lib64/hw/auto.default.so": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+          "/system/lib64/libbydautoservice.so": "98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65"
+        }
+      },
+      {
+        "phase": "refilled",
+        "hashes": {
+          "/system/framework/framework.jar": "aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c",
+          "/system/lib64/hw/auto.default.so": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+          "/system/lib64/libbydautoservice.so": "98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65"
+        }
+      },
+      {
+        "phase": "refilled-hood-open",
+        "hashes": {
+          "/system/framework/framework.jar": "aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c",
+          "/system/lib64/hw/auto.default.so": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+          "/system/lib64/libbydautoservice.so": "98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65"
+        }
+      }
+    ],
+    "scalarStates": [
+      {
+        "phase": "liquid-present",
+        "identity": {
+          "persist.sys.AutoType": "168",
+          "sys.car.protocol": "CANFD",
+          "ro.build.fingerprint": "BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys",
+          "persist.sys.model_variant.model": "n9",
+          "ro.build.display.id": "TP1A.220624.014 release-keys",
+          "ro.build.version.incremental": "eng.build20260705.011226"
+        },
+        "values": {
+          "1001/0x12D0002A": [
+            "0x00000002",
+            "0x00000002"
+          ],
+          "1001/0x26100000": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x26F00000": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x2940001C": [
+            "0x00000000",
+            "0x00000000"
+          ],
+          "1001/0x40D00010": [
+            "0x000000A8",
+            "0x000000A8"
+          ],
+          "1007/0x26100008": [
+            "0x0000013F",
+            "0x0000013F"
+          ],
+          "1007/0x26100019": [
+            "0x00000000",
+            "0x00000000"
+          ],
+          "1007/0x3D90201E": [
+            "0x00000000",
+            "0x00000000"
+          ],
+          "1023/0x0A000008": [
+            "0x00000000",
+            "0x00000000"
+          ]
+        }
+      },
+      {
+        "phase": "empty",
+        "identity": {
+          "persist.sys.AutoType": "168",
+          "sys.car.protocol": "CANFD",
+          "ro.build.fingerprint": "BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys",
+          "persist.sys.model_variant.model": "n9",
+          "ro.build.display.id": "TP1A.220624.014 release-keys",
+          "ro.build.version.incremental": "eng.build20260705.011226"
+        },
+        "values": {
+          "1001/0x12D0002A": [
+            "0x00000002",
+            "0x00000002"
+          ],
+          "1001/0x26100000": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x26F00000": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x2940001C": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x40D00010": [
+            "0x000000A8",
+            "0x000000A8"
+          ],
+          "1007/0x26100008": [
+            "0x0000013F",
+            "0x0000013F"
+          ],
+          "1007/0x26100019": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1007/0x3D90201E": [
+            "0x00000000",
+            "0x00000000"
+          ],
+          "1023/0x0A000008": [
+            "0x00000000",
+            "0x00000000"
+          ]
+        }
+      },
+      {
+        "phase": "refilled",
+        "identity": {
+          "persist.sys.AutoType": "168",
+          "sys.car.protocol": "CANFD",
+          "ro.build.fingerprint": "BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys",
+          "persist.sys.model_variant.model": "n9",
+          "ro.build.display.id": "TP1A.220624.014 release-keys",
+          "ro.build.version.incremental": "eng.build20260705.011226"
+        },
+        "values": {
+          "1001/0x12D0002A": [
+            "0x00000002",
+            "0x00000002"
+          ],
+          "1001/0x26100000": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x26F00000": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x2940001C": [
+            "0x00000000",
+            "0x00000000"
+          ],
+          "1001/0x40D00010": [
+            "0x000000A8",
+            "0x000000A8"
+          ],
+          "1007/0x26100008": [
+            "0x0000013F",
+            "0x0000013F"
+          ],
+          "1007/0x26100019": [
+            "0x00000000",
+            "0x00000000"
+          ],
+          "1007/0x3D90201E": [
+            "0x00000000",
+            "0x00000000"
+          ],
+          "1023/0x0A000008": [
+            "0x00000000",
+            "0x00000000"
+          ]
+        }
+      },
+      {
+        "phase": "refilled-hood-open",
+        "identity": {
+          "persist.sys.AutoType": "168",
+          "sys.car.protocol": "CANFD",
+          "ro.build.fingerprint": "BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys",
+          "persist.sys.model_variant.model": "n9",
+          "ro.build.display.id": "TP1A.220624.014 release-keys",
+          "ro.build.version.incremental": "eng.build20260705.011226"
+        },
+        "values": {
+          "1001/0x12D0002A": [
+            "0x00000002",
+            "0x00000002"
+          ],
+          "1001/0x26100000": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x26F00000": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x2940001C": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1001/0x40D00010": [
+            "0x000000A8",
+            "0x000000A8"
+          ],
+          "1007/0x26100008": [
+            "0x0000013F",
+            "0x0000013F"
+          ],
+          "1007/0x26100019": [
+            "0x00000001",
+            "0x00000001"
+          ],
+          "1007/0x3D90201E": [
+            "0x00000000",
+            "0x00000000"
+          ],
+          "1023/0x0A000008": [
+            "0x00000000",
+            "0x00000000"
+          ]
+        }
+      }
+    ],
+    "replayWindows": [
+      {
+        "phase": "liquid-present",
+        "stream": "bigdata",
+        "path": "captures/washer-n9-20261016/cycle-02/liquid-present/bigdata.log",
+        "frames": 29533,
+        "dropped": 0,
+        "errors": 0,
+        "selected261Tuples": [],
+        "warningIDs": {},
+        "warningSpanSeconds": null,
+        "bodyFieldTuples": [],
+        "power12DValues": {
+          "3": 3600
+        },
+        "view26FValues": {},
+        "CAN0A0Samples": 0
+      },
+      {
+        "phase": "liquid-present",
+        "stream": "gb",
+        "path": "captures/washer-n9-20261016/cycle-02/liquid-present/gb.log",
+        "frames": 16517,
+        "dropped": 0,
+        "errors": 0,
+        "selected261Tuples": [
+          "id=0x261 sub=0x00 ch=0 len=8"
+        ],
+        "warningIDs": {
+          "0x13f": 179
+        },
+        "warningSpanSeconds": 179.418367703,
+        "bodyFieldTuples": [
+          {
+            "doors4Bits": 5,
+            "bootHood2Bits": 2,
+            "seatbelts5Bits": 31,
+            "samples": 179
+          }
+        ],
+        "power12DValues": {
+          "3": 3600
+        },
+        "view26FValues": {},
+        "CAN0A0Samples": 0
+      },
+      {
+        "phase": "liquid-present",
+        "stream": "yun",
+        "path": "captures/washer-n9-20261016/cycle-02/liquid-present/yun.log",
+        "frames": 22382,
+        "dropped": 0,
+        "errors": 0,
+        "selected261Tuples": [],
+        "warningIDs": {},
+        "warningSpanSeconds": null,
+        "bodyFieldTuples": [],
+        "power12DValues": {
+          "3": 3600
+        },
+        "view26FValues": {
+          "3": 178
+        },
+        "CAN0A0Samples": 0
+      },
+      {
+        "phase": "empty",
+        "stream": "bigdata",
+        "path": "captures/washer-n9-20261016/cycle-02/empty/bigdata.log",
+        "frames": 29717,
+        "dropped": 0,
+        "errors": 0,
+        "selected261Tuples": [],
+        "warningIDs": {},
+        "warningSpanSeconds": null,
+        "bodyFieldTuples": [],
+        "power12DValues": {
+          "3": 3600
+        },
+        "view26FValues": {},
+        "CAN0A0Samples": 0
+      },
+      {
+        "phase": "empty",
+        "stream": "gb",
+        "path": "captures/washer-n9-20261016/cycle-02/empty/gb.log",
+        "frames": 16631,
+        "dropped": 0,
+        "errors": 0,
+        "selected261Tuples": [
+          "id=0x261 sub=0x00 ch=0 len=8"
+        ],
+        "warningIDs": {
+          "0x13f": 179
+        },
+        "warningSpanSeconds": 179.309837241,
+        "bodyFieldTuples": [
+          {
+            "doors4Bits": 0,
+            "bootHood2Bits": 2,
+            "seatbelts5Bits": 31,
+            "samples": 179
+          }
+        ],
+        "power12DValues": {
+          "3": 3599
+        },
+        "view26FValues": {},
+        "CAN0A0Samples": 0
+      },
+      {
+        "phase": "empty",
+        "stream": "yun",
+        "path": "captures/washer-n9-20261016/cycle-02/empty/yun.log",
+        "frames": 21948,
+        "dropped": 0,
+        "errors": 0,
+        "selected261Tuples": [],
+        "warningIDs": {},
+        "warningSpanSeconds": null,
+        "bodyFieldTuples": [],
+        "power12DValues": {
+          "3": 3600
+        },
+        "view26FValues": {
+          "3": 179
+        },
+        "CAN0A0Samples": 0
+      },
+      {
+        "phase": "refilled",
+        "stream": "bigdata",
+        "path": "captures/washer-n9-20261016/cycle-02/refilled/bigdata.log",
+        "frames": 29082,
+        "dropped": 0,
+        "errors": 0,
+        "selected261Tuples": [],
+        "warningIDs": {},
+        "warningSpanSeconds": null,
+        "bodyFieldTuples": [],
+        "power12DValues": {
+          "3": 3600
+        },
+        "view26FValues": {},
+        "CAN0A0Samples": 0
+      },
+      {
+        "phase": "refilled",
+        "stream": "gb",
+        "path": "captures/washer-n9-20261016/cycle-02/refilled/gb.log",
+        "frames": 15760,
+        "dropped": 0,
+        "errors": 0,
+        "selected261Tuples": [
+          "id=0x261 sub=0x00 ch=0 len=8"
+        ],
+        "warningIDs": {
+          "0x13f": 179
+        },
+        "warningSpanSeconds": 178.60774278,
+        "bodyFieldTuples": [
+          {
+            "doors4Bits": 8,
+            "bootHood2Bits": 2,
+            "seatbelts5Bits": 31,
+            "samples": 116
+          },
+          {
+            "doors4Bits": 9,
+            "bootHood2Bits": 2,
+            "seatbelts5Bits": 31,
+            "samples": 63
+          }
+        ],
+        "power12DValues": {
+          "3": 3599
+        },
+        "view26FValues": {},
+        "CAN0A0Samples": 0
+      },
+      {
+        "phase": "refilled",
+        "stream": "yun",
+        "path": "captures/washer-n9-20261016/cycle-02/refilled/yun.log",
+        "frames": 21771,
+        "dropped": 0,
+        "errors": 0,
+        "selected261Tuples": [],
+        "warningIDs": {},
+        "warningSpanSeconds": null,
+        "bodyFieldTuples": [],
+        "power12DValues": {
+          "3": 3600
+        },
+        "view26FValues": {
+          "3": 179
+        },
+        "CAN0A0Samples": 0
+      }
+    ],
+    "powerSourceConstants": [
+      {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+        "line": 405,
+        "text": "    public static final int BODYWORK_POWER_LEVEL_ACC = 1;"
+      },
+      {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+        "line": 406,
+        "text": "    public static final int BODYWORK_POWER_LEVEL_FAKE_OK = 4;"
+      },
+      {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+        "line": 407,
+        "text": "    public static final int BODYWORK_POWER_LEVEL_INVALID = 255;"
+      },
+      {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+        "line": 408,
+        "text": "    public static final int BODYWORK_POWER_LEVEL_OFF = 0;"
+      },
+      {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+        "line": 409,
+        "text": "    public static final int BODYWORK_POWER_LEVEL_OK = 3;"
+      },
+      {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+        "line": 410,
+        "text": "    public static final int BODYWORK_POWER_LEVEL_ON = 2;"
+      }
+    ],
+    "powerConclusion": "All8 saved scalar sweeps report2, and all32398 cycle02 raw12D samples have wire3. HAL powerlevel5FBE0 emits wire-1 in its output tuple value+4, so wire3 and API2 are consistent. SDK constantON2 versus native direct-stream gate3 is not evidence that the car was outside the required operating state.",
+    "powerLayerBoundary": {
+      "fid": "0x12d0002a",
+      "descriptorVA": "0xd98cc",
+      "descriptorBytes": "0502050462a7180098da0800",
+      "rawCoordinates": [
+        5,
+        2,
+        5,
+        4
+      ],
+      "rawAlgorithm": "(payload[4] >> 2) & 7",
+      "mcuHandler": "0x18a762",
+      "mcuDelegation": "18A778 calls generic18A09C before wrapper side effects; generic extractor emits the unchanged wire field.",
+      "halRegistration": {
+        "init": "0x107868",
+        "fid": 315621418,
+        "storage_type": 3,
+        "device": 1001,
+        "converter": 392160,
+        "type": 2,
+        "registration": "0x107898",
+        "kind": "get"
+      },
+      "converterVA": "0x5fbe0",
+      "converterEndExclusive": "0x5fc90",
+      "converterSHA256": "0eb257e27fc8610f38fd32025b169ab9df850918b02d3f30baf502289438d4f5",
+      "converterBytes": "fd7bbea9f44f01a9fd030091080040b989d28c52f30302aa480000b9c80b00f0087140f9080940f9086969b8480800b9280040b91f05007101010054f40301aae0fefff0e1feffd00018259121641691b0bf0594880240b9080500511f09007108020054097d7e930afffff04a312e910cfffff08c012e91e0feffb04b69a9b800e43491896969b8680600b941010b8b690e00b99fbf0594e0031f2a02000014a0e38412f44f41a9fd7bc2a8c0035fd6",
+      "arithmetic": "For input1..3 the converter emits tuple{FID=inputFID,value=input-1,...}; outside1..3 it returns-10014. Raw1 has an additional logging operation.",
+      "finiteCases": [
+        {
+          "wire": 1,
+          "outputTupleValue": 0
+        },
+        {
+          "wire": 2,
+          "outputTupleValue": 1
+        },
+        {
+          "wire": 3,
+          "outputTupleValue": 2
+        }
+      ],
+      "inferenceLimit": "Do not label wire3 using Android SDK integer constants, or infer non-Ready from API2 alone. No washer-specific power precondition has been recovered."
+    }
+  },
+  "viewLayerBoundary": {
+    "fid": "0x26f00028",
+    "descriptorVA": "0xdfae8",
+    "descriptorBytes": "050005039ca01800b43c0900",
+    "propertyVA": "0x93cb4",
+    "propertyBytes": "2800f026010000003052effe",
+    "rawAlgorithm": "payload[4] & 15",
+    "halRegistration": {
+      "init": "0x12c4ac",
+      "fid": 653262888,
+      "storage_type": 0,
+      "converter": 920544,
+      "device": 1007,
+      "type": 2,
+      "registration": "0x12c4d4",
+      "kind": "get"
+    },
+    "converterVA": "0xe0be0",
+    "converterBytes": "e0031f2ac0035fd6",
+    "conclusion": "Unlike powerlevel, this HAL converter is identity. A saved device1007/FID26F00028 API4 is comparable to native direct4 and does not satisfy native gate3. A read of another FID, including26F00018, is not established as an alias by this audit.",
+    "scalarSweepBoundary": "26F00028 does not appear in the4 retained catalog sweeps parsed here; raw field observations, if any, are separately listed."
+  },
+  "newWarningScheme": {
+    "mcuFrameTableVA": "0xd471c",
+    "mcuFrameTableBytes": "00a000e000000000060000003c8f0d00",
+    "fields": [
+      {
+        "fid": "0xa00001e",
+        "frame": "CAN0x0A0/sub0/channel0",
+        "descriptorVA": "0xd8f6c",
+        "descriptorBytes": "030603079ca0180038d10800",
+        "propertyVA": "0x8d138",
+        "propertyBytes": "1e00000a010000000832effe",
+        "coordinates": [
+          3,
+          6,
+          3,
+          7
+        ],
+        "handlerVA": "0x18a09c",
+        "scalarBytes": 1,
+        "cacheRAM": "0xfeef3208",
+        "algorithm": "(payload[2] >> 6) & 3",
+        "matchingCANFDHALRegistrations": [],
+        "resolvedCatalogRows": []
+      },
+      {
+        "fid": "0xa000020",
+        "frame": "CAN0x0A0/sub0/channel0",
+        "descriptorVA": "0xd8f78",
+        "descriptorBytes": "040005079ca0180044d10800",
+        "propertyVA": "0x8d144",
+        "propertyBytes": "2000000a020000000c32effe",
+        "coordinates": [
+          4,
+          0,
+          5,
+          7
+        ],
+        "handlerVA": "0x18a09c",
+        "scalarBytes": 2,
+        "cacheRAM": "0xfeef320c",
+        "algorithm": "payload[3] | payload[4] << 8",
+        "matchingCANFDHALRegistrations": [],
+        "resolvedCatalogRows": []
+      }
+    ],
+    "HALScope": "10997 pattern-resolved GET/SET registrations in the CANFD initializer103020..1AAC60; not a complete path-sensitive HAL execution proof.",
+    "androidReadQualification": "No registration or resolved catalog mapping established for0A00001E/0A000020. A normal scalar GET for them is not qualified by this pass.",
+    "nativeConsumerBoundary": "The separate native cluster implementation reads spidev_cluster directly, so missing Android HAL registration does not disprove its consumption of these properties.",
+    "applicability": "The current MCU image is not installed-hash-matched to N9. Nine replayed selected-stream windows contain noCAN0A0; this does not establish flag0 or absence from the vehicle bus.",
+    "relevance": "Candidate source-selection capability, not a proven explanation for missing1DD; native warning-condition audit owns its consumers and washer relationship."
+  },
+  "configurationSearch": [
+    {
+      "root": "captures/firmware/ivi-34.1.33.2605218.1/jadx/VehicleConfigResources",
+      "selectedExtensions": [
+        ".java",
+        ".xml",
+        ".json"
+      ],
+      "files": 646,
+      "pathAndFileSHA256Digest": "d7592304ba983c5b4fbc86d139ac7e737bfe0f5e7dec02ce4cdcd43272fdbc8e",
+      "pattern": "washer|wash.{0,25}(fluid|level)|洗涤液|玻璃水|清洗液|洗液|液位",
+      "matches": [],
+      "limitation": "No named match in these two retained IVI services is not proof that upstream ECU coding is absent or disabled."
+    },
+    {
+      "root": "captures/firmware/pulled-from-car-20261018/jadx/ClientConfigurationService",
+      "selectedExtensions": [
+        ".java",
+        ".xml",
+        ".json"
+      ],
+      "files": 2380,
+      "pathAndFileSHA256Digest": "b3a9af66801e2fe4b24522016a68d74418d647d7bd95ce75c78b13350ac08c4d",
+      "pattern": "washer|wash.{0,25}(fluid|level)|洗涤液|玻璃水|清洗液|洗液|液位",
+      "matches": [],
+      "limitation": "No named match in these two retained IVI services is not proof that upstream ECU coding is absent or disabled."
+    }
+  ],
+  "exclusions": [
+    "Visible-popup suppression alone cannot explain why retained rawCAN261 also carries13F instead of1DD.",
+    "Different Android framework/HAL/libbydautoservice binaries are excluded for the4 saved scalar states by matching installed hashes.",
+    "No incorrect channel/low10bit decode is identified: scalarGET13F and rawCAN261/sub0/channel0 agree across independent retained captures.",
+    "No source-backed washer-specific model168/170 disable flag has been recovered; catalog absence is not evidence of absent sensor."
+  ],
+  "remainingGap": [
+    "The low-level cause is unresolved: the fitted sensor input and upstream warning-selection producer are not captured or defined here.",
+    "N9 nativeCells/ClusterClient/popup bytes and installed MCU are not hash-bound by these captures; the Z9GT native warning dictionary cannot alone qualify N9 behavior.",
+    "Upstream priority selection, equipment/coding, alternate warning scheme and operating-state prerequisites remain hypotheses; no one is promoted to root cause.",
+    "No independent physical operating-state proof is added here; API2 and direct-stream3 are different representations. A power-gate explanation for missing1DD is not demonstrated.",
+    "The199-address selected-stream coverage is finite, not full-bus coverage. No direct source-defined alternative washer signal has been recovered."
+  ],
+  "sources": [
+    {
+      "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+      "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885",
+      "bytes": 542428
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/hal-registrations.json",
+      "sha256": "25700ad3c7cb9b489c745eac7082b2d8e80b574e4708b0ea7b2988ba4e5bef4b",
+      "bytes": 2055268
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java",
+      "sha256": "31ad419cbe050cb7731e99d3d7a6755932202a4e17746651ecfc4e457bff62b3",
+      "bytes": 105805
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/bigdata.log",
+      "sha256": "17b1cafae0f54a227791e4c3f3f6b96fb2ace80697b2297db6724eb4b92f8d36",
+      "bytes": 4102355
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/gb.log",
+      "sha256": "b3a9bc17ea4290d5b6727dc3bbd0e382e72ef7c24eef11be674fe5e078fceef2",
+      "bytes": 1954725
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/summary.json",
+      "sha256": "47a12ad36782a7f30f475605799139617b614e9e2d2c7e360e694b555f215a97",
+      "bytes": 376109
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/yun.log",
+      "sha256": "27a4d54b4a7db9f672e9a6c68bde747b124981772c14a3c8f4ff13cbbedd5452",
+      "bytes": 2527167
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/bigdata.log",
+      "sha256": "2b1f07172197d727783517cbc5abc99b3c80702d7fff22b4d1b058e0c8788c3c",
+      "bytes": 4073758
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/gb.log",
+      "sha256": "810f1e5cb8bc046181872fd4032cfd543df469cedd176f1ac55c38806b4d75e8",
+      "bytes": 1942627
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/summary.json",
+      "sha256": "df00e8c51bd67a763df0b8f473edf0b88e00a74916e2c4e188a8fe4459d8a914",
+      "bytes": 381469
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/yun.log",
+      "sha256": "da135d0265bdc809a3afe0883fd205a0f908a5803c2541c47f56fe7dd1e3e52b",
+      "bytes": 2574403
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/bigdata.log",
+      "sha256": "4d97713881f7a2cd1b5b767599c707515efa2e47eaf859a79736ee31b5d722e2",
+      "bytes": 4045167
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/gb.log",
+      "sha256": "cb5d6823303c8cb15e0ec72196f91012a970a9af99e0acd6bbf2c124a7962a48",
+      "bytes": 1857198
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/summary.json",
+      "sha256": "8f673bffd42e79cc3a8690f7f7420f93725a4663e3613cc6c105a0bd2ccc3c22",
+      "bytes": 398866
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/yun.log",
+      "sha256": "f8b9db6ab8660bb737f736404a2c5cbeba21d65d7848e53ee5043111cf8fbd4f",
+      "bytes": 2503853
+    },
+    {
+      "path": "captures/washer-n9-20261016/empty/fids.tsv",
+      "sha256": "7bb0966534a52224c70d3a47dd897e9df0cbf1ba7865e043a25f057f27955994",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/washer-n9-20261016/empty/firmware-hashes.txt",
+      "sha256": "3979e3cfa6b4efacd3a38281fea7f9e72ca4349f147d152b8de31a6f0cb8e910",
+      "bytes": 298
+    },
+    {
+      "path": "captures/washer-n9-20261016/empty/manifest.json",
+      "sha256": "c3b6e20089718eb0fe9d4cf8a2c48cc8cce8bc4fc2b12470eb2c06da426a508d",
+      "bytes": 10370
+    },
+    {
+      "path": "captures/washer-n9-20261016/empty/sha256.json",
+      "sha256": "51148108719a1ffe95847caa4f7adabdad634af81a60a06ce71ca5ecd01b8b62",
+      "bytes": 2968
+    },
+    {
+      "path": "captures/washer-n9-20261016/liquid-present/fids.tsv",
+      "sha256": "177fc932fd9b3fff5a2d2be4d31091ce68a1eab30878e9ffb84ed1561e110f37",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/washer-n9-20261016/liquid-present/firmware-hashes.txt",
+      "sha256": "3979e3cfa6b4efacd3a38281fea7f9e72ca4349f147d152b8de31a6f0cb8e910",
+      "bytes": 298
+    },
+    {
+      "path": "captures/washer-n9-20261016/liquid-present/manifest.json",
+      "sha256": "2c8fd3d13404273e371484b1fef242d350da438dd7e84e500b2573f365d90b1c",
+      "bytes": 10388
+    },
+    {
+      "path": "captures/washer-n9-20261016/liquid-present/sha256.json",
+      "sha256": "84535b310efc068118b3153e577ed4e973dffee73a7e30cdc483d3cb9f6335e0",
+      "bytes": 3061
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled-hood-open/fids.tsv",
+      "sha256": "b063692f3abb178e89cf856b82d2fa1b8b441056abebef531a4a50dc68dfe75d",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled-hood-open/firmware-hashes.txt",
+      "sha256": "3979e3cfa6b4efacd3a38281fea7f9e72ca4349f147d152b8de31a6f0cb8e910",
+      "bytes": 298
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled-hood-open/manifest.json",
+      "sha256": "294ee6da52bffb4dd40fb90faeae6100f3181724c89b6ebe13fe65ea7df85878",
+      "bytes": 10386
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled-hood-open/sha256.json",
+      "sha256": "37f172b28ef993878423bffa57610c6f383f245792daf4c02152da8894cfe343",
+      "bytes": 2968
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled/fids.tsv",
+      "sha256": "9e41f175a731409a26c00ab8191bb236f8a078a3e2e7304d0dc6a679a188cd4d",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled/firmware-hashes.txt",
+      "sha256": "3979e3cfa6b4efacd3a38281fea7f9e72ca4349f147d152b8de31a6f0cb8e910",
+      "bytes": 298
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled/manifest.json",
+      "sha256": "95ad163a8388637d57b95c121d183e0a46f5ef64fb74225e9896c2b107a5b2a5",
+      "bytes": 10376
+    },
+    {
+      "path": "captures/washer-n9-20261016/refilled/sha256.json",
+      "sha256": "1c063db2f3a75a526d086f652a0a5985d97cb8714cd0aeb397055b3141ac4407",
+      "bytes": 2968
+    }
+  ]
+}

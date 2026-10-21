@@ -1,0 +1,314 @@
+{
+  "schema": "denza-lab.washer-n9-warning-applicability.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "question": "N9 was empty but warning1DD did not appear; distinguish established routes from an unproved physical trigger.",
+  "acceptedPhysicalLabels": "Owner-confirmed N9 empty state is accepted; no new draining or physical test requested.",
+  "verdict": "No cause for absent1DD established. A model-specific disable in the examined presentation path was not found. A separate new-warning mechanism exists, but is not a recovered washer input.",
+  "profile": {
+    "rows": [
+      {
+        "line": 109,
+        "text": "    170 : VehicleInfo . new ( 170 , UI_TENGSHI , UILayoutType . UI_LAYOUT_2560_720_RECT , Vector2 ( 2560 , 720 ) , GlobalDef . VEHICLE_POWER_TYPE . VPT_HYBRID , VehicleType . VT_CAR ) ,"
+      },
+      {
+        "line": 133,
+        "text": "    168 : VehicleInfo . new ( 168 , UI_TENGSHI , UILayoutType . UI_LAYOUT_2560_720_RECT , Vector2 ( 2560 , 720 ) , GlobalDef . VEHICLE_POWER_TYPE . VPT_HYBRID , VehicleType . VT_SUV ) ,"
+      }
+    ],
+    "common": [
+      "UI_TENGSHI",
+      "UI_LAYOUT_2560_720_RECT",
+      "2560x720",
+      "VPT_HYBRID"
+    ],
+    "difference": "170 Z9GT uses VT_CAR;168 N9 uses VT_SUV. These rows do not choose a washer-warning route.",
+    "firmwareIdentity": "Saved N9 framework/HAL hashes match the retained common Android corpus. N9 native/Godot binary loading was not measured; shared profile rows are not runtime proof."
+  },
+  "alternate": {
+    "supportFID": "0x0A00001E",
+    "supportEquals": 1,
+    "newTextFID": "0x0A000020",
+    "supportChain": "BusinessCommon::canDataUpdate0x15FCC0 → value==1 → Not261WarningInfoManager::updateSupportNewWarningInfoSolution0x289F50 → m_isSupportNewWarningInfoSolution offset0x167",
+    "semantics": "For a non261 record with nonempty mOutSignal, support selects outgoing CanDataWriter signal/packed bitmap; an empty mOutSignal retains local non261 arbitration.",
+    "outgoing": "dealOutSignal0x289A70 uses a per-record SPI FID when g_productIndex!=4; g_productIndex==4 assembles outSignalval with prefix28C01008 and writes69 bytes. This is an output mechanism, not evidence of a washer level input. Product index4 is not assumed to mean N9.",
+    "constructorScan": {
+      "calls": 576,
+      "knownTextIds": 576,
+      "knownIndexes": 576,
+      "washerTextIdMatches": 0,
+      "index477": [
+        {
+          "va": "0x002acc6c",
+          "line": 31740,
+          "index": 477,
+          "textId": 3010,
+          "outSpi": 0
+        }
+      ],
+      "recordsSha256": "21b97798e2b3b8a34df4484d7c2eca0188b684f7a663033463f4298a833859d0"
+    },
+    "constructorConclusion": "All576 static constructor text IDs are resolved; none is1DD. Numeric NOT_261 index477 is a separate namespace: text3010/0xBC2, not refill warning477.",
+    "directImmediateScan": {
+      "method": "Complete text MOV/MOVK high0A00 reference scan; four preceding instruction lines checked for low halfword.",
+      "count": 12,
+      "references": [
+        {
+          "va": "0x15f60c",
+          "function": "BusinessCommon::registerCanData()",
+          "lowImmediate": 30,
+          "fid": "0xa00001e"
+        },
+        {
+          "va": "0x15f8dc",
+          "function": "BusinessCommon::canDataUpdate(unsigned int, void*)",
+          "lowImmediate": 30,
+          "fid": "0xa00001e"
+        },
+        {
+          "va": "0x15fcd0",
+          "function": "BusinessCommon::canDataUpdate(unsigned int, void*)",
+          "lowImmediate": 30,
+          "fid": "0xa00001e"
+        },
+        {
+          "va": "0x22bc70",
+          "function": "BusinessAlwaysDisplay::registerCanData()",
+          "lowImmediate": 8,
+          "fid": "0xa000008"
+        },
+        {
+          "va": "0x22bc88",
+          "function": "BusinessAlwaysDisplay::registerCanData()",
+          "lowImmediate": 18,
+          "fid": "0xa000012"
+        },
+        {
+          "va": "0x22c28c",
+          "function": "BusinessAlwaysDisplay::onlineCanDataUpdate(unsigned int, void*)",
+          "lowImmediate": 8,
+          "fid": "0xa000008"
+        },
+        {
+          "va": "0x22c558",
+          "function": "BusinessAlwaysDisplay::alwaysDisplayCanDataUpdate(unsigned int, void*)",
+          "lowImmediate": 18,
+          "fid": "0xa000012"
+        },
+        {
+          "va": "0x22de74",
+          "function": "BusinessAlwaysDisplay::updateSpeed()",
+          "lowImmediate": 8,
+          "fid": "0xa000008"
+        },
+        {
+          "va": "0x22e274",
+          "function": "BusinessAlwaysDisplay::updatePowerProgress()",
+          "lowImmediate": 18,
+          "fid": "0xa000012"
+        },
+        {
+          "va": "0x309d4c",
+          "function": "BusinessTrackMode::registerCanData()",
+          "lowImmediate": 18,
+          "fid": "0xa000012"
+        },
+        {
+          "va": "0x309eb0",
+          "function": "BusinessTrackMode::canDataUpdate(unsigned int, void*)",
+          "lowImmediate": 18,
+          "fid": "0xa000012"
+        },
+        {
+          "va": "0x30a2b0",
+          "function": "BusinessTrackMode::updatePowerPersent()",
+          "lowImmediate": 18,
+          "fid": "0xa000012"
+        }
+      ],
+      "newTextFIDReferences": 0,
+      "limitation": "Excludes only this direct literal-construction pattern. Dynamic addresses, different binaries and external domain consumers remain outside the claim."
+    },
+    "newTextConsumer": "0A000020 exists as UINT16 in signal table, but no direct MOV/MOVK consumer found in this native text. No applicable Android GET route or active N9 consumer established.",
+    "historicalCoverage": {
+      "manifest": "captures/washer-diagnostics-20261021/n9-root-a0-coverage.json",
+      "checkedLogHashes": 19,
+      "parsedFrames": 397387,
+      "observedCAN0A0": 0,
+      "scope": "Root offline parser covers19 retained logs; no claim of physical bus absence. No scalar CAT entries for new capability/text were captured."
+    }
+  },
+  "role13F": {
+    "meaning": "Body visualization warning; not washer level.",
+    "presentation": "BusinessUi2::updateWarningInfoCarBody reads the already-selected261 ID and body/seat-belt fields; it requires raw13F. It does not replace a raw1DD with13F.",
+    "sourceOfSelection": "The sender selecting13F over other conditions remains unidentified. Priority masking is possible, not demonstrated by the selected-ID captures.",
+    "confound": "Saved cycle02 context has hood GET1 throughout present/empty/refilled. This explains an active body condition, but not the sender priority policy or why washer was not selected."
+  },
+  "excludedExplanations": [
+    "A different N9-vs-Z9GT Godot washer message ID was not found in the shared profile/dictionary.",
+    "UI suppression is not a mechanism for rewriting raw261 into13F.",
+    "NOT_261 index477 is not washer warning477.",
+    "Support-new-warning capability alone is not an alternate washer measurement."
+  ],
+  "remainingUnknown": [
+    "Physical washer sensor signal/owner and generation of1DD on N9.",
+    "Upstream eligibility, priority, latching or fault handling before selected-ID CAN261.",
+    "Installed N9 MCU image and the cluster implementation actually rendering its warnings.",
+    "Availability/value and active consumer of0A00001E/0A000020 on N9; historical streams do not coverCAN0A0."
+  ],
+  "sources": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "bytes": 17834072,
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6"
+    },
+    {
+      "path": "captures/diagnostics-followup-20261021/warnings/not261-init.asm",
+      "bytes": 2211834,
+      "sha256": "4158e88584d5675d57913f3d95999c4b8dbdfa92c79a5304f1da11888de9f297"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/global_define/vehicle_config.gd",
+      "bytes": 37293,
+      "sha256": "3b44fb7985527cb438296cbf8a1e838d2c709767ae3c6a0e85afce7d7c3df3ea"
+    },
+    {
+      "path": "captures/cluster-native-20261018/pck/decoded/common/global_define/hmi_def.gd",
+      "bytes": 89650,
+      "sha256": "37a912b342e557e492efca03f6d9cb62ba6c4bb37fc177cae9249b6dcee83181"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/functions.tsv",
+      "bytes": 4826465,
+      "sha256": "a8dcff56e811f874f8b1545b868952300edba7475cbc45a7b68f9e247a93504a"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/disassembly.txt.gz",
+      "bytes": 3029788,
+      "sha256": "cfd48312f9cc981bc17301570e6c891b322e1f0389feab98af13eeb972c137e7"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/dwarf-layouts.jsonl",
+      "bytes": 4731363,
+      "sha256": "aba58decb6352bf0275714de687a40f1f8f6fdd4178f7a5a427c8d842b9defa9"
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/can-signals.tsv",
+      "bytes": 200710,
+      "sha256": "022f2fe417b0b5f6b7bd64bcb5abe65c60c4529945e00fd4803d54f54656f3b9"
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/configuration.tsv",
+      "bytes": 11050,
+      "sha256": "0a6f78598b4d811f785725226a2b247ec42f8afe83943b407c6121e70b2250d6"
+    },
+    {
+      "path": "captures/washer-n9-20261016/liquid-present/manifest.json",
+      "bytes": 10388,
+      "sha256": "2c8fd3d13404273e371484b1fef242d350da438dd7e84e500b2573f365d90b1c"
+    },
+    {
+      "path": "captures/washer-n9-20261016/empty/manifest.json",
+      "bytes": 10370,
+      "sha256": "c3b6e20089718eb0fe9d4cf8a2c48cc8cce8bc4fc2b12470eb2c06da426a508d"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/context-before.txt",
+      "bytes": 264,
+      "sha256": "7d2bf5ba8fd551d87a968112eba79b9d71148ca0f7ad9e4a0063d223533369b7"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/empty/preflight.txt",
+      "bytes": 8398,
+      "sha256": "42d655027a1724abaafc280d990c27a7c8d2059d19077b4c56e2978c3a9f7206"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/liquid-present/context-before.txt",
+      "bytes": 264,
+      "sha256": "c20840464732898872251c7f68f89f0c103381df81f0cca13b0b6075075742d6"
+    },
+    {
+      "path": "captures/washer-n9-20261016/cycle-02/refilled/context-before.txt",
+      "bytes": 264,
+      "sha256": "3b7212793e13672cdfdfe067b8003180d2d0638aaa171fe5ac758675cc491178"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/android-rela.tsv",
+      "bytes": 74630,
+      "sha256": "d021661533908ddbefc747dd8c3475d1665bea6d892b2b8fe4e61f54deaf7f1d"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/check_n9_a0_coverage.py",
+      "bytes": 1643,
+      "sha256": "3be043c4309790ccf1cb537f8093f255ce5d64d13ce13bc02de913b30b89ed04"
+    },
+    {
+      "path": "captures/washer-diagnostics-20261021/n9-root-a0-coverage.json",
+      "bytes": 4190,
+      "sha256": "65a4baf6b98fb55fd3ba26133ab2384df788c13dee578413a977aee74aebea32"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/popup_nads.json",
+      "bytes": 142434,
+      "sha256": "ec3355e9736ea6b2dd67a2c3a3a15c3d20d8e3ddfb1c400db54c7236a3fe4aad"
+    }
+  ],
+  "nativeByteAnchors": [
+    {
+      "label": "BusinessCommon: read 0A00001E; support argument is value==1",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x15fcc0",
+      "bytes": "e80b40f9ff2300b9000140f9c10380520140a1721b110794081c0012e82300b9880e0090089146f9000140f9e82340b908050071e8179f1a010100123d190794"
+    },
+    {
+      "label": "Not261: store support flag at member167",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x289f50",
+      "bytes": "ff4300d1e00700f9280080522800080ae81f0039e90740f9e81f403908010012289d0539ff430091c0035fd6"
+    },
+    {
+      "label": "Not261 trigger: flag selects local trigger or outgoing signal",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x289e20",
+      "bytes": "e80740f9089d4539a801003601000014e80740f900410291a1439fb8e1fcff97080040f90041009121efff90213001912c23fd978001003601000014e80740f900410291a1439fb8d6fcff97000040f92100805273810294e00740f99581029406000014e00740f9a1435fb822008052b081029401000014"
+    },
+    {
+      "label": "Not261 cancel: same outgoing selection",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x289eb0",
+      "bytes": "ffc300d1fd7b02a9fd830091a0831ff8a1431fb8a8835ff8e80700f9089d4539a801003601000014e80740f900410291a1439fb8b7fcff97080040f90041009121efff90213001910223fd978001003601000014e80740f900410291a1439fb8acfcff97000040f9e1031f2a49810294e00740f96b81029406000014e00740f9a1435fb8e2031f2a8681029401000014fd7b42a9ffc30091c0035fd6"
+    },
+    {
+      "label": "outgoing direct-FID branch uses CanDataWriter",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x289a70",
+      "bytes": "ff4303d1fd7b0ca9fd03039148d03bd5081540f9a8831ff8e03300f9e15f00b9a2431f38e83340f9e81700f9280500d008dd44f9080140b9081100714002005401000014e81740f9e9031f2ae95b00b900410291e15f80b9befdff97e81740f9090040f9292940b9e95b00b9008140f9e15b40b9a23300d12300805261690294a1000014"
+    },
+    {
+      "label": "packed outgoing branch writes69 bytes",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x289ce4",
+      "bytes": "e83740b9ea3f40b94a11001129c96a380801096b2003005401000014e81740f9008140f901a10591a2088052e4680294"
+    },
+    {
+      "label": "constructor initializes packed prefix and length",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x28a404",
+      "bytes": "3f9d05390805805228a105390818805228a505390802805228a905390801805228ad05390808805228b10539"
+    },
+    {
+      "label": "non261 index477 has text3010, not washer477",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x2acc28",
+      "bytes": "24008052243900b962008052223100b9222900b9e7031f2a272100b9271900b9271100b9270900b908018052280100b9a13b80524300805245788152e6174091c6e00f9111f60194"
+    },
+    {
+      "label": "empty string compared by new-solution branches",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x6d04c",
+      "bytes": "00"
+    }
+  ]
+}

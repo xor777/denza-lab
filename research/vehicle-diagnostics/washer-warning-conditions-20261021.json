@@ -90,7 +90,8 @@
       "device": 1001,
       "fid": "0x12D0002A",
       "nativeType": "UINT8",
-      "okValue": 3
+      "okValue": 3,
+      "layerBoundary": "This is the native direct-stream value, not Android GET enum3. HAL powerlevel0x5FBE0 converts wire1..3 to API0..2; wire3 maps to API2. See washer-n9-origin-20261021.json. Do not infer a closed native gate or physical not-READY state from Android2."
     },
     "output": {
       "member": "m_u16WarningInfoIndex",

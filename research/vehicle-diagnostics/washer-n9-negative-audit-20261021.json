@@ -1,0 +1,107 @@
+{
+  "schema": "denza-lab.washer-n9-warning-negative-audit.v1",
+  "date": "2026-10-21",
+  "scope": "Offline replay of saved N9 captures and source reads only. Physical empty reservoir is accepted as owner-confirmed. No vehicle call, reservoir manipulation, code/product/whitelist change, or modification of earlier reports.",
+  "result": "absence_of_1DD_observed_but_cause_not_proven",
+  "vehicle": "Denza N9 AutoType168, CANFD, eng.build20260705.011226",
+  "physicalEmptyAccepted": true,
+  "exactEmptyTransitionTimestampRetained": false,
+  "reproducer": "python3 captures/washer-diagnostics-20261021/n9-negative-audit/audit_n9.py",
+  "verifiedFacts": {
+    "allSavedRawWindows": {
+      "windowsReplayed": 20,
+      "zeroDroppedErrorsQueued": true,
+      "contiguousHostCallbackSequences": true,
+      "tuple": "CAN261/sub0/ch0",
+      "windowsContainingTuple": 4,
+      "streamContainingTuple": "gb",
+      "sampleCounts": [20, 179, 179, 179],
+      "totalSamples": 557,
+      "warningIdDistribution": {"13F": 557},
+      "warning1DDSamples": 0,
+      "otherStreams": "No261 tuple in any retained BigData, YUN or OTA window. This is selected-stream coverage, not full-bus coverage.",
+      "hashBoundary": "All 9 cycle-02 stream hashes and 4 first-cycle full-state raw hashes match their saved manifests. The replay also calculates hashes for the other 7 raw files; it does not relabel new hashes as independently saved manifests."
+    },
+    "cycle02EmptyWindowMoscow": {
+      "beforeContext": "2026-10-16 14:18:40 MSK",
+      "bigdata": {"start": "14:18:42", "end": "14:21:44", "261Samples": 0},
+      "gb": {"start": "14:21:58", "end": "14:25:00", "261Samples": 179},
+      "yun": {"start": "14:25:17", "end": "14:28:19", "261Samples": 0},
+      "gbStartAfterBigdataStartSeconds": 196,
+      "gbStartAfterBigdataEndSeconds": 14,
+      "first261AfterGbReadySeconds": 0.497448923,
+      "last261AfterGbReadySeconds": 179.807286164,
+      "hostDeliveryIntervalsSeconds": {"min": 0.991237154, "median": 1.000504116, "max": 1.053937461},
+      "embeddedCounterIntervalsMs": {"min": 999, "median": 1000, "max": 1050},
+      "firstSixPayloadBytes": "3f0d7e30481e in all179 samples",
+      "distinctWholePayloads": 16,
+      "meaning": "Empty was already the accepted state before these sequential windows. The moment of emptying and elapsed time since it are not timestamped in the saved state notes. The first196 seconds of this empty acquisition have no261 observations."
+    },
+    "scalarSnapshotsFirstCycle": {
+      "phases": ["liquid-present", "empty", "refilled", "refilled-hood-open"],
+      "warningReads": 8,
+      "warningValues": "1007/26100008=13F in all8",
+      "emptyFirstWarningReadAfterPass1StartSeconds": 34.65119131,
+      "emptySecondWarningReadAfterFirstSeconds": 108.963394853,
+      "hoodValuesAcrossPhases": [[0,0],[1,1],[0,0],[1,1]],
+      "powerValues": "1001/12D0002A=2 in all8 snapshots",
+      "powerFrameworkMeaning": "BODYWORK_POWER_LEVEL_ON=2; OFF=0,ACC=1,OK=3,FAKE_OK=4",
+      "physicalReadyInference": "None. SDK enum2 must not be compared directly with the native raw-power gate or equated to physical READY. The source-specific HAL conversion can map raw3 toSDK2; these observations do not prove that the native raw3 gate was closed.",
+      "speed": "1013/94400008 float0 in all8 snapshots",
+      "parkingBrakeSwitch": "1011/05500030=1 in all8 snapshots",
+      "sourceHashValidation": "All4 fids.tsv hashes match saved sha256.json",
+      "scope": "Snapshots are not continuous condition histories. They contain no controlled ignition/power transition. Same13F with hood0 and hood1 does not identify which body condition selected13F or prove washer priority masking."
+    },
+    "cycle02Context": {
+      "beforeAndAfterKnownGets": "speed0,hood1,front-wiper-level1,wiper-relay0",
+      "powerGet": "not present in the saved context commands",
+      "powerOrReadyFromRaw12D": "not independently decoded in this audit; the separate sensor audit traces the non-generic conversion. Do not equate wire and SDK numbers or infer a missing READY/native-raw3 condition from SDK2",
+      "instrument26100008Subscription": false,
+      "continuousFullLogcat": false
+    },
+    "firstCycleLogcatCoverage": {
+      "command": "logcat -d -v threadtime -t20000",
+      "buffersInSavedFiles": ["crash", "system", "main"],
+      "eventsBufferPresent": false,
+      "emptyMain": {"firstMoscow": "11:51:16.107", "lastMoscow": "11:51:23.834", "spanSeconds": 7.727, "timestampedLines": 9414},
+      "emptySystem": {"firstMoscow": "11:38:34.528", "lastMoscow": "11:51:13.491", "timestampedLines": 6410},
+      "otherMainSpans": {"liquid-present": "11:29:51.800–11:30:01.149", "refilled": "12:01:33.893–12:01:43.050", "refilled-hood-open": "12:13:00.659–12:13:10.713"},
+      "targetedWarningSignatureHits": 0,
+      "targetedSignatures": ["26100008", "FAULT_NOTICE_261", "warn_id_261", "cs_warn", "Popup261", "popup_nads", "CellsCluster", "请加注洗涤液", "玻璃水", "洗涤液"],
+      "hashValidation": "All4 logcat.txt hashes match saved sha256.json",
+      "meaning": "Main-buffer warning logs at the empty transition are not retained. No warning signatures in these bounded files cannot establish that no event occurred. The historical crash buffer predates the experiment and is not a warning-event history."
+    }
+  },
+  "samplingAndCacheSourceBoundary": {
+    "collector": "RawCanTurnProbe registers an incoming stream callback and copies every delivered byte buffer into a queue; only the finish watchdog is timed. It contains no periodic GET or1Hz sampler.",
+    "framework": "BYDAutoGBDevice.postEvent(byte[]) forwards a byte event; AbsBYDAutoGBListener routes9900001F to onWholeFrameDataChanged. getAllStatus is empty. These paths supply no historical-event replay or1Hz timer.",
+    "hal": "Hash-matched auto.default.so updateParameters raw branch assembles CANID/subID/channel owner key, checksGB ownerbit1 and forwards the same incoming envelope pointer/length to1039/9900001F. No scalar-cache read, payload synthesis or sampling timer occurs in that examined fanout branch.",
+    "upstream": "The selected collection path supports configured collection modes, but the active N9 table was inaccessible. Actual physical-CAN frequency, MCU retention, sampling/decimation and capture of sub-second warnings are not qualified. The recovered MCU image is not hash-matched to installed N9 MCU.",
+    "scalar": "VehicleStateSnapshot issues BinderGET5/7 without an instrument listener. FeatureMapper::getIntValue reads the stored scalar value; the recorded GET contains no warning history or source-freshness timestamp. First host GET is not first firmware reception.",
+    "measurementMeaning": "The measured approximately1-second interval is a delivered-record interval. It must not be described as physical CAN frequency."
+  },
+  "whatTheNegativeEvidenceEstablishes": [
+    "No delivered selected-stream261 record contains1DD during the four coveredGB windows, including the three-minute owner-confirmed empty window.",
+    "No1DD was present in the8 recorded scalar snapshots.",
+    "A persistent1DD occupying the observed261 low10-bit field throughout the covered emptyGB window is contradicted by the actual13F records.",
+    "No acquisition loss at this listener is indicated by its DONE/callback sequence checks. This does not audit unobserved upstream losses or sampling."
+  ],
+  "notEstablished": [
+    "No root cause for absent washer warning: sensor detection, ECU decision/admission, feature/configuration applicability, warning arbitration and active N9 HMI implementation remain unjoined.",
+    "A short event beforeGB registration or between upstream deliveries is not excluded. This is a coverage-compatible hypothesis, not an observed event.",
+    "No evidence proves13F priority-masked1DD.13F is the observed ID, not a list of all active physical conditions.",
+    "No controlled test of power/ignition change is supplied here. No physical-not-READY claim or closed-native-raw3-gate claim follows from SDK2.",
+    "No reinterpretation of the owner's confirmed empty reservoir as nonempty or threshold uncertainty."
+  ],
+  "sources": [
+    {"path": "tools/RawCanTurnProbe.java", "sha256": "98a798861c04e7daee3357dc4537984103ce06a789b98fe11114c5b8abd813a8", "lines": [89,151,417]},
+    {"path": "tools/VehicleStateSnapshot.java", "sha256": "0a1f833fa1281217f3218ba00db81b425075b25282714fa92c770d25f4f5f40f", "lines": [76,99]},
+    {"path": "tools/washer_capture.py", "sha256": "d0e2d26c3cbafb99e6fbe8c23bd954fa5bf12ab20f2cf3682f44e1131a3f85ca", "lines": [131]},
+    {"path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/gb/BYDAutoGBDevice.java", "sha256": "f9133f319f424d697f11715c8a7af5cf1c124ff81e76ed46b68d58b731247dc7", "lines": [66,70]},
+    {"path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/gb/AbsBYDAutoGBListener.java", "sha256": "90ed73ac8307301c9d662eae6f048ec71a8a10441fd4cc80e758b3b44d269309", "lines": [32,42]},
+    {"path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/bodywork/BYDAutoBodyworkDevice.java", "sha256": "31ad419cbe050cb7731e99d3d7a6755932202a4e17746651ecfc4e457bff62b3", "lines": [405,410]},
+    {"path": "captures/diagnostics-origin-20261021/packets/hal-b0a70.asm", "sha256": "f18daf27d86f59ce403b9ff1ca226868733e1f9759a945b04166616c19fa1fec", "addresses": ["b143c..b14d4", "b1928..b1940"]},
+    {"path": "captures/washer-firmware-20260923/hal-cache.asm", "sha256": "33c649a6fc8a3275120be071ef00a5020bb62df8b087e9179e8015f1426ab332", "addresses": ["826a0..82784"]},
+    {"path": "captures/washer-n9-20261016/physical-state-notes.json", "sha256": "7932c25ecc837dba657567dd729b5a6d601eb8d9045fec55197a038408e2b93e"}
+  ]
+}
