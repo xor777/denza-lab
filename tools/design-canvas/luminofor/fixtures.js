@@ -1188,10 +1188,35 @@
     ecus: autoscan.groups.find(g => g.id === 'body').ecus,
     footer: codesFooter,
   };
-  const scannerSysPackLive = Object.assign({}, packReadings, {
+  // The pack's readings as a stream, like the engine's: the device, the parameter with its FID, the
+  // value, the span of the last minute, the norm and 60 s of it. Illustrative around the parked
+  // reading of 2026-10-20 (the traces from the same formula as the engine's); the words have none.
+  const pl = (dev, name, fid, value, unit, min, max, norm, t, out) => Object.assign(live(dev, name, fid, value, unit, min, max, norm, t), { out: !!out });
+  const scannerSysPackLive = {
     top: scannerSysPack.top, rail: scannerSysPack.rail, block: scannerSysPack.block,
-    tabs: Object.assign({}, scannerSysPack.tabs, { active: 2 }), footer: snapshot,
-  });
+    tabs: Object.assign({}, scannerSysPack.tabs, { active: 2 }),
+    rows: [
+      pl('1009', 'Напряжение ВВБ', '44400008', '553', 'В', '552', '554', '—', [2, 0.06, 0.1]),
+      pl('1009', 'Ток ВВБ', '44400018', '−4,5', 'А', '−6,1', '−3,2', '—', [5, 0.22, 0]),
+      pl('1014', 'Уровень заряда (SOC)', '44400030', '74', '%', '74', '74', '—', [0, 0, 0]),
+      pl('1014', 'Состояние (SOH), BMS', '44400028', '99', '%', '99', '99', '≥ 80', [0, 0, 0]),
+      pl('1014', 'Ячейка, мин.', '44600010', '3 333', 'мВ', '3 332', '3 334', '—', [3, 0.12, 0]),
+      pl('1014', 'Ячейка, макс.', '44600030', '3 337', 'мВ', '3 336', '3 338', '—', [4, 0.12, 0]),
+      pl('расч.', 'Разброс ячеек', '', '4', 'мВ', '3', '5', '—', [6, 0.15, 0]),
+      pl('1014', 'Температура модулей, мин.', '44700010', '13', '°C', '13', '13', '—', [0, 0, 0.05]),
+      pl('1014', 'Температура модулей, макс.', '44700020', '18', '°C', '18', '18', '—', [0, 0, 0.05]),
+      pl('1014', 'Температура модулей, сред.', '44700038', '14', '°C', '14', '14', '—', [0, 0, 0.05]),
+      pl('1039', 'Изоляция, канал BMC', '43A00018', '14 429', 'кОм', '14 410', '14 450', '≥ 277', [7, 0.08, 0]),
+      pl('1039', 'Изоляция, канал 2', '26200010', '19 675', 'кОм', '19 660', '19 690', '≥ 277', [8, 0.08, 0]),
+      pl('1001', 'Ячеек последовательно', '43A00008', '166', 'шт', '', '', '—', null),
+      pl('1039', 'Датчиков температуры', '43A00010', '14', 'шт', '', '', '—', null),
+      pl('1032', 'Главный контактор, разряд', '34400010', 'замкнут', '', '', '', '—', null),
+      pl('1009', 'Состояние заряда батареи', '34400018', 'разряд', '', '', '', '—', null),
+      pl('1009', 'Зарядное устройство, состояние', '27C0000A', 'готово', '', '', '', '—', null),
+      pl('1009', 'Зарядное устройство, отказ', '27C00008', 'норма', '', '', '', '—', null),
+    ],
+    footer: { buttons: [['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet']], notes: [['обход 2,1 с', true]] },
+  };
   // «Флаги GB/T 32960»: the 14 general alarm flags the stock reporter (gbacqservice) sets from one
   // reading of device 1039 each, in GB/T 32960.3 table 18's bit order; the codes that raise a flag
   // are the reporter's own (research gb-alarm-dtc-boundary-20261021.json). The values are the parked

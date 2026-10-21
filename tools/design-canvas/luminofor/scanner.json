@@ -194,6 +194,7 @@
   "rail": { "w": 216, "padX": 20, "padTop": 10, "item": 40, "sepGap": 8, "bar": 3,
     "scanCols": [290, 120, 150, 100, 80, 80, 150, "1fr"],
     "liveCols": [50, 300, 100, 64, 76, 76, 100, "1fr"],
+    "packLiveCols": [58, 286, 132, 50, 76, 76, 100, "1fr"],
     "topology": { "column": 112, "tile": { "w": 100, "padX": 5, "inset": 8 } },
     "dtc": { "cols": [150, 120, 250, "1fr", 190, 40], "row": 34 },
     "ecuDtc": { "left": { "x": 24, "w": 420 }, "right": { "x": 468, "w": 572 }, "listCols": ["1fr", 100, 90], "monCols": ["1fr", 100, 110] },

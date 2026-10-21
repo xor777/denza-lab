@@ -507,8 +507,9 @@
   }
 
   // The pack's readings from the signal bus.
+  // The pack's readings as the engine's stream reads: value, the span seen, the norm and 60 s of it.
   function sysPackLive(c, f) {
-    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); bmsTable(c, f); });
+    shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); liveTable(c, f, L.rail.packLiveCols, 'УСТР.'); });
   }
 
   // The drives or the driver-assistance blocks side by side.
@@ -1333,14 +1334,16 @@
     footer(c, f.footer);
   }
 
-  function liveTable(c, f, colSpec) {
+  // [first] heads the first column: «PID» on an OBD stream, «УСТР.» on the pack's readings, whose
+  // rows carry the device there and the FID beside the name; a value outside its norm is orange.
+  function liveTable(c, f, colSpec, first) {
     const E = L.ecuLive, cols = columns(colSpec, 24, W - 48);
-    let y = headRow(c, cols, ['PID', 'ПАРАМЕТР', ['ЗНАЧЕНИЕ', 'right', 12], 'ЕД.', ['МИН', 'right', 12], ['МАКС', 'right', 12], 'НОРМА', 'ГРАФИК · 60 С'], E.top, E.head);
+    let y = headRow(c, cols, [first || 'PID', 'ПАРАМЕТР', ['ЗНАЧЕНИЕ', 'right', 12], 'ЕД.', ['МИН', 'right', 12], ['МАКС', 'right', 12], 'НОРМА', 'ГРАФИК · 60 С'], E.top, E.head);
     for (const r of f.rows) {
       const h = E.row, rx = i => cols[i][0] + cols[i][1] - 12;
       text(c, r.pid, cols[0][0] + 12, mid(y, h, 'normMono'), 'normMono', 'faint');
       runs(c, [[r.name + ' ', 'cell', 'white'], [r.abbr, 'cellAside', 'faint']], cols[1][0], base(mid(y, h, 'cell'), 'cell'), cols[1][1]);
-      text(c, r.value, rx(2), mid(y, h, 'value'), 'value', 'white', { align: 'right' });
+      text(c, r.value, rx(2), mid(y, h, 'value'), 'value', r.out ? 'orange' : 'white', { align: 'right' });
       text(c, r.unit, cols[3][0], mid(y, h, 'unit'), 'unit', 'dim2');
       text(c, r.min, rx(4), mid(y, h, 'cellMono'), 'cellMono', 'dim2', { align: 'right' });
       text(c, r.max, rx(5), mid(y, h, 'cellMono'), 'cellMono', 'dim2', { align: 'right' });
