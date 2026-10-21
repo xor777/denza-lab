@@ -45,8 +45,17 @@ internal data class CarReadings(
             }
         }
 
-    /** A fresh extra, or null. */
+    /** A fresh extra, or null; a gated one as its gate resolved it ([dev.denza.apps.feature.diagnostics.ExtraGates]). */
     fun extra(signal: DiagnosticExtra): Double? = if (extrasFresh) extras[signal] else null
+
+    /**
+     * A fresh enumerated extra in its words ([CarStates]): its code's word, «код N» for a code the
+     * reading admits and the firmware does not name, «н/д» when nothing fresh came; null for a number.
+     */
+    fun word(signal: DiagnosticExtra): String? = CarStates.of(signal)?.word(extra(signal))
+
+    /** A hub state in its words, as [word] says an extra; null for a number. */
+    fun word(signal: VehicleSignal): String? = CarStates.of(signal)?.word(hub[signal])
 }
 
 /** Where [CarReadings] come from; opened and closed with the session. */

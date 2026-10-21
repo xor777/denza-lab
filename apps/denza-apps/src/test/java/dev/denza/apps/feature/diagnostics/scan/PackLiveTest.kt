@@ -75,8 +75,10 @@ class PackLiveTest {
         advanceTimeBy(1_000)
         runCurrent()
         assertEquals(13, shell.commands.size)
-        assertTrue("no GETs of its own: the shared batch", shell.commands.all { it == DiagnosticExtraReader.command })
-        assertEquals(DiagnosticExtraReader.command, DiagnosticExtraReader.command(setOf(ExtraPage.PACK_LIVE)))
+        // the shared batch and SOC in tenths, the one GET of its own
+        val pack = DiagnosticExtraReader.command(setOf(ExtraPage.PACK_LIVE))
+        assertTrue(shell.commands.drop(2).all { it == pack })
+        assertEquals(DiagnosticExtraReader.command + "; echo @@extra:soc_tenths; service call autoservice 5 i32 1014 i32 ${0x44700028}", pack)
 
         // A failure still waits five seconds, shown or not.
         shell.fail = true

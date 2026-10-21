@@ -177,16 +177,33 @@ internal enum class SystemTab(val label: String) {
 
 /**
  * The [ExtraPage] whose GETs join the `autoservice` batch while [tab] of [system] is in front
- * (architecture, 6): a system's «Состояние» its scheme's, «Флаги GB/T 32960» the flags'; null where
- * the tab asks for nothing more. The pack's «Потоковые данные» is not here: its page is
- * [DiagnosticsActions.setPackLiveVisible]'s, which «Пауза» takes away.
+ * (architecture, 6): a system's «Состояние» its scheme's, its «Потоковые данные» its table's,
+ * «Флаги GB/T 32960» the flags'; null where the tab asks for nothing more. The pack's «Потоковые
+ * данные» is not here: its page is [DiagnosticsActions.setPackLiveVisible]'s, which «Пауза» takes
+ * away; the engine's is ECM's stream. A live page answers only once its system has the tab.
  */
 internal fun extraPage(system: CarSystem, tab: SystemTab): ExtraPage? = when (tab) {
     SystemTab.GB_FLAGS -> ExtraPage.GB_FLAGS
     SystemTab.STATE -> when (system) {
+        CarSystem.HV -> ExtraPage.HV_STATE
+        CarSystem.DRIVES -> ExtraPage.DRIVES_STATE
+        CarSystem.CHASSIS -> ExtraPage.CHASSIS_STATE
+        CarSystem.SAFETY -> ExtraPage.SAFETY_STATE
+        CarSystem.BODY -> ExtraPage.BODY_STATE
         CarSystem.CABIN -> ExtraPage.CABIN
         CarSystem.CLIMATE -> ExtraPage.CLIMATE_STATE
-        else -> null
+        CarSystem.LV -> ExtraPage.LV_STATE
+        CarSystem.PACK, CarSystem.ENGINE, CarSystem.ADAS, CarSystem.OTHER -> null
+    }
+    SystemTab.LIVE -> when (system) {
+        CarSystem.HV -> ExtraPage.HV_LIVE
+        CarSystem.DRIVES -> ExtraPage.DRIVES_LIVE
+        CarSystem.CHASSIS -> ExtraPage.CHASSIS_LIVE
+        CarSystem.SAFETY -> ExtraPage.SAFETY_LIVE
+        CarSystem.BODY -> ExtraPage.BODY_LIVE
+        CarSystem.CLIMATE -> ExtraPage.CLIMATE_LIVE
+        CarSystem.LV -> ExtraPage.LV_LIVE
+        CarSystem.PACK, CarSystem.ENGINE, CarSystem.ADAS, CarSystem.CABIN, CarSystem.OTHER -> null
     }
     else -> null
 }

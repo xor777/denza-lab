@@ -147,19 +147,21 @@ internal enum class DiagnosticExtra(
     MASSAGE_LEVEL_FR("massage_level_fr", 1023, 0x4FA0003C, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CABIN)),
     MASSAGE_LEVEL_RL("massage_level_rl", 1023, 0x4FA00024, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CABIN)),
     MASSAGE_LEVEL_RR("massage_level_rr", 1023, 0x4FA0002C, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CABIN)),
-    /** The front belts on the cluster's device: 1 fastened, 0 not. */
-    BELT_FL("belt_fl", 1007, 0x29400018, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CABIN)),
-    BELT_FR("belt_fr", 1007, 0x2610001B, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CABIN)),
+    // The belts and who sits are also «Безопасность»'s, its scheme's and its table's (research
+    // stream-selection-20261021.json, SAFETY): the same GETs, never a second entry for a FID.
+    /** The front belts on the cluster's device: 1 fastened, 0 not; 2 and 3 of the 2-bit field «н/д». */
+    BELT_FL("belt_fl", 1007, 0x29400018, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
+    BELT_FR("belt_fr", 1007, 0x2610001B, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
     /** The second row's belts: 2 fastened, 1 not. */
-    BELT_RL("belt_rl", 1023, 0x3120000A, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
-    BELT_RR("belt_rr", 1023, 0x3120000C, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
-    BELT_RC("belt_rc", 1023, 0x3120000E, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
+    BELT_RL("belt_rl", 1023, 0x3120000A, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
+    BELT_RR("belt_rr", 1023, 0x3120000C, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
+    BELT_RC("belt_rc", 1023, 0x3120000E, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
     /** Who sits: 2 seated, any other code not, as DiCarServer reads it (the framework's constants disagree; research). */
-    SEATED_FL("seated_fl", 1042, 0x31200040, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
-    SEATED_FR("seated_fr", 1042, 0x31200016, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
-    SEATED_RL("seated_rl", 1042, 0x31200018, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
-    SEATED_RR("seated_rr", 1042, 0x3120001C, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
-    SEATED_RC("seated_rc", 1042, 0x3120001A, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
+    SEATED_FL("seated_fl", 1042, 0x31200040, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
+    SEATED_FR("seated_fr", 1042, 0x31200016, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
+    SEATED_RL("seated_rl", 1042, 0x31200018, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
+    SEATED_RR("seated_rr", 1042, 0x3120001C, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
+    SEATED_RC("seated_rc", 1042, 0x3120001A, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN, ExtraPage.SAFETY_STATE, ExtraPage.SAFETY_LIVE)),
     /** The steering wheel's heating, the feedback: 1 off, 2 on; 0 invalid. */
     WHEEL_HEAT("wheel_heat", 1023, 0x4290000E, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
     /** What a fridge does: 1 cold, 2 hot, 3 off, 4 fresh. */
@@ -214,7 +216,144 @@ internal enum class DiagnosticExtra(
     /** Bit 17, the drive motor's temperature. */
     GB_MOTOR_TEMP("gb_motor_temp", 1039, 0x2400000A, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bit 18, the pack's overcharge. */
-    GB_OVERCHARGE("gb_overcharge", 1039, 0x43800012, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS));
+    GB_OVERCHARGE("gb_overcharge", 1039, 0x43800012, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
+
+    // The systems' «Потоковые данные» and the readings their schemes add (architecture 6, 7.2): each a
+    // row of research stream-selection-20261021.json, the source table the scanner cites, with its
+    // device, FID, transaction, scale and offset; its words are scan.CarStates'. A reading rides its
+    // system's live page (`*_LIVE`) and, where the scheme draws it, the «Состояние» page (`*_STATE`);
+    // none rides the shared batch. Integers on 5 unless said. A range takes the codes the row names
+    // and refuses its invalid encodings - 65535 (the stock DEVICE_THE_FEATURE_LINK_ERROR) on every one;
+    // where the row says another code stays a code («код N»), 0..254, refusing the byte's 255 as the
+    // states above do. «Medium»: the row's unit or words rest on the GB/T 32960 field the stock collector
+    // fills or on the stock getter's constants, not on a card - as INSULATION's kΩ; the owner takes
+    // them (2026-10-21). «Low»: the row's own word for a weaker basis, said where it is.
+
+    // ---- high voltage and 12 V
+    /**
+     * Power mode, `BYDAutoBodyworkDevice.getPowerLevel`: 0 off, 1 ACC, 2 ON, 3 OK, 4 FAKE_OK (the stock
+     * name; never seen); 255 its INVALID. Medium: the stock constants, no card. ON both passes of the sweep.
+     */
+    POWER_LEVEL("power_level", 1001, 0x12D0002A, 5, 1.0, 0.0, 0.0..4.0,
+        pages = on(ExtraPage.HV_STATE, ExtraPage.LV_STATE, ExtraPage.HV_LIVE, ExtraPage.LV_LIVE)),
+    /**
+     * DC-DC mode, `ENERGY_DC_WORK_MODE` (stream-powertrain logicalFields[264]): 0 off, 1 boost, 2 step
+     * down. The HAL passes a 2-bit 0..3; 3 has no stock name and stays «код 3». Step down on the sweep.
+     */
+    DCDC_MODE("dcdc_mode", 1006, 0x36D00030, 5, 1.0, 0.0, 0.0..3.0,
+        pages = on(ExtraPage.LV_STATE, ExtraPage.HV_LIVE, ExtraPage.LV_LIVE)),
+    /**
+     * DC-DC low-side voltage, a float on 7 (logicalFields[278]): the HAL's byte × 0.1, 0..25.5. Low: volts
+     * by the name and by agreeing with the 12 V channel (13.8 on the sweep), no labelled consumer.
+     */
+    DCDC_VOLTAGE("dcdc_voltage", 1006, 0x36D00020, 7, 1.0, 0.0, 0.0..25.5, pages = on(ExtraPage.LV_LIVE)),
+
+    // ---- the pack
+    /**
+     * SOC in tenths of a percent, `STATISTIC_REMAINING_BATTERY_POWER` × 0.1 (logicalFields[20]): SOC
+     * reads whole percent here, the tenths move inside a minute's chart (739 → 741 on the sweep).
+     * Medium: the percent is an inherited qualification, not re-proved.
+     */
+    SOC_TENTHS("soc_tenths", 1014, 0x44700028, 5, 0.1, 0.0, 0.0..100.0, pages = on(ExtraPage.PACK_LIVE)),
+
+    // ---- drives
+    /**
+     * The selector, `BYDAutoGearboxDevice.getGearboxAutoModeType`: 1 P, 2 R, 3 N, 4 D, 5 M, 6 S, another
+     * code «код N»; the hub's GEARBOX_PARK says only P or not. Medium: the stock constants, no card.
+     */
+    GEAR_SELECTOR("gear_selector", 1011, 0x21200038, 5, 1.0, 0.0, 0.0..254.0,
+        pages = on(ExtraPage.DRIVES_STATE, ExtraPage.DRIVES_LIVE)),
+    /**
+     * Accelerator travel, % 0..100 (`SPEED_ACCELERATOR_S`), counted only while ACCEL_PEDAL_VALID reads 1
+     * (ExtraGates). Medium: the brake pedal's card and DiCar's 0..100, not a card of its own.
+     */
+    ACCEL_PEDAL("accel_pedal", 1013, 0x34200008, 5, 1.0, 0.0, 0.0..100.0, pages = on(ExtraPage.DRIVES_LIVE)),
+    /** Its validity flag, `BYDAutoSpeedDevice.DATA_FLAG_*`: 1 valid, 0 not. */
+    ACCEL_PEDAL_VALID("accel_pedal_valid", 1013, 0x34200018, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.DRIVES_LIVE)),
+
+    // ---- chassis
+    /**
+     * Brake pedal travel, % 0..100 (stream-chassis records[278]) - travel, never hydraulic pressure -
+     * counted only while BRAKE_PEDAL_VALID (records[279]) reads 1 (ExtraGates).
+     */
+    BRAKE_PEDAL("brake_pedal", 1013, 0x34200010, 5, 1.0, 0.0, 0.0..100.0, pages = on(ExtraPage.CHASSIS_LIVE)),
+    /** Its validity flag: 1 valid, 0 not. */
+    BRAKE_PEDAL_VALID("brake_pedal_valid", 1013, 0x34200019, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CHASSIS_LIVE)),
+    /**
+     * The brake switch, `getBrakePedalState` (records[187]) as the stock CAN-FD mapping reads it: 0 and 3
+     * not pressed, 1 and 2 pressed. Medium: 1 and 2 are the mapping's else-branch, not named one by one.
+     */
+    BRAKE_SWITCH("brake_switch", 1011, 0x29400022, 5, 1.0, 0.0, 0.0..3.0, pages = on(ExtraPage.CHASSIS_LIVE)),
+    /** The parking brake, `getEPBState`: 0 releasing, 1 released, 2 applying, 3 applied, 4 fault. Medium: the stock constants. */
+    EPB("epb", 1011, 0x21800011, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    /** The suspension's height change (records[142], DiCar `HeightAdjustmentProperty`): 1 raising, 2 lowering, 3 done, 4 aborted. */
+    SUSPENSION_PROCESS("suspension_process", 1023, 0x2580002C, 5, 1.0, 0.0, 1.0..4.0,
+        pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    /** Its actual level (records[146], `DiSusHeightLevelProperty`): 1 low, 2 middle, 3 high - the feedback, not the setting. */
+    SUSPENSION_LEVEL("suspension_level", 1023, 0x25800044, 5, 1.0, 0.0, 1.0..3.0,
+        pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    /** TPMS, `TYRE_SYSTEM_STATE` (stream-body-comfort signals[456]): 0 normal, 1 self-test, 2 no signal, 3 fault, 4 off. */
+    TPMS_STATE("tpms_state", 1016, 0x3CD0000D, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    /** The wheel sensors' batteries, `TYRE_BATTERY_STATE` (signals[430]): 0 normal, 1 low. */
+    TPMS_BATTERY("tpms_battery", 1016, 0x3CD00046, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    /** The tyres' temperature, all four in one, `TYRE_TEMPERATURE_STATE` (signals[457]): 0 normal, 1 very high, 2 high, 3 sensors asleep. */
+    TYRE_TEMP_STATE("tyre_temp_state", 1016, 0x3CD00044, 5, 1.0, 0.0, 0.0..3.0, pages = on(ExtraPage.CHASSIS_LIVE)),
+    /** A wheel's air leak, `getTyreAirLeakState` (signals[426..429]): 0 none, 1 quick, 2 slow; another code «код N». */
+    FL_LEAK("fl_leak", 1016, 0x99000122.toInt(), 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    FR_LEAK("fr_leak", 1016, 0x99000126.toInt(), 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    RL_LEAK("rl_leak", 1016, 0x9900012A.toInt(), 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    RR_LEAK("rr_leak", 1016, 0x9900012E.toInt(), 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    /**
+     * A wheel's pressure judgement, `TYRE_PRESSURE_STATE_*` (signals[435..438]): 0 normal, 1 high, 2 low;
+     * the stock listener also passes 3, which it does not name - «код 3», as any other code.
+     */
+    FL_PRESSURE_STATE("fl_pressure_state", 1016, 0x99000123.toInt(), 5, 1.0, 0.0, 0.0..254.0,
+        pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    FR_PRESSURE_STATE("fr_pressure_state", 1016, 0x99000127.toInt(), 5, 1.0, 0.0, 0.0..254.0,
+        pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    RL_PRESSURE_STATE("rl_pressure_state", 1016, 0x9900012B.toInt(), 5, 1.0, 0.0, 0.0..254.0,
+        pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+    RR_PRESSURE_STATE("rr_pressure_state", 1016, 0x9900012F.toInt(), 5, 1.0, 0.0, 0.0..254.0,
+        pages = on(ExtraPage.CHASSIS_STATE, ExtraPage.CHASSIS_LIVE)),
+
+    // ---- body
+    /**
+     * The turn indicators, `getTurnLightFlashState` (signals[278]): 1 off, 2 left, 3 left fast, 4 right,
+     * 5 right fast, 6 hazard, 7 emergency braking, 8 rear-end threat, 9 fast flash; 0 its INVALID.
+     * 1..6 are the mirrors' (TurnSignalDecoder, live), 7..9 stock names only.
+     */
+    TURN_LIGHTS("turn_lights", 1004, 0x38A0002C, 5, 1.0, 0.0, 1.0..9.0, pages = on(ExtraPage.BODY_STATE, ExtraPage.BODY_LIVE)),
+    /** The stop lamps, `getStopLightState`: 1 on, 2 flashing, 3 off; 0 INVALID. Medium: the getter class's constants, no card enum. */
+    STOP_LAMP("stop_lamp", 1004, 0x38A00012, 5, 1.0, 0.0, 1.0..3.0, pages = on(ExtraPage.BODY_STATE, ExtraPage.BODY_LIVE)),
+    /** The reversing lamp, `getReversingLightState`: 1 on, 2 off; 0 INVALID. Medium, as the stop lamps. */
+    REVERSE_LAMP("reverse_lamp", 1004, 0x38A00014, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.BODY_STATE, ExtraPage.BODY_LIVE)),
+    /** Low and high beam (signals[273], [270]): 0 off, 1 on; another code «код N». */
+    LOW_BEAM("low_beam", 1004, 0x38A0000A, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.BODY_STATE, ExtraPage.BODY_LIVE)),
+    HIGH_BEAM("high_beam", 1004, 0x38A0000C, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.BODY_STATE, ExtraPage.BODY_LIVE)),
+    /** Side lights (signals[277]): 0 off, 1 on; another code «код N». Only the table: the scheme draws the beams. */
+    SIDE_LIGHTS("side_lights", 1004, 0x38A00008, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.BODY_LIVE)),
+    /** The hood and the tailgate, `getDoorState` (signals[84], [90]): 0 closed, 1 open; 255 its UNDEFINED. */
+    HOOD("hood", 1001, 0x2940001C, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.BODY_STATE, ExtraPage.BODY_LIVE)),
+    TRUNK("trunk", 1001, 0x2940001A, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.BODY_STATE, ExtraPage.BODY_LIVE)),
+
+    // ---- climate
+    /**
+     * The climate's power, compressor and air intake, `getAcStartState`, `getAcCompressorMode`,
+     * `getAcCycleMode` (signals[181], [171], [173]): 0 off / off / outside air, 1 on / on / recirculation.
+     * Medium: the getters' constants, the cards' enums are empty.
+     */
+    AC_POWER("ac_power", 1000, 0x40400010, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CLIMATE_LIVE)),
+    AC_COMPRESSOR("ac_compressor", 1000, 0x40400009, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CLIMATE_LIVE)),
+    AC_RECIRCULATION("ac_recirculation", 1000, 0x40400014, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CLIMATE_LIVE)),
+    /** The blower's step 0..7, `AC_WIND_LEVEL` (signals[210], `AC_WINDLEVEL_0..7`): an ordinal, no words. Medium. */
+    AC_FAN("ac_fan", 1000, 0x4040001C, 5, 1.0, 0.0, 0.0..7.0, pages = on(ExtraPage.CLIMATE_LIVE)),
+    /** Outside air quality, the stock `getAQSLevel` raw − 1 (signals[63]): step 0..5, not a concentration; raw outside 1..6 refused. */
+    AQS_OUTSIDE("aqs_outside", 1000, 0x35B0000B, 5, 1.0, -1.0, 0.0..5.0, pages = on(ExtraPage.CLIMATE_LIVE)),
+    /** Outside CO₂, step 1..6 (signals[65]), not ppm. Medium. */
+    CO2_OUTSIDE("co2_outside", 1000, 0x35B00012, 5, 1.0, 0.0, 1.0..6.0, pages = on(ExtraPage.CLIMATE_LIVE)),
+    /** The humidity and sun sensors' hardware failure (signals[246], [257]): 0 sound, 1 failed. */
+    HUMIDITY_SENSOR("humidity_sensor", 1043, 0x3B400047, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CLIMATE_LIVE)),
+    SUN_SENSOR("sun_sensor", 1043, 0x3B400046, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CLIMATE_LIVE));
 
     fun decode(word: Int): Double? {
         // Same native no-data words as the shared AutoserviceShell; -1f is no data unless it is a value here.
@@ -259,17 +398,44 @@ internal enum class ExtraPage(
      */
     val periodMs: Long? = null,
 ) {
+    // A system's «Состояние» (`*_STATE`) asks for what its scheme draws, every five seconds; its
+    // «Потоковые данные» (`*_LIVE`) for its table's readings, round after round as the pack's (6.3) -
+    // the floor keeps an instant answer from spinning. Which tab asks which: scan.extraPage.
+
+    /** «Высоковольтная система · Состояние». */
+    HV_STATE,
+    /** «Высоковольтная система · Потоковые данные». */
+    HV_LIVE(periodMs = 100),
+    /** «Тяговая батарея · Потоковые данные»: the pack's readings are the shared batch's, and SOC in tenths. */
+    PACK_LIVE(periodMs = 100),
+    /** «Тяговая батарея · Флаги GB/T 32960». */
+    GB_FLAGS,
+    /** «Электропривод · Состояние». */
+    DRIVES_STATE,
+    /** «Электропривод · Потоковые данные». */
+    DRIVES_LIVE(periodMs = 100),
+    /** «Шасси · Состояние». */
+    CHASSIS_STATE,
+    /** «Шасси · Потоковые данные». */
+    CHASSIS_LIVE(periodMs = 100),
+    /** «Безопасность · Состояние». */
+    SAFETY_STATE,
+    /** «Безопасность · Потоковые данные». */
+    SAFETY_LIVE(periodMs = 100),
+    /** «Кузов · Состояние». */
+    BODY_STATE,
+    /** «Кузов · Потоковые данные». */
+    BODY_LIVE(periodMs = 100),
     /** «Салон · Состояние». */
     CABIN,
     /** «Климат · Состояние». */
     CLIMATE_STATE,
-    /** «Тяговая батарея · Флаги GB/T 32960». */
-    GB_FLAGS,
-    /**
-     * «Тяговая батарея · Потоковые данные»: no GETs of its own - the pack's are the shared batch's -
-     * but read as a stream, round after round (6.3). The floor keeps an instant answer from spinning.
-     */
-    PACK_LIVE(periodMs = 100),
+    /** «Климат · Потоковые данные». */
+    CLIMATE_LIVE(periodMs = 100),
+    /** «Сеть 12 В · Состояние». */
+    LV_STATE,
+    /** «Сеть 12 В · Потоковые данные». */
+    LV_LIVE(periodMs = 100),
 }
 
 internal object DiagnosticExtraReader {
@@ -315,6 +481,9 @@ internal object DiagnosticExtraReader {
 internal object ExtraGates {
     private val GATES: Map<DiagnosticExtra, DiagnosticExtra> = mapOf(
         DiagnosticExtra.OUTSIDE_TEMP to DiagnosticExtra.TEMP_UNIT,
+        // a pedal's travel counts only while its validity flag reads 1, `DATA_FLAG_VALID`
+        DiagnosticExtra.ACCEL_PEDAL to DiagnosticExtra.ACCEL_PEDAL_VALID,
+        DiagnosticExtra.BRAKE_PEDAL to DiagnosticExtra.BRAKE_PEDAL_VALID,
     )
 
     /** [reading]'s gate, or null. */
