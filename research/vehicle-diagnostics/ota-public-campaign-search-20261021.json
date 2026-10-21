@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "mode": "public_web_only",
+  "question": "Do public sources establish a newer applicable OTA for the installed ECU set and saved V1.7.0 label?",
+  "queries": [
+    "腾势 Z9GT OTA V1.8 V1.7 2026 升级",
+    "site.denza.com Z9GT OTA 升级 2026",
+    "\"腾势Z9GT\" \"V1.8\"",
+    "\"腾势Z9GT\" \"V1.9\"",
+    "site.weibo.com 腾势汽车 2026 OTA Z9",
+    "site.mp.weixin.qq.com 腾势 Z9GT OTA 2026",
+    "\"腾势Z9\" \"重磅OTA\" \"李慧\" \"2026\"",
+    "\"腾势Z9GT\" \"OTA\" \"智慧进阶\"",
+    "site.weibo.com/2664689831 \"Z9GT\" \"OTA\"",
+    "site.denza.com \"OTA\" \"Z9GT\" \"2026\""
+  ],
+  "verifiedPrimarySource": {
+    "url": "https://www.denzaukmedia.com/en/news-articles/denza-confirms-intelligent-drive-tech-for-europe-in-2027.html",
+    "publicationDate": "2026-10-12",
+    "observation": "Official European CNOA announcement for an OTA expected in 2027; no source/target ECU tuple matrix or match to this vehicle's GCY batch was provided in the reviewed page.",
+    "applicabilityToOwnerVehicle": "not_established"
+  },
+  "discoveryLeadsOnly": [
+    {
+      "url": "https://www.ithome.com/0/935/483.htm",
+      "displayedPublicationDate": "2026-04-02",
+      "status": "secondary_article_opened; primary campaign and vehicle applicability not verified"
+    },
+    {
+      "url": "https://www.ithome.com/0/959/267.htm",
+      "displayedPublicationDate": "2026-06-03",
+      "status": "secondary_article_opened; primary campaign and vehicle applicability not verified"
+    },
+    {
+      "url": "https://www.autohome.com.cn/news/202608/1316294.html",
+      "displayedPublicationDate": "2026-08-07",
+      "status": "secondary_article_opened; no inference about owner's August service package"
+    }
+  ],
+  "retrievalLimits": [
+    "https://www.denza.com/cn/denza-voice/ returned a sparse page without a usable release listing; no login attempted.",
+    "https://www.denza.com/cn/car-config/car-config-Z9GT-2.html appeared in search but direct open returned 404; not used as verified current evidence.",
+    "No exhaustive inventory of Weibo, WeChat, owner app, dealer systems or backend campaigns was obtained.",
+    "No full web page snapshot or independent hash of remote page content was retained; URLs and bounded observations are research notes, not immutable byte evidence.",
+    "Search absence does not establish absence of an applicable OTA."
+  ],
+  "conclusion": "No expected ECU matrix or newer applicable campaign obtained; public news does not resolve error111 or justify changing SourceVehicleVersion2.",
+  "vehicleRequests": 0,
+  "authenticatedOtaRequests": 0,
+  "firmwareDownloads": 0,
+  "applicableOtaObtained": false
+}
