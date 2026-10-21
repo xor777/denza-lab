@@ -3,6 +3,7 @@ package dev.denza.apps.debug
 import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.protocol.DataQuality
 import dev.denza.apps.feature.diagnostics.scan.AskRow
+import dev.denza.apps.feature.diagnostics.scan.BodyLamps
 import dev.denza.apps.feature.diagnostics.scan.Callout
 import dev.denza.apps.feature.diagnostics.scan.CabinPlace
 import dev.denza.apps.feature.diagnostics.scan.CabinPlate
@@ -25,6 +26,8 @@ import dev.denza.apps.feature.diagnostics.scan.DtcRow
 import dev.denza.apps.feature.diagnostics.scan.DtcView
 import dev.denza.apps.feature.diagnostics.scan.EnginePlace
 import dev.denza.apps.feature.diagnostics.scan.EnginePoint
+import dev.denza.apps.feature.diagnostics.scan.Epb
+import dev.denza.apps.feature.diagnostics.scan.EpbLook
 import dev.denza.apps.feature.diagnostics.scan.Field
 import dev.denza.apps.feature.diagnostics.scan.FridgeMode
 import dev.denza.apps.feature.diagnostics.scan.GbFlagGroup
@@ -36,6 +39,7 @@ import dev.denza.apps.feature.diagnostics.scan.HeadCounter
 import dev.denza.apps.feature.diagnostics.scan.HvUnit
 import dev.denza.apps.feature.diagnostics.scan.HvView
 import dev.denza.apps.feature.diagnostics.scan.IdentView
+import dev.denza.apps.feature.diagnostics.scan.Lid
 import dev.denza.apps.feature.diagnostics.scan.LinkState
 import dev.denza.apps.feature.diagnostics.scan.LiveRow
 import dev.denza.apps.feature.diagnostics.scan.LiveView
@@ -59,6 +63,7 @@ import dev.denza.apps.feature.diagnostics.scan.Sample
 import dev.denza.apps.feature.diagnostics.scan.ScanPhase
 import dev.denza.apps.feature.diagnostics.scan.ScanSummary
 import dev.denza.apps.feature.diagnostics.scan.Scheme
+import dev.denza.apps.feature.diagnostics.scan.SeatBelt
 import dev.denza.apps.feature.diagnostics.scan.SystemDtcRow
 import dev.denza.apps.feature.diagnostics.scan.SystemLive
 import dev.denza.apps.feature.diagnostics.scan.SystemLiveView
@@ -68,6 +73,7 @@ import dev.denza.apps.feature.diagnostics.scan.SystemStreams
 import dev.denza.apps.feature.diagnostics.scan.SystemsView
 import dev.denza.apps.feature.diagnostics.scan.Target
 import dev.denza.apps.feature.diagnostics.scan.Tyre
+import dev.denza.apps.feature.diagnostics.scan.WordPlate
 import dev.denza.apps.feature.diagnostics.ui.ScannerRoute
 import dev.denza.apps.feature.diagnostics.ui.ScannerSample
 import dev.denza.apps.feature.diagnostics.ui.ScannerWords
@@ -108,14 +114,14 @@ internal object ScannerFixtures {
             "scanner-sys-engine-scheme" -> sys(CarSystem.ENGINE, SystemTab.STATE)
             "scanner-sys-engine-dtc" -> sys(CarSystem.ENGINE, SystemTab.DTC_READINESS)
             "scanner-sys-body" -> sys(CarSystem.BODY, SystemTab.DTC)
-            "scanner-sys-body-state" -> sys(CarSystem.BODY, SystemTab.STATE)
+            "scanner-sys-body-state", "scanner-sys-body-state-lit" -> sys(CarSystem.BODY, SystemTab.STATE)
             "scanner-sys-body-blocks" -> sys(CarSystem.BODY, SystemTab.BLOCKS)
             "scanner-sys-chassis" -> sys(CarSystem.CHASSIS, SystemTab.STATE)
             "scanner-sys-adas" -> sys(CarSystem.ADAS, SystemTab.STATE)
             "scanner-sys-adas-compare" -> sys(CarSystem.ADAS, SystemTab.COMPARE)
             "scanner-sys-drives" -> sys(CarSystem.DRIVES, SystemTab.STATE)
             "scanner-sys-drives-compare" -> sys(CarSystem.DRIVES, SystemTab.COMPARE)
-            "scanner-sys-safety" -> sys(CarSystem.SAFETY, SystemTab.STATE)
+            "scanner-sys-safety", "scanner-sys-safety-trip" -> sys(CarSystem.SAFETY, SystemTab.STATE)
             "scanner-sys-hv" -> sys(CarSystem.HV, SystemTab.STATE)
             "scanner-sys-pack" -> sys(CarSystem.PACK, SystemTab.STATE)
             in LIVE_BOARDS -> sys(LIVE_BOARDS.getValue(id), SystemTab.LIVE)
@@ -384,7 +390,13 @@ internal object ScannerFixtures {
     /** The cabin's two boards: a trip and the parked sweep; any other board's cabin is the trip's. */
     private val CABIN_BOARDS = setOf("scanner-sys-cabin", "scanner-sys-cabin-parked")
 
-    /** The board that shows a system's head and «Состояние»; the cabin's is the board shown when it is one of [CABIN_BOARDS]. */
+    /** A state's second board, illustrative: shown, it is its system's «Состояние». */
+    private val LIT_BOARDS = mapOf(CarSystem.BODY to "scanner-sys-body-state-lit", CarSystem.SAFETY to "scanner-sys-safety-trip")
+
+    /**
+     * The board that shows a system's head and «Состояние»; the cabin's is the board shown when it is
+     * one of [CABIN_BOARDS], the body's and the safety's their [LIT_BOARDS] when shown.
+     */
     private val STATE_BOARD = mapOf(
         CarSystem.HV to "scanner-sys-hv", CarSystem.PACK to "scanner-sys-pack", CarSystem.DRIVES to "scanner-sys-drives",
         CarSystem.ENGINE to "scanner-sys-engine-scheme", CarSystem.CHASSIS to "scanner-sys-chassis", CarSystem.SAFETY to "scanner-sys-safety",
@@ -402,7 +414,7 @@ internal object ScannerFixtures {
         val rows = groups.flatMap { it.rows }
         fun opened(r: ModuleRowView) = r.copy(target = r.request?.let { Target.Module(it) })
         return STATE_BOARD.mapValues { (system, stateBoard) ->
-            val board = if (system == CarSystem.CABIN && id in CABIN_BOARDS) id else stateBoard
+            val board = if ((system == CarSystem.CABIN && id in CABIN_BOARDS) || LIT_BOARDS[system] == id) id else stateBoard
             val f = fixture(all, board)
             val block = (if (system == CarSystem.PACK && id in CELLS_BOARDS) fixture(all, id) else f).getJSONObject("block")
             val blocks = when (system) {
@@ -463,8 +475,9 @@ internal object ScannerFixtures {
     private fun scheme(system: CarSystem, f: JSONObject, rows: List<ModuleRowView>): Scheme? {
         val units = f.optJSONObject("units")
         fun t(key: String) = tile(units?.optJSONObject(key), rows)
+        fun plate(key: String) = f.optJSONArray(key)?.let(::wordPlate)
         return when (system) {
-            CarSystem.HV -> Scheme.Hv
+            CarSystem.HV -> f.getJSONObject("charge").let { Scheme.Hv(it.getString("state"), it.optBoolean("plugged")) }
             CarSystem.PACK -> {
                 val p = f.getJSONObject("pack")
                 Scheme.Pack(
@@ -505,9 +518,15 @@ internal object ScannerFixtures {
                 },
             )
             CarSystem.CHASSIS -> Scheme.Chassis(
-                tyres = objects(f.getJSONArray("tyres")).map { Tyre(corner(it.getString("side"), it.getString("axle")), it.getString("label"), it.getString("pressure"), it.getString("temp")) },
+                tyres = objects(f.getJSONArray("tyres")).map {
+                    Tyre(corner(it.getString("side"), it.getString("axle")), it.getString("label"), it.getString("pressure"), it.getString("temp"),
+                        it.optJSONArray("states")?.let(::arrays)?.map(::cabinRow).orEmpty())
+                },
                 esp = t("esp"), eps = t("eps"), bscm = t("bscm"),
                 rearSteerLeft = t("rwsL"), rearSteerRight = t("rwsR"), motion = t("idc"),
+                suspension = plate("suspension"),
+                epb = f.optJSONObject("epb")?.let { Epb(it.optStringOrNull("look")?.uppercase()?.let(EpbLook::valueOf), cabinRow(it.getJSONArray("row"))) },
+                tpms = f.optJSONObject("tpms")?.let { WordPlate(it.getString("label"), listOf(cabinRow(it.getJSONArray("row")))) },
             )
             CarSystem.BODY -> Scheme.Body(
                 doors = objects(f.getJSONArray("doors")).map {
@@ -520,6 +539,12 @@ internal object ScannerFixtures {
                         .mapNotNull { (corner, key) -> tile(r.optJSONObject(key), rows)?.let { corner to it } }.toMap()
                 }.orEmpty(),
                 keyReceiver = t("hfrm"), smartEntry = t("sec"), nfc = t("nfc"), tailgate = t("tailgate"),
+                hood = f.optJSONObject("hood")?.let(::lid), trunk = f.optJSONObject("trunk")?.let(::lid),
+                lamps = f.optJSONObject("lamps")?.let { m ->
+                    fun flag(k: String): Boolean? = if (!m.has(k) || m.isNull(k)) null else m.getBoolean(k)
+                    BodyLamps(flag("low"), flag("high"), m.optBoolean("turnLeft"), m.optBoolean("turnRight"), flag("stop"), flag("reverse"))
+                },
+                lights = plate("lights"), tail = plate("tail"),
             )
             CarSystem.ADAS -> Scheme.Adas(
                 front = t("mrr"),
@@ -532,15 +557,53 @@ internal object ScannerFixtures {
             }
             CarSystem.SAFETY -> Scheme.Safety(
                 airbags = t("srs"), driverBelt = t("driverBelt"), passengerBelt = t("passengerBelt"), childRadar = t("cpd"),
+                seats = f.optJSONArray("seats")?.let(::objects).orEmpty().map { s ->
+                    fun flag(k: String): Boolean? = if (!s.has(k) || s.isNull(k)) null else s.getBoolean(k)
+                    SeatBelt(CABIN_PLACES.getValue(s.getString("place")), s.getString("label"),
+                        CabinSeat(flag("occupied"), flag("belt"), null, null, null), cabinRow(s.getJSONArray("row")))
+                },
             )
             CarSystem.LV -> Scheme.Lv(
                 hv = f.getString("hv"), lv = f.getString("lv"), dcdc = t("dcdc"), battery = t("lbms"),
                 loads = objects(units!!.getJSONArray("loads")).mapNotNull { tile(it, rows) },
+                dcdcMode = f.getString("dcdcMode"),
             )
             CarSystem.CABIN -> cabin(f)
             else -> null
         }
     }
+
+    /* ------------------------------------------------------ the schemes' words */
+
+    /**
+     * A board's word `[text, style, ink]` in the model's tones: a row's own ink (white in `cell`, dim
+     * in `cellSmall`) is plain, dim in a first row quiet, orange an alert, `orangeInk` warm.
+     */
+    private fun cabinRun(a: JSONArray): CabinRun {
+        val small = a.getString(1) == "cellSmall"
+        val tone = when (a.getString(2)) {
+            "orange" -> CabinTone.ALERT
+            "orangeInk" -> CabinTone.WARM
+            "dim" -> if (small) CabinTone.PLAIN else CabinTone.QUIET
+            else -> CabinTone.PLAIN
+        }
+        return CabinRun(a.getString(0), tone)
+    }
+
+    /** A board's row: one word or runs of them on one baseline, small in `cellSmall`. */
+    private fun cabinRow(r: JSONArray): CabinRow {
+        val runs = if (r.get(0) is JSONArray) arrays(r) else listOf(r)
+        return CabinRow(runs.map(::cabinRun), small = runs.first().getString(1) == "cellSmall")
+    }
+
+    /** A board's plate `P(label, rows)`: its label over its rows. */
+    private fun wordPlate(a: JSONArray): WordPlate {
+        val rows = arrays(a)
+        return WordPlate(rows.first().getString(0), rows.drop(1).map(::cabinRow))
+    }
+
+    /** The hood's or the tailgate's `{ open, row }`. */
+    private fun lid(o: JSONObject) = Lid(if (o.isNull("open")) null else o.getBoolean("open"), cabinRow(o.getJSONArray("row")))
 
     /* ------------------------------------------------------------- the cabin */
 
@@ -579,24 +642,7 @@ internal object ScannerFixtures {
             else -> null
         }
         val text = f.getJSONObject("text")
-        fun cabinRun(a: JSONArray): CabinRun {
-            val small = a.getString(1) == "cellSmall"
-            val tone = when (a.getString(2)) {
-                "orange" -> CabinTone.ALERT
-                "orangeInk" -> CabinTone.WARM
-                "dim" -> if (small) CabinTone.PLAIN else CabinTone.QUIET
-                else -> CabinTone.PLAIN
-            }
-            return CabinRun(a.getString(0), tone)
-        }
-        fun plate(key: String): CabinPlate {
-            val rows = arrays(text.getJSONArray(key))
-            val label = rows.first().getString(0)
-            return CabinPlate(CABIN_PLACES.getValue(key), label, rows.drop(1).map { r ->
-                val runs = if (r.get(0) is JSONArray) arrays(r) else listOf(r)
-                CabinRow(runs.map(::cabinRun), small = runs.first().getString(1) == "cellSmall")
-            })
-        }
+        fun plate(key: String): CabinPlate = wordPlate(text.getJSONArray(key)).let { CabinPlate(CABIN_PLACES.getValue(key), it.label, it.rows) }
         val plates = f.getJSONObject("plates")
         val pads = f.getJSONObject("pads")
         val fridges = f.getJSONObject("fridges")

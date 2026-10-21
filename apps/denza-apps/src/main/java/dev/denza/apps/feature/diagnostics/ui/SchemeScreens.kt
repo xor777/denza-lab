@@ -28,12 +28,15 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.feature.diagnostics.scan.CabinPlace
 import dev.denza.apps.feature.diagnostics.scan.CabinPlate
+import dev.denza.apps.feature.diagnostics.scan.CabinRow
 import dev.denza.apps.feature.diagnostics.scan.CabinSeat
 import dev.denza.apps.feature.diagnostics.scan.CabinTone
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.Corner
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
 import dev.denza.apps.feature.diagnostics.scan.EnginePlace
+import dev.denza.apps.feature.diagnostics.scan.EpbLook
+import dev.denza.apps.feature.diagnostics.scan.SeatBelt
 import dev.denza.apps.feature.diagnostics.scan.FridgeMode
 import dev.denza.apps.feature.diagnostics.scan.HvUnit
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
@@ -52,14 +55,15 @@ import kotlin.math.sin
  * A system's «Состояние»: the mnemonic schemes of `scanner.js` - the car from above (`car()`) with
  * callouts (`callout()`) and the blocks' tiles (`unitTile()`, `hang()`) for Шасси, Кузов,
  * Ассистенты, Электропривод and Безопасность; the cabin through the roof (`sysCabin()`); the HV schema (`hvBody()`); the pack (`sysPack()`, `rangeBar()`); the engine's air
- * path; climate; the 12 V net. Line art is drawn on one canvas in window dp, words and tiles are
- * composables over it, so a tile still opens its block.
+ * path; climate; the 12 V net. The car's readings stand in their words (`said()`) and as light on
+ * the line art: lamps, lids, calipers, seats. Line art is drawn on one canvas in window dp, words and
+ * tiles are composables over it, so a tile still opens its block.
  */
 
 @Composable
 internal fun SchemeContent(model: DiagnosticsModel, scheme: Scheme, onOpen: (Target) -> Unit) {
     when (scheme) {
-        Scheme.Hv -> HvScheme(model, onOpen)
+        is Scheme.Hv -> HvScheme(model, scheme, onOpen)
         is Scheme.Pack -> PackScheme(scheme)
         is Scheme.Drives -> DrivesScheme(scheme, onOpen)
         is Scheme.Engine -> EngineScheme(scheme)
@@ -226,6 +230,33 @@ private fun Plate(x: Float, y: Float, w: Float, lines: List<Line>) {
     }
 }
 
+/** A row of words in the plates' style: the first-row style unless [CabinRow.small], each run in its tone's ink. */
+private fun rowLine(r: CabinRow): Line {
+    val style = if (r.small) Type.CELL_SMALL else Type.CELL
+    return if (r.runs.size == 1) Words(r.runs[0].text, style, cabinInk(r.runs[0].tone, r.small))
+    else Runs(r.runs.map { Triple(it.text, style, cabinInk(it.tone, r.small)) })
+}
+
+/** A plate of words: its label over its rows. */
+private fun plateLines(label: String, rows: List<CabinRow>): List<Line> = listOf<Line>(Words(label, Type.COUNTER_LABEL, Ink.MUTE)) + rows.map(::rowLine)
+
+/** Where a row of words stands on its x (`said()`): from it, centred on it, ending at it. */
+private enum class Align { START, CENTRE, END }
+
+/** A row of words with its line box's top at [y] (`said()`). */
+@Composable
+private fun SaidRow(r: CabinRow, x: Float, y: Float, align: Align = Align.START) {
+    val m = when (align) {
+        Align.START -> Modifier.at(x, y)
+        Align.CENTRE -> Modifier.centreAt(x, y)
+        Align.END -> Modifier.endAt(x, y)
+    }
+    when (val l = rowLine(r)) {
+        is Words -> ScanText(l.text, l.style, l.ink, m)
+        is Runs -> ScanRuns(l.runs, m)
+    }
+}
+
 /** A scheme's tile: the topology's full size; nothing where the catalog has no such block. */
 @Composable
 private fun SchemeTile(row: ModuleRowView?, x: Float, y: Float, onOpen: (Target) -> Unit) {
@@ -250,8 +281,10 @@ private fun DrawScope.hangLeader(h: Hung, cx: Float) {
 /* ---------------------------------------------------------------- chassis */
 
 /**
- * Шасси: the tyres at their corners, the brake and steering blocks where they sit, the rear wheels'
- * steering under their tyres, the motion controller in the middle (`sysChassis()`).
+ * Шасси: the tyres at their corners with the TPMS's judgement of each, the brake and steering blocks
+ * where they sit, the rear wheels' steering under their tyres, the motion controller in the middle
+ * with the suspension's plate, the parking brake's calipers in the rear wheels, the tyre-pressure
+ * system quiet at the top right (`sysChassis()`).
  */
 @Composable
 private fun ChassisScheme(s: Scheme.Chassis, onOpen: (Target) -> Unit) {
@@ -268,10 +301,12 @@ private fun ChassisScheme(s: Scheme.Chassis, onOpen: (Target) -> Unit) {
             Words(t.label, Type.COUNTER_LABEL, Ink.MUTE),
             Runs(listOf(Triple(t.pressure, Type.COUNTER, Ink.WHITE), Triple(" бар", Type.UNIT, Ink.DIM2))),
             Words(t.temp, Type.CELL_MONO, Ink.DIM),
-        )
+        ) + t.states.map(::rowLine)
         val h = calloutH(lines)
         Triple(Offset(if (left) lx else rx, y - h / 2f), lines, Offset(if (left) k.left else k.right, y))
     }
+    // the suspension's plate between the left tyres, its leader to the motion controller
+    val suspension = s.suspension?.let { plateLines(it.label, it.rows) }
     val top = ScannerSpec.Content.TOP
     val cs = ScannerSpec.ChassisScheme
     val steer = listOf(
@@ -284,6 +319,18 @@ private fun ChassisScheme(s: Scheme.Chassis, onOpen: (Target) -> Unit) {
         plates.forEach { (at, lines, to) -> leader(at.x, at.y, o.W, calloutH(lines), to.x, to.y) }
         wire("M${k.x0 + 20} ${k.front}H${k.x0 + k.w - 20}", Ink.WIRE2, 3f)
         steer.forEach { hangLeader(it, cx) }
+        suspension?.let { leader(lx, k.mid - calloutH(it) / 2f, o.W, calloutH(it), cx - TILE_W / 2, k.mid) }
+        // the parking brake: a caliper inside each rear wheel - blue holding, orange at fault
+        s.epb?.look?.let { look ->
+            listOf(k.x0 + cs.CALIPER_IN, k.x0 + k.w - cs.CALIPER_IN - cs.CALIPER_W).forEach { x ->
+                val y = k.rear - cs.CALIPER_H / 2
+                when (look) {
+                    EpbLook.HELD, EpbLook.FAULT ->
+                        box(x, y, cs.CALIPER_W, cs.CALIPER_H, if (look == EpbLook.HELD) Ink.BLUE else Ink.ORANGE, cs.CALIPER_R)
+                    EpbLook.FREE -> frame(x, y, cs.CALIPER_W, cs.CALIPER_H, Ink.WIRE3, cs.CALIPER_R)
+                }
+            }
+        }
     }
     plates.forEach { (at, lines, _) -> Plate(at.x, at.y, o.W, lines) }
     SchemeTile(s.esp, cx - TILE_W / 2, k.y0 + 22f, onOpen)
@@ -291,8 +338,15 @@ private fun ChassisScheme(s: Scheme.Chassis, onOpen: (Target) -> Unit) {
     // the brake system's OBD interface above the left tyres, on its own: no common hardware or
     // software identity with ESP/IPB 782 is known, so no wire joins them
     SchemeTile(s.bscm, lx, top, onOpen)
+    // across from it, quiet: the tyre-pressure system's state and its sensors' batteries
+    s.tpms?.let { t ->
+        ScanText(t.label, Type.COUNTER_LABEL, Ink.MUTE, Modifier.at(rx, top))
+        t.rows.firstOrNull()?.let { SaidRow(it, rx, top + Type.COUNTER_LABEL.lh + o.GAP) }
+    }
     steer.forEach { SchemeTile(it.row, it.x, it.y, onOpen) }
     SchemeTile(s.motion, cx - TILE_W / 2, k.mid - TILE_H / 2, onOpen)
+    suspension?.let { Plate(lx, k.mid - calloutH(it) / 2f, o.W, it) }
+    s.epb?.let { SaidRow(it.row, cx, k.rear + cs.EPB_Y, Align.CENTRE) }
 }
 
 /* ------------------------------------------------------------------- body */
@@ -328,9 +382,10 @@ private fun BodyScheme(s: Scheme.Body, onOpen: (Target) -> Unit) {
     // the left and right body domains and the headlamps at the edges
     data class Side(val row: ModuleRowView?, val x: Float, val y: Float, val to: Offset)
     val tr = w - b.X - TILE_W
+    val (lampX, lampY) = b.LAMP_AT
     val sides = listOf(
-        Side(s.lampLeft, lx, ScannerSpec.Content.TOP, Offset(k.x0 + 26f, k.y0 + 14f)),
-        Side(s.lampRight, tr, ScannerSpec.Content.TOP, Offset(k.x0 + k.w - 26f, k.y0 + 14f)),
+        Side(s.lampLeft, lx, ScannerSpec.Content.TOP, Offset(k.x0 + lampX, k.y0 + lampY)),
+        Side(s.lampRight, tr, ScannerSpec.Content.TOP, Offset(k.x0 + k.w - lampX, k.y0 + lampY)),
         Side(s.left, lx, k.y0 + b.DOMAIN_TOP, Offset(k.x0, k.y0 + b.DOMAIN_TOP + TILE_H / 2)),
         Side(s.right, tr, k.y0 + b.DOMAIN_TOP, Offset(k.x0 + k.w, k.y0 + b.DOMAIN_TOP + TILE_H / 2)),
     )
@@ -351,12 +406,21 @@ private fun BodyScheme(s: Scheme.Body, onOpen: (Target) -> Unit) {
         Hung(s.nfc, gr, pillar - TILE_H / 2, Offset(k.x0 + k.w, pillar)),
         Hung(s.tailgate, gr, tail - TILE_H / 2, Offset(k.x0 + k.w - c.TAIL_R + kotlin.math.sqrt(c.TAIL_R * c.TAIL_R - dy * dy), tail)),
     )
+    // «СВЕТ» under the left headlamp's tile, its leader to that lamp; «ЗАДНИЕ ФОНАРИ» under the left
+    // zone, its leader to the left stop lamp
+    val lights = s.lights?.let { plateLines(it.label, it.rows) }
+    val tailPlate = s.tail?.let { plateLines(it.label, it.rows) }
+    val stopAt = run {
+        val a = Math.toRadians(((b.LAMP_STOP.first + b.LAMP_STOP.second) / 2f).toDouble())
+        Offset(k.x0 + c.TAIL_R + c.TAIL_R * cos(a).toFloat(), k.y0 + k.h - c.TAIL_R + c.TAIL_R * sin(a).toFloat())
+    }
     SchemeCanvas {
         car(k)
         doors.forEach { d ->
             wire("M${d.side} ${k.y0 + d.a}V${k.y0 + d.b}", if (d.open) Ink.ORANGE else Ink.BLUE_SOFT, 3f)
             leader(d.x, d.y, o.W, calloutH(d.lines), d.side, k.y0 + (d.a + d.b) / 2f)
         }
+        bodyLights(k, s)
         anchors.forEachIndexed { i, p ->
             wire("M${p.x} ${p.y}L$cx ${k.mid}", Ink.LINE3, 1f, floatArrayOf(3f, 3f))
             val st = s.anchors.getOrNull(i)
@@ -368,6 +432,8 @@ private fun BodyScheme(s: Scheme.Body, onOpen: (Target) -> Unit) {
             dot(sd.to.x, sd.to.y, o.DOT, Ink.WIRE5)
         }
         hung.forEach { hangLeader(it, cx) }
+        lights?.let { leader(lx, k.y0 + b.LIGHTS - calloutH(it) / 2f, o.W, calloutH(it), k.x0 + lampX, k.y0 + lampY) }
+        tailPlate?.let { leader(lx, k.y0 + b.TAIL_PLATE_Y - calloutH(it) / 2f, b.TAIL_PLATE_W, calloutH(it), stopAt.x, stopAt.y) }
     }
     doors.forEach { Plate(it.x, it.y, o.W, it.lines) }
     val uy = k.mid - TILE_H / 2
@@ -376,8 +442,70 @@ private fun BodyScheme(s: Scheme.Body, onOpen: (Target) -> Unit) {
     SchemeTile(s.smartEntry, cx - TILE_W / 2, uy + ScannerSpec.Topology.TILE_PITCH, onOpen)
     SchemeTile(s.front, cx - TILE_W / 2, k.y0 + 22f, onOpen)
     SchemeTile(s.back, cx - TILE_W / 2, k.y0 + k.h - 22f - TILE_H, onOpen)
+    // the hood's word under the front zone, the tailgate's over the rear one
+    s.hood?.let { SaidRow(it.row, cx, k.y0 + b.WORDS.first, Align.CENTRE) }
+    s.trunk?.let { SaidRow(it.row, cx, k.y0 + b.WORDS.second, Align.CENTRE) }
+    lights?.let { Plate(lx, k.y0 + b.LIGHTS - calloutH(it) / 2f, o.W, it) }
+    tailPlate?.let { Plate(lx, k.y0 + b.TAIL_PLATE_Y - calloutH(it) / 2f, b.TAIL_PLATE_W, it) }
     sides.forEach { SchemeTile(it.row, it.x, it.y, onOpen) }
     hung.forEach { SchemeTile(it.row, it.x, it.y, onOpen) }
+}
+
+/** The arc of the circle at [x], [y] of radius [r] from [a0] to [a1] degrees, clockwise on the screen (`arcPath()`). */
+private fun arcPath(x: Float, y: Float, r: Float, a0: Float, a1: Float): Path =
+    Path().apply { arcTo(Rect(x - r, y - r, x + r, y + r), a0, a1 - a0, true) }
+
+/** A lamp on the body (`lamp()`): lit in its ink over a halo of it, dark in line4. */
+private fun DrawScope.lamp(p: Path, on: Boolean, color: Int) {
+    val b = ScannerSpec.BodyScheme
+    if (on) drawPath(p, ink(color), alpha = b.HALO_ALPHA, style = Stroke(b.LAMP_HALO, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    drawPath(p, ink(if (on) color else Ink.LINE4), style = Stroke(b.LAMP_W, cap = StrokeCap.Round, join = StrokeJoin.Round))
+}
+
+/**
+ * The body's lids and lamps (`sysBodyState()`): the hood on the nose's line and the tailgate on the
+ * tail's - closed blue, open orange, not read dark; the headlamps at the nose's corners, blue on a
+ * beam and haloed on the high one; at the tail's corners the stop lamps, orange, and the reversing
+ * lamps, blue; the indicators as marks off the four corners, orange on the side that flashes.
+ */
+private fun DrawScope.bodyLights(k: CarGeom, s: Scheme.Body) {
+    val b = ScannerSpec.BodyScheme
+    val nr = ScannerSpec.Car.NOSE_R
+    val tr = ScannerSpec.Car.TAIL_R
+    fun lid(open: Boolean?) = when (open) { true -> Ink.ORANGE; false -> Ink.BLUE_SOFT; null -> Ink.LINE4 }
+    s.hood?.let { h ->
+        val p = arcPath(k.x0 + nr, k.y0 + nr, nr, 270f - b.HOOD, 270f).apply {
+            lineTo(k.x0 + k.w - nr, k.y0)
+            arcTo(Rect(k.x0 + k.w - 2 * nr, k.y0, k.x0 + k.w, k.y0 + 2 * nr), -90f, b.HOOD, false)
+        }
+        wire(p, lid(h.open), 3f)
+    }
+    s.trunk?.let { t -> wire("M${k.x0 + tr} ${k.y0 + k.h}H${k.x0 + k.w - tr}", lid(t.open), 3f) }
+    val m = s.lamps ?: return
+    // an angle of the left corner, mirrored to the right one
+    fun span(a: Pair<Float, Float>, left: Boolean) = if (left) a else (180f - a.second) to (180f - a.first)
+    listOf(k.x0 + nr to true, k.x0 + k.w - nr to false).forEach { (x, left) ->
+        val (a0, a1) = span(b.LAMP_HEAD, left)
+        val p = arcPath(x, k.y0 + nr, nr, a0, a1)
+        if (m.high == true) drawPath(p, ink(Ink.BLUE), alpha = b.HALO_ALPHA, style = Stroke(2 * b.LAMP_HALO, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        lamp(p, m.low == true || m.high == true, Ink.BLUE)
+    }
+    listOf(k.x0 + tr to true, k.x0 + k.w - tr to false).forEach { (x, left) ->
+        val y = k.y0 + k.h - tr
+        val (s0, s1) = span(b.LAMP_STOP, left)
+        lamp(arcPath(x, y, tr, s0, s1), m.stop == true, Ink.ORANGE)
+        val (r0, r1) = span(b.LAMP_REVERSE, left)
+        lamp(arcPath(x, y, tr, r0, r1), m.reverse == true, Ink.BLUE_SOFT)
+    }
+    listOf(
+        Triple(-1f, k.y0 + b.TURN_Y, m.turnLeft), Triple(-1f, k.y0 + k.h - b.TURN_Y, m.turnLeft),
+        Triple(1f, k.y0 + b.TURN_Y, m.turnRight), Triple(1f, k.y0 + k.h - b.TURN_Y, m.turnRight),
+    ).forEach { (dir, y, on) ->
+        val bx = if (dir < 0) k.x0 - b.TURN_GAP else k.x0 + k.w + b.TURN_GAP
+        val tx = bx + dir * b.TURN_LEN
+        if (on) drawCircle(ink(Ink.ORANGE), b.TURN_HALO, Offset((bx + tx) / 2f, y), alpha = b.HALO_ALPHA)
+        drawPath(path("M$bx ${y - b.TURN_HALF}L$tx ${y}L$bx ${y + b.TURN_HALF}Z"), ink(if (on) Ink.ORANGE else Ink.LINE4))
+    }
 }
 
 /* ------------------------------------------------------------------- adas */
@@ -685,13 +813,44 @@ private fun SafetyScheme(s: Scheme.Safety, onOpen: (Target) -> Unit) {
         Hung(s.driverBelt, k.x0 - g - TILE_W, pillar - TILE_H / 2, Offset(k.x0, pillar)),
         Hung(s.passengerBelt, k.x0 + k.w + g, pillar - TILE_H / 2, Offset(k.x0 + k.w, pillar)),
     )
+    // the seats in the belts' column, each nearest the car with its words outside it: the driver
+    // over the driver's belt, the second row's left and centre under it; the passenger and the
+    // second row's right across
+    val z = ScannerSpec.SafetyScheme
+    val lab = Type.COUNTER_LABEL.lh + ScannerSpec.Callout.GAP
+    data class Placed(val seat: SeatBelt, val left: Boolean, val gx: Float, val y: Float, val gy: Float)
+    val seats = s.seats.map { st ->
+        val left = st.place == CabinPlace.FL || st.place == CabinPlace.RL || st.place == CabinPlace.RC
+        val gx = if (left) k.x0 - g - z.SEAT_W else k.x0 + k.w + g
+        val y = k.y0 + when (st.place) {
+            CabinPlace.FL, CabinPlace.FR -> z.ROWS.first
+            CabinPlace.RC -> z.ROWS.second + z.STEP
+            else -> z.ROWS.second
+        }
+        Placed(st, left, gx, y, y + (lab + Type.CELL.lh - z.SEAT_H) / 2f)
+    }
     SchemeCanvas {
         car(k)
         belts.forEach { hangLeader(it, cx) }
+        val cs = ScannerSpec.CabinScheme
+        seats.forEach { p ->
+            val occupied = p.seat.seat.occupied == true
+            if (occupied) box(p.gx, p.gy, z.SEAT_W, z.SEAT_H, Ink.BLUE_SHARE, z.SEAT_R)
+            frame(p.gx, p.gy, z.SEAT_W, z.SEAT_H, if (occupied) Ink.BLUE_EDGE else Ink.LINE3, z.SEAT_R)
+            val strap = "M${p.gx + z.SEAT_W - z.STRAP_IN} ${p.gy + z.STRAP_TOP}L${p.gx + z.STRAP_IN} ${p.gy + z.SEAT_H - z.STRAP_FOOT}"
+            if (p.seat.seat.belt == true) wire(strap, Ink.BLUE, cs.STRAP)
+            else if (occupied && p.seat.seat.belt == false) wire(strap, Ink.ORANGE, cs.STRAP, cs.STRAP_DASH)
+        }
     }
     belts.forEach { SchemeTile(it.row, it.x, it.y, onOpen) }
     SchemeTile(s.airbags, cx - TILE_W / 2, k.mid - TILE_H / 2, onOpen)
     SchemeTile(s.childRadar, cx - TILE_W / 2, k.y0 + k.h - 22f - TILE_H, onOpen)
+    seats.forEach { p ->
+        val tx = if (p.left) p.gx - z.PAD else p.gx + z.SEAT_W + z.PAD
+        val align = if (p.left) Align.END else Align.START
+        ScanText(p.seat.label, Type.COUNTER_LABEL, Ink.MUTE, if (p.left) Modifier.endAt(tx, p.y) else Modifier.at(tx, p.y))
+        SaidRow(p.seat.row, tx, p.y + lab, align)
+    }
 }
 
 /* ------------------------------------------------------------------- cabin */
@@ -732,11 +891,7 @@ private fun cabinInk(tone: CabinTone, small: Boolean): Int = when (tone) {
     CabinTone.WARM -> Ink.ORANGE_INK
 }
 
-private fun cabinLines(p: CabinPlate): List<Line> = listOf<Line>(Words(p.label, Type.COUNTER_LABEL, Ink.MUTE)) + p.rows.map { r ->
-    val style = if (r.small) Type.CELL_SMALL else Type.CELL
-    if (r.runs.size == 1) Words(r.runs[0].text, style, cabinInk(r.runs[0].tone, r.small))
-    else Runs(r.runs.map { Triple(it.text, style, cabinInk(it.tone, r.small)) })
-}
+private fun cabinLines(p: CabinPlate): List<Line> = plateLines(p.label, p.rows)
 
 /**
  * A seat seen through the roof (`sysCabin()`'s `seat()`): filled when someone sits, the strap across
@@ -855,6 +1010,9 @@ private fun LvScheme(s: Scheme.Lv, onOpen: (Target) -> Unit) {
     ScanText("12 В", Type.COL_HEAD, Ink.MUTE, Modifier.at(lx + 16f, y - 44f))
     ScanText(s.lv, Type.HV_VOLTS, Ink.TEXT, Modifier.at(lx + 16f, y - 26f))
     SchemeTile(s.dcdc, n.DCDC_X, y - TILE_H / 2, onOpen)
+    // the converter's mode under it, as the voltages stand over the line
+    ScanText("РЕЖИМ DC-DC", Type.COL_HEAD, Ink.MUTE, Modifier.at(n.DCDC_X, y + TILE_H / 2 + n.MODE_Y))
+    ScanText(s.dcdcMode, Type.HV_VOLTS, Ink.TEXT, Modifier.at(n.DCDC_X, y + TILE_H / 2 + n.MODE_Y + n.MODE_LINE))
     SchemeTile(s.battery, n.BATT_X, y + n.BATT_DROP, onOpen)
     s.loads.forEachIndexed { i, r -> SchemeTile(r, n.LOAD_X + i * n.LOAD_STEP, y + n.LOAD_DROP, onOpen) }
 }
@@ -873,7 +1031,7 @@ private fun unitLook(status: ModuleStatus): UnitLook = when (ScannerWords.chip(s
 
 /** Высоковольтная система: the HV schema at the rail's width (`hvBody()` on `hvRail`); the pack opens «Тяговая батарея». */
 @Composable
-private fun HvScheme(model: DiagnosticsModel, onOpen: (Target) -> Unit) {
+private fun HvScheme(model: DiagnosticsModel, s: Scheme.Hv, onOpen: (Target) -> Unit) {
     val v = ScannerSpec.Hv
     val hv = model.systems.hv
     SchemeCanvas {
@@ -894,6 +1052,12 @@ private fun HvScheme(model: DiagnosticsModel, onOpen: (Target) -> Unit) {
         ScanParagraph("главный контактор", Type.HV_LABEL, Ink.MUTE, lw)
         // its state on the line under the label
         ScannerWords.contactor(hv.contactorClosed)?.let { ScanText(it, Type.HV_LABEL, Ink.TEXT) }
+    }
+    // the charge port under the charger, as the contactor's label: its word blue while a plug is in
+    val (chx, chy, chw) = v.CHARGE_LABEL
+    Column(Modifier.at(chx, chy)) {
+        ScanParagraph("зарядный разъём", Type.HV_LABEL, Ink.MUTE, chw)
+        ScanText(s.chargePort, Type.HV_LABEL, if (s.plugged) Ink.BLUE_SOFT else Ink.TEXT)
     }
     ScanText("ШИНА DC", Type.COL_HEAD, Ink.MUTE, Modifier.endAt(v.BUS_LABEL_RIGHT, v.BUS_LABEL_Y))
     hv.busVoltages.take(v.VOLTS.size).forEachIndexed { i, t -> ScanText(t, Type.HV_VOLTS, Ink.TEXT, Modifier.at(v.VOLTS[i].first, v.VOLTS[i].second)) }

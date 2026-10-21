@@ -215,7 +215,7 @@ internal fun SystemPageScreen(
             )
             // what is read from the blocks' memories, and a scheme that is only the blocks
             tab == SystemTab.DTC || tab == SystemTab.BLOCKS || (tab == SystemTab.COMPARE && page.system == CarSystem.ADAS) ||
-                (tab == SystemTab.STATE && (page.scheme is Scheme.Adas || page.scheme is Scheme.Safety)) -> ScanFooter(listOf(codes), codesNotes)
+                (tab == SystemTab.STATE && page.scheme is Scheme.Adas) -> ScanFooter(listOf(codes), codesNotes)
             // readings: when they were taken
             else -> ScanFooter(refresh, snapshot)
         }

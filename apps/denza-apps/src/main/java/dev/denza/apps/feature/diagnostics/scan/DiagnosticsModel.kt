@@ -259,14 +259,45 @@ internal enum class Corner { FL, FR, RL, RR }
 /** A plate of lines beside a scheme: «ПЕРЕДНИЙ МОТОР · FMCU 7E3» over its readings. */
 internal data class Callout(val label: String, val rows: List<String>)
 
+/** A plate of words: «СВЕТ» over «ближний выкл», «дальний выкл», «поворотники выкл» - a word lit orange where it warns. */
+internal data class WordPlate(val label: String, val rows: List<CabinRow>)
+
+/** The hood or the tailgate: drawn blue closed, orange open, dark when not read; «капот закрыт» beside it. */
+internal data class Lid(val open: Boolean?, val row: CabinRow)
+
+/**
+ * The lamps the body's scheme draws: a null lamp is not read and stays dark, as an unlit one. The
+ * indicators light the sides the stock's words name - left, right, both for the hazard lights.
+ */
+internal data class BodyLamps(
+    val low: Boolean?,
+    val high: Boolean?,
+    val turnLeft: Boolean,
+    val turnRight: Boolean,
+    val stop: Boolean?,
+    val reverse: Boolean?,
+)
+
+/** The parking brake's calipers: blue holding (applying or applied), outlined released (or releasing), orange at fault. */
+internal enum class EpbLook { HELD, FREE, FAULT }
+
+/** The parking brake at the rear wheels: the calipers' look, null not read, and «EPB затянут». */
+internal data class Epb(val look: EpbLook?, val row: CabinRow)
+
+/** A seat on the safety scheme: who sits and the belt, drawn and said as the cabin does. */
+internal data class SeatBelt(val place: CabinPlace, val label: String, val seat: CabinSeat, val row: CabinRow)
+
 /**
  * A system's «Состояние» (architecture, 7.2; boards `scanner-sys-*`). Tiles are the autoscan's
  * rows ([ModuleRowView]): abbreviation, address, short name, status, history; null when the
  * catalog has no such block. A value nobody read is «н/д», never zero.
  */
 internal sealed interface Scheme {
-    /** The HV schema: [SystemsView.hv] at the rail's width. */
-    data object Hv : Scheme
+    /**
+     * The HV schema: [SystemsView.hv] at the rail's width, and the charge port's word under the
+     * charger - the hub's `CHARGE_GUN` in [CarStates.CHARGE_GUN]'s words, lit while a plug is in.
+     */
+    data class Hv(val chargePort: String = "н/д", val plugged: Boolean = false) : Scheme
 
     data class Pack(
         /** The charge's fill, 0..100; null leaves the pack empty. */
@@ -309,6 +340,12 @@ internal sealed interface Scheme {
         val rearSteerRight: ModuleRowView? = null,
         /** IDC 597, the vehicle motion controller: suspension and posture. */
         val motion: ModuleRowView? = null,
+        /** «ПОДВЕСКА»: its level and its height change, the plate's leader to the motion controller. */
+        val suspension: WordPlate? = null,
+        /** The parking brake at the rear wheels. */
+        val epb: Epb? = null,
+        /** «TPMS», quiet at the top right: «система: норма · батареи: норма». */
+        val tpms: WordPlate? = null,
     ) : Scheme
 
     data class Body(
@@ -330,6 +367,13 @@ internal sealed interface Scheme {
         val nfc: ModuleRowView? = null,
         /** PDCMB 724, the tailgate's projection sensing. */
         val tailgate: ModuleRowView? = null,
+        /** The hood on the nose's line, its word under the front zone; the tailgate on the tail's, its word over the rear zone. */
+        val hood: Lid? = null,
+        val trunk: Lid? = null,
+        val lamps: BodyLamps? = null,
+        /** «СВЕТ», its leader to the left headlamp; «ЗАДНИЕ ФОНАРИ», to the left stop lamp. */
+        val lights: WordPlate? = null,
+        val tail: WordPlate? = null,
     ) : Scheme
 
     data class Adas(
@@ -357,6 +401,8 @@ internal sealed interface Scheme {
         val passengerBelt: ModuleRowView?,
         /** CPD 5E0. */
         val childRadar: ModuleRowView?,
+        /** The five seats beside the belts' tiles: the driver, the passenger, the second row's left, centre and right. */
+        val seats: List<SeatBelt> = emptyList(),
     ) : Scheme
 
     /**
@@ -388,6 +434,8 @@ internal sealed interface Scheme {
         val battery: ModuleRowView?,
         /** The body's controllers on the 12 V line. */
         val loads: List<ModuleRowView>,
+        /** «понижение»: the converter's mode under it, [CarStates.DCDC_MODE]'s word. */
+        val dcdcMode: String = "н/д",
     ) : Scheme
 }
 
@@ -447,7 +495,8 @@ internal enum class EnginePlace { INLET, THROTTLE, MANIFOLD, BLOCK_TOP, BLOCK_BO
 
 internal data class EnginePoint(val place: EnginePlace, val label: String, val rows: List<String>)
 
-internal data class Tyre(val corner: Corner, val label: String, val pressure: String, val temp: String)
+/** A tyre's plate: its pressure and temperature, then the TPMS's judgement of its pressure and its leak ([states]). */
+internal data class Tyre(val corner: Corner, val label: String, val pressure: String, val temp: String, val states: List<CabinRow> = emptyList())
 
 internal data class Door(
     val corner: Corner,

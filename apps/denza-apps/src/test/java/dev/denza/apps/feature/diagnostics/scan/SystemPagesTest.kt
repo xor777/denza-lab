@@ -55,6 +55,8 @@ class SystemPagesTest {
             DiagnosticExtra.FL_WINDOW to 0.0, DiagnosticExtra.FR_WINDOW to 0.0, DiagnosticExtra.RL_WINDOW to 0.0, DiagnosticExtra.RR_WINDOW to 0.0,
             DiagnosticExtra.OUTSIDE_TEMP to 12.0, DiagnosticExtra.CABIN_TEMP to 21.0,
             DiagnosticExtra.PM_OUT to 18.0, DiagnosticExtra.PM_IN to 5.0, DiagnosticExtra.LV to 13.7,
+            // the power mode ON, the selector at P, the DC-DC stepping down (the sweep of 2026-10-20)
+            DiagnosticExtra.POWER_LEVEL to 2.0, DiagnosticExtra.GEAR_SELECTOR to 1.0, DiagnosticExtra.DCDC_MODE to 2.0,
         ),
         extrasFresh = true,
     )
@@ -222,8 +224,9 @@ class SystemPagesTest {
         val hv = model.page(CarSystem.HV)
         assertEquals("· ВВБ, привод, мотор-генератор", hv.aside)
         assertEquals("BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · LBMS 762", hv.line)
-        assertEquals(listOf("U ВВБ" to "553 В", "SOC" to "74 %", "DTC" to "0"), counters(CarSystem.HV))
-        assertEquals(Scheme.Hv, hv.scheme)
+        assertEquals(listOf("ПИТАНИЕ" to "ON", "U ВВБ" to "553 В", "SOC" to "74 %", "DTC" to "0"), counters(CarSystem.HV))
+        // no charge port in the hub here: «н/д», unlit
+        assertEquals(Scheme.Hv("н/д", plugged = false), hv.scheme)
 
         val pack = model.page(CarSystem.PACK)
         assertEquals("· BMS 7E7", pack.aside)
@@ -232,7 +235,7 @@ class SystemPagesTest {
 
         assertEquals("· 6 блоков", model.page(CarSystem.DRIVES).aside)
         assertEquals("VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6", model.page(CarSystem.DRIVES).line)
-        assertEquals(listOf("ШИНА ПЕРЕД" to "555 В", "ШИНА ЗАД" to "556 В", "DTC" to "0"), counters(CarSystem.DRIVES))
+        assertEquals(listOf("СЕЛЕКТОР" to "P", "ШИНА ПЕРЕД" to "555 В", "ШИНА ЗАД" to "556 В", "DTC" to "0"), counters(CarSystem.DRIVES))
 
         assertEquals("· ECM 7E0 · UAES", model.page(CarSystem.ENGINE).aside)
         assertEquals("7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01", model.page(CarSystem.ENGINE).line)
@@ -254,7 +257,7 @@ class SystemPagesTest {
 
         assertEquals("· LBMS 762", model.page(CarSystem.LV).aside)
         assertEquals("DC-DC в DCOBC 7E4 · АКБ LBMS 762 · напряжение 1001", model.page(CarSystem.LV).line)
-        assertEquals(listOf("12 В" to "13,7 В", "DTC" to "0"), counters(CarSystem.LV))
+        assertEquals(listOf("ПИТАНИЕ" to "ON", "12 В" to "13,7 В", "DTC" to "0"), counters(CarSystem.LV))
 
         // Without a board: the count, the blocks, the generic counters.
         val safety = model.page(CarSystem.SAFETY)
@@ -301,9 +304,11 @@ class SystemPagesTest {
         assertFalse(drives.engineRunning)
 
         val chassis = model.page(CarSystem.CHASSIS).scheme as Scheme.Chassis
+        // the TPMS's judgements are this snapshot's to leave out: «н/д» (SchemeReadingsTest says them)
+        val unread = listOf(CabinRow(listOf(CabinRun("давление: н/д")), true), CabinRow(listOf(CabinRun("утечка: н/д")), true))
         assertEquals(listOf(
-            Tyre(Corner.FL, "ШИНА ПЛ", "2,72", "19 °C"), Tyre(Corner.FR, "ШИНА ПП", "2,60", "8 °C"),
-            Tyre(Corner.RL, "ШИНА ЗЛ", "2,70", "17 °C"), Tyre(Corner.RR, "ШИНА ЗП", "2,62", "8 °C"),
+            Tyre(Corner.FL, "ШИНА ПЛ", "2,72", "19 °C", unread), Tyre(Corner.FR, "ШИНА ПП", "2,60", "8 °C", unread),
+            Tyre(Corner.RL, "ШИНА ЗЛ", "2,70", "17 °C", unread), Tyre(Corner.RR, "ШИНА ЗП", "2,62", "8 °C", unread),
         ), chassis.tyres)
         assertEquals(listOf(0x782, 0x783, 0x7E5), listOf(chassis.esp, chassis.eps, chassis.bscm).map { it?.request })
         assertEquals(listOf(0x582, 0x796, 0x597), listOf(chassis.rearSteerLeft, chassis.rearSteerRight, chassis.motion).map { it?.request })
@@ -345,6 +350,7 @@ class SystemPagesTest {
         assertEquals("553 В", lv.hv)
         assertEquals("13,7 В", lv.lv)
         assertEquals(0x7E4, lv.dcdc?.request)
+        assertEquals("понижение", lv.dcdcMode)
         assertEquals(0x762, lv.battery?.request)
         assertEquals(listOf(0x722, 0x720, 0x747, 0x726), lv.loads.map { it.request })
     }
@@ -356,10 +362,10 @@ class SystemPagesTest {
         val model = scanned(parked.copy(extras = parked.extras - gone, hub = parked.hub - VehicleSignal.CELL_MIN_MV))
 
         val chassis = model.page(CarSystem.CHASSIS).scheme as Scheme.Chassis
-        assertEquals(Tyre(Corner.FL, "ШИНА ПЛ", "н/д", "н/д"), chassis.tyres[0])
+        assertEquals(Tyre(Corner.FL, "ШИНА ПЛ", "н/д", "н/д"), chassis.tyres[0].copy(states = emptyList()))
         assertEquals("2,60–2,70", model.page(CarSystem.CHASSIS).counters[0].value)
         assertEquals("н/д", (model.page(CarSystem.LV).scheme as Scheme.Lv).lv)
-        assertEquals("н/д", model.page(CarSystem.LV).counters[0].value)
+        assertEquals("н/д", model.page(CarSystem.LV).counters.single { it.label == "12 В" }.value)
         val pack = model.page(CarSystem.PACK).scheme as Scheme.Pack
         assertNull(pack.soc)
         assertEquals("н/д", pack.socText)

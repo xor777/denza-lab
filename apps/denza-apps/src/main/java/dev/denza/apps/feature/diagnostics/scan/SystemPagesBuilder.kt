@@ -129,7 +129,7 @@ internal object SystemPagesBuilder {
             CarSystem.HV -> Triple(
                 "· ВВБ, привод, мотор-генератор",
                 plainLine(members),
-                listOf(HeadCounter("U ВВБ", volts(car)), HeadCounter("SOC", percent(car, DiagnosticExtra.SOC)), dtc),
+                listOf(power(car), HeadCounter("U ВВБ", volts(car)), HeadCounter("SOC", percent(car, DiagnosticExtra.SOC)), dtc),
             )
             CarSystem.PACK -> Triple(
                 single(members),
@@ -140,7 +140,8 @@ internal object SystemPagesBuilder {
             CarSystem.DRIVES -> Triple(
                 count(members),
                 plainLine(members),
-                listOf(HeadCounter("ШИНА ПЕРЕД", unit(car.extra(DiagnosticExtra.BUS_FRONT), 0, "В")),
+                listOf(HeadCounter("СЕЛЕКТОР", word(car, DiagnosticExtra.GEAR_SELECTOR)),
+                    HeadCounter("ШИНА ПЕРЕД", unit(car.extra(DiagnosticExtra.BUS_FRONT), 0, "В")),
                     HeadCounter("ШИНА ЗАД", unit(car.extra(DiagnosticExtra.BUS_REAR), 0, "В")), dtc),
             )
             CarSystem.ENGINE -> {
@@ -194,7 +195,7 @@ internal object SystemPagesBuilder {
             CarSystem.LV -> Triple(
                 single(members),
                 "DC-DC в ${tag(0x7E4)} · АКБ ${tag(0x762)} · напряжение ${DiagnosticExtra.LV.device}",
-                listOf(HeadCounter("12 В", unit(car.extra(DiagnosticExtra.LV), 1, "В")), dtc),
+                listOf(power(car), HeadCounter("12 В", unit(car.extra(DiagnosticExtra.LV), 1, "В")), dtc),
             )
             CarSystem.CABIN -> Triple(count(members), CABIN_LINE, generic)
             CarSystem.SAFETY, CarSystem.OTHER -> Triple(count(members), plainLine(members), generic)
@@ -211,6 +212,12 @@ internal object SystemPagesBuilder {
             scheme = scheme(i, system, ecmStream),
         )
     }
+
+    /** «ПИТАНИЕ» «ON»: the car's power mode at the head of the HV and 12 V pages. */
+    private fun power(car: CarReadings) = HeadCounter("ПИТАНИЕ", word(car, DiagnosticExtra.POWER_LEVEL))
+
+    /** An enumerated reading's word ([CarStates]); «н/д» when nothing fresh came. */
+    private fun word(car: CarReadings, e: DiagnosticExtra): String = car.word(e) ?: error("$e has no words")
 
     /** «ECM 7E0». */
     private fun tag(request: Int): String = "${EcuCatalog.byRequest(request)!!.abbreviation} ${Figures.address(request)}"
@@ -302,7 +309,7 @@ internal object SystemPagesBuilder {
     // ------------------------------------------------------------------ «Состояние»
 
     private fun scheme(i: Inputs, system: CarSystem, ecm: Map<Int, LiveRow>): Scheme? = when (system) {
-        CarSystem.HV -> Scheme.Hv
+        CarSystem.HV -> hv(i.s.car)
         CarSystem.PACK -> pack(i.s.car)
         CarSystem.DRIVES -> drives(i)
         CarSystem.ENGINE -> engine(ecm)
@@ -334,12 +341,14 @@ internal object SystemPagesBuilder {
             dcdc = i.rows[0x7E4],
             battery = i.rows[0x762],
             loads = listOf(0x722, 0x720, 0x747, 0x726).mapNotNull { i.rows[it] },
+            dcdcMode = word(i.s.car, DiagnosticExtra.DCDC_MODE),
         )
         CarSystem.SAFETY -> Scheme.Safety(
             airbags = i.rows[0x7F1],
             driverBelt = i.rows[0x742],
             passengerBelt = i.rows[0x713],
             childRadar = i.rows[0x5E0],
+            seats = seatBelts(i.s.car),
         )
         CarSystem.CABIN -> cabin(i.s.car)
         CarSystem.OTHER -> null
@@ -492,12 +501,21 @@ internal object SystemPagesBuilder {
     )
     private val CORNER_NAMES = mapOf(Corner.FL to "ПЛ", Corner.FR to "ПП", Corner.RL to "ЗЛ", Corner.RR to "ЗП")
 
+    private val PRESSURE_STATES = mapOf(
+        Corner.FL to DiagnosticExtra.FL_PRESSURE_STATE, Corner.FR to DiagnosticExtra.FR_PRESSURE_STATE,
+        Corner.RL to DiagnosticExtra.RL_PRESSURE_STATE, Corner.RR to DiagnosticExtra.RR_PRESSURE_STATE,
+    )
+    private val LEAKS = mapOf(
+        Corner.FL to DiagnosticExtra.FL_LEAK, Corner.FR to DiagnosticExtra.FR_LEAK,
+        Corner.RL to DiagnosticExtra.RL_LEAK, Corner.RR to DiagnosticExtra.RR_LEAK,
+    )
+
     private fun chassis(i: Inputs): Scheme.Chassis {
         val car = i.s.car
         return Scheme.Chassis(
             tyres = Corner.entries.map { c ->
                 Tyre(c, "ШИНА ${CORNER_NAMES.getValue(c)}", car.extra(PRESSURES.getValue(c))?.let(::bar) ?: NA,
-                    unit(car.extra(TYRE_TEMPS.getValue(c)), 0, "°C"))
+                    unit(car.extra(TYRE_TEMPS.getValue(c)), 0, "°C"), tyreStates(car, c))
             },
             esp = i.rows[0x782],
             eps = i.rows[0x783],
@@ -505,7 +523,132 @@ internal object SystemPagesBuilder {
             rearSteerLeft = i.rows[0x582],
             rearSteerRight = i.rows[0x796],
             motion = i.rows[0x597],
+            suspension = WordPlate("ПОДВЕСКА", listOf(
+                words(false, "уровень: " + word(car, DiagnosticExtra.SUSPENSION_LEVEL)),
+                words(true, "изменение: " + word(car, DiagnosticExtra.SUSPENSION_PROCESS)),
+            )),
+            epb = epb(car),
+            tpms = tpms(car),
         )
+    }
+
+    // ------------------------------------------------------------------ the schemes' readings (6, 7.2)
+
+    /**
+     * A row of the schemes' words: [parts] of text and tone, empty ones dropped, neighbours of one
+     * tone run together - so a board's runs and the model's compare as they read.
+     */
+    private fun words(small: Boolean, vararg parts: Pair<String, CabinTone>): CabinRow = CabinRow(
+        parts.filter { it.first.isNotEmpty() }.fold(mutableListOf<CabinRun>()) { acc, (text, tone) ->
+            acc.also { if (it.isNotEmpty() && it.last().tone == tone) it[it.lastIndex] = CabinRun(it.last().text + text, tone) else it += CabinRun(text, tone) }
+        },
+        small,
+    )
+
+    private fun words(small: Boolean, text: String): CabinRow = words(small, text to CabinTone.PLAIN)
+
+    private fun lit(alert: Boolean) = if (alert) CabinTone.ALERT else CabinTone.PLAIN
+
+    /** «давление: норма», «давление низкое»: a word that names its subject stands alone; a warning in orange. */
+    fun subject(noun: String, word: String, alert: Boolean): CabinRow =
+        words(true, (if (noun in word) "" else "$noun: ") to CabinTone.PLAIN, word to lit(alert))
+
+    /**
+     * A tyre's pressure judgement and its leak, as TPMS gives them (stream-selection, «Шасси»): high or
+     * low pressure and a quick or slow leak are warnings; «норма», another code and «н/д» are not.
+     */
+    fun tyreStates(car: CarReadings, c: Corner): List<CabinRow> {
+        val p = PRESSURE_STATES.getValue(c)
+        val l = LEAKS.getValue(c)
+        return listOf(
+            subject("давление", word(car, p), alert = car.extra(p)?.toInt() in 1..2),
+            subject("утечка", word(car, l), alert = car.extra(l)?.toInt() in 1..2),
+        )
+    }
+
+    /** «система: норма · батареи: норма» under «TPMS»: no signal or a fault, and flat sensor batteries, in orange. */
+    fun tpms(car: CarReadings): WordPlate {
+        val state = car.extra(DiagnosticExtra.TPMS_STATE)?.toInt()
+        val battery = car.extra(DiagnosticExtra.TPMS_BATTERY)?.toInt()
+        return WordPlate("TPMS", listOf(words(true,
+            "система: " to CabinTone.PLAIN, word(car, DiagnosticExtra.TPMS_STATE) to lit(state == 2 || state == 3),
+            " · батареи: " to CabinTone.PLAIN, word(car, DiagnosticExtra.TPMS_BATTERY) to lit(battery == 1),
+        )))
+    }
+
+    /** The calipers by `getEPBState`: applying or applied hold, releasing or released do not, 4 is a fault. */
+    fun epbLook(raw: Double?): EpbLook? = when (raw?.toInt()) {
+        2, 3 -> EpbLook.HELD
+        0, 1 -> EpbLook.FREE
+        4 -> EpbLook.FAULT
+        else -> null
+    }
+
+    /** «EPB затянут», «EPB отказ» with the fault in orange. */
+    fun epb(car: CarReadings): Epb {
+        val look = epbLook(car.extra(DiagnosticExtra.EPB))
+        return Epb(look, words(true, "EPB " to CabinTone.PLAIN, word(car, DiagnosticExtra.EPB) to lit(look == EpbLook.FAULT)))
+    }
+
+    /**
+     * The hood or the tailgate, `getDoorState`: 0 closed, 1 open, else not read; «капот закрыт», the
+     * open one in orange.
+     */
+    fun lid(car: CarReadings, e: DiagnosticExtra, name: String): Lid {
+        val open = twoState(car.extra(e), 1, 0)
+        return Lid(open, words(true, "$name " to CabinTone.PLAIN, word(car, e) to lit(open == true)))
+    }
+
+    /**
+     * What the body's lamps do (stream-selection, «Кузов»): the beams 1 on and 0 off; the indicators
+     * 2/3 left, 4/5 right and 6 both - 7..9, the stock's emergency-braking, rear-threat and fast-flash
+     * names, light no side the words do not name; the stop lamps 1 on and 2 flashing, 3 off; the
+     * reversing lamp 1 on, 2 off.
+     */
+    fun lamps(car: CarReadings): BodyLamps {
+        val turn = car.extra(DiagnosticExtra.TURN_LIGHTS)?.toInt()
+        return BodyLamps(
+            low = twoState(car.extra(DiagnosticExtra.LOW_BEAM), 1, 0),
+            high = twoState(car.extra(DiagnosticExtra.HIGH_BEAM), 1, 0),
+            turnLeft = turn == 2 || turn == 3 || turn == 6,
+            turnRight = turn == 4 || turn == 5 || turn == 6,
+            stop = when (car.extra(DiagnosticExtra.STOP_LAMP)?.toInt()) { 1, 2 -> true; 3 -> false; else -> null },
+            reverse = twoState(car.extra(DiagnosticExtra.REVERSE_LAMP), 1, 2),
+        )
+    }
+
+    /** «СВЕТ»: the beams, then the indicators, which say any flashing in orange. */
+    fun lights(car: CarReadings): WordPlate {
+        val turn = car.extra(DiagnosticExtra.TURN_LIGHTS)?.toInt()
+        return WordPlate("СВЕТ", listOf(
+            words(false, "ближний " + word(car, DiagnosticExtra.LOW_BEAM)),
+            words(true, "дальний " + word(car, DiagnosticExtra.HIGH_BEAM)),
+            words(true, "поворотники " to CabinTone.PLAIN, word(car, DiagnosticExtra.TURN_LIGHTS) to lit(turn != null && turn in 2..9)),
+        ))
+    }
+
+    /** «ЗАДНИЕ ФОНАРИ»: the stop lamps, lit in orange, and the reversing lamp. */
+    fun tail(car: CarReadings, lamps: BodyLamps): WordPlate = WordPlate("ЗАДНИЕ ФОНАРИ", listOf(words(false,
+        "стоп-сигнал " to CabinTone.PLAIN, word(car, DiagnosticExtra.STOP_LAMP) to lit(lamps.stop == true),
+        " · задний ход ${word(car, DiagnosticExtra.REVERSE_LAMP)}" to CabinTone.PLAIN,
+    )))
+
+    /** The HV schema with the charge port's word under the charger, lit while a plug is in (AC, DC, both or V2L). */
+    fun hv(car: CarReadings): Scheme.Hv =
+        Scheme.Hv(car.word(VehicleSignal.CHARGE_GUN) ?: NA, plugged = car.hub[VehicleSignal.CHARGE_GUN]?.toInt() in 2..5)
+
+    /** The seats of the safety scheme: the cabin's own GETs and words, without the block each serves. */
+    private val SEAT_NAMES = linkedMapOf(
+        CabinPlace.FL to "ВОДИТЕЛЬ", CabinPlace.FR to "ПАССАЖИР", CabinPlace.RL to "2-Й РЯД ЛЕВЫЙ",
+        CabinPlace.RC to "2-Й РЯД ЦЕНТР", CabinPlace.RR to "2-Й РЯД ПРАВЫЙ",
+    )
+
+    /** Who sits and the belt at each seat, as [cabin] draws and says it ([presence]). */
+    fun seatBelts(car: CarReadings): List<SeatBelt> = SEAT_NAMES.map { (place, label) ->
+        val g = SEATS.getValue(place)
+        val occupied = seated(car.extra(g.seated))
+        val belt = twoState(car.extra(g.belt), g.fastened, g.unfastened)
+        SeatBelt(place, label, CabinSeat(occupied, belt, null, null, null), presence(occupied, belt))
     }
 
     private class DoorSignals(val position: DiagnosticExtra, val lock: DiagnosticExtra, val window: DiagnosticExtra)
@@ -555,6 +698,11 @@ internal object SystemPagesBuilder {
             smartEntry = i.rows[0x7D6],
             nfc = i.rows[0x595],
             tailgate = i.rows[0x724],
+            hood = lid(car, DiagnosticExtra.HOOD, "капот"),
+            trunk = lid(car, DiagnosticExtra.TRUNK, "багажник"),
+            lamps = lamps(car),
+            lights = lights(car),
+            tail = tail(car, lamps(car)),
         )
     }
 
