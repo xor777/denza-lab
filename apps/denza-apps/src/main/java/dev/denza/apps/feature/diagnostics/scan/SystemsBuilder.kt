@@ -136,7 +136,7 @@ internal object SystemsBuilder {
         val stale = !car.extrasFresh
         val rows = PACK.map { r ->
             if (r.hub != null) {
-                SignalRow(source(r.hub), r.name, hub(car, r.hub, r.decimals) ?: "—", r.unit, "—", null, false, ParamKey.Signal(r.key))
+                SignalRow(source(r.hub), r.name, hub(car, r.hub, r.decimals) ?: NA, r.unit, "—", null, false, ParamKey.Signal(r.key))
             } else if (r.words != null) {
                 val v = car.extras[r.extra!!]
                 SignalRow(source(r.extra), r.name, word(r.words, v), r.unit, "—", null, v != null && stale, ParamKey.Signal(r.key))
@@ -146,7 +146,8 @@ internal object SystemsBuilder {
                 SignalRow(
                     source = source(r.extra),
                     name = r.name,
-                    value = v?.let { Figures.number(it, r.decimals) } ?: "—",
+                    // Nothing came, or a code the extra refused as the firmware's invalid: «н/д», not judged.
+                    value = v?.let { Figures.number(it, r.decimals) } ?: NA,
                     unit = r.unit,
                     norm = norm?.text ?: "—",
                     ok = if (v != null && norm?.outside != null && !stale) !norm.outside.invoke(v) else null,
@@ -184,8 +185,10 @@ internal object SystemsBuilder {
     /** A norm: its words, the band a chart draws (null for none), what is outside it (null: not judged). */
     class SignalNorm(val text: String, val band: ClosedFloatingPointRange<Float>?, val outside: ((Double) -> Boolean)?)
 
-    // 500 Ω per volt of the pack, the usual floor for an isolated HV system; the field's unit
-    // is not proven on this car (likely kΩ, GB/T 32960), which the board's «¹» says.
+    // 500 Ω per volt of the pack, the usual floor for an isolated HV system. kΩ is the closest known
+    // unit - the GB/T 32960 field the stock collector fills from this FID - and is not proved on this
+    // car (owner's decision 2026-10-21: keep kΩ and this floor; architecture 7.2). A code above 60000
+    // never reaches here: DiagnosticExtra refuses it, so it is «н/д» and not judged.
     private val insulation: (CarReadings) -> SignalNorm = { car ->
         val floorKOhm = car.hub[VehicleSignal.PACK_VOLT]?.let { it * 0.5 }
         if (floorKOhm == null) {

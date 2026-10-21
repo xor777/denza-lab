@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.diagnostics.scan
 
 import dev.denza.apps.feature.diagnostics.DiagnosticExtra
+import dev.denza.apps.feature.diagnostics.DiagnosticExtraReader
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.ecu.EcuGroup
 import dev.denza.apps.feature.diagnostics.protocol.DtcStatus
@@ -351,6 +352,33 @@ class SystemPagesTest {
         assertEquals(listOf("IAT н/д"), engine.points[0].rows)
         assertEquals(listOf("н/д об/мин · LOAD н/д", "УОЗ н/д · ОЖ н/д"), engine.points[3].rows)
         assertEquals(listOf("н/д"), engine.points[6].rows)
+    }
+
+    @Test
+    fun anInsulationCodeAboveTheStockCapIsNoValueAndNotJudged() = runTest {
+        // FFFE on the BMC channel as the firmware gives it, through the batch's own decoding; 19675 on the second.
+        val read = DiagnosticExtraReader.decode(
+            "@@extra:insulation\nResult: Parcel(00000000 0000fffe   '........')\n" +
+                "@@extra:insulation_2\nResult: Parcel(00000000 00004cdb   '........')",
+            1, 1,
+        ).values
+        val model = scanned(parked.copy(extras = parked.extras - DiagnosticExtra.INSULATION + read))
+
+        val pack = model.page(CarSystem.PACK).scheme as Scheme.Pack
+        assertEquals(listOf(Field("канал BMC", "н/д", muted = true), Field("канал 2", "19,7 МОм")), pack.insulation)
+        assertEquals("н/д · 19,7 МОм", model.systems.hv.pack.single { it.key == "Изоляция" }.value)
+        val bmc = model.systems.pack.single { it.name == "Сопротивление изоляции, канал BMC" }
+        assertEquals("н/д", bmc.value)
+        assertNull("a code is not a resistance: neither OK nor out of norm", bmc.ok)
+        val second = model.systems.pack.single { it.name == "Сопротивление изоляции, канал 2" }
+        assertEquals("19 675", second.value)
+        assertEquals(true, second.ok)
+
+        // 254 and 255 are not counts.
+        val probes = DiagnosticExtraReader.decode("@@extra:probe_count\nResult: Parcel(00000000 000000ff   '........')", 1, 1).values
+        val counts = scanned(parked.copy(extras = parked.extras - DiagnosticExtra.PROBE_COUNT + probes))
+        assertEquals("166 ячеек · н/д датчиков", (counts.page(CarSystem.PACK).scheme as Scheme.Pack).cells)
+        assertEquals("н/д", counts.systems.pack.single { it.name == "Датчиков температуры" }.value)
     }
 
     @Test

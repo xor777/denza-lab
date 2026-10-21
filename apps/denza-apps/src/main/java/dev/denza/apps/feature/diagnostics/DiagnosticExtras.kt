@@ -16,8 +16,13 @@ internal enum class DiagnosticExtra(
     BUS_FRONT("bus_front", 1039, 1178628128, 5, 1.0, 0.0, 1.0..1000.0),
     BUS_REAR("bus_rear", 1039, 1178628112, 5, 1.0, 0.0, 1.0..1000.0),
     CHARGE_CURRENT("charge_current", 1009, 1145045016, 7, 1.0, 0.0, -1000.0..1000.0),
-    INSULATION("insulation", 1039, 1134559256, 5, 1.0, 0.0, 0.0..65534.0),
-    CELL_COUNT("cell_count", 1001, 1134559240, 5, 1.0, 0.0, 1.0..500.0),
+    // The stock GB/T 32960 collector reads this FID and caps it at 60000 (gbacqservice 1381C..13850;
+    // research insulation-consumer-20261021.json): above that is the firmware's invalid code, FFFE and
+    // FFFF among them, not a resistance - «н/д», never 60000 and never judged against the norm.
+    INSULATION("insulation", 1039, 1134559256, 5, 1.0, 0.0, 0.0..60000.0),
+    // 254 and 255 are the firmware's invalid counts: the stock reader takes 1..253 (gbdataservice
+    // E9A0..EA2C; research battery-validity-followup-20261021.json). PROBE_COUNT likewise.
+    CELL_COUNT("cell_count", 1001, 1134559240, 5, 1.0, 0.0, 1.0..253.0),
     CABIN_TEMP("cabin_temp", 1000, 1031798832, 5, 1.0, 0.0, -39.0..150.0),
     OUTSIDE_TEMP("outside_temp", 1000, 1077936184, 5, 1.0, 0.0, -39.0..150.0),
     PM_IN("pm_in", 1008, 1331691536, 5, 1.0, 0.0, 0.0..999.0),
@@ -55,8 +60,8 @@ internal enum class DiagnosticExtra(
     // those the Z9GT catalog sweep of 2026-10-20 answered (captures/diagnostics-sweep-20261020):
     // integers on 5, floats on 7 where the integer read was the no-data word. Parked they read 0,
     // 5 °C IGBTs, and 0xFFFF for the rear-left rotation speed, which the range refuses as «н/д».
-    INSULATION_2("insulation_2", 1039, 0x26200010, 5, 1.0, 0.0, 0.0..65534.0),
-    PROBE_COUNT("probe_count", 1039, 0x43A00010, 5, 1.0, 0.0, 1.0..500.0),
+    INSULATION_2("insulation_2", 1039, 0x26200010, 5, 1.0, 0.0, 0.0..60000.0),
+    PROBE_COUNT("probe_count", 1039, 0x43A00010, 5, 1.0, 0.0, 1.0..253.0),
     /** Discharge main contactor: 0 open, 1 closed (`BYDAutoOtaDevice.CONTACTOR_STATE_*`; architecture 6.3). */
     CONTACTOR("contactor", 1032, 0x34400010, 5, 1.0, 0.0, 0.0..254.0),
     // Named by the stock getters' constants (BYDAutoChargingDevice; research 2026-10-21,

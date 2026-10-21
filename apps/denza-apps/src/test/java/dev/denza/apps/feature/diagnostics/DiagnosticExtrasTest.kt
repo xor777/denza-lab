@@ -36,6 +36,25 @@ class DiagnosticExtrasTest {
         assertNull(DiagnosticExtra.CHARGE_CURRENT.decode(-10013))
         assertTrue(DiagnosticExtraReader.decode("@@extra:soh\nResult: Parcel(ffffffff 00000063)",1,1).values.isEmpty())
     }
+    @Test fun insulationAboveTheStockCapIsNoValueNotSixtyThousand() {
+        // The stock collector caps the field at 60000; FFFE and FFFF are the firmware's invalid codes.
+        for (e in listOf(DiagnosticExtra.INSULATION, DiagnosticExtra.INSULATION_2)) {
+            assertEquals(0.0, e.decode(0)!!, 0.0)
+            assertEquals(14429.0, e.decode(14429)!!, 0.0)
+            assertEquals(60000.0, e.decode(60000)!!, 0.0)
+            listOf(60001, 0xFFFE, 0xFFFF, 0x10000, -1).forEach { assertNull("%X".format(it), e.decode(it)) }
+        }
+        val d = DiagnosticExtraReader.decode(batch("insulation" to 0xFFFE, "insulation_2" to 0xFFFF), 1, 1)
+        assertTrue(d.values.isEmpty())
+    }
+    @Test fun countsOf254And255AreTheFirmwaresInvalidNotCounts() {
+        for (e in listOf(DiagnosticExtra.CELL_COUNT, DiagnosticExtra.PROBE_COUNT)) {
+            assertEquals(1.0, e.decode(1)!!, 0.0)
+            assertEquals(166.0, e.decode(166)!!, 0.0)
+            assertEquals(253.0, e.decode(253)!!, 0.0)
+            listOf(0, 254, 255, 256, 1023).forEach { assertNull("$it", e.decode(it)) }
+        }
+    }
     @Test fun partialRefreshDropsOldValuesAndExpiryUsesMonotonicTime() {
         val d = DiagnosticExtraReader.decode(batch("soh" to 99),100000,10)
         assertEquals(1,d.fresh(15009).size); assertTrue(d.fresh(15010).isEmpty()); assertTrue(d.fresh(9).isEmpty())
