@@ -57,8 +57,13 @@ internal enum class DiagnosticExtra(
     // 5 °C IGBTs, and 0xFFFF for the rear-left rotation speed, which the range refuses as «н/д».
     INSULATION_2("insulation_2", 1039, 0x26200010, 5, 1.0, 0.0, 0.0..65534.0),
     PROBE_COUNT("probe_count", 1039, 0x43A00010, 5, 1.0, 0.0, 1.0..500.0),
-    /** Discharge main contactor state; the values are not decoded. */
+    /** Discharge main contactor: 0 open, 1 closed (`BYDAutoOtaDevice.CONTACTOR_STATE_*`; architecture 6.3). */
     CONTACTOR("contactor", 1032, 0x34400010, 5, 1.0, 0.0, 0.0..254.0),
+    // Named by the stock getters' constants (BYDAutoChargingDevice; research 2026-10-21,
+    // powertrain-telemetry-20261021.json): integers on 5; their words are SystemsBuilder.PACK's.
+    PACK_CHARGE_STATE("pack_charge_state", 1009, 0x34400018, 5, 1.0, 0.0, 0.0..254.0),
+    CHARGER_STATE("charger_state", 1009, 0x27C0000A, 5, 1.0, 0.0, 0.0..254.0),
+    CHARGER_FAULT("charger_fault", 1009, 0x27C00008, 5, 1.0, 0.0, 0.0..254.0),
     IGBT_REAR_LEFT("igbt_rear_left", 1039, 0x2D000180, 5, 1.0, 0.0, -39.0..150.0),
     IGBT_REAR_RIGHT("igbt_rear_right", 1039, 0x2D000188, 5, 1.0, 0.0, -39.0..150.0),
     RPM_FRONT("rpm_front", 1012, 0x44100008, 5, 1.0, 0.0, -20000.0..20000.0),

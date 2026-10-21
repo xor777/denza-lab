@@ -120,6 +120,7 @@ internal object SystemsBuilder {
                     "${or(hub(car, VehicleSignal.ENGINE_RPM))} об/мин · ОЖ ${coolant ?: NA} °C",
                 ),
             ),
+            contactorClosed = when (car.extra(DiagnosticExtra.CONTACTOR)?.toInt()) { 1 -> true; 0 -> false; else -> null },
         )
     }
 
@@ -136,6 +137,9 @@ internal object SystemsBuilder {
         val rows = PACK.map { r ->
             if (r.hub != null) {
                 SignalRow(source(r.hub), r.name, hub(car, r.hub, r.decimals) ?: "—", r.unit, "—", null, false, ParamKey.Signal(r.key))
+            } else if (r.words != null) {
+                val v = car.extras[r.extra!!]
+                SignalRow(source(r.extra), r.name, word(r.words, v), r.unit, "—", null, v != null && stale, ParamKey.Signal(r.key))
             } else {
                 val v = car.extras[r.extra!!]
                 val norm = r.norm?.invoke(car)
@@ -168,6 +172,8 @@ internal object SystemsBuilder {
         val extra: DiagnosticExtra? = null,
         val hub: VehicleSignal? = null,
         val norm: ((CarReadings) -> SignalNorm)? = null,
+        /** A state: its codes' words as the firmware names them; a code not here is «код N». */
+        val words: Map<Int, String>? = null,
     ) {
         /** The row's [ParamKey.Signal]: the extra's key or the hub signal's name. */
         val key: String get() = extra?.key ?: hub!!.name
@@ -189,6 +195,17 @@ internal object SystemsBuilder {
         }
     }
 
+    // The states' words (architecture 6.3), by the stock constants: BYDAutoOtaDevice.CONTACTOR_STATE_*,
+    // BYDAutoChargingDevice.CHARGING_BATTERY_STATE_*, CHARGING_WORK_STATE_*, CHARGING_FAULT_STATE_*.
+    val CONTACTOR_WORDS = mapOf(0 to "разомкнут", 1 to "замкнут")
+    val PACK_CHARGE_WORDS = mapOf(
+        0 to "готов", 1 to "заряд", 2 to "заряд завершён", 3 to "разряд", 4 to "заряд прерван",
+        5 to "отказ C10", 6 to "отказ пистолета", 7 to "отказ зарядного", 8 to "отказ сети AC",
+        9 to "по расписанию", 10 to "разряд CBU", 11 to "тайм-аут", 12 to "разряд завершён", 13 to "заряд на паузе",
+    )
+    val CHARGER_STATE_WORDS = mapOf(1 to "готово", 2 to "старт", 3 to "завершено", 4 to "прервано")
+    val CHARGER_FAULT_WORDS = mapOf(1 to "норма", 2 to "лёгкий отказ", 3 to "тяжёлый отказ")
+
     /** The pack's readings in the board's order; the cells' spread («расчёт») follows the maximum. */
     val PACK: List<PackReading> = listOf(
         PackReading("Напряжение ВВБ", "В", hub = VehicleSignal.PACK_VOLT),
@@ -205,8 +222,17 @@ internal object SystemsBuilder {
         PackReading("Сопротивление изоляции, канал 2", "кОм", extra = DiagnosticExtra.INSULATION_2, norm = insulation),
         PackReading("Ячеек последовательно", "шт", extra = DiagnosticExtra.CELL_COUNT),
         PackReading("Датчиков температуры", "шт", extra = DiagnosticExtra.PROBE_COUNT),
-        PackReading("Главный контактор, разряд", "сост.", extra = DiagnosticExtra.CONTACTOR),
+        PackReading("Главный контактор, разряд", "", extra = DiagnosticExtra.CONTACTOR, words = CONTACTOR_WORDS),
+        PackReading("Состояние заряда батареи", "", extra = DiagnosticExtra.PACK_CHARGE_STATE, words = PACK_CHARGE_WORDS),
+        PackReading("Зарядное устройство, состояние", "", extra = DiagnosticExtra.CHARGER_STATE, words = CHARGER_STATE_WORDS),
+        PackReading("Зарядное устройство, отказ", "", extra = DiagnosticExtra.CHARGER_FAULT, words = CHARGER_FAULT_WORDS),
     )
+
+    /** A state's word: the firmware's name, «код N» for a code it does not name, «н/д» when nothing came. */
+    fun word(words: Map<Int, String>, value: Double?): String {
+        val code = value?.toInt() ?: return NA
+        return words[code] ?: "код $code"
+    }
 
     // ------------------------------------------------------------------ drives
 
