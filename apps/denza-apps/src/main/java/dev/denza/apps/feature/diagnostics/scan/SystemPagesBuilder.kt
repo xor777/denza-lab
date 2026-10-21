@@ -411,7 +411,6 @@ internal object SystemPagesBuilder {
                 DiagnosticExtra.RPM_REAR_LEFT, DiagnosticExtra.TORQUE_REAR_LEFT, DiagnosticExtra.CURRENT_REAR_LEFT)),
             rearRight = Callout("ЗАДНИЙ ПРАВЫЙ", motor(hub(VehicleSignal.MOTOR_REAR_RIGHT_C), car.extra(DiagnosticExtra.IGBT_REAR_RIGHT),
                 DiagnosticExtra.RPM_REAR_RIGHT, DiagnosticExtra.TORQUE_REAR_RIGHT, DiagnosticExtra.CURRENT_REAR_RIGHT)),
-            rearBlocks = "${tag(0x744)} · ${tag(0x745)}",
             engineRunning = running == true,
         )
     }

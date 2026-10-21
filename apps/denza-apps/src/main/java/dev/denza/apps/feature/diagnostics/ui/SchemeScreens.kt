@@ -62,6 +62,8 @@ internal fun SchemeContent(model: DiagnosticsModel, scheme: Scheme, onOpen: (Tar
         is Scheme.Adas -> AdasScheme(scheme, onOpen)
         is Scheme.Climate -> ClimateScheme(scheme, onOpen)
         is Scheme.Lv -> LvScheme(scheme, onOpen)
+        // the safety scheme comes with its board (architecture, 7.2); until then the page has no «Состояние»
+        is Scheme.Safety -> Unit
     }
 }
 
@@ -422,7 +424,6 @@ private fun DrivesScheme(s: Scheme.Drives, onOpen: (Target) -> Unit) {
     ScanText("ДВС", Type.CELL_ABBR, Ink.DIM, Modifier.centreAt(cx, k.y0 + d.ENGINE_Y + (d.ENGINE_H - Type.CELL_ABBR.lh) / 2f))
     SchemeTile(s.vcu, cx - TILE_W / 2, vy, onOpen)
     machines.forEach { (x, y, g) -> MachineGlyph(x, y, g, true) }
-    ScanText(s.rearBlocks, Type.CELL_ABBR, Ink.DIM, Modifier.centreAt(cx, k.rear + d.REAR_BLOCKS_DY))
     boxes.forEach { Plate(it.x, it.y, d.BOX_W, it.lines) }
 }
 

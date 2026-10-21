@@ -380,7 +380,7 @@ internal object ScannerFixtures {
             CarSystem.DRIVES -> Scheme.Drives(
                 vcu = t("vcu"), front = callout(f.getJSONObject("front")), isg = callout(f.getJSONObject("isg")),
                 rearLeft = callout(f.getJSONObject("rearLeft")), rearRight = callout(f.getJSONObject("rearRight")),
-                rearBlocks = f.getString("rearBlocks"), engineRunning = false,
+                engineRunning = false,
             )
             CarSystem.ENGINE -> Scheme.Engine(
                 objects(f.getJSONArray("points")).map { p ->

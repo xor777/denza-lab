@@ -256,7 +256,6 @@ class SystemPagesTest {
         assertEquals(Callout("МОТОР-ГЕНЕРАТОР · ISG 7E6", listOf("DTC 0 · ПО 48370011E0EA000000", "ДВС не работает")), drives.isg)
         assertEquals(Callout("ЗАДНИЙ ЛЕВЫЙ", listOf("статор 7 °C · IGBT 5 °C", "н/д об/мин · 0,0 Н·м · 0,0 А")), drives.rearLeft)
         assertEquals(Callout("ЗАДНИЙ ПРАВЫЙ", listOf("статор 7 °C · IGBT 5 °C", "0 об/мин · 0,0 Н·м · 0,0 А")), drives.rearRight)
-        assertEquals("SMCU 744 · SMCU3 745", drives.rearBlocks)
         assertEquals(0x7E2, drives.vcu?.request)
         assertFalse(drives.engineRunning)
 

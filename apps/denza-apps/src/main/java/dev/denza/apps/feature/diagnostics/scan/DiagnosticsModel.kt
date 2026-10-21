@@ -208,11 +208,12 @@ internal sealed interface Scheme {
         val vcu: ModuleRowView?,
         val front: Callout,
         val isg: Callout,
+        /** «ЗАДНИЙ ЛЕВЫЙ · SMCU 744»: SMCU drives the left rear motor, SMCU3 the right (findings 2026-10-21). */
         val rearLeft: Callout,
         val rearRight: Callout,
-        /** «SMCU 744 · SMCU3 745»: the rear blocks, bound to neither side. */
-        val rearBlocks: String,
         val engineRunning: Boolean,
+        /** PDC-VCU 743, the power-domain controller beside the VCU. */
+        val powerDomain: ModuleRowView? = null,
     ) : Scheme
 
     /** The engine's air path; its readings come from ECM's stream, which runs while it is shown. */
@@ -223,6 +224,11 @@ internal sealed interface Scheme {
         val esp: ModuleRowView?,
         val eps: ModuleRowView?,
         val bscm: ModuleRowView?,
+        /** RWS-L 582 and RWS-R 796, the rear wheels' steering, at the rear wheels. */
+        val rearSteerLeft: ModuleRowView? = null,
+        val rearSteerRight: ModuleRowView? = null,
+        /** IDC 597, the vehicle motion controller: suspension and posture. */
+        val motion: ModuleRowView? = null,
     ) : Scheme
 
     data class Body(
@@ -236,6 +242,14 @@ internal sealed interface Scheme {
         val uwb: ModuleRowView?,
         /** The four UWB anchors' statuses, FL FR RL RR. */
         val anchors: List<ModuleStatus>,
+        /** The doors' obstacle radars, SDR 5B2 5B1 5B0 5A7, at their doors. */
+        val doorRadars: Map<Corner, ModuleRowView> = emptyMap(),
+        /** HFRM 754, the key's RF receiver; SEC 7D6, smart entry; R-NCM 595, the right NFC. */
+        val keyReceiver: ModuleRowView? = null,
+        val smartEntry: ModuleRowView? = null,
+        val nfc: ModuleRowView? = null,
+        /** PDCMB 724, the tailgate's projection sensing. */
+        val tailgate: ModuleRowView? = null,
     ) : Scheme
 
     data class Adas(
@@ -251,6 +265,18 @@ internal sealed interface Scheme {
         val unit: ModuleRowView?,
         val heater: ModuleRowView?,
         val thermal: ModuleRowView?,
+        /** AQDM 590, the air-quality detection module, at the cabin. */
+        val air: ModuleRowView? = null,
+    ) : Scheme
+
+    /** The car from above: the airbag controller, the belt pretensioners at the front seats, the rear child-presence radar. */
+    data class Safety(
+        val airbags: ModuleRowView?,
+        /** MSRZ 742, the driver's (left) belt; MSRF 713, the front passenger's. */
+        val driverBelt: ModuleRowView?,
+        val passengerBelt: ModuleRowView?,
+        /** CPD 5E0. */
+        val childRadar: ModuleRowView?,
     ) : Scheme
 
     data class Lv(
