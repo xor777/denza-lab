@@ -296,13 +296,13 @@ class StreamSelectionTest {
             CarSystem.CLIMATE to ExtraPage.CLIMATE_STATE, CarSystem.LV to ExtraPage.LV_STATE,
         )
         val live = mapOf(
-            CarSystem.HV to ExtraPage.HV_LIVE, CarSystem.DRIVES to ExtraPage.DRIVES_LIVE, CarSystem.CHASSIS to ExtraPage.CHASSIS_LIVE,
-            CarSystem.SAFETY to ExtraPage.SAFETY_LIVE, CarSystem.BODY to ExtraPage.BODY_LIVE, CarSystem.CLIMATE to ExtraPage.CLIMATE_LIVE,
-            CarSystem.LV to ExtraPage.LV_LIVE,
+            CarSystem.HV to ExtraPage.HV_LIVE, CarSystem.PACK to ExtraPage.PACK_LIVE, CarSystem.DRIVES to ExtraPage.DRIVES_LIVE,
+            CarSystem.CHASSIS to ExtraPage.CHASSIS_LIVE, CarSystem.SAFETY to ExtraPage.SAFETY_LIVE, CarSystem.BODY to ExtraPage.BODY_LIVE,
+            CarSystem.CLIMATE to ExtraPage.CLIMATE_LIVE, CarSystem.LV to ExtraPage.LV_LIVE,
         )
         CarSystem.entries.forEach { s ->
             assertEquals("$s", state[s], extraPage(s, SystemTab.STATE))
-            // the pack's stream is setPackLiveVisible's, which pauses; the engine's is ECM's
+            // a stream's page is setSystemLiveVisible's, which pauses; the engine's is ECM's
             assertEquals("$s", live[s], extraPage(s, SystemTab.LIVE))
             assertEquals("$s", ExtraPage.GB_FLAGS, extraPage(s, SystemTab.GB_FLAGS))
             listOf(SystemTab.DTC, SystemTab.BLOCKS, SystemTab.CELLS, SystemTab.COMPARE, SystemTab.DTC_READINESS)

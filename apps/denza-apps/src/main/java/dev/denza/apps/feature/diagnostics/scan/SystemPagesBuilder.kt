@@ -65,13 +65,17 @@ internal object SystemPagesBuilder {
     fun blocks(system: CarSystem): List<Ecu> =
         MEMBERS.getValue(system).sortedBy { SCREEN_ORDER[it] ?: Int.MAX_VALUE }.map { EcuCatalog.byRequest(it)!! }
 
+    /** «Потоковые данные» after «Состояние» wherever a system has readings to stream ([SystemStreams.ROWS]) or is the engine. */
     val TABS: Map<CarSystem, List<SystemTab>> = CarSystem.entries.associateWith { system ->
         when (system) {
             CarSystem.PACK -> listOf(SystemTab.STATE, SystemTab.CELLS, SystemTab.LIVE, SystemTab.GB_FLAGS, SystemTab.DTC, SystemTab.BLOCKS)
-            CarSystem.DRIVES, CarSystem.ADAS -> listOf(SystemTab.STATE, SystemTab.COMPARE, SystemTab.DTC, SystemTab.BLOCKS)
+            CarSystem.DRIVES -> listOf(SystemTab.STATE, SystemTab.LIVE, SystemTab.COMPARE, SystemTab.DTC, SystemTab.BLOCKS)
+            CarSystem.ADAS -> listOf(SystemTab.STATE, SystemTab.COMPARE, SystemTab.DTC, SystemTab.BLOCKS)
             CarSystem.ENGINE -> listOf(SystemTab.STATE, SystemTab.LIVE, SystemTab.DTC_READINESS, SystemTab.BLOCKS)
+            CarSystem.CABIN -> listOf(SystemTab.STATE, SystemTab.DTC, SystemTab.BLOCKS)
             CarSystem.OTHER -> listOf(SystemTab.DTC, SystemTab.BLOCKS)
-            else -> listOf(SystemTab.STATE, SystemTab.DTC, SystemTab.BLOCKS)
+            CarSystem.HV, CarSystem.CHASSIS, CarSystem.SAFETY, CarSystem.BODY, CarSystem.CLIMATE, CarSystem.LV ->
+                listOf(SystemTab.STATE, SystemTab.LIVE, SystemTab.DTC, SystemTab.BLOCKS)
         }
     }
 

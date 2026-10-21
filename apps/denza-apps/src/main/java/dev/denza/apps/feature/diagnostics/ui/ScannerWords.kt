@@ -338,7 +338,7 @@ internal object ScannerWords {
                     recordable = true, recording = false,
                 )
             }
-            is ParamKey.Signal -> model.systems.pack.rows.firstOrNull { it.key == key }?.let { r ->
+            is ParamKey.Signal -> model.systems.live.values.flatMap { it.rows }.firstOrNull { it.key == key }?.let { r ->
                 ParamView(
                     key, r.name, "· ${r.source}", "autoservice · только этот сигнал", r.value, r.unit, r.outOfNorm, null, r.norm,
                     emptyList(), 0L, emptyMap(), running = true, rate = "—", recordable = false, recording = false,

@@ -67,8 +67,10 @@ internal class ParamSpec(
         }
 
         private fun signal(key: ParamKey.Signal): ParamSpec? {
-            SystemsBuilder.PACK.firstOrNull { it.key == key.key }?.let { r ->
-                return signalSpec(key, r.name, r.source, r.unit, r.decimals, r.extra, r.hub, r.norm ?: { null }, null)
+            // a system's reading, in whichever table: one name in all of them; a state is said in its words
+            SystemStreams.reading(key.key)?.let { r ->
+                val text = r.words?.let { w -> { v: Double -> w.word(v) } }
+                return signalSpec(key, r.name, r.source, r.unit, r.decimals, r.extra, r.hub, r.norm ?: { null }, text)
             }
             LiveStream.CarRow.entries.firstOrNull { it.signal.name == key.key }?.let { r ->
                 return signalSpec(key, r.title, SystemsBuilder.source(r.signal), r.unit, r.decimals, null, r.signal, { null }, r.text)

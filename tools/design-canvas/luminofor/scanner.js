@@ -506,8 +506,9 @@
     });
   }
 
-  // The pack's readings as the engine's stream reads: value, the span seen, the norm and 60 s of it.
-  function sysPackLive(c, f) {
+  // A system's readings as the engine's stream reads - the pack's and every other system's «Потоковые
+  // данные»: value, the span seen, the norm and 60 s of it.
+  function sysStream(c, f) {
     shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); liveTable(c, f, L.rail.packLiveCols, 'УСТР.'); });
   }
 
@@ -1333,9 +1334,10 @@
     footer(c, f.footer);
   }
 
-  // [first] heads the first column: «PID» on an OBD stream, «УСТР.» on the pack's readings, whose
-  // rows carry the device there and the FID beside the name; a value outside its norm is orange. A
-  // state's word longer than its column reaches back over what the name leaves free, as far as 12 after it.
+  // [first] heads the first column: «PID» on an OBD stream, «УСТР.» on a system's readings, whose
+  // rows carry the device there and the FID beside the name; a value outside its norm, or a state its
+  // card names a fault, is orange. A state's word longer than its column reaches back over what the
+  // name leaves free, as far as 12 after it.
   function liveTable(c, f, colSpec, first) {
     const E = L.ecuLive, cols = columns(colSpec, 24, W - 48);
     let y = headRow(c, cols, [first || 'PID', 'ПАРАМЕТР', ['ЗНАЧЕНИЕ', 'right', 12], 'ЕД.', ['МИН', 'right', 12], ['МАКС', 'right', 12], 'НОРМА', 'ГРАФИК · 60 С'], E.top, E.head);
@@ -1561,7 +1563,7 @@
     });
   }
 
-  const SCREENS = { sysParam, sysPackCells, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  const SCREENS = { sysParam, sysPackCells, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysStream, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);

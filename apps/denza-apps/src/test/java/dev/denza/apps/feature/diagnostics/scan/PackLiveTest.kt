@@ -107,9 +107,10 @@ class PackLiveTest {
     private val parkedHub = mapOf(
         VehicleSignal.GEARBOX_PARK to 1.0, VehicleSignal.VEHICLE_SPEED to 0.0, VehicleSignal.PACK_VOLT to 553.0,
         VehicleSignal.CELL_MIN_MV to 3333.0, VehicleSignal.CELL_MAX_MV to 3337.0, VehicleSignal.PACK_TEMP_AVG to 14.0,
+        VehicleSignal.POWER_KW to -2.0, VehicleSignal.CHARGE_GUN to 2.0, VehicleSignal.CHARGE_KW to 2.5,
     )
     private val parkedExtras = mapOf(
-        DiagnosticExtra.CHARGE_CURRENT to -4.5, DiagnosticExtra.SOC to 74.0, DiagnosticExtra.SOH to 99.0,
+        DiagnosticExtra.CHARGE_CURRENT to -4.5, DiagnosticExtra.SOC to 74.0, DiagnosticExtra.SOC_TENTHS to 73.9, DiagnosticExtra.SOH to 99.0,
         DiagnosticExtra.TEMP_MIN to 13.0, DiagnosticExtra.TEMP_MAX to 18.0,
         DiagnosticExtra.INSULATION to 14429.0, DiagnosticExtra.INSULATION_2 to 19675.0,
         DiagnosticExtra.CELL_COUNT to 166.0, DiagnosticExtra.PROBE_COUNT to 14.0,
@@ -128,11 +129,11 @@ class PackLiveTest {
         extras = parkedExtras + extras, extrasFresh = true, extrasAtNanos = n * SECOND, extrasTookMs = tookMs,
     )
 
-    private fun PackLiveView.row(name: String) = rows.single { it.name == name }
+    private fun SystemLiveView.row(name: String) = rows.single { it.name == name }
 
     @Test
     fun aNumberKeepsItsLastMinuteAndItsExtremesAStateOrACountOnlyItsValue() {
-        val live = PackLive().apply { show() }
+        val live = SystemLive(CarSystem.PACK).apply { show() }
         (1L..90L).forEach { n -> live.take(round(n, hub = mapOf(VehicleSignal.PACK_VOLT to 500.0 + n), extras = mapOf(DiagnosticExtra.SOC to n.toDouble()))) }
         val v = live.view()
 
@@ -161,7 +162,7 @@ class PackLiveTest {
 
     @Test
     fun theSameSweepOrBatchTwiceIsOnePoint() {
-        val live = PackLive().apply { show() }
+        val live = SystemLive(CarSystem.PACK).apply { show() }
         live.take(round(1))
         live.take(round(1))
         // a new hub sweep with the batch unchanged: the hub's rows take a point, the GETs' do not
@@ -173,7 +174,7 @@ class PackLiveTest {
 
     @Test
     fun theSpreadFollowsTheCellsMinimumAndMaximum() {
-        val live = PackLive().apply { show() }
+        val live = SystemLive(CarSystem.PACK).apply { show() }
         listOf(3334.0 to 3337.0, 3332.0 to 3337.0, 3333.0 to 3336.0, 3333.0 to 3338.0, 3333.0 to 3337.0).forEachIndexed { i, (min, max) ->
             live.take(round(i + 1L, hub = mapOf(VehicleSignal.CELL_MIN_MV to min, VehicleSignal.CELL_MAX_MV to max)))
         }
@@ -194,7 +195,7 @@ class PackLiveTest {
 
     @Test
     fun resetStartsTheExtremesAtTheValueNowAndShowingAgainStartsThemOver() {
-        val live = PackLive().apply { show() }
+        val live = SystemLive(CarSystem.PACK).apply { show() }
         listOf(552.0, 554.0, 553.0).forEachIndexed { i, u -> live.take(round(i + 1L, hub = mapOf(VehicleSignal.PACK_VOLT to u))) }
         assertEquals("552" to "554", live.view().row("Напряжение ВВБ").let { it.min to it.max })
 
@@ -214,7 +215,7 @@ class PackLiveTest {
 
     @Test
     fun aPauseTakesNothingAndTheTableStands() {
-        val live = PackLive().apply { show() }
+        val live = SystemLive(CarSystem.PACK).apply { show() }
         live.take(round(1))
         live.pause()
         val before = live.view()
@@ -235,7 +236,7 @@ class PackLiveTest {
 
     @Test
     fun aBatchPastItsHorizonIsAGapAndNoData() {
-        val live = PackLive().apply { show() }
+        val live = SystemLive(CarSystem.PACK).apply { show() }
         live.take(round(1))
         live.take(round(2).copy(extrasFresh = false))
         live.take(round(3).copy(extrasFresh = false))
@@ -254,9 +255,9 @@ class PackLiveTest {
 
     @Test
     fun aValueOutsideItsNormIsMarkedAndNothingElseIs() {
-        fun view(hub: Map<VehicleSignal, Double> = emptyMap(), extras: Map<DiagnosticExtra, Double> = emptyMap(), drop: Set<Any> = emptySet()): PackLiveView {
+        fun view(hub: Map<VehicleSignal, Double> = emptyMap(), extras: Map<DiagnosticExtra, Double> = emptyMap(), drop: Set<Any> = emptySet()): SystemLiveView {
             val r = round(1, hub = hub, extras = extras)
-            return PackLive.of(r.copy(hub = r.hub - drop.filterIsInstance<VehicleSignal>().toSet(), extras = r.extras - drop.filterIsInstance<DiagnosticExtra>().toSet()))
+            return SystemLive.of(CarSystem.PACK, r.copy(hub = r.hub - drop.filterIsInstance<VehicleSignal>().toSet(), extras = r.extras - drop.filterIsInstance<DiagnosticExtra>().toSet()))
         }
         val parked = view()
         assertTrue(parked.rows.none { it.outOfNorm })
@@ -276,7 +277,7 @@ class PackLiveTest {
         assertFalse(noVolts.row("Изоляция, канал BMC").outOfNorm)
         // a code above the stock cap is no resistance: «н/д», not judged
         val capped = DiagnosticExtraReader.decode("@@extra:insulation\nResult: Parcel(00000000 0000fffe   '........')", 1, 1).values
-        val invalid = PackLive.of(round(1).copy(extras = parkedExtras - DiagnosticExtra.INSULATION + capped))
+        val invalid = SystemLive.of(CarSystem.PACK, round(1).copy(extras = parkedExtras - DiagnosticExtra.INSULATION + capped))
         assertEquals("н/д", invalid.row("Изоляция, канал BMC").value)
         assertFalse(invalid.row("Изоляция, канал BMC").outOfNorm)
         // nothing came: «н/д», not judged
@@ -287,29 +288,32 @@ class PackLiveTest {
 
     @Test
     fun theRowsAreTheBoardsColumnsAndTheirKeysOpenTheirPages() {
-        val v = PackLive.of(round(1))
+        val v = SystemLive.of(CarSystem.PACK, round(1))
         assertEquals(
             listOf(
-                "1009" to "44400008", "1009" to "C4400018", "1014" to "4A505038", "1014" to "44400028", "1014" to "44600010",
-                "1014" to "44600030", "расч." to "", "1014" to "44700010", "1014" to "44700020", "1014" to "44700038",
-                "1039" to "43A00018", "1039" to "26200010", "1001" to "43A00008", "1039" to "43A00010", "1032" to "34400010",
-                "1009" to "34400018", "1009" to "27C0000A", "1009" to "27C00008",
+                "1009" to "44400008", "1009" to "C4400018", "1012" to "14400020", "1014" to "4A505038", "1014" to "44700028",
+                "1014" to "44400028", "1014" to "44600010", "1014" to "44600030", "расч." to "", "1014" to "44700010",
+                "1014" to "44700020", "1014" to "44700038", "1039" to "43A00018", "1039" to "26200010", "1009" to "32300018",
+                "1001" to "43A00008", "1039" to "43A00010", "1009" to "34400032", "1032" to "34400010", "1009" to "34400018",
+                "1009" to "27C0000A", "1009" to "27C00008",
             ),
             v.rows.map { it.device to it.abbreviation },
         )
         assertEquals(
-            listOf("В", "А", "%", "%", "мВ", "мВ", "мВ", "°C", "°C", "°C", "кОм", "кОм", "шт", "шт", "", "", "", ""),
+            listOf("В", "А", "кВт", "%", "%", "%", "мВ", "мВ", "мВ", "°C", "°C", "°C", "кОм", "кОм", "кВт", "шт", "шт", "", "", "", "", ""),
             v.rows.map { it.unit },
         )
-        // the keys the rows had before they were a stream: the parameter pages open as they did
+        // the keys the rows had before they were a stream: the parameter pages open as they did; the
+        // selection's power, SOC in tenths, charge power and charge port (2026-10-21) theirs
         assertEquals(
             listOf(
-                "PACK_VOLT", "charge_current", "soc", "soh", "CELL_MIN_MV", "CELL_MAX_MV", null, "temp_min", "temp_max",
-                "PACK_TEMP_AVG", "insulation", "insulation_2", "cell_count", "probe_count", "contactor", "pack_charge_state",
-                "charger_state", "charger_fault",
+                "PACK_VOLT", "charge_current", "POWER_KW", "soc", "soc_tenths", "soh", "CELL_MIN_MV", "CELL_MAX_MV", null,
+                "temp_min", "temp_max", "PACK_TEMP_AVG", "insulation", "insulation_2", "CHARGE_KW", "cell_count", "probe_count",
+                "CHARGE_GUN", "contactor", "pack_charge_state", "charger_state", "charger_fault",
             ),
             v.rows.map { (it.key as ParamKey.Signal?)?.key },
         )
+        assertEquals(listOf("−2,0", "73,9", "2,5", "AC"), listOf("Мощность ВВБ", "Уровень заряда, 0,1 %", "Мощность заряда", "Зарядный разъём").map { v.row(it).value })
         v.rows.filter { it.key != null }.forEach { r ->
             val spec = ParamSpec.of(r.key!!)
             assertNotNull(r.name, spec)
@@ -330,18 +334,21 @@ class PackLiveTest {
     @Suppress("UNCHECKED_CAST")
     @Test
     fun theBoardIsWhatTheTableMakesOfItsMinute() {
-        val live = PackLive().apply { show() }
+        val live = SystemLive(CarSystem.PACK).apply { show() }
         val volts = listOf(552.0, 554.0, 553.0, 553.0, 553.0)
         val current = listOf(-6.1, -3.2, -4.5, -4.5, -4.5)
         val cellMin = listOf(3334.0, 3332.0, 3333.0, 3333.0, 3333.0)
         val cellMax = listOf(3337.0, 3337.0, 3336.0, 3338.0, 3337.0)
         val bmc = listOf(14410.0, 14450.0, 14429.0, 14429.0, 14429.0)
         val second = listOf(19660.0, 19690.0, 19675.0, 19675.0, 19675.0)
+        // the sweep's two passes, 73,9 and 74,1, and back to the first
+        val tenths = listOf(73.9, 74.1, 73.9, 73.9, 73.9)
         (0..4).forEach { i ->
             live.take(round(
                 i + 1L,
                 hub = mapOf(VehicleSignal.PACK_VOLT to volts[i], VehicleSignal.CELL_MIN_MV to cellMin[i], VehicleSignal.CELL_MAX_MV to cellMax[i]),
-                extras = mapOf(DiagnosticExtra.CHARGE_CURRENT to current[i], DiagnosticExtra.INSULATION to bmc[i], DiagnosticExtra.INSULATION_2 to second[i]),
+                extras = mapOf(DiagnosticExtra.CHARGE_CURRENT to current[i], DiagnosticExtra.INSULATION to bmc[i], DiagnosticExtra.INSULATION_2 to second[i],
+                    DiagnosticExtra.SOC_TENTHS to tenths[i]),
                 tookMs = 2_100,
             ))
         }
@@ -376,7 +383,7 @@ class PackLiveTest {
         runCurrent()
         assertTrue("not shown: one look, no minute", s.model.value.systems.pack.row("Напряжение ВВБ").samples.size <= 1)
 
-        s.setPackLiveVisible(true)
+        s.setSystemLiveVisible(CarSystem.PACK, true)
         assertEquals(listOf(ExtraPage.PACK_LIVE to true), car.pageLog)
         assertEquals("обход 2,1 с", s.model.value.systems.pack.round)
         // a tick takes what is new: one round a tick here
@@ -390,11 +397,11 @@ class PackLiveTest {
         assertEquals("552" to "555", shown.row("Напряжение ВВБ").let { it.min to it.max })
         assertEquals("the last round's length", "обход 3,0 с", shown.round)
 
-        s.resetPackLive()
+        s.resetSystemLive(CarSystem.PACK)
         assertEquals("555" to "555", s.model.value.systems.pack.row("Напряжение ВВБ").let { it.min to it.max })
 
         // «Пауза»: the batch's own five seconds back, the table stands
-        s.setPackLivePaused(true)
+        s.setSystemLivePaused(CarSystem.PACK, true)
         assertEquals(ExtraPage.PACK_LIVE to false, car.pageLog.last())
         val paused = s.model.value.systems.pack
         assertTrue(paused.paused)
@@ -404,24 +411,24 @@ class PackLiveTest {
         assertEquals(paused, s.model.value.systems.pack)
 
         // «Продолжить»: the rounds again, the minute goes on
-        s.setPackLivePaused(false)
+        s.setSystemLivePaused(CarSystem.PACK, false)
         assertEquals(ExtraPage.PACK_LIVE to true, car.pageLog.last())
         assertEquals("540", s.model.value.systems.pack.row("Напряжение ВВБ").value)
         assertEquals(6, s.model.value.systems.pack.row("Напряжение ВВБ").samples.size)
 
         // left while paused: the rounds were already given back
-        s.setPackLivePaused(true)
+        s.setSystemLivePaused(CarSystem.PACK, true)
         val asked = car.pageLog.size
-        s.setPackLiveVisible(false)
+        s.setSystemLiveVisible(CarSystem.PACK, false)
         assertEquals(asked, car.pageLog.size)
         // shown again: no pause, the extremes over, the minute kept
-        s.setPackLiveVisible(true)
+        s.setSystemLiveVisible(CarSystem.PACK, true)
         val again = s.model.value.systems.pack
         assertFalse(again.paused)
         assertEquals(ExtraPage.PACK_LIVE to true, car.pageLog.last())
         assertEquals("540" to "540", again.row("Напряжение ВВБ").let { it.min to it.max })
         assertEquals(7, again.row("Напряжение ВВБ").samples.size)
-        s.setPackLiveVisible(false)
+        s.setSystemLiveVisible(CarSystem.PACK, false)
         assertEquals(ExtraPage.PACK_LIVE to false, car.pageLog.last())
         s.stop()
     }

@@ -159,7 +159,7 @@ internal enum class RailTone { NONE, COUNT, HISTORY, ACTIVE }
 internal enum class SystemTab(val label: String) {
     /** The scheme, [SystemPage.scheme]. */
     STATE("Состояние"),
-    /** The pack's readings ([SystemsView.pack]) or the engine's stream (ECM's [ObdView.live]). */
+    /** A system's readings as a stream ([SystemsView.live]) or the engine's (ECM's [ObdView.live]). */
     LIVE("Потоковые данные"),
     /** The drives' or the driver-assistance blocks side by side ([SystemsView.drives], [SystemsView.adas]). */
     COMPARE("Сравнение"),
@@ -178,9 +178,9 @@ internal enum class SystemTab(val label: String) {
 /**
  * The [ExtraPage] whose GETs join the `autoservice` batch while [tab] of [system] is in front
  * (architecture, 6): a system's «Состояние» its scheme's, its «Потоковые данные» its table's,
- * «Флаги GB/T 32960» the flags'; null where the tab asks for nothing more. The pack's «Потоковые
- * данные» is not here: its page is [DiagnosticsActions.setPackLiveVisible]'s, which «Пауза» takes
- * away; the engine's is ECM's stream. A live page answers only once its system has the tab.
+ * «Флаги GB/T 32960» the flags'; null where the tab asks for nothing more. A «Потоковые данные» page
+ * is asked by [DiagnosticsActions.setSystemLiveVisible], which «Пауза» takes away; the engine's is
+ * ECM's stream.
  */
 internal fun extraPage(system: CarSystem, tab: SystemTab): ExtraPage? = when (tab) {
     SystemTab.GB_FLAGS -> ExtraPage.GB_FLAGS
@@ -197,13 +197,14 @@ internal fun extraPage(system: CarSystem, tab: SystemTab): ExtraPage? = when (ta
     }
     SystemTab.LIVE -> when (system) {
         CarSystem.HV -> ExtraPage.HV_LIVE
+        CarSystem.PACK -> ExtraPage.PACK_LIVE
         CarSystem.DRIVES -> ExtraPage.DRIVES_LIVE
         CarSystem.CHASSIS -> ExtraPage.CHASSIS_LIVE
         CarSystem.SAFETY -> ExtraPage.SAFETY_LIVE
         CarSystem.BODY -> ExtraPage.BODY_LIVE
         CarSystem.CLIMATE -> ExtraPage.CLIMATE_LIVE
         CarSystem.LV -> ExtraPage.LV_LIVE
-        CarSystem.PACK, CarSystem.ENGINE, CarSystem.ADAS, CarSystem.CABIN, CarSystem.OTHER -> null
+        CarSystem.ENGINE, CarSystem.ADAS, CarSystem.CABIN, CarSystem.OTHER -> null
     }
     else -> null
 }
@@ -705,7 +706,7 @@ internal data class LiveView(
 )
 
 internal data class LiveRow(
-    /** The Mode 01 PID; negative for a row that is not one - a fast car signal beside the PIDs, a reading of the pack - whose [source] names it. */
+    /** The Mode 01 PID; negative for a row that is not one - a fast car signal beside the PIDs, a system's reading - whose [source] names it. */
     val pid: Int,
     /** «Температура ОЖ». */
     val name: String,
@@ -717,6 +718,7 @@ internal data class LiveRow(
     val max: String,
     /** «80…105», «—». */
     val norm: String,
+    /** The value in orange: a number outside its known norm, or a state its card names a fault or an alarm. */
     val outOfNorm: Boolean,
     /** «PID», or the source of a fast car signal, «autoservice · 100 мс». */
     val source: String,
@@ -734,8 +736,8 @@ internal data class Sample(val atNanos: Long, val value: Float?)
 /** The system screens: values from `autoservice` and the ECUs they belong to. */
 internal data class SystemsView(
     val hv: HvView,
-    /** «Тяговая батарея · Потоковые данные». */
-    val pack: PackLiveView,
+    /** Every system's «Потоковые данные» of readings ([SystemStreams.ROWS]), by system. */
+    val live: Map<CarSystem, SystemLiveView>,
     val drives: CompareView,
     val adas: CompareView,
     /** The brake screen is the ESP/IPB module beside the OBD interface: both are in [DiagnosticsModel.modules]. */
@@ -744,7 +746,10 @@ internal data class SystemsView(
     val clusterWarning: ClusterWarningView = SystemsBuilder.clusterWarning(null),
     /** «Тяговая батарея · Флаги GB/T 32960»; its readings come only while the tab is in front. */
     val gbFlags: GbFlagsView = GbFlags.view(CarReadings()),
-)
+) {
+    /** «Тяговая батарея · Потоковые данные». */
+    val pack: SystemLiveView get() = live.getValue(CarSystem.PACK)
+}
 
 /**
  * «Тяговая батарея · Флаги GB/T 32960» (architecture, 7.2; boards `scanner-sys-pack-flags`,
@@ -792,13 +797,13 @@ internal data class ClusterWarningView(
 )
 
 /**
- * «Тяговая батарея · Потоковые данные» (architecture 6.3, 7.2; board `scanner-sys-pack-live`): the
- * pack's readings as the engine's live table reads - the device, the parameter and its FID, the
- * value, the extremes since shown, the norm, the last minute. [PackLive] keeps it while the tab is
- * in front; otherwise it is one look at the car now.
+ * A system's «Потоковые данные» (architecture 6.3, 7.2; boards `scanner-sys-pack-live`,
+ * `scanner-sys-<system>-live`): its readings as the engine's live table reads - the device, the
+ * parameter and its FID, the value, the extremes since shown, the norm, the last minute. [SystemLive]
+ * keeps it while the tab is in front; otherwise it is one look at the car now.
  */
-internal data class PackLiveView(
-    /** In the board's order, the cells' spread («расч.») after their maximum. */
+internal data class SystemLiveView(
+    /** In the board's order; the pack's cells' spread («расч.») after their maximum. */
     val rows: List<LiveRow>,
     /** «Пауза» pressed: nothing is read, the table stands as it was. */
     val paused: Boolean = false,
@@ -889,12 +894,13 @@ internal interface DiagnosticsActions {
     /** A page with GETs of its own shown or left - «Салон · Состояние», «Флаги GB/T 32960»: they join the `autoservice` batch only while it is (architecture, 6). */
     fun setExtrasVisible(page: ExtraPage, visible: Boolean)
     /**
-     * The pack's «Потоковые данные» shown or left: while it is, the batch goes round after round and
-     * every reading keeps its minute; showing it starts the extremes over, leaving it ends a pause (6.3).
+     * A system's «Потоковые данные» shown or left: while it is, the batch goes round after round with
+     * its page's GETs and every reading keeps its minute; showing it starts the extremes over, leaving
+     * it ends a pause (6.3, 7.2).
      */
-    fun setPackLiveVisible(visible: Boolean)
-    /** «Пауза» / «Продолжить» there: paused, nothing is read and the table stands. */
-    fun setPackLivePaused(paused: Boolean)
+    fun setSystemLiveVisible(system: CarSystem, visible: Boolean)
+    /** «Пауза» / «Продолжить» there: paused, nothing is read, the page leaves the batch and the table stands. */
+    fun setSystemLivePaused(system: CarSystem, paused: Boolean)
     /** «Сбросить мин/макс» there. */
-    fun resetPackLive()
+    fun resetSystemLive(system: CarSystem)
 }

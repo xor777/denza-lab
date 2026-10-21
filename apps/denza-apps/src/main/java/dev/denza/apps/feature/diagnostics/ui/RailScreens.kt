@@ -40,7 +40,7 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
  * The section built around the car's systems (architecture, 7.2): the rail down the left
  * (`scanner.js` `rail()`), the chosen screen at the width it leaves (`shell()`), and a system's page
  * - its head, its tabs and what each tab shows (`sysDtc()`, `sysBlocks()`, `sysLive()`,
- * `sysPackLive()`, `sysDrivesCompare()`, `sysAdasCompare()`, `sysEngineDtc()`, the schemes of
+ * `sysStream()`, `sysDrivesCompare()`, `sysAdasCompare()`, `sysEngineDtc()`, the schemes of
  * `SchemeScreens.kt`, the pack's cells of `CellsScreen.kt` and its GB/T 32960 flags of `GbFlagsScreen.kt`).
  */
 
@@ -153,18 +153,21 @@ internal fun SystemPageScreen(
         if (cells) current.value.setCellsVisible(true)
         onDispose { if (cells) current.value.setCellsVisible(false) }
     }
+    // a system's readings go round after round with its page's GETs and keep their minute while its
+    // «Потоковые данные» is in front; «Пауза» takes the page away (6.3, 7.2)
+    val system = page.system
+    val stream = model.systems.live[system]?.takeIf { tab == SystemTab.LIVE }
+    val streamed = stream != null
+    DisposableEffect(system, streamed, run) {
+        if (streamed) current.value.setSystemLiveVisible(system, true)
+        onDispose { if (streamed) current.value.setSystemLiveVisible(system, false) }
+    }
     // a page's own GETs join the batch only while it is in front: a system's scheme, the pack's
-    // GB/T 32960 flags (architecture, 6)
-    val extras = extraPage(page.system, tab)
+    // GB/T 32960 flags (architecture, 6); a stream's page is its own
+    val extras = extraPage(system, tab).takeIf { !streamed }
     DisposableEffect(extras, run) {
         extras?.let { current.value.setExtrasVisible(it, true) }
         onDispose { extras?.let { current.value.setExtrasVisible(it, false) } }
-    }
-    // the pack's readings go round after round and keep their minute while «Потоковые данные» is in front (6.3)
-    val packLive = page.system == CarSystem.PACK && tab == SystemTab.LIVE
-    DisposableEffect(packLive, run) {
-        if (packLive) current.value.setPackLiveVisible(true)
-        onDispose { if (packLive) current.value.setPackLiveVisible(false) }
     }
     var picking by remember { mutableStateOf(false) }
     val read = { requests.forEach(actions::readModule) }
@@ -184,16 +187,14 @@ internal fun SystemPageScreen(
                 ),
                 notes = emptyList(),
             )
-            // the pack's stream: the pause, the extremes, and how long the last round took
-            packLive -> model.systems.pack.let { pack ->
-                ScanFooter(
-                    listOf(
-                        FooterButton(if (pack.paused) "Продолжить" else "Пауза", true) { actions.setPackLivePaused(!pack.paused) },
-                        FooterButton("Сбросить мин/макс", false) { actions.resetPackLive() },
-                    ),
-                    listOfNotNull(pack.round?.let { FooterNote.Words(it, mono = true) }),
-                )
-            }
+            // a system's stream: the pause, the extremes, and how long the last round took
+            stream != null -> ScanFooter(
+                listOf(
+                    FooterButton(if (stream.paused) "Продолжить" else "Пауза", true) { actions.setSystemLivePaused(system, !stream.paused) },
+                    FooterButton("Сбросить мин/макс", false) { actions.resetSystemLive(system) },
+                ),
+                listOfNotNull(stream.round?.let { FooterNote.Words(it, mono = true) }),
+            )
             // the cells: the pause, the last sweep's length and the newest page's age, and where they come from
             cells -> ScanFooter(
                 listOf(
@@ -226,8 +227,8 @@ internal fun SystemPageScreen(
         ScanTabs(page.tabs.map { it.label }, page.tabs.indexOf(tab).coerceAtLeast(0), { onTab(page.tabs[it]) })
         when (tab) {
             SystemTab.STATE -> page.scheme?.let { SchemeContent(model, it, onOpen) }
-            SystemTab.LIVE -> if (page.system == CarSystem.PACK) {
-                LiveTable(model.systems.pack.rows, sample?.chartRange, ScannerSpec.Rail.PACK_LIVE_COLS, onParam, first = "УСТР.", scroll = true)
+            SystemTab.LIVE -> if (stream != null) {
+                LiveTable(stream.rows, sample?.chartRange, ScannerSpec.Rail.PACK_LIVE_COLS, onParam, first = "УСТР.", scroll = true)
             } else if (obd != null) {
                 LiveTable(obd.live.rows, sample?.chartRange, ScannerSpec.Rail.LIVE_COLS, onParam, scroll = true)
             }

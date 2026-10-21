@@ -65,11 +65,12 @@ import kotlinx.coroutines.launch
  * «Продолжить». [setCellsPaused] leaves the subscription and keeps the drawn sweep; resuming
  * subscribes again; leaving the tab ends the pause.
  *
- * **The pack's readings as a stream** (6.3, [setPackLiveVisible]): while the pack's «Потоковые
- * данные» shows, the car feed reads its batch round after round ([ExtraPage.PACK_LIVE]) and [PackLive]
- * keeps every reading's minute and extremes, taking each tick what is new. «Пауза» takes nothing and
- * gives the batch its five seconds back; the minute outlives leaving the tab and stopping the section,
- * as the page that shows it does, and showing it again starts the extremes over.
+ * **A system's readings as a stream** (6.3, 7.2, [setSystemLiveVisible]): while a system's «Потоковые
+ * данные» shows, the car feed reads its batch round after round with that page's GETs
+ * ([extraPage] of its LIVE tab, `*_LIVE`) and [SystemLive] keeps every reading's minute and extremes,
+ * taking each tick what is new. «Пауза» takes nothing and drops the page from the batch, which gets its
+ * five seconds back; each system's minute outlives leaving the tab and stopping the section, as the page
+ * that shows it does, and showing it again starts the extremes over. One table is in front at a time.
  *
  * **The code history** (5.5): every good software code a read brings - the autoscan's F194, gate or the
  * ungated read of a stock-route block, an opened block's F194 and F195, the modules behind it - goes
@@ -131,9 +132,9 @@ internal class DiagnosticsSession(
     private var cells: PackCells? = null
     private var cellsJob: Job? = null
     private var cellsStopped = false
-    /** «Тяговая батарея · Потоковые данные»: its minute, and whether the tab is in front. */
-    private var packLive: PackLive? = null
-    private var packShown = false
+    /** Each system's «Потоковые данные»: its minute, and which one is in front. */
+    private val liveTables = HashMap<CarSystem, SystemLive>()
+    private var liveShown: CarSystem? = null
     /** The gap last asked of the bus; a new bus starts at its launch parameter. */
     private var gapAsked = STREAM_GAP_MS
     /** What the scanner remembers of the software codes (5.5): read from [software] once, then kept here. */
@@ -332,21 +333,33 @@ internal class DiagnosticsSession(
     /** A page's own GETs ride the car feed's batch; nothing on the bus changes. */
     override fun setExtrasVisible(page: ExtraPage, visible: Boolean) = car.page(page, visible)
 
-    override fun setPackLiveVisible(visible: Boolean) = act {
-        if (visible == packShown) return@act
-        packShown = visible
-        val live = packLive ?: PackLive().also { packLive = it }
+    override fun setSystemLiveVisible(system: CarSystem, visible: Boolean) = act {
+        val page = extraPage(system, SystemTab.LIVE) ?: return@act
+        if (system !in SystemStreams.ROWS) return@act
         if (visible) {
+            if (liveShown == system) return@act
+            // one table in front: another still shown gives its rounds back first
+            liveShown?.let(::hideLive)
+            liveShown = system
+            val live = liveTables.getOrPut(system) { SystemLive(system) }
             live.show()
             live.take(readings)
-            car.page(ExtraPage.PACK_LIVE, true)
-        } else if (!live.paused) {
-            car.page(ExtraPage.PACK_LIVE, false)
+            car.page(page, true)
+        } else if (liveShown == system) {
+            hideLive(system)
         }
     }
 
-    override fun setPackLivePaused(paused: Boolean) = act {
-        val live = packLive?.takeIf { packShown } ?: return@act
+    /** [system]'s table leaves the front; its page leaves the batch unless a pause already took it. Under [lock]. */
+    private fun hideLive(system: CarSystem) {
+        liveShown = null
+        val page = extraPage(system, SystemTab.LIVE) ?: return
+        if (liveTables[system]?.paused != true) car.page(page, false)
+    }
+
+    override fun setSystemLivePaused(system: CarSystem, paused: Boolean) = act {
+        val live = liveTables[system]?.takeIf { liveShown == system } ?: return@act
+        val page = extraPage(system, SystemTab.LIVE) ?: return@act
         if (live.paused == paused) return@act
         if (paused) {
             live.pause()
@@ -354,10 +367,10 @@ internal class DiagnosticsSession(
             live.resume()
             live.take(readings)
         }
-        car.page(ExtraPage.PACK_LIVE, !paused)
+        car.page(page, !paused)
     }
 
-    override fun resetPackLive() = act { packLive?.takeIf { packShown }?.resetMinMax() }
+    override fun resetSystemLive(system: CarSystem) = act { liveTables[system]?.takeIf { liveShown == system }?.resetMinMax() }
 
     /** One subscription to the BMS pages for this showing of «Ячейки»; its end is said, not retried. */
     private suspend fun listenCells() {
@@ -686,7 +699,7 @@ internal class DiagnosticsSession(
                 paramTick(r, focused)
                 if (r != null) {
                     readings = r
-                    if (packShown) packLive?.take(r)
+                    liveShown?.let { liveTables[it] }?.take(r)
                     live?.let { request ->
                         val lines = streams[request]?.carTick(r).orEmpty()
                         recording?.takeIf { it.first == request }?.second?.write(lines)
@@ -752,7 +765,7 @@ internal class DiagnosticsSession(
         param = paramView(),
         packCells = cells?.view(carNanos(), cellsStopped),
         software = codes,
-        packLive = packLive?.takeIf { packShown },
+        liveTable = liveShown?.let { liveTables[it] },
     )
 
     private fun publish() {

@@ -21,8 +21,10 @@ internal object SystemsBuilder {
 
     fun build(s: SessionSnapshot, status: (SessionSnapshot, Ecu) -> ModuleStatus): SystemsView = SystemsView(
         hv = hv(s, status),
-        // the minute the tab keeps while it is in front, else one look at the car now
-        pack = s.packLive?.view() ?: PackLive.of(s.car),
+        // each system's «Потоковые данные»: the minute its tab keeps while in front, else one look at the car now
+        live = SystemStreams.ROWS.keys.associateWith { system ->
+            s.liveTable?.takeIf { it.system == system }?.view() ?: SystemLive.of(system, s.car)
+        },
         drives = drives(s),
         adas = adas(s),
         brakeModules = listOf(0x782, 0x7E5),
@@ -135,50 +137,8 @@ internal object SystemsBuilder {
 
     // ------------------------------------------------------------------ pack
 
-    /**
-     * One reading of the pack's «Потоковые данные» ([PackLive]): a hub signal or a GET of the batch,
-     * its words, and its norm against the car now. The parameter page names a reading the way its
-     * row does.
-     */
-    class PackReading(
-        val name: String,
-        val unit: String,
-        val decimals: Int = 0,
-        val extra: DiagnosticExtra? = null,
-        val hub: VehicleSignal? = null,
-        val norm: ((CarReadings) -> SignalNorm)? = null,
-        /** A state: its codes' words as the firmware names them; a code not here is «код N». */
-        val words: Map<Int, String>? = null,
-        /** A count the car does not change: its value, no trace and no extremes. */
-        val count: Boolean = false,
-    ) {
-        /** The row's [ParamKey.Signal]: the extra's key or the hub signal's name. */
-        val key: String get() = extra?.key ?: hub!!.name
-        /** «1014·44600010». */
-        val source: String get() = extra?.let { source(it) } ?: source(hub!!)
-        /** «1014», the table's first column. */
-        val device: String get() = (extra?.device ?: hub!!.device).toString()
-        /** «44600010», beside the name. */
-        val fid: String get() = "%08X".format(extra?.fid ?: hub!!.fid)
-        /** A number that moves: it keeps its minute and its extremes; a state or a count does not. */
-        val trace: Boolean get() = words == null && !count
-    }
-
     /** A norm: its words, the band a chart draws (null for none), what is outside it (null: not judged). */
     class SignalNorm(val text: String, val band: ClosedFloatingPointRange<Float>?, val outside: ((Double) -> Boolean)?)
-
-    // 500 Ω per volt of the pack, the usual floor for an isolated HV system. kΩ is the closest known
-    // unit - the GB/T 32960 field the stock collector fills from this FID - and is not proved on this
-    // car (owner's decision 2026-10-21: keep kΩ and this floor; architecture 7.2). A code above 60000
-    // never reaches here: DiagnosticExtra refuses it, so it is «н/д» and not judged.
-    private val insulation: (CarReadings) -> SignalNorm = { car ->
-        val floorKOhm = car.hub[VehicleSignal.PACK_VOLT]?.let { it * 0.5 }
-        if (floorKOhm == null) {
-            SignalNorm("≥ 500 Ом/В", null, null)
-        } else {
-            SignalNorm("≥ ${Figures.number(floorKOhm, 0)}", null) { it < floorKOhm }
-        }
-    }
 
     // The states' words (architecture 6.3), by the stock constants: BYDAutoOtaDevice.CONTACTOR_STATE_*,
     // BYDAutoChargingDevice.CHARGING_BATTERY_STATE_*, CHARGING_WORK_STATE_*, CHARGING_FAULT_STATE_*.
@@ -190,31 +150,6 @@ internal object SystemsBuilder {
     )
     val CHARGER_STATE_WORDS = mapOf(1 to "готово", 2 to "старт", 3 to "завершено", 4 to "прервано")
     val CHARGER_FAULT_WORDS = mapOf(1 to "норма", 2 to "лёгкий отказ", 3 to "тяжёлый отказ")
-
-    /**
-     * The pack's readings in the board's order (`scanner-sys-pack-live`), named as the board names
-     * them - and so the parameter page; the cells' spread («расч.», [PackLive]) follows the maximum.
-     */
-    val PACK: List<PackReading> = listOf(
-        PackReading("Напряжение ВВБ", "В", hub = VehicleSignal.PACK_VOLT),
-        PackReading("Ток ВВБ", "А", 1, extra = DiagnosticExtra.CHARGE_CURRENT),
-        PackReading("Уровень заряда (SOC)", "%", extra = DiagnosticExtra.SOC),
-        PackReading("Состояние (SOH), BMS", "%", extra = DiagnosticExtra.SOH,
-            norm = { SignalNorm("≥ 80", 80f..100f) { it < 80.0 } }),
-        PackReading("Ячейка, мин.", "мВ", hub = VehicleSignal.CELL_MIN_MV),
-        PackReading("Ячейка, макс.", "мВ", hub = VehicleSignal.CELL_MAX_MV),
-        PackReading("Температура модулей, мин.", "°C", extra = DiagnosticExtra.TEMP_MIN),
-        PackReading("Температура модулей, макс.", "°C", extra = DiagnosticExtra.TEMP_MAX),
-        PackReading("Температура модулей, сред.", "°C", hub = VehicleSignal.PACK_TEMP_AVG),
-        PackReading("Изоляция, канал BMC", "кОм", extra = DiagnosticExtra.INSULATION, norm = insulation),
-        PackReading("Изоляция, канал 2", "кОм", extra = DiagnosticExtra.INSULATION_2, norm = insulation),
-        PackReading("Ячеек последовательно", "шт", extra = DiagnosticExtra.CELL_COUNT, count = true),
-        PackReading("Датчиков температуры", "шт", extra = DiagnosticExtra.PROBE_COUNT, count = true),
-        PackReading("Главный контактор, разряд", "", extra = DiagnosticExtra.CONTACTOR, words = CONTACTOR_WORDS),
-        PackReading("Состояние заряда батареи", "", extra = DiagnosticExtra.PACK_CHARGE_STATE, words = PACK_CHARGE_WORDS),
-        PackReading("Зарядное устройство, состояние", "", extra = DiagnosticExtra.CHARGER_STATE, words = CHARGER_STATE_WORDS),
-        PackReading("Зарядное устройство, отказ", "", extra = DiagnosticExtra.CHARGER_FAULT, words = CHARGER_FAULT_WORDS),
-    )
 
     /**
      * The OEM warnings with a text, by ID, all from the stock popup dictionary `popup_nads.json`

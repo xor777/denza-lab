@@ -94,13 +94,14 @@ class SystemPagesTest {
         model.systemPages.values.flatMap { it.blocks }.forEach { assertEquals(scanRows.getValue(it.request), it) }
 
         fun tabs(system: CarSystem) = model.page(system).tabs.map { it.label }
-        assertEquals(listOf("Состояние", "DTC", "Блоки"), tabs(CarSystem.HV))
         assertEquals(listOf("Состояние", "Ячейки", "Потоковые данные", "Флаги GB/T 32960", "DTC", "Блоки"), tabs(CarSystem.PACK))
-        assertEquals(listOf("Состояние", "Сравнение", "DTC", "Блоки"), tabs(CarSystem.DRIVES))
+        assertEquals(listOf("Состояние", "Потоковые данные", "Сравнение", "DTC", "Блоки"), tabs(CarSystem.DRIVES))
         assertEquals(listOf("Состояние", "Потоковые данные", "DTC и готовность", "Блоки"), tabs(CarSystem.ENGINE))
         assertEquals(listOf("Состояние", "Сравнение", "DTC", "Блоки"), tabs(CarSystem.ADAS))
-        listOf(CarSystem.CHASSIS, CarSystem.SAFETY, CarSystem.BODY, CarSystem.CABIN, CarSystem.CLIMATE, CarSystem.LV).forEach {
-            assertEquals(it.name, listOf("Состояние", "DTC", "Блоки"), tabs(it))
+        assertEquals(listOf("Состояние", "DTC", "Блоки"), tabs(CarSystem.CABIN))
+        // «Потоковые данные» after «Состояние» wherever a system has readings to stream (2026-10-21)
+        listOf(CarSystem.HV, CarSystem.CHASSIS, CarSystem.SAFETY, CarSystem.BODY, CarSystem.CLIMATE, CarSystem.LV).forEach {
+            assertEquals(it.name, listOf("Состояние", "Потоковые данные", "DTC", "Блоки"), tabs(it))
         }
         assertTrue(model.page(CarSystem.CABIN).scheme is Scheme.Cabin)
     }

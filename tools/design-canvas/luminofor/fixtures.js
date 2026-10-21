@@ -956,7 +956,7 @@
     block: { title: 'Кузов', aside: '· 19 блоков', line: 'LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны · ' +
       'радары дверей 5B2 5B1 5B0 5A7 · HFRM 754 · SEC 7D6 · R-NCM 595 · PDCMB 724',
       counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '10'], ['ПРОЧИТАНО', '19/19']] },
-    tabs: { items: ['Состояние', 'DTC', 'Блоки'], active: 1 },
+    tabs: { items: ['Состояние', 'Потоковые данные', 'DTC', 'Блоки'], active: 2 },
     codes: [
       bodyCode('LA_BCM', '720', 'C1160-06', '06', 'Отказ по алгоритму', 'Шасси · код производителя (C1xxx)'),
       bodyCode('LA_BCM', '720', 'U029D-87', '87', 'Нет сообщения', 'Сеть · общий код SAE (U0xxx)'),
@@ -974,7 +974,9 @@
 
   // The systems' «Состояние» as schemes, the parked snapshot of 2026-10-20 (sweep and autoscan).
   const u = (abbr, req, short, kind, history) => ({ abbr, req, short, kind: kind || 'ok', history });
-  const sysTabs = active => ({ items: ['Состояние', 'DTC', 'Блоки'], active });
+  // «Потоковые данные» after «Состояние» wherever the system has readings to stream (the cabin has none)
+  const sysTabs = active => ({ items: ['Состояние', 'Потоковые данные', 'DTC', 'Блоки'], active });
+  const drivesTabs = active => ({ items: ['Состояние', 'Потоковые данные', 'Сравнение', 'DTC', 'Блоки'], active });
   const scannerSysChassis = {
     top: sysTop('Шасси', '19:31:29'), rail: sysRail('Шасси'),
     block: { title: 'Шасси', aside: '· 6 блоков', line: 'ESP/IPB 782 · BSCM 7E5 · EPS 783 · RWS 582 796 · IDC 597 · шины: давление 1016, температура 1007',
@@ -1018,7 +1020,7 @@
     'сиденья 750 7B5 7D2 · селектор 7A7 · холодильник 5A0 5F4 7C6 · WCT 733 · MCPA 5E4 · FRL 772 · AMP 751 · ETC 790',
     counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '4'], ['ПРОЧИТАНО', '18/18']] };
   const scannerSysCabin = {
-    top: sysTop('Салон', '19:31:29'), rail: sysRail('Салон'), block: cabinBlock, tabs: sysTabs(0),
+    top: sysTop('Салон', '19:31:29'), rail: sysRail('Салон'), block: cabinBlock, tabs: { items: ['Состояние', 'DTC', 'Блоки'], active: 0 },
     seats: {
       fl: { occupied: true, belt: true, heat: 2, vent: 0, lamp: false },
       fr: { occupied: false, belt: false, heat: 0, vent: 0, lamp: false },
@@ -1077,7 +1079,7 @@
     top: sysTop('Электропривод', '19:31:29'), rail: sysRail('Электропривод'),
     block: { title: 'Электропривод', aside: '· 6 блоков', line: 'VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6',
       counters: [['ШИНА ПЕРЕД', '555 В'], ['ШИНА ЗАД', '556 В'], ['DTC', '0']] },
-    tabs: { items: ['Состояние', 'Сравнение', 'DTC', 'Блоки'], active: 0 },
+    tabs: drivesTabs(0),
     units: { vcu: u('VCU', '7E2', 'Силовая установка'), pdc: u('PDC-VCU', '743', 'Силовой домен') },
     front: { label: 'ПЕРЕДНИЙ МОТОР · FMCU 7E3', rows: ['статор 8 °C · IGBT 9 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
     // the energy system's generation state 1006·34F0000A, not ISG's own: parked it reads 0, the stock INVALID
@@ -1159,7 +1161,7 @@
     footer: codesFooter,
   };
   const scannerSysBodyBlocks = {
-    top: sysTop('Кузов', '19:31:29'), rail: sysRail('Кузов'), block: scannerSysBody.block, tabs: sysTabs(2),
+    top: sysTop('Кузов', '19:31:29'), rail: sysRail('Кузов'), block: scannerSysBody.block, tabs: sysTabs(3),
     ecus: autoscan.groups.find(g => g.id === 'body').ecus,
     footer: codesFooter,
   };
@@ -1173,7 +1175,9 @@
     rows: [
       pl('1009', 'Напряжение ВВБ', '44400008', '553', 'В', '552', '554', '—', [2, 0.06, 0.1]),
       pl('1009', 'Ток ВВБ', 'C4400018', '−4,5', 'А', '−6,1', '−3,2', '—', [5, 0.22, 0]),
+      pl('1012', 'Мощность ВВБ', '14400020', '−2,0', 'кВт', '−2,0', '−2,0', '—', [0, 0, 0]),
       pl('1014', 'Уровень заряда (SOC)', '4A505038', '74', '%', '74', '74', '—', [0, 0, 0]),
+      pl('1014', 'Уровень заряда, 0,1 %', '44700028', '73,9', '%', '73,9', '74,1', '—', [9, 0.12, 0]),
       pl('1014', 'Состояние (SOH), BMS', '44400028', '99', '%', '99', '99', '≥ 80', [0, 0, 0]),
       pl('1014', 'Ячейка, мин.', '44600010', '3 333', 'мВ', '3 332', '3 334', '—', [3, 0.12, 0]),
       pl('1014', 'Ячейка, макс.', '44600030', '3 337', 'мВ', '3 336', '3 338', '—', [4, 0.12, 0]),
@@ -1183,8 +1187,10 @@
       pl('1014', 'Температура модулей, сред.', '44700038', '14', '°C', '14', '14', '—', [0, 0, 0.05]),
       pl('1039', 'Изоляция, канал BMC', '43A00018', '14 429', 'кОм', '14 410', '14 450', '≥ 277', [7, 0.08, 0]),
       pl('1039', 'Изоляция, канал 2', '26200010', '19 675', 'кОм', '19 660', '19 690', '≥ 277', [8, 0.08, 0]),
+      pl('1009', 'Мощность заряда', '32300018', '2,5', 'кВт', '2,5', '2,5', '—', [0, 0, 0]),
       pl('1001', 'Ячеек последовательно', '43A00008', '166', 'шт', '', '', '—', null),
       pl('1039', 'Датчиков температуры', '43A00010', '14', 'шт', '', '', '—', null),
+      pl('1009', 'Зарядный разъём', '34400032', 'AC', '', '', '', '—', null),
       pl('1032', 'Главный контактор, разряд', '34400010', 'замкнут', '', '', '', '—', null),
       pl('1009', 'Состояние заряда батареи', '34400018', 'разряд', '', '', '', '—', null),
       pl('1009', 'Зарядное устройство, состояние', '27C0000A', 'готово', '', '', '', '—', null),
@@ -1192,6 +1198,116 @@
     ],
     footer: { buttons: [['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet']], notes: [['обход 2,1 с', true]] },
   };
+  // Every other system's «Потоковые данные», the pack's table on its rows: the research's stream
+  // selection (stream-selection-20261021.json), its rows in its order, the values the parked sweep of
+  // 2026-10-20 read (captures/diagnostics-sweep-20261020): the first pass is the value, as the heads and
+  // schemes say it, and a reading that moved by the second (553 → 554 В, 555 → 556 В, the outside air's
+  // step 0 → 1, the pack's SOC 73,9 → 74,1) has both in its minute's extremes, its trace illustrative as
+  // the pack's; one that held still is a flat trace, its value its min and max. A state says its word, a
+  // count its number; neither keeps a trace. «обход 0,4 с»: the shared batch and the page's GETs at the
+  // hub's 4-5 ms a call (architecture 6), illustrative.
+  const flat = [0, 0, 0];
+  const sw = (dev, name, fid, word, out) => pl(dev, name, fid, word, '', '', '', '—', null, out);
+  const streamFooter = { buttons: [['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet']], notes: [['обход 0,4 с', true]] };
+  const stream = (state, tabs, rows) => ({ top: state.top, rail: state.rail, block: state.block, tabs, rows, footer: streamFooter });
+  const scannerSysHvLive = stream(scannerSysHv, sysTabs(1), [
+    pl('1009', 'Напряжение ВВБ', '44400008', '553', 'В', '553', '554', '—', [2, 0.06, 0.1]),
+    pl('1012', 'Мощность ВВБ', '14400020', '−2,0', 'кВт', '−2,0', '−2,0', '—', flat),
+    pl('1009', 'Ток ВВБ', 'C4400018', '−4,5', 'А', '−4,5', '−4,5', '—', flat),
+    sw('1032', 'Главный контактор, разряд', '34400010', 'замкнут'),
+    pl('1039', 'Шина DC, передний инвертор', '46407020', '555', 'В', '555', '556', '—', [3, 0.06, 0.1]),
+    pl('1039', 'Шина DC, задние инверторы', '46407010', '556', 'В', '556', '556', '—', flat),
+    pl('1006', 'Мощность от ДВС в ВВБ', '2610001F', '0,0', 'кВт', '0,0', '0,0', '—', flat),
+    sw('1006', 'Генерация, состояние', '34F0000A', 'н/д'),
+    sw('1001', 'Режим питания', '12D0002A', 'ON'),
+    sw('1009', 'Зарядный разъём', '34400032', 'AC'),
+    pl('1009', 'Мощность заряда', '32300018', '2,5', 'кВт', '2,5', '2,5', '—', flat),
+    sw('1006', 'DC-DC, режим', '36D00030', 'понижение'),
+  ]);
+  const scannerSysDrivesLive = stream(scannerSysDrives, drivesTabs(1), [
+    sw('1011', 'Селектор', '21200038', 'P'),
+    pl('1013', 'Педаль акселератора', '34200008', '0', '%', '0', '0', '—', flat),
+    pl('1013', 'Скорость', '94400008', '0', 'км/ч', '0', '0', '—', flat),
+    pl('1012', 'Обороты, передний мотор', '44100008', '0', 'об/мин', '0', '0', '—', flat),
+    // FFFF both passes: the range refuses it, so nothing to draw and no extremes
+    pl('1039', 'Обороты, задний левый', '0FC000D0', 'н/д', 'об/мин', '—', '—', '—', null),
+    pl('1039', 'Обороты, задний правый', '0FC000E0', '0', 'об/мин', '0', '0', '—', flat),
+    pl('1012', 'Момент, передний мотор', '44100018', '0,0', 'Н·м', '0,0', '0,0', '—', flat),
+    pl('1039', 'Момент, задний левый', '2850002C', '0,0', 'Н·м', '0,0', '0,0', '—', flat),
+    pl('1039', 'Момент, задний правый', '2850003C', '0,0', 'Н·м', '0,0', '0,0', '—', flat),
+    pl('1009', 'Ток DC, передний инвертор', '46C00008', '0,0', 'А', '0,0', '0,0', '—', flat),
+    pl('1039', 'Ток DC, задний левый', '28500178', '0,0', 'А', '0,0', '0,0', '—', flat),
+    pl('1039', 'Ток DC, задний правый', '28500188', '0,0', 'А', '0,0', '0,0', '—', flat),
+    pl('1039', 'Шина DC, передний инвертор', '46407020', '555', 'В', '555', '556', '—', [3, 0.06, 0.1]),
+    pl('1039', 'Шина DC, задние инверторы', '46407010', '556', 'В', '556', '556', '—', flat),
+    pl('1039', 'IPM, передний инвертор', '46406010', '9', '°C', '9', '9', '—', flat),
+    pl('1039', 'IGBT, задний левый', '2D000180', '5', '°C', '5', '5', '—', flat),
+    pl('1039', 'IGBT, задний правый', '2D000188', '5', '°C', '5', '5', '—', flat),
+    pl('1039', 'Статор, передний мотор', '46406018', '8', '°C', '8', '8', '—', flat),
+    pl('1039', 'Статор, задний левый', '285001A8', '7', '°C', '7', '7', '—', flat),
+    pl('1039', 'Статор, задний правый', '285001B0', '7', '°C', '7', '7', '—', flat),
+  ]);
+  const scannerSysChassisLive = stream(scannerSysChassis, sysTabs(1), [
+    pl('1013', 'Педаль тормоза, ход', '34200010', '0', '%', '0', '0', '—', flat),
+    sw('1011', 'Педаль тормоза, выключатель', '29400022', 'не нажата'),
+    sw('1011', 'Стояночный тормоз (EPB)', '21800011', 'затянут'),
+    pl('1013', 'Скорость', '94400008', '0', 'км/ч', '0', '0', '—', flat),
+    sw('1023', 'Подвеска, процесс', '2580002C', 'завершено'),
+    sw('1023', 'Подвеска, уровень', '25800044', 'средний'),
+    sw('1016', 'TPMS, система', '3CD0000D', 'норма'),
+    sw('1016', 'TPMS, батареи датчиков', '3CD00046', 'норма'),
+    sw('1016', 'Шины, температура', '3CD00044', 'норма'),
+    sw('1016', 'Утечка воздуха, ПЛ', '99000122', 'норма'),
+    sw('1016', 'Утечка воздуха, ПП', '99000126', 'норма'),
+    sw('1016', 'Утечка воздуха, ЗЛ', '9900012A', 'норма'),
+    sw('1016', 'Утечка воздуха, ЗП', '9900012E', 'норма'),
+    sw('1016', 'Давление, оценка ПЛ', '99000123', 'норма'),
+    sw('1016', 'Давление, оценка ПП', '99000127', 'норма'),
+    sw('1016', 'Давление, оценка ЗЛ', '9900012B', 'норма'),
+    sw('1016', 'Давление, оценка ЗП', '9900012F', 'норма'),
+  ]);
+  // the parked car is empty: nobody sits, no belt is fastened
+  const scannerSysSafetyLive = stream(scannerSysSafety, sysTabs(1), [
+    sw('1007', 'Ремень, водитель', '29400018', 'не пристёгнут'),
+    sw('1007', 'Ремень, пассажир', '2610001B', 'не пристёгнут'),
+    sw('1023', 'Ремень, 2-й ряд слева', '3120000A', 'не пристёгнут'),
+    sw('1023', 'Ремень, 2-й ряд центр', '3120000E', 'не пристёгнут'),
+    sw('1023', 'Ремень, 2-й ряд справа', '3120000C', 'не пристёгнут'),
+    sw('1042', 'Место занято, водитель', '31200040', 'нет'),
+    sw('1042', 'Место занято, пассажир', '31200016', 'нет'),
+    sw('1042', 'Место занято, 2-й ряд слева', '31200018', 'нет'),
+    sw('1042', 'Место занято, 2-й ряд центр', '3120001A', 'нет'),
+    sw('1042', 'Место занято, 2-й ряд справа', '3120001C', 'нет'),
+  ]);
+  const scannerSysBodyLive = stream(scannerSysBodyState, sysTabs(1), [
+    sw('1004', 'Указатели поворота', '38A0002C', 'выкл'),
+    sw('1004', 'Стоп-сигнал', '38A00012', 'не горит'),
+    sw('1004', 'Фонарь заднего хода', '38A00014', 'не горит'),
+    sw('1004', 'Ближний свет', '38A0000A', 'выкл'),
+    sw('1004', 'Дальний свет', '38A0000C', 'выкл'),
+    sw('1004', 'Габариты', '38A00008', 'вкл'),
+    sw('1001', 'Капот', '2940001C', 'закрыт'),
+    sw('1001', 'Багажник', '2940001A', 'закрыт'),
+  ]);
+  const scannerSysClimateLive = stream(scannerSysClimate, sysTabs(1), [
+    pl('1000', 'Улица', '40400038', '12', '°C', '12', '12', '—', flat),
+    pl('1000', 'Салон', '3D800030', '21', '°C', '21', '21', '—', flat),
+    sw('1000', 'Климат, питание', '40400010', 'вкл'),
+    sw('1000', 'Компрессор', '40400009', 'вкл'),
+    pl('1000', 'Обдув, ступень', '4040001C', '2', '', '2', '2', '—', flat),
+    sw('1000', 'Рециркуляция', '40400014', 'наружный воздух'),
+    pl('1000', 'AQS снаружи, ступень', '35B0000B', '0', '', '0', '1', '—', [5, 0.12, 0]),
+    pl('1000', 'CO₂ снаружи, ступень', '35B00012', '1', '', '1', '1', '—', flat),
+    sw('1043', 'Датчик влажности', '3B400047', 'исправен'),
+    sw('1043', 'Датчик солнца', '3B400046', 'исправен'),
+  ]);
+  // the 12 V reading is the scheme's 13,7 В; the sweep read the DC-DC's low side at 13,8
+  const scannerSysLvLive = stream(scannerSysLv, sysTabs(1), [
+    pl('1001', 'Напряжение 12 В', '43400028', '13,7', 'В', '13,7', '13,7', '—', flat),
+    sw('1006', 'DC-DC, режим', '36D00030', 'понижение'),
+    pl('1006', 'DC-DC, напряжение выхода', '36D00020', '13,8', 'В', '13,8', '13,8', '—', flat),
+    sw('1001', 'Режим питания', '12D0002A', 'ON'),
+  ]);
   // «Флаги GB/T 32960»: the 14 general alarm flags the stock reporter (gbacqservice) sets from one
   // reading of device 1039 each, in GB/T 32960.3 table 18's bit order; the codes that raise a flag
   // are the reporter's own (research gb-alarm-dtc-boundary-20261021.json). The values are the parked
@@ -1224,7 +1340,7 @@
   });
   const scannerSysDrivesCompare = Object.assign({}, drivesSide, {
     top: scannerSysDrives.top, rail: scannerSysDrives.rail, block: scannerSysDrives.block,
-    tabs: Object.assign({}, scannerSysDrives.tabs, { active: 1 }), footer: snapshot,
+    tabs: drivesTabs(2), footer: snapshot,
   });
   const scannerSysAdasCompare = Object.assign({}, adasSide, {
     top: scannerSysAdas.top, rail: scannerSysAdas.rail, block: scannerSysAdas.block,
@@ -1425,7 +1541,14 @@
     'scanner-sys-cabin-parked': [scanner('sysCabin'), scannerSysCabinParked],
     'scanner-sys-engine-dtc': [scanner('sysEngineDtc'), scannerSysEngineDtc],
     'scanner-sys-body-blocks': [scanner('sysBlocks'), scannerSysBodyBlocks],
-    'scanner-sys-pack-live': [scanner('sysPackLive'), scannerSysPackLive],
+    'scanner-sys-pack-live': [scanner('sysStream'), scannerSysPackLive],
+    'scanner-sys-hv-live': [scanner('sysStream'), scannerSysHvLive],
+    'scanner-sys-drives-live': [scanner('sysStream'), scannerSysDrivesLive],
+    'scanner-sys-chassis-live': [scanner('sysStream'), scannerSysChassisLive],
+    'scanner-sys-safety-live': [scanner('sysStream'), scannerSysSafetyLive],
+    'scanner-sys-body-live': [scanner('sysStream'), scannerSysBodyLive],
+    'scanner-sys-climate-live': [scanner('sysStream'), scannerSysClimateLive],
+    'scanner-sys-lv-live': [scanner('sysStream'), scannerSysLvLive],
     'scanner-sys-pack-flags': [scanner('sysGbFlags'), scannerSysPackFlags],
     'scanner-sys-pack-flags-alarm': [scanner('sysGbFlags'), scannerSysPackFlagsAlarm],
     'scanner-sys-drives-compare': [scanner('sysDrivesCompare'), scannerSysDrivesCompare],
