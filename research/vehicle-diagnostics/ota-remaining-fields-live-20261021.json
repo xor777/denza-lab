@@ -1,0 +1,1617 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "fixed remaining positive-cache CAN fields compared with retained OTA cache",
+  "sources": {
+    "build": {
+      "path": "captures/ota-remaining-fields-20261021/build/build.json",
+      "sha256": "e5e9291290b7654a664807e9fc55cc4cf11760c841c2e97bce4abd5410d0d3e7"
+    },
+    "stockReplay": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/CanDiagnostic.java",
+      "sha256": "dddfd8038e59a2d8d15bf86d3f1fb0cee5078f0aa22ee9f87d1632281384f85a"
+    },
+    "stockReplayManifest": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/source-methods.json",
+      "sha256": "e53d717638ebe6cbfb88fd930b7e9309b06c56c79482b3f3b4cde30244763dc6"
+    },
+    "factoryMap": {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    "cache": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    "coreEvidence": {
+      "path": "research/vehicle-diagnostics/ota-core-fields-live-20261021.json",
+      "sha256": "5125cd7b7fe91a5b6b65411282e3a11c0da1c296c41c235f80cb6657f50f9fea"
+    }
+  },
+  "planSummary": {
+    "records": 157,
+    "namespaces": 128,
+    "groups": 43,
+    "requests": 383,
+    "excluded": {
+      "Media_special_reader": 1,
+      "SMM_ASCII_version_reader": 1,
+      "core_already_read": 11,
+      "DoIP_transport": 8,
+      "no_positive_cached_identity": 47
+    }
+  },
+  "summary": {
+    "groups": 43,
+    "responses": 383,
+    "positiveResponses": 383,
+    "cacheMatches": 383,
+    "mismatches": 0,
+    "serverRecordsRepresented": 157,
+    "uniqueAddressDidPairs": 367,
+    "cloudRequests": 0,
+    "apkInstalls": 0,
+    "allLifecycleVerified": true
+  },
+  "runs": [
+    {
+      "group": "remaining-001",
+      "startedAtUtc": "2026-10-21T13:26:50.873045+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-001/session.json",
+        "sha256": "159fd4f528fef99a4d7840f61593e023b6d9a68f4882349f0c90ca742a129fde"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-001/protocol.txt",
+        "sha256": "50a889d83e5ff5ddd04f75c02bf45ebac6df9d783cd402317de6f911212b9248"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-001/preflight/status.json",
+        "sha256": "e1abde3575e2b3f3eabc7b8a853d8585dca0659e6ee564fb992a778c21e1e70a"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-001/postflight/status.json",
+        "sha256": "83f085ae7169abb2f89269aa6faf70463dc87408db57882865955ecfb453b84c"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-001/preflight/processes.txt",
+        "sha256": "9442e31f5cd32f8deaab967e68e4fe9a5c83ce749dba5e616455aa0bdee5f442"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-001/postflight/processes.txt",
+        "sha256": "7230e77992c34f4833e318cdd9549f595995829c10457d78e76feb0cc6dcc6d2"
+      }
+    },
+    {
+      "group": "remaining-002",
+      "startedAtUtc": "2026-10-21T13:27:21.003200+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-002/session.json",
+        "sha256": "66e029051999833816f3a94f06789c27ffcfdeb7190c3e3781d5d483eb424542"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-002/protocol.txt",
+        "sha256": "93d02847163b50a4c304b693b39bf0a5a60397348577bd8cf1fe7174c39c1f48"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-002/preflight/status.json",
+        "sha256": "8b72ebaabb75ff94dbf47a73db612a9818ebf535e02bd7d601b518a6e6a2eba1"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-002/postflight/status.json",
+        "sha256": "bfdb4ab6dfe7b4b2cc030f6cf5ac48a75d9c0bc2882a4d1e2035d20c726df8e2"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-002/preflight/processes.txt",
+        "sha256": "961ea45208b4a31fdb5ae1db23562d330e4d0a90318d7238d84f9673f83e29d2"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-002/postflight/processes.txt",
+        "sha256": "a77931ee03e4280fb3750c056892a09cfdef25c368a89c8bc52766c26979d838"
+      }
+    },
+    {
+      "group": "remaining-003",
+      "startedAtUtc": "2026-10-21T13:28:09.275923+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-003/session.json",
+        "sha256": "c0f20924a6dd5c1cf545326c3fc53dbba341fee87398d710c77fd5b521d49a71"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-003/protocol.txt",
+        "sha256": "1c504044223ed418ebf7e0981cf374311a8ff46e0786d25b14012a5bb02a6a9f"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-003/preflight/status.json",
+        "sha256": "27dce559ea7756bc622ff227b8afa130f556b2470467e86138b7b9be6236bf34"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-003/postflight/status.json",
+        "sha256": "3aa5f8b4c68705d47841209afc7ddaf7fe177d14ee31172c9faec67b1e26d02f"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-003/preflight/processes.txt",
+        "sha256": "0313d945bb9eae7355c6b9af00ee46823c14787197ff3d294570ea34d82cfbc5"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-003/postflight/processes.txt",
+        "sha256": "10c274e2f1566da07095f224224eb88875d698f289ca56598465729a58dcb235"
+      }
+    },
+    {
+      "group": "remaining-004",
+      "startedAtUtc": "2026-10-21T13:28:18.275389+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-004/session.json",
+        "sha256": "d8cfa24aec1602ba5817e2768357ea5e9a1bdc2f192c173e8964dcd78a18bc19"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-004/protocol.txt",
+        "sha256": "0f245173c9cb886269d45c70a65996a0723a2384004f3f8930478e4a08e7e7b2"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-004/preflight/status.json",
+        "sha256": "34d5218723ed1a7e0a7706d3d94d8791067c773c491f5c57a7a7007801557475"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-004/postflight/status.json",
+        "sha256": "4195ee53dcd97d8625617d4af885b8518ebc18214c1fd8c1dcf5282fd278412c"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-004/preflight/processes.txt",
+        "sha256": "09f0cef39618a83210e284a2fd1502176dd0b8d3d3b93a6fba68db5cec7eaed4"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-004/postflight/processes.txt",
+        "sha256": "f790843524daea1eaeb7a84bcf069126ed309eddd13060beedffe7d6e9dccb65"
+      }
+    },
+    {
+      "group": "remaining-005",
+      "startedAtUtc": "2026-10-21T13:28:31.027454+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-005/session.json",
+        "sha256": "46c5d0bee189791e059b790ca594e48dfdd5662e300483d0d8e09dcf9d56e02d"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-005/protocol.txt",
+        "sha256": "32b0b9980dfa5c7274a85b03667ba8138f696b54898e15d6efef758f73774b62"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-005/preflight/status.json",
+        "sha256": "759e47ffa384b051e763f7feb7ada380338ed18ca5b354d9400acd19cf261f02"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-005/postflight/status.json",
+        "sha256": "da06d486cacf0d386d20e060179e906a4fb02307f8cc28f4e5a8ec4123c86643"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-005/preflight/processes.txt",
+        "sha256": "099d8a1d56d8bdb40fe7861f5a6982bb01466996b60de07cbb6025206df2e49e"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-005/postflight/processes.txt",
+        "sha256": "185a3d1ba12dda113cc97b7cc533a5e19a5977104e7423ddf98a63224863ffb4"
+      }
+    },
+    {
+      "group": "remaining-006",
+      "startedAtUtc": "2026-10-21T13:28:44.062380+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-006/session.json",
+        "sha256": "0a246a7e74c4ccfeef492e19310268aee57b31932d8cff3895b09a31c867c803"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-006/protocol.txt",
+        "sha256": "981a0954fa4ce7302659a7a7b99cb5fd82743a4fa20fbe3c086375d2400c3e72"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-006/preflight/status.json",
+        "sha256": "832b61d98e15f19f3b0b20e0f31aef5ec4ab37c32137f90d563fe39980c724db"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-006/postflight/status.json",
+        "sha256": "234029f1f86f92e6322553e80239ec6ffcee98a395c60d4b499c90384d21f488"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-006/preflight/processes.txt",
+        "sha256": "f8ed800c8d24c94f5c03c7d17d0d13a5fe24f3b2363e1095cb5bc8ab0c234e5b"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-006/postflight/processes.txt",
+        "sha256": "41e955f1bcd67c33b7e30dd33509ab124e8436d01e3ddcd2209c65d029c1fcc6"
+      }
+    },
+    {
+      "group": "remaining-007",
+      "startedAtUtc": "2026-10-21T13:28:56.397176+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-007/session.json",
+        "sha256": "c1941a701a52af29eb391605ae212447cab656e2680a58a52a6d9f860cd3178d"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-007/protocol.txt",
+        "sha256": "b3f8555b30b21d49d1c8e81d78f2bda42794391c876df297dbd5f3aadc9b64be"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-007/preflight/status.json",
+        "sha256": "11cb6f53b831f4b862037bcaaf46ae8bc737bd96ab4dd855f0b88c54fb1a671c"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-007/postflight/status.json",
+        "sha256": "e357d1d953b4dfe1e6a622501cf26106d47e95c8e9f21dc8e7e5677ff9ce4c55"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-007/preflight/processes.txt",
+        "sha256": "61c5093efe28c785253b6e101911e23e06241331f39d12b776d30fbc8fddb350"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-007/postflight/processes.txt",
+        "sha256": "56b6ff0249150ab3ee22d35bc20bf3e3cc5c827addd207120f291a5703361834"
+      }
+    },
+    {
+      "group": "remaining-008",
+      "startedAtUtc": "2026-10-21T13:29:09.416129+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-008/session.json",
+        "sha256": "9677dc23bfc80fffc65518cad652d56787a43735f737bda20c2f8ddaf11ee959"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-008/protocol.txt",
+        "sha256": "f817c323c83f7cf3a7268d9962dd4a422fda51bade67c73bb9ac9077c68b8ad3"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-008/preflight/status.json",
+        "sha256": "ed61f3d74f90a4cceb73626606d6f42de43814108b38696e2067832e2aa6d56f"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-008/postflight/status.json",
+        "sha256": "24eabd1cfba718ff90d8e3df14db3d2efd5a986534db9489526f81aac366d61a"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-008/preflight/processes.txt",
+        "sha256": "f20ca65fd22102795c8f6e8af8208937a27dfd99b9c66e9444c60d7acab4230d"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-008/postflight/processes.txt",
+        "sha256": "3a90e03891422f9600b5097a0c9ba46d48b7d339caa2004186189bc894300155"
+      }
+    },
+    {
+      "group": "remaining-009",
+      "startedAtUtc": "2026-10-21T13:29:22.234379+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-009/session.json",
+        "sha256": "2664aa671bd77ab3194bedde5e83f0e847beb6be2d892dded5b60b6ca87122ba"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-009/protocol.txt",
+        "sha256": "0aadafa0f47424531694ea707cce424e20c8b1b3de5a2d1863ff20602c223887"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-009/preflight/status.json",
+        "sha256": "4dace0b9958ce4b05ea858e9fc14a2d76572fc6caa50b24f7e685a8b3c8d7291"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-009/postflight/status.json",
+        "sha256": "2d503239b789ba16c89d9a6a8f46018e2836b81f56f64ed361891fe0b88b0d40"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-009/preflight/processes.txt",
+        "sha256": "386f3bfbab8e8f982a5e59c700be5ef47720ae7b8b1c700610d7da3f7aed5b6a"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-009/postflight/processes.txt",
+        "sha256": "ef4e4635a54ea12eb581d0356ffb5aa51400bab57212e2c163e9af2949935b3f"
+      }
+    },
+    {
+      "group": "remaining-010",
+      "startedAtUtc": "2026-10-21T13:29:35.330833+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-010/session.json",
+        "sha256": "31692de5d50a1567497f8dc950719f0a575f1096d305635211371ee3752f0852"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-010/protocol.txt",
+        "sha256": "fbda4fd33b1ad82c22a1a0dcf40e9be965f998e570adeed8c905011d94d28b71"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-010/preflight/status.json",
+        "sha256": "c30434a043a9a9683eeb9ae2779c94f66d33ff6df115bbaee19b3b2e1afcdd7e"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-010/postflight/status.json",
+        "sha256": "83b0d63c03b0093c8c5ffaa273755507a35513706b42a5bbc6793eb16000974d"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-010/preflight/processes.txt",
+        "sha256": "733db58df29a714e55aec2d65423ab3cd0cafd33154fe828fdf5e5024b5c1ed6"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-010/postflight/processes.txt",
+        "sha256": "ce03ea3245819390bb4eafbd3045ad9a08c69487c4dd3aee9926716dfcc49d74"
+      }
+    },
+    {
+      "group": "remaining-011",
+      "startedAtUtc": "2026-10-21T13:29:45.907174+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-011/session.json",
+        "sha256": "fe68cfd9142e980bdbe361bad30b5b767c0a47bc7e0e60e51f4c712ac184eeea"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-011/protocol.txt",
+        "sha256": "6e4f4e2b60e229f68b59e6247c79bbbddcbc8fabb501b07922ddd34aae03ca56"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-011/preflight/status.json",
+        "sha256": "ffdbde6985352aae967068ae531cc28d882b7694e04ed3b4b4190d6a82c6a724"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-011/postflight/status.json",
+        "sha256": "9d8d79886d5f44a9f6caa0de3f4baca6581a8bafd8c15d3685d4c4a50a0fecb8"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-011/preflight/processes.txt",
+        "sha256": "7a93328e1119a378aae0a48aa1730c72200e2930d476b26e13c9c97b1a557e09"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-011/postflight/processes.txt",
+        "sha256": "c93b00e814c4c1b91724985547d94d8e8df64bb9ad5d3c579d0bbb51bf3e592b"
+      }
+    },
+    {
+      "group": "remaining-012",
+      "startedAtUtc": "2026-10-21T13:29:58.739284+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-012/session.json",
+        "sha256": "84d2e46120d3a66f57c11d9a24142353baca2be3dd3ec26753f8ea2c7991355c"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-012/protocol.txt",
+        "sha256": "34c09dad5690cfd31983a6bd175eb081e2b4b7490f9beb36296555dc19416744"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-012/preflight/status.json",
+        "sha256": "4f74af3c57f9bcadb132ef4e0db3ae2c1c6d53402e227a4f91d4150b2e1558de"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-012/postflight/status.json",
+        "sha256": "111761f3ca595e6d8cae9450d748f0130c13e5cad83cb76cbb95cfca71713caa"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-012/preflight/processes.txt",
+        "sha256": "c0a0babf67c901455e119609df697b67dd17ea310f7bfe22523ebac7a62cc7e5"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-012/postflight/processes.txt",
+        "sha256": "7052463b6f0d7a54691f7868570256f23a595ce4310245602a7bff62ea50bf43"
+      }
+    },
+    {
+      "group": "remaining-013",
+      "startedAtUtc": "2026-10-21T13:30:12.123001+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-013/session.json",
+        "sha256": "b6ccdd497a8e9440fda70c271caf56940c0d1bf5404a020b6763abd1f0b68031"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-013/protocol.txt",
+        "sha256": "cad5a9fc1181b8a9dbc205db5dfe7874389931c1187e985cdea7b1980f696101"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-013/preflight/status.json",
+        "sha256": "9882546dbb382467cb532c099bbbd9deac6cc096e370a375ffba0e3ded73f2f2"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-013/postflight/status.json",
+        "sha256": "337e2e0507da7e0218c334e890b14b18afcff531c3d7104d0be1aab944adfc06"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-013/preflight/processes.txt",
+        "sha256": "9229e4ddb8ff23a74b0d7225527dbcb1868dd9869ba18da8522f0697f3eaf6c1"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-013/postflight/processes.txt",
+        "sha256": "adcabd4c985a71bcb991f1f528e29315d8248f06ad11ac509a162c4765587703"
+      }
+    },
+    {
+      "group": "remaining-014",
+      "startedAtUtc": "2026-10-21T13:30:25.128676+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-014/session.json",
+        "sha256": "9131f08b1680ab5354ffb96b9742a780f9404d5a328fb54f69f997dc1816bf76"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-014/protocol.txt",
+        "sha256": "865bcf790e08b6d82d29a86d1b3df77bf9d0fd694120a2e3c2dea7d15c769ba2"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-014/preflight/status.json",
+        "sha256": "661fc7e0d6a385f2562c0a694ff1c2100166668d0f3362016f20ee11282d3b71"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-014/postflight/status.json",
+        "sha256": "088f3c7d1f5ecf15a82fb749f229c7af1bdb8ae76ee6e943ff29b5867f496352"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-014/preflight/processes.txt",
+        "sha256": "fbb1565e82419e7b1950e07226fe4422c86207ab9a1d6e6bf83b3c02975809d9"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-014/postflight/processes.txt",
+        "sha256": "52a82893e558b5c4bf49ad49caf3b6cb3ca5cb6b1ce49c4c68cd5793c62ec20f"
+      }
+    },
+    {
+      "group": "remaining-015",
+      "startedAtUtc": "2026-10-21T13:30:38.373939+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-015/session.json",
+        "sha256": "b051c54dcb771cd3a5b6057bbbbe050ecc31529a63286bd1b0cf6191d3b64f06"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-015/protocol.txt",
+        "sha256": "9a0d04f49e5fae0149d6c45f2330afc2f32fb289427a823d2d19ee8748332854"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-015/preflight/status.json",
+        "sha256": "79b8b0185ab38b18f2468cc5af6b57112632266af0a58d4db42a5dab06ac0212"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-015/postflight/status.json",
+        "sha256": "5d1097c8ec3c810bdcc287ca9897d272118efc13f927ea1b9b8c58eb541bb39a"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-015/preflight/processes.txt",
+        "sha256": "b5db336cd0a74a37ac609fca1286630f7b17b505b80881b48079f59a14bff81f"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-015/postflight/processes.txt",
+        "sha256": "47aada84e6a0fe46459c18eb1d93a7683e5db9a9151d4275104b158a0654125d"
+      }
+    },
+    {
+      "group": "remaining-016",
+      "startedAtUtc": "2026-10-21T13:30:51.356795+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-016/session.json",
+        "sha256": "a6cee5c6141a0e29d50af4066e161814b16443199c3bb75e5344b76eb826df96"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-016/protocol.txt",
+        "sha256": "d149d78c21f1976a34698c00350bd32c3f5663d1703e71c3dc8abff2f0c2cd62"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-016/preflight/status.json",
+        "sha256": "22d0bfd5f9ae957257cd7c3fd7fe2ed4854e803071eeff672db1b56054c9a723"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-016/postflight/status.json",
+        "sha256": "d12a061d1176ad129cfc253095846b2fbef6a3e8c7f9d55a8bba7df6b3926320"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-016/preflight/processes.txt",
+        "sha256": "e3bb2a39d123c2346fefe3798bb23593f28f237d39f55fd82cb36c9252527a1d"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-016/postflight/processes.txt",
+        "sha256": "f7c217d86503584ad3087e1a5c394c2d9b8e6df3152e92acc5c8babf81246a07"
+      }
+    },
+    {
+      "group": "remaining-017",
+      "startedAtUtc": "2026-10-21T13:31:06.047878+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-017/session.json",
+        "sha256": "f59ca8018282c7f0787bfb53a372d8b2dbea7f43f52fa9c7d2e68b4a34fdbbf4"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-017/protocol.txt",
+        "sha256": "7742b3fec63e8e72cf8bb851d746b1166869fdea81618b59921baf392e65a7ae"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-017/preflight/status.json",
+        "sha256": "910dbf27e466a9f47c5033664fb8e1c4c11e87eb329fb9c19498ebb123d4598d"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-017/postflight/status.json",
+        "sha256": "fdb9347af75dccab62a3d4ee370e5d8109ced7347c037aff92adc333442f7b0d"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-017/preflight/processes.txt",
+        "sha256": "fd0a3e998dad3db00081bcab5fa8967d5b10a0355ed4c95eff621678f4b93d06"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-017/postflight/processes.txt",
+        "sha256": "b658da4c13186a005a6bb0e24680520dd582295e9d483ada22692d59fdac2d3d"
+      }
+    },
+    {
+      "group": "remaining-018",
+      "startedAtUtc": "2026-10-21T13:31:18.742673+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-018/session.json",
+        "sha256": "e7e98992f811f51fced95b4fd2df8b86281f83b8550ed5993686ccdff41d395b"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-018/protocol.txt",
+        "sha256": "b5a9e24aa72a5daaee158e72f32396936067033e9bcf119aa391c5e5735df95c"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-018/preflight/status.json",
+        "sha256": "84450988a9a56256f046d265ca7b1a361ba9cd99e88b50ed7eac5fddb7f79499"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-018/postflight/status.json",
+        "sha256": "208bfc29e087a1a02b9c361a7d9c6bc5a863dae6d9a6d91d9351e8982b2074f6"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-018/preflight/processes.txt",
+        "sha256": "a21829c9cb59f1437c1cd3db65cf8ee369025f22ef0a279bb99b2ddb63071f5d"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-018/postflight/processes.txt",
+        "sha256": "6f9a21fd3e4f12f5078d36c51051143a3d6eb25a0f1ae87d555dbe125a46e3ad"
+      }
+    },
+    {
+      "group": "remaining-019",
+      "startedAtUtc": "2026-10-21T13:31:31.508169+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-019/session.json",
+        "sha256": "98efb566eb612c8d6b1e8705b0632c42501780043228f7ff5a92c4f5d450f9f2"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-019/protocol.txt",
+        "sha256": "7edfd3df40410d489d4278534e9e4d45cfb7ed6aef9daafbcd922cc085745daf"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-019/preflight/status.json",
+        "sha256": "616f678cebb6e66a39444c513ccb76102ace670f340a89142b38b077f340765a"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-019/postflight/status.json",
+        "sha256": "25132ebb86fc8674040f5416a0f460cd3c5a43ec6f501f4461feb1c96924ef31"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-019/preflight/processes.txt",
+        "sha256": "cf0ae08c8736cb4f0ea8fc9d64e009b7e79b5a8d5cad5627ba9549c35902275d"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-019/postflight/processes.txt",
+        "sha256": "190832830ebe42470526bece82216052c3b074d974362f46eb3d124b65cc8f5e"
+      }
+    },
+    {
+      "group": "remaining-020",
+      "startedAtUtc": "2026-10-21T13:31:45.204597+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-020/session.json",
+        "sha256": "2cc27f42674c39fe3ad5cf0b62c257b07d0a9a25ee1cb4c2fb138c4e988d9c44"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-020/protocol.txt",
+        "sha256": "f25804a9f82599fe0fa59c7086eafaa9b8adb33e173be87cf615ceb131aa38a2"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-020/preflight/status.json",
+        "sha256": "22da43a738a0e442c5716ad0091afd1ee94c2d992751b175938570b1ffee7bb5"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-020/postflight/status.json",
+        "sha256": "16c8038375475d74d7503e580d1dbf3cb6b4c1444fbcbfeca1975bfc455e19aa"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-020/preflight/processes.txt",
+        "sha256": "3762d2fc7be46eb40e9ac1967968dee6b3f92269e9b26007d8e60c7646ba8bca"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-020/postflight/processes.txt",
+        "sha256": "8529b048f6400d5419b20ede28fe2ad9901f7e9231893132c84e050188727262"
+      }
+    },
+    {
+      "group": "remaining-021",
+      "startedAtUtc": "2026-10-21T13:31:58.295749+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-021/session.json",
+        "sha256": "2287ed116c7fa513a034dcd4a9b1a9f5b1aa2a82b2f6c28dc8c0731483b4962b"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-021/protocol.txt",
+        "sha256": "7f67589d04013fb4fe7a75fcf96ea9b201d9f2f98de62d399aff888615b103a8"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-021/preflight/status.json",
+        "sha256": "260573994c2980d9f33601d49015ef85f0322a56166f04339ff3927e222f3f4e"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-021/postflight/status.json",
+        "sha256": "a7a59a32362ea592ea9e40d0a03a67c3d0977131ddd33f4965a84665edcc6daa"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-021/preflight/processes.txt",
+        "sha256": "5b2ece90eed17e5e91601275e51414f50cf7c2e126c457aac57a80c285b09079"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-021/postflight/processes.txt",
+        "sha256": "3ee89e627e7ce18939b6a20095d4745ba108c669d77097e6a2b44579eda69bd7"
+      }
+    },
+    {
+      "group": "remaining-022",
+      "startedAtUtc": "2026-10-21T13:32:11.263440+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-022/session.json",
+        "sha256": "782d12f703779f87e3f40c72e2b05d02727b6ecb80a38a6ce8ef4be437326cfd"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-022/protocol.txt",
+        "sha256": "29913b25bf26dc10284ef9721fb32592895d2b48ba0699dc167d7c2242d1c63f"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-022/preflight/status.json",
+        "sha256": "2a7b72b35433fc295aeade8cfc4d0ba0e8e1cabfd0c13f487d4f4a553bf13979"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-022/postflight/status.json",
+        "sha256": "be126f305cd3c3d3bba7d1e4f7eea902a53dd81d9de035135a6ad62ce94a4fcd"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-022/preflight/processes.txt",
+        "sha256": "586780221cebb36c4000532f804a428e13a528578ba3ecbf7fd0bd7d9397bac1"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-022/postflight/processes.txt",
+        "sha256": "ee98ff109377ddf95c60e57ed236b2ba590a22e789a3f5001af72f2091d824c2"
+      }
+    },
+    {
+      "group": "remaining-023",
+      "startedAtUtc": "2026-10-21T13:32:23.694023+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-023/session.json",
+        "sha256": "a3d8bcdd10d9e938342330eb748b9a28cd05d8dc89acdc1e15e5b625c2302159"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-023/protocol.txt",
+        "sha256": "aee96c8bf5a3bcefc77d6d4ebcedab4e1d035b33445f064a00a8c2e75b1b9b87"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-023/preflight/status.json",
+        "sha256": "b1214a4141a7c6d200b7cb37ce7725e7d3822ed0ad5fcd1e2bb7886e25b43bc3"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-023/postflight/status.json",
+        "sha256": "2ea3c126a847f4d7555728e35717d9b4e5d5b88ee9efe1268b00681fd46a05c4"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-023/preflight/processes.txt",
+        "sha256": "b2b262e6abd6c491364aec00b54fd44006b2ec7ca637eb863ea8721e87b4efc0"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-023/postflight/processes.txt",
+        "sha256": "6b07c9021aa547d56a52d47e65fbb93877216a56c91ef4d337b939f554772746"
+      }
+    },
+    {
+      "group": "remaining-024",
+      "startedAtUtc": "2026-10-21T13:32:36.473839+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-024/session.json",
+        "sha256": "fb2a6228a8b5072dfc6e38287058c3e8ec5a90862e4eb06d93fb6510324fd74d"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-024/protocol.txt",
+        "sha256": "72a407f097e9913fa615fc29635ac163467f78b8ae81a827ef8e1a39dc7bda30"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-024/preflight/status.json",
+        "sha256": "fc51e00c93c6567b8e56ebf8ab64072b01af446a6817135f24d5854b9e927092"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-024/postflight/status.json",
+        "sha256": "6ac8a58e1e0b01300eba996ba1e0489ffe095c50df6956d50459bd6e75607928"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-024/preflight/processes.txt",
+        "sha256": "5a1c3a21505d1bb28406015bdbd8911ed4cd352be781b7623493523d5ae4a29b"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-024/postflight/processes.txt",
+        "sha256": "6df3289d6016c6849f2355924ebf86fd2f7efcce1244d2c682c83866f2571c13"
+      }
+    },
+    {
+      "group": "remaining-025",
+      "startedAtUtc": "2026-10-21T13:32:49.807380+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-025/session.json",
+        "sha256": "d4c7cda69cc2ba9a17f385e30f43b3744c1fde17c49e8bf503f7e81df82dc5ba"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-025/protocol.txt",
+        "sha256": "be95bfb2145280a3c809b42c947f89c098be4f0d3839c664f3c5e12dd880d418"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-025/preflight/status.json",
+        "sha256": "e2debe6ab102afbee05875c6fbf54ef86b06abc9b817506d3d0262beb02cf9e1"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-025/postflight/status.json",
+        "sha256": "b33bb535be84b871fde0be1667090de3cb5e9302df7e444f4a433ea0b9efda07"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-025/preflight/processes.txt",
+        "sha256": "7cbe394b4ed3d5c2cf5ca0ceddfa25ea3ff8c3ce2e0f4a303348cc48bfd4bea0"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-025/postflight/processes.txt",
+        "sha256": "fa711676aa869dd1b08f32650b65cf20bffcbdde67eb9345f4880fe916934da2"
+      }
+    },
+    {
+      "group": "remaining-026",
+      "startedAtUtc": "2026-10-21T13:33:00.959656+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-026/session.json",
+        "sha256": "2919534a176c36615ebec87b00b7f4f163ea557e00e6fb98b575ad47b077dde3"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-026/protocol.txt",
+        "sha256": "21bad308247f94f78e23bbf15600eb018dd9de50955d37b415882be2ca1ba3bb"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-026/preflight/status.json",
+        "sha256": "f275e6c9811445a850331097d344522ef5b71259b89de7f0dad4b9349f0c5f4f"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-026/postflight/status.json",
+        "sha256": "2edd60191eb02b95f735efd2c4f3424f241ee0504f6779579442467849e5009a"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-026/preflight/processes.txt",
+        "sha256": "b7668d6482c2e1e946b381ea969d3310b6036fb0b634064a94d51f67c3c76aec"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-026/postflight/processes.txt",
+        "sha256": "aff864597a9d6b23c7c26cd668015c48dd5156b9004321b14ad13895929951d2"
+      }
+    },
+    {
+      "group": "remaining-027",
+      "startedAtUtc": "2026-10-21T13:33:11.167024+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-027/session.json",
+        "sha256": "402ca1d9c449d2329fce4682f4f7d257fa401613223c7c36177f735e5720e5e9"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-027/protocol.txt",
+        "sha256": "0a4437a8e03ae4f4165cdf6398b358a54951c97c36d261a4856457932b1fbc85"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-027/preflight/status.json",
+        "sha256": "0e7b1c158c153c44283d881ea31eb501c2c663098304ad9e8babacd94e30ebe5"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-027/postflight/status.json",
+        "sha256": "e648d2f683a995385f4ecdb48412886004f93baba170c448a3786d58f6217b85"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-027/preflight/processes.txt",
+        "sha256": "7414d2c65d5143e864e3f50d827d0b9ba922a6e538d4f214baa0d21f9a31eae8"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-027/postflight/processes.txt",
+        "sha256": "4c478a872f185b78812ff46c9c799c29c0610e7ddaf21485de0fec564b9b8a6a"
+      }
+    },
+    {
+      "group": "remaining-028",
+      "startedAtUtc": "2026-10-21T13:33:21.711634+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-028/session.json",
+        "sha256": "895578381ece7f361134d14db13f6c736be9f4c20f936ba256da470c0187a24d"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-028/protocol.txt",
+        "sha256": "056667b51e6e3ea7915c016c74940893599eed4292e3cb2c0b299031973e9e5d"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-028/preflight/status.json",
+        "sha256": "5a56924e20bda1fc30d1e709e3a9243428ae1d882602c5232519e70faf2a6e27"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-028/postflight/status.json",
+        "sha256": "6a3c313022ed96e5ffb9304027f5d69898d32e08a4d5911b0b4a99ac8ecc24e5"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-028/preflight/processes.txt",
+        "sha256": "94ed190cad981f24de1c1a27bb8692413d2d59b9491a1ea75f2ccce6428bae62"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-028/postflight/processes.txt",
+        "sha256": "8d11cb4545d2e9acdd95148882099b3559bffd39add61fde960124345d2aa216"
+      }
+    },
+    {
+      "group": "remaining-029",
+      "startedAtUtc": "2026-10-21T13:33:31.327317+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-029/session.json",
+        "sha256": "c7f5425d21033c301dd5523046770714e197a0955c8ceaef4d197cb4d7c3dbef"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-029/protocol.txt",
+        "sha256": "535797396d47e64209d69e2708bbe4b4b9fdb4c88ce8a5e20e97a3dddbfe07cf"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-029/preflight/status.json",
+        "sha256": "ef84e0729860cf029df7c3e1321e5798c59eae38e19e09b6f683fbd62d1a8782"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-029/postflight/status.json",
+        "sha256": "6b1da8f6455fdd88fb32166cb9ef26ada1749bc568100535438041e75eb541fc"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-029/preflight/processes.txt",
+        "sha256": "d4080e1cc42dba57ce8b21af0cdde5ce5990d57adf2b910036e4d784cd9f79c7"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-029/postflight/processes.txt",
+        "sha256": "8c4ed52dfb8ed2f8119b5d18cc69283986a6be7aa2460d08b9a1f7acf33a1619"
+      }
+    },
+    {
+      "group": "remaining-030",
+      "startedAtUtc": "2026-10-21T13:33:41.219022+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-030/session.json",
+        "sha256": "d8b7252c88daba6173767f53035bc120433a619cd3789bac4b7fa60364de80cf"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-030/protocol.txt",
+        "sha256": "0092949895ecbef4f7bd191b8a6eb707f0b0af1b7b7e730b4ea7523b45f095b9"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-030/preflight/status.json",
+        "sha256": "c447d646bb62927781d9cb95fe902c87b5a269dac6d61317c0bf5678133a492d"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-030/postflight/status.json",
+        "sha256": "8a2df493f536868bde2f195893cae52c8be2f1d249af0aee3f79b3e0c28201ff"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-030/preflight/processes.txt",
+        "sha256": "3fb34fac044ca227a2464dfc026d82f96e9009823861b4f1030206d41d33ae36"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-030/postflight/processes.txt",
+        "sha256": "d197abe0ce43a95c1aed04e4af4fe44883bcb6a44343e7b42da3e423ccef9765"
+      }
+    },
+    {
+      "group": "remaining-031",
+      "startedAtUtc": "2026-10-21T13:33:50.728883+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-031/session.json",
+        "sha256": "1acb78b5eb29addd11e74a498c8593d65c7f286b88e15ddd8698fed55fabbf63"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-031/protocol.txt",
+        "sha256": "d8d85dfedd9f4253c2a45562b43b813f3cd8eb74d31d0d42392194bb71773ad3"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-031/preflight/status.json",
+        "sha256": "00388bb77f71e5185e33edc7024cde2290f1747f319f3e5b413257fef8276ea2"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-031/postflight/status.json",
+        "sha256": "e20ed8faf16e2ba8aab71bd828e61ff33bd7e3a2eb78507ab6cb1e4edf594708"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-031/preflight/processes.txt",
+        "sha256": "ed3f1f1dbabaa01932f59d8d8e1929155605f89fe217b1c45d96225f9a2eaf5a"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-031/postflight/processes.txt",
+        "sha256": "fdf049b0f705b430534063bcf6c89377bc935bf0af91badedc0682bd0b8901b1"
+      }
+    },
+    {
+      "group": "remaining-032",
+      "startedAtUtc": "2026-10-21T13:34:01.265449+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-032/session.json",
+        "sha256": "e88f24a364d32d90e5e6c48d13276231c22238b5db7410ec26a39e1ae18b10b5"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-032/protocol.txt",
+        "sha256": "3f231565194f089e42e4956dc9ce783df2e2481a47d44190a770c27f485a5e13"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-032/preflight/status.json",
+        "sha256": "63334558e9ed1ae766fd8f729db800cf3c46e8cb0a308d72e351a8afb7ffc2c6"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-032/postflight/status.json",
+        "sha256": "83cde3a86b5e48ebeca0d26a0d87270e6590e7b8150c718e95b3cf288fdfcd57"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-032/preflight/processes.txt",
+        "sha256": "156e4cc532ad571cc76caf7f29e39f7264cc213b48ce1226b4bdd8f55f8c4445"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-032/postflight/processes.txt",
+        "sha256": "c865347fa67d72156d497a29f0b6f65a9bd418a7fed398bf46bf3bb63ace8d15"
+      }
+    },
+    {
+      "group": "remaining-033",
+      "startedAtUtc": "2026-10-21T13:34:11.127558+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-033/session.json",
+        "sha256": "bfd16602e63da02406e385ef56925c2a16484f8f286e60c5650dc8dda88f7ffd"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-033/protocol.txt",
+        "sha256": "7dc370b8cdaf6468f1cec1188e3bbbe7a797ced42064d32a4708eca54dd5ed22"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-033/preflight/status.json",
+        "sha256": "7142624e00ba60696454789b692dcd217e8c908daec8a6ca41be6f12b4a5584d"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-033/postflight/status.json",
+        "sha256": "f828f237a5f0828d1dfac704890fd776d6d3a8bca5b4e5161e2f2db232ec6d84"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-033/preflight/processes.txt",
+        "sha256": "79c6f0665046be2a3c84a03b68790af31624902f62a7cce6da3816dcd818a243"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-033/postflight/processes.txt",
+        "sha256": "db84b53e03d196a7e957c31619a9adbe1a598c55620854f41b92343705ebc41b"
+      }
+    },
+    {
+      "group": "remaining-034",
+      "startedAtUtc": "2026-10-21T13:34:21.392647+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-034/session.json",
+        "sha256": "acad06c4eabf08742260d2c892046a7acb73e839f61e44e3e3dd977730cc9121"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-034/protocol.txt",
+        "sha256": "5543436de523c3fbf41cd635aaf1e8e6a2257c5dbcdbb20abe44492ccdc4d42b"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-034/preflight/status.json",
+        "sha256": "4671543ac2a5d8e1958a44892f58b4d778c6e0209f20c17885702d40cba90552"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-034/postflight/status.json",
+        "sha256": "34b64a4f806fde27f9cc441c905e50d3323be7cfa53e7ce3d79db3425273a827"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-034/preflight/processes.txt",
+        "sha256": "704ec3437f7ba2abc53f49cd5f1b7549d72d477fcee7f159b77cac3cbbaac78c"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-034/postflight/processes.txt",
+        "sha256": "a676eccf8f6fc627dc2f887fe021282dfb625e619d73d1e5ff213852cc1556ba"
+      }
+    },
+    {
+      "group": "remaining-035",
+      "startedAtUtc": "2026-10-21T13:34:31.015244+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-035/session.json",
+        "sha256": "997ac975772afff88b8af10cf279a7a30691cffe62a6ebf6097ea9972ac75485"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-035/protocol.txt",
+        "sha256": "da2ef4a07093959e018c108b7857b93326b76b705d45d5105b5acf0fd5c856fd"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-035/preflight/status.json",
+        "sha256": "3b4e69f563999fe12047751d3b9458b88b41f875050424e480708547c3070167"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-035/postflight/status.json",
+        "sha256": "b61290551404369d0daa36581b187d0b232540809ae914f62720ccf3c26f65ca"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-035/preflight/processes.txt",
+        "sha256": "0977466bf679a057d710ecf150677b0000463baa5abce48b0b2bf6df26e58f11"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-035/postflight/processes.txt",
+        "sha256": "bdbbf60d9b89959974876613437181b9603a3f4bed33989bd585fa9bc137ccbd"
+      }
+    },
+    {
+      "group": "remaining-036",
+      "startedAtUtc": "2026-10-21T13:34:40.593456+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-036/session.json",
+        "sha256": "d624b2132aa6bfd6a03b066631c849755e9b752b49948514cee3ef71fca81abc"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-036/protocol.txt",
+        "sha256": "be1010f89d997a8f53b3f5fc323a8f448057151411e9c14c7af003c1ec984d61"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-036/preflight/status.json",
+        "sha256": "8348ea766853e3d0eaeb9ecfc3fdf5a741cc4bd43ca2caea781cbf70139ceeb6"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-036/postflight/status.json",
+        "sha256": "b8be313c306cd571d50c22825f6861e736611c78b246b2762105c6a3b30fb63a"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-036/preflight/processes.txt",
+        "sha256": "077aac152b1c96df9026b097b44b88ef68fe15e7dd6ca057c313897da98115dd"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-036/postflight/processes.txt",
+        "sha256": "7d4d4527c109ff63c915e11cfbc072bcfa626df60599b572bba502037a963e73"
+      }
+    },
+    {
+      "group": "remaining-037",
+      "startedAtUtc": "2026-10-21T13:34:51.147491+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-037/session.json",
+        "sha256": "bb19cc870718089425ebc955e7899ac2f3e074e944cbe4b869366b37a9362c1b"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-037/protocol.txt",
+        "sha256": "dfc8dde3e9d6df8027f919f18d8b924c93c9fd12d72acc92dd363d3100015a31"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-037/preflight/status.json",
+        "sha256": "6c2b2e3de03922a8b3b72e176d0064e0b5abbb3903382cfe44ca9d6117d603e5"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-037/postflight/status.json",
+        "sha256": "028827372e3dbb1a64f5c0f4a26aca836daed5b8f7ec3a84cc014df603c7f633"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-037/preflight/processes.txt",
+        "sha256": "4124615dedb7080f9d57060631791219c352e4308601a13745084d93a938bb01"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-037/postflight/processes.txt",
+        "sha256": "84f11100f1751cca33af4abd2904ecb41ecb28da2d50d7156a44df423f550a24"
+      }
+    },
+    {
+      "group": "remaining-038",
+      "startedAtUtc": "2026-10-21T13:35:00.591839+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-038/session.json",
+        "sha256": "90c802abf4dffd342c93e733973e4174169ade4a45d6317e3ddee18155fb4d06"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-038/protocol.txt",
+        "sha256": "95c45f76e87ac0f7651853abb7a782861b907c6a9d261ad5920f00800eb51782"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-038/preflight/status.json",
+        "sha256": "0dd5dbf5afcec152262c7a5e705a8f3e97f442aae74ee6b8f40e757498b96deb"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-038/postflight/status.json",
+        "sha256": "3a02ef24755330e8b1227f4ecd6ba125ee473746154ab38071ac10f6c5140ed3"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-038/preflight/processes.txt",
+        "sha256": "d3a551de5ccc5d760376f3b54c59640717184f7d4ff64409c493722fe67b3c08"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-038/postflight/processes.txt",
+        "sha256": "4cc8ddb18db6bb012cb439e33627110f566d3ba272de6ae53ee257325eef596b"
+      }
+    },
+    {
+      "group": "remaining-039",
+      "startedAtUtc": "2026-10-21T13:35:10.009856+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-039/session.json",
+        "sha256": "af1a7aba7e715973d55915c539eb94144acbd1c0e644056dda1be166139fd544"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-039/protocol.txt",
+        "sha256": "34df03e6b331ea46a06f3794d60403a0e29d2d002d3ea06e198a9894bdf702ed"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-039/preflight/status.json",
+        "sha256": "16bc3084fb0b9b88d1df61139bf5005ec527b1def0da447cfc767d06d25207a4"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-039/postflight/status.json",
+        "sha256": "f62912cc27f8e397992c3c79f81b4052084f893563a31f41a38f867362d10802"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-039/preflight/processes.txt",
+        "sha256": "7e31a159d911dd12ae9af3adafa4d69d76c2ffd94dc66643bdd404c95eee11b5"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-039/postflight/processes.txt",
+        "sha256": "635d7b0766bbf285e9ceb665e9c12e9cc9bc1347058c769b756afeb1a0ead072"
+      }
+    },
+    {
+      "group": "remaining-040",
+      "startedAtUtc": "2026-10-21T13:35:19.245605+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-040/session.json",
+        "sha256": "eb881e9ed6326134be750a6dcbc49df6d3d288ef61b28771fd9061bba720bd65"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-040/protocol.txt",
+        "sha256": "676f08f8a4b0e790115bab13f2d8821ad63b1b49d441250ba956f0c6e066bda4"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-040/preflight/status.json",
+        "sha256": "d1de1bcc90bc367d3e4d5e9450978f861cabd6abb0adda165958ec96555104ea"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-040/postflight/status.json",
+        "sha256": "7874741c573b83ce6fff029574ee6b9359f3f6f0e49f9d2de11fa3ca4f6048cc"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-040/preflight/processes.txt",
+        "sha256": "e5cb7bfbacc1da005e2a2b6381750808453647061dedf3c421695d6bb7fa7252"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-040/postflight/processes.txt",
+        "sha256": "28d5f23f5d3e911bbaf4ee4e0855415ab68f7e63e314b079a2580c254b8484f6"
+      }
+    },
+    {
+      "group": "remaining-041",
+      "startedAtUtc": "2026-10-21T13:35:29.752537+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-041/session.json",
+        "sha256": "2c2e46ce267f43cfd8d5dc0ff92d7a491f16991a6ad0c61310fca2ad30afe4e2"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-041/protocol.txt",
+        "sha256": "14cfa2eb605d53fc71c96cba020f4cd2e6355e07fa00d7d4f07ff53efcdf8949"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-041/preflight/status.json",
+        "sha256": "1516b017dd38aec0959bbc811b84047235b0585a924945ca672d46ef725174c7"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-041/postflight/status.json",
+        "sha256": "86d3eca2a8624ed714810564ed8a7cbc3eb7d573f462d74efd735154a25af236"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-041/preflight/processes.txt",
+        "sha256": "672faf78610155b6cf912ce848303247c2dd07ea086d5948420e39cbc42ac4b6"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-041/postflight/processes.txt",
+        "sha256": "06631d5c3ec5d15a001815307d3f642072647c4ba625bd8d5a003f1d5e33d1b5"
+      }
+    },
+    {
+      "group": "remaining-042",
+      "startedAtUtc": "2026-10-21T13:35:38.727811+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-042/session.json",
+        "sha256": "63f08d97f8cd5d5ede1b10ca36a86b0c7fdbec5c32b735373e4bda403953c60d"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-042/protocol.txt",
+        "sha256": "809cf0b9b0370cee60f21278d0e43e815d1b217d095f1d636c72260dbacd64ed"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-042/preflight/status.json",
+        "sha256": "fee876e2403935dac8eec138ea242b80e8f4cd52901bd50a61206c07f116e0f3"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-042/postflight/status.json",
+        "sha256": "1aa77b1d26440064098e777d6c55f0801118d06d56eac6a5a1468c925396cb9f"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-042/preflight/processes.txt",
+        "sha256": "2abbf0380cad04125b02961a87cb99d2d0e0bd66a84df4914166ab408e08080f"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-042/postflight/processes.txt",
+        "sha256": "cb75043adbd109046bcdf60c6681c7b8ce3837951609358b3bd5f9a4a87dfec7"
+      }
+    },
+    {
+      "group": "remaining-043",
+      "startedAtUtc": "2026-10-21T13:35:48.127667+00:00",
+      "session": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-043/session.json",
+        "sha256": "291c6cdbf24541c59a299f4e6f8cd63603c7f355d87df7b494c9052f5dc18f95"
+      },
+      "protocol": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-043/protocol.txt",
+        "sha256": "8ec49d787af7c1543dbe76f2df7b3bb10982e3f69d99228b0ce6bf90dc718067"
+      },
+      "preflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-043/preflight/status.json",
+        "sha256": "c41495a1897258278efb9b29fb773a265fd91254f97ea692beab8131968931e8"
+      },
+      "postflight": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-043/postflight/status.json",
+        "sha256": "ca983f441cc3debc3710a3b36c49facbcc0c60eabf3a245e3971178b1fbf24a5"
+      },
+      "preProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-043/preflight/processes.txt",
+        "sha256": "86faf0ed1891659b451fefa4b0e1143f631543a00853df01cd25187fafd04ec4"
+      },
+      "postProcesses": {
+        "path": "captures/ota-remaining-fields-20261021/remaining-043/postflight/processes.txt",
+        "sha256": "78a038654c9e12647da62fc735c0a059de21eefdbdbad388d34be00e28becdfc"
+      }
+    }
+  ],
+  "fieldOmissions": [
+    {
+      "ecuIds": [
+        "HTH-2021_CDC_BYD_00200001"
+      ],
+      "field": "ecuHardVer",
+      "reason": "cached field is not a positive hardware version"
+    },
+    {
+      "ecuIds": [
+        "HTH-2021_R_ZCU_BYD_00200001"
+      ],
+      "field": "ecuHardVer",
+      "reason": "cached field is not a positive hardware version"
+    },
+    {
+      "ecuIds": [
+        "HTH-2021_B_ZCU_BYD_00200001"
+      ],
+      "field": "ecuHardVer",
+      "reason": "cached field is not a positive hardware version"
+    },
+    {
+      "ecuIds": [
+        "HTH-2021_F_ZCU_BYD_00200001"
+      ],
+      "field": "ecuHardVer",
+      "reason": "cached field is not a positive hardware version"
+    },
+    {
+      "ecuIds": [
+        "HTH-2021_LFCR_chengtech_00100001"
+      ],
+      "field": "ecuHardVer",
+      "reason": "no hardware DID in factory map"
+    },
+    {
+      "ecuIds": [
+        "HTH-2021_RFCR_chengtech_00100001"
+      ],
+      "field": "ecuHardVer",
+      "reason": "no hardware DID in factory map"
+    },
+    {
+      "ecuIds": [
+        "HTH-2021_LRCR_chengtech_00100001"
+      ],
+      "field": "ecuHardVer",
+      "reason": "no hardware DID in factory map"
+    },
+    {
+      "ecuIds": [
+        "HTH-2021_RRCR_chengtech_00100001"
+      ],
+      "field": "ecuHardVer",
+      "reason": "no hardware DID in factory map"
+    },
+    {
+      "ecuIds": [
+        "HTH-2021_MRR_chengtech_00100001"
+      ],
+      "field": "ecuHardVer",
+      "reason": "no hardware DID in factory map"
+    },
+    {
+      "ecuIds": [
+        "HTH-2021_UWBMC_KOSTAL_00100001"
+      ],
+      "field": "configuration",
+      "reason": "no positive cached configuration code"
+    }
+  ],
+  "excludedRecords": [
+    {
+      "ecuId": "HTH-2021_Media_BYD_00200001",
+      "reason": "Media_special_reader"
+    },
+    {
+      "ecuId": "HTH-2021_ASSY_BYD_00100001",
+      "reason": "SMM_ASCII_version_reader"
+    },
+    {
+      "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_CDC_SOC_BYD_00100001",
+      "reason": "DoIP_transport"
+    },
+    {
+      "ecuId": "HTH-2021_CDC_BYD_00100001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_R_ZCU_BYD_00100001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_B_ZCU_BYD_00100001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_PLL_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_PLR_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_AGS_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DPAC2_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DSBAL_BYD_00200001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DSBAL_BYD_00300001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_CAL_BYD_00900001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_CAL_BYD_00A00001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_WCM_RM_BJYG_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_WCM_RM_BJYG_00200001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_WCM_RM_TEME_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_WCM_RM_ADAYO_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DPAC1_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_SWS_BYD_00200001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_TRCAAL_BYD_00A00001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_TRCAAL_BYD_00B00001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_RL_L_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_RL_R_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_TL_L_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_TL_R_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_IAL_BYD_01300001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_IAL_BYD_01200001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_IAL_BYD_0AA00001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DAL_BYD_0AA00001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DAL_BYD_0AB00001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DAL_BYD_0AF00001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DAL_BYD_0B300001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DAL_BYD_0B700001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DAL_BYD_0B800001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DIDAL_BYD_00200001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DIDAL_BYD_00300001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DIDAL_BYD_0A200001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_DIDAL_BYD_0A300001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_LFDALA_BYD_00500001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_TRFDALA_BYD_00500001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_front CPD radar_Valeo_00200001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_front CPD radar_Mindcruise_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-L_RoboSense_00100001",
+      "reason": "DoIP_transport"
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-L_HESAI_00100001",
+      "reason": "DoIP_transport"
+    },
+    {
+      "ecuId": "HTH-2021_Mid-CPD-R_Valeo_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-R_RoboSense_00100001",
+      "reason": "DoIP_transport"
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-R_HESAI_00100001",
+      "reason": "DoIP_transport"
+    },
+    {
+      "ecuId": "HTH-2021_LIDAR-M_RoboSense_00100001",
+      "reason": "DoIP_transport"
+    },
+    {
+      "ecuId": "HTH-2021_INFC_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_TLFDALA_BYD_00400001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_RTLFDALA_BYD_00400001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_ADC_BYD_00100001",
+      "reason": "DoIP_transport"
+    },
+    {
+      "ecuId": "HTH-2021_CDC_FPGA_BYD_00100001",
+      "reason": "DoIP_transport"
+    },
+    {
+      "ecuId": "HTH-2021_ECM_UAES_01200001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_BWA_BOSCH_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_FMCU_BYD_00100001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_RMCU_BYD_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_ECP_FULIN PM_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_ERP_BaoLong_00100001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_ERP_BaoLong_00200001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_ERP_BaoLong_00300001",
+      "reason": "no_positive_cached_identity"
+    },
+    {
+      "ecuId": "HTH-2021_SMCU_BYD_00200001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_SMCU3_BYD_00100001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_ISG_BYD_00100001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_BMS_BYD_03300001",
+      "reason": "core_already_read"
+    },
+    {
+      "ecuId": "HTH-2021_DCOBC_BYD_00100001",
+      "reason": "core_already_read"
+    }
+  ],
+  "limits": [
+    "Positive-cache CAN fields only; exclusions and omitted fields remain unverified.",
+    "Same diagnostic namespace can have several server aliases; a read is not separate physical presence proof.",
+    "No automatic cloud request, version substitution, retry, download or install.",
+    "Core11 records were read separately. This cohort does not establish fresh values for all225 candidates.",
+    "Expected server tuple and applicable package remain unknown."
+  ],
+  "expectedServerTupleKnown": false,
+  "applicablePackageObtained": false
+}
