@@ -958,13 +958,15 @@
       });
       // the bars, one a cell, up or down from the pack's mean: a cell that lags or leads stands out
       const n = f.cells.length, pitch = (cx1 - cx0) / n, bw = pitch - A.gap, ym = yv(f.cellMean);
+      // a cell whose page is older than the last complete sweep is drawn faint; one not come yet, not at all
+      const staleCells = new Set(f.staleCells || []), staleProbes = new Set(f.staleProbes || []);
       f.cells.forEach((v, i) => {
+        if (v == null) return;
         const x = cx0 + i * pitch, y = yv(v), ext = i === f.minIndex || i === f.maxIndex;
         const top = Math.min(y, ym), h = Math.max(1.5, Math.abs(ym - y));
-        fill(c, x, top, bw, h, ext ? 'blueInk' : v >= f.cellMean ? 'blue' : 'blueSoft');
+        fill(c, x, top, bw, h, staleCells.has(i) ? 'sep' : ext ? 'blueInk' : v >= f.cellMean ? 'blue' : 'blueSoft');
       });
       fill(c, cx0, ym - 0.5, cx1 - cx0, 1, 'wire4');
-      // the extremes named over their bars
       // the extremes named at their bars' ends: the highest above, the lowest below
       [[f.minIndex, 'мин №' + (f.minIndex + 1), 1], [f.maxIndex, 'макс №' + (f.maxIndex + 1), -1]].forEach(([i, t, dir]) => {
         const x = cx0 + i * pitch + bw / 2, y = yv(f.cells[i]);
@@ -982,11 +984,11 @@
         r2 -= text(c, k, r2, T.headY, 'counterLabel', 'mute', { align: 'right' }) + 22;
       });
       f.probes.forEach((v, i) => {
-        const x = 24 + i * (tw + T.gap), ext = i === f.probeMin || i === f.probeMax;
-        fill(c, x, T.top, tw, T.h, 'tileOk', 6); edge(c, x, T.top, tw, T.h, ext ? 'white' : 'blueEdge', 6);
+        const x = 24 + i * (tw + T.gap), ext = i === f.probeMin || i === f.probeMax, old = staleProbes.has(i);
+        fill(c, x, T.top, tw, T.h, old ? 'tileUnread' : 'tileOk', 6); edge(c, x, T.top, tw, T.h, ext ? 'white' : old ? 'line3' : 'blueEdge', 6);
         text(c, 'Д' + (i + 1), x + T.padX, T.top + T.padY, 'counterLabel', 'mute');
-        text(c, String(v), x + T.padX, T.top + T.padY + 18, 'counter', 'white');
-        text(c, '°C', x + tw - T.padX, T.top + T.padY + 24, 'unit', 'dim2', { align: 'right' });
+        text(c, v == null ? '—' : String(v), x + T.padX, T.top + T.padY + T.valueY, 'counter', old || v == null ? 'faint' : 'white');
+        text(c, '°C', x + tw - T.padX, T.top + T.padY + T.unitY, 'unit', old ? 'faint' : 'dim2', { align: 'right' });
       });
     });
   }
@@ -1402,7 +1404,8 @@
   function hvBody(c, f, V) {
     const K = V.contactor, B = V.bus;
     stroke(c, K.wire, 'wire', 2.4);
-    stroke(c, K.blade, 'wire', 2);
+    // the blade across the pins when the BMS says closed, lifted when open or not known
+    stroke(c, f.contactorClosed ? K.closed : K.blade, 'wire', 2);
     K.pins.forEach(([x, y]) => { c.beginPath(); c.arc(x, y, K.pin, 0, 2 * Math.PI); c.fillStyle = col('text'); c.fill(); });
     stroke(c, B.trunk, 'wire', 3);
     stroke(c, B.taps, 'wire2', 2);
@@ -1415,7 +1418,8 @@
       glyphs(c, m.glyph, m.x - measure(c, m.glyph, s) / 2, m.y + 5, s, m.live ? 'text' : 'dim');
     });
     stroke(c, B.feeds, 'wire3', 1.6, [5, 4]);
-    para(c, f.contactor, K.label[0], K.label[1], 'hvLabel', 'mute', K.label[2]);
+    const kh = para(c, f.contactor, K.label[0], K.label[1], 'hvLabel', 'mute', K.label[2]);
+    if (f.contactorState) text(c, f.contactorState, K.label[0], K.label[1] + kh, 'hvLabel', 'text');
     text(c, f.busLabel, V.busLabel.right, V.busLabel.y, 'colHead', 'mute', { align: 'right' });
     f.volts.forEach((v, i) => text(c, v, V.volts[i][0], V.volts[i][1], 'hvVolts', 'text'));
     // the pack

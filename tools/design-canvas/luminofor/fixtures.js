@@ -767,7 +767,10 @@
       ['1039·26200010', 'Сопротивление изоляции, канал 2', '19 675', 'кОм', '≥ 500 Ом/В (≥ 277 кОм)', 'OK'],
       ['1001·43A00008', 'Ячеек последовательно', '166', 'шт', '—', ''],
       ['1039·43A00010', 'Датчиков температуры', '14', 'шт', '—', ''],
-      ['1032·34400010', 'Главный контактор, разряд', '1', 'сост.', '—', ''],
+      ['1032·34400010', 'Главный контактор, разряд', 'замкнут', '', '—', ''],
+      ['1009·34400018', 'Состояние заряда батареи', 'разряд', '', '—', ''],
+      ['1009·27C0000A', 'Зарядное устройство, состояние', 'готово', '', '—', ''],
+      ['1009·27C00008', 'Зарядное устройство, отказ', 'норма', '', '—', ''],
     ],
   };
 
@@ -791,7 +794,8 @@
   // the HV schema
   const hvSchema = {
     block: { title: 'Высоковольтная система', aside: '· ВВБ, привод, мотор-генератор', counters: [['U ВВБ', '553 В'], ['SOC', '74 %'], ['DTC', '0']] },
-    contactor: 'главный контактор',
+    // the main contactor as the BMS reports it (1032·34400010): 1, closed; its word under the label
+    contactor: 'главный контактор', contactorClosed: true, contactorState: 'замкнут',
     busLabel: 'ШИНА DC',
     volts: ['555 В', '556 В'],
     pack: { title: 'ВВБ', tag: 'BMS · 7E7', state: 'OK · DTC 0', rows: [['Напряжение / ток', '553 В · −4,5 А'], ['SOC / SOH', '74 % · 99 %'],
@@ -987,7 +991,7 @@
     top: sysTop('Тяговая батарея', '19:31:29'), rail: sysRail('Тяговая батарея'),
     block: { title: 'Тяговая батарея', aside: '· BMS 7E7', line: 'напряжение и ток 1009 · SOC и SOH 1014 · ячейки и модули 1014 · изоляция 1039',
       counters: [['U', '553 В'], ['SOC', '74 %'], ['DTC', '0']] },
-    tabs: { items: ['Состояние', 'Потоковые данные', 'Флаги GB/T 32960', 'DTC', 'Блоки'], active: 0 },
+    tabs: { items: ['Состояние', 'Ячейки', 'Потоковые данные', 'Флаги GB/T 32960', 'DTC', 'Блоки'], active: 0 },
     pack: { soc: 74, socText: '74 %', soh: '99 %', cells: '166 ячеек · 14 датчиков', volts: '553 В', current: '−4,5 А',
       insulation: [['канал BMC', '14,4 МОм'], ['канал 2', '19,7 МОм']], isoNorm: 'норма ≥ 500 Ом/В · 277 кОм' },
     ranges: [
@@ -1053,11 +1057,11 @@
   };
   const scannerSysPackLive = Object.assign({}, packReadings, {
     top: scannerSysPack.top, rail: scannerSysPack.rail, block: scannerSysPack.block,
-    tabs: Object.assign({}, scannerSysPack.tabs, { active: 1 }), footer: snapshot,
+    tabs: Object.assign({}, scannerSysPack.tabs, { active: 2 }), footer: snapshot,
   });
   const scannerSysPackFlags = {
     top: scannerSysPack.top, rail: scannerSysPack.rail, block: scannerSysPack.block,
-    tabs: Object.assign({}, scannerSysPack.tabs, { active: 2 }), pending: 'Нет данных', footer: snapshot,
+    tabs: Object.assign({}, scannerSysPack.tabs, { active: 3 }), pending: 'Нет данных', footer: snapshot,
   };
   const scannerSysDrivesCompare = Object.assign({}, drivesSide, {
     top: scannerSysDrives.top, rail: scannerSysDrives.rail, block: scannerSysDrives.block,
@@ -1133,9 +1137,9 @@
   const packProbes = [10, 13, 13, 11, 14, 13, 16, 10, 14, 14, 15, 14, 13, 15];
   const scannerSysPackCells = {
     top: sysTop('Тяговая батарея', '07:36:12'), rail: sysRail('Тяговая батарея'),
-    block: { title: 'Тяговая батарея', aside: '· BMS 7E7', line: 'ячейки и датчики — поток BMS 1039 · 9900001F, страницы 43D и 43C · обход 5,5 с',
-      counters: [['U', '545 В'], ['SOC', '74 %'], ['DTC', '0']] },
-    tabs: { items: ['Состояние', 'Ячейки', 'Потоковые данные', 'Флаги GB/T 32960', 'DTC', 'Блоки'], active: 1 },
+    // the pack's head as on its other tabs, its counters at the sweep's moment
+    block: Object.assign({}, scannerSysPack.block, { counters: [['U', '545 В'], ['SOC', '74 %'], ['DTC', '0']] }),
+    tabs: Object.assign({}, scannerSysPack.tabs, { active: 1 }),
     cells: packCells, cellScale: [3279, 3286], cellGrid: [3280, 3282, 3284, 3286],
     cellMean: packCells.reduce((a, v) => a + v, 0) / packCells.length, cellMeanText: '3 282,5',
     minIndex: packCells.indexOf(Math.min(...packCells)), maxIndex: packCells.indexOf(Math.max(...packCells)),
@@ -1148,6 +1152,13 @@
     probesStats: [['МИН', '10 °C'], ['МАКС', '16 °C'], ['СРЕДН.', '13,2 °C']],
     footer: { buttons: [], notes: [['обход 5,5 с · 0,4 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
   };
+  // the same sweep with its last pages missed: six pages of cells (18) and the probes' last page
+  // (two) are from the sweep before, drawn faint
+  const scannerSysPackCellsPartial = Object.assign({}, scannerSysPackCells, {
+    staleCells: Array.from({ length: 18 }, (_, k) => 148 + k), staleProbes: [12, 13],
+    cellsAge: 'обход 5,5 с · 2,6 с назад',
+    footer: { buttons: [], notes: [['обход 5,5 с · 2,6 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
+  });
 
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
@@ -1232,6 +1243,7 @@
     'scanner-sys-hv':    [scanner('sysHv'), scannerSysHv],
     'scanner-sys-pack':  [scanner('sysPack'), scannerSysPack],
     'scanner-sys-pack-cells': [scanner('sysPackCells'), scannerSysPackCells],
+    'scanner-sys-pack-cells-partial': [scanner('sysPackCells'), scannerSysPackCellsPartial],
     'scanner-sys-engine-scheme': [scanner('sysEngineScheme'), scannerSysEngineScheme],
     'scanner-sys-engine-rpm': [scanner('sysParam'), scannerSysEngineRpm],
     'scanner-sys-engine-ect': [scanner('sysParam'), scannerSysEngineEct],
