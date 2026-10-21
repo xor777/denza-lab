@@ -5,14 +5,14 @@ import dev.denza.apps.platform.shell.ServiceCallParcel
 /**
  * Qualified scalar GETs from profile 170. Bounds reject sentinels, not diagnose faults.
  *
- * [page]: read only while that page is in front ([DiagnosticExtraReader.command]), null for the batch
- * every system screen shares; [codes], where a range would admit a code the firmware does not name,
- * the only codes taken.
+ * [pages]: read only while one of them is in front ([DiagnosticExtraReader.command]) - a reading two
+ * pages need rides both - and empty for the batch every system screen shares; [codes], where a range
+ * would admit a code the firmware does not name, the only codes taken.
  */
 internal enum class DiagnosticExtra(
     val key: String, val device: Int, val fid: Int, val transact: Int,
     private val scale: Double, private val offset: Double, private val range: ClosedFloatingPointRange<Double>,
-    val page: ExtraPage? = null, private val codes: Set<Int>? = null,
+    val pages: Set<ExtraPage> = emptySet(), private val codes: Set<Int>? = null,
 ) {
     SOC("soc", 1014, 1246777400, 7, 1.0, 0.0, 0.0..100.0),
     SOH("soh", 1014, 1145045032, 5, 1.0, 0.0, 0.0..100.0),
@@ -99,62 +99,62 @@ internal enum class DiagnosticExtra(
     // integers on 5, named by DiCarServer; raw codes, words and arithmetic in SystemPagesBuilder.cabin.
     // 65535 is the firmware's no-signal word on all of them and outside every range here.
     /** Seat heating and ventilation, the three-level path: 1 off, 2/3/4 levels 1/2/3. */
-    SEAT_HEAT_FL("seat_heat_fl", 1023, 0x4FA0000B, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
-    SEAT_HEAT_FR("seat_heat_fr", 1023, 0x4FA00013, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
-    SEAT_HEAT_RL("seat_heat_rl", 1023, 0x4860000B, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
-    SEAT_HEAT_RR("seat_heat_rr", 1023, 0x48600013, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
-    SEAT_VENT_FL("seat_vent_fl", 1023, 0x4FA00008, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
-    SEAT_VENT_FR("seat_vent_fr", 1023, 0x4FA00010, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
-    SEAT_VENT_RL("seat_vent_rl", 1023, 0x48600008, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
-    SEAT_VENT_RR("seat_vent_rr", 1023, 0x48600010, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
+    SEAT_HEAT_FL("seat_heat_fl", 1023, 0x4FA0000B, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
+    SEAT_HEAT_FR("seat_heat_fr", 1023, 0x4FA00013, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
+    SEAT_HEAT_RL("seat_heat_rl", 1023, 0x4860000B, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
+    SEAT_HEAT_RR("seat_heat_rr", 1023, 0x48600013, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
+    SEAT_VENT_FL("seat_vent_fl", 1023, 0x4FA00008, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
+    SEAT_VENT_FR("seat_vent_fr", 1023, 0x4FA00010, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
+    SEAT_VENT_RL("seat_vent_rl", 1023, 0x48600008, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
+    SEAT_VENT_RR("seat_vent_rr", 1023, 0x48600010, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
     /** Massage mode: 1 off, 2..6 the programmes, 8 and 9 the hot stones; 7 is not named. */
-    MASSAGE_MODE_FL("massage_mode_fl", 1023, 0x4FA00030, 5, 1.0, 0.0, 1.0..9.0, page = ExtraPage.CABIN, codes = MASSAGE_MODES),
-    MASSAGE_MODE_FR("massage_mode_fr", 1023, 0x4FA00038, 5, 1.0, 0.0, 1.0..9.0, page = ExtraPage.CABIN, codes = MASSAGE_MODES),
-    MASSAGE_MODE_RL("massage_mode_rl", 1023, 0x4FA00020, 5, 1.0, 0.0, 1.0..9.0, page = ExtraPage.CABIN, codes = MASSAGE_MODES),
-    MASSAGE_MODE_RR("massage_mode_rr", 1023, 0x4FA00028, 5, 1.0, 0.0, 1.0..9.0, page = ExtraPage.CABIN, codes = MASSAGE_MODES),
+    MASSAGE_MODE_FL("massage_mode_fl", 1023, 0x4FA00030, 5, 1.0, 0.0, 1.0..9.0, pages = on(ExtraPage.CABIN), codes = MASSAGE_MODES),
+    MASSAGE_MODE_FR("massage_mode_fr", 1023, 0x4FA00038, 5, 1.0, 0.0, 1.0..9.0, pages = on(ExtraPage.CABIN), codes = MASSAGE_MODES),
+    MASSAGE_MODE_RL("massage_mode_rl", 1023, 0x4FA00020, 5, 1.0, 0.0, 1.0..9.0, pages = on(ExtraPage.CABIN), codes = MASSAGE_MODES),
+    MASSAGE_MODE_RR("massage_mode_rr", 1023, 0x4FA00028, 5, 1.0, 0.0, 1.0..9.0, pages = on(ExtraPage.CABIN), codes = MASSAGE_MODES),
     /** Massage level: 0 invalid, 1..3 weak, medium, strong, 4 off. */
-    MASSAGE_LEVEL_FL("massage_level_fl", 1023, 0x4FA00034, 5, 1.0, 0.0, 0.0..4.0, page = ExtraPage.CABIN),
-    MASSAGE_LEVEL_FR("massage_level_fr", 1023, 0x4FA0003C, 5, 1.0, 0.0, 0.0..4.0, page = ExtraPage.CABIN),
-    MASSAGE_LEVEL_RL("massage_level_rl", 1023, 0x4FA00024, 5, 1.0, 0.0, 0.0..4.0, page = ExtraPage.CABIN),
-    MASSAGE_LEVEL_RR("massage_level_rr", 1023, 0x4FA0002C, 5, 1.0, 0.0, 0.0..4.0, page = ExtraPage.CABIN),
+    MASSAGE_LEVEL_FL("massage_level_fl", 1023, 0x4FA00034, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CABIN)),
+    MASSAGE_LEVEL_FR("massage_level_fr", 1023, 0x4FA0003C, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CABIN)),
+    MASSAGE_LEVEL_RL("massage_level_rl", 1023, 0x4FA00024, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CABIN)),
+    MASSAGE_LEVEL_RR("massage_level_rr", 1023, 0x4FA0002C, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CABIN)),
     /** The front belts on the cluster's device: 1 fastened, 0 not. */
-    BELT_FL("belt_fl", 1007, 0x29400018, 5, 1.0, 0.0, 0.0..1.0, page = ExtraPage.CABIN),
-    BELT_FR("belt_fr", 1007, 0x2610001B, 5, 1.0, 0.0, 0.0..1.0, page = ExtraPage.CABIN),
+    BELT_FL("belt_fl", 1007, 0x29400018, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CABIN)),
+    BELT_FR("belt_fr", 1007, 0x2610001B, 5, 1.0, 0.0, 0.0..1.0, pages = on(ExtraPage.CABIN)),
     /** The second row's belts: 2 fastened, 1 not. */
-    BELT_RL("belt_rl", 1023, 0x3120000A, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
-    BELT_RR("belt_rr", 1023, 0x3120000C, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
-    BELT_RC("belt_rc", 1023, 0x3120000E, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
+    BELT_RL("belt_rl", 1023, 0x3120000A, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
+    BELT_RR("belt_rr", 1023, 0x3120000C, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
+    BELT_RC("belt_rc", 1023, 0x3120000E, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
     /** Who sits: 2 seated, any other code not, as DiCarServer reads it (the framework's constants disagree; research). */
-    SEATED_FL("seated_fl", 1042, 0x31200040, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.CABIN),
-    SEATED_FR("seated_fr", 1042, 0x31200016, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.CABIN),
-    SEATED_RL("seated_rl", 1042, 0x31200018, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.CABIN),
-    SEATED_RR("seated_rr", 1042, 0x3120001C, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.CABIN),
-    SEATED_RC("seated_rc", 1042, 0x3120001A, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.CABIN),
+    SEATED_FL("seated_fl", 1042, 0x31200040, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
+    SEATED_FR("seated_fr", 1042, 0x31200016, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
+    SEATED_RL("seated_rl", 1042, 0x31200018, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
+    SEATED_RR("seated_rr", 1042, 0x3120001C, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
+    SEATED_RC("seated_rc", 1042, 0x3120001A, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.CABIN)),
     /** The steering wheel's heating, the feedback: 1 off, 2 on; 0 invalid. */
-    WHEEL_HEAT("wheel_heat", 1023, 0x4290000E, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
+    WHEEL_HEAT("wheel_heat", 1023, 0x4290000E, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
     /** What a fridge does: 1 cold, 2 hot, 3 off, 4 fresh. */
-    FRIDGE_FRONT("fridge_front", 1023, 0x48C00018, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
-    FRIDGE_REAR("fridge_rear", 1023, 0x3AE00008, 5, 1.0, 0.0, 1.0..4.0, page = ExtraPage.CABIN),
+    FRIDGE_FRONT("fridge_front", 1023, 0x48C00018, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
+    FRIDGE_REAR("fridge_rear", 1023, 0x3AE00008, 5, 1.0, 0.0, 1.0..4.0, pages = on(ExtraPage.CABIN)),
     /** A mode's set point, raw in °C units: cold raw 1..34 (raw − 19), hot 1..16 (raw + 34), fresh 1..3 (raw + 7). */
-    FRIDGE_FRONT_COLD("fridge_front_cold", 1023, 0x3D60002A, 5, 1.0, 0.0, 1.0..34.0, page = ExtraPage.CABIN),
-    FRIDGE_FRONT_HOT("fridge_front_hot", 1023, 0x3D600030, 5, 1.0, 0.0, 1.0..16.0, page = ExtraPage.CABIN),
-    FRIDGE_FRONT_FRESH("fridge_front_fresh", 1023, 0x3D600035, 5, 1.0, 0.0, 1.0..3.0, page = ExtraPage.CABIN),
-    FRIDGE_REAR_COLD("fridge_rear_cold", 1023, 0x3AE00010, 5, 1.0, 0.0, 1.0..34.0, page = ExtraPage.CABIN),
-    FRIDGE_REAR_HOT("fridge_rear_hot", 1023, 0x3AE00018, 5, 1.0, 0.0, 1.0..16.0, page = ExtraPage.CABIN),
-    FRIDGE_REAR_FRESH("fridge_rear_fresh", 1023, 0x3AE0001D, 5, 1.0, 0.0, 1.0..3.0, page = ExtraPage.CABIN),
+    FRIDGE_FRONT_COLD("fridge_front_cold", 1023, 0x3D60002A, 5, 1.0, 0.0, 1.0..34.0, pages = on(ExtraPage.CABIN)),
+    FRIDGE_FRONT_HOT("fridge_front_hot", 1023, 0x3D600030, 5, 1.0, 0.0, 1.0..16.0, pages = on(ExtraPage.CABIN)),
+    FRIDGE_FRONT_FRESH("fridge_front_fresh", 1023, 0x3D600035, 5, 1.0, 0.0, 1.0..3.0, pages = on(ExtraPage.CABIN)),
+    FRIDGE_REAR_COLD("fridge_rear_cold", 1023, 0x3AE00010, 5, 1.0, 0.0, 1.0..34.0, pages = on(ExtraPage.CABIN)),
+    FRIDGE_REAR_HOT("fridge_rear_hot", 1023, 0x3AE00018, 5, 1.0, 0.0, 1.0..16.0, pages = on(ExtraPage.CABIN)),
+    FRIDGE_REAR_FRESH("fridge_rear_fresh", 1023, 0x3AE0001D, 5, 1.0, 0.0, 1.0..3.0, pages = on(ExtraPage.CABIN)),
     /** A fridge's popup reminder: 0 none, 1 no link, 2 long work, 3 heat mode, 4 door not closed. */
-    FRIDGE_FRONT_REMIND("fridge_front_remind", 1023, 0x48C00029, 5, 1.0, 0.0, 0.0..4.0, page = ExtraPage.CABIN),
-    FRIDGE_REAR_REMIND("fridge_rear_remind", 1023, 0x3AE00038, 5, 1.0, 0.0, 0.0..4.0, page = ExtraPage.CABIN),
+    FRIDGE_FRONT_REMIND("fridge_front_remind", 1023, 0x48C00029, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CABIN)),
+    FRIDGE_REAR_REMIND("fridge_rear_remind", 1023, 0x3AE00038, 5, 1.0, 0.0, 0.0..4.0, pages = on(ExtraPage.CABIN)),
     /** The wireless charging pads: 0 charging, 1 full, 2 fault, 3 standby. */
-    PAD_LEFT("pad_left", 1009, 0x41E00009, 5, 1.0, 0.0, 0.0..3.0, page = ExtraPage.CABIN),
-    PAD_RIGHT("pad_right", 1009, 0xC1E00012.toInt(), 5, 1.0, 0.0, 0.0..3.0, page = ExtraPage.CABIN),
+    PAD_LEFT("pad_left", 1009, 0x41E00009, 5, 1.0, 0.0, 0.0..3.0, pages = on(ExtraPage.CABIN)),
+    PAD_RIGHT("pad_right", 1009, 0xC1E00012.toInt(), 5, 1.0, 0.0, 0.0..3.0, pages = on(ExtraPage.CABIN)),
     /** The reading lights, front left and right, then the second row's (LM, RM): 2 on, 1 off. */
-    READING_FL("reading_fl", 1004, 0x3FE0000A, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
-    READING_FR("reading_fr", 1004, 0x3FE0000C, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
-    READING_RL("reading_rl", 1004, 0x3FE0000E, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
-    READING_RR("reading_rr", 1004, 0x3FE00010, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
+    READING_FL("reading_fl", 1004, 0x3FE0000A, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
+    READING_FR("reading_fr", 1004, 0x3FE0000C, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
+    READING_RL("reading_rl", 1004, 0x3FE0000E, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
+    READING_RR("reading_rr", 1004, 0x3FE00010, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
     /** The HUD's switch, the feedback: 1 on, 2 off. */
-    HUD("hud", 1023, 0x38B0001C, 5, 1.0, 0.0, 1.0..2.0, page = ExtraPage.CABIN),
+    HUD("hud", 1023, 0x38B0001C, 5, 1.0, 0.0, 1.0..2.0, pages = on(ExtraPage.CABIN)),
 
     // «Тяговая батарея · Флаги GB/T 32960» (architecture 7.2): the 14 device-1039 readings from which the
     // stock reporter gbacqservice sets GB/T 32960.3's general alarm flags (research
@@ -162,29 +162,29 @@ internal enum class DiagnosticExtra(
     // them, in the standard's bit order. Raw codes; which raise a flag is scan/GbFlags. The reporter's
     // predicate was qualified on 0..255; 255 is taken as the byte's no-data code and, with 65535, refused.
     /** Bit 0, the pack's temperature difference. */
-    GB_TEMP_DIFF("gb_temp_diff", 1039, 0x43800008, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_TEMP_DIFF("gb_temp_diff", 1039, 0x43800008, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bit 1, the pack's high temperature. */
-    GB_PACK_HOT("gb_pack_hot", 1039, 0x2440000C, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_PACK_HOT("gb_pack_hot", 1039, 0x2440000C, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bits 2 and 3, the pack's over- and undervoltage. */
-    GB_PACK_OVERVOLT("gb_pack_overvolt", 1039, 0x4380000E, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
-    GB_PACK_UNDERVOLT("gb_pack_undervolt", 1039, 0x43800010, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_PACK_OVERVOLT("gb_pack_overvolt", 1039, 0x4380000E, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
+    GB_PACK_UNDERVOLT("gb_pack_undervolt", 1039, 0x43800010, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bits 7 and 8, SOC high and SOC jump. */
-    GB_SOC_HIGH("gb_soc_high", 1039, 0x43800014, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
-    GB_SOC_JUMP("gb_soc_jump", 1039, 0x43800016, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_SOC_HIGH("gb_soc_high", 1039, 0x43800014, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
+    GB_SOC_JUMP("gb_soc_jump", 1039, 0x43800016, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bits 9 and 10, the pack's mismatch and the cells' poor consistency. */
-    GB_PACK_MISMATCH("gb_pack_mismatch", 1039, 0x4380000C, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
-    GB_CELL_CONSISTENCY("gb_cell_consistency", 1039, 0x4380000A, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_PACK_MISMATCH("gb_pack_mismatch", 1039, 0x4380000C, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
+    GB_CELL_CONSISTENCY("gb_cell_consistency", 1039, 0x4380000A, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bits 12 and 14, the DC-DC's temperature and state. */
-    GB_DCDC_TEMP("gb_dcdc_temp", 1039, 0x26C00010, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
-    GB_DCDC_STATE("gb_dcdc_state", 1039, 0x26C00022, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_DCDC_TEMP("gb_dcdc_temp", 1039, 0x26C00010, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
+    GB_DCDC_STATE("gb_dcdc_state", 1039, 0x26C00022, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bit 15, the motor controller's temperature. */
-    GB_CONTROLLER_TEMP("gb_controller_temp", 1039, 0x2400000C, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_CONTROLLER_TEMP("gb_controller_temp", 1039, 0x2400000C, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bit 16, the high-voltage interlock. */
-    GB_HVIL("gb_hvil", 1039, 0x2440003E, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_HVIL("gb_hvil", 1039, 0x2440003E, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bit 17, the drive motor's temperature. */
-    GB_MOTOR_TEMP("gb_motor_temp", 1039, 0x2400000A, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS),
+    GB_MOTOR_TEMP("gb_motor_temp", 1039, 0x2400000A, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS)),
     /** Bit 18, the pack's overcharge. */
-    GB_OVERCHARGE("gb_overcharge", 1039, 0x43800012, 5, 1.0, 0.0, 0.0..254.0, page = ExtraPage.GB_FLAGS);
+    GB_OVERCHARGE("gb_overcharge", 1039, 0x43800012, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS));
 
     fun decode(word: Int): Double? {
         // Same native no-data words as the shared AutoserviceShell; -1f is not a current.
@@ -197,6 +197,9 @@ internal enum class DiagnosticExtra(
 
 /** The massage modes the firmware names: off, wave, pulse, stretch, smoothing, slack, the two hot stones. */
 private val MASSAGE_MODES = setOf(1, 2, 3, 4, 5, 6, 8, 9)
+
+/** The pages a GET rides ([DiagnosticExtra.pages]). */
+private fun on(vararg pages: ExtraPage): Set<ExtraPage> = pages.toSet()
 
 internal data class DiagnosticExtras(
     val values: Map<DiagnosticExtra, Double> = emptyMap(),
@@ -212,7 +215,7 @@ internal data class DiagnosticExtras(
 
 /**
  * A page in front that asks the batch for more (architecture, 6): GETs of its own, which join the
- * batch only while it is in front so no other page pays for them ([DiagnosticExtra.page]), or a
+ * batch only while it is in front so no other page pays for them ([DiagnosticExtra.pages]), or a
  * quicker round ([periodMs]).
  */
 internal enum class ExtraPage(
@@ -238,10 +241,16 @@ internal object DiagnosticExtraReader {
     /** The batch of the system screens, every five seconds unless a page asks for quicker ([ExtraPage.periodMs]). */
     val command = command(emptySet())
 
-    /** The same with the GETs of [pages], those in front: in the entries' order, after the shared ones. */
-    fun command(pages: Set<ExtraPage>): String = batch(DiagnosticExtra.entries.filter { it.page == null || it.page in pages })
+    /**
+     * The same with the GETs of [pages], those in front: after the shared ones, in the entries' order,
+     * each once however many of its pages show.
+     */
+    fun command(pages: Set<ExtraPage>): String = batch(
+        DiagnosticExtra.entries.filter { it.pages.isEmpty() } +
+            DiagnosticExtra.entries.filter { e -> e.pages.any { it in pages } },
+    )
 
-    private fun batch(gets: List<DiagnosticExtra>) = gets.joinToString("; ") {
+    fun batch(gets: List<DiagnosticExtra>) = gets.joinToString("; ") {
         "echo @@extra:${it.key}; service call autoservice ${it.transact} i32 ${it.device} i32 ${it.fid}"
     }
 

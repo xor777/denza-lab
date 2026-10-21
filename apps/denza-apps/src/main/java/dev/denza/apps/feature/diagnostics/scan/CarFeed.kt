@@ -65,7 +65,7 @@ internal interface CarFeed {
 
     /**
      * A page with GETs of its own shown or left (architecture, 6): while [page] shows the batch carries
-     * its GETs too ([DiagnosticExtra.page]), from the next round on; no other page reads them.
+     * its GETs too ([DiagnosticExtra.pages]), from the next round on; no other page reads them.
      */
     fun page(page: ExtraPage, shown: Boolean) {}
 }

@@ -59,15 +59,15 @@ class GbFlagsTest {
             assertEquals("bit ${f.bit}", r.getInt("device"), f.extra.device)
             assertEquals("bit ${f.bit}", 1039, f.extra.device)
             assertEquals("bit ${f.bit}: an integer GET", 5, f.extra.transact)
-            assertEquals("bit ${f.bit}", ExtraPage.GB_FLAGS, f.extra.page)
+            assertEquals("bit ${f.bit}", setOf(ExtraPage.GB_FLAGS), f.extra.pages)
             assertEquals("bit ${f.bit}: the codes the reporter raises it for", ints(r, "triggerRawValuesSimulationOff"), f.raising)
         }
         // the page's GETs are the flags', one each
-        assertEquals(DiagnosticExtra.entries.filter { it.page == ExtraPage.GB_FLAGS }, GbFlags.ALL.map { it.extra }.sortedBy { it.ordinal })
+        assertEquals(DiagnosticExtra.entries.filter { ExtraPage.GB_FLAGS in it.pages }, GbFlags.ALL.map { it.extra }.sortedBy { it.ordinal })
         // the standard's bit order, within each group and down the GETs
         assertEquals(GbFlags.PACK.map { it.bit }.sorted(), GbFlags.PACK.map { it.bit })
         assertEquals(GbFlags.DRIVE.map { it.bit }.sorted(), GbFlags.DRIVE.map { it.bit })
-        assertEquals(GbFlags.ALL.sortedBy { it.bit }.map { it.extra }, DiagnosticExtra.entries.filter { it.page == ExtraPage.GB_FLAGS })
+        assertEquals(GbFlags.ALL.sortedBy { it.bit }.map { it.extra }, DiagnosticExtra.entries.filter { ExtraPage.GB_FLAGS in it.pages })
     }
 
     // ------------------------------------------------------------------ the rule
@@ -134,9 +134,9 @@ class GbFlagsTest {
         }
         // the shared batch is what it was: every GET without a page, and nothing else
         assertEquals(DiagnosticExtraReader.command(emptySet()), shared)
-        assertEquals(DiagnosticExtra.entries.filter { it.page == null }.size, shared.split("; echo ").size)
+        assertEquals(DiagnosticExtra.entries.filter { it.pages.isEmpty() }.size, shared.split("; echo ").size)
         assertTrue(flags.startsWith(shared))
-        assertEquals(DiagnosticExtra.entries.count { it.page == null } + 14, flags.split("; echo ").size)
+        assertEquals(DiagnosticExtra.entries.count { it.pages.isEmpty() } + 14, flags.split("; echo ").size)
         assertTrue(flags.contains("service call autoservice 5 i32 1039 i32 608174142"))
     }
 

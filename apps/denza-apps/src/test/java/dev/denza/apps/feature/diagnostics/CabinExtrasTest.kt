@@ -33,7 +33,7 @@ class CabinExtrasTest {
     private fun entry(e: DiagnosticExtra): JSONObject =
         research.single { it.getString("fid").removePrefix("0x").toLong(16).toInt() == e.fid && it.getInt("device") == e.device }
 
-    private val cabin = DiagnosticExtra.entries.filter { it.page == ExtraPage.CABIN }
+    private val cabin = DiagnosticExtra.entries.filter { ExtraPage.CABIN in it.pages }
 
     /** The set points are the stock's control FIDs read back; every other GET is a status. */
     private val setPoints = setOf(
