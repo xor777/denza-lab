@@ -64,6 +64,8 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
 
+| Streaming-source handoff: all9,799 read declarations accounted for across43 logical domains;7,115 exact device/FID pairs,7,113 with saved scalar replies and44 changed raw values. RSE184 bindings resolve to1062. Selected powertrain/chassis/body contracts carry Russian labels, decode/validity/freshness limits; DC/DC and rear-steer source delivery replayed. Counts include settings/placeholders, not valid sensors or new ECU streams | offline source and retained-capture audit; no product or vehicle changes | 2026-10-21 | [Complete streaming-source inventory](#complete-streaming-source-inventory-2026-10-21) |
+
 **Open questions**
 - What `STATISTIC_INSTANTANEOUS_CURRENT` (raw `35721`) and the third-party "rear motor 40 °C" card are: a drive recorded with the current and rear-motor ids, which `tools/vehicle_log.py` does not record yet.
 - Whether a DC stop (`CHARGE_GUN` = `3`) should read as charging: a recorded stop at a charger known to be DC ([energy contract §8](energy-display-contract.md#8-open-and-what-closes-each)).
@@ -94,6 +96,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [Complete factory map and remaining powertrain DTC](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) — all 225 server routes, live rear drives/DCOBC and the OEM dictionary gap
 - [Factory-map candidates on this car](#factory-map-candidates-on-this-car-2026-10-20) — F194 at the 37 CAN routes outside the catalog: who is installed, the cache as an install marker, the passenger computer's MCU
 - [ECU roles and reverse catalog crosswalk](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) — 25 role names, rear-drive sides, eight child identities and 30 stock signal candidates
+- [Complete streaming-source inventory](#complete-streaming-source-inventory-2026-10-21) — exhaustive source crosswalk and selected implementation contracts for powertrain, chassis and body/comfort
 - [Deep inventory and telemetry beyond identification](#deep-inventory-and-telemetry-beyond-identification-2026-10-21) — complete route accounting, readable property profiles, battery/drive/engine and chassis data paths, local-HU versus remote UDS DIDs
 - [Signal origins and passive qualification](#signal-origins-and-passive-qualification-2026-10-21) — MCU field layouts, native conversion/validity, wheel packet, factory scenario limits and the bounded next-car plan
 - [Live passive streams and paged battery telemetry](#live-passive-streams-and-paged-battery-telemetry-2026-10-21) — Z9GT GB/BigData/YUN, stock cell/probe array decoders, timed scalar correlation and rolling-sweep limits
@@ -3055,6 +3058,141 @@ The retained report is
 `--redisassemble` replays the existing `pypcode` decoder. No native REA/raw
 RH850 import, vehicle or network operation was used.
 
+### Complete streaming-source inventory (2026-10-21)
+
+This continuation is a research handoff for the owner to implement. Three
+sol6.1/xhigh agents audited powertrain, chassis and body/comfort while the parent
+accounted for the complete declaration and route inventories. No new vehicle,
+ADB, network or credential operation ran; product code and installation were
+not changed. All observations below come from the saved Z9GT captures, not a
+fresh on-car acceptance test.
+
+**Start with the searchable master**
+[`stream-coverage-20261021.json`](../research/vehicle-diagnostics/stream-coverage-20261021.json)
+and its offline builder/query
+[`build_stream_coverage.py`](../research/vehicle-diagnostics/build_stream_coverage.py).
+Every original property row belongs to exactly one resolved channel or the
+explicit unresolved list. Property keys, native FIDs, mapper interfaces,
+logical devices, CAN source tuples and diagnostic ECU routes stay separate.
+
+| Accounted source layer | Count | What the count means |
+| --- | ---: | --- |
+| Read/read-write property declarations | 9,799 | Includes configurations and service fields, not only sensors |
+| Logical mapper domains | 43 | Each has a Russian group label; these are not physical ECUs |
+| Resolved device/FID pairs | 7,115 | Exact join; aliases may share a pair |
+| Pairs with both historical scalar reads | 7,113 | Cache replies; not 7,113 valid measurements or event streams |
+| Pairs whose raw replies changed | 44 | Two observations, not a qualified sampling frequency |
+| Pairs present in frozen product readers | 135 | Intersection with VehicleSignals/DiagnosticExtras, not installed-app acceptance |
+| Still-unresolved property rows | 2,674 | No native request promoted from a property name or numeric similarity |
+| Diagnostic route endpoints | 88 | 86 factory routes plus retained CAN712/7E5; not physical-block count |
+
+The RSE mapper's 184 previously unresolved device bindings are now **1062**.
+`RseMapper.getDevice()` selects `BYDAutoRSEDevice`, whose `mDeviceType` is
+`BYDAutoConstants.BYDAUTO_DEVICE_RSE`; that constant is1062. The original
+literal-only resolver missed the indirection. The new report preserves the
+original rows and adds source hashes/line anchors for this explicit correction.
+This closes a catalog join, not a qualification of all rear-display features.
+Thirty personal/security channels keep observation references but omit values
+from the committed master; raw values remain only in the ignored local capture.
+
+**Selected field contracts.** The domain reports retain Russian names and
+readiness notes, exact request identifiers, observed native type, conversions,
+invalidity/freshness limits and source references. Their row counts overlap and
+include candidates; they must not be added up as working sensors.
+
+| Report | Coverage and useful additions | Remaining qualification |
+| --- | --- | --- |
+| [Powertrain](../research/vehicle-diagnostics/stream-powertrain-20261021.json) | 303 logical fields and52 ECM/VCU OBD records, battery cells/probes and states, three drives, DC/DC, charging and thermal sources | Dedicated ISG/LBMS/other ECU numerical DIDs remain missing; physical owner and units are per field |
+| [Chassis](../research/vehicle-diagnostics/stream-chassis-20261021.json) | 305 selected declarations: suspension/IDC192, brake/stability35, wheels31, inertial27, rear steering11, front steering9 | 220 resolved pairs with saved reads; no newly qualified continuous SDK listener; 18 values match all-ones wire arithmetic |
+| [Body and comfort](../research/vehicle-diagnostics/stream-body-comfort-20261021.json) | 466 selected declarations and150 exact SDK getter anchors: HVAC, environment, TPMS, PDC, ADAS, seats, doors, lamps, belts, refrigerator and audio status | Optional equipment and third-row API are not installed hardware; unsupported units and live delivery stay explicit |
+
+**New source-level findings useful for implementation:**
+
+- DC/DC: exact CAN36D/sub0/channel2 delivered20 frames over about19s in the
+  retained BigData window. Payload offsets3/4 and offset5 bits0..1 (zero-based) feed the three fields
+  `1006/36D00020`, `36D00028`, `36D00030`. HAL conversions are
+  `float32(raw*0.1)`, `2*raw-250`, and the raw mode. Stock names mode0/1/2
+  CLOSE/BOOST/STEP_DOWN; mode3 is not a newly named state. The captures support
+  source delivery and conversion; an exact labelled consumer proving V/A
+  is still missing.
+- Rear steering: exact CAN0FE/sub0/channel1/32-byte records were delivered20
+  times. Two12-bit fields convert to `raw*0.1-20`; the retained pair was
+  raw200/200 with validity bit0 throughout. A zero result is not a qualified
+  steering-angle measurement until that validity enum and units are closed.
+- Suspension and inertia: native conversions are byte-checked. Old and new
+  suspension-height fields use different offsets (`-100` versus `-1000`).
+  Finite values such as114.7,405.35,45.535 and64535 can be the arithmetic image
+  of an all-ones raw field, so a simple finite/range test is insufficient.
+- Battery thermal: exact22D/sub2/channel2 delivered20 records. Preheat sign,
+  status and a five-bit heating-power field are located; the latter has HAL
+  scale0.5. Rapid heating uses a different sub10 route and must not be decoded
+  from sub2. Compressor consumption1005/3D800038 is payload offset6 (zero-based) shifted left5:
+  API160→128 corresponds to raw5→4. W/kW units are not established by its name.
+- Cabin/environment: current native windshield temperature/humidity IDs are
+  `1043/3B400010` and `3B400008`. Old SDK convenience getters use different
+  classic selectors, so they are not interchangeable. AQS has the stock
+  accepted range1..6 and conversion`raw-1`; numeric CO2 and its ordinal level
+  are different channels. Retained CO2=300 alone does not establish ppm.
+- PDC/TPMS/seats: keep the eight-slot radar-buffer layout separate from nine
+  scalar areas; saved distance1023 is outside the SDK's nominal155 maximum.
+  TPMS aggregate temperature does not provide four individually attributed
+  wheel temperatures. Seat-adjustment service/callback normalization is0.01;
+  maximum-like127.5 responses still need an invalidity contract.
+- Audio:1002/35201042 and99000246..249 provide AVAS/PA/A2B/DSP/initialization
+  status channels through generic GET. Both saved passes return0; a dedicated
+  decoder/enum was not found. Zero does not establish healthy state, and these
+  fields are not a DTC list. Their generic listener API is source-proven only.
+
+Wire-to-HAL formulas above are for decoding passive payloads; scalar GET replies
+have already passed through those converters. Do not apply them twice. Later
+consumer normalization (such as seat0.01 or AQS raw-1) is a separate stage and
+is labelled separately in the field contract. MCU descriptor byte coordinates
+are one-based; byte-array offsets in the examples above are zero-based.
+
+**Three read paths, three distinct freshness contracts.** Direct ECU requests
+remain qualified for the advertised Mode01 PIDs of ECM7E0, VCU7E2 and BSCM7E5.
+Identification-only pages do not establish absence of telemetry in other ECUs:
+56 of68 retained addresses have an external model-catalog live-data capability
+flag, but that flag supplies neither a DID nor an installed-software decoder.
+No new applicable UDS measurement dictionary was recovered in this pass.
+
+Head-unit scalar GETs use shell-native Binder5 for int and7 for float. The typed
+SDK accepts `Integer.TYPE`, **`Double.TYPE`**, `int[].class`, `float[].class` and
+`byte[].class`; `Float.TYPE` is not its scalar API. Read the corresponding DTO
+field, not an unused default field as universal success/error status. Buffer
+parcels must use the existing qualified SDK route, never scalar-only parcel
+layouts. Newer fields may bypass old typed listener adapters; generic
+`onDataEventChanged` preserves the typed value, but registration is not proof
+that the vehicle delivers that field or an initial replay.
+
+Passive frames require an exact CAN/sub/channel/length match. Their receive
+time is a source-delivery observation; scalar GET time is only a cache-read
+observation. Product readers should keep raw value, decoding status and source
+age separate. No arbitrary faster polling rate is justified by two GET passes.
+
+The next qualification is finite and field-specific: validate changing values
+and quality flags for rear steering/suspension/environment/PDC, confirm the
+DC/DC and thermal units with an exact stock consumer or a labelled control,
+and retain dedicated ISG/LBMS/direct-UDS measurements as open until their real
+read definitions are acquired. The master is evidence, **not a blanket request
+allowlist**; its read/write declarations also contain controls and service APIs.
+
+Replay and search without contacting the vehicle:
+
+```bash
+python3 -B research/vehicle-diagnostics/build_stream_coverage.py --check
+python3 -B research/vehicle-diagnostics/build_stream_coverage.py --find WINDSHIELD --limit 10
+python3 -B -m unittest discover -s research/vehicle-diagnostics -p test_build_stream_coverage.py
+python3 -B research/vehicle-diagnostics/check_stream_body_comfort.py
+python3 -B research/vehicle-diagnostics/check_stream_chassis.py
+python3 -B research/vehicle-diagnostics/check_stream_powertrain.py
+```
+
+The local firmware/capture corpus is required for source-hash and byte replays.
+The master freezes the four product inputs in
+`captures/stream-coverage-20261021/product/`, so later implementation changes do
+not rewrite what was already present at the time of research.
+
 ### Deep inventory and telemetry beyond identification (2026-10-21)
 
 This is an offline research pass over the owner's existing firmware and retained
@@ -3066,8 +3204,10 @@ The scope is the evidence behind future diagnostic parameters, not a UI redesign
 whitelist permits `22` only for `F194/F195/F18A/F197`; `ModuleIdent` reads those
 identity fields. The per-ECU live stream in `DiagnosticsSession.setLiveVisible`
 accepts only the three `obd` catalog entries: ECM `7E0`, VCU `7E2`, BSCM `7E5`.
-Their Mode01 stream is separate from the shared `VehicleSignals` and 57
-`DiagnosticExtra` scalar channels and their parameter pages. Thus the current
+At that pass, their Mode01 stream was separate from the shared `VehicleSignals`
+and 57 `DiagnosticExtra` scalar channels and their parameter pages. The later
+[complete inventory](#complete-streaming-source-inventory-2026-10-21) freezes
+the updated readers and finds 135 matching native channels;57 is a historical count. Thus the current
 screen is not an inventory of everything each controller can measure. There are
 two distinct acquisition paths: addressed diagnostic requests with ECU-specific
 DID/PID definitions, and telemetry already exposed by the head unit's vendor API.

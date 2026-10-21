@@ -2,6 +2,22 @@
 
 Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-data-findings.md#diagnostics-and-dtc-2026-10-18).
 
+- **Streaming-source research handoff (owner implements):**
+  [`stream-coverage-20261021.json`](stream-coverage-20261021.json) accounts for all
+  9,799 readable declarations, 43 logical domains and 88 diagnostic endpoints;
+  7,115 native channels, not 7,115 working sensors. Query with
+  `python3 -B research/vehicle-diagnostics/build_stream_coverage.py --find WINDSHIELD`;
+  `--check` replays the complete partition, saved replies and frozen product-reader coverage.
+  Selected contracts with Russian labels, exact read paths and quality limits:
+  [`stream-powertrain-20261021.json`](stream-powertrain-20261021.json),
+  [`stream-chassis-20261021.json`](stream-chassis-20261021.json), and
+  [`stream-body-comfort-20261021.json`](stream-body-comfort-20261021.json).
+  Replay with `check_stream_powertrain.py`, `check_stream_chassis.py` and
+  `check_stream_body_comfort.py`; source hashes/native byte evidence require the
+  local corpus. Run parser/namespace/quality tests with
+  `python3 -B -m unittest discover -s research/vehicle-diagnostics -p test_build_stream_coverage.py`.
+  [Coverage and implementation boundaries](../../docs/vehicle-data-findings.md#complete-streaming-source-inventory-2026-10-21).
+
 - `diagnostic-cache-access-20261021.json`: installed-source identity and one
   approved two-file export; RUNNING_TASK, afterRunRes and package-description
   keys absent, closure/cleanup complete. Manual private DB access stays open.
