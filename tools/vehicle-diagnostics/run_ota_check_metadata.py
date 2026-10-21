@@ -125,7 +125,10 @@ class Device(base.Device):
                                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL))
 
 
-def run(device, artifact, digest, nonce, save_snapshot):
+def run(device, artifact, digest, nonce, save_snapshot, *,
+        snapshot_validator=snapshot, response_validator=None, result_timeout=27):
+    if response_validator is None:
+        response_validator = lambda value: plan(value, response=True)
     state = {"status": "refused", "exportClosed": False, "watchdogTerminal": False,
              "leaseReleased": False, "postApkIdentityVerified": False, "goSent": False}
     claimed = armed = made_dir = False
@@ -142,16 +145,16 @@ def run(device, artifact, digest, nonce, save_snapshot):
         ready = helper.message(20)
         require(set(ready) == {"state", "nonce", "snapshot"} and ready["state"] == "INPUTS_READY"
                 and ready["nonce"] == nonce)
-        snapshot(ready["snapshot"])
+        snapshot_validator(ready["snapshot"])
         state["snapshot"] = ready["snapshot"]
         device.close_export(pid)
         state["exportClosed"] = state["watchdogTerminal"] = True
         save_snapshot(ready["snapshot"])
         helper.go(nonce)
         state["goSent"] = True
-        result = helper.message(27)
+        result = helper.message(result_timeout)
         require(set(result) == {"state", "response"} and result["state"] == "RESULT")
-        plan(result["response"], response=True)
+        response_validator(result["response"])
         helper.finish()
         state["response"] = result["response"]
         state["status"] = "complete"

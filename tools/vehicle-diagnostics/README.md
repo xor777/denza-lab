@@ -244,6 +244,37 @@ them invalidates the build. The new host reuses the old export lease, so it
 cannot run beside another metadata reader. The exposure and watchdog limits
 described below still apply. Full findings: [OTA](../../docs/ota-update-findings.md#подготовленный-изолированный-запрос-gcy).
 
+## Isolated GHY metadata client (prepared, 2026-10-21)
+
+`GhyCheckVersionProbe.java` reads GHY preferences, its own SourceVehicleVersion
+and the common ECU cache. After verified export closure/GO it uses the pinned,
+unchanged September `OncarTls.java` adapter for up to two factory-signed HTTPS
+requests: getEcuList, then checkVersion only if every requested ECU has a cache
+row. Six fields are preserved, reordered/subselected by GHY ecuId; cache age
+and cross-catalogue DID equivalence are not established. Unknown ECU, missing
+version, auth failure or transport failure never starts diagnosis or retry.
+A second-request failure retains the first response. No stock OTA, package
+download or installation path is invoked.
+
+This is a separate authorization scope from the completed GCY experiment:
+three public-certificate APIs and at most two signing APIs can enter stock
+crypto readiness/recovery. No private-key export. See the precise boundaries
+and current authorization/live status in [OTA](../../docs/ota-update-findings.md#отдельный-путь-ghy).
+The adapter source remains in the retained local corpus and is pinned to
+SHA-256 `95bbb8e871dc306145d298eaa8a70af5611c113a73726b703bf47dac6aecfbc9`.
+
+```bash
+python3 -B tools/vehicle-diagnostics/run_ghy_check_metadata.py
+python3 -B tools/vehicle-diagnostics/build_ghy_check_metadata.py captures/ota-ghy-new-build
+python3 -B -m unittest discover -s tools/vehicle-diagnostics -p 'test_run_*check_metadata.py'
+```
+
+The default runner and builder are host-only. Prepared build:
+`captures/ota-ghy-20261021/build-v3/`. Offline: 24 GHY Java checks, 27 GCY Java
+checks and 17 host tests. This does not establish Android/GHY server acceptance.
+The shared host runner's optional validators preserve GCY defaults but change
+its source hash; old GCY manifests fail the runner's hash gate intentionally.
+
 ## Isolated ECU metadata client
 
 `EcuMapMetadataProbe.java` is a separate prepared `app_process` client, never a
