@@ -1,0 +1,505 @@
+{
+  "schema": "denza-lab.public-capability-schema.v1",
+  "date": "2026-10-21",
+  "modelCatalog": {
+    "path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json",
+    "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24"
+  },
+  "sources": [
+    {
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-fields-DENZA661-CN.json",
+      "sha256": "853ae04e20a77278bffe5547043512b7b419e1952640a558a76c7d01af5ba5a7"
+    },
+    {
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-IDC-actuation-names.json",
+      "sha256": "dbc0a37030be33a57fefaa0ad907cbde49352b12e712bea07c03e3498b821a04"
+    },
+    {
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-IDC-actuation-names.request.json",
+      "sha256": "8b775a5ed52004d98fd621756e5386fcd90a30132f554b43aa6eb8492117d45e"
+    },
+    {
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/frontend-capabilities-source.json",
+      "sha256": "041e67ade1d13d6ddbeb1809b23a1e0bcaa3e1e45e3448f32da6a0b6531c0a9f"
+    },
+    {
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/capability-summary.json",
+      "sha256": "c005dc89093ba8b61642f78fd7b5765d02afa09d6858f24ba91786a1f0f73d20"
+    }
+  ],
+  "publicFieldSchema": [
+    {
+      "id": 1,
+      "field": "brand",
+      "category": "diag",
+      "cn": "品牌",
+      "en": "Brand",
+      "required": true,
+      "data_type": null
+    },
+    {
+      "id": 2,
+      "field": "version",
+      "category": "diag",
+      "cn": "版本",
+      "en": "Version",
+      "required": false,
+      "data_type": null
+    },
+    {
+      "id": 5,
+      "field": "model",
+      "category": "diag",
+      "cn": "型号",
+      "en": "Model",
+      "required": false,
+      "data_type": null
+    },
+    {
+      "id": 11,
+      "field": "system",
+      "category": "diag",
+      "cn": "系统",
+      "en": "System",
+      "required": false,
+      "data_type": null
+    },
+    {
+      "id": 13,
+      "field": "read_ecu_information",
+      "category": "diag",
+      "cn": "读取版本信息",
+      "en": "Read ECU Information",
+      "required": true,
+      "data_type": "SupportEnum"
+    },
+    {
+      "id": 14,
+      "field": "read_trouble_code",
+      "category": "diag",
+      "cn": "读取故障码",
+      "en": "Read Trouble Code",
+      "required": true,
+      "data_type": "SupportEnum"
+    },
+    {
+      "id": 15,
+      "field": "clear_trouble_code",
+      "category": "diag",
+      "cn": "清除故障码",
+      "en": "Clear Trouble Code",
+      "required": true,
+      "data_type": "SupportEnum"
+    },
+    {
+      "id": 16,
+      "field": "live_data",
+      "category": "diag",
+      "cn": "读取数据流",
+      "en": "Live Data",
+      "required": true,
+      "data_type": "SupportEnum"
+    },
+    {
+      "id": 17,
+      "field": "read_freeze_frame",
+      "category": "diag",
+      "cn": "读取冻结帧",
+      "en": "Read Freeze Frame",
+      "required": false,
+      "data_type": "SupportEnum"
+    },
+    {
+      "id": 18,
+      "field": "actuation_test",
+      "category": "diag",
+      "cn": "动作测试",
+      "en": "Actuation Test",
+      "required": false,
+      "data_type": "SupportEnum|IDArray"
+    },
+    {
+      "id": 19,
+      "field": "special_functions",
+      "category": "diag",
+      "cn": "特殊功能",
+      "en": "Special Functions",
+      "required": false,
+      "data_type": "SupportEnum|IDArray"
+    }
+  ],
+  "capabilityFlagCounts": {
+    "read_ecu_information": {
+      "√": 167,
+      "×": 5
+    },
+    "read_trouble_code": {
+      "×": 81,
+      "√": 91
+    },
+    "clear_trouble_code": {
+      "×": 77,
+      "√": 95
+    },
+    "live_data": {
+      "×": 91,
+      "√": 81
+    },
+    "read_freeze_frame": {
+      "×": 172
+    },
+    "actuation_test": {
+      "×": 123,
+      "named_ids": 49
+    },
+    "special_functions": {
+      "×": 172
+    }
+  },
+  "idcSourceRowId": 1377,
+  "idcNamedActionMetadata": [
+    {
+      "id": 1563,
+      "no": "ACT1563",
+      "function_name": "主动控制/左前高度控制阀"
+    },
+    {
+      "id": 1564,
+      "no": "ACT1564",
+      "function_name": "主动控制/右前高度控制阀"
+    },
+    {
+      "id": 1565,
+      "no": "ACT1565",
+      "function_name": "主动控制/左后高度控制阀"
+    },
+    {
+      "id": 1566,
+      "no": "ACT1566",
+      "function_name": "主动控制/右后高度控制阀"
+    },
+    {
+      "id": 1567,
+      "no": "ACT1567",
+      "function_name": "主动控制/高度控制泵电机继电器"
+    },
+    {
+      "id": 1568,
+      "no": "ACT1568",
+      "function_name": "主动控制/储气罐阀"
+    },
+    {
+      "id": 1569,
+      "no": "ACT1569",
+      "function_name": "主动控制/泄压阀"
+    },
+    {
+      "id": 1570,
+      "no": "ACT1570",
+      "function_name": "主动控制/快速增压阀"
+    },
+    {
+      "id": 1571,
+      "no": "ACT1571",
+      "function_name": "主动控制/左前阻尼连续可调线性阀"
+    },
+    {
+      "id": 1572,
+      "no": "ACT1572",
+      "function_name": "主动控制/右前阻尼连续可调线性阀"
+    },
+    {
+      "id": 1573,
+      "no": "ACT1573",
+      "function_name": "主动控制/左后阻尼连续可调线性阀"
+    },
+    {
+      "id": 1574,
+      "no": "ACT1574",
+      "function_name": "主动控制/右后阻尼连续可调线性阀"
+    },
+    {
+      "id": 1575,
+      "no": "ACT1575",
+      "function_name": "主动控制/左前空簧刚度控制开关阀"
+    },
+    {
+      "id": 1576,
+      "no": "ACT1576",
+      "function_name": "主动控制/右前空簧刚度控制开关阀"
+    },
+    {
+      "id": 1577,
+      "no": "ACT1577",
+      "function_name": "主动控制/左后空簧刚度控制开关阀"
+    },
+    {
+      "id": 1578,
+      "no": "ACT1578",
+      "function_name": "主动控制/右后空簧刚度控制开关阀"
+    },
+    {
+      "id": 1579,
+      "no": "ACT1579",
+      "function_name": "主动控制/左前轴充气/排气"
+    },
+    {
+      "id": 1580,
+      "no": "ACT1580",
+      "function_name": "主动控制/右前轴充气/排气"
+    },
+    {
+      "id": 1581,
+      "no": "ACT1581",
+      "function_name": "主动控制/左后轴充气/排气"
+    },
+    {
+      "id": 1582,
+      "no": "ACT1582",
+      "function_name": "主动控制/右后轴充气/排气"
+    },
+    {
+      "id": 1583,
+      "no": "ACT1583",
+      "function_name": "主动控制/前轴充气/排气"
+    },
+    {
+      "id": 1584,
+      "no": "ACT1584",
+      "function_name": "主动控制/后轴充气/排气"
+    },
+    {
+      "id": 1585,
+      "no": "ACT1585",
+      "function_name": "主动控制/全轴充气/排气"
+    },
+    {
+      "id": 1586,
+      "no": "ACT1586",
+      "function_name": "主动控制/储气罐充气/排气"
+    },
+    {
+      "id": 1587,
+      "no": "ACT1587",
+      "function_name": "主动控制/左前轴管路气压测量"
+    },
+    {
+      "id": 1588,
+      "no": "ACT1588",
+      "function_name": "主动控制/右前轴管路气压测量"
+    },
+    {
+      "id": 1589,
+      "no": "ACT1589",
+      "function_name": "主动控制/左后轴管路气压测量"
+    },
+    {
+      "id": 1590,
+      "no": "ACT1590",
+      "function_name": "主动控制/右后轴管路气压测量"
+    },
+    {
+      "id": 1591,
+      "no": "ACT1591",
+      "function_name": "主动控制/储气罐气压测量"
+    },
+    {
+      "id": 1592,
+      "no": "ACT1592",
+      "function_name": "主动控制/泵电机运转测试"
+    },
+    {
+      "id": 1593,
+      "no": "ACT1593",
+      "function_name": "主动控制/维修模式释放测试"
+    },
+    {
+      "id": 1594,
+      "no": "ACT1594",
+      "function_name": "主动控制/维修模式夹紧测试"
+    },
+    {
+      "id": 1595,
+      "no": "ACT1595",
+      "function_name": "主动控制/组装检测测试"
+    },
+    {
+      "id": 1596,
+      "no": "ACT1596",
+      "function_name": "主动控制/两侧执行器同时夹紧测试"
+    },
+    {
+      "id": 1597,
+      "no": "ACT1597",
+      "function_name": "主动控制/两侧执行器同时释放测试"
+    },
+    {
+      "id": 1598,
+      "no": "ACT1598",
+      "function_name": "主动控制/右侧执行器夹紧测试"
+    },
+    {
+      "id": 1599,
+      "no": "ACT1599",
+      "function_name": "主动控制/左侧执行器夹紧测试"
+    },
+    {
+      "id": 1600,
+      "no": "ACT1600",
+      "function_name": "主动控制/右侧执行器释放测试"
+    },
+    {
+      "id": 1601,
+      "no": "ACT1601",
+      "function_name": "主动控制/左侧执行器释放测试"
+    },
+    {
+      "id": 1602,
+      "no": "ACT1602",
+      "function_name": "主动控制/油寿命初始化"
+    },
+    {
+      "id": 1603,
+      "no": "ACT1603",
+      "function_name": "主动控制/尾翼打开"
+    },
+    {
+      "id": 1604,
+      "no": "ACT1604",
+      "function_name": "主动控制/尾翼关闭"
+    },
+    {
+      "id": 1605,
+      "no": "ACT1605",
+      "function_name": "主动控制/左前开关电磁阀"
+    },
+    {
+      "id": 1606,
+      "no": "ACT1606",
+      "function_name": "主动控制/右前开关电磁阀"
+    },
+    {
+      "id": 1607,
+      "no": "ACT1607",
+      "function_name": "标定/XCP使能状态"
+    },
+    {
+      "id": 1608,
+      "no": "ACT1608",
+      "function_name": "标定/左前高度传感器值写入"
+    },
+    {
+      "id": 1609,
+      "no": "ACT1609",
+      "function_name": "标定/右前高度传感器值写入"
+    },
+    {
+      "id": 1610,
+      "no": "ACT1610",
+      "function_name": "标定/左后高度传感器值写入"
+    },
+    {
+      "id": 1611,
+      "no": "ACT1611",
+      "function_name": "标定/右后高度传感器值写入"
+    },
+    {
+      "id": 1612,
+      "no": "ACT1612",
+      "function_name": "标定/左前电磁阀设置电流值写入"
+    },
+    {
+      "id": 1613,
+      "no": "ACT1613",
+      "function_name": "标定/右前电磁阀设置电流值写入"
+    },
+    {
+      "id": 1614,
+      "no": "ACT1614",
+      "function_name": "标定/左后电磁阀设置电流值写入"
+    },
+    {
+      "id": 1615,
+      "no": "ACT1615",
+      "function_name": "标定/右后电磁阀设置电流值写入"
+    },
+    {
+      "id": 1616,
+      "no": "ACT1616",
+      "function_name": "标定/左前电磁阀标定实际电流值写入"
+    },
+    {
+      "id": 1617,
+      "no": "ACT1617",
+      "function_name": "标定/右前电磁阀标定实际电流值写入"
+    },
+    {
+      "id": 1618,
+      "no": "ACT1618",
+      "function_name": "标定/左后电磁阀标定实际电流值写入"
+    },
+    {
+      "id": 1619,
+      "no": "ACT1619",
+      "function_name": "标定/右后电磁阀标定实际电流值写入"
+    },
+    {
+      "id": 1620,
+      "no": "ACT1620",
+      "function_name": "标定/VDS机油寿命值写入无效"
+    },
+    {
+      "id": 1621,
+      "no": "ACT1621",
+      "function_name": "标定/VDS机油寿命值写入有效"
+    },
+    {
+      "id": 1622,
+      "no": "ACT1622",
+      "function_name": "标定/VDS变速器油寿命值写入无效"
+    },
+    {
+      "id": 1623,
+      "no": "ACT1623",
+      "function_name": "标定/VDS变速器油寿命值写入有效"
+    },
+    {
+      "id": 1624,
+      "no": "ACT1624",
+      "function_name": "标定/VDS制动液寿命值写入无效"
+    },
+    {
+      "id": 1625,
+      "no": "ACT1625",
+      "function_name": "标定/VDS制动液寿命值写入有效"
+    },
+    {
+      "id": 1626,
+      "no": "ACT1626",
+      "function_name": "标定/VDS长效冷却液寿命值写入无效"
+    },
+    {
+      "id": 1627,
+      "no": "ACT1627",
+      "function_name": "标定/VDS长效冷却液寿命值写入有效"
+    },
+    {
+      "id": 1628,
+      "no": "ACT1628",
+      "function_name": "标定/VDS刀片电池冷却液寿命值写入无效"
+    },
+    {
+      "id": 1629,
+      "no": "ACT1629",
+      "function_name": "标定/VDS刀片电池冷却液寿命值写入有效"
+    }
+  ],
+  "diagnosticCommandsExecuted": 0,
+  "limits": [
+    "DTC, live data and freeze frame fields are SupportEnum coverage flags, not dictionaries or parameter schemas.",
+    "Only action/special-function fields link named detail metadata in the inspected public frontend.",
+    "The 67 IDC action titles are offline search terms, not passive getters, request bytes or permission to actuate the vehicle.",
+    "No CAN address, PID/DID, unit, scaling, fault definition or software applicability is exposed in these detail rows.",
+    "Support flags apply to this Xtool package/version, not to the physical capabilities of an ECU or the head-unit transport."
+  ]
+}

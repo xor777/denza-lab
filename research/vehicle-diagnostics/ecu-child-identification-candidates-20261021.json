@@ -1,0 +1,306 @@
+{
+  "schema": "denza-lab.child-identity-candidates.v1",
+  "date": "2026-10-21",
+  "state": "offline_unexecuted_candidate_metadata_not_an_executable_probe",
+  "liveRequestsThisPass": 0,
+  "factoryMap": {
+    "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+    "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+  },
+  "cacheSource": {
+    "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+    "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+  },
+  "modelCatalog": {
+    "path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json",
+    "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24"
+  },
+  "candidates": [
+    {
+      "ecuId": "HTH-2021_SMF_L_DFL_00100001",
+      "labelRu": "Массаж переднего левого сиденья",
+      "sourceRowId": 1463,
+      "route": {
+        "kind": "can",
+        "requestId": 1872,
+        "responseId": 1880,
+        "physicalBus": null
+      },
+      "ecuChannel": "1",
+      "versionDid": "F8C5",
+      "codeDid": "F8C4",
+      "proposedReadHex": "22F8C4",
+      "expectedPositivePrefixHex": "62F8C4",
+      "cachedSoftwareCode": "47380011DFE3000102",
+      "cachedSoftwareVersion": "4.00.04",
+      "parentRouteAnsweredPreviously": true,
+      "childIdentityRead": false,
+      "childDtcRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "ecuId": "HTH-2021_SMF_R_DFL_00100001",
+      "labelRu": "Массаж переднего правого сиденья",
+      "sourceRowId": 1430,
+      "route": {
+        "kind": "can",
+        "requestId": 1973,
+        "responseId": 1981,
+        "physicalBus": null
+      },
+      "ecuChannel": "0",
+      "versionDid": "F8D5",
+      "codeDid": "F8D4",
+      "proposedReadHex": "22F8D4",
+      "expectedPositivePrefixHex": "62F8D4",
+      "cachedSoftwareCode": "47380011DFE2000200",
+      "cachedSoftwareVersion": "2.00.11",
+      "parentRouteAnsweredPreviously": true,
+      "childIdentityRead": false,
+      "childDtcRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "ecuId": "HTH-2021_SMR_L_DFL_00100001",
+      "labelRu": "Массаж заднего левого сиденья",
+      "sourceRowId": 1415,
+      "route": {
+        "kind": "can",
+        "requestId": 2002,
+        "responseId": 2010,
+        "physicalBus": null
+      },
+      "ecuChannel": "0",
+      "versionDid": "F8E5",
+      "codeDid": "F8E4",
+      "proposedReadHex": "22F8E4",
+      "expectedPositivePrefixHex": "62F8E4",
+      "cachedSoftwareCode": "47380011DFE0001C00",
+      "cachedSoftwareVersion": "2.00.12",
+      "parentRouteAnsweredPreviously": true,
+      "childIdentityRead": false,
+      "childDtcRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "ecuId": "HTH-2021_SMR_R_DFL_00100001",
+      "labelRu": "Массаж заднего правого сиденья",
+      "sourceRowId": 1416,
+      "route": {
+        "kind": "can",
+        "requestId": 2002,
+        "responseId": 2010,
+        "physicalBus": null
+      },
+      "ecuChannel": "0",
+      "versionDid": "F8F5",
+      "codeDid": "F8F4",
+      "proposedReadHex": "22F8F4",
+      "expectedPositivePrefixHex": "62F8F4",
+      "cachedSoftwareCode": "47380011DFE1001D00",
+      "cachedSoftwareVersion": "2.00.12",
+      "parentRouteAnsweredPreviously": true,
+      "childIdentityRead": false,
+      "childDtcRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "ecuId": "HTH-2021_RL_L_BYD_00200001",
+      "labelRu": "Левый комбинированный задний фонарь",
+      "sourceRowId": 1411,
+      "route": {
+        "kind": "can",
+        "requestId": 1830,
+        "responseId": 1838,
+        "physicalBus": null
+      },
+      "ecuChannel": "0",
+      "versionDid": "F205",
+      "codeDid": "F204",
+      "proposedReadHex": "22F204",
+      "expectedPositivePrefixHex": "62F204",
+      "cachedSoftwareCode": "48330011DFC5000201",
+      "cachedSoftwareVersion": "2.00.05",
+      "parentRouteAnsweredPreviously": true,
+      "childIdentityRead": false,
+      "childDtcRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "ecuId": "HTH-2021_RL_R_BYD_00200001",
+      "labelRu": "Правый комбинированный задний фонарь",
+      "sourceRowId": 1412,
+      "route": {
+        "kind": "can",
+        "requestId": 1830,
+        "responseId": 1838,
+        "physicalBus": null
+      },
+      "ecuChannel": "0",
+      "versionDid": "F215",
+      "codeDid": "F214",
+      "proposedReadHex": "22F214",
+      "expectedPositivePrefixHex": "62F214",
+      "cachedSoftwareCode": "48330011DFC6000202",
+      "cachedSoftwareVersion": "2.00.05",
+      "parentRouteAnsweredPreviously": true,
+      "childIdentityRead": false,
+      "childDtcRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "ecuId": "HTH-2021_TL_L_BYD_00200001",
+      "labelRu": "Левый задний фонарь TL",
+      "sourceRowId": 1413,
+      "route": {
+        "kind": "can",
+        "requestId": 1830,
+        "responseId": 1838,
+        "physicalBus": null
+      },
+      "ecuChannel": "0",
+      "versionDid": "F065",
+      "codeDid": "F064",
+      "proposedReadHex": "22F064",
+      "expectedPositivePrefixHex": "62F064",
+      "cachedSoftwareCode": "48330011DFB2000203",
+      "cachedSoftwareVersion": "2.00.05",
+      "parentRouteAnsweredPreviously": true,
+      "childIdentityRead": false,
+      "childDtcRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "ecuId": "HTH-2021_TL_R_BYD_00200001",
+      "labelRu": "Правый задний фонарь TL",
+      "sourceRowId": 1414,
+      "route": {
+        "kind": "can",
+        "requestId": 1830,
+        "responseId": 1838,
+        "physicalBus": null
+      },
+      "ecuChannel": "0",
+      "versionDid": "F235",
+      "codeDid": "F234",
+      "proposedReadHex": "22F234",
+      "expectedPositivePrefixHex": "62F234",
+      "cachedSoftwareCode": "48330011DFD5000204",
+      "cachedSoftwareVersion": "2.00.05",
+      "parentRouteAnsweredPreviously": true,
+      "childIdentityRead": false,
+      "childDtcRead": false,
+      "eligibleForProductAllowlist": false
+    }
+  ],
+  "unboundSubidentities": [
+    {
+      "ecuId": "HTH-2021_INS_BYD_00400001",
+      "route": {
+        "kind": "can",
+        "requestId": 1827,
+        "responseId": 1835,
+        "physicalBus": null
+      },
+      "softwareDidPair": "F395/F394",
+      "cachedSoftwareCode": "4B450011E0250037C1",
+      "cachedSoftwareVersion": "4.00.04",
+      "modelCatalogSubidentity": null,
+      "reason": "No proved mapping from the factory variant/DID to the catalog submodule name; do not assign by order."
+    },
+    {
+      "ecuId": "HTH-2021_INS_BYD_00500001",
+      "route": {
+        "kind": "can",
+        "requestId": 1827,
+        "responseId": 1835,
+        "physicalBus": null
+      },
+      "softwareDidPair": "F495/F494",
+      "cachedSoftwareCode": "4B450011E0250037D1",
+      "cachedSoftwareVersion": "3.00.00",
+      "modelCatalogSubidentity": null,
+      "reason": "No proved mapping from the factory variant/DID to the catalog submodule name; do not assign by order."
+    },
+    {
+      "ecuId": "HTH-2021_FRL_BYD_00200001",
+      "route": {
+        "kind": "can",
+        "requestId": 1863,
+        "responseId": 1871,
+        "physicalBus": null
+      },
+      "softwareDidPair": "F655/F654",
+      "cachedSoftwareCode": "48330011DEE3003B7B",
+      "cachedSoftwareVersion": "3.00.04",
+      "modelCatalogSubidentity": null,
+      "reason": "No proved mapping from the factory variant/DID to the catalog submodule name; do not assign by order."
+    },
+    {
+      "ecuId": "HTH-2021_FRL_BYD_00300001",
+      "route": {
+        "kind": "can",
+        "requestId": 1863,
+        "responseId": 1871,
+        "physicalBus": null
+      },
+      "softwareDidPair": "F645/F644",
+      "cachedSoftwareCode": "48330011DEE3003B7A",
+      "cachedSoftwareVersion": "3.00.04",
+      "modelCatalogSubidentity": null,
+      "reason": "No proved mapping from the factory variant/DID to the catalog submodule name; do not assign by order."
+    },
+    {
+      "ecuId": "HTH-2021_FRL_BYD_00400001",
+      "route": {
+        "kind": "can",
+        "requestId": 1863,
+        "responseId": 1871,
+        "physicalBus": null
+      },
+      "softwareDidPair": "FB25/FB24",
+      "cachedSoftwareCode": "48330011DEE3003BB2",
+      "cachedSoftwareVersion": "2.00.02",
+      "modelCatalogSubidentity": null,
+      "reason": "No proved mapping from the factory variant/DID to the catalog submodule name; do not assign by order."
+    },
+    {
+      "ecuId": "HTH-2021_CDC_BYD_00100001",
+      "route": {
+        "kind": "can",
+        "requestId": 1824,
+        "responseId": 1832,
+        "physicalBus": null
+      },
+      "softwareDidPair": "F195/F194",
+      "cachedSoftwareCode": "4B310011E0019A0002",
+      "cachedSoftwareVersion": "4.00.53",
+      "modelCatalogSubidentity": null,
+      "reason": "No proved mapping from the factory variant/DID to the catalog submodule name; do not assign by order."
+    },
+    {
+      "ecuId": "HTH-2021_CDC_BYD_00200001",
+      "route": {
+        "kind": "can",
+        "requestId": 1824,
+        "responseId": 1832,
+        "physicalBus": null
+      },
+      "softwareDidPair": "C295/C294",
+      "cachedSoftwareCode": "4A500111DF019A0101",
+      "cachedSoftwareVersion": "2.11.04",
+      "modelCatalogSubidentity": null,
+      "reason": "No proved mapping from the factory variant/DID to the catalog submodule name; do not assign by order."
+    }
+  ],
+  "limits": [
+    "These are eight child software identities behind four already answered parent CAN routes, not eight newly proved CAN addresses.",
+    "A nonzero cached version is a lead, not proof of a currently installed or responsive child.",
+    "Independent lamp routes 5C4-5C7 already returned gateway result 3; the alternative 726 records have nonzero cached software.",
+    "Xtool names the child family. Factory metadata supplies its route and version/code DID pair; only the owner cache supplies the expected code.",
+    "A successful child code read would establish identity only, not an independently addressable DTC memory.",
+    "The product whitelist does not allow these DIDs. RemainingEcuReadProbe also assumes F194 when decoding; no existing probe is claimed to execute this file.",
+    "A later fixed read-only probe needs offline validation, the documented vehicle/ownership gates and an available parked vehicle. No sessions, writes or clears are proposed.",
+    "CDC at 720 remains in conflict with the stock tester LA_BCM name; these variant records do not resolve that conflict."
+  ]
+}

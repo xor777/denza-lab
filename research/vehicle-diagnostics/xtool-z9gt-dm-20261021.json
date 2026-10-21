@@ -1,0 +1,5617 @@
+{
+  "schema": "denza-lab.xtool-model-catalog.v1",
+  "date": "2026-10-21",
+  "publisher": "Xtool",
+  "sourceType": "diagnostic_tool_manufacturer_public_capability_catalog_not_OEM_dictionary",
+  "entryUrl": "https://en.xtooltech.com/function-lists",
+  "viewerUrl": "https://www.xtooltech.com/funcquery/index.html?#/Diagnosis?lang=CN&configName=E2PRO_CN_V01&packId=PS_TENGSHIEV&packVer=6.61",
+  "brand": "腾势汽车",
+  "model": "Z9GT/Z9GT DM",
+  "scannerPackage": "PS_TENGSHIEV",
+  "scannerVersion": "6.61",
+  "vehicleSoftwareVersion": null,
+  "sourceResponses": [
+    {
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-DM-661-rows-p1.json",
+      "sha256": "cff4385a997711efdc83deeaceaedc99b01379096a81a3fe29a7b01880932e3b",
+      "requestPath": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-DM-661-rows-p1.request.json",
+      "requestSha256": "6b32b79e011268b1d2fbb6cda013d25ab0582adb8efa6df375ce47a7729d9f5c"
+    },
+    {
+      "path": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-DM-661-rows-p2.json",
+      "sha256": "47a55df9cf5e489b96d89caa2956f717aee84d0c49f02dfff636a3945e027926",
+      "requestPath": "captures/diagnostics-ecu-roles-20261021/cabin/xtool-Z9GT-DM-661-rows-p2.request.json",
+      "requestSha256": "25d63ed9e07932da34cf5a5675181a7fa48ccdf2a91e1f5f0cf9bdc7c72adedf"
+    }
+  ],
+  "factoryMap": {
+    "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+    "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+  },
+  "liveScan": {
+    "path": "captures/diagnostics-scanner-20261020/last-scan-1931.json",
+    "sha256": "cc54c867d6f2f9eacf565af62943767ac5e6e3d2c38de3a892a39d5adef797e4"
+  },
+  "validation": {
+    "rows": 172,
+    "uniqueRowIds": 172,
+    "pageSizes": [
+      100,
+      72
+    ],
+    "scopeVerified": true,
+    "scopedOptionSetAgrees": true,
+    "relations": {
+      "factory_family_only": 53,
+      "known_live_family": 72,
+      "no_exact_factory_family": 47
+    }
+  },
+  "limits": [
+    "172 system rows include supplier alternatives, LIN children and optional configurations; not 172 installed ECU addresses.",
+    "Exact-family crosswalk only; no numeric suffix stripping or fuzzy matches. A shared parent route does not prove a LIN child was read.",
+    "Xtool does not provide CAN addresses, DIDs, scaling or DTC definitions in these rows. Factory routes come from the independent owner map.",
+    "Capability flags describe Xtool support, not this head-unit transport. No new requests or product whitelist changes are authorized by this file.",
+    "DoIP target/client tuples must never be treated as CAN request/reply pairs. Source network names do not establish physical MCU bus channels."
+  ],
+  "systems": [
+    {
+      "rowId": 1324,
+      "page": 1,
+      "pointer": "/data/Data/0",
+      "systemZh": "BLIN2网/左尾灯控制模块(LIN)(比亚迪)(TL_L)",
+      "token": "TL_L",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_TL_L_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1479,
+            "responseId": 1487,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_TL_L_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F065/F064",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1325,
+      "page": 1,
+      "pointer": "/data/Data/1",
+      "systemZh": "BLIN2网/右尾灯控制模块(LIN)(比亚迪)(TL_R)",
+      "token": "TL_R",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_TL_R_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1478,
+            "responseId": 1486,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_TL_R_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F235/F234",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1326,
+      "page": 1,
+      "pointer": "/data/Data/2",
+      "systemZh": "BLIN2网/右组合后灯控制模块(LIN)(比亚迪)(RL_R)",
+      "token": "RL_R",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RL_R_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1476,
+            "responseId": 1484,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_RL_R_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F215/F214",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1327,
+      "page": 1,
+      "pointer": "/data/Data/3",
+      "systemZh": "BLIN2网/左组合后灯控制模块(LIN)(比亚迪)(RL_L)",
+      "token": "RL_L",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RL_L_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1477,
+            "responseId": 1485,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_RL_L_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F205/F204",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1328,
+      "page": 1,
+      "pointer": "/data/Data/4",
+      "systemZh": "BLIN2网/电子雨刮电机控制器(博世)(WSM)",
+      "token": "WSM",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WSM_BOSCH_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1826,
+            "responseId": 1834,
+            "physicalBus": null
+          },
+          "softwareDid": "F3B5/F3B4",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1329,
+      "page": 1,
+      "pointer": "/data/Data/5",
+      "systemZh": "BLIN2网/充电口指示灯(比亚迪)(CIL)",
+      "token": "CIL",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_CIL_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F245/F244",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1330,
+      "page": 1,
+      "pointer": "/data/Data/6",
+      "systemZh": "BLIN2网/左充电口指示灯(比亚迪)(L_CIL)",
+      "token": "L_CIL",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_L_CIL_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F575/F574",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1331,
+      "page": 1,
+      "pointer": "/data/Data/7",
+      "systemZh": "ECM子网/热管理集成模块(宁波拓普)(TMIM)",
+      "token": "TMIM",
+      "networkZh": "ECM子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1972
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_TMIM_TUOPU_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1972,
+            "responseId": 1980,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1332,
+      "page": 1,
+      "pointer": "/data/Data/8",
+      "systemZh": "LLIN1网/左前门反射式氛围灯前灯头(比亚迪)(DAL1)",
+      "token": "DAL1",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1333,
+      "page": 1,
+      "pointer": "/data/Data/9",
+      "systemZh": "LLIN1网/左前门反射式氛围灯后灯头(比亚迪)(DAL2)",
+      "token": "DAL2",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1334,
+      "page": 1,
+      "pointer": "/data/Data/10",
+      "systemZh": "LLIN1网/左前门扶手氛围灯左灯头(比亚迪)(DAL3)",
+      "token": "DAL3",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1335,
+      "page": 1,
+      "pointer": "/data/Data/11",
+      "systemZh": "LLIN1网/左前门扶手氛围灯右灯头(比亚迪)(DAL4)",
+      "token": "DAL4",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1336,
+      "page": 1,
+      "pointer": "/data/Data/12",
+      "systemZh": "LLIN1网/左前门面板氛围灯前灯头(流水)(比亚迪)(DAL5)",
+      "token": "DAL5",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1337,
+      "page": 1,
+      "pointer": "/data/Data/13",
+      "systemZh": "LLIN1网/左前门低音扬声器氛围灯前灯头(比亚迪)(DAL6)",
+      "token": "DAL6",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1338,
+      "page": 1,
+      "pointer": "/data/Data/14",
+      "systemZh": "LLIN1网/左前门低音扬声器氛围灯后灯头(比亚迪)(DAL7)",
+      "token": "DAL7",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1339,
+      "page": 1,
+      "pointer": "/data/Data/15",
+      "systemZh": "LLIN2网/副仪表板后风口中间氛围灯(比亚迪)(DIDAL)",
+      "token": "DIDAL",
+      "networkZh": "LLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "FF65/FF64",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_00300001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "FF75/FF74",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_0A100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F0E5/F0E4",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_0A200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F0F5/F0F4",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_0A300001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F105/F104",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_0A800001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "FEB5/FEB4",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1340,
+      "page": 1,
+      "pointer": "/data/Data/16",
+      "systemZh": "LLIN3网/左后门反射式氛围灯前灯头(比亚迪)(DAL8)",
+      "token": "DAL8",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1341,
+      "page": 1,
+      "pointer": "/data/Data/17",
+      "systemZh": "LLIN3网/左后门反射式氛围灯后灯头(比亚迪)(DAL9)",
+      "token": "DAL9",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1342,
+      "page": 1,
+      "pointer": "/data/Data/18",
+      "systemZh": "LLIN3网/左后门扶手氛围灯左灯头(比亚迪)(DAL10)",
+      "token": "DAL10",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1343,
+      "page": 1,
+      "pointer": "/data/Data/19",
+      "systemZh": "LLIN3网/左后门扶手氛围灯右灯头(比亚迪)(DAL11)",
+      "token": "DAL11",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1344,
+      "page": 1,
+      "pointer": "/data/Data/20",
+      "systemZh": "LLIN3网/左后门低音扬声器氛围灯前灯头(比亚迪)(DAL12)",
+      "token": "DAL12",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1345,
+      "page": 1,
+      "pointer": "/data/Data/21",
+      "systemZh": "LLIN3网/左后门低音扬声器氛围灯后灯头(比亚迪)(DAL13)",
+      "token": "DAL13",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1346,
+      "page": 1,
+      "pointer": "/data/Data/22",
+      "systemZh": "LLIN4网/转向盘离手检测(均胜)(HOD)",
+      "token": "HOD",
+      "networkZh": "LLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_HOD_JOYSON_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F515/F514",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1347,
+      "page": 1,
+      "pointer": "/data/Data/23",
+      "systemZh": "RLIN1网/前排出风口电机(延锋)(FAOM)",
+      "token": "FAOM",
+      "networkZh": "RLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_FAOM_yanfeng_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F955/F954",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1348,
+      "page": 1,
+      "pointer": "/data/Data/24",
+      "systemZh": "RLIN2网/后排出风口电机(延锋)(AOM)",
+      "token": "AOM",
+      "networkZh": "RLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_AOM_yanfeng_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F965/F964",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1349,
+      "page": 1,
+      "pointer": "/data/Data/25",
+      "systemZh": "RLIN3网/车载香氛总成(比亚迪)(VFRAG)",
+      "token": "VFRAG",
+      "networkZh": "RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_VFRAG_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F3F5/F3F4",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1350,
+      "page": 1,
+      "pointer": "/data/Data/26",
+      "systemZh": "RLIN4网/右前门面板氛围灯前灯头(流水)(比亚迪)(DAL14)",
+      "token": "DAL14",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1351,
+      "page": 1,
+      "pointer": "/data/Data/27",
+      "systemZh": "RLIN4网/右前门反射式氛围灯前灯头(比亚迪)(DAL15)",
+      "token": "DAL15",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1352,
+      "page": 1,
+      "pointer": "/data/Data/28",
+      "systemZh": "RLIN4网/右前门反射式氛围灯后灯头(比亚迪)(DAL16)",
+      "token": "DAL16",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1353,
+      "page": 1,
+      "pointer": "/data/Data/29",
+      "systemZh": "RLIN4网/右前门扶手氛围灯右灯头(比亚迪)(DAL17)",
+      "token": "DAL17",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1354,
+      "page": 1,
+      "pointer": "/data/Data/30",
+      "systemZh": "RLIN4网/右前门低音扬声器氛围灯前灯头(比亚迪)(DAL18)",
+      "token": "DAL18",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1355,
+      "page": 1,
+      "pointer": "/data/Data/31",
+      "systemZh": "RLIN4网/右前门低音扬声器氛围灯后灯头(比亚迪)(DAL19)",
+      "token": "DAL19",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1356,
+      "page": 1,
+      "pointer": "/data/Data/32",
+      "systemZh": "RLIN4网/右前门扶手氛围灯左灯头(比亚迪)(DAL20)",
+      "token": "DAL20",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1357,
+      "page": 1,
+      "pointer": "/data/Data/33",
+      "systemZh": "RLIN4网/右前窗玻璃升降电机(比亚迪)(WLMFR)",
+      "token": "WLMFR",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WLMFR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F885/F884",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_WLMFR_INTEVA_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F885/F884",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1358,
+      "page": 1,
+      "pointer": "/data/Data/34",
+      "systemZh": "RLIN6网/右后门反射式氛围灯前灯头(比亚迪)(DAL21)",
+      "token": "DAL21",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1359,
+      "page": 1,
+      "pointer": "/data/Data/35",
+      "systemZh": "RLIN6网/右后门反射式氛围灯后灯头(比亚迪)(DAL22)",
+      "token": "DAL22",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1360,
+      "page": 1,
+      "pointer": "/data/Data/36",
+      "systemZh": "RLIN6网/右后门扶手氛围灯左灯头(比亚迪)(DAL23)",
+      "token": "DAL23",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1361,
+      "page": 1,
+      "pointer": "/data/Data/37",
+      "systemZh": "RLIN6网/右后门扶手氛围灯右灯头(比亚迪)(DAL24)",
+      "token": "DAL24",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1362,
+      "page": 1,
+      "pointer": "/data/Data/38",
+      "systemZh": "RLIN6网/右后门低音扬声器氛围灯前灯头(比亚迪)(DAL25)",
+      "token": "DAL25",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1363,
+      "page": 1,
+      "pointer": "/data/Data/39",
+      "systemZh": "RLIN6网/右后门低音扬声器氛围灯后灯头(比亚迪)(DAL26)",
+      "token": "DAL26",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1364,
+      "page": 1,
+      "pointer": "/data/Data/40",
+      "systemZh": "RLIN6网/右前窗玻璃升降电机(恩坦华)(WLMFR)",
+      "token": "WLMFR",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WLMFR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F885/F884",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_WLMFR_INTEVA_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F885/F884",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1365,
+      "page": 1,
+      "pointer": "/data/Data/41",
+      "systemZh": "RLIN6网/右后窗玻璃升降电机(比亚迪)(WLMRR)",
+      "token": "WLMRR",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WLMRR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F1D5/F1D4",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_WLMRR_INTEVA_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F1D5/F1D4",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1366,
+      "page": 1,
+      "pointer": "/data/Data/42",
+      "systemZh": "RLIN6网/右后窗玻璃升降电机(恩坦华)(WLMRR)",
+      "token": "WLMRR",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WLMRR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F1D5/F1D4",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_WLMRR_INTEVA_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F1D5/F1D4",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1367,
+      "page": 1,
+      "pointer": "/data/Data/43",
+      "systemZh": "UWB子网/UWB主控制器(联电)(UWBMC)",
+      "token": "UWBMC",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2035
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_UWBMC_KOSTAL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2035,
+            "responseId": 2043,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_UWBMC_UAES_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2035,
+            "responseId": 2043,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1368,
+      "page": 1,
+      "pointer": "/data/Data/44",
+      "systemZh": "UWB子网/UWB左前锚点(联电)(UWBLFA)",
+      "token": "UWBLFA",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2036
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_UWBLFA_KOSTAL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2036,
+            "responseId": 2044,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLFA_UAES_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2036,
+            "responseId": 2044,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1369,
+      "page": 1,
+      "pointer": "/data/Data/45",
+      "systemZh": "UWB子网/UWB右前锚点(联电)(UWBRFA)",
+      "token": "UWBRFA",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2037
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_UWBRFA_KOSTAL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2037,
+            "responseId": 2045,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRFA_UAES_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2037,
+            "responseId": 2045,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1370,
+      "page": 1,
+      "pointer": "/data/Data/46",
+      "systemZh": "UWB子网/UWB左后锚点(联电)(UWBLRA)",
+      "token": "UWBLRA",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2038
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_UWBLRA_KOSTAL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2038,
+            "responseId": 2046,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_UWBLRA_UAES_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2038,
+            "responseId": 2046,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1371,
+      "page": 1,
+      "pointer": "/data/Data/47",
+      "systemZh": "UWB子网/UWB右后锚点(联电)(UWBRRA)",
+      "token": "UWBRRA",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2039
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_UWBRRA_KOSTAL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2039,
+            "responseId": 2047,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_UWBRRA_UAES_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2039,
+            "responseId": 2047,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1372,
+      "page": 1,
+      "pointer": "/data/Data/48",
+      "systemZh": "UWB子网/右NFC控制模块(比亚迪)(R-NCM)",
+      "token": "R-NCM",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1429
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_R-NCM_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1429,
+            "responseId": 1437,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1373,
+      "page": 1,
+      "pointer": "/data/Data/49",
+      "systemZh": "地板LLIN1网/左后窗玻璃升降电机(比亚迪)(WLMRL)",
+      "token": "WLMRL",
+      "networkZh": "地板LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WLMRL_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F1C5/F1C4",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_WLMRL_INTEVA_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F1C5/F1C4",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1374,
+      "page": 1,
+      "pointer": "/data/Data/50",
+      "systemZh": "地板LLIN1网/左后窗玻璃升降电机(恩坦华)(WLMRL)",
+      "token": "WLMRL",
+      "networkZh": "地板LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WLMRL_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F1C5/F1C4",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_WLMRL_INTEVA_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F1C5/F1C4",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1375,
+      "page": 1,
+      "pointer": "/data/Data/51",
+      "systemZh": "底盘网/安全气囊(维宁尔)(SRS)",
+      "token": "SRS",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2033
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SRS_VEONEER_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2033,
+            "responseId": 2041,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1376,
+      "page": 1,
+      "pointer": "/data/Data/52",
+      "systemZh": "底盘网/助力转向_DPEPS(天合)(DPEPS)",
+      "token": "DPEPS",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_DPEPS_TRW_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1923,
+            "responseId": 1931,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1377,
+      "page": 1,
+      "pointer": "/data/Data/53",
+      "systemZh": "底盘网/整车运动控制器(比亚迪)(IDC)",
+      "token": "IDC",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1431
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_IDC_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1431,
+            "responseId": 1439,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_IDC_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1431,
+            "responseId": 1439,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1378,
+      "page": 1,
+      "pointer": "/data/Data/54",
+      "systemZh": "底盘网/整车运动控制器D2(比亚迪)(IDC_D2)",
+      "token": "IDC_D2",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1379,
+      "page": 1,
+      "pointer": "/data/Data/55",
+      "systemZh": "底盘网/电液制动(博世)(IPB)",
+      "token": "IPB",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1922
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_IPB_BOSCH_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1922,
+            "responseId": 1930,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1380,
+      "page": 1,
+      "pointer": "/data/Data/56",
+      "systemZh": "底盘网/整车控制器(联电)(VCU)",
+      "token": "VCU",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2018
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_VCU_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2018,
+            "responseId": 2026,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_VCU_UAES_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2018,
+            "responseId": 2026,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1381,
+      "page": 1,
+      "pointer": "/data/Data/57",
+      "systemZh": "底盘网/左后轮转向器总成(比亚迪)(RWS-L)",
+      "token": "RWS-L",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1410
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RWS-L_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1410,
+            "responseId": 1418,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1382,
+      "page": 1,
+      "pointer": "/data/Data/58",
+      "systemZh": "底盘网/右后轮转向器总成(比亚迪)(RWS-R)",
+      "token": "RWS-R",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1942
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RWS-R_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1942,
+            "responseId": 1950,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1383,
+      "page": 1,
+      "pointer": "/data/Data/59",
+      "systemZh": "底盘网/安全系统(比亚迪)(BSC)",
+      "token": "BSC",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_BSC_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1922,
+            "responseId": 1930,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1384,
+      "page": 1,
+      "pointer": "/data/Data/60",
+      "systemZh": "底盘网-ECU子网/发动机控制器_[2.0TID]国六(联电)(ECM)",
+      "token": "ECM",
+      "networkZh": "底盘网-ECU子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2016
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_ECM_UAES_01200001",
+          "route": {
+            "kind": "can",
+            "requestId": 2016,
+            "responseId": 2024,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1385,
+      "page": 1,
+      "pointer": "/data/Data/61",
+      "systemZh": "底盘网-电控子网/发电机控制器(比亚迪)(ISG)",
+      "token": "ISG",
+      "networkZh": "底盘网-电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2022
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_ISG_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2022,
+            "responseId": 2030,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1386,
+      "page": 1,
+      "pointer": "/data/Data/62",
+      "systemZh": "底盘网-电控子网/动力域控制器-VCU(比亚迪)(PDC-VCU)",
+      "token": "PDC-VCU",
+      "networkZh": "底盘网-电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1859
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_PDC-VCU_FDP_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1859,
+            "responseId": 1867,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_PDC-VCU_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1859,
+            "responseId": 1867,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1387,
+      "page": 1,
+      "pointer": "/data/Data/63",
+      "systemZh": "电控子网/右后驱动电机控制器(比亚迪)(SMCU3)",
+      "token": "SMCU3",
+      "networkZh": "电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1861
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SMCU3_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1861,
+            "responseId": 1869,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1388,
+      "page": 1,
+      "pointer": "/data/Data/64",
+      "systemZh": "电控子网/左后驱动电机控制器(比亚迪)(SMCU)",
+      "token": "SMCU",
+      "networkZh": "电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1860
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SMCU_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1860,
+            "responseId": 1868,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1389,
+      "page": 1,
+      "pointer": "/data/Data/65",
+      "systemZh": "电控子网/前驱动电机控制器(比亚迪)(FMCU)",
+      "token": "FMCU",
+      "networkZh": "电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2019
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_FMCU_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2019,
+            "responseId": 2027,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1390,
+      "page": 1,
+      "pointer": "/data/Data/66",
+      "systemZh": "顶棚RLIN5网/前室内灯氛围灯左灯头(比亚迪)(FRL1)",
+      "token": "FRL1",
+      "networkZh": "顶棚RLIN5网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1391,
+      "page": 1,
+      "pointer": "/data/Data/67",
+      "systemZh": "顶棚RLIN5网/前室内灯氛围灯右灯头(比亚迪)(FRL2)",
+      "token": "FRL2",
+      "networkZh": "顶棚RLIN5网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1392,
+      "page": 1,
+      "pointer": "/data/Data/68",
+      "systemZh": "顶棚RLIN5网/前室内环境灯(比亚迪)(FRL3)",
+      "token": "FRL3",
+      "networkZh": "顶棚RLIN5网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1393,
+      "page": 1,
+      "pointer": "/data/Data/69",
+      "systemZh": "多媒体网/后域控制器(比亚迪)(B_ZCU)",
+      "token": "B_ZCU",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1830
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_B_ZCU_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_B_ZCU_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "C595/C594",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1394,
+      "page": 1,
+      "pointer": "/data/Data/70",
+      "systemZh": "多媒体网/前域控制器(比亚迪)(F_ZCU)",
+      "token": "F_ZCU",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1826
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1826,
+            "responseId": 1834,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_F_ZCU_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "C395/C394",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1395,
+      "page": 1,
+      "pointer": "/data/Data/71",
+      "systemZh": "多媒体网/右域控制器(比亚迪)(R_ZCU)",
+      "token": "R_ZCU",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1863
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_R_ZCU_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_R_ZCU_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "C495/C494",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1396,
+      "page": 1,
+      "pointer": "/data/Data/72",
+      "systemZh": "多媒体网/后域控制器_交换机(比亚迪)(B_ZCU_CJ)",
+      "token": "B_ZCU_CJ",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1397,
+      "page": 1,
+      "pointer": "/data/Data/73",
+      "systemZh": "多媒体网/前域控制器_交换机(比亚迪)(F_ZCU_CJ)",
+      "token": "F_ZCU_CJ",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1398,
+      "page": 1,
+      "pointer": "/data/Data/74",
+      "systemZh": "多媒体网/右域控制器_交换机(比亚迪)(R_ZCU_CJ)",
+      "token": "R_ZCU_CJ",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1399,
+      "page": 1,
+      "pointer": "/data/Data/75",
+      "systemZh": "多媒体网/多媒体系统_安卓(比亚迪)(MEDIA)",
+      "token": "MEDIA",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1857
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_Media_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1857,
+            "responseId": 1865,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1400,
+      "page": 1,
+      "pointer": "/data/Data/76",
+      "systemZh": "多媒体网/组合仪表(比亚迪)(INS)",
+      "token": "INS",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1827
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_INS_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1827,
+            "responseId": 1835,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_INS_BYD_00400001",
+          "route": {
+            "kind": "can",
+            "requestId": 1827,
+            "responseId": 1835,
+            "physicalBus": null
+          },
+          "softwareDid": "F395/F394",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_INS_BYD_00500001",
+          "route": {
+            "kind": "can",
+            "requestId": 1827,
+            "responseId": 1835,
+            "physicalBus": null
+          },
+          "softwareDid": "F495/F494",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1401,
+      "page": 1,
+      "pointer": "/data/Data/77",
+      "systemZh": "多媒体网/前置激光雷达左(禾赛)(LIDAR-L)",
+      "token": "LIDAR-L",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_LIDAR-L_RoboSense_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1932,
+            "pairClient": 1,
+            "target": 1932
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        },
+        {
+          "ecuId": "HTH-2021_LIDAR-L_HESAI_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1932,
+            "pairClient": 1,
+            "target": 1932
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        }
+      ]
+    },
+    {
+      "rowId": 1402,
+      "page": 1,
+      "pointer": "/data/Data/78",
+      "systemZh": "多媒体网/前置激光雷达右(禾赛)(LIDAR-R)",
+      "token": "LIDAR-R",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_LIDAR-R_RoboSense_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1854,
+            "pairClient": 1,
+            "target": 1854
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        },
+        {
+          "ecuId": "HTH-2021_LIDAR-R_HESAI_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1854,
+            "pairClient": 1,
+            "target": 1854
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        }
+      ]
+    },
+    {
+      "rowId": 1403,
+      "page": 1,
+      "pointer": "/data/Data/79",
+      "systemZh": "多媒体网/前置激光雷达中(速腾聚创)(LIDAR-M)",
+      "token": "LIDAR-M",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_LIDAR-M_RoboSense_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1887,
+            "pairClient": 1,
+            "target": 1887
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        }
+      ]
+    },
+    {
+      "rowId": 1404,
+      "page": 1,
+      "pointer": "/data/Data/80",
+      "systemZh": "多媒体网/前置激光雷达左(速腾聚创)(LIDAR-L)",
+      "token": "LIDAR-L",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_LIDAR-L_RoboSense_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1932,
+            "pairClient": 1,
+            "target": 1932
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        },
+        {
+          "ecuId": "HTH-2021_LIDAR-L_HESAI_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1932,
+            "pairClient": 1,
+            "target": 1932
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        }
+      ]
+    },
+    {
+      "rowId": 1405,
+      "page": 1,
+      "pointer": "/data/Data/81",
+      "systemZh": "多媒体网/前置激光雷达右(速腾聚创)(LIDAR-R)",
+      "token": "LIDAR-R",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_LIDAR-R_RoboSense_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1854,
+            "pairClient": 1,
+            "target": 1854
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        },
+        {
+          "ecuId": "HTH-2021_LIDAR-R_HESAI_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1854,
+            "pairClient": 1,
+            "target": 1854
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        }
+      ]
+    },
+    {
+      "rowId": 1406,
+      "page": 1,
+      "pointer": "/data/Data/82",
+      "systemZh": "多媒体网/组合仪表_开阳MCU(比亚迪)(INS_MCU)",
+      "token": "INS_MCU",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1407,
+      "page": 1,
+      "pointer": "/data/Data/83",
+      "systemZh": "多媒体网/组合仪表_音源模块(比亚迪)(INS2)",
+      "token": "INS2",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1408,
+      "page": 1,
+      "pointer": "/data/Data/84",
+      "systemZh": "多媒体网/主机总成(从)(比亚迪)(ASSY)",
+      "token": "ASSY",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1511
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_ASSY_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1511,
+            "responseId": 1519,
+            "physicalBus": null
+          },
+          "softwareDid": "F295/F294",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1409,
+      "page": 1,
+      "pointer": "/data/Data/85",
+      "systemZh": "后车身网/背门AR投影感应控制模块(比亚迪)(PDCMB)",
+      "token": "PDCMB",
+      "networkZh": "后车身网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1828
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_PDCMB_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1828,
+            "responseId": 1836,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1410,
+      "page": 1,
+      "pointer": "/data/Data/86",
+      "systemZh": "后智能网/钥匙高频接收模块(比亚迪)(HFRM)",
+      "token": "HFRM",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1876
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_HFRM_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1876,
+            "responseId": 1884,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1411,
+      "page": 1,
+      "pointer": "/data/Data/87",
+      "systemZh": "后智能网/左组合后灯控制模块(比亚迪)(RL_L)",
+      "token": "RL_L",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RL_L_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1477,
+            "responseId": 1485,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_RL_L_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F205/F204",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1412,
+      "page": 1,
+      "pointer": "/data/Data/88",
+      "systemZh": "后智能网/右组合后灯控制模块(比亚迪)(RL_R)",
+      "token": "RL_R",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RL_R_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1476,
+            "responseId": 1484,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_RL_R_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F215/F214",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1413,
+      "page": 1,
+      "pointer": "/data/Data/89",
+      "systemZh": "后智能网/左尾灯控制模块(比亚迪)(TL_L)",
+      "token": "TL_L",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_TL_L_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1479,
+            "responseId": 1487,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_TL_L_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F065/F064",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1414,
+      "page": 1,
+      "pointer": "/data/Data/90",
+      "systemZh": "后智能网/右尾灯控制模块(比亚迪)(TL_R)",
+      "token": "TL_R",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_TL_R_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1478,
+            "responseId": 1486,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_TL_R_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1830,
+            "responseId": 1838,
+            "physicalBus": null
+          },
+          "softwareDid": "F235/F234",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1415,
+      "page": 1,
+      "pointer": "/data/Data/91",
+      "systemZh": "后智能网/左后座椅按摩(东风李尔)(SMR_L)",
+      "token": "SMR_L",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SMR_L_DFL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2002,
+            "responseId": 2010,
+            "physicalBus": null
+          },
+          "softwareDid": "F8E5/F8E4",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1416,
+      "page": 1,
+      "pointer": "/data/Data/92",
+      "systemZh": "后智能网/右后座椅按摩(东风李尔)(SMR_R)",
+      "token": "SMR_R",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SMR_R_DFL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2002,
+            "responseId": 2010,
+            "physicalBus": null
+          },
+          "softwareDid": "F8F5/F8F4",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1417,
+      "page": 1,
+      "pointer": "/data/Data/93",
+      "systemZh": "后智能网/中排左侧通用控制器mini(比亚迪)(MLUCU)",
+      "token": "MLUCU",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2002
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_MLUCU_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2002,
+            "responseId": 2010,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1418,
+      "page": 1,
+      "pointer": "/data/Data/94",
+      "systemZh": "前车身网/空调压缩机(比亚迪)(ACC)",
+      "token": "ACC",
+      "networkZh": "前车身网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1971
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_ACC_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1971,
+            "responseId": 1979,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1419,
+      "page": 1,
+      "pointer": "/data/Data/95",
+      "systemZh": "前智能网/左前组合灯(比亚迪)(FL_L)",
+      "token": "FL_L",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1904
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_FL_L_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1904,
+            "responseId": 1912,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1420,
+      "page": 1,
+      "pointer": "/data/Data/96",
+      "systemZh": "前智能网/右前组合灯(比亚迪)(FL_R)",
+      "token": "FL_R",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1905
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_FL_R_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1905,
+            "responseId": 1913,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1421,
+      "page": 1,
+      "pointer": "/data/Data/97",
+      "systemZh": "前智能网/右像素灯(比亚迪)(PLR)",
+      "token": "PLR",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_PLR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1425,
+            "responseId": 1433,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1422,
+      "page": 1,
+      "pointer": "/data/Data/98",
+      "systemZh": "前智能网/左像素灯(比亚迪)(PLL)",
+      "token": "PLL",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_PLL_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1426,
+            "responseId": 1434,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1423,
+      "page": 1,
+      "pointer": "/data/Data/99",
+      "systemZh": "前智能网/右前中位置灯(比亚迪)(FMPL1)",
+      "token": "FMPL1",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1424,
+      "page": 2,
+      "pointer": "/data/Data/0",
+      "systemZh": "前智能网/左前中位置灯(比亚迪)(FMPL2)",
+      "token": "FMPL2",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1425,
+      "page": 2,
+      "pointer": "/data/Data/1",
+      "systemZh": "右车身网1/右前侧门雷达(FR_SDR)/右前侧门雷达(比亚迪)(FR_SDR)",
+      "token": "FR_SDR",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1457
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_FR_SDR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1457,
+            "responseId": 1465,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_FR_SDR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1457,
+            "responseId": 1465,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1426,
+      "page": 2,
+      "pointer": "/data/Data/2",
+      "systemZh": "右车身网1/右前侧门雷达(FR_SDR)/右前侧门雷达(森思泰克)(FR_SDR)",
+      "token": "FR_SDR",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1457
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_FR_SDR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1457,
+            "responseId": 1465,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_FR_SDR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1457,
+            "responseId": 1465,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1427,
+      "page": 2,
+      "pointer": "/data/Data/3",
+      "systemZh": "右车身网1/右后侧门雷达(RR_SDR)/右后侧门雷达(比亚迪)(RR_SDR)",
+      "token": "RR_SDR",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1447
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RR_SDR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1447,
+            "responseId": 1455,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_RR_SDR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1447,
+            "responseId": 1455,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1428,
+      "page": 2,
+      "pointer": "/data/Data/4",
+      "systemZh": "右车身网1/右后侧门雷达(RR_SDR)/右后侧门雷达(森思泰克)(RR_SDR)",
+      "token": "RR_SDR",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1447
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RR_SDR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1447,
+            "responseId": 1455,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_RR_SDR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1447,
+            "responseId": 1455,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1429,
+      "page": 2,
+      "pointer": "/data/Data/5",
+      "systemZh": "右车身网1/中排控制面板总成(科世达)(MCPA)",
+      "token": "MCPA",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1508
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_MCPA_KOSTAL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1508,
+            "responseId": 1516,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1430,
+      "page": 2,
+      "pointer": "/data/Data/6",
+      "systemZh": "右车身网1/右前座椅按摩(东风李尔)(SMF_R)",
+      "token": "SMF_R",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SMF_R_DFL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1973,
+            "responseId": 1981,
+            "physicalBus": null
+          },
+          "softwareDid": "F8D5/F8D4",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1431,
+      "page": 2,
+      "pointer": "/data/Data/7",
+      "systemZh": "右车身网1/副驾通用控制器mini(比亚迪)(PUCU)",
+      "token": "PUCU",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1973
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_PUCU_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1973,
+            "responseId": 1981,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1432,
+      "page": 2,
+      "pointer": "/data/Data/8",
+      "systemZh": "右车身网1/车载冰箱(比亚迪)(VR)",
+      "token": "VR",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1440
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_VR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1440,
+            "responseId": 1448,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1433,
+      "page": 2,
+      "pointer": "/data/Data/9",
+      "systemZh": "右车身网2/副驾电动预紧安全带(比亚迪)(MSRF)",
+      "token": "MSRF",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1811
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_MSRF_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1811,
+            "responseId": 1819,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1434,
+      "page": 2,
+      "pointer": "/data/Data/10",
+      "systemZh": "右车身网2/风辅助加热(华工高理)(PTC)",
+      "token": "PTC",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1894
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_PTC_HGTECH_00300001",
+          "route": {
+            "kind": "can",
+            "requestId": 1894,
+            "responseId": 1902,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1435,
+      "page": 2,
+      "pointer": "/data/Data/11",
+      "systemZh": "右车身网2/空气质量检测模块(比亚迪)(AQDM)",
+      "token": "AQDM",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1424
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_AQDM_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1424,
+            "responseId": 1432,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1436,
+      "page": 2,
+      "pointer": "/data/Data/12",
+      "systemZh": "右车身网2/前室内灯(比亚迪)(FRL)",
+      "token": "FRL",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1906
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_FRL_BYD_00300001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F645/F644",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_FRL_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F655/F654",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_FRL_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1906,
+            "responseId": 1914,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_FRL_BYD_00400001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "FB25/FB24",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1437,
+      "page": 2,
+      "pointer": "/data/Data/13",
+      "systemZh": "右车身网2/ETC总成(金溢科技)(ETC)",
+      "token": "ETC",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1936
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_ETC_Genvict_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1936,
+            "responseId": 1944,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_ETC_Vanjee_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1936,
+            "responseId": 1944,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_ETC_Julitech_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1936,
+            "responseId": 1944,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1438,
+      "page": 2,
+      "pointer": "/data/Data/14",
+      "systemZh": "右车身网2/冰箱控制面板(比亚迪)(RCP)",
+      "token": "RCP",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1524
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RCP_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1524,
+            "responseId": 1532,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1439,
+      "page": 2,
+      "pointer": "/data/Data/15",
+      "systemZh": "右车身网2/后冰箱控制面板(比亚迪)(RRCP)",
+      "token": "RRCP",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1990
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RRCP_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1990,
+            "responseId": 1998,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1440,
+      "page": 2,
+      "pointer": "/data/Data/16",
+      "systemZh": "右前门RLIN3网/仪表板左氛围灯上灯头(比亚迪)(IAL1)",
+      "token": "IAL1",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1441,
+      "page": 2,
+      "pointer": "/data/Data/17",
+      "systemZh": "右前门RLIN3网/仪表板左氛围灯下灯头(比亚迪)(IAL2)",
+      "token": "IAL2",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1442,
+      "page": 2,
+      "pointer": "/data/Data/18",
+      "systemZh": "右前门RLIN3网/仪表板中氛围灯上灯头(比亚迪)(IAL3)",
+      "token": "IAL3",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1443,
+      "page": 2,
+      "pointer": "/data/Data/19",
+      "systemZh": "右前门RLIN3网/仪表板中氛围灯下灯头(比亚迪)(IAL4)",
+      "token": "IAL4",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1444,
+      "page": 2,
+      "pointer": "/data/Data/20",
+      "systemZh": "右前门RLIN3网/仪表板右氛围灯左上灯头(比亚迪)(IAL5)",
+      "token": "IAL5",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1445,
+      "page": 2,
+      "pointer": "/data/Data/21",
+      "systemZh": "右前门RLIN3网/仪表板右氛围灯左下灯头(比亚迪)(IAL6)",
+      "token": "IAL6",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1446,
+      "page": 2,
+      "pointer": "/data/Data/22",
+      "systemZh": "右前门RLIN3网/仪表板右氛围灯右上灯头(比亚迪)(IAL7)",
+      "token": "IAL7",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1447,
+      "page": 2,
+      "pointer": "/data/Data/23",
+      "systemZh": "右前门RLIN3网/仪表板右氛围灯右下灯头(比亚迪)(IAL8)",
+      "token": "IAL8",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1448,
+      "page": 2,
+      "pointer": "/data/Data/24",
+      "systemZh": "右前门RLIN3网/仪表板中置扬声器氛围灯左灯头(比亚迪)(LCSCALA)",
+      "token": "LCSCALA",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_LCSCALA_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F435/F434",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1449,
+      "page": 2,
+      "pointer": "/data/Data/25",
+      "systemZh": "右前门RLIN3网/仪表板中置扬声器氛围灯中灯头(比亚迪)(IAL9)",
+      "token": "IAL9",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1450,
+      "page": 2,
+      "pointer": "/data/Data/26",
+      "systemZh": "右前门RLIN3网/仪表板中置扬声器氛围灯右灯头(比亚迪)(RCSCALA)",
+      "token": "RCSCALA",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RCSCALA_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "F305/F304",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1451,
+      "page": 2,
+      "pointer": "/data/Data/27",
+      "systemZh": "右前门RLIN3网/副仪表板中风口氛围灯(比亚迪)(DIDAL)",
+      "token": "DIDAL",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "FF65/FF64",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_00300001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "FF75/FF74",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_0A100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F0E5/F0E4",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_0A200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F0F5/F0F4",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_0A300001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F105/F104",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_DIDAL_BYD_0A800001",
+          "route": {
+            "kind": "can",
+            "requestId": 1863,
+            "responseId": 1871,
+            "physicalBus": null
+          },
+          "softwareDid": "FEB5/FEB4",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1452,
+      "page": 2,
+      "pointer": "/data/Data/28",
+      "systemZh": "诊断网/跨域计算平台(比亚迪)(CDC)",
+      "token": "CDC",
+      "networkZh": "诊断网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_CDC_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        },
+        {
+          "ecuId": "HTH-2021_CDC_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "C295/C294",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1453,
+      "page": 2,
+      "pointer": "/data/Data/29",
+      "systemZh": "诊断网/跨域计算平台_SOC(比亚迪)(CDC_SOC)",
+      "token": "CDC_SOC",
+      "networkZh": "诊断网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_CDC_SOC_BYD_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 16,
+            "pairClient": 1,
+            "target": 16
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "6"
+        }
+      ]
+    },
+    {
+      "rowId": 1454,
+      "page": 2,
+      "pointer": "/data/Data/30",
+      "systemZh": "诊断网/跨域计算平台_FPGA(比亚迪)(CDC_FPGA)",
+      "token": "CDC_FPGA",
+      "networkZh": "诊断网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_CDC_FPGA_BYD_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 16,
+            "pairClient": 1,
+            "target": 16
+          },
+          "softwareDid": "F295/F294",
+          "ecuChannel": "6"
+        }
+      ]
+    },
+    {
+      "rowId": 1455,
+      "page": 2,
+      "pointer": "/data/Data/31",
+      "systemZh": "诊断网/跨域计算平台_交换机(比亚迪)(CDC_JH)",
+      "token": "CDC_JH",
+      "networkZh": "诊断网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "no_exact_factory_family",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": []
+    },
+    {
+      "rowId": 1456,
+      "page": 2,
+      "pointer": "/data/Data/32",
+      "systemZh": "左车身网1/抬头显示屏(比亚迪)(HUD)",
+      "token": "HUD",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1968
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_HUD_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1968,
+            "responseId": 1976,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1457,
+      "page": 2,
+      "pointer": "/data/Data/33",
+      "systemZh": "左车身网1/车内智能进入控制器(比亚迪)(INFC)",
+      "token": "INFC",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_INFC_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1813,
+            "responseId": 1821,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1458,
+      "page": 2,
+      "pointer": "/data/Data/34",
+      "systemZh": "左车身网1/智能进入控制器(比亚迪)(SEC)",
+      "token": "SEC",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2006
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SEC_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2006,
+            "responseId": 2014,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "0"
+        }
+      ]
+    },
+    {
+      "rowId": 1459,
+      "page": 2,
+      "pointer": "/data/Data/35",
+      "systemZh": "左车身网1/左后侧门雷达(RL_SDR)/左后侧门雷达(比亚迪)(RL_SDR)",
+      "token": "RL_SDR",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1456
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RL_SDR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1456,
+            "responseId": 1464,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_RL_SDR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1456,
+            "responseId": 1464,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1460,
+      "page": 2,
+      "pointer": "/data/Data/36",
+      "systemZh": "左车身网1/左后侧门雷达(RL_SDR)/左后侧门雷达(森思泰克)(RL_SDR)",
+      "token": "RL_SDR",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1456
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RL_SDR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1456,
+            "responseId": 1464,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_RL_SDR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1456,
+            "responseId": 1464,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1461,
+      "page": 2,
+      "pointer": "/data/Data/37",
+      "systemZh": "左车身网1/左前侧门雷达(FL_SDR)/左前侧门雷达(比亚迪)(FL_SDR)",
+      "token": "FL_SDR",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1458
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_FL_SDR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1458,
+            "responseId": 1466,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_FL_SDR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1458,
+            "responseId": 1466,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1462,
+      "page": 2,
+      "pointer": "/data/Data/38",
+      "systemZh": "左车身网1/左前侧门雷达(FL_SDR)/左前侧门雷达(森思泰克)(FL_SDR)",
+      "token": "FL_SDR",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1458
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_FL_SDR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1458,
+            "responseId": 1466,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_FL_SDR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1458,
+            "responseId": 1466,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1463,
+      "page": 2,
+      "pointer": "/data/Data/39",
+      "systemZh": "左车身网1/左前座椅按摩(东风李尔)(SMF_L)",
+      "token": "SMF_L",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SMF_L_DFL_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1872,
+            "responseId": 1880,
+            "physicalBus": null
+          },
+          "softwareDid": "F8C5/F8C4",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1464,
+      "page": 2,
+      "pointer": "/data/Data/40",
+      "systemZh": "左车身网1/主驾通用控制器mini(比亚迪)(DUCU)",
+      "token": "DUCU",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1872
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_DUCU_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1872,
+            "responseId": 1880,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1465,
+      "page": 2,
+      "pointer": "/data/Data/41",
+      "systemZh": "左车身网2/外置功放(比亚迪)(AMP)",
+      "token": "AMP",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1873
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_AMP_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1873,
+            "responseId": 1881,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1466,
+      "page": 2,
+      "pointer": "/data/Data/42",
+      "systemZh": "左车身网2/主驾电动预紧安全带(比亚迪)(MSRZ)",
+      "token": "MSRZ",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1858
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_MSRZ_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1858,
+            "responseId": 1866,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1467,
+      "page": 2,
+      "pointer": "/data/Data/43",
+      "systemZh": "左车身网2/转向盘开关(均胜)(SWS)",
+      "token": "SWS",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1809
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SWS_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1809,
+            "responseId": 1817,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_SWS_JOYSON_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1809,
+            "responseId": 1817,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_SWS_BYD_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1809,
+            "responseId": 1817,
+            "physicalBus": null
+          },
+          "softwareDid": "F295/F294",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1468,
+      "page": 2,
+      "pointer": "/data/Data/44",
+      "systemZh": "左车身网2/组合开关(比亚迪)(CS)",
+      "token": "CS",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1829
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_CS_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1829,
+            "responseId": 1837,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1469,
+      "page": 2,
+      "pointer": "/data/Data/45",
+      "systemZh": "左车身网2/前CPD毫米波雷达(FRONT CPD RADAR)/前CPD毫米波雷达(蛮酷科技)(FRONT CPD RADAR)",
+      "token": "FRONT CPD RADAR",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_front CPD radar_Valeo_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1495,
+            "responseId": 1503,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_front CPD radar_Mindcruise_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1495,
+            "responseId": 1503,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1470,
+      "page": 2,
+      "pointer": "/data/Data/46",
+      "systemZh": "左车身网2/前CPD毫米波雷达(FRONT CPD RADAR)/前CPD毫米波雷达(法雷奥)(FRONT CPD RADAR)",
+      "token": "FRONT CPD RADAR",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_front CPD radar_Valeo_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1495,
+            "responseId": 1503,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_front CPD radar_Mindcruise_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1495,
+            "responseId": 1503,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1471,
+      "page": 2,
+      "pointer": "/data/Data/47",
+      "systemZh": "左车身网2/后CPD毫米波雷达(REAR CPD RADAR)/后CPD毫米波雷达(蛮酷科技)(REAR CPD RADAR)",
+      "token": "REAR CPD RADAR",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_rear CPD radar_Valeo_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1504,
+            "responseId": 1512,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_rear CPD radar_Mindcruise_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1504,
+            "responseId": 1512,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1472,
+      "page": 2,
+      "pointer": "/data/Data/48",
+      "systemZh": "左车身网2/后CPD毫米波雷达(REAR CPD RADAR)/后CPD毫米波雷达(法雷奥)(REAR CPD RADAR)",
+      "token": "REAR CPD RADAR",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_rear CPD radar_Valeo_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1504,
+            "responseId": 1512,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_rear CPD radar_Mindcruise_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1504,
+            "responseId": 1512,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1473,
+      "page": 2,
+      "pointer": "/data/Data/49",
+      "systemZh": "左车身网2/无线充电模块(WCT)/无线充电模块(浙江泰米)(WCT)",
+      "token": "WCT",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1843
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WCT_BJYG_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1843,
+            "responseId": 1851,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_WCT_TEME_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1843,
+            "responseId": 1851,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_WCT_ADAYO_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1843,
+            "responseId": 1851,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1474,
+      "page": 2,
+      "pointer": "/data/Data/50",
+      "systemZh": "左车身网2/无线充电模块(WCT)/无线充电模块(华阳)(WCT)",
+      "token": "WCT",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1843
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WCT_BJYG_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1843,
+            "responseId": 1851,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_WCT_TEME_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1843,
+            "responseId": 1851,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_WCT_ADAYO_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1843,
+            "responseId": 1851,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1475,
+      "page": 2,
+      "pointer": "/data/Data/51",
+      "systemZh": "左车身网2/后排无线充电(北京有感)(WCM_RM)",
+      "token": "WCM_RM",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WCM_RM_BJYG_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1525,
+            "responseId": 1533,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_WCM_RM_BJYG_00200001",
+          "route": {
+            "kind": "can",
+            "requestId": 1525,
+            "responseId": 1533,
+            "physicalBus": null
+          },
+          "softwareDid": "F295/F294",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_WCM_RM_TEME_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1525,
+            "responseId": 1533,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_WCM_RM_ADAYO_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1525,
+            "responseId": 1533,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1476,
+      "page": 2,
+      "pointer": "/data/Data/52",
+      "systemZh": "左车身网2/ETC总成(ETC)/ETC总成(北京聚利)(ETC)",
+      "token": "ETC",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1936
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_ETC_Genvict_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1936,
+            "responseId": 1944,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_ETC_Vanjee_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1936,
+            "responseId": 1944,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_ETC_Julitech_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1936,
+            "responseId": 1944,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1477,
+      "page": 2,
+      "pointer": "/data/Data/53",
+      "systemZh": "左车身网2/ETC总成(ETC)/ETC总成(万集)(ETC)",
+      "token": "ETC",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1936
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_ETC_Genvict_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1936,
+            "responseId": 1944,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_ETC_Vanjee_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1936,
+            "responseId": 1944,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        },
+        {
+          "ecuId": "HTH-2021_ETC_Julitech_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1936,
+            "responseId": 1944,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1478,
+      "page": 2,
+      "pointer": "/data/Data/54",
+      "systemZh": "左能量网/双向车载电源总成(比亚迪)(DCOBC)",
+      "token": "DCOBC",
+      "networkZh": "左能量网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2020
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_DCOBC_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2020,
+            "responseId": 2028,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1479,
+      "page": 2,
+      "pointer": "/data/Data/55",
+      "systemZh": "左能量网/电池管理器(比亚迪)(BMS)",
+      "token": "BMS",
+      "networkZh": "左能量网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2023
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_BMS_BYD_03300001",
+          "route": {
+            "kind": "can",
+            "requestId": 2023,
+            "responseId": 2031,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1480,
+      "page": 2,
+      "pointer": "/data/Data/56",
+      "systemZh": "左能量网/低压电池管理系统(比亚迪)(LBMS)",
+      "token": "LBMS",
+      "networkZh": "左能量网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1890
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_LBMS_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1890,
+            "responseId": 1898,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1481,
+      "page": 2,
+      "pointer": "/data/Data/57",
+      "systemZh": "左能量网/换挡操纵机构面板总成(比亚迪)(SCPA)",
+      "token": "SCPA",
+      "networkZh": "左能量网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1959
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_SCPA_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1959,
+            "responseId": 1967,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "2"
+        }
+      ]
+    },
+    {
+      "rowId": 1482,
+      "page": 2,
+      "pointer": "/data/Data/58",
+      "systemZh": "左前门LLIN3网/左前窗玻璃升降电机(WLMFL)/左前窗玻璃升降电机(比亚迪)(WLMFL)",
+      "token": "WLMFL",
+      "networkZh": "左前门LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WLMFL_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F875/F874",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_WLMFL_INTEVA_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F875/F874",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1483,
+      "page": 2,
+      "pointer": "/data/Data/59",
+      "systemZh": "左前门LLIN3网/左前窗玻璃升降电机(WLMFL)/左前窗玻璃升降电机(恩坦华)(WLMFL)",
+      "token": "WLMFL",
+      "networkZh": "左前门LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_WLMFL_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F875/F874",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_WLMFL_INTEVA_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1824,
+            "responseId": 1832,
+            "physicalBus": null
+          },
+          "softwareDid": "F875/F874",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1484,
+      "page": 2,
+      "pointer": "/data/Data/60",
+      "systemZh": "左智驾网/ADAS域控制器(比亚迪)(ADC)",
+      "token": "ADC",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1810
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_ADC_BYD_00100001",
+          "route": {
+            "kind": "ethernet",
+            "pairTarget": 1818,
+            "pairClient": 1,
+            "target": 1818
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "5"
+        }
+      ]
+    },
+    {
+      "rowId": 1485,
+      "page": 2,
+      "pointer": "/data/Data/61",
+      "systemZh": "左智驾网/左前角雷达(LFCR)/左前角雷达(比亚迪)(LFCR)",
+      "token": "LFCR",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1888
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_LFCR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1888,
+            "responseId": 1896,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_LFCR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1888,
+            "responseId": 1896,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_LFCR_chengtech_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1888,
+            "responseId": 1896,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": ""
+        }
+      ]
+    },
+    {
+      "rowId": 1486,
+      "page": 2,
+      "pointer": "/data/Data/62",
+      "systemZh": "左智驾网/左前角雷达(LFCR)/左前角雷达(森思泰克)(LFCR)",
+      "token": "LFCR",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1888
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_LFCR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1888,
+            "responseId": 1896,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_LFCR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1888,
+            "responseId": 1896,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_LFCR_chengtech_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1888,
+            "responseId": 1896,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": ""
+        }
+      ]
+    },
+    {
+      "rowId": 1487,
+      "page": 2,
+      "pointer": "/data/Data/63",
+      "systemZh": "左智驾网/右前角雷达(RFCR)/右前角雷达(森思泰克)(RFCR)",
+      "token": "RFCR",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1889
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RFCR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1889,
+            "responseId": 1897,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_RFCR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1889,
+            "responseId": 1897,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_RFCR_chengtech_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1889,
+            "responseId": 1897,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": ""
+        }
+      ]
+    },
+    {
+      "rowId": 1488,
+      "page": 2,
+      "pointer": "/data/Data/64",
+      "systemZh": "左智驾网/右前角雷达(RFCR)/右前角雷达(比亚迪)(RFCR)",
+      "token": "RFCR",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1889
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_RFCR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1889,
+            "responseId": 1897,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_RFCR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1889,
+            "responseId": 1897,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_RFCR_chengtech_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1889,
+            "responseId": 1897,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": ""
+        }
+      ]
+    },
+    {
+      "rowId": 1489,
+      "page": 2,
+      "pointer": "/data/Data/65",
+      "systemZh": "左智驾网/盲区监测(BSD)/盲区监测(森思泰克)(BSD)",
+      "token": "BSD",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_BSD_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1986,
+            "responseId": 1994,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_BSD_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1986,
+            "responseId": 1994,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1490,
+      "page": 2,
+      "pointer": "/data/Data/66",
+      "systemZh": "左智驾网/盲区监测(BSD)/盲区监测(比亚迪)(BSD)",
+      "token": "BSD",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_BSD_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1986,
+            "responseId": 1994,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_BSD_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1986,
+            "responseId": 1994,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1491,
+      "page": 2,
+      "pointer": "/data/Data/67",
+      "systemZh": "左智驾网/从盲区监测(BSD_R)/从盲区监测(森思泰克)(BSD_R)",
+      "token": "BSD_R",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_BSD_R_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2004,
+            "responseId": 2012,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_BSD_R_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2004,
+            "responseId": 2012,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1492,
+      "page": 2,
+      "pointer": "/data/Data/68",
+      "systemZh": "左智驾网/从盲区监测(BSD_R)/从盲区监测(比亚迪)(BSD_R)",
+      "token": "BSD_R",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "factory_family_only",
+      "observedFamilyRequestIds": [],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_BSD_R_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2004,
+            "responseId": 2012,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_BSD_R_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2004,
+            "responseId": 2012,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    },
+    {
+      "rowId": 1493,
+      "page": 2,
+      "pointer": "/data/Data/69",
+      "systemZh": "左智驾网/前置毫米波雷达(MRR)/前置毫米波雷达(比亚迪)(MRR)",
+      "token": "MRR",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2034
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_MRR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2034,
+            "responseId": 2042,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_MRR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2034,
+            "responseId": 2042,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_MRR_chengtech_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2034,
+            "responseId": 2042,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": ""
+        }
+      ]
+    },
+    {
+      "rowId": 1494,
+      "page": 2,
+      "pointer": "/data/Data/70",
+      "systemZh": "左智驾网/前置毫米波雷达(MRR)/前置毫米波雷达(森思泰克)(MRR)",
+      "token": "MRR",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        2034
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_MRR_BYD_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2034,
+            "responseId": 2042,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_MRR_WHST_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2034,
+            "responseId": 2042,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        },
+        {
+          "ecuId": "HTH-2021_MRR_chengtech_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 2034,
+            "responseId": 2042,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": ""
+        }
+      ]
+    },
+    {
+      "rowId": 1495,
+      "page": 2,
+      "pointer": "/data/Data/71",
+      "systemZh": "左智驾网/自动泊车(博世)(IPA)",
+      "token": "IPA",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "relation": "known_live_family",
+      "observedFamilyRequestIds": [
+        1793
+      ],
+      "factoryCandidates": [
+        {
+          "ecuId": "HTH-2021_IPA_BOSCH_00100001",
+          "route": {
+            "kind": "can",
+            "requestId": 1793,
+            "responseId": 1801,
+            "physicalBus": null
+          },
+          "softwareDid": "F195/F194",
+          "ecuChannel": "1"
+        }
+      ]
+    }
+  ]
+}

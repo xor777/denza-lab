@@ -7,7 +7,7 @@ identified through static inspection.
 
 ## Current state
 
-Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
+Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit, from which identity, and how each one decodes.
 
 | Claim | Status | Since | Section |
 |---|---|---|---|
@@ -38,6 +38,7 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 | Complete factory metadata: 225 routing candidates; SMCU744/74C, SMCU3 745/74D and DCOBC7E4/7EC answered matching F194 and empty mask09 lists. DCOBC format remains unknown. A public Z9GT PHEV manual index now supplies engine/battery/drive DTC heading candidates, but has conflicting definitions and no ECU-software binding; no OEM dictionary is qualified. The diagnostic section shows those headings, translated, as candidate descriptions of format00 codes | live routes; dictionary open | 2026-10-20 | [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20); [Manual candidates](#oem-dtc-manual-candidates-2026-10-20) |
 | Factory-map candidates: of the 37 CAN routes outside the scanner catalog, 35 got one `22 F194` (`715`/`785` already had result 3); 22 answered. All 21 with a real code in `ECUVersion.json` returned it byte for byte, all 13 with only a zero placeholder got gateway result 3, and `5E7` returned the passenger computer's MCU code `4B450011DF990042E2` from its own OTA container. All 22 are in `EcuCatalog`; the 13 `5xx` responders are listed one by one in `DiagnosticWhitelist`. Their DTC memories were first read by the scanner's autoscan on 2026-10-20: IDC `597` has four records, the rest none | live | 2026-10-20 | [Factory-map candidates](#factory-map-candidates-on-this-car-2026-10-20); [First autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) |
 | Scanner on the car: 68/68 answered and 68 memories read in 148 exchanges, 19.9 s, exchange 18 ms median, step 120 ms at gap 100; history in LA_BCM 8, R_ZCU 2, INS 2, Media 1, CCS/SCPA 1, IDC 4; a lock race after the first idle minute stopped the section (fixed; three restarts on the car without it, 19:46–20:11) | live | 2026-10-20 | [First autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) |
+| Exact-model Xtool catalog: 172 Z9GT DM system/variant rows name all 25 catalog entries whose role was unknown; SMCU744 is left rear, SMCU3 745 right rear by cross-source token/factory/F194 join. Eight child software identities have candidate reads through already answered parents; 30 stock FIDs have source evidence. No new vehicle requests, product changes or software-qualified OEM DTC definitions | model-specific vendor catalog + firmware; live validation open | 2026-10-21 | [ECU roles and reverse crosswalk](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Ambient light colour: shell `service call autoservice 5 i32 1023 i32 283586` should return a 1-based palette index (RGB only on table `7`), the table chosen by `SET_IAL_COLOR_CONFIG` (`1072693258`); not yet read on the car, no app-UID path known | firmware | 2026-09-23 | [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
@@ -71,6 +72,7 @@ Updated 2026-10-20. Which vehicle signals Denza Apps can read on this head unit,
 - [Remaining ECU identities and chassis DTC](#remaining-ecu-identities-and-chassis-dtc-2026-10-20) — ABS/ESP, EPS, SRS, ADAS, radar, 32 cache matches and the brake OBD interface
 - [Complete factory map and remaining powertrain DTC](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) — all 225 server routes, live rear drives/DCOBC and the OEM dictionary gap
 - [Factory-map candidates on this car](#factory-map-candidates-on-this-car-2026-10-20) — F194 at the 37 CAN routes outside the catalog: who is installed, the cache as an install marker, the passenger computer's MCU
+- [ECU roles and reverse catalog crosswalk](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) — 25 role names, rear-drive sides, eight child identities and 30 stock signal candidates
 - [OEM DTC manual candidates](#oem-dtc-manual-candidates-2026-10-20) — model-specific public headings, conflicts, code-format and software-applicability gaps
 - [The scanner on the car: first autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) — the product's 68 blocks in 20 s, the history found, two defects fixed
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
@@ -1619,7 +1621,9 @@ Cache modification time was not retained, so freshness is unknown.
 | `ESP_BOSCH_00100001` / `IPB_BOSCH_00100001` / `BSC_BYD_00100001` | `4.00.08` | `32330011DF0B000101` |
 
 These are cached identities, not an address map or decoded DTCs. In particular,
-the physical positions of SMCU/SMCU3 are not assigned from names alone. The compact
+the physical positions of SMCU/SMCU3 are not assigned from abbreviations alone;
+the later [model-catalog crosswalk](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21)
+provides explicit left/right names. The compact
 sanitized projection is `research/vehicle-diagnostics/ecu-inventory-cache-20261018.json`.
 The full-map candidate was controller prefs
 `/data/user/0/com.byd.otaupdate/shared_prefs/share_data_prefs.xml`, specifically
@@ -2717,7 +2721,10 @@ metadata; the MQTT envelope has no physical-bus selector.
 
 Each identity matches the exact ECU ID's entry in the stock version cache.
 SMCU/SMCU3 are the two rear-drive controllers; their physical left/right
-assignment is not established by these replies. All three server records give
+assignment is not established by these replies. The later
+[model catalog](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) names SMCU
+left rear and SMCU3 right rear through the matched factory identities.
+All three server records give
 software DIDs `F195/F194` and hardware DID `F193`. This run read F194 only;
 cached software versions are not newly measured F195 results.
 
@@ -2812,7 +2819,9 @@ and the MCU answers with its own code (`…E2`).
 
 Roles are not established by the replies. HUD, ETC, the child-presence radar
 and the UWB key follow from their route names. RWS, AQDM, R-NCM, IDC, VR, SDR,
-MCPA, RCP and FRL stay unnamed. The four UWB anchors share one code, like the
+MCPA, RCP and FRL remained unnamed in this identification pass; the
+[2026-10-21 model-catalog crosswalk](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21)
+now supplies their roles. The four UWB anchors share one code, like the
 corner radars, so only the route names separate their positions.
 
 Both runs held the lock, observed the passive window and checked profile 170,
@@ -2822,11 +2831,133 @@ empty, app hash unchanged, own dex removed. Runs took 22 s and 17 s. No APK
 was installed. No session, clear, DTC, VIN or other DID was requested.
 
 Product consequence: all 22 joined `EcuCatalog`. The 13 `5xx` responders are
-listed one by one in `DiagnosticWhitelist`, beside the `700`–`7F7` range. None of
-their DTC memories has been read. Evidence:
+listed one by one in `DiagnosticWhitelist`, beside the `700`–`7F7` range. These
+identification runs did not read their DTC memories; the later
+[first autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) did. Evidence:
 [`factory-candidates-20261020.json`](../research/vehicle-diagnostics/factory-candidates-20261020.json),
 with plan, builds, traces, pre/post checks and the decoder in
 `captures/diagnostics-candidates-20261020/`.
+
+### ECU roles and reverse catalog crosswalk (2026-10-21)
+
+**A model-specific diagnostic-tool catalog supplies the missing role names and
+new search targets; it does not supply an OEM fault dictionary.** Xtool's
+[official Function Lists](https://en.xtooltech.com/function-lists) links its
+[Denza catalog](https://www.xtooltech.com/funcquery/index.html?#/Diagnosis?lang=CN&configName=E2PRO_CN_V01&packId=PS_TENGSHIEV&packVer=6.61).
+The public query was scoped to brand `腾势汽车`, model `Z9GT/Z9GT DM`, package
+`PS_TENGSHIEV`, version `6.61`. Two pages contain 100 + 72 unique rows, all
+with that exact model and `V6.61`; their system-name set equals the separately
+scoped selector's set. Earlier unfiltered selector lists are not model evidence.
+Version 6.61 identifies the scanner catalog, not the car's software.
+
+[`xtool-z9gt-dm-20261021.json`](../research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json)
+retains all 172 system names, source row/pointer, capability flags and an exact-token
+crosswalk to the owner's factory map. Supplier alternatives, LIN children and
+optional configurations are separate rows: **172 is not an installed-ECU count**.
+Xtool gives no CAN addresses or F194. The role evidence is a cross-source join:
+observed F194 → owner cache identity and factory route → matching catalog token
+and supplier name. It does not qualify a particular software revision's behavior.
+
+The following resolves all 25 entries currently built with `unknown(...)` in
+`EcuCatalog`, plus the two rear-drive sides. Product labels have not been changed
+in this research pass. Exact codes, factory IDs and source row IDs are in
+[`ecu-role-evidence-20261021.json`](../research/vehicle-diagnostics/ecu-role-evidence-20261021.json).
+
+| Address / token | Model-specific role |
+| --- | --- |
+| `744` SMCU; `745` SMCU3 | Left rear drive; right rear drive |
+| `743` PDC-VCU | Power-domain controller / VCU; distinct route from VCU `7E2` |
+| `724` PDCMB; `725` CS | Tailgate AR projection sensing controller; combination switch |
+| `713` MSRF; `742` MSRZ | Front-passenger; driver electric belt pretensioner |
+| `750` DUCU; `7B5` PUCU; `7D2` MLUCU | Driver; front-passenger; middle-row-left universal MINI controller |
+| `754` HFRM; `7D6` SEC | Key RF receiver; smart-entry controller |
+| `7A7` CCS/SCPA | Shift-mechanism control panel (source names SCPA; both cache aliases retained) |
+| `7C6` RRCP; `5F4` RCP | Rear refrigerator control panel; refrigerator control panel |
+| `582` RWS-L; `796` RWS-R | Left; right rear-wheel steering |
+| `590` AQDM; `595` R-NCM | Air-quality detection module; **right** NFC module |
+| `597` IDC; `5A0` VR | Vehicle motion controller; vehicle refrigerator |
+| `5A7` RR_SDR; `5B0` RL_SDR; `5B1` FR_SDR; `5B2` FL_SDR | Right rear, left rear, right front, left front **door radars** |
+| `5E4` MCPA; `772` FRL | Middle-row control-panel assembly (KOSTAL); front interior light |
+
+“Middle row” is the source wording, not proof of a third seat row or a mounting
+position in this car. `IDC_D2` is a separate catalog token, not an automatic match
+for the owner's `IDC_BYD_00200001`. RCP here is refrigerator control; an older
+BYD Han's similarly abbreviated rear control panel is not transferable.
+
+**Reverse lookup finds child identities behind existing routes.** Four massage
+controllers and four rear lamps have nonzero cached software versions and a
+separate code DID on an already answered parent. These are proposed identification
+reads, not new live results or independently established DTC memories:
+
+| Child family | Parent request → response | Code DID | Cached version |
+| --- | --- | --- | --- |
+| SMF_L, front-left massage | `750 → 758` | `F8C4` | 4.00.04 |
+| SMF_R, front-right massage | `7B5 → 7BD` | `F8D4` | 2.00.11 |
+| SMR_L, rear-left massage | `7D2 → 7DA` | `F8E4` | 2.00.12 |
+| SMR_R, rear-right massage | `7D2 → 7DA` | `F8F4` | 2.00.12 |
+| RL_L, left combination rear lamp | `726 → 72E` | `F204` | 2.00.05 |
+| RL_R, right combination rear lamp | `726 → 72E` | `F214` | 2.00.05 |
+| TL_L, left tail lamp | `726 → 72E` | `F064` | 2.00.05 |
+| TL_R, right tail lamp | `726 → 72E` | `F234` | 2.00.05 |
+
+The lamp `*_00100001` routes `5C4`–`5C7` had zero cache placeholders and returned
+result 3; these `*_00200001` routes instead go through B_ZCU `726` and have real
+cached versions. Retrying the same absent 5xx route misses this alternative.
+[`ecu-child-identification-candidates-20261021.json`](../research/vehicle-diagnostics/ecu-child-identification-candidates-20261021.json)
+preserves the exact eight factory IDs, expected cache codes, request/prefix bytes
+and source hashes. Seven further INS/FRL/CDC subidentities remain unbound: do not
+assign their DID order to the numbered catalog names. The CDC/LA_BCM conflict at
+`720` is not resolved. DoIP tuples remain DoIP, never CAN request/response pairs.
+The product whitelist rejects these child DIDs, and `RemainingEcuReadProbe`'s
+decoder assumes F194. This is candidate metadata, not a ready-to-run probe.
+
+**Reverse lookup also supplies stock signal search terms.**
+[`stock-signal-read-candidates-20261021.json`](../research/vehicle-diagnostics/stock-signal-read-candidates-20261021.json)
+retains 30 exact FIDs with source path, line, SHA-256, mapper and read evidence.
+Four have a concrete stock getter; 25 match the resolved CAN-FD TSV. None was
+queried in this pass, and no physical ECU-to-FID attribution is inferred.
+
+- Rear steering: actual left/right angles `0x0FE004B8` / `0x0FE004C4`, validity
+  `0x0FE004B7`, status `0x1EA01548`, dysfunction `0x0FE00048`. The five names and
+  literals are registered by stock `AdasMapper`; they are absent from the resolved
+  TSV. Their value types, units, scale, status enums and live availability are open.
+- Suspension: four actual heights `0x19500008/14/20/2C`, four alternative `_109`
+  heights and four lift heights; adjustment process `0x2580002C`, actual level
+  `0x25800044`, fault `0x1A70000A`, adjustable status `0x25800114`, actual mode
+  `0x37F00008`, and three DISUS availability/limit states. Do not assume millimetres
+  or select the height family without runtime evidence. Stock mode getter maps
+  1/2/3 to comfort/sport/race when configured for three modes. Stock drift UI treats
+  process 2 as lowering, and process 3 **with level 1** as completed; this is not a
+  complete general enum. Its fallback level 2 is not a measured value.
+- Four electric-door obstacle signals `0x39100088/8A/8C/8E` and dual-NFC operation
+  result `0x19C33030` are contextual leads. They do not independently identify a
+  particular SDR or R-NCM fault, nor decode its DTC memory.
+
+The generic stock path is `ICarPropertyManager.getProperty(propertyKey)` returning
+`Response<CarPropertyValue>`; its status and raw type must survive parsing. A
+registered name does not establish app permission, an `int` value, a valid zero
+or a usable native `autoservice` device/transact combination.
+
+**What this public source cannot decode.** Xtool flags 167 rows for ECU information,
+91 for DTC reading and 81 for live data; all 172 mark freeze frame unavailable.
+All 61 LIN-labelled rows are identification-only in this catalog. These are
+scanner-support flags, not hardware capability limits; they must not disable an
+already proved head-unit read or override DCOBC's observed `19 01` timeout.
+
+The inspected frontend schema defines DTC/live/freeze fields as `SupportEnum`.
+Only actuator/special-function fields link named details. A public metadata lookup
+of IDC row 1377 returned its 67 action titles: height and damping valves, pressure,
+spoiler and posture, supporting the broad motion-controller role. They contain no
+request bytes, passive-getter definition, PID/DID, scaling or fault descriptions.
+[`xtool-public-capabilities-20261021.json`](../research/vehicle-diagnostics/xtool-public-capabilities-20261021.json)
+retains the schema, counts and titles for corpus searches. No actuation was performed.
+
+The remaining dictionary path still needs a software-applicable original DTC
+document and, for FMCU/ISG format01, a display-code-to-raw-code binding. Role names
+and support flags do not close those gaps. Raw public responses, requests, exact
+filters, independent review and source audit are under
+`captures/diagnostics-ecu-roles-20261021/{cabin,chassis,manual,root}/` (ignored).
+This pass made zero vehicle requests and changed no product code or allowlist.
 
 ### OEM DTC manual candidates (2026-10-20)
 
@@ -2847,7 +2978,7 @@ Original publisher text still does not establish OEM authorship or applicability
 | --- | --- | --- |
 | Engine electronic control | 496 DTC headings, 494 distinct seven-character display codes | No UAES/BYD supplier split or software-code binding; P222800 and P222900 each have two different titles |
 | Battery management | 206 DTC headings, 204 distinct display codes | P2BAE00 has two different titles in this same section; BMS033/software applicability unproved |
-| Front drive, generator, right rear drive, left rear drive | Respectively 31, 32, 32, 32 headings; 126 distinct codes across these four sections | Physical rear-side assignment and raw-code encoding remain unproved |
+| Front drive, generator, right rear drive, left rear drive | Respectively 31, 32, 32, 32 headings; 126 distinct codes across these four sections | Raw-code encoding and software applicability remain unproved; the [2026-10-21 model catalog](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) now assigns SMCU left / SMCU3 right |
 
 The index itself is not consistent enough for an automatic import. In the BMS
 branch, `P2BAE00` appears both for a boost contactor fault and an extreme pack
@@ -2876,8 +3007,10 @@ There is also a code-format gap. The actual `59 01` replies in
 report format01 for FMCU7E3 and ISG7E6, while the public headings use P-prefixed
 display codes. Their conversion to the six-hex-digit raw UDS code needs an
 explicit OEM mapping. A J2012 conversion must not be assumed for format01.
-The two rear controllers report format00, but the public left/right sections
-still cannot be assigned to SMCU744 and SMCU3 745 without separate side evidence.
+The two rear controllers report format00. Side evidence was missing on 2026-10-20;
+the [2026-10-21 Xtool model catalog](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21)
+now names SMCU744 left rear and SMCU3 745 right rear. This supports selecting the
+corresponding candidate section, without proving its software applicability.
 Preserve the complete source display code, subsystem, outline locator and
 provenance; leave the raw-code mapping unknown until qualified.
 [`oem-dtc-acquisition-20261020.json`](../research/vehicle-diagnostics/oem-dtc-acquisition-20261020.json)
@@ -2890,9 +3023,9 @@ fault definitions or protected manual procedures.
 
 The two rear sections use disjoint code ranges: left rear `P1B0301`–`P1B0320`,
 right rear `P1B0401`–`P1B0420`, each heading naming its side. So a format00
-record from SMCU744 or SMCU3 745 that matches one of them is a candidate side
-binding for that controller - a hypothesis to confirm, since the index is
-unqualified for their software. Neither controller has reported a code yet.
+record matching one of them was a proposed way to investigate the side binding.
+The model catalog now supplies independent side names, but these DTC ranges remain
+unqualified for the installed software. Neither controller has reported a code yet.
 
 Product use (2026-10-20, owner's decision): the diagnostic section shows these
 headings, machine-translated into Russian
@@ -2950,7 +3083,9 @@ scan is `captures/diagnostics-scanner-20261020/last-scan-1931.json` (untracked).
   `app_process` to `READY` in 3.1 s, the 2 s of silence included. `autoservice` (PID 128)
   and `com.byd.avc` (4634) were the same processes before and after; the crash buffer
   stayed empty.
-- **Autoscan.** 68 of 68 routes answered `22 F194`; 68 memories were read with mask `09`.
+- **Autoscan.** 68 of 68 routes answered: 62 were rechecked by `22 F194`, five used
+  their qualified stock routes and `7E5` used OBD identity; 68 memories were read
+  (UDS mask `09`, or the OBD DTC services for `7E5`).
   148 exchanges in 19.9 s, no gateway non-answer, no negative response, no `7F xx 78`.
   An exchange (`set()` to the last frame) took 18 ms at the median, 48 ms at p90 and
   503 ms at most; request to request was 120 ms at the median (p90 158, max 670) at the

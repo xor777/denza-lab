@@ -1,0 +1,529 @@
+{
+  "schema": "denza-lab.ecu-role-evidence.v1",
+  "date": "2026-10-21",
+  "vehicleProfile": 170,
+  "liveRequestsThisPass": 0,
+  "productUpdated": false,
+  "catalog": {
+    "path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json",
+    "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24"
+  },
+  "result": {
+    "previousRoleUnknownEntries": 25,
+    "nowWithExactModelVendorNames": 25,
+    "rearDriveSidesResolvedByModelCatalog": 2
+  },
+  "limits": [
+    "Roles are a cross-source join: Xtool names the model-specific ECU token, factory metadata and observed F194 bind that token to this car. Xtool itself supplies neither address nor F194.",
+    "This is not an OEM DTC dictionary or proof of a particular supplier variant, firmware behavior, physical network bus or live signal scale.",
+    "No product names, topology, DTC descriptions or polling requests changed in this research pass."
+  ],
+  "entries": [
+    {
+      "abbreviation": "PDC-VCU",
+      "requestId": 1859,
+      "responseId": 1867,
+      "requestHex": "743",
+      "expectedF194": "48370011E002066441",
+      "roleRu": "Контроллер силовой системы — VCU",
+      "subsystem": "powertrain",
+      "sourceRowIds": [
+        1386
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_PDC-VCU_FDP_00100001",
+        "HTH-2021_PDC-VCU_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "PDCMB",
+      "requestId": 1828,
+      "responseId": 1836,
+      "requestHex": "724",
+      "expectedF194": "4A440011DF01510001",
+      "roleRu": "Модуль проекционного датчика двери багажника",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1409
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_PDCMB_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "CS",
+      "requestId": 1829,
+      "responseId": 1837,
+      "requestHex": "725",
+      "expectedF194": "48490011DF1D000000",
+      "roleRu": "Комбинированный переключатель",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1468
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_CS_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "MSRF",
+      "requestId": 1811,
+      "responseId": 1819,
+      "requestHex": "713",
+      "expectedF194": "48430011AD30000202",
+      "roleRu": "Электрический преднатяжитель ремня переднего пассажира",
+      "subsystem": "restraints",
+      "sourceRowIds": [
+        1433
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_MSRF_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "MSRZ",
+      "requestId": 1858,
+      "responseId": 1866,
+      "requestHex": "742",
+      "expectedF194": "48430011AD1A000201",
+      "roleRu": "Электрический преднатяжитель ремня водителя",
+      "subsystem": "restraints",
+      "sourceRowIds": [
+        1466
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_MSRZ_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "DUCU",
+      "requestId": 1872,
+      "responseId": 1880,
+      "requestHex": "750",
+      "expectedF194": "4B310011DF016A0001",
+      "roleRu": "Универсальный контроллер MINI со стороны водителя",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1464
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_DUCU_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "PUCU",
+      "requestId": 1973,
+      "responseId": 1981,
+      "requestHex": "7B5",
+      "expectedF194": "4B310011DF016B0001",
+      "roleRu": "Универсальный контроллер MINI со стороны переднего пассажира",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1431
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_PUCU_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "MLUCU",
+      "requestId": 2002,
+      "responseId": 2010,
+      "requestHex": "7D2",
+      "expectedF194": "4B310011DF016C0001",
+      "roleRu": "Универсальный контроллер MINI слева в среднем ряду",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1417
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_MLUCU_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": [
+        "Middle row is the source wording. No unsupported door/seat/climate duty or mounting position is inferred on this two-row car."
+      ]
+    },
+    {
+      "abbreviation": "HFRM",
+      "requestId": 1876,
+      "responseId": 1884,
+      "requestHex": "754",
+      "expectedF194": "48490011AD0C000004",
+      "roleRu": "Радиоприёмник ключа",
+      "subsystem": "access",
+      "sourceRowIds": [
+        1410
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_HFRM_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "CCS/SCPA",
+      "requestId": 1959,
+      "responseId": 1967,
+      "requestHex": "7A7",
+      "expectedF194": "48490011DF55000100",
+      "roleRu": "Панель селектора передач",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1481
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_SCPA_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": [
+        "Exact-model source names SCPA only; owner cache also has CCS with the same code. Both cache aliases remain."
+      ]
+    },
+    {
+      "abbreviation": "RRCP",
+      "requestId": 1990,
+      "responseId": 1998,
+      "requestHex": "7C6",
+      "expectedF194": "48580011DF02220000",
+      "roleRu": "Панель управления задним холодильником",
+      "subsystem": "cabin",
+      "sourceRowIds": [
+        1439
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_RRCP_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "SEC",
+      "requestId": 2006,
+      "responseId": 2014,
+      "requestHex": "7D6",
+      "expectedF194": "484900118C0A001000",
+      "roleRu": "Контроллер бесключевого доступа",
+      "subsystem": "access",
+      "sourceRowIds": [
+        1458
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_SEC_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "RWS-L",
+      "requestId": 1410,
+      "responseId": 1418,
+      "requestHex": "582",
+      "expectedF194": "484B0011DF02030100",
+      "roleRu": "Левый механизм поворота заднего колеса",
+      "subsystem": "chassis",
+      "sourceRowIds": [
+        1381
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_RWS-L_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "RWS-R",
+      "requestId": 1942,
+      "responseId": 1950,
+      "requestHex": "796",
+      "expectedF194": "484B0011DF02020100",
+      "roleRu": "Правый механизм поворота заднего колеса",
+      "subsystem": "chassis",
+      "sourceRowIds": [
+        1382
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_RWS-R_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "AQDM",
+      "requestId": 1424,
+      "responseId": 1432,
+      "requestHex": "590",
+      "expectedF194": "4A440011DE014A0101",
+      "roleRu": "Модуль контроля качества воздуха",
+      "subsystem": "climate",
+      "sourceRowIds": [
+        1435
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_AQDM_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "R-NCM",
+      "requestId": 1429,
+      "responseId": 1437,
+      "requestHex": "595",
+      "expectedF194": "48490011A401162104",
+      "roleRu": "Правый модуль NFC",
+      "subsystem": "access",
+      "sourceRowIds": [
+        1372
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_R-NCM_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "IDC",
+      "requestId": 1431,
+      "responseId": 1439,
+      "requestHex": "597",
+      "expectedF194": "4B4D0011DE01140600",
+      "roleRu": "Контроллер движения автомобиля",
+      "subsystem": "chassis",
+      "sourceRowIds": [
+        1377
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_IDC_BYD_00100001",
+        "HTH-2021_IDC_BYD_00200001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": [
+        "IDC_D2 is a separate source token; the _00200001 owner cache suffix does not bind IDC_D2."
+      ]
+    },
+    {
+      "abbreviation": "VR",
+      "requestId": 1440,
+      "responseId": 1448,
+      "requestHex": "5A0",
+      "expectedF194": "4A500011DE01130000",
+      "roleRu": "Автомобильный холодильник",
+      "subsystem": "cabin",
+      "sourceRowIds": [
+        1432
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_VR_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "RR_SDR",
+      "requestId": 1447,
+      "responseId": 1455,
+      "requestHex": "5A7",
+      "expectedF194": "48490011DF01050000",
+      "roleRu": "Радар правой задней двери",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1427,
+        1428
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_RR_SDR_WHST_00100001",
+        "HTH-2021_RR_SDR_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "RL_SDR",
+      "requestId": 1456,
+      "responseId": 1464,
+      "requestHex": "5B0",
+      "expectedF194": "48490011DF01040000",
+      "roleRu": "Радар левой задней двери",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1459,
+        1460
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_RL_SDR_WHST_00100001",
+        "HTH-2021_RL_SDR_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "FR_SDR",
+      "requestId": 1457,
+      "responseId": 1465,
+      "requestHex": "5B1",
+      "expectedF194": "48490011DF01030000",
+      "roleRu": "Радар правой передней двери",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1425,
+        1426
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_FR_SDR_WHST_00100001",
+        "HTH-2021_FR_SDR_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "FL_SDR",
+      "requestId": 1458,
+      "responseId": 1466,
+      "requestHex": "5B2",
+      "expectedF194": "48490011DF01020000",
+      "roleRu": "Радар левой передней двери",
+      "subsystem": "body",
+      "sourceRowIds": [
+        1461,
+        1462
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_FL_SDR_WHST_00100001",
+        "HTH-2021_FL_SDR_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "MCPA",
+      "requestId": 1508,
+      "responseId": 1516,
+      "requestHex": "5E4",
+      "expectedF194": "514A0011DE7B000000",
+      "roleRu": "Панель управления среднего ряда",
+      "subsystem": "cabin",
+      "sourceRowIds": [
+        1429
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_MCPA_KOSTAL_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": [
+        "Middle row is the source wording. No unsupported door/seat/climate duty or mounting position is inferred on this two-row car."
+      ]
+    },
+    {
+      "abbreviation": "RCP",
+      "requestId": 1524,
+      "responseId": 1532,
+      "requestHex": "5F4",
+      "expectedF194": "48580011DF01750000",
+      "roleRu": "Панель управления холодильником",
+      "subsystem": "cabin",
+      "sourceRowIds": [
+        1438
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_RCP_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": [
+        "This exact-model source says refrigerator panel. Older BYD Han rear-control-panel terminology is not transferred."
+      ]
+    },
+    {
+      "abbreviation": "FRL",
+      "requestId": 1906,
+      "responseId": 1914,
+      "requestHex": "772",
+      "expectedF194": "48330011DEE3000000",
+      "roleRu": "Переднее салонное освещение",
+      "subsystem": "cabin",
+      "sourceRowIds": [
+        1436
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_FRL_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "SMCU",
+      "requestId": 1860,
+      "responseId": 1868,
+      "requestHex": "744",
+      "expectedF194": "48370011E086001100",
+      "roleRu": "Контроллер левого заднего привода",
+      "subsystem": "powertrain",
+      "sourceRowIds": [
+        1388
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_SMCU_BYD_00200001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    },
+    {
+      "abbreviation": "SMCU3",
+      "requestId": 1861,
+      "responseId": 1869,
+      "requestHex": "745",
+      "expectedF194": "48370011E088001100",
+      "roleRu": "Контроллер правого заднего привода",
+      "subsystem": "powertrain",
+      "sourceRowIds": [
+        1387
+      ],
+      "factoryEcuIds": [
+        "HTH-2021_SMCU3_BYD_00100001"
+      ],
+      "basis": "exact_model_scanner_catalog_token_and_supplier_joined_to_live_owner_factory_identity",
+      "softwareQualifiedOemRole": false,
+      "notes": []
+    }
+  ]
+}

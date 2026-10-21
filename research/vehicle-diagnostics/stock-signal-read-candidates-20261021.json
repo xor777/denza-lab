@@ -1,0 +1,1514 @@
+{
+  "date": "2026-10-21",
+  "scope": "Offline stock-source FIDs and read paths only. No car commands, setters, credentials or product changes.",
+  "signals": [
+    {
+      "group": "rear_steering",
+      "name": "ADAS_ACTUAL_LEFT_REAR_WHEEL_STEERING_ANGLE",
+      "labelRu": "Фактический угол левого заднего колеса",
+      "fidHex": "0x0FE004B8",
+      "fidDecimal": 266339512,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/Adas.java",
+        "lines": [
+          17
+        ],
+        "sha256": "4315487868e7d4e712a9fabff18d39c5a48ae3da43a9e4d7b5e9c94459833f77"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/AdasMapper.java",
+        "lines": [
+          862
+        ],
+        "sha256": "a9ded5c0ea03a2b8d5d614ad0a841cb696de7a9c2ee8e6d6e896fe8865d3b888"
+      },
+      "resolvedCanFdTsv": {
+        "matched": false,
+        "rows": [],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "rear_steering",
+      "name": "ADAS_ACTUAL_RIGHT_REAR_WHEEL_STEERING_ANGLE",
+      "labelRu": "Фактический угол правого заднего колеса",
+      "fidHex": "0x0FE004C4",
+      "fidDecimal": 266339524,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/Adas.java",
+        "lines": [
+          19
+        ],
+        "sha256": "4315487868e7d4e712a9fabff18d39c5a48ae3da43a9e4d7b5e9c94459833f77"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/AdasMapper.java",
+        "lines": [
+          864
+        ],
+        "sha256": "a9ded5c0ea03a2b8d5d614ad0a841cb696de7a9c2ee8e6d6e896fe8865d3b888"
+      },
+      "resolvedCanFdTsv": {
+        "matched": false,
+        "rows": [],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "rear_steering",
+      "name": "ADAS_ACTUAL_REAR_WHEEL_STEERING_ANGLE_VALIDITY",
+      "labelRu": "Валидность фактического угла задних колёс",
+      "fidHex": "0x0FE004B7",
+      "fidDecimal": 266339511,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/Adas.java",
+        "lines": [
+          18
+        ],
+        "sha256": "4315487868e7d4e712a9fabff18d39c5a48ae3da43a9e4d7b5e9c94459833f77"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/AdasMapper.java",
+        "lines": [
+          863
+        ],
+        "sha256": "a9ded5c0ea03a2b8d5d614ad0a841cb696de7a9c2ee8e6d6e896fe8865d3b888"
+      },
+      "resolvedCanFdTsv": {
+        "matched": false,
+        "rows": [],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "rear_steering",
+      "name": "ADAS_REAR_WHEEL_STEER_STATUS",
+      "labelRu": "Состояние заднего руления",
+      "fidHex": "0x1EA01548",
+      "fidDecimal": 513807688,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/Adas.java",
+        "lines": [
+          1095
+        ],
+        "sha256": "4315487868e7d4e712a9fabff18d39c5a48ae3da43a9e4d7b5e9c94459833f77"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/AdasMapper.java",
+        "lines": [
+          909
+        ],
+        "sha256": "a9ded5c0ea03a2b8d5d614ad0a841cb696de7a9c2ee8e6d6e896fe8865d3b888"
+      },
+      "resolvedCanFdTsv": {
+        "matched": false,
+        "rows": [],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "rear_steering",
+      "name": "ADAS_REAR_WHEEL_STEER_DYSFUNCTION",
+      "labelRu": "Признак нарушения работы заднего руления",
+      "fidHex": "0x0FE00048",
+      "fidDecimal": 266338376,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/Adas.java",
+        "lines": [
+          1093
+        ],
+        "sha256": "4315487868e7d4e712a9fabff18d39c5a48ae3da43a9e4d7b5e9c94459833f77"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/AdasMapper.java",
+        "lines": [
+          770
+        ],
+        "sha256": "a9ded5c0ea03a2b8d5d614ad0a841cb696de7a9c2ee8e6d6e896fe8865d3b888"
+      },
+      "resolvedCanFdTsv": {
+        "matched": false,
+        "rows": [],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_LEFT_FRONT_SUSPENSION_ACTUAL_HEIGHT",
+      "labelRu": "Фактическая высота: левая передняя",
+      "fidHex": "0x19500008",
+      "fidDecimal": 424673288,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          1110
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          1857
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 7999,
+            "category": "Setting",
+            "value": 424673288
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            7999
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_LEFT_FRONT_SUSPENSION_ACTUAL_HEIGHT_109",
+      "labelRu": "Фактическая высота, вариант _109: левая передняя",
+      "fidHex": "0x10900058",
+      "fidDecimal": 277872728,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          1111
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          2168
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 8000,
+            "category": "Setting",
+            "value": 277872728
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            8000
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "BODYWORK_LEFT_FRONT_SUSPENSION_LIFT_HEIGHT",
+      "labelRu": "Высота подъёма подвески: левая передняя",
+      "fidHex": "0x109001B8",
+      "fidDecimal": 277873080,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          692
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          2071
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 4198,
+            "category": "Bodywork",
+            "value": 277873080
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            4198
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_RIGHT_FRONT_SUSPENSION_ACTUAL_HEIGHT",
+      "labelRu": "Фактическая высота: правая передняя",
+      "fidHex": "0x19500014",
+      "fidDecimal": 424673300,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          1827
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          1858
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 8622,
+            "category": "Setting",
+            "value": 424673300
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            8622
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_RIGHT_FRONT_SUSPENSION_ACTUAL_HEIGHT_109",
+      "labelRu": "Фактическая высота, вариант _109: правая передняя",
+      "fidHex": "0x10900068",
+      "fidDecimal": 277872744,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          1828
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          2170
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 8623,
+            "category": "Setting",
+            "value": 277872744
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            8623
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "BODYWORK_RIGHT_FRONT_SUSPENSION_LIFT_HEIGHT",
+      "labelRu": "Высота подъёма подвески: правая передняя",
+      "fidHex": "0x109001C8",
+      "fidDecimal": 277873096,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          1837
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          2072
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 5039,
+            "category": "Bodywork",
+            "value": 277873096
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            5039
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_LEFT_REAR_SUSPENSION_ACTUAL_HEIGHT",
+      "labelRu": "Фактическая высота: левая задняя",
+      "fidHex": "0x19500020",
+      "fidDecimal": 424673312,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          1145
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          1859
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 8030,
+            "category": "Setting",
+            "value": 424673312
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            8030
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_LEFT_REAR_SUSPENSION_ACTUAL_HEIGHT_109",
+      "labelRu": "Фактическая высота, вариант _109: левая задняя",
+      "fidHex": "0x10900078",
+      "fidDecimal": 277872760,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          1146
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          2169
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 8031,
+            "category": "Setting",
+            "value": 277872760
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            8031
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "BODYWORK_LEFT_REAR_SUSPENSION_LIFT_HEIGHT",
+      "labelRu": "Высота подъёма подвески: левая задняя",
+      "fidHex": "0x109001D8",
+      "fidDecimal": 277873112,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          751
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          2073
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 4248,
+            "category": "Bodywork",
+            "value": 277873112
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            4248
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_RIGHT_REAR_SUSPENSION_ACTUAL_HEIGHT",
+      "labelRu": "Фактическая высота: правая задняя",
+      "fidHex": "0x1950002C",
+      "fidDecimal": 424673324,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          1859
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          1860
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 8654,
+            "category": "Setting",
+            "value": 424673324
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            8654
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_RIGHT_REAR_SUSPENSION_ACTUAL_HEIGHT_109",
+      "labelRu": "Фактическая высота, вариант _109: правая задняя",
+      "fidHex": "0x10900088",
+      "fidDecimal": 277872776,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          1860
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          2171
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 8655,
+            "category": "Setting",
+            "value": 277872776
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            8655
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "BODYWORK_RIGHT_REAR_SUSPENSION_LIFT_HEIGHT",
+      "labelRu": "Высота подъёма подвески: правая задняя",
+      "fidHex": "0x109001E8",
+      "fidDecimal": 277873128,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          1887
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          2074
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 5089,
+            "category": "Bodywork",
+            "value": 277873128
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            5089
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_SUSPENSION_HEIGHT_ADJUSTMENT_PROCESS",
+      "labelRu": "Процесс регулировки высоты подвески",
+      "fidHex": "0x2580002C",
+      "fidDecimal": 629145644,
+      "evidenceLevel": "stock_getter_observed",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "int",
+      "unit": "enum/raw",
+      "enum": {
+        "validRaw": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "known": {
+          "2": "UI показывает снижение высоты",
+          "3": "В режиме дрифта вместе с уровнем 1 UI показывает завершение"
+        },
+        "unknown": "Полная универсальная расшифровка 1 и 4 не установлена; контекст дрифта не переносится на все режимы"
+      },
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          2118
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          1397
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 8931,
+            "category": "Setting",
+            "value": 629145644
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            8931
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": {
+        "method": "DriftMainModel.getDriftModeSuspensionAdjustProgressFromMcu",
+        "evidence": {
+          "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/vehiclesettings/drivingadjust/view/drift/model/DriftMainModel.java",
+          "lines": [
+            283,
+            284,
+            285,
+            286,
+            287,
+            288,
+            289,
+            290,
+            373,
+            374,
+            375,
+            376
+          ],
+          "sha256": "76d3fc08e91b58cf2a71ccc3e6161e4ca78724547f77e5b0613f8050e1ba32ad"
+        }
+      },
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_ACTUCL_SUSPENSION_HEIGHT_ADJUSTMENT_LEVEL",
+      "labelRu": "Фактический уровень высоты подвески",
+      "fidHex": "0x25800044",
+      "fidDecimal": 629145668,
+      "evidenceLevel": "stock_getter_observed",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "int",
+      "unit": "enum/raw",
+      "enum": {
+        "validRaw": [
+          1,
+          2,
+          3
+        ],
+        "known": {},
+        "unknown": "В этом getter нет полных названий уровней; ошибочное значение UI заменяет на 2, такой fallback не является измерением"
+      },
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          78
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          1398
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 7233,
+            "category": "Setting",
+            "value": 629145668
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            7233
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": {
+        "method": "DriftMainModel.getDriftModeSuspensionHeightGearFromMcu",
+        "evidence": {
+          "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/vehiclesettings/drivingadjust/view/drift/model/DriftMainModel.java",
+          "lines": [
+            293,
+            294,
+            295,
+            296,
+            297,
+            298,
+            299,
+            300,
+            373,
+            374,
+            375,
+            376
+          ],
+          "sha256": "76d3fc08e91b58cf2a71ccc3e6161e4ca78724547f77e5b0613f8050e1ba32ad"
+        }
+      },
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_SUSPENSION_HEIGHT_ADJUSTMENT_FAULT",
+      "labelRu": "Признак неисправности регулировки высоты",
+      "fidHex": "0x1A70000A",
+      "fidDecimal": 443547658,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          2117
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          1861
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 8930,
+            "category": "Setting",
+            "value": 443547658
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            8930
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SETTING_ADJUSTABLE_SUSPENSION_STATUS",
+      "labelRu": "Состояние регулируемой подвески",
+      "fidHex": "0x25800114",
+      "fidDecimal": 629145876,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          96
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          2116
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 7239,
+            "category": "Setting",
+            "value": 629145876
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            7239
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "SET_DYNAMIC_SUSPENSION_ACTUAL_OPERATING_MODE",
+      "labelRu": "Фактический режим подвески",
+      "fidHex": "0x37F00008",
+      "fidDecimal": 938475528,
+      "evidenceLevel": "stock_getter_observed",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "int",
+      "unit": "enum/raw",
+      "enum": {
+        "validRaw": [
+          1,
+          2,
+          3
+        ],
+        "known": {
+          "1": "Комфорт",
+          "2": "Спорт",
+          "3": "Гоночный режим при доступной конфигурации трёх режимов"
+        },
+        "qualification": "Связь raw = radio index + 1 доказана getStateFromHal и getRadioTextIds; применимость режима 3 зависит от конфигурации"
+      },
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
+        "lines": [
+          2868
+        ],
+        "sha256": "eaef141c39494c9d6a5295c4fcf1def29cc69a5aab20159b929fbdeb72b7524d"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/SettingMapper.java",
+        "lines": [
+          150
+        ],
+        "sha256": "a3c20bca95c1796bd9fb343994a69d2e3a2f53d55d0fb8d81e25f4994b9cd0fb"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 2570,
+            "category": "TOP",
+            "value": 938475528
+          },
+          {
+            "line": 9673,
+            "category": "Setting",
+            "value": 938475528
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            2570,
+            9673
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": {
+        "method": "DMYunNianModeCommon.getStateFromHal",
+        "evidence": {
+          "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/vehiclesettings/drivingadjust/view/drivingmode/dialog/common/DMYunNianModeCommon.java",
+          "lines": [
+            30,
+            31,
+            32,
+            84,
+            85,
+            86,
+            89,
+            90,
+            91,
+            92,
+            93
+          ],
+          "sha256": "1ad52b559cf536c8392393695ce9b8743b6c5200c552112b5cdf9c5dd0f03430"
+        }
+      },
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "BODYWORK_DISUS_UNAVAILABLE_REASON_STATUS",
+      "labelRu": "Причина недоступности DiSus",
+      "fidHex": "0x2F1050F0",
+      "fidDecimal": 789598448,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          363
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          1570
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 4037,
+            "category": "Bodywork",
+            "value": 789598448
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            4037
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "BODYWORK_DISUS_HIGHT_SPEED_LOWER_LIMIT_STATUS",
+      "labelRu": "DiSus: статус нижнего ограничения скорости (имя сохраняет HIGHT)",
+      "fidHex": "0x2F105021",
+      "fidDecimal": 789598241,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          288
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          1534
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 3986,
+            "category": "Bodywork",
+            "value": 789598241
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            3986
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "suspension",
+      "name": "BODYWORK_DISUS_HIGHT_SPEED_UPPER_LIMIT_STATUS",
+      "labelRu": "DiSus: статус верхнего ограничения скорости (имя сохраняет HIGHT)",
+      "fidHex": "0x2F105028",
+      "fidDecimal": 789598248,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          289
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          1535
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 3987,
+            "category": "Bodywork",
+            "value": 789598248
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            3987
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "door_radar_context",
+      "name": "BODYWORK_LF_ELECTRIC_DOOR_OBSTACLE",
+      "labelRu": "Препятствие электродвери: левая передняя",
+      "fidHex": "0x39100088",
+      "fidDecimal": 957350024,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          800
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          929
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 4282,
+            "category": "Bodywork",
+            "value": 957350024
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            4282
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "door_radar_context",
+      "name": "BODYWORK_RF_ELECTRIC_DOOR_OBSTACLE",
+      "labelRu": "Препятствие электродвери: правая передняя",
+      "fidHex": "0x3910008A",
+      "fidDecimal": 957350026,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          1797
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          930
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 5006,
+            "category": "Bodywork",
+            "value": 957350026
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            5006
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "door_radar_context",
+      "name": "BODYWORK_LR_ELECTRIC_DOOR_OBSTACLE",
+      "labelRu": "Препятствие электродвери: левая задняя",
+      "fidHex": "0x3910008C",
+      "fidDecimal": 957350028,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          837
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          931
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 4311,
+            "category": "Bodywork",
+            "value": 957350028
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            4311
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "door_radar_context",
+      "name": "BODYWORK_RR_ELECTRIC_DOOR_OBSTACLE",
+      "labelRu": "Препятствие электродвери: правая задняя",
+      "fidHex": "0x3910008E",
+      "fidDecimal": 957350030,
+      "evidenceLevel": "stock_mapper_and_literal_only",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "unverified",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          1929
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          932
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 5122,
+            "category": "Bodywork",
+            "value": 957350030
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            5122
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": null,
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    },
+    {
+      "group": "nfc_context",
+      "name": "BODYWORK_NFC_IMPLEMENT_RESULT_DUAL_MODULE",
+      "labelRu": "Результат выполнения NFC в системе двух модулей",
+      "fidHex": "0x19C33030",
+      "fidDecimal": 432222256,
+      "evidenceLevel": "stock_getter_observed",
+      "runtimeAvailability": "unverified on owner vehicle; no request made",
+      "valueType": "int",
+      "unit": "unknown; no scale or engineering unit inferred",
+      "enum": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "lines": [
+          984
+        ],
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c"
+      },
+      "mapping": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "lines": [
+          364
+        ],
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be"
+      },
+      "resolvedCanFdTsv": {
+        "matched": true,
+        "rows": [
+          {
+            "line": 4413,
+            "category": "Bodywork",
+            "value": 432222256
+          }
+        ],
+        "source": {
+          "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+          "lines": [
+            4413
+          ],
+          "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"
+        }
+      },
+      "concreteStockReader": {
+        "method": "UwbModel.getDoubleModeErrorStateThree",
+        "evidence": {
+          "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/vehiclesettings/digitalkey/key/model/UwbModel.java",
+          "lines": [
+            168,
+            169,
+            170,
+            171,
+            172,
+            173
+          ],
+          "sha256": "52730c5c168ad32b250e8e56d779afcfe4cdf2b771b5662917126ee3b59677c7"
+        }
+      },
+      "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+    }
+  ],
+  "commonReadEvidence": [
+    {
+      "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/service/CarPropertyServiceImpl.java",
+      "lines": [
+        47,
+        48,
+        49,
+        50,
+        51,
+        52
+      ],
+      "sha256": "0033484366209fb7b38b691b9d6c5a26da0f0ca45b3fa481bb5fdd9cfa02c7f8"
+    },
+    {
+      "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/PropertyCategoryRegistry.java",
+      "lines": [
+        111,
+        114,
+        121
+      ],
+      "sha256": "eb72bdb695dd0a25fd977a7a14f827fe78aa2541ef845a6103c4c3a1cebe1f0b"
+    },
+    {
+      "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/ccs/impl/hal/DiCarGetter.java",
+      "lines": [
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "sha256": "fe6555bdf2187de1d71428e56d322f4eb82870c0e42d6c8fb3d2ee5a5850ff96"
+    }
+  ],
+  "counts": {
+    "signals": 30,
+    "stockGettersObserved": 4,
+    "resolvedCanFdTsvMatched": 25
+  },
+  "limits": [
+    "Presence of a name and mapper is not proof of current-car get support or valid data.",
+    "Five rear-steering names have no matching resolved row in the existing fids-canfd.tsv; their numeric values come from stock SDK string literals.",
+    "No units or bit meanings inferred from field names.",
+    "Duplicate height families 0x195 and _109 are alternatives without proven profile170 selection; do not combine or substitute them.",
+    "Suspension, rear-steering, door and NFC context grouping is not a new FID-to-diagnostic-ECU routing map.",
+    "No DTC definitions derived from these telemetry names."
+  ],
+  "schema": "denza-lab.stock-signal-read-candidates.v1",
+  "derivedFrom": {
+    "path": "captures/diagnostics-ecu-roles-20261021/chassis/readable-signals.json",
+    "sha256": "fe120572a54b95d1b9cb37337090c5d5690257f31417fa67f70c4cff8ab1eb63"
+  },
+  "liveRequestsThisPass": 0,
+  "productUpdated": false
+}

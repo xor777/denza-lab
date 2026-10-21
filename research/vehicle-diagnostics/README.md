@@ -59,7 +59,8 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   document IDs where available. This is an acquisition index, not a fault
   dictionary: original manual pages, software applicability and FMCU/ISG
   format01 display-to-raw mapping are still missing. SMCU/SMCU3 rear-side
-  assignment remains unknown. Public catalog captures and the additional
+  assignment was open in this snapshot; the 2026-10-21 Xtool model catalog below
+  now names SMCU left and SMCU3 right. Public catalog captures and the additional
   offline stock-app audit are in `captures/diagnostics-oem-dtc-20261020/`.
   `oem-dtc-public-index-20261020.json` preserves all 829 observed
   subsystem/code/outline locators and original Chinese public headings in Git,
@@ -73,6 +74,33 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   text. The app ships both files unchanged as candidate descriptions
   (docs/vehicle-diagnostics-architecture.md, §4); a new index needs a new
   translation, or `OemDtcReferenceTest` fails.
+
+- `xtool-z9gt-dm-20261021.json` preserves 172 exact-model Xtool system/variant
+  rows (`PS_TENGSHIEV` 6.61, Z9GT/Z9GT DM), source pointers/hashes and an exact-token
+  crosswalk to the factory map and previous live inventory. Rows include supplier
+  alternatives and LIN children; they are not 172 installed ECUs. This is a
+  diagnostic-tool manufacturer's catalog, not an OEM DTC dictionary.
+- `ecu-role-evidence-20261021.json` joins the model names to factory identities
+  and observed F194 for all 25 previously unnamed catalog entries and the two
+  rear drives. It retains Russian labels, source row IDs and limits. Product
+  labels and DTC-description selection have not been changed by this pass.
+- `ecu-child-identification-candidates-20261021.json` retains eight unexecuted
+  software-code reads for seat-massage controllers and rear lamps through known
+  parents `750`, `7B5`, `7D2`, `726`. Separate INS/FRL/CDC subidentities remain
+  unbound. This is candidate metadata, not an executable probe: the product
+  whitelist rejects the DIDs and the existing research decoder assumes F194.
+- `stock-signal-read-candidates-20261021.json` preserves 30 stock FIDs for rear
+  steering, suspension, door obstacles and dual NFC: literals/mappers and hashes,
+  four concrete stock getters, 25 resolved-TSV matches. Runtime availability,
+  native device/transact routing and most units/enums are unproved. No signal is
+  assigned to a physical diagnostic ECU merely because its function is related.
+- `xtool-public-capabilities-20261021.json` preserves the public field schema,
+  support counts and 67 IDC action **titles** for offline corpus searches. Its
+  DTC/live/freeze fields contain flags, not fault definitions, parameter names,
+  request bytes or scaling. No action was executed. Raw responses and independent
+  reviews are in `captures/diagnostics-ecu-roles-20261021/`; findings and the next
+  exact identification targets are in
+  [the reverse crosswalk](../../docs/vehicle-data-findings.md#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21).
 
 The promoted two-target allowlisted reader was `VehicleDtcProxyMain` in Denza Apps,
 with `VehicleDiagnostics` supplying profile/P/speed checks, ownership and UI lifecycle.
