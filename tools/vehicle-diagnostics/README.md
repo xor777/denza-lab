@@ -204,6 +204,39 @@ readback errors, lost state persistence, deadline, concurrent stop, failed
 restoration, and lease recovery rules. One host-only child process verifies
 that a blocked stdout consumer does not block child cleanup. None accesses ADB.
 
+## Isolated GCY checkVersion client (prepared, 2026-10-21)
+
+`OtaCheckVersionProbe.java` and `run_ota_check_metadata.py` prepare one GCY
+metadata request using the existing cache, never a stock OTA workflow. They
+reuse the unchanged reader/parser/TLS and host lease/watchdog code below.
+Default execution prints a local plan; it never invokes ADB. The explicit run
+requires a pinned `manifest.json`/`dex/classes.dex` build and authorization for
+the temporary BydLog export and RAM-only identity use.
+
+It reads the existing four GCY identity/preferences/version inputs plus
+`ECUVersion.json` and GCY/GHY/ProductLine strategy files. Before GO, the host
+verifies export closure and a terminal watchdog and saves allowed metadata.
+All six ECU fields are kept unchanged. The cache's source age remains unknown;
+no active ECU diagnosis is performed. Neither the helper nor the host contains
+a stock download, install, token-refresh or retry path. Keys, tokens, UUIDs,
+package URLs and package secrets never enter host output. Unrecognized cause
+text is omitted. A forced strategy is only projected data.
+
+Offline validation: 27 Java assertions, including the 225-row retained cache,
+and 8 fake-device host tests. DEX is built in
+`captures/ota-isolated-20261021/build/`; it has not run on Android or made a
+checkVersion request. Read-only preflight passed on the existing tunnel.
+
+```bash
+python3 -B tools/vehicle-diagnostics/run_ota_check_metadata.py
+python3 -B -m unittest discover -s tools/vehicle-diagnostics -p test_run_ota_check_metadata.py
+```
+
+The manifest pins both new sources and both reused sources; changing any of
+them invalidates the build. The new host reuses the old export lease, so it
+cannot run beside another metadata reader. The exposure and watchdog limits
+described below still apply. Full findings: [OTA](../../docs/ota-update-findings.md#подготовленный-изолированный-запрос-gcy).
+
 ## Isolated ECU metadata client
 
 `EcuMapMetadataProbe.java` is a separate prepared `app_process` client, never a
