@@ -3,7 +3,7 @@ package dev.denza.apps.feature.diagnostics.protocol
 /**
  * A section of the public table of contents of the Z9GT PHEV 2024 diagnostic manual
  * (`research/vehicle-diagnostics/oem-dtc-public-index-20261020.json`), by its key in that file.
- * [side] is set for the two rear drives: which of them is SMCU and which SMCU3 is not established.
+ * [side] is set for the two rear drives' sections.
  */
 internal enum class OemSection(val key: String, val side: RearSide? = null) {
     ENGINE_ECM("engine_ecm"),
@@ -105,8 +105,9 @@ internal class OemDtcIndex(val headings: List<OemHeading>) {
         val EMPTY = OemDtcIndex(emptyList())
 
         /**
-         * The sections a module's codes are searched in, by request address. The rear drives get both
-         * rear sections: SMCU and SMCU3 are not bound to a side (architecture, 4).
+         * The sections a module's codes are searched in, by request address. SMCU drives the left rear
+         * motor and SMCU3 the right, yet each is searched in both rear sections: no code of theirs has been
+         * read against a section, so the manual's side is not taken for the block's (architecture, 4).
          */
         fun sections(request: Int): List<OemSection> = when (request) {
             0x7E0 -> listOf(OemSection.ENGINE_ECM)

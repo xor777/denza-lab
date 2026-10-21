@@ -87,10 +87,9 @@ internal object SystemsBuilder {
         val units = listOf(
             unit("FMCU", "Инвертор передний") { car.hub[VehicleSignal.INVERTER_C]?.let { "IPM ${Figures.number(it, 0)} °C" } },
             unit("ISG", "Мотор-генератор") { dtcs("ISG") },
-            // Which rear motor each SMCU drives is not established: their boxes carry no side and no
-            // per-side signal; the sides' readings are on the machines' lines below.
-            unit("SMCU", "Инвертор задний") { dtcs("SMCU") },
-            unit("SMCU3", "Инвертор задний") { dtcs("SMCU3") },
+            // SMCU drives the left rear motor, SMCU3 the right; the sides' readings are on the machines' lines below.
+            unit("SMCU", "Инвертор задний левый") { dtcs("SMCU") },
+            unit("SMCU3", "Инвертор задний правый") { dtcs("SMCU3") },
             unit("ECM", "ДВС") { ecm?.mil?.let { if (it) "MIL ГОРИТ" else "MIL ВЫКЛ" } },
             unit("PTC", "Нагреватель ВВ") { dtcs("PTC") },
             unit("DCOBC", "Зарядное + DC-DC") { dtcs("DCOBC") },
@@ -227,11 +226,9 @@ internal object SystemsBuilder {
         fun f194(ecu: Ecu) = s.results[ecu.request]?.identity?.let { (it as? Polled.Got)?.value ?: ModelBuilder.word(it) } ?: "не читали"
         fun f195(ecu: Ecu) = s.idents[ecu.request]?.dids?.get(IdentDid.F195)?.let(ModelBuilder::identText) ?: "не читали"
         return CompareView(
-            // Named by abbreviation: which rear motor each SMCU drives is not established.
             columns = drives.map { CompareColumn(it.abbreviation, DRIVE_NAMES.getValue(it.abbreviation), it.request) },
             rows = listOf(
-                // autoservice names its rear signals by side: left under SMCU, right under SMCU3
-                // (architecture, 7: no caveats on screen; the side is not established).
+                // autoservice names its rear signals by side: left under SMCU, right under SMCU3, the motors they drive.
                 row("Температура статора", "1039·46406018 · Л 285001A8 · П 285001B0", "°C",
                     h(VehicleSignal.MOTOR_FRONT_C), h(VehicleSignal.MOTOR_REAR_LEFT_C), h(VehicleSignal.MOTOR_REAR_RIGHT_C), "—"),
                 row("Температура силовых ключей (IGBT/IPM)", "1039·46406010 · Л 2D000180 · П 2D000188", "°C",
@@ -254,7 +251,7 @@ internal object SystemsBuilder {
 
     // ------------------------------------------------------------------ driver assistance
 
-    private val DRIVE_NAMES = mapOf("FMCU" to "Передний", "SMCU" to "Задний", "SMCU3" to "Задний", "ISG" to "Мотор-генератор")
+    private val DRIVE_NAMES = mapOf("FMCU" to "Передний", "SMCU" to "Задний левый", "SMCU3" to "Задний правый", "ISG" to "Мотор-генератор")
 
     private val ADAS = listOf(0x712, 0x7F2, 0x760, 0x761, 0x7C2, 0x7D4, 0x701)
     private val RADARS = setOf(0x760, 0x761, 0x7C2, 0x7D4)

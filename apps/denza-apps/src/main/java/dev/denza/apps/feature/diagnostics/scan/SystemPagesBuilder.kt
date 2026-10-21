@@ -35,25 +35,29 @@ internal object SystemPagesBuilder {
     /**
      * The blocks of each system by request address, in the order of §7.2's table (the head's line
      * for a system without its own); a block may stand in two systems. BODY, CABIN and OTHER are the
-     * catalog's groups, the child-presence radar CPD moved from the cabin to SAFETY.
+     * catalog's groups, the child-presence radar CPD moved from the cabin to SAFETY. OTHER is empty
+     * while every block has a role, and a system without blocks is neither on the rail nor a page.
      */
     val MEMBERS: Map<CarSystem, List<Int>> = CarSystem.entries.associateWith { system ->
         fun group(g: EcuGroup) = EcuCatalog.inGroup(g).mapNotNull { it.request }
         when (system) {
             CarSystem.HV -> listOf(0x7E7, 0x7E3, 0x744, 0x745, 0x7E6, 0x7E0, 0x7E4, 0x766, 0x762)
             CarSystem.PACK -> listOf(0x7E7)
-            CarSystem.DRIVES -> listOf(0x7E2, 0x7E3, 0x744, 0x745, 0x7E6)
+            CarSystem.DRIVES -> listOf(0x7E2, 0x743, 0x7E3, 0x744, 0x745, 0x7E6)
             CarSystem.ENGINE -> listOf(ECM)
-            CarSystem.CHASSIS -> listOf(0x782, 0x7E5, 0x783)
-            CarSystem.SAFETY -> listOf(0x7F1, 0x5E0)
+            CarSystem.CHASSIS -> listOf(0x782, 0x7E5, 0x783, 0x582, 0x796, 0x597)
+            CarSystem.SAFETY -> listOf(0x7F1, 0x742, 0x713, 0x5E0)
             CarSystem.ADAS -> group(EcuGroup.ADAS)
             CarSystem.BODY -> group(EcuGroup.BODY)
             CarSystem.CABIN -> group(EcuGroup.CABIN) - 0x5E0
-            CarSystem.CLIMATE -> listOf(0x7B3, 0x7B4, 0x766)
+            CarSystem.CLIMATE -> listOf(0x7B3, 0x7B4, 0x766, 0x590)
             CarSystem.LV -> listOf(0x762)
             CarSystem.OTHER -> group(EcuGroup.UNKNOWN)
         }
     }
+
+    /** The systems that hold a block, in the rail's order. */
+    val SHOWN: List<CarSystem> = CarSystem.entries.filter { MEMBERS.getValue(it).isNotEmpty() }
 
     private val SCREEN_ORDER: Map<Int, Int> = EcuCatalog.routed.withIndex().associate { (i, e) -> e.request!! to i }
 
@@ -66,16 +70,16 @@ internal object SystemPagesBuilder {
             CarSystem.PACK -> listOf(SystemTab.STATE, SystemTab.LIVE, SystemTab.GB_FLAGS, SystemTab.DTC, SystemTab.BLOCKS)
             CarSystem.DRIVES, CarSystem.ADAS -> listOf(SystemTab.STATE, SystemTab.COMPARE, SystemTab.DTC, SystemTab.BLOCKS)
             CarSystem.ENGINE -> listOf(SystemTab.STATE, SystemTab.LIVE, SystemTab.DTC_READINESS, SystemTab.BLOCKS)
-            CarSystem.SAFETY, CarSystem.CABIN, CarSystem.OTHER -> listOf(SystemTab.DTC, SystemTab.BLOCKS)
+            CarSystem.CABIN, CarSystem.OTHER -> listOf(SystemTab.DTC, SystemTab.BLOCKS)
             else -> listOf(SystemTab.STATE, SystemTab.DTC, SystemTab.BLOCKS)
         }
     }
 
     // ------------------------------------------------------------------ the rail
 
-    /** «Автоскан» with its answered count, then every system, marked only where its blocks hold codes. */
+    /** «Автоскан» with its answered count, then every system with blocks, marked only where its blocks hold codes. */
     fun rail(i: Inputs): List<RailItem> =
-        listOf(RailItem(null, "Автоскан", i.scan.answered, RailTone.COUNT)) + CarSystem.entries.map { system ->
+        listOf(RailItem(null, "Автоскан", i.scan.answered, RailTone.COUNT)) + SHOWN.map { system ->
             val c = codes(i.s, system)
             when {
                 c.active > 0 -> RailItem(system, system.railName, "АКТ ${c.active}", RailTone.ACTIVE)
@@ -101,7 +105,7 @@ internal object SystemPagesBuilder {
 
     // ------------------------------------------------------------------ the pages
 
-    fun pages(i: Inputs): Map<CarSystem, SystemPage> = CarSystem.entries.associateWith { page(i, it) }
+    fun pages(i: Inputs): Map<CarSystem, SystemPage> = SHOWN.associateWith { page(i, it) }
 
     private fun page(i: Inputs, system: CarSystem): SystemPage {
         val blocks = blocks(system)
@@ -160,7 +164,8 @@ internal object SystemPagesBuilder {
                 }
                 Triple(
                     count(members),
-                    plainLine(members) + " · шины: давление ${DiagnosticExtra.FL_PRESSURE.device}, температура ${DiagnosticExtra.FL_TYRE_TEMP.device}",
+                    "${tag(0x782)} · ${tag(0x7E5)} · ${tag(0x783)} · RWS ${Figures.address(0x582)} ${Figures.address(0x796)} · ${tag(0x597)} · " +
+                        "шины: давление ${DiagnosticExtra.FL_PRESSURE.device}, температура ${DiagnosticExtra.FL_TYRE_TEMP.device}",
                     listOf(HeadCounter("ДАВЛЕНИЕ", range), dtc, read),
                 )
             }
@@ -172,7 +177,8 @@ internal object SystemPagesBuilder {
             CarSystem.BODY -> Triple(
                 count(members),
                 "${tag(0x720)} · ${tag(0x747)} · ${tag(0x722)} · ${tag(0x726)} · фары ${Figures.address(0x770)} ${Figures.address(0x771)} · " +
-                    "UWB-ключ ${Figures.address(0x7F3)} и 4 антенны",
+                    "UWB-ключ ${Figures.address(0x7F3)} и 4 антенны · радары дверей ${DOOR_RADARS.values.joinToString(" ") { Figures.address(it) }} · " +
+                    "${tag(0x754)} · ${tag(0x7D6)} · ${tag(0x595)} · ${tag(0x724)}",
                 generic,
             )
             CarSystem.CLIMATE -> Triple(
@@ -314,6 +320,7 @@ internal object SystemPagesBuilder {
                 unit = i.rows[0x7B3],
                 heater = i.rows[0x766],
                 thermal = i.rows[0x7B4],
+                air = i.rows[0x590],
             )
         }
         CarSystem.LV -> Scheme.Lv(
@@ -323,7 +330,13 @@ internal object SystemPagesBuilder {
             battery = i.rows[0x762],
             loads = listOf(0x722, 0x720, 0x747, 0x726).mapNotNull { i.rows[it] },
         )
-        CarSystem.SAFETY, CarSystem.CABIN, CarSystem.OTHER -> null
+        CarSystem.SAFETY -> Scheme.Safety(
+            airbags = i.rows[0x7F1],
+            driverBelt = i.rows[0x742],
+            passengerBelt = i.rows[0x713],
+            childRadar = i.rows[0x5E0],
+        )
+        CarSystem.CABIN, CarSystem.OTHER -> null
     }
 
     /** «553 В»: the pack's voltage, as the HV schema's pack box has it. */
@@ -400,16 +413,17 @@ internal object SystemPagesBuilder {
         val running = car.engineRunning
         return Scheme.Drives(
             vcu = i.rows[0x7E2],
+            powerDomain = i.rows[0x743],
             front = Callout("ПЕРЕДНИЙ МОТОР · ${tag(0x7E3)}", motor(hub(VehicleSignal.MOTOR_FRONT_C), hub(VehicleSignal.INVERTER_C),
                 DiagnosticExtra.RPM_FRONT, DiagnosticExtra.TORQUE_FRONT, DiagnosticExtra.CURRENT_FRONT)),
             isg = Callout("МОТОР-ГЕНЕРАТОР · ${tag(isg.request!!)}", listOf(
                 "DTC $isgDtc · ПО $software",
                 when (running) { true -> "ДВС работает"; false -> "ДВС не работает"; null -> "ДВС $NA" },
             )),
-            // autoservice names the rear signals by side; which SMCU drives which side is not established.
-            rearLeft = Callout("ЗАДНИЙ ЛЕВЫЙ", motor(hub(VehicleSignal.MOTOR_REAR_LEFT_C), car.extra(DiagnosticExtra.IGBT_REAR_LEFT),
+            // autoservice names the rear signals by side; SMCU drives the left rear motor, SMCU3 the right.
+            rearLeft = Callout("ЗАДНИЙ ЛЕВЫЙ · ${tag(0x744)}", motor(hub(VehicleSignal.MOTOR_REAR_LEFT_C), car.extra(DiagnosticExtra.IGBT_REAR_LEFT),
                 DiagnosticExtra.RPM_REAR_LEFT, DiagnosticExtra.TORQUE_REAR_LEFT, DiagnosticExtra.CURRENT_REAR_LEFT)),
-            rearRight = Callout("ЗАДНИЙ ПРАВЫЙ", motor(hub(VehicleSignal.MOTOR_REAR_RIGHT_C), car.extra(DiagnosticExtra.IGBT_REAR_RIGHT),
+            rearRight = Callout("ЗАДНИЙ ПРАВЫЙ · ${tag(0x745)}", motor(hub(VehicleSignal.MOTOR_REAR_RIGHT_C), car.extra(DiagnosticExtra.IGBT_REAR_RIGHT),
                 DiagnosticExtra.RPM_REAR_RIGHT, DiagnosticExtra.TORQUE_REAR_RIGHT, DiagnosticExtra.CURRENT_REAR_RIGHT)),
             engineRunning = running == true,
         )
@@ -470,6 +484,9 @@ internal object SystemPagesBuilder {
             esp = i.rows[0x782],
             eps = i.rows[0x783],
             bscm = i.rows[0x7E5],
+            rearSteerLeft = i.rows[0x582],
+            rearSteerRight = i.rows[0x796],
+            motion = i.rows[0x597],
         )
     }
 
@@ -484,6 +501,9 @@ internal object SystemPagesBuilder {
 
     /** The four UWB anchors by their route names: front left, front right, rear left, rear right. */
     private val ANCHORS = mapOf(Corner.FL to "UWBLFA", Corner.FR to "UWBRFA", Corner.RL to "UWBLRA", Corner.RR to "UWBRRA")
+
+    /** The doors' obstacle radars by their route names: FL_SDR, FR_SDR, RL_SDR, RR_SDR. */
+    private val DOOR_RADARS = mapOf(Corner.FL to 0x5B2, Corner.FR to 0x5B1, Corner.RL to 0x5B0, Corner.RR to 0x5A7)
 
     private fun body(i: Inputs): Scheme.Body {
         val car = i.s.car
@@ -512,6 +532,11 @@ internal object SystemPagesBuilder {
                 val request = EcuCatalog.all.first { it.abbreviation == ANCHORS.getValue(c) }.request
                 request?.let { i.rows[it]?.status } ?: ModuleStatus.NO_ROUTE
             },
+            doorRadars = DOOR_RADARS.mapNotNull { (corner, r) -> i.rows[r]?.let { corner to it } }.toMap(),
+            keyReceiver = i.rows[0x754],
+            smartEntry = i.rows[0x7D6],
+            nfc = i.rows[0x595],
+            tailgate = i.rows[0x724],
         )
     }
 }

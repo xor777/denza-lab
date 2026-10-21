@@ -55,7 +55,8 @@ internal class ModelBuilder(
 ) {
     fun build(s: SessionSnapshot): DiagnosticsModel {
         val scan = summary(s)
-        val groups = EcuGroup.entries.map { group(s, it) }
+        // A group without blocks is not listed: «Назначение не установлено» is empty while every block has a role.
+        val groups = EcuGroup.entries.filter { EcuCatalog.inGroup(it).isNotEmpty() }.map { group(s, it) }
         val modules = (s.results.keys + s.idents.keys + s.open).mapNotNull { r -> EcuCatalog.byRequest(r)?.let { r to module(s, it) } }.toMap()
         val pages = SystemPagesBuilder.Inputs(
             s = s,

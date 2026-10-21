@@ -95,6 +95,8 @@ class DiagnosticsSessionTest {
         assertEquals("Контроллер силового домена", m.row(0x743).name)
         assertEquals("9 бл. · прочитано 8 · DTC не читали 1", m.groups.first { it.id == "power" }.summary)
         assertEquals("19 бл. · прочитано 4 · история 2 · DTC не читали 15", m.groups.first { it.id == "body" }.summary)
+        // Every block has a role: the list has no empty «Назначение не установлено».
+        assertEquals(listOf("power", "chassis", "assist", "body", "salon", "climate", "lv"), m.groups.map { it.id })
         assertEquals(Target.Module(0x744), m.rows().first { it.abbreviation == "SMCU" }.target)
         // DCOBC: the list alone, codes without a format stay raw, and the screen says why.
         val dcobc = m.modules.getValue(0x7E4)
@@ -411,6 +413,8 @@ class DiagnosticsSessionTest {
 
         assertEquals(listOf("FMCU", "SMCU", "SMCU3", "ISG"), sys.drives.columns.map { it.abbreviation })
         assertEquals(listOf(0x7E3, 0x744, 0x745, 0x7E6), sys.drives.columns.map { it.request })
+        // SMCU drives the left rear motor, SMCU3 the right: the columns say the side.
+        assertEquals(listOf("Передний", "Задний левый", "Задний правый", "Мотор-генератор"), sys.drives.columns.map { it.name })
         // the sides are in each row's source, «Л» and «П», as the board has them: no row of caveats
         assertEquals("1039·46406018 · Л 285001A8 · П 285001B0", sys.drives.rows[0].source)
         assertEquals(listOf("8", "7", "7", "—"), sys.drives.rows[0].cells.map { it.text })
@@ -425,7 +429,8 @@ class DiagnosticsSessionTest {
         val units = sys.hv.units.associateBy { it.abbreviation }
         assertEquals("744", units.getValue("SMCU").address)
         assertEquals("OK · DTC 0", units.getValue("SMCU").state)
-        assertEquals("Инвертор задний", units.getValue("SMCU").name)
+        assertEquals("Инвертор задний левый", units.getValue("SMCU").name)
+        assertEquals("Инвертор задний правый", units.getValue("SMCU3").name)
         assertEquals("OK · DTC 0", units.getValue("DCOBC").state)
         assertEquals("OK · IPM 9 °C", units.getValue("FMCU").state)
         assertEquals("OK · MIL ВЫКЛ", units.getValue("ECM").state)

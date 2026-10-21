@@ -11,14 +11,14 @@ import dev.denza.apps.feature.diagnostics.protocol.DataQuality
 internal data class DiagnosticsModel(
     val header: Header,
     val scan: ScanSummary,
-    /** The autoscan's groups in screen order, every catalogued ECU in one of them. */
+    /** The autoscan's groups in screen order, every catalogued ECU in one of them; a group without blocks is left out. */
     val groups: List<ModuleGroupView>,
     /** An ECU's own screen, by request address; present once it was scanned or opened. */
     val modules: Map<Int, ModuleView>,
     val systems: SystemsView,
-    /** The systems down the left, «Автоскан» first (architecture, 7.2). */
+    /** The systems down the left, «Автоскан» first; a system without blocks is not there (architecture, 7.2). */
     val rail: List<RailItem> = emptyList(),
-    /** Each system's page, by system; every [CarSystem] has one once a scan or a reading exists. */
+    /** Each system's page, by system; every [CarSystem] with blocks has one once a scan or a reading exists. */
     val systemPages: Map<CarSystem, SystemPage> = emptyMap(),
     /** The parameter page the screens asked for with [DiagnosticsActions.setParam]; null when none (architecture, 6.2). */
     val param: ParamView? = null,
@@ -144,7 +144,7 @@ internal data class SystemPage(
     val dtc: List<SystemDtcRow>,
     /** «19 01 09 · 19 02 09 · снимок 19:31:29»; «не читали» before any read. */
     val dtcFootnote: String,
-    /** «Состояние»; null for a system without one (safety, cabin, other blocks). */
+    /** «Состояние»; null for a system without one (cabin, other blocks). */
     val scheme: Scheme?,
 )
 

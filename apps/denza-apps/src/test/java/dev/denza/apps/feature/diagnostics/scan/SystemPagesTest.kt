@@ -71,23 +71,22 @@ class SystemPagesTest {
     @Test
     fun everySystemHoldsTheBlocksOfItsTableInTheAutoscansOrder() = runTest {
         val model = scanned()
-        assertEquals(CarSystem.entries.toSet(), model.systemPages.keys)
+        // Every block has a role: «Прочие блоки» has none and is no page.
+        assertEquals(CarSystem.entries.toSet() - CarSystem.OTHER, model.systemPages.keys)
         assertEquals(listOf("7E0", "7E3", "7E6", "7E7", "744", "745", "7E4", "766", "762"), addresses(CarSystem.HV, model))
         assertEquals(listOf("7E7"), addresses(CarSystem.PACK, model))
-        assertEquals(listOf("7E2", "7E3", "7E6", "744", "745"), addresses(CarSystem.DRIVES, model))
+        assertEquals(listOf("7E2", "743", "7E3", "7E6", "744", "745"), addresses(CarSystem.DRIVES, model))
         assertEquals(listOf("7E0"), addresses(CarSystem.ENGINE, model))
-        assertEquals(listOf("782", "7E5", "783"), addresses(CarSystem.CHASSIS, model))
-        assertEquals(listOf("7F1", "5E0"), addresses(CarSystem.SAFETY, model))
+        assertEquals(listOf("782", "7E5", "783", "582", "796", "597"), addresses(CarSystem.CHASSIS, model))
+        assertEquals(listOf("7F1", "742", "713", "5E0"), addresses(CarSystem.SAFETY, model))
         assertEquals(listOf("712", "7F2", "760", "761", "7C2", "7D4", "701"), addresses(CarSystem.ADAS, model))
         assertEquals(EcuCatalog.inGroup(EcuGroup.BODY).map { it.request }, model.page(CarSystem.BODY).blocks.map { it.request })
         assertEquals(19, model.page(CarSystem.BODY).blocks.size)
         // The cabin without the child-presence radar, which stands in SAFETY.
         assertEquals(EcuCatalog.inGroup(EcuGroup.CABIN).map { it.request } - 0x5E0, model.page(CarSystem.CABIN).blocks.map { it.request })
         assertEquals(18, model.page(CarSystem.CABIN).blocks.size)
-        assertEquals(listOf("7B3", "7B4", "766"), addresses(CarSystem.CLIMATE, model))
+        assertEquals(listOf("7B3", "7B4", "766", "590"), addresses(CarSystem.CLIMATE, model))
         assertEquals(listOf("762"), addresses(CarSystem.LV, model))
-        assertEquals(0, model.page(CarSystem.OTHER).blocks.size)
-        assertTrue(model.page(CarSystem.OTHER).blocks.all { r -> EcuCatalog.byRequest(r.request!!)!!.group == EcuGroup.UNKNOWN })
         // The rows are the autoscan's own.
         val scanRows = model.groups.flatMap { it.rows }.associateBy { it.request }
         model.systemPages.values.flatMap { it.blocks }.forEach { assertEquals(scanRows.getValue(it.request), it) }
@@ -98,21 +97,34 @@ class SystemPagesTest {
         assertEquals(listOf("Состояние", "Сравнение", "DTC", "Блоки"), tabs(CarSystem.DRIVES))
         assertEquals(listOf("Состояние", "Потоковые данные", "DTC и готовность", "Блоки"), tabs(CarSystem.ENGINE))
         assertEquals(listOf("Состояние", "Сравнение", "DTC", "Блоки"), tabs(CarSystem.ADAS))
-        listOf(CarSystem.CHASSIS, CarSystem.BODY, CarSystem.CLIMATE, CarSystem.LV).forEach {
+        listOf(CarSystem.CHASSIS, CarSystem.SAFETY, CarSystem.BODY, CarSystem.CLIMATE, CarSystem.LV).forEach {
             assertEquals(it.name, listOf("Состояние", "DTC", "Блоки"), tabs(it))
         }
-        listOf(CarSystem.SAFETY, CarSystem.CABIN, CarSystem.OTHER).forEach {
-            assertEquals(it.name, listOf("DTC", "Блоки"), tabs(it))
-            assertNull(it.name, model.page(it).scheme)
-        }
+        assertEquals(listOf("DTC", "Блоки"), tabs(CarSystem.CABIN))
+        assertNull(model.page(CarSystem.CABIN).scheme)
+    }
+
+    @Test
+    fun eachSystemCountsTheBlocksOfItsTable() = runTest {
+        val model = scanned()
+        assertEquals(
+            mapOf(CarSystem.HV to 9, CarSystem.PACK to 1, CarSystem.DRIVES to 6, CarSystem.ENGINE to 1, CarSystem.CHASSIS to 6,
+                CarSystem.SAFETY to 4, CarSystem.ADAS to 7, CarSystem.BODY to 19, CarSystem.CABIN to 18, CarSystem.CLIMATE to 4,
+                CarSystem.LV to 1),
+            model.systemPages.mapValues { it.value.blocks.size },
+        )
+        assertTrue(SystemPagesBuilder.MEMBERS.getValue(CarSystem.OTHER).isEmpty())
+        // Every catalogued block stands in at least one system.
+        val placed = SystemPagesBuilder.MEMBERS.values.flatten().toSet()
+        assertEquals(EcuCatalog.all.mapNotNull { it.request }.toSet(), placed)
     }
 
     @Test
     fun theRailMarksOnlyTheSystemsWithCodes() = runTest {
         val rail = scanned().rail
         assertEquals(RailItem(null, "Автоскан", "68/68", RailTone.COUNT), rail.first())
-        assertEquals(CarSystem.entries, rail.drop(1).map { it.system })
-        assertEquals(CarSystem.entries.map { it.railName }, rail.drop(1).map { it.name })
+        assertEquals(CarSystem.entries - CarSystem.OTHER, rail.drop(1).map { it.system })
+        assertEquals((CarSystem.entries - CarSystem.OTHER).map { it.railName }, rail.drop(1).map { it.name })
         // LA_BCM 8 and R_ZCU 2 in history; nothing else holds a code.
         assertEquals(RailItem(CarSystem.BODY, "Кузов", "ИСТ 10", RailTone.HISTORY), rail.first { it.system == CarSystem.BODY })
         rail.drop(1).filter { it.system != CarSystem.BODY }.forEach {
@@ -138,8 +150,9 @@ class SystemPagesTest {
     fun theBodysCodesAreItsBlocksRecordsBlockByBlock() = runTest {
         val body = scanned().page(CarSystem.BODY)
         assertEquals("· 19 блоков", body.aside)
-        assertEquals("LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны", body.line)
-        // «Машина сейчас» read four of the body's memories; the board's own run read all eleven.
+        assertEquals("LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны · " +
+            "радары дверей 5B2 5B1 5B0 5A7 · HFRM 754 · SEC 7D6 · R-NCM 595 · PDCMB 724", body.line)
+        // «Машина сейчас» read four of the body's memories; the board's own run read the eleven it had then.
         assertEquals(listOf(HeadCounter("DTC АКТ.", "0"), HeadCounter("DTC ИСТ.", "10"), HeadCounter("ПРОЧИТАНО", "4/19")), body.counters)
 
         assertEquals(listOf("C1160-06", "U029D-87", "U0121-87", "B2148-02", "B2250-00", "B225B-00", "U0229-87", "U022A-87", "C1170-09", "B130E-01"),
@@ -163,9 +176,8 @@ class SystemPagesTest {
     @Test
     fun aSystemWithoutAReadMemorySaysSo() = runTest {
         val model = scanned()
-        assertEquals("не читали", model.page(CarSystem.OTHER).dtcFootnote)
         assertEquals("не читали", model.page(CarSystem.CLIMATE).dtcFootnote)
-        assertTrue(model.page(CarSystem.OTHER).dtc.isEmpty())
+        assertTrue(model.page(CarSystem.CLIMATE).dtc.isEmpty())
         // ECM counted zero: the count alone was asked.
         assertTrue(model.page(CarSystem.ENGINE).dtcFootnote.startsWith("19 01 09 · снимок 13:31:"))
     }
@@ -197,24 +209,25 @@ class SystemPagesTest {
         assertEquals("напряжение и ток 1009 · SOC и SOH 1014 · ячейки и модули 1014 · изоляция 1039", pack.line)
         assertEquals(listOf("U" to "553 В", "SOC" to "74 %", "DTC" to "0"), counters(CarSystem.PACK))
 
-        assertEquals("· 5 блоков", model.page(CarSystem.DRIVES).aside)
-        assertEquals("VCU 7E2 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6", model.page(CarSystem.DRIVES).line)
+        assertEquals("· 6 блоков", model.page(CarSystem.DRIVES).aside)
+        assertEquals("VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6", model.page(CarSystem.DRIVES).line)
         assertEquals(listOf("ШИНА ПЕРЕД" to "555 В", "ШИНА ЗАД" to "556 В", "DTC" to "0"), counters(CarSystem.DRIVES))
 
         assertEquals("· ECM 7E0 · UAES", model.page(CarSystem.ENGINE).aside)
         assertEquals("7E0 → 7E8 · OBD-II (SAE J1979) + UDS · Mode 01", model.page(CarSystem.ENGINE).line)
         assertEquals(listOf("ОБОРОТЫ" to "0", "MIL" to "ВЫКЛ", "ГОТОВН." to "4/9"), counters(CarSystem.ENGINE))
 
-        assertEquals("· 3 блока", model.page(CarSystem.CHASSIS).aside)
-        assertEquals("ESP/IPB 782 · BSCM 7E5 · EPS 783 · шины: давление 1016, температура 1007", model.page(CarSystem.CHASSIS).line)
-        assertEquals(listOf("ДАВЛЕНИЕ" to "2,60–2,72", "DTC" to "0", "ПРОЧИТАНО" to "3/3"), counters(CarSystem.CHASSIS))
+        assertEquals("· 6 блоков", model.page(CarSystem.CHASSIS).aside)
+        assertEquals("ESP/IPB 782 · BSCM 7E5 · EPS 783 · RWS 582 796 · IDC 597 · шины: давление 1016, температура 1007",
+            model.page(CarSystem.CHASSIS).line)
+        assertEquals(listOf("ДАВЛЕНИЕ" to "2,60–2,72", "DTC" to "0", "ПРОЧИТАНО" to "3/6"), counters(CarSystem.CHASSIS))
 
         assertEquals("· 7 блоков", model.page(CarSystem.ADAS).aside)
         assertEquals("ADC 712 · MRR 7F2 · угловые радары 760 761 7C2 7D4 · IPA 701", model.page(CarSystem.ADAS).line)
         // «Машина сейчас» read the controller and the front radar; the board's own run read all seven.
         assertEquals(listOf("DTC" to "0", "ПРОЧИТАНО" to "2/7"), counters(CarSystem.ADAS))
 
-        assertEquals("ACC 7B3 · TMIM 7B4 · PTC 766 · температуры 1000 · PM2.5 1008", model.page(CarSystem.CLIMATE).line)
+        assertEquals("ACC 7B3 · TMIM 7B4 · PTC 766 · AQDM 590 · температуры 1000 · PM2.5 1008", model.page(CarSystem.CLIMATE).line)
         // None of the climate's memories was read: no count, not zero.
         assertEquals(listOf("САЛОН" to "21 °C", "УЛИЦА" to "12 °C", "DTC" to "—"), counters(CarSystem.CLIMATE))
 
@@ -224,11 +237,9 @@ class SystemPagesTest {
 
         // Without a board: the count, the blocks, the generic counters.
         val safety = model.page(CarSystem.SAFETY)
-        assertEquals("· 2 блока", safety.aside)
-        assertEquals("SRS 7F1 · CPD 5E0", safety.line)
-        assertEquals(listOf("DTC АКТ." to "0", "DTC ИСТ." to "0", "ПРОЧИТАНО" to "1/2"), counters(CarSystem.SAFETY))
-        val other = model.page(CarSystem.OTHER)
-        assertEquals("· 0 блоков", other.aside)
+        assertEquals("· 4 блока", safety.aside)
+        assertEquals("SRS 7F1 · MSRZ 742 · MSRF 713 · CPD 5E0", safety.line)
+        assertEquals(listOf("DTC АКТ." to "0", "DTC ИСТ." to "0", "ПРОЧИТАНО" to "1/4"), counters(CarSystem.SAFETY))
         assertEquals("· 18 блоков", model.page(CarSystem.CABIN).aside)
     }
 
@@ -252,9 +263,11 @@ class SystemPagesTest {
         assertEquals(Callout("ПЕРЕДНИЙ МОТОР · FMCU 7E3", listOf("статор 8 °C · IGBT 9 °C", "0 об/мин · 0,0 Н·м · 0,0 А")), drives.front)
         // ISG's F195 is read with its screen; until then the software is its F194.
         assertEquals(Callout("МОТОР-ГЕНЕРАТОР · ISG 7E6", listOf("DTC 0 · ПО 48370011E0EA000000", "ДВС не работает")), drives.isg)
-        assertEquals(Callout("ЗАДНИЙ ЛЕВЫЙ", listOf("статор 7 °C · IGBT 5 °C", "н/д об/мин · 0,0 Н·м · 0,0 А")), drives.rearLeft)
-        assertEquals(Callout("ЗАДНИЙ ПРАВЫЙ", listOf("статор 7 °C · IGBT 5 °C", "0 об/мин · 0,0 Н·м · 0,0 А")), drives.rearRight)
+        // The rear callouts name their side and the block that drives it: SMCU the left, SMCU3 the right.
+        assertEquals(Callout("ЗАДНИЙ ЛЕВЫЙ · SMCU 744", listOf("статор 7 °C · IGBT 5 °C", "н/д об/мин · 0,0 Н·м · 0,0 А")), drives.rearLeft)
+        assertEquals(Callout("ЗАДНИЙ ПРАВЫЙ · SMCU3 745", listOf("статор 7 °C · IGBT 5 °C", "0 об/мин · 0,0 Н·м · 0,0 А")), drives.rearRight)
         assertEquals(0x7E2, drives.vcu?.request)
+        assertEquals(0x743, drives.powerDomain?.request)
         assertFalse(drives.engineRunning)
 
         val chassis = model.page(CarSystem.CHASSIS).scheme as Scheme.Chassis
@@ -263,6 +276,7 @@ class SystemPagesTest {
             Tyre(Corner.RL, "ШИНА ЗЛ", "2,70", "17 °C"), Tyre(Corner.RR, "ШИНА ЗП", "2,62", "8 °C"),
         ), chassis.tyres)
         assertEquals(listOf(0x782, 0x783, 0x7E5), listOf(chassis.esp, chassis.eps, chassis.bscm).map { it?.request })
+        assertEquals(listOf(0x582, 0x796, 0x597), listOf(chassis.rearSteerLeft, chassis.rearSteerRight, chassis.motion).map { it?.request })
 
         val body = model.page(CarSystem.BODY).scheme as Scheme.Body
         assertEquals(listOf("ДВЕРЬ ПЛ", "ДВЕРЬ ПП", "ДВЕРЬ ЗЛ", "ДВЕРЬ ЗП"), body.doors.map { it.label })
@@ -273,6 +287,18 @@ class SystemPagesTest {
         assertEquals("8", body.left?.history)
         assertEquals("2", body.right?.history)
         assertEquals(List(4) { ModuleStatus.UNREAD }, body.anchors)
+        // The door radars by their route names: FL_SDR 5B2, FR_SDR 5B1, RL_SDR 5B0, RR_SDR 5A7.
+        assertEquals(mapOf(Corner.FL to 0x5B2, Corner.FR to 0x5B1, Corner.RL to 0x5B0, Corner.RR to 0x5A7),
+            body.doorRadars.mapValues { it.value.request })
+        assertEquals(listOf("FL_SDR", "FR_SDR", "RL_SDR", "RR_SDR"), Corner.entries.map { body.doorRadars.getValue(it).abbreviation })
+        assertEquals(listOf(0x754, 0x7D6, 0x595, 0x724),
+            listOf(body.keyReceiver, body.smartEntry, body.nfc, body.tailgate).map { it?.request })
+
+        val safety = model.page(CarSystem.SAFETY).scheme as Scheme.Safety
+        assertEquals(listOf(0x7F1, 0x742, 0x713, 0x5E0),
+            listOf(safety.airbags, safety.driverBelt, safety.passengerBelt, safety.childRadar).map { it?.request })
+        assertEquals(listOf("SRS", "MSRZ", "MSRF", "CPD"),
+            listOf(safety.airbags, safety.driverBelt, safety.passengerBelt, safety.childRadar).map { it?.abbreviation })
 
         val adas = model.page(CarSystem.ADAS).scheme as Scheme.Adas
         assertEquals(0x7F2, adas.front?.request)
@@ -283,7 +309,7 @@ class SystemPagesTest {
         val climate = model.page(CarSystem.CLIMATE).scheme as Scheme.Climate
         assertEquals(ClimateZone("УЛИЦА", "12 °C", "18", inside = false), climate.outside)
         assertEquals(ClimateZone("САЛОН", "21 °C", "5", inside = true), climate.cabin)
-        assertEquals(listOf(0x7B3, 0x766, 0x7B4), listOf(climate.unit, climate.heater, climate.thermal).map { it?.request })
+        assertEquals(listOf(0x7B3, 0x766, 0x7B4, 0x590), listOf(climate.unit, climate.heater, climate.thermal, climate.air).map { it?.request })
 
         val lv = model.page(CarSystem.LV).scheme as Scheme.Lv
         assertEquals("553 В", lv.hv)
@@ -391,7 +417,9 @@ class SystemPagesTest {
             results = emptyMap(), idents = emptyMap(), open = emptySet(), streams = emptyMap(), live = null, streaming = false,
             recording = null, car = CarReadings(), nowMillis = Fixtures.EPOCH,
         ))
-        assertEquals(13, model.rail.size)
+        // «Автоскан» and the eleven systems with blocks: «Прочие блоки» is empty.
+        assertEquals(12, model.rail.size)
+        assertTrue(model.rail.none { it.system == CarSystem.OTHER })
         assertEquals("0/68", model.rail.first().mark)
         assertTrue(model.systemPages.isEmpty())
     }
