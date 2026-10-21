@@ -46,9 +46,10 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | BSCM7E5 and VCU7E2:23 bounded replies add3 and5 previously unread advertised PIDs; all8 BSCM and9 VCU non-bitmap PIDs have now replied. In1.03s the same coolant PID05 gave ECM10°C, VCU30°C and BSCM10°C. Source ECU must stay with the value; physical sensor provenance is unresolved | live | 2026-10-21 | [Brake and VCU data](#brake-and-vcu-obd-data-2026-10-21) |
 | Stock native DTC count/list tasks preserve the format byte and raw24-bit records; they contain no format01-to-display conversion in the traced positive-response path. One public overseas TIS workshop page and BYD's environmental-document channel are acquisition leads, without a matching Z9GT dictionary. CALID search found no binding; 63/64 rear-drive catalog codes also occur in U8 | firmware + public-source boundary | 2026-10-21 | [OEM DTC candidates](#oem-dtc-manual-candidates-2026-10-20) |
 | OEM warning dictionary:628 Chinese UI messages;8 priority mappings traced from CAN261/channel0 through1007/26100008. Further audit separates warning IDs, native DataItems and14 GB alarm predicates; the inspected type07 serializer writes four fault-code counts as literal zero. BMS cell-overtemperature headings are acquisition candidates, not a proven warning-to-DTC relation. No applicable dictionary or warning-to-ECU/DTC join | firmware; dictionary and causal links open | 2026-10-21 | [OEM warning IDs and text](#oem-warning-ids-and-text-2026-10-21); [Warning/DTC linkage](#warning-to-dtc-linkage-and-gb-alarm-boundary-2026-10-21) |
-| Supported-code registries: BMS 115, FMCU 32 and each rear drive 32; 109 BMS codes match candidate headings, six are absent. Both rear sets match 32 own-side headings. ECM `190A` returns NRC13, whose origin is not established. ISG now has both published failure-report fragments, still an incomplete UDS registry. Snapshot index: ECM empty; BMS 41 pairs; front/ISG NRC12, rears NRC31. BMS `1904` for `P1A3A22/01` returns code/status00 without a snapshot record; the original reader aborted on that short response | live registries and snapshot observations; meanings remain open | 2026-10-21 | [Supported DTC registries](#supported-dtc-registries-2026-10-21) |
-| ISG report: 20 native records, 125/231 UDS bytes, 30 complete raw DTC/status tuples; sequence wrap succeeds, 106 bytes remain unrecovered. MCU recorder capacity is 106 records, not 20. ECM has a source-backed 920-byte MCU response cap that can synthesize NRC13; its earlier count258 implies a 1035-byte list, but the actual ECM first frame is missing | ISG live report; MCU source bounds; ECM cause still hypothesis | 2026-10-21 | [ISG report and ECM size limit](#isg-failure-report-and-ecm-response-size-limit-2026-10-21) |
-| Exact definitions: six BMS misses and P2BAE00 conflict remain unresolved. Public Denza ECU-version/manual acquisition paths and BYDTIS DTC field schema found; no retrieved software-applicable OEM definitions or warning links | acquisition leads only, zero qualified additions | 2026-10-21 | [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21) |
+| Supported-code registries: BMS 115, FMCU 32 and each rear drive 32; 109 BMS codes match candidate headings, six are absent. Both rear sets match 32 own-side headings. ECM `190A` returns NRC13, whose origin is not established. ISG later returned a full positive 231-byte list with 57 entries/56 distinct raw codes; the reader rejected its duplicate C1D487 and that pass remains failed. Snapshot index: ECM empty; BMS 41 pairs; front/ISG NRC12, rears NRC31. BMS `1904` for `P1A3A22/01` returns code/status00 without a snapshot record; the original reader aborted on that short response | live registries and snapshot observations; meanings remain open | 2026-10-21 | [Supported DTC registries](#supported-dtc-registries-2026-10-21) |
+| ISG: earlier failure report reconstructed125/231 bytes; a later ordinary positive reply contains all231 bytes,57 entries/56 distinct raw codes,status00. Duplicate C1D487 at positions28/40 triggers the reader policy, so the six-request pass remains failed. ECM still returns NRC13; its first CAN reply has not been captured, and the established source cap's role in this failure remains a hypothesis | complete ISG wire response, failed collector acceptance; ECM cause open | 2026-10-21 | [ISG report and ECM size limit](#isg-failure-report-and-ecm-response-size-limit-2026-10-21); [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21) |
+| MCU raw dispatch precedes diagnostic rejection but requires existing table entries; HAL fans out to six owners. One concurrent pass delivered3664 callbacks in GB/BigData/YUN/MQTT, zero target7E8/7EE candidates; OTA/SecretOBD had zero deliveries. This does not prove wire absence or subscription success for silent streams | conditional source traced; live observation bounded | 2026-10-21 | [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21) |
+| Exact definitions: six BMS misses and P2BAE00 conflict remain unresolved. Additional audit of 110 obfuscated JSON resources and 4014 targeted APK members found no applicable dictionary; HU/modem/sample DTC tables are separate. ISG has32 conditional public-heading matches and24 raw misses; its format01 mapping is unqualified. BYDTIS document-selection context found, but no retrieved software-applicable OEM definitions or warning links | acquisition leads and bounded corpus exclusions, zero qualified additions | 2026-10-21 | [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21); [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21) |
 | Front-drive DC-current rejected conversion preserves the previous float cache; rear converters differ and six temperature paths preserve FE/FF. Adjacent charging-current CAN444/channel2 now has a complete dual-cache/GB-consumer trace; the18-ID normalization excludes345/44A. Generation state0 is explicitly INVALID. Priority BMS units and dedicated ISG numeric telemetry remain unqualified | firmware + retained observations, not new physical-unit qualification | 2026-10-21 | [Scalar quality](#powertrain-scalar-quality-and-cache-limits-2026-10-21); [Current consumers and ISG](#adjacent-current-consumers-and-isg-boundary-2026-10-21) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
@@ -99,7 +100,9 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [Warning to DTC linkage and GB alarm boundary](#warning-to-dtc-linkage-and-gb-alarm-boundary-2026-10-21) — separate identifier namespaces,14 native alarm predicates, fixed-zero code counts and exact manual-page candidates
 - [Supported DTC registries](#supported-dtc-registries-2026-10-21) — exact software/code membership, candidate-heading intersections and explicit incomplete reads
 - [ISG report and ECM size limit](#isg-failure-report-and-ecm-response-size-limit-2026-10-21) — complete published failure report versus incomplete CAN data; source-backed local NRC13 hypothesis
+- [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21) — conditional raw path, six owner listeners and complete positive ISG reply rejected for a repeated code
 - [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21) — Denza acquisition leads, six unknown BMS codes and unresolved conflicting headings
+- [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21) — obfuscated JSON audit, HU/modem exclusions and BYDTIS manual-selection context
 - [OEM DTC manual candidates](#oem-dtc-manual-candidates-2026-10-20) — public headings, primary acquisition channels, CALID search and software-applicability gaps
 - [The scanner on the car: first autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) — the product's 68 blocks in 20 s, the history found, two defects fixed
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
@@ -4263,7 +4266,7 @@ started or stopped by these reads.
 | ECM `7E0` | `32440011E004000000` | `19 0A` returned `7F1913`, incorrect length/format; no pending Android callback was observed | No list obtained. NRC13 can also be synthesized locally by the MCU size gate, and MCU can consume NRC78; neither remote origin nor absence of CAN pending frames is proved. See the later size-limit analysis below |
 | BMS `7E7` | `4A520011E00D00047B` | 115 records, format 00, availability 09; three fragments 231+230+2 bytes | 109 distinct codes intersect 110 heading rows; 96 catalog rows are outside this observed registry |
 | FMCU `7E3` | `48370011E075000000` | 32 raw records, format 01, availability 09; completed before the drive-plan abort | Main decoder stays raw. Under a separately labelled reverse-notation hypothesis, all 31 front-drive headings encode to bytes in this set; `1BE201` has no such heading |
-| ISG `7E6` | `48370011E0EA000000` | Identity and format 01/count 0 read; the first 190A attempt ended `GATEWAY_SHAPE` | That build03 transcript lacks the rejected callback. Later bounded reads recover a complete published failure report, containing 30 partial-registry tuples; still no accepted supported list |
+| ISG `7E6` | `48370011E0EA000000` | Identity and format01/count0 read. Initial attempts had shape/failure-report limits; the later CAN-visibility pass returns a complete positive231-byte response | 57 entries/56 distinct raw codes,status00. C1D487 repeats at positions28/40; the reader rejects it, so no accepted scan. See [complete response](#can-visibility-and-complete-isg-response-2026-10-21) |
 | SMCU `744`, left rear | `48370011E086001100` | 32 records, format 00, availability 09 | 32 own-side headings, zero opposite-side headings, no unmatched code |
 | SMCU3 `745`, right rear | `48370011E088001100` | 32 records, format 00, availability 09 | 32 own-side headings, zero opposite-side headings, no unmatched code |
 
@@ -4280,7 +4283,7 @@ found no primary definition applicable to this exact vehicle/software. Generic
 code descriptions and other-model matches were not imported. `P2BAE00` is
 supported, but its two incompatible catalog headings remain unresolved.
 
-**Initial ISG followup, not a recovered registry.** The later [complete published report](#isg-failure-report-and-ecm-response-size-limit-2026-10-21)
+**Historical initial ISG followup.** The [later ordinary positive reply](#can-visibility-and-complete-isg-response-2026-10-21) recovers the full payload, but that run fails the reader's duplicate-code policy. The following earlier failure-report reads remain incomplete. The later [complete published report](#isg-failure-report-and-ecm-response-size-limit-2026-10-21)
 supersedes the one-fragment collection limit below, while both reads remain
 incomplete UDS registries. One separate three-request plan
 rechecked identity/count and observed the same supported-list request with
@@ -4391,7 +4394,7 @@ visible. Temporal coincidence alone must not create a warning-to-DTC mapping.
 
 ### ISG failure report and ECM response-size limit (2026-10-21)
 
-**ISG: both gateway fragments collected, UDS registry still incomplete.** A
+**Historical ISG failure-report pass: both gateway fragments collected, UDS registry incomplete.** The [subsequent CAN-visibility pass](#can-visibility-and-complete-isg-response-2026-10-21) obtains a full positive payload, while failing the reader's duplicate-code policy; it does not retroactively complete this earlier report. A
 separate fixed `isg-trace` plan sent exactly three requests to `7E6`: `22F194`,
 `190109`, `190A`. Software `48370011E0EA000000`, format 01, availability 09 and
 mask 09 count 0 matched. Build 02 completed with `GATEWAY_TRACE_CAPTURED`, not
@@ -4427,7 +4430,7 @@ the ignored firmware corpus. The decoder qualifies only the observed selector 0,
 initial TX/FC records and route, rejects malformed order/length/timing, and never
 promotes a failure report to a successful registry. The build has 246 synthetic
 assertions; the decoder's six tests and an independent 12-case adversarial audit
-pass. A passive CAN source would be needed to distinguish the remaining causes.
+pass. A passive CAN source would be needed to distinguish the remaining causes. The [later source audit and one observation](#can-visibility-and-complete-isg-response-2026-10-21) qualify a conditional path but deliver no target raw frames.
 
 **ECM: local response-size rejection is now the leading source-backed hypothesis.**
 Stock `libuds.so::creatRequestSupportedDTCMessage` constructs exactly two bytes,
@@ -4454,6 +4457,118 @@ stock request construction and MCU source ranges.
 verifies 37 sources, 815 MCU instructions, 4096 size cases and five stock-library
 anchors offline. No alternative request, new ECM live pass or firmware change
 was made. Resolving transport limits still would not supply a fault dictionary.
+
+### CAN visibility and complete ISG response (2026-10-21)
+
+**The MCU has an earlier raw path, but it is conditional on collection tables.**
+In the owner-package image, dispatcher `170828` passes the same frame to
+`1704AC` before the diagnostic handler `1528C8`. The raw chain
+`1704AC → 170B3C → 170A12 → 170926` can publish `9900001D`, including original
+ISO-TP PCI bytes, before the diagnostic size/sequence gates. It first looks up
+a dynamic table entry. Selector 0 keys for the reply IDs are `0007E800` and
+`0007EE00`; fallback keys can include the PCI byte. Modes select all matched,
+changed or timed frames. Finding this code does not establish that either key
+is currently installed or that an observed stream is lossless.
+
+The HAL then performs its own owner lookup and six-way fanout:
+
+| Stream | Device | Callback FID | Callback deliveries in this pass | Target candidates |
+| --- | --- | --- | --- | --- |
+| OTA | 1032 | `9900001E` | 0 | 0 |
+| GB | 1039 | `9900001F` | 446 | 0 |
+| BigData | 1061 | `99000020` | 1474 | 0 |
+| YUN | 1034 | `99000021` | 1548 | 0 |
+| MQTT | 1033 | `99000165` | 196 | 0 |
+| SecretOBD | 1023 | `99000241` | 0 | 0 |
+
+The source adds two candidate owners beyond the previously observed channels;
+MQTT delivered live buffers, while SecretOBD remained silent. Registering a
+listener does not install a table: separate `AA000165`/`AA000241` setters can
+change table ownership and were not called. SecretOBD uses a different native
+pointer for extended packets, so its buffers remain opaque. Direct registration
+for `9900001D` is not an unconditional bypass. Six older owner-Z9 passive windows
+contain 11731 records and no 700..7FF, but had no diagnostic requests; N9 evidence
+was excluded from this vehicle-specific comparison.
+
+**One fixed live pass, six requests, no retry.** The research helper registered
+six listeners, waited two seconds, then read `22F194`, `190109`, `190A` from ECM
+and ISG, with the existing four-second request deadline. Exact software and
+format were rechecked: ECM `32440011E004000000`/00 and ISG
+`48370011E0EA000000`/01. Both mask09 counts were 0. ECM again returned
+`7F1913` (281ms); the raw source did not expose its first CAN reply, so the
+920-byte local-rejection hypothesis remains unresolved.
+
+ISG instead returned an ordinary positive result 01 in 51 ms: one declared 231-byte
+payload beginning `590A09`, with 57 ordered DTC/status entries and 56 distinct raw
+codes, all status 00. `C1D487` occurs twice, at one-based positions 28 and 40.
+The decoder must preserve these occurrences; it cannot silently deduplicate
+them or identify them as two faults. This is format 01 data, without a qualified
+P-code conversion or factory meanings. Bytes beyond the declared callback
+payload are padding, not additional records. Its first 125 bytes match the
+previous failure-report reconstruction exactly; 106 bytes are newly recovered.
+The complete positive response does not explain why the older transfers timed out.
+
+**Dictionary comparison remains conditional.** Under the separately labelled
+reverse-notation hypothesis, all 32 public ISG headings map into these 56 raw
+codes; 24 distinct raw codes have no heading. Stock SpotInspection
+`MatchUtils.java:429–432` does contain a P/C/B/U formatter for `1902`, but that
+branch neither receives the format identifier nor establishes that the tested
+ISG script uses it. For example, formatting `C1D487` as `U01D487` is a source
+renderer result, not a qualified interpretation of this format01 ISG response.
+Supplier-dependent P183800/P183F00 headings also remain unresolved. The acquisition
+target is now a definition set covering all 56 raw codes for software
+`48370011E0EA000000` / version4.03.13, with an explanation of the repeated entry.
+[`isg-supported-dictionary-candidates-20261021.json`](../research/vehicle-diagnostics/isg-supported-dictionary-candidates-20261021.json)
+and its `check_isg_supported_dictionary_candidates.py` preserve all ordered raw
+records, the conditional 32 matches and 24 misses; qualified definitions and
+format01 conversions remain zero.
+
+
+The probe's uniqueness policy raised `DUPLICATE_DTC_CODE`, after 6 requests and
+5 accepted exchanges. The run is therefore **failed**, not a successful scan:
+exit 2, `lifecycleVerified=false`, one diagnostic callback still queued and
+`END cleanup=false`. The queued callback directly sets that cleanup flag to
+false; its unprocessed bytes are unknown. All six observer unregister calls returned,
+the diagnostic listener printed `UNREGISTERED`, the own JAR/process were absent,
+and postflight confirmed unchanged APK/firmware hashes, stock PIDs and an empty
+crash buffer. No APK was installed. Physical cleanup and stable health do not
+override failed collector acceptance.
+
+Four streams delivered 3664 callbacks with no malformed buffers or target 7E8/7EE
+candidates. Counts include duplicate SDK deliveries and are not unique CAN-frame
+counts. Only the first background sample per stream and target candidates were
+retained, so the zero-candidate result depends on the pinned collector and its
+ledger, rather than an offline reparse of every background buffer. `READY` means
+the SDK registration returned; its void API can conceal
+native subscription failures. Thus OTA/SecretOBD delivery is unqualified, and
+zero target records across these streams proves neither wire absence nor a
+particular table/filter cause. No collection table, diagnostic owner, logging
+mode or vehicle state was changed.
+
+**Existing logging is not yet a qualified alternate source.** The MCU debug-text
+branch requires a descriptor callback and RAM flag `FEEEED51` bit3, then formats
+`-C…R-…`; its Android binding remains unproved. The HAL has a separate `[mculog]`
+path. The live log level was 2, the existing log directory was unreadable by
+shell, and a bounded corrected PID 128 logcat query returned no matching lines.
+The first colon-tag filter attempt was invalid and supplies no absence evidence.
+The native raw-owner log is severity 3 while its logger discards severities above 2.
+No debug flag or logger setting was enabled.
+
+Evidence and offline replay:
+[`diagnostic-can-mcu-visibility-20261021.json`](../research/vehicle-diagnostics/diagnostic-can-mcu-visibility-20261021.json),
+[`diagnostic-can-observer-candidates-20261021.json`](../research/vehicle-diagnostics/diagnostic-can-observer-candidates-20261021.json),
+and [`diagnostic-can-visibility-20261021.json`](../research/vehicle-diagnostics/diagnostic-can-visibility-20261021.json).
+Their `check_*.py` siblings verify source bytes, old passive windows and the new
+run independently. The build passes 266 synthetic Java assertions, six host
+tests and 68 independent mock-framework assertions. The final replay audit
+rejects 20 structurally invalid mutations. A balanced redistribution of unsaved
+background delivery counts is compatible with the ledger; the pinned source
+hash and saved-report comparison detect that change, not wire reconstruction.
+Both raw health snapshots and observer-flush ordering are required by the
+checker. Audit artifacts remain under `captures/diagnostics-can-visibility-20261021/review/`.
+The helper stays under `tools/vehicle-diagnostics`, outside product builds. Next transport work requires a separately qualified view of the
+existing table or a genuine raw reply; repeating the same request without such
+a discriminator would not resolve ECM's NRC13 origin.
 
 ### Exact DTC dictionary followup (2026-10-21)
 
@@ -4482,6 +4597,43 @@ and a verified OEM definition are separate evidence levels.
 retains the 23 public/local sources, unknown codes, conflict and acquisition
 targets. Its sibling `check_exact_dtc_definitions_followup.py` verifies the
 retained evidence offline. No generic descriptions were added to diagnostics.
+
+### Local dictionary paths and resource audit (2026-10-21)
+
+The resource search now includes obfuscated `res/*.json`, which the earlier
+`assets/` and `res/raw/` scan missed. A bounded ZIP-member audit found 110 JSON
+resources in 14 of 54 inventoried APKs: 98 Lottie animations, eight Kotlin
+metadata files, two JSON schemas, one protolog map and one city list. None
+contained the target code or dictionary schema. Five targeted APKs also had
+4014 uncompressed members checked (59,728,492 bytes): no SQLite header or exact
+target software/CALID/code literal was found. These are bounded corpus results,
+not proof that no dictionary exists elsewhere or in a private runtime database.
+
+Three plausible names are now separated from vehicle ECU dictionaries:
+
+- SpotInspection's `res/7t.json` is the same low-power example script previously
+  decompiled as `res/raw/low_power_script.json`. Its one `dtcList` contains sample
+  LA_BCM `0x123456`, labelled “雷达故障” (radar fault), with no target software binding.
+- The 213-row head-unit diagnostic configuration and schema for
+  `/data/system/diag/HealthDiagnostic.db` describe head-unit diagnostics.
+- `ClientConfigurationService.DTCData` contains four modem/SIM/network flags
+  stored in SharedPreferences `dtcdata`; these are not engine or traction DTCs.
+
+The public [BYDTIS manual-page bundle](https://tis.bydauto.com.cn/tis/static/js/ManualPage-16da2ca4.js)
+separates workshop, wiring, body and diagnostic manuals. Selection is bound to
+`seriesCode`, `modelCode` and `brandCode`, then a `/tech-manual/` route uses the
+selected access key and document ID. This identifies document-selection context;
+it supplies neither a readable manual nor ECU software applicability. The two
+exact imported DTC bundles returned HTTP404. No authenticated/private API,
+access-key or protected-document request was made.
+
+[`dtc-dictionary-local-paths-20261021.json`](../research/vehicle-diagnostics/dtc-dictionary-local-paths-20261021.json)
+and [`check_dtc_dictionary_local_paths.py`](../research/vehicle-diagnostics/check_dtc_dictionary_local_paths.py)
+retain and replay this search. Qualified factory definitions, format01-to-display
+mappings and warning-to-DTC links remain zero; the six BMS misses and P2BAE00
+conflict above remain open. The next useful source must bind a real diagnostic
+manual or database to the model and measured ECU version, rather than merely
+contain a field named DTC.
 
 ### OEM DTC manual candidates (2026-10-20)
 

@@ -20,7 +20,8 @@ ASSEMBLER = ROOT / 'apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnos
 CATALOG = ROOT / 'apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/ecu/EcuCatalog.kt'
 JAVA = HERE / 'SupportedDtcReadProbe.java'
 TEST = HERE / 'SupportedDtcReadProbeTest.java'
-SOURCES = [JAVA, TEST, BOOTSTRAP, ASSEMBLER, Path(__file__).resolve(), CATALOG]
+OBSERVER = HERE / 'DiagnosticCanObserver.java'
+SOURCES = [JAVA, TEST, OBSERVER, BOOTSTRAP, ASSEMBLER, Path(__file__).resolve(), CATALOG]
 PINNED = [
     ('ECM', 0x7E0, '32440011E004000000'),
     ('BMS', 0x7E7, '4A520011E00D00047B'),
@@ -43,6 +44,7 @@ def plans():
     expected_calls = [('ecm-bms', 35000, 0x0A, False, 'ECM,BMS'), ('drives', 65000, 0x0A, False, 'FMCU,ISG,SMCU,SMCU3'),
                       ('rear-drives', 35000, 0x0A, False, 'SMCU,SMCU3'), ('isg-observe', 15000, 0x0A, False, 'ISG'),
                       ('isg-trace', 15000, 0x0A, False, 'ISG'),
+                      ('can-visibility', 35000, 0x0A, False, 'ECM,ISG'),
                       ('snapshot-ecm-bms', 35000, 0x03, False, 'ECM,BMS'),
                       ('snapshot-drives', 65000, 0x03, False, 'FMCU,ISG,SMCU,SMCU3'),
                       ('bms-snapshot-record', 25000, 0x03, True, 'BMS')]
@@ -74,6 +76,8 @@ def plans():
                 target.update(expectedFormatIdHex='00', requiredSnapshotPair={'rawDtcHex': '1A3A22', 'recordNumberHex': '01'})
             if name == 'isg-trace':
                 target.update(expectedFormatIdHex='01')
+            if name == 'can-visibility':
+                target.update(expectedFormatIdHex='00' if member == 'ECM' else '01')
             targets.append(target)
         result[name] = {'name': name, 'maxRequests': len(targets)*(4 if read_record else 3), 'overallSoftMs': ms,
                         'overallHardMs': ms+2000, 'readKind': 'snapshot-record' if read_record else 'snapshot-index' if subfunction == 3 else 'supported-dtc',
@@ -103,7 +107,7 @@ def build(output):
     classes = output / 'classes'
     classes.mkdir()
     local([JDK/'javac', '--release', '8', '-cp', ANDROID, '-d', classes,
-           *[snapshot / p.relative_to(ROOT) for p in (JAVA, TEST, BOOTSTRAP, ASSEMBLER)]], output/'javac.txt')
+           *[snapshot / p.relative_to(ROOT) for p in (JAVA, TEST, OBSERVER, BOOTSTRAP, ASSEMBLER)]], output/'javac.txt')
     tests = local([JDK/'java', '-cp', str(classes)+os.pathsep+str(ANDROID), MAIN+'Test'], output/'tests.txt')
     classfiles = [p for p in sorted(classes.rglob('*.class')) if 'SupportedDtcReadProbeTest' not in p.name]
     jar = output/'supported-dtc-probe.jar'
@@ -122,6 +126,7 @@ def build(output):
                             'meaning': 'Conservative policy limits, not physical channel maxima; oversize aborts without partial success.'},
              'semantics': {'supportedListIsNotActiveFaults': True, 'formatSource': 'previous exact190109 response',
                            'isgTracePlan': 'Only ISG exact identity/format01 then190A; result03 multipart failure transcript is separate from accepted UDS. No retries or extended deadlines.',
+                           'canVisibilityPlan': 'Six fixed ECM/ISG reads while observing six existing raw callbacks. No table writes. Retained target candidates are bounded; SecretOBD stays opaque. Absence does not establish CAN-wire absence.',
                            'snapshotIndexHasNoStatusMaskOrFormatByte': True,
                            'snapshotIndexPairsAreRawDtcAndRecordNumber': True,
                            'snapshotPayloadReadOnlyByPinnedBmsRecordPlan': True,
@@ -139,7 +144,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='action', required=True)
     p = sub.add_parser('plan'); p.add_argument('--plan', choices=[
-        'ecm-bms', 'drives', 'rear-drives', 'isg-observe', 'isg-trace', 'snapshot-ecm-bms', 'snapshot-drives', 'bms-snapshot-record'])
+        'ecm-bms', 'drives', 'rear-drives', 'isg-observe', 'isg-trace', 'can-visibility', 'snapshot-ecm-bms', 'snapshot-drives', 'bms-snapshot-record'])
     p = sub.add_parser('build'); p.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if args.action == 'plan':

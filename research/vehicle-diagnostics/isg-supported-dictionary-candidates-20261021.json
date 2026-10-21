@@ -1,0 +1,1298 @@
+{
+  "schema": "denza-lab.isg-supported-dictionary-candidates.v1",
+  "date": "2026-10-21",
+  "status": "full_declared_raw_ISG_payload_retained_reader_duplicate_failure_preserved_no_factory_dictionary_promotion",
+  "scope": "Offline analysis of live-01 declared response only plus already retained source/catalog files. This worker made no vehicle, ADB, network, firmware extraction or firmware/app execution calls.",
+  "captureBase": "captures/diagnostics-can-visibility-20261021/dictionaries",
+  "vehicleOperations": 0,
+  "adbOperations": 0,
+  "networkRequests": 0,
+  "sharedCodeChanged": false,
+  "qualifiedOemDefinitions": [],
+  "qualifiedFormat01RawDisplayMappings": [],
+  "qualifiedWarningDtcLinks": [],
+  "target": {
+    "name": "ISG",
+    "requestIdHex": "7E6",
+    "responseIdHex": "7EE",
+    "measuredSoftwareCode": "48370011E0EA000000",
+    "identityResponseLine": 32,
+    "identityResponseHex": "62F19448370011E0EA000000",
+    "formatResponseLine": 38,
+    "formatResponseHex": "590109010000",
+    "dtcFormatIdentifier": 1,
+    "statusAvailabilityHex": "09",
+    "memoryCountForMask09": 0,
+    "catalogEcuId": "HTH-2021_ISG_BYD_00100001",
+    "catalogSoftwareVersion": "4.03.13",
+    "catalogHardwareVersion": "0.0.5",
+    "catalogVersionBoundary": "Cached/catalog version metadata; this pass directly replays only F194 and format/count from the owner capture."
+  },
+  "outerResponse": {
+    "sourceLineRejected": 46,
+    "sourceLineFrame": 44,
+    "sourceLineResponse": 45,
+    "callbackBytes": 240,
+    "ownerHex": "0A",
+    "responseIdHex": "7EE",
+    "declaredUdsBytes": 231,
+    "totalGatewayFragments": 1,
+    "gatewayFragmentIndex": 1,
+    "gatewayResult": 1,
+    "resultMeaning": "success",
+    "declaredFrameBytes": 238,
+    "outsideDeclaredTailBytes": 2,
+    "outsideDeclaredTailHex": "0000",
+    "payloadHex": "590A091802190018350000183600001837000018380000180617001806160018390000183A0000181A00001910010019110100191201001803960018049600180596001808960018099600183C0000180F190018101700181700001811000018120000180E000018160000C1478700C1D48700183D0000183E0000183F0000184000002B1317002B1316002B1417002B1416002B1500002B1600002B170000C1D487002B1817002B1820002B1821002B1901002B1902002B1A00002B1B00002B1C00002B1D00002B1E00002B1200002B1201002B1202002B1203002B120400184100002B1E0100",
+    "payloadSha256": "da06b9abccf4658e3f0df0647199401d32059dd9c0d31e5ded9c9e052af6aafe",
+    "declaredFrameMatchesFrameLog": true,
+    "declaredPayloadMatchesResponseLog": true,
+    "structurallyCompletePositivePayload": true,
+    "read190AFormatBytePresent": false
+  },
+  "rawRegistryObservation": {
+    "records": [
+      {
+        "ordinal": 1,
+        "udsOffset": 3,
+        "raw24Hex": "180219",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 2,
+        "udsOffset": 7,
+        "raw24Hex": "183500",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 3,
+        "udsOffset": 11,
+        "raw24Hex": "183600",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 4,
+        "udsOffset": 15,
+        "raw24Hex": "183700",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 5,
+        "udsOffset": 19,
+        "raw24Hex": "183800",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 6,
+        "udsOffset": 23,
+        "raw24Hex": "180617",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 7,
+        "udsOffset": 27,
+        "raw24Hex": "180616",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 8,
+        "udsOffset": 31,
+        "raw24Hex": "183900",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 9,
+        "udsOffset": 35,
+        "raw24Hex": "183A00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 10,
+        "udsOffset": 39,
+        "raw24Hex": "181A00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 11,
+        "udsOffset": 43,
+        "raw24Hex": "191001",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 12,
+        "udsOffset": 47,
+        "raw24Hex": "191101",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 13,
+        "udsOffset": 51,
+        "raw24Hex": "191201",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 14,
+        "udsOffset": 55,
+        "raw24Hex": "180396",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 15,
+        "udsOffset": 59,
+        "raw24Hex": "180496",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 16,
+        "udsOffset": 63,
+        "raw24Hex": "180596",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 17,
+        "udsOffset": 67,
+        "raw24Hex": "180896",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 18,
+        "udsOffset": 71,
+        "raw24Hex": "180996",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 19,
+        "udsOffset": 75,
+        "raw24Hex": "183C00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 20,
+        "udsOffset": 79,
+        "raw24Hex": "180F19",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 21,
+        "udsOffset": 83,
+        "raw24Hex": "181017",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 22,
+        "udsOffset": 87,
+        "raw24Hex": "181700",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 23,
+        "udsOffset": 91,
+        "raw24Hex": "181100",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 24,
+        "udsOffset": 95,
+        "raw24Hex": "181200",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 25,
+        "udsOffset": 99,
+        "raw24Hex": "180E00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 26,
+        "udsOffset": 103,
+        "raw24Hex": "181600",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 27,
+        "udsOffset": 107,
+        "raw24Hex": "C14787",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 28,
+        "udsOffset": 111,
+        "raw24Hex": "C1D487",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 29,
+        "udsOffset": 115,
+        "raw24Hex": "183D00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 30,
+        "udsOffset": 119,
+        "raw24Hex": "183E00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 31,
+        "udsOffset": 123,
+        "raw24Hex": "183F00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 32,
+        "udsOffset": 127,
+        "raw24Hex": "184000",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 33,
+        "udsOffset": 131,
+        "raw24Hex": "2B1317",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 34,
+        "udsOffset": 135,
+        "raw24Hex": "2B1316",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 35,
+        "udsOffset": 139,
+        "raw24Hex": "2B1417",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 36,
+        "udsOffset": 143,
+        "raw24Hex": "2B1416",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 37,
+        "udsOffset": 147,
+        "raw24Hex": "2B1500",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 38,
+        "udsOffset": 151,
+        "raw24Hex": "2B1600",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 39,
+        "udsOffset": 155,
+        "raw24Hex": "2B1700",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 40,
+        "udsOffset": 159,
+        "raw24Hex": "C1D487",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 41,
+        "udsOffset": 163,
+        "raw24Hex": "2B1817",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 42,
+        "udsOffset": 167,
+        "raw24Hex": "2B1820",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 43,
+        "udsOffset": 171,
+        "raw24Hex": "2B1821",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 44,
+        "udsOffset": 175,
+        "raw24Hex": "2B1901",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 45,
+        "udsOffset": 179,
+        "raw24Hex": "2B1902",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 46,
+        "udsOffset": 183,
+        "raw24Hex": "2B1A00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 47,
+        "udsOffset": 187,
+        "raw24Hex": "2B1B00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 48,
+        "udsOffset": 191,
+        "raw24Hex": "2B1C00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 49,
+        "udsOffset": 195,
+        "raw24Hex": "2B1D00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 50,
+        "udsOffset": 199,
+        "raw24Hex": "2B1E00",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 51,
+        "udsOffset": 203,
+        "raw24Hex": "2B1200",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 52,
+        "udsOffset": 207,
+        "raw24Hex": "2B1201",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 53,
+        "udsOffset": 211,
+        "raw24Hex": "2B1202",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 54,
+        "udsOffset": 215,
+        "raw24Hex": "2B1203",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 55,
+        "udsOffset": 219,
+        "raw24Hex": "2B1204",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 56,
+        "udsOffset": 223,
+        "raw24Hex": "184100",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      },
+      {
+        "ordinal": 57,
+        "udsOffset": 227,
+        "raw24Hex": "2B1E01",
+        "statusHex": "00",
+        "qualifiedDisplayCode": null,
+        "qualifiedFactoryMeaning": null
+      }
+    ],
+    "recordCount": 57,
+    "uniqueRawCodeCount": 56,
+    "duplicates": [
+      {
+        "raw24Hex": "C1D487",
+        "ordinals": [
+          28,
+          40
+        ],
+        "statuses": [
+          "00",
+          "00"
+        ]
+      }
+    ],
+    "allStatusesZero": true,
+    "unsupportedStatusBitRecordOrdinals": [],
+    "orderingPreserved": true,
+    "duplicatesPreserved": true,
+    "format01MainRepresentation": "raw24_only",
+    "definitionStatus": "UNKNOWN",
+    "meaning": "57 advertised supported-code records are observed, not57 active faults. The duplicate makes the retained strict reader reject registry acceptance; no record is silently discarded."
+  },
+  "readerOutcome": {
+    "acceptedRegistryByExecutedReader": false,
+    "planComplete": false,
+    "endLine": 59,
+    "endExact": "END reason=DUPLICATE_DTC_CODE requests=6 completed=5 targets=1 cleanup=false callbacks=12 queued=1",
+    "rejectedReason": "DUPLICATE_DTC_CODE",
+    "duplicateIsInsideSinglePayload": true,
+    "duplicateIsNotAnExtraResponseCallback": true,
+    "cleanupOrVehicleHealthRequalifiedByThisWorker": false,
+    "boundary": "Preserve the actual DUPLICATE_DTC_CODE failed run. Complete response bytes and a policy-valid accepted registry are distinct claims; root owns lifecycle/health evidence."
+  },
+  "comparisonWithEarlierPartialTrace": {
+    "priorArtifact": "research/vehicle-diagnostics/isg-gateway-trace-20261021.json",
+    "priorQualifiedSuccess": false,
+    "priorPrefixBytes": 107,
+    "priorCompleteRecordTuples": 26,
+    "exactPrefixMatchesNewPayload": true,
+    "additionalDeclaredPayloadBytesNowObserved": 124,
+    "additionalOrderedRecordTuplesNowObserved": 31,
+    "additionalUniqueRawCodesVsPriorPrefix": [
+      "183D00",
+      "183E00",
+      "183F00",
+      "184000",
+      "184100",
+      "2B1200",
+      "2B1201",
+      "2B1202",
+      "2B1203",
+      "2B1204",
+      "2B1316",
+      "2B1317",
+      "2B1416",
+      "2B1417",
+      "2B1500",
+      "2B1600",
+      "2B1700",
+      "2B1817",
+      "2B1820",
+      "2B1821",
+      "2B1901",
+      "2B1902",
+      "2B1A00",
+      "2B1B00",
+      "2B1C00",
+      "2B1D00",
+      "2B1E00",
+      "2B1E01",
+      "C14787",
+      "C1D487"
+    ],
+    "additionalUniqueRawCodeCountVsPriorPrefix": 30,
+    "previous231ByteLengthArithmeticNowBackedByFullDeclaredBytes": true,
+    "oldFailureOutcomeUnchanged": true
+  },
+  "UNPROVEN_reverseNotationHypothesis": {
+    "state": "hypothesis_only_not_qualified_ISG_format01_conversion",
+    "name": "Invert the conventional format00/J2012 display notation of each exact public heading solely for acquisition comparison.",
+    "method": "family PCBU -> high two bits; decimal digit -> next two bits; next three hex digits -> low12bits of high word; final two hex digits -> low byte.",
+    "sourceDisplayCodeLanguage": "Original seven-character public Z9GT generator headings; Russian descriptions are separate unqualified candidate translations.",
+    "publicHeadingRows": 32,
+    "publicDistinctDisplayCodes": 32,
+    "matchedPublicHeadingRows": 32,
+    "matchedDistinctRawCodes": 32,
+    "unmatchedPublicHeadings": [],
+    "rows": [
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180219",
+        "outlineId": "outline_576_a",
+        "publicTitleZh": "P180219 发电机过流",
+        "candidateTitleRu": "Генератор: перегрузка по току",
+        "hypotheticalRaw24Hex": "180219",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          1
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180396",
+        "outlineId": "outline_577_a",
+        "publicTitleZh": "P180396 发电机缺A相",
+        "candidateTitleRu": "Генератор: обрыв фазы A",
+        "hypotheticalRaw24Hex": "180396",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          14
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180496",
+        "outlineId": "outline_578_a",
+        "publicTitleZh": "P180496 发电机缺B相",
+        "candidateTitleRu": "Генератор: обрыв фазы B",
+        "hypotheticalRaw24Hex": "180496",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          15
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180596",
+        "outlineId": "outline_579_a",
+        "publicTitleZh": "P180596 发电机缺C相",
+        "candidateTitleRu": "Генератор: обрыв фазы C",
+        "hypotheticalRaw24Hex": "180596",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          16
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180616",
+        "outlineId": "outline_580_a",
+        "publicTitleZh": "P180616 发电机控制器高压过压",
+        "candidateTitleRu": "Контроллер генератора: повышенное высокое напряжение",
+        "hypotheticalRaw24Hex": "180616",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          7
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180617",
+        "outlineId": "outline_581_a",
+        "publicTitleZh": "P180617 发电机控制器高压欠压",
+        "candidateTitleRu": "Контроллер генератора: пониженное высокое напряжение",
+        "hypotheticalRaw24Hex": "180617",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          6
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180896",
+        "outlineId": "outline_582_a",
+        "publicTitleZh": "P180896 发电机控制器电流霍尔传感器零漂故障",
+        "candidateTitleRu": "Контроллер генератора: дрейф нуля датчика тока Холла",
+        "hypotheticalRaw24Hex": "180896",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          17
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180996",
+        "outlineId": "outline_583_a",
+        "publicTitleZh": "P180996 发电机控制器电流霍尔传感器零漂故障1",
+        "candidateTitleRu": "Контроллер генератора: дрейф нуля датчика тока Холла 1",
+        "hypotheticalRaw24Hex": "180996",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          18
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180E00",
+        "outlineId": "outline_584_a",
+        "publicTitleZh": "P180E00 发电机控制器CPLD故障",
+        "candidateTitleRu": "Контроллер генератора: неисправность CPLD",
+        "hypotheticalRaw24Hex": "180E00",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          25
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P180F19",
+        "outlineId": "outline_585_a",
+        "publicTitleZh": "P180F19 发电机控制器硬件过流标志",
+        "candidateTitleRu": "Контроллер генератора: флаг аппаратной перегрузки по току",
+        "hypotheticalRaw24Hex": "180F19",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          20
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P181017",
+        "outlineId": "outline_586_a",
+        "publicTitleZh": "P181017 发电机控制器硬件过压标志",
+        "candidateTitleRu": "Контроллер генератора: флаг аппаратного перенапряжения",
+        "hypotheticalRaw24Hex": "181017",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          21
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P181100",
+        "outlineId": "outline_587_a",
+        "publicTitleZh": "P181100 发电机控制器上桥臂报错",
+        "candidateTitleRu": "Контроллер генератора: ошибка верхнего плеча моста",
+        "hypotheticalRaw24Hex": "181100",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          23
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P181200",
+        "outlineId": "outline_588_a",
+        "publicTitleZh": "P181200 发电机控制器下桥臂报错",
+        "candidateTitleRu": "Контроллер генератора: ошибка нижнего плеча моста",
+        "hypotheticalRaw24Hex": "181200",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          24
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P181600",
+        "outlineId": "outline_589_a",
+        "publicTitleZh": "P181600 发电机超速",
+        "candidateTitleRu": "Генератор: превышение частоты вращения",
+        "hypotheticalRaw24Hex": "181600",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          26
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P181700",
+        "outlineId": "outline_590_a",
+        "publicTitleZh": "P181700 发电机控制器芯片异常复位",
+        "candidateTitleRu": "Контроллер генератора: аномальный сброс микроконтроллера",
+        "hypotheticalRaw24Hex": "181700",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          22
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P181A00",
+        "outlineId": "outline_591_a",
+        "publicTitleZh": "P181A00 发电机控制器EEPROM错误",
+        "candidateTitleRu": "Контроллер генератора: ошибка EEPROM",
+        "hypotheticalRaw24Hex": "181A00",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          10
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183500",
+        "outlineId": "outline_592_a",
+        "publicTitleZh": "P183500 发电机控制器IGBT故障",
+        "candidateTitleRu": "Контроллер генератора: неисправность IGBT",
+        "hypotheticalRaw24Hex": "183500",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          2
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183600",
+        "outlineId": "outline_593_a",
+        "publicTitleZh": "P183600 发电机过温告警",
+        "candidateTitleRu": "Генератор: предупреждение о перегреве",
+        "hypotheticalRaw24Hex": "183600",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          3
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183700",
+        "outlineId": "outline_594_a",
+        "publicTitleZh": "P183700 发电机控制器IGBT过温告警",
+        "candidateTitleRu": "Контроллер генератора: предупреждение о перегреве IGBT",
+        "hypotheticalRaw24Hex": "183700",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          4
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183800",
+        "outlineId": "outline_595_a",
+        "publicTitleZh": "P183800 发电机控制器IGBT散热器过温故障-弗迪方案/发电机控制器水温过温故障-博格华纳方案",
+        "candidateTitleRu": "Контроллер генератора: перегрев радиатора IGBT (вариант Fudi) / перегрев охлаждающей жидкости (вариант BorgWarner)",
+        "hypotheticalRaw24Hex": "183800",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          5
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183900",
+        "outlineId": "outline_596_a",
+        "publicTitleZh": "P183900 发电机控制器电压采样故障",
+        "candidateTitleRu": "Контроллер генератора: ошибка измерения напряжения",
+        "hypotheticalRaw24Hex": "183900",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          8
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183A00",
+        "outlineId": "outline_597_a",
+        "publicTitleZh": "P183A00 发电机控制器碰撞故障",
+        "candidateTitleRu": "Контроллер генератора: сигнал столкновения",
+        "hypotheticalRaw24Hex": "183A00",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          9
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183C00",
+        "outlineId": "outline_598_a",
+        "publicTitleZh": "P183C00 发电机控制器IGBT三相温度校验故障报警",
+        "candidateTitleRu": "Контроллер генератора: ошибка сверки температур IGBT трёх фаз",
+        "hypotheticalRaw24Hex": "183C00",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          19
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183D00",
+        "outlineId": "outline_599_a",
+        "publicTitleZh": "P183D00 发电机温度传感器故障",
+        "candidateTitleRu": "Генератор: неисправность датчика температуры",
+        "hypotheticalRaw24Hex": "183D00",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          29
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183E00",
+        "outlineId": "outline_600_a",
+        "publicTitleZh": "P183E00 发电机控制器IGBT温度传感器故障",
+        "candidateTitleRu": "Контроллер генератора: неисправность датчика температуры IGBT",
+        "hypotheticalRaw24Hex": "183E00",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          30
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P183F00",
+        "outlineId": "outline_601_a",
+        "publicTitleZh": "P183F00 发电机控制器散热器故障-弗迪方案/发电机控制器水温温度传感器故障-博格华纳方案",
+        "candidateTitleRu": "Контроллер генератора: неисправность радиатора (вариант Fudi) / датчика температуры охлаждающей жидкости (вариант BorgWarner)",
+        "hypotheticalRaw24Hex": "183F00",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          31
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P184000",
+        "outlineId": "outline_602_a",
+        "publicTitleZh": "P184000 发电机控制器电容温度传感器故障",
+        "candidateTitleRu": "Контроллер генератора: неисправность датчика температуры конденсатора",
+        "hypotheticalRaw24Hex": "184000",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          32
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P191001",
+        "outlineId": "outline_603_a",
+        "publicTitleZh": "P191001 发电机旋变故障-信号丢失",
+        "candidateTitleRu": "Генератор: неисправность резольвера, потеря сигнала",
+        "hypotheticalRaw24Hex": "191001",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          11
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P191101",
+        "outlineId": "outline_604_a",
+        "publicTitleZh": "P191101 发电机旋变故障-DOS",
+        "candidateTitleRu": "Генератор: неисправность резольвера, DOS",
+        "hypotheticalRaw24Hex": "191101",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          12
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "P191201",
+        "outlineId": "outline_605_a",
+        "publicTitleZh": "P191201 发电机旋变故障-LOT",
+        "candidateTitleRu": "Генератор: неисправность резольвера, LOT",
+        "hypotheticalRaw24Hex": "191201",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          13
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "U014787",
+        "outlineId": "outline_606_a",
+        "publicTitleZh": "U014787 发电机控制器与发动机控制器通讯故障",
+        "candidateTitleRu": "Контроллер генератора: неисправность связи с ЭБУ двигателя",
+        "hypotheticalRaw24Hex": "C14787",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          27
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      },
+      {
+        "subsystem": "generator",
+        "publicDisplayCode": "U01D487",
+        "outlineId": "outline_607_a",
+        "publicTitleZh": "U01D487 发电机控制器与整车控制器通讯故障",
+        "candidateTitleRu": "Контроллер генератора: неисправность связи с контроллером автомобиля (VCU)",
+        "hypotheticalRaw24Hex": "C1D487",
+        "presentInDeclaredPayload": true,
+        "matchingOrdinals": [
+          28,
+          40
+        ],
+        "factoryMeaningQualified": false,
+        "format01MappingQualified": false
+      }
+    ],
+    "rawCodesWithoutHypotheticalHeading": [
+      "184100",
+      "2B1200",
+      "2B1201",
+      "2B1202",
+      "2B1203",
+      "2B1204",
+      "2B1316",
+      "2B1317",
+      "2B1416",
+      "2B1417",
+      "2B1500",
+      "2B1600",
+      "2B1700",
+      "2B1817",
+      "2B1820",
+      "2B1821",
+      "2B1901",
+      "2B1902",
+      "2B1A00",
+      "2B1B00",
+      "2B1C00",
+      "2B1D00",
+      "2B1E00",
+      "2B1E01"
+    ],
+    "rawCodesWithoutHypotheticalHeadingCount": 24,
+    "factoryMeaningQualified": false,
+    "format01MappingQualified": false,
+    "boundary": "32/32 inclusion is an empirical candidate-selection clue. A supported registry contains raw capabilities, not OEM display labels, monitor definitions or supplier/software applicability. It cannot prove this notation for format01."
+  },
+  "stockRendererEvidence": {
+    "component": "SpotInspection EOL MatchUtils.log1902",
+    "primarySourceAnchors": "captures/diagnostics-can-visibility-20261021/dictionaries/isg-renderer-source-anchors.json",
+    "caller": "ScriptStepExecutor.handleUdsResult -> MatchUtils.log1902",
+    "gate": "SID19 / subfunction02, one32-bit cell or separate24/8-bit cells described by the EOL script.",
+    "observedAlgorithm": "A numeric24-bit value is rendered as PCBU[firstByte>>6] + hex(firstByte&0x3F) + hex(lastTwoBytes).",
+    "formatIdentifierArgument": false,
+    "formatIdentifierBranchInInspectedFunction": false,
+    "staticExamples": [
+      {
+        "raw24Hex": "180219",
+        "sourceRendererOutput": "P180219"
+      },
+      {
+        "raw24Hex": "C14787",
+        "sourceRendererOutput": "U014787"
+      },
+      {
+        "raw24Hex": "C1D487",
+        "sourceRendererOutput": "U01D487"
+      }
+    ],
+    "perCodeDescriptionSource": "Exact numeric equality against attach.dtcList[].code, then desc; no dictionary entry yields an empty description.",
+    "executedISGScriptApplicabilityProved": false,
+    "liveSourceRendererOutputObserved": false,
+    "qualifiedFormat01Mapping": false,
+    "result": "This is a real primary OEM display routine, not an imported generic-code dictionary. It supports the notation hypothesis conditionally but has no format input, no retained applicable ISG script and no actual per-code ISG definition table. Main format01 records therefore remain raw."
+  },
+  "stockNativeEvidenceBoundary": {
+    "priorArtifact": "research/vehicle-diagnostics/dtc-format-applicability-20261021.json",
+    "reusedFinding": {
+      "claim": "Stock remote UDS client count task preserves response byte3 formatIdentifier, while list task copies the raw24bit DTC/status bytes without a format policy",
+      "bindings": [
+        {
+          "client": "0xad49c",
+          "vtable": "0x100388",
+          "vtableEntries": [
+            "0xc20a8",
+            "0xc2118",
+            "0xc2184",
+            "0xbee3c",
+            "0xbeea0",
+            "0xc21bc"
+          ],
+          "task": "0xc21bc",
+          "taskBytes": 476
+        },
+        {
+          "client": "0xadee8",
+          "vtable": "0x1005e0",
+          "vtableEntries": [
+            "0xc2d9c",
+            "0xc2e0c",
+            "0xc2e78",
+            "0xbee3c",
+            "0xbeea0",
+            "0xc2eb0"
+          ],
+          "task": "0xc2eb0",
+          "taskBytes": 716
+        }
+      ],
+      "countTaskAnchors": [
+        "C22BC..C22DC",
+        "C2318..C2324"
+      ],
+      "listTaskAnchors": [
+        "C2FCC..C2FD8",
+        "C3020..C3058",
+        "C30A4"
+      ],
+      "boundary": "This rules out a missing P-code converter in these two exact native response tasks. It does not qualify an OEM display/raw mapping and does not describe the separate local head-unit UDS server."
+    },
+    "newNativeDisassemblyOrBroadSearch": false,
+    "conclusion": "The previously traced count/list native tasks preserve the separate format identifier and raw DTC/status bytes. The new response does not create a format01 display conversion inside those copy paths; no universal claim about every native function is made."
+  },
+  "supplierVariantStillUnresolved": [
+    {
+      "subsystem": "generator",
+      "publicDisplayCode": "P183800",
+      "outlineId": "outline_595_a",
+      "publicTitleZh": "P183800 发电机控制器IGBT散热器过温故障-弗迪方案/发电机控制器水温过温故障-博格华纳方案",
+      "candidateTitleRu": "Контроллер генератора: перегрев радиатора IGBT (вариант Fudi) / перегрев охлаждающей жидкости (вариант BorgWarner)",
+      "hypotheticalRaw24Hex": "183800",
+      "presentInDeclaredPayload": true,
+      "matchingOrdinals": [
+        5
+      ],
+      "factoryMeaningQualified": false,
+      "format01MappingQualified": false
+    },
+    {
+      "subsystem": "generator",
+      "publicDisplayCode": "P183F00",
+      "outlineId": "outline_601_a",
+      "publicTitleZh": "P183F00 发电机控制器散热器故障-弗迪方案/发电机控制器水温温度传感器故障-博格华纳方案",
+      "candidateTitleRu": "Контроллер генератора: неисправность радиатора (вариант Fudi) / датчика температуры охлаждающей жидкости (вариант BorgWarner)",
+      "hypotheticalRaw24Hex": "183F00",
+      "presentInDeclaredPayload": true,
+      "matchingOrdinals": [
+        31
+      ],
+      "factoryMeaningQualified": false,
+      "format01MappingQualified": false
+    }
+  ],
+  "dictionarySearchDelta": {
+    "newConcreteInput": "Exact-software ISG full declared multiset57/unique56, including duplicateC1D487 and24 raw codes outside the32 public-heading hypothesis.",
+    "strongerCandidateSectionSelection": "Every one of the32 generator headings has a reverse-notation token in the observed raw set. This strengthens retaining that generator section as an acquisition candidate, without qualifying its meanings.",
+    "coverageGapNowMeasured": "The public section has no hypothetical heading for24 observed unique raw codes. The original applicable dictionary must be requested for the complete raw set, not only the32 public headings.",
+    "duplicateQuestionForOriginalSource": "Ask whether C1D487 is intentionally listed twice or a registry-generation issue for48370011E0EA000000; the response alone does not choose a cause.",
+    "originalAcquisitionLocator": {
+      "publicCatalogUrl": "https://dongcheyun.com/p/23710",
+      "faultListDocumentId": "DTA1415099",
+      "faultListOutlineId": "outline_575_a",
+      "bodyObtained": false
+    },
+    "minimumMissingEvidence": [
+      "Applicable revisioned ISG dictionary keyed to48370011E0EA000000 /4.03.13, including all56 unique raw codes.",
+      "An explicit OEM format01 raw-to-display rule or original code table, rather than applying the conventional formatter solely because a set overlaps.",
+      "Supplier/variant selection for P183800/P183F00 and an explanation of the duplicated rawC1D487."
+    ],
+    "genericDefinitionsImported": false,
+    "productDictionaryUpdated": false
+  },
+  "limits": [
+    "The strict reader failed; this artifact does not relabel its run successful or silently deduplicate the registry.",
+    "19 0A has no format byte; format01 comes from the separately observed same-identity190109 answer.",
+    "Two trailing callback bytes outside the declared231-byte payload are excluded.",
+    "All57 status bytes are00 and mask09 count is0; this is bounded diagnostic evidence, not a universal health assertion.",
+    "Public headings, candidate Russian translations and OEM monitor/repair definitions remain distinct.",
+    "The stock EOL renderer handles1902 generically without format input; its existence alone does not qualify the ISG format01 mapping.",
+    "No generic P-code meaning is assigned to any raw code, especially the24 unmatched raw values.",
+    "No vehicle operation, private API, web query, fault induction, shared source edit or commit was performed by this worker."
+  ],
+  "sources": [
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/live-01/probe.txt",
+      "sha256": "cc3627edbae0ac1b382d6b9bc102addda26ba2b385485a366cf7f17d65aa262d",
+      "bytes": 5992,
+      "role": "new_owner_capture_read_only"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/live-01/manifest.json",
+      "sha256": "cd5faa3ac00193325418397a0bfb445e47814eec62f24fe99c58ac37dc4acefc",
+      "bytes": 10648,
+      "role": "executed_build_manifest_retained_without_relabelling_built_not_run_field"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+      "sha256": "093df5ab92416ca017e7dbb67c0685584abdcfe3fd62e3c10e9a0331c3c6cff1",
+      "bytes": 85175,
+      "role": "unqualified_original_Chinese_catalog_headings"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-index-ru-20261020.json",
+      "sha256": "e1ee05b2419d9bb12b891371af41d91be3f555ce58a819d0d803367c11cdd016",
+      "bytes": 128127,
+      "role": "candidate_Russian_translation_not_factory_definitions"
+    },
+    {
+      "path": "research/vehicle-diagnostics/isg-gateway-trace-20261021.json",
+      "sha256": "750a02abbc6f3df80b9115c3b9f9a7b589245f1648d2dc67a4a58d06893ca08b",
+      "bytes": 14950,
+      "role": "earlier_partial_prefix_not_a_full_registry"
+    },
+    {
+      "path": "research/vehicle-diagnostics/dtc-format-applicability-20261021.json",
+      "sha256": "6523a010cbc73c19dd092cfaff4f148b174c40cb9d56b0493053db0469b8b10d",
+      "bytes": 6552,
+      "role": "prior_native_count_list_copy_path_scope"
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_supported_dtc.py",
+      "sha256": "b2fd4999cbd6c06ac2bb1da9af811f6f73304d1dd687d59f2ff8f564c19b0933",
+      "bytes": 30253,
+      "role": "existing_strict_decoder_policy_not_modified"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+      "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161",
+      "bytes": 1091824,
+      "role": "pinned_primary_stock_native_client"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/codec/util/HexUtil.java",
+      "sha256": "a8f2910ebc340306a86adff0447aa09b50f44f1db29253674bf437d09977a02c",
+      "bytes": 1757,
+      "role": "primary_stock_Eol_source"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/runner/ScriptStepExecutor.java",
+      "sha256": "a9b965f210ba21df43c16839e4743ff029aeb44d3d2ec6015d2a964466db1160",
+      "bytes": 18109,
+      "role": "primary_stock_Eol_source"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/MatchUtils.java",
+      "sha256": "db55f8a43d414b41af6fc997a5fa1edaab5a57a30cf1d4abf3efed2a65da6c45",
+      "bytes": 25950,
+      "role": "primary_stock_Eol_source"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/isg-renderer-source-anchors.json",
+      "sha256": "75ca146e187c3f6350d32ff941451df2aa1264329594da912d20c916dd914a87",
+      "bytes": 9142,
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/build_isg_dictionary_candidates.py",
+      "sha256": "d085db41e927c2a1b2265308fc6c6f26eb8f805b76dc22379f937eed8236d8a6",
+      "bytes": 15212,
+      "role": "this_pass_reproducibility_evidence"
+    }
+  ],
+  "reproducer": "python3 research/vehicle-diagnostics/check_isg_supported_dictionary_candidates.py"
+}

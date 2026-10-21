@@ -1,0 +1,505 @@
+{
+  "schema": "denza-lab.diagnostic-can-observer-candidates.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "productChanges": false,
+  "scope": "Source-qualified passive callback candidates and a finite inventory of six retained owner-Z9 raw windows; no listener registration or table write performed by this analysis.",
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "bytes": 1943112,
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7"
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/packets/hal-b0a70.asm",
+      "bytes": 113137,
+      "sha256": "f18daf27d86f59ce403b9ff1ca226868733e1f9759a945b04166616c19fa1fec"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/hal/hal-get-owner.asm",
+      "bytes": 2342,
+      "sha256": "9e74d50e8baa240ffd43f72799033bf0912273be00539ff6fb4947fcb40377e8"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/hal/hal-set-table.asm",
+      "bytes": 19323,
+      "sha256": "aa2985bce2ec565737b8ffe6d5a837ab4232a3e933534a0d03ba7e7d97ad1839"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/AbsBYDAutoDevice.java",
+      "bytes": 17501,
+      "sha256": "7d5b3fa0658a899bf85ac9a8f00287a39cba799887feac42a115a97731bbe7cf"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceManager.java",
+      "bytes": 11512,
+      "sha256": "360f55d453b41bdf53757031b8126175eeef4df7049b3320a2eb6097b6b9fae7"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/mqtt/BYDAutoMqttDevice.java",
+      "bytes": 3175,
+      "sha256": "61b0f064f9f8e012f7e0f114fa75eef88611149785d5f8229f2000bda867ff33"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/mqtt/AbsBYDAutoMqttListener.java",
+      "bytes": 662,
+      "sha256": "53ec8495c7e2b76e22a8efc63ebd8a86b155a5e4e51aa9614d39a99014e63412"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+      "bytes": 142939,
+      "sha256": "f361590ee7cd539adc4bb08c833fd599b74ca6d0366291a14d43bf6beb539dca"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/AbsBYDAutoSettingListener.java",
+      "bytes": 36191,
+      "sha256": "abc027e0ea3b87da806103464fc65401f0416d3b68727868d410059870d3baa7"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+      "bytes": 1967702,
+      "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/byd/feature/mqtt/Mqtt.java",
+      "bytes": 621,
+      "sha256": "67af843cb004fa98db4cb3ed6b02396de8235d46982c60d7dd4c6d83ad0a0da3"
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/byd/feature/mqtt/MqttMapper.java",
+      "bytes": 1679,
+      "sha256": "006b46751196735402e6bcb0ce7ef1ffc212c78dd07789e8e5688b34aca16109"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/feature/setting/Setting.java",
+      "bytes": 282621,
+      "sha256": "e108d5a45e560e6273f53dbe252d02473c55042158ccccf275919a646b3e0fc1"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/feature/setting/SettingMapper.java",
+      "bytes": 353917,
+      "sha256": "8f7b9792df0d0d143f45471d4e0989eb70530ceda777ea1882d3ab8bb61feefc"
+    },
+    {
+      "path": "research/vehicle-diagnostics/dicar-readable-properties-20261021.json",
+      "bytes": 1341770,
+      "sha256": "45e4d0dd4a12f12ea6c844338288f72378bcdccb7007c906c37fb9483fab54eb"
+    },
+    {
+      "path": "research/vehicle-diagnostics/passive-telemetry-live-20261021.json",
+      "bytes": 44639,
+      "sha256": "9c950682bb78553c06aebf60a5b6ad9ba02f1f172656d61b62461f556cff7bc8"
+    },
+    {
+      "path": "research/vehicle-diagnostics/chassis-buffers-live-20261021.json",
+      "bytes": 20425,
+      "sha256": "c82ed41b08b7a539aa831a670b47778081ec9e2db90a5973021e55ef6b1a7453"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/manifest.json",
+      "bytes": 1487,
+      "sha256": "92c9561db85f55f51652da356a3e0eae0f1f7768074d33a3a4f72b4184229ceb"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/chassis/live-wheels/run.json",
+      "bytes": 1066,
+      "sha256": "f5556a2cc74010d1d2e8dce6228ee9cea6e0cc1dacaaf332e9d59df4e211877b"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/chassis/live-steering/run.json",
+      "bytes": 1063,
+      "sha256": "b8d1ca8b89d52e805162b66f3e3c95c2881bba2328e4017ce5d58d709aa0b4f2"
+    }
+  ],
+  "native": {
+    "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+    "ranges": [
+      {
+        "name": "length-header-mode",
+        "startVA": "0xb0d58",
+        "endExclusiveVA": "0xb0d80",
+        "bytes": 40,
+        "sha256": "a6c56abf821e2bc9f8f68cebf174e2593652c035b190528388669d5c26898202"
+      },
+      {
+        "name": "owner-key-and-dispatch-gates",
+        "startVA": "0xb143c",
+        "endExclusiveVA": "0xb14d8",
+        "bytes": 156,
+        "sha256": "2d2b70a80fc2ca3ba065d2646f0bbc20218ff1205a63ca74773dde98c13a06c0"
+      },
+      {
+        "name": "six-owner-callback-fanout",
+        "startVA": "0xb1908",
+        "endExclusiveVA": "0xb19c0",
+        "bytes": 184,
+        "sha256": "10857e992882609998a95f3265a2925471cfb735a5f6f44a05db54dc128eb47d"
+      },
+      {
+        "name": "secretobd-common-callback",
+        "startVA": "0xb2238",
+        "endExclusiveVA": "0xb2244",
+        "bytes": 12,
+        "sha256": "d7604169338685420c4eb741e400ba3ea36ea3c9865d072b0db0570ff46d07c7"
+      },
+      {
+        "name": "exact-owner-lookup",
+        "startVA": "0x83be0",
+        "endExclusiveVA": "0x83cf0",
+        "bytes": 272,
+        "sha256": "00bf245db47564b9418f34d371428ee1a72ea92bc46243f3d996b78806d3b6d7"
+      },
+      {
+        "name": "monitor-table-writer",
+        "startVA": "0xb65d0",
+        "endExclusiveVA": "0xb6d94",
+        "bytes": 1988,
+        "sha256": "aaadca47821670e2348c6ce805132b3b78ef50048e0ffa3f3f17822a30cd1203"
+      }
+    ],
+    "imageApplicability": "Owner OTA HAL; historical passive-window report records prior matching installed HAL hash, not a new live read."
+  },
+  "sourceAssertions": [
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/AbsBYDAutoDevice.java",
+      "contains": [
+        "eventValue.bufferDataValue = event.getBufferData();",
+        "l.onDataEventChanged(event.getEventType(), eventValue);",
+        "this.mIBYDAutoListenerMap.addToMap(l, featureIDs);",
+        "bYDAutoDeviceManager.enableDevice(this, featureIDs);"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoDeviceManager.java",
+      "contains": [
+        "return bYDAutoManager.enableDevice(device.getType(), featureIDs);"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/mqtt/BYDAutoMqttDevice.java",
+      "contains": [
+        "private static int mDeviceType = 1033;",
+        "super.registerListener((IBYDAutoListener) l, featureIDs);"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/mqtt/AbsBYDAutoMqttListener.java",
+      "contains": [
+        "public final void onDataChanged(IBYDAutoEvent event)",
+        "public void onDataEventChanged(int eventType, BYDAutoEventValue eventValue)"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+      "contains": [
+        "return 1023;",
+        "super.registerListener((IBYDAutoListener) l, featureIDs);"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/byd/feature/mqtt/Mqtt.java",
+      "contains": [
+        "MQTT_DYNAMIC_DATA_CALLBACK = \"0x99000165\"",
+        "MQTT_SENT_MONITOR_TABLE_SET = \"0xAA000165\""
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/Cota/sources/com/byd/feature/setting/Setting.java",
+      "contains": [
+        "SETTING_SECRETOBD_DYNAMIC_DATA_CALLBACK = \"0x99000241\"",
+        "SETTING_SECRETOBD_SENT_MONITOR_TABLE_SET = \"0xAA000241\""
+      ]
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/packets/hal-b0a70.asm",
+      "contains": [
+        "000b143c: add      x21, x23, w25, uxtw",
+        "000b198c: add      w2, w20, #0x149",
+        "000b1994: mov      w1, #0x409",
+        "000b1998: mov      x3, x21",
+        "000b19a8: add      x3, x23, #5",
+        "000b19b0: add      w2, w20, #0x225",
+        "000b19b8: mov      w1, #0x3ff"
+      ]
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/hal/hal-get-owner.asm",
+      "contains": [
+        "00083cb4  mov      w0, #-0x271b",
+        "00083ce0  ldr      w0, [x21, #8]"
+      ]
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/hal/hal-set-table.asm",
+      "contains": [
+        "000b661c  cmp      w20, #0x640",
+        "000b6634  and      w8, w20, #7",
+        "000b6758  mov      w8, #0x241",
+        "000b6768  mov      w8, #0x165",
+        "000b6778  mov      w8, #0x10",
+        "000b6780  mov      w8, #0x20",
+        "FeatureMapper::setOwner(long const&, int const&)",
+        "writeDeviceOriginal(unsigned char const*, unsigned int const&, unsigned int const&)"
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "name": "MQTT_DYNAMIC_DATA_CALLBACK",
+      "device": 1033,
+      "eventHex": "99000165",
+      "ownerBit": 4,
+      "ownerMaskHex": "10",
+      "tableSetHex": "AA000165",
+      "status": "firmware",
+      "emission": "B1988..B19A0: device1033, w20+149=99000165, pointer x21=x23+w25, unchanged declared length from stackC4.",
+      "java": "BYDAutoMqttDevice supports generic IBYDAutoListener feature registration. AbsBYDAutoMqttListener.onDataChanged is empty; override onDataEventChanged and preserve bufferDataValue.",
+      "typeCaveat": "The readable-property inventory declares this feature int. That cache/declaration type does not override the HAL buffer-callback path and does not establish a buffer getter.",
+      "passiveObserverAssessment": "A bounded receive-only registration is a source-justified additional observer candidate for already-selected owner-bit4 frames. Runtime delivery and diagnostic reply visibility remain unproved.",
+      "envelope": "Uses the same x21 pointer as OTA/GB/BigData/Yun fanout. The retained ordinary raw format has a ten-byte envelope; preserve and validate actual callback bytes before interpretation."
+    },
+    {
+      "name": "SETTING_SECRETOBD_DYNAMIC_DATA_CALLBACK",
+      "device": 1023,
+      "eventHex": "99000241",
+      "ownerBit": 5,
+      "ownerMaskHex": "20",
+      "tableSetHex": "AA000241",
+      "status": "firmware",
+      "emission": "B19A8..B19BC then B2238: device1023, w20+225=99000241, pointer x23+5; length remains the same stackC4 declared length.",
+      "java": "BYDAutoSettingDevice supports generic IBYDAutoListener feature registration; onDataEventChanged is overridable and receives the raw buffer through AbsBYDAutoDevice.",
+      "typeCaveat": "Readable-property inventory declares byte[]. This does not qualify raw payload offsets or runtime availability.",
+      "passiveObserverAssessment": "A bounded opaque-byte observer is a source-justified candidate for existing owner-bit5 traffic. It has no qualified CAN decoder or diagnostic visibility result.",
+      "envelope": "Do not apply the ten-byte envelope automatically. w25 is5 for ordinary length encoding and6 for extended encoding; x23+5 equals x21 only when w25=5. In extended mode it begins one byte before x21 while forwarding the same declared length. Actual mode and byte bounds must be established separately."
+    }
+  ],
+  "monitoredTableSemantics": {
+    "status": "firmware",
+    "entryBytes": 8,
+    "maxPayloadBytes": 1600,
+    "key": "Table entry bytes0..3 BE CANID, byte4 sub-ID, byte5 channel; bytes6/7 participate in mode/operation handling.",
+    "ownership": "setTable maps AA000165 to owner mask10 and AA000241 to20. Existing-key paths OR or otherwise update owner state; the function calls setOwner, setMode and writeDeviceOriginal on operation paths.",
+    "listenerVsTable": "Java registerListener adds a local listener and calls enableDevice. It does not call either table SET. Listening does not create the owner-key entry or add its owner bit.",
+    "mutationBoundary": "The monitor-table SET path is mutation-capable and can serialize MCU traffic. It was not invoked and is outside this receive-only assessment.",
+    "persistence": "Runtime native owner-map updates are source-proven; persistence across reboot or controller reset is not established here."
+  },
+  "direct9900001D": {
+    "status": "firmware",
+    "role": "Internal raw MCU event consumed by HAL updateParameters rather than an unconditional public raw listener stream.",
+    "gate": "HAL constructs the exact six-byte CANID/sub/channel key, getOwner returns its map owner or-10011, and owner<=0 produces no raw owner fanout.",
+    "conclusion": "Registering a listener for9900001D alone does not bypass MCU export selection, the HAL exact owner-key lookup or owner-bit fanout. No unconditional direct public delivery is established by the inspected path.",
+    "limitation": "This is a source-path conclusion, not a live attempt to register9900001D or proof about every firmware build."
+  },
+  "retainedOwnerWindows": [
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+      "bytes": 104178,
+      "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73",
+      "stream": "gb",
+      "callbackHex": "9900001F",
+      "ownerApplicability": "Owner Z9GT profile170 CANFD; no N9 evidence included",
+      "provenanceReport": "research/vehicle-diagnostics/passive-telemetry-live-20261021.json",
+      "durationSeconds": 20,
+      "diagnosticRequestsDuringWindow": 0,
+      "inventory": {
+        "records": 911,
+        "tupleCount": 30,
+        "readyNanos": 144925765818750,
+        "firstNanos": 144925853839443,
+        "lastNanos": 144945695041213,
+        "preReadyRecords": 0,
+        "completed": true,
+        "dropped": 0,
+        "callbackErrors": 0,
+        "queued": 0,
+        "selectedReplyCounts": {
+          "7E8": 0,
+          "7EE": 0
+        },
+        "diagnosticRangeCount": 0,
+        "diagnosticTuples": [],
+        "diagnosticRecords": []
+      }
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/bigdata.log",
+      "bytes": 393848,
+      "sha256": "da69531362b51225ee031eb7586c296b547ccc0be088030539305ea558a72a8a",
+      "stream": "bigdata",
+      "callbackHex": "99000020",
+      "ownerApplicability": "Owner Z9GT profile170 CANFD; no N9 evidence included",
+      "provenanceReport": "research/vehicle-diagnostics/passive-telemetry-live-20261021.json",
+      "durationSeconds": 20,
+      "diagnosticRequestsDuringWindow": 0,
+      "inventory": {
+        "records": 2909,
+        "tupleCount": 103,
+        "readyNanos": 144972109553215,
+        "firstNanos": 144972110883138,
+        "lastNanos": 144992106642831,
+        "preReadyRecords": 0,
+        "completed": true,
+        "dropped": 0,
+        "callbackErrors": 0,
+        "queued": 0,
+        "selectedReplyCounts": {
+          "7E8": 0,
+          "7EE": 0
+        },
+        "diagnosticRangeCount": 0,
+        "diagnosticTuples": [],
+        "diagnosticRecords": []
+      }
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/yun.log",
+      "bytes": 359879,
+      "sha256": "1ac2c832623fd04af5996260ee92f6ea26005f531a462fe269ad360f694ab1df",
+      "stream": "yun",
+      "callbackHex": "99000021",
+      "ownerApplicability": "Owner Z9GT profile170 CANFD; no N9 evidence included",
+      "provenanceReport": "research/vehicle-diagnostics/passive-telemetry-live-20261021.json",
+      "durationSeconds": 20,
+      "diagnosticRequestsDuringWindow": 0,
+      "inventory": {
+        "records": 3129,
+        "tupleCount": 71,
+        "readyNanos": 145005401872293,
+        "firstNanos": 145005404501909,
+        "lastNanos": 145025393290448,
+        "preReadyRecords": 0,
+        "completed": true,
+        "dropped": 0,
+        "callbackErrors": 0,
+        "queued": 0,
+        "selectedReplyCounts": {
+          "7E8": 0,
+          "7EE": 0
+        },
+        "diagnosticRangeCount": 0,
+        "diagnosticTuples": [],
+        "diagnosticRecords": []
+      }
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/gb.log",
+      "bytes": 104402,
+      "sha256": "62bed104174519b8448dc48d09053502c40cdec24cc013447f1628dfecbde2e0",
+      "stream": "gb",
+      "callbackHex": "9900001F",
+      "ownerApplicability": "Owner Z9GT profile170 CANFD; no N9 evidence included",
+      "provenanceReport": "research/vehicle-diagnostics/battery-page-telemetry-20261021.json",
+      "durationSeconds": 20,
+      "diagnosticRequestsDuringWindow": 0,
+      "inventory": {
+        "records": 913,
+        "tupleCount": 30,
+        "readyNanos": 145196121924382,
+        "firstNanos": 145196132946843,
+        "lastNanos": 145216118925614,
+        "preReadyRecords": 0,
+        "completed": true,
+        "dropped": 0,
+        "callbackErrors": 0,
+        "queued": 0,
+        "selectedReplyCounts": {
+          "7E8": 0,
+          "7EE": 0
+        },
+        "diagnosticRangeCount": 0,
+        "diagnosticTuples": [],
+        "diagnosticRecords": []
+      }
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/chassis/live-wheels/raw-stdout.log",
+      "bytes": 400316,
+      "sha256": "4c825e35a6bcbf7f30606b8c635f3052c34e3ab86df4ab026cdf2093d1cd7375",
+      "stream": "bigdata",
+      "callbackHex": "99000020",
+      "ownerApplicability": "Owner Z9GT profile170 CANFD; no N9 evidence included",
+      "provenanceReport": "research/vehicle-diagnostics/chassis-buffers-live-20261021.json",
+      "durationSeconds": 20,
+      "diagnosticRequestsDuringWindow": 0,
+      "inventory": {
+        "records": 2953,
+        "tupleCount": 103,
+        "readyNanos": 149885770436661,
+        "firstNanos": 149885777402123,
+        "lastNanos": 149905765892586,
+        "preReadyRecords": 0,
+        "completed": true,
+        "dropped": 0,
+        "callbackErrors": 0,
+        "queued": 0,
+        "selectedReplyCounts": {
+          "7E8": 0,
+          "7EE": 0
+        },
+        "diagnosticRangeCount": 0,
+        "diagnosticTuples": [],
+        "diagnosticRecords": []
+      }
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/chassis/live-steering/raw-stdout.log",
+      "bytes": 104850,
+      "sha256": "1db221cb2c9abecc54a57f7599e30d1eae95a843ea939b817a78257580ed6ae0",
+      "stream": "gb",
+      "callbackHex": "9900001F",
+      "ownerApplicability": "Owner Z9GT profile170 CANFD; no N9 evidence included",
+      "provenanceReport": "research/vehicle-diagnostics/chassis-buffers-live-20261021.json",
+      "durationSeconds": 20,
+      "diagnosticRequestsDuringWindow": 0,
+      "inventory": {
+        "records": 916,
+        "tupleCount": 30,
+        "readyNanos": 150014911164669,
+        "firstNanos": 150014944501592,
+        "lastNanos": 150034870562439,
+        "preReadyRecords": 0,
+        "completed": true,
+        "dropped": 0,
+        "callbackErrors": 0,
+        "queued": 0,
+        "selectedReplyCounts": {
+          "7E8": 0,
+          "7EE": 0
+        },
+        "diagnosticRangeCount": 0,
+        "diagnosticTuples": [],
+        "diagnosticRecords": []
+      }
+    }
+  ],
+  "aggregate": {
+    "windows": 6,
+    "configuredWindowSeconds": 120,
+    "records": 11731,
+    "diagnosticRange": "700..7FF inclusive, preserving sub-ID/channel/length",
+    "diagnosticRangeCount": 0,
+    "selectedReplyCounts": {
+      "7E8": 0,
+      "7EE": 0
+    },
+    "allJournalsComplete": true
+  },
+  "provenanceAndAbsenceLimits": [
+    "Only six explicit20261021 owner-Z9 windows named by the existing passive/chassis reports were inventoried; historical N9 captures were excluded.",
+    "The windows were separate20-second receive-only observations. Their configured total120seconds is not one continuous or necessarily mutually exclusive wire capture.",
+    "No diagnostic requests were sent during these windows. They are not contemporaneous with the later ECM/ISG reads, and no diagnostic reply was expected by this inventory.",
+    "Zero700..7FF records means no such callback record in these saved windows. It does not prove absence on CAN, absence of an ECU, filtering, current table content or future delivery.",
+    "Owner mapping and upstream MCU export are independent gates. Extra listeners alone cannot add missing CAN export selections.",
+    "SecretOBD buffers stay opaque until their actual envelope is qualified; a byte scan is not a source-qualified CAN-ID decoder.",
+    "No installed MCU byte hash, live table snapshot, new application-UID permission result, live MQTT/SecretOBD callback or failure cause is established."
+  ],
+  "nextHypothesis": {
+    "action": "Separately reviewed bounded simultaneous receive-only observation during fixed diagnostic reads, without table SETs.",
+    "falsifiableQuestion": "Does the existing owner map already mirror target7E8/7EE traffic into any raw owner callback during a known diagnostic exchange?",
+    "zeroResultMeaning": "No mirrored target record in that bounded window; not CAN-wire absence.",
+    "secretObdPolicy": "Record bounded opaque bytes only; do not infer CAN IDs through an assumed ten-byte header."
+  },
+  "checker": "python3 research/vehicle-diagnostics/check_diagnostic_can_observer_candidates.py"
+}

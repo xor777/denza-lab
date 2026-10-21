@@ -1,0 +1,658 @@
+{
+  "schema": "denza-lab.diagnostic-can-mcu-visibility.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "productEdits": false,
+  "priorReportsChanged": false,
+  "scope": "Bounded offline MCU receive/record/export analysis. No car connection, diagnostic request, subscription/table change, MCU log switch, firmware execution, extraction, install, session or security action.",
+  "status": "pre_rejection_raw_path_exists_but_is_table_gated_no_unconditional_observer_qualified",
+  "image": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+    "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+    "bytes": 1933312,
+    "loadBase": "0x40000",
+    "gp": "0xfebdd868",
+    "decoder": "pypcode4.0.1 V850:LE:32:v850e3v5",
+    "applicability": "Owner IVI OTA only; installed MCU byte identity not independently established."
+  },
+  "receiveOrder": {
+    "queueFunctionVA": "0x17069c",
+    "drainFunctionVA": "0x1707d8",
+    "internalSelector": 0,
+    "physicalBusNameQualified": false,
+    "order": [
+      {
+        "callVA": "0x17082a",
+        "targetVA": "0x1704ac",
+        "role": "common static/dynamic raw-CAN processing"
+      },
+      {
+        "callVA": "0x170830",
+        "targetVA": "0x142444",
+        "role": "other consumer not analyzed here"
+      },
+      {
+        "callVA": "0x170836",
+        "targetVA": "0x13d494",
+        "role": "other consumer not analyzed here"
+      },
+      {
+        "callVA": "0x17083c",
+        "targetVA": "0x15769a",
+        "role": "other consumer not analyzed here"
+      },
+      {
+        "callVA": "0x170842",
+        "targetVA": "0x1528c8",
+        "role": "generic diagnostic receiver and its length/sequence gates"
+      },
+      {
+        "callVA": "0x170848",
+        "targetVA": "0x14cbc6",
+        "role": "separate VHDS diagnostic consumer"
+      }
+    ],
+    "pointer": "Every listed call receives the same frame pointer r29 via r6. The raw call returns before the generic diagnostic receiver is called; its later rejection cannot suppress an earlier raw emission.",
+    "otherSelectors": "Queues1 and2 call1704ac at170876 and1708b8 respectively; they do not call1528c8 in this drain."
+  },
+  "rawMirror": {
+    "pipeline": [
+      "1704ac unconditional170530->170b3c",
+      "170b3c dynamic169892 lookup",
+      "matched record170a12 reporting mode",
+      "170926 emits9900001D via15cc32"
+    ],
+    "beforeDiagnosticRejection": true,
+    "unconditionalEmission": false,
+    "unconditionalLookup": true,
+    "lookup": {
+      "frameLengthMaximum": 64,
+      "packedKey": "(internalSelector<<24)|((CANID&0x7ff)<<8)|subID",
+      "firstSubId": 0,
+      "fallbackSubId": "first CAN data byte, only if first lookup has no record",
+      "functionVA": "0x169892",
+      "anchors": [
+        "170b56..170b6c DLC guard",
+        "170b70..170b94 primary key and emit candidate",
+        "170b9a..170bb6 fallback"
+      ]
+    },
+    "reportModes": [
+      {
+        "mode": 0,
+        "behavior": "cache and emit each matching frame",
+        "anchors": [
+          "170a56..170a68"
+        ]
+      },
+      {
+        "mode": 1,
+        "behavior": "emit only when payload comparison using current DLC differs",
+        "anchors": [
+          "170a6a..170a90"
+        ]
+      },
+      {
+        "mode": 2,
+        "behavior": "emit when elapsed counter reaches configured interval; otherwise only cache",
+        "anchors": [
+          "170a92..170ac2"
+        ]
+      },
+      {
+        "mode": 3,
+        "behavior": "emit on payload change or elapsed interval",
+        "anchors": [
+          "170ac4..170b18"
+        ]
+      }
+    ],
+    "event": {
+      "fidHex": "9900001D",
+      "formatterVA": "0x170926",
+      "headerBytes": 10,
+      "layout": [
+        {
+          "offset": 0,
+          "size": 4,
+          "field": "CANID BE32"
+        },
+        {
+          "offset": 4,
+          "size": 1,
+          "field": "subID selected by lookup"
+        },
+        {
+          "offset": 5,
+          "size": 1,
+          "field": "internal selector"
+        },
+        {
+          "offset": 6,
+          "size": 4,
+          "field": "frame offset48 field copied BE32; units not inferred here"
+        },
+        {
+          "offset": 10,
+          "size": "DLC",
+          "field": "original CAN bytes, including ISO-TP PCI"
+        }
+      ]
+    },
+    "selectorZeroExamples": [
+      {
+        "route": "ECM response7E8",
+        "primaryPackedKeyHex": "0007E800",
+        "primarySixByteHalKeyHex": "000007E80000",
+        "firstFrameFallbackRule": "0007E800 OR (0x10 | (declared UDS length >>8)); a hypothetical1035-byte response has first PCI14 and key0007E814, not0007E810"
+      },
+      {
+        "route": "ISG response7EE",
+        "primaryPackedKeyHex": "0007EE00",
+        "primarySixByteHalKeyHex": "000007EE0000",
+        "retainedFirstFrameCanHex": "10E7590A09180219",
+        "fallbackPackedKeyForRetainedFrameHex": "0007EE10",
+        "fallbackSixByteHalKeyForRetainedFrameHex": "000007EE1000"
+      }
+    ],
+    "downstreamBoundary": "9900001D exists before diagnostic gates, but Android owner-map filtering and current collection-table membership remain separate gates. A subscription alone does not add a missing MCU lookup record. Root analyzes those Android/GB/YUN paths.",
+    "knownObservationPossible": "If an already active lookup record emits the matching frame and Android forwards it to an already authorized listener, its payload retains the actual7E8/7EE ISO-TP first frame before local size rejection or later CF sequence rejection. For the retained ISG sample this is exactly10E7590A09180219 on7EE; no ECM first frame is currently known."
+  },
+  "diagnosticRecorder": {
+    "functionVA": "0x1515a0",
+    "bufferRAM": "0xfebc9286",
+    "counterRAM": "0xfeeee5f0",
+    "recordBytes": 13,
+    "layout": "deltaBE16, internal selectorU8, CANIDBE16,8CANbytes",
+    "requiresActive": true,
+    "strictNextByteBound": 1391,
+    "maxRecordsFromZero": 106,
+    "notPreRejection": true,
+    "callSites": [
+      "0x150808",
+      "0x15128e",
+      "0x152a24",
+      "0x152dc0",
+      "0x152dec",
+      "0x152f0e"
+    ],
+    "omissions": [
+      {
+        "case": "positive FF rejected by size gate",
+        "path": [
+          "152c86..152c9a length decision",
+          "152cb8..152cd8 common negative publisher151948",
+          "152cdc->152fdc return"
+        ],
+        "recorded": false,
+        "reason": "Return bypasses received-FF recorder at152dec; common negative publisher does not append the raw FF."
+      },
+      {
+        "case": "CF sequence nibble differs from expected counter&0x0f",
+        "path": [
+          "152e50..152e66 check",
+          "152ef2->152fdc return"
+        ],
+        "recorded": false,
+        "reason": "Return occurs before152f0e recorder; the timeout transcript cannot reveal such discarded frames."
+      }
+    ],
+    "acceptedFirstFrameOrder": [
+      "152db8 CAN flow-control enqueue",
+      "152dc0 record generated flow control",
+      "152dec record received FF"
+    ],
+    "meaning": "The generated FC appears before its triggering received FF in this transcript. It is a software-order report, not a complete CAN-wire chronology.",
+    "existingIsgObservation": {
+      "publishedTraceBytes": 260,
+      "records": 20,
+      "declaredUdsBytes": 231,
+      "recoveredUdsPrefixBytes": 125,
+      "recordCapacityReached": false,
+      "scope": "Complete published timeout report; incomplete UDS registry. Neither missing nor mismatched CAN frames can be established from the filtered report."
+    }
+  },
+  "ownerBranches": {
+    "inputOwnerByte": "normal generic input byte0; retained probe uses0A",
+    "ownerPreservedInOuterResponse": true,
+    "owner3": {
+      "firstFrameExpectedField": "declared length minus3 (or3 below minimum)",
+      "positiveFirstFrameAcceptedLengthInterval": [
+        7,
+        922
+      ],
+      "localSizeRejectReturnsBeforeRecorder": true,
+      "timeoutDataBufferRAM": "0xfebc8ed4",
+      "timeoutPath": "15315c..153178",
+      "timeoutMeaning": "Partially assembled UDS data buffer rather than13-byte raw CAN records. Not an independent raw mirror and not a solution to the1035-byte ECM size hypothesis."
+    },
+    "otherOwners": {
+      "firstFrameExpectedField": "declared length minus1 (or1 below minimum)",
+      "positiveFirstFrameAcceptedLengthInterval": [
+        8,
+        920
+      ],
+      "timeoutDataBufferRAM": "0xfebc9286",
+      "timeoutPath": "15317e..153190",
+      "timeoutMeaning": "Filtered raw-CAN diagnostic transcript."
+    },
+    "noOwnerChangeProposed": true
+  },
+  "debugTextLog": {
+    "status": "static_conditional_candidate_no_android_readout_qualified_by_this_report",
+    "callVA": "0x170520",
+    "functionVA": "0x157c3c",
+    "beforeDiagnosticRejection": true,
+    "gates": [
+      "static descriptor lookup17055e must match (primary keyE0000000|(selector<<24)|(CANID<<8), then first-data-byte fallback)",
+      "if matched descriptor callback atrecord+4 is nonnull it must return nonzero",
+      "flagRAMFEEEED51 bit3 must already be set",
+      "global output buffer must have space"
+    ],
+    "flagRAM": "0xfeeeed51",
+    "flagGpOffsetHex": "3114e9",
+    "flagBit": 3,
+    "flagPcode": "debug-log-gate.pcode.txt",
+    "formatter": "literal-C + (0x30+selector) + R- + three CANID nibble lookup characters + - space + DLC data rendered as hex byte pairs/spaces + newline",
+    "bufferBaseRAM": "0xfebcca30",
+    "writePointerRAM": "0xfeeeed44",
+    "flushVA": "0x1580b4",
+    "flushPath": [
+      "158108->1a64b6",
+      "1a64ce->1a63f6(selector0)->1abe74",
+      "1a64d6->1a6456(selector2)->1abe74"
+    ],
+    "fidEmissionFoundInFormatterOrFlush": false,
+    "lowLevelOutputEndpointQualified": false,
+    "flagWriterVA": "0x1578fc",
+    "flagWriterInvoked": false,
+    "boundary": "The text producer and low-level output calls are source-backed; current flag/static descriptor state and binding to Android existing mculog output are not established here. Enabling it would be a state change and is not proposed.",
+    "romLiteralSearch": {
+      "capture": "captures/diagnostics-can-visibility-20261021/mcu/static-diagnostic-key-literals.json",
+      "scope": "Aligned word scan only, not decoded descriptor/runtime-table traversal.",
+      "testedExactKeys": [
+        "E007E800",
+        "E007E814",
+        "E007EE00",
+        "E007EE10"
+      ],
+      "matchingExactKeys": [],
+      "warning": "BroadE007E8xx hits are code-byte collisions: E007E806 is the little-endian word06e807e0 containing ordinary MOV instructions. Do not relabel these as CAN descriptors or infer runtime-table absence."
+    }
+  },
+  "qualifiedLivePlan": null,
+  "newVehicleRequestProposed": false,
+  "newCollectionTableProposed": false,
+  "newLogSwitchProposed": false,
+  "remainingEvidence": [
+    "Current existing dynamic raw-CAN lookup record/mode for7E8/7EE, with downstream owner fanout that exposes its unmodified bytes; or independently qualified existing MCU debug text route already enabled.",
+    "Installed MCU image identity; OTA source alone is not installed-byte proof.",
+    "Once source visibility is qualified, only root may own any authorized discriminating session; this report authorizes no action."
+  ],
+  "limits": [
+    "Bounded inspected paths only; no claim that the entire firmware lacks another observer.",
+    "Direct-call scan results are instruction-encoding candidates, not a complete call graph; indirect dispatch is not covered.",
+    "No meaning or physical bus name is assigned to internal selector0.",
+    "Raw event visibility does not imply no table rate/change filtering; no raw event absence proves CAN absence.",
+    "No product code or other research reports were edited."
+  ],
+  "ranges": [
+    {
+      "name": "receive-queues-and-dispatch",
+      "startVA": "0x17069c",
+      "endExclusiveVA": "0x1708dc",
+      "sha256": "c4a2c737f0b873486aef53a29ce5a89955c3866b205cfe66cd5f13e372dc2933",
+      "instructions": 159,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-17069c.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-17069c.json"
+    },
+    {
+      "name": "common-raw-before-diagnostics",
+      "startVA": "0x1704ac",
+      "endExclusiveVA": "0x17055e",
+      "sha256": "2feb563c1b331eaeefa25b7bd0e0a13f2ffad5adb4ebce929553bb0a52b89642",
+      "instructions": 61,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1704ac.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1704ac.json"
+    },
+    {
+      "name": "dynamic-table-lookup",
+      "startVA": "0x170b3c",
+      "endExclusiveVA": "0x170bd0",
+      "sha256": "7f4ce89ceca92a16965e3654aed2b68c502529f7a5184350d26b9826e9f48558",
+      "instructions": 51,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170b3c.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170b3c.json"
+    },
+    {
+      "name": "dynamic-reporting-modes",
+      "startVA": "0x170a12",
+      "endExclusiveVA": "0x170b3c",
+      "sha256": "8e73f560a64f439563ae1e64717a7193dd93833fc8e067e4cad3e324a20aee79",
+      "instructions": 105,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170a12.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170a12.json"
+    },
+    {
+      "name": "raw-event-formatter",
+      "startVA": "0x170926",
+      "endExclusiveVA": "0x170a12",
+      "sha256": "e79dd8e69d59d2aee10faf90cadb16e66bdb57e7c1bc6fcd058018b9b72f0171",
+      "instructions": 73,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170926.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170926.json"
+    },
+    {
+      "name": "diagnostic-single-and-multiframe-receive",
+      "startVA": "0x1528c8",
+      "endExclusiveVA": "0x152ff6",
+      "sha256": "746e89b08a7ba6c404bbdcdf19ad2034391d9b7852c3cf2665e5f42b87537851",
+      "instructions": 478,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1528c8.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1528c8.json"
+    },
+    {
+      "name": "diagnostic-trace-recorder",
+      "startVA": "0x1515a0",
+      "endExclusiveVA": "0x1516f2",
+      "sha256": "25a0fee16b02abe7d64bcedae182a17722fc534aa0422f638bd32d506f679be5",
+      "instructions": 89,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1515a0.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1515a0.json"
+    },
+    {
+      "name": "negative-response-publisher",
+      "startVA": "0x151948",
+      "endExclusiveVA": "0x1519b6",
+      "sha256": "e42b8639e9b19877b9f0de4a6a30b4fca0a08d6ef3cb7f6828b42d760e5205c5",
+      "instructions": 27,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-151948.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-151948.json"
+    },
+    {
+      "name": "timeout-publisher",
+      "startVA": "0x1530fa",
+      "endExclusiveVA": "0x1531fa",
+      "sha256": "32d63002ad6ffc37d092efc5c2358e8f0873029aac465e3924bd2b6323395970",
+      "instructions": 66,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1530fa.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1530fa.json"
+    },
+    {
+      "name": "response-chunker",
+      "startVA": "0x15324e",
+      "endExclusiveVA": "0x1532f2",
+      "sha256": "99a022f7dab2738aed1c80b8e8d90d7cb7b80aca693249b87f68f703d8e229c2",
+      "instructions": 51,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-15324e.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-15324e.json"
+    },
+    {
+      "name": "debug-rx-text",
+      "startVA": "0x157c3c",
+      "endExclusiveVA": "0x157d94",
+      "sha256": "36ebe21c5824a1cf885e89775cab9e0944206b8dc02432b9112037a2307e95c6",
+      "instructions": 84,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-157c3c.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-157c3c.json"
+    },
+    {
+      "name": "debug-flag-writer",
+      "startVA": "0x1578fc",
+      "endExclusiveVA": "0x157966",
+      "sha256": "6574439b3785dd3cdcabaa8079a7d5c250ba5a2b12918d3ad832e2f22af420ff",
+      "instructions": 31,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1578fc.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1578fc.json"
+    },
+    {
+      "name": "debug-buffer-flush",
+      "startVA": "0x1580b4",
+      "endExclusiveVA": "0x158126",
+      "sha256": "aa32e109a1e10f4c1fd88f1b96497d1ec38ce00d8c4215efffd7bef6a08e355d",
+      "instructions": 30,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1580b4.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1580b4.json"
+    },
+    {
+      "name": "debug-low-level-output",
+      "startVA": "0x1a64b6",
+      "endExclusiveVA": "0x1a64ea",
+      "sha256": "5e3eec5ee3bf900102c4d166d90e9bd4546509e7fdbaeb22a69f48098e520a64",
+      "instructions": 18,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a64b6.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a64b6.json"
+    },
+    {
+      "name": "debug-output-selector-zero",
+      "startVA": "0x1a63f6",
+      "endExclusiveVA": "0x1a6426",
+      "sha256": "10229f82ada77fba582d4d29ec96f91f771f8455c0789745d8ddaa16a6f284a6",
+      "instructions": 17,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a63f6.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a63f6.json"
+    },
+    {
+      "name": "debug-output-selector-two",
+      "startVA": "0x1a6456",
+      "endExclusiveVA": "0x1a6486",
+      "sha256": "341fe2fbfc9d9c5768d71117b93a2c9bd4ec22382aac3b894947d5885757af8b",
+      "instructions": 17,
+      "assembly": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a6456.asm",
+      "decodedInstructions": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a6456.json"
+    }
+  ],
+  "sources": [
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/source-reports/ecm-request-analysis-20261021.json",
+      "originalPath": "research/vehicle-diagnostics/ecm-request-analysis-20261021.json",
+      "bytes": 25553,
+      "sha256": "2aac12d9cee0c280e84b67a6649d85bbde5f266cc529083052be76a5cc5dfa21"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/source-reports/isg-failure-report-20261021.json",
+      "originalPath": "research/vehicle-diagnostics/isg-failure-report-20261021.json",
+      "bytes": 29967,
+      "sha256": "24bc14ce18ca04872a15f21435aed686c876e7b9b987ae19aa716d80ca00782d"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/source-reports/packet-origin-20261021.json",
+      "originalPath": "research/vehicle-diagnostics/packet-origin-20261021.json",
+      "bytes": 18427,
+      "sha256": "c0655a4254ede30509cbef9d23eccf43ece38e8a46882e93ca8c3210ff901007"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "bytes": 1933312,
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02"
+    },
+    {
+      "path": "captures/diagnostics-isg-followup-20261021/isg-trace/probe.txt",
+      "bytes": 3317,
+      "sha256": "5ac065485f2d898752d0e2593f27f36fa9aa0d3c72a1971587e91e583280306a"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/debug-log-gate.pcode.txt",
+      "bytes": 721,
+      "sha256": "0d245ddf235c4f13b2f1acff4bcaa54db0c5b0d5d8e46a49ebee0530c2a8b649"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/direct-call-candidates.json",
+      "bytes": 615,
+      "sha256": "80576ce67d32911b5146b0a5781d65afd97612a815c04f423d3c6babc97cf32b"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1515a0.asm",
+      "bytes": 4095,
+      "sha256": "1101d3e289f29082bbc10b3b0c6e0fe55281d230617bf35dfb53602a319182b4"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1515a0.json",
+      "bytes": 9681,
+      "sha256": "f0986d8c687ccf7c76c4a03f7675bb313733f5425fa2f61b8f0b1e28e055301b"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-151948.asm",
+      "bytes": 1301,
+      "sha256": "01063c68466d1438074d85a8a269359fe90a8efba47987747ed96d1e9823a335"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-151948.json",
+      "bytes": 2983,
+      "sha256": "d3bba2207bdf1ff3379085d2ae08b4903d9e8bd164cd198ecbbfa40d11b4501f"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1528c8.asm",
+      "bytes": 21986,
+      "sha256": "fba772ff1ed643c9535fe70b995d6371ef3dd618ab52910c3163aadbd8029c03"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1528c8.json",
+      "bytes": 52201,
+      "sha256": "8bef56f3c97dd0309217810615506d533a92ebfb9657742bf32d4267cca0b90a"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1530fa.asm",
+      "bytes": 3058,
+      "sha256": "32931dcf723016f79ba7156425a408a828eefb16ab7bebd0bab6dc15ec36c4bb"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1530fa.json",
+      "bytes": 7211,
+      "sha256": "6544910ab73947999262716d07d572508e8dddfd0b9f9af9c342c920a1c4ed04"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-15324e.asm",
+      "bytes": 2326,
+      "sha256": "ea260590b415f64c3d4707c8d825977afa9628511f2d0fde98fd9a222942f6f3"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-15324e.json",
+      "bytes": 5466,
+      "sha256": "f8794cb24b750f84b85c5940400a07187bd735cba3f74a26c32e8e35e7613bfe"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1578fc.asm",
+      "bytes": 1433,
+      "sha256": "271e1241c34d55eafa68ee59a2635a7fe1a82bd8efdab0e19f3a2e9eb05bf10d"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1578fc.json",
+      "bytes": 3335,
+      "sha256": "6ff4f863b4ba9a49b8873d489a41434adcb865954c81dc89eb7cbc66664b58bc"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-157c3c.asm",
+      "bytes": 3954,
+      "sha256": "f30303919a1a8a8bb49ce2fcf29cd02da1e37701630dde07ccb5fc2b0ca2f04e"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-157c3c.json",
+      "bytes": 9305,
+      "sha256": "ccc75a582a4d6d3c5def9ec42791bcf51cade47b5175ccb031faa87051b48f03"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1580b4.asm",
+      "bytes": 1409,
+      "sha256": "9e3349bc5e0fc24818f159f3674bbc015b260f9b38b0f3266244792e61a877cd"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1580b4.json",
+      "bytes": 3267,
+      "sha256": "880fad339da26fa9d73baafcac4d4f69ca36cc52bf19e8555bfc64e5709645ad"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1704ac.asm",
+      "bytes": 2744,
+      "sha256": "a193c3cd1525f45ade84c16fa80c9efb3fb4e4a639c979a6ade38d9371b4a3bd"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1704ac.json",
+      "bytes": 6440,
+      "sha256": "0c032a7b314b111823dbc666b49403cebb2b0ef42230f73996ed9a00f391f93a"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-17069c.asm",
+      "bytes": 7394,
+      "sha256": "d8d2a13c9a21ddf65490312fa7640a5d5a35ec1a07cac65c76220883f857acc6"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-17069c.json",
+      "bytes": 17355,
+      "sha256": "0bb7696bc9f18600202d40f186c407b1a69d135cba4c22bcdc20cdb81cf5f7b1"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170926.asm",
+      "bytes": 3311,
+      "sha256": "7e93de424e2c2554f3b4de28a5cb8594a891ea4491801672a5b1e2e6914b9d4d"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170926.json",
+      "bytes": 7816,
+      "sha256": "c720a295c13fec386f66ffbab443bca27bab4b5d239f1b9164f0d6e5a1e554ad"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170a12.asm",
+      "bytes": 4673,
+      "sha256": "de28275f912e3d2805e994946d7aeddf727c3033e34ccd938aeb9a8c672fb963"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170a12.json",
+      "bytes": 11040,
+      "sha256": "22eb59ddcd7f03ee6dbf15b102a50c4070fe5f0c906541bbb7370e76644e502f"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170b3c.asm",
+      "bytes": 2298,
+      "sha256": "fed13984b7211d3cb9ccc2f64dfbc39d5f5242e5799a1427599beaa044b2aee3"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-170b3c.json",
+      "bytes": 5383,
+      "sha256": "0f01dbebb68139a193d6fad75ae3e46295f230ad586440af42740e9a042fc845"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a63f6.asm",
+      "bytes": 781,
+      "sha256": "9023b0af34f81fb7f8befd6b008e3526055f1653067a7bca6056cd1b1dcf0c9c"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a63f6.json",
+      "bytes": 1778,
+      "sha256": "827e3549e68e2e21911398b20ea3a552c3af467b0593025aecdb614c105f97d3"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a6456.asm",
+      "bytes": 780,
+      "sha256": "ab9692e79dc8e79e2c5efa76c8d6351fc8fd163963684f7275a9641d042f5fe1"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a6456.json",
+      "bytes": 1778,
+      "sha256": "6d5eac10ec8dc5d4189c0cc48aca6880b17f88cba9807ada9c1c1f8416175107"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a64b6.asm",
+      "bytes": 828,
+      "sha256": "5996c5755b7f260fdbfab6eb545a743b6284abcfaca7dfa77540fda9b4744954"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/mcu-1a64b6.json",
+      "bytes": 1893,
+      "sha256": "e70e921630a6a5d8581d35107033cde15372970a0e1ed4e798ff723b0e9c55fa"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/ranges.json",
+      "bytes": 6274,
+      "sha256": "d4a42e094b8ee54873ec6119ccf41feb3a4da5a540aa7064898620397617d8af"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/mcu/static-diagnostic-key-literals.json",
+      "bytes": 80210,
+      "sha256": "d55eaba7f6c95f0adf26eaf360a8b3983169c561a8e427ade4ccfd607880f70d"
+    }
+  ],
+  "reproducer": "python3 research/vehicle-diagnostics/check_diagnostic_can_mcu_visibility.py",
+  "captureBase": "captures/diagnostics-can-visibility-20261021/mcu"
+}

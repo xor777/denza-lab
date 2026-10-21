@@ -34,6 +34,39 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   hypothesis rather than a proven cause: the ECM first CAN frame is missing.
   MCU also consumes NRC78, so Android callback silence does not establish CAN
   silence. Run `python3 research/vehicle-diagnostics/check_ecm_request_analysis.py`.
+- `diagnostic-can-mcu-visibility-20261021.json` traces raw dispatch before
+  diagnostic size/sequence rejection. Existing collection-table keys/modes are
+  required; the debug-text branch has another gate and no qualified Android
+  binding. `check_diagnostic_can_mcu_visibility.py` checks41 sources,16 native
+  ranges/1357 instructions and4096 size cases using `.venv-firmware/bin/python`.
+- `diagnostic-can-observer-candidates-20261021.json` maps six HAL owner streams,
+  including MQTT/SecretOBD; listener registration does not install their tables.
+  SecretOBD's extended-packet pointer keeps its envelope opaque. Run
+  `python3 research/vehicle-diagnostics/check_diagnostic_can_observer_candidates.py`
+  to replay21 source hashes,6 native ranges and6 older owner-Z9 passive windows
+  (11731 records), which did not include diagnostic requests.
+- `diagnostic-can-visibility-20261021.json` retains the one six-request live pass
+  with concurrent passive listeners. ECM repeats NRC13. ISG returns a full
+  positive231-byte list:57 entries/56 distinct raw codes,status00; C1D487 repeats
+  at positions28/40. The reader rejects its uniqueness policy, so the pass stays
+  failed (6 sent/5 accepted,exit2,queued1,cleanup=false), despite physical cleanup
+  and stable postflight health. Four streams delivered3664 callbacks with no
+  target7E8/7EE candidates; silent OTA/SecretOBD delivery is unqualified. These
+  are callback counts, not unique physical frames, and do not prove wire absence.
+  Run `python3 research/vehicle-diagnostics/check_diagnostic_can_visibility.py`.
+- `isg-supported-dictionary-candidates-20261021.json` preserves the complete
+  ISG payload and all 57 ordered entries. Under an explicitly unqualified
+  reverse-notation hypothesis, 32 public ISG headings match and 24 distinct raw
+  codes have no heading. A stock `1902` P/C/B/U renderer exists, but its use for
+  this exact format01 ISG response is not established; no factory definitions
+  or format conversions are promoted. Run
+  `python3 research/vehicle-diagnostics/check_isg_supported_dictionary_candidates.py`.
+- `dtc-dictionary-local-paths-20261021.json` closes the earlier obfuscated
+  resource gap:110 additional JSON resources and4014 targeted APK members.
+  HU diagnostics, modem flags and a sampleLA_BCM script are not target ECU
+  dictionaries. Public BYDTIS selection context remains an acquisition lead;
+  zero software-bound definitions were recovered. Run
+  `python3 research/vehicle-diagnostics/check_dtc_dictionary_local_paths.py`.
 - `exact-dtc-definitions-followup-20261021.json` retains Denza ECU-version/manual
   acquisition leads and BYDTIS field-schema evidence, with zero qualified
   definitions. The six BMS misses and P2BAE00 conflict remain unresolved; the
@@ -68,7 +101,11 @@ an incomplete run stays incomplete even if its process and file were removed.
 The `isg-trace` plan is fixed to identity/format01/190A on ISG, with 15/17-second
 soft/hard bounds and the original four-second request deadline. It separately
 collects bounded result03 report fragments; `GATEWAY_TRACE_CAPTURED` is never
-accepted as `SUPPORTED_READ`. Other plans retain their original failure policy.
+accepted as `SUPPORTED_READ`. The `can-visibility` plan adds only six fixed
+ECM/ISG reads and six existing-stream listeners (35/37-second bounds). It never
+sets collection tables; only one sample per stream and bounded target candidates
+are retained in memory. Its SDK `READY` is not confirmation of native delivery.
+Other plans retain their original failure policy.
 
 - `DtcReadProbe.java` is the original bounded shell-UID research probe for the
   qualified 0x720 → 0x728 transport, retained as evidence rather than built.

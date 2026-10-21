@@ -335,8 +335,47 @@ public final class SupportedDtcReadProbeTest {
         f=new Fake("isg-observe");f.ready();atList(f,1,9);f.receive(first);
         check("GATEWAY_SHAPE".equals(f.finish),"old observation plan retains original strict rejection");
     }
+    static void canVisibility() {
+        Fake f=new Fake("can-visibility");f.ready();atList(f,0,255);
+        answer(f,unhex("7F1913"));f.advance(500);
+        check(f.e.target()==SupportedDtcReadProbe.ISG&&f.sent.size()==4,"ECM negative preserves bounded next target");
+        atList(f,1,9);f.receive(retainedIsgTraceFirst());f.receive(frame(0x7E6,2,2,0,unhex("01020304")));f.advance(500);
+        check("PLAN_DONE".equals(f.finish)&&f.e.completed==6&&f.e.targetsFinished==2,"six fixed visibility requests complete");
+        f.advance(100000);check(f.sent.size()==6,"visibility no retry or extra target");
+        f=new Fake("can-visibility");f.ready();atList(f,1,255);
+        check(f.sent.size()==3&&f.e.target()==SupportedDtcReadProbe.ISG&&f.line("FORMAT_MISMATCH"),"ECM wrong format skips its list before moving to ISG");
+        DiagnosticCanObserver.Ledger ledger=new DiagnosticCanObserver.Ledger();
+        byte[] target=unhex("000007E800000000000010E7590A09180219");
+        byte[] other=target.clone();other[3]=(byte)0xE7;
+        check(ledger.accept(0,other,10)&&ledger.accept(0,other,11),"count ordinary callback without unbounded storage");
+        check(ledger.records.size()==1&&ledger.received[0]==2&&ledger.matched[0]==0,"one envelope sample per stream");
+        check(ledger.accept(0,target,12)&&ledger.matched[0]==1,"matching reply candidate retained");
+        target[10]=0;
+        check(ledger.records.get(1).bytes[10]==0x10,"retained callback owns a byte copy");
+        byte[] shifted=new byte[19];System.arraycopy(target,0,shifted,1,18);
+        check(ledger.accept(5,shifted,13)&&ledger.records.get(2).kind.equals("OPAQUE_CANDIDATE"),"SecretOBD shifted candidate remains opaque");
+        check(ledger.accept(1,new byte[2],14)&&ledger.malformed[1]==1,"short envelope remains explicit");
+        List<String> lines=ledger.finish(true);
+        check(lines.get(lines.size()-1).contains("failed=false cleanup=true")&&!ledger.accept(0,target,15),"observer close seals ledger");
+        for(int kind=0;kind<3;kind++) {
+            ledger=new DiagnosticCanObserver.Ledger();
+            boolean ok=ledger.accept(kind==2?6:0,kind==0?null:kind==1?new byte[1025]:other,1);
+            check(!ok&&ledger.failed,"observer bad bound fails closed "+kind);
+        }
+        ledger=new DiagnosticCanObserver.Ledger();
+        boolean acceptedAll=true;for(int i=0;i<512;i++)acceptedAll&=ledger.accept(0,target,i);
+        check(acceptedAll,"all512 bounded target candidates retained");
+        check(!ledger.accept(0,target,513)&&ledger.failed&&ledger.records.size()==512,"retained target cap stops observer");
+        ledger=new DiagnosticCanObserver.Ledger();
+        for(int i=0;i<50000;i++)ledger.accept(0,other,i);
+        check(!ledger.failed&&ledger.records.size()==1&&!ledger.accept(0,other,50001),"total callback cap independent of target cap");
+        check(ledger.failed,"callback cap marks coverage incomplete");
+        ledger=new DiagnosticCanObserver.Ledger();
+        check(ledger.accept(0,other,1,true)&&!ledger.failed,"ordinary raw traffic allowed during quiet window");
+        check(!ledger.accept(0,target,2,true)&&ledger.failed&&ledger.matched[0]==1,"preexisting target raw traffic fails before any request");
+    }
     public static void main(String[] args) {
-        goodPlans();negativeAndPending();malformedAndGuards();longAndStrictLists();rejectedEvidence();snapshotPlansAndGrammar();bmsSnapshotRecord();bmsEmptySnapshotRecord();isgTraceCapture();
+        goodPlans();negativeAndPending();malformedAndGuards();longAndStrictLists();rejectedEvidence();snapshotPlansAndGrammar();bmsSnapshotRecord();bmsEmptySnapshotRecord();isgTraceCapture();canVisibility();
         System.out.println("PASS assertions="+assertions+" synthetic_only=true");
     }
 }

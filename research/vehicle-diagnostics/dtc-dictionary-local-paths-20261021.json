@@ -1,0 +1,630 @@
+{
+  "schema": "denza-lab.dtc-dictionary-local-paths.v1",
+  "date": "2026-10-21",
+  "status": "no_software_bound_vehicle_dictionary_recovered_local_paths_and_resource_prefix_gap_qualified",
+  "scope": "Bounded reads of existing stock APK ZIP members, decompiled source, retained native/config files and three exact publicly imported TIS JavaScript files. No mass decompile or new firmware extraction.",
+  "captureBase": "captures/diagnostics-can-visibility-20261021/dictionaries",
+  "vehicleOperations": 0,
+  "adbOperations": 0,
+  "otaOperations": 0,
+  "authenticatedRequests": 0,
+  "privateApiRequests": 0,
+  "privateRuntimeDatabasesOpened": 0,
+  "clientExecution": false,
+  "qualifiedVehicleEcuDefinitions": [],
+  "qualifiedEcuSoftwareBindings": [],
+  "qualifiedWarningDtcLinks": [],
+  "qualifiedFormat01RawDisplayMappings": [],
+  "targets": [
+    {
+      "name": "ECM",
+      "route": "7E0",
+      "softwareCode": "32440011E004000000",
+      "dtcFormatIdentifier": 0,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_ECM_UAES_01200001",
+          "ecuSoftVer": "4.00.10",
+          "ecuHardVer": "1.0.0",
+          "factoryRequestResponsePair": "7E0/7E8"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "BMS033",
+      "route": "7E7",
+      "softwareCode": "4A520011E00D00047B",
+      "dtcFormatIdentifier": 0,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_BMS_BYD_03300001",
+          "ecuSoftVer": "3.48.07",
+          "ecuHardVer": "0.0.3",
+          "factoryRequestResponsePair": "7E7/7EF"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "FMCU",
+      "route": "7E3",
+      "softwareCode": "48370011E075000000",
+      "dtcFormatIdentifier": 1,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_FMCU_BYD_00100001",
+          "ecuSoftVer": "4.03.12",
+          "ecuHardVer": "0.0.5",
+          "factoryRequestResponsePair": "7E3/7EB"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "ISG",
+      "route": "7E6",
+      "softwareCode": "48370011E0EA000000",
+      "dtcFormatIdentifier": 1,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_ISG_BYD_00100001",
+          "ecuSoftVer": "4.03.13",
+          "ecuHardVer": "0.0.5",
+          "factoryRequestResponsePair": "7E6/7EE"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "SMCU",
+      "route": "744",
+      "softwareCode": "48370011E086001100",
+      "dtcFormatIdentifier": 0,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_SMCU_BYD_00200001",
+          "ecuSoftVer": "4.00.06",
+          "ecuHardVer": "0.0.2",
+          "factoryRequestResponsePair": "744/74C"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    },
+    {
+      "name": "SMCU3",
+      "route": "745",
+      "softwareCode": "48370011E088001100",
+      "dtcFormatIdentifier": 0,
+      "ecuCandidates": [
+        {
+          "ecuId": "HTH-2021_SMCU3_BYD_00100001",
+          "ecuSoftVer": "4.00.06",
+          "ecuHardVer": "0.0.2",
+          "factoryRequestResponsePair": "745/74D"
+        }
+      ],
+      "applicableDictionaryRecovered": false
+    }
+  ],
+  "ecmCalibration": {
+    "request": "0904",
+    "responseHex": "4904015A33314C303741423031000000000000",
+    "calibrationId": "Z31L07AB01",
+    "source": "captures/diagnostics-followup-20261021/engine/live-03/result.json"
+  },
+  "boundedApkInspection": {
+    "apkCount": 5,
+    "scannedMemberCount": 4014,
+    "scannedUncompressedBytes": 59728492,
+    "components": [
+      {
+        "component": "SpotInspection",
+        "path": "reverse/speaker-lift/SpotInspection.apk",
+        "apkSha256": "0677ac9473557dcd760da047c2639ec9336709f1e7c12b0f9980de1988093d2b",
+        "memberCount": 1651,
+        "jsonResourceCount": 41,
+        "dtcListCount": 1,
+        "sqliteHeaderMembers": [],
+        "tableNameMembers": [],
+        "literalHitCount": 0,
+        "skippedMembers": []
+      },
+      {
+        "component": "BydHealthDiagnostic",
+        "path": "captures/washer-firmware-20260923/diagnostic-apks/BydHealthDiagnostic.apk",
+        "apkSha256": "ba5124a9d62db6836bacf45ae0310fafb836209616fcd144d3c59f97c8db309d",
+        "memberCount": 66,
+        "jsonResourceCount": 0,
+        "dtcListCount": 0,
+        "sqliteHeaderMembers": [],
+        "tableNameMembers": [],
+        "literalHitCount": 0,
+        "skippedMembers": []
+      },
+      {
+        "component": "EngineerMode",
+        "path": "reverse/speaker-lift/EngineerMode.apk",
+        "apkSha256": "80c969a0de64c47dd266d237e8d673002d9e63b2006f04174a20905ba34bc3ff",
+        "memberCount": 349,
+        "jsonResourceCount": 1,
+        "dtcListCount": 0,
+        "sqliteHeaderMembers": [],
+        "tableNameMembers": [],
+        "literalHitCount": 0,
+        "skippedMembers": []
+      },
+      {
+        "component": "ClientConfigurationService",
+        "path": "captures/firmware/pulled-from-car-20261018/ClientConfigurationService.apk",
+        "apkSha256": "eba179dc81b5efb21e291f69e8324fea2820112b0e46b0e6cbe0d70b3693c4b9",
+        "memberCount": 363,
+        "jsonResourceCount": 1,
+        "dtcListCount": 0,
+        "sqliteHeaderMembers": [],
+        "tableNameMembers": [],
+        "literalHitCount": 0,
+        "skippedMembers": []
+      },
+      {
+        "component": "BydAutoManual",
+        "path": "captures/hud-firmware-20260923/system/system/app/BydAutoManual/BydAutoManual.apk",
+        "apkSha256": "9d84ed477a1ff6b2ecfde11735f4a65844c5389d0e381d702b5472a18988a1b2",
+        "memberCount": 1585,
+        "jsonResourceCount": 0,
+        "dtcListCount": 0,
+        "sqliteHeaderMembers": [],
+        "tableNameMembers": [],
+        "literalHitCount": 0,
+        "skippedMembers": []
+      }
+    ],
+    "literalScope": "Complete F194 software strings, selected full BMS display codes and raw24 textual strings, CALID and exact candidate ECU IDs, in UTF8/UTF16LE/UTF16BE; no arbitrary three-byte binary lookup claim.",
+    "allTargetLiteralHits": [],
+    "sqliteFileBoundary": "No SQLite-format header was found in the five APKs; native SQL schema strings and runtime path references are separately retained. No private .db file was acquired or opened.",
+    "rawProjection": "captures/diagnostics-can-visibility-20261021/dictionaries/targeted-apk-scan.json"
+  },
+  "closedResourceCoverageGap": {
+    "priorAuditSource": "captures/diagnostics-oem-dtc-20261020/local/audit_resources.py",
+    "priorFilter": [
+      "assets/",
+      "res/raw/"
+    ],
+    "newDiscriminator": "Actual SpotInspection raw script is obfuscated ZIP member res/7t.json; JADX restores the readable raw-resource name. The prior prefix filter did not cover short res/*.json paths or qualified raw directories.",
+    "previouslyInventoriedStockApks": 54,
+    "additionalApksWithJsonMembers": 14,
+    "additionalJsonMemberCount": 110,
+    "additionalUncompressedBytes": 2792585,
+    "allParsed": true,
+    "classifications": {
+      "Kotlin_tooling_metadata": 8,
+      "Lottie_animation": 98,
+      "other_JSON": 1,
+      "JSON_schema_draft": 2,
+      "Android_WM_protolog": 1
+    },
+    "targetLiteralHits": [],
+    "diagnosticSemanticKeyHits": [],
+    "rawProjection": "captures/diagnostics-can-visibility-20261021/dictionaries/previously-skipped-json-scan.json",
+    "result": "No target dictionary in these 110 additionally parsed JSON members. This closes one explicit resource-path gap without claiming all opaque resources are decoded."
+  },
+  "localPaths": [
+    {
+      "component": "SpotInspection",
+      "kind": "external_plaintext_Eol_script_dictionary_container",
+      "cachePrimaryPathTemplate": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts/<station>/<scriptCode>-<scriptVersion>-script.txt",
+      "cacheFallbackPathTemplate": "/data/user/0/com.byd.spotinspection/files/Scripts/<station>/<scriptCode>-<scriptVersion>-script.txt",
+      "metadataSiblingTemplate": "<scriptCode>-<scriptVersion>.json",
+      "dictionaryFields": "data.attach[].dtcList[].code:int / desc:string; attach contains ECU abbreviation/name and CAN request/response routes",
+      "lookupSource": "eol/executor/util/MatchUtils.java:377-401",
+      "lookupBehavior": "The inspected log1902 branch compares raw numeric code equality in the selected attachment and returns its desc, or an empty string. No target definition is generated by the reader.",
+      "populatedMatchingScriptRecovered": false,
+      "softwareBindingRecovered": false,
+      "acquisitionBoundary": "ScriptDownloadManager requires script metadata plus VIN/UUID/task/token and posts to the externally supplied URL. That is an authenticated factory download path, not a public dictionary endpoint; it was not used. A legitimately supplied plaintext script plus matching metadata still needs explicit ECU/software applicability.",
+      "existingOfflineImporter": "research/vehicle-diagnostics/import_oem_eol.py"
+    },
+    {
+      "component": "BydHealthDiagnostic + libbyddiagnosticservice.so",
+      "kind": "headunit_health_journal_and_config",
+      "sourceConfigPath": "/system/etc/diagnostic_config.json",
+      "runtimeDatabasePath": "/data/system/diag/HealthDiagnostic.db",
+      "runtimeTable": "table_diagnostic_info",
+      "columns": [
+        "moduletype",
+        "modulename",
+        "dtc",
+        "state",
+        "destination",
+        "diagnostictype",
+        "describe",
+        "diagnosticinfo",
+        "recordtime",
+        "uploadstatus"
+      ],
+      "socket": "diag_socket_channel",
+      "requestNames": [
+        "all_diag_data",
+        "latest_diag_data"
+      ],
+      "stockConfigDefinitionCount": 213,
+      "runtimeDatabaseAcquired": false,
+      "softwareBoundVehicleDictionary": false,
+      "result": "The stock source/config genuinely has head-unit diagnostic names and a journal schema. It supplies no target BMS/ECM/drive software applicability. Zero exact textual intersections with the observed format00 registries were found in this default config.",
+      "limits": "The activity readSocketData method failed JADX decompilation in the retained tree; constants and dispatch are source-anchored, while the SQLite schema/path are exact native string references. External add/ecu config references do not prove populated runtime files exist."
+    },
+    {
+      "component": "ClientConfigurationService.DTCData",
+      "kind": "headunit_modem_status_flags",
+      "sourceClass": "com/byd/clientconfigurationservice/bean/DTCData.java",
+      "runtimePreferencesPath": "/data/user/0/com.byd.clientconfigurationservice/shared_prefs/dtcdata.xml",
+      "fields": [
+        "com_module_fail",
+        "net_reg_fail",
+        "com_sim_fail",
+        "network_no_signal"
+      ],
+      "result": "DTCData is four local modem/SIM/registration/signal status flags. The writer stores them in SharedPreferences; the wire method emits a prefix plus four boolean bytes. This is not a raw-code/meaning dictionary.",
+      "privatePreferencesRead": false,
+      "qualifiedTargetDefinitions": []
+    },
+    {
+      "component": "BydAutoManual",
+      "kind": "owner_manual_content_and_media_SQLite_schemas",
+      "runtimeDatabasePaths": [
+        "/data/user/0/com.byd.auto_emanual/databases/classify_cache.db",
+        "/data/user/0/com.byd.auto_emanual/databases/media_cache.db"
+      ],
+      "tables": [
+        "classify",
+        "media_cache"
+      ],
+      "result": "The source schemas index owner-manual pages/ZIP paths and media downloads. There is no ECU/software/DTC column in these inspected schemas, and the APK contains no SQLite-format member. Cached document bodies were not acquired or interpreted.",
+      "privateDatabasesRead": false,
+      "qualifiedTargetDefinitions": []
+    },
+    {
+      "component": "EngineerMode",
+      "kind": "MediaTek_engineering_resources",
+      "result": "The scanned APK has one JSON asset AllICD.json; complete exact target-token and SQLite-header scans found no target dictionary. No modem/internal ICD table is imported as automotive ECU definitions.",
+      "qualifiedTargetDefinitions": []
+    }
+  ],
+  "singleBundledDtcList": {
+    "apkPath": "reverse/speaker-lift/SpotInspection.apk",
+    "apkSha256": "0677ac9473557dcd760da047c2639ec9336709f1e7c12b0f9980de1988093d2b",
+    "zipMember": "res/7t.json",
+    "memberSha256": "c3883631aa7f336d7c5d3da2af6a3549c988d166704106425bc9be9535cb064f",
+    "restoredResourcePath": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/res/raw/low_power_script.json",
+    "restoredResourceHashMatchesApkMember": true,
+    "jsonPath": "$.data.attach[0].dtcList",
+    "ecuAbbrName": "LA_BCM",
+    "ecuName": "左车身域控制器",
+    "requestCanId": 1824,
+    "responseCanIds": [
+      1832
+    ],
+    "rows": [
+      {
+        "code": 1193046,
+        "desc": "雷达故障"
+      }
+    ],
+    "rawCodeHex": "123456",
+    "targetSoftwareBinding": null,
+    "qualification": "One literal LA_BCM entry, not a software-qualified BMS/ECM/drive definition. It is retained to show that populated dtcList data is detectable; no meaning is promoted."
+  },
+  "headunitConfigProjection": "captures/diagnostics-can-visibility-20261021/dictionaries/headunit-config-projection.json",
+  "publicStaticTisFollowup": {
+    "newDiscriminator": "Exact dynamic imports in the already retained primary public entry script, not guessed document IDs or generic web queries.",
+    "fetchManifest": "captures/diagnostics-can-visibility-20261021/dictionaries/tis-static-import-fetch.json",
+    "scriptRequests": [
+      {
+        "url": "https://tis.bydauto.com.cn/tis/static/js/DTCManage-a2fe91b8.js",
+        "path": "captures/diagnostics-can-visibility-20261021/dictionaries/DTCManage-a2fe91b8.js",
+        "method": "GET",
+        "authentication": "none",
+        "privateApi": false,
+        "parentPath": "captures/diagnostics-unattended-20261021/dtc-applicability/tis-public-entry.js",
+        "parentSha256": "46edc2ea425311d3edc5737cfa0b9acf12ff8b13acc03d816876a50814359c7f",
+        "parentLiteral": "./js/DTCManage-a2fe91b8.js",
+        "parentLiteralByteOffset": 362174,
+        "error": "HTTPError: HTTP Error 404: Not Found",
+        "httpStatus": 404
+      },
+      {
+        "url": "https://tis.bydauto.com.cn/tis/static/js/LaborDtc-8880cf00.js",
+        "path": "captures/diagnostics-can-visibility-20261021/dictionaries/LaborDtc-8880cf00.js",
+        "method": "GET",
+        "authentication": "none",
+        "privateApi": false,
+        "parentPath": "captures/diagnostics-unattended-20261021/dtc-applicability/tis-public-entry.js",
+        "parentSha256": "46edc2ea425311d3edc5737cfa0b9acf12ff8b13acc03d816876a50814359c7f",
+        "parentLiteral": "./js/LaborDtc-8880cf00.js",
+        "parentLiteralByteOffset": 285561,
+        "error": "HTTPError: HTTP Error 404: Not Found",
+        "httpStatus": 404
+      },
+      {
+        "url": "https://tis.bydauto.com.cn/tis/static/js/ManualPage-16da2ca4.js",
+        "path": "captures/diagnostics-can-visibility-20261021/dictionaries/ManualPage-16da2ca4.js",
+        "method": "GET",
+        "authentication": "none",
+        "privateApi": false,
+        "parentPath": "captures/diagnostics-unattended-20261021/dtc-applicability/tis-public-entry.js",
+        "parentSha256": "46edc2ea425311d3edc5737cfa0b9acf12ff8b13acc03d816876a50814359c7f",
+        "parentLiteral": "./js/ManualPage-16da2ca4.js",
+        "parentLiteralByteOffset": 293196,
+        "httpStatus": 200,
+        "finalUrl": "https://tis.bydauto.com.cn/tis/static/js/ManualPage-16da2ca4.js",
+        "contentType": "application/javascript",
+        "bytes": 6133,
+        "sha256": "3e9cb5969a25f19a24079d494ca6fd9b864ba3b011b8236738532e84b68bc3d5"
+      }
+    ],
+    "manualPageObservation": {
+      "catalogKinds": [
+        "wsm",
+        "wd",
+        "body",
+        "diagnose"
+      ],
+      "documentReferenceInputs": [
+        "accessKey",
+        "id"
+      ],
+      "selectionContextFields": [
+        "brandCode",
+        "seriesCode",
+        "modelCode",
+        "seriesName",
+        "modelName"
+      ],
+      "pathTemplateFromClient": "<ftpUrl>/tech-manual/<selected accessKey>/<selected id>",
+      "actualAccessKeyRecovered": false,
+      "originalManualBodyRequested": false,
+      "apiRequested": false,
+      "clientExecuted": false,
+      "result": "The public ManualPage component makes the selection/access boundary concrete. A third-party DTA/outline locator alone does not supply the selected document reference, provenance, revision or controller applicability. No protected URL was constructed or fetched.",
+      "accessKeyMeaningLimit": "accessKey is the literal route parameter name. Its actual permission/security semantics were not determined from this component alone."
+    },
+    "dtcChunkBoundary": "The two exact DTCManage/LaborDtc imported URLs returned HTTP404. Do not infer why, guess replacement hashes, or treat this as proof that the server lacks DTC data.",
+    "newQualifiedDefinitions": []
+  },
+  "nextAcquisition": {
+    "minimumUsefulArtifact": "Legitimately supplied populated OEM per-ECU plaintext dictionary/script or original manual pages, accompanied by revision and exact ECU/software selection.",
+    "bmsKeys": [
+      "HTH-2021_BMS_BYD_03300001",
+      "3.48.07",
+      "4A520011E00D00047B",
+      "P1A8E73",
+      "P2BF900",
+      "P2BFF0B",
+      "P2BAA00",
+      "P2BF600",
+      "P2BFF07",
+      "P2BAE00"
+    ],
+    "ecmKeys": [
+      "HTH-2021_ECM_UAES_01200001",
+      "4.00.10",
+      "32440011E004000000",
+      "Z31L07AB01"
+    ],
+    "unknownsRemain": [
+      "Six missing BMS meanings and P2BAE00 conflict.",
+      "Exact engine definition/CALID/software binding.",
+      "FMCU/ISG format01 raw/display conversion and definitions.",
+      "Factory definition/revision binding for the rear codes, despite observed supported-set membership."
+    ]
+  },
+  "limits": [
+    "Zero qualified target definitions does not mean the stock firmware has no diagnostic text: its head-unit config has213 rows and SpotInspection has one unqualified bundled LA_BCM entry.",
+    "Literal/code scans cannot decode encrypted/packed/arbitrary binary lookup tables, truncated/split strings, or external runtime content.",
+    "The five APKs and additional110 JSON members are explicit finite coverage, not the full OTA or every installed app.",
+    "Private runtime databases, external EOL cache, OTA packages and manufacturer APIs were not accessed.",
+    "No new decompile, new extraction, client execution, vehicle command, package installation, login, purchase or credential use."
+  ],
+  "sources": [
+    {
+      "path": "reverse/speaker-lift/SpotInspection.apk",
+      "bytes": 14560089,
+      "sha256": "0677ac9473557dcd760da047c2639ec9336709f1e7c12b0f9980de1988093d2b",
+      "role": "stock_candidate_APK_scanned_locally"
+    },
+    {
+      "path": "captures/washer-firmware-20260923/diagnostic-apks/BydHealthDiagnostic.apk",
+      "bytes": 952179,
+      "sha256": "ba5124a9d62db6836bacf45ae0310fafb836209616fcd144d3c59f97c8db309d",
+      "role": "stock_candidate_APK_scanned_locally"
+    },
+    {
+      "path": "reverse/speaker-lift/EngineerMode.apk",
+      "bytes": 8813531,
+      "sha256": "80c969a0de64c47dd266d237e8d673002d9e63b2006f04174a20905ba34bc3ff",
+      "role": "stock_candidate_APK_scanned_locally"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/ClientConfigurationService.apk",
+      "bytes": 9514371,
+      "sha256": "eba179dc81b5efb21e291f69e8324fea2820112b0e46b0e6cbe0d70b3693c4b9",
+      "role": "stock_candidate_APK_scanned_locally"
+    },
+    {
+      "path": "captures/hud-firmware-20260923/system/system/app/BydAutoManual/BydAutoManual.apk",
+      "bytes": 17747607,
+      "sha256": "9d84ed477a1ff6b2ecfde11735f4a65844c5389d0e381d702b5472a18988a1b2",
+      "role": "stock_candidate_APK_scanned_locally"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/ManualPage-16da2ca4.js",
+      "bytes": 6133,
+      "sha256": "3e9cb5969a25f19a24079d494ca6fd9b864ba3b011b8236738532e84b68bc3d5",
+      "role": "primary_static_source_anchor",
+      "url": "https://tis.bydauto.com.cn/tis/static/js/ManualPage-16da2ca4.js"
+    },
+    {
+      "path": "captures/diagnostics-oem-dtc-20261020/local/audit_resources.py",
+      "bytes": 5489,
+      "sha256": "180d8a1db91e84e486eacadddd6af761fca3a267dcc40cdc4390ca0a99f8a01d",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/ClassifyDbUtil.java",
+      "bytes": 10975,
+      "sha256": "fb2f968c52ab7c0f0b020efd0e7a75cc04c8623775aa39816de1d52326205a03",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/video/db/VideoDbUtil.java",
+      "bytes": 6187,
+      "sha256": "e69b0581635abee40a35a754566aa764bcb27ac1a1402473cf19e2907f6b3504",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libbyddiagnosticservice.so",
+      "bytes": 796936,
+      "sha256": "32de1289536c70c8aea48564868cefbc68b3a6cf755e471d6ad05128bba7faa0",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/BydHealthDiagnostic/sources/com/byd/diagnosticinfo/DiagnosticSecretCodeActivity.java",
+      "bytes": 38117,
+      "sha256": "e960f961f165a78e044bb263db38a9b011548180125e1a0b22fa9dfd6ea4593b",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ClientConfigurationService/sources/com/byd/clientconfigurationservice/bean/DTCData.java",
+      "bytes": 2048,
+      "sha256": "5559929093b182c1a49046ef74179a85a7599f4f08f600043a0b9169bbcf81f6",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ClientConfigurationService/sources/com/byd/clientconfigurationservice/service/ClientStatusCollectionService.java",
+      "bytes": 188146,
+      "sha256": "1d962b16a1e4e28aac5678d1126c476614a98d5dfbd1c93894d6bf1afbbf4669",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/http/ScriptDownloadManager.java",
+      "bytes": 23493,
+      "sha256": "d1976fbb65e6970757ca170bec547d70c07608584685b4a7164442b9255039d8",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/Attach.java",
+      "bytes": 14068,
+      "sha256": "c496d093f810c0a2fe8cae4e952ede4513968e5f8c6729014703914769c95e8a",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/MatchUtils.java",
+      "bytes": 25950,
+      "sha256": "db55f8a43d414b41af6fc997a5fa1edaab5a57a30cf1d4abf3efed2a65da6c45",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/storage/ScriptDao.java",
+      "bytes": 6846,
+      "sha256": "64aa42f3a06378288bfc369b6bb7ce8cf3be8313c1062bd9719400de08ffc5b8",
+      "role": "primary_static_source_anchor"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/etc/diagnostic_config.json",
+      "bytes": 76316,
+      "sha256": "e313e1a062dd713374e02a25e6e4c359820849f735dc0e5e92abe6c0434966de",
+      "role": "retained_local_context_and_comparison"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/res/raw/low_power_script.json",
+      "bytes": 11809,
+      "sha256": "c3883631aa7f336d7c5d3da2af6a3549c988d166704106425bc9be9535cb064f",
+      "role": "retained_local_context_and_comparison"
+    },
+    {
+      "path": "research/vehicle-diagnostics/supported-dtc-20261021.json",
+      "bytes": 187540,
+      "sha256": "e83aeba5e7773ebf1b708a49f904256599e5649637e922f43d569ea1ec5ceba5",
+      "role": "retained_local_context_and_comparison"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-exact-source-search-20261021.json",
+      "bytes": 31024,
+      "sha256": "91428b1b8594a3c50cfabbbfeea848f2d50f992e5588a67d3d07e70e35dd3d89",
+      "role": "retained_local_context_and_comparison"
+    },
+    {
+      "path": "captures/diagnostics-oem-dtc-20261020/local/apk-resource-inventory.json",
+      "bytes": 33412,
+      "sha256": "af2877d108f4130527b6d55fec9ad7e17e9362d317314e9536f654922c1c2e8e",
+      "role": "retained_local_context_and_comparison"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/dtc-applicability/tis-public-entry.js",
+      "bytes": 778964,
+      "sha256": "46edc2ea425311d3edc5737cfa0b9acf12ff8b13acc03d816876a50814359c7f",
+      "role": "retained_local_context_and_comparison"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/scan_local_candidates.py",
+      "bytes": 4470,
+      "sha256": "b84473b9a4b521546ea9d477ed93dd08b4aa92ebc135c31dec5e6c716a91c645",
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/scan_skipped_json.py",
+      "bytes": 2739,
+      "sha256": "5b50f4e12c196ebc5b5d863e3c674edb6cc94da0ddbb2f3dc8747b02d34829c7",
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/fetch_tis_chunks.py",
+      "bytes": 1632,
+      "sha256": "d4a403fe1fcbee4b44b0e57ef5b7980fe215ca4fe942396b564d7e93a8f604d3",
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/build_local_paths.py",
+      "bytes": 17460,
+      "sha256": "d9b481edcc6f75808b1514da723a7ee82aa1afc9bab3f7931caff9f1482c6503",
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/targeted-apk-scan.json",
+      "bytes": 750537,
+      "sha256": "08b5e0bee6df61b2223d593fef04a7099cd6499b13e83e9f24ad933a25f22af0",
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/previously-skipped-json-members.json",
+      "bytes": 12141,
+      "sha256": "0c3b619236aba7d970e7b761690dff4dd85dc8ea5ece678f6e31b9a9e8ba8ae6",
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/previously-skipped-json-scan.json",
+      "bytes": 52459,
+      "sha256": "8931222de43dd5fcbf71cbd053c9df11a24cac09e802b04afdac049e2cba5725",
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/tis-static-import-fetch.json",
+      "bytes": 2009,
+      "sha256": "2050227861976c70c62b3def3fbba3fe16607fc3e1478a4368adb36291c182ee",
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/source-anchors.json",
+      "bytes": 19997,
+      "sha256": "055d0171788cbd441bd15177cefcbce173b83a1d6547ef5dea1620b33d6f8193",
+      "role": "this_pass_reproducibility_evidence"
+    },
+    {
+      "path": "captures/diagnostics-can-visibility-20261021/dictionaries/headunit-config-projection.json",
+      "bytes": 1396,
+      "sha256": "8e153e515f29d46132fc36b3dd8a266e7488e30a1257e439123e1ed04a0a3870",
+      "role": "this_pass_reproducibility_evidence"
+    }
+  ],
+  "sourceAnchors": "captures/diagnostics-can-visibility-20261021/dictionaries/source-anchors.json",
+  "reproducer": "python3 research/vehicle-diagnostics/check_dtc_dictionary_local_paths.py"
+}

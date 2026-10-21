@@ -53,7 +53,8 @@ public final class SupportedDtcReadProbe {
         }
         int requestsPerTarget() { return readRecord?4:3; }
         int maxRequests() { return targets.length*requestsPerTarget(); }
-        boolean collectsTrace() { return "isg-trace".equals(name); }
+        boolean observesCan() { return "can-visibility".equals(name); }
+        boolean collectsTrace() { return "isg-trace".equals(name)||observesCan(); }
     }
     static final Target ECM = new Target("ECM", 0x7E0, "32440011E004000000");
     static final Target BMS = new Target("BMS", 0x7E7, "4A520011E00D00047B");
@@ -67,6 +68,7 @@ public final class SupportedDtcReadProbe {
         if ("rear-drives".equals(name)) return new Plan(name,35_000,SMCU,SMCU3);
         if ("isg-observe".equals(name)) return new Plan(name,15_000,ISG);
         if ("isg-trace".equals(name)) return new Plan(name,15_000,ISG);
+        if ("can-visibility".equals(name)) return new Plan(name,35_000,ECM,ISG);
         if ("snapshot-ecm-bms".equals(name)) return new Plan(name,35_000,0x03,ECM,BMS);
         if ("snapshot-drives".equals(name)) return new Plan(name,65_000,0x03,FMCU,ISG,SMCU,SMCU3);
         if ("bms-snapshot-record".equals(name)) return new Plan(name,25_000,0x03,true,BMS);
@@ -108,7 +110,8 @@ public final class SupportedDtcReadProbe {
         List<byte[]> previousFrames=new ArrayList<>();
         volatile boolean done,open;
         boolean quiet=true;
-        int targetIndex,phase,seq,requests,completed,targetsFinished,callbacks,exchangeCallbacks;
+        int targetIndex,phase,seq,completed,targetsFinished,callbacks,exchangeCallbacks;
+        volatile int requests; // Published before send; passive callbacks may arrive on another thread.
         int previousSeq,previousAddress,format=-1,availability=-1;
         volatile long sentAt;
         byte[] lastSource;
@@ -256,7 +259,8 @@ public final class SupportedDtcReadProbe {
                 availability=uds[2]&255;format=uds[3]&255;
                 host.out("FORMAT seq="+seq+" target="+id(target().address)+" format="+String.format("%02X",format)
                     +" status_available="+String.format("%02X",availability)+" mask09_count="+(((uds[4]&255)<<8)|(uds[5]&255)));
-                if((plan.readRecord&&format!=0)||(plan.collectsTrace()&&format!=1)) { end("FORMAT_MISMATCH",true);return; }
+                if((plan.readRecord&&format!=0)||(plan.collectsTrace()&&target()==ISG&&format!=1)
+                        ||(plan.observesCan()&&target()==ECM&&format!=0)) { end("FORMAT_MISMATCH",true);return; }
                 end("FORMAT_READ",false);return;
             }
             if(phase==3&&plan.readRecord) {
@@ -320,6 +324,7 @@ public final class SupportedDtcReadProbe {
     private Object device, listener;
     private Class<?> deviceClass, listenerClass, valueClass;
     private boolean registered;
+    private DiagnosticCanObserver canObserver;
     static String prop(String key) throws Exception {
         return (String) Class.forName("android.os.SystemProperties").getMethod("get", String.class).invoke(null, key);
     }
@@ -346,6 +351,7 @@ public final class SupportedDtcReadProbe {
         String rejected = rejectedCallbackFrame.getAndSet(null);
         if (rejected != null) out(rejected);
         boolean cleaned = true;
+        if(canObserver!=null)cleaned=canObserver.close();
         try {
             if (registered) {
                 deviceClass.getMethod("unregisterListener", listenerClass).invoke(device, listener);
@@ -458,6 +464,10 @@ public final class SupportedDtcReadProbe {
             registered = true; // Cleanup is attempted even if registration partially fails.
             deviceClass.getMethod("registerListener", listenerClass, int[].class).invoke(device, listener, new int[]{RX});
             out("REGISTERED");
+            if(plan.observesCan()) {
+                canObserver=new DiagnosticCanObserver();
+                canObserver.start(context,()->callbackFailure("CAN_OBSERVER_FAILED"),()->engine.requests==0);
+            }
             Thread input = new Thread(() -> {
                 try { System.in.read(); } catch (Exception ignored) { }
                 callerClosed.set(true);

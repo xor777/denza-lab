@@ -230,7 +230,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['health','run'])
     p.add_argument('--serial',required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--build',type=Path);p.add_argument('--plan',choices=[
-        'ecm-bms','drives','rear-drives','isg-observe','isg-trace','snapshot-ecm-bms','snapshot-drives',
+        'ecm-bms','drives','rear-drives','isg-observe','isg-trace','can-visibility','snapshot-ecm-bms','snapshot-drives',
         'bms-snapshot-record'])
     a=p.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9._:\-]+',a.serial):p.error('Existing serial required')
