@@ -1,0 +1,264 @@
+{
+  "schema": "denza-lab.ecu-description-cache-lead.v1",
+  "date": "2026-10-21",
+  "status": "exact_internal_cache_lead_access_denied_existence_and_content_unknown",
+  "scope": {
+    "offline": "Existing ProductLineOTA source path and save/read model analysis by delegated agent.",
+    "retainedRootObservation": "Root separately performed exact metadata/access checks over retained ADB; this artifact only reads their saved result.",
+    "strategyContentsRead": false,
+    "strategyActivation": false,
+    "bydLogActivation": false,
+    "otaActivation": false,
+    "cloudRequest": false
+  },
+  "lead": {
+    "exactPath": "/data/ota_package/ota_productline/result/strategy.json",
+    "storageClass": "internal_system_ota_service_data_not_external_storage_or_per_app_data_user_0_cache",
+    "currentVehicleType": "DiLink150_7.0UI",
+    "selectedBranch": "generic_fallback",
+    "pathAssembly": [
+      "/data/ota_package/",
+      "ota_productline/",
+      "result/",
+      "strategy.json"
+    ],
+    "descriptionJoin": "Potential source is EcuVersionInfo.ecuDescription joined by exact ecuId/ecuSoftCode to the same strategy record/sequence. Presence, target coverage, currency and filled descriptions are unproved.",
+    "factoryNamespaceScope": {
+      "path": "research/vehicle-diagnostics/child-role-gaps-20261021.json",
+      "sha256": "36c7a9af4f301f27a39f4c263e4b7a718c60dc02ba252cf22374b6c1011208bb",
+      "namespaceCount": 9,
+      "roleBindingsRemainUnproved": true
+    },
+    "publicAliasEstablished": false
+  },
+  "sourceAnchors": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/base/DiLinkPlatformUtil.java",
+      "sha256": "b7b734639a24f916cdd7b5d5d80877dfbb1f149ca78b42ceff688a6d375268ea",
+      "lineStart": 8,
+      "lineEnd": 50,
+      "claim": "Platform selection reads ro.vehicle.type; DiLink150_7.0UI is not any explicit recognized string. Do not confuse Di150VCP_7.0UI with this property.",
+      "requiredTokens": [
+        "ro.vehicle.type",
+        "Di150VCP_7.0UI"
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/PlatformDiff.java",
+      "sha256": "920c479d05795236a7456a5f1db48cf746ec8d14c646ad7b49a54e20aff04c7f",
+      "lineStart": 19,
+      "lineEnd": 25,
+      "claim": "Unmatched vehicle type returns generic platformDiff.",
+      "requiredTokens": [
+        "class PlatformFilePathDiff",
+        " : platformDiff;"
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/PlatformDiff.java",
+      "sha256": "920c479d05795236a7456a5f1db48cf746ec8d14c646ad7b49a54e20aff04c7f",
+      "lineStart": 53,
+      "lineEnd": 55,
+      "claim": "Generic platform uses PlatformFilePathDiff, inheriting the interface defaults.",
+      "requiredTokens": [
+        "return new PlatformFilePathDiff();"
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/IPlatformDiff.java",
+      "sha256": "ee6f8c18752d085fd0c4fa00c11938417862ac557943d5c125bd78671d16bb4d",
+      "lineStart": 47,
+      "lineEnd": 59,
+      "claim": "Default root is /data/ota_package/ and result directory appends result/ to getOTAUpdateDir().",
+      "requiredTokens": [
+        "default String getOTAResultDir()",
+        "\"result\"",
+        "\"data\"",
+        "\"ota_package\""
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/IPlatformDiff.java",
+      "sha256": "ee6f8c18752d085fd0c4fa00c11938417862ac557943d5c125bd78671d16bb4d",
+      "lineStart": 84,
+      "lineEnd": 85,
+      "claim": "Default update directory appends ota_productline/ to the root.",
+      "requiredTokens": [
+        "\"ota_productline\""
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/base/FilePathManager.java",
+      "sha256": "f20aff5ccadc06c0b2cd74f852ef497a6c7b42ef3becd42268a26046c91a8028",
+      "lineStart": 48,
+      "lineEnd": 51,
+      "claim": "OTA_UPDATE_RESULT_DIR is assigned from platform file-path implementation.",
+      "requiredTokens": [
+        "getOTAUpdateDir()",
+        "getOTAResultDir()",
+        "OTA_UPDATE_RESULT_DIR ="
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "792b3a57d980f80831692ecf7b10e4e9b4c0b8b90da1f0fc3a131dbd686814d5",
+      "lineStart": 290,
+      "lineEnd": 302,
+      "claim": "Existing strategy.json is deserialized as VehicleVersionInfo.",
+      "requiredTokens": [
+        "\"strategy.json\"",
+        "VehicleVersionInfo.class"
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/model/VehicleVersionInfo.java",
+      "sha256": "52d8ba313610a29ffda95002e5fdc6f646461fa4eba8033b88394198306a7a59",
+      "lineStart": 24,
+      "lineEnd": 42,
+      "claim": "Package lists contain EcuVersionInfo records.",
+      "requiredTokens": [
+        "targetPackageInfo",
+        "sourcePackageInfo"
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/model/EcuVersionInfo.java",
+      "sha256": "36d1b99b16e3ab6d12dfe68776e2ce059966e297709bfb0c39e920c310844ab9",
+      "lineStart": 35,
+      "lineEnd": 39,
+      "claim": "EcuVersionInfo declares ecuDescription beside ecuId and ecuSoftCode; not a guarantee these fields are populated in a saved strategy.",
+      "requiredTokens": [
+        "public String ecuDescription;",
+        "public String ecuId;",
+        "public String ecuSoftCode;"
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "792b3a57d980f80831692ecf7b10e4e9b4c0b8b90da1f0fc3a131dbd686814d5",
+      "lineStart": 669,
+      "lineEnd": 670,
+      "claim": "Strategy saving uses FileUtil.writeStrWithProcessBuilder.",
+      "requiredTokens": [
+        "saveCurrentVehicleVersionInfo",
+        "writeStrWithProcessBuilder",
+        "\"strategy.json\""
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/base/util/FileUtil.java",
+      "sha256": "2633b5ca126e158a0d2dd4c10e97df41827474b6ba85e00969497494c9af180c",
+      "lineStart": 439,
+      "lineEnd": 447,
+      "claim": "Writer attempts chmod775 on result directory and chmod666 on leaf; no recursive chmod of parent directories.",
+      "requiredTokens": [
+        "startProcessBuilder(\"chmod\", \"775\", str);",
+        "startProcessBuilder(\"chmod\", \"666\", str + str2);"
+      ]
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/base/util/FileUtil.java",
+      "sha256": "2633b5ca126e158a0d2dd4c10e97df41827474b6ba85e00969497494c9af180c",
+      "lineStart": 418,
+      "lineEnd": 422,
+      "claim": "chmod starts asynchronously without waitFor/exit-status validation.",
+      "requiredTokens": [
+        "new ProcessBuilder(strArr).start();"
+      ]
+    }
+  ],
+  "permissionDistinction": {
+    "intendedResultDirectoryMode": "775",
+    "intendedStrategyLeafMode": "666",
+    "actualLeafMode": null,
+    "parentTraversalEstablished": false,
+    "shellReadAccessEstablished": false,
+    "meaning": "Attempted chmod of leaf/result directory does not prove successful mode application, ancestor traversal, SELinux access, file existence or readable contents. Source location is internal data, but per-app-private/inaccessible classification cannot be derived from the filename alone."
+  },
+  "rootMetadataOnlyAccess": {
+    "path": "captures/diagnostics-unattended-20261021/strategy-path-access/result.json",
+    "sha256": "16b2abfdfbb0afa6fbd7d779b4fe56c3bc5166089d107b1b1c72b099d4c8c56e",
+    "scope": "Read-only exact existing path access; no file contents, service/vehicle/BydLog/OTA/cloud actions",
+    "observations": {
+      "vehicle-type": {
+        "exitCode": 0,
+        "stdout": "DiLink150_7.0UI\n",
+        "stderr": ""
+      },
+      "path-stat": {
+        "exitCode": 1,
+        "stdout": "771 1000 1000 3452 /data\n",
+        "stderr": "stat: '/data/ota_package': Permission denied\nstat: '/data/ota_package/ota_productline': Permission denied\nstat: '/data/ota_package/ota_productline/result': Permission denied\nstat: '/data/ota_package/ota_productline/result/strategy.json': Permission denied\n"
+      },
+      "readable": {
+        "exitCode": 1,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    "interpretation": "/data stat succeeded (mode771 uid1000 gid1000). Permission denied begins at /data/ota_package and continues for exact descendants. test-r exit1. This establishes denied shell access; it does not establish a missing file or inspect content.",
+    "retainedTranscripts": [
+      {
+        "path": "captures/diagnostics-unattended-20261021/strategy-path-access/vehicle-type.stdout.txt",
+        "sha256": "0b8ba1a618b4731a39c4070c58f6b5e92ec4bfd90dd1bd6ba4df6c67ba46260e"
+      },
+      {
+        "path": "captures/diagnostics-unattended-20261021/strategy-path-access/vehicle-type.stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "captures/diagnostics-unattended-20261021/strategy-path-access/path-stat.stdout.txt",
+        "sha256": "0ed04dfc90292c0528c552f49760eb29b143cfaff0d71d286997747212bc5953"
+      },
+      {
+        "path": "captures/diagnostics-unattended-20261021/strategy-path-access/path-stat.stderr.txt",
+        "sha256": "bacaebf950fecd39d478fde5c048ae7ce5c97f3ab2dfb087580a4ed24ae6e762"
+      },
+      {
+        "path": "captures/diagnostics-unattended-20261021/strategy-path-access/readable.stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "captures/diagnostics-unattended-20261021/strategy-path-access/readable.stderr.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  },
+  "previousExport": {
+    "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/report.json",
+    "sha256": "1833ab9f75d1b3220e1ccde39c41e52d254458783255aa86500a8848610ae8b9",
+    "strategyFiles": [
+      {
+        "path": "/data/ota_package/ota_ghy/result/strategy.json",
+        "status": "missing"
+      },
+      {
+        "path": "/data/ota_package/ota/result/strategy.json",
+        "status": "missing"
+      }
+    ],
+    "productlinePathWasInFixedList": false,
+    "distinction": "Earlier missing reports were only for ota_ghy/result/strategy.json and ota/result/strategy.json. They do not establish absence of the separate ota_productline path."
+  },
+  "nextSourceBoundary": {
+    "neededEvidence": "An already-existing, independently authorized offline strategy/package record with populated exact-target ecuDescription, or a supplier diagnostic definition joining the same factory ID/software code/DID to its named role.",
+    "noCurrentReadableSource": "The precise strategy filename remains a source lead, not an available file or a confirmed solution.",
+    "authorization": "Earlier approvals for limited one-session export/signature/cloud operations are consumed. They do not authorize reopening BydLog, private-cache export, permission bypass, strategy/checkVersion activation, OTA, cloud, regeneration, or new vehicle reads.",
+    "actionsProposed": []
+  },
+  "limits": [
+    "No new named INS/FRL/switch binding is established.",
+    "No new ECU route, physical bus or DTC qualification is established.",
+    "The prior child-role-gaps historical artifact is unchanged; this mixed offline/root-metadata follow-up has its own scope."
+  ],
+  "eligibleForProductAllowlist": false,
+  "offlinePathDetail": {
+    "path": "captures/diagnostics-unattended-20261021/child-roles/ota-strategy-path.json",
+    "sha256": "94871f6ce821f89995771b9c6b96e9874af7525056a616932628247de83db3ca"
+  },
+  "offlineChecker": {
+    "path": "captures/diagnostics-unattended-20261021/child-roles/check_cache_lead.py",
+    "sha256": "d7d00cd415bee31897d02d57650872c271ba8aeb132ff895f892da94520f1a49",
+    "command": "python3 -B captures/diagnostics-unattended-20261021/child-roles/check_cache_lead.py"
+  }
+}

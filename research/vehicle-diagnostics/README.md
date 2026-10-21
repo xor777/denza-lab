@@ -84,11 +84,13 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   and observed F194 for all 25 previously unnamed catalog entries and the two
   rear drives. It retains Russian labels, source row IDs and limits. Product
   labels and DTC-description selection have not been changed by this pass.
-- `ecu-child-identification-candidates-20261021.json` retains eight unexecuted
+- `ecu-child-identification-candidates-20261021.json` retains the original eight
   software-code reads for seat-massage controllers and rear lamps through known
   parents `750`, `7B5`, `7D2`, `726`. Separate INS/FRL/CDC subidentities remain
-  unbound. This is candidate metadata, not an executable probe: the product
-  whitelist rejects the DIDs and the existing research decoder assumes F194.
+  unbound. The later `child-identities-live-20261021.json` records all eight
+  positive cache matches through four parent routes. The candidate manifest
+  stays immutable as the dedicated `ChildIdentityReadProbe` build input; the
+  older F194-only reader and product whitelist were not broadened by that probe.
 - `stock-signal-read-candidates-20261021.json` preserves 30 property/native-FID
   pairs for rear steering, suspension, door obstacles and dual NFC: source hashes,
   four concrete stock getters, 25 older-TSV matches and five additional actual-
@@ -250,14 +252,59 @@ keeps the next source layer separate from live acceptance:
 - `dtc-source-followup-20261021.json`: MyCar GPAK directory/text coverage and
   exact native snapshot/extended tasks. No applicable OEM DTC definition or
   record schema was found. The profile diff has no qualified new named sensors.
-- `next-car-source-validation-20261021.json`: finite, unexecuted follow-up
+- `next-car-source-validation-20261021.json`: historical finite follow-up
   candidates, with scalar-ready versus buffer/child-runner preparation separated.
   The old completed `next-car-validation-20261021.json` remains immutable.
+  Child identities and typed-buffer observations were subsequently executed in
+  the unattended pass below; the engine-running comparison remains open.
 
 Every promoted JSON points to its capture evidence, source hashes and reproducers
 under `captures/diagnostics-next-depth-20261021/`. This pass makes no vehicle,
 network, factory-app, credential or product request. All154 offline parser tests
 pass; source reviews do not imply on-car acceptance.
+
+The [unattended qualification](../../docs/vehicle-data-findings.md#unattended-child-and-buffer-qualification-2026-10-21)
+adds isolated live observations and their reproducible limits:
+
+- `child-identities-live-20261021.json`: eight parent-reported seat-massage and
+  rear-lamp codes match the factory cache. Four existing routes, zero new CAN
+  addresses, no child DTC reads. Exact bytes, timestamps and before/after health
+  are retained; the original candidate manifest is unchanged.
+- `child-role-gaps-20261021.json`: nine INS/FRL/CDC-ZCU names remain unbound after
+  a finite existing-corpus search. Exact factory-family/DID links are distinct
+  from physical subrole hypotheses. Package metadata's `ecuDescription` is the
+  precise source gap; the retained ECU list and empty needCheck do not supply it.
+- `ecu-description-cache-lead-20261021.json`: resolves ProductLineOTA's different
+  strategy path and records a metadata-only shell denial at its ancestor.
+  File existence/content remain unknown; no factory/BydLog/OTA action followed.
+- `chassis-buffers-live-20261021.json`: wheel GET returned `MCU_OFFLINE` despite
+  20 raw source frames; steering GET returned `0108043d1ea5`, matching the angle
+  word in 20 raw frames. Both listeners were silent at rest. No wheel scale,
+  steering physical unit or acquisition age is added. The separate clock trace
+  below supersedes the initial absence of a trailing-word domain binding.
+- `steering-clock-20261021.json`: steering change stamps and raw receive stamps
+  use the same MCU counter. Reset-entry clear, modulo2³² increment and explicit
+  timer stop/restart are traced; approximately1,000 ticks/second is observed in
+  saved data. Hardware time unit, continuous uptime and sensor age stay open.
+- `battery-fd-extrema-20261021.json`: FD words at bytes 3/5 match the immediately
+  preceding complete 166-cell sweep's raw maximum/minimum in 7/7 pairs across
+  three logs. Three leading FD records are excluded. A new parser-independent
+  review agrees; this finite correlation does not supply an OEM field name.
+- `insulation-consumer-20261021.json`: native selection, GET and serialization
+  prove `min(raw & FFFF,60000)`, unchecked getter status and loss of FFFE/FFFF.
+  Units and sensor validity stay unresolved; this is not a recommended clamp.
+
+Reproduce from the retained corpus, without connecting to the vehicle:
+
+```sh
+python3 research/vehicle-diagnostics/check_battery_fd_extrema.py research/vehicle-diagnostics/battery-fd-extrema-20261021.json
+python3 research/vehicle-diagnostics/check_insulation_consumer.py
+```
+
+The second checker uses only the Python standard library and verifies 28 exact
+instruction anchors plus 65,536 low16 cases against the pinned owner binary;
+`--binary PATH` accepts the same bytes at another local path. Raw captures and
+independent reviews stay in `captures/diagnostics-unattended-20261021/`.
 
 The promoted two-target allowlisted reader was `VehicleDtcProxyMain` in Denza Apps,
 with `VehicleDiagnostics` supplying profile/P/speed checks, ownership and UI lifecycle.

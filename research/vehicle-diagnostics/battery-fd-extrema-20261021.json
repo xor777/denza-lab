@@ -1,0 +1,211 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "vehicle": "Owner Z9GT / profile170 CANFD / 166 cells",
+  "state": "finite_empirical_raw_extrema_correlation",
+  "inputs": [
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+      "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73",
+      "fd": [
+        {
+          "seq": 229,
+          "tNs": 144930866094520,
+          "payload": "fdfb13d10ccb0c47",
+          "word1": 5115,
+          "word3": 3281,
+          "word5": 3275,
+          "byte7": 71,
+          "precedingCompleteCycle": null
+        },
+        {
+          "seq": 489,
+          "tNs": 144936571039135,
+          "payload": "fddc13d50cd00c48",
+          "word1": 5084,
+          "word3": 3285,
+          "word5": 3280,
+          "byte7": 72,
+          "precedingCompleteCycle": {
+            "firstSeq": 232,
+            "lastSeq": 482,
+            "minRaw": 3280,
+            "maxRaw": 3285,
+            "spanSeconds": 5.506280231,
+            "gapToFdSeconds": 0.098898538,
+            "structurallyAccepted": true,
+            "maxMatches": true,
+            "minMatches": true
+          }
+        },
+        {
+          "seq": 750,
+          "tNs": 144942275152290,
+          "payload": "fdf613d10ccc0c49",
+          "word1": 5110,
+          "word3": 3281,
+          "word5": 3276,
+          "byte7": 73,
+          "precedingCompleteCycle": {
+            "firstSeq": 497,
+            "lastSeq": 745,
+            "minRaw": 3276,
+            "maxRaw": 3281,
+            "spanSeconds": 5.507312616,
+            "gapToFdSeconds": 0.098054154,
+            "structurallyAccepted": true,
+            "maxMatches": true,
+            "minMatches": true
+          }
+        }
+      ]
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/gb.log",
+      "sha256": "62bed104174519b8448dc48d09053502c40cdec24cc013447f1628dfecbde2e0",
+      "fd": [
+        {
+          "seq": 135,
+          "tNs": 145199005375459,
+          "payload": "fd8613f00ced0c76",
+          "word1": 4998,
+          "word3": 3312,
+          "word5": 3309,
+          "byte7": 118,
+          "precedingCompleteCycle": null
+        },
+        {
+          "seq": 394,
+          "tNs": 145204712413228,
+          "payload": "fd7f13f10cee0c77",
+          "word1": 4991,
+          "word3": 3313,
+          "word5": 3310,
+          "byte7": 119,
+          "precedingCompleteCycle": {
+            "firstSeq": 138,
+            "lastSeq": 389,
+            "minRaw": 3310,
+            "maxRaw": 3313,
+            "spanSeconds": 5.504687692,
+            "gapToFdSeconds": 0.102060923,
+            "structurallyAccepted": true,
+            "maxMatches": true,
+            "minMatches": true
+          }
+        },
+        {
+          "seq": 653,
+          "tNs": 145210415972383,
+          "payload": "fdb813ec0ce80c78",
+          "word1": 5048,
+          "word3": 3308,
+          "word5": 3304,
+          "byte7": 120,
+          "precedingCompleteCycle": {
+            "firstSeq": 398,
+            "lastSeq": 650,
+            "minRaw": 3304,
+            "maxRaw": 3308,
+            "spanSeconds": 5.503713846,
+            "gapToFdSeconds": 0.100885616,
+            "structurallyAccepted": true,
+            "maxMatches": true,
+            "minMatches": true
+          }
+        },
+        {
+          "seq": 913,
+          "tNs": 145216118925614,
+          "payload": "fd8b13f00ced0c79",
+          "word1": 5003,
+          "word3": 3312,
+          "word5": 3309,
+          "byte7": 121,
+          "precedingCompleteCycle": {
+            "firstSeq": 659,
+            "lastSeq": 909,
+            "minRaw": 3309,
+            "maxRaw": 3312,
+            "spanSeconds": 5.505052,
+            "gapToFdSeconds": 0.098996308,
+            "structurallyAccepted": true,
+            "maxMatches": true,
+            "minMatches": true
+          }
+        }
+      ]
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/chassis/live-steering/raw-stdout.log",
+      "sha256": "1db221cb2c9abecc54a57f7599e30d1eae95a843ea939b817a78257580ed6ae0",
+      "fd": [
+        {
+          "seq": 229,
+          "tNs": 150019856680977,
+          "payload": "fd5613280d230dc6",
+          "word1": 4950,
+          "word3": 3368,
+          "word5": 3363,
+          "byte7": 198,
+          "precedingCompleteCycle": null
+        },
+        {
+          "seq": 492,
+          "tNs": 150025566345593,
+          "payload": "fd7113260d200dc7",
+          "word1": 4977,
+          "word3": 3366,
+          "word5": 3360,
+          "byte7": 199,
+          "precedingCompleteCycle": {
+            "firstSeq": 232,
+            "lastSeq": 490,
+            "minRaw": 3360,
+            "maxRaw": 3366,
+            "spanSeconds": 5.504934462,
+            "gapToFdSeconds": 0.105355385,
+            "structurallyAccepted": true,
+            "maxMatches": true,
+            "minMatches": true
+          }
+        },
+        {
+          "seq": 752,
+          "tNs": 150031269293593,
+          "payload": "fd5613290d230dc8",
+          "word1": 4950,
+          "word3": 3369,
+          "word5": 3363,
+          "byte7": 200,
+          "precedingCompleteCycle": {
+            "firstSeq": 496,
+            "lastSeq": 743,
+            "minRaw": 3363,
+            "maxRaw": 3369,
+            "spanSeconds": 5.508898692,
+            "gapToFdSeconds": 0.098769308,
+            "structurallyAccepted": true,
+            "maxMatches": true,
+            "minMatches": true
+          }
+        }
+      ]
+    }
+  ],
+  "pairedSweeps": 7,
+  "unpairedFd": 3,
+  "claim": "FD little-endian words at payload3..4 and5..6 match the immediately preceding complete sweep maximum and minimum in every paired record.",
+  "limits": [
+    "Correlation is not an OEM semantic definition or physical-unit proof",
+    "Only complete166-cell sequential sweeps since the previous FD are paired",
+    "Sweep spans about5.5s and is not simultaneous",
+    "FD bytes1..2 and7 remain unnamed",
+    "The stock FD consumer ignores bytes3..6; no product mapping was added",
+    "Third dataset reuses the passive steering capture, without another vehicle operation"
+  ],
+  "reproducer": {
+    "path": "research/vehicle-diagnostics/check_battery_fd_extrema.py",
+    "sha256": "24216a959772a45afa2b856264d691c123f0c99508f236ed1c37e0761b699b32"
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "schema": "denza-lab.insulation-consumer.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "scope": "Stock native GB collector evidence only; no car/ADB/IPC/engine start/factory endpoint/credentials/private cache; no product or whitelist change",
+  "source": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+    "sha256": "6c7b1946ccbe6a979bf51b96397c8bece89c5c598a85f3bb8dedac9d573c61ce",
+    "bytes": 254608
+  },
+  "consumerChain": {
+    "logicalDevice": 1039,
+    "selectedFidChoices": [
+      "43A00018",
+      "43A00818"
+    ],
+    "runtimeChoiceConfirmedByThisPass": false,
+    "fidSelection": "1E264..1E384 selects the FID, stack+60;1E820..1E838 stores it to3E0E4",
+    "getter": "137FC..13818 loads global3E0E4 and calls BYDAutoManager::getInt at38720 PLT",
+    "getterOutputInitializedTo": 0,
+    "getterReturnStatusChecked": false,
+    "narrowAndClamp": "1381C..13850 compares u16(raw) with60000 and stores min(raw & FFFF,60000) to3CDA4",
+    "wireProjection": {
+      "blockTypeHex": "01",
+      "typeRelativeByteOffsets": [
+        17,
+        18
+      ],
+      "dataRelativeByteOffsets": [
+        16,
+        17
+      ],
+      "endian": "big",
+      "sites": [
+        "188FC",
+        "18914",
+        "18948",
+        "18960",
+        "18978",
+        "18998"
+      ],
+      "additionalPhysicalScaleInThisBranch": "none"
+    },
+    "engineeringUnit": null,
+    "sensorValidityDomain": null,
+    "healthOrFreshnessConclusionAllowed": false
+  },
+  "instructionAnchorColumns": [
+    "virtualAddress",
+    "rawInstructionBytes",
+    "recordedAssembly"
+  ],
+  "arithmeticExampleColumns": [
+    "getterRaw",
+    "low16",
+    "serializedU16",
+    "wireBE16"
+  ],
+  "validation": {
+    "checker": "research/vehicle-diagnostics/check_insulation_consumer.py",
+    "invocation": "python3 research/vehicle-diagnostics/check_insulation_consumer.py [--binary PATH]",
+    "dependencies": "Python3 standard library only",
+    "instructionByteAnchors": 28,
+    "exhaustiveLow16ArithmeticCases": 65536,
+    "firmwareExecuted": false,
+    "errorsExitNonzero": true
+  },
+  "provenance": [
+    {
+      "path": "captures/diagnostics-unattended-20261021/definitions/insulation-native-evidence.json",
+      "sha256": "fc18bc7c590a10a6e12c8fd1f634e7f54fd9f70ea7fe72444253f7d333c18ffa",
+      "role": "Original offline Capstone anchor checks and native chain"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/definitions/insulation-native-excerpts.asm",
+      "sha256": "839379891ce64408d12c4b7c9170bd4244cd44d6b05aca8087af132c1798c1dd",
+      "role": "Bounded native excerpts; readable assembly recorded from exact source ELF"
+    }
+  ],
+  "officialPublicStandardMetadata": {
+    "retrievedDate": "2026-10-21",
+    "GB_T_32960_3_2016_status": "withdrawn",
+    "withdrawnDate": "2025-11-01",
+    "replacement": "GB/T32960.3-2025",
+    "replacementEffectiveDate": "2025-11-01",
+    "oldOfficialTextService": "Withdrawn standard text reading not provided",
+    "firmwareUsesReplacementEditionProved": false,
+    "unitOrValidityTablePromoted": false,
+    "sources": [
+      {
+        "url": "https://openstd.samr.gov.cn/bzgk/std/newGbInfo?hcno=674DE45C0AD3DE2CD75B9C4CD8ED57C1",
+        "snapshotPath": "captures/diagnostics-unattended-20261021/definitions/samr-2016-openstd.html",
+        "snapshotSha256": "27e7bcfae7d356af87a89681cd6c5d04fd2ed337b3e78a4aa39376c5a316b8d6",
+        "publicUnauthenticated": true
+      },
+      {
+        "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=nZBgPY6OZsE%3D&mode=p",
+        "snapshotPath": "captures/diagnostics-unattended-20261021/definitions/samr-2016-status.html",
+        "snapshotSha256": "045157375a8a7826229b3000994a5a3a36eaeae982a632fa52acac9b8572c1e3",
+        "publicUnauthenticated": true
+      },
+      {
+        "url": "https://std.samr.gov.cn/gb/search/gbDetailed?id=33D40F1160B75D92E06397BE0A0A5B93",
+        "snapshotPath": "captures/diagnostics-unattended-20261021/definitions/samr-2025-status.html",
+        "snapshotSha256": "68c90ee02e979f13e56f0813e48ff8102e5e0e7b8d5d3963ae0ccf6e8999add7",
+        "publicUnauthenticated": true
+      }
+    ]
+  },
+  "limits": [
+    "This binds a stock native API consumer to serialized bytes, not a remote ECU UDS DID or a new sensor",
+    "Static configuration choices do not establish current runtime selection or vehicle availability",
+    "No unit is promoted; official standard version/status metadata alone cannot bind firmware units or sentinels",
+    "FFFE and FFFF both become60000; the original bit patterns and high bits are lost",
+    "Ignoring getter status allows initialized0 to survive failure; this is not proof of measured zero",
+    "The clamp is not a sensor validity, health or freshness contract",
+    "26200010 remains a separate field with producer/unit unresolved by this chain",
+    "Arithmetic examples are derived counterexamples, not observed outgoing packets or current vehicle faults",
+    "No FD correlation, child identity, DTC dictionary, product display or reader behavior is changed by this artifact"
+  ],
+  "instructionAnchors": [
+    ["0x1e264", "02028052", "mov w2, #0x10"],
+    ["0x1e270", "0274a872", "movk w2, #0x43a0, lsl #16"],
+    ["0x1e31c", "4a001d32", "orr w10, w2, #8"],
+    ["0x1e354", "08018152", "mov w8, #0x808"],
+    ["0x1e358", "4800082a", "orr w8, w2, w8"],
+    ["0x1e360", "4b11881a", "csel w11, w10, w8, ne"],
+    ["0x1e384", "e8af0b29", "stp w8, w11, [sp, #0x5c]"],
+    ["0x1e820", "ea6340b9", "ldr w10, [sp, #0x60]"],
+    ["0x1e834", "09010090", "adrp x9, #0x3e000"],
+    ["0x1e838", "2ae500b9", "str w10, [x9, #0xe4]"],
+    ["0x13800", "490100f0", "adrp x9, #0x3e000"],
+    ["0x13804", "22e540b9", "ldr w2, [x9, #0xe4]"],
+    ["0x1380c", "e1818052", "mov w1, #0x40f"],
+    ["0x13810", "ff1300b9", "str wzr, [sp, #0x10]"],
+    ["0x13818", "c2930094", "bl #0x38720"],
+    ["0x1381c", "e81340b9", "ldr w8, [sp, #0x10]"],
+    ["0x13820", "094c9d52", "mov w9, #0xea60"],
+    ["0x13828", "eab38212", "mov w10, #-0x15a0"],
+    ["0x13834", "3f21286b", "cmp w9, w8, uxth"],
+    ["0x13840", "4831881a", "csel w8, w10, w8, lo"],
+    ["0x13848", "490100b0", "adrp x9, #0x3c000"],
+    ["0x13850", "28491b79", "strh w8, [x9, #0xda4]"],
+    ["0x188fc", "2a008052", "mov w10, #1"],
+    ["0x18914", "ea230339", "strb w10, [sp, #0xc8]"],
+    ["0x18948", "4d495b79", "ldrh w13, [x10, #0xda4]"],
+    ["0x18960", "ac09c05a", "rev w12, w13"],
+    ["0x18978", "8b7d1053", "lsr w11, w12, #0x10"],
+    ["0x18998", "eb930d78", "sturh w11, [sp, #0xd9]"]
+  ],
+  "arithmeticExamples": [
+    [0, 0, 0, "0000"],
+    [14465, 14465, 14465, "3881"],
+    [60000, 60000, 60000, "ea60"],
+    [60001, 60001, 60000, "ea60"],
+    [65534, 65534, 60000, "ea60"],
+    [65535, 65535, 60000, "ea60"],
+    [-1, 65535, 60000, "ea60"],
+    [65536, 0, 0, "0000"]
+  ]
+}

@@ -1,0 +1,513 @@
+{
+  "schema": "denza-lab.child-software-identities-live.v1",
+  "date": "2026-10-21",
+  "vehicle": "owner Denza Z9GT / profile170 CANFD",
+  "state": "eight_parent_reported_child_software_codes_live_cache_matched",
+  "captureBase": "captures/diagnostics-unattended-20261021/children",
+  "childDtcRead": false,
+  "newBusAddresses": 0,
+  "qualifiedParentRouteCount": 4,
+  "sourceHashes": [
+    {
+      "path": "research/vehicle-diagnostics/ecu-child-identification-candidates-20261021.json",
+      "sha256": "51e4348620854c0c1e683202e7ce61764a28b9795fc87d812f4049b35aee2339",
+      "bytes": 10820
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/children/build-02/manifest.json",
+      "sha256": "9a036a81d5b794d93a14a5e1241a7d42e44c84da55f7d040831ff98c2d5781be",
+      "bytes": 3220
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/children/build-02/child-identity-probe.jar",
+      "sha256": "e7f73a759a0b414d7351816ceb676cef581c8b6525022fad2ec273842af8b7da",
+      "bytes": 10348
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/children/live-01/probe.txt",
+      "sha256": "b428eb70b7413f0bd00afe724bb98e66fcff8b4ea59cc55ef29de799d0713d6b",
+      "bytes": 2594
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/children/live-01/run.json",
+      "sha256": "eaae1ff18835c76753831b9a23a3024f9c2fc111b836ae3acd4dec04302f4041",
+      "bytes": 414
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/children/live-01/probe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/status.json",
+      "sha256": "ee62cd5269fa9620b5cffdf3f77fe651f4e312bef97c53dc81bf05513d284b9d",
+      "bytes": 918
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91",
+      "bytes": 4
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93",
+      "bytes": 6
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c",
+      "bytes": 14
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4",
+      "bytes": 47
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6",
+      "bytes": 47
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/processes.txt",
+      "sha256": "f082c7053f17cdc9fa2aaedfd074882d673ded79d903e1b227a41413ade8540d",
+      "bytes": 7087
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf",
+      "bytes": 298
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-children/app-hash.txt",
+      "sha256": "94f5f3b43911a0b1f9af4508013e1db998c27f0a6711f1d537534bfd210202f6",
+      "bytes": 152
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/status.json",
+      "sha256": "52af7ad4c6cd69aa4fb52d1c3bfa4920a1375cc18264a3c421364716cd9a3a24",
+      "bytes": 918
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91",
+      "bytes": 4
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93",
+      "bytes": 6
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c",
+      "bytes": 14
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4",
+      "bytes": 47
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6",
+      "bytes": 47
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/processes.txt",
+      "sha256": "72cb9a0a0a8421d8b506b4bb5fda6129f499f52972ada052c2fb566352acdd8b",
+      "bytes": 7167
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf",
+      "bytes": 298
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-children/app-hash.txt",
+      "sha256": "94f5f3b43911a0b1f9af4508013e1db998c27f0a6711f1d537534bfd210202f6",
+      "bytes": 152
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac",
+      "bytes": 118681
+    },
+    {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+      "bytes": 39890
+    },
+    {
+      "path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json",
+      "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24",
+      "bytes": 149793
+    }
+  ],
+  "identities": [
+    {
+      "step": 0,
+      "ecuId": "HTH-2021_SMF_L_DFL_00100001",
+      "labelRu": "Массаж переднего левого сиденья",
+      "factorySourceRowId": 1463,
+      "route": {
+        "kind": "qualified_parent_CAN_request_plus_8",
+        "requestIdHex": "750",
+        "responseIdHex": "758",
+        "physicalBus": null,
+        "factoryEcuChannelMetadata": "1"
+      },
+      "serviceHex": "22",
+      "didHex": "F8C4",
+      "softwareCodeHex": "47380011DFE3000102",
+      "cachedCodeHex": "47380011DFE3000102",
+      "state": "parent_reported_child_software_identity_cache_match",
+      "requestRawHex": "0A07500322F8C4",
+      "responseRawHex": "0A07580C01010162F8C447380011DFE3000102",
+      "gatewayResult": 1,
+      "frameCount": 1,
+      "frameIndex": 1,
+      "declaredUdsBytes": 12,
+      "softwareCodeBytes": 9,
+      "requestElapsedNanos": 149770443867347,
+      "receivedElapsedNanos": 149771226007347,
+      "latencyNanos": 782140000,
+      "sourceRequestLine": 3,
+      "sourceResponseLine": 5,
+      "childIdentityRead": true,
+      "childDtcRead": false,
+      "versionDidRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "step": 1,
+      "ecuId": "HTH-2021_SMF_R_DFL_00100001",
+      "labelRu": "Массаж переднего правого сиденья",
+      "factorySourceRowId": 1430,
+      "route": {
+        "kind": "qualified_parent_CAN_request_plus_8",
+        "requestIdHex": "7B5",
+        "responseIdHex": "7BD",
+        "physicalBus": null,
+        "factoryEcuChannelMetadata": "0"
+      },
+      "serviceHex": "22",
+      "didHex": "F8D4",
+      "softwareCodeHex": "47380011DFE2000200",
+      "cachedCodeHex": "47380011DFE2000200",
+      "state": "parent_reported_child_software_identity_cache_match",
+      "requestRawHex": "0A07B50322F8D4",
+      "responseRawHex": "0A07BD0C01010162F8D447380011DFE2000200",
+      "gatewayResult": 1,
+      "frameCount": 1,
+      "frameIndex": 1,
+      "declaredUdsBytes": 12,
+      "softwareCodeBytes": 9,
+      "requestElapsedNanos": 149771727332270,
+      "receivedElapsedNanos": 149772505814808,
+      "latencyNanos": 778482538,
+      "sourceRequestLine": 9,
+      "sourceResponseLine": 11,
+      "childIdentityRead": true,
+      "childDtcRead": false,
+      "versionDidRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "step": 2,
+      "ecuId": "HTH-2021_SMR_L_DFL_00100001",
+      "labelRu": "Массаж заднего левого сиденья",
+      "factorySourceRowId": 1415,
+      "route": {
+        "kind": "qualified_parent_CAN_request_plus_8",
+        "requestIdHex": "7D2",
+        "responseIdHex": "7DA",
+        "physicalBus": null,
+        "factoryEcuChannelMetadata": "0"
+      },
+      "serviceHex": "22",
+      "didHex": "F8E4",
+      "softwareCodeHex": "47380011DFE0001C00",
+      "cachedCodeHex": "47380011DFE0001C00",
+      "state": "parent_reported_child_software_identity_cache_match",
+      "requestRawHex": "0A07D20322F8E4",
+      "responseRawHex": "0A07DA0C01010162F8E447380011DFE0001C00",
+      "gatewayResult": 1,
+      "frameCount": 1,
+      "frameIndex": 1,
+      "declaredUdsBytes": 12,
+      "softwareCodeBytes": 9,
+      "requestElapsedNanos": 149773007205193,
+      "receivedElapsedNanos": 149773905793808,
+      "latencyNanos": 898588615,
+      "sourceRequestLine": 15,
+      "sourceResponseLine": 17,
+      "childIdentityRead": true,
+      "childDtcRead": false,
+      "versionDidRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "step": 3,
+      "ecuId": "HTH-2021_SMR_R_DFL_00100001",
+      "labelRu": "Массаж заднего правого сиденья",
+      "factorySourceRowId": 1416,
+      "route": {
+        "kind": "qualified_parent_CAN_request_plus_8",
+        "requestIdHex": "7D2",
+        "responseIdHex": "7DA",
+        "physicalBus": null,
+        "factoryEcuChannelMetadata": "0"
+      },
+      "serviceHex": "22",
+      "didHex": "F8F4",
+      "softwareCodeHex": "47380011DFE1001D00",
+      "cachedCodeHex": "47380011DFE1001D00",
+      "state": "parent_reported_child_software_identity_cache_match",
+      "requestRawHex": "0A07D20322F8F4",
+      "responseRawHex": "0A07DA0C01010162F8F447380011DFE1001D00",
+      "gatewayResult": 1,
+      "frameCount": 1,
+      "frameIndex": 1,
+      "declaredUdsBytes": 12,
+      "softwareCodeBytes": 9,
+      "requestElapsedNanos": 149774407429885,
+      "receivedElapsedNanos": 149775149491655,
+      "latencyNanos": 742061770,
+      "sourceRequestLine": 21,
+      "sourceResponseLine": 23,
+      "childIdentityRead": true,
+      "childDtcRead": false,
+      "versionDidRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "step": 4,
+      "ecuId": "HTH-2021_RL_L_BYD_00200001",
+      "labelRu": "Левый комбинированный задний фонарь",
+      "factorySourceRowId": 1411,
+      "route": {
+        "kind": "qualified_parent_CAN_request_plus_8",
+        "requestIdHex": "726",
+        "responseIdHex": "72E",
+        "physicalBus": null,
+        "factoryEcuChannelMetadata": "0"
+      },
+      "serviceHex": "22",
+      "didHex": "F204",
+      "softwareCodeHex": "48330011DFC5000201",
+      "cachedCodeHex": "48330011DFC5000201",
+      "state": "parent_reported_child_software_identity_cache_match",
+      "requestRawHex": "0A07260322F204",
+      "responseRawHex": "0A072E0C01010162F20448330011DFC5000201",
+      "gatewayResult": 1,
+      "frameCount": 1,
+      "frameIndex": 1,
+      "declaredUdsBytes": 12,
+      "softwareCodeBytes": 9,
+      "requestElapsedNanos": 149775651031655,
+      "receivedElapsedNanos": 149776132774116,
+      "latencyNanos": 481742461,
+      "sourceRequestLine": 27,
+      "sourceResponseLine": 29,
+      "childIdentityRead": true,
+      "childDtcRead": false,
+      "versionDidRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "step": 5,
+      "ecuId": "HTH-2021_RL_R_BYD_00200001",
+      "labelRu": "Правый комбинированный задний фонарь",
+      "factorySourceRowId": 1412,
+      "route": {
+        "kind": "qualified_parent_CAN_request_plus_8",
+        "requestIdHex": "726",
+        "responseIdHex": "72E",
+        "physicalBus": null,
+        "factoryEcuChannelMetadata": "0"
+      },
+      "serviceHex": "22",
+      "didHex": "F214",
+      "softwareCodeHex": "48330011DFC6000202",
+      "cachedCodeHex": "48330011DFC6000202",
+      "state": "parent_reported_child_software_identity_cache_match",
+      "requestRawHex": "0A07260322F214",
+      "responseRawHex": "0A072E0C01010162F21448330011DFC6000202",
+      "gatewayResult": 1,
+      "frameCount": 1,
+      "frameIndex": 1,
+      "declaredUdsBytes": 12,
+      "softwareCodeBytes": 9,
+      "requestElapsedNanos": 149776634747039,
+      "receivedElapsedNanos": 149777075310193,
+      "latencyNanos": 440563154,
+      "sourceRequestLine": 33,
+      "sourceResponseLine": 35,
+      "childIdentityRead": true,
+      "childDtcRead": false,
+      "versionDidRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "step": 6,
+      "ecuId": "HTH-2021_TL_L_BYD_00200001",
+      "labelRu": "Левый задний фонарь TL",
+      "factorySourceRowId": 1413,
+      "route": {
+        "kind": "qualified_parent_CAN_request_plus_8",
+        "requestIdHex": "726",
+        "responseIdHex": "72E",
+        "physicalBus": null,
+        "factoryEcuChannelMetadata": "0"
+      },
+      "serviceHex": "22",
+      "didHex": "F064",
+      "softwareCodeHex": "48330011DFB2000203",
+      "cachedCodeHex": "48330011DFB2000203",
+      "state": "parent_reported_child_software_identity_cache_match",
+      "requestRawHex": "0A07260322F064",
+      "responseRawHex": "0A072E0C01010162F06448330011DFB2000203",
+      "gatewayResult": 1,
+      "frameCount": 1,
+      "frameIndex": 1,
+      "declaredUdsBytes": 12,
+      "softwareCodeBytes": 9,
+      "requestElapsedNanos": 149777576091039,
+      "receivedElapsedNanos": 149778026069270,
+      "latencyNanos": 449978231,
+      "sourceRequestLine": 39,
+      "sourceResponseLine": 41,
+      "childIdentityRead": true,
+      "childDtcRead": false,
+      "versionDidRead": false,
+      "eligibleForProductAllowlist": false
+    },
+    {
+      "step": 7,
+      "ecuId": "HTH-2021_TL_R_BYD_00200001",
+      "labelRu": "Правый задний фонарь TL",
+      "factorySourceRowId": 1414,
+      "route": {
+        "kind": "qualified_parent_CAN_request_plus_8",
+        "requestIdHex": "726",
+        "responseIdHex": "72E",
+        "physicalBus": null,
+        "factoryEcuChannelMetadata": "0"
+      },
+      "serviceHex": "22",
+      "didHex": "F234",
+      "softwareCodeHex": "48330011DFD5000204",
+      "cachedCodeHex": "48330011DFD5000204",
+      "state": "parent_reported_child_software_identity_cache_match",
+      "requestRawHex": "0A07260322F234",
+      "responseRawHex": "0A072E0C01010162F23448330011DFD5000204",
+      "gatewayResult": 1,
+      "frameCount": 1,
+      "frameIndex": 1,
+      "declaredUdsBytes": 12,
+      "softwareCodeBytes": 9,
+      "requestElapsedNanos": 149778527581270,
+      "receivedElapsedNanos": 149779065727116,
+      "latencyNanos": 538145846,
+      "sourceRequestLine": 45,
+      "sourceResponseLine": 47,
+      "childIdentityRead": true,
+      "childDtcRead": false,
+      "versionDidRead": false,
+      "eligibleForProductAllowlist": false
+    }
+  ],
+  "session": {
+    "exactPlanRequests": 8,
+    "uniqueParentRequestAddresses": 4,
+    "allService22": true,
+    "additionalRequests": 0,
+    "positiveSingleFrameAnswers": 8,
+    "nonzeroNineByteCodes": 8,
+    "exactCachedMatches": 8,
+    "loggedDuplicateMarkers": 8,
+    "helperReportedCallbacks": 16,
+    "allResponsesWithinFourSeconds": true,
+    "minimumResponseToNextRequestGapNanos": 500780846,
+    "allGapsAtLeast500ms": true,
+    "requestToFinalResponseSpanNanos": 8621859769,
+    "latencyNanosMin": 440563154,
+    "latencyNanosMax": 898588615,
+    "unregistered": true,
+    "finalQueued": 0,
+    "processExitCode": 0,
+    "stderrEmpty": true,
+    "selectedProcessesStable": true,
+    "firmwareHashesStable": true,
+    "appHashStable": true,
+    "bothCrashBuffersEmpty": true
+  },
+  "health": [
+    {
+      "stage": "before-children",
+      "capturedAtUtc": "2026-10-21T08:53:50.950413+00:00",
+      "profile": 170,
+      "protocol": "CANFD",
+      "parkWord": "00000001",
+      "speedWord": "00000000",
+      "manager": "r@-1_0&w@-1_0",
+      "crashBytes": 0,
+      "processes": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      },
+      "firmwareHashes": {
+        "/system/lib64/hw/auto.default.so": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+        "/system/framework/framework.jar": "aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c",
+        "/system/lib64/libbydautoservice.so": "98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65"
+      },
+      "installedAppHash": "e02262e8a992c91228bb8222c2604e2a6b7eee84ff5d61aa1088a529e78cba54"
+    },
+    {
+      "stage": "after-children",
+      "capturedAtUtc": "2026-10-21T08:55:57.560922+00:00",
+      "profile": 170,
+      "protocol": "CANFD",
+      "parkWord": "00000001",
+      "speedWord": "00000000",
+      "manager": "r@-1_0&w@-1_0",
+      "crashBytes": 0,
+      "processes": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      },
+      "firmwareHashes": {
+        "/system/lib64/hw/auto.default.so": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+        "/system/framework/framework.jar": "aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c",
+        "/system/lib64/libbydautoservice.so": "98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65"
+      },
+      "installedAppHash": "e02262e8a992c91228bb8222c2604e2a6b7eee84ff5d61aa1088a529e78cba54"
+    }
+  ],
+  "limits": [
+    "Eight software subidentities were reported by four already qualified parent CAN routes (750,7B5,7D2,726); these are not eight newly discovered bus addresses or independently addressed physical ECUs.",
+    "This pass reads only software-code DIDs. Child DTC availability, child-specific DTC routing, version DIDs, physical bus index, hardware placement and present health are not established.",
+    "Cache match qualifies the returned code in this firmware/session context; it does not prove future configuration or software applicability.",
+    "16 callbacks are helper-reported: eight full FRAME records plus eight explicit DUPLICATE gap=1 markers reconcile the accounting. Duplicate raw bytes/timestamps are not separately retained; source policy compares declared bytes.",
+    "Each response is independently within4 seconds and each inter-exchange gap is at least500ms. The log has no start/unregister/end monotonic stamps, so exact registration silence and complete process duration are not independently measured from this log.",
+    "No unexpected/partial/pending/negative/no-response output occurred. Successful PLAN_DONE alone would not prove all identities; this review verifies the eight complete positive frames.",
+    "Post-run nonce dex absence is runner-reported cleanupVerified. The before/after raw health captures independently establish unchanged selected PIDs, hashes and empty crash buffers, not a global lock proof or absence of every possible transient event.",
+    "HAL/framework/native service hashes are retained; installed MCU bytes were not hashed by this pass."
+  ],
+  "independentReview": "live-independent-review.json"
+}

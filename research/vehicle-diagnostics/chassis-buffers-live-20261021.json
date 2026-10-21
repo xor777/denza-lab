@@ -1,0 +1,642 @@
+{
+  "schema": "denza-lab.chassis-live-evidence.v1",
+  "date": "2026-10-21",
+  "runOwner": "ROOT",
+  "analysisOfflineOnly": true,
+  "workerVehicleOrNetworkOperations": 0,
+  "pinnedSources": [
+    {
+      "path": "tools/vehicle-diagnostics/ChassisBufferReadProbe.java",
+      "sha256": "2ab8e77009a8c0e36ec9aa43516a72dba5429e72ccf7d56404df8aa8344c5ec9",
+      "bytes": 22624
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/chassis/build/dex/classes.dex",
+      "sha256": "8be985165d3d5540815e399eb3c4bd74f44b4bd2613be67974f997c1b7053e7f",
+      "bytes": 23336
+    },
+    {
+      "path": "tools/RawCanTurnProbe.java",
+      "sha256": "98a798861c04e7daee3357dc4537984103ce06a789b98fe11114c5b8abd813a8",
+      "bytes": 17233
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/chassis/raw-build/dex/classes.dex",
+      "sha256": "8fe30fe65694f21052e08d1a9bec6e79ea3266edc77ae9fc6f06080d526884c1",
+      "bytes": 15256
+    }
+  ],
+  "windows": [
+    {
+      "target": "wheels",
+      "runManifest": {
+        "path": "captures/diagnostics-unattended-20261021/chassis/live-wheels/run.json",
+        "sha256": "f5556a2cc74010d1d2e8dce6228ee9cea6e0cc1dacaaf332e9d59df4e211877b",
+        "bytes": 1066
+      },
+      "typedLifecycleAccepted": true,
+      "typedStart": {
+        "kind": "START",
+        "target": "wheels",
+        "device": 1049,
+        "fid": "0x99000059",
+        "hardLimitSeconds": 20,
+        "startedNs": 149885698428969,
+        "softDeadlineNs": 149903698428969,
+        "hardDeadlineNs": 149905698428969,
+        "queueCapacity": 128,
+        "maxBufferBytes": 64,
+        "recordLimit": 1024
+      },
+      "typedDone": {
+        "kind": "DONE",
+        "reason": "deadline",
+        "exitCode": 0,
+        "ready": true,
+        "received": 1,
+        "dropped": 0,
+        "callbackErrors": 0,
+        "unexpectedCallbacks": 0,
+        "queued": 0,
+        "registerAttempted": true,
+        "unregisterReturned": true,
+        "ownershipReleased": true,
+        "failure": null
+      },
+      "typedSnapshot": {
+        "kind": "BUFFER",
+        "seq": 1,
+        "source": "snapshot",
+        "target": "wheels",
+        "device": 1049,
+        "fid": "0x99000059",
+        "readStartNs": 149885836498815,
+        "receivedNs": 149885836827969,
+        "length": 11,
+        "sdkIntField": null,
+        "quality": "mcu_offline",
+        "raw": "4d43555f4f46464c494e45",
+        "acquisitionTimeKnown": false,
+        "physicalUnit": null
+      },
+      "snapshotGetDurationMilliseconds": 0.329154,
+      "typedCallbackCount": 0,
+      "rawLifecycleAccepted": true,
+      "rawCapture": {
+        "stream": "bigdata",
+        "callback": "0x99000020",
+        "readyNs": 149885770436661,
+        "count": 2953,
+        "firstNs": 149885777402123,
+        "lastNs": 149905765892586,
+        "arrivalSpanSeconds": 19.988490463,
+        "independentAndExistingStrictParserAgree": true
+      },
+      "exactSourceTuple": {
+        "canId": "0x122",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8
+      },
+      "sourceCount": 20,
+      "sourceCountWithinConfiguredTypedSoftWindow": 18,
+      "sourceFirstNs": 149885834332277,
+      "sourceLastNs": 149904873732970,
+      "sourceDistinctPayloads": [
+        "0000000000000000"
+      ],
+      "sourceRecords": [
+        {
+          "seq": 15,
+          "receivedNs": 149885834332277,
+          "counter": 76440149,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 155,
+          "receivedNs": 149886835485200,
+          "counter": 76441149,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 308,
+          "receivedNs": 149887833867661,
+          "counter": 76442149,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 463,
+          "receivedNs": 149888852601815,
+          "counter": 76443168,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 599,
+          "receivedNs": 149889853450123,
+          "counter": 76444168,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 753,
+          "receivedNs": 149890852078508,
+          "counter": 76445168,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 901,
+          "receivedNs": 149891853993815,
+          "counter": 76446168,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 1059,
+          "receivedNs": 149892853776892,
+          "counter": 76447168,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 1207,
+          "receivedNs": 149893871696354,
+          "counter": 76448188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 1349,
+          "receivedNs": 149894874633200,
+          "counter": 76449188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 1496,
+          "receivedNs": 149895871764354,
+          "counter": 76450188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 1643,
+          "receivedNs": 149896874214508,
+          "counter": 76451188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 1787,
+          "receivedNs": 149897872662200,
+          "counter": 76452188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 1934,
+          "receivedNs": 149898874781893,
+          "counter": 76453188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 2078,
+          "receivedNs": 149899873999431,
+          "counter": 76454188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 2229,
+          "receivedNs": 149900873147047,
+          "counter": 76455188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 2374,
+          "receivedNs": 149901873646431,
+          "counter": 76456188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 2523,
+          "receivedNs": 149902874113816,
+          "counter": 76457188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 2675,
+          "receivedNs": 149903874218124,
+          "counter": 76458188,
+          "payload": "0000000000000000"
+        },
+        {
+          "seq": 2825,
+          "receivedNs": 149904873732970,
+          "counter": 76459188,
+          "payload": "0000000000000000"
+        }
+      ],
+      "subscriptionTimingLimit": "READY/UNREGISTERED/DONE have no timestamps. Overlap is against the configured typed soft window, not a precisely measured native subscription interval.",
+      "conclusion": "Exact CAN122/channel1 source is present, but direct typed wheel cache returns MCU_OFFLINE and no SDK callbacks were observed. Direct packet route availability remains unproved; source absence is refuted for this window.",
+      "sourceReconstructionCandidate": {
+        "source": {
+          "canId": "0x122",
+          "subId": 0,
+          "channel": 1,
+          "payloadHex": "0000000000000000"
+        },
+        "predictedPacketHex": "000000000000000000000000",
+        "eventObserved": false,
+        "producerGateKnown": false,
+        "decodedCandidate": {
+          "schema": 1,
+          "fid": "0x99000059",
+          "length": 12,
+          "rawHex": "000000000000000000000000",
+          "structurallyValid": true,
+          "errors": [],
+          "wheels": [
+            {
+              "wheel": "FL",
+              "raw16": 0,
+              "raw12": 0,
+              "statusRaw": 0,
+              "glStatusAccepted": true,
+              "glScaledCandidate": 0.0
+            },
+            {
+              "wheel": "FR",
+              "raw16": 0,
+              "raw12": 0,
+              "statusRaw": 0,
+              "glStatusAccepted": true,
+              "glScaledCandidate": 0.0
+            },
+            {
+              "wheel": "RL",
+              "raw16": 0,
+              "raw12": 0,
+              "statusRaw": 0,
+              "glStatusAccepted": true,
+              "glScaledCandidate": 0.0
+            },
+            {
+              "wheel": "RR",
+              "raw16": 0,
+              "raw12": 0,
+              "statusRaw": 0,
+              "glStatusAccepted": true,
+              "glScaledCandidate": 0.0
+            }
+          ],
+          "acceptedByRecoveredContract": true,
+          "glStatusGatePasses": true,
+          "qualifiedPhysicalUnit": null,
+          "freshness": "unknown",
+          "scope": "offline firmware candidate; installed-MCU applicability unverified"
+        },
+        "scope": "Firmware reconstruction from saved source bytes, not a received wheel event"
+      },
+      "producerGateCurrentState": null,
+      "causeOfUnavailableDirectRoute": null,
+      "sources": [
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-wheels/run.json",
+          "sha256": "f5556a2cc74010d1d2e8dce6228ee9cea6e0cc1dacaaf332e9d59df4e211877b",
+          "bytes": 1066
+        },
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-wheels/buffer-stdout.log",
+          "sha256": "195b6c58b46a59af38c2d240adc10c02b35a719979be2f6f972c6aea59081563",
+          "bytes": 973
+        },
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-wheels/buffer-stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-wheels/raw-stdout.log",
+          "sha256": "4c825e35a6bcbf7f30606b8c635f3052c34e3ab86df4ab026cdf2093d1cd7375",
+          "bytes": 400316
+        },
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-wheels/raw-stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ]
+    },
+    {
+      "target": "steering",
+      "runManifest": {
+        "path": "captures/diagnostics-unattended-20261021/chassis/live-steering/run.json",
+        "sha256": "b8d1ca8b89d52e805162b66f3e3c95c2881bba2328e4017ce5d58d709aa0b4f2",
+        "bytes": 1063
+      },
+      "typedLifecycleAccepted": true,
+      "typedStart": {
+        "kind": "START",
+        "target": "steering",
+        "device": 1023,
+        "fid": "0x99000198",
+        "hardLimitSeconds": 20,
+        "startedNs": 150014862969592,
+        "softDeadlineNs": 150032862969592,
+        "hardDeadlineNs": 150034862969592,
+        "queueCapacity": 128,
+        "maxBufferBytes": 64,
+        "recordLimit": 1024
+      },
+      "typedDone": {
+        "kind": "DONE",
+        "reason": "deadline",
+        "exitCode": 0,
+        "ready": true,
+        "received": 1,
+        "dropped": 0,
+        "callbackErrors": 0,
+        "unexpectedCallbacks": 0,
+        "queued": 0,
+        "registerAttempted": true,
+        "unregisterReturned": true,
+        "ownershipReleased": true,
+        "failure": null
+      },
+      "typedSnapshot": {
+        "kind": "BUFFER",
+        "seq": 1,
+        "source": "snapshot",
+        "target": "steering",
+        "device": 1023,
+        "fid": "0x99000198",
+        "readStartNs": 150014990488361,
+        "receivedNs": 150015024487054,
+        "length": 6,
+        "sdkIntField": -999999999,
+        "quality": "steering_shape_only",
+        "raw": "0108043d1ea5",
+        "acquisitionTimeKnown": false,
+        "physicalUnit": null
+      },
+      "snapshotGetDurationMilliseconds": 33.998693,
+      "typedCallbackCount": 0,
+      "rawLifecycleAccepted": true,
+      "rawCapture": {
+        "stream": "gb",
+        "callback": "0x9900001f",
+        "readyNs": 150014911164669,
+        "count": 916,
+        "firstNs": 150014944501592,
+        "lastNs": 150034870562439,
+        "arrivalSpanSeconds": 19.926060847,
+        "independentAndExistingStrictParserAgree": true
+      },
+      "exactSourceTuple": {
+        "canId": "0x11f",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 5
+      },
+      "sourceCount": 20,
+      "sourceCountWithinConfiguredTypedSoftWindow": 18,
+      "sourceFirstNs": 150015228230438,
+      "sourceLastNs": 150034247708055,
+      "sourceDistinctPayloads": [
+        "080100ff18",
+        "080100ff2b",
+        "080100ff3a",
+        "080100ff5c",
+        "080100ff6f",
+        "080100ff7e",
+        "080100ff90",
+        "080100ffa3",
+        "080100ffd4",
+        "080100ffe7",
+        "080101ff80",
+        "080101ffb3",
+        "080101ffc4"
+      ],
+      "sourceRecords": [
+        {
+          "seq": 18,
+          "receivedNs": 150015228230438,
+          "counter": 76569541,
+          "payload": "080100ff3a"
+        },
+        {
+          "seq": 64,
+          "receivedNs": 150016229471746,
+          "counter": 76570541,
+          "payload": "080100ff7e"
+        },
+        {
+          "seq": 109,
+          "receivedNs": 150017237178515,
+          "counter": 76571549,
+          "payload": "080101ffb3"
+        },
+        {
+          "seq": 156,
+          "receivedNs": 150018238311977,
+          "counter": 76572549,
+          "payload": "080100ffe7"
+        },
+        {
+          "seq": 201,
+          "receivedNs": 150019235912592,
+          "counter": 76573549,
+          "payload": "080100ff2b"
+        },
+        {
+          "seq": 246,
+          "receivedNs": 150020238589592,
+          "counter": 76574549,
+          "payload": "080100ff6f"
+        },
+        {
+          "seq": 293,
+          "receivedNs": 150021238353515,
+          "counter": 76575549,
+          "payload": "080100ffa3"
+        },
+        {
+          "seq": 339,
+          "receivedNs": 150022236117900,
+          "counter": 76576549,
+          "payload": "080100ffe7"
+        },
+        {
+          "seq": 384,
+          "receivedNs": 150023235671131,
+          "counter": 76577549,
+          "payload": "080100ff2b"
+        },
+        {
+          "seq": 430,
+          "receivedNs": 150024235840670,
+          "counter": 76578549,
+          "payload": "080100ff6f"
+        },
+        {
+          "seq": 475,
+          "receivedNs": 150025236076670,
+          "counter": 76579549,
+          "payload": "080100ffa3"
+        },
+        {
+          "seq": 521,
+          "receivedNs": 150026239401285,
+          "counter": 76580549,
+          "payload": "080100ffe7"
+        },
+        {
+          "seq": 566,
+          "receivedNs": 150027237482824,
+          "counter": 76581549,
+          "payload": "080100ff2b"
+        },
+        {
+          "seq": 611,
+          "receivedNs": 150028247543439,
+          "counter": 76582559,
+          "payload": "080100ff90"
+        },
+        {
+          "seq": 656,
+          "receivedNs": 150029247643747,
+          "counter": 76583559,
+          "payload": "080100ffd4"
+        },
+        {
+          "seq": 703,
+          "receivedNs": 150030250289516,
+          "counter": 76584559,
+          "payload": "080100ff18"
+        },
+        {
+          "seq": 749,
+          "receivedNs": 150031246373901,
+          "counter": 76585559,
+          "payload": "080100ff5c"
+        },
+        {
+          "seq": 793,
+          "receivedNs": 150032248816670,
+          "counter": 76586559,
+          "payload": "080101ff80"
+        },
+        {
+          "seq": 839,
+          "receivedNs": 150033248618439,
+          "counter": 76587559,
+          "payload": "080101ffc4"
+        },
+        {
+          "seq": 885,
+          "receivedNs": 150034247708055,
+          "counter": 76588559,
+          "payload": "080100ff18"
+        }
+      ],
+      "subscriptionTimingLimit": "READY/UNREGISTERED/DONE have no timestamps. Overlap is against the configured typed soft window, not a precisely measured native subscription interval.",
+      "cachedPacketAvailable": true,
+      "cacheAngleRawSigned16": 264,
+      "sourceAngleRawSigned16Values": [
+        264
+      ],
+      "angleWordsMatch": true,
+      "sourceAngleVaried": false,
+      "stockFloatCandidate": 26.399999618530273,
+      "opaqueTrailingWordHex": "043d1ea5",
+      "sdkIntFieldInterpretation": "Raw DTO integer field -999999999 is not a failure code for this successful six-byte buffer GET.",
+      "conclusion": "Typed six-byte steering cache is available and its raw angle word matches all20 source CAN11F/channel1 words. Source angle is constant; no callbacks are observed, consistent with the firmware change-only gate. Effective live callback delivery, units and freshness remain unqualified.",
+      "sources": [
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-steering/run.json",
+          "sha256": "b8d1ca8b89d52e805162b66f3e3c95c2881bba2328e4017ce5d58d709aa0b4f2",
+          "bytes": 1063
+        },
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-steering/buffer-stdout.log",
+          "sha256": "34265d5cfac937372abf7152f1b1f33f52a4fb416af19480b41a8e549783136f",
+          "bytes": 982
+        },
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-steering/buffer-stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-steering/raw-stdout.log",
+          "sha256": "1db221cb2c9abecc54a57f7599e30d1eae95a843ea939b817a78257580ed6ae0",
+          "bytes": 104850
+        },
+        {
+          "path": "captures/diagnostics-unattended-20261021/chassis/live-steering/raw-stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ]
+    }
+  ],
+  "health": [
+    {
+      "path": "captures/diagnostics-unattended-20261021/before-wheels",
+      "utc": "2026-10-21T08:57:27.847913+00:00",
+      "guardsPass": true,
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      },
+      "newCrashRecords": 0,
+      "firmwareHashesMatch": true,
+      "appHashMatch": true,
+      "temporaryReaderAbsent": true
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-wheels",
+      "utc": "2026-10-21T08:59:30.950341+00:00",
+      "guardsPass": true,
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      },
+      "newCrashRecords": 0,
+      "firmwareHashesMatch": true,
+      "appHashMatch": true,
+      "temporaryReaderAbsent": true
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/after-steering",
+      "utc": "2026-10-21T09:00:05.499655+00:00",
+      "guardsPass": true,
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      },
+      "newCrashRecords": 0,
+      "firmwareHashesMatch": true,
+      "appHashMatch": true,
+      "temporaryReaderAbsent": true
+    }
+  ],
+  "qualification": {
+    "wheelSourcePresent": true,
+    "wheelDirectSdkPacketAvailable": false,
+    "wheelDirectSdkPacketAbsenceCauseKnown": false,
+    "steeringSourcePresent": true,
+    "steeringTypedCachedPacketAvailable": true,
+    "steeringRawAngleWordCrossChecked": true,
+    "sdkCallbackDeliveryQualified": false,
+    "movingCarUnitsQualified": false,
+    "acquisitionFreshnessQualified": false,
+    "installedMcuHashMatched": false
+  },
+  "limits": [
+    "A clean lifecycle means collection/cleanup succeeded, not that any buffer is a healthy/fresh measurement.",
+    "Wheel source presence does not prove MCU gate state or direct event cache update. No gate setter was attempted.",
+    "Steering snapshot matches a constant source value; its cache could still predate this observation. The opaque32-bit word is not a qualified clock.",
+    "No direct SDK callbacks occurred in either window. Constant steering raw values make change-only suppression plausible, not proof of a functioning live subscription.",
+    "Only configured soft-window overlap is measured: typed lifecycle markers omit READY/unregister/completion timestamps.",
+    "No movement, camera activation, collection-table change, ICE start or product implementation is evidenced by these read-only helpers.",
+    "Stock health/PIDs/crash/firmware/app hashes are checked in saved before/after files; per-window repeated TCP port tables were not present."
+  ]
+}

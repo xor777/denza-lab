@@ -1,0 +1,261 @@
+{
+  "schema": "denza-lab.steering-clock.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "status": "source_proven_shared_counter_with_unqualified_physical_time",
+  "source": {
+    "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+    "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+    "bytes": 1933312
+  },
+  "imageBaseVA": "0x40000",
+  "claims": {
+    "sameClockDomain": true,
+    "getter": "1A619A reads the32-bit counter at GP+32DDD4 =FEF0B63C.",
+    "writer": "1A6212 loads the same word, adds1 and ST.W stores it; the arithmetic contract is modulo2^32.",
+    "timerCallback": "Table1ED57C+8 points to three20-byte timer entries at1ED59C,1ED5B0,1ED5C4. Entry0 callback1A6212 is called indirectly by1B9F70..1B9F74 after timer-driver gates.",
+    "initialization": "Reset entry1A41F4 sets GP=FEBDD868;1A4250..1A426A zeroes FEEE8000..FEF0FC00, including this counter. This is a reset-entry path, not proof of the live boot epoch or all reset/resume paths.",
+    "configuration": "15BAFC starts channel0 via1A6124 with r6=0; that branch selects24000, passes it through1BA082 to1BA87A and starts through1BA0E0. Driver1BA9B4 stores the selected count for this table type. Hardware clock input frequency is not established.",
+    "pause": "163740..16374E explicitly stops channel0 through1A6174 and starts it again through1A6124. Neither wrapper directly resets the software counter. It is not qualified as uninterrupted wall time.",
+    "rawReceiveClock": "1A54F6 calls1A619A,1A5512 places the result at caller stack+0;17069C loads the fifth argument at callee stack+1C and stores it at receive-record+48 for channels0/1/2.170926 serializes that word BE to raw-envelope bytes6..9.",
+    "steeringClock": "18AD04 calls1A619A only after196F94 accepts a changed raw angle; bytes2..5 of99000198 are that BE32 word. It is a handler/change-time stamp, distinct from the earlier receive-record clock.",
+    "physicalUnitQualified": false,
+    "continuousUptimeQualified": false,
+    "liveBootEpochKnown": false,
+    "measurementFreshnessQualified": false,
+    "installedMcuHashMatched": false
+  },
+  "liveSavedObservation": {
+    "rawRecordCount": 916,
+    "steeringSourceCount": 20,
+    "cachedPacket": "0108043d1ea5",
+    "cachedChangeClockBE32": 71114405,
+    "rawFirstCounter": 76569255,
+    "rawLastCounter": 76589182,
+    "rawCounterDelta": 19927,
+    "arrivalSpanSeconds": 19.926060847,
+    "endpointTicksPerArrivalSecond": 1000.0471318946185,
+    "leastSquaresTicksPerArrivalSecond": 999.9810427079626,
+    "residualTicksMinMax": [
+      -6.515077763619956,
+      2.5933962292365322
+    ],
+    "countersNondecreasing": true,
+    "modularDifferenceRawFirstMinusCached": 5454850,
+    "modularDifferenceRawLastMinusCached": 5474777,
+    "steeringSourceFirstCounter": 76569541,
+    "steeringSourceLastCounter": 76588559,
+    "constantRawSignedAngle": 264,
+    "snapshotGetReadStartNs": 150014990488361,
+    "snapshotGetReceivedNs": 150015024487054,
+    "interpretation": "Empirical arrival-clock comparison over one short saved window; approximately1000 counter ticks per arrival second does not prove the hardware clock frequency, a continuous uptime clock, or measurement acquisition time."
+  },
+  "anchors": [
+    {
+      "va": "0x1a41f4",
+      "bytes": "240668d8bdfe",
+      "mnemonic": "mov",
+      "operands": "0xfebdd868, gp"
+    },
+    {
+      "va": "0x1a4250",
+      "bytes": "26060080eefe",
+      "mnemonic": "mov",
+      "operands": "0xfeee8000, r6"
+    },
+    {
+      "va": "0x1a4256",
+      "bytes": "270600fcf0fe",
+      "mnemonic": "mov",
+      "operands": "0xfef0fc00, r7"
+    },
+    {
+      "va": "0x1a425e",
+      "bytes": "a6070f000000",
+      "mnemonic": "st.dw",
+      "operands": "r0r1, 0x0[r6]"
+    },
+    {
+      "va": "0x1a619a",
+      "bytes": "84074955bb65",
+      "mnemonic": "ld.w",
+      "operands": "0x32ddd4[gp], r10"
+    },
+    {
+      "va": "0x1a6212",
+      "bytes": "8407490dbb65",
+      "mnemonic": "ld.w",
+      "operands": "0x32ddd4[gp], r1"
+    },
+    {
+      "va": "0x1a6218",
+      "bytes": "410a",
+      "mnemonic": "add",
+      "operands": "0x1, r1"
+    },
+    {
+      "va": "0x1a621a",
+      "bytes": "84074f0dbb65",
+      "mnemonic": "st.w",
+      "operands": "r1, 0x32ddd4[gp]"
+    },
+    {
+      "va": "0x1a6144",
+      "bytes": "20eec05d",
+      "mnemonic": "movea",
+      "operands": "0x5dc0, r0, r29"
+    },
+    {
+      "va": "0x1a615a",
+      "bytes": "81ff283f",
+      "mnemonic": "jarl",
+      "operands": "0x1ba082, lp"
+    },
+    {
+      "va": "0x1a6160",
+      "bytes": "81ff803f",
+      "mnemonic": "jarl",
+      "operands": "0x1ba0e0, lp"
+    },
+    {
+      "va": "0x15bb02",
+      "bytes": "0032",
+      "mnemonic": "mov",
+      "operands": "0x0, r6"
+    },
+    {
+      "va": "0x15bb04",
+      "bytes": "84ff20a6",
+      "mnemonic": "jarl",
+      "operands": "0x1a6124, lp"
+    },
+    {
+      "va": "0x163740",
+      "bytes": "0032",
+      "mnemonic": "mov",
+      "operands": "0x0, r6"
+    },
+    {
+      "va": "0x163742",
+      "bytes": "84ff322a",
+      "mnemonic": "jarl",
+      "operands": "0x1a6174, lp"
+    },
+    {
+      "va": "0x16374c",
+      "bytes": "0032",
+      "mnemonic": "mov",
+      "operands": "0x0, r6"
+    },
+    {
+      "va": "0x16374e",
+      "bytes": "84ffd629",
+      "mnemonic": "jarl",
+      "operands": "0x1a6124, lp"
+    },
+    {
+      "va": "0x1b9f70",
+      "bytes": "3c0f0100",
+      "mnemonic": "ld.w",
+      "operands": "0x0[r28], r1"
+    },
+    {
+      "va": "0x1b9f74",
+      "bytes": "e1c760f9",
+      "mnemonic": "jarl",
+      "operands": "[r1], lp"
+    },
+    {
+      "va": "0x1a54f6",
+      "bytes": "80ffa40c",
+      "mnemonic": "jarl",
+      "operands": "0x1a619a, lp"
+    },
+    {
+      "va": "0x1a5512",
+      "bytes": "63570100",
+      "mnemonic": "st.w",
+      "operands": "r10, 0x0[sp]"
+    },
+    {
+      "va": "0x1a5516",
+      "bytes": "bcff86b1",
+      "mnemonic": "jarl",
+      "operands": "0x17069c, lp"
+    },
+    {
+      "va": "0x1706bc",
+      "bytes": "23c71d00",
+      "mnemonic": "ld.w",
+      "operands": "0x1c[sp], r24"
+    },
+    {
+      "va": "0x170704",
+      "bytes": "7dc74900",
+      "mnemonic": "st.w",
+      "operands": "r24, 0x48[r29]"
+    },
+    {
+      "va": "0x17074c",
+      "bytes": "7dc74900",
+      "mnemonic": "st.w",
+      "operands": "r24, 0x48[r29]"
+    },
+    {
+      "va": "0x170794",
+      "bytes": "7dc74900",
+      "mnemonic": "st.w",
+      "operands": "r24, 0x48[r29]"
+    },
+    {
+      "va": "0x1709a0",
+      "bytes": "3c174900",
+      "mnemonic": "ld.w",
+      "operands": "0x48[r28], r2"
+    },
+    {
+      "va": "0x18ad56",
+      "bytes": "81ff44b4",
+      "mnemonic": "jarl",
+      "operands": "0x1a619a, lp"
+    },
+    {
+      "va": "0x18ad60",
+      "bytes": "84074d0db763",
+      "mnemonic": "st.b",
+      "operands": "r1, 0x31dbd4[gp]"
+    },
+    {
+      "va": "0x18ad7a",
+      "bytes": "84077dedb763",
+      "mnemonic": "st.b",
+      "operands": "r29, 0x31dbd7[gp]"
+    }
+  ],
+  "toolingCaveat": {
+    "path": "/private/tmp/denza-pypcode-20261018/pypcode/processors/V850/data/languages/V850_instructions.sinc",
+    "sha256": "0aa96a8c2e1fc7ba595eb9a67da6299749f81ba5495e549b70a3a8d0bc7e38db",
+    "lines": "1100..1106",
+    "detail": "The bundled ST.W disp23 mnemonic/opcode definition has a two-byte pcode STORE at line1106. This investigation uses fresh instruction disassembly/bytes, not that incorrect store emulation. Register ADD is32bit; ST.W denotes a word store."
+  },
+  "limitations": [
+    "Static MCU bytes are owner OTA; installed MCU hash is not matched.",
+    "Only the reset-entry RAM-clear path and direct encoded global accesses were established. Indirect writes and all reset/resume paths are not exhaustively excluded.",
+    "The32-bit ADD/ST.W counter wraps modulo2^32; wrap period in seconds is not qualified.",
+    "Source has explicit timer stop/restart; observed ticking is not a continuous wall-time contract.",
+    "Reload24000 is a hardware count. The input frequency/prescaler chain is not followed, so no authoritative milliseconds unit is promoted.",
+    "The saved raw header counters advance at approximately1000 ticks per arrival second. Arrival jitter and one short stationary window limit this empirical comparison.",
+    "A cached last-change tick may predate the GET while the angle remains current and constant. Neither the modular difference nor a changing stamp proves acquisition freshness.",
+    "A one-snapshot modular delta does not resolve boot/reset boundaries, completed wraps, or sensor age."
+  ],
+  "evidence": {
+    "path": "captures/diagnostics-unattended-20261021/chassis/steering-clock/evidence.json",
+    "sha256": "6b56ac13c7c5e7ab683bff6bb55f766253854aa92bb7b93f75eacdb80d108792",
+    "bytes": 13232
+  },
+  "reproducer": {
+    "path": "captures/diagnostics-unattended-20261021/chassis/steering-clock/reproducer.py",
+    "sha256": "8aec1ebb8ac9e45e7ac9e1e3e6589d97b369d10c7be92f6d5f598d2df9ca1bde",
+    "bytes": 10318
+  }
+}

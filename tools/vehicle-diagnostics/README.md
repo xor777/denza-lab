@@ -1,5 +1,63 @@
 # Vehicle diagnostic research tools
 
+## Fixed child identities and typed chassis buffers (2026-10-21)
+
+These isolated readers stay outside the product APK. The completed owner run is
+documented in [unattended qualification](../../docs/vehicle-data-findings.md#unattended-child-and-buffer-qualification-2026-10-21).
+Neither tool connects/restarts ADB, installs an APK, changes vehicle state, clears
+codes, enters a diagnostic session or launches a factory application.
+
+`ChildIdentityReadProbe.java` has no variable target: exactly eight service22
+software-code reads from the pinned child-candidate manifest through four known
+parent routes. It checks profile170/CANFD/P/zero speed/idle diagnostic manager
+before every send, holds the shared diagnostic lock, observes two quiet seconds,
+uses four-second request deadlines and no retries. Foreign traffic and changed
+guards stop the sequence. EOF cancels; independent hard bounds cover a stuck
+request (six seconds) and overall operation (52 seconds). Hard halt is incomplete
+cleanup and must not be accepted as a normal run.
+
+`child_identity_probe.py` defaults to no vehicle activity unless `run` is
+explicitly selected. Build and plan are offline:
+
+```sh
+python3 -B tools/vehicle-diagnostics/child_identity_probe.py plan
+python3 -B tools/vehicle-diagnostics/child_identity_probe.py build --output /absolute/fresh/build-directory
+python3 -m unittest discover -s tools/vehicle-diagnostics -p test_child_identity_probe.py
+```
+
+Build runs 35 synthetic assertions and excludes tests from the device dex. A
+live run requires `run --build DIR --serial EXISTING_SERIAL --output FRESH_DIR`;
+it refuses changed source/artifact hashes, stages one nonce-named jar and removes
+only that file. `cleanupVerified` proves file removal, not remote process health.
+An operator still owns pre/post firmware/APK hashes, stock PIDs, crash buffer and
+reader coordination. `PLAN_DONE` alone does not mean eight identities matched;
+require decoded `CACHE_MATCH` for each. The completed run matched eight codes.
+
+`ChassisBufferReadProbe.java` permits only `wheels` (`1049/99000059`) or
+`steering` (`1023/99000198`). It performs one typed SDK GET and registers one
+exact ID, using only the DTO callback to avoid SDK double delivery. It holds
+the same `/data/local/tmp/denza-dtc-read.lock`, never unlinks it and uses no
+hand-built native buffer parcels. Queue128, copy64B and record1024 bounds are
+fixed. Duration3–20 seconds includes a two-second cleanup reserve; an independent
+hard watchdog does not wait on an SDK lock. EOF or `STOP` ends observation.
+
+```sh
+bash tools/vehicle-diagnostics/chassis_buffer_probe.sh test /absolute/fresh/test-directory
+bash tools/vehicle-diagnostics/chassis_buffer_probe.sh build /absolute/fresh/build-directory
+```
+
+The shell script builds/tests or prints a command; it never calls ADB. Use a
+fresh output directory and pin both source and DEX hashes before an operator
+stages anything. Profile/P/speed/idle-manager and before/after health checks are
+the operator's responsibility for this receive-only helper. Keep stdin open.
+Accept lifecycle completion only with process exit0, one `DONE`, `ready=true`,
+`failure=null`, no dropped/error/unexpected/queued records, and successful
+unregister/ownership release. `sdkIntField` is retained raw, not interpreted as
+a status code. A six-byte steering snapshot has shape validity only; an
+11-byte `MCU_OFFLINE` wheel snapshot is unavailable, never four zero speeds.
+The 18 host lifecycle cases pass; completed live observations are in the linked
+findings and `research/vehicle-diagnostics/chassis-buffers-live-20261021.json`.
+
 ## Remaining ECU reader (2026-10-20)
 
 `RemainingEcuReadProbe.java` is a shell `app_process` reader. Its fixed plans
