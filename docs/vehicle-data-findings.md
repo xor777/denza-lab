@@ -54,8 +54,8 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | MCU raw dispatch precedes diagnostic rejection but requires existing table entries. Four HAL streams delivered3664 callbacks, zero target7E8/7EE; OTA/SecretOBD stayed silent. MCU/HAL and the five-transaction libvhds interface qualify no existing-table readback. Extracted vhds registers conditional MQTT rows347/channel0 and4BF/44A/channel2, plus parsed configuration. Four exact private config paths denied shell stat; runtime tables and the SecretOBD writer remain unknown | source writer found; current file access and live visibility bounded | 2026-10-21 | [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Table readback boundary](#collection-table-readback-boundary-2026-10-21) |
 | Exact definitions: six BMS misses and P2BAE00 conflict remain unresolved. ISG has32 conditional public-heading matches and24 raw misses; format01 mapping is unqualified. Stock descriptions come from exact numeric keys in original downloaded script data.attach[].dtcList. The file path and task-selection chain are traced, but no applicable ISG script or selection tuple was recovered; the packed-resource audit found only domain-list containers, while manual caches can use extensionless names. No new qualified definitions or warning links | exact source located; applicable content missing | 2026-10-21 | [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21); [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
 | VHDS configuration can relate a CAN-field condition to an ECU/service/parameter list. The traced direct loader has a test-property gate; no actual task was recovered. The CAN-trigger data path selects prefix02. Sibling owner03 uses DID-oriented framing and rejects a1035-byte response too; it is no ECM registry bypass. No new address, definition or specific warning-to-DTC link | offline schema and transport limits; runtime configuration missing | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
-| Factory scripts: normal completion/startup can remove Scripts and the saved task. Conditional afterRunRes persistence can retain selected formatted DTC/description pairs, without script tuple or ECU software. Manual package location is recoverable through classify_cache.db and media_cache.db in source; no actual matching cache, script or dictionary recovered | firmware; applicable content open | 2026-10-21 | [Stock script source](#stock-isg-reader-and-factory-script-source-2026-10-21); [Cache recovery](#diagnostic-cache-and-component-package-followup-2026-10-21) |
-| The MCU preserves distinct7E5/782 request IDs; physical BSCM/ESP identity remains open. A DID alone cannot assign a child role. Neither the seven-entry SMM registry nor 49 outer OTA entries/35 media-component packages resolves the nine missing roles. otaUpdateDownloadFileInfo can hold a package description, but does not establish installed-child applicability | firmware; nine roles and physical brake identity open | 2026-10-21 | [ECU roles](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21); [Component packages](#diagnostic-cache-and-component-package-followup-2026-10-21) |
+| Factory scripts: normal completion/startup can remove Scripts and the saved task. Conditional afterRunRes persistence can retain selected formatted DTC/description pairs, without script tuple or ECU software. Manual package location is recoverable through classify_cache.db and media_cache.db in source. One approved live export found RUNNING_TASK/afterRunRes absent; no script or dictionary recovered. The manual app has no declared DB provider, and its private DB contents remain unknown | firmware plus live missing-key result; applicable content open | 2026-10-21 | [Stock script source](#stock-isg-reader-and-factory-script-source-2026-10-21); [Cache recovery](#diagnostic-cache-and-component-package-followup-2026-10-21) |
+| The MCU preserves distinct7E5/782 request IDs; physical BSCM/ESP identity remains open. A DID alone cannot assign a child role. Neither the seven-entry SMM registry nor 49 outer OTA entries/35 media-component packages resolves the nine missing roles. otaUpdateDownloadFileInfo can hold a package description, but the approved live export found the key absent. Other download caches omit its descriptive binding | firmware and live cache exclusion; nine roles and physical brake identity open | 2026-10-21 | [ECU roles](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21); [Component packages](#diagnostic-cache-and-component-package-followup-2026-10-21) |
 | Drive scalar source: torque input bounds/cache rejection and mode-dependent speed FID aliases are traced. A converted -1 can be valid and rejected samples can leave old cache values; rear torque can wrap in GB packing, and null-service getter failure can leave a reused caller buffer untouched. Units/freshness and dedicated ISG numeric ownership remain unqualified | offline byte proof plus historical GET rows | 2026-10-21 | [Battery validity](#battery-validity-and-collection-gates-2026-10-21) |
 | VHDS process/service and client-library hash confirmed live. First approved cache export stopped at startup; revised user0 readiness reached the reader but returned missing. Both cleaned up. VHDS uid0/umask0077 versus BydLog uid1000 supports a private-cache access limitation; actual file modes/existence remain unknown. No configuration or OEM DTC meaning recovered | live acquisition negative; access-boundary evidence | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | REA continuation closes the VHDS Binder ABI: transaction5 dispatches through the constructor-installed IVHDS vptr and the minus8 thunk to remoteOrder. publishService names the service vhds. The sending client, actual configuration and runtime applicability remain unknown; no new ECU address or DTC meaning | offline constructor and original-byte proof | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
@@ -5008,10 +5008,12 @@ display reaching `showTime >= 3`. It is short-lived continuation state, not a
 durable archive. `runCommandData` remains transient.
 The retained pair lacks script version/station, ECU address/software and raw
 status. It can therefore recover historical candidate labels, but cannot
-establish a full dictionary, current fault state or format01 mapping. No actual
-`afterRunRes` value was recovered. The old approved receipt checked only
-`RUNNING_TASK` and reported it missing in a 65-byte preferences file; it does not
-prove the present contents or justify automatically repeating that acquisition.
+establish a full dictionary, current fault state or format01 mapping. The old
+approved receipt checked only `RUNNING_TASK`. A separately approved two-file
+session at 17:23:55–17:23:59 UTC on 2026-10-21 read the current 65-byte preferences:
+both `RUNNING_TASK` and `afterRunRes` are absent. This establishes the selected
+keys at that time, not historical absence of a completed inspection. The new
+single-session permission is consumed.
 
 Both keys use device-protected package preferences. Station sessions add state
 and headers, not a dictionary. `BydEolLog` writes to `android.util.Log`; the
@@ -5034,7 +5036,8 @@ SANBAO branches. An exact local join from `coverPath` to `media_cache.db` table
 `media_cache.url` locates `local_path`; state 1 means DONE, but the stock reader
 also requires the file to exist. The expected user 0 database directory is
 `/data/user/0/com.byd.auto_emanual/databases/`, derived from ordinary app context;
-its presence/accessibility was not observed. A future copy needs a consistent
+the later shell stat of all six DB/WAL/SHM paths returned Permission denied,
+so their existence/content remains unknown. A future copy needs a consistent
 SQLite snapshot, including relevant WAL state, and a field-only projection.
 
 The filename is not reliably a `.zip`: punctuation is stripped from the last
@@ -5060,15 +5063,61 @@ source-backed lead is `share_data_prefs#otaUpdateDownloadFileInfo`: the app
 serializes one `EcuVersionInfo`, including `ecuDescription` and `ecuSoftCode`.
 Its download queue combines target/config/source/config-source packages, and
 its cache comparison does not establish equality with installed software.
-No actual value or child-DID applicability was recovered. Nine named child
-roles and the physical 7E5/782 relationship remain open; no update was started.
+The same approved session read the 705-byte OTA preferences and found
+`otaUpdateDownloadFileInfo` absent. No child-DID applicability was recovered.
+Nine named child roles and the physical 7E5/782 relationship remain open; no
+update was started.
 
 Evidence and replay:
 [ecu-package-name-followup-20261021.json](../research/vehicle-diagnostics/ecu-package-name-followup-20261021.json),
 `python3 -B research/vehicle-diagnostics/check_ecu_package_name_followup.py`.
 Neither branch adds an ECM, battery or drive factory definition or a
-warning-to-DTC association. The next useful acquisition is an existing
-applicable artifact at these concrete locations, not another broad DID scan.
+warning-to-DTC association. After the live exclusions below, repeating these
+unchanged preferences is not a justified next acquisition. An applicable
+inspection script or exact-software dictionary remains the useful artifact.
+
+**Live cache acquisition and access boundary.** The installed SpotInspection,
+OTA, OTA2 and manual APK hashes match the retained source builds; user 0,
+profile 170/CANFD and the manual app's separate UID 10079 were observed. The two
+expected external manual directories were absent to shell. A UserManual-tag
+log snapshot was empty; neither result proves that no manual ever downloaded.
+
+The newly approved export used two fixed files, at most two listings/two reads,
+no retry and no ECU/factory-server requests. BydLogTool opened 46320/46321/46322;
+both closure samples had no export listeners. Terminal watchdog, lease release,
+owned-forward removal and post-session APK identity all passed. A separate
+read-only postflight returned ready. The XML stayed in memory; the receipt
+retains only lengths, SHA256 and the three missing-key states. Offline replay
+cannot reparse discarded XML. This is a completed acquisition with a negative
+content result, not a failed transfer or evidence that dictionaries are absent
+everywhere.
+
+The manual's declared FileProvider and InitializationProvider are not exported.
+Its file-path configuration contains only external storage roots, and the
+located app-package FileProvider call shares an APK for installation. It does
+not supply a private database export route. The inspected deep-link entry clears
+parameters and opens/loads UI content; it was not invoked as a passive locator.
+This is a bounded source audit, not a claim that every runtime access path has
+been disproved. Private manual databases are excluded from the export client.
+
+Evidence: [diagnostic-cache-access-20261021.json](../research/vehicle-diagnostics/diagnostic-cache-access-20261021.json).
+Replay: `python3 -B research/vehicle-diagnostics/check_diagnostic_cache_access.py`
+(192 offline evidence checks, including the alternative persistence sources). The narrow client and shared lifecycle/parser
+suites passed 99 synthetic tests and a separate sol6.1 xhigh code review.
+No application was installed and no diagnostic UI/catalog meaning changed.
+
+**Other download records do not restore the missing binding.** The followup
+found `download_info_prefs.xml`, keyed by `DOWNLOAD_FILE_INFO_<URL>`. Its generic
+model stores file location/hash/progress, without ECU ID, description or full
+software-code fields. The failed-report queue `downloadResultSubmitInfo` can
+retain target/config codes and ECU ID, but drops descriptions and route/child
+DIDs. Neither was read from the car. The generated package filename embeds a
+software code, but its leading value may be a logical address; it cannot assign
+a physical child role. The inspected HTTP interceptor uses no-cache/no-store,
+so its name does not establish a recoverable response archive. These source
+findings do not exclude unmodelled upstream fields or other applications.
+Evidence: [ecu-persistence-alternatives-20261021.json](../research/vehicle-diagnostics/ecu-persistence-alternatives-20261021.json).
+No additional acquisition was proposed from these weaker candidates.
 
 ### VHDS diagnostic tasks and owner03 boundary (2026-10-21)
 

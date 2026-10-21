@@ -1,0 +1,304 @@
+{
+  "schema": "denza-lab.diagnostic-cache-access.v1",
+  "date": "2026-10-21",
+  "status": "complete; both_selected_preferences_read; all_three_keys_missing; no_new_factory_labels_or_roles",
+  "scope": "Existing trusted ADB transport. Fixed metadata and hashes, then one explicitly owner-authorized two-file BydLogTool session; projection only after confirmed closure. No inspection launch, ECU request, OTA operation or factory server call.",
+  "currentFindings": [
+    {
+      "claim": "Current user0, vehicle profile170 and CANFD. The four installed APK hashes match the retained manual/inspection/OTA source builds. This closes source-build identity for the inspected persistence code, not cache-content or ECU-software applicability."
+    },
+    {
+      "claim": "Nine exact private file paths return Permission denied to shell. Existence/content are unknown. The two expected external manual directories return No such file or directory. The Scripts directory still has the same metadata as the earlier snapshot; no new recursive listing was run. The later approved export confirms existence/readability of the selected SpotInspection and OTA preferences; it does not resolve the other private paths."
+    },
+    {
+      "claim": "BydAutoManual is installed for user0, uid10079, dataDir /data/user/0/com.byd.auto_emanual. Package-manager notLaunched=false is recorded; it is not proof that a manual downloaded. Direct app DB access is not available to shell. BydLogTool access to these separate-UID databases has not been established, so this export plan excludes them."
+    },
+    {
+      "claim": "The UserManual-tag logcat snapshot is empty. It yields no package locator; it does not prove historical absence of a downloaded manual."
+    },
+    {
+      "claim": "The source-pinned client completed one session with two fixed files (65 and705 bytes) and no retries. RUNNING_TASK, afterRunRes and otaUpdateDownloadFileInfo are all key_missing. Raw XML was not saved; only file hashes, lengths and selected-key state remain. This is not evidence that factory definitions do not exist elsewhere."
+    },
+    {
+      "claim": "The server exposed46320/46321/46322; closure samples at1204ms and1831ms contain no known export listeners. Terminal watchdog, released lease, removed owned forward and post-session APK identity all passed. A separate read-only postflight returned ready without starting export."
+    }
+  ],
+  "actions": {
+    "ecuRequests": 0,
+    "factoryServerRequests": 0,
+    "bydLogStarts": 1,
+    "apkInstalls": 0,
+    "otaActions": 0,
+    "protectedContentsRead": 2,
+    "inspectionOrOtaAppLaunches": 0
+  },
+  "exportPlan": {
+    "path": "captures/diagnostic-cache-access-20261021/label-cache-session-plan.json",
+    "approval": "owner_explicit_single_session_approved; consumed",
+    "execution": "complete; no retry",
+    "freshSingleSessionApprovalRequired": true,
+    "reason": "Owner previous permissions were explicitly single-session and consumed; stock BydLogTool starts all-interface listeners including file deletion.",
+    "watchdogBeginsStopSeconds": 30,
+    "hardClosureTimeGuaranteed": false,
+    "manualSqliteFilesIncluded": false,
+    "permissionReusable": false
+  },
+  "selectedPrototypeCode": {
+    "raw24": "C22A87",
+    "displayFormat00": "U022A-87",
+    "sourceRoute": "720→728",
+    "reportingEcuInCurrentCatalog": "LA_BCM",
+    "genericFailureType87": "missing message; does not identify absent component",
+    "oemMeaning": null,
+    "observations": [
+      {
+        "timeUtc": "2026-10-18T09:44:31Z",
+        "status": "28",
+        "availability": "FF",
+        "source": "research/vehicle-diagnostics/dtc-20261018.json"
+      },
+      {
+        "timeUtc": "2026-10-20T16:31:16.833Z",
+        "status": "08",
+        "availability": "09",
+        "source": "captures/diagnostics-scanner-20261020/last-scan-1931.json"
+      }
+    ],
+    "interpretation": "Both historical samples lack current-test-failure. Availability differs, so disappearance of bit5 cannot establish that it cleared. Neither establishes a current defect or an OEM component name. Current Luminofor fixture already displays U022A-87 / Нет сообщения / 0x08; no UI change made."
+  },
+  "validation": {
+    "newReaderTests": 8,
+    "newWrapperTests": 6,
+    "existingLifecycleTests": 18,
+    "existingExportParserTests": 67,
+    "allPassed": true,
+    "livePreflight": "ready; exporter_not_started",
+    "independentReview": "passed; sol6.1 xhigh; read-only code audit; no material defects",
+    "liveSession": "complete; all closure and cleanup gates true",
+    "independentPostflight": "ready; exporter_not_started",
+    "offlineEvidenceChecks": 192
+  },
+  "evidence": {
+    "metadata": {
+      "path": "captures/diagnostic-cache-access-20261021/metadata.json",
+      "bytes": 2546,
+      "sha256": "ba1c2f7ba1a1a09f0c0cc1c525d8dc8290b8571a1b7f9036c0deb69e8289bae1"
+    },
+    "installedPackages": {
+      "path": "captures/diagnostic-cache-access-20261021/installed-packages.json",
+      "bytes": 1164,
+      "sha256": "4afffdf47bee826278d0e6d7c423b494a78e0624e39e8635796573ad6fcba68c"
+    },
+    "apkHashes": {
+      "path": "captures/diagnostic-cache-access-20261021/apk-identity.json",
+      "bytes": 788,
+      "sha256": "65af15c99fc5cbb7e19ff230b8cd303c09a65e02606145a2a2cf5fabd4288d74"
+    },
+    "manualRing": {
+      "path": "captures/diagnostic-cache-access-20261021/manual-ring-projection.json",
+      "bytes": 662,
+      "sha256": "0db802952743c277e42460c42aad127735799fcd2ad215fdf9f5b355547d99d2"
+    },
+    "preflight": {
+      "path": "captures/diagnostic-cache-access-20261021/preflight.json",
+      "bytes": 294,
+      "sha256": "17b1722d45bb6d9b08f6f5fd5b01e8f132f1da046f9097459fde2454f57de180"
+    },
+    "plan": {
+      "path": "captures/diagnostic-cache-access-20261021/label-cache-session-plan.json",
+      "bytes": 2062,
+      "sha256": "58464e88a9b192076ac7fce9ea23c6350424f2a229ebbe343f0391a485143b6d"
+    },
+    "approvedSession": {
+      "path": "captures/diagnostic-cache-access-20261021/approved-export-1/result.json",
+      "bytes": 3875,
+      "sha256": "6cf6239a170c47865106c5f366270acc1c717ecf4ecacf4318c20bd084c6a30c"
+    },
+    "consumedPlan": {
+      "path": "captures/diagnostic-cache-access-20261021/label-cache-session-plan.json.consumed",
+      "bytes": 21,
+      "sha256": "8a5bb5715a86c50181e6768bb48d78d151a9c0bb5a9f07219d48bfe6622986af"
+    },
+    "postflight": {
+      "path": "captures/diagnostic-cache-access-20261021/postflight.json",
+      "bytes": 345,
+      "sha256": "d2f04f0d2efb7e619732055563d4204989e0fa733a7d41cf9974c2e79b03a376"
+    }
+  },
+  "priorEvidence": [
+    {
+      "path": "research/vehicle-diagnostics/dtc-persistence-followup-20261021.json",
+      "bytes": 18655,
+      "sha256": "9c75673e0547fd70d9b9a98b78b053308b2b4474a96bc5418efa07444a319bac"
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-package-name-followup-20261021.json",
+      "bytes": 34567,
+      "sha256": "3dc57139bd3a2624d47c3ee4f64eda9add1168f24cd84ec3899a323c5d357210"
+    },
+    {
+      "path": "research/vehicle-diagnostics/dtc-20261018.json",
+      "bytes": 2370,
+      "sha256": "83d1b1730075b453c9e9ba26831df38ce08475694d7d62a315140400ba87dcea"
+    },
+    {
+      "path": "research/vehicle-diagnostics/dtc-reference-20261018.json",
+      "bytes": 2299,
+      "sha256": "f6c789085eed26867ef9aaaf371860940daec9cc20b85cf5ecc7b6927209d873"
+    },
+    {
+      "path": "captures/diagnostics-scanner-20261020/last-scan-1931.json",
+      "bytes": 41256,
+      "sha256": "cc54c867d6f2f9eacf565af62943767ac5e6e3d2c38de3a892a39d5adef797e4"
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-persistence-alternatives-20261021.json",
+      "bytes": 10159,
+      "sha256": "6d090ac41575fc9b99ed1f0d516de03d9330938bad15f93190234e5e921603db"
+    }
+  ],
+  "result": {
+    "newQualifiedDtcDefinitions": 0,
+    "newQualifiedChildRoles": 0,
+    "newWarningDtcLinks": 0,
+    "liveResultCacheRecovered": false,
+    "selectedKeyCount": 3,
+    "selectedKeysPresent": 0
+  },
+  "liveSession": {
+    "schema": "denza-lab.diagnostic-label-cache-session.v1",
+    "status": "complete",
+    "exportClosed": true,
+    "watchdogTerminal": true,
+    "leaseReleased": true,
+    "forwardRemoved": true,
+    "postApkIdentityVerified": true,
+    "listenerTrace": [
+      {
+        "phase": "preflight",
+        "elapsedMs": 0,
+        "ports": []
+      },
+      {
+        "phase": "start",
+        "elapsedMs": 855,
+        "ports": [
+          46320,
+          46321,
+          46322
+        ]
+      },
+      {
+        "phase": "close",
+        "elapsedMs": 1204,
+        "ports": []
+      },
+      {
+        "phase": "close",
+        "elapsedMs": 1831,
+        "ports": []
+      }
+    ],
+    "startedUtc": "2026-10-21T17:23:55.074420+00:00",
+    "finishedUtc": "2026-10-21T17:23:59.013608+00:00"
+  },
+  "projectedFiles": [
+    {
+      "source": "/data/user_de/0/com.byd.spotinspection/shared_prefs/com.byd.spotinspection.xml",
+      "status": "projected",
+      "rawSizeBytes": 65,
+      "rawSha256": "3325d2a819fdd8062c2cdc48a09b995c9b012915bcdf88b1cf9742a7f057c793",
+      "selected": {
+        "RUNNING_TASK": {
+          "status": "key_missing"
+        },
+        "afterRunRes": {
+          "status": "key_missing"
+        }
+      }
+    },
+    {
+      "source": "/data/user/0/com.byd.otaupdate/shared_prefs/share_data_prefs.xml",
+      "status": "projected",
+      "rawSizeBytes": 705,
+      "rawSha256": "d3d4eced92d1c21ce7fe63e211449f2ff2d9face92376505f35e8329ce87c2ca",
+      "selected": {
+        "otaUpdateDownloadFileInfo": {
+          "status": "key_missing"
+        }
+      }
+    }
+  ],
+  "replayBoundary": "Raw XML and directory listings were intentionally not persisted. Offline replay verifies the source-pinned narrow parser, sanitized receipt, sizes/hashes, key-state evidence and lifecycle trace; it cannot reparse discarded raw XML. Missing keys are an observed point-in-time result, not proof of historical absence.",
+  "nextEvidence": "An already existing applicable inspection script or exact ECU software dictionary remains required. Manual DB location is source-backed, but app-UID access and database snapshot strategy are not qualified; no additional export is authorized.",
+  "manualAccessBoundary": {
+    "status": "offline_declared_provider_and_entry_paths_only; no_runtime_call",
+    "sources": {
+      "manifest": {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/resources/AndroidManifest.xml",
+        "bytes": 4846,
+        "sha256": "1dcc8033e0857586cba2022fdcdf4b68e2aaf916d46550d2cfbbb989cc13a839",
+        "ranges": [
+          {
+            "start": 73,
+            "end": 83,
+            "sha256": "c38813b3fdce725a9445fdc4b4e2540248e0aaeeeebf5dffa095df08a18006e0"
+          },
+          {
+            "start": 85,
+            "end": 96,
+            "sha256": "63666d00703da56d8345d074784b099861a03375e2cd1dc69ada41207bd2de1b"
+          }
+        ]
+      },
+      "providerPaths": {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/resources/res/xml/file_paths.xml",
+        "bytes": 287,
+        "sha256": "40acf35d3e0d512fb83e874d2283b96358811b60066b556017b2f38c3fcac6a4",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 9,
+            "sha256": "40acf35d3e0d512fb83e874d2283b96358811b60066b556017b2f38c3fcac6a4"
+          }
+        ]
+      },
+      "installer": {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/util/ApkInstaller.java",
+        "bytes": 3824,
+        "sha256": "2d5c51d35b337a0d2633ba2eb1161527ceb5acd0d05c6104e2844bb17375db32",
+        "ranges": [
+          {
+            "start": 53,
+            "end": 75,
+            "sha256": "8a4a27af923b8f5581087819718dec19c9cb16336b5d628a038578e0de23e4e3"
+          }
+        ]
+      },
+      "entry": {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydAutoManual/sources/com/byd/auto_emanual/BootActivity.java",
+        "bytes": 59428,
+        "sha256": "8a2596c9c31ec240de009c3f7d0795de9a95b04ecdeeeb3516b12444bb5d4da2",
+        "ranges": [
+          {
+            "start": 151,
+            "end": 168,
+            "sha256": "d4e8291ea0e72e215722f4fc9930a5d36c7e8cedf41218572198d174d0aef27b"
+          },
+          {
+            "start": 402,
+            "end": 415,
+            "sha256": "43e79fe631fba2592f817676b635ed7ce6ae8827bcfec5244d81ecd92b2a3e16"
+          }
+        ]
+      }
+    },
+    "findings": [
+      "The installed-build manifest declares FileProvider and InitializationProvider with exported=false; no declared manual database query provider.",
+      "file_paths.xml contains two external-path roots, neither a private app database root. Existing URI grants and runtime custom behavior were not inspected.",
+      "The located app-package FileProvider call is ApkInstaller.installBySystem, sharing an APK with package-archive MIME and read grant. It is not a manual-cache export interface. installSilence contains a decompiler failure and was not used to claim global absence of other paths.",
+      "The inspected BootActivity entry/deeplink paths clear external-call parameters and open/load content; they are not a passive database locator. No Activity, provider or download was invoked."
+    ],
+    "newQualifiedReadback": false
+  }
+}

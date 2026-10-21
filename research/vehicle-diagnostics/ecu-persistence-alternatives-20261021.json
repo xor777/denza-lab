@@ -1,0 +1,233 @@
+{
+  "schema": "denza-lab.ecu-persistence-alternatives.v1",
+  "date": "2026-10-21",
+  "scope": "Offline source-only follow-up after the completed two-file cache observation. Narrow new candidates: lower-level GCY download bookkeeping and failed download-report queue. No repeat cache/OTA/archive/broad fingerprint scan.",
+  "actions": {
+    "vehicleOperations": 0,
+    "adbOperations": 0,
+    "BydLogOperations": 0,
+    "networkRequests": 0,
+    "factoryServerRequests": 0,
+    "credentialAcquisitions": 0,
+    "encryptedWrapperDecodes": 0,
+    "newExtractions": 0,
+    "newDecompiles": 0,
+    "productChanges": 0
+  },
+  "result": {
+    "newNamedRoles": 0,
+    "newQualifiedDtcDefinitions": 0,
+    "newFullSoftwareToFactoryNameJoin": false,
+    "newExistingDictionaryRecovered": false,
+    "newAlternativePersistenceCandidatesAudited": 2
+  },
+  "latestKnownSelectedKeyObservation": {
+    "source": {
+      "path": "captures/diagnostic-cache-access-20261021/approved-export-1/result.json",
+      "bytes": 3875,
+      "sha256": "6cf6239a170c47865106c5f366270acc1c717ecf4ecacf4318c20bd084c6a30c"
+    },
+    "status": "complete",
+    "closureAndCleanupVerified": true,
+    "files": [
+      {
+        "bytes": 65,
+        "sha256": "3325d2a819fdd8062c2cdc48a09b995c9b012915bcdf88b1cf9742a7f057c793",
+        "keys": {
+          "RUNNING_TASK": "key_missing",
+          "afterRunRes": "key_missing"
+        }
+      },
+      {
+        "bytes": 705,
+        "sha256": "d3d4eced92d1c21ce7fe63e211449f2ff2d9face92376505f35e8329ce87c2ca",
+        "keys": {
+          "otaUpdateDownloadFileInfo": "key_missing"
+        }
+      }
+    ],
+    "qualification": "Prior owner-authorized observation, not an action by this follow-up. Only selected keys were projected; no inference about other preference keys or files."
+  },
+  "newSourceFindings": [
+    {
+      "id": "transport_download_preferences",
+      "status": "source_verified_no_semantic_identity_fields",
+      "expectedPath": "/data/user/0/com.byd.otaupdate/shared_prefs/download_info_prefs.xml",
+      "keyConstruction": "DOWNLOAD_FILE_INFO_ + exact downloadUrl",
+      "writer": "DownloadFileHelper.saveOrUpdateDownloadFileInfo → SpWrapper.useDownloadInfoSPInstance().putString",
+      "declaredFields": [
+        "createTime",
+        "downAllTime",
+        "downNeedTime",
+        "downRange",
+        "downTime",
+        "fileDir",
+        "fileFullName",
+        "fileMD5",
+        "fileName",
+        "fileSHA256",
+        "fileSize",
+        "fileType",
+        "fileUrl",
+        "fileVersion",
+        "status"
+      ],
+      "observedInitAssignments": [
+        "fileUrl",
+        "fileFullName",
+        "fileDir",
+        "fileName",
+        "fileMD5",
+        "fileSHA256",
+        "status"
+      ],
+      "missingBindingFields": [
+        "ecuId",
+        "ecuDescription",
+        "ecuSoftCode",
+        "ecuDiaId",
+        "ecuDId",
+        "childDID"
+      ],
+      "meaning": "May locate a previously downloaded file by path/hash, but the model is generic transport bookkeeping. It supplies neither a descriptive ECU name nor an ECU/child route join. A declared fileVersion is not proof that the shown writer populates it or that it is the installed ECU code.",
+      "acquired": false,
+      "acquisitionProposed": false,
+      "sourceKeys": [
+        "downloadHelper",
+        "downloadModel",
+        "downloadWriter",
+        "preferenceRouter",
+        "preferenceNames"
+      ]
+    },
+    {
+      "id": "failed_download_report_queue",
+      "status": "source_verified_identity_code_projection_drops_names",
+      "expectedPath": "/data/user/0/com.byd.otaupdate/shared_prefs/share_data_prefs.xml",
+      "key": "downloadResultSubmitInfo",
+      "recordPath": "ecuModel[]",
+      "declaredRecordFields": [
+        "ecuDestReason",
+        "ecuDestStatus",
+        "ecuDestTime",
+        "ecuId",
+        "ecuOriginReason",
+        "ecuOriginSVer",
+        "ecuOriginStatus",
+        "ecuOriginTime",
+        "ecuSoftCode",
+        "ecuSoftVer"
+      ],
+      "writerCopies": [
+        "ecuId",
+        "target main ecuSoftCode/ecuSoftVer OR target config ecuConfigCode/ecuConfigVer",
+        "download status/time/message",
+        "source-version/status/time joined to an existing target row by ecuId"
+      ],
+      "dropsFromEcuVersionInfo": [
+        "ecuDescription",
+        "fileName",
+        "fileDir",
+        "ecuUpgradePart",
+        "route",
+        "childDID"
+      ],
+      "persistenceCondition": "Existing queue is cleared before loadDownloadReportData; onFail saves the outgoing report again. Successful send does not restore it.",
+      "meaning": "A retained failed-report row could preserve a target/config code candidate, not an installed software identity or a named role. Generic downStatusMsg/Reason is a transfer outcome and must not be promoted to a component description.",
+      "acquired": false,
+      "acquisitionProposed": false,
+      "sourceKeys": [
+        "reportWriter",
+        "reportModel",
+        "reportStorage",
+        "reportPreferenceKey"
+      ]
+    },
+    {
+      "id": "generated_package_filename",
+      "status": "source_verified_locator_not_component_name",
+      "pattern": "<ecuDiaSendCode>_<ecuSoftCode>_<ecuSoftVer>.zip",
+      "firstFieldRule": "For an equal ecuId, sequence.logicAddress wins when nonempty; otherwise first part of sequence.ecuDiaId. Empty if no match.",
+      "meaning": "A filename may embed a complete target code, but its prefix is not universally a CAN address and filename text is not an explicit descriptive component name. Without original applicable strategy/component manifest it cannot choose INS/FRL/switch subroles.",
+      "sourceKeys": [
+        "packageFilename"
+      ]
+    },
+    {
+      "id": "ordinary_getEcuList_http_cache",
+      "status": "bounded_source_negative",
+      "claim": "The inspected GCY HttpCacheInterceptor builds noCache+noStore. Its name is not evidence of a retained HTTP response archive. EcuListBean itself has routes/identity/version/config fields and no ecuDescription.",
+      "meaning": "The earlier whole-response privacy projection still cannot prove upstream field absence. The typed in-app model and its existing version/result projections do not retain a new descriptive field. No original server response or disk cache was recovered.",
+      "sourceKeys": [
+        "httpCachePolicy",
+        "getEcuListModel"
+      ]
+    }
+  ],
+  "alreadyClosedPathsNotRepeated": [
+    {
+      "path": "getEcuList → diagnosed mEcuListInfo → ecuDiagnosisResultListInfo / ECUVersion.json",
+      "basis": "Earlier stock-cache-followup and ecu-role-binding reports already trace the conditional write and six-field installed-version projection. No new descriptive schema was found here."
+    },
+    {
+      "path": "inspection RUNNING_TASK, afterRunRes, station-session, mqtt-cache, Scripts/<station>/<code>-<version> siblings, internal fallback and legacy SpotIns",
+      "basis": "factory-scenario-origin already documents these, including outgoing retry semantics and conditional plaintext/internal fallback. New selected-key receipt adds absence only for the two inspected keys; not a new alternative persistence path."
+    },
+    {
+      "path": "otaResultEcuListInfo / upgradeResultSubmitInfo / repairUpgradeEcuListInfo / upgradeInfo.json",
+      "basis": "Existing OtaResultEcuInfo projections retain route/code/history or status; baseline role report already shows description is not carried into these result rows. Re-reading them alone does not close a named-role gap."
+    }
+  ],
+  "bestNextArtifact": {
+    "role": "An already legitimately retained applicable EcuVersionInfo/strategy or supplier component-manifest record preserving ecuDescription, exact ecuId and complete code, plus explicit installed-code applicability and the exact factory route/child-DID join.",
+    "dtc": "An original applicable plaintext EOL script with selection station/code/version, Attach raw code/description list, exact route and any ECU/software applicability conditions; or the corresponding OEM service fault list with revision/ECU scope.",
+    "insufficient": [
+      "another transport download cache",
+      "download success/failure reason",
+      "generated filename alone",
+      "another installed-version read",
+      "selected-key absence treated as whole-file absence",
+      "starting a task/check/download merely to populate persistence"
+    ],
+    "acquisitionAuthorizedByThisReport": false
+  },
+  "limits": [
+    "This pass establishes source schema and writer behavior only; no proposed alternative file was read from the vehicle.",
+    "Other client/application persistence or upstream fields are not globally excluded.",
+    "All prior named child-role and 7E5/782 physical-identity gaps remain unpromoted."
+  ],
+  "evidence": {
+    "sourceAnchors": {
+      "path": "captures/ecu-persistence-alternatives-20261021/source-anchors.json",
+      "bytes": 21257,
+      "sha256": "b1a36a0432723eb4cf7edd1a728f2cf169018bcff8b5a2c1228afcaedfdfa92c"
+    },
+    "priorReportsAndLatestReceipt": [
+      {
+        "path": "research/vehicle-diagnostics/ecu-role-binding-followup-20261021.json",
+        "bytes": 35163,
+        "sha256": "81007b4748cb800ae803d99851252aa619575306c036a0ea716238737dbb92ec"
+      },
+      {
+        "path": "research/vehicle-diagnostics/factory-scenario-origin-20261021.json",
+        "bytes": 31651,
+        "sha256": "5d05824fd134c2ec60101711ecaa611a678cfd07bd24cd78cfeaecded83a6a20"
+      },
+      {
+        "path": "research/vehicle-diagnostics/ota-strategy-followup-20261021.json",
+        "bytes": 34415,
+        "sha256": "78745681ec2c954d73dfa367aacd024bd4dd302fcceb52f626cdeac8cf1a13a4"
+      },
+      {
+        "path": "captures/diagnostics-discovery-20261018/stock-cache-followup/report.md",
+        "bytes": 8830,
+        "sha256": "3c2823448183dc68a947b8f3e5cab2a7e25c34d088b51215330c2c2aaae6a6c8"
+      },
+      {
+        "path": "captures/diagnostic-cache-access-20261021/approved-export-1/result.json",
+        "bytes": 3875,
+        "sha256": "6cf6239a170c47865106c5f366270acc1c717ecf4ecacf4318c20bd084c6a30c"
+      }
+    ]
+  }
+}

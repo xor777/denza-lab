@@ -2,9 +2,17 @@
 
 Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-data-findings.md#diagnostics-and-dtc-2026-10-18).
 
+- `diagnostic-cache-access-20261021.json`: installed-source identity and one
+  approved two-file export; RUNNING_TASK, afterRunRes and package-description
+  keys absent, closure/cleanup complete. Manual private DB access stays open.
+  `python3 -B research/vehicle-diagnostics/check_diagnostic_cache_access.py`.
 - `dtc-persistence-followup-20261021.json`: conditional saved code/description pairs,
   manual database-to-file locator and 11 byte-checked DEX methods; no actual dictionary.
   `python3 -B research/vehicle-diagnostics/check_dtc_persistence_followup.py`.
+- `ecu-persistence-alternatives-20261021.json`: generic download bookkeeping,
+  failed-report queue and generated filename do not restore ECU descriptions
+  or exact child bindings; no new acquisition or role promotion.
+  Covered by `check_diagnostic_cache_access.py` above.
 - `ecu-package-name-followup-20261021.json`: 49 outer OTA entries/35 media-component
   packages and the single download-record description lead; nine roles remain open.
   `python3 -B research/vehicle-diagnostics/check_ecu_package_name_followup.py`.

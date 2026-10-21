@@ -468,3 +468,32 @@ Offline checks:
 python3 -m unittest discover -s tools/vehicle-diagnostics -p 'test_run_vhds_config_export.py'
 python3 -m unittest discover -s research/vehicle-diagnostics -p 'test_read_vhds_config_export.py'
 ```
+
+## Diagnostic label-cache export
+
+`run_diagnostic_label_cache.py` reuses the close-before-project lifecycle for
+exactly two preferences files: SpotInspection's device-protected package prefs
+and OTA's `share_data_prefs.xml`. It selects only `RUNNING_TASK` script identity,
+`afterRunRes` result labels and `otaUpdateDownloadFileInfo` package identity.
+The manual's private SQLite databases, raw preferences and unrelated fields are
+excluded. A retained result is historical and still needs ECU/software binding.
+
+Default mode prints a plan and hashes seven source modules; `--preflight` only
+reads state. Execution requires a separately approved matching `--reviewed-plan`,
+`--run-acknowledged` and a new `--output`. The plan is consumed before preflight,
+including failed attempts. The shared lease, all-port closure check and watchdog
+limits above apply; the server still exposes deletion while open. No retry,
+inspection/OTA launch, factory-server request or ECU request is implemented.
+
+The one approved 2026-10-21 session completed with both files read (65/705 bytes),
+all three selected keys absent and every closure/cleanup gate true. Independent
+read-only postflight passed. Its permission is consumed; repeating unchanged
+preferences has no demonstrated value. The retained report is
+[`diagnostic-cache-access-20261021.json`](../../research/vehicle-diagnostics/diagnostic-cache-access-20261021.json).
+
+```bash
+python3 -B tools/vehicle-diagnostics/run_diagnostic_label_cache.py
+python3 -B -m unittest discover -s tools/vehicle-diagnostics -p 'test_run_diagnostic_label_cache.py'
+python3 -B -m unittest discover -s research/vehicle-diagnostics -p 'test_read_diagnostic_label_cache.py'
+python3 -B research/vehicle-diagnostics/check_diagnostic_cache_access.py
+```
