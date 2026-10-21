@@ -2,7 +2,7 @@
   "schema": "denza-lab.vhds-live-passive.v1",
   "date": "2026-10-21",
   "captureBase": "captures/vhds-live-passive-20261021",
-  "acquisition": "Existing trusted ADB transport; bounded passive shell reads only. No reconnect, property writes, VHDS invocation, diagnostic requests, backend requests or BydLog export START.",
+  "acquisition": "Initial passive phase used the existing trusted ADB transport for bounded shell reads only. It was followed by two separately approved bounded BydLog export attempts recorded below. No reconnect, property writes, VHDS invocation, diagnostic requests or factory backend requests.",
   "observed": {
     "profile": {
       "AutoType": "170",
@@ -32,7 +32,7 @@
     "Matching client library does not attest the unreadable daemon binary or its active configuration.",
     "Service-manager registration does not establish Binder permission or identify its calling client.",
     "No new ECU address, DTC meaning or warning-to-DTC mapping recovered.",
-    "BydLog export not started; old one-session approvals consumed; fresh approval required for the prepared single-file acquisition."
+    "Both separately approved sessions are consumed. Second attempt reached the file reader and returned missing without a configuration. No further export or request authorized."
   ],
   "nextAcquisition": {
     "file": "/data/vhds/trigger_list_cfg/allone.txt",
@@ -96,16 +96,60 @@
     "watchdog-fixture-review.json": {
       "bytes": 3504,
       "sha256": "7efc01e8c3aa51a481e571c090639a35a57708d72f462c76d9c49d26e56bea75"
+    },
+    "approved-export-1/result.json": {
+      "bytes": 1423,
+      "sha256": "4e2a19983d639a4ab859f383928fc1dbf25c5c9a3f8e30f54ae75842f20266e3"
+    },
+    "approved-export-1/postflight.json": {
+      "bytes": 956,
+      "sha256": "75c1a92cfe33b016037ef0f5d9cd8d36bb5156789b55005fa2e8a0970ac367e7"
+    },
+    "approved-export-1/passive-start-investigation.json": {
+      "bytes": 459,
+      "sha256": "f752891d3f05d3eb1a50cdda3e47ef890604ea6c80bdc97fbeb493c47ca7a824"
+    },
+    "approved-export-1/shell-owner-check.json": {
+      "bytes": 176,
+      "sha256": "fdf9cb7ce020e5628f6a8d154fd696ec9e96bcfbadfcba5713cb76f9caa07bc2"
+    },
+    "approved-export-1/port-state-postflight.json": {
+      "bytes": 314,
+      "sha256": "e99140e53c9c80e077461ca93b66196b0a500f663fabd779e2ae9b8d0bc1fecc"
+    },
+    "approved-export-1/listener-comparison.json": {
+      "bytes": 867,
+      "sha256": "f8dbb30c8166dcafd15175f41dd5db10487f787a0f56f0d15fdbae49304b3673"
+    },
+    "reviewed-plan-user0.json": {
+      "bytes": 1160,
+      "sha256": "83d83b006c122d71e40a7ac587d28b05a8b1290b6955ccdaaf1ec25e3ef79fb5"
+    },
+    "offline-verification-user0.json": {
+      "bytes": 1232,
+      "sha256": "c796621e238ffa6cca6bbaa70e933a0deb2095f199439dd5c09af2988ff73e38"
+    },
+    "approved-export-2/result.json": {
+      "bytes": 2036,
+      "sha256": "4b5b00d8fcb97b352ac141c4a4664236fe73d30b78299eca00f4063e8bfd02d0"
+    },
+    "approved-export-2/postflight.json": {
+      "bytes": 489,
+      "sha256": "7b7bfcc62133a8950a438692ce9c0a38c821e80766a6d03d2f26730434123a6b"
+    },
+    "approved-export-2/process-access-context.json": {
+      "bytes": 598,
+      "sha256": "a72f0805686a7ee77ac4243f10a9b8d0a5ae3f0518ece20b03c5fc5eccbc9888"
     }
   },
   "newEcuAddresses": 0,
   "newDtcDefinitions": 0,
-  "exportSessions": 0,
+  "exportSessions": 2,
   "preparedClient": {
     "runner": "tools/vehicle-diagnostics/run_vhds_config_export.py",
     "reader": "research/vehicle-diagnostics/read_vhds_config_export.py",
     "reviewedPlan": "captures/vhds-live-passive-20261021/reviewed-plan.json",
-    "executionAuthorization": "not yet granted",
+    "executionAuthorization": "Consumed by approved-export-1; no remaining permission.",
     "offlineTests": {
       "runner": 14,
       "reader": 33,
@@ -117,6 +161,219 @@
       "research/vehicle-diagnostics/read_vhds_config_export.py": "c09e45b4f71d9fd9ce7b459dafd07d85fc483797573e75db8858be69b6df109b",
       "research/vehicle-diagnostics/read_ecu_cache_export.py": "c0fe036f6c8954d5a75561ce34751f95875fa72cb0fd8e1d31d75afd0aae5dad"
     },
-    "review": "Offline independent lifecycle review passed after correcting release_unverified reporting. Delayed-START fixture timing was synchronized and temporary executable shims replaced with shell functions for deterministic host execution; production lifecycle unchanged."
-  }
+    "review": "Offline independent lifecycle review passed after correcting release_unverified reporting. Delayed-START fixture timing was synchronized and temporary executable shims replaced with shell functions for deterministic host execution; production lifecycle unchanged.",
+    "sourceCommit": "62058e80"
+  },
+  "approvedSession": {
+    "status": "refused",
+    "failureStage": "start",
+    "exportClosed": true,
+    "watchdogTerminal": true,
+    "leaseReleased": true,
+    "forwardRemoved": true,
+    "postApkIdentityVerified": true,
+    "startedUtc": "2026-10-21T16:12:38.802117+00:00",
+    "finishedUtc": "2026-10-21T16:12:44.018738+00:00",
+    "directoryListings": 0,
+    "fileDownloads": 0,
+    "ecuRequests": 0,
+    "factoryRequests": 0,
+    "vhdsInvocations": 0,
+    "approvalConsumed": true,
+    "independentPostflight": {
+      "exportIdle": true,
+      "apkHashVerified": true,
+      "leasesAbsent": true,
+      "exportForwardsRemaining": 0,
+      "crashBytes": 0,
+      "corePids": {
+        "vhds": "518",
+        "diagmgrsrv": "657",
+        "com.byd.avc": "4634",
+        "dev.denza.apps": "4597"
+      }
+    }
+  },
+  "startupInvestigation": {
+    "currentCause": "Unproved: the first runner retained stage=start but discarded the fixed exception subcode and listener samples.",
+    "supportedCandidate": "Inherited exact-three-port readiness rejects a usable user0 pair if unused user10 port46322 is absent. Prior same-car captures show exactly that refusal, then successful user0 acquisition with unchanged closure rules.",
+    "currentPassiveObservation": {
+      "utc": "2026-10-21T16:17:22.174186+00:00",
+      "readOnly": true,
+      "relevantSockets": [
+        {
+          "localPort": 46322,
+          "stateHex": "01",
+          "uid": "10151"
+        }
+      ],
+      "uidPackages": [
+        {
+          "package": "app.revanced.android.gms",
+          "uid": "10151"
+        }
+      ],
+      "remoteEndpointsSaved": false
+    },
+    "priorEvidence": [
+      {
+        "path": "captures/ota-catalog-listener-trace-20261021/read/session/session.json",
+        "sha256": "4475cad782c71b088b0b1a7ecf52f22a0c07074874f0db4ea4c758d210928136",
+        "status": "refused",
+        "error": "listeners_not_ready",
+        "exportClosed": true,
+        "watchdogTerminal": true,
+        "leaseReleased": true,
+        "startupPortSets": [
+          [
+            46320,
+            46321
+          ]
+        ],
+        "closedPortSets": [
+          []
+        ]
+      },
+      {
+        "path": "captures/ota-catalog-listener-trace-20261021/read-user0/session/session.json",
+        "sha256": "38d09d226da4842f9d4dbec0ee9ec38990951a649203d2a8ae2b4c412c1ca1af",
+        "status": "complete",
+        "error": null,
+        "exportClosed": true,
+        "watchdogTerminal": true,
+        "leaseReleased": true,
+        "startupPortSets": [
+          [
+            46320,
+            46321
+          ]
+        ],
+        "closedPortSets": [
+          []
+        ]
+      }
+    ],
+    "logBoundary": "Zero receiver tokens in retained package log is not proof of nondelivery. LogReceiver Log.i is not gated by DebugConfig; no debug property was changed.",
+    "followup": "Applied the previously qualified user0 readiness in the second separately approved session. Observed46320/46321 ready, reached reader, then all export listeners closed. Original first-session subcode is still unrecoverable."
+  },
+  "followupClient": {
+    "reviewedPlan": "captures/vhds-live-passive-20261021/reviewed-plan-user0.json",
+    "sourceSha256": {
+      "tools/vehicle-diagnostics/run_vhds_config_export.py": "e9db66587c6980a67b496c0f808c108228e66f7e9e753b7585b997256e5a4d4a",
+      "tools/vehicle-diagnostics/run_ecu_map_metadata.py": "8dd71f394a0cd9e263fb748122335528a75c652e644b214719be5087aa891b92",
+      "research/vehicle-diagnostics/read_vhds_config_export.py": "c09e45b4f71d9fd9ce7b459dafd07d85fc483797573e75db8858be69b6df109b",
+      "research/vehicle-diagnostics/read_ecu_cache_export.py": "c0fe036f6c8954d5a75561ce34751f95875fa72cb0fd8e1d31d75afd0aae5dad"
+    },
+    "tests": {
+      "runner": 18,
+      "reader": 33,
+      "sharedLifecycle": 23
+    },
+    "independentOfflineReview": "no critical findings; 18 runner tests independently passed",
+    "authorization": "One revised session approved and consumed by approved-export-2; no remaining approval."
+  },
+  "approvedUser0Session": {
+    "status": "refused",
+    "failureStage": "read",
+    "readError": "missing",
+    "exportClosed": true,
+    "watchdogTerminal": true,
+    "leaseReleased": true,
+    "forwardRemoved": true,
+    "postApkIdentityVerified": true,
+    "listenerTrace": [
+      {
+        "phase": "preflight",
+        "elapsedMs": 0,
+        "ports": []
+      },
+      {
+        "phase": "start",
+        "elapsedMs": 926,
+        "ports": [
+          46320,
+          46321
+        ]
+      },
+      {
+        "phase": "close",
+        "elapsedMs": 1129,
+        "ports": []
+      },
+      {
+        "phase": "close",
+        "elapsedMs": 1775,
+        "ports": []
+      }
+    ],
+    "startedUtc": "2026-10-21T16:20:54.804375+00:00",
+    "finishedUtc": "2026-10-21T16:20:57.289935+00:00",
+    "directoryListings": 1,
+    "fileDownloadRequestsMin": 0,
+    "fileDownloadRequestsMax": 1,
+    "configurationReceived": false,
+    "ecuRequests": 0,
+    "factoryRequests": 0,
+    "vhdsInvocations": 0,
+    "approvalConsumed": true,
+    "independentPostflight": {
+      "utc": "2026-10-21T16:21:55.164623+00:00",
+      "readOnly": true,
+      "exportIdle": true,
+      "bydLogPid": "4743",
+      "bydLogStartTicks": "2411",
+      "apkHashVerified": true,
+      "leasesAbsent": true,
+      "diagnosticTasks": "r@-1_0&w@-1_0",
+      "corePids": {
+        "vhds": "518",
+        "diagmgrsrv": "657",
+        "com.byd.avc": "4634",
+        "dev.denza.apps": "4597"
+      },
+      "crashBytes": 0,
+      "crashSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exportForwardsRemaining": 0
+    }
+  },
+  "cacheAccessBoundary": {
+    "clientResult": "missing; not necessarily a retained server code1",
+    "ambiguity": "The reader uses missing for a server not-found reply, an absent name in the parent listing, or a not-found download. Request substage was not retained. No configuration bytes were returned.",
+    "serverSemantics": "FileTransferHandler maps !exists/!isDirectory and !exists/!isFile to code1. A null listFiles() yields a successful empty listing; client then reports missing. This does not distinguish absent path from OS/SELinux denial.",
+    "currentProcessContext": {
+      "utc": "2026-10-21T16:23:55.591528+00:00",
+      "readOnly": true,
+      "processes": {
+        "vhds": {
+          "status": {
+            "Name": "vhds",
+            "Umask": "0077",
+            "Uid": "0\t0\t0\t0",
+            "Gid": "0\t0\t0\t0"
+          },
+          "selinux": "u:r:vhds:s0\u0000"
+        },
+        "bydlogtool": {
+          "status": {
+            "Name": ".byd.bydlogtool",
+            "Umask": "0077",
+            "Uid": "1000\t1000\t1000\t1000",
+            "Gid": "1000\t1000\t1000\t1000",
+            "CapPrm": "0000001000000000",
+            "CapEff": "0000001000000000"
+          },
+          "selinux": "u:r:bydlogtool_app:s0\u0000"
+        }
+      }
+    },
+    "sourcePermissions": "Previously byte-checked VHDS168C0 mkdir0777 and179E0 fopen(wb), subject to umask. Current VHDS is uid0/gid0 with umask0077; BydLogTool uid1000/gid1000.",
+    "conditionalInference": "If these directories/files were created by VHDS under the observed mask, directory modes would be0700 and new files0600, owned by root. Existing ownership/modes and the umask at their creation remain unobserved. BydLogTool effective capability mask has neither DAC override bit1 nor DAC read/search bit2. This assumes the unreadable running daemon follows the examined owner-firmware implementation; only the client library hash is currently verified.",
+    "conclusion": "This acquisition route did not recover the cache. Do not retry it unchanged or claim the file absent, the active configuration empty, or DTCs absent.",
+    "sourceHashes": {
+      "research/vehicle-diagnostics/hal-collection-readback-20261021.json": "7b2f393932c5a3c0c4693dbd70f6730dba64e8b7366fc9df01a20086b2af0390",
+      "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydLogTool/sources/com/byd/bydlogtool/socket/filetransfer/FileTransferHandler.java": "587a8dec0f3720f9e762feb8aae4df08df99431a380aa15465cc80667b15d011",
+      "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydLogTool/sources/com/byd/bydlogtool/socket/filetransfer/FileTransferProtocol.java": "00e69b89fb6771be7adca4febee3a26ee65d9ea9e6717f01f75f157ccf82ad82"
+    }
+  },
+  "independentResultReview": "24 local evidence hashes, 2 prior-session hashes, 4 revised runtime pins, 3 access-source hashes and both session outcomes/plan pins independently checked offline; no proof of cache absence inferred."
 }

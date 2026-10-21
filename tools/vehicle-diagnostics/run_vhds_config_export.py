@@ -14,6 +14,7 @@ import re
 import secrets
 import shlex
 import sys
+import time
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
@@ -29,6 +30,16 @@ invalid_json_number invalid_response_header json_length_out_of_bounds invalid_js
 response_status_conflict remote_error_2 remote_error_3 remote_error_4 remote_error_5
 invalid_file_size invalid_directory_listing invalid_listing_name duplicate_listing_name
 file_name_conflict file_size_out_of_bounds file_size_conflict invalid_md5 md5_mismatch
+""".split())
+LIFECYCLE_ERRORS = frozenset("""
+existing_adb_server_unavailable adb_unavailable_or_deadline adb_command_failed
+adb_output_invalid existing_transport_unavailable unexpected_shell_identity
+vehicle_profile_mismatch apk_path_mismatch apk_hash_mismatch
+shared_export_directory_occupied export_listener_present helper_already_present
+bydlog_pid_unavailable process_identity_unavailable thread_inventory_unavailable
+export_threads_present shared_export_directory_claim_unverified
+forward_port_unverified watchdog_unverified listeners_not_ready
+socket_inventory_incomplete socket_inventory_invalid
 """.split())
 
 
@@ -48,12 +59,45 @@ def plan():
         "directoryListings": 1, "fileDownloads": 1, "retries": 0,
         "maxFileBytes": 1048576, "readDeadlineSeconds": 20,
         "watchdogBeginsStopSeconds": 30, "hardClosureDeadlineGuaranteed": False,
+        "requiredReadyPorts": [46320, 46321], "optionalReadyPort": 46322,
+        "exclusionAndClosurePorts": sorted(lifecycle.ALL_PORTS),
         "privateResponseSaved": False, "ecuRequests": 0, "factoryRequests": 0,
         "vhdsInvocations": 0, "freshOwnerApprovalRequired": True,
     }
 
 
 class Device(lifecycle.Device):
+    def ports(self):
+        observed = super().ports()
+        if not hasattr(self, "listener_trace"):
+            self.listener_trace = []
+            self.listener_trace_start = time.monotonic()
+        if len(self.listener_trace) < 256:
+            self.listener_trace.append({
+                "phase": getattr(self, "listener_phase", "preflight"),
+                "elapsedMs": int((time.monotonic() - self.listener_trace_start) * 1000),
+                "ports": sorted(observed & lifecycle.ALL_PORTS),
+            })
+        return observed
+
+    def start(self):
+        # This file is on user0. The stock unused user10 listener may fail to
+        # bind if unrelated outbound traffic occupies 46322. This exact policy
+        # already passed a retained user0 export on this car; do not relax the
+        # inherited all-six preflight/closure checks or either deadline.
+        self.listener_phase = "start"
+        self.shell(f"sh {lifecycle.LEASE}/transition.sh start", timeout=4)
+        deadline = time.monotonic() + 2
+        while (self.ports() & lifecycle.ALL_PORTS) not in (
+                lifecycle.PORTS, lifecycle.PORTS - {46322}):
+            if time.monotonic() >= deadline:
+                raise lifecycle.Refused("listeners_not_ready")
+            time.sleep(0.1)
+
+    def close_export(self, pid):
+        self.listener_phase = "close"
+        super().close_export(pid)
+
     def identity(self):
         package = "com.byd.bydlogtool"
         path, digest = lifecycle.APKS[package]
@@ -127,6 +171,8 @@ def run(device, reader, nonce):
         # Never reflect remote strings, paths or arbitrary exception text.
         state["error"] = "acquisition_failed_or_interrupted"
         state["failureStage"] = stage
+        if isinstance(error, lifecycle.Refused) and str(error) in LIFECYCLE_ERRORS:
+            state["lifecycleError"] = str(error)
         if stage == "read" and str(error) in READ_ERRORS:
             state["readError"] = str(error)
     finally:
@@ -167,6 +213,7 @@ def run(device, reader, nonce):
             state["error"] = "cache_projection_rejected"
     elif claimed and not complete:
         state["status"] = "incomplete"
+    state["listenerTrace"] = getattr(device, "listener_trace", [])
     return state
 
 

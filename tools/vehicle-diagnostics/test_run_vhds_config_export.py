@@ -1,5 +1,6 @@
 import contextlib
 import io
+import itertools
 import json
 from pathlib import Path
 import tempfile
@@ -176,6 +177,60 @@ class LifecycleTests(unittest.TestCase):
         self.assertTrue(all(item.startswith("umask 077; printf") for item in calls[:2]))
         self.assertEqual(calls[2], "mkdir /data/local/tmp/logtool && echo created")
         self.assertNotIn("classes.dex", "".join(calls))
+
+    def test_every_port_subset_requires_user0_and_rejects_legacy_listeners(self):
+        ports = sorted(runner.lifecycle.ALL_PORTS)
+        accepted = []
+        for bits in itertools.product((False, True), repeat=len(ports)):
+            present = {port for port, bit in zip(ports, bits) if bit}
+            device = runner.Device()
+            with patch.object(device, "shell", return_value="transitioned") as shell, \
+                    patch.object(device, "ports", return_value=present), \
+                    patch.object(runner.time, "monotonic", side_effect=[0, 3]):
+                try:
+                    device.start()
+                    accepted.append(present)
+                except runner.lifecycle.Refused as error:
+                    self.assertEqual(str(error), "listeners_not_ready")
+            self.assertEqual(shell.call_count, 1)
+        self.assertEqual(accepted, [{46320, 46321}, {46320, 46321, 46322}])
+
+    def test_close_still_rejects_each_of_all_six_ports(self):
+        for port in runner.lifecycle.ALL_PORTS:
+            device = runner.Device()
+            with patch.object(device, "shell", return_value="transitioned"), \
+                    patch.object(device, "ports", return_value={port}), \
+                    patch.object(runner.lifecycle.time, "monotonic", side_effect=[0, 3]), \
+                    self.assertRaises(runner.lifecycle.Refused) as caught:
+                device.close_export("4743")
+            self.assertEqual(str(caught.exception), "listeners_still_present")
+
+    def test_trace_has_only_known_ports_and_no_extra_reads(self):
+        device = runner.Device()
+        raw = ("sl local_address rem_address st\n"
+               "0: 00000000:B4F1 0:0 0A\n1: 00000000:0016 0:0 0A\n"
+               "sl local_address rem_address st\n")
+        with patch.object(device, "shell", return_value=raw) as shell:
+            for phase in ("preflight", "start", "close"):
+                device.listener_phase = phase
+                self.assertEqual(device.ports(), {46321, 22})
+            self.assertEqual(shell.call_count, 3)
+            self.assertEqual([row["phase"] for row in device.listener_trace], ["preflight", "start", "close"])
+            for _ in range(260): device.ports()
+        self.assertEqual(len(device.listener_trace), 256)
+        self.assertTrue(all(row["ports"] == [46321] for row in device.listener_trace))
+
+    def test_lifecycle_subcodes_are_allowlisted(self):
+        for code in ("listeners_not_ready", "private_remote_message"):
+            device = FakeDevice()
+            with patch.object(device, "start", side_effect=runner.lifecycle.Refused(code)):
+                state = runner.run(device, FakeReader(device), "a" * 32)
+            self.assertTrue(state["exportClosed"])
+            if code == "listeners_not_ready":
+                self.assertEqual(state["lifecycleError"], code)
+            else:
+                self.assertNotIn("lifecycleError", state)
+                self.assertNotIn(code, json.dumps(state))
 
 
 if __name__ == "__main__":

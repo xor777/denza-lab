@@ -410,7 +410,7 @@ execution. The complete225-row projection was validated afterward. Evidence,
 reviewed sources, pins, authorization and cleanup are in
 `captures/diagnostics-next-20261020/`; no private input bytes are retained there.
 
-## Existing VHDS signal configuration (prepared, 2026-10-21)
+## Existing VHDS signal configuration (acquisition negative, 2026-10-21)
 
 `run_vhds_config_export.py` prepares a separate one-file export; it does not
 invoke the metadata/OTA helper above. Default execution prints a local plan
@@ -436,8 +436,31 @@ APK identity and cleanup must all pass before projecting the response.
 The server still binds all interfaces and supports deletion; client restrictions
 do not remove this exposure. Watchdog STOP begins at30 seconds, without a hard
 closure guarantee for a hung Android receiver. Ambiguous closure leaves the
-watchdog/lease in place. Earlier approvals are consumed and do not authorize
-this session. The2026-10-21 passive preflight passed; no export has run.
+watchdog/lease in place. All previous approvals, including both VHDS sessions
+below, are consumed and do not authorize another export.
+
+Two separately approved attempts ran on2026-10-21. First: startup refusal before
+reader invocation, with complete cleanup; the precise error was not retained.
+Second: required user0 ports46320/46321 opened, the reader returned `missing`,
+and all export listeners/owned artifacts closed. Independent postchecks found
+unchanged core PIDs, matching APK, idle diagnostic tasks and no crash entries.
+No configuration, new ECU route or DTC definition was recovered.
+
+Startup now permits exactly46320/46321 with optional unused46322; all six
+preflight/closure checks remain mandatory. This policy had already succeeded in
+a separate retained user0 export. Current46322 is occupied by an unrelated
+established microG socket. Fixed lifecycle errors and a maximum256 samples of
+existing port checks are retained without extra device reads. Both allowed
+startup sets and every forbidden known-port subset are covered offline.
+
+`missing` is intentionally not evidence that the cache does not exist: the
+server's file checks/nullable listing and the reader collapse several outcomes.
+Live VHDS UID0/umask0077 versus BydLog UID1000 further supports an access boundary;
+root-created directories/files would be0700/0600 under that mask, but existing
+file modes and creation conditions remain unobserved. Do not repeat unchanged.
+Evidence is in `research/vehicle-diagnostics/vhds-live-passive-20261021.json` and
+local `captures/vhds-live-passive-20261021/`. The74 tests pass (18 runner,33 reader,
+23 shared lifecycle).
 
 Offline checks:
 

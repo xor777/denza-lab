@@ -123,10 +123,12 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
 - `vhds-live-passive-20261021.json` records the connected-car check: running
   process and registered service, matching libvhds hash, empty current journal,
   and denied shell access to the daemon/config cache. File existence and actual
-  configuration remain unknown. The prepared one-file reader is
-  `read_vhds_config_export.py`; its lifecycle is
-  `tools/vehicle-diagnostics/run_vhds_config_export.py`. No export has run;
-  fresh one-session approval is required for the stock all-interface listener.
+  configuration remain unknown. Two separately approved exports are consumed:
+  first refused at startup, second reached the reader and returned `missing`.
+  Both closed and cleaned up. Root VHDS/umask0077 versus BydLog UID1000 supports
+  an access limitation without proving the cache absent. The one-file reader
+  `read_vhds_config_export.py` and `tools/vehicle-diagnostics/run_vhds_config_export.py`
+  retain the user0 readiness fix, bounded port trace and74 passing offline tests.
 - `vhds-production-route-20261021.json` resolves production configuration loading
   through bound callbacks: type4 signal configuration and type2 ECU diagnostic
   requests have different parsers/cache behavior. The signal response is saved
