@@ -631,6 +631,19 @@ internal data class SystemsView(
     val adas: CompareView,
     /** The brake screen is the ESP/IPB module beside the OBD interface: both are in [DiagnosticsModel.modules]. */
     val brakeModules: List<Int>,
+    /** The OEM warning the instrument cluster (INS 723) is asked to show; no screen draws it yet. */
+    val clusterWarning: ClusterWarningView = SystemsBuilder.clusterWarning(null),
+)
+
+/**
+ * The instrument cluster's OEM warning (`1007·26100008`), [SystemsBuilder.clusterWarning]: a stock
+ * popup message's ID, not a DTC and not a fault of a known block.
+ */
+internal data class ClusterWarningView(
+    /** The message's words, «сообщение 0x2A3» for an ID without them, «нет сообщений» for 0, «н/д». */
+    val text: String,
+    /** The ID as read, 0 for none; null when nothing came or it was no ID. */
+    val id: Int?,
 )
 
 /** A value of the car's signal bus, with where it comes from and whether it is still fresh. */

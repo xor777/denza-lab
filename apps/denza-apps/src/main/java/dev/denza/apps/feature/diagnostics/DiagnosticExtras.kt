@@ -79,7 +79,14 @@ internal enum class DiagnosticExtra(
     TORQUE_REAR_RIGHT("torque_rear_right", 1039, 0x2850003C, 7, 1.0, 0.0, -5000.0..5000.0),
     CURRENT_FRONT("current_front", 1009, 0x46C00008, 7, 1.0, 0.0, -2000.0..2000.0),
     CURRENT_REAR_LEFT("current_rear_left", 1039, 0x28500178, 7, 1.0, 0.0, -2000.0..2000.0),
-    CURRENT_REAR_RIGHT("current_rear_right", 1039, 0x28500188, 7, 1.0, 0.0, -2000.0..2000.0);
+    CURRENT_REAR_RIGHT("current_rear_right", 1039, 0x28500188, 7, 1.0, 0.0, -2000.0..2000.0),
+
+    /**
+     * The OEM warning the instrument cluster is asked to show: `BYDAutoInstrumentDevice.getTextInfo`,
+     * an integer on 5, the 10-bit ID of CAN 0x261 unscaled, 0 for none (research
+     * oem-warning-mappings-20261021.json). Above 1023 is not an ID. Its words: SystemsBuilder.clusterWarning.
+     */
+    OEM_WARNING("oem_warning", 1007, 0x26100008, 5, 1.0, 0.0, 0.0..1023.0);
     fun decode(word: Int): Double? {
         // Same native no-data words as the shared AutoserviceShell; -1f is not a current.
         if (word == -10013 || word == -10011 || word == 0xBF800000.toInt()) return null

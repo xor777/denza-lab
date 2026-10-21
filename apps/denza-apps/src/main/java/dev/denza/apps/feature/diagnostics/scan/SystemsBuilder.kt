@@ -25,6 +25,7 @@ internal object SystemsBuilder {
         drives = drives(s),
         adas = adas(s),
         brakeModules = listOf(0x782, 0x7E5),
+        clusterWarning = clusterWarning(s.car.extra(DiagnosticExtra.OEM_WARNING)),
     )
 
     private fun hub(car: CarReadings, signal: VehicleSignal, decimals: Int = 0) =
@@ -230,6 +231,36 @@ internal object SystemsBuilder {
         PackReading("Зарядное устройство, состояние", "", extra = DiagnosticExtra.CHARGER_STATE, words = CHARGER_STATE_WORDS),
         PackReading("Зарядное устройство, отказ", "", extra = DiagnosticExtra.CHARGER_FAULT, words = CHARGER_FAULT_WORDS),
     )
+
+    /**
+     * The OEM warnings with a text, by ID (research oem-warning-mappings-20261021.json, the stock
+     * popup dictionary `popup_nads.json` 20250408): our translation of the stock Chinese, not a
+     * factory Russian text. An ID says what the cluster is asked to show, not which block failed.
+     */
+    val OEM_WARNING_WORDS = mapOf(
+        0x1B to "Неисправность тормозной системы; безопасно остановитесь и обратитесь в сервис.",
+        0x1E to "Слишком высокая температура охлаждающей жидкости ДВС; безопасно остановитесь и обратитесь в сервис.",
+        0x20 to "Недостаточное давление масла; безопасно остановитесь и обратитесь в сервис.",
+        0x21 to "Неисправность системы; безопасно остановитесь и обратитесь в сервис.",
+        0x46 to "Проверьте систему ABS.",
+        0x47 to "Проверьте систему полного привода.",
+        0x5D to "Низкий заряд тяговой батареи; мощность привода ограничена.",
+        0x358 to "Высокая температура батареи; ускорение ухудшено.",
+    )
+
+    /**
+     * The cluster's OEM warning (`1007·26100008`) in words: 0 «нет сообщений», an ID with a text its
+     * text, any other ID «сообщение 0x2A3»; above 1023 or a read that failed - [DiagnosticExtra.OEM_WARNING]
+     * refuses both - «н/д».
+     */
+    fun clusterWarning(value: Double?): ClusterWarningView {
+        val id = value?.toInt()?.takeIf { it in 0..1023 } ?: return ClusterWarningView(NA, null)
+        val text = when (id) {
+            0 -> "нет сообщений"
+            else -> OEM_WARNING_WORDS[id] ?: "сообщение 0x%03X".format(id)
+        }
+        return ClusterWarningView(text, id)
+    }
 
     /** A state's word: the firmware's name, «код N» for a code it does not name, «н/д» when nothing came. */
     fun word(words: Map<Int, String>, value: Double?): String {
