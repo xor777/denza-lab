@@ -115,7 +115,28 @@ class IdentityGateTest {
             assertNull(ecu.abbreviation, ScanRequests.gate(ecu))
             val bus = FakeDiagnosticBus()
             scan(ecu, bus)
-            assertEquals(ecu.abbreviation, "190109", bus.requests.first().substringAfter(' ').take(6))
+            // F194 first where the cache keeps the route's code (720, 722, 726, 747), unanswered here; the
+            // memory is asked all the same.
+            val first = if (ecu.snapshotF194 != null) listOf("22F194", "190109") else listOf("190109")
+            assertEquals(ecu.abbreviation, first, bus.requests.take(first.size).map { it.substringAfter(' ') })
+        }
+        assertEquals(listOf(0x720, 0x747, 0x722, 0x726),
+            EcuCatalog.routed.filter { ScanRequests.ungatedF194(it) }.map { it.request })
+    }
+
+    @Test
+    fun theUngatedF194NeverStopsTheMemoryRead() {
+        val zcu = EcuCatalog.byRequest(0x726)!!
+        // Its code, another code, a zero placeholder, a refusal, an answer to another DID, nothing at all.
+        listOf("62F1944B310011E001760100", "62F1944B310011E001760199", "62F194000000000000000000", "7F2231",
+            "62F1954B310011E001760100", null).forEach { answer ->
+            val bus = FakeDiagnosticBus()
+            answer?.let { bus.on(0x726, "22F194").answer(it) }
+            bus.on(0x726, "190109").answer("5901FF000000")
+            val r = scan(zcu, bus)
+            assertEquals("$answer", listOf("726 22F194", "726 190109"), bus.requests)
+            assertEquals("$answer", ModuleStatus.OK, r.status)
+            assertNull("$answer", r.identified)
         }
     }
 }

@@ -47,14 +47,24 @@ internal object ScanRequests {
         IdentityBasis.OBD_ECU_NAME -> ECU_NAME.takeIf { ecu.expectedObdName != null && ecu.obd }
         IdentityBasis.STOCK_ROUTE, IdentityBasis.NONE -> null
     }
+
+    /**
+     * `22 F194` asked before the memory where it is no gate (architecture, 5.1, 6; owner's decision
+     * 2026-10-21): a block named by a stock route whose code the update cache keeps - 720, 722, 726, 747.
+     * Whatever it answers, the memory read follows; a software code feeds the code history and the
+     * screens as a gate's does.
+     */
+    fun ungatedF194(ecu: Ecu): Boolean =
+        ecu.identity == IdentityBasis.STOCK_ROUTE && ecu.uds && ecu.snapshotF194 != null
 }
 
 /**
- * The autoscan's read of one module (architecture, 6): the gate, then `19 01`, `19 02` only when the
- * count is above zero (or `19 02` alone where the catalog says `19 01` never answers), then for an
- * OBD responder `01 01`, `03`, `07`, `0A`. A gate that does not pass ends the read: on a block that
- * does not say who it is - no answer, a refusal, no software code, another OBD name - nothing else
- * is asked.
+ * The autoscan's read of one module (architecture, 6): the gate - or, at a stock-route block the cache
+ * keeps a code for, `22 F194` that gates nothing ([ScanRequests.ungatedF194]) - then `19 01`, `19 02`
+ * only when the count is above zero (or `19 02` alone where the catalog says `19 01` never answers),
+ * then for an OBD responder `01 01`, `03`, `07`, `0A`. A gate that does not pass ends the read: on a
+ * block that does not say who it is - no answer, a refusal, no software code, another OBD name -
+ * nothing else is asked.
  */
 internal object ModuleProcedure {
     suspend fun read(ecu: Ecu, nowMillis: () -> Long, ask: suspend (DiagRequest) -> DiagReply): ModuleRead {
@@ -63,6 +73,7 @@ internal object ModuleProcedure {
         suspend fun send(uds: String): DiagReply = ask(DiagRequest(address, hexBytes(uds))).also { replies += it }
 
         val gate = ScanRequests.gate(ecu)?.let { send(it) }
+        if (gate == null && ScanRequests.ungatedF194(ecu)) send(ScanRequests.F194)
         if (gate == null || ModuleResult.gatePassed(ecu, gate)) {
             if (ecu.uds && !ecu.dtcCountAnswers) {
                 // DCOBC: `19 01` is never answered, the list alone is the memory.
@@ -86,9 +97,16 @@ internal class ModuleResult(val ecu: Ecu, val read: ModuleRead) {
     private fun <T> polled(uds: String, decode: (DiagReply.Answer) -> Decoded<T>): Polled<T> =
         read.reply(uds)?.let { Polled.of(it, decode) } ?: Polled.NotPolled
 
+    /**
+     * `22 F194` as it came wherever the autoscan asked it - a gate, or the ungated read of a stock-route
+     * block (5.1): the head's «ПО (F194)», the identification's row until the block's own read, the code
+     * history. NotPolled where it was not asked.
+     */
+    val f194: Polled<String> = polled(ScanRequests.F194) { a -> DiagDecoder.identification(a).map { it.text } }
+
     /** The gate's reading: the F194 data as it came or the OBD name, NotPolled where there is no gate. */
     val identity: Polled<String> = when (ScanRequests.gate(ecu)) {
-        ScanRequests.F194 -> polled(ScanRequests.F194) { a -> DiagDecoder.identification(a).map { it.text } }
+        ScanRequests.F194 -> f194
         ScanRequests.ECU_NAME -> polled(ScanRequests.ECU_NAME) { a -> ecuName(a) }
         else -> Polled.NotPolled
     }

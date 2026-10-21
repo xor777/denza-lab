@@ -65,8 +65,9 @@ import kotlinx.coroutines.launch
  * «Продолжить». [setCellsPaused] leaves the subscription and keeps the drawn sweep; resuming
  * subscribes again; leaving the tab ends the pause.
  *
- * **The code history** (5.5): every good software code a read brings - the autoscan's F194 gate, an
- * opened block's F194 and F195, the modules behind it - goes through [SoftwareHistory], loaded from
+ * **The code history** (5.5): every good software code a read brings - the autoscan's F194, gate or the
+ * ungated read of a stock-route block, an opened block's F194 and F195, the modules behind it - goes
+ * through [SoftwareHistory], loaded from
  * [software] when the work starts and written back by the worker whenever it learned something.
  *
  * Only [ScanStore], [SoftwareStore] and [StreamSinks] touch files and only [CarFeed] touches the hub;

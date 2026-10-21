@@ -32,12 +32,21 @@ internal object CarNow {
     private val candidateRows = research("factory-candidates-20261020.json").getJSONArray("runs").objects()
         .flatMap { it.getJSONArray("rows").objects() }
 
-    /** Every F194 the car returned, by address: the remaining-ECU and factory-candidate runs and run 4 of the OBD runs. */
+    /**
+     * Every F194 the car returned, by address: the remaining-ECU and factory-candidate runs and run 4 of the
+     * OBD runs; 720, 722, 726 and 747, which the autoscan asks without a gate, from the core-field run of
+     * 2026-10-21.
+     */
     val f194: Map<Int, String> by lazy {
+        val core = research("ota-core-fields-live-20261021.json").getJSONObject("selectedEcus")
+        val body = core.keys().asSequence().map { core.getJSONObject(it) }
+            .filter { it.getString("address") in setOf("720", "722", "726", "747") }
+            .associate { it.getString("address").toInt(16) to it.getJSONObject("fields").getJSONObject("ecuSoftCode").getString("responseHex") }
         (remainingRows + candidateRows).filter { it.getString("uds") == "22F194" && it.optString("result") == "ok" }
             .associate { it.getString("request").toInt(16) to it.getString("payload") } +
             obd.getJSONArray("run4_ident2").objects().filter { it.optString("result") == "ok" }
-                .associate { it.getString("request").toInt(16) to "62F194" + it.getString("value") }
+                .associate { it.getString("request").toInt(16) to "62F194" + it.getString("value") } +
+            body
     }
 
     fun payload(request: Int, uds: String): String = remainingRows

@@ -106,9 +106,8 @@ internal class SoftwareHistory(val records: Map<SoftwareKey, SoftwareRecord> = e
 
 /** The good software readings of one read: only a positive, well-formed, non-zero code is one. */
 internal object SoftwareReads {
-    /** The autoscan's: its F194 gate, where the gate is F194 and passed. */
+    /** The autoscan's: its `22 F194`, the gate or the ungated read of a stock-route block (5.1), where it brought a code. */
     fun of(result: ModuleResult): List<SoftwareRead> {
-        if (ScanRequests.gate(result.ecu) != ScanRequests.F194) return emptyList()
         val code = code(result.read.reply(ScanRequests.F194)) ?: return emptyList()
         return listOf(SoftwareRead(SoftwareKey(result.read.request), code, null))
     }

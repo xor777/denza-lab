@@ -54,7 +54,9 @@ class ScanStoreTest {
         val lbcm = (0 until modules.length()).map { modules.getJSONObject(it) }.first { it.getString("request") == "720" }
         assertEquals("HISTORY", lbcm.getString("status"))
         assertEquals(8, lbcm.getInt("history"))
-        assertEquals("5901FF000008", lbcm.getJSONArray("exchanges").getJSONObject(0).getString("answer"))
+        // Its F194, asked without a gate (5.1), then the memory.
+        assertEquals("62F1944B310011E0019A0002", lbcm.getJSONArray("exchanges").getJSONObject(0).getString("answer"))
+        assertEquals("5901FF000008", lbcm.getJSONArray("exchanges").getJSONObject(1).getString("answer"))
     }
 
     @Test

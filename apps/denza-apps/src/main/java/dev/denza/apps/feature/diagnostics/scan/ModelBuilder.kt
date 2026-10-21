@@ -188,7 +188,7 @@ internal class ModelBuilder(
             parts += formatLine(m)
         }
         val f195 = (id?.dids?.get(IdentDid.F195) as? Polled.Got)?.value?.shown
-        val f194 = (r?.identity as? Polled.Got)?.value?.takeIf { ecu.uds }
+        val f194 = (r?.f194 as? Polled.Got)?.value?.takeIf { ecu.uds }
         when {
             f195 != null -> parts += "ПО (F195) $f195"
             f194 != null -> parts += "ПО (F194) $f194"
@@ -287,7 +287,7 @@ internal class ModelBuilder(
             field("Протоколы", if (ecu.obd) "OBD-II · UDS (ISO 14229)" else "UDS (ISO 14229)")
             DID_ORDER.forEach { did ->
                 val p = id?.dids?.get(did)?.takeIf { it !is Polled.NotPolled }
-                    ?: if (did == IdentDid.F194) r?.identity ?: Polled.NotPolled else Polled.NotPolled
+                    ?: if (did == IdentDid.F194) r?.f194 ?: Polled.NotPolled else Polled.NotPolled
                 field("${DID_LABELS.getValue(did)} · 22 ${did.hex}", identText(p))
                 if (did == IdentDid.F195) updated(SoftwareKey(ecu.request))
             }

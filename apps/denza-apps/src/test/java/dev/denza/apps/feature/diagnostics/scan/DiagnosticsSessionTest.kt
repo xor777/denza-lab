@@ -35,16 +35,19 @@ class DiagnosticsSessionTest {
         val order = bus.exchanges.map { it.request.address }.distinct()
         assertEquals(EcuCatalog.routed.map { it.request }, order)
         assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A"), bus.requests.take(6))
-        // A stock-route module has no gate; the brake interface's gate is its OBD name.
-        assertEquals(listOf("720 190109", "720 190209"), bus.requests.filter { it.startsWith("720 ") })
+        // A stock-route module has no gate: where the cache keeps its code, F194 is asked and the memory
+        // follows whatever it says; LBMS keeps none. The brake interface's gate is its OBD name.
+        assertEquals(listOf("720 22F194", "720 190109", "720 190209"), bus.requests.filter { it.startsWith("720 ") })
+        assertEquals(listOf("726 22F194", "726 190109"), bus.requests.filter { it.startsWith("726 ") })
+        assertEquals(listOf("762 190109"), bus.requests.filter { it.startsWith("762 ") })
         assertEquals(listOf("7E5 090A", "7E5 0101", "7E5 03", "7E5 07", "7E5 0A"), bus.requests.filter { it.startsWith("7E5 ") })
         // DCOBC's 19 01 never answers: its list alone, at once.
         assertEquals(listOf("7E4 22F194", "7E4 190209"), bus.requests.filter { it.startsWith("7E4 ") })
-        // 63 gates (62 F194 and one 09 0A), 66 counts, 3 lists, 12 OBD reads.
-        assertEquals(63, bus.requests.count { it.endsWith(" 22F194") || it.endsWith(" 090A") })
+        // 63 gates (62 F194 and one 09 0A), 4 ungated F194, 66 counts, 3 lists, 12 OBD reads.
+        assertEquals(63 + 4, bus.requests.count { it.endsWith(" 22F194") || it.endsWith(" 090A") })
         assertEquals(66, bus.requests.count { it.endsWith(" 190109") })
         assertEquals(listOf("7E4 190209", "720 190209", "747 190209"), bus.requests.filter { it.endsWith(" 190209") })
-        assertEquals(144, bus.requests.size)
+        assertEquals(148, bus.requests.size)
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         assertEquals(LinkState.OK, s.model.value.header.link)
         s.stop()
@@ -242,7 +245,7 @@ class DiagnosticsSessionTest {
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         assertNull(s.model.value.scan.notice)
         assertEquals(2, bus.requests.count { it == "7E2 22F194" })
-        assertEquals(145, bus.requests.size)
+        assertEquals(149, bus.requests.size)
         s.stop()
     }
 
@@ -262,7 +265,7 @@ class DiagnosticsSessionTest {
         car.readings = FakeCar.parked()
         advanceTimeBy(500)
         runCurrent()
-        assertEquals(144, bus.requests.size)
+        assertEquals(148, bus.requests.size)
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         s.stop()
     }
@@ -299,7 +302,7 @@ class DiagnosticsSessionTest {
         s.rescan()
         runCurrent()
         assertEquals("7E0 22F194", bus.requests[done])
-        assertEquals(done + 144, bus.requests.size)
+        assertEquals(done + 148, bus.requests.size)
         s.stop()
     }
 
@@ -406,7 +409,7 @@ class DiagnosticsSessionTest {
         val c = session(again, store = MemoryStore(scan), epoch = scan.finishedAtMillis + 11 * 60_000L)
         c.start()
         runCurrent()
-        assertEquals(144, again.requests.size)
+        assertEquals(148, again.requests.size)
         c.stop()
     }
 

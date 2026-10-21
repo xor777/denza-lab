@@ -98,10 +98,20 @@ class SoftwareHistoryTest {
         listOf("62F194000000000000000000", "62F1944A520011E00D", "7F2231", "62F195$newer", "62F1", null).forEach {
             assertEquals("$it", emptyList<SoftwareRead>(), SoftwareReads.of(scan(it)))
         }
-        // A stock route's autoscan has no F194 to learn from.
+        // A stock-route block's F194 gates nothing, and a code it brings is learned all the same.
         val zcu = EcuCatalog.byRequest(0x726)!!
-        val bus = FakeDiagnosticBus()
-        val r = runBlocking { ModuleResult(zcu, ModuleProcedure.read(zcu, { Fixtures.EPOCH }) { bus.exchange(it) }) }
+        fun body(answer: String?): ModuleResult = runBlocking {
+            val bus = FakeDiagnosticBus()
+            answer?.let { bus.on(0x726, "22F194").answer(it) }
+            ModuleResult(zcu, ModuleProcedure.read(zcu, { Fixtures.EPOCH }) { bus.exchange(it) })
+        }
+        assertEquals(listOf(SoftwareRead(SoftwareKey(0x726), "4B310011E001760199", null)), SoftwareReads.of(body("62F1944B310011E001760199")))
+        listOf("62F194000000000000000000", "7F2231", null).forEach { assertEquals("$it", emptyList<SoftwareRead>(), SoftwareReads.of(body(it))) }
+        // LBMS: no code in the cache, no F194 asked.
+        val lbms = EcuCatalog.byRequest(0x762)!!
+        val silent = FakeDiagnosticBus()
+        val r = runBlocking { ModuleResult(lbms, ModuleProcedure.read(lbms, { Fixtures.EPOCH }) { silent.exchange(it) }) }
+        assertTrue(silent.requests.none { it.endsWith("22F194") })
         assertEquals(emptyList<SoftwareRead>(), SoftwareReads.of(r))
     }
 
@@ -212,6 +222,25 @@ class SoftwareHistoryTest {
         val row = third.model.value.modules.getValue(0x7E7).rows().single { it.first.startsWith("ПО обновлено") }
         assertEquals("ПО обновлено · 23.10.2026" to "был 3.48.07 · 1A0B0C03 · $newer", row)
         third.stop()
+    }
+
+    @Test
+    fun aStockRouteBlockUpdatedIsSeenByTheAutoscanAndShownAsAGatedOnesIs() = runTest {
+        // 720 after an update: its F194 gates nothing, its memory is read as before, and the new code is
+        // learned against the cache's code for its route, with the row under its software.
+        val software = MemorySoftwareStore()
+        val s = session(carNow { repeat(4) { on(0x720, "22F194").answer("62F1944B310011E0019A0003") } }, software = software)
+        s.start()
+        runCurrent()
+        assertEquals(ModuleStatus.HISTORY, s.model.value.groups.flatMap { it.rows }.first { it.request == 0x720 }.status)
+        assertEquals(SoftwareChange("4B310011E0019A0002", null, "4B310011E0019A0003", null, LocalDate.of(2026, 10, 20)),
+            software.history.lastChange(SoftwareKey(0x720)))
+        val m = s.model.value.modules.getValue(0x720)
+        assertTrue(m.line, m.line.endsWith("ПО (F194) 4B310011E0019A0003"))
+        val rows = m.rows()
+        assertTrue(rows.toString(), rows.contains("Номер ПО поставщика · 22 F194" to "4B310011E0019A0003"))
+        assertTrue(rows.toString(), rows.contains("ПО обновлено · 20.10.2026" to "был 4B310011E0019A0002"))
+        s.stop()
     }
 
     @Test
