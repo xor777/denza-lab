@@ -1140,7 +1140,7 @@
     // the pack's head as on its other tabs, its counters at the sweep's moment
     block: Object.assign({}, scannerSysPack.block, { counters: [['U', '545 В'], ['SOC', '74 %'], ['DTC', '0']] }),
     tabs: Object.assign({}, scannerSysPack.tabs, { active: 1 }),
-    cells: packCells, cellScale: [3279, 3286], cellGrid: [3280, 3282, 3284, 3286],
+    cells: packCells, cellScale: [3278, 3286], cellGrid: [3278, 3280, 3282, 3284, 3286],
     cellMean: packCells.reduce((a, v) => a + v, 0) / packCells.length, cellMeanText: '3 282,5',
     minIndex: packCells.indexOf(Math.min(...packCells)), maxIndex: packCells.indexOf(Math.max(...packCells)),
     cellsHead: 'НАПРЯЖЕНИЕ ЯЧЕЕК, мВ · 166',
@@ -1152,10 +1152,10 @@
     probesStats: [['МИН', '10 °C'], ['МАКС', '16 °C'], ['СРЕДН.', '13,2 °C']],
     footer: { buttons: [], notes: [['обход 5,5 с · 0,4 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
   };
-  // the same sweep with its last pages missed: six pages of cells (18) and the probes' last page
-  // (two) are from the sweep before, drawn faint
+  // the same sweep with its last pages missed for two sweeps: the cells' last six pages (16 cells,
+  // the last page holds one) and the probes' last page (two) are older than two sweeps, drawn faint
   const scannerSysPackCellsPartial = Object.assign({}, scannerSysPackCells, {
-    staleCells: Array.from({ length: 18 }, (_, k) => 148 + k), staleProbes: [12, 13],
+    staleCells: Array.from({ length: 16 }, (_, k) => 150 + k), staleProbes: [12, 13],
     cellsAge: 'обход 5,5 с · 2,6 с назад',
     footer: { buttons: [], notes: [['обход 5,5 с · 2,6 с назад', true], '|', ['1039 · 9900001F · 43D 43C', true]] },
   });

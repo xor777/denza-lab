@@ -958,7 +958,7 @@
       });
       // the bars, one a cell, up or down from the pack's mean: a cell that lags or leads stands out
       const n = f.cells.length, pitch = (cx1 - cx0) / n, bw = pitch - A.gap, ym = yv(f.cellMean);
-      // a cell whose page is older than the last complete sweep is drawn faint; one not come yet, not at all
+      // a cell whose page is older than two sweeps is drawn faint; one not come yet, not at all
       const staleCells = new Set(f.staleCells || []), staleProbes = new Set(f.staleProbes || []);
       f.cells.forEach((v, i) => {
         if (v == null) return;

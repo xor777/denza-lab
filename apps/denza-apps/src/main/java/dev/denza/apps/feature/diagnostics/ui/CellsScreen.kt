@@ -19,7 +19,7 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
  * «Тяговая батарея · Ячейки» (architecture, 6.3; `scanner.js` `sysPackCells()`, boards
  * `scanner-sys-pack-cells`, `-partial`): every cell's voltage up or down from the pack's mean, the
  * extremes named at their bars' ends, every probe's temperature as a tile. A cell or probe whose
- * page is older than the last complete sweep is drawn faint; one not come yet is not drawn.
+ * page is older than two sweeps is drawn faint; one not come yet is not drawn.
  */
 
 /** The tab's body under the system's head and tabs. */
