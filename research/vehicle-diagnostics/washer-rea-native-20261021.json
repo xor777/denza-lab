@@ -1,0 +1,453 @@
+{
+  "schema": "denza-lab.washer-rea-native.v1",
+  "date": "2026-10-21",
+  "scope": {
+    "vehicleOperations": 0,
+    "firmwareExecutions": 0,
+    "productEdits": 0
+  },
+  "objective": "Find a reliable binary low-washer-fluid/refill-needed signal. 1DD is one lead, not a required path or acceptance criterion.",
+  "sourceSHA256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6",
+  "captureBase": "captures/washer-rea-20261021-V8THNt",
+  "addressMapping": {
+    "observedImageBase": "0x100000",
+    "textDelta": "0x100000",
+    "originalTextDigestMatches": true,
+    "independentELFAttestation": false
+  },
+  "result": {
+    "producerIdentified": false,
+    "washerDiagnosticReadFound": false,
+    "boundedConclusion": "The examined native receiver accepts 1DD, requests synchronization of its FID, and has no 1DD-to-13F substitution in the inspected body/UI path. It receives an enum, not reservoir state.",
+    "newDetails": [
+      "26100008 descriptor: UINT16, min0/max1023, repeated1, sync1, noNeedPlatform0.",
+      "UI-init233E restarts synchronization; raw power3 can schedule missing-field query after5000ms. Requests contain BE FID plus zero payload length, not a washer sensor read.",
+      "Sync completion only accounts for received nonempty records, independently of semantic validity; it is not freshness or sensor proof.",
+      "Body handler returns eligibility requiring already-selected13F and updates door/belt data items. It neither composes13F from open body elements nor overwrites26100008.",
+      "Presentation has generic hide/DOW gates and100/500ms timer branches. One DOW reason is ADAS418 fields20/22 value2, not ordinary door-open state."
+    ]
+  },
+  "limitations": [
+    "Static imported Cells binary; actual N9 renderer/applicability is not proved.",
+    "Native SPI consumer is separate from Android HAL/BigData; not an explanation of saved raw13F.",
+    "No ECU sender, reservoir-input owner, priority policy, low-fluid trigger, or current runtime state established.",
+    "REA can infer imperfect arguments/locals. Original-byte anchors and DWARF corroborate only the stated bounded paths.",
+    "100ms lambda captures a local by reference; its timer/lifetime semantics were not traced and no runtime defect is asserted.",
+    "Reference queries report Ghidra body/entry references, including PLT thunks, not an exhaustive cross-module producer graph."
+  ],
+  "functions": [
+    {
+      "va": "0x182dc0",
+      "analysisAddress": "0x282dc0",
+      "bytes": 1364,
+      "fileOffset": 1584576,
+      "name": "BusinessUi2::updateWarningInfo()",
+      "sha256": "0264fe35acfe1ba6400be7194d186f4edea16d6fa83c617dad4ad4164da99ade"
+    },
+    {
+      "va": "0x183680",
+      "analysisAddress": "0x283680",
+      "bytes": 1640,
+      "fileOffset": 1586816,
+      "name": "BusinessUi2::updateWarningInfoCarBody()",
+      "sha256": "d5b3b05086dbc164b615fbbf73c69e9215499985a58fe3833666b5a563d3bda5"
+    },
+    {
+      "va": "0x183cf0",
+      "analysisAddress": "0x283cf0",
+      "bytes": 480,
+      "fileOffset": 1588464,
+      "name": "BusinessUi2::warningInfoCanDataUpdate(unsigned int, void*)",
+      "sha256": "6df37c8d99f769e5a1e59355264a468e34fa81eba1d550f41c538c722d97de52"
+    },
+    {
+      "va": "0x1826e0",
+      "analysisAddress": "0x2826e0",
+      "bytes": 328,
+      "fileOffset": 1582816,
+      "name": "BusinessUi2::updateCommonWarningInfoDisplay()",
+      "sha256": "7a42887f5f170ed3b09a74a8d08849941b809854ab3312b96a5bcda914fc40d3"
+    },
+    {
+      "va": "0x18cb40",
+      "analysisAddress": "0x28cb40",
+      "bytes": 80,
+      "fileOffset": 1624896,
+      "name": "BusinessUi2::updateWarningInfo()::$_0::operator()() const",
+      "sha256": "299523714f06b88c3c92e4dbaba9cc06d21bf5d39dd38f3c6695b1d298e80339"
+    },
+    {
+      "va": "0x182a00",
+      "analysisAddress": "0x282a00",
+      "bytes": 956,
+      "fileOffset": 1583616,
+      "name": "BusinessUi2::queryCanWhenOff2OnTimerHandler()",
+      "sha256": "8ceb5b0df8d8a8c4db3658d651cacce30a6a62be82fc6c3c8521a1efb47acf8a"
+    },
+    {
+      "va": "0x186640",
+      "analysisAddress": "0x286640",
+      "bytes": 3080,
+      "fileOffset": 1599040,
+      "name": "BusinessUi2::pluginMsgUpdate(unsigned int, void*)",
+      "sha256": "7ca3abd990e8f941ed9ab9f9210b98a7a23861b1310e96a5dcac00a2360f163b"
+    },
+    {
+      "va": "0x1d42a0",
+      "analysisAddress": "0x2d42a0",
+      "bytes": 228,
+      "fileOffset": 1917600,
+      "name": "BusinessAdasSR::updateDowWarningInfo()",
+      "sha256": "9e38536fcc3d6f79fcb5b08f12d96d9b0975bd700c138fc6097ebabaa84b75b8"
+    },
+    {
+      "va": "0x1875c0",
+      "analysisAddress": "0x2875c0",
+      "bytes": 488,
+      "fileOffset": 1603008,
+      "name": "BusinessUi2::businessMsgUpdate(void*, unsigned int, void*)",
+      "sha256": "2fd47aaa1b8de151587b8b67994d45c4519ba2dc49ebf55ac12fde5dba95c8c3"
+    },
+    {
+      "va": "0x11ac10",
+      "analysisAddress": "0x21ac10",
+      "bytes": 1048,
+      "fileOffset": 1158160,
+      "name": "CanDataSyncThread::Init()",
+      "sha256": "4ee38bd94aec635a5d6c292a40f0f35b09f5dd669242130f9f8e8c05bee1d886"
+    },
+    {
+      "va": "0x11b310",
+      "analysisAddress": "0x21b310",
+      "bytes": 200,
+      "fileOffset": 1159952,
+      "name": "CanDataSyncThread::SyncIDUpdate(unsigned int)",
+      "sha256": "ea23fe952e21bc9f9e653f55b7f89779e754668cbdca349da9c52c8ba40ded51"
+    },
+    {
+      "va": "0x11b990",
+      "analysisAddress": "0x21b990",
+      "bytes": 772,
+      "fileOffset": 1161616,
+      "name": "CanDataSyncThread::Sync()",
+      "sha256": "24972a6c0a10cb32a3646310b9f8b4a5b51288de09d4774a74913a84ebd83060"
+    },
+    {
+      "va": "0x11bca0",
+      "analysisAddress": "0x21bca0",
+      "bytes": 516,
+      "fileOffset": 1162400,
+      "name": "CanDataSyncThread::ThreadFunction()",
+      "sha256": "2bbbe2df9790b30c1ba0c98065541316d605d6e8cc3ce39772846594e0e0a5de"
+    },
+    {
+      "va": "0x1cd140",
+      "analysisAddress": "0x2cd140",
+      "bytes": 300,
+      "fileOffset": 1888576,
+      "name": "BusinessAdasSR::updateNot261FunctionID_311()",
+      "sha256": "04ed6c58024010cc80c9f861238eef2dfcfdf2ec8743c29311cf0ef17c91814a"
+    },
+    {
+      "va": "0x18e4e0",
+      "analysisAddress": "0x28e4e0",
+      "bytes": 140,
+      "fileOffset": 1631456,
+      "name": "BusinessUi2::updateCommonWarningInfoDisplay()::$_1::operator()() const",
+      "sha256": "b4a7ecafae371c94439fd53a745f040921b474a6455657ebb9158f575eb4d6cd"
+    },
+    {
+      "va": "0x1180e0",
+      "analysisAddress": "0x2180e0",
+      "bytes": 72,
+      "fileOffset": 1147104,
+      "name": "CanDataWrapper::GetData_UINT16(unsigned int)",
+      "sha256": "4e4fef9589a242dae4651fab64f222f1c1ccaf77a3743930662c6a92d209163a"
+    },
+    {
+      "va": "0x1180a0",
+      "analysisAddress": "0x2180a0",
+      "bytes": 60,
+      "fileOffset": 1147040,
+      "name": "CanDataWrapper::GetData_UINT16(can_data_array_item_type_*)",
+      "sha256": "3495466cd733a85926f941402f9fd4e37a28148fc50f39dc377c5065cd1fdab5"
+    },
+    {
+      "va": "0x1167c0",
+      "analysisAddress": "0x2167c0",
+      "bytes": 236,
+      "fileOffset": 1140672,
+      "name": "CanHandleDataWriter::Write(unsigned char const*, int)",
+      "sha256": "f057b8b5ff01247acff982c73e839d2df3c1a144fe67852ba89607ebafa7b121"
+    },
+    {
+      "va": "0x118b20",
+      "analysisAddress": "0x218b20",
+      "bytes": 412,
+      "fileOffset": 1149728,
+      "name": "CanDataWrapper::SetData_UINT16(can_data_array_item_type_*, unsigned char*)",
+      "sha256": "07f254b04e493f51f99a7e53399a9c6eb81bac604918cda6263371a2c32df30c"
+    },
+    {
+      "va": "0x119530",
+      "analysisAddress": "0x219530",
+      "bytes": 1124,
+      "fileOffset": 1152304,
+      "name": "CanDataWrapper::DispatchFunctionData(unsigned int, unsigned char*, unsigned char)",
+      "sha256": "320e1778dd8965f28a45b61e20d06d546cdc0300e99f41298a867713f8b67565"
+    },
+    {
+      "va": "0x1199a0",
+      "analysisAddress": "0x2199a0",
+      "bytes": 1800,
+      "fileOffset": 1153440,
+      "name": "CanDataWrapper::DispatchGroupData(unsigned int, unsigned char*, unsigned char)",
+      "sha256": "8aa052070b9dea3b47cb0ffe040ba9eb6a458175d7663777c90be4eba90f8589"
+    },
+    {
+      "va": "0x10c600",
+      "analysisAddress": "0x20c600",
+      "bytes": 5744,
+      "fileOffset": 1099264,
+      "name": "CanReadThreadBase::ProcessCanData(unsigned char*, unsigned int)",
+      "sha256": "576551ea1dce42ca31d99643861e578a1867b85daf5003306c8a489d0393f268"
+    },
+    {
+      "va": "0x181e60",
+      "analysisAddress": "0x281e60",
+      "bytes": 2168,
+      "fileOffset": 1580640,
+      "name": "BusinessUi2::alwaysDisplayCanDataUpdate(unsigned int, void*)",
+      "sha256": "f87a40b9f9aa42a87ddf4b3f706fd83a269e6784a1f5fbb2c29bc49ba2c84278"
+    }
+  ],
+  "sources": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "bytes": 17834072,
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/functions.tsv",
+      "bytes": 4826465,
+      "sha256": "a8dcff56e811f874f8b1545b868952300edba7475cbc45a7b68f9e247a93504a"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/dwarf-layouts.jsonl",
+      "bytes": 4731363,
+      "sha256": "aba58decb6352bf0275714de687a40f1f8f6fdd4178f7a5a427c8d842b9defa9"
+    },
+    {
+      "path": "captures/cluster-native-20261018/tables/can-signals.tsv",
+      "bytes": 200710,
+      "sha256": "022f2fe417b0b5f6b7bd64bcb5abe65c60c4529945e00fd4803d54f54656f3b9"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/cells-load-image.json.gz",
+      "bytes": 211168,
+      "sha256": "90a12cfcbc4a6d8fc9b78320a485448fe60df220639bbc80645e819e0c3ebdfb"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/original-byte-ranges.json.gz",
+      "bytes": 52380,
+      "sha256": "e846722ce4b8032282ca8d1b716584860aafd6ac24aa808374de1972485c1d37"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/cache-ingress-batch.json.gz",
+      "bytes": 11214,
+      "sha256": "8804d84deb43b771dc0a5cde37e5fd78206529e23c5ccd0f0018eb97d8e261c8"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/calls.json.gz",
+      "bytes": 710,
+      "sha256": "57797265f02250716d36f1631991cc4b4024d3502501b91aea8b8eebd6805589"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/close.json.gz",
+      "bytes": 189,
+      "sha256": "7175c5ecadf1f8098bc8a794041df8fd78099f66cfa2d8fc714e651571b54052"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/dispatch-power-batch.json.gz",
+      "bytes": 22053,
+      "sha256": "a0642bbffabab1772769c471284179cf5181efa4bca7c388b9fd3d7a675923cf"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/ghidra-import.log.gz",
+      "bytes": 38738,
+      "sha256": "7ca74d12b4eae5bd1ad9b11523a7e1533c43c4439a419217cbecd7e15c97c725"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/initialize.json.gz",
+      "bytes": 696,
+      "sha256": "0583d6bf63a018b799ea80ed17da83552d213d7da0b64d19b53bded8d4581ab6"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/load-image.json.gz",
+      "bytes": 423469,
+      "sha256": "67731adef72ce3b27dc5a672bf1539651e7ec50467267a0381bd9c271f91f94c"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/open.json.gz",
+      "bytes": 412,
+      "sha256": "d0bd8ed45c4051df7fed84d4d3563b9546c5778040e132471d4e103504840e16"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/receipt.json.gz",
+      "bytes": 265,
+      "sha256": "93eb5ef60609a49f6984a48de3aa1de9ea7c128477df712e65c8fad8f8d0d455"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/receiver-transport-batch.json.gz",
+      "bytes": 3510,
+      "sha256": "b47fc9837e135f47e5a19590c846473544cf3893964fe9f4bc274807a57258c4"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/server-stderr.log",
+      "bytes": 1994,
+      "sha256": "eddb82ff6d70d44ec9ab2bcdc9d32821b35a29090db349856fcd87332531e7be"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/sync-callers.json.gz",
+      "bytes": 5842,
+      "sha256": "b8aad8ae8f799406011ba16277f9efefaca52866c19a1bd2005ac784601e83df"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/sync-dow-batch.json.gz",
+      "bytes": 7254,
+      "sha256": "f70bc343eea5bd786cf4d7eda2a247f66e64568d422211af0deb799fa0703f21"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/tools.json.gz",
+      "bytes": 545935,
+      "sha256": "6e69120cbb7256b74fb1b6a9e3ebe22845781fbc49f048a3a02df248c68223fd"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/ui-warning-batch.json.gz",
+      "bytes": 20064,
+      "sha256": "c64f760bd7b83e292e4f2f0504e221472af0106799ab3432ae3ec9f94de0ff0f"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/warning-callees.json.gz",
+      "bytes": 26664,
+      "sha256": "a38bb33e733399db84d6bc459db7b22bce362555bdb0ec877e3e5e7a7b716a92"
+    },
+    {
+      "path": "captures/washer-rea-20261021-V8THNt/session/warning-callers.json.gz",
+      "bytes": 12064,
+      "sha256": "fc63bc5f2be0f11273216f29b5b24a46650c0cf8aa54ccde0322c4a81cfa3a74"
+    }
+  ],
+  "anchors": [
+    {
+      "va": "0x118b50",
+      "hex": "29314079",
+      "mnemonic": "ldrh",
+      "operands": "w9, [x9, #0x18]"
+    },
+    {
+      "va": "0x118b68",
+      "hex": "29354079",
+      "mnemonic": "ldrh",
+      "operands": "w9, [x9, #0x1a]"
+    },
+    {
+      "va": "0x118be8",
+      "hex": "08414039",
+      "mnemonic": "ldrb",
+      "operands": "w8, [x8, #0x10]"
+    },
+    {
+      "va": "0x118bec",
+      "hex": "68040035",
+      "mnemonic": "cbnz",
+      "operands": "w8, #0x118c78"
+    },
+    {
+      "va": "0x11aca4",
+      "hex": "291540b9",
+      "mnemonic": "ldr",
+      "operands": "w9, [x9, #0x14]"
+    },
+    {
+      "va": "0x11acbc",
+      "hex": "2925cb1a",
+      "mnemonic": "lsr",
+      "operands": "w9, w9, w11"
+    },
+    {
+      "va": "0x11acd8",
+      "hex": "08454039",
+      "mnemonic": "ldrb",
+      "operands": "w8, [x8, #0x11]"
+    },
+    {
+      "va": "0x11acdc",
+      "hex": "c80b0034",
+      "mnemonic": "cbz",
+      "operands": "w8, #0x11ae54"
+    },
+    {
+      "va": "0x11ad10",
+      "hex": "01110091",
+      "mnemonic": "add",
+      "operands": "x1, x8, #4"
+    },
+    {
+      "va": "0x18301c",
+      "hex": "08cd4439",
+      "mnemonic": "ldrb",
+      "operands": "w8, [x8, #0x133]"
+    },
+    {
+      "va": "0x18305c",
+      "hex": "08fd0471",
+      "mnemonic": "subs",
+      "operands": "w8, w8, #0x13f"
+    },
+    {
+      "va": "0x183060",
+      "hex": "e1000054",
+      "mnemonic": "b.ne",
+      "operands": "#0x18307c"
+    },
+    {
+      "va": "0x18306c",
+      "hex": "558d0694",
+      "mnemonic": "bl",
+      "operands": "#0x3265c0"
+    },
+    {
+      "va": "0x182d10",
+      "hex": "88008052",
+      "mnemonic": "mov",
+      "operands": "w8, #4"
+    },
+    {
+      "va": "0x182d28",
+      "hex": "a6830694",
+      "mnemonic": "bl",
+      "operands": "#0x323bc0"
+    },
+    {
+      "va": "0x182d34",
+      "hex": "08150011",
+      "mnemonic": "add",
+      "operands": "w8, w8, #5"
+    },
+    {
+      "va": "0x182d64",
+      "hex": "a3840694",
+      "mnemonic": "bl",
+      "operands": "#0x323ff0"
+    },
+    {
+      "va": "0x10d19c",
+      "hex": "a55a0894",
+      "mnemonic": "bl",
+      "operands": "#0x323c30"
+    }
+  ]
+}

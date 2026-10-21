@@ -31,6 +31,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Refuted: the stock AVC window alone opens a Denza camera (window-only contract). Since 2026-09-23 Show needs AVC's card **and** the lamps on that side, and the lamps leaving close it | refuted | 2026-09-23 | [Firmware-model contract](instrument-display-findings.md#the-firmware-model-contract-2026-09-23) |
 | Refuted: `0x44700028` / 10 is remaining energy (a ~100 kWh pack). It is state of charge ×10; nothing on the Binder gives the pack size; Refuted: one of `ENGINE_RPM` / `GENERATION_KW` reads above zero on an electric drive. Engine off in motion, rpm sends only `0x1FFF` and generation reads `0` | refuted | 2026-09-22 | [Scales proven or likely on this car](#scales-proven-or-likely-on-this-car); [What stood the engine box up](#what-stood-the-engine-box-up-on-an-electric-drive-2026-09-05-superseded) |
 | Washer goal is only a reliable refill warning, not measured level: OEM `1DD` is sufficient if its low-fluid delivery is qualified. MCU receives the selected enum; native name is `DOMAIN_261_10_21_TEXT_INFO`, not a concrete sender identity. CDC/INS/ZCU diagnostic routes do not establish warning ownership. No real low-fluid1DD observed; N9 saved states all13F, liquid-present Z9GT baseline0. Service reports sensors on both cars; direct level DID is optional and no draining requested | firmware receive path proved; producer and low-fluid delivery unverified | 2026-10-21 | [Washer diagnostic leads](#washer-warning-and-diagnostic-leads-2026-10-21); [Receiver and presentation](#washer-receiver-and-presentation-boundary-2026-10-21); [Producer boundary](#washer-warning-producer-boundary-2026-10-21) |
+| Washer REA pass:23 native functions resolve and match original bytes. `26100008` admits1DD with repeated delivery and synchronization enabled, with no product exclusion in this descriptor. The inspected body/UI path does not replace1DD with13F. UI-init/power recovery requests current FIDs, not reservoir state; its pending-set completion is not freshness proof. Physical producer, actual N9 renderer and low-fluid delivery remain unknown | offline native receiver/cache/lifecycle proof | 2026-10-21 | [Washer REA receiver audit](#washer-rea-receiver-audit-2026-10-21) |
 | Z9GT typed `onTextInfoChanged` works from a finite shell process: baseline0 then callbacks13F→7D→0, with independently recorded LF door opening/closing. First90s run was silent; owner gesture timing there is uncertain. No initial replay guarantee, physical low-fluid1DD, ordinary app-UID or persistent/background acceptance. Both temporary processes unregistered/exited; jars removed and health stable | live shell callback qualification; washer trigger open | 2026-10-21 | [Direct warning listener](#direct-warning-listener-on-z9gt-2026-10-21) |
 | Warning recorder in the app: `1007/0x26100008` read as shell in the existing vehicle sweep (0.1 s with a screen up, 1 s otherwise), every change, app start and loss of the car kept in a 2 × 2 MB ring, every code with first/last/count in a summary that outlives the ring; «Сервис → Предупреждения машины», on by default, export to «Загрузки/Denza Apps». Names from the car's own `popup_nads.json` with a bundled Russian translation. On the Z9GT since 2026-10-21 18:07: `start`, then `link 0` 0.4 s later. A change shorter than one sweep can pass unseen; 1DD itself not yet observed | live (link); washer trigger open | 2026-10-21 | [Warning recorder](#warning-recorder-2026-10-21) |
 | Empty N9 warning audit:557 delivered CAN261 records all13F; all557 frames and8 scalar passes have an open body element, with no all-closed control or continuous empty-transition coverage. MCU interval-only export can omit synthetic transient warnings, but N9's active mode is unknown. UI suppression alone does not explain raw13F. The not-READY explanation is withdrawn: HAL maps raw power3 to API2. Neither warning priority nor an actual missed1DD is proved | negative observation confirmed; cause unresolved | 2026-10-21 | [N9 missing-warning audit](#n9-missing-warning-audit-2026-10-21) |
@@ -117,6 +118,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [Washer fluid level (2026-09-18, in progress)](#washer-fluid-level-2026-09-18-in-progress) — named refill warning1DD, traced receiver and display gates; no delivery observed in the empty N9 test
   - [Receiver and presentation boundary](#washer-receiver-and-presentation-boundary-2026-10-21) — ready-made CAN warning versus physical trigger; direct level DID optional
   - [Warning producer boundary](#washer-warning-producer-boundary-2026-10-21) — exact DOMAIN protocol name, renderer versus ECU, and missing transmitter/composer identity
+  - [Washer REA receiver audit](#washer-rea-receiver-audit-2026-10-21) — original-byte corroborated cache admission, body handling and current-field resynchronization
   - [N9 missing-warning audit](#n9-missing-warning-audit-2026-10-21) — confirmed empty reservoir, sampling/transition gaps and rejected power-value inference
   - [Direct warning listener](#direct-warning-listener-on-z9gt-2026-10-21) — typed scalar callbacks and timed door control, without draining
   - [Warning recorder](#warning-recorder-2026-10-21) — the slot recorded by the app for weeks, so a natural run-out answers whether 1DD arrives
@@ -5532,6 +5534,90 @@ for target evidence. `washer-input-document-leads-20261021.json` retains exact
 source URLs and the requested sheet: `洗涤液液位传感器 / 洗涤液位开关`,
 sensor connector through harness to ECU pin, then warning functional allocation.
 No account, purchase, private download, OTA request or live operation occurred.
+
+### Washer REA receiver audit (2026-10-21)
+
+The objective is a reliable binary **refill-needed signal**, whether a contact
+state, raw CAN field, FID, diagnostic value or warning. `1DD` is one lead, not
+a required solution, and identifying its producer is not itself acceptance.
+
+The owner-requested REA/Ghidra pass used the existing AArch64
+`libCellsClusterDs.so` (SHA-256
+`124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6`).
+It recovered 23 selected functions with resolved identities. Ghidra's measured
+base is `100000`: original `182DC0` becomes analysis `282DC0`. Both separate
+imports' entire `.text` digests match the original file; ELF load-image
+attestation itself remains unsupported. The source was not executed or changed.
+
+**Admission and cache.** Descriptor `33C890` has original/real FID `26100008`,
+length2, UINT16, min0/max`3FF`, repeated1, sync1, no-need-platform mask0.
+`SetData_UINT16` (`118B20`) accepts `1DD`; its duplicate rejection applies only
+when repeated is0. `DispatchFunctionData` (`119530`) then stamps the local
+receive time and calls handlers. The UINT16 getter (`1180E0`/`1180A0`) reads the
+cache, not a sensor. There is no washer-specific rejection or platform-mask
+exclusion in this descriptor and these examined functions. This is not proof
+that every sender/runtime delivers the field.
+
+**Body handling is not warning selection.** Inside `updateWarningInfo`
+(`182DC0`), the branch to `updateWarningInfoCarBody` (`183680`) requires the
+already received enum to equal `13F` (`18305C` compare, `183060` conditional
+branch, `18306C` call). That function also runs from power/body updates, so it
+must not be described as globally callable only for13F. It updates door/belt
+data items and returns display eligibility; it does not write `26100008` or
+compose13F from an open hood/door. Thus this code does not turn received1DD
+into13F. Upstream priority between conditions remains unknown.
+
+The recovered pseudocode also corroborates the existing generic online,
+top-UI, hide and DOW gates. DOW is not equivalent to any open door: one traced
+reason (`updateNot261FunctionID_311`, `1CD140`) requires ADAS-system2, online
+`418`, and `41800020` or `41800022` equal2; `1D42A0` combines three reasons and
+dispatches business message8010. The consumer (`1875C0`) updates the DOW flag
+and re-evaluates presentation. The100ms branch following247 and500ms forced
+display branch affect HMI delivery, not the received CAN enum. The100ms lambda
+contains a by-reference local capture; timer/lifetime semantics were not
+audited, so this pass does not assert a firmware defect or explain the N9 test
+with it.
+
+**Resynchronization is real I/O, not a new level getter.** On plugin message
+`233E` (UI init), `pluginMsgUpdate` (`186640`) can reset data items and runs
+`CanDataSyncThread::UnInit/Init/Sync/Start`. `Init` (`11AC10`) includes this
+warning FID because sync1/mask0 admit it for every product-index bit. Raw
+power3 also can initialize the pending set and schedule
+`queryCanWhenOff2OnTimerHandler` (`182A00`) after5000ms when the sync thread is
+not running. The query and `Sync` (`11B990`) encode each pending real FID as
+four big-endian bytes followed by zero payload length, chunking a253-byte
+buffer, and send it through `CanHandleDataWriter::Write`. These are current-field
+requests toward the native SPI transport, not a request to measure reservoir
+level, a UDS DID or a request to generate1DD. None was sent during this pass.
+
+`SyncIDUpdate` (`11B310`) removes a received ID from the pending set.
+`ProcessCanData` (`10C600`) calls it for a structurally complete, nonempty
+record independently of semantic validation: ordinary dispatch returns void,
+and grouped dispatch happens later. Therefore a completed sync/pending-set
+count does not prove a fresh, valid warning or anything about the reservoir.
+The sync worker (`11BCA0`) waits up to101 ×50ms and reports remaining IDs; that
+is not a physical-input observation.
+
+**Result and limits.** This pass narrows the receiver/cache/lifecycle side. It
+does not identify the CAN sender or reservoir-contact owner, recover a body-ECU
+washer DID, establish actual N9 renderer loading, or explain the missing1DD in
+the retained empty-N9 capture. The native SPI consumer is separate from the
+Android HAL/BigData path. Presentation suppression cannot by itself turn the
+saved raw13F into evidence that1DD was produced. The next investigation should
+prioritize the contact input and any directly readable low-fluid state,
+independently of warning generation. A qualified low-fluid event during normal
+use is also sufficient; no further deliberate draining is requested.
+
+Report: [`washer-rea-native-20261021.json`](../research/vehicle-diagnostics/washer-rea-native-20261021.json).
+Full REA replies, limitations, importer diagnostics and original-byte ranges
+are retained under `captures/washer-rea-20261021-V8THNt/` (about1.4MB).
+`python3 research/vehicle-diagnostics/check_washer_rea_native.py` checks 23
+function ranges/5809 original instructions, 18 selected byte anchors, descriptor
+flags/range, two text mappings and cleanup. The installed CLI was used first;
+an owned `tools/rea --mcp` stdio process then kept one warm import for the
+related queries, without registering an integration or changing the shared
+installation. Its recorded close exited0, removed all owned temporary projects
+and left the source hash unchanged. No vehicle access or product edit occurred.
 
 ### N9 missing-warning audit (2026-10-21)
 
