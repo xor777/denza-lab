@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "fresh ASSY identity and stock ASCII version",
+  "summary": {
+    "responses": 2,
+    "cacheMatches": 2,
+    "allLifecycleVerified": true,
+    "cloudRequests": 0,
+    "apkInstalls": 0,
+    "startedAtUtc": "2026-10-21T13:45:51.128999+00:00",
+    "postflightAtUtc": "2026-10-21T13:45:54.599737+00:00"
+  },
+  "sources": {
+    "build": {
+      "path": "captures/ota-assy-fields-20261021/build/build.json",
+      "sha256": "3bb7724134a8f31f700de677c0ff887fc557dc6694e55016d920b01fc23c2cb3"
+    },
+    "factoryMap": {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    "cache": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    "stockCanReplay": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/CanDiagnostic.java",
+      "sha256": "dddfd8038e59a2d8d15bf86d3f1fb0cee5078f0aa22ee9f87d1632281384f85a"
+    },
+    "stockCanReplayManifest": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/source-methods.json",
+      "sha256": "e53d717638ebe6cbfb88fd930b7e9309b06c56c79482b3f3b4cde30244763dc6"
+    },
+    "stockAscii": [
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/SmmDiagnostic.java",
+        "sha256": "465f4347afd7642729faba9ce180d9eb3322aa3d9316032e9d2027fecae0dabb"
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/base/util/FormatConversionUtil.java",
+        "sha256": "2c44af4b3396a76e0f19bd867a54ba8fdb17877298faa2f3a535412a0f701425"
+      }
+    ]
+  },
+  "run": {
+    "session": {
+      "path": "captures/ota-assy-fields-20261021/assy/session.json",
+      "sha256": "6e1e20417fdb0d2f5163774fcd1d61f7aec61607b4900c286671c4e4ad3c7004"
+    },
+    "protocol": {
+      "path": "captures/ota-assy-fields-20261021/assy/protocol.txt",
+      "sha256": "81a6d62caefd8125ad6a1525945d40d8348785229c6111c1a1d0dd62978fd6db"
+    },
+    "preflight": {
+      "path": "captures/ota-assy-fields-20261021/assy/preflight/status.json",
+      "sha256": "8977e12d7b7db54d9c32375a51409b4d9a9548b917514adab6ccd02aea0cd576"
+    },
+    "postflight": {
+      "path": "captures/ota-assy-fields-20261021/assy/postflight/status.json",
+      "sha256": "5f536735b6d11322875202534047538d89d198547848d5c590647fe446369e38"
+    },
+    "preProcesses": {
+      "path": "captures/ota-assy-fields-20261021/assy/preflight/processes.txt",
+      "sha256": "bd3572a5770403278b1e654d126b7568917cc7c50633b8c8f41ec928783facf4"
+    },
+    "postProcesses": {
+      "path": "captures/ota-assy-fields-20261021/assy/postflight/processes.txt",
+      "sha256": "934240b31b97356b826b4561fc8c2a20dfbcfbdeece32632c20b51a4a62f6f03"
+    }
+  },
+  "fields": [
+    {
+      "ecuId": "HTH-2021_ASSY_BYD_00100001",
+      "ecuIds": [
+        "HTH-2021_ASSY_BYD_00100001"
+      ],
+      "address": "5E7",
+      "request": "22F294",
+      "field": "ecuSoftCode",
+      "cached": "4B450011DF99004201",
+      "identityGate": true,
+      "seq": 1,
+      "responseHex": "62F2944B450011DF99004201",
+      "frames": 1,
+      "latencyMs": 9,
+      "receivedNanos": 167183602750923,
+      "state": "positive",
+      "stockFieldValueFromPrefix": "4B450011DF99004201",
+      "cacheMatch": true,
+      "additionalDataHex": ""
+    },
+    {
+      "ecuId": "HTH-2021_ASSY_BYD_00100001",
+      "ecuIds": [
+        "HTH-2021_ASSY_BYD_00100001"
+      ],
+      "address": "5E7",
+      "request": "22F295",
+      "field": "ecuSoftVer",
+      "cached": "42.1.8.2605219.1.42.2.3.2605250.2",
+      "identityGate": false,
+      "seq": 2,
+      "responseHex": "62F29534322E312E382E323630353231392E312E34322E322E332E323630353235302E32",
+      "frames": 1,
+      "latencyMs": 18,
+      "receivedNanos": 167184123230923,
+      "state": "positive",
+      "stockFieldValueFromPrefix": "42.1.8.2605219.1.42.2.3.2605250.2",
+      "cacheMatch": true,
+      "additionalDataHex": ""
+    }
+  ],
+  "limits": [
+    "Only code and ASCII version; cached negative hardware version remains unverified.",
+    "Identity mismatch, invalid ASCII, negative/no reply stops the session.",
+    "No cache update, cloud request, download or install."
+  ],
+  "replayTransformations": [
+    "Use retained exact CAN method bodies and inert Android stubs.",
+    "Remove package/import declarations from SmmDiagnostic.java; its method body is unchanged.",
+    "Append exact bytesAsciiToString method and an inert TAG constant to the retained FormatConversionUtil stub.",
+    "Use complete declared UDS payload with synthetic OTA header and no extra padding."
+  ],
+  "expectedServerTupleKnown": false,
+  "applicablePackageObtained": false
+}

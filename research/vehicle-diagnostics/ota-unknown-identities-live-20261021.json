@@ -1,0 +1,1506 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "fresh one-code-DID observations for zero/negative cached CAN records",
+  "sources": {
+    "build": {
+      "path": "captures/ota-unknown-identities-20261021/build/build.json",
+      "sha256": "88c3fbb65a4ac7f408179cae677d2756a1cbed471d6ca4d4cf27e215984dc8e3"
+    },
+    "factoryMap": {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    "cache": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    "classification": {
+      "path": "captures/ota-remaining-fields-20261021/build/scope.json",
+      "sha256": "0c57eda166e1d51ddfa53a0e741dc45c0fd703090052d987c40683a1ec6dfa20"
+    }
+  },
+  "summary": {
+    "completedGroups": 44,
+    "recordsRepresented": 47,
+    "allPlannedGroupsObserved": true,
+    "outcomes": {
+      "negative_uds": 26,
+      "no_reply": 18
+    },
+    "nrcs": {
+      "31": 3,
+      "10": 23
+    },
+    "gatewayResults": {
+      "3": 18
+    },
+    "cloudRequests": 0,
+    "apkInstalls": 0,
+    "allCleanupVerified": true
+  },
+  "runs": [
+    {
+      "group": "unknown-001",
+      "startedAtUtc": "2026-10-21T13:40:14.268526+00:00",
+      "postflightAtUtc": "2026-10-21T13:40:17.240250+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-001/session.json",
+        "sha256": "4536c795bfb4c94bf98436a9b278abf487186efa1fe5507a70432ccba59ea7a3"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-001/protocol.txt",
+        "sha256": "1fa309b8b107aee75daf283dd934a750b99884d0fb9de6cd68e46c843a4c01e7"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-001/observation.json",
+        "sha256": "3e6c8de3750b19a2a16a0dbdb0b66754171e270342d723695e147051e21ddd3a"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-001/preflight/status.json",
+        "sha256": "cb0beb9f3c395c564722c82d12dfad964799139b41ab0b1f9a1e0a152777f32b"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-001/postflight/status.json",
+        "sha256": "481aceb160a79d644d2a7a2cf9995c78954fa6157642d5b2928d0a9740ddcad1"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-001/preflight/processes.txt",
+        "sha256": "4bfdb216926dc3ca4c60d3b09bcd1b39ac61efbcadc0c5cfd9e0a2de0b82c398"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-001/postflight/processes.txt",
+        "sha256": "d079ad3125f5314361740fc0f6e4c409126e78f8b687cb7db11a94e9ab3c81eb"
+      }
+    },
+    {
+      "group": "unknown-002",
+      "startedAtUtc": "2026-10-21T13:40:39.910646+00:00",
+      "postflightAtUtc": "2026-10-21T13:40:44.005220+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-002/session.json",
+        "sha256": "0af635933682c75598abb272fa26647338293b45c23e91aea8dd4cd70501bbb4"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-002/protocol.txt",
+        "sha256": "58eabf58633fbb21165d58fd4c5e9586d6d932ae56158e405e67a0add583ca3e"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-002/observation.json",
+        "sha256": "ff9e140abdac493acd4b95084aba1a4e3f867f8ba329b3bbece92e5eca40e71d"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-002/preflight/status.json",
+        "sha256": "f6232e88b3db533f1845cb94cdffd43a51ddf0e46b11ce9dc5f187d0a86a6b59"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-002/postflight/status.json",
+        "sha256": "c878112b6432bcf2b02a075e0833a9778ba51b6e199e04df6f2a1876bd7d477c"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-002/preflight/processes.txt",
+        "sha256": "d313faf7b0edde0b9de354ed1372fad3dda2f63f08519bfcc3317c79ebb769ce"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-002/postflight/processes.txt",
+        "sha256": "c128c68227afa744a46915bb6fe047c5b5c4c5be6bf24456045fb1daf782e467"
+      }
+    },
+    {
+      "group": "unknown-003",
+      "startedAtUtc": "2026-10-21T13:40:46.993872+00:00",
+      "postflightAtUtc": "2026-10-21T13:40:51.144503+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-003/session.json",
+        "sha256": "b2e26b499dcf2d8ee766a1beac3ec2fdf917b03147c0558cde5f7c282f029632"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-003/protocol.txt",
+        "sha256": "da6fd08be57d653d6ac76ac1e73425b21f73c0d75a311de1eb00b1d00b370a4a"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-003/observation.json",
+        "sha256": "074a7f382275cb28ea984e3616833500ef9a2890b597e5ec790d0c0190491ed5"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-003/preflight/status.json",
+        "sha256": "78bf871ecd55d0a5e2f31fb5ed75b023a99634c4c3b7eb078ff9d843b010ea9a"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-003/postflight/status.json",
+        "sha256": "b51366959191a8de3ea402415a07b35e6001af704f6ba3e31e5500393a44b6e0"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-003/preflight/processes.txt",
+        "sha256": "280b1064b4beafad91aece1f2fa8c27b2ea98b896856f1fce8b0a7be55845bbf"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-003/postflight/processes.txt",
+        "sha256": "f366308d7d7b1f15c35f33de571968dc8d83a0c794365f353c22df41818f1ef9"
+      }
+    },
+    {
+      "group": "unknown-004",
+      "startedAtUtc": "2026-10-21T13:40:53.460172+00:00",
+      "postflightAtUtc": "2026-10-21T13:40:57.649141+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-004/session.json",
+        "sha256": "1cd8e05aefa8b5ab4172260ae4e14195c3fa424f2126473a5ab8d61a03aef643"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-004/protocol.txt",
+        "sha256": "aba687ff268b14d8eb9ce66aa25c1c3434075f349660b68563655822ffe52039"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-004/observation.json",
+        "sha256": "bf37361674dfaa5acf567bed77d1e2bc642e393773ee0d0b16d01d7e70fa127c"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-004/preflight/status.json",
+        "sha256": "ef3676bb1406ff9bec746f114b62c4208ba63f4f0fe0e5e3b9e9b74f8732b835"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-004/postflight/status.json",
+        "sha256": "d76a881d2700ce6282d81c6811b407f8423756a7f124b0d19fd676299e083f31"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-004/preflight/processes.txt",
+        "sha256": "d4af1022f50b2396016039f10492fcfa93674fffa98d5840496afa4a3cec8c70"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-004/postflight/processes.txt",
+        "sha256": "3fbcb4c2b8022fbd684117ec59d29829748645dc3bb3f97c07d0120b5e885843"
+      }
+    },
+    {
+      "group": "unknown-005",
+      "startedAtUtc": "2026-10-21T13:41:01.123797+00:00",
+      "postflightAtUtc": "2026-10-21T13:41:05.244592+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-005/session.json",
+        "sha256": "579bf0b6b281591269e209f99f811bdf03332631b0022c78e633db0280e27ec9"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-005/protocol.txt",
+        "sha256": "6572e12553e51c67e69495c558c1fb48dd899ced63fbc57ba18113838165a178"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-005/observation.json",
+        "sha256": "de029e48a66f724a4d8a4a2dc3264b2f94dc3ebb7260cb33fd1ba1e15bb634bb"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-005/preflight/status.json",
+        "sha256": "c366170f73274991a4a2a888f8aba8d5fc3fee819f17603d75535c378a648684"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-005/postflight/status.json",
+        "sha256": "bff68930efde413a9ae2677dc21aea35802ddf21983922ea069f8b65dbcfa839"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-005/preflight/processes.txt",
+        "sha256": "d1391031a2ca0c41330ad448ab6d2730a981228fbbf193dc705a3ee6f781a82c"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-005/postflight/processes.txt",
+        "sha256": "1e49abd927cb75c5f1205c7b0984a1ef5d2a226ba31e08bb6b3990558809b6d8"
+      }
+    },
+    {
+      "group": "unknown-006",
+      "startedAtUtc": "2026-10-21T13:41:07.665612+00:00",
+      "postflightAtUtc": "2026-10-21T13:41:12.321753+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-006/session.json",
+        "sha256": "cb982f004b4c9c2dbb6f16887429767406dafdc54cbff39a667c75c6732389b2"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-006/protocol.txt",
+        "sha256": "c64bc45ccb8426c6fc22b610985497ba956205411af8b04c8835d440ebf737ad"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-006/observation.json",
+        "sha256": "1a4a80978b6bc28a64d810aa16d2c9eeb95fda29d41e57767ac3600defb59ef4"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-006/preflight/status.json",
+        "sha256": "6b8b9a9b07ef62f88cbf1c284f22536f48f41a2738bf7484032e3f52d5179ace"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-006/postflight/status.json",
+        "sha256": "e1aa9eb73f01610f0f93fe32f9be46304e028265f7faa4b3044154b1816387c5"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-006/preflight/processes.txt",
+        "sha256": "70d944a870b13813de9171cf5507ab87e8237c05dcc1954d96223957127117cf"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-006/postflight/processes.txt",
+        "sha256": "68781db72e16a7f590575470b8da1a844e7815712ec33e6e27e9b7b887226066"
+      }
+    },
+    {
+      "group": "unknown-007",
+      "startedAtUtc": "2026-10-21T13:41:15.463596+00:00",
+      "postflightAtUtc": "2026-10-21T13:41:19.558902+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-007/session.json",
+        "sha256": "45e3907773ccd16725055acf042c916619a1a39b0292e2f707c327f2465030ef"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-007/protocol.txt",
+        "sha256": "40abe675de915796d21d19639ab31f4e5ef107ab2498cd8ee34385935c31755e"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-007/observation.json",
+        "sha256": "a107feda63ccf91f6d012d90f117b0a5d9168443ef7c577061b4e9fab33e6ba4"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-007/preflight/status.json",
+        "sha256": "de34a895ea362a10eeb7e0bc97e7f66bc4bac0f9a310055b2c2a7ae911303662"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-007/postflight/status.json",
+        "sha256": "0f5f5149a1d096cde8ba79ab589e354719d8350ea60104db8ae27cce9305f97e"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-007/preflight/processes.txt",
+        "sha256": "cc92af37a862dfd0420c3809995071c847b945dcb48e5ae31813a4509fa51a0c"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-007/postflight/processes.txt",
+        "sha256": "b2f1603295bb9daf642aa47f8861b0bd4ae8eb51fb1cb71e8cc29c0b79a10059"
+      }
+    },
+    {
+      "group": "unknown-008",
+      "startedAtUtc": "2026-10-21T13:41:21.934884+00:00",
+      "postflightAtUtc": "2026-10-21T13:41:26.207884+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-008/session.json",
+        "sha256": "41ff8a7035fca7b3434e106fdcc4d9d9efb4b1e82affc1c6d8b989a77929dd91"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-008/protocol.txt",
+        "sha256": "4437436bed5aae1b0d0bf313f2512d841381d67e417435e4a83fbcd26464a11b"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-008/observation.json",
+        "sha256": "41de6a52229f840a21a033605128cdff8f00870811d63ebdcb0c8f11f12f053f"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-008/preflight/status.json",
+        "sha256": "9a88da8e55cc5e6dd9d3f5ed7b34591c5c1d0dc5f7e5ceab0880407071177310"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-008/postflight/status.json",
+        "sha256": "37e003586bc4407cdd3420265e3f63a0fc2973de2cf724b936dddacefd493418"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-008/preflight/processes.txt",
+        "sha256": "aa7a7806f05eb43d9c39f1ff1700b2f460da8dd0e293e57e55610a8a63ca0842"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-008/postflight/processes.txt",
+        "sha256": "aa1dfc5fcba6c8be47ab9dd6afcf84ee89d7296985c6c199c2f942ecf13a1f38"
+      }
+    },
+    {
+      "group": "unknown-009",
+      "startedAtUtc": "2026-10-21T13:41:29.055937+00:00",
+      "postflightAtUtc": "2026-10-21T13:41:33.203458+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-009/session.json",
+        "sha256": "c7d13f60f188cd59f54013d1f9d62d0506c4dee0a6102f8ebd127b827efd2bfd"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-009/protocol.txt",
+        "sha256": "227d0101d6fc7be001dc223e3cd4f8682d401ed9c65682bb3217be1f69715c11"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-009/observation.json",
+        "sha256": "b4d756bfd4db4e7aee6c2e9e8cdc1528ee3392f798f7d80d40359d0ace195cc2"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-009/preflight/status.json",
+        "sha256": "3d1e2f2b8ccd71f2de27fcdff72b7fcad70ce1c7f1a903c0d9c78382c661948f"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-009/postflight/status.json",
+        "sha256": "585ac3d899f1d68e2e517fe89d37e55af6db7914c0053bfd82aeb772616e14a9"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-009/preflight/processes.txt",
+        "sha256": "ef0987b1c95ff2f3b5da4b94d9b2f026420261c6985c153b5142a7cbc73ea408"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-009/postflight/processes.txt",
+        "sha256": "dc1373fa70c7dd8cfae5b9a8fa25ffabf58ce0c893d94db21e79375f5e9cda37"
+      }
+    },
+    {
+      "group": "unknown-010",
+      "startedAtUtc": "2026-10-21T13:41:35.479373+00:00",
+      "postflightAtUtc": "2026-10-21T13:41:39.597247+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-010/session.json",
+        "sha256": "2ad9059c3be4c40a2e847191ba70c8bc61ffd52de7f4c7d031c879370ecb6a53"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-010/protocol.txt",
+        "sha256": "407715cab1444cbb85d3164938eeedb7a8c961b5acda6deb77483b680e818572"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-010/observation.json",
+        "sha256": "aa8521388a45aa2250f52ed10275aebf03b9a85f8148893c9b004120739fc39a"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-010/preflight/status.json",
+        "sha256": "0e8e8793719b44a6e943532ee0722869382da1c169462a01f582693e7eae4886"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-010/postflight/status.json",
+        "sha256": "77b449118dc023516059d3d116e5d8301f10b1c8a0b6c9d9485d89a587c49fe4"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-010/preflight/processes.txt",
+        "sha256": "4f3ed44233c576024126624ed1140d40bd9ebaadc411b6b695c3aeaaea03e80c"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-010/postflight/processes.txt",
+        "sha256": "1c26632812bf38547a4b28a8d0a5549421c53852229ebc610d57e402bb7ea2a5"
+      }
+    },
+    {
+      "group": "unknown-011",
+      "startedAtUtc": "2026-10-21T13:41:42.015423+00:00",
+      "postflightAtUtc": "2026-10-21T13:41:46.163809+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-011/session.json",
+        "sha256": "f322b307d009312bf6893c41830ead35cd15ce010c864b0f8cedac2f606eea1b"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-011/protocol.txt",
+        "sha256": "a5e8adcbc6ef3e58e330bda49a7a76d89ccdd7181bc8fa79784bf4604263c340"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-011/observation.json",
+        "sha256": "2ee84e48869263cbf7307ab0449aba616dc36dd26c60d57619815123e9d8d889"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-011/preflight/status.json",
+        "sha256": "49857f75bb6a9696c55edd4e0edd5d73d991beba47142629cedb5a1ef2c48a42"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-011/postflight/status.json",
+        "sha256": "ffda6f5b15b957894420a63e9a7107b1bca0b8ee1e5a37135905acc5631e1c0a"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-011/preflight/processes.txt",
+        "sha256": "264b3c3a6225eab341e2fd175f3b47734a1185fabd30331daad04ca0d5fc9a1d"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-011/postflight/processes.txt",
+        "sha256": "9ce13c7f20f9914612e6b95d8433f49d63ca311f8a0f841889757b5c3c146056"
+      }
+    },
+    {
+      "group": "unknown-012",
+      "startedAtUtc": "2026-10-21T13:41:48.543359+00:00",
+      "postflightAtUtc": "2026-10-21T13:41:52.794660+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-012/session.json",
+        "sha256": "f63efed8d19849c60ee800d1f8983a5c73cf625cb170e377f41b4838ad2e2aab"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-012/protocol.txt",
+        "sha256": "0675dab1924dc82de5f0c62ffa27515961f5d8270b50d77b0cfc42b46d237648"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-012/observation.json",
+        "sha256": "dde239754320a4a86e625af55837cc5273bbd993a3ec45daf2002c878cde87c0"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-012/preflight/status.json",
+        "sha256": "3e2e14ed02c67539655824de249422ce14a0a7024f3edc619bd29a8181b2c5a2"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-012/postflight/status.json",
+        "sha256": "a0696cd5e5137c24f3c04d0fd4d2dcb5243e96e09d5989392411c4aa8bb888d9"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-012/preflight/processes.txt",
+        "sha256": "8df63bad994201090550fc498945a2815d5b83e840df891225b4908f431a9d35"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-012/postflight/processes.txt",
+        "sha256": "ad7ae50d4b7ffd068738097f3a759a5039f143d7f20e803a0af8df716b527491"
+      }
+    },
+    {
+      "group": "unknown-013",
+      "startedAtUtc": "2026-10-21T13:41:55.299044+00:00",
+      "postflightAtUtc": "2026-10-21T13:41:58.304396+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-013/session.json",
+        "sha256": "764208c21029726e918b22c8d66749e24a0368def73fc85f13b262675410956f"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-013/protocol.txt",
+        "sha256": "cc40b2db5aecc554dcfe3622ee1d929926b98e3cb5b98d72d00d6dfc7f2934ba"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-013/observation.json",
+        "sha256": "8132e7eff3347e6b0b29cad66aa8d75265bb686b8d8638544c18e95cd85999a4"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-013/preflight/status.json",
+        "sha256": "28f852798c770c1f6224601e1b45dfb2e83687807400fde38695458206d923e0"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-013/postflight/status.json",
+        "sha256": "ffee5d8554c878063b8fd270cd310706677c46e9a85b19371249eb703834da74"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-013/preflight/processes.txt",
+        "sha256": "d6adcca21c4abc5620402b5b52e2e1eea0a85243f9dc34065375a16a24efb870"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-013/postflight/processes.txt",
+        "sha256": "6f42990d615b28a6a00977416827407baa85f7f280667f3d05fd1bbec5915e10"
+      }
+    },
+    {
+      "group": "unknown-014",
+      "startedAtUtc": "2026-10-21T13:42:00.924442+00:00",
+      "postflightAtUtc": "2026-10-21T13:42:04.290871+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-014/session.json",
+        "sha256": "3912ef53af1a283bcde694f8e491325ba743453a6674c74c32f565fe155b649f"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-014/protocol.txt",
+        "sha256": "75cd4318ac5c30776413bd688517bb2eca33e3593a5e0925c5ff62559bc65fdc"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-014/observation.json",
+        "sha256": "b8e24406de46c3e64d215a1d9c1f1d24b599d7813d92a024fddd018772259d0a"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-014/preflight/status.json",
+        "sha256": "4c463dbce8de75f9971c277673a74c6fa16eed46b476cb4a82c76b656b7e373b"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-014/postflight/status.json",
+        "sha256": "cf490df5eef0f7b2e17773161ed6dcdd0143ab63283eca8e0e842bf6f6b34517"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-014/preflight/processes.txt",
+        "sha256": "6b179501a454e6e6f97137f597cfa635402aab5cb00101f1dcba58ba3ec0e0ed"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-014/postflight/processes.txt",
+        "sha256": "7e07fc45526f6f6b89572112667d8428312ebc392600b832b1791e21deec73f0"
+      }
+    },
+    {
+      "group": "unknown-015",
+      "startedAtUtc": "2026-10-21T13:42:06.892942+00:00",
+      "postflightAtUtc": "2026-10-21T13:42:11.074121+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-015/session.json",
+        "sha256": "31e4e4ab0b1405ea01bc3ea065f9690ef3655331f812c50bc038c9144f48fee1"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-015/protocol.txt",
+        "sha256": "b342438c2dbf17f14052e839bfc4f8ec8c91b591f2f29863f3c3dd0118d8bdf7"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-015/observation.json",
+        "sha256": "846897fd058a96e2d5650251e123aeb26853aa4ab656e11a44799b5158bb0c4d"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-015/preflight/status.json",
+        "sha256": "00b43dafdb62a978f42a1018b3b26ffb7fa639bd645cbc6dd3c586ea90943f2c"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-015/postflight/status.json",
+        "sha256": "6d3b969413afef7085826d587abb086838742ce45d30cea7214f38b327bf41c1"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-015/preflight/processes.txt",
+        "sha256": "aa1bdbb03c78d76be4f42ef1d59867724de5de718f8ef1d34a5c1e7aa673502e"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-015/postflight/processes.txt",
+        "sha256": "75b9895e55ebf2f5d9dc412f89bdcfca46ad2c455f14c918308c6db2975b5a74"
+      }
+    },
+    {
+      "group": "unknown-016",
+      "startedAtUtc": "2026-10-21T13:42:13.572328+00:00",
+      "postflightAtUtc": "2026-10-21T13:42:17.851829+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-016/session.json",
+        "sha256": "db353796fe8402b325b1656bb76fcb97c750186576ffbba3e1685980d65496b3"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-016/protocol.txt",
+        "sha256": "dd5558bbfcf44882920f09fa366e782298cd86387331c351fa5c396369922131"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-016/observation.json",
+        "sha256": "2e3664a6619e3249d2c7ad20ed5d725c08a339d3e87d96f7dfdb890961d4541c"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-016/preflight/status.json",
+        "sha256": "da5b2692524195ba685330d35ce941928e1e017a95d7dc5569ad103f98cbd65a"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-016/postflight/status.json",
+        "sha256": "a6dcadc85a693f11064e9091c21ebb6b62626cde983fbde42ef9f6594392321c"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-016/preflight/processes.txt",
+        "sha256": "0f80a8d32adfdd8d12b633141e2a990aadffb7cb38ed302c317cc29b78128c7d"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-016/postflight/processes.txt",
+        "sha256": "16caeb91921c9e217b262cc64eff521a23a167d8cc1a3cdb6de0a166477bc3fa"
+      }
+    },
+    {
+      "group": "unknown-017",
+      "startedAtUtc": "2026-10-21T13:42:20.168762+00:00",
+      "postflightAtUtc": "2026-10-21T13:42:24.337284+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-017/session.json",
+        "sha256": "767074b4ad35a3c4a8d8c9767e3e6a64f80481d942fd9d82be5054beb98b5924"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-017/protocol.txt",
+        "sha256": "de426dffbcdc4eac4105e64805de9686b4792d761bd302a491b208cf7acd7877"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-017/observation.json",
+        "sha256": "a10370886ef96c242ef209ecd827f32438ffcbeacc7b74785f27bef760312719"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-017/preflight/status.json",
+        "sha256": "612facddd621bbec03c0a8efb459179632529bd453f31303a7bbea9ce5e245a9"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-017/postflight/status.json",
+        "sha256": "1f968bbd716e8a258b9a123d83c0ba2e96b3d906b5668e2dbededf2dd3859522"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-017/preflight/processes.txt",
+        "sha256": "bf37021e484d2cc4ea022801b7b90498e6502a5cc278852cd8b6b105613f93fa"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-017/postflight/processes.txt",
+        "sha256": "5c8b91cf4049064ead65fb35da8ddd770220a357a77433ad8b686504858e09cb"
+      }
+    },
+    {
+      "group": "unknown-018",
+      "startedAtUtc": "2026-10-21T13:42:26.908235+00:00",
+      "postflightAtUtc": "2026-10-21T13:42:31.017270+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-018/session.json",
+        "sha256": "aac3d9ef494ad807812cec9b331d98975541febc18f0d3a5f9c2bc781646fe32"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-018/protocol.txt",
+        "sha256": "90bdfdf69e7f2865e9f55a5b72d4f0194876971804e91587c0b18b29ce9070a5"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-018/observation.json",
+        "sha256": "d1e02b2f379440e1db9d982649e23d3a2d38ed23b6e36d0b24326b856efea3c7"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-018/preflight/status.json",
+        "sha256": "e4e49d149571b131b0363b9c334810a01598c4ce16a3409d3c7d1d2a2ff5ca88"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-018/postflight/status.json",
+        "sha256": "c9ffbd6d5ca6b2fd0235092317a4469b3a4048bfde8d69402f60ed606dd8fa5d"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-018/preflight/processes.txt",
+        "sha256": "b55fcc51027b51613bc384dcd08bb803653ca2a442c6472ff6cbb8565cb5ed7c"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-018/postflight/processes.txt",
+        "sha256": "e60beacc7aedfc1fb323d321b1fa2888be93a09c0e06c2151ee5f364528b9259"
+      }
+    },
+    {
+      "group": "unknown-019",
+      "startedAtUtc": "2026-10-21T13:42:33.505439+00:00",
+      "postflightAtUtc": "2026-10-21T13:42:37.612006+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-019/session.json",
+        "sha256": "a917d310cacb3a194dae5a9aa51223a49ac0e4dc234f22beb7675748568160ed"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-019/protocol.txt",
+        "sha256": "b1ad3588f4c07f4d522a0d5d214460b64f85d02e8a731772d0947f318c5ee340"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-019/observation.json",
+        "sha256": "d42f0818a3dbb1b139227894865e5ac09c8b2eafccba1ba213e201e14f230fbb"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-019/preflight/status.json",
+        "sha256": "aadceee7bd6b34b081ca0165b2d636bcb558a7b47a9087cfcc7a18c1327bd85e"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-019/postflight/status.json",
+        "sha256": "456d304efeed95b86e0f2e74d2b62dae838d0b1c9500d5b1c185853a7c0d1ade"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-019/preflight/processes.txt",
+        "sha256": "40a5add343fde28648f57c5ab930d509370f194817c91cc22aabe51bc0d16760"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-019/postflight/processes.txt",
+        "sha256": "fff1ce9e78b6c62d0c845b56d950852a3c573f5960a39c17c5d24648e4251c1a"
+      }
+    },
+    {
+      "group": "unknown-020",
+      "startedAtUtc": "2026-10-21T13:42:40.213734+00:00",
+      "postflightAtUtc": "2026-10-21T13:42:44.463053+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-020/session.json",
+        "sha256": "dd9610cdcd5d9f735abbe8a8f0ff548f9dfd07a7be5e9720294183d78f6b91f5"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-020/protocol.txt",
+        "sha256": "7f4a7b62caeed503abff439881d4015ecee9e7639bb988e1cef838d476a0c59d"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-020/observation.json",
+        "sha256": "e1c3ca15868aa974e7f8d5fb8647cf058056d6e3eb22a84bc1f036873d8a0588"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-020/preflight/status.json",
+        "sha256": "a3187f715ee221bb78009cd617edc7d8fb25f4d09611ab0232716121aeacfdd0"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-020/postflight/status.json",
+        "sha256": "3134f27964fad0b749f6e20f7ede3f5dcb2e579e73ab9f497b1c8201761140be"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-020/preflight/processes.txt",
+        "sha256": "ddde6e7405c853ef857cf1887ef51efc46956319875eb52e5a022e3ae1ada04e"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-020/postflight/processes.txt",
+        "sha256": "4f442f2f25ed091f3ac1668bf2c174589b48b88d8f173eddbb848cbf5f335d46"
+      }
+    },
+    {
+      "group": "unknown-021",
+      "startedAtUtc": "2026-10-21T13:42:46.796773+00:00",
+      "postflightAtUtc": "2026-10-21T13:42:50.943475+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-021/session.json",
+        "sha256": "7e9d380ed719a100ea2e3843704b96c4796cf4a209695aa1f36e95be55415da9"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-021/protocol.txt",
+        "sha256": "010da0ae4014303e223d69b4f8a17cea7ba49815928e6d0690a353ba45462bd9"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-021/observation.json",
+        "sha256": "b98de96be27142b924d55007d42964c2ebdb410d18cb1067ed74078d2823a4c6"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-021/preflight/status.json",
+        "sha256": "f808e34af7d89b605e8bc92610da338e2738dfb6d1d5d6bad18cffed924b8379"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-021/postflight/status.json",
+        "sha256": "68fc06f34d1890bbaa1ea944fa09fca6660ce0848d40a305239d155ba7dde4c5"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-021/preflight/processes.txt",
+        "sha256": "11a3be84b147c0dfec80f1757b2325e281c7121253103272dd83febf7a3512d4"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-021/postflight/processes.txt",
+        "sha256": "44ca980b8e1952c525d47a1ca9064a9886b2e41bfe69c6164ad86a736fb2f1c7"
+      }
+    },
+    {
+      "group": "unknown-022",
+      "startedAtUtc": "2026-10-21T13:42:53.363796+00:00",
+      "postflightAtUtc": "2026-10-21T13:42:57.442359+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-022/session.json",
+        "sha256": "9945959a80ca5d957db6c06b55e82d32eb5b6a782d3e7df4aac9dfdf3a19c1f5"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-022/protocol.txt",
+        "sha256": "611208612e3b8a7e91aa6a1680202b7bfbbc9fc2b524fb3bbb24c7cf5b938f50"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-022/observation.json",
+        "sha256": "40cb783de3add5432a92cc35822b5a5688911ea003310be7d6743b0be99bff25"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-022/preflight/status.json",
+        "sha256": "50356805b5767bf3055deb01d411f52b40acb0b1bf539c4fc74172be89f220ba"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-022/postflight/status.json",
+        "sha256": "bffb6af5b707058395cf6750e57e0b67985796f7456b1dca7402ca29c68f149b"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-022/preflight/processes.txt",
+        "sha256": "ae735ecfaf437b8ae882cb3b70f8b426e006fb3760a8c0fc42e330126440ce9e"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-022/postflight/processes.txt",
+        "sha256": "2935031724d50dd1229cd84ef6cd4355e7c5ba94000d7793c1c760ac125774fd"
+      }
+    },
+    {
+      "group": "unknown-023",
+      "startedAtUtc": "2026-10-21T13:42:59.867855+00:00",
+      "postflightAtUtc": "2026-10-21T13:43:03.982722+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-023/session.json",
+        "sha256": "05343c07faef1e751e74d982e0f4aa8706023b8bed451c86e27e2593a0650164"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-023/protocol.txt",
+        "sha256": "b72f8d354d2461d8e31ff14e4381a256ef0f45f6bbf57a6ab7fb2e22d9f80903"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-023/observation.json",
+        "sha256": "55423ebad781b8aa56cda8a198ad9e5b78a2b831de8e10e86855ed76b70bd079"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-023/preflight/status.json",
+        "sha256": "269f49bc789682aa4f62157d4ad0c6ee370db0254459de52117590f24367027e"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-023/postflight/status.json",
+        "sha256": "fc4be17499f51b035ebb2c0d1611d0a071c31238a1a2353ef453234c0e9377a0"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-023/preflight/processes.txt",
+        "sha256": "9a26488356c97c5f38b373c97272880bd6f10670261f3e8bbbaa4dbe01b84bee"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-023/postflight/processes.txt",
+        "sha256": "398d4eb63be1270be44f5ec4be3b4e68a91aa0cf48eaeb7f8f250427b94b5791"
+      }
+    },
+    {
+      "group": "unknown-024",
+      "startedAtUtc": "2026-10-21T13:43:06.940468+00:00",
+      "postflightAtUtc": "2026-10-21T13:43:11.062594+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-024/session.json",
+        "sha256": "30d4672ddd1dc371ac27953839ddf786dec6f1985e3ef7462ca51fd511ba1d3c"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-024/protocol.txt",
+        "sha256": "fcad5e5b221847dcb0c726b45ac8d02e64edb129b00f51958ef1bad69694c162"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-024/observation.json",
+        "sha256": "60d7ae5681d1b00c4afa67d325d69f05c16909be04fffd4bb779d2419581947c"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-024/preflight/status.json",
+        "sha256": "a288fdbc694f440445c48c7b0be1893cb05886398e24c423c3c3ff03fb73216e"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-024/postflight/status.json",
+        "sha256": "ecc879379801923fe1cf885242834d4ae021b832ea504342c91c1353be3e9684"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-024/preflight/processes.txt",
+        "sha256": "93d83a2d8f1c9d58e3cb6b0e1bd70920575ccc1788d652373641d42cdbdfa00a"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-024/postflight/processes.txt",
+        "sha256": "27eef3dada356941b746332b7cbe200e23dc0ea08be0962e2421ccbc76d973f9"
+      }
+    },
+    {
+      "group": "unknown-025",
+      "startedAtUtc": "2026-10-21T13:43:13.527651+00:00",
+      "postflightAtUtc": "2026-10-21T13:43:17.662322+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-025/session.json",
+        "sha256": "abf569a277b72932153e8fce246ce0dec5fd984df0768c50db4ed225bbbec5d6"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-025/protocol.txt",
+        "sha256": "34e703293a7e103992d83df37f6a54173688b9effe7ab684429ed91b48270f38"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-025/observation.json",
+        "sha256": "3c0e31ebe7ef207cbd3bec1c19f50f633de45d82ee94c70c9eb2a0e95b215f2c"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-025/preflight/status.json",
+        "sha256": "7cad516577a44f496fbf5a61c683d5f58e7920d56403001cfac619119f294ba7"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-025/postflight/status.json",
+        "sha256": "45b2d7fd7f640cf7455fd50035114539b3e73b14627fd617beb78d1ae7d8f27e"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-025/preflight/processes.txt",
+        "sha256": "3a8f624a474dac0a218b4aa6648063a8f0b0add8740a90e091cc64b591088ad3"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-025/postflight/processes.txt",
+        "sha256": "8200afc66c71cea9f902c6de8a585fe549d9e3badc3bcf56bf42a2d1ee389f56"
+      }
+    },
+    {
+      "group": "unknown-026",
+      "startedAtUtc": "2026-10-21T13:43:21.011988+00:00",
+      "postflightAtUtc": "2026-10-21T13:43:25.123888+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-026/session.json",
+        "sha256": "471e9414e0a81067fccd6b5603deda0668f4a55df7f1b182f51d3e6f5268879a"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-026/protocol.txt",
+        "sha256": "0d032f854e54c2381e6b35292bfe23560838612e2c3b1d3f500718757b6df619"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-026/observation.json",
+        "sha256": "781767bfe5d9da6868f7378a0c70c49738fb0986ddbc432f86816e5fb57b5a6e"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-026/preflight/status.json",
+        "sha256": "93ca67bbd381e26697c08d5de4354f046ce5b7e280c5c7fce20b1ddb40d4cb15"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-026/postflight/status.json",
+        "sha256": "e6c72c385681b9e3682ced18cfbed507fa076ed4cf8d8b379e2b413068ea818a"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-026/preflight/processes.txt",
+        "sha256": "b4b84d5300084776485c018012357b0cc8d5be07efb87bdab97cb2036f343398"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-026/postflight/processes.txt",
+        "sha256": "88b5546be0aa51d1386bfe772f76c9254b5a7eaf4e85631b1d62d487fc609140"
+      }
+    },
+    {
+      "group": "unknown-027",
+      "startedAtUtc": "2026-10-21T13:43:27.357615+00:00",
+      "postflightAtUtc": "2026-10-21T13:43:31.236205+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-027/session.json",
+        "sha256": "2345a6d6197f42e3242db87f84ef2289f302d0458dafdf89302907746c2dbdc8"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-027/protocol.txt",
+        "sha256": "e7b056b96bb82781854d5f44b3ae009c36619ff2b3ab561b51307ff46a869d28"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-027/observation.json",
+        "sha256": "5e393b0fcd1e36f4b4e106e799b161b304e63575086d0f752353b01f6989aeae"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-027/preflight/status.json",
+        "sha256": "aa695d031e67c7477ab08c45604c7eda9e2059258d177f902d2658823943591e"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-027/postflight/status.json",
+        "sha256": "333bba68e8aef66017de804b876304c07853da213594359b1d21e87754b93859"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-027/preflight/processes.txt",
+        "sha256": "22ea8b1eddea03da531b296db432a887d1fed5165cea28e422589825d1e6474f"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-027/postflight/processes.txt",
+        "sha256": "e832326edf93acf5bf79a808adeef2b9098bd7055d1ba311b971fea1943ef50a"
+      }
+    },
+    {
+      "group": "unknown-028",
+      "startedAtUtc": "2026-10-21T13:43:34.623189+00:00",
+      "postflightAtUtc": "2026-10-21T13:43:38.759626+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-028/session.json",
+        "sha256": "f8c7883cfa901cfa5eff13a5e911a6f05fbe84432b6869ddedb2021df93bf6f1"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-028/protocol.txt",
+        "sha256": "c69f4d3a44a61f5e368d3d604e82de1ed16804c62614a35336e2bdd4c78fe1c4"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-028/observation.json",
+        "sha256": "c2a715aeac1863a1285f05a91600896aa18893fef94c25947e9ea48ba5ee228d"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-028/preflight/status.json",
+        "sha256": "1358203f3827e120244d485e678ed35a29e68a4893b245c9e660fd0867f01b27"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-028/postflight/status.json",
+        "sha256": "0f666d83a1152574a346925f80d11b58c3937166e8a9ab7c82bba3e46cdd3a24"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-028/preflight/processes.txt",
+        "sha256": "fccac9ebae1f4e75d03eacf840c84e962f64e963928d398b029d8821af974895"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-028/postflight/processes.txt",
+        "sha256": "2725cb859a4f264e197173fabb93fe278c8f0c349d6a371e1aab23e910cf64cf"
+      }
+    },
+    {
+      "group": "unknown-029",
+      "startedAtUtc": "2026-10-21T13:43:41.112171+00:00",
+      "postflightAtUtc": "2026-10-21T13:43:45.682792+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-029/session.json",
+        "sha256": "caf0cf568aff1d672030b6345364d62d70dd9e9aece6fe23c1db3bba62674387"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-029/protocol.txt",
+        "sha256": "a8c222c76c4c7086364d78b63fe18af1f47f9e9a33248b600be115762c8f8d54"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-029/observation.json",
+        "sha256": "5ba999fbe3c09c5322305bfd1a2ed049eb5bcf884aa0c0ccfd7acce1103b0ed3"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-029/preflight/status.json",
+        "sha256": "e3814bc6a28a3b9e03d279ddd28ae7485ead75dfb18113291e3d15fde5c61941"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-029/postflight/status.json",
+        "sha256": "52b8164c70740fa410894b4e4d045f9d9e8c038c26edf29151ebc5812b5a765a"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-029/preflight/processes.txt",
+        "sha256": "40b1e07164c7ef786170bfc1ba8ffc4a26791b28a4f6ed0870e785658e60e355"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-029/postflight/processes.txt",
+        "sha256": "7f5a82a380ad3addd4bb5fcd0e737cc607ed1a197803282c709c98cccc9212ec"
+      }
+    },
+    {
+      "group": "unknown-030",
+      "startedAtUtc": "2026-10-21T13:43:48.426794+00:00",
+      "postflightAtUtc": "2026-10-21T13:43:52.286473+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-030/session.json",
+        "sha256": "1eee9604f374f4e2f59c0b5045c5a4a79da032168b36f74f39f84decc382a813"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-030/protocol.txt",
+        "sha256": "b1b04503908fd200d169c47a3aecf50756099fc4d3752cf83e7b4b15c72521e2"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-030/observation.json",
+        "sha256": "2bd8a86a80f6d61d485d0403607de7650fbccfa4ebfc529d8a609ae13e065084"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-030/preflight/status.json",
+        "sha256": "6246ac682762ab54d2581f0ef77484b88ac311e48aebb274e94df732777329a4"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-030/postflight/status.json",
+        "sha256": "ed88d26dd182e9dcadeed3c06ff898bdcba5dc850f7afc6bf7ba14d3e8ae5bc8"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-030/preflight/processes.txt",
+        "sha256": "c9c961be93c875655fca1fbab4fd5de1b23e73d92d4fdb757e96be6b82250492"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-030/postflight/processes.txt",
+        "sha256": "837c846d418ea39076828f05aa73054efadf284335256fc0b85b66a5cdc528bc"
+      }
+    },
+    {
+      "group": "unknown-031",
+      "startedAtUtc": "2026-10-21T13:43:54.668313+00:00",
+      "postflightAtUtc": "2026-10-21T13:43:59.068418+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-031/session.json",
+        "sha256": "e5f812c125467b1fb1dbf5a5927c83b8bb8688137d3599d7c3cce90eb767839c"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-031/protocol.txt",
+        "sha256": "61671025ad9d003170f31607cc4ae2861ae6abc119d9422a87975a4ae14e7efa"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-031/observation.json",
+        "sha256": "91a9bd8b3d42a705589b4050ce6a61f093cfb93423d6a5e6d0d4ada50299497c"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-031/preflight/status.json",
+        "sha256": "4ce34a199929d5db93bb4b4e11aa5e34965a29809db10cf2a5a5dea67cf851b5"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-031/postflight/status.json",
+        "sha256": "8215aebc91f70a4e89d2cac86d1dab45aef0d389a3977f82df05d2e6230e5b96"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-031/preflight/processes.txt",
+        "sha256": "9607732e36bb4073890c2aeca2434dc34454dbc4dbbecba9bf67e6bb7879b740"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-031/postflight/processes.txt",
+        "sha256": "ddec2e424a607193ac2e02f38dff323a8ed5a15593899cfab2a1e325dbf37101"
+      }
+    },
+    {
+      "group": "unknown-032",
+      "startedAtUtc": "2026-10-21T13:44:01.398863+00:00",
+      "postflightAtUtc": "2026-10-21T13:44:05.252374+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-032/session.json",
+        "sha256": "ca5f771ab2bc9708d1384fcf16415cef905ce6a5bfb34f8af552faee3444df01"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-032/protocol.txt",
+        "sha256": "aabdf68194d76f980b5722b7ac5da08ae55d6b9d003e7ec98614b6bcd4470c45"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-032/observation.json",
+        "sha256": "827bcc9592f2d7482b27518346031a85ee5e9834daeccbe2b08f6984e718bfe2"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-032/preflight/status.json",
+        "sha256": "590dc32c0bbf5c4edca44b96e7ffdacc526df1925ca8c468df6b8de2e0c6f9d3"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-032/postflight/status.json",
+        "sha256": "b0db196ff78ad387f459f92bb2a47f3f9a0c19726a1055526faeea4f7792dddb"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-032/preflight/processes.txt",
+        "sha256": "f9f68da30363571d31dc44e4249e4152482fad35767268ba606cab30edb5f51e"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-032/postflight/processes.txt",
+        "sha256": "0b197f858f6d8c4489044908d817cce387ff79762ee70629d03720770c0fec70"
+      }
+    },
+    {
+      "group": "unknown-033",
+      "startedAtUtc": "2026-10-21T13:44:07.644218+00:00",
+      "postflightAtUtc": "2026-10-21T13:44:11.925536+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-033/session.json",
+        "sha256": "a15857ec6adbf566940b83f06165c64ada8ea49efc17ace7bb17929b8f5740cc"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-033/protocol.txt",
+        "sha256": "a9a709f37e1b1af03a9209a6bc0a4ce2e24697c6b25617f3eb97197e1a3356d2"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-033/observation.json",
+        "sha256": "b18b7836b2ee489a7b00d6d19d4eff857c2fabf3e8e2d8d48fd22a34e4ee61bf"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-033/preflight/status.json",
+        "sha256": "113effbe608d16bc78d5ceaf62a72148e7f1b15e1e008f947027ba54be8c9fe9"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-033/postflight/status.json",
+        "sha256": "80ded3d2f5456a249fbed16bfec33a15ad84ac5085bab09ae81448d7ccd2441f"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-033/preflight/processes.txt",
+        "sha256": "e1372c5563adda379e1ba445b528d86606bb6a730523344e24e188f401392ad9"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-033/postflight/processes.txt",
+        "sha256": "fa2393618b2086da1ebe6a9d25a2bf7818d117c491b9ec2f71a9b3bbe0be8045"
+      }
+    },
+    {
+      "group": "unknown-034",
+      "startedAtUtc": "2026-10-21T13:44:14.402091+00:00",
+      "postflightAtUtc": "2026-10-21T13:44:18.239443+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-034/session.json",
+        "sha256": "806ac07a0eb1ca02aa546325e90a7ee720b3759f1dc49412cb247b3c0c9f875c"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-034/protocol.txt",
+        "sha256": "05d42829c481d0bb6716a9b2644995e8488302e6a2ddff3456a796386578616b"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-034/observation.json",
+        "sha256": "f54cae6de36fd7eefe71c40a96d840d8aeb4186b73953a19cec3ecbcae9d0289"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-034/preflight/status.json",
+        "sha256": "620240ed8bf1285335270a83593fcb3ce4451af932125fc8b124ea3e3880399f"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-034/postflight/status.json",
+        "sha256": "2df32b7fea59f29ad7159c90adea82a79ec762f80bdd3555edaccf6f6462b73d"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-034/preflight/processes.txt",
+        "sha256": "5c1c48697bd4a3627b8e15e6f5f1cdb44bec52b17fcd0ee56be3d33a3462ff8f"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-034/postflight/processes.txt",
+        "sha256": "ade9b37c8ebaa5424b2574d7430b05f232510166083d93eb7f53ebe83571329d"
+      }
+    },
+    {
+      "group": "unknown-035",
+      "startedAtUtc": "2026-10-21T13:44:20.538763+00:00",
+      "postflightAtUtc": "2026-10-21T13:44:24.708248+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-035/session.json",
+        "sha256": "e328099db6da0a7c66c7a73f5ab1c185b70cd0640a14f538c0f026a201a07524"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-035/protocol.txt",
+        "sha256": "326dfd85c6250d015c482fa4d90ebf892a1510a936f71f960266501054cc7302"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-035/observation.json",
+        "sha256": "24b5df1cf5a94011945dff0182fcfa406d9d3c79089f502b37d633f4f38c246c"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-035/preflight/status.json",
+        "sha256": "af527396b254ed5ff68432159f5490c837b922d87d9a29fc7c95dc2ec7f4b239"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-035/postflight/status.json",
+        "sha256": "13ec3958adff1f9b1e5b0220672edd72311a06fe970011dda17a9afae2d23f60"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-035/preflight/processes.txt",
+        "sha256": "91bee00470d49f7f23a6685512c433dbac2548ea9189cb43153230e5a9bbb0ed"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-035/postflight/processes.txt",
+        "sha256": "aba9813b165048ef7edf476f05715a7534197948f359fd0eb972ef825b5ed1c6"
+      }
+    },
+    {
+      "group": "unknown-036",
+      "startedAtUtc": "2026-10-21T13:44:26.991901+00:00",
+      "postflightAtUtc": "2026-10-21T13:44:30.838134+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-036/session.json",
+        "sha256": "347aec613eb2881ca3ade200b93eaad7cac9fddf41868ab61508992fdb5def03"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-036/protocol.txt",
+        "sha256": "15bac58a75b7494e10b55f7148bcf0f2828aba5d4dfad70ffc88e35e1a2df357"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-036/observation.json",
+        "sha256": "98a6e58215ac40218f6d5681809a7dec838db3615763877446a127ec50941d16"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-036/preflight/status.json",
+        "sha256": "e1e9259fb5df8195d977a5dc53c58eed6b7ed39cf5cd55f3728adf1127a925f3"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-036/postflight/status.json",
+        "sha256": "9acf3f5f5e865b372b87ba497fc4559a748c1861eee4f79023c489b55e3b2bc9"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-036/preflight/processes.txt",
+        "sha256": "c27094986fea2a08d5a305d956b95d27094e0969ebda01ac1647dcf3ae8f40d5"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-036/postflight/processes.txt",
+        "sha256": "99e476c91b87b792d3459977c9dff040bcd82fa49ca57f5589f38ff10dbd661b"
+      }
+    },
+    {
+      "group": "unknown-037",
+      "startedAtUtc": "2026-10-21T13:44:33.278698+00:00",
+      "postflightAtUtc": "2026-10-21T13:44:37.400982+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-037/session.json",
+        "sha256": "cf497263ede74880a7eedb74c2cd570ee7c9cb335021e5e6bc51f60310726289"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-037/protocol.txt",
+        "sha256": "ade2a16bcc8a0bc8ba8234a07126208b11eb7fd4313b04a47bfef8696283f0f8"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-037/observation.json",
+        "sha256": "7d4440e80a956f4775782e3c35a22f3783aab9302619e9a6f897bde2730ca8de"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-037/preflight/status.json",
+        "sha256": "194d3c5f0aa7cbcc98fbe05417b4ee0babfb4cf3e67676d420806de1a1d48d32"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-037/postflight/status.json",
+        "sha256": "3393827305e0a60f203790a8fd27701ba245507b35084969e499a9fcff5a26c7"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-037/preflight/processes.txt",
+        "sha256": "8679dbef6b01f8d79495b9ac945d220687ef5faaf3f4394891a852b0b09ebc2b"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-037/postflight/processes.txt",
+        "sha256": "cd90f0d369f28ed95b534ad2e05f403e21bb650777371e5185e67a13461b671e"
+      }
+    },
+    {
+      "group": "unknown-038",
+      "startedAtUtc": "2026-10-21T13:44:39.722052+00:00",
+      "postflightAtUtc": "2026-10-21T13:44:43.582544+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-038/session.json",
+        "sha256": "26a1d2624632c7f13f98e411d7886d2f0d1f1d7bc1b1f8aab0d690914e764e55"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-038/protocol.txt",
+        "sha256": "983073224faf7fdb9ae455981d2bd057833fc14b256b50989bbb8b80f781f392"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-038/observation.json",
+        "sha256": "5e01412d06b7e54760b8d51563b06e07ca765dd7716918388a192ff2dcc89d64"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-038/preflight/status.json",
+        "sha256": "9b9c5d669780ffd97515b186de9131c5e26a97ce0be3a653d52d85f3bb6c5dca"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-038/postflight/status.json",
+        "sha256": "19f6eca646d3b2cec313f88a5620e8233190e7a209be1ad6c6b3c9c1ab9a363f"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-038/preflight/processes.txt",
+        "sha256": "070d46b5fd09d7993deb6b52f97290c8c7753d2737491dbff24aac001b1ed267"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-038/postflight/processes.txt",
+        "sha256": "0717d1446cd627224037f3d02c0a01b03f7b28acc79f91c76c2291a0d4bde62f"
+      }
+    },
+    {
+      "group": "unknown-039",
+      "startedAtUtc": "2026-10-21T13:44:45.980943+00:00",
+      "postflightAtUtc": "2026-10-21T13:44:50.106032+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-039/session.json",
+        "sha256": "f6d5b0d6306ab3e52d6a43add25e426b7538944f19a952578207245923522b29"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-039/protocol.txt",
+        "sha256": "f502446999b609172385de7cbdd6faaaae9c28865b0762f400ab8094fc780430"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-039/observation.json",
+        "sha256": "fc8d6f675d2353e93d57cfdae97e884576c9c66a01ad81f828a5e82da426c4ae"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-039/preflight/status.json",
+        "sha256": "3cd08d000d4f2a68f3449fdd5fdc920d8f88642ed88f41058da1d88727999ab8"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-039/postflight/status.json",
+        "sha256": "5c75b52937943ab9ee927f4ac28453720a35c35fe655b3bf898ea7f65946ec53"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-039/preflight/processes.txt",
+        "sha256": "5b08bd88e543856cdf73e2071973d79d991aa6daf336f76d8b16fab04f3368fe"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-039/postflight/processes.txt",
+        "sha256": "903185d9dc27401a861a8f130e8e584f08c1400916aed5a06582e45c9766ff8a"
+      }
+    },
+    {
+      "group": "unknown-040",
+      "startedAtUtc": "2026-10-21T13:44:52.667659+00:00",
+      "postflightAtUtc": "2026-10-21T13:44:56.568193+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-040/session.json",
+        "sha256": "63cf801448c0d7963bde10f384d9d9ebff7b6932dc909924beb0bf0d030f5514"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-040/protocol.txt",
+        "sha256": "e857a76f3877931b681e4bc5f59fd36e9db51b87ad96aad54a9abfb4f81e981d"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-040/observation.json",
+        "sha256": "b58eeb0258b8e72d73a3cc69bac74db700d9ada7b22fb77390f0f497ebb9d7a9"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-040/preflight/status.json",
+        "sha256": "248e9755c1b2525b18f9692d6c3e907e69042dfca1bba5841004568cd96f3f47"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-040/postflight/status.json",
+        "sha256": "6baca14841b0868d85981f08b6def16b353a28ed4446d90bce101d50fc6982e4"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-040/preflight/processes.txt",
+        "sha256": "f3f62a140a01aafb2881fd3a21733d4000ee345ed430ec222516b07593504de4"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-040/postflight/processes.txt",
+        "sha256": "699acbb90d2c60f85a18b0ced8416c460f3123b978909e39df40af182e6465c6"
+      }
+    },
+    {
+      "group": "unknown-041",
+      "startedAtUtc": "2026-10-21T13:44:58.973896+00:00",
+      "postflightAtUtc": "2026-10-21T13:45:03.007234+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-041/session.json",
+        "sha256": "a60bc56a2da591bca067cad0af64bb3c5fe544c5d191cc15bf23eb98b79eb888"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-041/protocol.txt",
+        "sha256": "34337529f73f4c8e3b52e3973008752f5abc24bf76711e0ca14c1516326fc46b"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-041/observation.json",
+        "sha256": "824826b4c3ec0b9454e56249e6b73969717eaff192267069aa4f755aeb48e57f"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-041/preflight/status.json",
+        "sha256": "82f563b2687dbe741428971a23f5dce4beef7a0cc7058655af0c469915eb13aa"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-041/postflight/status.json",
+        "sha256": "c091ca1dbda6f56363b33510f4412db375957115b22ad3b4e6f576b4e6b44845"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-041/preflight/processes.txt",
+        "sha256": "1e92da0b81b29c8f709e3f0f435c043c65c404a864efbb1d5fe86772d0992722"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-041/postflight/processes.txt",
+        "sha256": "6f60a738b20e2fb8a6d0406e6a002cb81e6633a107142eee771ef20cbceb929b"
+      }
+    },
+    {
+      "group": "unknown-042",
+      "startedAtUtc": "2026-10-21T13:45:05.314908+00:00",
+      "postflightAtUtc": "2026-10-21T13:45:09.136831+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-042/session.json",
+        "sha256": "33909e30ff47af04b49afc9b755e05eef621bcb5423259d5699c7cbedecf6909"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-042/protocol.txt",
+        "sha256": "b8567984462af5030b585dabcf220a257a5a5e693ebbebf005e3c4da4af08d25"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-042/observation.json",
+        "sha256": "0cd8b2d967f7db99507f51f5b5f7d878c8b21afb48c08df36e37b9aa13e8ca30"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-042/preflight/status.json",
+        "sha256": "c38603cc377caa7400092124049044a8f11f6f90c83265f69962275e81c557eb"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-042/postflight/status.json",
+        "sha256": "d2b49f3e2bfb42c1aa1d74a37816becf6aa56c4d1b7df42f036b808da42218b3"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-042/preflight/processes.txt",
+        "sha256": "3583aa435d23c8ba00271cfe70bd5a846e15eb3f30fbe9004989f144693c0770"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-042/postflight/processes.txt",
+        "sha256": "f89fccd81cca54e00b1318a2302d46621f9365414986b705ffa77c45977694f8"
+      }
+    },
+    {
+      "group": "unknown-043",
+      "startedAtUtc": "2026-10-21T13:45:11.361364+00:00",
+      "postflightAtUtc": "2026-10-21T13:45:15.657346+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-043/session.json",
+        "sha256": "3f7ef3d1ee83effa1bbc9b84b834cdccfc76047aac9f246f8817ad496c5040ef"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-043/protocol.txt",
+        "sha256": "3263c023df23db8dd3413d483855b149b8ba7a9c4d90e44f1126b623689d8f74"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-043/observation.json",
+        "sha256": "0dbaee192a492a0f9604d9e52a9802f90025b5584a8f244947029c7ca03ff5de"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-043/preflight/status.json",
+        "sha256": "bb9e80e35262f3962c87522d6f0f1769b9bfed706c466f13066e9d2c828e39c7"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-043/postflight/status.json",
+        "sha256": "76eca74c2ae9397453aee6997e742ebeab59419a568f4405ac82c5e035c26bff"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-043/preflight/processes.txt",
+        "sha256": "c98e2d13b4152e49c976dc33cb19972eceeed9c43efa79fda5461849c8f27b1d"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-043/postflight/processes.txt",
+        "sha256": "a27269181dc242bb0305f0e817e91c09a3b53b55336441935e9ee06edcdd9721"
+      }
+    },
+    {
+      "group": "unknown-044",
+      "startedAtUtc": "2026-10-21T13:45:18.043970+00:00",
+      "postflightAtUtc": "2026-10-21T13:45:21.871477+00:00",
+      "session": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-044/session.json",
+        "sha256": "3d1678a5a67740f4739fe65b3a5b0519edeadcfe0644b0cf3f6962e3ea9d0572"
+      },
+      "protocol": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-044/protocol.txt",
+        "sha256": "de4b945f47e2a18e71037e06bef53174fce5149c2093c572fd9303337cda7748"
+      },
+      "observation": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-044/observation.json",
+        "sha256": "115f87bc0d8c8e9439cf920f229f0556be2547a9ce2c1464b01a4b9ba32698fa"
+      },
+      "preflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-044/preflight/status.json",
+        "sha256": "a8f3491c1888b1f330756cdb65f4ccb719837b402f62049e6d35f0516928eda6"
+      },
+      "postflight": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-044/postflight/status.json",
+        "sha256": "ac27da4b8ca80db5ac553127a30823aacb99f3d54824a822c59b35c7bf685f76"
+      },
+      "preProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-044/preflight/processes.txt",
+        "sha256": "54f4571335ed38ca08b10b6de211b1dcb20604a3a6c9d11a9def86b15bb1a84e"
+      },
+      "postProcesses": {
+        "path": "captures/ota-unknown-identities-20261021/unknown-044/postflight/processes.txt",
+        "sha256": "11fe089d0a76e82515d89cc96c8c135f1bc6c740db074bb929d043ebdef71a99"
+      }
+    }
+  ],
+  "limits": [
+    "Only the factory-mapped code DID is read; no version/configuration read follows.",
+    "A negative code or timeout is not proof that an ECU is absent.",
+    "Any positive response stops the cohort for separate interpretation.",
+    "No cache is overwritten and no cloud query or update is started.",
+    "Base sessions intentionally retain state=stopped and lifecycleVerified=false for NRC/no-reply. Cleanup/health are verified independently; no failure is relabelled as a positive answer.",
+    "Only identity DIDs were requested. Software/hardware versions of these47 candidate records remain unmeasured."
+  ],
+  "expectedServerTupleKnown": false,
+  "applicablePackageObtained": false
+}
