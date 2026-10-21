@@ -270,6 +270,28 @@ internal object ScannerWords {
         return "· $n $word"
     }
 
+    /* ------------------------------------------------ the pack's cells (6.3) */
+
+    /** The footer's source of «Ячейки»: the BMS's stream and its two pages. */
+    const val CELLS_SOURCE = "1039 · 9900001F · 43D 43C"
+
+    /** The cells' axis: the first cell, then every [ScannerSpec.PackCells.TICK_STEP] up to [n] (`cellTicks`: 1, 20 … 160). */
+    fun cellTicks(n: Int): List<Int> =
+        if (n <= 0) emptyList() else listOf(1) + (ScannerSpec.PackCells.TICK_STEP..n step ScannerSpec.PackCells.TICK_STEP)
+
+    /** An extreme named at its bar's end: «мин №9», «макс №82» (0-based [index]). */
+    fun cellExtreme(max: Boolean, index: Int): String = (if (max) "макс №" else "мин №") + (index + 1)
+
+    /** A probe's tile: «Д1». */
+    fun probe(index: Int): String = "Д${index + 1}"
+
+    /** The HV schema's contactor, under its label: «замкнут», «разомкнут»; nothing while it is not known. */
+    fun contactor(closed: Boolean?): String? = when (closed) {
+        true -> "замкнут"
+        false -> "разомкнут"
+        null -> null
+    }
+
     /* ------------------------------------------------- a parameter's page */
 
     /** The window tabs: «10 с», «60 с», «5 мин». */

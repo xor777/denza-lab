@@ -733,7 +733,8 @@ private fun HvScheme(model: DiagnosticsModel, onOpen: (Target) -> Unit) {
     val hv = model.systems.hv
     SchemeCanvas {
         wire(v.CONTACTOR_WIRE, Ink.WIRE, 2.4f)
-        wire(v.CONTACTOR_BLADE, Ink.WIRE, 2f)
+        // the blade across the pins when the BMS says closed, lifted when open or not known
+        wire(if (hv.contactorClosed == true) v.CONTACTOR_CLOSED else v.CONTACTOR_BLADE, Ink.WIRE, 2f)
         v.CONTACTOR_PINS.forEach { (x, y) -> dot(x, y, v.CONTACTOR_PIN, Ink.TEXT) }
         wire(v.TRUNK, Ink.WIRE, 3f)
         wire(v.TAPS, Ink.WIRE2, 2f)
@@ -744,7 +745,11 @@ private fun HvScheme(model: DiagnosticsModel, onOpen: (Target) -> Unit) {
     }
     v.MACHINES.forEach { m -> MachineGlyph(m.x, m.y, m.glyph, m.live) }
     val (lx, ly, lw) = v.CONTACTOR_LABEL
-    ScanParagraph("главный контактор", Type.HV_LABEL, Ink.MUTE, lw, Modifier.at(lx, ly))
+    Column(Modifier.at(lx, ly)) {
+        ScanParagraph("главный контактор", Type.HV_LABEL, Ink.MUTE, lw)
+        // its state on the line under the label
+        ScannerWords.contactor(hv.contactorClosed)?.let { ScanText(it, Type.HV_LABEL, Ink.TEXT) }
+    }
     ScanText("ШИНА DC", Type.COL_HEAD, Ink.MUTE, Modifier.endAt(v.BUS_LABEL_RIGHT, v.BUS_LABEL_Y))
     hv.busVoltages.take(v.VOLTS.size).forEachIndexed { i, t -> ScanText(t, Type.HV_VOLTS, Ink.TEXT, Modifier.at(v.VOLTS[i].first, v.VOLTS[i].second)) }
 

@@ -284,6 +284,7 @@ class ScannerSpecContractTest {
         n(v.UNIT_PAD_X, h, "unit", "padX"); n(v.UNIT_ROW_GAP, h, "unit", "rowGap")
         assertEquals(at(h, "contactor", "wire"), v.CONTACTOR_WIRE)
         assertEquals(at(h, "contactor", "blade"), v.CONTACTOR_BLADE)
+        assertEquals(at(h, "contactor", "closed"), v.CONTACTOR_CLOSED)
         assertEquals((at(h, "contactor", "pins") as List<*>).indices.map { pair(h, "contactor", "pins", "$it") }, v.CONTACTOR_PINS)
         n(v.CONTACTOR_PIN, h, "contactor", "pin")
         n(v.CONTACTOR_LABEL.first, h, "contactor", "label", "0")
@@ -326,6 +327,22 @@ class ScannerSpecContractTest {
         assertEquals(cols("rail", "ecuDtc", "monCols"), r.ECU_MON_COLS)
         n(r.PENDING_X, "rail", "pending", "x"); n(r.PENDING_Y, "rail", "pending", "y")
         n(ScannerSpec.Content.TOP, "content", "top"); n(ScannerSpec.Content.BOTTOM, "content", "bottom")
+    }
+
+    @Test
+    fun thePacksCells() {
+        val p = ScannerSpec.PackCells
+        val c = arrayOf("packCells", "cells")
+        val t = arrayOf("packCells", "probes")
+        n(p.CHART_X, *c, "x"); n(p.CHART_TOP, *c, "top"); n(p.CHART_BOTTOM, *c, "bottom"); n(p.CELLS_HEAD_Y, *c, "headY")
+        n(p.BAR_GAP, *c, "gap")
+        n(p.PROBES_HEAD_Y, *t, "headY"); n(p.PROBES_TOP, *t, "top"); n(p.PROBE_H, *t, "h"); n(p.PROBE_GAP, *t, "gap")
+        n(p.PROBE_PAD_X, *t, "padX"); n(p.PROBE_PAD_Y, *t, "padY"); n(p.PROBE_VALUE_Y, *t, "valueY"); n(p.PROBE_UNIT_Y, *t, "unitY")
+        // the chart under the tabs, its axis over the probes' head, the tiles over the footer
+        val type = ScannerSpec.Type
+        assertTrue(p.CELLS_HEAD_Y >= ScannerSpec.Tabs.TOP + ScannerSpec.Tabs.HEIGHT)
+        assertTrue(p.CHART_BOTTOM + p.TICK_GAP + type.SIG.lh <= p.PROBES_HEAD_Y)
+        assertTrue(p.PROBES_TOP + p.PROBE_H <= ScannerSpec.Footer.TOP)
     }
 
     @Test

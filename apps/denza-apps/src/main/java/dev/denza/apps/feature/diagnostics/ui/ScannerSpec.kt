@@ -556,6 +556,42 @@ internal object ScannerSpec {
         const val FIRST_WINDOW = 1
     }
 
+    /**
+     * «Тяговая батарея · Ячейки» (`sysPackCells()`): the cells' chart and the probes' tiles; the
+     * area's coordinates. The JSON's `packCells`, then the numbers `scanner.js` writes inline.
+     */
+    object PackCells {
+        const val CHART_X = 76f
+        const val CHART_TOP = 222f
+        const val CHART_BOTTOM = 430f
+        const val CELLS_HEAD_Y = 182f
+        const val BAR_GAP = 1.2f
+        const val PROBES_HEAD_Y = 474f
+        const val PROBES_TOP = 500f
+        const val PROBE_H = 74f
+        const val PROBE_GAP = 8f
+        const val PROBE_PAD_X = 10f
+        const val PROBE_PAD_Y = 10f
+        const val PROBE_VALUE_Y = 18f
+        const val PROBE_UNIT_Y = 24f
+
+        /** A head's figure stands this much over its caption; the gaps after a figure and after a caption. */
+        const val STAT_LIFT = 3f
+        const val STAT_GAP = 6f
+        const val STAT_STEP = 22f
+        const val GRID_LABEL_GAP = 8f
+        /** A bar is at least this tall, so a cell at the mean still shows. */
+        const val BAR_MIN = 1.5f
+        /** The extremes' leaders: from this far off the bar's end to this far, the word 2 dp further. */
+        const val LEADER_FROM = 4f
+        const val LEADER_TO = 12f
+        const val LEADER_WORD = 14f
+        const val TICK_GAP = 6f
+        /** Numbers on the axis: the first cell, then every [TICK_STEP]. */
+        const val TICK_STEP = 20
+        const val PROBE_R = 6f
+    }
+
     /** Where a scheme may stand: under the tabs, over the footer. */
     object Content {
         const val TOP = 172f
@@ -661,6 +697,8 @@ internal object ScannerSpec {
         const val UNIT_ROW_GAP = 2f
         const val CONTACTOR_WIRE = "M476 360H504M536 360H576"
         const val CONTACTOR_BLADE = "M504 360L532 348"
+        /** The blade across the pins: the BMS says the contactor is closed. */
+        const val CONTACTOR_CLOSED = "M504 360H536"
         val CONTACTOR_PINS = listOf(504f to 360f, 536f to 360f)
         const val CONTACTOR_PIN = 2.6f
         val CONTACTOR_LABEL = Triple(502f, 368f, 70f)

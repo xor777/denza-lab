@@ -3,6 +3,7 @@ package dev.denza.apps.debug
 import dev.denza.apps.feature.diagnostics.protocol.DataQuality
 import dev.denza.apps.feature.diagnostics.scan.AskRow
 import dev.denza.apps.feature.diagnostics.scan.Callout
+import dev.denza.apps.feature.diagnostics.scan.CellReading
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.ClimateZone
 import dev.denza.apps.feature.diagnostics.scan.CompareCell
@@ -37,6 +38,7 @@ import dev.denza.apps.feature.diagnostics.scan.ParamView
 import dev.denza.apps.feature.diagnostics.scan.MonitorRow
 import dev.denza.apps.feature.diagnostics.scan.MonitorState
 import dev.denza.apps.feature.diagnostics.scan.ObdView
+import dev.denza.apps.feature.diagnostics.scan.PackCellsView
 import dev.denza.apps.feature.diagnostics.scan.RailItem
 import dev.denza.apps.feature.diagnostics.scan.RailTone
 import dev.denza.apps.feature.diagnostics.scan.RangeView
@@ -101,6 +103,7 @@ internal object ScannerFixtures {
             "scanner-sys-pack" -> sys(CarSystem.PACK, SystemTab.STATE)
             "scanner-sys-pack-live" -> sys(CarSystem.PACK, SystemTab.LIVE)
             "scanner-sys-pack-flags" -> sys(CarSystem.PACK, SystemTab.GB_FLAGS)
+            "scanner-sys-pack-cells", "scanner-sys-pack-cells-partial" -> sys(CarSystem.PACK, SystemTab.CELLS)
             "scanner-sys-climate" -> sys(CarSystem.CLIMATE, SystemTab.STATE)
             "scanner-sys-lv" -> sys(CarSystem.LV, SystemTab.STATE)
             "scanner-body-dtc" -> listOf(scan, ScannerRoute.Module(R_ZCU, 0))
@@ -138,8 +141,44 @@ internal object ScannerFixtures {
             modules = modules(all, id),
             systems = systems(all),
             rail = rail(scanBoard.getJSONObject("rail")),
-            systemPages = pages(all, groups),
+            systemPages = pages(all, groups, id),
             param = PARAM_KEYS[id]?.let { param(fixture(all, id), it) },
+            packCells = if (id in CELLS_BOARDS) cells(fixture(all, id)) else null,
+        )
+    }
+
+    /* ------------------------------------------------------ the pack's cells */
+
+    private val CELLS_BOARDS = setOf("scanner-sys-pack-cells", "scanner-sys-pack-cells-partial")
+
+    /**
+     * «Ячейки» from its board (`sysPackCells()`): `cells` and `probes` are the BMS's values in its
+     * order, `staleCells` / `staleProbes` the positions from the sweep before; the heads, the scale,
+     * the grid and the age are the board's words.
+     */
+    private fun cells(f: JSONObject): PackCellsView {
+        fun values(key: String) = f.getJSONArray(key).let { a -> (0 until a.length()).map { if (a.isNull(it)) null else a.getDouble(it).toFloat() } }
+        fun ints(key: String) = f.optJSONArray(key)?.let { a -> (0 until a.length()).map { a.getInt(it) }.toSet() } ?: emptySet()
+        val staleCells = ints("staleCells")
+        val staleProbes = ints("staleProbes")
+        val grid = values("cellGrid").filterNotNull()
+        val scale = values("cellScale").filterNotNull()
+        return PackCellsView(
+            cells = values("cells").mapIndexed { i, v -> CellReading(v, v?.let { grouped(it) } ?: "—", i !in staleCells) },
+            probes = values("probes").mapIndexed { i, v -> CellReading(v, v?.let { Math.round(it).toString() } ?: "—", i !in staleProbes) },
+            cellStats = arrays(f.getJSONArray("cellsStats")).map { HeadCounter(it.getString(0), it.getString(1)) },
+            probeStats = arrays(f.getJSONArray("probesStats")).map { HeadCounter(it.getString(0), it.getString(1)) },
+            cellScale = scale[0]..scale[1],
+            cellGrid = grid,
+            cellGridText = grid.map(::grouped),
+            cellMean = f.getDouble("cellMean").toFloat(),
+            cellMin = f.getInt("minIndex"),
+            cellMax = f.getInt("maxIndex"),
+            probeMin = f.getInt("probeMin"),
+            probeMax = f.getInt("probeMax"),
+            age = f.getString("cellsAge"),
+            cellsHead = f.getString("cellsHead"),
+            probesHead = f.getString("probesHead"),
         )
     }
 
@@ -301,12 +340,13 @@ internal object ScannerFixtures {
 
     private const val CODES = "19 01 09 · 19 02 09 · снимок 19:31:29"
 
-    private fun pages(all: JSONObject, groups: List<ModuleGroupView>): Map<CarSystem, SystemPage> {
+    /** Every system's page; the board shown lends the pack its counters when it is a cells board (its sweep's moment). */
+    private fun pages(all: JSONObject, groups: List<ModuleGroupView>, id: String): Map<CarSystem, SystemPage> {
         val rows = groups.flatMap { it.rows }
         fun opened(r: ModuleRowView) = r.copy(target = r.request?.let { Target.Module(it) })
         return STATE_BOARD.mapValues { (system, board) ->
             val f = fixture(all, board)
-            val block = f.getJSONObject("block")
+            val block = (if (system == CarSystem.PACK && id in CELLS_BOARDS) fixture(all, id) else f).getJSONObject("block")
             val blocks = if (system == CarSystem.BODY) groups.first { it.id == "body" }.rows else {
                 BLOCKS.getValue(system).mapNotNull { req -> rows.firstOrNull { it.request == req } }
             }
@@ -566,6 +606,7 @@ internal object ScannerFixtures {
                     HvUnit(u.getString("abbr"), addr, u.getString("name"), u.getString("state"), status(u.getString("kind")), addr.toIntOrNull(16)?.let { Target.Module(it) })
                 },
                 machines = objects(hv.getJSONArray("machines")).map { m -> Field(m.getString("name"), m.getString("values"), muted = !m.optBoolean("live")) },
+                contactorClosed = if (hv.has("contactorClosed")) hv.getBoolean("contactorClosed") else null,
             ),
             pack = arrays(pack.getJSONArray("rows")).map { r ->
                 SignalRow(

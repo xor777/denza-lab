@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.diagnostics.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -28,7 +30,16 @@ internal fun PackTable(rows: List<SignalRow>, onParam: ((ParamKey) -> Unit)? = n
         listOf(HeadLabel("СИГНАЛ"), HeadLabel("ПАРАМЕТР"), HeadLabel("ЗНАЧЕНИЕ", end = true, pad = b.VALUE_PAD), HeadLabel("ЕД."), HeadLabel("НОРМА"), HeadLabel("ОЦЕНКА")),
         b.TOP, b.HEAD,
     )
-    var y = b.TOP + b.HEAD + 1f
+    // the rows scroll under the captions between them and the footer, at their board places
+    ScrollRows(b.TOP + b.HEAD + 1f) {
+        Box(Modifier.fillMaxWidth().height((rows.size * (b.ROW + 1f)).dp)) { PackRows(rows, cols, w, onParam) }
+    }
+}
+
+@Composable
+private fun PackRows(rows: List<SignalRow>, cols: List<Pair<Float, Float>>, w: Float, onParam: ((ParamKey) -> Unit)?) {
+    val b = ScannerSpec.Bms
+    var y = 0f
     rows.forEach { r ->
         val h = b.ROW
         // a reading with a key opens alone; a calculation has none

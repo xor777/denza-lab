@@ -172,4 +172,21 @@ class ScannerWordsTest {
         )
         assertEquals(listOf(FooterNote.Words("19 01 09 · 19 02 09", mono = true)), dtcNotes(dtc.copy(source = null)))
     }
+
+    @Test
+    fun theCellsAreNumberedAsTheBmsNumbersThem() {
+        // the board's cellTicks for 166 cells; the extremes by the BMS's 1-based numbers
+        assertEquals(listOf(1, 20, 40, 60, 80, 100, 120, 140, 160), ScannerWords.cellTicks(166))
+        assertEquals(emptyList<Int>(), ScannerWords.cellTicks(0))
+        assertEquals("мин №9", ScannerWords.cellExtreme(max = false, index = 8))
+        assertEquals("макс №82", ScannerWords.cellExtreme(max = true, index = 81))
+        assertEquals("Д14", ScannerWords.probe(13))
+    }
+
+    @Test
+    fun theContactorSaysItsStateOnlyWhenKnown() {
+        assertEquals("замкнут", ScannerWords.contactor(true))
+        assertEquals("разомкнут", ScannerWords.contactor(false))
+        assertEquals(null, ScannerWords.contactor(null))
+    }
 }

@@ -685,6 +685,8 @@ internal data class HvView(
     val units: List<HvUnit>,
     /** The machines' lines: «Передний мотор» → «статор 8 °C · 0 об/мин · 0 Н·м». */
     val machines: List<Field>,
+    /** The main contactor (1032 / 34400010, architecture 6.3): true closed, false open, null not known. */
+    val contactorClosed: Boolean? = null,
 )
 
 internal data class HvUnit(

@@ -39,8 +39,8 @@ import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
  * The section built around the car's systems (architecture, 7.2): the rail down the left
  * (`scanner.js` `rail()`), the chosen screen at the width it leaves (`shell()`), and a system's page
  * - its head, its tabs and what each tab shows (`sysDtc()`, `sysBlocks()`, `sysLive()`,
- * `sysPackLive()`, `sysDrivesCompare()`, `sysAdasCompare()`, `sysEngineDtc()`, `sysPending()` and
- * the schemes of `SchemeScreens.kt`).
+ * `sysPackLive()`, `sysDrivesCompare()`, `sysAdasCompare()`, `sysEngineDtc()`, `sysPending()`, the
+ * schemes of `SchemeScreens.kt` and the pack's cells of `CellsScreen.kt`).
  */
 
 /** What the rail needs from the section: its lines, the one lit, the header over it and where a tap goes. */
@@ -145,6 +145,12 @@ internal fun SystemPageScreen(
         if (readiness && r != null) current.value.setModuleOpen(r, true)
         onDispose { if (readiness && r != null) current.value.setModuleOpen(r, false) }
     }
+    // the BMS's pages are listened to only while «Ячейки» is in front (architecture, 6.3)
+    val cells = tab == SystemTab.CELLS
+    DisposableEffect(cells) {
+        if (cells) current.value.setCellsVisible(true)
+        onDispose { if (cells) current.value.setCellsVisible(false) }
+    }
     var picking by remember { mutableStateOf(false) }
     val read = { requests.forEach(actions::readModule) }
     val codes = FooterButton("Прочитать DTC", true, read)
@@ -162,6 +168,14 @@ internal fun SystemPageScreen(
                     if (tab == SystemTab.LIVE) FooterButton("Сбросить мин/макс", false) { actions.resetMinMax(ecm.request) } else null,
                 ),
                 notes = emptyList(),
+            )
+            // the cells: the last sweep's length and the newest page's age, and where they come from
+            cells -> ScanFooter(
+                emptyList(),
+                listOfNotNull(
+                    model.packCells?.age?.let { FooterNote.Words(it, mono = true) }, model.packCells?.let { FooterNote.Divider },
+                    FooterNote.Words(ScannerWords.CELLS_SOURCE, mono = true),
+                ),
             )
             tab == SystemTab.DTC_READINESS -> ScanFooter(listOf(codes), listOfNotNull(ecm?.dtc?.source?.let { FooterNote.Words(it) }))
             // what is read from the blocks' memories, and a scheme that is only the blocks
@@ -183,8 +197,7 @@ internal fun SystemPageScreen(
             }
             SystemTab.COMPARE -> if (page.system == CarSystem.ADAS) AdasTable(model, model.systems.adas) else DrivesTable(model.systems.drives)
             SystemTab.GB_FLAGS -> Pending("Нет данных")
-            // the cells' screen comes with its change (architecture, 6.3; board `scanner-sys-pack-cells`)
-            SystemTab.CELLS -> Unit
+            SystemTab.CELLS -> model.packCells?.let { PackCells(it) }
             SystemTab.DTC -> SystemDtcTable(page.dtc, onOpen)
             SystemTab.DTC_READINESS -> if (ecm != null) DtcContent(ecm, Halves.RAIL)
             SystemTab.BLOCKS -> BlockRows(page.blocks, onOpen)
