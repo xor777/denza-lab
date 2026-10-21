@@ -96,6 +96,7 @@ internal object ScannerFixtures {
             "scanner-sys-adas-compare" -> sys(CarSystem.ADAS, SystemTab.COMPARE)
             "scanner-sys-drives" -> sys(CarSystem.DRIVES, SystemTab.STATE)
             "scanner-sys-drives-compare" -> sys(CarSystem.DRIVES, SystemTab.COMPARE)
+            "scanner-sys-safety" -> sys(CarSystem.SAFETY, SystemTab.STATE)
             "scanner-sys-hv" -> sys(CarSystem.HV, SystemTab.STATE)
             "scanner-sys-pack" -> sys(CarSystem.PACK, SystemTab.STATE)
             "scanner-sys-pack-live" -> sys(CarSystem.PACK, SystemTab.LIVE)
@@ -280,18 +281,19 @@ internal object ScannerFixtures {
     private val BLOCKS = mapOf(
         CarSystem.HV to listOf(0x7E7, 0x7E3, 0x744, 0x745, 0x7E6, 0x7E0, 0x7E4, 0x766, 0x762),
         CarSystem.PACK to listOf(0x7E7),
-        CarSystem.DRIVES to listOf(0x7E2, 0x7E3, 0x744, 0x745, 0x7E6),
+        CarSystem.DRIVES to listOf(0x7E2, 0x743, 0x7E3, 0x744, 0x745, 0x7E6),
         CarSystem.ENGINE to listOf(ECM),
-        CarSystem.CHASSIS to listOf(ESP, BSCM, 0x783),
+        CarSystem.CHASSIS to listOf(ESP, BSCM, 0x783, 0x582, 0x796, 0x597),
+        CarSystem.SAFETY to listOf(0x7F1, 0x742, 0x713, 0x5E0),
         CarSystem.ADAS to listOf(0x712, 0x7F2, 0x760, 0x761, 0x7C2, 0x7D4, 0x701),
-        CarSystem.CLIMATE to listOf(0x7B3, 0x7B4, 0x766),
+        CarSystem.CLIMATE to listOf(0x7B3, 0x7B4, 0x766, 0x590),
         CarSystem.LV to listOf(0x762),
     )
 
     /** The board that shows a system's head and «Состояние». */
     private val STATE_BOARD = mapOf(
         CarSystem.HV to "scanner-sys-hv", CarSystem.PACK to "scanner-sys-pack", CarSystem.DRIVES to "scanner-sys-drives",
-        CarSystem.ENGINE to "scanner-sys-engine-scheme", CarSystem.CHASSIS to "scanner-sys-chassis",
+        CarSystem.ENGINE to "scanner-sys-engine-scheme", CarSystem.CHASSIS to "scanner-sys-chassis", CarSystem.SAFETY to "scanner-sys-safety",
         CarSystem.BODY to "scanner-sys-body-state", CarSystem.ADAS to "scanner-sys-adas",
         CarSystem.CLIMATE to "scanner-sys-climate", CarSystem.LV to "scanner-sys-lv",
     )
@@ -380,7 +382,7 @@ internal object ScannerFixtures {
             CarSystem.DRIVES -> Scheme.Drives(
                 vcu = t("vcu"), front = callout(f.getJSONObject("front")), isg = callout(f.getJSONObject("isg")),
                 rearLeft = callout(f.getJSONObject("rearLeft")), rearRight = callout(f.getJSONObject("rearRight")),
-                engineRunning = false,
+                engineRunning = false, powerDomain = t("pdc"),
             )
             CarSystem.ENGINE -> Scheme.Engine(
                 objects(f.getJSONArray("points")).map { p ->
@@ -399,6 +401,7 @@ internal object ScannerFixtures {
             CarSystem.CHASSIS -> Scheme.Chassis(
                 tyres = objects(f.getJSONArray("tyres")).map { Tyre(corner(it.getString("side"), it.getString("axle")), it.getString("label"), it.getString("pressure"), it.getString("temp")) },
                 esp = t("esp"), eps = t("eps"), bscm = t("bscm"),
+                rearSteerLeft = t("rwsL"), rearSteerRight = t("rwsR"), motion = t("idc"),
             )
             CarSystem.BODY -> Scheme.Body(
                 doors = objects(f.getJSONArray("doors")).map {
@@ -406,6 +409,11 @@ internal object ScannerFixtures {
                 },
                 front = t("front"), back = t("back"), left = t("left"), right = t("right"), lampLeft = t("lampL"), lampRight = t("lampR"), uwb = t("uwb"),
                 anchors = listOf(0x7F4, 0x7F5, 0x7F6, 0x7F7).map { req -> rows.firstOrNull { it.request == req }?.status ?: ModuleStatus.NO_ROUTE },
+                doorRadars = f.optJSONObject("doorRadars")?.let { r ->
+                    mapOf(Corner.FL to "fl", Corner.FR to "fr", Corner.RL to "rl", Corner.RR to "rr")
+                        .mapNotNull { (corner, key) -> tile(r.optJSONObject(key), rows)?.let { corner to it } }.toMap()
+                }.orEmpty(),
+                keyReceiver = t("hfrm"), smartEntry = t("sec"), nfc = t("nfc"), tailgate = t("tailgate"),
             )
             CarSystem.ADAS -> Scheme.Adas(
                 front = t("mrr"),
@@ -414,8 +422,11 @@ internal object ScannerFixtures {
             )
             CarSystem.CLIMATE -> {
                 fun zone(o: JSONObject) = ClimateZone(o.getString("label"), o.getString("temp"), o.getString("pm"), o.optBoolean("inside"))
-                Scheme.Climate(zone(f.getJSONObject("outside")), zone(f.getJSONObject("cabin")), t("acc"), t("ptc"), t("tmim"))
+                Scheme.Climate(zone(f.getJSONObject("outside")), zone(f.getJSONObject("cabin")), t("acc"), t("ptc"), t("tmim"), air = t("aqdm"))
             }
+            CarSystem.SAFETY -> Scheme.Safety(
+                airbags = t("srs"), driverBelt = t("driverBelt"), passengerBelt = t("passengerBelt"), childRadar = t("cpd"),
+            )
             CarSystem.LV -> Scheme.Lv(
                 hv = f.getString("hv"), lv = f.getString("lv"), dcdc = t("dcdc"), battery = t("lbms"),
                 loads = objects(units!!.getJSONArray("loads")).mapNotNull { tile(it, rows) },

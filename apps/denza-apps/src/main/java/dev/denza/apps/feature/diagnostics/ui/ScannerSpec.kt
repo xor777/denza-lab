@@ -371,16 +371,17 @@ internal object ScannerSpec {
         /** One group's slice in a column: rows [from] until [to] (null: to the end); [continued] has no label. */
         data class Part(val id: String, val from: Int = 0, val to: Int? = null, val continued: Boolean = false)
 
+        /** 9/9/7/19/19/4/1 blocks: body and cabin over three columns each, climate and 12 V under their tails. */
         val COLUMNS: List<List<Part>> = listOf(
             listOf(Part("power")),
-            listOf(Part("chassis"), Part("climate")),
+            listOf(Part("chassis")),
             listOf(Part("assist")),
             listOf(Part("body", 0, 9)),
-            listOf(Part("body", 9, 11, continued = true), Part("lv")),
-            listOf(Part("salon")),
-            listOf(Part("misc", 0, 9)),
-            listOf(Part("misc", 9, 17, continued = true)),
-            listOf(Part("misc", 17, 25, continued = true)),
+            listOf(Part("body", 9, 18, continued = true)),
+            listOf(Part("body", 18, 19, continued = true), Part("climate")),
+            listOf(Part("salon", 0, 9)),
+            listOf(Part("salon", 9, 18, continued = true)),
+            listOf(Part("salon", 18, 19, continued = true), Part("lv")),
         )
     }
 
@@ -580,7 +581,31 @@ internal object ScannerSpec {
         val DOORS_FRONT = 124f to 212f
         val DOORS_REAR = 216f to 300f
         val ANCHORS = 22f to 86f
-        const val DOMAIN_Y = 300f
+    }
+
+    /**
+     * Кузов (`sysBodyState()`): the plates and the edge tiles at [X] from either side; the door
+     * radars' centres and the rear ones' point on the door, the domains' top and the tailgate's
+     * line - all from the car's top.
+     */
+    object BodyScheme {
+        const val X = 24f
+        const val RADAR_FRONT = 134f
+        const val RADAR_REAR = 294f
+        const val RADAR_REAR_AT = 274f
+        const val DOMAIN_TOP = 310f
+        const val TAIL_Y = 390f
+    }
+
+    /** Шасси: the rear-wheel steering's tiles this far under the rear axle, their leaders' point on the wheel. */
+    object ChassisScheme {
+        const val STEER_DROP = 52f
+        const val STEER_AT = 20f
+    }
+
+    /** Безопасность: the belts' tiles this far from the car's sides. */
+    object SafetyScheme {
+        const val GAP = 48f
     }
 
     /** A plate of lines beside a scheme with its leader (`callout()`), and a machine's circle. */
@@ -615,7 +640,8 @@ internal object ScannerSpec {
         const val ENGINE_Y = 20f
         const val ENGINE_W = 92f
         const val ENGINE_H = 30f
-        const val REAR_BLOCKS_DY = 34f
+        /** PDC-VCU's tile this far left of the car, level with the VCU. */
+        const val DOMAIN_GAP = 24f
     }
 
     /** The HV schema at the rail's width (`hvBody()` on `hvRail`). */
@@ -640,7 +666,7 @@ internal object ScannerSpec {
         val CONTACTOR_LABEL = Triple(502f, 368f, 70f)
         const val TRUNK = "M576 210V540"
         const val TAPS = "M576 210H628M576 320H628M576 440H628M576 540H628"
-        const val SHAFTS = "M778 210H822M778 320H822M778 440H822M778 540H822"
+        const val SHAFTS = "M796 210H822M796 320H822M796 440H822M796 540H822"
         const val COUPLING = "M870 317H888M870 323H888"
         const val FEEDS = "M174 260H216M174 378H216M99 406V500"
 
@@ -648,15 +674,19 @@ internal object ScannerSpec {
 
         val MACHINES = listOf(
             Machine(846f, 210f, "M", true), Machine(846f, 320f, "G", true),
-            Machine(846f, 440f, "M", false), Machine(846f, 540f, "M", false),
+            Machine(846f, 440f, "M", true), Machine(846f, 540f, "M", true),
         )
         const val MACHINE_R = 24f
         const val BUS_LABEL_RIGHT = 568f
         const val BUS_LABEL_Y = 203.5f
         val VOLTS = listOf(586f to 236f, 586f to 466f)
-        val UNITS: Map<String, Pair<Float, Float>> = linkedMapOf(
-            "FMCU" to (628f to 182f), "ISG" to (628f to 292f), "SMCU" to (628f to 412f), "SMCU3" to (628f to 512f),
-            "ECM" to (888f to 292f), "PTC" to (24f to 232f), "DCOBC" to (24f to 350f), "LBMS" to (24f to 500f),
+        /** A unit's place, and its width where it is not [UNIT_W]: the inverters on the bus, wide enough for «Инвертор задний правый». */
+        data class Place(val x: Float, val y: Float, val w: Float? = null)
+
+        val UNITS: Map<String, Place> = linkedMapOf(
+            "FMCU" to Place(628f, 182f, 168f), "ISG" to Place(628f, 292f, 168f), "SMCU" to Place(628f, 412f, 168f),
+            "SMCU3" to Place(628f, 512f, 168f), "ECM" to Place(888f, 292f), "PTC" to Place(24f, 232f),
+            "DCOBC" to Place(24f, 350f), "LBMS" to Place(24f, 500f),
         )
     }
 

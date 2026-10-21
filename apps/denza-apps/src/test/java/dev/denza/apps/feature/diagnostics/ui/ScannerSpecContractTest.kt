@@ -186,6 +186,30 @@ class ScannerSpecContractTest {
     }
 
     @Test
+    fun theTopologyHoldsEveryBlockAtTheRailsWidth() {
+        // the catalog's groups after the roles of 2026-10-21: 9/9/7/19/19/4/1
+        val sizes = mapOf("power" to 9, "chassis" to 9, "assist" to 7, "body" to 19, "salon" to 19, "climate" to 4, "lv" to 1)
+        val p = ScannerSpec.Topology
+        val r = ScannerSpec.Rail
+        val placed = mutableMapOf<String, Int>()
+        p.COLUMNS.forEachIndexed { k, parts ->
+            var y = p.FIRST_LABEL
+            var bottom = 0f
+            parts.forEachIndexed { gi, part ->
+                val n = (part.to ?: sizes.getValue(part.id)) - part.from
+                if (gi > 0) y += p.GROUP_GAP
+                y += p.LABEL_H
+                bottom = y + (n - 1) * p.TILE_PITCH + p.TILE_H
+                y += n * p.TILE_PITCH
+                placed[part.id] = (placed[part.id] ?: 0) + n
+            }
+            assertTrue("column $k ends at $bottom", bottom <= ScannerSpec.Content.BOTTOM)
+            assertTrue("column $k", p.LEFT + k * r.TOPO_COLUMN + r.TOPO_TILE_INSET + r.TOPO_TILE_W <= ScannerSpec.W - r.W - 24f)
+        }
+        assertEquals(sizes, placed.toMap())
+    }
+
+    @Test
     fun blockScreens() {
         val d = ScannerSpec.EcuDtc
         n(d.LEFT_X, "ecuDtc", "left", "x"); n(d.LEFT_W, "ecuDtc", "left", "w")
@@ -278,7 +302,10 @@ class ScannerSpecContractTest {
         n(v.MACHINE_R, h, "machineR")
         n(v.BUS_LABEL_RIGHT, h, "busLabel", "right"); n(v.BUS_LABEL_Y, h, "busLabel", "y")
         assertEquals((at(h, "volts") as List<*>).indices.map { pair(h, "volts", "$it") }, v.VOLTS)
-        val units = (at(h, "units") as Map<*, *>).keys.associate { k -> k as String to pair(h, "units", k) }
+        val units = (at(h, "units") as Map<*, *>).entries.associate { (k, p) ->
+            val a = p as List<*>
+            k as String to ScannerSpec.Hv.Place((a[0] as Number).toFloat(), (a[1] as Number).toFloat(), (a.getOrNull(2) as? Number)?.toFloat())
+        }
         assertEquals(units, v.UNITS)
     }
 
@@ -327,7 +354,11 @@ class ScannerSpecContractTest {
         assertEquals(pair("car", "doors", "front"), c.DOORS_FRONT)
         assertEquals(pair("car", "doors", "rear"), c.DOORS_REAR)
         assertEquals(pair("car", "anchors"), c.ANCHORS)
-        n(c.DOMAIN_Y, "car", "domainY")
+        val b = ScannerSpec.BodyScheme
+        n(b.X, "bodyScheme", "x"); n(b.RADAR_FRONT, "bodyScheme", "radarFront"); n(b.RADAR_REAR, "bodyScheme", "radarRear")
+        n(b.RADAR_REAR_AT, "bodyScheme", "radarRearAt"); n(b.DOMAIN_TOP, "bodyScheme", "domainTop"); n(b.TAIL_Y, "bodyScheme", "tailY")
+        n(ScannerSpec.ChassisScheme.STEER_DROP, "chassisScheme", "steerDrop"); n(ScannerSpec.ChassisScheme.STEER_AT, "chassisScheme", "steerAt")
+        n(ScannerSpec.SafetyScheme.GAP, "safetyScheme", "gap")
         val o = ScannerSpec.Callout
         n(o.LEFT_X, "callout", "leftX"); n(o.W, "callout", "w"); n(o.PAD_X, "callout", "padX"); n(o.PAD_Y, "callout", "padY")
         n(o.GAP, "callout", "gap"); n(o.R, "callout", "r"); n(o.DOT, "callout", "dot"); n(o.MACHINE_R, "callout", "machineR")
@@ -338,7 +369,7 @@ class ScannerSpecContractTest {
         n(a.MRR_Y, "adasCar", "mrrY"); n(a.FR_DROP, "adasCar", "frDrop"); n(a.ADC_LIFT, "adasCar", "adcLift"); n(a.IPA_LIFT, "adasCar", "ipaLift")
         val d = ScannerSpec.DrivesCar
         n(d.PAIR, "drivesCar", "pair"); n(d.BOX_W, "drivesCar", "boxW"); n(d.ENGINE_Y, "drivesCar", "engine", "y")
-        n(d.ENGINE_W, "drivesCar", "engine", "w"); n(d.ENGINE_H, "drivesCar", "engine", "h"); n(d.REAR_BLOCKS_DY, "drivesCar", "rearBlocksDy")
+        n(d.ENGINE_W, "drivesCar", "engine", "w"); n(d.ENGINE_H, "drivesCar", "engine", "h"); n(d.DOMAIN_GAP, "drivesCar", "domainGap")
     }
 
     @Test
