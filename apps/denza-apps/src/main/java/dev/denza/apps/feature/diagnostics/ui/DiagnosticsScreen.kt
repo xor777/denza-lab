@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import dev.denza.apps.feature.diagnostics.protocol.DataQuality
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
@@ -27,6 +28,13 @@ import dev.denza.apps.feature.diagnostics.scan.SystemTab
 import dev.denza.apps.feature.diagnostics.scan.Target
 
 /** Where inside the section the driver is. */
+/**
+ * The session's run: [DiagnosticsSection] counts each start. A stop drops what the screens asked for
+ * (a stream, an open block, a parameter, the cells, a page's GETs), so every such ask is keyed on
+ * the run and is made again when the section comes back to a started screen.
+ */
+internal val LocalScannerRun = staticCompositionLocalOf { 0 }
+
 internal sealed interface ScannerRoute {
     /** «Автоскан»: the list, or the same ECUs on the bus. */
     data class Scan(val topology: Boolean = false) : ScannerRoute
@@ -143,21 +151,22 @@ internal fun DiagnosticsScreen(
     // over it keeps it open; the stream runs only while «Потоковые данные» is in front. A parameter's
     // page asks for its parameter alone while it shows (architecture, 6.2).
     val current = rememberUpdatedState(actions)
+    val run = LocalScannerRun.current
     val r = route
     val under = ScannerStack.under(stack)
     if (under is ScannerRoute.Module) {
-        DisposableEffect(under.request) {
+        DisposableEffect(under.request, run) {
             current.value.setModuleOpen(under.request, true)
             onDispose { current.value.setModuleOpen(under.request, false) }
         }
         val live = r is ScannerRoute.Module && model.modules[r.request]?.obd != null && r.tab == 1
-        DisposableEffect(under.request, live) {
+        DisposableEffect(under.request, live, run) {
             if (live) current.value.setLiveVisible(under.request, true)
             onDispose { if (live) current.value.setLiveVisible(under.request, false) }
         }
     }
     if (r is ScannerRoute.Param) {
-        DisposableEffect(r.key) {
+        DisposableEffect(r.key, run) {
             current.value.setParam(r.key)
             onDispose { current.value.setParam(null) }
         }

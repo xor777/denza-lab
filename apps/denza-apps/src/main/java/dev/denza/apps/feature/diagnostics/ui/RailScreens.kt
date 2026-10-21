@@ -134,21 +134,22 @@ internal fun SystemPageScreen(
     val ecm = if (page.system == CarSystem.ENGINE) requests.firstOrNull()?.let { moduleOf(model, it) } else null
     val obd = ecm?.obd
     val current = rememberUpdatedState(actions)
+    val run = LocalScannerRun.current
     val streaming = ecm != null && (tab == SystemTab.LIVE || (tab == SystemTab.STATE && page.scheme is Scheme.Engine))
-    DisposableEffect(ecm?.request, streaming) {
+    DisposableEffect(ecm?.request, streaming, run) {
         val r = ecm?.request
         if (streaming && r != null) current.value.setLiveVisible(r, true)
         onDispose { if (streaming && r != null) current.value.setLiveVisible(r, false) }
     }
     val readiness = ecm != null && tab == SystemTab.DTC_READINESS
-    DisposableEffect(ecm?.request, readiness) {
+    DisposableEffect(ecm?.request, readiness, run) {
         val r = ecm?.request
         if (readiness && r != null) current.value.setModuleOpen(r, true)
         onDispose { if (readiness && r != null) current.value.setModuleOpen(r, false) }
     }
     // the BMS's pages are listened to only while «Ячейки» is in front (architecture, 6.3)
     val cells = tab == SystemTab.CELLS
-    DisposableEffect(cells) {
+    DisposableEffect(cells, run) {
         if (cells) current.value.setCellsVisible(true)
         onDispose { if (cells) current.value.setCellsVisible(false) }
     }
@@ -159,13 +160,13 @@ internal fun SystemPageScreen(
         tab == SystemTab.GB_FLAGS -> ExtraPage.GB_FLAGS
         else -> null
     }
-    DisposableEffect(extras) {
+    DisposableEffect(extras, run) {
         extras?.let { current.value.setExtrasVisible(it, true) }
         onDispose { extras?.let { current.value.setExtrasVisible(it, false) } }
     }
     // the pack's readings go round after round and keep their minute while «Потоковые данные» is in front (6.3)
     val packLive = page.system == CarSystem.PACK && tab == SystemTab.LIVE
-    DisposableEffect(packLive) {
+    DisposableEffect(packLive, run) {
         if (packLive) current.value.setPackLiveVisible(true)
         onDispose { if (packLive) current.value.setPackLiveVisible(false) }
     }
@@ -232,7 +233,7 @@ internal fun SystemPageScreen(
             SystemTab.LIVE -> if (page.system == CarSystem.PACK) {
                 LiveTable(model.systems.pack.rows, sample?.chartRange, ScannerSpec.Rail.PACK_LIVE_COLS, onParam, first = "УСТР.", scroll = true)
             } else if (obd != null) {
-                LiveTable(obd.live.rows, sample?.chartRange, ScannerSpec.Rail.LIVE_COLS, onParam)
+                LiveTable(obd.live.rows, sample?.chartRange, ScannerSpec.Rail.LIVE_COLS, onParam, scroll = true)
             }
             SystemTab.COMPARE -> if (page.system == CarSystem.ADAS) AdasTable(model, model.systems.adas) else DrivesTable(model.systems.drives)
             SystemTab.GB_FLAGS -> GbFlagTiles(model.systems.gbFlags)

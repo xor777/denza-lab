@@ -108,7 +108,7 @@ internal fun ModulePage(
         ScanTabs(tabs, tab, onTab, alert = if (obd?.mil == MilState.ON) TAB_DTC else null)
         when {
             ident -> IdentContent(module.ident)
-            live -> LiveTable(obd!!.live.rows, sample?.chartRange, ScannerSpec.EcuLive.COLS, onParam)
+            live -> LiveTable(obd!!.live.rows, sample?.chartRange, ScannerSpec.EcuLive.COLS, onParam, scroll = true)
             else -> DtcContent(module)
         }
         if (picking && obd != null) {
