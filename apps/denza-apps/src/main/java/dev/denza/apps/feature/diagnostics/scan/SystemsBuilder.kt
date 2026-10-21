@@ -234,9 +234,13 @@ internal object SystemsBuilder {
     )
 
     /**
-     * The OEM warnings with a text, by ID (research oem-warning-mappings-20261021.json, the stock
-     * popup dictionary `popup_nads.json` 20250408): our translation of the stock Chinese, not a
-     * factory Russian text. An ID says what the cluster is asked to show, not which block failed.
+     * The OEM warnings with a text, by ID, all from the stock popup dictionary `popup_nads.json`
+     * 20250408: our translation of the stock Chinese, not a factory Russian text. Eight are the
+     * research's priority mappings (oem-warning-mappings-20261021.json); `13F` body state and `7D` key
+     * not detected came on this car through `1007·26100008` when a door opened
+     * (washer-direct-listener-live-20261021.json), `1DD` add washer fluid is named in the firmware
+     * and admitted by the native warning set (washer-warning-conditions-20261021.json). An ID says
+     * what the cluster is asked to show, not which block failed.
      */
     val OEM_WARNING_WORDS = mapOf(
         0x1B to "Неисправность тормозной системы; безопасно остановитесь и обратитесь в сервис.",
@@ -246,6 +250,9 @@ internal object SystemsBuilder {
         0x46 to "Проверьте систему ABS.",
         0x47 to "Проверьте систему полного привода.",
         0x5D to "Низкий заряд тяговой батареи; мощность привода ограничена.",
+        0x7D to "Ключ не обнаружен; проверьте, что он в машине.",
+        0x13F to "Состояние кузова: люк, двери, капот, багажник, окна, ремни.",
+        0x1DD to "Долейте омывающую жидкость.",
         0x358 to "Высокая температура батареи; ускорение ухудшено.",
     )
 
