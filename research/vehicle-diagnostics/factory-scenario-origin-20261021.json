@@ -1,0 +1,1130 @@
+{
+  "schema": "denza-lab.factory-scenario-origin.v1",
+  "date": "2026-10-21",
+  "scope": "Offline existing owner corpus; no vehicle, IPC, endpoint, credentials, decrypt, extraction or decompile",
+  "status": "authoritative_matching_scenario_and_selection_metadata_missing",
+  "profile": 170,
+  "modelScope": "CN Z9GT PHEV; exact manual revision and software applicability remain unverified",
+  "result": {
+    "new_matching_production_scenarios": 0,
+    "new_qualified_remote_measurement_dids": 0,
+    "new_qualified_manufacturer_dtc_definitions": 0
+  },
+  "target_join": [
+    {
+      "name": "ECM",
+      "softwareCode": "32440011E004000000",
+      "knownRequestAddress": "7E0",
+      "matching_script_recovered": false,
+      "qualified_did_definitions": 0,
+      "qualified_dtc_definitions": 0
+    },
+    {
+      "name": "BMS033",
+      "softwareCode": "4A520011E00D00047B",
+      "knownRequestAddress": "7E7",
+      "matching_script_recovered": false,
+      "qualified_did_definitions": 0,
+      "qualified_dtc_definitions": 0
+    },
+    {
+      "name": "FMCU",
+      "softwareCode": "48370011E075000000",
+      "knownRequestAddress": "7E3",
+      "matching_script_recovered": false,
+      "qualified_did_definitions": 0,
+      "qualified_dtc_definitions": 0
+    },
+    {
+      "name": "ISG",
+      "softwareCode": "48370011E0EA000000",
+      "knownRequestAddress": "7E6",
+      "matching_script_recovered": false,
+      "qualified_did_definitions": 0,
+      "qualified_dtc_definitions": 0
+    },
+    {
+      "name": "SMCU",
+      "softwareCode": "48370011E086001100",
+      "knownRequestAddress": "744",
+      "matching_script_recovered": false,
+      "qualified_did_definitions": 0,
+      "qualified_dtc_definitions": 0
+    },
+    {
+      "name": "SMCU3",
+      "softwareCode": "48370011E088001100",
+      "knownRequestAddress": "745",
+      "matching_script_recovered": false,
+      "qualified_did_definitions": 0,
+      "qualified_dtc_definitions": 0
+    },
+    {
+      "name": "ABS_ESP_IPB_BSC",
+      "softwareCode": "32330011DF0B000101",
+      "knownRequestAddress": "782",
+      "matching_script_recovered": false,
+      "qualified_did_definitions": 0,
+      "qualified_dtc_definitions": 0
+    }
+  ],
+  "selection_chain": [
+    {
+      "stage": "select",
+      "evidence": "Upstream command supplies exact scriptCode, scriptVersion, scriptFormatVer and forStation; traced client schema has no model/profile/software selector",
+      "sources": [
+        "download_runner",
+        "script_identity",
+        "script_request",
+        "download_request"
+      ]
+    },
+    {
+      "stage": "download",
+      "evidence": "POST to upstream-supplied URL with task authorization, VIN and exact script identity; validation starts persisted EOL task before network",
+      "sources": [
+        "download_runner",
+        "download_http",
+        "http_client",
+        "task_storage"
+      ]
+    },
+    {
+      "stage": "cache",
+      "evidence": "File lookup by station/code/version; sibling response JSON has data removed and is written before checksum/decrypt checks",
+      "sources": [
+        "script_storage",
+        "download_http"
+      ]
+    },
+    {
+      "stage": "bind",
+      "evidence": "Case uses exact ecuAbbrName to choose Attach; Attach carries bus/CAN route and raw numeric dtcList; no explicit top-level ECU software matrix",
+      "sources": [
+        "script_check",
+        "ecu_attach"
+      ]
+    },
+    {
+      "stage": "import",
+      "evidence": "Existing offline importer can preserve routing/raw dictionary from a supplied real pair, but source existence and profile/software applicability are still external requirements",
+      "sources": [
+        "previous_eol",
+        "target_applicability"
+      ]
+    }
+  ],
+  "new_precision": [
+    {
+      "claim": "afterRunRes is insufficient to recover selected script code/version/station",
+      "reason": "runCommandData is transient and bundled fastjson enables SkipTransientField by default; persistent SystemResult holds only name/itemDesc",
+      "sources": [
+        "result_storage",
+        "result_model",
+        "result_builder",
+        "json_defaults",
+        "json_bean_serializer",
+        "json_field_info"
+      ]
+    },
+    {
+      "claim": "station-session is station/header/stage state, not script inventory",
+      "sources": [
+        "station_storage"
+      ]
+    },
+    {
+      "claim": "Legacy case mechanism has conditional existing plaintext dumps under external SpotIns, not a second production script catalog",
+      "sources": [
+        "legacy_selection",
+        "legacy_download",
+        "legacy_debug_gate"
+      ]
+    },
+    {
+      "claim": "Historical large-log EOL messages are outgoing-cache retries, with no script identity markers; numeric queue observations retained separately",
+      "sources": [
+        "outgoing_cache",
+        "outgoing_sender"
+      ],
+      "artifact": "large-log-metadata.json"
+    }
+  ],
+  "cache_paths": [
+    {
+      "path": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts/<station>/<code>-<version>-script.txt",
+      "kind": "actual_plaintext",
+      "status": "previously_empty_external_cache; no fresh device read"
+    },
+    {
+      "path": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts/<station>/<code>-<version>.json",
+      "kind": "metadata_sibling",
+      "status": "not_recovered_for_matching_script; may precede successful decrypt"
+    },
+    {
+      "path": "/data/user/0/com.byd.spotinspection/files/Scripts/<station>/",
+      "kind": "internal_fallback",
+      "status": "derived_if_external_context_null; not a second guaranteed copy; not accessed"
+    },
+    {
+      "path": "/data/user_de/0/com.byd.spotinspection/shared_prefs/com.byd.spotinspection.xml#RUNNING_TASK",
+      "kind": "sensitive_upstream_inventory",
+      "status": "key_missing_in_completed_authorized_prior_export; approval_consumed"
+    },
+    {
+      "path": "/data/user_de/0/com.byd.spotinspection/shared_prefs/com.byd.spotinspection.xml#afterRunRes",
+      "kind": "display_results",
+      "status": "does_not_serialize_run_command"
+    },
+    {
+      "path": "/data/user_de/0/com.byd.spotinspection/shared_prefs/com.byd.spotinspection_station-session.xml",
+      "kind": "station_state",
+      "status": "no_script_inventory_fields_in_bean; no_private_read_proposed"
+    },
+    {
+      "path": "/data/user_de/0/com.byd.spotinspection/shared_prefs/com.byd.spotinspection_mqtt-cache.xml",
+      "kind": "outgoing_retry_queue",
+      "status": "not_incoming_catalog; no_private_read_proposed"
+    },
+    {
+      "path": "/sdcard/SpotIns/<caseName>.json",
+      "kind": "legacy_debug_plaintext_dump",
+      "status": "derived_debug_conditional; no_existing_local_copy_found; on_car_presence_unknown"
+    },
+    {
+      "path": "/sdcard/SpotIns/<caseName>.base64",
+      "kind": "legacy_encrypted_response_wrapper",
+      "status": "no_decrypt_proposed"
+    }
+  ],
+  "minimal_future_metadata_only_candidates": [
+    {
+      "path": "/sdcard/SpotIns",
+      "operation": "existing_directory_and_regular_file_name/size/mtime_listing_only",
+      "purpose": "Determine whether old legitimate plaintext case dumps already exist",
+      "executed": false,
+      "limits": "No launch/debug toggle/download; no file contents, credentials or encrypted wrapper decoding"
+    },
+    {
+      "path": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts",
+      "operation": "directory_and_regular_file_name/size/mtime_listing_only_if_new_owner_known_factory_task_or_changed_cache",
+      "purpose": "Look for a newly existing station/code/version tuple after a known event",
+      "executed": false,
+      "limits": "Previous cache empty; repeat now has low expected value; no EOL start/stop/init"
+    }
+  ],
+  "car_requirement": "No immediate car action justified by this offline result. A car metadata listing may settle legacy SpotIns presence only; full scenario plus upstream applicability provenance is still needed.",
+  "limits": [
+    "Archive member payloads were not read; innocuously named payloads are outside the metadata-only negative finding",
+    "Structured schemas do not establish backend model-selection rules; VIN can bind a server selection without an explicit profile field",
+    "Actual script steps could contain ECU identity/version conditions; none can be inferred without that real script",
+    "Old fixture/low-power artifacts and head-unit server DID tables remain ineligible for target powertrain definitions",
+    "No format01 raw-to-P-code conversion was assumed"
+  ],
+  "schema_fields": {
+    "download_command": [
+      {
+        "line": 9,
+        "visibility": "private",
+        "type": "Display",
+        "field": "display"
+      },
+      {
+        "line": 10,
+        "visibility": "private",
+        "type": "boolean",
+        "field": "exclusiveMode"
+      },
+      {
+        "line": 11,
+        "visibility": "private",
+        "type": "List<ScriptRequest>",
+        "field": "scriptList"
+      },
+      {
+        "line": 12,
+        "visibility": "private",
+        "type": "int",
+        "field": "taskTimeoutHour"
+      },
+      {
+        "line": 13,
+        "visibility": "private",
+        "type": "String",
+        "field": "token"
+      }
+    ],
+    "script_identity": [
+      {
+        "line": 7,
+        "visibility": "protected",
+        "type": "String",
+        "field": "forStation"
+      },
+      {
+        "line": 8,
+        "visibility": "protected",
+        "type": "String",
+        "field": "funcType"
+      },
+      {
+        "line": 9,
+        "visibility": "protected",
+        "type": "int",
+        "field": "priority"
+      },
+      {
+        "line": 10,
+        "visibility": "protected",
+        "type": "String",
+        "field": "scriptCode"
+      },
+      {
+        "line": 11,
+        "visibility": "protected",
+        "type": "String",
+        "field": "scriptFormatVer"
+      },
+      {
+        "line": 12,
+        "visibility": "protected",
+        "type": "String",
+        "field": "scriptName"
+      },
+      {
+        "line": 13,
+        "visibility": "protected",
+        "type": "String",
+        "field": "scriptVersion"
+      }
+    ],
+    "script_request": [
+      {
+        "line": 7,
+        "visibility": "private",
+        "type": "String",
+        "field": "downloadBaseUrl"
+      },
+      {
+        "line": 8,
+        "visibility": "private",
+        "type": "String",
+        "field": "resultUploadUrl"
+      },
+      {
+        "line": 9,
+        "visibility": "private",
+        "type": "String",
+        "field": "scriptOwner"
+      },
+      {
+        "line": 10,
+        "visibility": "private",
+        "type": "int",
+        "field": "scriptSize"
+      },
+      {
+        "line": 11,
+        "visibility": "private",
+        "type": "int",
+        "field": "timeConsumeS"
+      }
+    ],
+    "script_content": [
+      {
+        "line": 7,
+        "visibility": "private",
+        "type": "String",
+        "field": "business"
+      },
+      {
+        "line": 8,
+        "visibility": "private",
+        "type": "ScriptData",
+        "field": "data"
+      },
+      {
+        "line": 9,
+        "visibility": "private",
+        "type": "String",
+        "field": "formatVer"
+      },
+      {
+        "line": 10,
+        "visibility": "private",
+        "type": "String",
+        "field": "protocol"
+      },
+      {
+        "line": 11,
+        "visibility": "private",
+        "type": "String",
+        "field": "receiver"
+      },
+      {
+        "line": 12,
+        "visibility": "private",
+        "type": "String",
+        "field": "scriptCode"
+      },
+      {
+        "line": 13,
+        "visibility": "private",
+        "type": "String",
+        "field": "scriptName"
+      },
+      {
+        "line": 14,
+        "visibility": "private",
+        "type": "String",
+        "field": "scriptVer"
+      },
+      {
+        "line": 15,
+        "visibility": "private",
+        "type": "String",
+        "field": "sender"
+      },
+      {
+        "line": 16,
+        "visibility": "private",
+        "type": "String",
+        "field": "uuid"
+      },
+      {
+        "line": 17,
+        "visibility": "private",
+        "type": "String",
+        "field": "vin"
+      }
+    ],
+    "download_request": [
+      {
+        "line": 7,
+        "visibility": "private",
+        "type": "String",
+        "field": "scriptCode"
+      },
+      {
+        "line": 8,
+        "visibility": "private",
+        "type": "String",
+        "field": "scriptFormatVer"
+      },
+      {
+        "line": 9,
+        "visibility": "private",
+        "type": "String",
+        "field": "scriptVersion"
+      },
+      {
+        "line": 10,
+        "visibility": "private",
+        "type": "String",
+        "field": "taskId"
+      },
+      {
+        "line": 11,
+        "visibility": "private",
+        "type": "String",
+        "field": "uuid"
+      },
+      {
+        "line": 12,
+        "visibility": "private",
+        "type": "String",
+        "field": "vin"
+      }
+    ],
+    "download_response": [
+      {
+        "line": 8,
+        "visibility": "private",
+        "type": "String",
+        "field": "MD5Code"
+      },
+      {
+        "line": 9,
+        "visibility": "private",
+        "type": "int",
+        "field": "code"
+      },
+      {
+        "line": 10,
+        "visibility": "private",
+        "type": "String",
+        "field": "data"
+      },
+      {
+        "line": 11,
+        "visibility": "private",
+        "type": "int",
+        "field": "encryPolicyId"
+      },
+      {
+        "line": 12,
+        "visibility": "private",
+        "type": "List<String>",
+        "field": "forStations"
+      },
+      {
+        "line": 13,
+        "visibility": "private",
+        "type": "String",
+        "field": "message"
+      },
+      {
+        "line": 14,
+        "visibility": "private",
+        "type": "String",
+        "field": "scriptName"
+      },
+      {
+        "line": 15,
+        "visibility": "private",
+        "type": "int",
+        "field": "scriptSize"
+      },
+      {
+        "line": 16,
+        "visibility": "private",
+        "type": "String",
+        "field": "scriptVersion"
+      },
+      {
+        "line": 17,
+        "visibility": "private",
+        "type": "List<EcuInfo>",
+        "field": "systemIds"
+      }
+    ],
+    "ecu_attach": [
+      {
+        "line": 7,
+        "visibility": "private",
+        "type": "Bus",
+        "field": "bus"
+      },
+      {
+        "line": 8,
+        "visibility": "private",
+        "type": "Can",
+        "field": "can"
+      },
+      {
+        "line": 9,
+        "visibility": "private",
+        "type": "List<Dtc>",
+        "field": "dtcList"
+      },
+      {
+        "line": 10,
+        "visibility": "private",
+        "type": "List<DtcStatus>",
+        "field": "dtcStatusList"
+      },
+      {
+        "line": 11,
+        "visibility": "private",
+        "type": "String",
+        "field": "ecuAbbrName"
+      },
+      {
+        "line": 12,
+        "visibility": "private",
+        "type": "String",
+        "field": "ecuName"
+      },
+      {
+        "line": 13,
+        "visibility": "private",
+        "type": "FrameSize",
+        "field": "frameSize"
+      },
+      {
+        "line": 14,
+        "visibility": "private",
+        "type": "List<Security>",
+        "field": "security"
+      }
+    ],
+    "result_model": [
+      {
+        "line": 10,
+        "visibility": "private",
+        "type": "CommandStatusEnum",
+        "field": "commandStatus"
+      },
+      {
+        "line": 12,
+        "visibility": "private",
+        "type": "int",
+        "field": "finish"
+      },
+      {
+        "line": 13,
+        "visibility": "private",
+        "type": "transient RunCommandData",
+        "field": "runCommandData"
+      },
+      {
+        "line": 14,
+        "visibility": "private",
+        "type": "int",
+        "field": "showTime"
+      },
+      {
+        "line": 15,
+        "visibility": "private",
+        "type": "List<SystemResult>",
+        "field": "systemResultList"
+      },
+      {
+        "line": 16,
+        "visibility": "private",
+        "type": "int",
+        "field": "total"
+      }
+    ]
+  },
+  "sources": {
+    "app_context": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/BaseApp.java",
+      "sha256": "89deceb0c59dc8aa51c180b5d28995ff9fca96d0c5647f893867e282f8b81b4f",
+      "bytes": 1495,
+      "lines": 51,
+      "line_ranges": [
+        [
+          13,
+          20
+        ]
+      ]
+    },
+    "prefs_context": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/foundation/utils/SpUtils.java",
+      "sha256": "b2c791609ce9618a8a5b81026059c651e8b66508e97c5e320aee5bac122f4668",
+      "bytes": 4394,
+      "lines": 125,
+      "line_ranges": [
+        [
+          12,
+          16
+        ]
+      ]
+    },
+    "download_command": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/DownloadCommand.java",
+      "sha256": "80a88bfbe5244f923af244a5def8be676f86cc74ae0f24aeedeaf9793661f462",
+      "bytes": 1462,
+      "lines": 58,
+      "line_ranges": [
+        [
+          8,
+          13
+        ]
+      ]
+    },
+    "script_identity": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/Script.java",
+      "sha256": "cdf1ae2db9d441e7f409166579fa9f77ac9f33e760e95c6f0102335f4c088a3c",
+      "bytes": 1676,
+      "lines": 77,
+      "line_ranges": [
+        [
+          6,
+          13
+        ]
+      ]
+    },
+    "script_request": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/ScriptRequest.java",
+      "sha256": "65f01068dcc87abcc895b682df6ce7132c316eae106e5afa3cab6c7d7c55292e",
+      "bytes": 1876,
+      "lines": 61,
+      "line_ranges": [
+        [
+          6,
+          11
+        ]
+      ]
+    },
+    "script_content": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/ScriptContent.java",
+      "sha256": "03b71abab9ec16190082564e4b564d9ab6e8c38b73dd5f4e7c043e167daa9c35",
+      "bytes": 6680,
+      "lines": 206,
+      "line_ranges": [
+        [
+          6,
+          17
+        ]
+      ]
+    },
+    "download_request": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/http/bean/DownloadRequest.java",
+      "sha256": "362210336a2842a9d3f4bb981d76f8ca635fd02cd47d2de9d90b5d6d75d369d8",
+      "bytes": 4734,
+      "lines": 145,
+      "line_ranges": [
+        [
+          6,
+          12
+        ]
+      ]
+    },
+    "download_response": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/http/bean/DownloadResponseVO.java",
+      "sha256": "2fbdda7dbfdb1b9b336734172dc8dbc58d2df006e58f53b8aa4e1138c3b2586f",
+      "bytes": 2435,
+      "lines": 102,
+      "line_ranges": [
+        [
+          7,
+          17
+        ],
+        [
+          59,
+          61
+        ]
+      ]
+    },
+    "download_runner": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/runner/DownloadScriptCommandRunner.java",
+      "sha256": "4720a8b8f12e8b994f44e00915e6e94d7a220274b8574fbc4bdda0693476244a",
+      "bytes": 10144,
+      "lines": 193,
+      "line_ranges": [
+        [
+          47,
+          106
+        ]
+      ]
+    },
+    "download_http": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/http/ScriptDownloadManager.java",
+      "sha256": "d1976fbb65e6970757ca170bec547d70c07608584685b4a7164442b9255039d8",
+      "bytes": 23493,
+      "lines": 449,
+      "line_ranges": [
+        [
+          77,
+          83
+        ],
+        [
+          162,
+          190
+        ],
+        [
+          217,
+          251
+        ]
+      ]
+    },
+    "http_client": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/http/OkHttpUtils.java",
+      "sha256": "f1caae98a2f8465ef612dad74516167b020f7d17f01f964cb4c90bff87fe22fe",
+      "bytes": 4587,
+      "lines": 94,
+      "line_ranges": [
+        [
+          57,
+          78
+        ]
+      ]
+    },
+    "http_log": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/http/interceptor/HttpLoggingInterceptor.java",
+      "sha256": "635b3808b17f2c543a9ad47e0ec9a2e7fdfca7d869c6349eff3adece5333d175",
+      "bytes": 1947,
+      "lines": 45,
+      "line_ranges": [
+        [
+          18,
+          43
+        ]
+      ]
+    },
+    "script_storage": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/storage/ScriptDao.java",
+      "sha256": "64aa42f3a06378288bfc369b6bb7ce8cf3be8313c1062bd9719400de08ffc5b8",
+      "bytes": 6846,
+      "lines": 165,
+      "line_ranges": [
+        [
+          31,
+          43
+        ],
+        [
+          87,
+          100
+        ],
+        [
+          108,
+          163
+        ]
+      ]
+    },
+    "task_storage": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/storage/EolTaskManager.java",
+      "sha256": "7512454171859bd1e7734f18d66badc2676ec19068b74b98eda1b536f4af68f1",
+      "bytes": 34734,
+      "lines": 686,
+      "line_ranges": [
+        [
+          90,
+          104
+        ],
+        [
+          179,
+          210
+        ],
+        [
+          248,
+          255
+        ],
+        [
+          533,
+          538
+        ]
+      ]
+    },
+    "station_storage": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/storage/StationSessionManager.java",
+      "sha256": "a6b6b3445180f0ead91f68a57588bc1e3d5c17a0d0e3733840089be03ec27965",
+      "bytes": 11389,
+      "lines": 284,
+      "line_ranges": [
+        [
+          37,
+          38
+        ],
+        [
+          168,
+          173
+        ]
+      ]
+    },
+    "result_storage": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/storage/ScriptResultDao.java",
+      "sha256": "ec8cfa495e5f6977554bc70f8c38cc2cdde3913038b1a753cda14abd6c6012dd",
+      "bytes": 1713,
+      "lines": 49,
+      "line_ranges": [
+        [
+          23,
+          28
+        ]
+      ]
+    },
+    "result_model": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/ui/bean/RunResultModelData.java",
+      "sha256": "48851de808eab165953ea0b90039c2d352c4aba93090fc2ef6bbbd41d18ebf8c",
+      "bytes": 6251,
+      "lines": 184,
+      "line_ranges": [
+        [
+          9,
+          16
+        ],
+        [
+          122,
+          125
+        ]
+      ]
+    },
+    "result_builder": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/runner/ScriptRunCompleteManager.java",
+      "sha256": "ceb59e5ca1ec0784b34d4e22507e81dc26450ce20e0cee6934f982e3d4898776",
+      "bytes": 15002,
+      "lines": 265,
+      "line_ranges": [
+        [
+          76,
+          145
+        ]
+      ]
+    },
+    "run_binding": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/runner/ScriptRunCommandRunner.java",
+      "sha256": "5e62b3729b17183d5581f158cefd70f2d8d2c26962d11988b165a8002fdbecaf",
+      "bytes": 29021,
+      "lines": 500,
+      "line_ranges": [
+        [
+          263,
+          327
+        ]
+      ]
+    },
+    "script_check": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/ScriptCheckUtil.java",
+      "sha256": "515b562a93e3b674a80f87bf04fb148da86cfd6ec537f77a1382e349bdd6bd42",
+      "bytes": 15500,
+      "lines": 305,
+      "line_ranges": [
+        [
+          32,
+          59
+        ],
+        [
+          98,
+          162
+        ]
+      ]
+    },
+    "ecu_attach": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/Attach.java",
+      "sha256": "c496d093f810c0a2fe8cae4e952ede4513968e5f8c6729014703914769c95e8a",
+      "bytes": 14068,
+      "lines": 483,
+      "line_ranges": [
+        [
+          6,
+          14
+        ],
+        [
+          212,
+          216
+        ],
+        [
+          382,
+          384
+        ],
+        [
+          433,
+          435
+        ]
+      ]
+    },
+    "legacy_selection": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/cmd/model/ScriptCmdEntity.java",
+      "sha256": "a4b0e71d8c9c74c718c60407af6b0b22d282fc7f9e654dac7701102787bedde2",
+      "bytes": 7010,
+      "lines": 163,
+      "line_ranges": [
+        [
+          62,
+          101
+        ]
+      ]
+    },
+    "legacy_download": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/http/HttpDownLoader.java",
+      "sha256": "e05bcf82d3c3e1e1a60d4c9a9da15f4acb7b87098150aba58d0249e1b832f67a",
+      "bytes": 8747,
+      "lines": 166,
+      "line_ranges": [
+        [
+          36,
+          66
+        ],
+        [
+          112,
+          159
+        ]
+      ]
+    },
+    "legacy_debug_gate": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/CommonDef.java",
+      "sha256": "d494c6e5529018bf4565ffab7d84ee0d0ec75236d04dbbe0913bf683fac93cda",
+      "bytes": 1873,
+      "lines": 41,
+      "line_ranges": [
+        [
+          27,
+          39
+        ]
+      ]
+    },
+    "legacy_listener": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/mqtt/SpotInspectListener.java",
+      "sha256": "88ec69c6c3d04fe0925a0564712b819c6522fcb67a996897a2ec630c75474985",
+      "bytes": 3856,
+      "lines": 103,
+      "line_ranges": [
+        [
+          44,
+          79
+        ]
+      ]
+    },
+    "outgoing_cache": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/storage/MqttReportDao.java",
+      "sha256": "337785832cf9e456a212ce67906468d5af78077a62e444d0368136459677a222",
+      "bytes": 6375,
+      "lines": 174,
+      "line_ranges": [
+        [
+          23,
+          38
+        ],
+        [
+          52,
+          78
+        ]
+      ]
+    },
+    "outgoing_sender": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/communication/MqttMessageSender.java",
+      "sha256": "2c26bc2c242c5120811f8847194268218ff389eccd76436d8b3e7732f03c2fb6",
+      "bytes": 12061,
+      "lines": 243,
+      "line_ranges": [
+        [
+          35,
+          46
+        ],
+        [
+          110,
+          130
+        ],
+        [
+          140,
+          158
+        ]
+      ]
+    },
+    "json_defaults": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/alibaba/fastjson/JSON.java",
+      "sha256": "d69dbf4593b34cf7c053c0ed5f905129186bd405adb4749c9e2151eb6514c10f",
+      "bytes": 26408,
+      "lines": 598,
+      "line_ranges": [
+        [
+          52,
+          61
+        ],
+        [
+          329,
+          330
+        ]
+      ]
+    },
+    "json_bean_serializer": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/alibaba/fastjson/serializer/JavaBeanSerializer.java",
+      "sha256": "beb90cf63e882ee4e0e434b6d845dac8488167832fe4b6ac600a0c3d679ad563",
+      "bytes": 20622,
+      "lines": 442,
+      "line_ranges": [
+        [
+          134,
+          146
+        ]
+      ]
+    },
+    "json_field_info": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/alibaba/fastjson/util/FieldInfo.java",
+      "sha256": "ad6174ec98aeb2d21fce8958f9b19544620f804602b5182abe1d09412267818e",
+      "bytes": 15666,
+      "lines": 401,
+      "line_ranges": [
+        [
+          93,
+          102
+        ]
+      ]
+    },
+    "previous_eol": {
+      "path": "captures/diagnostics-discovery-20261018/eol-dictionary.md",
+      "sha256": "fd04a3162bdc63d421beafc2db502331622a3ffeb205d29db508bc81ea6aa6c0",
+      "bytes": 17404,
+      "lines": 120,
+      "line_ranges": [
+        [
+          17,
+          120
+        ]
+      ]
+    },
+    "previous_selection": {
+      "path": "captures/diagnostics-discovery-20261018/eol-map-next/report.md",
+      "sha256": "def20d8fe9733b54f5bf1d0f02d0195f4ddb96b9e96688e69936cb45a4c8a5fc",
+      "bytes": 9139,
+      "lines": 52,
+      "line_ranges": [
+        [
+          1,
+          52
+        ]
+      ]
+    },
+    "previous_uds": {
+      "path": "captures/diagnostics-deep-20261021/uds/report.md",
+      "sha256": "880cf3485a78b07cec7cf98b8b052c2a3321d1dd2da991257f9aa19623b48150",
+      "bytes": 12026,
+      "lines": 99,
+      "line_ranges": [
+        [
+          35,
+          72
+        ]
+      ]
+    },
+    "prior_asset_inventory": {
+      "path": "captures/diagnostics-deep-20261021/uds/spotinspection-script-inventory.json",
+      "sha256": "939e5cf0fe39e3721da667d56a63e9bfd2af0d8c14a0573393e8d482e49942dd",
+      "bytes": 53722,
+      "lines": 1689,
+      "line_ranges": []
+    },
+    "prior_empty_cache_metadata": {
+      "path": "captures/adas-speed-20261018/reports/live-eol-script-list.txt",
+      "sha256": "84962d491cc6c18f59fde9b22b4655adecd0ade75075d552b38741ec8c421ed3",
+      "bytes": 112,
+      "lines": 1,
+      "line_ranges": [
+        [
+          1,
+          1
+        ]
+      ]
+    },
+    "prior_private_cache_result": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-2/files/report.json",
+      "sha256": "8f9ea5f91044e7bbae59f68dfeb0de2843d72ac613eab7150dd36b746f928777",
+      "bytes": 1208,
+      "lines": 39,
+      "line_ranges": [
+        [
+          31,
+          38
+        ]
+      ]
+    },
+    "target_applicability": {
+      "path": "research/vehicle-diagnostics/oem-dtc-acquisition-20261020.json",
+      "sha256": "682ab0b1c304a5e117e5e4b2c1fa530b4f053f7a1ff28268c303bc03dcd6d9b3",
+      "bytes": 20983,
+      "lines": 519,
+      "line_ranges": []
+    },
+    "system_partition_listing": {
+      "path": "captures/hud-firmware-20260923/files-system.txt",
+      "sha256": "07d253d4af590e8d15bf84384ca44d84ff488a892c60bdeb6b522f25eda1c0f6",
+      "bytes": 388814,
+      "lines": 7054,
+      "line_ranges": [
+        [
+          5566,
+          5567
+        ]
+      ]
+    },
+    "vendor_partition_listing": {
+      "path": "captures/hud-firmware-20260923/files-vendor.txt",
+      "sha256": "0a7f7570a5008d1f83e54455ee5a287a6dc6b6df3698ae992a4a4404f8a89006",
+      "bytes": 437763,
+      "lines": 6354,
+      "line_ranges": []
+    },
+    "product_partition_listing": {
+      "path": "captures/hud-firmware-20260923/files-product.txt",
+      "sha256": "1e46661f75510dfa92e4b6eee7ed4666ad5cc61ecb0b2847422752d62e3c0f49",
+      "bytes": 12205,
+      "lines": 283,
+      "line_ranges": []
+    }
+  },
+  "captureBase": "captures/diagnostics-origin-20261021/scenarios",
+  "retainedSourceReport": "captures/diagnostics-origin-20261021/scenarios/evidence.json"
+}

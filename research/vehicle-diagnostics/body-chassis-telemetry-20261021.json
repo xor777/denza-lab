@@ -1,0 +1,3369 @@
+{
+  "schema": "denza-lab.headunit-telemetry-paths.v1",
+  "date": "2026-10-21",
+  "scope": "Offline body/chassis read-path evidence; no requests to the vehicle and no product changes.",
+  "resolvedTable": {
+    "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+    "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885",
+    "lines": []
+  },
+  "signals": [
+    {
+      "name": "RADAR_MR_OBSTACLE_DIS",
+      "labelRu": "Расстояние парктроника, сырое: MR_OBSTACLE_DIS",
+      "group": "radar",
+      "propertyKey": "0x99000069",
+      "nativeFidHex": "0x99000069",
+      "nativeFidSigned": -1728053143,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          12
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          38,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053143,
+          "line": 2000
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          144,
+          145,
+          179
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000069",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_MR_OBSTACLE_DIS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000069",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_MR_SONDE_STATUS",
+      "labelRu": "Состояние датчика парктроника: MR_SONDE_STATUS",
+      "group": "radar",
+      "propertyKey": "0x99000079",
+      "nativeFidHex": "0x99000079",
+      "nativeFidSigned": -1728053127,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          13
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          47,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053127,
+          "line": 2001
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          94,
+          96,
+          128
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000079",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_MR_SONDE_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000079",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_OBSTACLE_DISTANCE_FRONT_LEFT_MID",
+      "labelRu": "Расстояние парктроника, сырое: OBSTACLE_DISTANCE_FRONT_LEFT_MID",
+      "group": "radar",
+      "propertyKey": "0x99000062",
+      "nativeFidHex": "0x99000062",
+      "nativeFidSigned": -1728053150,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          14
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          31,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053150,
+          "line": 2002
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          144,
+          145,
+          179
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000062",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_OBSTACLE_DISTANCE_FRONT_LEFT_MID",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000062",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_OBSTACLE_DISTANCE_FRONT_RIGHT_MID",
+      "labelRu": "Расстояние парктроника, сырое: OBSTACLE_DISTANCE_FRONT_RIGHT_MID",
+      "group": "radar",
+      "propertyKey": "0x99000063",
+      "nativeFidHex": "0x99000063",
+      "nativeFidSigned": -1728053149,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          15
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          32,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053149,
+          "line": 2003
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          144,
+          145,
+          179
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000063",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_OBSTACLE_DISTANCE_FRONT_RIGHT_MID",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000063",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_OBSTACLE_DISTANCE_LEFT",
+      "labelRu": "Расстояние парктроника, сырое: OBSTACLE_DISTANCE_LEFT",
+      "group": "radar",
+      "propertyKey": "0x99000065",
+      "nativeFidHex": "0x99000065",
+      "nativeFidSigned": -1728053147,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          16,
+          17,
+          18
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          30,
+          34,
+          35,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053147,
+          "line": 2004
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          144,
+          145,
+          179
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000065",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_OBSTACLE_DISTANCE_LEFT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000065",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_OBSTACLE_DISTANCE_LEFT_FRONT",
+      "labelRu": "Расстояние парктроника, сырое: OBSTACLE_DISTANCE_LEFT_FRONT",
+      "group": "radar",
+      "propertyKey": "0x99000061",
+      "nativeFidHex": "0x99000061",
+      "nativeFidSigned": -1728053151,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          17
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          30,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053151,
+          "line": 2005
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          144,
+          145,
+          179
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000061",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_OBSTACLE_DISTANCE_LEFT_FRONT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000061",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_OBSTACLE_DISTANCE_LEFT_REAR",
+      "labelRu": "Расстояние парктроника, сырое: OBSTACLE_DISTANCE_LEFT_REAR",
+      "group": "radar",
+      "propertyKey": "0x99000066",
+      "nativeFidHex": "0x99000066",
+      "nativeFidSigned": -1728053146,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          18
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          35,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053146,
+          "line": 2006
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          144,
+          145,
+          179
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000066",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_OBSTACLE_DISTANCE_LEFT_REAR",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000066",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_OBSTACLE_DISTANCE_RIGHT",
+      "labelRu": "Расстояние парктроника, сырое: OBSTACLE_DISTANCE_RIGHT",
+      "group": "radar",
+      "propertyKey": "0x99000068",
+      "nativeFidHex": "0x99000068",
+      "nativeFidSigned": -1728053144,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          19,
+          20,
+          21
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          33,
+          36,
+          37,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053144,
+          "line": 2007
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          144,
+          145,
+          179
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000068",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_OBSTACLE_DISTANCE_RIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000068",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_OBSTACLE_DISTANCE_RIGHT_FRONT",
+      "labelRu": "Расстояние парктроника, сырое: OBSTACLE_DISTANCE_RIGHT_FRONT",
+      "group": "radar",
+      "propertyKey": "0x99000064",
+      "nativeFidHex": "0x99000064",
+      "nativeFidSigned": -1728053148,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          20
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          33,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053148,
+          "line": 2008
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          144,
+          145,
+          179
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000064",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_OBSTACLE_DISTANCE_RIGHT_FRONT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000064",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_OBSTACLE_DISTANCE_RIGHT_REAR",
+      "labelRu": "Расстояние парктроника, сырое: OBSTACLE_DISTANCE_RIGHT_REAR",
+      "group": "radar",
+      "propertyKey": "0x99000067",
+      "nativeFidHex": "0x99000067",
+      "nativeFidSigned": -1728053145,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          21
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          36,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053145,
+          "line": 2009
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          144,
+          145,
+          179
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000067",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_OBSTACLE_DISTANCE_RIGHT_REAR",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000067",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_PROBE_STATE_FRONT_LEFT_MID",
+      "labelRu": "Состояние датчика парктроника: PROBE_STATE_FRONT_LEFT_MID",
+      "group": "radar",
+      "propertyKey": "0x99000072",
+      "nativeFidHex": "0x99000072",
+      "nativeFidSigned": -1728053134,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          36
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          40,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053134,
+          "line": 2010
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          94,
+          96,
+          128
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000072",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_PROBE_STATE_FRONT_LEFT_MID",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000072",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_PROBE_STATE_FRONT_RIGHT_MID",
+      "labelRu": "Состояние датчика парктроника: PROBE_STATE_FRONT_RIGHT_MID",
+      "group": "radar",
+      "propertyKey": "0x99000073",
+      "nativeFidHex": "0x99000073",
+      "nativeFidSigned": -1728053133,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          37
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          41,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053133,
+          "line": 2011
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          94,
+          96,
+          128
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000073",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_PROBE_STATE_FRONT_RIGHT_MID",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000073",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_PROBE_STATE_LEFT",
+      "labelRu": "Состояние датчика парктроника: PROBE_STATE_LEFT",
+      "group": "radar",
+      "propertyKey": "0x99000075",
+      "nativeFidHex": "0x99000075",
+      "nativeFidSigned": -1728053131,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          38,
+          39,
+          40
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          39,
+          43,
+          44,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053131,
+          "line": 2012
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          94,
+          96,
+          128
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000075",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_PROBE_STATE_LEFT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000075",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_PROBE_STATE_LEFT_FRONT",
+      "labelRu": "Состояние датчика парктроника: PROBE_STATE_LEFT_FRONT",
+      "group": "radar",
+      "propertyKey": "0x99000071",
+      "nativeFidHex": "0x99000071",
+      "nativeFidSigned": -1728053135,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          39
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          39,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053135,
+          "line": 2013
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          94,
+          96,
+          128
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000071",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_PROBE_STATE_LEFT_FRONT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000071",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_PROBE_STATE_LEFT_REAR",
+      "labelRu": "Состояние датчика парктроника: PROBE_STATE_LEFT_REAR",
+      "group": "radar",
+      "propertyKey": "0x99000076",
+      "nativeFidHex": "0x99000076",
+      "nativeFidSigned": -1728053130,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          40
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          44,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053130,
+          "line": 2014
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          94,
+          96,
+          128
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000076",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_PROBE_STATE_LEFT_REAR",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000076",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_PROBE_STATE_RIGHT",
+      "labelRu": "Состояние датчика парктроника: PROBE_STATE_RIGHT",
+      "group": "radar",
+      "propertyKey": "0x99000078",
+      "nativeFidHex": "0x99000078",
+      "nativeFidSigned": -1728053128,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          41,
+          42,
+          43
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          42,
+          45,
+          46,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053128,
+          "line": 2015
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          94,
+          96,
+          128
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000078",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_PROBE_STATE_RIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000078",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_PROBE_STATE_RIGHT_FRONT",
+      "labelRu": "Состояние датчика парктроника: PROBE_STATE_RIGHT_FRONT",
+      "group": "radar",
+      "propertyKey": "0x99000074",
+      "nativeFidHex": "0x99000074",
+      "nativeFidSigned": -1728053132,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          42
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          42,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053132,
+          "line": 2016
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          94,
+          96,
+          128
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000074",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_PROBE_STATE_RIGHT_FRONT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000074",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "RADAR_PROBE_STATE_RIGHT_REAR",
+      "labelRu": "Состояние датчика парктроника: PROBE_STATE_RIGHT_REAR",
+      "group": "radar",
+      "propertyKey": "0x99000077",
+      "nativeFidHex": "0x99000077",
+      "nativeFidSigned": -1728053129,
+      "nativeDevice": 1025,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int from scalar SDK getter",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/Radar.java",
+        "sha256": "0888ac2e6d52a295c14d1a1fda58510b804f911aa8f6db808e2a58d29d43b9d4",
+        "lines": [
+          43
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/radar/RadarMapper.java",
+        "sha256": "8d7cd2c6f56e6a17ce89d0aa4c10453146bac4f203950da79b29028b35161ca8",
+        "lines": [
+          45,
+          75,
+          80,
+          84,
+          92,
+          108
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053129,
+          "line": 2017
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+        "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+        "lines": [
+          60,
+          94,
+          96,
+          128
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "SDK enumerates nine areas; this is not a count of installed sensors.",
+        "No centimetre/metre scale assumed; do not equate parking sensors with the door SDR controllers."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000077",
+        "access": "read",
+        "interfaceIndex": 25,
+        "mapper": "RadarMapper",
+        "nativeDevice": 1025,
+        "symbol": "RADAR_PROBE_STATE_RIGHT_REAR",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x99000077",
+        "nativeResolution": "profile170_reflection:Radar"
+      }
+    },
+    {
+      "name": "SPECIAL_CMD_WHEEL_SPEED",
+      "labelRu": "Пакет скоростей колёс",
+      "group": "wheel_motion",
+      "propertyKey": "0x99000059",
+      "nativeFidHex": "0x99000059",
+      "nativeFidSigned": -1728053159,
+      "nativeDevice": 1049,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "byte[]",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/Special.java",
+        "sha256": "d332c653cb5fbecf02d6d6f0a8a65c3fc25fbfb5a70d99721e02cf107725c887",
+        "lines": [
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/SpecialMapper.java",
+        "sha256": "707dc40bfc495c19909ebc985aa8b846f47f559203298a00fe3421164acb3ba2",
+        "lines": [
+          20,
+          21,
+          22,
+          23,
+          46,
+          49,
+          166,
+          171,
+          175,
+          183,
+          199
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": -1728053159,
+          "line": 2924
+        },
+        {
+          "category": "Special",
+          "value": -1728053159,
+          "line": 10274
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/special/BYDAutoSpecialDevice.java",
+        "sha256": "6b23ad6feb645deaff6746d5987a3994245c18f289aee9334d272e7e514a0881",
+        "lines": [
+          32,
+          67,
+          69,
+          73,
+          75
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Use the SDK getBuffer/listener shape; not a scalar service-call parcel."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x99000059",
+        "access": "read",
+        "interfaceIndex": 10,
+        "mapper": "SpecialMapper",
+        "nativeDevice": 1049,
+        "symbol": "SPECIAL_CMD_WHEEL_SPEED",
+        "declaredTypeCode": 1,
+        "declaredJavaType": "byte[]",
+        "nativeCanFdHex": "0x99000059",
+        "nativeResolution": "profile170_reflection:Special"
+      }
+    },
+    {
+      "name": "SPECIAL_CMD_WHEEL_SPEED_FL",
+      "labelRu": "Скорость отдельного колеса FL",
+      "group": "wheel_motion",
+      "propertyKey": "0x12200008",
+      "nativeFidHex": "0x12200008",
+      "nativeFidSigned": 304087048,
+      "nativeDevice": 1049,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/Special.java",
+        "sha256": "d332c653cb5fbecf02d6d6f0a8a65c3fc25fbfb5a70d99721e02cf107725c887",
+        "lines": [
+          22
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/SpecialMapper.java",
+        "sha256": "707dc40bfc495c19909ebc985aa8b846f47f559203298a00fe3421164acb3ba2",
+        "lines": [
+          20,
+          166,
+          171,
+          175,
+          183,
+          199
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 304087048,
+          "line": 2925
+        },
+        {
+          "category": "Special",
+          "value": 304087048,
+          "line": 10275
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Registered scalar candidate; no direct scalar getter, type, scale or runtime response qualified."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x12200008",
+        "access": "read",
+        "interfaceIndex": 10,
+        "mapper": "SpecialMapper",
+        "nativeDevice": 1049,
+        "symbol": "SPECIAL_CMD_WHEEL_SPEED_FL",
+        "declaredTypeCode": 4,
+        "declaredJavaType": "double",
+        "nativeCanFdHex": "0x12200008",
+        "nativeResolution": "profile170_reflection:Special"
+      }
+    },
+    {
+      "name": "SPECIAL_CMD_WHEEL_SPEED_FR",
+      "labelRu": "Скорость отдельного колеса FR",
+      "group": "wheel_motion",
+      "propertyKey": "0x12200018",
+      "nativeFidHex": "0x12200018",
+      "nativeFidSigned": 304087064,
+      "nativeDevice": 1049,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/Special.java",
+        "sha256": "d332c653cb5fbecf02d6d6f0a8a65c3fc25fbfb5a70d99721e02cf107725c887",
+        "lines": [
+          23
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/SpecialMapper.java",
+        "sha256": "707dc40bfc495c19909ebc985aa8b846f47f559203298a00fe3421164acb3ba2",
+        "lines": [
+          21,
+          166,
+          171,
+          175,
+          183,
+          199
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 304087064,
+          "line": 2926
+        },
+        {
+          "category": "Special",
+          "value": 304087064,
+          "line": 10276
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Registered scalar candidate; no direct scalar getter, type, scale or runtime response qualified."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x12200018",
+        "access": "read",
+        "interfaceIndex": 10,
+        "mapper": "SpecialMapper",
+        "nativeDevice": 1049,
+        "symbol": "SPECIAL_CMD_WHEEL_SPEED_FR",
+        "declaredTypeCode": 4,
+        "declaredJavaType": "double",
+        "nativeCanFdHex": "0x12200018",
+        "nativeResolution": "profile170_reflection:Special"
+      }
+    },
+    {
+      "name": "SPECIAL_CMD_WHEEL_SPEED_RL",
+      "labelRu": "Скорость отдельного колеса RL",
+      "group": "wheel_motion",
+      "propertyKey": "0x12200028",
+      "nativeFidHex": "0x12200028",
+      "nativeFidSigned": 304087080,
+      "nativeDevice": 1049,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/Special.java",
+        "sha256": "d332c653cb5fbecf02d6d6f0a8a65c3fc25fbfb5a70d99721e02cf107725c887",
+        "lines": [
+          24
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/SpecialMapper.java",
+        "sha256": "707dc40bfc495c19909ebc985aa8b846f47f559203298a00fe3421164acb3ba2",
+        "lines": [
+          22,
+          166,
+          171,
+          175,
+          183,
+          199
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 304087080,
+          "line": 2927
+        },
+        {
+          "category": "Special",
+          "value": 304087080,
+          "line": 10277
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Registered scalar candidate; no direct scalar getter, type, scale or runtime response qualified."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x12200028",
+        "access": "read",
+        "interfaceIndex": 10,
+        "mapper": "SpecialMapper",
+        "nativeDevice": 1049,
+        "symbol": "SPECIAL_CMD_WHEEL_SPEED_RL",
+        "declaredTypeCode": 4,
+        "declaredJavaType": "double",
+        "nativeCanFdHex": "0x12200028",
+        "nativeResolution": "profile170_reflection:Special"
+      }
+    },
+    {
+      "name": "SPECIAL_CMD_WHEEL_SPEED_RR",
+      "labelRu": "Скорость отдельного колеса RR",
+      "group": "wheel_motion",
+      "propertyKey": "0x12200038",
+      "nativeFidHex": "0x12200038",
+      "nativeFidSigned": 304087096,
+      "nativeDevice": 1049,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/Special.java",
+        "sha256": "d332c653cb5fbecf02d6d6f0a8a65c3fc25fbfb5a70d99721e02cf107725c887",
+        "lines": [
+          25
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/special/SpecialMapper.java",
+        "sha256": "707dc40bfc495c19909ebc985aa8b846f47f559203298a00fe3421164acb3ba2",
+        "lines": [
+          23,
+          166,
+          171,
+          175,
+          183,
+          199
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 304087096,
+          "line": 2928
+        },
+        {
+          "category": "Special",
+          "value": 304087096,
+          "line": 10278
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Registered scalar candidate; no direct scalar getter, type, scale or runtime response qualified."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x12200038",
+        "access": "read",
+        "interfaceIndex": 10,
+        "mapper": "SpecialMapper",
+        "nativeDevice": 1049,
+        "symbol": "SPECIAL_CMD_WHEEL_SPEED_RR",
+        "declaredTypeCode": 4,
+        "declaredJavaType": "double",
+        "nativeCanFdHex": "0x12200038",
+        "nativeResolution": "profile170_reflection:Special"
+      }
+    },
+    {
+      "name": "SPEED_BRAKE_S",
+      "labelRu": "Ход педали тормоза",
+      "group": "brakes",
+      "propertyKey": "0x34200010",
+      "nativeFidHex": "0x34200010",
+      "nativeFidSigned": 874512400,
+      "nativeDevice": 1013,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/speed/Speed.java",
+        "sha256": "afb0388ef03ae5ce4a13171d375908f7ed5665d2ffb297a34d691959bd08f95f",
+        "lines": [
+          19
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/speed/SpeedMapper.java",
+        "sha256": "51f6016c735e31a3f7ecdd4a9426a1ee9f647c65319f6a9a204e47cbd65ebd0c",
+        "lines": [
+          24,
+          49,
+          54,
+          58,
+          66,
+          82
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 874512400,
+          "line": 2940
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/speed/BYDAutoSpeedDevice.java",
+        "sha256": "250edece152752f62b210d99c6601f8dc8c6837c438892fbf9d1f833f5e230f4",
+        "lines": [
+          38,
+          59,
+          60,
+          61,
+          103,
+          105,
+          121,
+          133
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Raw integer; no pressure unit or percent scale inferred."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x34200010",
+        "access": "read",
+        "interfaceIndex": 8,
+        "mapper": "SpeedMapper",
+        "nativeDevice": 1013,
+        "symbol": "SPEED_BRAKE_S",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x34200010",
+        "nativeResolution": "profile170_reflection:Speed"
+      }
+    },
+    {
+      "name": "SPEED_BRAKE_DEPTH_VALID_FLAG",
+      "labelRu": "Валидность хода педали тормоза",
+      "group": "brakes",
+      "propertyKey": "0x34200019",
+      "nativeFidHex": "0x34200019",
+      "nativeFidSigned": 874512409,
+      "nativeDevice": 1013,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": "int",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/speed/Speed.java",
+        "sha256": "afb0388ef03ae5ce4a13171d375908f7ed5665d2ffb297a34d691959bd08f95f",
+        "lines": [
+          18
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/speed/SpeedMapper.java",
+        "sha256": "51f6016c735e31a3f7ecdd4a9426a1ee9f647c65319f6a9a204e47cbd65ebd0c",
+        "lines": [
+          26,
+          49,
+          54,
+          58,
+          66,
+          82
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 874512409,
+          "line": 2939
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/speed/BYDAutoSpeedDevice.java",
+        "sha256": "250edece152752f62b210d99c6601f8dc8c6837c438892fbf9d1f833f5e230f4",
+        "lines": [
+          38,
+          59,
+          60,
+          61,
+          103,
+          105,
+          121,
+          133
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Raw integer; no pressure unit or percent scale inferred."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x34200019",
+        "access": "read",
+        "interfaceIndex": 8,
+        "mapper": "SpeedMapper",
+        "nativeDevice": 1013,
+        "symbol": "SPEED_BRAKE_DEPTH_VALID_FLAG",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x34200019",
+        "nativeResolution": "profile170_reflection:Speed"
+      }
+    },
+    {
+      "name": "SENSOR_AX_223",
+      "labelRu": "SENSOR_AX_223",
+      "group": "chassis_sensors",
+      "propertyKey": "0x22300008",
+      "nativeFidHex": "0x22300008",
+      "nativeFidSigned": 573571080,
+      "nativeDevice": 1043,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/Sensor.java",
+        "sha256": "58b90674a4f480ab922f40eff6aa6d95373cbabf6c4738fe00b5535e31f481aa",
+        "lines": [
+          9,
+          10
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/SensorMapper.java",
+        "sha256": "3faaf1c547ee512259414717d90f0d3bf52e29aabd77a504bda5eb889ec73ca0",
+        "lines": [
+          23,
+          90,
+          96,
+          101,
+          105,
+          113,
+          129
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 573571080,
+          "line": 2287
+        },
+        {
+          "category": "Sensor",
+          "value": 573571080,
+          "line": 7086
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/sensor/BYDAutoSensorDevice.java",
+        "sha256": "a07c9d1d49d2b3a2319ea03171bf83bda044114261ba26014a11cc236a380981",
+        "lines": [
+          47,
+          141,
+          155,
+          156,
+          157
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Do not assume property-key hex equals the native FID; the mapper resolves the field by name."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x22300008",
+        "access": "read",
+        "interfaceIndex": 11,
+        "mapper": "SensorMapper",
+        "nativeDevice": 1043,
+        "symbol": "SENSOR_AX_223",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x22300008",
+        "nativeResolution": "profile170_reflection:Sensor"
+      }
+    },
+    {
+      "name": "SENSOR_AX_OFFSET_223",
+      "labelRu": "SENSOR_AX_OFFSET_223",
+      "group": "chassis_sensors",
+      "propertyKey": "0x22300014",
+      "nativeFidHex": "0x22300014",
+      "nativeFidSigned": 573571092,
+      "nativeDevice": 1043,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/Sensor.java",
+        "sha256": "58b90674a4f480ab922f40eff6aa6d95373cbabf6c4738fe00b5535e31f481aa",
+        "lines": [
+          12
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/SensorMapper.java",
+        "sha256": "3faaf1c547ee512259414717d90f0d3bf52e29aabd77a504bda5eb889ec73ca0",
+        "lines": [
+          24,
+          96,
+          101,
+          105,
+          113,
+          129
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 573571092,
+          "line": 2288
+        },
+        {
+          "category": "Sensor",
+          "value": 573571092,
+          "line": 7088
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/sensor/BYDAutoSensorDevice.java",
+        "sha256": "a07c9d1d49d2b3a2319ea03171bf83bda044114261ba26014a11cc236a380981",
+        "lines": [
+          47,
+          141,
+          155,
+          156,
+          157
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Do not assume property-key hex equals the native FID; the mapper resolves the field by name."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x22300014",
+        "access": "read",
+        "interfaceIndex": 11,
+        "mapper": "SensorMapper",
+        "nativeDevice": 1043,
+        "symbol": "SENSOR_AX_OFFSET_223",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x22300014",
+        "nativeResolution": "profile170_reflection:Sensor"
+      }
+    },
+    {
+      "name": "SENSOR_AX_STATUS_223",
+      "labelRu": "SENSOR_AX_STATUS_223",
+      "group": "chassis_sensors",
+      "propertyKey": "0x2230003F",
+      "nativeFidHex": "0x2230003F",
+      "nativeFidSigned": 573571135,
+      "nativeDevice": 1043,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/Sensor.java",
+        "sha256": "58b90674a4f480ab922f40eff6aa6d95373cbabf6c4738fe00b5535e31f481aa",
+        "lines": [
+          13
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/SensorMapper.java",
+        "sha256": "3faaf1c547ee512259414717d90f0d3bf52e29aabd77a504bda5eb889ec73ca0",
+        "lines": [
+          28,
+          96,
+          101,
+          105,
+          113,
+          129
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 573571135,
+          "line": 2289
+        },
+        {
+          "category": "Sensor",
+          "value": 573571135,
+          "line": 7089
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/sensor/BYDAutoSensorDevice.java",
+        "sha256": "a07c9d1d49d2b3a2319ea03171bf83bda044114261ba26014a11cc236a380981",
+        "lines": [
+          47,
+          141,
+          155,
+          156,
+          157
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Do not assume property-key hex equals the native FID; the mapper resolves the field by name."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x2230003F",
+        "access": "read",
+        "interfaceIndex": 11,
+        "mapper": "SensorMapper",
+        "nativeDevice": 1043,
+        "symbol": "SENSOR_AX_STATUS_223",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x2230003F",
+        "nativeResolution": "profile170_reflection:Sensor"
+      }
+    },
+    {
+      "name": "SENSOR_AY_223",
+      "labelRu": "SENSOR_AY_223",
+      "group": "chassis_sensors",
+      "propertyKey": "0x22300020",
+      "nativeFidHex": "0x22300020",
+      "nativeFidSigned": 573571104,
+      "nativeDevice": 1043,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/Sensor.java",
+        "sha256": "58b90674a4f480ab922f40eff6aa6d95373cbabf6c4738fe00b5535e31f481aa",
+        "lines": [
+          14,
+          15
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/SensorMapper.java",
+        "sha256": "3faaf1c547ee512259414717d90f0d3bf52e29aabd77a504bda5eb889ec73ca0",
+        "lines": [
+          25,
+          91,
+          96,
+          101,
+          105,
+          113,
+          129
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 573571104,
+          "line": 2290
+        },
+        {
+          "category": "Sensor",
+          "value": 573571104,
+          "line": 7090
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Do not assume property-key hex equals the native FID; the mapper resolves the field by name."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x22300020",
+        "access": "read",
+        "interfaceIndex": 11,
+        "mapper": "SensorMapper",
+        "nativeDevice": 1043,
+        "symbol": "SENSOR_AY_223",
+        "declaredTypeCode": 4,
+        "declaredJavaType": "double",
+        "nativeCanFdHex": "0x22300020",
+        "nativeResolution": "profile170_reflection:Sensor"
+      }
+    },
+    {
+      "name": "SENSOR_AY_STATUS_223",
+      "labelRu": "SENSOR_AY_STATUS_223",
+      "group": "chassis_sensors",
+      "propertyKey": "0x2230003E",
+      "nativeFidHex": "0x2230003E",
+      "nativeFidSigned": 573571134,
+      "nativeDevice": 1043,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/Sensor.java",
+        "sha256": "58b90674a4f480ab922f40eff6aa6d95373cbabf6c4738fe00b5535e31f481aa",
+        "lines": [
+          16
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/SensorMapper.java",
+        "sha256": "3faaf1c547ee512259414717d90f0d3bf52e29aabd77a504bda5eb889ec73ca0",
+        "lines": [
+          27,
+          96,
+          101,
+          105,
+          113,
+          129
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 573571134,
+          "line": 2291
+        },
+        {
+          "category": "Sensor",
+          "value": 573571134,
+          "line": 7091
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Do not assume property-key hex equals the native FID; the mapper resolves the field by name."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x2230003E",
+        "access": "read",
+        "interfaceIndex": 11,
+        "mapper": "SensorMapper",
+        "nativeDevice": 1043,
+        "symbol": "SENSOR_AY_STATUS_223",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x2230003E",
+        "nativeResolution": "profile170_reflection:Sensor"
+      }
+    },
+    {
+      "name": "SENSOR_YAW_RATE_SIGNAL",
+      "labelRu": "SENSOR_YAW_RATE_SIGNAL",
+      "group": "chassis_sensors",
+      "propertyKey": "0x22200008",
+      "nativeFidHex": "0x22200408",
+      "nativeFidSigned": 572523528,
+      "nativeDevice": 1043,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/Sensor.java",
+        "sha256": "58b90674a4f480ab922f40eff6aa6d95373cbabf6c4738fe00b5535e31f481aa",
+        "lines": [
+          76
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/SensorMapper.java",
+        "sha256": "3faaf1c547ee512259414717d90f0d3bf52e29aabd77a504bda5eb889ec73ca0",
+        "lines": [
+          21,
+          96,
+          101,
+          105,
+          113,
+          129
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 572523528,
+          "line": 2296
+        },
+        {
+          "category": "Sensor",
+          "value": 572523528,
+          "line": 7152
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Do not assume property-key hex equals the native FID; the mapper resolves the field by name."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x22200008",
+        "access": "read",
+        "interfaceIndex": 11,
+        "mapper": "SensorMapper",
+        "nativeDevice": 1043,
+        "symbol": "SENSOR_YAW_RATE_SIGNAL",
+        "declaredTypeCode": 4,
+        "declaredJavaType": "double",
+        "nativeCanFdHex": "0x22200408",
+        "nativeResolution": "profile170_reflection:Sensor"
+      }
+    },
+    {
+      "name": "SENSOR_YAW_RATE_STATUS",
+      "labelRu": "SENSOR_YAW_RATE_STATUS",
+      "group": "chassis_sensors",
+      "propertyKey": "0x22200027",
+      "nativeFidHex": "0x22200427",
+      "nativeFidSigned": 572523559,
+      "nativeDevice": 1043,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/Sensor.java",
+        "sha256": "58b90674a4f480ab922f40eff6aa6d95373cbabf6c4738fe00b5535e31f481aa",
+        "lines": [
+          77
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/SensorMapper.java",
+        "sha256": "3faaf1c547ee512259414717d90f0d3bf52e29aabd77a504bda5eb889ec73ca0",
+        "lines": [
+          22,
+          96,
+          101,
+          105,
+          113,
+          129
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 572523559,
+          "line": 2297
+        },
+        {
+          "category": "Sensor",
+          "value": 572523559,
+          "line": 7153
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Do not assume property-key hex equals the native FID; the mapper resolves the field by name."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x22200027",
+        "access": "read",
+        "interfaceIndex": 11,
+        "mapper": "SensorMapper",
+        "nativeDevice": 1043,
+        "symbol": "SENSOR_YAW_RATE_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x22200427",
+        "nativeResolution": "profile170_reflection:Sensor"
+      }
+    },
+    {
+      "name": "SENSOR_STEERING_ANGLE_INFO",
+      "labelRu": "SENSOR_STEERING_ANGLE_INFO",
+      "group": "chassis_sensors",
+      "propertyKey": "0x15900808",
+      "nativeFidHex": null,
+      "nativeFidSigned": null,
+      "nativeDevice": 1043,
+      "nativeResolution": "unresolved_not_assumed_equal_to_property_key",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/Sensor.java",
+        "sha256": "58b90674a4f480ab922f40eff6aa6d95373cbabf6c4738fe00b5535e31f481aa",
+        "lines": [
+          60
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/SensorMapper.java",
+        "sha256": "3faaf1c547ee512259414717d90f0d3bf52e29aabd77a504bda5eb889ec73ca0",
+        "lines": [
+          92,
+          96,
+          101,
+          105,
+          113,
+          129
+        ]
+      },
+      "tableRows": [],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Do not assume property-key hex equals the native FID; the mapper resolves the field by name."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x15900808",
+        "access": "read",
+        "interfaceIndex": 11,
+        "mapper": "SensorMapper",
+        "nativeDevice": 1043,
+        "symbol": "SENSOR_STEERING_ANGLE_INFO",
+        "declaredTypeCode": 4,
+        "declaredJavaType": "double",
+        "nativeCanFdHex": null,
+        "nativeResolution": "unresolved"
+      }
+    },
+    {
+      "name": "AC_AIR_QUALITY_COMPREHENSIVE_LEVEL_OUTSIDE_THE_CAR",
+      "labelRu": "AC_AIR_QUALITY_COMPREHENSIVE_LEVEL_OUTSIDE_THE_CAR",
+      "group": "air_quality",
+      "propertyKey": "0x35B00015",
+      "nativeFidHex": "0x35B00015",
+      "nativeFidSigned": 900726805,
+      "nativeDevice": 1000,
+      "nativeResolution": "profile170_reflection:Ac",
+      "valueType": "int",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+        "sha256": "8644630f6e6cdf5f7ba5eade18b18e739e0332f3f948149b51f957a4846765f7",
+        "lines": [
+          8
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/AcMapper.java",
+        "sha256": "9e90cd22d5547205d2c42e0c94431887d211abacaea3d7cbed948a335f1e1db0",
+        "lines": [
+          388,
+          720,
+          725,
+          729,
+          737,
+          753
+        ]
+      },
+      "tableRows": [],
+      "concreteReader": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/hvac/CarAcPurifierServiceImpl.java",
+        "sha256": "2a392c7708e5a298e601767c24a784e49c5ba8453a3436c48f636b4dfe425ade",
+        "lines": [
+          282
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Stock returns ordinal 1..4, not a concentration."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x35B00015",
+        "access": "read",
+        "interfaceIndex": 13,
+        "mapper": "AcMapper",
+        "nativeDevice": 1000,
+        "symbol": "AC_AIR_QUALITY_COMPREHENSIVE_LEVEL_OUTSIDE_THE_CAR",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x35B00015",
+        "nativeResolution": "profile170_reflection:Ac"
+      }
+    },
+    {
+      "name": "AC_AQS_LEVEL_OUTSIDE_THE_CAR",
+      "labelRu": "AC_AQS_LEVEL_OUTSIDE_THE_CAR",
+      "group": "air_quality",
+      "propertyKey": "0x35B0000B",
+      "nativeFidHex": "0x35B0000B",
+      "nativeFidSigned": 900726795,
+      "nativeDevice": 1000,
+      "nativeResolution": "profile170_reflection:Ac",
+      "valueType": "int",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+        "sha256": "8644630f6e6cdf5f7ba5eade18b18e739e0332f3f948149b51f957a4846765f7",
+        "lines": [
+          22
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/AcMapper.java",
+        "sha256": "9e90cd22d5547205d2c42e0c94431887d211abacaea3d7cbed948a335f1e1db0",
+        "lines": [
+          386,
+          720,
+          725,
+          729,
+          737,
+          753
+        ]
+      },
+      "tableRows": [],
+      "concreteReader": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/hvac/CarAcPurifierServiceImpl.java",
+        "sha256": "2a392c7708e5a298e601767c24a784e49c5ba8453a3436c48f636b4dfe425ade",
+        "lines": [
+          293
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Stock accepts raw1..6 and returns raw-1; preserve native/API distinction."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x35B0000B",
+        "access": "read",
+        "interfaceIndex": 13,
+        "mapper": "AcMapper",
+        "nativeDevice": 1000,
+        "symbol": "AC_AQS_LEVEL_OUTSIDE_THE_CAR",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x35B0000B",
+        "nativeResolution": "profile170_reflection:Ac"
+      }
+    },
+    {
+      "name": "AC_CO2_LEVEL_OUTSIDE_THE_CAR",
+      "labelRu": "AC_CO2_LEVEL_OUTSIDE_THE_CAR",
+      "group": "air_quality",
+      "propertyKey": "0x35B00012",
+      "nativeFidHex": "0x35B00012",
+      "nativeFidSigned": 900726802,
+      "nativeDevice": 1000,
+      "nativeResolution": "profile170_reflection:Ac",
+      "valueType": "int",
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+        "sha256": "8644630f6e6cdf5f7ba5eade18b18e739e0332f3f948149b51f957a4846765f7",
+        "lines": [
+          90
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/AcMapper.java",
+        "sha256": "9e90cd22d5547205d2c42e0c94431887d211abacaea3d7cbed948a335f1e1db0",
+        "lines": [
+          387,
+          720,
+          725,
+          729,
+          737,
+          753
+        ]
+      },
+      "tableRows": [],
+      "concreteReader": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/hvac/CarAcPurifierServiceImpl.java",
+        "sha256": "2a392c7708e5a298e601767c24a784e49c5ba8453a3436c48f636b4dfe425ade",
+        "lines": [
+          370
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Stock accepts ordinal1..6. This is not ppm or the separate raw CO2-value field."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x35B00012",
+        "access": "read",
+        "interfaceIndex": 13,
+        "mapper": "AcMapper",
+        "nativeDevice": 1000,
+        "symbol": "AC_CO2_LEVEL_OUTSIDE_THE_CAR",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x35B00012",
+        "nativeResolution": "profile170_reflection:Ac"
+      }
+    },
+    {
+      "name": "PM2P5_VALUE_IN",
+      "labelRu": "PM2P5_VALUE_IN",
+      "group": "air_quality",
+      "propertyKey": "0x4F600010",
+      "nativeFidHex": "0x4F600010",
+      "nativeFidSigned": 1331691536,
+      "nativeDevice": 1008,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25.java",
+        "sha256": "dc7d1f7ac281999d548ca4d4c89d7b543a2da4627ec48d5de558082fd0e2da12",
+        "lines": [
+          22
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25Mapper.java",
+        "sha256": "2735003ee5f3f62119d09f03701cf6ca1ae3cea12416409bf13d34be3e6f145e",
+        "lines": [
+          33,
+          41,
+          46,
+          50,
+          58,
+          74
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 1331691536,
+          "line": 1959
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/hvac/CarAcPurifierServiceImpl.java",
+        "sha256": "2a392c7708e5a298e601767c24a784e49c5ba8453a3436c48f636b4dfe425ade",
+        "lines": [
+          403
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "PM2P5_VALUE_IN/OUT are already read by DiagnosticExtras; the status/online candidates are separate.",
+        "No direct AQDM CAN-address attribution established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x4F600010",
+        "access": "read",
+        "interfaceIndex": 26,
+        "mapper": "Pm25Mapper",
+        "nativeDevice": 1008,
+        "symbol": "PM2P5_VALUE_IN",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x4F600010",
+        "nativeResolution": "profile170_reflection:Pm2p5"
+      }
+    },
+    {
+      "name": "PM2P5_VALUE_OUT",
+      "labelRu": "PM2P5_VALUE_OUT",
+      "group": "air_quality",
+      "propertyKey": "0x4F60001C",
+      "nativeFidHex": "0x4F60001C",
+      "nativeFidSigned": 1331691548,
+      "nativeDevice": 1008,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25.java",
+        "sha256": "dc7d1f7ac281999d548ca4d4c89d7b543a2da4627ec48d5de558082fd0e2da12",
+        "lines": [
+          23
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25Mapper.java",
+        "sha256": "2735003ee5f3f62119d09f03701cf6ca1ae3cea12416409bf13d34be3e6f145e",
+        "lines": [
+          34,
+          41,
+          46,
+          50,
+          58,
+          74
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 1331691548,
+          "line": 1960
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/hvac/CarAcPurifierServiceImpl.java",
+        "sha256": "2a392c7708e5a298e601767c24a784e49c5ba8453a3436c48f636b4dfe425ade",
+        "lines": [
+          403
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "PM2P5_VALUE_IN/OUT are already read by DiagnosticExtras; the status/online candidates are separate.",
+        "No direct AQDM CAN-address attribution established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x4F60001C",
+        "access": "read",
+        "interfaceIndex": 26,
+        "mapper": "Pm25Mapper",
+        "nativeDevice": 1008,
+        "symbol": "PM2P5_VALUE_OUT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x4F60001C",
+        "nativeResolution": "profile170_reflection:Pm2p5"
+      }
+    },
+    {
+      "name": "PM2P5_STATE_IN",
+      "labelRu": "PM2P5_STATE_IN",
+      "group": "air_quality",
+      "propertyKey": "0x4F600028",
+      "nativeFidHex": "0x4F600028",
+      "nativeFidSigned": 1331691560,
+      "nativeDevice": 1008,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25.java",
+        "sha256": "dc7d1f7ac281999d548ca4d4c89d7b543a2da4627ec48d5de558082fd0e2da12",
+        "lines": [
+          19
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25Mapper.java",
+        "sha256": "2735003ee5f3f62119d09f03701cf6ca1ae3cea12416409bf13d34be3e6f145e",
+        "lines": [
+          28,
+          41,
+          46,
+          50,
+          58,
+          74
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 1331691560,
+          "line": 1956
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "PM2P5_VALUE_IN/OUT are already read by DiagnosticExtras; the status/online candidates are separate.",
+        "No direct AQDM CAN-address attribution established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x4F600028",
+        "access": "read",
+        "interfaceIndex": 26,
+        "mapper": "Pm25Mapper",
+        "nativeDevice": 1008,
+        "symbol": "PM2P5_STATE_IN",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x4F600028",
+        "nativeResolution": "profile170_reflection:Pm2p5"
+      }
+    },
+    {
+      "name": "PM2P5_STATE_OUT",
+      "labelRu": "PM2P5_STATE_OUT",
+      "group": "air_quality",
+      "propertyKey": "0x4F60002A",
+      "nativeFidHex": "0x4F60002A",
+      "nativeFidSigned": 1331691562,
+      "nativeDevice": 1008,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25.java",
+        "sha256": "dc7d1f7ac281999d548ca4d4c89d7b543a2da4627ec48d5de558082fd0e2da12",
+        "lines": [
+          20
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25Mapper.java",
+        "sha256": "2735003ee5f3f62119d09f03701cf6ca1ae3cea12416409bf13d34be3e6f145e",
+        "lines": [
+          29,
+          41,
+          46,
+          50,
+          58,
+          74
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 1331691562,
+          "line": 1957
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "PM2P5_VALUE_IN/OUT are already read by DiagnosticExtras; the status/online candidates are separate.",
+        "No direct AQDM CAN-address attribution established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x4F60002A",
+        "access": "read",
+        "interfaceIndex": 26,
+        "mapper": "Pm25Mapper",
+        "nativeDevice": 1008,
+        "symbol": "PM2P5_STATE_OUT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x4F60002A",
+        "nativeResolution": "profile170_reflection:Pm2p5"
+      }
+    },
+    {
+      "name": "PM2P5_ONLINE_STATE",
+      "labelRu": "PM2P5_ONLINE_STATE",
+      "group": "air_quality",
+      "propertyKey": "0x4F600000",
+      "nativeFidHex": "0x4F600000",
+      "nativeFidSigned": 1331691520,
+      "nativeDevice": 1008,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25.java",
+        "sha256": "dc7d1f7ac281999d548ca4d4c89d7b543a2da4627ec48d5de558082fd0e2da12",
+        "lines": [
+          16
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/pm25/Pm25Mapper.java",
+        "sha256": "2735003ee5f3f62119d09f03701cf6ca1ae3cea12416409bf13d34be3e6f145e",
+        "lines": [
+          27,
+          41,
+          46,
+          50,
+          58,
+          74
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "TOP",
+          "value": 1331691520,
+          "line": 1953
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "PM2P5_VALUE_IN/OUT are already read by DiagnosticExtras; the status/online candidates are separate.",
+        "No direct AQDM CAN-address attribution established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x4F600000",
+        "access": "read",
+        "interfaceIndex": 26,
+        "mapper": "Pm25Mapper",
+        "nativeDevice": 1008,
+        "symbol": "PM2P5_ONLINE_STATE",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x4F600000",
+        "nativeResolution": "profile170_reflection:Pm2p5"
+      }
+    },
+    {
+      "name": "BODYWORK_FRIDGE_WORK_STATE",
+      "labelRu": "BODYWORK_FRIDGE_WORK_STATE",
+      "group": "refrigerator",
+      "propertyKey": "0x36B0000E",
+      "nativeFidHex": "0x36B0000E",
+      "nativeFidSigned": 917504014,
+      "nativeDevice": 1001,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c",
+        "lines": [
+          516,
+          517
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be",
+        "lines": [
+          617,
+          774,
+          2488,
+          2493,
+          2497,
+          2505,
+          2521
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "Bodywork",
+          "value": 917504014,
+          "line": 4124
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Fridge variant and availability unverified."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x36B0000E",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_FRIDGE_WORK_STATE",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x36B0000E",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
+    },
+    {
+      "name": "BODYWORK_FRIDGE_FAULT_REASON",
+      "labelRu": "BODYWORK_FRIDGE_FAULT_REASON",
+      "group": "refrigerator",
+      "propertyKey": "0x36B00010",
+      "nativeFidHex": "0x36B00010",
+      "nativeFidSigned": 917504016,
+      "nativeDevice": 1001,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c",
+        "lines": [
+          513
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be",
+        "lines": [
+          618,
+          2488,
+          2493,
+          2497,
+          2505,
+          2521
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "Bodywork",
+          "value": 917504016,
+          "line": 4121
+        }
+      ],
+      "concreteReader": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+        "sha256": "9e36065de1e1a4db6b85bd015a06e5e07c2c84f0324742d365061a12f91e7c56",
+        "lines": [
+          496,
+          879,
+          885
+        ]
+      },
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Semi-fridge variant; its configuration gate must pass. Do not assume it describes every installed refrigerator.",
+        "BoxExceptionType defines3 TC_FAILURE and4 SENSOR_FAILURE; these are status enum values, not UDS DTCs."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x36B00010",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_FRIDGE_FAULT_REASON",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x36B00010",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
+    },
+    {
+      "name": "BODYWORK_FRIDGE_DOOR_SEATE",
+      "labelRu": "BODYWORK_FRIDGE_DOOR_SEATE",
+      "group": "refrigerator",
+      "propertyKey": "0x36B00018",
+      "nativeFidHex": "0x36B00018",
+      "nativeFidSigned": 917504024,
+      "nativeDevice": 1001,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+        "sha256": "5ba09831c1e8c29c140943a71f00f685ad7b2de2616c43a75e15dfb5de2e5c1c",
+        "lines": [
+          512
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/BodyMapper.java",
+        "sha256": "ee180ee797768dd02a0872ba1e176c210ec69884e60a253f937796bf571fa5be",
+        "lines": [
+          620,
+          2488,
+          2493,
+          2497,
+          2505,
+          2521
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "Bodywork",
+          "value": 917504024,
+          "line": 4120
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Fridge variant and availability unverified."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x36B00018",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_FRIDGE_DOOR_SEATE",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x36B00018",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
+    },
+    {
+      "name": "SETTING_VEHICLE_REFRIGERATOR_WORKING_STATUS",
+      "labelRu": "SETTING_VEHICLE_REFRIGERATOR_WORKING_STATUS",
+      "group": "refrigerator",
+      "propertyKey": "0x48C00018",
+      "nativeFidHex": "0x48C00018",
+      "nativeFidSigned": 1220542488,
+      "nativeDevice": 1023,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+        "sha256": "9650448c681e9714b2fa0ca7d785a0183bede5edbf1a6e25b9a2c2cb7a2d1f0a",
+        "lines": [
+          2494,
+          2495,
+          2496
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/SettingMapper.java",
+        "sha256": "cad1c5b7f767635ed540d2fdaba89c6c0482a694c16b7332f9f4c06b040b44e2",
+        "lines": [
+          857,
+          860,
+          3171,
+          3352,
+          3357,
+          3361,
+          3369,
+          3385
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "Setting",
+          "value": 1220542488,
+          "line": 9261
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Temperature feedback is distinct from cold/hot/fresh regulation targets. No unit/offset or selected fridge variant established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x48C00018",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_VEHICLE_REFRIGERATOR_WORKING_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x48C00018",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
+    },
+    {
+      "name": "SETTING_VEHICLE_REFRIGERATOR_DOOR_STATUS",
+      "labelRu": "SETTING_VEHICLE_REFRIGERATOR_DOOR_STATUS",
+      "group": "refrigerator",
+      "propertyKey": "0x48C00025",
+      "nativeFidHex": "0x48C00025",
+      "nativeFidSigned": 1220542501,
+      "nativeDevice": 1023,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+        "sha256": "9650448c681e9714b2fa0ca7d785a0183bede5edbf1a6e25b9a2c2cb7a2d1f0a",
+        "lines": [
+          2459,
+          2460,
+          2461
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/SettingMapper.java",
+        "sha256": "cad1c5b7f767635ed540d2fdaba89c6c0482a694c16b7332f9f4c06b040b44e2",
+        "lines": [
+          869,
+          876,
+          3177,
+          3352,
+          3357,
+          3361,
+          3369,
+          3385
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "Setting",
+          "value": 1220542501,
+          "line": 9227
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Temperature feedback is distinct from cold/hot/fresh regulation targets. No unit/offset or selected fridge variant established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x48C00025",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_VEHICLE_REFRIGERATOR_DOOR_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x48C00025",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
+    },
+    {
+      "name": "SETTING_VEHICLE_REFRIGERATOR_TEMP_FEEDBACK",
+      "labelRu": "SETTING_VEHICLE_REFRIGERATOR_TEMP_FEEDBACK",
+      "group": "refrigerator",
+      "propertyKey": "0x48C0001B",
+      "nativeFidHex": "0x48C0001B",
+      "nativeFidSigned": 1220542491,
+      "nativeDevice": 1023,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+        "sha256": "9650448c681e9714b2fa0ca7d785a0183bede5edbf1a6e25b9a2c2cb7a2d1f0a",
+        "lines": [
+          2486
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/SettingMapper.java",
+        "sha256": "cad1c5b7f767635ed540d2fdaba89c6c0482a694c16b7332f9f4c06b040b44e2",
+        "lines": [
+          2949,
+          3352,
+          3357,
+          3361,
+          3369,
+          3385
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "Setting",
+          "value": 1220542491,
+          "line": 9253
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Temperature feedback is distinct from cold/hot/fresh regulation targets. No unit/offset or selected fridge variant established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x48C0001B",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_VEHICLE_REFRIGERATOR_TEMP_FEEDBACK",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x48C0001B",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
+    },
+    {
+      "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_WORKING_STATUS",
+      "labelRu": "SETTING_REAR_VEHICLE_REFRIGERATOR_WORKING_STATUS",
+      "group": "refrigerator",
+      "propertyKey": "0x3AE00008",
+      "nativeFidHex": "0x3AE00008",
+      "nativeFidSigned": 987758600,
+      "nativeDevice": 1023,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+        "sha256": "9650448c681e9714b2fa0ca7d785a0183bede5edbf1a6e25b9a2c2cb7a2d1f0a",
+        "lines": [
+          1740
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/SettingMapper.java",
+        "sha256": "cad1c5b7f767635ed540d2fdaba89c6c0482a694c16b7332f9f4c06b040b44e2",
+        "lines": [
+          962,
+          3352,
+          3357,
+          3361,
+          3369,
+          3385
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "Setting",
+          "value": 987758600,
+          "line": 8543
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Temperature feedback is distinct from cold/hot/fresh regulation targets. No unit/offset or selected fridge variant established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x3AE00008",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_REAR_VEHICLE_REFRIGERATOR_WORKING_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x3AE00008",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
+    },
+    {
+      "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_DOOR_STATUS",
+      "labelRu": "SETTING_REAR_VEHICLE_REFRIGERATOR_DOOR_STATUS",
+      "group": "refrigerator",
+      "propertyKey": "0x3AE00016",
+      "nativeFidHex": "0x3AE00016",
+      "nativeFidSigned": 987758614,
+      "nativeDevice": 1023,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+        "sha256": "9650448c681e9714b2fa0ca7d785a0183bede5edbf1a6e25b9a2c2cb7a2d1f0a",
+        "lines": [
+          1726
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/SettingMapper.java",
+        "sha256": "cad1c5b7f767635ed540d2fdaba89c6c0482a694c16b7332f9f4c06b040b44e2",
+        "lines": [
+          965,
+          3352,
+          3357,
+          3361,
+          3369,
+          3385
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "Setting",
+          "value": 987758614,
+          "line": 8529
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Temperature feedback is distinct from cold/hot/fresh regulation targets. No unit/offset or selected fridge variant established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x3AE00016",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_REAR_VEHICLE_REFRIGERATOR_DOOR_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x3AE00016",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
+    },
+    {
+      "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_TEMP_FEEDBACK",
+      "labelRu": "SETTING_REAR_VEHICLE_REFRIGERATOR_TEMP_FEEDBACK",
+      "group": "refrigerator",
+      "propertyKey": "0x3AE00030",
+      "nativeFidHex": "0x3AE00030",
+      "nativeFidSigned": 987758640,
+      "nativeDevice": 1023,
+      "nativeResolution": "resolved_canfd_table",
+      "valueType": null,
+      "engineeringUnit": null,
+      "literal": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+        "sha256": "9650448c681e9714b2fa0ca7d785a0183bede5edbf1a6e25b9a2c2cb7a2d1f0a",
+        "lines": [
+          1734
+        ]
+      },
+      "mapper": {
+        "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/SettingMapper.java",
+        "sha256": "cad1c5b7f767635ed540d2fdaba89c6c0482a694c16b7332f9f4c06b040b44e2",
+        "lines": [
+          971,
+          3352,
+          3357,
+          3361,
+          3369,
+          3385
+        ]
+      },
+      "tableRows": [
+        {
+          "category": "Setting",
+          "value": 987758640,
+          "line": 8537
+        }
+      ],
+      "concreteReader": null,
+      "runtimeAvailability": "not_checked_in_this_pass",
+      "physicalEcuBinding": null,
+      "notes": [
+        "Temperature feedback is distinct from cold/hot/fresh regulation targets. No unit/offset or selected fridge variant established."
+      ],
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x3AE00030",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_REAR_VEHICLE_REFRIGERATOR_TEMP_FEEDBACK",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x3AE00030",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
+    }
+  ],
+  "wheelSpeedBuffer": {
+    "device": 1049,
+    "nativeFidHex": "0x99000059",
+    "getter": "getWheelSpeed",
+    "directionGetter": {
+      "method": "getWheelDirection",
+      "nativeFidHex": "0x99000058",
+      "source": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/special/BYDAutoSpecialDevice.java",
+        "sha256": "6b23ad6feb645deaff6746d5987a3994245c18f289aee9334d272e7e514a0881",
+        "lines": [
+          73,
+          74,
+          75
+        ]
+      }
+    },
+    "consumerSource": {
+      "path": "captures/hud-firmware-20260923/jadx/AutoVideo-avc/sources/com/byd/avc/pano/GLAvmAPI.java",
+      "sha256": "bbc976a5becbf96c27829088c1d64fb8107361e790331a1914ed92073bf60e96",
+      "lines": [
+        499,
+        500,
+        504,
+        505
+      ]
+    },
+    "consumerBehavior": "GLAvmAPI accepts status bytes8..11 all zero, decodes four signed16 big-endian values from bytes0..7, multiplies each by0.06875*1000/3.6 and passes them to renderer event15.",
+    "inference": "The arithmetic is consistent with 0.06875 km/h raw units converted to mm/s; physical units and wheel order are not qualified on this car.",
+    "limits": [
+      "GLAvmAPI is one panorama implementation; its selection on this vehicle is unproved.",
+      "Preserve exact raw bytes/status and validate length before using this candidate decoder.",
+      "The direction consumer has overlapping byte windows and is not accepted as a reliable decoder."
+    ]
+  },
+  "radarBuffer": {
+    "source": {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/radar/BYDAutoRadarDevice.java",
+      "sha256": "1105b45393ffc0b4b5d7678daa2c8ec9de86d7e51215750f40f7f8bad1d4f271",
+      "lines": [
+        195,
+        197,
+        199,
+        201,
+        205,
+        208,
+        210,
+        216,
+        218,
+        220,
+        222,
+        226,
+        229,
+        231
+      ]
+    },
+    "device": 1025,
+    "bufferSelectors": [
+      1,
+      2
+    ],
+    "iviPayloadBytes": 16,
+    "limits": [
+      "Selectors1/2 are SDK buffer selectors, not UDS services or the scalar FIDs.",
+      "SDK uses eight two-byte records; scalar methods enumerate nine areas. Do not unify the layouts without runtime evidence.",
+      "RSE/RCS paths strip a four-byte prefix; IVI applicability must remain explicit.",
+      "Do not replay native transact10/12 with scalar-only parcels; earlier such calls crashed autoservice."
+    ]
+  },
+  "rearSteeringNativeIdFollowup": [
+    {
+      "name": "ADAS_ACTUAL_LEFT_REAR_WHEEL_STEERING_ANGLE",
+      "propertyKey": "0x0FE004B8",
+      "canFdNativeFid": 266339512,
+      "classicNativeFid": 982641,
+      "propertyHexMatchesNativeFid": true,
+      "source": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          19738
+        ]
+      }
+    },
+    {
+      "name": "ADAS_ACTUAL_RIGHT_REAR_WHEEL_STEERING_ANGLE",
+      "propertyKey": "0x0FE004C4",
+      "canFdNativeFid": 266339524,
+      "classicNativeFid": 160446,
+      "propertyHexMatchesNativeFid": true,
+      "source": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          19740
+        ]
+      }
+    },
+    {
+      "name": "ADAS_ACTUAL_REAR_WHEEL_STEERING_ANGLE_VALIDITY",
+      "propertyKey": "0x0FE004B7",
+      "canFdNativeFid": 266339511,
+      "classicNativeFid": 26464,
+      "propertyHexMatchesNativeFid": true,
+      "source": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          19739
+        ]
+      }
+    },
+    {
+      "name": "ADAS_REAR_WHEEL_STEER_STATUS",
+      "propertyKey": "0x1EA01548",
+      "canFdNativeFid": 513807688,
+      "classicNativeFid": 929310,
+      "propertyHexMatchesNativeFid": true,
+      "source": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          20476
+        ]
+      }
+    },
+    {
+      "name": "ADAS_REAR_WHEEL_STEER_DYSFUNCTION",
+      "propertyKey": "0x0FE00048",
+      "canFdNativeFid": 266339400,
+      "classicNativeFid": 396026,
+      "propertyHexMatchesNativeFid": false,
+      "source": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          20475
+        ]
+      }
+    }
+  ],
+  "criticalNamespaceFinding": {
+    "example": {
+      "propertyKey": "0x22200008",
+      "nativeCanFdFidHex": "0x22200408",
+      "name": "SENSOR_YAW_RATE_SIGNAL"
+    },
+    "source": {
+      "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/sensor/SensorMapper.java",
+      "sha256": "3faaf1c547ee512259414717d90f0d3bf52e29aabd77a504bda5eb889ec73ca0",
+      "lines": [
+        96,
+        101,
+        105,
+        113,
+        117
+      ]
+    },
+    "meaning": "A DiCar property key is resolved by name to the runtime BYDAutoFeatureIds field. Its displayed hex is not always the native FID. Never pass unverified property-key hex directly to autoservice."
+  },
+  "fridgeQualification": {
+    "faultEnums": {
+      "3": "TC_FAILURE (do not expand abbreviation without evidence)",
+      "4": "SENSOR_FAILURE"
+    },
+    "source": {
+      "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/BoxExceptionType.java",
+      "sha256": "2bec00d0ccaf0d9a24a97e6591005bcdee7131c2b0b84fab7020678526f91472",
+      "lines": []
+    },
+    "targetNotMeasurement": {
+      "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+      "sha256": "20e9a5bb7bd4b8409d6fc34c69e73371f2d81d8b0c5edc6e8a1cff6ef51c1993",
+      "lines": [
+        211,
+        217,
+        221
+      ]
+    }
+  },
+  "limits": [
+    "These are read paths in the owner firmware, not proof all sensor hardware is installed or all values answer.",
+    "No diagnostic ECU owns these FIDs merely because its name describes the same function.",
+    "Integer device IDs, DiCar property keys, native FIDs, CAN addresses and UDS DIDs are distinct namespaces.",
+    "No unsupported field is interpreted as zero, healthy or absent hardware."
+  ],
+  "stockPropertyCatalog": {
+    "path": "research/vehicle-diagnostics/dicar-readable-properties-20261021.json",
+    "sha256": "45e4d0dd4a12f12ea6c844338288f72378bcdccb7007c906c37fb9483fab54eb",
+    "note": "Declared type/access only; no new live read, native transact selection or physical ECU binding."
+  }
+}

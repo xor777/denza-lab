@@ -1,0 +1,412 @@
+{
+  "schema": "denza-lab.diagnostic-car-qualification-plan.v1",
+  "date": "2026-10-21",
+  "state": "prepared_offline_not_executed; ready for parked car availability check",
+  "purpose": "Check whether the owner Z9GT exposes descriptor-backed engine/battery/chassis frames through existing receive-only streams before choosing data decoders.",
+  "sourceRefs": [
+    {
+      "path": "tools/raw_can_turn_probe.sh",
+      "sha256": "cfc4a770ba73df8f538b078dd9d59af275eb17057e9c06995b7e318250cd7605"
+    },
+    {
+      "path": "tools/RawCanTurnProbe.java",
+      "sha256": "98a798861c04e7daee3357dc4537984103ce06a789b98fe11114c5b8abd813a8"
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_child_identity.py",
+      "sha256": "986546250511c5487cab83c595ad2760c4f1e34003a33c32f43b01f4ff88d63b"
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-child-identification-candidates-20261021.json",
+      "sha256": "51e4348620854c0c1e683202e7ce61764a28b9795fc87d812f4049b35aee2339"
+    },
+    {
+      "path": "research/vehicle-diagnostics/powertrain-signal-origins-20261021.json",
+      "sha256": "17962cf658f8ad5fae74230781d6da2379c7fa8d589b1a78f36c04acfe3e4b96"
+    },
+    {
+      "path": "research/vehicle-diagnostics/packet-origin-20261021.json",
+      "sha256": "c0655a4254ede30509cbef9d23eccf43ece38e8a46882e93ca8c3210ff901007"
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-scenario-origin-20261021.json",
+      "sha256": "5d05824fd134c2ec60101711ecaa611a678cfd07bd24cd78cfeaecded83a6a20"
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_wheel_packet.py",
+      "sha256": "e2daa0f1549f13a3e8a5f39cfecaadcdfab01f47df42c014db67fda786079768"
+    }
+  ],
+  "hostBuild": {
+    "command": "tools/raw_can_turn_probe.sh build",
+    "result": "passed 2026-10-21; host compile only, no device transport invoked"
+  },
+  "firstCarSession": {
+    "preconditions": [
+      "Owner confirms connected target is the Z9GT; retain the current trusted tunnel and ADB identity.",
+      "Single session owns diagnostics; no competing active scans or installations.",
+      "Read-only preflight: profile170, current build and exact native HAL/framework identities, reported MCU identity where accessible, service PIDs and existing crash baseline.",
+      "Parked P and zero speed from established readings; no engine-state or charging-state change required for the first availability pass."
+    ],
+    "windows": [
+      {
+        "stream": "gb",
+        "device": 1039,
+        "callbackHex": "9900001F",
+        "durationSeconds": 20
+      },
+      {
+        "stream": "bigdata",
+        "device": 1061,
+        "callbackHex": "99000020",
+        "durationSeconds": 20
+      },
+      {
+        "stream": "yun",
+        "device": 1034,
+        "callbackHex": "99000021",
+        "durationSeconds": 20
+      }
+    ],
+    "order": "Sequential; inspect completion and health after each, stop on errors.",
+    "operations": "One temporary existing shell collector per window, register the fixed receive callback, record raw bytes/counters, unregister, remove its temporary dex.",
+    "excluded": [
+      "No collection-table SET or MCU wake",
+      "No UDS session/security/reset/actuation or DTC erase",
+      "No OTA app launch, BydLog service or cloud API call",
+      "No new settings, APK installation or service restart",
+      "No guessed buffer Binder transaction or sweep of property IDs"
+    ],
+    "captureIdentity": "Collector records stream, raw bytes, local sequence and device elapsedRealtimeNanos. BigData also emits CAN ID/sub/channel/embedded counter; GB/YUN remain opaque BUFFER hex until offline validation of the 10-byte envelope. Host wall-clock session boundaries and vehicle/firmware identity are recorded separately; no per-frame host timestamp or embedded timestamp is claimed.",
+    "acceptance": [
+      "Every window has DONE/unregister and temporary process exit.",
+      "No callback errors or queue drops; DONE queued=0. Emitted FRAME/BUFFER count equals received, with each local sequence 1..received exactly once; otherwise label capture incomplete. Embedded MCU counters are retained separately, without assuming contiguous increments across filtered tuples.",
+      "Native/service identities remain stable; unexpected changes invalidate the run.",
+      "Only tuples actually seen on this Z9GT qualify as available; absence in one window is not absence of ECU/sensor.",
+      "MCU-derived field layouts stay candidates if the installed MCU lineage cannot be established."
+    ],
+    "targetTuples": [
+      {
+        "canId": "0x0000044A",
+        "channel": 0,
+        "subId": "Preserve actual selector; base MCU lookup does not fix it to zero.",
+        "fields": [
+          {
+            "stockName": "STATISTIC_INSTANTANEOUS_CURRENT",
+            "mcuPropertyId": "0x44A00020",
+            "payloadBitOffsetLSB0": 24,
+            "widthBits": 16,
+            "minimumPayloadBytes": 5,
+            "minimumCallbackBytes": 15,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          }
+        ]
+      },
+      {
+        "canId": "0x00000345",
+        "channel": 0,
+        "subId": "Preserve actual selector; base MCU lookup does not fix it to zero.",
+        "fields": [
+          {
+            "stockName": "STATISTIC_MAX_CHARGE_CURRENT_ALLOW",
+            "mcuPropertyId": "0x34500028",
+            "payloadBitOffsetLSB0": 32,
+            "widthBits": 8,
+            "minimumPayloadBytes": 5,
+            "minimumCallbackBytes": 15,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "STATISTIC_MAX_CHARGE_POWER_ALLOW",
+            "mcuPropertyId": "0x34500018",
+            "payloadBitOffsetLSB0": 16,
+            "widthBits": 16,
+            "minimumPayloadBytes": 4,
+            "minimumCallbackBytes": 14,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "STATISTIC_MAX_DISCHARGE_POWER_ALLOW",
+            "mcuPropertyId": "0x34500008",
+            "payloadBitOffsetLSB0": 0,
+            "widthBits": 16,
+            "minimumPayloadBytes": 2,
+            "minimumCallbackBytes": 12,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          }
+        ]
+      },
+      {
+        "canId": "0x00000285",
+        "channel": 0,
+        "subId": "Preserve actual selector; base MCU lookup does not fix it to zero.",
+        "fields": [
+          {
+            "stockName": "GB_LEFT_FRONT_MOTOR_ACTUAL_TORQUE",
+            "mcuPropertyId": "0x2850000C",
+            "payloadBitOffsetLSB0": 4,
+            "widthBits": 16,
+            "minimumPayloadBytes": 3,
+            "minimumCallbackBytes": 13,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_LEFT_FRONT_MOTOR_DC_GENERATOR_CURRENT",
+            "mcuPropertyId": "0x28500158",
+            "payloadBitOffsetLSB0": 336,
+            "widthBits": 16,
+            "minimumPayloadBytes": 44,
+            "minimumCallbackBytes": 54,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_LEFT_FRONT_MOTOR_TEMP",
+            "mcuPropertyId": "0x28500198",
+            "payloadBitOffsetLSB0": 400,
+            "widthBits": 8,
+            "minimumPayloadBytes": 51,
+            "minimumCallbackBytes": 61,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_LEFT_REAR_MOTOR_ACTUAL_TORQUE",
+            "mcuPropertyId": "0x2850002C",
+            "payloadBitOffsetLSB0": 36,
+            "widthBits": 16,
+            "minimumPayloadBytes": 7,
+            "minimumCallbackBytes": 17,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_LEFT_REAR_MOTOR_DC_GENERATOR_CURRENT",
+            "mcuPropertyId": "0x28500178",
+            "payloadBitOffsetLSB0": 368,
+            "widthBits": 16,
+            "minimumPayloadBytes": 48,
+            "minimumCallbackBytes": 58,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_LEFT_REAR_MOTOR_TEMP",
+            "mcuPropertyId": "0x285001A8",
+            "payloadBitOffsetLSB0": 416,
+            "widthBits": 8,
+            "minimumPayloadBytes": 53,
+            "minimumCallbackBytes": 63,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_RIGHT_FRONT_MOTOR_ACTUAL_TORQUE",
+            "mcuPropertyId": "0x2850001C",
+            "payloadBitOffsetLSB0": 20,
+            "widthBits": 16,
+            "minimumPayloadBytes": 5,
+            "minimumCallbackBytes": 15,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_RIGHT_FRONT_MOTOR_DC_GENERATOR_CURRENT",
+            "mcuPropertyId": "0x28500168",
+            "payloadBitOffsetLSB0": 352,
+            "widthBits": 16,
+            "minimumPayloadBytes": 46,
+            "minimumCallbackBytes": 56,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_RIGHT_FRONT_MOTOR_TEMP",
+            "mcuPropertyId": "0x285001A0",
+            "payloadBitOffsetLSB0": 408,
+            "widthBits": 8,
+            "minimumPayloadBytes": 52,
+            "minimumCallbackBytes": 62,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_RIGHT_REAR_MOTOR_ACTUAL_TORQUE",
+            "mcuPropertyId": "0x2850003C",
+            "payloadBitOffsetLSB0": 52,
+            "widthBits": 16,
+            "minimumPayloadBytes": 9,
+            "minimumCallbackBytes": 19,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_RIGHT_REAR_MOTOR_DC_GENERATOR_CURRENT",
+            "mcuPropertyId": "0x28500188",
+            "payloadBitOffsetLSB0": 384,
+            "widthBits": 16,
+            "minimumPayloadBytes": 50,
+            "minimumCallbackBytes": 60,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_RIGHT_REAR_MOTOR_TEMP",
+            "mcuPropertyId": "0x285001B0",
+            "payloadBitOffsetLSB0": 424,
+            "widthBits": 8,
+            "minimumPayloadBytes": 54,
+            "minimumCallbackBytes": 64,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          }
+        ]
+      },
+      {
+        "canId": "0x000002D0",
+        "channel": 0,
+        "subId": "Preserve actual selector; base MCU lookup does not fix it to zero.",
+        "fields": [
+          {
+            "stockName": "GB_LEFT_FRONT_MOTOR_IGBT_TEMP",
+            "mcuPropertyId": "0x2D000170",
+            "payloadBitOffsetLSB0": 360,
+            "widthBits": 8,
+            "minimumPayloadBytes": 46,
+            "minimumCallbackBytes": 56,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_LEFT_REAR_MOTOR_IGBT_TEMP",
+            "mcuPropertyId": "0x2D000180",
+            "payloadBitOffsetLSB0": 376,
+            "widthBits": 8,
+            "minimumPayloadBytes": 48,
+            "minimumCallbackBytes": 58,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_RIGHT_FRONT_MOTOR_IGBT_TEMP",
+            "mcuPropertyId": "0x2D000178",
+            "payloadBitOffsetLSB0": 368,
+            "widthBits": 8,
+            "minimumPayloadBytes": 47,
+            "minimumCallbackBytes": 57,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "GB_RIGHT_REAR_MOTOR_IGBT_TEMP",
+            "mcuPropertyId": "0x2D000188",
+            "payloadBitOffsetLSB0": 384,
+            "widthBits": 8,
+            "minimumPayloadBytes": 49,
+            "minimumCallbackBytes": 59,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          }
+        ]
+      },
+      {
+        "canId": "0x0000010E",
+        "channel": 0,
+        "subId": "Preserve actual selector; base MCU lookup does not fix it to zero.",
+        "fields": [
+          {
+            "stockName": "ENGINE_INDICATED_TORQUE",
+            "mcuPropertyId": "0x10E00008",
+            "payloadBitOffsetLSB0": 0,
+            "widthBits": 8,
+            "minimumPayloadBytes": 1,
+            "minimumCallbackBytes": 11,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          }
+        ]
+      },
+      {
+        "canId": "0x00000324",
+        "channel": 0,
+        "subId": "Preserve actual selector; base MCU lookup does not fix it to zero.",
+        "fields": [
+          {
+            "stockName": "ENGINE_INDICATED_TORQUE_NM",
+            "mcuPropertyId": "0x32400058",
+            "payloadBitOffsetLSB0": 80,
+            "widthBits": 8,
+            "minimumPayloadBytes": 11,
+            "minimumCallbackBytes": 21,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "ENGINE_SPEED_324",
+            "mcuPropertyId": "0x32400038",
+            "payloadBitOffsetLSB0": 48,
+            "widthBits": 16,
+            "minimumPayloadBytes": 8,
+            "minimumCallbackBytes": 18,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "ENERGY_ENGINE_THERMOSTAT_WATER_TEMPERATURE",
+            "mcuPropertyId": "0x32400048",
+            "payloadBitOffsetLSB0": 64,
+            "widthBits": 8,
+            "minimumPayloadBytes": 9,
+            "minimumCallbackBytes": 19,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "ENERGY_INSTANTANEOUS_FUEL_CONSUMPTION",
+            "mcuPropertyId": "0x32400098",
+            "payloadBitOffsetLSB0": 144,
+            "widthBits": 8,
+            "minimumPayloadBytes": 19,
+            "minimumCallbackBytes": 29,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "ENERGY_INTAKE_AIR_TEMPERATURE",
+            "mcuPropertyId": "0x32400068",
+            "payloadBitOffsetLSB0": 96,
+            "widthBits": 8,
+            "minimumPayloadBytes": 13,
+            "minimumCallbackBytes": 23,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          },
+          {
+            "stockName": "ENERGY_LINE_OXYGEN_LAMBDA_ACTUAL_VALUE",
+            "mcuPropertyId": "0x32400120",
+            "payloadBitOffsetLSB0": 280,
+            "widthBits": 16,
+            "minimumPayloadBytes": 37,
+            "minimumCallbackBytes": 47,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          }
+        ]
+      },
+      {
+        "canId": "0x0000030D",
+        "channel": 0,
+        "subId": "Preserve actual selector; base MCU lookup does not fix it to zero.",
+        "fields": [
+          {
+            "stockName": "ENERGY_INSTANTANEOUS_FUEL_CONSUMPTION_ML",
+            "mcuPropertyId": "0x30D00010",
+            "payloadBitOffsetLSB0": 8,
+            "widthBits": 16,
+            "minimumPayloadBytes": 3,
+            "minimumCallbackBytes": 13,
+            "byteOrder": "little_endian_bitfield_no_sign_extension"
+          }
+        ]
+      },
+      {
+        "canId": "0x00000122",
+        "channel": 1,
+        "subId": 0,
+        "minimumPayloadBytes": 8,
+        "minimumCallbackBytes": 18,
+        "purpose": "Historical owner-Z9 tuple; compare producer wheel fields only after MCU applicability review.",
+        "source": "packet-origin-20261021.json"
+      }
+    ],
+    "decodingBoundary": "Find availability first. Channel0 powertrain descriptors cannot decode retained owner channel1 frames, even when CAN ID matches. No engineering units from names, plausible ranges or coefficients alone."
+  },
+  "laterConditionalWork": [
+    "When target frames are present, choose a small matched scalar/raw sample and compare repeated states: existing parked baseline, owner-controlled engine-running state, or normal charging.",
+    "Dynamic wheel order/scaling needs a separate suitable observation; four stationary zeros cannot validate those meanings.",
+    "Eight child identity reads remain a separate bounded UDS plan. The prepared decoder supports only one complete single-frame response; synthetic child fixtures are not live evidence.",
+    "DoIP remains separate until actual target IP, service ownership and native timeout/retry behavior are known; do not copy the stock session03 identity path as a passive read.",
+    "Wheel device1049/99000059 getter/listener needs its own bounded transport preparation; not part of the existing three-stream collector. Require exactly12 bytes, preserve status/freshness, reject MCU_OFFLINE and do not change the producer gate.",
+    "Optional metadata-only inventory of existing /sdcard/SpotIns regular files may locate a legacy scenario dump. No app start/debug setting/download or private-cache reopening is justified by current evidence."
+  ],
+  "newVehicleRequests": 0,
+  "captureBase": "captures/diagnostics-origin-20261021/root"
+}

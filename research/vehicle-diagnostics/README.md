@@ -89,11 +89,14 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   parents `750`, `7B5`, `7D2`, `726`. Separate INS/FRL/CDC subidentities remain
   unbound. This is candidate metadata, not an executable probe: the product
   whitelist rejects the DIDs and the existing research decoder assumes F194.
-- `stock-signal-read-candidates-20261021.json` preserves 30 stock FIDs for rear
-  steering, suspension, door obstacles and dual NFC: literals/mappers and hashes,
-  four concrete stock getters, 25 resolved-TSV matches. Runtime availability,
-  native device/transact routing and most units/enums are unproved. No signal is
-  assigned to a physical diagnostic ECU merely because its function is related.
+- `stock-signal-read-candidates-20261021.json` preserves 30 property/native-FID
+  pairs for rear steering, suspension, door obstacles and dual NFC: source hashes,
+  four concrete stock getters, 25 older-TSV matches and five additional actual-
+  framework resolutions. Schema v2 corrects rear-steering dysfunction: property
+  `0x0FE00048` resolves to native CAN-FD `0x0FE00448`. All 30 now have separate
+  type/access/device declarations from the decoded stock profiles. Runtime
+  availability, native read type, units and many enums remain unproved. No signal
+  is assigned to a physical diagnostic ECU merely because its function is related.
 - `xtool-public-capabilities-20261021.json` preserves the public field schema,
   support counts and 67 IDC action **titles** for offline corpus searches. Its
   DTC/live/freeze fields contain flags, not fault definitions, parameter names,
@@ -101,6 +104,132 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   reviews are in `captures/diagnostics-ecu-roles-20261021/`; findings and the next
   exact identification targets are in
   [the reverse crosswalk](../../docs/vehicle-data-findings.md#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21).
+
+The deeper offline pass is described in
+[inventory and telemetry beyond identification](../../docs/vehicle-data-findings.md#deep-inventory-and-telemetry-beyond-identification-2026-10-21):
+
+- `ecu-inventory-coverage-20261021.json` accounts for all 225 factory records,
+  81 CAN + 5 DoIP routes and 184 route/software-DID namespaces. All 81 CAN routes
+  already have a historical outcome. `ecu-inventory-gaps-20261021.json` retains
+  unresolved child names/variants, not invented addresses. The stock parser and
+  failure/cache semantics are in `ecu-inventory-firmware-evidence-20261021.json`.
+- `ecu-live-data-support-20261021.json` conservatively joins each of 68 observed
+  addresses to the exact-model scanner catalog: 56 advertise live data, 10 do not,
+  2 remain unmatched. These flags are neither measurement definitions nor proof
+  of an ECU's limitations.
+- `decode_dicar_config.py` decodes the three local stock protobuf profiles without
+  network/device access. `dicar-readable-properties-20261021.json` retains 9,799
+  readable declarations with compact, named columns, exact mapper symbols and
+  separately resolved native IDs. It contains settings/status/compatibility
+  surfaces as well as measurements; it is not an execution allowlist. Source
+  hashes, duplicate-key semantics and unresolved mappings are explicit. A separate
+  Google protobuf decoder independently verified every row.
+- `powertrain-telemetry-20261021.json` retains 294 names: 33 existing product
+  readers, 123 additional names with replies in the old two-pass capture, 4 no-data
+  and 134 unread candidates. Placeholders and zero-only replies are marked.
+  Main discharge contactor and charger states now have source-backed enums;
+  battery limits and engine indicated torque still need unit/dynamic qualification.
+  Mutable source docs/product files are pinned to snapshots under the ignored
+  capture directory. Full cell arrays were still missing at this offline stage;
+  the later live GB pass below recovered them. Dedicated ISG telemetry remains
+  unresolved.
+- `body-chassis-telemetry-20261021.json` retains 50 selected stock read paths:
+  wheel-speed packet, parking radar, brake/sensor fields, air quality and fridge.
+  It separates property/native/type, actual measurement versus regulation target,
+  candidate buffer layout and unproved units/physical ECU binding.
+- `uds-measurement-evidence-20261021.json`, `hu-uds-server-tables-20261021.json`
+  and `hu-uds-server-dids-20261021.tsv` retain the head unit's **own UDS server**
+  tables (218 unique read DIDs, 220 record lengths) and the EOL/SDK investigation.
+  They supply **zero qualified remote ECM/BMS/drive/ABS sensor DIDs**. Raw
+  snapshot/extended DTC records still need per-ECU schemas; no manufacturer DTC
+  dictionary was recovered. Internal relative evidence names are resolved from
+  the JSON's `captureBase`, not treated as adjacent product assets.
+
+Rebuild the readable registry from the retained owner corpus:
+
+```bash
+python3 research/vehicle-diagnostics/decode_dicar_config.py \
+  --out captures/diagnostics-deep-20261021/root/dicar-readable-properties-replay.json
+python3 -m unittest discover -s research/vehicle-diagnostics -p test_decode_dicar_config.py
+```
+
+Raw analyses, bounded searches, source snapshots and independent validation are
+under `captures/diagnostics-deep-20261021/{inventory,powertrain,uds,root}/`.
+This pass does not install, poll or control anything on the car. The registry's
+declared Java type must never be converted directly into a Binder transaction.
+
+The [signal-origin continuation](../../docs/vehicle-data-findings.md#signal-origins-and-passive-qualification-2026-10-21)
+retains the next layer of offline evidence:
+
+- `powertrain-signal-origins-20261021.json`: 152 focused records, 73 native
+  registration matches and 58 byte-verified MCU descriptors. Wire extraction,
+  native conversion and already-converted API output are separate. Seven silent
+  engine GET candidates still have MCU parsers; installed selection is unproved.
+- `packet-origin-20261021.json`: raw GB fanout/envelope and the MCU wheel packet
+  producer, FL/FR/RL/RR order, unsigned12 values, raw flags and GL arithmetic.
+  `decode_wheel_packet.py` rejects malformed packets and keeps units/freshness
+  unknown. Its tests are synthetic; the retained owner CAN122 frames are not a
+  captured wheel packet. The owner CAN324/channel1 cannot use channel0 layouts.
+- `ecu-route-topology-20261021.json`: model network labels, ambiguous children and
+  DoIP prerequisites. The saved map omitted `ecuIp`; `ecuChannel` is not proved
+  physical wiring. `decode_child_identity.py` validates only complete single-frame
+  replies for the existing child manifest, without issuing any request.
+- `factory-scenario-origin-20261021.json`: selection/cache applicability limits
+  and the negative local scenario search. Result preferences do not retain the
+  script tuple; no new software-qualified DTC dictionary was found.
+- `next-car-validation-20261021.json`: the immutable pre-execution plan for three
+  sequential20-second existing-stream windows with identity, health and
+  capture-completeness checks. The later live pass below executed these windows;
+  the plan's original status/hash is retained as provenance. Exact source channels,
+  lengths and field offsets are retained. No collection-table changes or ECU
+  commands are included.
+
+The JSON `captureBase` locates relative evidence files under
+`captures/diagnostics-origin-20261021/{powertrain,packets,scenarios,topology}/`.
+Source disassembly, hashes and reproducer scripts remain there; binaries are not
+copied into research. Run all offline parser checks with:
+
+```bash
+python3 -m unittest discover -s research/vehicle-diagnostics
+```
+
+The [live passive pass](../../docs/vehicle-data-findings.md#live-passive-streams-and-paged-battery-telemetry-2026-10-21)
+then qualified the available streams and a new battery-data path:
+
+- `passive-telemetry-live-20261021.json` retains four completed20-second windows:
+  GB911, BigData2909, YUN3129, then GB913 with18 established scalar GETs. The
+  first three contain186 distinct ID/sub/channel/length tuples, not186 ECUs.
+  Sequence/counter checks, identities, health evidence and their limitations are
+  explicit. No ECU diagnostic commands, vehicle setters or product install were
+  used. `/sdcard/SpotIns` was absent in a metadata-only check.
+- `battery-page-telemetry-20261021.json` retains native-decoder evidence and
+  complete reconstructed166-cell/14-probe arrays from exact GB channel2 tuples.
+  The follow-up probe min/max/mean54/56/55 agree with the established scalar
+  readers, corresponding to14/16/15°C. Cell codes remain raw: the166-cell sweep
+  takes about5.5 seconds, and one rolling maximum3308 differs from its nearby
+  instantaneous3307mV GET. Physical sensor positions and complete validity rules
+  remain unproved. No applicable OEM DTC dictionary was recovered.
+- `decode_battery_pages.py` is an offline-only parser of completed saved GB logs.
+  It validates capture completion and page sequence, keeps per-page observation
+  timestamps, and excludes43D's specialFD page from the cell array. The observed
+  43C integrity rule is never applied to43D. Its structural acceptance flag is not
+  a measurement-validity or battery-health verdict. `test_decode_battery_pages.py`
+  exercises damaged/incomplete captures and page assembly without a car.
+
+Reconstruct the retained arrays without any vehicle connection:
+
+```bash
+python3 research/vehicle-diagnostics/decode_battery_pages.py \
+  captures/diagnostics-live-20261021/073428-passive/gb.log \
+  captures/diagnostics-live-20261021/073428-passive/gb-correlation/gb.log \
+  --output captures/diagnostics-live-20261021/073428-passive/battery-replay.json
+python3 -m unittest discover -s research/vehicle-diagnostics -p test_decode_battery_pages.py
+```
+
+Raw recordings, bounded disassembly and independent reviews stay in the ignored
+`captures/diagnostics-live-20261021/073428-passive/` directory. The plan and older
+offline JSON snapshots remain historical evidence; the live artifacts supersede
+their earlier lack of complete battery arrays.
 
 The promoted two-target allowlisted reader was `VehicleDtcProxyMain` in Denza Apps,
 with `VehicleDiagnostics` supplying profile/P/speed checks, ownership and UI lifecycle.

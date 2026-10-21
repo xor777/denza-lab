@@ -1,0 +1,472 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleRequests": 0,
+  "scope": "GB raw-CAN callback, special wheel packet, selected readable byte declarations; no product/shared docs writes, install, setter, network or credentials",
+  "sourceImages": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02"
+    }
+  ],
+  "gb": {
+    "device": 1039,
+    "event": "0x9900001F",
+    "conclusion": "Owner-mask fanout of raw CAN frames; not a structured battery cell-array callback.",
+    "nativeScalarDeclaration": {
+      "initValueKind": 0,
+      "device": 1039,
+      "accessFlag": 2,
+      "converterVA": "0xe0be0",
+      "registrationVA": "0x1a2a34..0x1a2a5c",
+      "limit": "This describes its query-table placeholder. It does not describe the raw callback dispatch type."
+    },
+    "fanout": {
+      "inputEvent": "0x9900001D",
+      "inputQurType": 8,
+      "header": "BE32 FID plus U8 length, or BE16 length in extended mode; updateParameters advances 5 or 6 bytes before the raw CAN envelope",
+      "halVA": [
+        "0xb0ac8..0xb0b1c",
+        "0xb0d58..0xb0d7c",
+        "0xb1110..0xb1120",
+        "0xb143c..0xb1484",
+        "0xb1928..0xb1940"
+      ],
+      "ownerKey": "six bytes BE: CANID[0..3], subID[4], channel[5]",
+      "GBCondition": "FeatureMapper::getOwner(key) bit1 is set",
+      "emission": "sendIndicatorCallback(1039,0x9900001F,original raw-envelope pointer,wire payload length,timestamp)",
+      "payloadMutation": "none in the raw fanout path",
+      "cache": "No setStringValue on this fanout branch; not a latest-frame buffer getter"
+    },
+    "envelope": [
+      {
+        "bytes": [
+          0,
+          3
+        ],
+        "field": "CAN identifier BE32"
+      },
+      {
+        "bytes": [
+          4,
+          4
+        ],
+        "field": "sub-ID"
+      },
+      {
+        "bytes": [
+          5,
+          5
+        ],
+        "field": "channel"
+      },
+      {
+        "bytes": [
+          6,
+          9
+        ],
+        "field": "record counter BE32"
+      },
+      {
+        "bytes": [
+          10,
+          null
+        ],
+        "field": "CAN payload"
+      }
+    ],
+    "mcuProducerCrossReference": {
+      "rangeManifest": "captures/diagnostics-origin-20261021/powertrain/mcu-ranges.json",
+      "assembly": [
+        "captures/diagnostics-origin-20261021/powertrain/mcu-1704ac.asm",
+        "captures/diagnostics-origin-20261021/powertrain/mcu-170926.asm"
+      ],
+      "keyFormula": "0xE0000000 | (channel<<24) | (CANID<<8), with payload-byte sub-ID fallback",
+      "rawEmitterVA": "0x170926..0x170a12",
+      "rawEmitterEvent": "0x9900001D"
+    },
+    "java": {
+      "byteEvent": "BYDAutoGBDevice.postEvent(byte[]) -> BYDAutoGBEvent -> AbsBYDAutoGBListener.onWholeFrameDataChanged",
+      "parser": "parse returns null and GBMessageData has no fields",
+      "declaredPropertyType": "int (not byte[])",
+      "interpretation": "Property declaration/native placeholder/event DTO are different layers. int declaration neither establishes a buffer getter nor disproves byte events."
+    },
+    "historicalAvailability": {
+      "source": "captures/washer-n9-20261016/streams-gb.log",
+      "vehicle": "N9 AutoType168",
+      "buffers": 1881,
+      "tuples": 43,
+      "limit": "Historical other-car evidence; no owner-Z9 GB stream asserted here. Existing docs already describe its structurally checked 10-byte envelope."
+    },
+    "limits": [
+      "Owner map depends on the existing collection table; no table was fetched or altered.",
+      "Raw frames do not decode all cell voltages or probe temperatures.",
+      "No app-UID permission or current-car stream availability qualification."
+    ]
+  },
+  "wheel": {
+    "device": 1049,
+    "fid": "0x99000059",
+    "descriptors": [
+      {
+        "va": "0xa641c",
+        "fileOffset": "0x6641c",
+        "fid": "0x99000058",
+        "bytes": 12,
+        "ram": "0xfeefb9df",
+        "raw12Hex": "580000990c000000dfb9effe"
+      },
+      {
+        "va": "0xa6428",
+        "fileOffset": "0x66428",
+        "fid": "0x99000059",
+        "bytes": 12,
+        "ram": "0xfeefb9eb",
+        "raw12Hex": "590000990c000000ebb9effe"
+      },
+      {
+        "va": "0xa6434",
+        "fileOffset": "0x66434",
+        "fid": "0x9900005a",
+        "bytes": 16,
+        "ram": "0xfeefb877",
+        "raw12Hex": "5a0000991000000077b8effe"
+      }
+    ],
+    "bytes": 12,
+    "wheels": [
+      {
+        "wheel": "FL",
+        "packetSpeedByteRange": [
+          0,
+          1
+        ],
+        "encoding": "unsigned12 in BE16; upper four bits zero",
+        "packetStatusByte": 8,
+        "sourceCanPayloadBytes": [
+          0,
+          1
+        ],
+        "sourceExtraction": "low byte | ((next byte & 0x0f)<<8)",
+        "sourceStatusByte": 1,
+        "sourceStatusBit": 5,
+        "nameCrosswalk": {
+          "canonicalFrameworkFid": "0x12200008",
+          "mcuChannel1DescriptorFid": "0x12200408",
+          "qualification": "cross-source coordinate/name association; preserve channel1 variant separately from native scalar key"
+        }
+      },
+      {
+        "wheel": "FR",
+        "packetSpeedByteRange": [
+          2,
+          3
+        ],
+        "encoding": "unsigned12 in BE16; upper four bits zero",
+        "packetStatusByte": 9,
+        "sourceCanPayloadBytes": [
+          2,
+          3
+        ],
+        "sourceExtraction": "low byte | ((next byte & 0x0f)<<8)",
+        "sourceStatusByte": 1,
+        "sourceStatusBit": 4,
+        "nameCrosswalk": {
+          "canonicalFrameworkFid": "0x12200018",
+          "mcuChannel1DescriptorFid": "0x12200418",
+          "qualification": "cross-source coordinate/name association; preserve channel1 variant separately from native scalar key"
+        }
+      },
+      {
+        "wheel": "RL",
+        "packetSpeedByteRange": [
+          4,
+          5
+        ],
+        "encoding": "unsigned12 in BE16; upper four bits zero",
+        "packetStatusByte": 10,
+        "sourceCanPayloadBytes": [
+          4,
+          5
+        ],
+        "sourceExtraction": "low byte | ((next byte & 0x0f)<<8)",
+        "sourceStatusByte": 1,
+        "sourceStatusBit": 6,
+        "nameCrosswalk": {
+          "canonicalFrameworkFid": "0x12200028",
+          "mcuChannel1DescriptorFid": "0x12200428",
+          "qualification": "cross-source coordinate/name association; preserve channel1 variant separately from native scalar key"
+        }
+      },
+      {
+        "wheel": "RR",
+        "packetSpeedByteRange": [
+          6,
+          7
+        ],
+        "encoding": "unsigned12 in BE16; upper four bits zero",
+        "packetStatusByte": 11,
+        "sourceCanPayloadBytes": [
+          6,
+          7
+        ],
+        "sourceExtraction": "low byte | ((next byte & 0x0f)<<8)",
+        "sourceStatusByte": 1,
+        "sourceStatusBit": 7,
+        "nameCrosswalk": {
+          "canonicalFrameworkFid": "0x12200038",
+          "mcuChannel1DescriptorFid": "0x12200438",
+          "qualification": "cross-source coordinate/name association; preserve channel1 variant separately from native scalar key"
+        }
+      }
+    ],
+    "sourceCan": {
+      "canId": "0x122",
+      "channel": 1,
+      "subIdSelection": "base table key low byte0; whole-frame table selected before payload-sub fallback",
+      "payloadBytes": 8,
+      "tableVA": "0xd85fc",
+      "tableKey": "0xe1012200",
+      "triggerDescriptorVA": "0xeefe0",
+      "triggerFieldCoordinates": [
+        0,
+        5,
+        0,
+        5
+      ],
+      "producerVA": "0x18aa36..0x18ab88",
+      "producerGate": {
+        "getterVA": "0x16b6b4..0x16b6bc",
+        "ram": "0xfef071c8",
+        "gpOffset": "0x329960",
+        "behavior": "Producer returns without emitting if this byte is zero. No setter was called; meaning/current value are unqualified."
+      }
+    },
+    "producer": "Extracts little-endian 12-bit wheel fields and one-bit statuses from the source frame, stores four BE16 values then FL/FR/RL/RR status bytes in RAM FEEFB9EB, invokes196EFA(A6428). Descriptor emits through buffer path15CC32.",
+    "nativeTransport": {
+      "registrationVA": "0x1a3258..0x1a32d0",
+      "initValueKind": 7,
+      "accessFlag": 2,
+      "bufferConverterVA": "0xe0d90",
+      "converter": "returns0; leaves FID,length,payload unchanged",
+      "path": "updateParameters type7 -> strip outer FID/length -> convertQurData -> setStringValue -> sendIndicatorCallback; getPointer reads same cached string",
+      "pathVAs": [
+        "0xb0d58..0xb0d9c",
+        "0xb10d0..0xb10f0",
+        "0xb1850..0xb188c",
+        "0xb2208..0xb223c",
+        "0x836f0..0x837dc",
+        "0x82a80..0x82bcc",
+        "0xb6310..0xb63bc",
+        "0x82e00..0x82f08"
+      ],
+      "cacheLimit": "getPointer itself reads cache, without invoking a query or rebuilding a frame. Freshness is not established. String cache initValue is MCU_OFFLINE, length11; never decode it as a wheel packet."
+    },
+    "consumer": {
+      "class": "GLAvmAPI",
+      "speedCast": "signed16 BE; recovered producer restricts0..4095 so sign bit stays clear",
+      "acceptance": "all four status bytes8..11 equal0; nonzero is rejected, not a DTC definition",
+      "arithmetic": "float32 raw *0.06875 *1000 /3.6",
+      "qualifiedPhysicalUnit": null,
+      "inference": "Consistent with0.06875 km/h raw units converted to mm/s; retain as GL scaled candidate until on-car qualification.",
+      "implementationSelection": "GL selected only if SDKControler defaultSDKName is AVM; selection on this car not proved. Most other IPanoAPI implementations no-op; some forward opaque bytes.",
+      "guard": "GL lacks explicit length guards; research decoder requires exactly12 bytes and upper four speed bits zero. Status must remain raw."
+    },
+    "crossChecks": [
+      "ai.bst.surroundview.t requires wheel-speed array length12, independently consistent with MCU descriptor.",
+      "HistoricalZ9 retained BigData122/sub0/ch1/len8 exists20times; no retained99000059 payload was found.",
+      "Retained scalar wheel rows12200008/18/28/38 carry0xFFFFD8E3; they do not qualify the99000059packet decoder."
+    ],
+    "decoder": "captures/diagnostics-origin-20261021/packets/decode_wheel_packet.py",
+    "selfTest": "captures/diagnostics-origin-20261021/packets/decoder-self-test.json",
+    "limits": [
+      "Installed MCU image/producer gate applicability remains open.",
+      "No current-car buffer payload or moving guide/units validation.",
+      "Direction99000058 is a different packet; the overlapping GL direction parser was not reused."
+    ]
+  },
+  "byteDeclarations": {
+    "total": 277,
+    "selectionCount": 16,
+    "inventory": "captures/diagnostics-origin-20261021/packets/byte-array-declarations.json",
+    "selected": "captures/diagnostics-origin-20261021/packets/selected-byte-telemetry.json",
+    "conclusion": "No qualified full traction-cell voltage/probe-temperature array recovered. Byte arrays include identity/configuration/diagnostic data and wheel packets, not277 sensors.",
+    "selectedSizes": {
+      "TEST_MCU_REPORT_TEMP/99000243": 6,
+      "STATISTICS_HOST_MACHINE_TEMP_STATUS/99000272": 3,
+      "POWER_MAIN_BATTERY_VOLTAGE_WOTKING_AREA/99000237": 3,
+      "SENSOR_AX_AY_OFFSET/9900020E": 6,
+      "STATISTICS_MCU_REPORT_VOLTAGE_FAULT_CODE/99000280": 245
+    },
+    "limits": [
+      "Descriptors supply storage and size only, not byte semantics or units.",
+      "GB pack-code and battery-serial declarations must not become cell readings.",
+      "No selected motor byte-array declaration exists in these277 records; scalar motors are separate.",
+      "Unknown native IDs remain unresolved; no propertyKey-as-native fallback.",
+      "Empty SDK parsers and copied SDK stubs are not actual source behavior."
+    ]
+  },
+  "passiveQualificationPlan": {
+    "executed": false,
+    "preconditions": [
+      "One session owns the observation and verifies exact head-unit framework/HAL hashes and device identity.",
+      "No setter, table write, wake, install or service restart; preserve existing transport.",
+      "Retain raw bytes, status, timestamp, source identity and firmware hashes."
+    ],
+    "steps": [
+      "Single bounded wheel buffer getter/callback observation with watchdog and normal unregister; accept only length12 with four zero upper nibbles. Any MCU_OFFLINE/default or malformed packet remains unavailable.",
+      "In a separate passive window, observe the existing BigData stream for id122/channel1/sub0; do not request a new collection table.",
+      "Compare each recovered packetraw12/status to the corresponding sourceCAN122 fields. Prove changing values under an owner-labelled movement session before assigning units.",
+      "For absent scalar powertrain paths, preserve CAN channel/sub/payload length and compare only source-matching MCU descriptors. A channel0 descriptor must not decode a retained channel1 frame.",
+      "Record unchanged health, exit and clean temporary-file removal; callback silence leaves the gate/availability open."
+    ],
+    "scopeLimit": "This is a plan, not permission or a run. It requires the user to authorize the future car observation."
+  },
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "vas": [
+        "0x1a2a34..0x1a2a5c",
+        "0x1a3258..0x1a32d0",
+        "0xb0a70..0xb3458",
+        "0xe0d90..0xe0d98",
+        "0x82a80..0x82bcc",
+        "0x82e00..0x82f08",
+        "0x83f20..0x840f0"
+      ]
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "vas": [
+        "0xd85fc",
+        "0xeefe0",
+        "0xa641c",
+        "0xa6428",
+        "0xa6434",
+        "0x18aa36..0x18ab88",
+        "0x16b6b4..0x16b6ce"
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/gb/BYDAutoGBDevice.java",
+      "sha256": "f9133f319f424d697f11715c8a7af5cf1c124ff81e76ed46b68d58b731247dc7",
+      "lines": [
+        65,
+        114
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/gb/BYDAutoGBEvent.java",
+      "sha256": "9c6be5dc38de2a92bee7225ec695e660bbb77882752f7428cb0a2bdfe8461529",
+      "lines": [
+        6,
+        19
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/gb/AbsBYDAutoGBListener.java",
+      "sha256": "90ed73ac8307301c9d662eae6f048ec71a8a10441fd4cc80e758b3b44d269309",
+      "lines": [
+        17,
+        74
+      ]
+    },
+    {
+      "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/special/BYDAutoSpecialDevice.java",
+      "sha256": "6b23ad6feb645deaff6746d5987a3994245c18f289aee9334d272e7e514a0881",
+      "lines": [
+        67,
+        77
+      ]
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/AutoVideo-avc/sources/com/byd/avc/pano/GLAvmAPI.java",
+      "sha256": "bbc976a5becbf96c27829088c1d64fb8107361e790331a1914ed92073bf60e96",
+      "lines": [
+        499,
+        540
+      ]
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/AutoVideo-avc/sources/com/byd/avc/pano/IPanoAPIFactory.java",
+      "sha256": "f03007fab51fd26e159c643ea1157b0610d1d3291a6aad6a1458b2147b643e25",
+      "lines": [
+        10,
+        70
+      ]
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/AutoVideo-avc/sources/com/byd/avc/sdk/SDKControler.java",
+      "sha256": "31ad309123bc9d4743d540bf7f0897dcefe717d7ccc6a826dbbc6a3f865186f5",
+      "lines": [
+        136,
+        153
+      ]
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/AutoVideo-avc/sources/ai/bst/surroundview/t.java",
+      "sha256": "f1b66c80d46ae5c461dfa57081735ab906f82355288bc53161b820c64f383395",
+      "lines": [
+        19,
+        20,
+        669,
+        678
+      ]
+    },
+    {
+      "path": "captures/washer-firmware-20260923/rx-table-candidates.json",
+      "sha256": "2421c9c4f47082e90e44b1d36674d9efdd09e0d814f87fc837fc54fc0631b91f",
+      "lines": [
+        119090,
+        119246
+      ]
+    },
+    {
+      "path": "research/vehicle-diagnostics/dicar-readable-properties-20261021.json",
+      "sha256": "45e4d0dd4a12f12ea6c844338288f72378bcdccb7007c906c37fb9483fab54eb"
+    },
+    {
+      "path": "captures/washer-n9-20261016/streams-analysis.json",
+      "sha256": "a3f1badffbc19f1ff40f89b76541a9f00725739e40ca98ef0a4bff8544dfd295",
+      "lines": [
+        10,
+        90
+      ]
+    },
+    {
+      "path": "captures/washer-firmware-20260923/passive-can.log",
+      "sha256": "2a40796b770115243c567c38b6851da1780e6e73510ad4864d2be13c6f569684"
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/mcu-1704ac.asm",
+      "sha256": "3e706778f6f3d39c27be67c483829b2091d1e51ba88138c78218b3a6c2a3bc7e"
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/mcu-170926.asm",
+      "sha256": "bd9c48d5366f4ef747e85489a1c5f37d4cc02d70906acce2c1fb4757c20e3ee1"
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/mcu-196efa.asm",
+      "sha256": "1c2a962d573bee6e801ec003eaf15de226286c80016dc9d92fcbf2d2705e2a55"
+    },
+    {
+      "path": "captures/diagnostics-origin-20261021/powertrain/mcu-149e90.asm",
+      "sha256": "ba0c0ef08b5b5e2c91f105d33f0f21ee425593103afcf2717eda46bd7334ce95"
+    }
+  ],
+  "captureBase": "captures/diagnostics-origin-20261021/packets",
+  "retainedSourceReport": "captures/diagnostics-origin-20261021/packets/packet-origin-report.json",
+  "researchDecoder": {
+    "path": "research/vehicle-diagnostics/decode_wheel_packet.py",
+    "tests": "research/vehicle-diagnostics/test_decode_wheel_packet.py",
+    "acceptance": "acceptedByRecoveredContract includes strict size/producer-domain checks; glStatusGatePasses separately mirrors the actual GL status gate",
+    "qualification": "Synthetic parser validation only; no physical units, freshness or installed-MCU qualification"
+  }
+}

@@ -1,0 +1,1774 @@
+{
+  "schema": "denza-lab.passive-telemetry-live.v1",
+  "date": "2026-10-21",
+  "captureBase": "captures/diagnostics-live-20261021/073428-passive",
+  "scope": "Owner Z9GT profile170, four sequential20-second receive-only windows (three planned plus one targeted battery follow-up); two batches of nine established scalar GETs. No ECU diagnostic requests, factory app launch, collection-table change or install.",
+  "identity": {
+    "profile": 170,
+    "carProtocol": "CANFD",
+    "androidIncremental": "eng.build20260705.011226",
+    "mcuVersion": "34.2.3.2605202.2",
+    "mcuImageBytesVerified": false,
+    "nativeHalSha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+    "frameworkSha256": "aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c",
+    "installedAppSha256": "e02262e8a992c91228bb8222c2604e2a6b7eee84ff5d61aa1088a529e78cba54",
+    "boundary": "HAL/framework hashes matched the corpus before and after the first3. MCU is a reported-version match only. Hashing autoservice executable and reading /proc/locks were denied; no stronger claim is made. Pre-run APK hash is a root-observed tool result recorded in manifest/execution-checks, not a separately saved raw stdout. libbydautoservice hash is retained only after the first3."
+  },
+  "health": {
+    "profileParkSpeedBeforeAfter": [
+      170,
+      1,
+      0
+    ],
+    "stockManager": "r@-1_0&w@-1_0",
+    "stablePids": {
+      "autoservice": 128,
+      "com.byd.spotinspection": 3578,
+      "com.byd.CanDataCollect": 3642,
+      "com.byd.avc": 4634
+    },
+    "crashBufferEmptyBeforeAfter": true,
+    "allCollectorsUnregisteredExited": true,
+    "temporaryDexRemovedAfterEveryWindow": true,
+    "trustedTunnelPreserved": true,
+    "otherResearchReaderSeen": false,
+    "lockOwnershipVerified": false,
+    "threadInventoryAvailable": false,
+    "boundary": "Read-only process snapshots and stock-manager state found no competing diagnostic helper; app thread inventory timed out and /proc/locks was denied. No claim about invisible future sessions or physical ECU freshness."
+  },
+  "firstThree": {
+    "counts": [
+      {
+        "stream": "gb",
+        "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73",
+        "parsedRecords": 911,
+        "tuples": 30,
+        "completion": {
+          "received": 911,
+          "dropped": 0,
+          "callbackErrors": 0,
+          "queued": 0
+        }
+      },
+      {
+        "stream": "bigdata",
+        "sha256": "da69531362b51225ee031eb7586c296b547ccc0be088030539305ea558a72a8a",
+        "parsedRecords": 2909,
+        "tuples": 103,
+        "completion": {
+          "received": 2909,
+          "dropped": 0,
+          "callbackErrors": 0,
+          "queued": 0
+        }
+      },
+      {
+        "stream": "yun",
+        "sha256": "1ac2c832623fd04af5996260ee92f6ea26005f531a462fe269ad360f694ab1df",
+        "parsedRecords": 3129,
+        "tuples": 71,
+        "completion": {
+          "received": 3129,
+          "dropped": 0,
+          "callbackErrors": 0,
+          "queued": 0
+        }
+      }
+    ],
+    "unionTuples": 186,
+    "totalRecords": 6949,
+    "allPlannedWindowsValidComplete": true,
+    "plannedTargetAvailability": "Only0x122/sub0/channel1/payload8×20;0x324/sub0/channel1/payload64×19 is explicitly not channel0; all7channel0targetIDs absent in these windows, not ruled out globally.",
+    "tuples": [
+      {
+        "canId": "0x00000055",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x0000008C",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 392
+      },
+      {
+        "canId": "0x0000008C",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x000000B6",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 32,
+        "callbackEnvelopeBytes": 42,
+        "count": 20
+      },
+      {
+        "canId": "0x000000B7",
+        "subId": 11,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x000000BB",
+        "subId": 11,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x000000C0",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 32,
+        "callbackEnvelopeBytes": 42,
+        "count": 20
+      },
+      {
+        "canId": "0x000000C2",
+        "subId": 11,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x000000FE",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 32,
+        "callbackEnvelopeBytes": 42,
+        "count": 20
+      },
+      {
+        "canId": "0x0000011F",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 5,
+        "callbackEnvelopeBytes": 15,
+        "count": 20
+      },
+      {
+        "canId": "0x00000121",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000121",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000121",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000122",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000012D",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 792
+      },
+      {
+        "canId": "0x0000012D",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 396
+      },
+      {
+        "canId": "0x00000133",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000134",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000167",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 400
+      },
+      {
+        "canId": "0x0000017F",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 40
+      },
+      {
+        "canId": "0x000001BD",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x000001C2",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x000001D1",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x000001EF",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 16,
+        "callbackEnvelopeBytes": 26,
+        "count": 19
+      },
+      {
+        "canId": "0x000001FC",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x000001FF",
+        "subId": 2,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x000001FF",
+        "subId": 4,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x000001FF",
+        "subId": 5,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000020A",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000218",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000223",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 199
+      },
+      {
+        "canId": "0x0000022D",
+        "subId": 2,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000234",
+        "subId": 1,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000234",
+        "subId": 2,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000237",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000242",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000244",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000245",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000024A",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 39
+      },
+      {
+        "canId": "0x00000258",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 20
+      },
+      {
+        "canId": "0x00000261",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000262",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000026C",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000026F",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 396
+      },
+      {
+        "canId": "0x00000270",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000271",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x00000294",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 38
+      },
+      {
+        "canId": "0x00000294",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 399
+      },
+      {
+        "canId": "0x0000029C",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x000002C0",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x000002C5",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 20
+      },
+      {
+        "canId": "0x000002CB",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 20
+      },
+      {
+        "canId": "0x000002D5",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x000002E4",
+        "subId": 1,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x000002ED",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000302",
+        "subId": 32,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 15
+      },
+      {
+        "canId": "0x00000302",
+        "subId": 33,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 15
+      },
+      {
+        "canId": "0x00000302",
+        "subId": 34,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 14
+      },
+      {
+        "canId": "0x00000302",
+        "subId": 35,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 14
+      },
+      {
+        "canId": "0x00000302",
+        "subId": 36,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 14
+      },
+      {
+        "canId": "0x00000302",
+        "subId": 37,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 14
+      },
+      {
+        "canId": "0x00000302",
+        "subId": 38,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 14
+      },
+      {
+        "canId": "0x00000302",
+        "subId": 39,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 15
+      },
+      {
+        "canId": "0x00000302",
+        "subId": 40,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 15
+      },
+      {
+        "canId": "0x00000304",
+        "subId": 1,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 15
+      },
+      {
+        "canId": "0x0000031E",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000321",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000324",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 19
+      },
+      {
+        "canId": "0x0000032D",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000032F",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000336",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000341",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000342",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000342",
+        "subId": 0,
+        "channel": 1,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000343",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 183
+      },
+      {
+        "canId": "0x00000344",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 40
+      },
+      {
+        "canId": "0x00000349",
+        "subId": 2,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000034A",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000357",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x00000359",
+        "subId": 3,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x00000359",
+        "subId": 4,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x00000359",
+        "subId": 6,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x0000035C",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000035D",
+        "subId": 1,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000361",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x0000036D",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000036E",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000037A",
+        "subId": 2,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 14
+      },
+      {
+        "canId": "0x00000388",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 29
+      },
+      {
+        "canId": "0x0000038A",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 26
+      },
+      {
+        "canId": "0x0000038D",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 20
+      },
+      {
+        "canId": "0x00000390",
+        "subId": 4,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 13
+      },
+      {
+        "canId": "0x00000390",
+        "subId": 5,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 11
+      },
+      {
+        "canId": "0x00000392",
+        "subId": 1,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 18
+      },
+      {
+        "canId": "0x00000396",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 13
+      },
+      {
+        "canId": "0x000003A0",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x000003AE",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x000003AF",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x000003B5",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x000003BD",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 19
+      },
+      {
+        "canId": "0x000003C5",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 12
+      },
+      {
+        "canId": "0x000003CA",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x000003CD",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 68
+      },
+      {
+        "canId": "0x000003CE",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x000003D2",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 14
+      },
+      {
+        "canId": "0x000003D3",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x000003D8",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x000003D9",
+        "subId": 1,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x000003D9",
+        "subId": 2,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 13
+      },
+      {
+        "canId": "0x000003D9",
+        "subId": 3,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 13
+      },
+      {
+        "canId": "0x000003D9",
+        "subId": 4,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 14
+      },
+      {
+        "canId": "0x000003D9",
+        "subId": 5,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 13
+      },
+      {
+        "canId": "0x000003D9",
+        "subId": 5,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x000003D9",
+        "subId": 6,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 13
+      },
+      {
+        "canId": "0x000003D9",
+        "subId": 7,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x000003DA",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 31
+      },
+      {
+        "canId": "0x000003FA",
+        "subId": 1,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 14
+      },
+      {
+        "canId": "0x000003FF",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x00000401",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 18
+      },
+      {
+        "canId": "0x00000402",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 18
+      },
+      {
+        "canId": "0x00000404",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 40
+      },
+      {
+        "canId": "0x00000406",
+        "subId": 1,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x00000407",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 26
+      },
+      {
+        "canId": "0x0000040D",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 14
+      },
+      {
+        "canId": "0x0000041A",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x0000041A",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 14
+      },
+      {
+        "canId": "0x0000041C",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x0000041E",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000427",
+        "subId": 5,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 14
+      },
+      {
+        "canId": "0x00000429",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x0000042F",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 18
+      },
+      {
+        "canId": "0x00000433",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 18
+      },
+      {
+        "canId": "0x00000434",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 60
+      },
+      {
+        "canId": "0x00000437",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 34
+      },
+      {
+        "canId": "0x0000043A",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000043A",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000043B",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x0000043C",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 199
+      },
+      {
+        "canId": "0x0000043D",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 199
+      },
+      {
+        "canId": "0x00000444",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000445",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000446",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000447",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 18
+      },
+      {
+        "canId": "0x00000447",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000449",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 82
+      },
+      {
+        "canId": "0x00000454",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 18
+      },
+      {
+        "canId": "0x00000455",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x00000464",
+        "subId": 9,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x0000046C",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x00000470",
+        "subId": 1,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000470",
+        "subId": 2,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 20
+      },
+      {
+        "canId": "0x00000471",
+        "subId": 0,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x00000475",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 13
+      },
+      {
+        "canId": "0x00000479",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 16
+      },
+      {
+        "canId": "0x0000048C",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x0000048E",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x00000494",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x00000495",
+        "subId": 1,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 17
+      },
+      {
+        "canId": "0x00000495",
+        "subId": 4,
+        "channel": 1,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 15
+      },
+      {
+        "canId": "0x000004A0",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 17
+      },
+      {
+        "canId": "0x000004A5",
+        "subId": 1,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 14
+      },
+      {
+        "canId": "0x000004A5",
+        "subId": 2,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x000004A5",
+        "subId": 4,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x000004A5",
+        "subId": 4,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x000004A5",
+        "subId": 5,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 12
+      },
+      {
+        "canId": "0x000004A5",
+        "subId": 7,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x000004A5",
+        "subId": 8,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 13
+      },
+      {
+        "canId": "0x000004A6",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 29
+      },
+      {
+        "canId": "0x000004B3",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 14
+      },
+      {
+        "canId": "0x000004B9",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 14
+      },
+      {
+        "canId": "0x000004BF",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 14
+      },
+      {
+        "canId": "0x000004E2",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      },
+      {
+        "canId": "0x000004EB",
+        "subId": 1,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 13
+      },
+      {
+        "canId": "0x000004EB",
+        "subId": 2,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x000004EB",
+        "subId": 3,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x000004EB",
+        "subId": 4,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 14
+      },
+      {
+        "canId": "0x000004EB",
+        "subId": 5,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x000004EB",
+        "subId": 6,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x000004F4",
+        "subId": 2,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 17
+      },
+      {
+        "canId": "0x000004F6",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x000004F7",
+        "subId": 1,
+        "channel": 2,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x000004F8",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 64,
+        "callbackEnvelopeBytes": 74,
+        "count": 19
+      },
+      {
+        "canId": "0x000004F9",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 15
+      },
+      {
+        "canId": "0x000004FE",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 18
+      },
+      {
+        "canId": "0x00000510",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 19
+      },
+      {
+        "canId": "0x00000511",
+        "subId": 0,
+        "channel": 0,
+        "payloadBytes": 8,
+        "callbackEnvelopeBytes": 18,
+        "count": 16
+      }
+    ],
+    "counterObservation": {
+      "source": "captures/diagnostics-live-20261021/073428-passive/yun.log",
+      "sha256": "1ac2c832623fd04af5996260ee92f6ea26005f531a462fe269ad360f694ab1df",
+      "backsteps": [
+        {
+          "before": {
+            "line": 358,
+            "sequence": 356,
+            "deviceElapsedRealtimeNanos": 145007687910524,
+            "canId": "0x00000427",
+            "subId": 5,
+            "channel": 0,
+            "payloadBytes": 8,
+            "embeddedCounterRawU32": 71562125
+          },
+          "after": {
+            "line": 359,
+            "sequence": 357,
+            "deviceElapsedRealtimeNanos": 145007688208601,
+            "canId": "0x00000359",
+            "subId": 6,
+            "channel": 2,
+            "payloadBytes": 8,
+            "embeddedCounterRawU32": 71562124
+          },
+          "embeddedCounterDifference": -1,
+          "deviceElapsedDifferenceNanos": 298077,
+          "interpretation": "One embedded counter backstep in delivery order; device monotonic time still increases. No cause, per-tuple continuity, counter unit, host timestamp or wrap asserted."
+        }
+      ]
+    }
+  },
+  "batteryFollowup": {
+    "stream": "gb",
+    "durationSeconds": 20,
+    "records": 913,
+    "scalarGetBatches": 2,
+    "scalarGetsPerBatch": 9,
+    "completeNoLoss": true,
+    "healthPassed": true,
+    "results": [
+      "gb-correlation/scalars-1.json",
+      "gb-correlation/scalars-2.json"
+    ],
+    "reason": "First GB revealed43A count/insulation and43C/43D paged structures; match against established scalar readings before qualifying semantics."
+  },
+  "totalRecordsAllFour": 7862,
+  "factoryScenarioMetadata": {
+    "path": "/sdcard/SpotIns",
+    "result": "absent",
+    "operation": "existing directory presence only; no content read or factory app/debug activation",
+    "limit": "Closes this legacy external path at this observation only; not proof no OEM dictionary exists elsewhere."
+  },
+  "qualificationLimits": [
+    "186 tuples are not186 ECUs or sensors.",
+    "Seven channel0 powertrain target IDs were absent in these windows; absence is not a vehicle capability limit.",
+    "Owner channel1 ID324 cannot use the recovered channel0 engine layout.",
+    "No new qualified ECU addresses or OEM DTC dictionary.",
+    "Original first3 plan is retained as a pre-execution snapshot; this artifact records execution."
+  ],
+  "sources": [
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/manifest.json",
+      "sha256": "92c9561db85f55f51652da356a3e0eae0f1f7768074d33a3a4f72b4184229ceb"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/first-three-result.json",
+      "sha256": "f452b53f1bccecbc968c7100cc7f463d831d6a00d009059475733c36729df7d0"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb.log",
+      "sha256": "511ce59712ceaf3433e2a75ca858a2a0d92ce19415cd0ac9bcdfc288bc651b73"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/bigdata.log",
+      "sha256": "da69531362b51225ee031eb7586c296b547ccc0be088030539305ea558a72a8a"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/yun.log",
+      "sha256": "1ac2c832623fd04af5996260ee92f6ea26005f531a462fe269ad360f694ab1df"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-result.json",
+      "sha256": "5e873bce95bd2a36c29c597e0ad30032a1ff521e7727b12afa0aa27b7d0bd5b7"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/bigdata-result.json",
+      "sha256": "ea27bfb8751cd286963e008a9c417d632cb9ba1036d5ff5b6c861a24ffb6dbc0"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/yun-result.json",
+      "sha256": "73a9bde9b3ff86203a38c7d24d8a7ba4ec52714210fce2be7cbcf123b9b7d4c6"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-after.txt",
+      "sha256": "1531d04f0d4a7509bedcf2fdab33fb476ca1395b1da8de6b8645e01cdd59b17d"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/bigdata-after.txt",
+      "sha256": "edea3e6c091583815bbf835fd1b2985a6101abea8e1b74abded73daf5e2f792d"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/yun-after.txt",
+      "sha256": "4ba60d4d881405f6e62506d55b9aeabcd6dc6eee649d5510bd0682966c29f31b"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/bigdata-crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/yun-crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/final-identities.txt",
+      "sha256": "628fcaaef0f3027c006ef12f70e5e6d3daf76b6635533eb82ba377d9d36948a7"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/legacy-spotins-metadata.txt",
+      "sha256": "ede4663fa9a5e8031704705268edde90aae07273f42b7b7274db7b317a40b001"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/streams-analysis.json",
+      "sha256": "e49571e45cbe1a90b27a1d0eafc6c87d247fb8da60bce431d36910fcbdaa3845"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/analyze_completed_streams.py",
+      "sha256": "e801315166fab6352a882b45469fcbcf27f5afed9a301455ee125a2e25d1601d"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/test_analyze_completed_streams.py",
+      "sha256": "f73b1b5db245cc825f23b9dd0c4a16077743edcdd6921c13076b6a2d651c16c9"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/manifest.json",
+      "sha256": "ec9e5fdf2bc95d14dd0c1a8c1cd071af91c70a73b402941ca7d1b7e1c89c71b3"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/gb.log",
+      "sha256": "62bed104174519b8448dc48d09053502c40cdec24cc013447f1628dfecbde2e0"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/before.txt",
+      "sha256": "562bc0e46d096f7b5ad1ea4109134c7b293742c9f07655eb53fd957228d25353"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/after.txt",
+      "sha256": "20140a6cd7920e600c8028a8d7e82ca525556aea21e736475f12f78307de9e78"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/scalars-1.txt",
+      "sha256": "09f320fd9a51ada3c1c334ffee3e50d8416c0d8adefbf31733c89a7a6d77164e"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/scalars-2.txt",
+      "sha256": "e0d54d397e6668a1754c70fe6777ab5c2d5e0c8e5088a8ea743d9d9ff4a6a182"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/scalars-1.json",
+      "sha256": "d233bf29b0c0fcb98e7f68e38ee0028a412f6964b7af69a4c8fbe081e7406b2b"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/gb-correlation/scalars-2.json",
+      "sha256": "d83a0c1607fc809ef5c61c10555fa8ccb3870e59c2c2e56995673f27d72366bf"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073354-preflight/identity.txt",
+      "sha256": "327a1dba5adf748164bd9fa4cd2b628b0457155908416385306bcdc037290723"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073354-preflight/hashes.txt",
+      "sha256": "8bb59e10ee38bec59bb9ec3e8ef01a76b4f73935d7f5206faa725e6e6aa67cea"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073354-preflight/processes.txt",
+      "sha256": "052583e2c255f89cf56607015a9f5b134c07e2fb77eac80d9173defa7fc03848"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073354-preflight/locks.txt",
+      "sha256": "05eb0b7a36a082e83fca18ea31ad8bf6870d6271c43857cdd0df0e387e0c386d"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073354-preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073354-preflight/park-speed.txt",
+      "sha256": "5c0deb1c14e632fec439d3b4bcf24a64286f54c8decb99d283d1fffcbc7a59e5"
+    },
+    {
+      "path": "captures/diagnostics-live-20261021/073428-passive/execution-checks.json",
+      "sha256": "1cb22ec5381c56259eb508396aedd18556d02ecc2d35dd56c77ea2a1f79f55b2"
+    }
+  ]
+}

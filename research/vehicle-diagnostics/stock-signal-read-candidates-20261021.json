@@ -8,7 +8,7 @@
       "labelRu": "Фактический угол левого заднего колеса",
       "fidHex": "0x0FE004B8",
       "fidDecimal": 266339512,
-      "evidenceLevel": "stock_mapper_and_literal_only",
+      "evidenceLevel": "stock_mapper_literal_and_owner_framework_native_id",
       "runtimeAvailability": "unverified on owner vehicle; no request made",
       "valueType": "unverified",
       "unit": "unknown; no scale or engineering unit inferred",
@@ -38,7 +38,30 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x0FE004B8",
+      "nativeFidHex": "0x0FE004B8",
+      "nativeFidEvidence": "owner_framework_canfd_static_initializer",
+      "nativeResolutionSource": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          19738
+        ]
+      },
+      "classicNativeFidDecimal": 982641,
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x0FE004B8",
+        "access": "read",
+        "interfaceIndex": 12,
+        "mapper": "AdasMapper",
+        "nativeDevice": 1038,
+        "symbol": "ADAS_ACTUAL_LEFT_REAR_WHEEL_STEERING_ANGLE",
+        "declaredTypeCode": 4,
+        "declaredJavaType": "double",
+        "nativeCanFdHex": "0x0FE004B8",
+        "nativeResolution": "profile170_reflection:Adas"
+      }
     },
     {
       "group": "rear_steering",
@@ -46,7 +69,7 @@
       "labelRu": "Фактический угол правого заднего колеса",
       "fidHex": "0x0FE004C4",
       "fidDecimal": 266339524,
-      "evidenceLevel": "stock_mapper_and_literal_only",
+      "evidenceLevel": "stock_mapper_literal_and_owner_framework_native_id",
       "runtimeAvailability": "unverified on owner vehicle; no request made",
       "valueType": "unverified",
       "unit": "unknown; no scale or engineering unit inferred",
@@ -76,7 +99,30 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x0FE004C4",
+      "nativeFidHex": "0x0FE004C4",
+      "nativeFidEvidence": "owner_framework_canfd_static_initializer",
+      "nativeResolutionSource": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          19740
+        ]
+      },
+      "classicNativeFidDecimal": 160446,
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x0FE004C4",
+        "access": "read",
+        "interfaceIndex": 12,
+        "mapper": "AdasMapper",
+        "nativeDevice": 1038,
+        "symbol": "ADAS_ACTUAL_RIGHT_REAR_WHEEL_STEERING_ANGLE",
+        "declaredTypeCode": 4,
+        "declaredJavaType": "double",
+        "nativeCanFdHex": "0x0FE004C4",
+        "nativeResolution": "profile170_reflection:Adas"
+      }
     },
     {
       "group": "rear_steering",
@@ -84,7 +130,7 @@
       "labelRu": "Валидность фактического угла задних колёс",
       "fidHex": "0x0FE004B7",
       "fidDecimal": 266339511,
-      "evidenceLevel": "stock_mapper_and_literal_only",
+      "evidenceLevel": "stock_mapper_literal_and_owner_framework_native_id",
       "runtimeAvailability": "unverified on owner vehicle; no request made",
       "valueType": "unverified",
       "unit": "unknown; no scale or engineering unit inferred",
@@ -114,7 +160,30 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x0FE004B7",
+      "nativeFidHex": "0x0FE004B7",
+      "nativeFidEvidence": "owner_framework_canfd_static_initializer",
+      "nativeResolutionSource": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          19739
+        ]
+      },
+      "classicNativeFidDecimal": 26464,
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x0FE004B7",
+        "access": "read",
+        "interfaceIndex": 12,
+        "mapper": "AdasMapper",
+        "nativeDevice": 1038,
+        "symbol": "ADAS_ACTUAL_REAR_WHEEL_STEERING_ANGLE_VALIDITY",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x0FE004B7",
+        "nativeResolution": "profile170_reflection:Adas"
+      }
     },
     {
       "group": "rear_steering",
@@ -122,7 +191,7 @@
       "labelRu": "Состояние заднего руления",
       "fidHex": "0x1EA01548",
       "fidDecimal": 513807688,
-      "evidenceLevel": "stock_mapper_and_literal_only",
+      "evidenceLevel": "stock_mapper_literal_and_owner_framework_native_id",
       "runtimeAvailability": "unverified on owner vehicle; no request made",
       "valueType": "unverified",
       "unit": "unknown; no scale or engineering unit inferred",
@@ -152,15 +221,38 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x1EA01548",
+      "nativeFidHex": "0x1EA01548",
+      "nativeFidEvidence": "owner_framework_canfd_static_initializer",
+      "nativeResolutionSource": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          20476
+        ]
+      },
+      "classicNativeFidDecimal": 929310,
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x1EA01548",
+        "access": "read",
+        "interfaceIndex": 12,
+        "mapper": "AdasMapper",
+        "nativeDevice": 1038,
+        "symbol": "ADAS_REAR_WHEEL_STEER_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x1EA01548",
+        "nativeResolution": "profile170_reflection:Adas"
+      }
     },
     {
       "group": "rear_steering",
       "name": "ADAS_REAR_WHEEL_STEER_DYSFUNCTION",
       "labelRu": "Признак нарушения работы заднего руления",
-      "fidHex": "0x0FE00048",
-      "fidDecimal": 266338376,
-      "evidenceLevel": "stock_mapper_and_literal_only",
+      "fidHex": "0x0FE00448",
+      "fidDecimal": 266339400,
+      "evidenceLevel": "stock_mapper_literal_and_owner_framework_native_id",
       "runtimeAvailability": "unverified on owner vehicle; no request made",
       "valueType": "unverified",
       "unit": "unknown; no scale or engineering unit inferred",
@@ -190,7 +282,30 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x0FE00048",
+      "nativeFidHex": "0x0FE00448",
+      "nativeFidEvidence": "owner_framework_canfd_static_initializer",
+      "nativeResolutionSource": {
+        "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/BYDAutoFeatureIds.java",
+        "sha256": "a0a73b259c484a3dd55ffcd6bfe18b4d71895a1c9fcb37092eecd79cb3fa8763",
+        "lines": [
+          20475
+        ]
+      },
+      "classicNativeFidDecimal": 396026,
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x0FE00048",
+        "access": "read",
+        "interfaceIndex": 12,
+        "mapper": "AdasMapper",
+        "nativeDevice": 1038,
+        "symbol": "ADAS_REAR_WHEEL_STEER_DYSFUNCTION",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x0FE00448",
+        "nativeResolution": "profile170_reflection:Adas"
+      }
     },
     {
       "group": "suspension",
@@ -236,7 +351,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x19500008",
+      "nativeFidHex": "0x19500008",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x19500008",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_LEFT_FRONT_SUSPENSION_ACTUAL_HEIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x19500008",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -282,7 +412,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x10900058",
+      "nativeFidHex": "0x10900058",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x10900058",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_LEFT_FRONT_SUSPENSION_ACTUAL_HEIGHT_109",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x10900058",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -328,7 +473,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x109001B8",
+      "nativeFidHex": "0x109001B8",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x109001B8",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_LEFT_FRONT_SUSPENSION_LIFT_HEIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x109001B8",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "suspension",
@@ -374,7 +534,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x19500014",
+      "nativeFidHex": "0x19500014",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x19500014",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_RIGHT_FRONT_SUSPENSION_ACTUAL_HEIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x19500014",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -420,7 +595,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x10900068",
+      "nativeFidHex": "0x10900068",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x10900068",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_RIGHT_FRONT_SUSPENSION_ACTUAL_HEIGHT_109",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x10900068",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -466,7 +656,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x109001C8",
+      "nativeFidHex": "0x109001C8",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x109001C8",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_RIGHT_FRONT_SUSPENSION_LIFT_HEIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x109001C8",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "suspension",
@@ -512,7 +717,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x19500020",
+      "nativeFidHex": "0x19500020",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x19500020",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_LEFT_REAR_SUSPENSION_ACTUAL_HEIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x19500020",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -558,7 +778,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x10900078",
+      "nativeFidHex": "0x10900078",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x10900078",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_LEFT_REAR_SUSPENSION_ACTUAL_HEIGHT_109",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x10900078",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -604,7 +839,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x109001D8",
+      "nativeFidHex": "0x109001D8",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x109001D8",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_LEFT_REAR_SUSPENSION_LIFT_HEIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x109001D8",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "suspension",
@@ -650,7 +900,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x1950002C",
+      "nativeFidHex": "0x1950002C",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x1950002C",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_RIGHT_REAR_SUSPENSION_ACTUAL_HEIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x1950002C",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -696,7 +961,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x10900088",
+      "nativeFidHex": "0x10900088",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x10900088",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_RIGHT_REAR_SUSPENSION_ACTUAL_HEIGHT_109",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x10900088",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -742,7 +1022,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x109001E8",
+      "nativeFidHex": "0x109001E8",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x109001E8",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_RIGHT_REAR_SUSPENSION_LIFT_HEIGHT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x109001E8",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "suspension",
@@ -765,7 +1060,44 @@
           "2": "UI показывает снижение высоты",
           "3": "В режиме дрифта вместе с уровнем 1 UI показывает завершение"
         },
-        "unknown": "Полная универсальная расшифровка 1 и 4 не установлена; контекст дрифта не переносится на все режимы"
+        "unknown": "Полная универсальная расшифровка 1 и 4 не установлена; контекст дрифта не переносится на все режимы",
+        "sourceEvidence": [
+          {
+            "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/vehiclesettings/drivingadjust/view/drift/model/DriftMainModel.java",
+            "sha256": "76d3fc08e91b58cf2a71ccc3e6161e4ca78724547f77e5b0613f8050e1ba32ad",
+            "lines": [
+              310,
+              311,
+              312,
+              313,
+              314
+            ]
+          },
+          {
+            "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/vehiclesettings/drivingadjust/view/drift/presenter/DriftMainPresenter.java",
+            "sha256": "e31bfa8c73ae71b1ac6e4e55c34ecb0a83593f81f9b235fca09b581e5e71e8d7",
+            "lines": [
+              159,
+              160,
+              161
+            ]
+          },
+          {
+            "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/vehiclesettings/drivingadjust/view/drift/activity/DriftMainActivity.java",
+            "sha256": "1119fe30170298e72974283e576899ad88edfd35db0f0b0038ecdb4c816e7dc1",
+            "lines": [
+              279,
+              280,
+              281,
+              282,
+              283,
+              284,
+              285,
+              286,
+              287
+            ]
+          }
+        ]
       },
       "literal": {
         "path": "captures/ambient-light-20260923/jadx/CarSettingPlatform/sources/com/byd/feature/setting/Setting.java",
@@ -820,7 +1152,22 @@
         }
       },
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x2580002C",
+      "nativeFidHex": "0x2580002C",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x2580002C",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_SUSPENSION_HEIGHT_ADJUSTMENT_PROCESS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x2580002C",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -894,7 +1241,22 @@
         }
       },
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x25800044",
+      "nativeFidHex": "0x25800044",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x25800044",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_ACTUCL_SUSPENSION_HEIGHT_ADJUSTMENT_LEVEL",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x25800044",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -940,7 +1302,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x1A70000A",
+      "nativeFidHex": "0x1A70000A",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x1A70000A",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_SUSPENSION_HEIGHT_ADJUSTMENT_FAULT",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x1A70000A",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -986,7 +1363,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x25800114",
+      "nativeFidHex": "0x25800114",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x25800114",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SETTING_ADJUSTABLE_SUSPENSION_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x25800114",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -1069,7 +1461,22 @@
         }
       },
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x37F00008",
+      "nativeFidHex": "0x37F00008",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x37F00008",
+        "access": "read",
+        "interfaceIndex": 1,
+        "mapper": "SettingMapper",
+        "nativeDevice": 1023,
+        "symbol": "SET_DYNAMIC_SUSPENSION_ACTUAL_OPERATING_MODE",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x37F00008",
+        "nativeResolution": "profile170_reflection:Setting"
+      }
     },
     {
       "group": "suspension",
@@ -1115,7 +1522,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x2F1050F0",
+      "nativeFidHex": "0x2F1050F0",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x2F1050F0",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_DISUS_UNAVAILABLE_REASON_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x2F1050F0",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "suspension",
@@ -1161,7 +1583,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x2F105021",
+      "nativeFidHex": "0x2F105021",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x2F105021",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_DISUS_HIGHT_SPEED_LOWER_LIMIT_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x2F105021",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "suspension",
@@ -1207,7 +1644,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x2F105028",
+      "nativeFidHex": "0x2F105028",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x2F105028",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_DISUS_HIGHT_SPEED_UPPER_LIMIT_STATUS",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x2F105028",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "door_radar_context",
@@ -1253,7 +1705,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x39100088",
+      "nativeFidHex": "0x39100088",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x39100088",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_LF_ELECTRIC_DOOR_OBSTACLE",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x39100088",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "door_radar_context",
@@ -1299,7 +1766,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x3910008A",
+      "nativeFidHex": "0x3910008A",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x3910008A",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_RF_ELECTRIC_DOOR_OBSTACLE",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x3910008A",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "door_radar_context",
@@ -1345,7 +1827,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x3910008C",
+      "nativeFidHex": "0x3910008C",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x3910008C",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_LR_ELECTRIC_DOOR_OBSTACLE",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x3910008C",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "door_radar_context",
@@ -1391,7 +1888,22 @@
       },
       "concreteStockReader": null,
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x3910008E",
+      "nativeFidHex": "0x3910008E",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x3910008E",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_RR_ELECTRIC_DOOR_OBSTACLE",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x3910008E",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     },
     {
       "group": "nfc_context",
@@ -1451,7 +1963,22 @@
         }
       },
       "genericReadPath": "ICarPropertyManager.getProperty(propertyKey) returns Response<CarPropertyValue>; preserve status and raw type instead of assuming int",
-      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU"
+      "physicalEcuBinding": "Function-associated signal; no claim that this FID is sourced directly from one exact CAN/F194 ECU",
+      "propertyKey": "0x19C33030",
+      "nativeFidHex": "0x19C33030",
+      "nativeFidEvidence": "resolved_canfd_table",
+      "stockPropertyDeclaration": {
+        "propertyKey": "0x19C33030",
+        "access": "read",
+        "interfaceIndex": 2,
+        "mapper": "BodyMapper",
+        "nativeDevice": 1001,
+        "symbol": "BODYWORK_NFC_IMPLEMENT_RESULT_DUAL_MODULE",
+        "declaredTypeCode": 0,
+        "declaredJavaType": "int",
+        "nativeCanFdHex": "0x19C33030",
+        "nativeResolution": "profile170_reflection:Bodywork"
+      }
     }
   ],
   "commonReadEvidence": [
@@ -1498,17 +2025,33 @@
   },
   "limits": [
     "Presence of a name and mapper is not proof of current-car get support or valid data.",
-    "Five rear-steering names have no matching resolved row in the existing fids-canfd.tsv; their numeric values come from stock SDK string literals.",
+    "Five rear-steering names have no matching row in the older fids-canfd.tsv; their native CAN-FD values are now resolved from the owner framework initializers, separately from the SDK property strings.",
     "No units or bit meanings inferred from field names.",
     "Duplicate height families 0x195 and _109 are alternatives without proven profile170 selection; do not combine or substitute them.",
     "Suspension, rear-steering, door and NFC context grouping is not a new FID-to-diagnostic-ECU routing map.",
-    "No DTC definitions derived from these telemetry names."
+    "No DTC definitions derived from these telemetry names.",
+    "Use nativeFidHex/fidHex only for the qualified native namespace; propertyKey belongs to ICarPropertyManager. Native ID resolution still does not establish value format or live availability."
   ],
-  "schema": "denza-lab.stock-signal-read-candidates.v1",
+  "schema": "denza-lab.stock-signal-read-candidates.v2",
   "derivedFrom": {
     "path": "captures/diagnostics-ecu-roles-20261021/chassis/readable-signals.json",
     "sha256": "fe120572a54b95d1b9cb37337090c5d5690257f31417fa67f70c4cff8ab1eb63"
   },
   "liveRequestsThisPass": 0,
-  "productUpdated": false
+  "productUpdated": false,
+  "namespaceCorrection": {
+    "date": "2026-10-21",
+    "reason": "DiCar string property keys resolve by name to runtime BYDAutoFeatureIds; their hex need not equal the native CAN-FD FID. All five rear-steering IDs now resolved from the owner framework; four agree, dysfunction changes.",
+    "changedNativeId": {
+      "name": "ADAS_REAR_WHEEL_STEER_DYSFUNCTION",
+      "propertyKey": "0x0FE00048",
+      "nativeFidHex": "0x0FE00448"
+    },
+    "sourceHistoricalNote": "derivedFrom retains the earlier capture, which only established literal keys and mappers for these five. The appended nativeResolutionSource supersedes that inference."
+  },
+  "stockPropertyCatalog": {
+    "path": "research/vehicle-diagnostics/dicar-readable-properties-20261021.json",
+    "sha256": "45e4d0dd4a12f12ea6c844338288f72378bcdccb7007c906c37fb9483fab54eb",
+    "note": "Declared type/access only; no new live read, native transact selection or physical ECU binding."
+  }
 }

@@ -1,0 +1,2837 @@
+{
+  "schema": "denza-lab.live-address-vendor-capabilities.v1",
+  "date": "2026-10-21",
+  "matchingPolicy": "Exact slash-separated live abbreviation OR same-route positive F194 equals valid cache code, then exact factory family to Xtool token. No parent-address-only, numerical-suffix, semantic or fuzzy alias expansion.",
+  "sourceInputs": [
+    {
+      "key": "factory",
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    {
+      "key": "cache",
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    {
+      "key": "xtool",
+      "path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json",
+      "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24"
+    },
+    {
+      "key": "live",
+      "path": "captures/diagnostics-scanner-20261020/last-scan-1931.json",
+      "sha256": "cc54c867d6f2f9eacf565af62943767ac5e6e3d2c38de3a892a39d5adef797e4"
+    },
+    {
+      "key": "probes",
+      "path": "research/vehicle-diagnostics/factory-candidates-20261020.json",
+      "sha256": "8dae6e83b699bab926a441bd3eebea9e6e264d2ba8452293c9af6ad1ce579700"
+    },
+    {
+      "key": "child",
+      "path": "research/vehicle-diagnostics/ecu-child-identification-candidates-20261021.json",
+      "sha256": "51e4348620854c0c1e683202e7ce61764a28b9795fc87d812f4049b35aee2339"
+    }
+  ],
+  "addresses": [
+    {
+      "requestHex": "7E0",
+      "abbreviation": "ECM",
+      "F194": [
+        "32440011E004000000"
+      ],
+      "exactTokens": [
+        "ECM"
+      ],
+      "factoryF194QualifiedTokens": [
+        "ECM"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_ECM_UAES_01200001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1384,
+          "token": "ECM",
+          "systemZh": "底盘网-ECU子网/发动机控制器_[2.0TID]国六(联电)(ECM)",
+          "networkZh": "底盘网-ECU子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7E2",
+      "abbreviation": "VCU",
+      "F194": [
+        "32440011E07E007841"
+      ],
+      "exactTokens": [
+        "VCU"
+      ],
+      "factoryF194QualifiedTokens": [
+        "VCU"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_VCU_BYD_00100001",
+        "HTH-2021_VCU_UAES_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1380,
+          "token": "VCU",
+          "systemZh": "底盘网/整车控制器(联电)(VCU)",
+          "networkZh": "底盘网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7E3",
+      "abbreviation": "FMCU",
+      "F194": [
+        "48370011E075000000"
+      ],
+      "exactTokens": [
+        "FMCU"
+      ],
+      "factoryF194QualifiedTokens": [
+        "FMCU"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_FMCU_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1389,
+          "token": "FMCU",
+          "systemZh": "电控子网/前驱动电机控制器(比亚迪)(FMCU)",
+          "networkZh": "电控子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7E6",
+      "abbreviation": "ISG",
+      "F194": [
+        "48370011E0EA000000"
+      ],
+      "exactTokens": [
+        "ISG"
+      ],
+      "factoryF194QualifiedTokens": [
+        "ISG"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_ISG_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1385,
+          "token": "ISG",
+          "systemZh": "底盘网-电控子网/发电机控制器(比亚迪)(ISG)",
+          "networkZh": "底盘网-电控子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7E7",
+      "abbreviation": "BMS",
+      "F194": [
+        "4A520011E00D00047B"
+      ],
+      "exactTokens": [
+        "BMS"
+      ],
+      "factoryF194QualifiedTokens": [
+        "BMS"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_BMS_BYD_03300001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1479,
+          "token": "BMS",
+          "systemZh": "左能量网/电池管理器(比亚迪)(BMS)",
+          "networkZh": "左能量网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "744",
+      "abbreviation": "SMCU",
+      "F194": [
+        "48370011E086001100"
+      ],
+      "exactTokens": [
+        "SMCU"
+      ],
+      "factoryF194QualifiedTokens": [
+        "SMCU"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_SMCU_BYD_00200001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1388,
+          "token": "SMCU",
+          "systemZh": "电控子网/左后驱动电机控制器(比亚迪)(SMCU)",
+          "networkZh": "电控子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "745",
+      "abbreviation": "SMCU3",
+      "F194": [
+        "48370011E088001100"
+      ],
+      "exactTokens": [
+        "SMCU3"
+      ],
+      "factoryF194QualifiedTokens": [
+        "SMCU3"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_SMCU3_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1387,
+          "token": "SMCU3",
+          "systemZh": "电控子网/右后驱动电机控制器(比亚迪)(SMCU3)",
+          "networkZh": "电控子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7E4",
+      "abbreviation": "DCOBC",
+      "F194": [
+        "48350011E04D000100"
+      ],
+      "exactTokens": [
+        "DCOBC"
+      ],
+      "factoryF194QualifiedTokens": [
+        "DCOBC"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_DCOBC_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1478,
+          "token": "DCOBC",
+          "systemZh": "左能量网/双向车载电源总成(比亚迪)(DCOBC)",
+          "networkZh": "左能量网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "782",
+      "abbreviation": "ESP/IPB",
+      "F194": [
+        "32330011DF0B000101"
+      ],
+      "exactTokens": [
+        "ESP",
+        "IPB"
+      ],
+      "factoryF194QualifiedTokens": [
+        "BSC",
+        "ESP",
+        "IPB"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_ESP_BOSCH_00100001",
+        "HTH-2021_IPB_BOSCH_00100001",
+        "HTH-2021_BSC_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1379,
+          "token": "IPB",
+          "systemZh": "底盘网/电液制动(博世)(IPB)",
+          "networkZh": "底盘网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1383,
+          "token": "BSC",
+          "systemZh": "底盘网/安全系统(比亚迪)(BSC)",
+          "networkZh": "底盘网",
+          "basis": "same_CAN_F194_cache_factory_family",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7E5",
+      "abbreviation": "BSCM",
+      "F194": [],
+      "exactTokens": [
+        "BSCM"
+      ],
+      "factoryF194QualifiedTokens": [],
+      "factoryQualifiedEcuIds": [],
+      "xtoolRows": [],
+      "vendorConsensus": {
+        "identification": null,
+        "dtc": null,
+        "liveData": null,
+        "freezeFrame": null
+      },
+      "unmatchedMeansUnknownNotUnsupported": true,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "783",
+      "abbreviation": "EPS",
+      "F194": [
+        "43430011DE6F000000"
+      ],
+      "exactTokens": [
+        "EPS"
+      ],
+      "factoryF194QualifiedTokens": [
+        "DPEPS",
+        "REPS"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_REPS_BYD_00100001",
+        "HTH-2021_DPEPS_TRW_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1376,
+          "token": "DPEPS",
+          "systemZh": "底盘网/助力转向_DPEPS(天合)(DPEPS)",
+          "networkZh": "底盘网",
+          "basis": "same_CAN_F194_cache_factory_family",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7F1",
+      "abbreviation": "SRS",
+      "F194": [
+        "54500011E011000012"
+      ],
+      "exactTokens": [
+        "SRS"
+      ],
+      "factoryF194QualifiedTokens": [
+        "SRS"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_SRS_VEONEER_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1375,
+          "token": "SRS",
+          "systemZh": "底盘网/安全气囊(维宁尔)(SRS)",
+          "networkZh": "底盘网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "712",
+      "abbreviation": "ADC",
+      "F194": [
+        "48450011DF83000000"
+      ],
+      "exactTokens": [
+        "ADC"
+      ],
+      "factoryF194QualifiedTokens": [],
+      "factoryQualifiedEcuIds": [],
+      "xtoolRows": [
+        {
+          "rowId": 1484,
+          "token": "ADC",
+          "systemZh": "左智驾网/ADAS域控制器(比亚迪)(ADC)",
+          "networkZh": "左智驾网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7F2",
+      "abbreviation": "MRR",
+      "F194": [
+        "474E0011DF70000000"
+      ],
+      "exactTokens": [
+        "MRR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "MRR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_MRR_BYD_00100001",
+        "HTH-2021_MRR_WHST_00100001",
+        "HTH-2021_MRR_chengtech_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1493,
+          "token": "MRR",
+          "systemZh": "左智驾网/前置毫米波雷达(MRR)/前置毫米波雷达(比亚迪)(MRR)",
+          "networkZh": "左智驾网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1494,
+          "token": "MRR",
+          "systemZh": "左智驾网/前置毫米波雷达(MRR)/前置毫米波雷达(森思泰克)(MRR)",
+          "networkZh": "左智驾网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "760",
+      "abbreviation": "LFCR",
+      "F194": [
+        "474E0011DF82000000"
+      ],
+      "exactTokens": [
+        "LFCR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "LFCR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_LFCR_BYD_00100001",
+        "HTH-2021_LFCR_WHST_00100001",
+        "HTH-2021_LFCR_chengtech_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1485,
+          "token": "LFCR",
+          "systemZh": "左智驾网/左前角雷达(LFCR)/左前角雷达(比亚迪)(LFCR)",
+          "networkZh": "左智驾网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1486,
+          "token": "LFCR",
+          "systemZh": "左智驾网/左前角雷达(LFCR)/左前角雷达(森思泰克)(LFCR)",
+          "networkZh": "左智驾网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "761",
+      "abbreviation": "RFCR",
+      "F194": [
+        "474E0011DF82000000"
+      ],
+      "exactTokens": [
+        "RFCR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "RFCR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_RFCR_BYD_00100001",
+        "HTH-2021_RFCR_WHST_00100001",
+        "HTH-2021_RFCR_chengtech_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1487,
+          "token": "RFCR",
+          "systemZh": "左智驾网/右前角雷达(RFCR)/右前角雷达(森思泰克)(RFCR)",
+          "networkZh": "左智驾网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1488,
+          "token": "RFCR",
+          "systemZh": "左智驾网/右前角雷达(RFCR)/右前角雷达(比亚迪)(RFCR)",
+          "networkZh": "左智驾网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7C2",
+      "abbreviation": "RRCR",
+      "F194": [
+        "474E0011DF82000000"
+      ],
+      "exactTokens": [
+        "RRCR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "BSD",
+        "RRCR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_BSD_BYD_00100001",
+        "HTH-2021_BSD_WHST_00100001",
+        "HTH-2021_RRCR_chengtech_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1489,
+          "token": "BSD",
+          "systemZh": "左智驾网/盲区监测(BSD)/盲区监测(森思泰克)(BSD)",
+          "networkZh": "左智驾网",
+          "basis": "same_CAN_F194_cache_factory_family",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1490,
+          "token": "BSD",
+          "systemZh": "左智驾网/盲区监测(BSD)/盲区监测(比亚迪)(BSD)",
+          "networkZh": "左智驾网",
+          "basis": "same_CAN_F194_cache_factory_family",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7D4",
+      "abbreviation": "LRCR",
+      "F194": [
+        "474E0011DF82000000"
+      ],
+      "exactTokens": [
+        "LRCR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "BSD_R",
+        "LRCR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_BSD_R_BYD_00100001",
+        "HTH-2021_BSD_R_WHST_00100001",
+        "HTH-2021_LRCR_chengtech_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1491,
+          "token": "BSD_R",
+          "systemZh": "左智驾网/从盲区监测(BSD_R)/从盲区监测(森思泰克)(BSD_R)",
+          "networkZh": "左智驾网",
+          "basis": "same_CAN_F194_cache_factory_family",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1492,
+          "token": "BSD_R",
+          "systemZh": "左智驾网/从盲区监测(BSD_R)/从盲区监测(比亚迪)(BSD_R)",
+          "networkZh": "左智驾网",
+          "basis": "same_CAN_F194_cache_factory_family",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "701",
+      "abbreviation": "IPA",
+      "F194": [
+        "32330011DF42000000"
+      ],
+      "exactTokens": [
+        "IPA"
+      ],
+      "factoryF194QualifiedTokens": [
+        "IPA"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_IPA_BOSCH_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1495,
+          "token": "IPA",
+          "systemZh": "左智驾网/自动泊车(博世)(IPA)",
+          "networkZh": "左智驾网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "720",
+      "abbreviation": "LA_BCM",
+      "F194": [],
+      "exactTokens": [
+        "LA_BCM"
+      ],
+      "factoryF194QualifiedTokens": [],
+      "factoryQualifiedEcuIds": [],
+      "xtoolRows": [],
+      "vendorConsensus": {
+        "identification": null,
+        "dtc": null,
+        "liveData": null,
+        "freezeFrame": null
+      },
+      "unmatchedMeansUnknownNotUnsupported": true,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "747",
+      "abbreviation": "R_ZCU",
+      "F194": [],
+      "exactTokens": [
+        "R_ZCU"
+      ],
+      "factoryF194QualifiedTokens": [],
+      "factoryQualifiedEcuIds": [],
+      "xtoolRows": [
+        {
+          "rowId": 1395,
+          "token": "R_ZCU",
+          "systemZh": "多媒体网/右域控制器(比亚迪)(R_ZCU)",
+          "networkZh": "多媒体网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "722",
+      "abbreviation": "F_ZCU",
+      "F194": [],
+      "exactTokens": [
+        "F_ZCU"
+      ],
+      "factoryF194QualifiedTokens": [],
+      "factoryQualifiedEcuIds": [],
+      "xtoolRows": [
+        {
+          "rowId": 1394,
+          "token": "F_ZCU",
+          "systemZh": "多媒体网/前域控制器(比亚迪)(F_ZCU)",
+          "networkZh": "多媒体网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "726",
+      "abbreviation": "B_ZCU",
+      "F194": [],
+      "exactTokens": [
+        "B_ZCU"
+      ],
+      "factoryF194QualifiedTokens": [],
+      "factoryQualifiedEcuIds": [],
+      "xtoolRows": [
+        {
+          "rowId": 1393,
+          "token": "B_ZCU",
+          "systemZh": "多媒体网/后域控制器(比亚迪)(B_ZCU)",
+          "networkZh": "多媒体网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "770",
+      "abbreviation": "FL_L",
+      "F194": [
+        "48330011DF2B000201"
+      ],
+      "exactTokens": [
+        "FL_L"
+      ],
+      "factoryF194QualifiedTokens": [
+        "FL_L"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_FL_L_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1419,
+          "token": "FL_L",
+          "systemZh": "前智能网/左前组合灯(比亚迪)(FL_L)",
+          "networkZh": "前智能网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "771",
+      "abbreviation": "FL_R",
+      "F194": [
+        "48330011DF2C000202"
+      ],
+      "exactTokens": [
+        "FL_R"
+      ],
+      "factoryF194QualifiedTokens": [
+        "FL_R"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_FL_R_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1420,
+          "token": "FL_R",
+          "systemZh": "前智能网/右前组合灯(比亚迪)(FL_R)",
+          "networkZh": "前智能网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7F3",
+      "abbreviation": "UWBMC",
+      "F194": [
+        "3244001182C7000000"
+      ],
+      "exactTokens": [
+        "UWBMC"
+      ],
+      "factoryF194QualifiedTokens": [
+        "UWBMC"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_UWBMC_KOSTAL_00100001",
+        "HTH-2021_UWBMC_UAES_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1367,
+          "token": "UWBMC",
+          "systemZh": "UWB子网/UWB主控制器(联电)(UWBMC)",
+          "networkZh": "UWB子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7F4",
+      "abbreviation": "UWBLFA",
+      "F194": [
+        "3244001183C8002000"
+      ],
+      "exactTokens": [
+        "UWBLFA"
+      ],
+      "factoryF194QualifiedTokens": [
+        "UWBLFA"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_UWBLFA_KOSTAL_00100001",
+        "HTH-2021_UWBLFA_UAES_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1368,
+          "token": "UWBLFA",
+          "systemZh": "UWB子网/UWB左前锚点(联电)(UWBLFA)",
+          "networkZh": "UWB子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7F5",
+      "abbreviation": "UWBRFA",
+      "F194": [
+        "3244001183C8002000"
+      ],
+      "exactTokens": [
+        "UWBRFA"
+      ],
+      "factoryF194QualifiedTokens": [
+        "UWBRFA"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_UWBRFA_KOSTAL_00100001",
+        "HTH-2021_UWBRFA_UAES_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1369,
+          "token": "UWBRFA",
+          "systemZh": "UWB子网/UWB右前锚点(联电)(UWBRFA)",
+          "networkZh": "UWB子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7F6",
+      "abbreviation": "UWBLRA",
+      "F194": [
+        "3244001183C8002000"
+      ],
+      "exactTokens": [
+        "UWBLRA"
+      ],
+      "factoryF194QualifiedTokens": [
+        "UWBLRA"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_UWBLRA_KOSTAL_00100001",
+        "HTH-2021_UWBLRA_UAES_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1370,
+          "token": "UWBLRA",
+          "systemZh": "UWB子网/UWB左后锚点(联电)(UWBLRA)",
+          "networkZh": "UWB子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7F7",
+      "abbreviation": "UWBRRA",
+      "F194": [
+        "3244001183C8002000"
+      ],
+      "exactTokens": [
+        "UWBRRA"
+      ],
+      "factoryF194QualifiedTokens": [
+        "UWBRRA"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_UWBRRA_KOSTAL_00100001",
+        "HTH-2021_UWBRRA_UAES_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1371,
+          "token": "UWBRRA",
+          "systemZh": "UWB子网/UWB右后锚点(联电)(UWBRRA)",
+          "networkZh": "UWB子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "723",
+      "abbreviation": "INS",
+      "F194": [
+        "4B450011E0250037B1"
+      ],
+      "exactTokens": [
+        "INS"
+      ],
+      "factoryF194QualifiedTokens": [
+        "INS"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_INS_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1400,
+          "token": "INS",
+          "systemZh": "多媒体网/组合仪表(比亚迪)(INS)",
+          "networkZh": "多媒体网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "751",
+      "abbreviation": "AMP",
+      "F194": [
+        "5A4A0011DE4A000000"
+      ],
+      "exactTokens": [
+        "AMP"
+      ],
+      "factoryF194QualifiedTokens": [
+        "AMP"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_AMP_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1465,
+          "token": "AMP",
+          "systemZh": "左车身网2/外置功放(比亚迪)(AMP)",
+          "networkZh": "左车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "733",
+      "abbreviation": "WCT",
+      "F194": [
+        "47370011DE06000000"
+      ],
+      "exactTokens": [
+        "WCT"
+      ],
+      "factoryF194QualifiedTokens": [
+        "WCT"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_WCT_BJYG_00200001",
+        "HTH-2021_WCT_TEME_00100001",
+        "HTH-2021_WCT_ADAYO_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1473,
+          "token": "WCT",
+          "systemZh": "左车身网2/无线充电模块(WCT)/无线充电模块(浙江泰米)(WCT)",
+          "networkZh": "左车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1474,
+          "token": "WCT",
+          "systemZh": "左车身网2/无线充电模块(WCT)/无线充电模块(华阳)(WCT)",
+          "networkZh": "左车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "711",
+      "abbreviation": "SWS",
+      "F194": [
+        "4D540011DE1E000000"
+      ],
+      "exactTokens": [
+        "SWS"
+      ],
+      "factoryF194QualifiedTokens": [
+        "SWS"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_SWS_BYD_00100001",
+        "HTH-2021_SWS_JOYSON_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1467,
+          "token": "SWS",
+          "systemZh": "左车身网2/转向盘开关(均胜)(SWS)",
+          "networkZh": "左车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "741",
+      "abbreviation": "Media",
+      "F194": [
+        "4B450011E0930034E2"
+      ],
+      "exactTokens": [
+        "MEDIA"
+      ],
+      "factoryF194QualifiedTokens": [],
+      "factoryQualifiedEcuIds": [],
+      "xtoolRows": [
+        {
+          "rowId": 1399,
+          "token": "MEDIA",
+          "systemZh": "多媒体网/多媒体系统_安卓(比亚迪)(MEDIA)",
+          "networkZh": "多媒体网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "5E7",
+      "abbreviation": "ASSY",
+      "F194": [
+        "4B450011DF990042E2"
+      ],
+      "exactTokens": [
+        "ASSY"
+      ],
+      "factoryF194QualifiedTokens": [],
+      "factoryQualifiedEcuIds": [],
+      "xtoolRows": [
+        {
+          "rowId": 1408,
+          "token": "ASSY",
+          "systemZh": "多媒体网/主机总成(从)(比亚迪)(ASSY)",
+          "networkZh": "多媒体网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7B0",
+      "abbreviation": "HUD",
+      "F194": [
+        "48330011DE80000103"
+      ],
+      "exactTokens": [
+        "HUD"
+      ],
+      "factoryF194QualifiedTokens": [
+        "HUD"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_HUD_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1456,
+          "token": "HUD",
+          "systemZh": "左车身网1/抬头显示屏(比亚迪)(HUD)",
+          "networkZh": "左车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "790",
+      "abbreviation": "ETC",
+      "F194": [
+        "4B580011AD01990000"
+      ],
+      "exactTokens": [
+        "ETC"
+      ],
+      "factoryF194QualifiedTokens": [
+        "ETC"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_ETC_Genvict_00100001",
+        "HTH-2021_ETC_Vanjee_00100001",
+        "HTH-2021_ETC_Julitech_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1437,
+          "token": "ETC",
+          "systemZh": "右车身网2/ETC总成(金溢科技)(ETC)",
+          "networkZh": "右车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1476,
+          "token": "ETC",
+          "systemZh": "左车身网2/ETC总成(ETC)/ETC总成(北京聚利)(ETC)",
+          "networkZh": "左车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1477,
+          "token": "ETC",
+          "systemZh": "左车身网2/ETC总成(ETC)/ETC总成(万集)(ETC)",
+          "networkZh": "左车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "5E0",
+      "abbreviation": "CPD",
+      "F194": [
+        "52420011DF9E000000"
+      ],
+      "exactTokens": [
+        "CPD"
+      ],
+      "factoryF194QualifiedTokens": [
+        "REAR CPD RADAR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_rear CPD radar_Valeo_00100001",
+        "HTH-2021_rear CPD radar_Mindcruise_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1471,
+          "token": "REAR CPD RADAR",
+          "systemZh": "左车身网2/后CPD毫米波雷达(REAR CPD RADAR)/后CPD毫米波雷达(蛮酷科技)(REAR CPD RADAR)",
+          "networkZh": "左车身网2",
+          "basis": "same_CAN_F194_cache_factory_family",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1472,
+          "token": "REAR CPD RADAR",
+          "systemZh": "左车身网2/后CPD毫米波雷达(REAR CPD RADAR)/后CPD毫米波雷达(法雷奥)(REAR CPD RADAR)",
+          "networkZh": "左车身网2",
+          "basis": "same_CAN_F194_cache_factory_family",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7B3",
+      "abbreviation": "ACC",
+      "F194": [
+        "48440012AD14004501"
+      ],
+      "exactTokens": [
+        "ACC"
+      ],
+      "factoryF194QualifiedTokens": [
+        "ACC"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_ACC_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1418,
+          "token": "ACC",
+          "systemZh": "前车身网/空调压缩机(比亚迪)(ACC)",
+          "networkZh": "前车身网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7B4",
+      "abbreviation": "TMIM",
+      "F194": [
+        "344E0011E001620101"
+      ],
+      "exactTokens": [
+        "TMIM"
+      ],
+      "factoryF194QualifiedTokens": [
+        "TMIM"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_TMIM_TUOPU_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1331,
+          "token": "TMIM",
+          "systemZh": "ECM子网/热管理集成模块(宁波拓普)(TMIM)",
+          "networkZh": "ECM子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "766",
+      "abbreviation": "PTC",
+      "F194": [
+        "59340011E015000000"
+      ],
+      "exactTokens": [
+        "PTC"
+      ],
+      "factoryF194QualifiedTokens": [
+        "PTC"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_PTC_HGTECH_00300001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1434,
+          "token": "PTC",
+          "systemZh": "右车身网2/风辅助加热(华工高理)(PTC)",
+          "networkZh": "右车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "762",
+      "abbreviation": "LBMS",
+      "F194": [],
+      "exactTokens": [
+        "LBMS"
+      ],
+      "factoryF194QualifiedTokens": [],
+      "factoryQualifiedEcuIds": [],
+      "xtoolRows": [
+        {
+          "rowId": 1480,
+          "token": "LBMS",
+          "systemZh": "左能量网/低压电池管理系统(比亚迪)(LBMS)",
+          "networkZh": "左能量网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "743",
+      "abbreviation": "PDC-VCU",
+      "F194": [
+        "48370011E002066441"
+      ],
+      "exactTokens": [
+        "PDC-VCU"
+      ],
+      "factoryF194QualifiedTokens": [
+        "PDC-VCU"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_PDC-VCU_FDP_00100001",
+        "HTH-2021_PDC-VCU_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1386,
+          "token": "PDC-VCU",
+          "systemZh": "底盘网-电控子网/动力域控制器-VCU(比亚迪)(PDC-VCU)",
+          "networkZh": "底盘网-电控子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "724",
+      "abbreviation": "PDCMB",
+      "F194": [
+        "4A440011DF01510001"
+      ],
+      "exactTokens": [
+        "PDCMB"
+      ],
+      "factoryF194QualifiedTokens": [
+        "PDCMB"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_PDCMB_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1409,
+          "token": "PDCMB",
+          "systemZh": "后车身网/背门AR投影感应控制模块(比亚迪)(PDCMB)",
+          "networkZh": "后车身网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "725",
+      "abbreviation": "CS",
+      "F194": [
+        "48490011DF1D000000"
+      ],
+      "exactTokens": [
+        "CS"
+      ],
+      "factoryF194QualifiedTokens": [
+        "CS"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_CS_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1468,
+          "token": "CS",
+          "systemZh": "左车身网2/组合开关(比亚迪)(CS)",
+          "networkZh": "左车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "713",
+      "abbreviation": "MSRF",
+      "F194": [
+        "48430011AD30000202"
+      ],
+      "exactTokens": [
+        "MSRF"
+      ],
+      "factoryF194QualifiedTokens": [
+        "MSRF"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_MSRF_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1433,
+          "token": "MSRF",
+          "systemZh": "右车身网2/副驾电动预紧安全带(比亚迪)(MSRF)",
+          "networkZh": "右车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "742",
+      "abbreviation": "MSRZ",
+      "F194": [
+        "48430011AD1A000201"
+      ],
+      "exactTokens": [
+        "MSRZ"
+      ],
+      "factoryF194QualifiedTokens": [
+        "MSRZ"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_MSRZ_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1466,
+          "token": "MSRZ",
+          "systemZh": "左车身网2/主驾电动预紧安全带(比亚迪)(MSRZ)",
+          "networkZh": "左车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "750",
+      "abbreviation": "DUCU",
+      "F194": [
+        "4B310011DF016A0001"
+      ],
+      "exactTokens": [
+        "DUCU"
+      ],
+      "factoryF194QualifiedTokens": [
+        "DUCU"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_DUCU_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1464,
+          "token": "DUCU",
+          "systemZh": "左车身网1/主驾通用控制器mini(比亚迪)(DUCU)",
+          "networkZh": "左车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7B5",
+      "abbreviation": "PUCU",
+      "F194": [
+        "4B310011DF016B0001"
+      ],
+      "exactTokens": [
+        "PUCU"
+      ],
+      "factoryF194QualifiedTokens": [
+        "PUCU"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_PUCU_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1431,
+          "token": "PUCU",
+          "systemZh": "右车身网1/副驾通用控制器mini(比亚迪)(PUCU)",
+          "networkZh": "右车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7D2",
+      "abbreviation": "MLUCU",
+      "F194": [
+        "4B310011DF016C0001"
+      ],
+      "exactTokens": [
+        "MLUCU"
+      ],
+      "factoryF194QualifiedTokens": [
+        "MLUCU"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_MLUCU_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1417,
+          "token": "MLUCU",
+          "systemZh": "后智能网/中排左侧通用控制器mini(比亚迪)(MLUCU)",
+          "networkZh": "后智能网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "754",
+      "abbreviation": "HFRM",
+      "F194": [
+        "48490011AD0C000004"
+      ],
+      "exactTokens": [
+        "HFRM"
+      ],
+      "factoryF194QualifiedTokens": [
+        "HFRM"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_HFRM_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1410,
+          "token": "HFRM",
+          "systemZh": "后智能网/钥匙高频接收模块(比亚迪)(HFRM)",
+          "networkZh": "后智能网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": false,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7A7",
+      "abbreviation": "CCS/SCPA",
+      "F194": [
+        "48490011DF55000100"
+      ],
+      "exactTokens": [
+        "CCS",
+        "SCPA"
+      ],
+      "factoryF194QualifiedTokens": [
+        "CCS",
+        "SCPA"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_CCS_BYD_00100001",
+        "HTH-2021_SCPA_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1481,
+          "token": "SCPA",
+          "systemZh": "左能量网/换挡操纵机构面板总成(比亚迪)(SCPA)",
+          "networkZh": "左能量网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7C6",
+      "abbreviation": "RRCP",
+      "F194": [
+        "48580011DF02220000"
+      ],
+      "exactTokens": [
+        "RRCP"
+      ],
+      "factoryF194QualifiedTokens": [
+        "RRCP"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_RRCP_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1439,
+          "token": "RRCP",
+          "systemZh": "右车身网2/后冰箱控制面板(比亚迪)(RRCP)",
+          "networkZh": "右车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "7D6",
+      "abbreviation": "SEC",
+      "F194": [
+        "484900118C0A001000"
+      ],
+      "exactTokens": [
+        "SEC"
+      ],
+      "factoryF194QualifiedTokens": [
+        "SEC"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_SEC_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1458,
+          "token": "SEC",
+          "systemZh": "左车身网1/智能进入控制器(比亚迪)(SEC)",
+          "networkZh": "左车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "582",
+      "abbreviation": "RWS-L",
+      "F194": [
+        "484B0011DF02030100"
+      ],
+      "exactTokens": [
+        "RWS-L"
+      ],
+      "factoryF194QualifiedTokens": [
+        "RWS-L"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_RWS-L_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1381,
+          "token": "RWS-L",
+          "systemZh": "底盘网/左后轮转向器总成(比亚迪)(RWS-L)",
+          "networkZh": "底盘网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "796",
+      "abbreviation": "RWS-R",
+      "F194": [
+        "484B0011DF02020100"
+      ],
+      "exactTokens": [
+        "RWS-R"
+      ],
+      "factoryF194QualifiedTokens": [
+        "RWS-R"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_RWS-R_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1382,
+          "token": "RWS-R",
+          "systemZh": "底盘网/右后轮转向器总成(比亚迪)(RWS-R)",
+          "networkZh": "底盘网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "590",
+      "abbreviation": "AQDM",
+      "F194": [
+        "4A440011DE014A0101"
+      ],
+      "exactTokens": [
+        "AQDM"
+      ],
+      "factoryF194QualifiedTokens": [
+        "AQDM"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_AQDM_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1435,
+          "token": "AQDM",
+          "systemZh": "右车身网2/空气质量检测模块(比亚迪)(AQDM)",
+          "networkZh": "右车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": false,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": false,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "595",
+      "abbreviation": "R-NCM",
+      "F194": [
+        "48490011A401162104"
+      ],
+      "exactTokens": [
+        "R-NCM"
+      ],
+      "factoryF194QualifiedTokens": [
+        "R-NCM"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_R-NCM_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1372,
+          "token": "R-NCM",
+          "systemZh": "UWB子网/右NFC控制模块(比亚迪)(R-NCM)",
+          "networkZh": "UWB子网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "597",
+      "abbreviation": "IDC",
+      "F194": [
+        "4B4D0011DE01140600"
+      ],
+      "exactTokens": [
+        "IDC"
+      ],
+      "factoryF194QualifiedTokens": [
+        "IDC"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_IDC_BYD_00100001",
+        "HTH-2021_IDC_BYD_00200001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1377,
+          "token": "IDC",
+          "systemZh": "底盘网/整车运动控制器(比亚迪)(IDC)",
+          "networkZh": "底盘网",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "5A0",
+      "abbreviation": "VR",
+      "F194": [
+        "4A500011DE01130000"
+      ],
+      "exactTokens": [
+        "VR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "VR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_VR_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1432,
+          "token": "VR",
+          "systemZh": "右车身网1/车载冰箱(比亚迪)(VR)",
+          "networkZh": "右车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": false,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "5A7",
+      "abbreviation": "RR_SDR",
+      "F194": [
+        "48490011DF01050000"
+      ],
+      "exactTokens": [
+        "RR_SDR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "RR_SDR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_RR_SDR_WHST_00100001",
+        "HTH-2021_RR_SDR_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1427,
+          "token": "RR_SDR",
+          "systemZh": "右车身网1/右后侧门雷达(RR_SDR)/右后侧门雷达(比亚迪)(RR_SDR)",
+          "networkZh": "右车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1428,
+          "token": "RR_SDR",
+          "systemZh": "右车身网1/右后侧门雷达(RR_SDR)/右后侧门雷达(森思泰克)(RR_SDR)",
+          "networkZh": "右车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "5B0",
+      "abbreviation": "RL_SDR",
+      "F194": [
+        "48490011DF01040000"
+      ],
+      "exactTokens": [
+        "RL_SDR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "RL_SDR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_RL_SDR_WHST_00100001",
+        "HTH-2021_RL_SDR_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1459,
+          "token": "RL_SDR",
+          "systemZh": "左车身网1/左后侧门雷达(RL_SDR)/左后侧门雷达(比亚迪)(RL_SDR)",
+          "networkZh": "左车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1460,
+          "token": "RL_SDR",
+          "systemZh": "左车身网1/左后侧门雷达(RL_SDR)/左后侧门雷达(森思泰克)(RL_SDR)",
+          "networkZh": "左车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "5B1",
+      "abbreviation": "FR_SDR",
+      "F194": [
+        "48490011DF01030000"
+      ],
+      "exactTokens": [
+        "FR_SDR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "FR_SDR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_FR_SDR_WHST_00100001",
+        "HTH-2021_FR_SDR_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1425,
+          "token": "FR_SDR",
+          "systemZh": "右车身网1/右前侧门雷达(FR_SDR)/右前侧门雷达(比亚迪)(FR_SDR)",
+          "networkZh": "右车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1426,
+          "token": "FR_SDR",
+          "systemZh": "右车身网1/右前侧门雷达(FR_SDR)/右前侧门雷达(森思泰克)(FR_SDR)",
+          "networkZh": "右车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "5B2",
+      "abbreviation": "FL_SDR",
+      "F194": [
+        "48490011DF01020000"
+      ],
+      "exactTokens": [
+        "FL_SDR"
+      ],
+      "factoryF194QualifiedTokens": [
+        "FL_SDR"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_FL_SDR_WHST_00100001",
+        "HTH-2021_FL_SDR_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1461,
+          "token": "FL_SDR",
+          "systemZh": "左车身网1/左前侧门雷达(FL_SDR)/左前侧门雷达(比亚迪)(FL_SDR)",
+          "networkZh": "左车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        },
+        {
+          "rowId": 1462,
+          "token": "FL_SDR",
+          "systemZh": "左车身网1/左前侧门雷达(FL_SDR)/左前侧门雷达(森思泰克)(FL_SDR)",
+          "networkZh": "左车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": true,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "5E4",
+      "abbreviation": "MCPA",
+      "F194": [
+        "514A0011DE7B000000"
+      ],
+      "exactTokens": [
+        "MCPA"
+      ],
+      "factoryF194QualifiedTokens": [
+        "MCPA"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_MCPA_KOSTAL_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1429,
+          "token": "MCPA",
+          "systemZh": "右车身网1/中排控制面板总成(科世达)(MCPA)",
+          "networkZh": "右车身网1",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "5F4",
+      "abbreviation": "RCP",
+      "F194": [
+        "48580011DF01750000"
+      ],
+      "exactTokens": [
+        "RCP"
+      ],
+      "factoryF194QualifiedTokens": [
+        "RCP"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_RCP_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1438,
+          "token": "RCP",
+          "systemZh": "右车身网2/冰箱控制面板(比亚迪)(RCP)",
+          "networkZh": "右车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    },
+    {
+      "requestHex": "772",
+      "abbreviation": "FRL",
+      "F194": [
+        "48330011DEE3000000"
+      ],
+      "exactTokens": [
+        "FRL"
+      ],
+      "factoryF194QualifiedTokens": [
+        "FRL"
+      ],
+      "factoryQualifiedEcuIds": [
+        "HTH-2021_FRL_BYD_00100001"
+      ],
+      "xtoolRows": [
+        {
+          "rowId": 1436,
+          "token": "FRL",
+          "systemZh": "右车身网2/前室内灯(比亚迪)(FRL)",
+          "networkZh": "右车身网2",
+          "basis": "exact_live_abbreviation_token",
+          "capabilities": {
+            "identification": true,
+            "dtc": true,
+            "liveData": false,
+            "freezeFrame": false
+          }
+        }
+      ],
+      "vendorConsensus": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "unmatchedMeansUnknownNotUnsupported": false,
+      "limits": "Xtool model support only, not current ECU software/transport. Live abbreviation is a retained catalog label, not an ECU self-description. Multiple supplier/code aliases do not select an installed supplier."
+    }
+  ]
+}

@@ -1,0 +1,5376 @@
+{
+  "schema": "denza-lab.inventory-name-gaps.v1",
+  "date": "2026-10-21",
+  "policy": "Case-insensitive exact token/factory family only. Numeric suffixes and semantics retained as research hypotheses, never route or child-DID bindings.",
+  "summary": {
+    "xtoolRows": 172,
+    "xtoolUniqueTokens": 147,
+    "exactFactoryFamilyMatchedTokens": 100,
+    "xtoolUnboundTokens": 47,
+    "factoryUnmatchedFamilyTokens": 23
+  },
+  "xtoolRows": [
+    {
+      "rowId": 1324,
+      "page": 1,
+      "pointer": "/data/Data/0",
+      "token": "TL_L",
+      "systemZh": "BLIN2网/左尾灯控制模块(LIN)(比亚迪)(TL_L)",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        71,
+        72
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1325,
+      "page": 1,
+      "pointer": "/data/Data/1",
+      "token": "TL_R",
+      "systemZh": "BLIN2网/右尾灯控制模块(LIN)(比亚迪)(TL_R)",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        73,
+        74
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1326,
+      "page": 1,
+      "pointer": "/data/Data/2",
+      "token": "RL_R",
+      "systemZh": "BLIN2网/右组合后灯控制模块(LIN)(比亚迪)(RL_R)",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        69,
+        70
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1327,
+      "page": 1,
+      "pointer": "/data/Data/3",
+      "token": "RL_L",
+      "systemZh": "BLIN2网/左组合后灯控制模块(LIN)(比亚迪)(RL_L)",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        67,
+        68
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1328,
+      "page": 1,
+      "pointer": "/data/Data/4",
+      "token": "WSM",
+      "systemZh": "BLIN2网/电子雨刮电机控制器(博世)(WSM)",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        27
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1329,
+      "page": 1,
+      "pointer": "/data/Data/5",
+      "token": "CIL",
+      "systemZh": "BLIN2网/充电口指示灯(比亚迪)(CIL)",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        130
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1330,
+      "page": 1,
+      "pointer": "/data/Data/6",
+      "token": "L_CIL",
+      "systemZh": "BLIN2网/左充电口指示灯(比亚迪)(L_CIL)",
+      "networkZh": "BLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        84
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1331,
+      "page": 1,
+      "pointer": "/data/Data/7",
+      "token": "TMIM",
+      "systemZh": "ECM子网/热管理集成模块(宁波拓普)(TMIM)",
+      "networkZh": "ECM子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        203
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1332,
+      "page": 1,
+      "pointer": "/data/Data/8",
+      "token": "DAL1",
+      "systemZh": "LLIN1网/左前门反射式氛围灯前灯头(比亚迪)(DAL1)",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1333,
+      "page": 1,
+      "pointer": "/data/Data/9",
+      "token": "DAL2",
+      "systemZh": "LLIN1网/左前门反射式氛围灯后灯头(比亚迪)(DAL2)",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1334,
+      "page": 1,
+      "pointer": "/data/Data/10",
+      "token": "DAL3",
+      "systemZh": "LLIN1网/左前门扶手氛围灯左灯头(比亚迪)(DAL3)",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1335,
+      "page": 1,
+      "pointer": "/data/Data/11",
+      "token": "DAL4",
+      "systemZh": "LLIN1网/左前门扶手氛围灯右灯头(比亚迪)(DAL4)",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1336,
+      "page": 1,
+      "pointer": "/data/Data/12",
+      "token": "DAL5",
+      "systemZh": "LLIN1网/左前门面板氛围灯前灯头(流水)(比亚迪)(DAL5)",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1337,
+      "page": 1,
+      "pointer": "/data/Data/13",
+      "token": "DAL6",
+      "systemZh": "LLIN1网/左前门低音扬声器氛围灯前灯头(比亚迪)(DAL6)",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1338,
+      "page": 1,
+      "pointer": "/data/Data/14",
+      "token": "DAL7",
+      "systemZh": "LLIN1网/左前门低音扬声器氛围灯后灯头(比亚迪)(DAL7)",
+      "networkZh": "LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1339,
+      "page": 1,
+      "pointer": "/data/Data/15",
+      "token": "DIDAL",
+      "systemZh": "LLIN2网/副仪表板后风口中间氛围灯(比亚迪)(DIDAL)",
+      "networkZh": "LLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        131,
+        132,
+        133,
+        134,
+        135,
+        136
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1340,
+      "page": 1,
+      "pointer": "/data/Data/16",
+      "token": "DAL8",
+      "systemZh": "LLIN3网/左后门反射式氛围灯前灯头(比亚迪)(DAL8)",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1341,
+      "page": 1,
+      "pointer": "/data/Data/17",
+      "token": "DAL9",
+      "systemZh": "LLIN3网/左后门反射式氛围灯后灯头(比亚迪)(DAL9)",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1342,
+      "page": 1,
+      "pointer": "/data/Data/18",
+      "token": "DAL10",
+      "systemZh": "LLIN3网/左后门扶手氛围灯左灯头(比亚迪)(DAL10)",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1343,
+      "page": 1,
+      "pointer": "/data/Data/19",
+      "token": "DAL11",
+      "systemZh": "LLIN3网/左后门扶手氛围灯右灯头(比亚迪)(DAL11)",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1344,
+      "page": 1,
+      "pointer": "/data/Data/20",
+      "token": "DAL12",
+      "systemZh": "LLIN3网/左后门低音扬声器氛围灯前灯头(比亚迪)(DAL12)",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1345,
+      "page": 1,
+      "pointer": "/data/Data/21",
+      "token": "DAL13",
+      "systemZh": "LLIN3网/左后门低音扬声器氛围灯后灯头(比亚迪)(DAL13)",
+      "networkZh": "LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1346,
+      "page": 1,
+      "pointer": "/data/Data/22",
+      "token": "HOD",
+      "systemZh": "LLIN4网/转向盘离手检测(均胜)(HOD)",
+      "networkZh": "LLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        63
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1347,
+      "page": 1,
+      "pointer": "/data/Data/23",
+      "token": "FAOM",
+      "systemZh": "RLIN1网/前排出风口电机(延锋)(FAOM)",
+      "networkZh": "RLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        30
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1348,
+      "page": 1,
+      "pointer": "/data/Data/24",
+      "token": "AOM",
+      "systemZh": "RLIN2网/后排出风口电机(延锋)(AOM)",
+      "networkZh": "RLIN2网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        57
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1349,
+      "page": 1,
+      "pointer": "/data/Data/25",
+      "token": "VFRAG",
+      "systemZh": "RLIN3网/车载香氛总成(比亚迪)(VFRAG)",
+      "networkZh": "RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        162
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1350,
+      "page": 1,
+      "pointer": "/data/Data/26",
+      "token": "DAL14",
+      "systemZh": "RLIN4网/右前门面板氛围灯前灯头(流水)(比亚迪)(DAL14)",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1351,
+      "page": 1,
+      "pointer": "/data/Data/27",
+      "token": "DAL15",
+      "systemZh": "RLIN4网/右前门反射式氛围灯前灯头(比亚迪)(DAL15)",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1352,
+      "page": 1,
+      "pointer": "/data/Data/28",
+      "token": "DAL16",
+      "systemZh": "RLIN4网/右前门反射式氛围灯后灯头(比亚迪)(DAL16)",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1353,
+      "page": 1,
+      "pointer": "/data/Data/29",
+      "token": "DAL17",
+      "systemZh": "RLIN4网/右前门扶手氛围灯右灯头(比亚迪)(DAL17)",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1354,
+      "page": 1,
+      "pointer": "/data/Data/30",
+      "token": "DAL18",
+      "systemZh": "RLIN4网/右前门低音扬声器氛围灯前灯头(比亚迪)(DAL18)",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1355,
+      "page": 1,
+      "pointer": "/data/Data/31",
+      "token": "DAL19",
+      "systemZh": "RLIN4网/右前门低音扬声器氛围灯后灯头(比亚迪)(DAL19)",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1356,
+      "page": 1,
+      "pointer": "/data/Data/32",
+      "token": "DAL20",
+      "systemZh": "RLIN4网/右前门扶手氛围灯左灯头(比亚迪)(DAL20)",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1357,
+      "page": 1,
+      "pointer": "/data/Data/33",
+      "token": "WLMFR",
+      "systemZh": "RLIN4网/右前窗玻璃升降电机(比亚迪)(WLMFR)",
+      "networkZh": "RLIN4网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        46,
+        47
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1358,
+      "page": 1,
+      "pointer": "/data/Data/34",
+      "token": "DAL21",
+      "systemZh": "RLIN6网/右后门反射式氛围灯前灯头(比亚迪)(DAL21)",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1359,
+      "page": 1,
+      "pointer": "/data/Data/35",
+      "token": "DAL22",
+      "systemZh": "RLIN6网/右后门反射式氛围灯后灯头(比亚迪)(DAL22)",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1360,
+      "page": 1,
+      "pointer": "/data/Data/36",
+      "token": "DAL23",
+      "systemZh": "RLIN6网/右后门扶手氛围灯左灯头(比亚迪)(DAL23)",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1361,
+      "page": 1,
+      "pointer": "/data/Data/37",
+      "token": "DAL24",
+      "systemZh": "RLIN6网/右后门扶手氛围灯右灯头(比亚迪)(DAL24)",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1362,
+      "page": 1,
+      "pointer": "/data/Data/38",
+      "token": "DAL25",
+      "systemZh": "RLIN6网/右后门低音扬声器氛围灯前灯头(比亚迪)(DAL25)",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1363,
+      "page": 1,
+      "pointer": "/data/Data/39",
+      "token": "DAL26",
+      "systemZh": "RLIN6网/右后门低音扬声器氛围灯后灯头(比亚迪)(DAL26)",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1364,
+      "page": 1,
+      "pointer": "/data/Data/40",
+      "token": "WLMFR",
+      "systemZh": "RLIN6网/右前窗玻璃升降电机(恩坦华)(WLMFR)",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        46,
+        47
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1365,
+      "page": 1,
+      "pointer": "/data/Data/41",
+      "token": "WLMRR",
+      "systemZh": "RLIN6网/右后窗玻璃升降电机(比亚迪)(WLMRR)",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        50,
+        51
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1366,
+      "page": 1,
+      "pointer": "/data/Data/42",
+      "token": "WLMRR",
+      "systemZh": "RLIN6网/右后窗玻璃升降电机(恩坦华)(WLMRR)",
+      "networkZh": "RLIN6网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        50,
+        51
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1367,
+      "page": 1,
+      "pointer": "/data/Data/43",
+      "token": "UWBMC",
+      "systemZh": "UWB子网/UWB主控制器(联电)(UWBMC)",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        179,
+        188
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1368,
+      "page": 1,
+      "pointer": "/data/Data/44",
+      "token": "UWBLFA",
+      "systemZh": "UWB子网/UWB左前锚点(联电)(UWBLFA)",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        180,
+        187
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1369,
+      "page": 1,
+      "pointer": "/data/Data/45",
+      "token": "UWBRFA",
+      "systemZh": "UWB子网/UWB右前锚点(联电)(UWBRFA)",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        181,
+        185
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1370,
+      "page": 1,
+      "pointer": "/data/Data/46",
+      "token": "UWBLRA",
+      "systemZh": "UWB子网/UWB左后锚点(联电)(UWBLRA)",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        182,
+        186
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1371,
+      "page": 1,
+      "pointer": "/data/Data/47",
+      "token": "UWBRRA",
+      "systemZh": "UWB子网/UWB右后锚点(联电)(UWBRRA)",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        183,
+        184
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1372,
+      "page": 1,
+      "pointer": "/data/Data/48",
+      "token": "R-NCM",
+      "systemZh": "UWB子网/右NFC控制模块(比亚迪)(R-NCM)",
+      "networkZh": "UWB子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        176
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1373,
+      "page": 1,
+      "pointer": "/data/Data/49",
+      "token": "WLMRL",
+      "systemZh": "地板LLIN1网/左后窗玻璃升降电机(比亚迪)(WLMRL)",
+      "networkZh": "地板LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        48,
+        49
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1374,
+      "page": 1,
+      "pointer": "/data/Data/50",
+      "token": "WLMRL",
+      "systemZh": "地板LLIN1网/左后窗玻璃升降电机(恩坦华)(WLMRL)",
+      "networkZh": "地板LLIN1网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        48,
+        49
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1375,
+      "page": 1,
+      "pointer": "/data/Data/51",
+      "token": "SRS",
+      "systemZh": "底盘网/安全气囊(维宁尔)(SRS)",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        204
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1376,
+      "page": 1,
+      "pointer": "/data/Data/52",
+      "token": "DPEPS",
+      "systemZh": "底盘网/助力转向_DPEPS(天合)(DPEPS)",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        190
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1377,
+      "page": 1,
+      "pointer": "/data/Data/53",
+      "token": "IDC",
+      "systemZh": "底盘网/整车运动控制器(比亚迪)(IDC)",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        59,
+        60
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1378,
+      "page": 1,
+      "pointer": "/data/Data/54",
+      "token": "IDC_D2",
+      "systemZh": "底盘网/整车运动控制器D2(比亚迪)(IDC_D2)",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1379,
+      "page": 1,
+      "pointer": "/data/Data/55",
+      "token": "IPB",
+      "systemZh": "底盘网/电液制动(博世)(IPB)",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        192
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1380,
+      "page": 1,
+      "pointer": "/data/Data/56",
+      "token": "VCU",
+      "systemZh": "底盘网/整车控制器(联电)(VCU)",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        216,
+        217
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1381,
+      "page": 1,
+      "pointer": "/data/Data/57",
+      "token": "RWS-L",
+      "systemZh": "底盘网/左后轮转向器总成(比亚迪)(RWS-L)",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        82
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1382,
+      "page": 1,
+      "pointer": "/data/Data/58",
+      "token": "RWS-R",
+      "systemZh": "底盘网/右后轮转向器总成(比亚迪)(RWS-R)",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        81
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1383,
+      "page": 1,
+      "pointer": "/data/Data/59",
+      "token": "BSC",
+      "systemZh": "底盘网/安全系统(比亚迪)(BSC)",
+      "networkZh": "底盘网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        193
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1384,
+      "page": 1,
+      "pointer": "/data/Data/60",
+      "token": "ECM",
+      "systemZh": "底盘网-ECU子网/发动机控制器_[2.0TID]国六(联电)(ECM)",
+      "networkZh": "底盘网-ECU子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        208
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1385,
+      "page": 1,
+      "pointer": "/data/Data/61",
+      "token": "ISG",
+      "systemZh": "底盘网-电控子网/发电机控制器(比亚迪)(ISG)",
+      "networkZh": "底盘网-电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        220
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1386,
+      "page": 1,
+      "pointer": "/data/Data/62",
+      "token": "PDC-VCU",
+      "systemZh": "底盘网-电控子网/动力域控制器-VCU(比亚迪)(PDC-VCU)",
+      "networkZh": "底盘网-电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        222,
+        223
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1387,
+      "page": 1,
+      "pointer": "/data/Data/63",
+      "token": "SMCU3",
+      "systemZh": "电控子网/右后驱动电机控制器(比亚迪)(SMCU3)",
+      "networkZh": "电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        219
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1388,
+      "page": 1,
+      "pointer": "/data/Data/64",
+      "token": "SMCU",
+      "systemZh": "电控子网/左后驱动电机控制器(比亚迪)(SMCU)",
+      "networkZh": "电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        218
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1389,
+      "page": 1,
+      "pointer": "/data/Data/65",
+      "token": "FMCU",
+      "systemZh": "电控子网/前驱动电机控制器(比亚迪)(FMCU)",
+      "networkZh": "电控子网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        210
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1390,
+      "page": 1,
+      "pointer": "/data/Data/66",
+      "token": "FRL1",
+      "systemZh": "顶棚RLIN5网/前室内灯氛围灯左灯头(比亚迪)(FRL1)",
+      "networkZh": "顶棚RLIN5网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1391,
+      "page": 1,
+      "pointer": "/data/Data/67",
+      "token": "FRL2",
+      "systemZh": "顶棚RLIN5网/前室内灯氛围灯右灯头(比亚迪)(FRL2)",
+      "networkZh": "顶棚RLIN5网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1392,
+      "page": 1,
+      "pointer": "/data/Data/68",
+      "token": "FRL3",
+      "systemZh": "顶棚RLIN5网/前室内环境灯(比亚迪)(FRL3)",
+      "networkZh": "顶棚RLIN5网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1393,
+      "page": 1,
+      "pointer": "/data/Data/69",
+      "token": "B_ZCU",
+      "systemZh": "多媒体网/后域控制器(比亚迪)(B_ZCU)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        8,
+        9
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1394,
+      "page": 1,
+      "pointer": "/data/Data/70",
+      "token": "F_ZCU",
+      "systemZh": "多媒体网/前域控制器(比亚迪)(F_ZCU)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        2,
+        10
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1395,
+      "page": 1,
+      "pointer": "/data/Data/71",
+      "token": "R_ZCU",
+      "systemZh": "多媒体网/右域控制器(比亚迪)(R_ZCU)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        6,
+        7
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1396,
+      "page": 1,
+      "pointer": "/data/Data/72",
+      "token": "B_ZCU_CJ",
+      "systemZh": "多媒体网/后域控制器_交换机(比亚迪)(B_ZCU_CJ)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1397,
+      "page": 1,
+      "pointer": "/data/Data/73",
+      "token": "F_ZCU_CJ",
+      "systemZh": "多媒体网/前域控制器_交换机(比亚迪)(F_ZCU_CJ)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1398,
+      "page": 1,
+      "pointer": "/data/Data/74",
+      "token": "R_ZCU_CJ",
+      "systemZh": "多媒体网/右域控制器_交换机(比亚迪)(R_ZCU_CJ)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1399,
+      "page": 1,
+      "pointer": "/data/Data/75",
+      "token": "MEDIA",
+      "systemZh": "多媒体网/多媒体系统_安卓(比亚迪)(MEDIA)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        0
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1400,
+      "page": 1,
+      "pointer": "/data/Data/76",
+      "token": "INS",
+      "systemZh": "多媒体网/组合仪表(比亚迪)(INS)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        168,
+        169,
+        170
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1401,
+      "page": 1,
+      "pointer": "/data/Data/77",
+      "token": "LIDAR-L",
+      "systemZh": "多媒体网/前置激光雷达左(禾赛)(LIDAR-L)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        166,
+        167
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1402,
+      "page": 1,
+      "pointer": "/data/Data/78",
+      "token": "LIDAR-R",
+      "systemZh": "多媒体网/前置激光雷达右(禾赛)(LIDAR-R)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        172,
+        173
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1403,
+      "page": 1,
+      "pointer": "/data/Data/79",
+      "token": "LIDAR-M",
+      "systemZh": "多媒体网/前置激光雷达中(速腾聚创)(LIDAR-M)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        174
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1404,
+      "page": 1,
+      "pointer": "/data/Data/80",
+      "token": "LIDAR-L",
+      "systemZh": "多媒体网/前置激光雷达左(速腾聚创)(LIDAR-L)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        166,
+        167
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1405,
+      "page": 1,
+      "pointer": "/data/Data/81",
+      "token": "LIDAR-R",
+      "systemZh": "多媒体网/前置激光雷达右(速腾聚创)(LIDAR-R)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": false,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        172,
+        173
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1406,
+      "page": 1,
+      "pointer": "/data/Data/82",
+      "token": "INS_MCU",
+      "systemZh": "多媒体网/组合仪表_开阳MCU(比亚迪)(INS_MCU)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1407,
+      "page": 1,
+      "pointer": "/data/Data/83",
+      "token": "INS2",
+      "systemZh": "多媒体网/组合仪表_音源模块(比亚迪)(INS2)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1408,
+      "page": 1,
+      "pointer": "/data/Data/84",
+      "token": "ASSY",
+      "systemZh": "多媒体网/主机总成(从)(比亚迪)(ASSY)",
+      "networkZh": "多媒体网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        1
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1409,
+      "page": 1,
+      "pointer": "/data/Data/85",
+      "token": "PDCMB",
+      "systemZh": "后车身网/背门AR投影感应控制模块(比亚迪)(PDCMB)",
+      "networkZh": "后车身网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        26
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1410,
+      "page": 1,
+      "pointer": "/data/Data/86",
+      "token": "HFRM",
+      "systemZh": "后智能网/钥匙高频接收模块(比亚迪)(HFRM)",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        175
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1411,
+      "page": 1,
+      "pointer": "/data/Data/87",
+      "token": "RL_L",
+      "systemZh": "后智能网/左组合后灯控制模块(比亚迪)(RL_L)",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        67,
+        68
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1412,
+      "page": 1,
+      "pointer": "/data/Data/88",
+      "token": "RL_R",
+      "systemZh": "后智能网/右组合后灯控制模块(比亚迪)(RL_R)",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        69,
+        70
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1413,
+      "page": 1,
+      "pointer": "/data/Data/89",
+      "token": "TL_L",
+      "systemZh": "后智能网/左尾灯控制模块(比亚迪)(TL_L)",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        71,
+        72
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1414,
+      "page": 1,
+      "pointer": "/data/Data/90",
+      "token": "TL_R",
+      "systemZh": "后智能网/右尾灯控制模块(比亚迪)(TL_R)",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        73,
+        74
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1415,
+      "page": 1,
+      "pointer": "/data/Data/91",
+      "token": "SMR_L",
+      "systemZh": "后智能网/左后座椅按摩(东风李尔)(SMR_L)",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        199
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1416,
+      "page": 1,
+      "pointer": "/data/Data/92",
+      "token": "SMR_R",
+      "systemZh": "后智能网/右后座椅按摩(东风李尔)(SMR_R)",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        200
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1417,
+      "page": 1,
+      "pointer": "/data/Data/93",
+      "token": "MLUCU",
+      "systemZh": "后智能网/中排左侧通用控制器mini(比亚迪)(MLUCU)",
+      "networkZh": "后智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        77
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1418,
+      "page": 1,
+      "pointer": "/data/Data/94",
+      "token": "ACC",
+      "systemZh": "前车身网/空调压缩机(比亚迪)(ACC)",
+      "networkZh": "前车身网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        28
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1419,
+      "page": 1,
+      "pointer": "/data/Data/95",
+      "token": "FL_L",
+      "systemZh": "前智能网/左前组合灯(比亚迪)(FL_L)",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        128
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1420,
+      "page": 1,
+      "pointer": "/data/Data/96",
+      "token": "FL_R",
+      "systemZh": "前智能网/右前组合灯(比亚迪)(FL_R)",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        129
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1421,
+      "page": 1,
+      "pointer": "/data/Data/97",
+      "token": "PLR",
+      "systemZh": "前智能网/右像素灯(比亚迪)(PLR)",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        12
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1422,
+      "page": 1,
+      "pointer": "/data/Data/98",
+      "token": "PLL",
+      "systemZh": "前智能网/左像素灯(比亚迪)(PLL)",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        11
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1423,
+      "page": 1,
+      "pointer": "/data/Data/99",
+      "token": "FMPL1",
+      "systemZh": "前智能网/右前中位置灯(比亚迪)(FMPL1)",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1424,
+      "page": 2,
+      "pointer": "/data/Data/0",
+      "token": "FMPL2",
+      "systemZh": "前智能网/左前中位置灯(比亚迪)(FMPL2)",
+      "networkZh": "前智能网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1425,
+      "page": 2,
+      "pointer": "/data/Data/1",
+      "token": "FR_SDR",
+      "systemZh": "右车身网1/右前侧门雷达(FR_SDR)/右前侧门雷达(比亚迪)(FR_SDR)",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        16,
+        17
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1426,
+      "page": 2,
+      "pointer": "/data/Data/2",
+      "token": "FR_SDR",
+      "systemZh": "右车身网1/右前侧门雷达(FR_SDR)/右前侧门雷达(森思泰克)(FR_SDR)",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        16,
+        17
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1427,
+      "page": 2,
+      "pointer": "/data/Data/3",
+      "token": "RR_SDR",
+      "systemZh": "右车身网1/右后侧门雷达(RR_SDR)/右后侧门雷达(比亚迪)(RR_SDR)",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        14,
+        15
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1428,
+      "page": 2,
+      "pointer": "/data/Data/4",
+      "token": "RR_SDR",
+      "systemZh": "右车身网1/右后侧门雷达(RR_SDR)/右后侧门雷达(森思泰克)(RR_SDR)",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        14,
+        15
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1429,
+      "page": 2,
+      "pointer": "/data/Data/5",
+      "token": "MCPA",
+      "systemZh": "右车身网1/中排控制面板总成(科世达)(MCPA)",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        23
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1430,
+      "page": 2,
+      "pointer": "/data/Data/6",
+      "token": "SMF_R",
+      "systemZh": "右车身网1/右前座椅按摩(东风李尔)(SMF_R)",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        53
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1431,
+      "page": 2,
+      "pointer": "/data/Data/7",
+      "token": "PUCU",
+      "systemZh": "右车身网1/副驾通用控制器mini(比亚迪)(PUCU)",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        76
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1432,
+      "page": 2,
+      "pointer": "/data/Data/8",
+      "token": "VR",
+      "systemZh": "右车身网1/车载冰箱(比亚迪)(VR)",
+      "networkZh": "右车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        62
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1433,
+      "page": 2,
+      "pointer": "/data/Data/9",
+      "token": "MSRF",
+      "systemZh": "右车身网2/副驾电动预紧安全带(比亚迪)(MSRF)",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        202
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1434,
+      "page": 2,
+      "pointer": "/data/Data/10",
+      "token": "PTC",
+      "systemZh": "右车身网2/风辅助加热(华工高理)(PTC)",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        29
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1435,
+      "page": 2,
+      "pointer": "/data/Data/11",
+      "token": "AQDM",
+      "systemZh": "右车身网2/空气质量检测模块(比亚迪)(AQDM)",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        64
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1436,
+      "page": 2,
+      "pointer": "/data/Data/12",
+      "token": "FRL",
+      "systemZh": "右车身网2/前室内灯(比亚迪)(FRL)",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        137,
+        138,
+        139,
+        140
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1437,
+      "page": 2,
+      "pointer": "/data/Data/13",
+      "token": "ETC",
+      "systemZh": "右车身网2/ETC总成(金溢科技)(ETC)",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        78,
+        79,
+        80
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1438,
+      "page": 2,
+      "pointer": "/data/Data/14",
+      "token": "RCP",
+      "systemZh": "右车身网2/冰箱控制面板(比亚迪)(RCP)",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        61
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1439,
+      "page": 2,
+      "pointer": "/data/Data/15",
+      "token": "RRCP",
+      "systemZh": "右车身网2/后冰箱控制面板(比亚迪)(RRCP)",
+      "networkZh": "右车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        198
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1440,
+      "page": 2,
+      "pointer": "/data/Data/16",
+      "token": "IAL1",
+      "systemZh": "右前门RLIN3网/仪表板左氛围灯上灯头(比亚迪)(IAL1)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1441,
+      "page": 2,
+      "pointer": "/data/Data/17",
+      "token": "IAL2",
+      "systemZh": "右前门RLIN3网/仪表板左氛围灯下灯头(比亚迪)(IAL2)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1442,
+      "page": 2,
+      "pointer": "/data/Data/18",
+      "token": "IAL3",
+      "systemZh": "右前门RLIN3网/仪表板中氛围灯上灯头(比亚迪)(IAL3)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1443,
+      "page": 2,
+      "pointer": "/data/Data/19",
+      "token": "IAL4",
+      "systemZh": "右前门RLIN3网/仪表板中氛围灯下灯头(比亚迪)(IAL4)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1444,
+      "page": 2,
+      "pointer": "/data/Data/20",
+      "token": "IAL5",
+      "systemZh": "右前门RLIN3网/仪表板右氛围灯左上灯头(比亚迪)(IAL5)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1445,
+      "page": 2,
+      "pointer": "/data/Data/21",
+      "token": "IAL6",
+      "systemZh": "右前门RLIN3网/仪表板右氛围灯左下灯头(比亚迪)(IAL6)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1446,
+      "page": 2,
+      "pointer": "/data/Data/22",
+      "token": "IAL7",
+      "systemZh": "右前门RLIN3网/仪表板右氛围灯右上灯头(比亚迪)(IAL7)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1447,
+      "page": 2,
+      "pointer": "/data/Data/23",
+      "token": "IAL8",
+      "systemZh": "右前门RLIN3网/仪表板右氛围灯右下灯头(比亚迪)(IAL8)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1448,
+      "page": 2,
+      "pointer": "/data/Data/24",
+      "token": "LCSCALA",
+      "systemZh": "右前门RLIN3网/仪表板中置扬声器氛围灯左灯头(比亚迪)(LCSCALA)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        196
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1449,
+      "page": 2,
+      "pointer": "/data/Data/25",
+      "token": "IAL9",
+      "systemZh": "右前门RLIN3网/仪表板中置扬声器氛围灯中灯头(比亚迪)(IAL9)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1450,
+      "page": 2,
+      "pointer": "/data/Data/26",
+      "token": "RCSCALA",
+      "systemZh": "右前门RLIN3网/仪表板中置扬声器氛围灯右灯头(比亚迪)(RCSCALA)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        197
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1451,
+      "page": 2,
+      "pointer": "/data/Data/27",
+      "token": "DIDAL",
+      "systemZh": "右前门RLIN3网/副仪表板中风口氛围灯(比亚迪)(DIDAL)",
+      "networkZh": "右前门RLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        131,
+        132,
+        133,
+        134,
+        135,
+        136
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1452,
+      "page": 2,
+      "pointer": "/data/Data/28",
+      "token": "CDC",
+      "systemZh": "诊断网/跨域计算平台(比亚迪)(CDC)",
+      "networkZh": "诊断网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        4,
+        5
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1453,
+      "page": 2,
+      "pointer": "/data/Data/29",
+      "token": "CDC_SOC",
+      "systemZh": "诊断网/跨域计算平台_SOC(比亚迪)(CDC_SOC)",
+      "networkZh": "诊断网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        3
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1454,
+      "page": 2,
+      "pointer": "/data/Data/30",
+      "token": "CDC_FPGA",
+      "systemZh": "诊断网/跨域计算平台_FPGA(比亚迪)(CDC_FPGA)",
+      "networkZh": "诊断网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        207
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1455,
+      "page": 2,
+      "pointer": "/data/Data/31",
+      "token": "CDC_JH",
+      "systemZh": "诊断网/跨域计算平台_交换机(比亚迪)(CDC_JH)",
+      "networkZh": "诊断网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [],
+      "binding": "unbound_name_not_a_new_CAN_address"
+    },
+    {
+      "rowId": 1456,
+      "page": 2,
+      "pointer": "/data/Data/32",
+      "token": "HUD",
+      "systemZh": "左车身网1/抬头显示屏(比亚迪)(HUD)",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        13
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1457,
+      "page": 2,
+      "pointer": "/data/Data/33",
+      "token": "INFC",
+      "systemZh": "左车身网1/车内智能进入控制器(比亚迪)(INFC)",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        178
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1458,
+      "page": 2,
+      "pointer": "/data/Data/34",
+      "token": "SEC",
+      "systemZh": "左车身网1/智能进入控制器(比亚迪)(SEC)",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        177
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1459,
+      "page": 2,
+      "pointer": "/data/Data/35",
+      "token": "RL_SDR",
+      "systemZh": "左车身网1/左后侧门雷达(RL_SDR)/左后侧门雷达(比亚迪)(RL_SDR)",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        21,
+        22
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1460,
+      "page": 2,
+      "pointer": "/data/Data/36",
+      "token": "RL_SDR",
+      "systemZh": "左车身网1/左后侧门雷达(RL_SDR)/左后侧门雷达(森思泰克)(RL_SDR)",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        21,
+        22
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1461,
+      "page": 2,
+      "pointer": "/data/Data/37",
+      "token": "FL_SDR",
+      "systemZh": "左车身网1/左前侧门雷达(FL_SDR)/左前侧门雷达(比亚迪)(FL_SDR)",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        24,
+        25
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1462,
+      "page": 2,
+      "pointer": "/data/Data/38",
+      "token": "FL_SDR",
+      "systemZh": "左车身网1/左前侧门雷达(FL_SDR)/左前侧门雷达(森思泰克)(FL_SDR)",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        24,
+        25
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1463,
+      "page": 2,
+      "pointer": "/data/Data/39",
+      "token": "SMF_L",
+      "systemZh": "左车身网1/左前座椅按摩(东风李尔)(SMF_L)",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        52
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1464,
+      "page": 2,
+      "pointer": "/data/Data/40",
+      "token": "DUCU",
+      "systemZh": "左车身网1/主驾通用控制器mini(比亚迪)(DUCU)",
+      "networkZh": "左车身网1",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        75
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1465,
+      "page": 2,
+      "pointer": "/data/Data/41",
+      "token": "AMP",
+      "systemZh": "左车身网2/外置功放(比亚迪)(AMP)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        18
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1466,
+      "page": 2,
+      "pointer": "/data/Data/42",
+      "token": "MSRZ",
+      "systemZh": "左车身网2/主驾电动预紧安全带(比亚迪)(MSRZ)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        201
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1467,
+      "page": 2,
+      "pointer": "/data/Data/43",
+      "token": "SWS",
+      "systemZh": "左车身网2/转向盘开关(均胜)(SWS)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        54,
+        55,
+        56
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1468,
+      "page": 2,
+      "pointer": "/data/Data/44",
+      "token": "CS",
+      "systemZh": "左车身网2/组合开关(比亚迪)(CS)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        19
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1469,
+      "page": 2,
+      "pointer": "/data/Data/45",
+      "token": "FRONT CPD RADAR",
+      "systemZh": "左车身网2/前CPD毫米波雷达(FRONT CPD RADAR)/前CPD毫米波雷达(蛮酷科技)(FRONT CPD RADAR)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        147,
+        148
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1470,
+      "page": 2,
+      "pointer": "/data/Data/46",
+      "token": "FRONT CPD RADAR",
+      "systemZh": "左车身网2/前CPD毫米波雷达(FRONT CPD RADAR)/前CPD毫米波雷达(法雷奥)(FRONT CPD RADAR)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        147,
+        148
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1471,
+      "page": 2,
+      "pointer": "/data/Data/47",
+      "token": "REAR CPD RADAR",
+      "systemZh": "左车身网2/后CPD毫米波雷达(REAR CPD RADAR)/后CPD毫米波雷达(蛮酷科技)(REAR CPD RADAR)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        145,
+        146
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1472,
+      "page": 2,
+      "pointer": "/data/Data/48",
+      "token": "REAR CPD RADAR",
+      "systemZh": "左车身网2/后CPD毫米波雷达(REAR CPD RADAR)/后CPD毫米波雷达(法雷奥)(REAR CPD RADAR)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        145,
+        146
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1473,
+      "page": 2,
+      "pointer": "/data/Data/49",
+      "token": "WCT",
+      "systemZh": "左车身网2/无线充电模块(WCT)/无线充电模块(浙江泰米)(WCT)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        36,
+        38,
+        40
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1474,
+      "page": 2,
+      "pointer": "/data/Data/50",
+      "token": "WCT",
+      "systemZh": "左车身网2/无线充电模块(WCT)/无线充电模块(华阳)(WCT)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        36,
+        38,
+        40
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1475,
+      "page": 2,
+      "pointer": "/data/Data/51",
+      "token": "WCM_RM",
+      "systemZh": "左车身网2/后排无线充电(北京有感)(WCM_RM)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        37,
+        39,
+        41,
+        42
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1476,
+      "page": 2,
+      "pointer": "/data/Data/52",
+      "token": "ETC",
+      "systemZh": "左车身网2/ETC总成(ETC)/ETC总成(北京聚利)(ETC)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        78,
+        79,
+        80
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1477,
+      "page": 2,
+      "pointer": "/data/Data/53",
+      "token": "ETC",
+      "systemZh": "左车身网2/ETC总成(ETC)/ETC总成(万集)(ETC)",
+      "networkZh": "左车身网2",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        78,
+        79,
+        80
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1478,
+      "page": 2,
+      "pointer": "/data/Data/54",
+      "token": "DCOBC",
+      "systemZh": "左能量网/双向车载电源总成(比亚迪)(DCOBC)",
+      "networkZh": "左能量网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        224
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1479,
+      "page": 2,
+      "pointer": "/data/Data/55",
+      "token": "BMS",
+      "systemZh": "左能量网/电池管理器(比亚迪)(BMS)",
+      "networkZh": "左能量网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        221
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1480,
+      "page": 2,
+      "pointer": "/data/Data/56",
+      "token": "LBMS",
+      "systemZh": "左能量网/低压电池管理系统(比亚迪)(LBMS)",
+      "networkZh": "左能量网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        83
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1481,
+      "page": 2,
+      "pointer": "/data/Data/57",
+      "token": "SCPA",
+      "systemZh": "左能量网/换挡操纵机构面板总成(比亚迪)(SCPA)",
+      "networkZh": "左能量网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        205
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1482,
+      "page": 2,
+      "pointer": "/data/Data/58",
+      "token": "WLMFL",
+      "systemZh": "左前门LLIN3网/左前窗玻璃升降电机(WLMFL)/左前窗玻璃升降电机(比亚迪)(WLMFL)",
+      "networkZh": "左前门LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        44,
+        45
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1483,
+      "page": 2,
+      "pointer": "/data/Data/59",
+      "token": "WLMFL",
+      "systemZh": "左前门LLIN3网/左前窗玻璃升降电机(WLMFL)/左前窗玻璃升降电机(恩坦华)(WLMFL)",
+      "networkZh": "左前门LLIN3网",
+      "capabilities": {
+        "identification": true,
+        "dtc": false,
+        "liveData": false,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        44,
+        45
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1484,
+      "page": 2,
+      "pointer": "/data/Data/60",
+      "token": "ADC",
+      "systemZh": "左智驾网/ADAS域控制器(比亚迪)(ADC)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        206
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1485,
+      "page": 2,
+      "pointer": "/data/Data/61",
+      "token": "LFCR",
+      "systemZh": "左智驾网/左前角雷达(LFCR)/左前角雷达(比亚迪)(LFCR)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        149,
+        150,
+        151
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1486,
+      "page": 2,
+      "pointer": "/data/Data/62",
+      "token": "LFCR",
+      "systemZh": "左智驾网/左前角雷达(LFCR)/左前角雷达(森思泰克)(LFCR)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        149,
+        150,
+        151
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1487,
+      "page": 2,
+      "pointer": "/data/Data/63",
+      "token": "RFCR",
+      "systemZh": "左智驾网/右前角雷达(RFCR)/右前角雷达(森思泰克)(RFCR)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        152,
+        153,
+        154
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1488,
+      "page": 2,
+      "pointer": "/data/Data/64",
+      "token": "RFCR",
+      "systemZh": "左智驾网/右前角雷达(RFCR)/右前角雷达(比亚迪)(RFCR)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        152,
+        153,
+        154
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1489,
+      "page": 2,
+      "pointer": "/data/Data/65",
+      "token": "BSD",
+      "systemZh": "左智驾网/盲区监测(BSD)/盲区监测(森思泰克)(BSD)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        158,
+        159
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1490,
+      "page": 2,
+      "pointer": "/data/Data/66",
+      "token": "BSD",
+      "systemZh": "左智驾网/盲区监测(BSD)/盲区监测(比亚迪)(BSD)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        158,
+        159
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1491,
+      "page": 2,
+      "pointer": "/data/Data/67",
+      "token": "BSD_R",
+      "systemZh": "左智驾网/从盲区监测(BSD_R)/从盲区监测(森思泰克)(BSD_R)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        155,
+        156
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1492,
+      "page": 2,
+      "pointer": "/data/Data/68",
+      "token": "BSD_R",
+      "systemZh": "左智驾网/从盲区监测(BSD_R)/从盲区监测(比亚迪)(BSD_R)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        155,
+        156
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1493,
+      "page": 2,
+      "pointer": "/data/Data/69",
+      "token": "MRR",
+      "systemZh": "左智驾网/前置毫米波雷达(MRR)/前置毫米波雷达(比亚迪)(MRR)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        163,
+        164,
+        165
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1494,
+      "page": 2,
+      "pointer": "/data/Data/70",
+      "token": "MRR",
+      "systemZh": "左智驾网/前置毫米波雷达(MRR)/前置毫米波雷达(森思泰克)(MRR)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        163,
+        164,
+        165
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    },
+    {
+      "rowId": 1495,
+      "page": 2,
+      "pointer": "/data/Data/71",
+      "token": "IPA",
+      "systemZh": "左智驾网/自动泊车(博世)(IPA)",
+      "networkZh": "左智驾网",
+      "capabilities": {
+        "identification": true,
+        "dtc": true,
+        "liveData": true,
+        "freezeFrame": false
+      },
+      "exactFactoryFamilyRecordIndexes": [
+        161
+      ],
+      "binding": "family_only_not_numbered_child_or_supplier"
+    }
+  ],
+  "factoryFamilyWithoutExactXtoolToken": [
+    {
+      "familyToken": "AGS",
+      "recordIndexes": [
+        20
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "BWA",
+      "recordIndexes": [
+        209
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "CAL",
+      "recordIndexes": [
+        34,
+        35
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "CCS",
+      "recordIndexes": [
+        58
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "DAL",
+      "recordIndexes": [
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "DPAC1",
+      "recordIndexes": [
+        43
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "DPAC2",
+      "recordIndexes": [
+        31
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "DSBAL",
+      "recordIndexes": [
+        32,
+        33
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "ECP",
+      "recordIndexes": [
+        212
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "ERP",
+      "recordIndexes": [
+        213,
+        214,
+        215
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "ESP",
+      "recordIndexes": [
+        191
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "FMPL",
+      "recordIndexes": [
+        141,
+        142
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "IAL",
+      "recordIndexes": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "LFDALA",
+      "recordIndexes": [
+        143
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "LRCR",
+      "recordIndexes": [
+        157
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "MID-CPD-R",
+      "recordIndexes": [
+        171
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "REPS",
+      "recordIndexes": [
+        189
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "RMCU",
+      "recordIndexes": [
+        211
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "RRCR",
+      "recordIndexes": [
+        160
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "RTLFDALA",
+      "recordIndexes": [
+        195
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "TLFDALA",
+      "recordIndexes": [
+        194
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "TRCAAL",
+      "recordIndexes": [
+        65,
+        66
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    },
+    {
+      "familyToken": "TRFDALA",
+      "recordIndexes": [
+        144
+      ],
+      "reason": "No literal exact-model Xtool token; can still be a documented alias or known function. Absence is not an unknown-role claim."
+    }
+  ],
+  "unboundXtoolTokens": [
+    "B_ZCU_CJ",
+    "CDC_JH",
+    "DAL1",
+    "DAL10",
+    "DAL11",
+    "DAL12",
+    "DAL13",
+    "DAL14",
+    "DAL15",
+    "DAL16",
+    "DAL17",
+    "DAL18",
+    "DAL19",
+    "DAL2",
+    "DAL20",
+    "DAL21",
+    "DAL22",
+    "DAL23",
+    "DAL24",
+    "DAL25",
+    "DAL26",
+    "DAL3",
+    "DAL4",
+    "DAL5",
+    "DAL6",
+    "DAL7",
+    "DAL8",
+    "DAL9",
+    "FMPL1",
+    "FMPL2",
+    "FRL1",
+    "FRL2",
+    "FRL3",
+    "F_ZCU_CJ",
+    "IAL1",
+    "IAL2",
+    "IAL3",
+    "IAL4",
+    "IAL5",
+    "IAL6",
+    "IAL7",
+    "IAL8",
+    "IAL9",
+    "IDC_D2",
+    "INS2",
+    "INS_MCU",
+    "R_ZCU_CJ"
+  ],
+  "sameNamespaceSameCachedCodeAlternatives": [
+    {
+      "namespace": "can:597/59F#F194",
+      "code": "4B4D0011DE01140600",
+      "recordIndexes": [
+        59,
+        60
+      ],
+      "familyTokens": [
+        "IDC"
+      ],
+      "supplierTokens": [
+        "BYD"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:5A7/5AF#F194",
+      "code": "48490011DF01050000",
+      "recordIndexes": [
+        14,
+        15
+      ],
+      "familyTokens": [
+        "RR_SDR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "WHST"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:5B0/5B8#F194",
+      "code": "48490011DF01040000",
+      "recordIndexes": [
+        21,
+        22
+      ],
+      "familyTokens": [
+        "RL_SDR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "WHST"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:5B1/5B9#F194",
+      "code": "48490011DF01030000",
+      "recordIndexes": [
+        16,
+        17
+      ],
+      "familyTokens": [
+        "FR_SDR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "WHST"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:5B2/5BA#F194",
+      "code": "48490011DF01020000",
+      "recordIndexes": [
+        24,
+        25
+      ],
+      "familyTokens": [
+        "FL_SDR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "WHST"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:5E0/5E8#F194",
+      "code": "52420011DF9E000000",
+      "recordIndexes": [
+        145,
+        146
+      ],
+      "familyTokens": [
+        "REAR CPD RADAR"
+      ],
+      "supplierTokens": [
+        "Mindcruise",
+        "Valeo"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:711/719#F194",
+      "code": "4D540011DE1E000000",
+      "recordIndexes": [
+        54,
+        55
+      ],
+      "familyTokens": [
+        "SWS"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "JOYSON"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:720/728#F1C4",
+      "code": "484C0011DFBA000202",
+      "recordIndexes": [
+        48,
+        49
+      ],
+      "familyTokens": [
+        "WLMRL"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "INTEVA"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:720/728#F874",
+      "code": "484C0011DFB8000201",
+      "recordIndexes": [
+        44,
+        45
+      ],
+      "familyTokens": [
+        "WLMFL"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "INTEVA"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:733/73B#F194",
+      "code": "47370011DE06000000",
+      "recordIndexes": [
+        36,
+        38,
+        40
+      ],
+      "familyTokens": [
+        "WCT"
+      ],
+      "supplierTokens": [
+        "ADAYO",
+        "BJYG",
+        "TEME"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:743/74B#F194",
+      "code": "48370011E002066441",
+      "recordIndexes": [
+        222,
+        223
+      ],
+      "familyTokens": [
+        "PDC-VCU"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "FDP"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:747/74F#F1D4",
+      "code": "484C0011DFBB000204",
+      "recordIndexes": [
+        50,
+        51
+      ],
+      "familyTokens": [
+        "WLMRR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "INTEVA"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:747/74F#F884",
+      "code": "484C0011DFB9000203",
+      "recordIndexes": [
+        46,
+        47
+      ],
+      "familyTokens": [
+        "WLMFR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "INTEVA"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:760/768#F194",
+      "code": "474E0011DF82000000",
+      "recordIndexes": [
+        149,
+        150,
+        151
+      ],
+      "familyTokens": [
+        "LFCR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "WHST",
+        "chengtech"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:761/769#F194",
+      "code": "474E0011DF82000000",
+      "recordIndexes": [
+        152,
+        153,
+        154
+      ],
+      "familyTokens": [
+        "RFCR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "WHST",
+        "chengtech"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:782/78A#F194",
+      "code": "32330011DF0B000101",
+      "recordIndexes": [
+        191,
+        192,
+        193
+      ],
+      "familyTokens": [
+        "BSC",
+        "ESP",
+        "IPB"
+      ],
+      "supplierTokens": [
+        "BOSCH",
+        "BYD"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:783/78B#F194",
+      "code": "43430011DE6F000000",
+      "recordIndexes": [
+        189,
+        190
+      ],
+      "familyTokens": [
+        "DPEPS",
+        "REPS"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "TRW"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:790/798#F194",
+      "code": "4B580011AD01990000",
+      "recordIndexes": [
+        78,
+        79,
+        80
+      ],
+      "familyTokens": [
+        "ETC"
+      ],
+      "supplierTokens": [
+        "Genvict",
+        "Julitech",
+        "Vanjee"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7A7/7AF#F194",
+      "code": "48490011DF55000100",
+      "recordIndexes": [
+        58,
+        205
+      ],
+      "familyTokens": [
+        "CCS",
+        "SCPA"
+      ],
+      "supplierTokens": [
+        "BYD"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7C2/7CA#F194",
+      "code": "474E0011DF82000000",
+      "recordIndexes": [
+        158,
+        159,
+        160
+      ],
+      "familyTokens": [
+        "BSD",
+        "RRCR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "WHST",
+        "chengtech"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7D4/7DC#F194",
+      "code": "474E0011DF82000000",
+      "recordIndexes": [
+        155,
+        156,
+        157
+      ],
+      "familyTokens": [
+        "BSD_R",
+        "LRCR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "WHST",
+        "chengtech"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7E2/7EA#F194",
+      "code": "32440011E07E007841",
+      "recordIndexes": [
+        216,
+        217
+      ],
+      "familyTokens": [
+        "VCU"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "UAES"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7F2/7FA#F194",
+      "code": "474E0011DF70000000",
+      "recordIndexes": [
+        163,
+        164,
+        165
+      ],
+      "familyTokens": [
+        "MRR"
+      ],
+      "supplierTokens": [
+        "BYD",
+        "WHST",
+        "chengtech"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7F3/7FB#F194",
+      "code": "3244001182C7000000",
+      "recordIndexes": [
+        179,
+        188
+      ],
+      "familyTokens": [
+        "UWBMC"
+      ],
+      "supplierTokens": [
+        "KOSTAL",
+        "UAES"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7F4/7FC#F194",
+      "code": "3244001183C8002000",
+      "recordIndexes": [
+        180,
+        187
+      ],
+      "familyTokens": [
+        "UWBLFA"
+      ],
+      "supplierTokens": [
+        "KOSTAL",
+        "UAES"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7F5/7FD#F194",
+      "code": "3244001183C8002000",
+      "recordIndexes": [
+        181,
+        185
+      ],
+      "familyTokens": [
+        "UWBRFA"
+      ],
+      "supplierTokens": [
+        "KOSTAL",
+        "UAES"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7F6/7FE#F194",
+      "code": "3244001183C8002000",
+      "recordIndexes": [
+        182,
+        186
+      ],
+      "familyTokens": [
+        "UWBLRA"
+      ],
+      "supplierTokens": [
+        "KOSTAL",
+        "UAES"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "can:7F7/7FF#F194",
+      "code": "3244001183C8002000",
+      "recordIndexes": [
+        183,
+        184
+      ],
+      "familyTokens": [
+        "UWBRRA"
+      ],
+      "supplierTokens": [
+        "KOSTAL",
+        "UAES"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "doip:073E/0001#F194",
+      "code": "5A370011DF52000000",
+      "recordIndexes": [
+        172,
+        173
+      ],
+      "familyTokens": [
+        "LIDAR-R"
+      ],
+      "supplierTokens": [
+        "HESAI",
+        "RoboSense"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    },
+    {
+      "namespace": "doip:078C/0001#F194",
+      "code": "5A370011DF48000000",
+      "recordIndexes": [
+        166,
+        167
+      ],
+      "familyTokens": [
+        "LIDAR-L"
+      ],
+      "supplierTokens": [
+        "HESAI",
+        "RoboSense"
+      ],
+      "limits": "Same cached code and namespace do not select an installed supplier or make these multiple ECUs."
+    }
+  ],
+  "unreadValidNonF194Namespaces": [
+    {
+      "namespace": "can:5E7/5EF#F294",
+      "recordIndexes": [
+        1
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "4B450011DF99004201",
+          "recordIndexes": [
+            1
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "ASSY"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#C294",
+      "recordIndexes": [
+        5
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "4A500111DF019A0101",
+          "recordIndexes": [
+            5
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "CDC"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#C394",
+      "recordIndexes": [
+        10
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "4A500111DF01540101",
+          "recordIndexes": [
+            10
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "F_ZCU"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#C494",
+      "recordIndexes": [
+        7
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48450111DF01770101",
+          "recordIndexes": [
+            7
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "R_ZCU"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#C594",
+      "recordIndexes": [
+        9
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48450111DF01760101",
+          "recordIndexes": [
+            9
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "B_ZCU"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F024",
+      "recordIndexes": [
+        110
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A002502",
+          "recordIndexes": [
+            110
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F054",
+      "recordIndexes": [
+        113
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A002505",
+          "recordIndexes": [
+            113
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F074",
+      "recordIndexes": [
+        114
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A002507",
+          "recordIndexes": [
+            114
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F0E4",
+      "recordIndexes": [
+        133
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE0170060E",
+          "recordIndexes": [
+            133
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DIDAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F114",
+      "recordIndexes": [
+        115
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A000411",
+          "recordIndexes": [
+            115
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F134",
+      "recordIndexes": [
+        117
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A002413",
+          "recordIndexes": [
+            117
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F144",
+      "recordIndexes": [
+        118
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A002414",
+          "recordIndexes": [
+            118
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F1C4",
+      "recordIndexes": [
+        48,
+        49
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "484C0011DFBA000202",
+          "recordIndexes": [
+            48,
+            49
+          ],
+          "supplierOrVariantNotSelectedByCode": true
+        }
+      ],
+      "familyTokens": [
+        "WLMRL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F514",
+      "recordIndexes": [
+        63
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "56470011DF01120000",
+          "recordIndexes": [
+            63
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "HOD"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#F874",
+      "recordIndexes": [
+        44,
+        45
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "484C0011DFB8000201",
+          "recordIndexes": [
+            44,
+            45
+          ],
+          "supplierOrVariantNotSelectedByCode": true
+        }
+      ],
+      "familyTokens": [
+        "WLMFL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#FBB4",
+      "recordIndexes": [
+        102
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0024BB",
+          "recordIndexes": [
+            102
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#FBC4",
+      "recordIndexes": [
+        103
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0024BC",
+          "recordIndexes": [
+            103
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#FBF4",
+      "recordIndexes": [
+        104
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0025BF",
+          "recordIndexes": [
+            104
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#FC04",
+      "recordIndexes": [
+        105
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0025C0",
+          "recordIndexes": [
+            105
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#FDF4",
+      "recordIndexes": [
+        96
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0024DF",
+          "recordIndexes": [
+            96
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#FE04",
+      "recordIndexes": [
+        97
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0024E0",
+          "recordIndexes": [
+            97
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:720/728#FE14",
+      "recordIndexes": [
+        98
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0025E1",
+          "recordIndexes": [
+            98
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:722/72A#F3B4",
+      "recordIndexes": [
+        27
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "414500118B7A000000",
+          "recordIndexes": [
+            27
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "WSM"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:723/72B#F394",
+      "recordIndexes": [
+        169
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "4B450011E0250037C1",
+          "recordIndexes": [
+            169
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "INS"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:723/72B#F494",
+      "recordIndexes": [
+        170
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "4B450011E0250037D1",
+          "recordIndexes": [
+            170
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "INS"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:726/72E#F064",
+      "recordIndexes": [
+        72
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DFB2000203",
+          "recordIndexes": [
+            72
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "TL_L"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:726/72E#F204",
+      "recordIndexes": [
+        68
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DFC5000201",
+          "recordIndexes": [
+            68
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "RL_L"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:726/72E#F214",
+      "recordIndexes": [
+        70
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DFC6000202",
+          "recordIndexes": [
+            70
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "RL_R"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:726/72E#F234",
+      "recordIndexes": [
+        74
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DFD5000204",
+          "recordIndexes": [
+            74
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "TL_R"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:726/72E#F244",
+      "recordIndexes": [
+        130
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE2A000101",
+          "recordIndexes": [
+            130
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "CIL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:726/72E#F574",
+      "recordIndexes": [
+        84
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE02140101",
+          "recordIndexes": [
+            84
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "L_CIL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F084",
+      "recordIndexes": [
+        88
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE59000608",
+          "recordIndexes": [
+            88
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "IAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F0B4",
+      "recordIndexes": [
+        89
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5900060B",
+          "recordIndexes": [
+            89
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "IAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F164",
+      "recordIndexes": [
+        119
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A000416",
+          "recordIndexes": [
+            119
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F1D4",
+      "recordIndexes": [
+        50,
+        51
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "484C0011DFBB000204",
+          "recordIndexes": [
+            50,
+            51
+          ],
+          "supplierOrVariantNotSelectedByCode": true
+        }
+      ],
+      "familyTokens": [
+        "WLMRR"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F224",
+      "recordIndexes": [
+        122
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A002422",
+          "recordIndexes": [
+            122
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F2E4",
+      "recordIndexes": [
+        93
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5900064E",
+          "recordIndexes": [
+            93
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "IAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F2F4",
+      "recordIndexes": [
+        92
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5900060D",
+          "recordIndexes": [
+            92
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "IAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F304",
+      "recordIndexes": [
+        197
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE59002609",
+          "recordIndexes": [
+            197
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "RCSCALA"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F3F4",
+      "recordIndexes": [
+        162
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "4A440011828C000200",
+          "recordIndexes": [
+            162
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "VFRAG"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F434",
+      "recordIndexes": [
+        196
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE59002629",
+          "recordIndexes": [
+            196
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "LCSCALA"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F4C4",
+      "recordIndexes": [
+        91
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE59000625",
+          "recordIndexes": [
+            91
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "IAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F644",
+      "recordIndexes": [
+        137
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DEE3003B7A",
+          "recordIndexes": [
+            137
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "FRL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F654",
+      "recordIndexes": [
+        138
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DEE3003B7B",
+          "recordIndexes": [
+            138
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "FRL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F7F4",
+      "recordIndexes": [
+        121
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A002421",
+          "recordIndexes": [
+            121
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F884",
+      "recordIndexes": [
+        46,
+        47
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "484C0011DFB9000203",
+          "recordIndexes": [
+            46,
+            47
+          ],
+          "supplierOrVariantNotSelectedByCode": true
+        }
+      ],
+      "familyTokens": [
+        "WLMFR"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F954",
+      "recordIndexes": [
+        30
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "47330011DF02120000",
+          "recordIndexes": [
+            30
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "FAOM"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F964",
+      "recordIndexes": [
+        57
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "47330011DF02130000",
+          "recordIndexes": [
+            57
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "AOM"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#F9B4",
+      "recordIndexes": [
+        123
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A00259B",
+          "recordIndexes": [
+            123
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FAE4",
+      "recordIndexes": [
+        126
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0025AE",
+          "recordIndexes": [
+            126
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FAF4",
+      "recordIndexes": [
+        127
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0025AF",
+          "recordIndexes": [
+            127
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FB24",
+      "recordIndexes": [
+        140
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DEE3003BB2",
+          "recordIndexes": [
+            140
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "FRL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FB64",
+      "recordIndexes": [
+        106
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0024B6",
+          "recordIndexes": [
+            106
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FB74",
+      "recordIndexes": [
+        107
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0024B7",
+          "recordIndexes": [
+            107
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FB94",
+      "recordIndexes": [
+        108
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0025B9",
+          "recordIndexes": [
+            108
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FBA4",
+      "recordIndexes": [
+        109
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0025BA",
+          "recordIndexes": [
+            109
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FD24",
+      "recordIndexes": [
+        87
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE590006D2",
+          "recordIndexes": [
+            87
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "IAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FD84",
+      "recordIndexes": [
+        95
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE590006D8",
+          "recordIndexes": [
+            95
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "IAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FD94",
+      "recordIndexes": [
+        94
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE590006D9",
+          "recordIndexes": [
+            94
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "IAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FE24",
+      "recordIndexes": [
+        99
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0024E2",
+          "recordIndexes": [
+            99
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FE34",
+      "recordIndexes": [
+        100
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0024E3",
+          "recordIndexes": [
+            100
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FE44",
+      "recordIndexes": [
+        101
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE5A0025E4",
+          "recordIndexes": [
+            101
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:747/74F#FEB4",
+      "recordIndexes": [
+        136
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DE017006EB",
+          "recordIndexes": [
+            136
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "DIDAL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:750/758#F8C4",
+      "recordIndexes": [
+        52
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "47380011DFE3000102",
+          "recordIndexes": [
+            52
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "SMF_L"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:770/778#F534",
+      "recordIndexes": [
+        142
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DFF4000101",
+          "recordIndexes": [
+            142
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "FMPL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:770/778#F544",
+      "recordIndexes": [
+        141
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "48330011DFF4000102",
+          "recordIndexes": [
+            141
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "FMPL"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:7B5/7BD#F8D4",
+      "recordIndexes": [
+        53
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "47380011DFE2000200",
+          "recordIndexes": [
+            53
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "SMF_R"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:7D2/7DA#F8E4",
+      "recordIndexes": [
+        199
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "47380011DFE0001C00",
+          "recordIndexes": [
+            199
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "SMR_L"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    },
+    {
+      "namespace": "can:7D2/7DA#F8F4",
+      "recordIndexes": [
+        200
+      ],
+      "validCachedCodeGroups": [
+        {
+          "code": "47380011DFE1001D00",
+          "recordIndexes": [
+            200
+          ],
+          "supplierOrVariantNotSelectedByCode": false
+        }
+      ],
+      "familyTokens": [
+        "SMR_R"
+      ],
+      "independentCANAddress": false,
+      "identityReadInRetainedScan": false,
+      "childDtcQualified": false
+    }
+  ],
+  "namespaceMeaningHypotheses": [
+    {
+      "candidateFactoryRecords": [
+        "HTH-2021_CDC_BYD_00200001",
+        "HTH-2021_R_ZCU_BYD_00200001",
+        "HTH-2021_B_ZCU_BYD_00200001",
+        "HTH-2021_F_ZCU_BYD_00200001"
+      ],
+      "candidateXtoolRowIds": [
+        1455,
+        1397,
+        1398,
+        1396
+      ],
+      "observation": "Four platform/zone families each have one common-CAN-720 Cx94 namespace at cached version 2.11.xx; exact-model Xtool separately names four switch submodules.",
+      "status": "unbound_hypothesis_no_DID_to_switch_source",
+      "notAFurtherCANAddress": true
+    }
+  ],
+  "sourceInputs": [
+    {
+      "key": "factory",
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    {
+      "key": "cache",
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    {
+      "key": "xtool",
+      "path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json",
+      "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24"
+    },
+    {
+      "key": "live",
+      "path": "captures/diagnostics-scanner-20261020/last-scan-1931.json",
+      "sha256": "cc54c867d6f2f9eacf565af62943767ac5e6e3d2c38de3a892a39d5adef797e4"
+    },
+    {
+      "key": "probes",
+      "path": "research/vehicle-diagnostics/factory-candidates-20261020.json",
+      "sha256": "8dae6e83b699bab926a441bd3eebea9e6e264d2ba8452293c9af6ad1ce579700"
+    },
+    {
+      "key": "child",
+      "path": "research/vehicle-diagnostics/ecu-child-identification-candidates-20261021.json",
+      "sha256": "51e4348620854c0c1e683202e7ce61764a28b9795fc87d812f4049b35aee2339"
+    }
+  ]
+}

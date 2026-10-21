@@ -1,0 +1,87 @@
+{
+  "schema": "denza-lab.inventory-firmware-evidence.v1",
+  "date": "2026-10-21",
+  "scope": "Existing pulled-from-car ProductLineOTA decompile; no new extraction, decompile, execution or vehicle session. Consulted corpus index before reads.",
+  "evidence": [
+    {
+      "id": "stock-can-code-did",
+      "sourcePath": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sourceSha256": "104f02126f20ceecae617455fd9331a92ac88dba333cd436474a6b175d0d3ace",
+      "lineStart": 166,
+      "lineEnd": 184,
+      "excerpt": "stock-can-code-did.txt",
+      "excerptSha256": "4a5a45d7fb0666bbe0e70422ec3c71eaad8d6af75cfb7710676773255e2cebb2",
+      "meaning": "The second ecuDId component is used for the software-code 0x22 read; it need not be F194."
+    },
+    {
+      "id": "stock-can-success",
+      "sourcePath": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sourceSha256": "104f02126f20ceecae617455fd9331a92ac88dba333cd436474a6b175d0d3ace",
+      "lineStart": 213,
+      "lineEnd": 226,
+      "excerpt": "stock-can-success.txt",
+      "excerptSha256": "e5ffaf054ae35128ae04c9fd1317b4574d6955adc10a60f88a34a6fa1b631ae9",
+      "meaning": "The stock success predicate rejects all-zero codes and 7F22; gateway negative result triggers stock sentinel substitution."
+    },
+    {
+      "id": "stock-can-code-parser",
+      "sourcePath": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sourceSha256": "104f02126f20ceecae617455fd9331a92ac88dba333cd436474a6b175d0d3ace",
+      "lineStart": 306,
+      "lineEnd": 322,
+      "excerpt": "stock-can-code-parser.txt",
+      "excerptSha256": "6b059f6884af1f2d4f969e90b6a7b0dba520baeb7a2da4e3908fb2c5b88ed561",
+      "meaning": "Stock software-code parser copies nine bytes; no textual child-name mapping here."
+    },
+    {
+      "id": "stock-cache-negative-marker",
+      "sourcePath": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sourceSha256": "104f02126f20ceecae617455fd9331a92ac88dba333cd436474a6b175d0d3ace",
+      "lineStart": 598,
+      "lineEnd": 617,
+      "excerpt": "stock-cache-negative-marker.txt",
+      "excerptSha256": "fd1935672face79a3f0163f2e38e91d47e074576f0ccb5bc238e6f7292373ae1",
+      "meaning": "Stock code fills default software/hardware/config fields with literal 7F22. This stored marker is not a software-code value or a complete raw NRC response."
+    },
+    {
+      "id": "stock-doip-client-and-dids",
+      "sourcePath": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/diagnose/DoipDiagnostic.java",
+      "sourceSha256": "4813f12ff75f394987c3427a2f3dda31238f90c695b0d76f08370566105ff5e9",
+      "lineStart": 187,
+      "lineEnd": 228,
+      "excerpt": "stock-doip-client-and-dids.txt",
+      "excerptSha256": "e858de1de9c795077f2184a7701250c5b75feae990255df39a48480fbdf8299e",
+      "meaning": "DoIP client is second ecuDiaId item (or default 1 with logicAddress); second ecuDId item is software-code DID."
+    },
+    {
+      "id": "stock-doip-target",
+      "sourcePath": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/diagnose/DoipDiagnostic.java",
+      "sourceSha256": "4813f12ff75f394987c3427a2f3dda31238f90c695b0d76f08370566105ff5e9",
+      "lineStart": 230,
+      "lineEnd": 258,
+      "excerpt": "stock-doip-target.txt",
+      "excerptSha256": "f18e1a11813b3129d2a99ad32c1bc15f3d667206e0600ce9b0c2ceb5d9af8bdb",
+      "meaning": "DoIP target uses logicAddress if present, otherwise first ecuDiaId item. It is not a CAN request/reply pair."
+    },
+    {
+      "id": "stock-repair-cache-adjustment",
+      "sourcePath": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/diagnose/DiagnosePresenter.java",
+      "sourceSha256": "187b7c203f8ccc8e172ce0cd129a4fdbebedf05d125f0ce7a713c1832ec0ac01",
+      "lineStart": 104,
+      "lineEnd": 137,
+      "excerpt": "stock-repair-cache-adjustment.txt",
+      "excerptSha256": "909d3b49af72b0fa039a9dfd7b69556719c74f958a0d73366298d4a55c11e717",
+      "meaning": "Only when current version is 0.00.00 or 6.55.35, matching repair metadata and isRepairEcu=1 can replace software code/version. This is a possible cache provenance path, not proof any particular retained row used it."
+    },
+    {
+      "id": "platform-specific-media-did",
+      "sourcePath": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/DiLink300PlatformDiff.java",
+      "sourceSha256": "bb845684123ee968ece40f498e76011e10fccc46d24ec3059b43c6e5fdc33f45",
+      "lineStart": 63,
+      "lineEnd": 68,
+      "excerpt": "platform-specific-media-did.txt",
+      "excerptSha256": "d6586f28a98a603befb4e8bb1799b94e45448b12c32c70f6db44bdf75686e1eb",
+      "meaning": "The DiLink300 platform-specific setter assigns Media F295/F294. This does not map CDC, INS or this vehicle platform without additional evidence."
+    }
+  ]
+}

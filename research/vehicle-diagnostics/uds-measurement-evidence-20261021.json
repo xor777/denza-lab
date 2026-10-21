@@ -1,0 +1,545 @@
+{
+  "date": "2026-10-21",
+  "scope": "Offline existing owner head-unit corpus only; no car, IPC, app launch, endpoint, credentials, or network",
+  "qualified_remote_sensor_dids": [],
+  "target_ecus": [
+    "ECM",
+    "traction BMS",
+    "FMCU",
+    "SMCU",
+    "SMCU3",
+    "ISG",
+    "ABS",
+    "ESP"
+  ],
+  "native_head_unit_server": {
+    "table_counts": [
+      {
+        "map": "0x5ffe8",
+        "entries": 20,
+        "unique_keys": 18,
+        "all_key_store_instructions_are_STRH": true
+      },
+      {
+        "map": "0x60000",
+        "entries": 221,
+        "unique_keys": 218,
+        "all_key_store_instructions_are_STRH": true
+      },
+      {
+        "map": "0x60018",
+        "entries": 220,
+        "unique_keys": 220,
+        "all_key_store_instructions_are_STRH": true
+      },
+      {
+        "map": "0x60030",
+        "entries": 101,
+        "unique_keys": 100,
+        "all_key_store_instructions_are_STRH": true
+      }
+    ],
+    "record_length_rows": 220,
+    "all_read_keys_have_length": true,
+    "length_keys_not_read_supported": [
+      "F010",
+      "F020"
+    ],
+    "source_ids": [
+      "uds_daemon",
+      "libuds",
+      "uds_config"
+    ],
+    "bindings": "uds-server-binding-excerpts.asm + libuds-dcm-vtable.json",
+    "rows": "head-unit-server-did-record-lengths.tsv",
+    "remote_ecu_applicability_proved": false,
+    "human_measurement_names_recovered": 0
+  },
+  "eol_schema": {
+    "bit_layout": true,
+    "endian": true,
+    "signedness": true,
+    "formula": true,
+    "qualified_target_records": 0,
+    "source_ids": [
+      "eol_step",
+      "eol_attach",
+      "eol_runner",
+      "eol_formula",
+      "eol_bytes",
+      "cell_recovered"
+    ],
+    "decompiler_warning_retained": true
+  },
+  "spotinspection": {
+    "input_json_resources": 41,
+    "prior_decoded_fixture_inputs": 1,
+    "sid22_occurrences": 42,
+    "distinct_test_dids": [
+      "0x22C2",
+      "0x22C3",
+      "0x2542",
+      "0x2543",
+      "0x2544",
+      "0x2545",
+      "0x2546",
+      "0x2547",
+      "0x2548",
+      "0x2549",
+      "0x2737",
+      "0x2739",
+      "0x3735"
+    ],
+    "populated_data_cells": 2,
+    "physical_formulas": 0,
+    "default_session_or_exact_vehicle_applicability_proved": false,
+    "inventory": "spotinspection-script-inventory.json"
+  },
+  "sdk": {
+    "did_record": "identifier + raw byte[]",
+    "snapshot": "DTC/status + raw byte[]",
+    "extended": "DTC/status + raw byte[]",
+    "scaling_dto_scope": "UDS server callback; no IUdsClient read-scaling method",
+    "source_ids": [
+      "uds_client",
+      "did_raw",
+      "snapshot_raw",
+      "extended_raw",
+      "dtc_count_raw",
+      "server_scaling",
+      "scaling_raw"
+    ]
+  },
+  "format01": {
+    "manufacturer_dictionary_recovered": false,
+    "exact_24bit_attach_dictionary_match_exists": true,
+    "eol_PCUB_formatter_consults_format_identifier": false,
+    "source_ids": [
+      "eol_match_dtc",
+      "eol_attach",
+      "dtc_count_raw"
+    ]
+  },
+  "negative_limits": [
+    "No DID+route/variant+layout+unit join for target remote ECUs",
+    "Head-unit table lengths do not establish callback implementation, current session support, or remote ECU support",
+    "Old UDS fixtures have placeholder/copy/inconsistent labels and follow mutations",
+    "Opaque binary resources and previously unparsed/decompile gaps not claimed covered",
+    "Public paid diagnostic data outside scope"
+  ],
+  "sources": {
+    "spot_apk": {
+      "path": "reverse/speaker-lift/SpotInspection.apk",
+      "sha256": "0677ac9473557dcd760da047c2639ec9336709f1e7c12b0f9980de1988093d2b",
+      "bytes": 14560089
+    },
+    "ota_apk": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/app/OTAUpdatePlatformizedUI/OTAUpdatePlatformizedUI.apk",
+      "sha256": "a866917a5466cc72c9fd0fda9b2d6467654529478dd1c6a5c08c3ec5d14c3752",
+      "bytes": 7858982
+    },
+    "libuds": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+      "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161",
+      "bytes": 1091824,
+      "virtual_addresses": [
+        "0x94CF8",
+        "0x94D94",
+        "0xA498C"
+      ]
+    },
+    "uds_daemon": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/hw/vendor.ts.uds@1.0-service.default",
+      "sha256": "f42dfb89f9c83027e742474d8abb60c70bb6192da0cd1e0c513efe50189b28cc",
+      "bytes": 397296,
+      "virtual_addresses": [
+        "0x13740",
+        "0x21024",
+        "0x2D390",
+        "0x32EB4",
+        "0x55680",
+        "0x55850",
+        "0x55868"
+      ]
+    },
+    "uds_config": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/etc/uds/UDS_CFG.json",
+      "sha256": "e46b264c572753ce93dd15c956d1f59abd99898134832b8fa9adff0a628d9424",
+      "bytes": 2415,
+      "lines": [
+        [
+          1,
+          105
+        ]
+      ]
+    },
+    "eol_step": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/Step.java",
+      "sha256": "9bbc1f4ffa4ec6458aca4cf4391dbd2ce65a6c1d2def3af4a531a7c5461ab52f",
+      "bytes": 43046,
+      "lines": [
+        [
+          360,
+          363
+        ],
+        [
+          509,
+          518
+        ],
+        [
+          671,
+          675
+        ],
+        [
+          728,
+          788
+        ],
+        [
+          866,
+          870
+        ]
+      ]
+    },
+    "eol_attach": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/bean/script/Attach.java",
+      "sha256": "c496d093f810c0a2fe8cae4e952ede4513968e5f8c6729014703914769c95e8a",
+      "bytes": 14068,
+      "lines": [
+        [
+          6,
+          15
+        ],
+        [
+          212,
+          217
+        ],
+        [
+          382,
+          385
+        ],
+        [
+          433,
+          436
+        ]
+      ]
+    },
+    "eol_runner": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/runner/ScriptStepExecutor.java",
+      "sha256": "a9b965f210ba21df43c16839e4743ff029aeb44d3d2ec6015d2a964466db1160",
+      "bytes": 18109,
+      "lines": [
+        [
+          245,
+          255
+        ]
+      ]
+    },
+    "eol_formula": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/PhAlgorithm.java",
+      "sha256": "cc4861b205d2972563978d578d466c7ea4d488f09f0f16d64bbcc09d2bfd0ef9",
+      "bytes": 7893,
+      "lines": [
+        [
+          24,
+          30
+        ],
+        [
+          33,
+          119
+        ],
+        [
+          144,
+          153
+        ]
+      ]
+    },
+    "eol_bytes": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/codec/util/BytesUtil.java",
+      "sha256": "e07793b6546fe4dd1490dbaace721a6b3e64c870414f47f81e152f65c34d4ee6",
+      "bytes": 6339,
+      "lines": [
+        [
+          110,
+          151
+        ]
+      ]
+    },
+    "eol_match_dtc": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/MatchUtils.java",
+      "sha256": "db55f8a43d414b41af6fc997a5fa1edaab5a57a30cf1d4abf3efed2a65da6c45",
+      "bytes": 25950,
+      "lines": [
+        [
+          299,
+          326
+        ],
+        [
+          354,
+          367
+        ],
+        [
+          379,
+          398
+        ],
+        [
+          401,
+          432
+        ]
+      ]
+    },
+    "eol_cell_schema_check": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/executor/util/ScriptCheckUtil.java",
+      "sha256": "515b562a93e3b674a80f87bf04fb148da86cfd6ec537f77a1382e349bdd6bd42",
+      "bytes": 15500,
+      "lines": [
+        [
+          272,
+          307
+        ]
+      ]
+    },
+    "legacy_read_did": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/../uds/control/DiagService22.java",
+      "sha256": "7f3d14946d61e762f20687796ce033e87b0675a214fe3331e6ee9791ca123481",
+      "bytes": 10005,
+      "lines": [
+        [
+          74,
+          110
+        ],
+        [
+          176,
+          198
+        ]
+      ]
+    },
+    "uds_client": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/IUdsClient.java",
+      "sha256": "78be6f930d5d2088f0d5d7e3d06df804c8bf2cb5b611da4ed7d2ac631f88450f",
+      "bytes": 61443,
+      "lines": [
+        [
+          30,
+          60
+        ],
+        [
+          248,
+          277
+        ]
+      ]
+    },
+    "did_raw": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/DidDataRecord.java",
+      "sha256": "2baa6da96b1deef96abc686d93f9a5f9ac9e8ad2d43a8d5f61b791799d8b42e7",
+      "bytes": 3405,
+      "lines": [
+        [
+          21,
+          24
+        ]
+      ]
+    },
+    "snapshot_raw": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/DTCSnapshotEntity.java",
+      "sha256": "0dd3fb7355436736e73f526bcb5e36de2e851915bd03a50bc789fabf299d2cca",
+      "bytes": 3805,
+      "lines": [
+        [
+          21,
+          24
+        ]
+      ]
+    },
+    "extended_raw": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/DTCExtendedEntity.java",
+      "sha256": "7d141341853116619b72881d198e2b1e71b64e2a2f2a0734d528be4f748b85a4",
+      "bytes": 3802,
+      "lines": [
+        [
+          21,
+          24
+        ]
+      ]
+    },
+    "dtc_count_raw": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/DTCNumberEntity.java",
+      "sha256": "15c5d87e9e018d68eeef69b252b935dbdf41712beab82107bbba18f701c165e8",
+      "bytes": 4620,
+      "lines": [
+        [
+          21,
+          26
+        ]
+      ]
+    },
+    "server_scaling": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/IUdsServerCallback.java",
+      "sha256": "05238557f8eb58532d1842c8c6a7f2a7264f4248097629f92cd55867e312ace4",
+      "bytes": 63227,
+      "lines": [
+        [
+          85,
+          91
+        ],
+        [
+          275,
+          283
+        ]
+      ]
+    },
+    "scaling_raw": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/ts/car/uds/sdk/ScalingByteExtension.java",
+      "sha256": "6b17b6e70bc9b81624ebb2159f34048a83461a337fb630f67fdcca373245e3fa",
+      "bytes": 3534,
+      "lines": [
+        [
+          21,
+          24
+        ]
+      ]
+    },
+    "ota_can": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1701d2f0d30926a22f9bbd0d465900d53009f020a437e4a679bf9138f6efbb2c",
+      "bytes": 33389,
+      "lines": [
+        [
+          118,
+          177
+        ],
+        [
+          180,
+          244
+        ],
+        [
+          246,
+          280
+        ]
+      ]
+    },
+    "ota_doip": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DoipDiagnostic.java",
+      "sha256": "284603fe3b2e667216814905cf24774e3db10f6778b6e86c2278728be42ab58a",
+      "bytes": 20758,
+      "lines": [
+        [
+          201,
+          212
+        ],
+        [
+          289,
+          304
+        ],
+        [
+          413,
+          430
+        ]
+      ]
+    },
+    "ota_model": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/model/EcuListInfo.java",
+      "sha256": "9511ddc5b50d3a528c4312420d40f29455ee4d0d5bc1425b6ad15629263676bd",
+      "bytes": 4803,
+      "lines": [
+        [
+          40,
+          57
+        ]
+      ]
+    },
+    "productline_doip": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/diagnose/DoipDiagnostic.java",
+      "sha256": "4813f12ff75f394987c3427a2f3dda31238f90c695b0d76f08370566105ff5e9",
+      "bytes": 21824,
+      "lines": [
+        [
+          313,
+          340
+        ],
+        [
+          365,
+          377
+        ]
+      ]
+    },
+    "old_fixture": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/assets/pl_gcy_uds_-script-20240821.json",
+      "sha256": "0fe43a16f239ce2efd048f28c375cd1fd41d179a7739fea968959fa85c04d616",
+      "bytes": 325484
+    },
+    "test_fixture": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/assets/pl_gcy_uds_test.json",
+      "sha256": "4612d2ac6272808cad908c360e5c1a2adc0bd746a36ff57b62f69c6500214126",
+      "bytes": 39451
+    },
+    "level2_fixture": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/assets/pl_gcy_uds_test_level2.json",
+      "sha256": "8590fb6e62a22076c8a9b2e2992809f2503422109b7057391280923cf928034a",
+      "bytes": 3447
+    },
+    "low_power": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/res/raw/low_power_script.json",
+      "sha256": "c3883631aa7f336d7c5d3da2af6a3549c988d166704106425bc9be9535cb064f",
+      "bytes": 11809
+    },
+    "cell_recovered": {
+      "path": "/Users/dmitry/Dev/denza-gateway/captures/diagnostics-deep-20261021/uds/CellValueReadUtils-jadx-debug.java",
+      "sha256": "514d63c7b2b5740cd82c2bf208865c06570d3e8b69ae6591a63ec2908372201a",
+      "bytes": 8489,
+      "lines": [
+        [
+          24,
+          32
+        ],
+        [
+          64,
+          85
+        ]
+      ]
+    },
+    "prior_didiag": {
+      "path": "captures/diagnostics-discovery-20261018/didiag-map-next/README.md",
+      "sha256": "92454d9240c85a85e4bc0cff88c8f0c5adeb6cf4c94e5c2e980f6f76d9374476",
+      "bytes": 13336,
+      "lines": [
+        [
+          65,
+          100
+        ]
+      ]
+    },
+    "prior_eol": {
+      "path": "captures/diagnostics-discovery-20261018/eol-map-next/report.md",
+      "sha256": "def20d8fe9733b54f5bf1d0f02d0195f4ddb96b9e96688e69936cb45a4c8a5fc",
+      "bytes": 9139
+    },
+    "prior_native_health": {
+      "path": "captures/diagnostics-discovery-20261018/native-next-local-route/report.md",
+      "sha256": "de006eaa12a7e0a67e92328f2f37b03eb56efe1f78c2290914c2406a04fbf9d3",
+      "bytes": 9635,
+      "lines": [
+        [
+          7,
+          44
+        ]
+      ]
+    },
+    "prior_resource_audit": {
+      "path": "captures/diagnostics-oem-dtc-20261020/local/README.md",
+      "sha256": "0a9f2a60370ec388f1b5a50358b13771c8077e84e2d77a1a0ec0e1bccce30b85",
+      "bytes": 9586,
+      "lines": [
+        [
+          1,
+          40
+        ]
+      ]
+    }
+  },
+  "captureBase": "captures/diagnostics-deep-20261021/uds",
+  "captureEvidenceSha256": "6ac0a1d6df14aaf9c62a88fcd2f60e04b680bbbaaaa7b2bcbaea63a71cfb2a9b",
+  "retainedArtifacts": {
+    "tableEntries": "research/vehicle-diagnostics/hu-uds-server-tables-20261021.json",
+    "didLengths": "research/vehicle-diagnostics/hu-uds-server-dids-20261021.tsv"
+  }
+}
