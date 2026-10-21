@@ -29,6 +29,10 @@ internal sealed interface ObdValue {
     data class Monitors(val status: MonitorStatus) : ObdValue
     /** A PID this decoder does not know: only the bytes. */
     data object Raw : ObdValue
+    /** The PID answered with its «no value» pattern (PID 44 `FFFF`): no number, a gap in a trace. */
+    data object NoValue : ObdValue {
+        const val TEXT = "н/д"
+    }
 }
 
 /** One PID of one `41` answer. */
@@ -183,7 +187,8 @@ internal object ObdPids {
         ObdPid(0x41, "Мониторы этой поездки", 4) { ObdValue.Monitors(Monitors.decode(it, thisCycle = true)) },
         ObdPid(0x42, "Напряжение ЭБУ", 2) { one(word(it, 0) / 1000.0, "В", 2) },
         ObdPid(0x43, "Абсолютная нагрузка", 2) { one(word(it, 0) * 100.0 / 255, "%", 1) },
-        ObdPid(0x44, "Заданный коэффициент λ", 2) { one(word(it, 0) * 2.0 / 65536, "", 3) },
+        // FFFF is the boundary value (ECM, engine stopped, 2026-10-21), not a commanded λ of 2,000.
+        ObdPid(0x44, "Заданный коэффициент λ", 2) { if (word(it, 0) == 0xFFFF) ObdValue.NoValue else one(word(it, 0) * 2.0 / 65536, "", 3) },
         percent("Относительное положение дросселя", 0x45),
         temperature("Температура окружающего воздуха", 0x46),
         percent("Положение дросселя B", 0x47),

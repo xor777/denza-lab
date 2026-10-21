@@ -155,6 +155,13 @@ internal class ParamTrace(val spec: ParamSpec) {
                 mark(at)
                 return listOf(LiveStream.csvLine(at, key.request, key.pid, reading.rawHex, "\"${v.text}\""))
             }
+            // An answer without a number (PID 44 FFFF): «н/д», a gap in the trace.
+            v == ObdValue.NoValue -> {
+                put(at, null)
+                value = ObdValue.NoValue.TEXT
+                mark(at)
+                return listOf(LiveStream.csvLine(at, key.request, key.pid, reading.rawHex, ""))
+            }
             else -> {
                 put(at, null)
                 return listOf(LiveStream.csvLine(at, key.request, key.pid, "", ""))

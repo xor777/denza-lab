@@ -19,7 +19,8 @@ import java.util.Locale
  * table. So `01 0C 0D` (rpm, 2 bytes; speed, 1) is one frame, and three one-byte PIDs are the most
  * one request can carry. Multi-frame `01` waits for the acceptance to show the gateway assembles it
  * fast (6.1); a PID that cannot fit a frame alone is not streamed. A pack the module answers with a
- * negative or a broken reply is split into single PIDs from then on.
+ * negative or a broken reply is split into single PIDs from then on; PID 56, whose answer has no
+ * fixed length, is single from the start ([ALONE]).
  *
  * Time is the car's: each sample sits at its reply's [DiagReply.receivedNanos], an exchange with no
  * answer is a gap ([Sample] with a null value), nothing is interpolated, and the header's rate and
@@ -35,7 +36,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
 
     var focus: List<Int> = emptyList()
         private set
-    private val singles = HashSet<Int>()
+    private val singles = HashSet(ALONE)
     private var focusPacks: List<List<Int>> = emptyList()
     private var tablePacks: List<List<Int>> = emptyList()
     private var focusCursor = 0
@@ -209,6 +210,12 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
                     current = null
                     mark(at)
                 }
+                // An answer, but no number: «н/д» in the table, a gap in the trace.
+                ObdValue.NoValue -> {
+                    gap(at)
+                    value = ObdValue.NoValue.TEXT
+                    mark(at)
+                }
                 else -> gap(at)
             }
         }
@@ -237,6 +244,7 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
         fun gap(at: Long) {
             value = "—"
             current = null
+            plain = ""
             add(Sample(at, null))
         }
 
@@ -353,6 +361,14 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
 
         /** The order of the board «Потоковые данные». */
         private val BOARD_ORDER = listOf(0x05, 0x0F, 0x0B, 0x0C, 0x04, 0x11, 0x0E, 0x06, 0x07, 0x03, 0x15, 0x3C, 0x42)
+
+        /**
+         * Asked alone from the first request. The ECM answers PID 56 with one byte (`41 56 80`,
+         * 2026-10-21): its bank-3 byte is conditional (J1979 table B67), so inside a pack the answer
+         * cannot be split, the pack comes back Malformed and every PID in it would go single for the
+         * rest of the session.
+         */
+        private val ALONE = setOf(0x56)
 
         /** Fuel trims and errors are read with their sign. */
         private val SIGNED = setOf(0x06, 0x07, 0x2D, 0x56)

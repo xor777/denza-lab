@@ -166,6 +166,7 @@ class ObdCodecTest {
             val reading = ok(ObdCodec.pids(hexBytes(reply))).single()
             assertEquals(def.pid, reading.pid)
             assertTrue("%02X".format(def.pid), reading.value != ObdValue.Raw || def.pid == 0x6B)
+            assertTrue("%02X".format(def.pid), reading.value != ObdValue.NoValue)
             assertTrue(def.name.isNotBlank())
         }
     }
@@ -189,6 +190,23 @@ class ObdCodecTest {
         val coolant = ok(ObdCodec.pids(hexBytes("4167013100"))).single().value as ObdValue.Numbers
         assertEquals(listOf("датчик 1"), coolant.quantities.map { it.label })
         assertEquals(9.0, coolant.quantities[0].value, 0.0)
+    }
+
+    /** ecm-obd-telemetry 2026-10-21: the ECM's replies beyond run 2, as the car sent them. */
+    private val telemetry by lazy {
+        JSONObject(File(root, "research/vehicle-diagnostics/ecm-obd-telemetry-20261021.json").readText())
+    }
+    private fun telemetryReply(uds: String) = telemetry.getJSONArray("runs").objects()
+        .flatMap { it.getJSONArray("responses").objects() }.first { it.getString("requestHex") == uds }.getString("responseHex")
+
+    @Test
+    fun commandedLambdaFfffIsNoValue() {
+        // 41 44 FF FF from the stopped engine: the boundary value, not λ 2,000.
+        assertEquals("4144FFFF", telemetryReply("0144"))
+        assertEquals(ObdValue.NoValue, pid(0x7E0, 0x44, telemetryReply("0144")).value)
+        assertEquals("FFFF", pid(0x7E0, 0x44, telemetryReply("0144")).rawHex)
+        assertEquals("1,000", number(pid(0x7E0, 0x44, "41448000")).text)
+        assertEquals("2,000", number(pid(0x7E0, 0x44, "4144FFFE")).text)
     }
 
     @Test

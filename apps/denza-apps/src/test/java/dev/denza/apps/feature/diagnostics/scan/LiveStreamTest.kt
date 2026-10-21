@@ -57,6 +57,9 @@ class LiveStreamTest {
         }
         // Three one-byte values share one request.
         assertEquals(listOf(0x05, 0x0F, 0x0B), s.packs.first())
+        // PID 56 is asked alone from the start: its one-byte answer cannot be split inside a pack.
+        assertTrue(listOf(0x56) in s.packs)
+        assertEquals(1, s.packs.count { 0x56 in it })
         // A request of every pack passes the whitelist on the way out.
         repeat(s.packs.size) { assertTrue(s.next() != null) }
     }
@@ -169,6 +172,34 @@ class LiveStreamTest {
         s.accept(answer(ask(*pack.toIntArray()), "7F0112", at = 1L))
         pack.forEach { p -> assertTrue(s.packs.contains(listOf(p))) }
         pack.forEach { p -> assertNull(s.view(true, false, null).row(p).samples.last().value) }
+    }
+
+    @Test
+    fun theOneBytePid56LeavesEveryOtherPackAsItWas() {
+        val s = ecm()
+        val before = s.packs
+        // The car's own answer, 2026-10-21: B1 alone.
+        val lines = s.accept(answer(ask(0x56), "415680", at = 1L))
+        assertEquals(before, s.packs)
+        assertEquals("0,0", s.view(true, false, null).row(0x56).value)
+        assertEquals(listOf("1,7E0,56,80,0"), lines)
+        // A pack the module breaks still goes single, 56 among the singles or not.
+        val pack = s.packs.first()
+        s.accept(answer(ask(*pack.toIntArray()), "41", at = 2L))
+        pack.forEach { p -> assertTrue(s.packs.contains(listOf(p))) }
+    }
+
+    @Test
+    fun commandedLambdaWithoutAValueIsNdAndAGap() {
+        val s = ecm()
+        s.accept(answer(ask(0x44), "41448000", at = 1L))
+        assertEquals("1,000", s.view(true, false, null).row(0x44).value)
+        // 41 44 FF FF, the stopped engine of 2026-10-21: no λ of 2,000.
+        val lines = s.accept(answer(ask(0x44), "4144FFFF", at = 2L))
+        val row = s.view(true, false, null).row(0x44)
+        assertEquals("н/д", row.value)
+        assertEquals(listOf(Sample(1L, 1f), Sample(2L, null)), row.samples)
+        assertEquals(listOf("2,7E0,44,FFFF,"), lines)
     }
 
     @Test
