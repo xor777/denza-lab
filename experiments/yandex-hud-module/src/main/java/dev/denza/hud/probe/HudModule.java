@@ -79,6 +79,8 @@ public final class HudModule {
         byte[] mapPng;
         HudImage mapImage;
         StockHudArt stockArt;
+        /** The manoeuvre block through a gap in the guidance, so the HUD never fills it in Chinese. */
+        final ManeuverHold hold = new ManeuverHold();
         boolean busy, wasActive;
         String mode = "off", hintKey, outputKey = "", arFailure;
         long frames, lastStats, nextAttempt;
@@ -150,7 +152,7 @@ public final class HudModule {
                     maxMainMicros = Math.max(maxMainMicros, elapsed);
                 }
                 // Immutable semantic snapshot; stock artwork and PNG work belong to the output worker.
-                final NavigatorSource.Hint hint = frame.drawMap() ? frame.hint : null;
+                final NavigatorSource.Hint hint = hold.apply(frame, now);
                 final HudAr.Frame ar = arSource.read(frame, now, System.currentTimeMillis());
                 final int arBuilds = arSource.geometryBuilds;
                 if (ar != null) emulator.route(frame.route);
@@ -206,10 +208,12 @@ public final class HudModule {
         private void logHint(NavigatorSource.Hint hint) {
             String key = hint == null ? "none" : hint.iconKey() + ":" + hint.stockId + ":" + hint.speedLimit;
             if (source.hintFailure != null) key = "failed:" + source.hintFailure;
+            if (hold.holding != null) key += ":held:" + hold.holding;
             if (key.equals(hintKey)) return;
             hintKey = key;
             if (source.hintFailure != null) Log.w(TAG, "hint unavailable: " + source.hintFailure);
-            else if (hint != null) Log.i(TAG, "hint " + hint.iconKey() + " stock=" + hint.stockId + " in=" + hint.distance
+            if (hold.holding != null) Log.i(TAG, "hint held (" + hold.holding + "): " + hint.iconKey() + " in=" + hint.distance + "m");
+            else if (hint != null && source.hintFailure == null) Log.i(TAG, "hint " + hint.iconKey() + " stock=" + hint.stockId + " in=" + hint.distance
                     + "m road=" + (hint.road.isEmpty() ? "-" : "set") + " remain=" + hint.remainingMeters + "m/" + hint.remainingSeconds
                     + "s limit=" + hint.speedLimit + " raw=" + hint.limitValue + "/" + hint.limitText);
         }
