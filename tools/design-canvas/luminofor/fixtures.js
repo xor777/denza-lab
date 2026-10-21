@@ -980,7 +980,7 @@
     wheelHeat: true, pads: { left: 'charging', right: 'standby' }, fridges: { front: 'cold', rear: 'off' },
     plates: { left: ['cluster', 'wheel', 'fl', 'rl', 'rc'], right: ['pads', 'fr', 'fridges', 'rr'] },
     text: {
-      cluster: P('ПРИБОРЫ · INS 723 · HUD 7B0', [st('сообщений нет'), sm('проекция вкл')]),
+      cluster: P('ПРИБОРЫ · INS 723 · HUD 7B0', [st('нет сообщений'), sm('проекция вкл')]),
       wheel: P('РУЛЬ · SWS 711', [st('подогрев вкл', 'orangeInk')]),
       fl: P('ВОДИТЕЛЬ · DUCU 750', [st('сидит · пристёгнут'), sm('подогрев 2 · вентиляция выкл'), sm('массаж: волна · средне')]),
       rl: P('2-Й РЯД ЛЕВЫЙ · MLUCU 7D2', [[['сидит · ', 'cell', 'white'], ['не пристёгнут', 'cell', 'orange']], sm('подогрев выкл · вентиляция выкл'), sm('массаж выкл · свет для чтения')]),

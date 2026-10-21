@@ -70,7 +70,7 @@ internal object SystemPagesBuilder {
             CarSystem.PACK -> listOf(SystemTab.STATE, SystemTab.CELLS, SystemTab.LIVE, SystemTab.GB_FLAGS, SystemTab.DTC, SystemTab.BLOCKS)
             CarSystem.DRIVES, CarSystem.ADAS -> listOf(SystemTab.STATE, SystemTab.COMPARE, SystemTab.DTC, SystemTab.BLOCKS)
             CarSystem.ENGINE -> listOf(SystemTab.STATE, SystemTab.LIVE, SystemTab.DTC_READINESS, SystemTab.BLOCKS)
-            CarSystem.CABIN, CarSystem.OTHER -> listOf(SystemTab.DTC, SystemTab.BLOCKS)
+            CarSystem.OTHER -> listOf(SystemTab.DTC, SystemTab.BLOCKS)
             else -> listOf(SystemTab.STATE, SystemTab.DTC, SystemTab.BLOCKS)
         }
     }
@@ -192,7 +192,8 @@ internal object SystemPagesBuilder {
                 "DC-DC в ${tag(0x7E4)} · АКБ ${tag(0x762)} · напряжение ${DiagnosticExtra.LV.device}",
                 listOf(HeadCounter("12 В", unit(car.extra(DiagnosticExtra.LV), 1, "В")), dtc),
             )
-            CarSystem.SAFETY, CarSystem.CABIN, CarSystem.OTHER -> Triple(count(members), plainLine(members), generic)
+            CarSystem.CABIN -> Triple(count(members), CABIN_LINE, generic)
+            CarSystem.SAFETY, CarSystem.OTHER -> Triple(count(members), plainLine(members), generic)
         }
         return SystemPage(
             system = system,
@@ -336,7 +337,8 @@ internal object SystemPagesBuilder {
             passengerBelt = i.rows[0x713],
             childRadar = i.rows[0x5E0],
         )
-        CarSystem.CABIN, CarSystem.OTHER -> null
+        CarSystem.CABIN -> cabin(i.s.car)
+        CarSystem.OTHER -> null
     }
 
     /** «553 В»: the pack's voltage, as the HV schema's pack box has it. */
@@ -549,6 +551,235 @@ internal object SystemPagesBuilder {
             smartEntry = i.rows[0x7D6],
             nfc = i.rows[0x595],
             tailgate = i.rows[0x724],
+        )
+    }
+
+    // ------------------------------------------------------------------ the cabin
+
+    /** «Салон»'s head line: every block by what it serves, as the board writes it (`cabinBlock.line`). */
+    val CABIN_LINE: String = run {
+        fun a(vararg r: Int) = r.joinToString(" ") { Figures.address(it) }
+        "приборы ${a(0x723)} · ${tag(0x7B0)} · руль ${a(0x711, 0x725)} · ГУ ${a(0x741)} · пасс. ПК ${a(0x5E7)} · " +
+            "сиденья ${a(0x750, 0x7B5, 0x7D2)} · селектор ${a(0x7A7)} · холодильник ${a(0x5A0, 0x5F4, 0x7C6)} · " +
+            "${tag(0x733)} · ${tag(0x5E4)} · ${tag(0x772)} · ${tag(0x751)} · ${tag(0x790)}"
+    }
+
+    /** One seat's GETs; the centre has neither climate, massage nor a lamp. */
+    private class SeatGets(
+        val label: String,
+        val seated: DiagnosticExtra,
+        val belt: DiagnosticExtra,
+        /** The belt's fastened and unfastened codes: 1 and 0 at the front, 2 and 1 behind. */
+        val fastened: Int,
+        val unfastened: Int,
+        val heat: DiagnosticExtra? = null,
+        val vent: DiagnosticExtra? = null,
+        val mode: DiagnosticExtra? = null,
+        val level: DiagnosticExtra? = null,
+        val lamp: DiagnosticExtra? = null,
+    )
+
+    private val SEATS: Map<CabinPlace, SeatGets> by lazy {
+        linkedMapOf(
+            CabinPlace.FL to SeatGets("ВОДИТЕЛЬ · ${tag(0x750)}", DiagnosticExtra.SEATED_FL, DiagnosticExtra.BELT_FL, 1, 0,
+                DiagnosticExtra.SEAT_HEAT_FL, DiagnosticExtra.SEAT_VENT_FL, DiagnosticExtra.MASSAGE_MODE_FL, DiagnosticExtra.MASSAGE_LEVEL_FL, DiagnosticExtra.READING_FL),
+            CabinPlace.FR to SeatGets("ПАССАЖИР · ${tag(0x7B5)}", DiagnosticExtra.SEATED_FR, DiagnosticExtra.BELT_FR, 1, 0,
+                DiagnosticExtra.SEAT_HEAT_FR, DiagnosticExtra.SEAT_VENT_FR, DiagnosticExtra.MASSAGE_MODE_FR, DiagnosticExtra.MASSAGE_LEVEL_FR, DiagnosticExtra.READING_FR),
+            CabinPlace.RL to SeatGets("2-Й РЯД ЛЕВЫЙ · ${tag(0x7D2)}", DiagnosticExtra.SEATED_RL, DiagnosticExtra.BELT_RL, 2, 1,
+                DiagnosticExtra.SEAT_HEAT_RL, DiagnosticExtra.SEAT_VENT_RL, DiagnosticExtra.MASSAGE_MODE_RL, DiagnosticExtra.MASSAGE_LEVEL_RL, DiagnosticExtra.READING_RL),
+            CabinPlace.RC to SeatGets("2-Й РЯД ЦЕНТР", DiagnosticExtra.SEATED_RC, DiagnosticExtra.BELT_RC, 2, 1),
+            CabinPlace.RR to SeatGets("2-Й РЯД ПРАВЫЙ", DiagnosticExtra.SEATED_RR, DiagnosticExtra.BELT_RR, 2, 1,
+                DiagnosticExtra.SEAT_HEAT_RR, DiagnosticExtra.SEAT_VENT_RR, DiagnosticExtra.MASSAGE_MODE_RR, DiagnosticExtra.MASSAGE_LEVEL_RR, DiagnosticExtra.READING_RR),
+        )
+    }
+
+    /** The plates' columns as the board stacks them. */
+    val CABIN_LEFT = listOf(CabinPlace.CLUSTER, CabinPlace.WHEEL, CabinPlace.FL, CabinPlace.RL, CabinPlace.RC)
+    val CABIN_RIGHT = listOf(CabinPlace.PADS, CabinPlace.FR, CabinPlace.FRIDGES, CabinPlace.RR)
+
+    /** The massage programmes by the stock's names: wave, pulse, stretch, smoothing, slack, the hot stones. */
+    val MASSAGE_MODES = mapOf(
+        2 to "волна", 3 to "пульс", 4 to "растяжка", 5 to "разглаживание", 6 to "расслабление",
+        8 to "горячие камни · плечи", 9 to "горячие камни · поясница",
+    )
+
+    /** INTENSITY_WEAK, _MEDIUM, _STRONG. */
+    val MASSAGE_LEVELS = mapOf(1 to "слабо", 2 to "средне", 3 to "сильно")
+
+    val PAD_WORDS = mapOf(PadState.CHARGING to "заряжает", PadState.FULL to "заряжен", PadState.FAULT to "отказ", PadState.STANDBY to "ожидание")
+
+    val FRIDGE_WORDS = mapOf(FridgeMode.COLD to "холод", FridgeMode.HOT to "тепло", FridgeMode.OFF to "выкл", FridgeMode.FRESH to "свежесть")
+
+    /** The stock's popup reminders of a fridge; 0 is none. */
+    val FRIDGE_REMINDERS = mapOf(1 to "нет связи", 2 to "долго работает", 3 to "режим тепла", 4 to "дверь не закрыта")
+
+    /** A three-level seat's heating or ventilation: 1 off (0), 2/3/4 levels 1..3; any other code null. */
+    fun seatLevel(raw: Double?): Int? = raw?.toInt()?.takeIf { it in 1..4 }?.minus(1)
+
+    /** Who sits: 2 seated, any other code not, as DiCarServer reads it; null nothing came. */
+    fun seated(raw: Double?): Boolean? = raw?.let { it.toInt() == 2 }
+
+    /** A two-state code: [on], [off], else null. */
+    fun twoState(raw: Double?, on: Int, off: Int): Boolean? = when (raw?.toInt()) {
+        on -> true
+        off -> false
+        else -> null
+    }
+
+    fun pad(raw: Double?): PadState? = when (raw?.toInt()) {
+        0 -> PadState.CHARGING
+        1 -> PadState.FULL
+        2 -> PadState.FAULT
+        3 -> PadState.STANDBY
+        else -> null
+    }
+
+    fun fridge(raw: Double?): FridgeMode? = when (raw?.toInt()) {
+        1 -> FridgeMode.COLD
+        2 -> FridgeMode.HOT
+        3 -> FridgeMode.OFF
+        4 -> FridgeMode.FRESH
+        else -> null
+    }
+
+    /**
+     * A mode's set point, °C (research: cold raw − 19 for raw 1..34, hot raw + 34 for 1..16, fresh
+     * raw + 7 for 1..3); null off, not known, or a raw code out of its range.
+     */
+    fun setPoint(mode: FridgeMode?, raw: Double?): Double? {
+        val r = raw?.toInt() ?: return null
+        return when (mode) {
+            FridgeMode.COLD -> (r - 19).takeIf { r in 1..34 }
+            FridgeMode.HOT -> (r + 34).takeIf { r in 1..16 }
+            FridgeMode.FRESH -> (r + 7).takeIf { r in 1..3 }
+            FridgeMode.OFF, null -> null
+        }?.toDouble()
+    }
+
+    /**
+     * «массаж: волна · средне» while it massages - a programme and a level 1..3, as the stock reads
+     * it - «массаж выкл» for mode off or a level off or INVALID, «массаж н/д» where either is not known.
+     */
+    fun massage(mode: Double?, level: Double?): String {
+        val m = mode?.toInt() ?: return "массаж $NA"
+        if (m == 1) return "массаж выкл"
+        val name = MASSAGE_MODES[m] ?: return "массаж $NA"
+        val l = level?.toInt() ?: return "массаж $NA"
+        return MASSAGE_LEVELS[l]?.let { "массаж: $name · $it" } ?: if (l == 0 || l == 4) "массаж выкл" else "массаж $NA"
+    }
+
+    /** A level in words: «выкл», «2», «н/д». */
+    private fun levelWord(n: Int?): String = when (n) {
+        null -> NA
+        0 -> "выкл"
+        else -> n.toString()
+    }
+
+    /**
+     * The seat's first row: «сидит · пристёгнут», «сидит · » with «не пристёгнут» in orange, «пусто»
+     * dim (with «· пристёгнут» when a belt is buckled behind nobody); occupancy unknown, «н/д» dim.
+     */
+    fun presence(occupied: Boolean?, belt: Boolean?): CabinRow = CabinRow(
+        when (occupied) {
+            true -> when (belt) {
+                true -> listOf(CabinRun("сидит · пристёгнут"))
+                false -> listOf(CabinRun("сидит · "), CabinRun("не пристёгнут", CabinTone.ALERT))
+                null -> listOf(CabinRun("сидит · ремень $NA"))
+            }
+            false -> listOf(CabinRun(if (belt == true) "пусто · пристёгнут" else "пусто", CabinTone.QUIET))
+            null -> listOf(CabinRun(NA + when (belt) { true -> " · пристёгнут"; false -> " · не пристёгнут"; null -> "" }, CabinTone.QUIET))
+        },
+        small = false,
+    )
+
+    private fun row(text: String, small: Boolean, tone: CabinTone = CabinTone.PLAIN) = CabinRow(listOf(CabinRun(text, tone)), small)
+
+    /** «левая: заряжает», a fault in orange. */
+    private fun padRow(side: String, state: PadState?, small: Boolean): CabinRow = when (state) {
+        null -> row("$side: $NA", small)
+        PadState.FAULT -> CabinRow(listOf(CabinRun("$side: "), CabinRun(PAD_WORDS.getValue(state), CabinTone.ALERT)), small)
+        else -> row("$side: ${PAD_WORDS.getValue(state)}", small)
+    }
+
+    /** «передний: холод · 0 °C», «задний: выкл»; a reminder after it in orange. */
+    private fun fridgeRow(side: String, mode: FridgeMode?, set: DiagnosticExtra?, remind: Double?, car: CarReadings, small: Boolean): CabinRow {
+        val head = when (mode) {
+            null -> "$side: $NA"
+            FridgeMode.OFF -> "$side: ${FRIDGE_WORDS.getValue(mode)}"
+            else -> "$side: ${FRIDGE_WORDS.getValue(mode)} · ${cell(setPoint(mode, set?.let(car::extra)), 0, "°C")}"
+        }
+        val reminder = remind?.toInt()?.let { FRIDGE_REMINDERS[it] } ?: return row(head, small)
+        return CabinRow(listOf(CabinRun("$head · "), CabinRun(reminder, CabinTone.ALERT)), small)
+    }
+
+    private fun setGet(mode: FridgeMode?, cold: DiagnosticExtra, hot: DiagnosticExtra, fresh: DiagnosticExtra): DiagnosticExtra? = when (mode) {
+        FridgeMode.COLD -> cold
+        FridgeMode.HOT -> hot
+        FridgeMode.FRESH -> fresh
+        FridgeMode.OFF, null -> null
+    }
+
+    /**
+     * «Салон · Состояние» from the cabin's GETs (architecture 7.2; research cabin-signals-20261021.json):
+     * the seats, the wheel, the pads and the fridges as drawn, and the plates' words as the boards
+     * `scanner-sys-cabin` and `-parked` write them. The cluster's plate says the OEM warning
+     * ([SystemsBuilder.clusterWarning]) and the HUD's switch.
+     */
+    fun cabin(car: CarReadings): Scheme.Cabin {
+        fun x(e: DiagnosticExtra) = car.extra(e)
+        val seats = SEATS.mapValues { (_, g) ->
+            CabinSeat(
+                occupied = seated(x(g.seated)),
+                belt = twoState(x(g.belt), g.fastened, g.unfastened),
+                heat = g.heat?.let { seatLevel(x(it)) },
+                vent = g.vent?.let { seatLevel(x(it)) },
+                lamp = g.lamp?.let { twoState(x(it), 2, 1) },
+            )
+        }
+        val wheel = twoState(x(DiagnosticExtra.WHEEL_HEAT), 2, 1)
+        val hud = twoState(x(DiagnosticExtra.HUD), 1, 2)
+        val padLeft = pad(x(DiagnosticExtra.PAD_LEFT))
+        val padRight = pad(x(DiagnosticExtra.PAD_RIGHT))
+        val front = fridge(x(DiagnosticExtra.FRIDGE_FRONT))
+        val rear = fridge(x(DiagnosticExtra.FRIDGE_REAR))
+        fun onOff(v: Boolean?) = when (v) { true -> "вкл"; false -> "выкл"; null -> NA }
+        val plates = buildMap {
+            put(CabinPlace.CLUSTER, CabinPlate(CabinPlace.CLUSTER, "ПРИБОРЫ · ${tag(0x723)} · ${tag(0x7B0)}", listOf(
+                row(SystemsBuilder.clusterWarning(x(DiagnosticExtra.OEM_WARNING)).text, small = false),
+                row("проекция ${onOff(hud)}", small = true),
+            )))
+            put(CabinPlace.WHEEL, CabinPlate(CabinPlace.WHEEL, "РУЛЬ · ${tag(0x711)}", listOf(
+                row("подогрев ${onOff(wheel)}", small = false, tone = if (wheel == true) CabinTone.WARM else CabinTone.QUIET),
+            )))
+            SEATS.forEach { (place, g) ->
+                val seat = seats.getValue(place)
+                val rows = mutableListOf(presence(seat.occupied, seat.belt))
+                if (g.heat != null && g.mode != null && g.level != null) {
+                    rows += row("подогрев ${levelWord(seat.heat)} · вентиляция ${levelWord(seat.vent)}", small = true)
+                    rows += row(massage(x(g.mode), x(g.level)) + if (seat.lamp == true) " · свет для чтения" else "", small = true)
+                }
+                put(place, CabinPlate(place, g.label, rows))
+            }
+            put(CabinPlace.PADS, CabinPlate(CabinPlace.PADS, "БЕСПРОВОДНАЯ ЗАРЯДКА · ${tag(0x733)}", listOf(
+                padRow("левая", padLeft, small = false),
+                padRow("правая", padRight, small = true),
+            )))
+            put(CabinPlace.FRIDGES, CabinPlate(CabinPlace.FRIDGES, "ХОЛОДИЛЬНИКИ · ${tag(0x5A0)} · ${tag(0x7C6)}", listOf(
+                fridgeRow("передний", front, setGet(front, DiagnosticExtra.FRIDGE_FRONT_COLD, DiagnosticExtra.FRIDGE_FRONT_HOT, DiagnosticExtra.FRIDGE_FRONT_FRESH),
+                    x(DiagnosticExtra.FRIDGE_FRONT_REMIND), car, small = false),
+                fridgeRow("задний", rear, setGet(rear, DiagnosticExtra.FRIDGE_REAR_COLD, DiagnosticExtra.FRIDGE_REAR_HOT, DiagnosticExtra.FRIDGE_REAR_FRESH),
+                    x(DiagnosticExtra.FRIDGE_REAR_REMIND), car, small = true),
+            )))
+        }
+        return Scheme.Cabin(
+            seats = seats,
+            wheelHeat = wheel,
+            padLeft = padLeft,
+            padRight = padRight,
+            fridgeFront = front,
+            fridgeRear = rear,
+            left = CABIN_LEFT.map(plates::getValue),
+            right = CABIN_RIGHT.map(plates::getValue),
         )
     }
 }

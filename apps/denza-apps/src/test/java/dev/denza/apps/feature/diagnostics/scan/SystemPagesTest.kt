@@ -98,11 +98,10 @@ class SystemPagesTest {
         assertEquals(listOf("Состояние", "Сравнение", "DTC", "Блоки"), tabs(CarSystem.DRIVES))
         assertEquals(listOf("Состояние", "Потоковые данные", "DTC и готовность", "Блоки"), tabs(CarSystem.ENGINE))
         assertEquals(listOf("Состояние", "Сравнение", "DTC", "Блоки"), tabs(CarSystem.ADAS))
-        listOf(CarSystem.CHASSIS, CarSystem.SAFETY, CarSystem.BODY, CarSystem.CLIMATE, CarSystem.LV).forEach {
+        listOf(CarSystem.CHASSIS, CarSystem.SAFETY, CarSystem.BODY, CarSystem.CABIN, CarSystem.CLIMATE, CarSystem.LV).forEach {
             assertEquals(it.name, listOf("Состояние", "DTC", "Блоки"), tabs(it))
         }
-        assertEquals(listOf("DTC", "Блоки"), tabs(CarSystem.CABIN))
-        assertNull(model.page(CarSystem.CABIN).scheme)
+        assertTrue(model.page(CarSystem.CABIN).scheme is Scheme.Cabin)
     }
 
     @Test
@@ -241,7 +240,15 @@ class SystemPagesTest {
         assertEquals("· 4 блока", safety.aside)
         assertEquals("SRS 7F1 · MSRZ 742 · MSRF 713 · CPD 5E0", safety.line)
         assertEquals(listOf("DTC АКТ." to "0", "DTC ИСТ." to "0", "ПРОЧИТАНО" to "1/4"), counters(CarSystem.SAFETY))
-        assertEquals("· 18 блоков", model.page(CarSystem.CABIN).aside)
+        val cabin = model.page(CarSystem.CABIN)
+        assertEquals("· 18 блоков", cabin.aside)
+        // every block by what it serves, as the board's head writes it
+        assertEquals("приборы 723 · HUD 7B0 · руль 711 725 · ГУ 741 · пасс. ПК 5E7 · сиденья 750 7B5 7D2 · селектор 7A7 · " +
+            "холодильник 5A0 5F4 7C6 · WCT 733 · MCPA 5E4 · FRL 772 · AMP 751 · ETC 790", cabin.line)
+        assertEquals(cabin.blocks.map { Figures.address(it.request!!) }.toSet(),
+            Regex("\\b[0-9A-F]{3}\\b").findAll(cabin.line).map { it.value }.toSet())
+        // «Машина сейчас» read none of the cabin's memories: no count, not zero.
+        assertEquals(listOf("DTC АКТ." to "—", "DTC ИСТ." to "—", "ПРОЧИТАНО" to "0/18"), counters(CarSystem.CABIN))
     }
 
     @Test

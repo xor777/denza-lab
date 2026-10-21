@@ -188,7 +188,7 @@ internal data class SystemPage(
     val dtc: List<SystemDtcRow>,
     /** «19 01 09 · 19 02 09 · снимок 19:31:29»; «не читали» before any read. */
     val dtcFootnote: String,
-    /** «Состояние»; null for a system without one (cabin, other blocks). */
+    /** «Состояние»; null for a system without one (other blocks). */
     val scheme: Scheme?,
 )
 
@@ -323,6 +323,26 @@ internal sealed interface Scheme {
         val childRadar: ModuleRowView?,
     ) : Scheme
 
+    /**
+     * The cabin seen through the roof (board `scanner-sys-cabin`): who sits and the belt, heating,
+     * ventilation and the reading light at each seat, the wheel's heating, the pads and the fridges
+     * on the console; the words on plates, each level with its place. Values of the car's own
+     * properties (research cabin-signals-20261021.json); a null is «н/д», drawn as nothing.
+     */
+    data class Cabin(
+        /** The five seats: [CabinPlace.FL], [CabinPlace.FR], [CabinPlace.RL], [CabinPlace.RC], [CabinPlace.RR]. */
+        val seats: Map<CabinPlace, CabinSeat>,
+        /** The wheel glows warm when heated; null not known. */
+        val wheelHeat: Boolean?,
+        val padLeft: PadState?,
+        val padRight: PadState?,
+        val fridgeFront: FridgeMode?,
+        val fridgeRear: FridgeMode?,
+        /** The plates down the left and the right, top to bottom; each one's leader ends at its place. */
+        val left: List<CabinPlate>,
+        val right: List<CabinPlate>,
+    ) : Scheme
+
     data class Lv(
         /** «553 В», the DC bus. */
         val hv: String,
@@ -334,6 +354,44 @@ internal sealed interface Scheme {
         val loads: List<ModuleRowView>,
     ) : Scheme
 }
+
+/** Where a cabin plate's leader ends: the five seats, the wheel, the cluster with the HUD, the pads, the fridges. */
+internal enum class CabinPlace { CLUSTER, WHEEL, FL, FR, RL, RC, RR, PADS, FRIDGES }
+
+/** A seat seen through the roof; a null draws nothing - no strap, no pips, no lamp. */
+internal data class CabinSeat(
+    val occupied: Boolean?,
+    /** Fastened; a strap across the seat, orange and dashed when someone sits unfastened. */
+    val belt: Boolean?,
+    /** 0 off, 1..3 the level: warm pips at the seat's foot. */
+    val heat: Int?,
+    /** 0 off, 1..3: cool pips. */
+    val vent: Int?,
+    /** Its reading light; null where there is none or it said nothing. */
+    val lamp: Boolean?,
+)
+
+/** A wireless charging pad's state, as the stock status bar has it. */
+internal enum class PadState { CHARGING, FULL, FAULT, STANDBY }
+
+/** What a fridge does. */
+internal enum class FridgeMode { COLD, HOT, OFF, FRESH }
+
+/**
+ * A word's look on a cabin plate: [PLAIN] the row's own ink - white on the first row, dim under it;
+ * [QUIET] dim («пусто»), [ALERT] the car's orange («не пристёгнут»), [WARM] the heated wheel's.
+ */
+internal enum class CabinTone { PLAIN, QUIET, ALERT, WARM }
+
+internal data class CabinRun(val text: String, val tone: CabinTone = CabinTone.PLAIN)
+
+/** A row of a cabin plate: runs on one baseline; [small] the rows under the first. */
+internal data class CabinRow(val runs: List<CabinRun>, val small: Boolean) {
+    val text: String get() = runs.joinToString("") { it.text }
+}
+
+/** «ВОДИТЕЛЬ · DUCU 750» over its rows, its leader to [place]. */
+internal data class CabinPlate(val place: CabinPlace, val label: String, val rows: List<CabinRow>)
 
 /** A range on a scale: «ЯЧЕЙКИ, мВ» 3 333–3 337 on 3 000…3 700. */
 internal data class RangeView(
@@ -639,7 +697,7 @@ internal data class SystemsView(
     val adas: CompareView,
     /** The brake screen is the ESP/IPB module beside the OBD interface: both are in [DiagnosticsModel.modules]. */
     val brakeModules: List<Int>,
-    /** The OEM warning the instrument cluster (INS 723) is asked to show; no screen draws it yet. */
+    /** The OEM warning the instrument cluster (INS 723) is asked to show; the cabin's scheme says it. */
     val clusterWarning: ClusterWarningView = SystemsBuilder.clusterWarning(null),
 )
 

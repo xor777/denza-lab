@@ -63,6 +63,8 @@ internal fun SchemeContent(model: DiagnosticsModel, scheme: Scheme, onOpen: (Tar
         is Scheme.Climate -> ClimateScheme(scheme, onOpen)
         is Scheme.Lv -> LvScheme(scheme, onOpen)
         is Scheme.Safety -> SafetyScheme(scheme, onOpen)
+        // drawn by the next change: the cabin seen through the roof
+        is Scheme.Cabin -> Unit
     }
 }
 
