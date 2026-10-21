@@ -266,7 +266,7 @@ class EcuCatalogContractTest {
             val request = ecu.request ?: return@forEach
             assertEquals(Ecu.DTC_MASK, ecu.dtcMask)
             if (ecu.uds) {
-                assertTrue(ecu.address, allowed(request, 0x22, 0xF1, 0x94))
+                listOf(0x93, 0x94, 0x95, 0x8A, 0x97).forEach { assertTrue(ecu.address, allowed(request, 0x22, 0xF1, it)) }
                 assertTrue(ecu.address, allowed(request, 0x19, 0x01, ecu.dtcMask))
                 assertTrue(ecu.address, allowed(request, 0x19, 0x02, ecu.dtcMask))
             }
@@ -305,7 +305,7 @@ class EcuCatalogContractTest {
             EcuCatalog.all.filter { it.children.isNotEmpty() }.associate { it.abbreviation to it.children.size })
         // The whitelist lets exactly these through, each at its own parent only.
         fun read(address: Int, did: Int) = DiagnosticWhitelist.allowed(address, byteArrayOf(0x22, (did shr 8).toByte(), did.toByte()))
-        val identification = setOf(0xF194, 0xF195, 0xF18A, 0xF197)
+        val identification = setOf(0xF193, 0xF194, 0xF195, 0xF18A, 0xF197)
         EcuCatalog.all.forEach { ecu ->
             val request = ecu.request ?: return@forEach
             val dids = catalogued.filter { it.first == request }.map { it.second.did }.toSet()

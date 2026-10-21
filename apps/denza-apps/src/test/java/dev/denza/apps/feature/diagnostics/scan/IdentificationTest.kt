@@ -58,11 +58,11 @@ class IdentificationTest {
         val bus = carAnswers()
         val idents = listOf(0x750, 0x7B5, 0x7D2, 0x726).map { read(it, bus) }
         // Each parent: its four DIDs, then its children in the catalog's order, and nothing else.
-        assertEquals(listOf("750 22F194", "750 22F195", "750 22F18A", "750 22F197", "750 22F8C4",
-            "7B5 22F194", "7B5 22F195", "7B5 22F18A", "7B5 22F197", "7B5 22F8D4",
-            "7D2 22F194", "7D2 22F195", "7D2 22F18A", "7D2 22F197", "7D2 22F8E4", "7D2 22F8F4",
+        assertEquals(listOf("750 22F194", "750 22F195", "750 22F193", "750 22F18A", "750 22F197", "750 22F8C4",
+            "7B5 22F194", "7B5 22F195", "7B5 22F193", "7B5 22F18A", "7B5 22F197", "7B5 22F8D4",
+            "7D2 22F194", "7D2 22F195", "7D2 22F193", "7D2 22F18A", "7D2 22F197", "7D2 22F8E4", "7D2 22F8F4",
             // B_ZCU is named by the stock route and has no gate: its four lamps are read as its memory is.
-            "726 22F194", "726 22F195", "726 22F18A", "726 22F197", "726 22F204", "726 22F214", "726 22F064", "726 22F234"),
+            "726 22F194", "726 22F195", "726 22F193", "726 22F18A", "726 22F197", "726 22F204", "726 22F214", "726 22F064", "726 22F234"),
             bus.requests)
         val rows = own(*idents.toTypedArray())
         live.forEach { c ->
@@ -86,7 +86,7 @@ class IdentificationTest {
         bus.on(0x750, "22F194").answer("62F1944B310011DF016A0002")
         bus.on(0x750, "22F8C4").answer("62F8C447380011DFE3000102")
         val rows = own(read(0x750, bus)).getValue(0x750)
-        assertEquals(listOf("750 22F194", "750 22F195", "750 22F18A", "750 22F197", "750 22F8C4"), bus.requests)
+        assertEquals(listOf("750 22F194", "750 22F195", "750 22F193", "750 22F18A", "750 22F197", "750 22F8C4"), bus.requests)
         assertEquals("4B310011DF016A0002", rows.at("Номер ПО поставщика · 22 F194").value)
         assertEquals("47380011DFE3000102", rows.at("Массаж перед. левого · 22 F8C4").value)
     }
@@ -98,7 +98,7 @@ class IdentificationTest {
             val bus = FakeDiagnosticBus()
             f194?.let { bus.on(0x750, "22F194").answer(it) }
             val ident = read(0x750, bus)
-            assertEquals("$f194", listOf("750 22F194", "750 22F195", "750 22F18A", "750 22F197"), bus.requests)
+            assertEquals("$f194", listOf("750 22F194", "750 22F195", "750 22F193", "750 22F18A", "750 22F197"), bus.requests)
             val row = own(ident).getValue(0x750).at("Массаж перед. левого · 22 F8C4")
             assertEquals("not read behind $f194", "не читали", row.value)
             assertTrue(row.muted)
@@ -175,6 +175,8 @@ class IdentificationTest {
         assertEquals("32440011E004000000", rows.at("Номер ПО поставщика · 22 F194").value)
         // F195 as the car's updater reads it: 9C4A is 4.00.10, the other four bytes as they came.
         assertEquals("4.00.10 · 19031900", rows.at("Версия ПО · 22 F195").value)
+        // F193 as the updater reads it, byte 0 alone: 64 is 1.0.0.
+        assertEquals("1.0.0", rows.at("Версия железа · 22 F193").value)
         assertEquals("не отдаёт · NRC 31", rows.at("Имя системы · 22 F197").value)
         assertEquals("ECM-EngineControl", rows.at("Имя блока · 09 0A").value)
         assertEquals("Z31L07AB01", rows.at("Калибровка · 09 04").value)

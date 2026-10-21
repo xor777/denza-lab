@@ -51,7 +51,7 @@ public final class DiagnosticWhitelist {
                 if (uds.length != 3) return "22 reads one DID";
                 int did = ((uds[1] & 0xFF) << 8) | (uds[2] & 0xFF);
                 return identification(did) || childIdentity(address, did)
-                        ? null : "22 only F194, F195, F18A, F197 and the child codes at their parent";
+                        ? null : "22 only F193, F194, F195, F18A, F197 and the child codes at their parent";
             }
             case 0x19:
                 return uds.length == 3 && (uds[1] == 0x01 || uds[1] == 0x02)
@@ -79,8 +79,13 @@ public final class DiagnosticWhitelist {
         return false;
     }
 
+    /**
+     * ISO 14229's identification DIDs the section reads at every block: the supplier's software code,
+     * software version and hardware version (F193, answered positively at 64 addresses on 2026-10-21),
+     * the supplier and the system name.
+     */
     private static boolean identification(int did) {
-        return did == 0xF194 || did == 0xF195 || did == 0xF18A || did == 0xF197;
+        return did == 0xF193 || did == 0xF194 || did == 0xF195 || did == 0xF18A || did == 0xF197;
     }
 
     private static boolean childIdentity(int address, int did) {

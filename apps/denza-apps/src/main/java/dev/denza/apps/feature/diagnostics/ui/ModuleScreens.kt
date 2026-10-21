@@ -159,7 +159,7 @@ internal fun dtcNotes(dtc: DtcView): List<FooterNote> {
 
 @Composable
 private fun IdentFooter(ident: IdentView, back: FooterButton, reread: () -> Unit) {
-    ScanFooter(listOf(back, FooterButton("Прочитать снова", true, reread)), listOf(FooterNote.Words("22 F18A · F194 · F195", mono = true)))
+    ScanFooter(listOf(back, FooterButton("Прочитать снова", true, reread)), listOf(FooterNote.Words("22 F18A · F193 · F194 · F195", mono = true)))
 }
 
 /* ------------------------------------------------------------------ DTC */

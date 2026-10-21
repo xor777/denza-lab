@@ -1,9 +1,11 @@
 package dev.denza.apps.feature.diagnostics.protocol
 
-/** The identification DIDs the whitelist allows, and how each reads. */
+/** The identification DIDs the whitelist allows, and how each reads, in the order a block is asked. */
 internal enum class IdentDid(val did: Int, val ascii: Boolean, val label: String) {
     F194(0xF194, false, "номер ПО поставщика"),
     F195(0xF195, false, "версия ПО поставщика"),
+    /** ISO 14229's hardware version number; 64 addresses answered it positively on 2026-10-21. */
+    F193(0xF193, false, "версия железа поставщика"),
     F18A(0xF18A, true, "поставщик"),
     F197(0xF197, true, "имя системы");
 
@@ -15,14 +17,18 @@ internal enum class IdentDid(val did: Int, val ascii: Boolean, val label: String
 }
 
 /**
- * One `62 <did> <data>` answer. [text] is upper-case hex for F194/F195 and trimmed ASCII for
+ * One `62 <did> <data>` answer. [text] is upper-case hex for F193/F194/F195 and trimmed ASCII for
  * F18A/F197; ASCII that does not print falls back to hex with [ascii] false.
  */
 internal data class Identification(val did: IdentDid, val text: String, val ascii: Boolean, val raw: String) {
-    /** What a screen shows: F195 as the version the car uses ([IdentCodec.softwareVersion]), the rest as [text]. */
+    /**
+     * What a screen shows: F195 and F193 as the car's updater reads them ([IdentCodec.softwareVersion],
+     * [IdentCodec.hardwareVersion]), the rest as [text].
+     */
     val shown: String
         get() = when (did) {
             IdentDid.F195 -> IdentCodec.softwareVersion(raw)
+            IdentDid.F193 -> IdentCodec.hardwareVersion(raw)
             else -> text
         }
 }
@@ -78,6 +84,22 @@ internal object IdentCodec {
 
     /** Every F195 this car returned on 2026-10-21 is six bytes: the version, then four of unknown meaning. */
     const val SOFTWARE_VERSION_BYTES = 6
+
+    /**
+     * `F193` as the car's own updater reads it (stock GCY `CanDiagnostic.parseEcuHardVersionInfo`): data
+     * byte 0 as three decimal digits, `D.D.D` - 0x29 is 0.4.1, 0x64 1.0.0 - where the answer carries the
+     * five bytes the stock parser asks for; the other bytes it leaves out, and so does the screen. [hex] is
+     * the data, upper-case hex. Fewer bytes, or all FF (an unwritten field), is [hex] as it came.
+     */
+    fun hardwareVersion(hex: String): String {
+        val b = runCatching { hexBytes(hex) }.getOrNull()?.unsigned() ?: return hex
+        if (b.size < HARDWARE_VERSION_BYTES || b.all { it == 0xFF }) return hex
+        val d = b[0].toString().padStart(3, '0')
+        return "${d[0]}.${d[1]}.${d[2]}"
+    }
+
+    /** The stock parser refuses an F193 shorter than five bytes; every one this car returned on 2026-10-21 is five. */
+    const val HARDWARE_VERSION_BYTES = 5
 }
 
 internal object Ascii {

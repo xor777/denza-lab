@@ -366,8 +366,8 @@ class DiagnosticsSessionTest {
         // The autoscan finishes the module it is in, then yields: the button, the identification, then VCU.
         assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A"), r.take(6))
         assertEquals("762 190109", r[6])
-        assertEquals(listOf("7E3 22F194", "7E3 22F195", "7E3 22F18A", "7E3 22F197"), r.subList(7, 11))
-        assertEquals("7E2 22F194", r[11])
+        assertEquals(listOf("7E3 22F194", "7E3 22F195", "7E3 22F193", "7E3 22F18A", "7E3 22F197"), r.subList(7, 12))
+        assertEquals("7E2 22F194", r[12])
         assertEquals(ScanPhase.DONE, s.model.value.scan.phase)
         // The identification is read once per opening, not again when the scan reaches the module.
         assertEquals(1, r.count { it == "7E3 22F195" })

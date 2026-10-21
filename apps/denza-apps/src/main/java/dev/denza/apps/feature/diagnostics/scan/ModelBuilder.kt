@@ -317,14 +317,11 @@ internal class ModelBuilder(
         }
 
         // «Как опознан»: what the role was proved by, only what an update does not change - the
-        // snapshot's software code and version would contradict an updated block, so they stay in the
-        // catalog and its history baseline, not on screen (5.1, 5.5).
+        // snapshot's software code and versions would contradict an updated block, so they stay in the
+        // catalog and its history baseline, not on screen (5.1, 5.5); the block's own F193 is its row.
         val cache = mutableListOf(Field("Основание имени", ecu.identity.label))
         ecu.expectedObdName?.let { cache += Field("Ожидаемое имя · 09 0A", it) }
-        ecu.aliases.firstOrNull()?.let { a ->
-            cache += Field("Идентификатор", a.ecuId)
-            a.hardwareVersion?.let { cache += Field("Версия железа", it) }
-        }
+        ecu.aliases.firstOrNull()?.let { a -> cache += Field("Идентификатор", a.ecuId) }
         ecu.aliases.drop(1).forEach { cache += Field("Вариант", it.ecuId, muted = true) }
 
         val offered = id?.offered.orEmpty()
@@ -407,10 +404,10 @@ internal class ModelBuilder(
             EcuGroup.LOW_VOLTAGE to "lv", EcuGroup.UNKNOWN to "misc",
         )
 
-        private val DID_ORDER = listOf(IdentDid.F18A, IdentDid.F194, IdentDid.F195, IdentDid.F197)
+        private val DID_ORDER = listOf(IdentDid.F18A, IdentDid.F194, IdentDid.F195, IdentDid.F193, IdentDid.F197)
         private val DID_LABELS = mapOf(
             IdentDid.F18A to "Поставщик", IdentDid.F194 to "Номер ПО поставщика",
-            IdentDid.F195 to "Версия ПО", IdentDid.F197 to "Имя системы",
+            IdentDid.F195 to "Версия ПО", IdentDid.F193 to "Версия железа", IdentDid.F197 to "Имя системы",
         )
 
         private val OBD_LIST_NAMES = mapOf(

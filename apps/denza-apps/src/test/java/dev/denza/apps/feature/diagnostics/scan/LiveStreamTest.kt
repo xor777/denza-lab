@@ -245,10 +245,10 @@ class LiveStreamTest {
         assertEquals(listOf("7E0 22F194", "7E0 190109", "7E0 0101", "7E0 03", "7E0 07", "7E0 0A"), r.take(6))
         // The maps as far as they point (80 lists A0, A0 lists the odometer), the static PIDs, then Mode 09
         // as 09 00 lists it: calibration and name.
-        assertEquals(listOf("7E0 22F194", "7E0 22F195", "7E0 22F18A", "7E0 22F197", "7E0 0100", "7E0 0120", "7E0 0140",
+        assertEquals(listOf("7E0 22F194", "7E0 22F195", "7E0 22F193", "7E0 22F18A", "7E0 22F197", "7E0 0100", "7E0 0120", "7E0 0140",
             "7E0 0160", "7E0 0180", "7E0 01A0", "7E0 011C", "7E0 0101", "7E0 0141", "7E0 01A6",
-            "7E0 0900", "7E0 0904", "7E0 090A"), r.subList(6, 23))
-        assertEquals("7E0 010C0D", r[23])
+            "7E0 0900", "7E0 0904", "7E0 090A"), r.subList(6, 24))
+        assertEquals("7E0 010C0D", r[24])
         assertTrue(r.all { it.startsWith("7E0 ") })
         val live = s.model.value.modules.getValue(0x7E0).obd!!.live
         assertTrue(live.running)
@@ -266,6 +266,7 @@ class LiveStreamTest {
         assertTrue("A6" in ident.pids)
         fun own(key: String) = ident.own.first { it.key == key }
         assertEquals("0x29", own("Стандарт OBD · PID 1C").value)
+        assertEquals("1.0.0", own("Версия железа · 22 F193").value)
         assertEquals("не отдаёт · NRC 31", own("Имя системы · 22 F197").value)
         assertTrue(own("Имя системы · 22 F197").muted)
         assertEquals("ECM-EngineControl", own("Имя блока · 09 0A").value)
@@ -273,7 +274,7 @@ class LiveStreamTest {
         assertEquals("13 199,7 км", own("Пробег (ECM) · PID A6").value)
         assertEquals(
             listOf("Запрос → ответ", "Протоколы", "Поставщик · 22 F18A", "Номер ПО поставщика · 22 F194", "Версия ПО · 22 F195",
-                "Имя системы · 22 F197", "Имя блока · 09 0A", "Калибровка · 09 04", "Стандарт OBD · PID 1C",
+                "Версия железа · 22 F193", "Имя системы · 22 F197", "Имя блока · 09 0A", "Калибровка · 09 04", "Стандарт OBD · PID 1C",
                 "Пробег (ECM) · PID A6", "Формат DTC · 19 01"),
             ident.own.map { it.key },
         )

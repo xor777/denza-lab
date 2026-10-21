@@ -129,6 +129,7 @@ internal object CarNow {
         bus.on(0x7E0, "011C").answer("411C29")
         bus.on(0x7E0, "22F18A").answer("62F18A55414553202020202020")
         bus.on(0x7E0, "22F195").answer("62F1959C4A19031900")
+        bus.on(0x7E0, "22F193").answer("62F1936413040100")
         bus.on(0x7E0, "22F197").answer("7F2231")
         listOf("0180", "01A0", "01A6", "0900", "0904", "090A").forEach { bus.on(0x7E0, it).answer(ecm1021.getValue(it)) }
     }

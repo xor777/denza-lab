@@ -18,7 +18,7 @@ import dev.denza.apps.feature.diagnostics.protocol.hexBytes
 import dev.denza.apps.feature.diagnostics.protocol.map
 
 /**
- * An opened module's own read, once per opening (architecture, 6, task «блок»): `22 F194/F195/F18A/F197`
+ * An opened module's own read, once per opening (architecture, 6, task «блок»): `22 F194/F195/F193/F18A/F197`
  * where it speaks UDS, then the software codes of the modules behind it once its gate holds
  * (architecture, 5.4); for an OBD responder the PID maps `01 00/20/40/60/80/A0` as far as each map
  * points to the next, then `01 1C`, `01 01`, `01 41` and the odometer `01 A6` where offered, and

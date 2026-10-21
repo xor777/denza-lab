@@ -49,6 +49,25 @@ class IdentVersionTest {
     }
 
     @Test
+    fun theHardwareVersionIsByteZeroAsTheUpdaterReadsIt() {
+        val read = fresh("ecuHardVer")
+        // The eleven core blocks, the front ZCU among them: its F193 that run read after its F194.
+        assertEquals(11, read.size)
+        read.forEach { (address, answer) ->
+            val (uds, stock) = answer
+            assertEquals(address, "62F193", uds.take(6))
+            assertEquals(address, 5, uds.drop(6).length / 2)
+            assertEquals(address, stock, IdentCodec.hardwareVersion(uds.drop(6)))
+        }
+        assertEquals("0.4.1", IdentCodec.hardwareVersion("2918030200"))
+        assertEquals("1.0.0", IdentCodec.hardwareVersion("6413040100"))
+        assertEquals("0.0.3", IdentCodec.hardwareVersion("0318070900"))
+        // Fewer bytes than the stock parser asks for, all FF, not hex: as it came.
+        listOf("29180302", "29", "", "FFFFFFFFFF", "291803020").forEach { assertEquals(it, it, IdentCodec.hardwareVersion(it)) }
+        assertEquals("0.4.1", Identification(IdentDid.F193, "2918030200", false, "2918030200").shown)
+    }
+
+    @Test
     fun aVersionNotOfThatShapeStaysAsItCame() {
         // All FF (the stock parser's 6.55.35), FFFF before other bytes, another length, not hex.
         listOf("FFFFFFFFFFFF", "FFFF1A011301", "87F7", "87F71A01140200", "", "87F71A01140").forEach {

@@ -42,6 +42,8 @@ class SoftwareBoardContractTest {
             repeat(4) { on(0x7E7, "22F194").answer("62F194$code") }
             on(0x7E7, "22F195").answer("62F195$version")
             on(0x7E7, "22F197").answer("7F2231")
+            // F193 as the BMS answered it on 2026-10-21 (ota-core-fields-live): 03 is 0.0.3.
+            on(0x7E7, "22F193").answer("62F1930318070900")
         }
         val s = session(bus, software = software, epoch = BOARD_DAY)
         s.start()

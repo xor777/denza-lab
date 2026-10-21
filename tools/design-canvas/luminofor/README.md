@@ -93,7 +93,7 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `scanner-sys-drives-compare`, `scanner-sys-adas-compare` | the drives and the seven driver-assistance blocks side by side at the rail's width |
 | `scanner-body-dtc` | a body block's memory: two historical DTC, their status bits as a matrix, status 0x28 explained |
 | `scanner-ecu-dtc`, `scanner-ecu-fault` | the ECM: DTC lists and monitor readiness as read; the same with an illustrative P0420 and MIL on |
-| `scanner-ecu-live`, `scanner-ecu-ident` | the ECM's live data (illustrative idle, 60 s traces); its identification and the cache's, the supported PIDs - no «Сверка с F194» since 2026-10-21: the cache is the record the role was proved by, not a reference |
+| `scanner-ecu-live`, `scanner-ecu-ident` | the ECM's live data (illustrative idle, 60 s traces); its identification and the cache's, the supported PIDs - no «Сверка с F194» since 2026-10-21: the cache is the record the role was proved by, not a reference. F195 and F193 as the car's updater reads them («4.00.10 · 19031900», «1.0.0»); the identification's own side is wider than the DTC screen's (`ecuIdent.left`/`right`) |
 | `scanner-ecu-ident-updated` | a UDS block's identification after an update: the BMS with «ПО обновлено · <дата>» - «был <версия> · <код>» under its F195, the code history's row (illustrative new code, version and day). `SoftwareBoardContractTest` builds it from the session |
 | `scanner-esp-dtc` | ESP/IPB 782 opened from «Шасси»: what was asked by mask 09, nothing came back |
 | `digits` | the wide figures, for the eye |

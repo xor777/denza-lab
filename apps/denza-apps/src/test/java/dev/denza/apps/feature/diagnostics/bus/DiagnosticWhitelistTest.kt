@@ -13,7 +13,7 @@ class DiagnosticWhitelistTest {
     @Test
     fun everyReadTheSectionUsesIsAllowed() {
         listOf(
-            0x7E0 to "22F194", 0x7E0 to "22F195", 0x7E0 to "22F18A", 0x720 to "22F197",
+            0x7E0 to "22F194", 0x7E0 to "22F195", 0x7E0 to "22F18A", 0x720 to "22F197", 0x7E7 to "22F193", 0x5E7 to "22F193",
             0x782 to "190109", 0x782 to "190209", 0x720 to "1901FF", 0x7E0 to "190208",
             0x7E0 to "0100", 0x7E0 to "0101", 0x7E0 to "010C0D050B110F",
             0x7E5 to "03", 0x7E5 to "07", 0x7E5 to "0A",
@@ -31,7 +31,7 @@ class DiagnosticWhitelistTest {
 
     @Test
     fun aChildCodeIsReadOnlyAtItsParentAndNoOtherDidIsOpened() {
-        val identification = setOf(0xF194, 0xF195, 0xF18A, 0xF197)
+        val identification = setOf(0xF193, 0xF194, 0xF195, 0xF18A, 0xF197)
         fun read(address: Int, did: Int) = allowed(address, "22%04X".format(did))
         // At each parent: the four identification DIDs and its own children, and of all 65 536 nothing else.
         children.forEach { (parent, dids) ->
