@@ -1075,6 +1075,25 @@
     footer: { buttons: [['‹ Потоковые данные', 'quiet'], ['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet'], ['Запись', 'quiet']],
       notes: [['24,0 Гц · 17 мс', true]] },
   });
+  // A pack signal on its own page: one GET of autoservice every 100 ms, the rest of the batch
+  // standing; the cell minimum of the parked snapshot, flat at 3 333 mV for the last 60 s.
+  const flatCell = (() => {
+    const out = [];
+    for (let i = 0; i <= 600; i++) out.push([+(60 - i / 10).toFixed(3), 3333]);
+    return out;
+  })();
+  const scannerSysPackCell = {
+    top: scannerSysPack.top, rail: scannerSysPack.rail,
+    block: { title: 'Напряжение ячейки, мин.', aside: '· 1014·44600010', line: 'autoservice · только этот сигнал · 10,0 Гц',
+      counters: [['МИН', '3 333'], ['МАКС', '3 333'], ['СРЕДН.', '3 333']] },
+    tabs: paramTabs,
+    label: 'СЕЙЧАС', value: '3 333', unit: 'мВ', outOfNorm: false,
+    stats: [['НОРМА', '—'], ['ЗА 1 С', '0'], ['ТОЧЕК', '601']],
+    series: flatCell, window: 60, scale: [3320, 3350], grid: [3320, 3330, 3340, 3350], gridText: num,
+    ticks: [60, 45, 30, 15, 0], min: 3333, max: 3333,
+    footer: { buttons: [['‹ Потоковые данные', 'quiet'], ['Пауза', 'primary'], ['Сбросить мин/макс', 'quiet']],
+      notes: [['10,0 Гц', true]] },
+  };
 
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
@@ -1160,6 +1179,7 @@
     'scanner-sys-engine-scheme': [scanner('sysEngineScheme'), scannerSysEngineScheme],
     'scanner-sys-engine-rpm': [scanner('sysParam'), scannerSysEngineRpm],
     'scanner-sys-engine-ect': [scanner('sysParam'), scannerSysEngineEct],
+    'scanner-sys-pack-cell': [scanner('sysParam'), scannerSysPackCell],
     'scanner-sys-climate': [scanner('sysClimate'), scannerSysClimate],
     'scanner-sys-lv':    [scanner('sysLv'), scannerSysLv],
     'scanner-sys-engine-dtc': [scanner('sysEngineDtc'), scannerSysEngineDtc],
