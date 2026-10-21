@@ -204,7 +204,10 @@ internal data class DtcRecord(val code: DtcCode, val status: DtcStatus)
 
 /**
  * One ECU's DTC memory for one request mask: count and list agreed. Empty means «no record
- * matched [requestMask]» - not that every monitor ran.
+ * matched [requestMask]» - not that every monitor ran. [records] are every record the list held, in
+ * its order: a code the ECU lists twice is two records, never merged and never a reason to refuse
+ * the memory (architecture, 4) - ISG 7E6's complete `19 0A` lists `C1D487` twice, and the stock
+ * client's parser appends records without removing repeats.
  */
 internal data class DtcMemory(
     val requestMask: DtcStatus,
@@ -237,8 +240,8 @@ internal object DtcCodec {
 
     /**
      * Count and list of one request mask as one memory, or why they disagree: the count is not
-     * the list's length, the two masks differ, a record holds a bit outside the availability mask,
-     * or a code repeats.
+     * the list's length, the two masks differ, or a record holds a bit outside the availability mask.
+     * A code that repeats is not a disagreement: each occurrence stays a record, in the list's order.
      */
     fun memory(requestMask: Int, count: DtcCount, list: DtcList): Decoded<DtcMemory> {
         if (count.availability != list.availability) {
@@ -250,7 +253,6 @@ internal object DtcCodec {
         list.entries.firstOrNull { it.status.byte and count.availability.byte.inv() != 0 }?.let {
             return Decoded.Malformed("%06X status %s outside availability %s".format(it.raw, it.status, count.availability))
         }
-        if (list.entries.map { it.raw }.toSet().size != list.entries.size) return Decoded.Malformed("a code repeats")
         val records = list.entries.map { DtcRecord(DtcCode(it.raw, count.format, count.formatId), it.status) }
         return Decoded.Ok(DtcMemory(DtcStatus(requestMask and 0xFF), count.availability, count.format, records))
     }
@@ -266,13 +268,13 @@ internal object DtcCodec {
     /**
      * The memory of an ECU whose `19 01` does not answer (DCOBC): the list alone, its own checks
      * only. `59 02` carries no format, so codes read as [format] where a count once told it, and
-     * stay raw ([DtcFormat.OTHER]) where none did - never SAE by analogy.
+     * stay raw ([DtcFormat.OTHER]) where none did - never SAE by analogy. A repeated code stays a
+     * record per occurrence, as in [memory].
      */
     fun listOnlyMemory(requestMask: Int, list: DtcList, format: DtcFormat?): Decoded<DtcMemory> {
         list.entries.firstOrNull { it.status.byte and list.availability.byte.inv() != 0 }?.let {
             return Decoded.Malformed("%06X status %s outside availability %s".format(it.raw, it.status, list.availability))
         }
-        if (list.entries.map { it.raw }.toSet().size != list.entries.size) return Decoded.Malformed("a code repeats")
         val read = format ?: DtcFormat.OTHER
         val records = list.entries.map { DtcRecord(DtcCode(it.raw, read, read.id), it.status) }
         return Decoded.Ok(DtcMemory(DtcStatus(requestMask and 0xFF), list.availability, read, records))

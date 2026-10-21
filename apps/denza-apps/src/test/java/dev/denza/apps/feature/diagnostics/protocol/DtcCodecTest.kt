@@ -159,10 +159,6 @@ class DtcCodecTest {
         malformed(DiagDecoder.dtcMemory(answer(0x762, "190109", "590109000001"), answer(0x762, "190209", "59020951700928")))
         // Availability differs between the two answers.
         malformed(DiagDecoder.dtcMemory(answer(0x762, "190109", "590109000000"), answer(0x762, "190209", "5902FF")))
-        // A code repeats.
-        malformed(DiagDecoder.dtcMemory(
-            answer(0x747, "1901FF", "5901FF000002"), answer(0x747, "1902FF", "5902FF517009285170092C"),
-        ))
         // A list of a torn length.
         malformed(DiagDecoder.dtcList(answer(0x747, "1902FF", "5902FF517009")))
         // Count and list of different masks or ECUs.
@@ -171,6 +167,38 @@ class DtcCodecTest {
         // An inconsistent answer is a quality of its own, never «кодов нет».
         val polled = Polled.of(answer(0x747, "1902FF", "5902FF517009")) { DiagDecoder.dtcList(it) }
         assertEquals(DataQuality.INCONSISTENT, polled.quality(1_000, 60_000))
+    }
+
+    @Test
+    fun aRepeatedCodeIsARecordPerOccurrenceInTheListsOrder() {
+        // Two records of one code with their own status bytes: both kept, in order, nothing merged.
+        val memory = ok(DiagDecoder.dtcMemory(
+            answer(0x747, "1901FF", "5901FF000003"), answer(0x747, "1902FF", "5902FF51700928930E01285170092C"),
+        ))
+        assertEquals(listOf("C1170-09", "B130E-01", "C1170-09"), memory.records.map { it.code.display })
+        assertEquals(listOf("28", "28", "2C"), memory.records.map { it.status.hex })
+        assertEquals(DataQuality.COMPLETE, Polled.Got(memory, 1_000).quality(1_000, 60_000))
+        // The list alone (DCOBC's way) keeps them too.
+        val alone = ok(DiagDecoder.dtcMemoryFromList(answer(0x7E4, "190209", "590209C1D48709C1D48709"), null))
+        assertEquals(listOf("C1D487", "C1D487"), alone.records.map { it.code.rawHex })
+    }
+
+    @Test
+    fun isgsCompleteRegistryAsAListKeepsAll57RecordsAndTheRepeat() {
+        // ISG 7E6's live `19 0A` of 2026-10-21: 57 records, 56 distinct codes, C1D487 at 28 and 40. The
+        // product reads `19 02`; the same records as a list of mask 09 are one memory of 57 records.
+        val isg = research("isg-supported-dictionary-candidates-20261021.json")
+        val payload = isg.getJSONObject("outerResponse").getString("payloadHex")
+        assertTrue(payload.startsWith("590A09"))
+        val memory = ok(DiagDecoder.dtcMemory(
+            answer(0x7E6, "190109", "590109010039"), answer(0x7E6, "190209", "590209" + payload.substring(6)),
+        ))
+        val records = isg.getJSONObject("rawRegistryObservation").getJSONArray("records")
+        assertEquals(57, memory.records.size)
+        assertEquals((0 until records.length()).map { records.getJSONObject(it).getString("raw24Hex") }, memory.records.map { it.code.rawHex })
+        assertEquals(56, memory.records.map { it.code.raw }.toSet().size)
+        assertEquals(listOf(27, 39), memory.records.indices.filter { memory.records[it].code.rawHex == "C1D487" })
+        assertTrue(memory.records.all { it.status.byte == 0 })
     }
 
     @Test

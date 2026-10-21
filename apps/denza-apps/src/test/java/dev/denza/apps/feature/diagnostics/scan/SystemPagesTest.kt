@@ -6,6 +6,7 @@ import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.ecu.EcuGroup
 import dev.denza.apps.feature.diagnostics.protocol.DtcStatus
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.carNow
+import dev.denza.apps.feature.diagnostics.scan.Fixtures.row
 import dev.denza.apps.feature.diagnostics.scan.Fixtures.session
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -171,6 +172,25 @@ class SystemPagesTest {
         // The 2026-10-18 reads with mask FF carried here keep their 0x28; the car's 19 02 09 reported 0x08.
         assertTrue(body.dtc.all { it.status == "0x28" && it.word == "подтверждённый" && !it.active })
         assertTrue(body.dtcFootnote, body.dtcFootnote.startsWith("19 01 09 · 19 02 09 · снимок 13:31:"))
+    }
+
+    @Test
+    fun aRepeatedCodeIsARowPerRecordOnTheBlockAndOnItsSystem() = runTest {
+        // R_ZCU lists C1170-09 twice (architecture 4): the memory is read, both records stand where they came.
+        val model = scanned(bus = carNow {
+            on(0x747, "190109").answer("5901FF000003")
+            on(0x747, "190209").answer("5902FF51700928930E012851700929")
+        })
+        val block = model.modules.getValue(0x747).dtc
+        assertEquals(listOf("C1170-09", "B130E-01", "C1170-09"), block.records.map { it.code })
+        assertEquals(listOf(0x28, 0x28, 0x29), block.records.map { it.status })
+        assertEquals("3", block.asks[1].count)
+        val body = model.page(CarSystem.BODY)
+        assertEquals(listOf("C1170-09", "B130E-01", "C1170-09"), body.dtc.filter { it.request == 0x747 }.map { it.code })
+        assertEquals(listOf(false, false, true), body.dtc.filter { it.request == 0x747 }.map { it.active })
+        assertEquals(listOf(HeadCounter("DTC АКТ.", "1", on = true), HeadCounter("DTC ИСТ.", "10"), HeadCounter("ПРОЧИТАНО", "4/19")), body.counters)
+        assertEquals(ModuleStatus.ACTIVE, model.row(0x747).status)
+        assertEquals("1" to "2", model.row(0x747).active to model.row(0x747).history)
     }
 
     @Test

@@ -31,9 +31,10 @@ class DiagDecoderTest {
         // Where a count once told the format, the list reads by it.
         assertEquals("U0121-00", ok(DiagDecoder.dtcMemoryFromList(answer(0x744, "190209", "590209C1210009"), DtcFormat.SAE_J2012_00))
             .records.single().code.display)
-        // A status bit outside the availability mask and a repeated code still refuse.
+        // A status bit outside the availability mask still refuses; a repeated code is a record per occurrence.
         assertTrue(DiagDecoder.dtcMemoryFromList(answer(0x7E4, "190209", "590209C1210029"), null) is Decoded.Malformed)
-        assertTrue(DiagDecoder.dtcMemoryFromList(answer(0x7E4, "190209", "590209C1210009C1210009"), null) is Decoded.Malformed)
+        assertEquals(listOf("C12100", "C12100"),
+            ok(DiagDecoder.dtcMemoryFromList(answer(0x7E4, "190209", "590209C1210009C1210009"), null)).records.map { it.code.display })
     }
 
     @Test
