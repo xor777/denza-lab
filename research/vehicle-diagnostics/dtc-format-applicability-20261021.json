@@ -1,0 +1,179 @@
+{
+  "schema": "denza-lab.dtc-format-applicability.v1",
+  "date": "2026-10-21",
+  "offlineFirmwareOnly": true,
+  "publicUnauthenticatedReadOnlyPages": true,
+  "vehicleRequests": 0,
+  "authenticatedRequests": 0,
+  "qualifiedOemDefinitions": [],
+  "qualifiedFormat01DisplayRawMappings": [],
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libuds.so",
+      "sha256": "86416b6e127dffac1102ef8dde16cd297a96620d78c6dd4b5fc4d87e1171d161",
+      "bytes": 1091824
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-acquisition-20261020.json",
+      "sha256": "682ab0b1c304a5e117e5e4b2c1fa530b4f053f7a1ff28268c303bc03dcd6d9b3",
+      "bytes": 20983
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+      "sha256": "093df5ab92416ca017e7dbb67c0685584abdcfe3fd62e3c10e9a0331c3c6cff1",
+      "bytes": 85175
+    },
+    {
+      "path": "research/vehicle-diagnostics/obd-20261020.json",
+      "sha256": "61243879c8ac46abc5f7f22e11197960bdbb9d63f94c2620b2893d6c2ee513e9",
+      "bytes": 14375
+    },
+    {
+      "path": "research/vehicle-diagnostics/dtc-source-followup-20261021.json",
+      "sha256": "1b2e89fe7ac71fa455911d887f1beabd0a565e2cf485f2b46df12a3a9ddd8aa1",
+      "bytes": 14136
+    }
+  ],
+  "limits": [
+    "Primary supplier/software-specific DTC definitions not recovered by finite exact-identity/supplier searches.",
+    "Standard notation and OEM dictionary/software applicability remain separate. Format00 J2012 notation does not establish the format01 display/raw conversion.",
+    "No nonzero retained FMCU/ISG record provides an empirical raw/display pair; do not induce a fault to create one.",
+    "No GPAK/FDword1/SpotIns cache/BydLog/new extraction/private endpoint work in this pass."
+  ],
+  "nextArtifact": "A revisioned OEM diagnostic package or primary table binding raw24bit DTC and display code to these exact controller software identities; for supplier-specific titles, an explicit controller variant selection is also needed.",
+  "captureBase": "captures/diagnostics-unattended-20261021/dtc-applicability",
+  "reproducer": "captures/diagnostics-unattended-20261021/dtc-applicability/reproduce.py",
+  "candidateApplicability": [
+    {
+      "name": "ECM",
+      "route": "7E0",
+      "softwareCode": "32440011E004000000",
+      "historicalFormat": 0,
+      "candidateSection": "engine_ecm",
+      "candidateHeadings": 496,
+      "softwareApplicabilityQualified": false,
+      "rawMappingQualified": false,
+      "qualifiedDefinitions": 0
+    },
+    {
+      "name": "BMS033",
+      "route": "7E7",
+      "softwareCode": "4A520011E00D00047B",
+      "historicalFormat": 0,
+      "candidateSection": "battery_management",
+      "candidateHeadings": 206,
+      "softwareApplicabilityQualified": false,
+      "rawMappingQualified": false,
+      "qualifiedDefinitions": 0
+    },
+    {
+      "name": "FMCU",
+      "route": "7E3",
+      "softwareCode": "48370011E075000000",
+      "historicalFormat": 1,
+      "candidateSection": "front_drive",
+      "candidateHeadings": 31,
+      "softwareApplicabilityQualified": false,
+      "rawMappingQualified": false,
+      "qualifiedDefinitions": 0
+    },
+    {
+      "name": "ISG",
+      "route": "7E6",
+      "softwareCode": "48370011E0EA000000",
+      "historicalFormat": 1,
+      "candidateSection": "generator",
+      "candidateHeadings": 32,
+      "softwareApplicabilityQualified": false,
+      "rawMappingQualified": false,
+      "qualifiedDefinitions": 0
+    },
+    {
+      "name": "SMCU",
+      "route": "744",
+      "softwareCode": "48370011E086001100",
+      "historicalFormat": 0,
+      "candidateSection": "rear_left",
+      "candidateHeadings": 32,
+      "softwareApplicabilityQualified": false,
+      "rawMappingQualified": false,
+      "qualifiedDefinitions": 0
+    },
+    {
+      "name": "SMCU3",
+      "route": "745",
+      "softwareCode": "48370011E088001100",
+      "historicalFormat": 0,
+      "candidateSection": "rear_right",
+      "candidateHeadings": 32,
+      "softwareApplicabilityQualified": false,
+      "rawMappingQualified": false,
+      "qualifiedDefinitions": 0
+    }
+  ],
+  "newSourceFindings": [
+    {
+      "claim": "Stock remote UDS client count task preserves response byte3 formatIdentifier, while list task copies the raw24bit DTC/status bytes without a format policy",
+      "bindings": [
+        {
+          "client": "0xad49c",
+          "vtable": "0x100388",
+          "vtableEntries": [
+            "0xc20a8",
+            "0xc2118",
+            "0xc2184",
+            "0xbee3c",
+            "0xbeea0",
+            "0xc21bc"
+          ],
+          "task": "0xc21bc",
+          "taskBytes": 476
+        },
+        {
+          "client": "0xadee8",
+          "vtable": "0x1005e0",
+          "vtableEntries": [
+            "0xc2d9c",
+            "0xc2e0c",
+            "0xc2e78",
+            "0xbee3c",
+            "0xbeea0",
+            "0xc2eb0"
+          ],
+          "task": "0xc2eb0",
+          "taskBytes": 716
+        }
+      ],
+      "countTaskAnchors": [
+        "C22BC..C22DC",
+        "C2318..C2324"
+      ],
+      "listTaskAnchors": [
+        "C2FCC..C2FD8",
+        "C3020..C3058",
+        "C30A4"
+      ],
+      "boundary": "This rules out a missing P-code converter in these two exact native response tasks. It does not qualify an OEM display/raw mapping and does not describe the separate local head-unit UDS server."
+    },
+    {
+      "claim": "Public BYD TIS landing is an identified manufacturer acquisition candidate with login UI",
+      "url": "https://tis.bydauto.com.cn/",
+      "entryScriptUrl": "https://tis.bydauto.com.cn/tis/static/index-a37aa18b.js",
+      "uiObservation": "BYD Technical Information Service, QR login and a test-environment marker occur in the public static entry bundle. No execution/auth/catalog requests were made.",
+      "coverageQualified": false,
+      "limit": "Neither ECU software/version coverage nor original DTC tables were returned by the two public static GETs; this is an acquisition route, not an obtained dictionary."
+    }
+  ],
+  "publicSourceHashes": [
+    {
+      "path": "captures/diagnostics-unattended-20261021/dtc-applicability/tis-public-landing.html",
+      "sha256": "754d596dd509784dd44504e2b2514dbd159ade2c45d40513b015ab30b2073dd7",
+      "bytes": 3259
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/dtc-applicability/tis-public-entry.js",
+      "sha256": "46edc2ea425311d3edc5737cfa0b9acf12ff8b13acc03d816876a50814359c7f",
+      "bytes": 778964
+    }
+  ]
+}

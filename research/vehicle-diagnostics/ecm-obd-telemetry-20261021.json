@@ -1,0 +1,661 @@
+{
+  "schema": "denza-lab.ecm-obd-telemetry.v1",
+  "date": "2026-10-21",
+  "scope": "Three bounded read-only sessions:19 +2 +2 requests, no engine start or owner gesture. Additional one known autoservice odometer GET. No new firmware/product install.",
+  "route": {
+    "requestHex": "7E0",
+    "responseHex": "7E8",
+    "softwareCode": "32440011E004000000",
+    "profile": 170,
+    "transport": "Existing shell SDK MQTT diagnostic envelope; helper transport frame count is not physical classic CAN-frame count."
+  },
+  "sources": [
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/build.json",
+      "sha256": "a7b1da0b1660a59b1ca4152689f272d52f109b98349627a6220ed1a5356f4a32"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/diagnostic-bus.jar",
+      "sha256": "b765db9f1bac0f36e94a40dc02986cd2d683feaae37d3a49ee233ed5db5e342d"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/final-health/app-hash.txt",
+      "sha256": "94f5f3b43911a0b1f9af4508013e1db998c27f0a6711f1d537534bfd210202f6"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/final-health/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/final-health/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/final-health/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/final-health/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/final-health/processes.txt",
+      "sha256": "2be262a4d0b6feeea4d39aa5535a58021382a8694c505e64141b771f9ac6aef3"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/final-health/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/final-health/status.json",
+      "sha256": "cc8d25e81cfb990a6425a762f5254cb9aff2adadff5a68effaaa55c3d6403851"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/live-01/protocol.txt",
+      "sha256": "dba34f5d1ae3d8a2e2c84577f336bc612cfb27fc850c468cdc6b833763e37ad0"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/live-01/result.json",
+      "sha256": "4c0976e218b485bad3e9a89948aa71d76ec78075c3e46b07e9687ddc4378a54c"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/live-01/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/live-02/protocol.txt",
+      "sha256": "56789e4b952a14efd9a6ae261b1790a6f51a59a48c2fe131f5fdf4f891775dcb"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/live-02/result.json",
+      "sha256": "829e2615ebf559f6d8ae294e8a752341d81d7453703111d812d2f4b9ac84a225"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/live-02/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/live-03/protocol.txt",
+      "sha256": "543f2740294d449f85b7f30a00d5316bae406c97d3527811307a5ccc98d4fe4b"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/live-03/result.json",
+      "sha256": "9b96eb01a7c069d6b58669e6bb29db4c07d17d57bc918a8545dbd3a61730d121"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/live-03/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/odometer-scalar.json",
+      "sha256": "1f8dcafcd4835c813c745055f9fede2d33d086d5baf67302bbc9a03a2579e96a"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight/app-hash.txt",
+      "sha256": "94f5f3b43911a0b1f9af4508013e1db998c27f0a6711f1d537534bfd210202f6"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight/processes.txt",
+      "sha256": "de83b048574873056fc8bb9f99dddf465f0ca02ef83363a21c7112c03ff6ae1c"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight/status.json",
+      "sha256": "6ba3fb4785213e771ae70fd8955349adf0dce632cd7876513eb39ad471831d3a"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight-extension/app-hash.txt",
+      "sha256": "94f5f3b43911a0b1f9af4508013e1db998c27f0a6711f1d537534bfd210202f6"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight-extension/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight-extension/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight-extension/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight-extension/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight-extension/processes.txt",
+      "sha256": "81345bb076c0eb80a5d47177de3f98f8c02cdee8a4b45ff53a0c0f4c31c52da3"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight-extension/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/postflight-extension/status.json",
+      "sha256": "42a33692d3fdfe5d0d45761866fabf62ef79a6dd4b105b76c7112fe9262392a6"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/preflight/app-hash.txt",
+      "sha256": "94f5f3b43911a0b1f9af4508013e1db998c27f0a6711f1d537534bfd210202f6"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/preflight/processes.txt",
+      "sha256": "0d01c9b1fdd6930f5d418b21ca1592318aeb83c9fa027dc6ec5843fbfd63045e"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/preflight/status.json",
+      "sha256": "5aead2d58c9350b09bef696e065c8b943f216e8d142c363d3a74fdb2be21464e"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/run-extension.py",
+      "sha256": "4f2c218225316e7eb69b999e07cff31e27fa0da76dc1c06327d3bf1512da7dc3"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/run-measurements.py",
+      "sha256": "dc1bde9c910bab797bd66caf76e5aacdde3a7c4c873f58aa958a987c7a915872"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/run-odometer.py",
+      "sha256": "c3e7788726d555b5a9590735182a2c595f690f2f0d7cb54ad6eaf1c1101d819a"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/DiagnosticBusMain.java",
+      "sha256": "270fb956d084d7e959de75cde2655dd928df282dd90c1d6ad0eeac47f0a3a187"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/DiagnosticFrameAssembler.java",
+      "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/DiagnosticWhitelist.java",
+      "sha256": "8168494292c1f344686cccc4888c2337b8bfbea377c51ab9f4b9efba26422dd4"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/Obd.kt",
+      "sha256": "fe273719c98bcf9b80468de33f4722fd3a967851356cac8dc1635bcdeb0cd56f"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/ShellProxyBootstrap.java",
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/engine-obd/source/VehicleSignals.kt",
+      "sha256": "a36c17a31cef99151e151b4fcac6097b5ef0f1a3b4a70ed21864708e4591e3ef"
+    },
+    {
+      "path": "research/vehicle-diagnostics/obd-20261020.json",
+      "sha256": "61243879c8ac46abc5f7f22e11197960bdbb9d63f94c2620b2893d6c2ee513e9"
+    }
+  ],
+  "helper": {
+    "sourceCommit": "2b1e87f0d0f624fa48119f0943fdbbd290945830",
+    "sources": [
+      {
+        "path": "apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticBusMain.java",
+        "snapshot": "captures/diagnostics-unattended-20261021/engine-obd/source/DiagnosticBusMain.java",
+        "sha256": "270fb956d084d7e959de75cde2655dd928df282dd90c1d6ad0eeac47f0a3a187"
+      },
+      {
+        "path": "apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticWhitelist.java",
+        "snapshot": "captures/diagnostics-unattended-20261021/engine-obd/source/DiagnosticWhitelist.java",
+        "sha256": "8168494292c1f344686cccc4888c2337b8bfbea377c51ab9f4b9efba26422dd4"
+      },
+      {
+        "path": "apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticFrameAssembler.java",
+        "snapshot": "captures/diagnostics-unattended-20261021/engine-obd/source/DiagnosticFrameAssembler.java",
+        "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+      },
+      {
+        "path": "apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java",
+        "snapshot": "captures/diagnostics-unattended-20261021/engine-obd/source/ShellProxyBootstrap.java",
+        "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+      }
+    ],
+    "jarSha256": "b765db9f1bac0f36e94a40dc02986cd2d683feaae37d3a49ee233ed5db5e342d",
+    "unchangedProductHelper": true,
+    "apkInstall": false
+  },
+  "runs": [
+    {
+      "resultPath": "captures/diagnostics-unattended-20261021/engine-obd/live-01/result.json",
+      "protocolPath": "captures/diagnostics-unattended-20261021/engine-obd/live-01/protocol.txt",
+      "fixedPlan": [
+        "22F194",
+        "0100",
+        "0120",
+        "0140",
+        "0160",
+        "0105",
+        "010C",
+        "0123",
+        "012F",
+        "0133",
+        "0134",
+        "013C",
+        "0142",
+        "0144",
+        "0146",
+        "0167",
+        "016B",
+        "017A",
+        "0180"
+      ],
+      "responses": [
+        {
+          "seq": 1,
+          "requestHex": "22F194",
+          "responseHex": "62F19432440011E004000000",
+          "frames": 1,
+          "latencyMs": 14,
+          "receivedNanos": 151535009028760
+        },
+        {
+          "seq": 2,
+          "requestHex": "0100",
+          "responseHex": "4100BE3EA813",
+          "frames": 1,
+          "latencyMs": 17,
+          "receivedNanos": 151535528074837
+        },
+        {
+          "seq": 3,
+          "requestHex": "0120",
+          "responseHex": "4120A01FB011",
+          "frames": 1,
+          "latencyMs": 18,
+          "receivedNanos": 151536047911221
+        },
+        {
+          "seq": 4,
+          "requestHex": "0140",
+          "responseHex": "4140FED01401",
+          "frames": 1,
+          "latencyMs": 17,
+          "receivedNanos": 151536567633683
+        },
+        {
+          "seq": 5,
+          "requestHex": "0160",
+          "responseHex": "416002200041",
+          "frames": 1,
+          "latencyMs": 20,
+          "receivedNanos": 151537089875452
+        },
+        {
+          "seq": 6,
+          "requestHex": "0105",
+          "responseHex": "410530",
+          "frames": 1,
+          "latencyMs": 17,
+          "receivedNanos": 151537608389067
+        },
+        {
+          "seq": 7,
+          "requestHex": "010C",
+          "responseHex": "410C0000",
+          "frames": 1,
+          "latencyMs": 17,
+          "receivedNanos": 151538127333991
+        },
+        {
+          "seq": 8,
+          "requestHex": "0123",
+          "responseHex": "4123004E",
+          "frames": 1,
+          "latencyMs": 18,
+          "receivedNanos": 151538647328991
+        },
+        {
+          "seq": 9,
+          "requestHex": "012F",
+          "responseHex": "412FEB",
+          "frames": 1,
+          "latencyMs": 16,
+          "receivedNanos": 151539166055452
+        },
+        {
+          "seq": 10,
+          "requestHex": "0133",
+          "responseHex": "413365",
+          "frames": 1,
+          "latencyMs": 16,
+          "receivedNanos": 151539684933914
+        },
+        {
+          "seq": 11,
+          "requestHex": "0134",
+          "responseHex": "413480877FFF",
+          "frames": 1,
+          "latencyMs": 19,
+          "receivedNanos": 151540207965298
+        },
+        {
+          "seq": 12,
+          "requestHex": "013C",
+          "responseHex": "413C0207",
+          "frames": 1,
+          "latencyMs": 22,
+          "receivedNanos": 151540731620452
+        },
+        {
+          "seq": 13,
+          "requestHex": "0142",
+          "responseHex": "414235E8",
+          "frames": 1,
+          "latencyMs": 14,
+          "receivedNanos": 151541248080068
+        },
+        {
+          "seq": 14,
+          "requestHex": "0144",
+          "responseHex": "4144FFFF",
+          "frames": 1,
+          "latencyMs": 16,
+          "receivedNanos": 151541766487452
+        },
+        {
+          "seq": 15,
+          "requestHex": "0146",
+          "responseHex": "414634",
+          "frames": 1,
+          "latencyMs": 18,
+          "receivedNanos": 151542286644683
+        },
+        {
+          "seq": 16,
+          "requestHex": "0167",
+          "responseHex": "4167033032",
+          "frames": 1,
+          "latencyMs": 13,
+          "receivedNanos": 151542801808068
+        },
+        {
+          "seq": 17,
+          "requestHex": "016B",
+          "responseHex": "416B100C000000",
+          "frames": 1,
+          "latencyMs": 20,
+          "receivedNanos": 151543323379222
+        },
+        {
+          "seq": 18,
+          "requestHex": "017A",
+          "responseHex": "417A060000278E278B",
+          "frames": 1,
+          "latencyMs": 22,
+          "receivedNanos": 151543847681068
+        },
+        {
+          "seq": 19,
+          "requestHex": "0180",
+          "responseHex": "418000000001",
+          "frames": 1,
+          "latencyMs": 17,
+          "receivedNanos": 151544366331760
+        }
+      ],
+      "exitCode": 0,
+      "jarRemoved": true,
+      "processAbsent": true
+    },
+    {
+      "resultPath": "captures/diagnostics-unattended-20261021/engine-obd/live-02/result.json",
+      "protocolPath": "captures/diagnostics-unattended-20261021/engine-obd/live-02/protocol.txt",
+      "fixedPlan": [
+        "22F194",
+        "01A0"
+      ],
+      "responses": [
+        {
+          "seq": 1,
+          "requestHex": "22F194",
+          "responseHex": "62F19432440011E004000000",
+          "frames": 1,
+          "latencyMs": 13,
+          "receivedNanos": 151587272077686
+        },
+        {
+          "seq": 2,
+          "requestHex": "01A0",
+          "responseHex": "41A004000000",
+          "frames": 1,
+          "latencyMs": 16,
+          "receivedNanos": 151587789642609
+        }
+      ],
+      "exitCode": 0,
+      "jarRemoved": true,
+      "processAbsent": true
+    },
+    {
+      "resultPath": "captures/diagnostics-unattended-20261021/engine-obd/live-03/result.json",
+      "protocolPath": "captures/diagnostics-unattended-20261021/engine-obd/live-03/protocol.txt",
+      "fixedPlan": [
+        "22F194",
+        "01A6"
+      ],
+      "responses": [
+        {
+          "seq": 1,
+          "requestHex": "22F194",
+          "responseHex": "62F19432440011E004000000",
+          "frames": 1,
+          "latencyMs": 25,
+          "receivedNanos": 151623571578226
+        },
+        {
+          "seq": 2,
+          "requestHex": "01A6",
+          "responseHex": "41A60002039D",
+          "frames": 1,
+          "latencyMs": 16,
+          "receivedNanos": 151624090046611
+        }
+      ],
+      "exitCode": 0,
+      "jarRemoved": true,
+      "processAbsent": true
+    }
+  ],
+  "supportedPidHex": [
+    "01",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "0B",
+    "0C",
+    "0D",
+    "0E",
+    "0F",
+    "11",
+    "13",
+    "15",
+    "1C",
+    "1F",
+    "20",
+    "21",
+    "23",
+    "2C",
+    "2D",
+    "2E",
+    "2F",
+    "30",
+    "31",
+    "33",
+    "34",
+    "3C",
+    "40",
+    "41",
+    "42",
+    "43",
+    "44",
+    "45",
+    "46",
+    "47",
+    "49",
+    "4A",
+    "4C",
+    "54",
+    "56",
+    "60",
+    "67",
+    "6B",
+    "7A",
+    "80",
+    "A0",
+    "A6"
+  ],
+  "capabilityInterpretation": {
+    "offeredCountIncludingContinuationPids": 48,
+    "continuationPids": [
+      "20",
+      "40",
+      "60",
+      "80",
+      "A0"
+    ],
+    "otherOfferedCount": 43,
+    "end": "A0 bitmap advertises A6 only; C0 is not advertised. No C0/read guess was made."
+  },
+  "decodedChecks": {
+    "coolantC": 8,
+    "rpm": 0.0,
+    "railPressureKpa": 780,
+    "catalystTemperatureC": 11.899999999999999,
+    "ecuVoltageV": 13.8,
+    "ambientC": 12,
+    "coolantSensorSupportByte": 3,
+    "coolantSensorsC": [
+      8,
+      10
+    ],
+    "odometerKm": 13199.7
+  },
+  "rawOnlyCases": [
+    {
+      "pidHex": "44",
+      "dataHex": "FFFF",
+      "reason": "FFFF at engine speed0: retain raw boundary value, not evidence of an actual lambda near2 or a fault."
+    },
+    {
+      "pidHex": "6B",
+      "dataHex": "100C000000",
+      "reason": "Support/format byte10 has high-nibble bits; existing product decoder preserves raw. No temperature mapping qualified."
+    },
+    {
+      "pidHex": "7A",
+      "dataHex": "060000278E278B",
+      "reason": "Complete9-byte41 response reached helper in one vendor fragment. Component-pressure schema/validity needs independent primary qualification; no actual soot/filter diagnosis."
+    }
+  ],
+  "otherReadings": [
+    {
+      "pidHex": "2F",
+      "dataHex": "EB",
+      "standardArithmeticPercent": 92.15686274509804,
+      "note": "Fuel-level report; no tank litres inferred."
+    },
+    {
+      "pidHex": "33",
+      "dataHex": "65",
+      "standardArithmeticKpa": 101
+    },
+    {
+      "pidHex": "34",
+      "dataHex": "80877FFF",
+      "standardArithmeticRatio": 1.004119873046875,
+      "standardArithmeticCurrentMa": -0.00390625,
+      "note": "Stopped-engine observation; no evidence of warmed sensor, fuel mixture or closed-loop regulation."
+    }
+  ],
+  "odometerComparison": {
+    "scalarPath": "captures/diagnostics-unattended-20261021/engine-obd/odometer-scalar.json",
+    "rawDeciKm": 131997,
+    "sameRawAs": {
+      "device": 1014,
+      "fidHex": "4A502010",
+      "transaction": 5
+    },
+    "observation": "Exact raw equality in two sequential read paths at standstill; not proof of independence, anti-tamper integrity or sensor freshness."
+  },
+  "healthPaths": [
+    "captures/diagnostics-unattended-20261021/engine-obd/preflight/status.json",
+    "captures/diagnostics-unattended-20261021/engine-obd/postflight/status.json",
+    "captures/diagnostics-unattended-20261021/engine-obd/postflight-extension/status.json",
+    "captures/diagnostics-unattended-20261021/engine-obd/final-health/status.json"
+  ],
+  "stockProcesses": [
+    "128 autoservice",
+    "521 gbacqservice",
+    "523 gbdataservice",
+    "4634 com.byd.avc"
+  ],
+  "publicReferences": [
+    {
+      "url": "https://www.csselectronics.com/pages/obd2-pid-table-on-board-diagnostics-j1979",
+      "accessDate": "2026-10-21",
+      "scope": "Diagnostic equipment maker standard Mode01 scalar formula table; not BYD OEM fault definitions."
+    },
+    {
+      "url": "https://www.obdlink.com/obd-apps/obdlink-app/",
+      "accessDate": "2026-10-21",
+      "scope": "Diagnostic equipment maker names67,6B,7A,A6; not proof of current-car validity or byte schema."
+    },
+    {
+      "url": "https://ccc.dewetron.com/dl/6256cd85-956c-4b95-a86a-4448d9c49a3c",
+      "accessDate": "2026-10-21",
+      "scope": "OXYGEN OBD2 Plugin v1.3 page10 namesA6 odometer; no A6 scaling derived from this page."
+    }
+  ],
+  "limits": [
+    "One stopped-engine snapshot, not dynamic/rate/durability acceptance.",
+    "No new OEM DTC dictionary or remote UDS sensor DID was obtained.",
+    "ECU receipt timestamp is not sensor acquisition freshness.",
+    "One vendor fragment for9-byte017A payload does not prove multi-fragment reassembly or multi-PID batching acceptance.",
+    "Newly foundA6 is research-only; no product decoder or UI changed.",
+    "Unchanged helper enforces shared lock,2s silence,profile/P/speed/manager guards per request; host checks CANFD before start.",
+    "All staged nonce jars removed; helper processes absent; app/HAL/framework hashes and stock PIDs unchanged; crash buffers empty."
+  ]
+}

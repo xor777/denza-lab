@@ -24,6 +24,22 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   `obd-20261020.json`. Raw runs are under the ignored
   `captures/diagnostics-obd-20261020/`.
 
+- `ecm-obd-telemetry-20261021.json` adds23 timed read-only ECM responses with
+  the engine stopped: fuel pressure, catalyst/ambient temperatures, ECU voltage,
+  two coolant sensors and the advertised80→A0→A6 chain. A6 matches the existing
+  autoservice odometer raw value. PID44/6B boundary/format values stay raw; the
+  full9-byte7A reply is one vendor fragment, not multi-fragment acceptance.
+  `check_ecm_obd_telemetry.py` validates54 source hashes, request/response pairing,
+  advertised support, arithmetic and four health snapshots without vehicle I/O.
+  Product polling/decoders were not changed by this research.
+- `powertrain-scalar-quality-20261021.json` traces13 drive/BMS scalar fields:
+  a rejected front-current update preserves the old float cache, rear converters
+  use a different range/offset, and initial cache values can narrow into ordinary
+  GB words. These are source-derived quality limits, not observed invalid updates
+  or newly qualified engineering units. `check_powertrain_scalar_quality.py`
+  checks49 instruction anchors,12 MCU records,26 saved observations and full
+  bounded16-bit/8-bit arithmetic domains offline.
+
 - `remaining-ecus-20261020.json` continues those runs: 70 distinct F194 targets,
   33 positive responses and 32 exact stock-cache matches. ABS/ESP `782`, EPS
   `783`, SRS `7F1`, ADC `712` and front radar `7F2` each returned explicit zero
@@ -74,6 +90,20 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   text. The app ships both files unchanged as candidate descriptions
   (docs/vehicle-diagnostics-architecture.md, §4); a new index needs a new
   translation, or `OemDtcReferenceTest` fails.
+
+- `dtc-format-applicability-20261021.json` pins the stock native count/list
+  response tasks: they preserve the format byte and raw24-bit code/status without
+  supplying the missing format01 display conversion. Six target revisions remain
+  unbound to the829 public headings. The public BYD TIS landing is a concrete
+  login-gated acquisition lead; no protected dictionary or matching revision was
+  retrieved. Exact native anchors, public-source hashes and a bounded offline
+  reproducer remain under its `captureBase`.
+- `ota-strategy-mismatch-20261021.json` and
+  `check_ota_strategy_mismatch.py` preserve the separate OTA investigation:
+  exact104/111 replies, request-version provenance and225 cached ECU tuples,
+  repair-history substitution and cached-plan/lockSync limits. Neither a new
+  update offer nor a cause-specific ECU was established. The owner document is
+  [OTA findings](../../docs/ota-update-findings.md#стратегия-ota-и-кэш-productlineota-2026-10-21).
 
 - `xtool-z9gt-dm-20261021.json` preserves 172 exact-model Xtool system/variant
   rows (`PS_TENGSHIEV` 6.61, Z9GT/Z9GT DM), source pointers/hashes and an exact-token

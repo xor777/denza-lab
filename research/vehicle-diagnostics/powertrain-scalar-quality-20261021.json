@@ -1,0 +1,1333 @@
+{
+  "schema": "denza-lab.powertrain-scalar-quality.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "productChanges": false,
+  "newEngineeringUnitsProved": 0,
+  "scope": "Three drive-field conversion/quality chains and bounded negative unit result for four priority BMS fields. No steering clock, FDword1, insulation or OEM dictionary work.",
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "sha256": "5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7",
+      "bytes": 1943112
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "sha256": "6c7b1946ccbe6a979bf51b96397c8bece89c5c598a85f3bb8dedac9d573c61ce",
+      "bytes": 254608
+    },
+    {
+      "path": "research/vehicle-diagnostics/powertrain-signal-origins-20261021.json",
+      "sha256": "17962cf658f8ad5fae74230781d6da2379c7fa8d589b1a78f36c04acfe3e4b96",
+      "bytes": 447474
+    },
+    {
+      "path": "research/vehicle-diagnostics/engine-drive-consumers-20261021.json",
+      "sha256": "558996ec969904ab0e07d547a41369b7d88f39bf3c2600efd43551dcd2b8f1c2",
+      "bytes": 35470
+    },
+    {
+      "path": "captures/diagnostics-sweep-20261020/fids.tsv",
+      "sha256": "02ad8c66c2339ae0eabef661e12dda088ed2e616967bfac308c609e970dead66",
+      "bytes": 1778932
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/powertrain-units/unit-consumer-search.json",
+      "sha256": "3b92b0a8120df76236d107cdca9e46d03450ec6b908b3cc4c963bd9a889af64f",
+      "bytes": 26442
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_powertrain_scalar_quality.py",
+      "sha256": "2be39e14db6def7bc8dc32bb92e4f96f9ac4694c22eebd35131579572328f3ad",
+      "bytes": 5129
+    },
+    {
+      "path": "captures/diagnostics-unattended-20261021/powertrain-units/build_evidence.py",
+      "sha256": "27ebd7bac513f25a0de6d2bb8f314e0fcae7f80f66093fb2b2d12738457289fc",
+      "bytes": 11377
+    }
+  ],
+  "records": [
+    {
+      "nameFromStockDeclaration": "CHARGING_DRIVER_MOTOR_CURRENT",
+      "device": 1009,
+      "fid": "0x46C00008",
+      "apiType": "float",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0xFFFFD8E3",
+          "int_signed": -10013,
+          "float_word": "0x00000000",
+          "float_value": 0.0,
+          "native_type": "float",
+          "sourceLine": 14177
+        },
+        {
+          "pass": 2,
+          "int_word": "0xFFFFD8E3",
+          "int_signed": -10013,
+          "float_word": "0x00000000",
+          "float_value": 0.0,
+          "native_type": "float",
+          "sourceLine": 24181
+        }
+      ],
+      "mcu": [],
+      "hal": [
+        {
+          "registrationVA": "0x17def4",
+          "converterVA": "0x0005F590",
+          "transform": {
+            "expression": "float32(int32(wire_value))*float32(0x3DCCCCCD) - 1000.0",
+            "accepted_wire_range_uint32": [
+              0,
+              20000
+            ],
+            "reject_status": -10014,
+            "validity": "Unsigned higher-than20000 rejects. Negative signed32 inputs also reject as large unsigned."
+          }
+        }
+      ],
+      "gbRoutes": [
+        {
+          "driveLabelFromStockFieldNames": "front",
+          "field": "DC_current",
+          "device": 1009,
+          "fid": "0x46C00008",
+          "consumerVA": "142E4..14300",
+          "APItoGBEncoding": "u16(trunc(float32(API)*10+10000))"
+        }
+      ],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "GB_LEFT_REAR_MOTOR_DC_GENERATOR_CURRENT",
+      "device": 1039,
+      "fid": "0x28500178",
+      "apiType": "float",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0xFFFFD8E3",
+          "int_signed": -10013,
+          "float_word": "0x00000000",
+          "float_value": 0.0,
+          "native_type": "float",
+          "sourceLine": 19346
+        },
+        {
+          "pass": 2,
+          "int_word": "0xFFFFD8E3",
+          "int_signed": -10013,
+          "float_word": "0x00000000",
+          "float_value": 0.0,
+          "native_type": "float",
+          "sourceLine": 29350
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd645c",
+          "lookupKey": "0xe0028500",
+          "descriptorVA": "0xe0148",
+          "descriptorBytes": "2f0030079ca0180014430900",
+          "propertyRecordVA": "0x94314",
+          "propertyRecordBytes": "78015028020000005054effe",
+          "sourceCanId": "0x00000285",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            47,
+            0,
+            48,
+            7
+          ],
+          "unsignedBits": 16,
+          "serializedBytes": 2,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x12e3a4",
+          "converterVA": "0x000E0EC0",
+          "transform": {
+            "expression": "float32(int32(wire_value)) * float32(0x3DCCCCCD)",
+            "coefficient_float": 0.10000000149011612,
+            "validity": "No bounds check. scvtf uses signed32; MCU generic extraction, where attached, zero-extends the field, with no narrow signed conversion or offset."
+          }
+        }
+      ],
+      "gbRoutes": [
+        {
+          "driveLabelFromStockFieldNames": "rear_left",
+          "field": "DC_current",
+          "device": 1039,
+          "fid": "0x28500178",
+          "consumerVA": "14314..1433C",
+          "APItoGBEncoding": "u16(trunc(float32(API)*10+10000))"
+        }
+      ],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "GB_RIGHT_REAR_MOTOR_DC_GENERATOR_CURRENT",
+      "device": 1039,
+      "fid": "0x28500188",
+      "apiType": "float",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0xFFFFD8E3",
+          "int_signed": -10013,
+          "float_word": "0x00000000",
+          "float_value": 0.0,
+          "native_type": "float",
+          "sourceLine": 19347
+        },
+        {
+          "pass": 2,
+          "int_word": "0xFFFFD8E3",
+          "int_signed": -10013,
+          "float_word": "0x00000000",
+          "float_value": 0.0,
+          "native_type": "float",
+          "sourceLine": 29351
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd645c",
+          "lookupKey": "0xe0028500",
+          "descriptorVA": "0xe0154",
+          "descriptorBytes": "310032079ca0180020430900",
+          "propertyRecordVA": "0x94320",
+          "propertyRecordBytes": "88015028020000005454effe",
+          "sourceCanId": "0x00000285",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            49,
+            0,
+            50,
+            7
+          ],
+          "unsignedBits": 16,
+          "serializedBytes": 2,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x12e3e8",
+          "converterVA": "0x000E0EC0",
+          "transform": {
+            "expression": "float32(int32(wire_value)) * float32(0x3DCCCCCD)",
+            "coefficient_float": 0.10000000149011612,
+            "validity": "No bounds check. scvtf uses signed32; MCU generic extraction, where attached, zero-extends the field, with no narrow signed conversion or offset."
+          }
+        }
+      ],
+      "gbRoutes": [
+        {
+          "driveLabelFromStockFieldNames": "rear_right",
+          "field": "DC_current",
+          "device": 1039,
+          "fid": "0x28500188",
+          "consumerVA": "14348..1436C",
+          "APItoGBEncoding": "u16(trunc(float32(API)*10+10000))"
+        }
+      ],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "GB_FRONT_MOTOR_IPM_TEMP_DM40_464",
+      "device": 1039,
+      "fid": "0x46406010",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00000009",
+          "int_signed": 9,
+          "native_type": "int",
+          "sourceLine": 19388
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00000009",
+          "int_signed": 9,
+          "native_type": "int",
+          "sourceLine": 29392
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd7b5c",
+          "lookupKey": "0xe0046406",
+          "descriptorVA": "0xeabd0",
+          "descriptorBytes": "020002079ca018009ced0900",
+          "propertyRecordVA": "0x9ed9c",
+          "propertyRecordBytes": "10604046010000007c8ceffe",
+          "sourceCanId": "0x00000464",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            2,
+            0,
+            2,
+            7
+          ],
+          "unsignedBits": 8,
+          "serializedBytes": 1,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x17dabc",
+          "converterVA": "0x000601F0",
+          "transform": {
+            "expression": "int32(wire_value - 40)",
+            "validity": "No bounds check or invalid-byte rejection in converter."
+          }
+        }
+      ],
+      "gbRoutes": [
+        {
+          "driveLabelFromStockFieldNames": "front",
+          "field": "IGBT_temperature",
+          "device": 1039,
+          "fid": "0x46406010",
+          "consumerVA": "140DC..140F4",
+          "APItoGBEncoding": "u8(u8(API)+40)"
+        }
+      ],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "GB_FRONT_MOTOR_TEMP_DM40_464",
+      "device": 1039,
+      "fid": "0x46406018",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00000008",
+          "int_signed": 8,
+          "native_type": "int",
+          "sourceLine": 19389
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00000008",
+          "int_signed": 8,
+          "native_type": "int",
+          "sourceLine": 29393
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd7b5c",
+          "lookupKey": "0xe0046406",
+          "descriptorVA": "0xeabdc",
+          "descriptorBytes": "030003079ca01800a8ed0900",
+          "propertyRecordVA": "0x9eda8",
+          "propertyRecordBytes": "1860404601000000808ceffe",
+          "sourceCanId": "0x00000464",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            3,
+            0,
+            3,
+            7
+          ],
+          "unsignedBits": 8,
+          "serializedBytes": 1,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x17daf8",
+          "converterVA": "0x000601F0",
+          "transform": {
+            "expression": "int32(wire_value - 40)",
+            "validity": "No bounds check or invalid-byte rejection in converter."
+          }
+        }
+      ],
+      "gbRoutes": [
+        {
+          "driveLabelFromStockFieldNames": "front",
+          "field": "motor_temperature",
+          "device": 1039,
+          "fid": "0x46406018",
+          "consumerVA": "14264..14288",
+          "APItoGBEncoding": "u8(u8(API)+40)"
+        }
+      ],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "GB_LEFT_REAR_MOTOR_IGBT_TEMP",
+      "device": 1039,
+      "fid": "0x2D000180",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00000005",
+          "int_signed": 5,
+          "native_type": "int",
+          "sourceLine": 19356
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00000005",
+          "int_signed": 5,
+          "native_type": "int",
+          "sourceLine": 29360
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd676c",
+          "lookupKey": "0xe002d000",
+          "descriptorVA": "0xe29bc",
+          "descriptorBytes": "300030079ca01800886b0900",
+          "propertyRecordVA": "0x96b88",
+          "propertyRecordBytes": "8001002d01000000c461effe",
+          "sourceCanId": "0x000002D0",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            48,
+            0,
+            48,
+            7
+          ],
+          "unsignedBits": 8,
+          "serializedBytes": 1,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x13b0d4",
+          "converterVA": "0x000E10D0",
+          "transform": {
+            "expression": "int32(wire_value - 40)",
+            "validity": "No bounds check or invalid-byte rejection in converter."
+          }
+        }
+      ],
+      "gbRoutes": [
+        {
+          "driveLabelFromStockFieldNames": "rear_left",
+          "field": "IGBT_temperature",
+          "device": 1039,
+          "fid": "0x2D000180",
+          "consumerVA": "14100..1411C",
+          "APItoGBEncoding": "u8(u8(API)+40)"
+        }
+      ],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "GB_LEFT_REAR_MOTOR_TEMP",
+      "device": 1039,
+      "fid": "0x285001A8",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00000007",
+          "int_signed": 7,
+          "native_type": "int",
+          "sourceLine": 19350
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00000007",
+          "int_signed": 7,
+          "native_type": "int",
+          "sourceLine": 29354
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd645c",
+          "lookupKey": "0xe0028500",
+          "descriptorVA": "0xe0184",
+          "descriptorBytes": "350035079ca0180050430900",
+          "propertyRecordVA": "0x94350",
+          "propertyRecordBytes": "a8015028010000006454effe",
+          "sourceCanId": "0x00000285",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            53,
+            0,
+            53,
+            7
+          ],
+          "unsignedBits": 8,
+          "serializedBytes": 1,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x12e4a4",
+          "converterVA": "0x000E10D0",
+          "transform": {
+            "expression": "int32(wire_value - 40)",
+            "validity": "No bounds check or invalid-byte rejection in converter."
+          }
+        }
+      ],
+      "gbRoutes": [
+        {
+          "driveLabelFromStockFieldNames": "rear_left",
+          "field": "motor_temperature",
+          "device": 1039,
+          "fid": "0x285001A8",
+          "consumerVA": "14294..142B0",
+          "APItoGBEncoding": "u8(u8(API)+40)"
+        }
+      ],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "GB_RIGHT_REAR_MOTOR_IGBT_TEMP",
+      "device": 1039,
+      "fid": "0x2D000188",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00000005",
+          "int_signed": 5,
+          "native_type": "int",
+          "sourceLine": 19357
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00000005",
+          "int_signed": 5,
+          "native_type": "int",
+          "sourceLine": 29361
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd676c",
+          "lookupKey": "0xe002d000",
+          "descriptorVA": "0xe29c8",
+          "descriptorBytes": "310031079ca01800946b0900",
+          "propertyRecordVA": "0x96b94",
+          "propertyRecordBytes": "8801002d01000000c861effe",
+          "sourceCanId": "0x000002D0",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            49,
+            0,
+            49,
+            7
+          ],
+          "unsignedBits": 8,
+          "serializedBytes": 1,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x13b118",
+          "converterVA": "0x000E10D0",
+          "transform": {
+            "expression": "int32(wire_value - 40)",
+            "validity": "No bounds check or invalid-byte rejection in converter."
+          }
+        }
+      ],
+      "gbRoutes": [
+        {
+          "driveLabelFromStockFieldNames": "rear_right",
+          "field": "IGBT_temperature",
+          "device": 1039,
+          "fid": "0x2D000188",
+          "consumerVA": "14128..14144",
+          "APItoGBEncoding": "u8(u8(API)+40)"
+        }
+      ],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "GB_RIGHT_REAR_MOTOR_TEMP",
+      "device": 1039,
+      "fid": "0x285001B0",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00000007",
+          "int_signed": 7,
+          "native_type": "int",
+          "sourceLine": 19351
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00000007",
+          "int_signed": 7,
+          "native_type": "int",
+          "sourceLine": 29355
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd645c",
+          "lookupKey": "0xe0028500",
+          "descriptorVA": "0xe0190",
+          "descriptorBytes": "360036079ca018005c430900",
+          "propertyRecordVA": "0x9435c",
+          "propertyRecordBytes": "b0015028010000006854effe",
+          "sourceCanId": "0x00000285",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            54,
+            0,
+            54,
+            7
+          ],
+          "unsignedBits": 8,
+          "serializedBytes": 1,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x12e4e0",
+          "converterVA": "0x000E10D0",
+          "transform": {
+            "expression": "int32(wire_value - 40)",
+            "validity": "No bounds check or invalid-byte rejection in converter."
+          }
+        }
+      ],
+      "gbRoutes": [
+        {
+          "driveLabelFromStockFieldNames": "rear_right",
+          "field": "motor_temperature",
+          "device": 1039,
+          "fid": "0x285001B0",
+          "consumerVA": "142BC..142D8",
+          "APItoGBEncoding": "u8(u8(API)+40)"
+        }
+      ],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "STATISTIC_INSTANTANEOUS_CURRENT",
+      "device": 1014,
+      "fid": "0x44A00020",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00008A88",
+          "int_signed": 35464,
+          "native_type": "int",
+          "sourceLine": 14629
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00008A88",
+          "int_signed": 35464,
+          "native_type": "int",
+          "sourceLine": 24633
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd7a7c",
+          "lookupKey": "0xe0044a00",
+          "descriptorVA": "0xea3b4",
+          "descriptorBytes": "040005079ca0180080e50900",
+          "propertyRecordVA": "0x9e580",
+          "propertyRecordBytes": "2000a04402000000cc89effe",
+          "sourceCanId": "0x0000044A",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            4,
+            0,
+            5,
+            7
+          ],
+          "unsignedBits": 16,
+          "serializedBytes": 2,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x17b1bc",
+          "converterVA": "0x000E0BE0",
+          "transform": {
+            "expression": "API integer cache receives input unchanged",
+            "validity": "Returns status0 without reading input or output; no per-field range or sentinel rejection in converter. In-place integer update is shown at B12E8..B13C8."
+          }
+        }
+      ],
+      "gbRoutes": [],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "STATISTIC_MAX_DISCHARGE_POWER_ALLOW",
+      "device": 1014,
+      "fid": "0x34500008",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00000C1E",
+          "int_signed": 3102,
+          "native_type": "int",
+          "sourceLine": 14570
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00000CAE",
+          "int_signed": 3246,
+          "native_type": "int",
+          "sourceLine": 24574
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd6d1c",
+          "lookupKey": "0xe0034500",
+          "descriptorVA": "0xe5488",
+          "descriptorBytes": "010002079ca0180054960900",
+          "propertyRecordVA": "0x99654",
+          "propertyRecordBytes": "0800503402000000ec6feffe",
+          "sourceCanId": "0x00000345",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            1,
+            0,
+            2,
+            7
+          ],
+          "unsignedBits": 16,
+          "serializedBytes": 2,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x1515ac",
+          "converterVA": "0x000E0BE0",
+          "transform": {
+            "expression": "API integer cache receives input unchanged",
+            "validity": "Returns status0 without reading input or output; no per-field range or sentinel rejection in converter. In-place integer update is shown at B12E8..B13C8."
+          }
+        }
+      ],
+      "gbRoutes": [],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "STATISTIC_MAX_CHARGE_POWER_ALLOW",
+      "device": 1014,
+      "fid": "0x34500018",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00000115",
+          "int_signed": 277,
+          "native_type": "int",
+          "sourceLine": 14571
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00000115",
+          "int_signed": 277,
+          "native_type": "int",
+          "sourceLine": 24575
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd6d1c",
+          "lookupKey": "0xe0034500",
+          "descriptorVA": "0xe5494",
+          "descriptorBytes": "030004079ca0180060960900",
+          "propertyRecordVA": "0x99660",
+          "propertyRecordBytes": "1800503402000000f06feffe",
+          "sourceCanId": "0x00000345",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            3,
+            0,
+            4,
+            7
+          ],
+          "unsignedBits": 16,
+          "serializedBytes": 2,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x1515e8",
+          "converterVA": "0x000E0BE0",
+          "transform": {
+            "expression": "API integer cache receives input unchanged",
+            "validity": "Returns status0 without reading input or output; no per-field range or sentinel rejection in converter. In-place integer update is shown at B12E8..B13C8."
+          }
+        }
+      ],
+      "gbRoutes": [],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    },
+    {
+      "nameFromStockDeclaration": "STATISTIC_MAX_CHARGE_CURRENT_ALLOW",
+      "device": 1014,
+      "fid": "0x34500028",
+      "apiType": "int",
+      "retainedScalarObservations": [
+        {
+          "pass": 1,
+          "int_word": "0x00000007",
+          "int_signed": 7,
+          "native_type": "int",
+          "sourceLine": 14572
+        },
+        {
+          "pass": 2,
+          "int_word": "0x00000007",
+          "int_signed": 7,
+          "native_type": "int",
+          "sourceLine": 24576
+        }
+      ],
+      "mcu": [
+        {
+          "tableVA": "0xd6d1c",
+          "lookupKey": "0xe0034500",
+          "descriptorVA": "0xe54a0",
+          "descriptorBytes": "050005079ca018006c960900",
+          "propertyRecordVA": "0x9966c",
+          "propertyRecordBytes": "2800503401000000f46feffe",
+          "sourceCanId": "0x00000345",
+          "channel": 0,
+          "coordinatesOneBasedByteLSB0": [
+            5,
+            0,
+            5,
+            7
+          ],
+          "unsignedBits": 8,
+          "serializedBytes": 1,
+          "installedMcuHashMatched": false
+        }
+      ],
+      "hal": [
+        {
+          "registrationVA": "0x151624",
+          "converterVA": "0x000E0BE0",
+          "transform": {
+            "expression": "API integer cache receives input unchanged",
+            "validity": "Returns status0 without reading input or output; no per-field range or sentinel rejection in converter. In-place integer update is shown at B12E8..B13C8."
+          }
+        }
+      ],
+      "gbRoutes": [],
+      "engineeringUnit": null,
+      "invalidRawDomainFullyQualified": false
+    }
+  ],
+  "findings": {
+    "frontCurrent": {
+      "identity": "1009/46C00008",
+      "scope": "Front drive DC-side current selected by the stock three-drive collector. This converter finding is not a pack-current qualification and does not apply to1014/44A00020.",
+      "wireToApi": "For unsigned wire<=20000: float32(float32(int32(wire)*float32(0x3DCCCCCD)) + (-1000.0)); otherwise converter returns-10014 before writing its output.",
+      "mcuSourceLayout": "Not established: no strict generic MCU descriptor was recovered for46C00008. The name and observed46C tuple do not close that gap.",
+      "apiToGb": "u16(trunc(float32(float32(API*10)+10000)))",
+      "failurePath": "B14E4 invokes the float converter. Nonzero return other than2 logs failure then B1518 branches to mutex-unlock/cleanup B2A2C, bypassing setFloatValue B1574. This path preserves the earlier float cache; it does not write a new unavailable value.",
+      "getPath": "829A0 returns the cached float from entry+34 when type2 matches. It checks neither last conversion result nor age. Missing/mismatched entry returns-1.0.",
+      "ambiguity": "Accepted wire9990 converts to-1.0, numerically colliding with the FeatureMapper missing/type-mismatch return. Preserve layer/status/field identity; a numeric-1 alone is not a complete availability contract for this path.",
+      "sourceDerivedCounterexamples": [
+        {
+          "kind": "cache_preservation",
+          "priorApi": 0.0,
+          "nextWire": 65535,
+          "converterReturn": -10014,
+          "apiAfterThisUpdatePath": 0.0,
+          "observedLive": false
+        },
+        {
+          "kind": "uninitialized_cache_narrowing",
+          "apiPlaceholder": 65535.0,
+          "gbEncodedU16": 9990,
+          "observedLive": false
+        }
+      ],
+      "engineeringUnit": null
+    },
+    "rearCurrents": {
+      "identities": [
+        "1039/28500178",
+        "1039/28500188"
+      ],
+      "wireToApi": "MCU generic fields are unsigned16. HAL E0EC0 converts signed32 input to float32 and multiplies by float32(0x3DCCCCCD); with these producers the API domain is0..6553.5. No range/marker rejection or negative offset is present.",
+      "apiToGb": "u16(trunc(float32(float32(API*10)+10000)))",
+      "doNotUnifyWithFront": "The front HAL subtracts1000 after scale and rejects wire>20000. Rear HAL does neither. Do not transfer a front raw offset/range to either rear field.",
+      "boundaryExample": {
+        "wire": 65535,
+        "api": 6553.5,
+        "gbEncodedU16": 9999,
+        "raw65535UnavailableMeaningQualified": false,
+        "observedLive": false
+      },
+      "engineeringUnit": null
+    },
+    "sixTemperatures": {
+      "identities": [
+        "1039/46406010",
+        "1039/46406018",
+        "1039/2D000180",
+        "1039/285001A8",
+        "1039/2D000188",
+        "1039/285001B0"
+      ],
+      "wireToApi": "Each recovered MCU field is unsigned8; HAL601F0/E10D0 subtracts40 in int32 without rejecting FE/FF or another byte.",
+      "apiToGb": "u8(u8(API)+40), exactly restoring every original byte for API=wire-40.",
+      "rawBoundaryExamples": [
+        {
+          "wire": 0,
+          "api": -40,
+          "gbByte": 0
+        },
+        {
+          "wire": 254,
+          "api": 214,
+          "gbByte": 254
+        },
+        {
+          "wire": 255,
+          "api": 215,
+          "gbByte": 255
+        }
+      ],
+      "unavailableMeaningOfFeFf": "Not qualified by this source. Their propagation is not a fault or validity definition.",
+      "sourceDerivedCounterexample": {
+        "kind": "uninitialized_cache_narrowing",
+        "apiPlaceholder": 65535,
+        "gbEncodedU8": 39,
+        "observedLive": false
+      },
+      "engineeringUnit": null
+    },
+    "bmsPriorityGap": {
+      "identities": [
+        "1014/44A00020",
+        "1014/34500008",
+        "1014/34500018",
+        "1014/34500028"
+      ],
+      "wireToApi": "Identity E0BE0 and generic unsigned16,16,16,8 MCU fields respectively. No converter bounds/sentinel rejection.",
+      "historical35721": "A historical number/name is not a signedness, offset, A or kW contract. Retained20Oct current reply35464 is likewise unchanged API integer data.",
+      "labelledConsumerOrPrimaryPacketStandardFound": false,
+      "engineeringUnits": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "nextFiniteGap": "An exact stock numeric consumer with a labelled unit and field-specific invalid checks, or a locally retained primary packet specification demonstrably matched to these fields. A parked scalar correlation alone does not qualify scale/sign."
+    }
+  },
+  "instructionAnchors": [
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x5f594",
+      "bytes": "09c48952",
+      "mnemonic": "mov",
+      "operands": "w9, #0x4e20"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x5f598",
+      "bytes": "1f01096b",
+      "mnemonic": "cmp",
+      "operands": "w8, w9"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x5f59c",
+      "bytes": "88010054",
+      "mnemonic": "b.hi",
+      "operands": "#0x5f5cc"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x5f5a4",
+      "bytes": "0001221e",
+      "mnemonic": "scvtf",
+      "operands": "s0, w8"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x5f5b8",
+      "bytes": "0008211e",
+      "mnemonic": "fmul",
+      "operands": "s0, s0, s1"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x5f5c0",
+      "bytes": "0028211e",
+      "mnemonic": "fadd",
+      "operands": "s0, s0, s1"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x5f5c4",
+      "bytes": "400000bd",
+      "mnemonic": "str",
+      "operands": "s0, [x2]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x5f5cc",
+      "bytes": "a0e38412",
+      "mnemonic": "mov",
+      "operands": "w0, #-0x271e"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xb14e4",
+      "bytes": "037a0494",
+      "mnemonic": "bl",
+      "operands": "#0x1cfcf0"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xb14f0",
+      "bytes": "60010034",
+      "mnemonic": "cbz",
+      "operands": "w0, #0xb151c"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xb1518",
+      "bytes": "45050014",
+      "mnemonic": "b",
+      "operands": "#0xb2a2c"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xb1574",
+      "bytes": "8b790494",
+      "mnemonic": "bl",
+      "operands": "#0x1cfba0"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xb2a34",
+      "bytes": "b3730494",
+      "mnemonic": "bl",
+      "operands": "#0x1cf900"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x82a48",
+      "bytes": "00103e1e",
+      "mnemonic": "fmov",
+      "operands": "s0, #-1.00000000"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x82a68",
+      "bytes": "3f090071",
+      "mnemonic": "cmp",
+      "operands": "w9, #2"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x82a70",
+      "bytes": "003540bd",
+      "mnemonic": "ldr",
+      "operands": "s0, [x8, #0x34]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x83f88",
+      "bytes": "08e0dff2",
+      "mnemonic": "movk",
+      "operands": "x8, #0xff00, lsl #32"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x83f90",
+      "bytes": "e8efe8f2",
+      "mnemonic": "movk",
+      "operands": "x8, #0x477f, lsl #48"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x83fa0",
+      "bytes": "1fa002a9",
+      "mnemonic": "stp",
+      "operands": "xzr, x8, [x0, #0x28]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x83fb4",
+      "bytes": "00a943fd",
+      "mnemonic": "ldr",
+      "operands": "d0, [x8, #0x750]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x83fd4",
+      "bytes": "001800fd",
+      "mnemonic": "str",
+      "operands": "d0, [x0, #0x30]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0x601f8",
+      "bytes": "08a10051",
+      "mnemonic": "sub",
+      "operands": "w8, w8, #0x28"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xe10d8",
+      "bytes": "08a10051",
+      "mnemonic": "sub",
+      "operands": "w8, w8, #0x28"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xe0ed0",
+      "bytes": "00d8215e",
+      "mnemonic": "scvtf",
+      "operands": "s0, s0"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/hw/auto.default.so",
+      "va": "0xe0ed8",
+      "bytes": "0008211e",
+      "mnemonic": "fmul",
+      "operands": "s0, s0, s1"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14110",
+      "bytes": "08a10011",
+      "mnemonic": "add",
+      "operands": "w8, w8, #0x28"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14118",
+      "bytes": "68020039",
+      "mnemonic": "strb",
+      "operands": "w8, [x19]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14138",
+      "bytes": "08a10011",
+      "mnemonic": "add",
+      "operands": "w8, w8, #0x28"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14140",
+      "bytes": "683a0039",
+      "mnemonic": "strb",
+      "operands": "w8, [x19, #0xe]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14164",
+      "bytes": "201541f9",
+      "mnemonic": "ldr",
+      "operands": "x0, [x9, #0x228]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x1416c",
+      "bytes": "6d910094",
+      "mnemonic": "bl",
+      "operands": "#0x38720"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x142a4",
+      "bytes": "08a10011",
+      "mnemonic": "add",
+      "operands": "w8, w8, #0x28"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x142ac",
+      "bytes": "681a0039",
+      "mnemonic": "strb",
+      "operands": "w8, [x19, #6]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x142cc",
+      "bytes": "08a10011",
+      "mnemonic": "add",
+      "operands": "w8, w8, #0x28"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x142d4",
+      "bytes": "68520039",
+      "mnemonic": "strb",
+      "operands": "w8, [x19, #0x14]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x142f4",
+      "bytes": "08a10011",
+      "mnemonic": "add",
+      "operands": "w8, w8, #0x28"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x142fc",
+      "bytes": "688a0039",
+      "mnemonic": "strb",
+      "operands": "w8, [x19, #0x22]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x1431c",
+      "bytes": "0008281e",
+      "mnemonic": "fmul",
+      "operands": "s0, s0, s8"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x1432c",
+      "bytes": "0028291e",
+      "mnemonic": "fadd",
+      "operands": "s0, s0, s9"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14334",
+      "bytes": "0900381e",
+      "mnemonic": "fcvtzs",
+      "operands": "w9, s0"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14338",
+      "bytes": "69160079",
+      "mnemonic": "strh",
+      "operands": "w9, [x19, #0xa]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14358",
+      "bytes": "0008281e",
+      "mnemonic": "fmul",
+      "operands": "s0, s0, s8"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14360",
+      "bytes": "0028291e",
+      "mnemonic": "fadd",
+      "operands": "s0, s0, s9"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14364",
+      "bytes": "0900381e",
+      "mnemonic": "fcvtzs",
+      "operands": "w9, s0"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14368",
+      "bytes": "69320079",
+      "mnemonic": "strh",
+      "operands": "w9, [x19, #0x18]"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14378",
+      "bytes": "0008281e",
+      "mnemonic": "fmul",
+      "operands": "s0, s0, s8"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14380",
+      "bytes": "0028291e",
+      "mnemonic": "fadd",
+      "operands": "s0, s0, s9"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14384",
+      "bytes": "0800381e",
+      "mnemonic": "fcvtzs",
+      "operands": "w8, s0"
+    },
+    {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/gbacqservice",
+      "va": "0x14388",
+      "bytes": "684e0079",
+      "mnemonic": "strh",
+      "operands": "w8, [x19, #0x26]"
+    }
+  ],
+  "initialCacheEvidence": {
+    "floatTag": 2,
+    "floatBits": "0x477fff00",
+    "floatValue": 65535.0,
+    "integerTag": 1,
+    "integerValue": 65535,
+    "integerLiteralVA": "0x42750",
+    "integerLiteralBytes": "01000000ffff0000"
+  },
+  "limitations": [
+    "No new engineering unit is proved. No A,kW,degC label is promoted from FID names, magnitudes, coefficient0.1 or GB-looking offsets.",
+    "Owner OTA MCU bytes remain unmatched to installed MCU; logical device names do not bind a physical ECU or connector.",
+    "API outputs are already HAL-converted. GB transforms encode API output for transport and must not be applied to scalar GETs as an extra correction.",
+    "The cache-preservation and narrowing examples are source-derived counterexamples, not observed invalid updates or emitted packets.",
+    "Generic cache placeholders65535/65535.0 are distinct from a source raw-byteFF or source raw-wordFFFF. A particular observedFFFF is not assigned a field-specific invalid meaning without evidence.",
+    "A rejected input can preserve an earlier cache through this update path. Other asynchronous updates/resets may replace it; no current-car freshness contract is established.",
+    "No qualifying labelled UI consumer was found in the bounded existing Java-tree search. This is not a claim that no such consumer exists elsewhere; obfuscated/dynamic/native consumers remain possible.",
+    "A retained primary GB/T packet specification was not found by the bounded filename lookup or used in this pass. Native GB packing arithmetic alone does not establish engineering units."
+  ],
+  "captureBase": "captures/diagnostics-unattended-20261021/powertrain-units"
+}
