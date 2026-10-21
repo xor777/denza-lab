@@ -45,6 +45,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | BSCM7E5 and VCU7E2:23 bounded replies add3 and5 previously unread advertised PIDs; all8 BSCM and9 VCU non-bitmap PIDs have now replied. In1.03s the same coolant PID05 gave ECM10°C, VCU30°C and BSCM10°C. Source ECU must stay with the value; physical sensor provenance is unresolved | live | 2026-10-21 | [Brake and VCU data](#brake-and-vcu-obd-data-2026-10-21) |
 | Stock native DTC count/list tasks preserve the format byte and raw24-bit records; they contain no format01-to-display conversion in the traced positive-response path. One public overseas TIS workshop page and BYD's environmental-document channel are acquisition leads, without a matching Z9GT dictionary. CALID search found no binding; 63/64 rear-drive catalog codes also occur in U8 | firmware + public-source boundary | 2026-10-21 | [OEM DTC candidates](#oem-dtc-manual-candidates-2026-10-20) |
 | OEM warning dictionary:628 Chinese UI messages;8 priority mappings traced from CAN261/channel0 through1007/26100008. Further audit separates warning IDs, native DataItems and14 GB alarm predicates; the inspected type07 serializer writes four fault-code counts as literal zero. BMS cell-overtemperature headings are acquisition candidates, not a proven warning-to-DTC relation. No applicable dictionary or warning-to-ECU/DTC join | firmware; dictionary and causal links open | 2026-10-21 | [OEM warning IDs and text](#oem-warning-ids-and-text-2026-10-21); [Warning/DTC linkage](#warning-to-dtc-linkage-and-gb-alarm-boundary-2026-10-21) |
+| Supported-code registries: BMS 115, FMCU 32 and each rear drive 32; 109 BMS codes match candidate headings, six are absent. Both rear sets match 32 own-side headings. ECM `190A` returns NRC13; ISG retains a partial gateway CAN trace, not a complete registry. Snapshot index: ECM empty; BMS 41 pairs; front/ISG NRC12, rears NRC31. BMS `1904` for `P1A3A22/01` returns code/status00 without a snapshot record; the original reader aborted on that short response. No newly qualified factory definitions or warning links | live registries and snapshot observations; meanings and ISG transport open | 2026-10-21 | [Supported DTC registries](#supported-dtc-registries-2026-10-21) |
 | Front-drive DC-current rejected conversion preserves the previous float cache; rear converters differ and six temperature paths preserve FE/FF. Adjacent charging-current CAN444/channel2 now has a complete dual-cache/GB-consumer trace; the18-ID normalization excludes345/44A. Generation state0 is explicitly INVALID. Priority BMS units and dedicated ISG numeric telemetry remain unqualified | firmware + retained observations, not new physical-unit qualification | 2026-10-21 | [Scalar quality](#powertrain-scalar-quality-and-cache-limits-2026-10-21); [Current consumers and ISG](#adjacent-current-consumers-and-isg-boundary-2026-10-21) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
@@ -93,6 +94,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [Battery validity and collection gates](#battery-validity-and-collection-gates-2026-10-21) — count-cache divergence, unreceived zeros, collection-policy reasons and separate charge/contactor labels
 - [OEM warning IDs and text](#oem-warning-ids-and-text-2026-10-21) — ten-bit warning field,628-message stock dictionary,8 traced meanings and popup visibility limits
 - [Warning to DTC linkage and GB alarm boundary](#warning-to-dtc-linkage-and-gb-alarm-boundary-2026-10-21) — separate identifier namespaces,14 native alarm predicates, fixed-zero code counts and exact manual-page candidates
+- [Supported DTC registries](#supported-dtc-registries-2026-10-21) — exact software/code membership, candidate-heading intersections and explicit incomplete reads
 - [OEM DTC manual candidates](#oem-dtc-manual-candidates-2026-10-20) — public headings, primary acquisition channels, CALID search and software-applicability gaps
 - [The scanner on the car: first autoscan](#the-scanner-on-the-car-first-autoscan-2026-10-20) — the product's 68 blocks in 20 s, the history found, two defects fixed
 - [Consumption journal](#consumption-journal) — the on-disk bucket log and why it is append-only lines
@@ -4214,7 +4216,7 @@ Chinese publisher headings:
 
 | Warning | Exact candidate or rejected shortcut | Missing evidence |
 | --- | --- | --- |
-| `358`, high battery temperature | BMS `P1A3A22` / `outline_823_a`, individual-cell temperature generally too high; `P1A3922` / `outline_808_a`, individual-cell temperature severely too high | Applicable original pages, thresholds, derating and warning trigger; pack/ECU/software applicability |
+| `358`, high battery temperature | BMS `P1A3A22` / `outline_823_a`, individual-cell temperature generally too high; `P1A3922` / `outline_808_a`, individual-cell temperature severely too high | Code membership in this BMS software was qualified later below; applicable original definitions, thresholds, derating and warning trigger remain unproved |
 | `1E`, engine coolant too hot | `P011700` / `P011800` describe sensor-circuit voltage; they are not an actual overtemperature definition | Actual thermal-condition DTC/strategy page and its warning-output condition |
 | `20`, insufficient oil pressure | `P052200` / `P052300` describe sensor-circuit voltage/duty; they do not establish mechanical low oil pressure | Pressure warning condition and applicable original diagnostic pages |
 | `5D`, low battery charge with reduced power | No explicit SOC/charge heading found in the inspected BMS index; cell undervoltage is not an equivalent substitute | Low-SOC power-limit/warning strategy and whether it stores any DTC |
@@ -4225,6 +4227,158 @@ current errors. No new exact software-to-dictionary or format01 display/raw
 conversion was obtained. The usable next evidence is the applicable original
 diagnostic page or sender-side warning-output definition; repeating an empty
 DTC read without an event does not establish a causal link.
+
+**Later same-day qualification:** both `P1A3922` and `P1A3A22` occur in the
+actual BMS supported-code registry below. Their membership in software
+`4A520011E00D00047B` is now live evidence; the descriptions, thresholds and
+warning358 connection remain unqualified.
+
+### Supported DTC registries (2026-10-21)
+
+The owner authorized a finite `19 0A` pass, followed by catalog comparison and
+separate snapshot qualification. Each target first returned its exact `F194`
+software code, then `19 01 09` supplied the DTC format and status availability.
+The `19 0A` response has no format byte. Its supported-code registry is separate
+from the count of faults matching mask 09 and is not a list of current failures.
+
+The first three runs sent 18 requests. The first and rear-only plans completed;
+the middle drive plan aborted after five completed exchanges and one exchange
+without an accepted response. The completed FMCU prefix is independently
+replayed, while the overall plan remains incomplete. No APK was installed.
+The staged helpers were removed, their processes exited, the crash buffer stayed
+empty, and firmware/APK hashes and the four stock service PIDs remained unchanged.
+BydLogTool was a pre-existing resident process, not an active export: its six
+export ports, export threads and shared export leases were absent. It was not
+started or stopped by these reads.
+
+| ECU / route | Exact software code | Observed supported registry | Public-heading comparison |
+| --- | --- | --- | --- |
+| ECM `7E0` | `32440011E004000000` | `19 0A` returned `7F1913`, incorrect length/format; no pending frame was observed | No list obtained. NRC13 does not prove the subfunction is unsupported; no source-backed alternative request was found |
+| BMS `7E7` | `4A520011E00D00047B` | 115 records, format 00, availability 09; three fragments 231+230+2 bytes | 109 distinct codes intersect 110 heading rows; 96 catalog rows are outside this observed registry |
+| FMCU `7E3` | `48370011E075000000` | 32 raw records, format 01, availability 09; completed before the drive-plan abort | Main decoder stays raw. Under a separately labelled reverse-notation hypothesis, all 31 front-drive headings encode to bytes in this set; `1BE201` has no such heading |
+| ISG `7E6` | `48370011E0EA000000` | Identity and format 01/count 0 read; the first 190A attempt ended `GATEWAY_SHAPE` | The rejected callback was not logged by build03, so neither a supported list nor the gateway result can be recovered from this transcript |
+| SMCU `744`, left rear | `48370011E086001100` | 32 records, format 00, availability 09 | 32 own-side headings, zero opposite-side headings, no unmatched code |
+| SMCU3 `745`, right rear | `48370011E088001100` | 32 records, format 00, availability 09 | 32 own-side headings, zero opposite-side headings, no unmatched code |
+
+All four accepted registries carry status 00 for every entry; the separately
+observed mask 09 count is zero on all six addressed ECUs. These observations
+are bounded by the requested mask and time, not an assertion of overall vehicle
+health. The rear intersections strengthen the empirical association between
+each software/code set and the side-labelled catalog. They do not verify
+OEM authorship, diagnostic thresholds or repair procedures.
+
+The six BMS codes absent from the inspected BMS section are `P1A8E73`,
+`P2BF900`, `P2BFF0B`, `P2BAA00`, `P2BF600`, `P2BFF07`. A finite public search
+found no primary definition applicable to this exact vehicle/software. Generic
+code descriptions and other-model matches were not imported. `P2BAE00` is
+supported, but its two incompatible catalog headings remain unresolved.
+
+**ISG followup, not a recovered registry.** One separate three-request plan
+rechecked identity/count and observed the same supported-list request with
+rejected-buffer logging. The retained 240-byte callback starts
+`0A07EEE9020103`: result 03, fragment 1 of 2, 233 declared payload bytes. Its
+payload contains CAN trace records, including a `7EE` frame with
+`10 E7 59 0A 09 ...` and consecutive-frame-shaped data. This is an opaque
+gateway failure report, not the ordinary successful UDS envelope. Only the
+first gateway fragment is retained; queued 1 does not identify the pending
+callback. Neither missing CAN frames nor a flow-control defect is established
+by this partial trace. The attempt remains incomplete with no accepted ISG
+registry. It supplies a concrete transport investigation path without altering
+the vehicle or guessing another service request.
+
+The owner-package MCU image explains this report type: `1531A6` is the timeout
+callback, `1530FA` publishes result 3 with the accumulated trace, and `15324E`
+chunks it at 230 bytes. Each trace record is 13 bytes: a two-byte counter delta,
+one internal selector, a two-byte CAN ID and eight CAN bytes. The source logs
+generated flow control before logging the triggering first frame; their order
+in the dump is therefore not proof of CAN-wire chronology. The installed MCU
+binary hash was not independently obtained in this pass, so that source-bound
+qualification remains explicit.
+
+The first frame declares 231 UDS bytes. The retained prefix reconstructs 107
+bytes, including 26 complete unique raw DTC/status tuples. The implied 57-record
+length is arithmetic, not 57 recovered codes. Format01 stays raw. The source
+explains timeout-report publication, not why this transfer failed to complete.
+[`isg-gateway-trace-20261021.json`](../research/vehicle-diagnostics/isg-gateway-trace-20261021.json)
+retains the partial trace, native ranges and limits;
+[`check_isg_gateway_trace.py`](../research/vehicle-diagnostics/check_isg_gateway_trace.py)
+replays the prefix and verifies source/native-byte hashes without vehicle or
+firmware execution. Full failure-transcript collection is a separate next
+instrumentation task; no missing bytes were reconstructed.
+
+**Snapshot index qualification.** Two further fixed plans sent 18 requests:
+identity, format/count and `19 03` for each of the six ECUs. Both plans completed
+with stable health/cleanup. ECM returned exactly `59 03`, an empty index. BMS
+returned 41 unique `(raw DTC, record 01)` pairs. Thirty-nine codes also occur in
+the 115-code supported registry; `1A3419/01` and `2BA100/01` do not, while 76
+supported codes are outside the returned snapshot index. The same software
+identity and format were observed in both runs. The index alone does not prove
+41 stored incidents, available record payloads or historical failures.
+
+FMCU and ISG each returned `7F1912`, subfunction not supported. Both rear drives
+returned `7F1931`, request out of range; that different refusal is not relabelled
+unsupported. No retries, alternate sessions or extended-data reads followed.
+`19 03` returns no DTC status, availability mask or format byte, and discovers
+no `19 06` extended-record IDs. The offline
+[`decode_snapshot_index.py`](../research/vehicle-diagnostics/decode_snapshot_index.py)
+preserves that distinction. The protocol reference is the
+[py-uds service documentation](https://uds.readthedocs.io/en/stable/pages/knowledge_base/service.html);
+the observed bytes, rather than generic documentation, establish each ECU's
+actual behavior here.
+
+**One exact BMS snapshot read.** A final four-request plan rechecked the same
+software identity, format 00 and the presence of `1A3A22/01` in the index before
+sending `19 04 1A 3A 22 01`. The response was exactly `59 04 1A 3A 22 00`:
+the echoed DTC and status 00, with no returned snapshot record number, identifier
+count or values. It is evidence of no record returned for this request, not
+proof that the ECU has no fault history. The official
+[udsoncan parser](https://udsoncan.readthedocs.io/en/latest/_modules/udsoncan/services/ReadDTCInformation.html)
+accepts this minimal positive DTC/status response and an empty snapshot list.
+
+The executed build06 required a record header and therefore stopped with
+`SNAPSHOT_RECORD_RESPONSE_SHAPE` after four requests and three completed steps.
+Its failed lifecycle is retained rather than retroactively marked successful.
+The independent host checks confirmed removal of its JAR, process exit and
+stable vehicle/app health. The rejected callback retained 240 bytes, but its
+declared payload length was six: the remaining 227 bytes after the seven-byte
+gateway header and payload are outside the response. They must not be decoded
+as snapshot values. The offline decoder retains the short response separately
+from an accepted snapshot record. No second live read followed.
+
+Across all seven runs, 43 requests were sent. Four plans completed and three
+aborted; all seven had successful host cleanup and stable postflight health.
+The BMS index-to-record check makes the distinction practical: listing a pair
+in `1903` does not guarantee a populated freeze frame in `1904`. No `1906`
+record was attempted because this index does not identify extended-data records.
+
+[`supported-dtc-20261021.json`](../research/vehicle-diagnostics/supported-dtc-20261021.json)
+retains every accepted raw/status pair, exact ECU identity, Russian candidate
+headings with original locators, failures and the explicit FMCU notation
+hypothesis. [`check_supported_dtc.py`](../research/vehicle-diagnostics/check_supported_dtc.py)
+reassembles the wire records, compares the catalog, validates source/build hashes,
+replays pre/post health and checks remote cleanup. Run it with `python3` from
+the repository root. Raw captures, executed source snapshots, build manifests
+and independent reviews are under `captures/diagnostics-supported-20261021/`.
+
+The isolated reader is `tools/vehicle-diagnostics/SupportedDtcReadProbe.java`.
+It holds the existing diagnostic lock, observes two quiet seconds, gates each
+send on profile 170/CANFD/P/zero speed/idle manager, and uses four-second request
+deadlines and 500 ms gaps. NRC78 waits only within the original deadline. There
+are no retries, session/security/clear/routine requests or vehicle-control requests.
+The 16-fragment/4095-byte caps are conservative policy limits, not measured
+channel maxima; an over-limit reply is incomplete. Build04 additionally logs
+bounded rejected bytes before aborting; it does not weaken acceptance. The later
+build07 adds `SNAPSHOT_RECORD_EMPTY` for the six-byte positive DTC/status response.
+Its 212 offline assertions pass; it was not run on the car. Exact five/seven-byte
+responses, a wrong echoed DTC or unavailable status bits remain rejected.
+
+For the later warning association work,
+[`diagnostic-event-journal-plan-20261021.json`](../research/vehicle-diagnostics/diagnostic-event-journal-plan-20261021.json)
+records the collection contract: warning 1007/26100008, the 14 source-proven GB
+inputs, exact-identity DTC reads and snapshot identifiers on one monotonic time
+axis. It is a prepared contract, not an implemented or running recorder. Natural
+events, stale/missing data and the delay until a parked DTC read must remain
+visible. Temporal coincidence alone must not create a warning-to-DTC mapping.
 
 ### OEM DTC manual candidates (2026-10-20)
 
@@ -4283,7 +4437,7 @@ are only a lead: its official affiliation and CN-model coverage are unverified.
 | --- | --- | --- |
 | Engine electronic control | 496 DTC headings, 494 distinct seven-character display codes | No UAES/BYD supplier split or software-code binding; P222800 and P222900 each have two different titles |
 | Battery management | 206 DTC headings, 204 distinct display codes | P2BAE00 has two different titles in this same section; BMS033/software applicability unproved |
-| Front drive, generator, right rear drive, left rear drive | Respectively 31, 32, 32, 32 headings; 126 distinct codes across these four sections | Raw-code encoding and software applicability remain unproved; the [2026-10-21 model catalog](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) now assigns SMCU left / SMCU3 right |
+| Front drive, generator, right rear drive, left rear drive | Respectively 31, 32, 32, 32 headings; 126 distinct codes across these four sections | Later [supported-registry reads](#supported-dtc-registries-2026-10-21) qualify exact-software membership of all 32 headings on each rear side, with format00. Factory definitions remain unqualified; front/ISG format01 display conversion remains open. The [model catalog](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) assigns SMCU left / SMCU3 right |
 
 The index itself is not consistent enough for an automatic import. In the BMS
 branch, `P2BAE00` appears both for a boost contactor fault and an extreme pack

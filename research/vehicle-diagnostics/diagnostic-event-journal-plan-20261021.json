@@ -1,0 +1,240 @@
+{
+  "schema": "denza-lab.diagnostic-event-journal-plan.v1",
+  "date": "2026-10-21",
+  "state": "prepared_contract_not_implemented_or_run",
+  "purpose": "Collect natural warning/alarm/DTC observations with provenance; do not induce a fault or infer a causal link from time proximity.",
+  "vehicleOperations": 0,
+  "backgroundAutomationCreated": false,
+  "clock": {
+    "primary": "Android elapsedRealtimeNanos",
+    "utc": "Wall-clock anchor plus uncertainty; never order events by wall clock alone",
+    "sampleFields": [
+      "observedStartNanos",
+      "observedEndNanos",
+      "sourceSequence",
+      "quality",
+      "rawValue",
+      "sourceReference"
+    ]
+  },
+  "sources": {
+    "warning": {
+      "device": 1007,
+      "fidHex": "26100008",
+      "kind": "int warning identifier",
+      "zeroMeansHealthy": false,
+      "ownerEcuKnown": false
+    },
+    "gbAlarmInputs": [
+      {
+        "device": 1039,
+        "fidHex": "43800008",
+        "labelRu": "Разброс температур батареи",
+        "nativeAggregateBit": 0,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "4380000A",
+        "labelRu": "Неоднородность батареи",
+        "nativeAggregateBit": 10,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "4380000C",
+        "labelRu": "Несоответствие батареи",
+        "nativeAggregateBit": 9,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "4380000E",
+        "labelRu": "Повышенное напряжение батареи",
+        "nativeAggregateBit": 2,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "43800010",
+        "labelRu": "Пониженное напряжение батареи",
+        "nativeAggregateBit": 3,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "43800012",
+        "labelRu": "Перезаряд батареи",
+        "nativeAggregateBit": 18,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "43800014",
+        "labelRu": "Высокий SOC",
+        "nativeAggregateBit": 7,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "43800016",
+        "labelRu": "Скачок SOC",
+        "nativeAggregateBit": 8,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "2440003E",
+        "labelRu": "Высоковольтная блокировка",
+        "nativeAggregateBit": 16,
+        "triggerRawValuesSimulationOff": [
+          1
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "26C00010",
+        "labelRu": "Высокая температура (GB_HIGH_TEMP_ALARM)",
+        "nativeAggregateBit": 12,
+        "triggerRawValuesSimulationOff": [
+          1
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "26C00022",
+        "labelRu": "Неисправность системы DC",
+        "nativeAggregateBit": 14,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "2440000C",
+        "labelRu": "Высокая температура батареи",
+        "nativeAggregateBit": 1,
+        "triggerRawValuesSimulationOff": [
+          1,
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "2400000C",
+        "labelRu": "Температура силового модуля привода",
+        "nativeAggregateBit": 15,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      },
+      {
+        "device": 1039,
+        "fidHex": "2400000A",
+        "labelRu": "Температура электродвигателя",
+        "nativeAggregateBit": 17,
+        "triggerRawValuesSimulationOff": [
+          2
+        ],
+        "semantics": "native aggregate predicate, not universal sensor validity or DTC"
+      }
+    ],
+    "dtc": {
+      "identity": "Exact request route + F194 software + same-run format identifier",
+      "requests": [
+        "22F194",
+        "190109",
+        "190209"
+      ],
+      "sampleFields": [
+        "requestNanos",
+        "responseNanos",
+        "requestHex",
+        "responseHex",
+        "statusAvailability",
+        "format",
+        "rawDtc24",
+        "statusByte",
+        "completion"
+      ],
+      "incompleteMeans": "unknown, never zero faults"
+    },
+    "snapshotIndex": {
+      "request": "1903",
+      "fields": [
+        "rawDtc24",
+        "snapshotRecordNumber"
+      ],
+      "contentsAreDecoded": false
+    }
+  },
+  "collectionPolicy": {
+    "passiveWarningAndAlarmObservations": "Record events and explicit unavailable/stale states; do not toggle sources or simulation flags",
+    "ecuReads": "One owner under the shared diagnostic lock, profile170/CANFD/P/zero-speed/idle-manager gates, bounded requests and quiet start",
+    "whenNotParked": "No ECU requests; preserve observed event time and the delay until a qualified parked read",
+    "naturalEventsOnly": true,
+    "noClearOrSessionOrSecurityOrRoutineRequests": true
+  },
+  "joinPolicy": {
+    "output": "temporal_association_candidate",
+    "requiredFields": [
+      "warningObservation",
+      "alarmObservations",
+      "ecuIdentity",
+      "beforeAndAfterDtcReads",
+      "readDelayNanos",
+      "missingOrStaleInputs"
+    ],
+    "coincidenceIsCausality": false,
+    "supportedRegistryMembershipIsFault": false,
+    "defaultQualifiedWarningDtcLinks": []
+  },
+  "acceptanceStillRequired": [
+    "Implement the finite collector and prove callback/time/quality behavior on retained traces",
+    "Verify shared ownership and cleanup on the car",
+    "Observe a natural event; a no-warning baseline cannot establish any warning-to-DTC mapping"
+  ],
+  "provenance": [
+    {
+      "path": "research/vehicle-diagnostics/gb-alarm-dtc-boundary-20261021.json",
+      "sha256": "a7877f782a919021b8500da7fc2e7850778fb1a2d1f208cd482e000a2cb61495"
+    },
+    {
+      "path": "research/vehicle-diagnostics/warning-dtc-linkage-20261021.json",
+      "sha256": "b0da96525f3903ce67d918219f502617fbe9b3c9bcbbc17f21efb2db9aa593ab"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-warning-mappings-20261021.json",
+      "sha256": "02e7e63f67128e49cf145fba03e739fef8ffffc314c3554c6d42fa2ac3b3b2c2"
+    }
+  ]
+}

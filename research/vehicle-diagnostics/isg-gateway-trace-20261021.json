@@ -1,0 +1,441 @@
+{
+  "schema": "denza-lab.isg-partial-gateway-trace.v1",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "probeChanged": false,
+  "sources": [
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/probe.txt",
+      "bytes": 1862,
+      "sha256": "7d94ccc3a6ec83b446d8cc7584f830a3d2783473f4f872c9c6c7ee40387f3cba"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "bytes": 1933312,
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02"
+    },
+    {
+      "path": "captures/diagnostics-discovery-20261018/ecu-map-followup/mcu-15147e-v850e3v5.asm",
+      "bytes": 12864,
+      "sha256": "30b578ed08cf96fb625c549a830e03bd8b1c4fd943542678b696d5e286de809c"
+    },
+    {
+      "path": "captures/diagnostics-discovery-20261018/ecu-map-followup/mcu-15059e-v850e3v5.asm",
+      "bytes": 7101,
+      "sha256": "e77e4d121826c06e83e7d13992ff056cfe062e261d46979fedc34489965bab36"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/uds/EolUdsResult.java",
+      "bytes": 14581,
+      "sha256": "703c96c769e54ef0a823c2e2281af8a54b85273bf3bc6e07465bb3c8982bf92f"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/sources/com/byd/spotinspection/eol/uds/EolUdsListener.java",
+      "bytes": 5144,
+      "sha256": "763ff978917adaeb3e1ec89d7d973873654dc8ff051668ab8fcf158880395766"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-trace/analyze.py",
+      "bytes": 7077,
+      "sha256": "54cb3a8663d1351c9d1c417e3fc43cc552dce7535158f0bbb1736e79d6c4a40a"
+    }
+  ],
+  "outer": {
+    "callbackBytes": 240,
+    "declaredPayloadBytes": 233,
+    "totalFragments": 2,
+    "fragmentIndex": 1,
+    "gatewayResult": 3,
+    "originalRequestPrefixHex": "190A9F",
+    "retainedTracePrefixBytes": 230,
+    "secondOuterFragmentRetained": false
+  },
+  "native": {
+    "decoder": "pypcode4.0.1 V850:LE:32:v850e3v5",
+    "imageApplicability": "Owner firmware package; installed MCU byte hash not independently proved here.",
+    "ranges": [
+      {
+        "name": "trace-record-builder",
+        "startVA": "0x1515a0",
+        "endExclusiveVA": "0x1516f2",
+        "sha256": "25a0fee16b02abe7d64bcedae182a17722fc534aa0422f638bd32d506f679be5",
+        "instructions": 89
+      },
+      {
+        "name": "multi-frame-receiver",
+        "startVA": "0x152a2c",
+        "endExclusiveVA": "0x152fdc",
+        "sha256": "3341af16a07fa29d54e62137cbfe821cfa5c51515d721b6f573e876d4cd0ec5f",
+        "instructions": 378
+      },
+      {
+        "name": "timeout-transcript-publisher",
+        "startVA": "0x1530fa",
+        "endExclusiveVA": "0x1531fa",
+        "sha256": "32d63002ad6ffc37d092efc5c2358e8f0873029aac465e3924bd2b6323395970",
+        "instructions": 66
+      },
+      {
+        "name": "response-chunker",
+        "startVA": "0x15324e",
+        "endExclusiveVA": "0x1532f2",
+        "sha256": "99a022f7dab2738aed1c80b8e8d90d7cb7b80aca693249b87f68f703d8e229c2",
+        "instructions": 51
+      }
+    ],
+    "evidence": [
+      "1515A0..1516F2 records clock-deltaBE16,internal-frame byte0,internal-frame IDBE16,8CANbytes:13bytes/record. Counter unit not separately proved here.",
+      "152DBC..152DC0 logs generated flow-control before152DEA..152DEC logs the received first frame. Thus transcript ordering FC-before-FF is produced by code and does not imply CAN wire chronological order.",
+      "152A2C..152A64 and152E10..152E48 arm/rearm callback1531A6 using timer argument1000.",
+      "1531D4..1531E4 checks active and invokes1530FA with result3, then clears active.",
+      "153108 writes result;15310E..153120 restores original request SID/next-byte fields.15317E..153190 passes the accumulated CAN transcript buffer FEBC9286 to15324E for non-owner3.",
+      "15324E..1532F2 chunks the supplied buffer at230bytes.15059E prepends original SID and two retained argument bytes to the first fragment when the retained argument field is nonzero. Timeout03 can therefore carry a multipart raw transcript rather than an ordinary590A response.",
+      "152F12..152F50 publishes positive assembled response only when retained target-length equals assembled data-length. Positive prefix in a timeout transcript does not establish completion."
+    ]
+  },
+  "canTranscriptPrefix": [
+    {
+      "callbackOffset": 10,
+      "raw": "02030007E602190A5555555555",
+      "elapsedCounterDeltaBE16": 515,
+      "internalSelector": 0,
+      "canIdHex": "7E6",
+      "canBytes": "02190A5555555555",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 23,
+      "raw": "000C0007E63000005555555555",
+      "elapsedCounterDeltaBE16": 12,
+      "internalSelector": 0,
+      "canIdHex": "7E6",
+      "canBytes": "3000005555555555",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 36,
+      "raw": "00000007EE10E7590A09180219",
+      "elapsedCounterDeltaBE16": 0,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "10E7590A09180219",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 49,
+      "raw": "00030007EE2100183500001836",
+      "elapsedCounterDeltaBE16": 3,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2100183500001836",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 62,
+      "raw": "00060007EE2200001837000018",
+      "elapsedCounterDeltaBE16": 6,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2200001837000018",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 75,
+      "raw": "00010007EE2338000018061700",
+      "elapsedCounterDeltaBE16": 1,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2338000018061700",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 88,
+      "raw": "00000007EE2418061600183900",
+      "elapsedCounterDeltaBE16": 0,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2418061600183900",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 101,
+      "raw": "00000007EE2500183A0000181A",
+      "elapsedCounterDeltaBE16": 0,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2500183A0000181A",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 114,
+      "raw": "00000007EE2600001910010019",
+      "elapsedCounterDeltaBE16": 0,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2600001910010019",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 127,
+      "raw": "00000007EE2711010019120100",
+      "elapsedCounterDeltaBE16": 0,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2711010019120100",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 140,
+      "raw": "00010007EE2818039600180496",
+      "elapsedCounterDeltaBE16": 1,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2818039600180496",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 153,
+      "raw": "00000007EE2900180596001808",
+      "elapsedCounterDeltaBE16": 0,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2900180596001808",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 166,
+      "raw": "00010007EE2A96001809960018",
+      "elapsedCounterDeltaBE16": 1,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2A96001809960018",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 179,
+      "raw": "00010007EE2B3C0000180F1900",
+      "elapsedCounterDeltaBE16": 1,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2B3C0000180F1900",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 192,
+      "raw": "00040007EE2C18101700181700",
+      "elapsedCounterDeltaBE16": 4,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2C18101700181700",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 205,
+      "raw": "00000007EE2D00181100001812",
+      "elapsedCounterDeltaBE16": 0,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2D00181100001812",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 218,
+      "raw": "00000007EE2E0000180E000018",
+      "elapsedCounterDeltaBE16": 0,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2E0000180E000018",
+      "completeRecord": true
+    },
+    {
+      "callbackOffset": 231,
+      "raw": "00010007EE2F160000",
+      "elapsedCounterDeltaBE16": 1,
+      "internalSelector": 0,
+      "canIdHex": "7EE",
+      "canBytes": "2F160000",
+      "completeRecord": false
+    }
+  ],
+  "reconstruction": {
+    "qualifiedSuccess": false,
+    "scope": "Partial ISO-TP prefix reconstructed only from this rejected raw transcript; not usable as a completed scan.",
+    "firstFrameDeclaredUdsBytes": 231,
+    "declaredLengthWouldContainRecords": 57,
+    "retainedUdsPrefixBytes": 107,
+    "missingUdsBytes": 124,
+    "udsPrefixHex": "590A091802190018350000183600001837000018380000180617001806160018390000183A0000181A00001910010019110100191201001803960018049600180596001808960018099600183C0000180F190018101700181700001811000018120000180E000018160000",
+    "statusAvailabilityFromPrefixHex": "09",
+    "formatFromPrior190109Hex": "01",
+    "format01CodesKeptRaw": true,
+    "completeRecordTuplesRetained": 26,
+    "records": [
+      {
+        "rawDtc": "180219",
+        "statusHex": "00",
+        "udsOffset": 3,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "183500",
+        "statusHex": "00",
+        "udsOffset": 7,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "183600",
+        "statusHex": "00",
+        "udsOffset": 11,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "183700",
+        "statusHex": "00",
+        "udsOffset": 15,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "183800",
+        "statusHex": "00",
+        "udsOffset": 19,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "180617",
+        "statusHex": "00",
+        "udsOffset": 23,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "180616",
+        "statusHex": "00",
+        "udsOffset": 27,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "183900",
+        "statusHex": "00",
+        "udsOffset": 31,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "183A00",
+        "statusHex": "00",
+        "udsOffset": 35,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "181A00",
+        "statusHex": "00",
+        "udsOffset": 39,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "191001",
+        "statusHex": "00",
+        "udsOffset": 43,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "191101",
+        "statusHex": "00",
+        "udsOffset": 47,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "191201",
+        "statusHex": "00",
+        "udsOffset": 51,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "180396",
+        "statusHex": "00",
+        "udsOffset": 55,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "180496",
+        "statusHex": "00",
+        "udsOffset": 59,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "180596",
+        "statusHex": "00",
+        "udsOffset": 63,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "180896",
+        "statusHex": "00",
+        "udsOffset": 67,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "180996",
+        "statusHex": "00",
+        "udsOffset": 71,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "183C00",
+        "statusHex": "00",
+        "udsOffset": 75,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "180F19",
+        "statusHex": "00",
+        "udsOffset": 79,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "181017",
+        "statusHex": "00",
+        "udsOffset": 83,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "181700",
+        "statusHex": "00",
+        "udsOffset": 87,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "181100",
+        "statusHex": "00",
+        "udsOffset": 91,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "181200",
+        "statusHex": "00",
+        "udsOffset": 95,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "180E00",
+        "statusHex": "00",
+        "udsOffset": 99,
+        "semantics": "partial trace inventory record; not active fault count"
+      },
+      {
+        "rawDtc": "181600",
+        "statusHex": "00",
+        "udsOffset": 103,
+        "semantics": "partial trace inventory record; not active fault count"
+      }
+    ],
+    "activeFaultCount": "not_measured"
+  },
+  "limits": [
+    "Gateway timeout publication is explained by native code; why the MCU did not complete this particular ISO-TP transfer is not established.",
+    "Only first of two outer fragments retained. Missing later CAN CFs in this fragment cannot establish bus loss, ECU truncation, flow-control failure or sequence rejection.",
+    "No reconstruction of unrecorded bytes; declared total57 is length arithmetic only, not proof of57 obtained or unique codes.",
+    "The third byte9F in original request prefix190A9F is an extra retained argument byte for a two-byte request, not a DTC or positive ECU data.",
+    "No P-code rendering or OEM dictionary matching for format01. Visible statuses are inventory-record bits, not an active fault total.",
+    "No probe acceptance change, repeat request, new live operation, session/security operation or OTA investigation."
+  ],
+  "date": "2026-10-21"
+}

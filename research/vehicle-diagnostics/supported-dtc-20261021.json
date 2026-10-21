@@ -1,0 +1,5239 @@
+{
+  "schema": "denza-lab.supported-dtc-evidence.v1",
+  "date": "2026-10-21",
+  "status": "read_only_registry_research_not_product_dictionary",
+  "runs": [
+    {
+      "name": "ecm-bms",
+      "requests": 6,
+      "completion": {
+        "complete": true,
+        "explicitPartialMode": false,
+        "endPresent": true,
+        "unregisteredObserved": true,
+        "abortedOrIncomplete": false,
+        "uncompletedSequences": [],
+        "targetsWithoutEnd": [],
+        "targetsNotStarted": [],
+        "callbackAccountingComplete": true
+      },
+      "probeEnd": {
+        "reason": "PLAN_DONE",
+        "requests": "6",
+        "completed": "6",
+        "targets": "2",
+        "cleanup": "true",
+        "callbacks": "16",
+        "queued": "0",
+        "line": 49
+      },
+      "rejectedFrames": [],
+      "exitCode": 0,
+      "lifecycleVerified": true,
+      "jarRemoved": true,
+      "processAbsent": true,
+      "healthStable": true,
+      "appSha256": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      }
+    },
+    {
+      "name": "drives",
+      "requests": 6,
+      "completion": {
+        "complete": false,
+        "explicitPartialMode": true,
+        "endPresent": true,
+        "unregisteredObserved": true,
+        "abortedOrIncomplete": true,
+        "uncompletedSequences": [
+          6
+        ],
+        "targetsWithoutEnd": [
+          "7E6",
+          "744",
+          "745"
+        ],
+        "targetsNotStarted": [
+          "744",
+          "745"
+        ],
+        "callbackAccountingComplete": false
+      },
+      "probeEnd": {
+        "reason": "GATEWAY_SHAPE",
+        "requests": "6",
+        "completed": "5",
+        "targets": "1",
+        "cleanup": "false",
+        "callbacks": "12",
+        "queued": "1",
+        "line": 40
+      },
+      "rejectedFrames": [],
+      "exitCode": 2,
+      "lifecycleVerified": false,
+      "jarRemoved": true,
+      "processAbsent": true,
+      "healthStable": true,
+      "appSha256": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      }
+    },
+    {
+      "name": "rear-drives",
+      "requests": 6,
+      "completion": {
+        "complete": true,
+        "explicitPartialMode": false,
+        "endPresent": true,
+        "unregisteredObserved": true,
+        "abortedOrIncomplete": false,
+        "uncompletedSequences": [],
+        "targetsWithoutEnd": [],
+        "targetsNotStarted": [],
+        "callbackAccountingComplete": true
+      },
+      "probeEnd": {
+        "reason": "PLAN_DONE",
+        "requests": "6",
+        "completed": "6",
+        "targets": "2",
+        "cleanup": "true",
+        "callbacks": "12",
+        "queued": "0",
+        "line": 46
+      },
+      "rejectedFrames": [],
+      "exitCode": 0,
+      "lifecycleVerified": true,
+      "jarRemoved": true,
+      "processAbsent": true,
+      "healthStable": true,
+      "appSha256": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      }
+    },
+    {
+      "name": "isg-observe",
+      "requests": 3,
+      "completion": {
+        "complete": false,
+        "explicitPartialMode": true,
+        "endPresent": true,
+        "unregisteredObserved": true,
+        "abortedOrIncomplete": true,
+        "uncompletedSequences": [
+          3
+        ],
+        "targetsWithoutEnd": [
+          "7E6"
+        ],
+        "targetsNotStarted": [],
+        "callbackAccountingComplete": false
+      },
+      "probeEnd": {
+        "reason": "GATEWAY_SHAPE",
+        "requests": "3",
+        "completed": "2",
+        "targets": "0",
+        "cleanup": "false",
+        "callbacks": "6",
+        "queued": "1",
+        "line": 20
+      },
+      "rejectedFrames": [
+        {
+          "seq": "3",
+          "target": "7E6",
+          "t_ns": "159451398929847",
+          "reason": "GATEWAY_SHAPE",
+          "raw_bytes": "240",
+          "logged_bytes": "240",
+          "truncated": "false",
+          "raw": "0A07EEE9020103190A9F02030007E602190A5555555555000C0007E6300000555555555500000007EE10E7590A0918021900030007EE210018350000183600060007EE220000183700001800010007EE233800001806170000000007EE241806160018390000000007EE2500183A0000181A00000007EE260000191001001900000007EE271101001912010000010007EE281803960018049600000007EE290018059600180800010007EE2A9600180996001800010007EE2B3C0000180F190000040007EE2C1810170018170000000007EE2D0018110000181200000007EE2E0000180E00001800010007EE2F160000",
+          "line": 18,
+          "acceptedAsResponse": false
+        }
+      ],
+      "exitCode": 2,
+      "lifecycleVerified": false,
+      "jarRemoved": true,
+      "processAbsent": true,
+      "healthStable": true,
+      "appSha256": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      }
+    },
+    {
+      "name": "snapshot-ecm-bms",
+      "requests": 6,
+      "completion": {
+        "complete": true,
+        "explicitPartialMode": false,
+        "endPresent": true,
+        "unregisteredObserved": true,
+        "abortedOrIncomplete": false,
+        "uncompletedSequences": [],
+        "targetsWithoutEnd": [],
+        "targetsNotStarted": [],
+        "callbackAccountingComplete": true
+      },
+      "probeEnd": {
+        "reason": "PLAN_DONE",
+        "requests": "6",
+        "completed": "6",
+        "targets": "2",
+        "cleanup": "true",
+        "callbacks": "12",
+        "queued": "0",
+        "line": 46
+      },
+      "rejectedFrames": [],
+      "exitCode": 0,
+      "lifecycleVerified": true,
+      "jarRemoved": true,
+      "processAbsent": true,
+      "healthStable": true,
+      "appSha256": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      }
+    },
+    {
+      "name": "snapshot-drives",
+      "requests": 12,
+      "completion": {
+        "complete": true,
+        "explicitPartialMode": false,
+        "endPresent": true,
+        "unregisteredObserved": true,
+        "abortedOrIncomplete": false,
+        "uncompletedSequences": [],
+        "targetsWithoutEnd": [],
+        "targetsNotStarted": [],
+        "callbackAccountingComplete": true
+      },
+      "probeEnd": {
+        "reason": "PLAN_DONE",
+        "requests": "12",
+        "completed": "12",
+        "targets": "4",
+        "cleanup": "true",
+        "callbacks": "24",
+        "queued": "0",
+        "line": 84
+      },
+      "rejectedFrames": [],
+      "exitCode": 0,
+      "lifecycleVerified": true,
+      "jarRemoved": true,
+      "processAbsent": true,
+      "healthStable": true,
+      "appSha256": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      }
+    },
+    {
+      "name": "bms-snapshot-record",
+      "requests": 4,
+      "completion": {
+        "complete": false,
+        "explicitPartialMode": true,
+        "endPresent": true,
+        "unregisteredObserved": true,
+        "abortedOrIncomplete": true,
+        "uncompletedSequences": [
+          4
+        ],
+        "targetsWithoutEnd": [
+          "7E7"
+        ],
+        "targetsNotStarted": [],
+        "callbackAccountingComplete": false
+      },
+      "probeEnd": {
+        "reason": "SNAPSHOT_RECORD_RESPONSE_SHAPE",
+        "requests": "4",
+        "completed": "3",
+        "targets": "0",
+        "cleanup": "false",
+        "callbacks": "8",
+        "queued": "1",
+        "line": 29
+      },
+      "rejectedFrames": [
+        {
+          "seq": "4",
+          "target": "7E7",
+          "t_ns": "160088975416885",
+          "reason": "SNAPSHOT_RECORD_RESPONSE_SHAPE",
+          "raw_bytes": "240",
+          "logged_bytes": "240",
+          "truncated": "false",
+          "raw": "0A07EF0601010159041A3A22001A0001012B9900011A3400011A3419011A3412011A3522011A3622011A3721011A3821011A3922011A3A22011A3B21011A3C00012B9B00011A3501011A3B01011A3D00011A3E00011A3F00011A4100011AF600011A5100011A5200011AC000011A5B01011A5500011A5600012B9E22012B9E2101C27D87012BA000012BA100012B8000012B8E01011A8E73011A8F73012BA500011B7D00012BA600012BA9000100180996001800010007EE2B3C0000180F190000040007EE2C1810170018170000000007EE2D0018110000181200000007EE2E0000180E00001800010007EE2F160000",
+          "line": 27,
+          "acceptedAsResponse": false
+        }
+      ],
+      "exitCode": 2,
+      "lifecycleVerified": false,
+      "jarRemoved": true,
+      "processAbsent": true,
+      "healthStable": true,
+      "appSha256": "275931006ef04fb005aa6f10ec6cd8bfb0282011ba15c48e10e6a8da1a570745",
+      "stockPids": {
+        "autoservice": 128,
+        "gbacqservice": 521,
+        "gbdataservice": 523,
+        "com.byd.avc": 4634
+      }
+    }
+  ],
+  "modules": [
+    {
+      "run": "ecm-bms",
+      "name": "ECM",
+      "requestIdHex": "7E0",
+      "softwareCode": "32440011E004000000",
+      "identityMatched": true,
+      "targetCompleted": true,
+      "formatRead": {
+        "statusAvailabilityHex": "FF",
+        "formatId": 0,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "terminalState": {
+        "target": "7E0",
+        "state": "UDS_NEGATIVE_13",
+        "line": 21
+      },
+      "negativeResponses": [
+        {
+          "request": "190A",
+          "responseHex": "7F1913",
+          "nrcHex": "13",
+          "unsupportedServiceOrSubfunction": false
+        }
+      ],
+      "supportedListRead": false,
+      "supportedCount": null,
+      "catalogComparison": {
+        "state": "supported_list_not_read",
+        "candidateSections": [
+          "engine_ecm"
+        ],
+        "catalogHeadingRows": 496,
+        "catalogDistinctCodes": 494,
+        "supportedCodesWithoutHeading": null,
+        "conflictingMatchedCodes": null,
+        "qualifiedFactoryMeaning": false,
+        "warningLinks": []
+      },
+      "records": []
+    },
+    {
+      "run": "ecm-bms",
+      "name": "BMS",
+      "requestIdHex": "7E7",
+      "softwareCode": "4A520011E00D00047B",
+      "identityMatched": true,
+      "targetCompleted": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 0,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "terminalState": {
+        "target": "7E7",
+        "state": "SUPPORTED_READ",
+        "line": 46
+      },
+      "negativeResponses": [],
+      "supportedListRead": true,
+      "supportedCount": 115,
+      "catalogComparison": {
+        "state": "compared_unqualified_headings",
+        "candidateSections": [
+          "battery_management"
+        ],
+        "catalogHeadingRows": 206,
+        "catalogDistinctCodes": 204,
+        "supportedCodesWithoutHeading": [
+          {
+            "raw24Hex": "1A8E73",
+            "standardDisplay": "P1A8E73"
+          },
+          {
+            "raw24Hex": "2BF900",
+            "standardDisplay": "P2BF900"
+          },
+          {
+            "raw24Hex": "2BFF0B",
+            "standardDisplay": "P2BFF0B"
+          },
+          {
+            "raw24Hex": "2BAA00",
+            "standardDisplay": "P2BAA00"
+          },
+          {
+            "raw24Hex": "2BF600",
+            "standardDisplay": "P2BF600"
+          },
+          {
+            "raw24Hex": "2BFF07",
+            "standardDisplay": "P2BFF07"
+          }
+        ],
+        "conflictingMatchedCodes": [
+          "P2BAE00"
+        ],
+        "qualifiedFactoryMeaning": false,
+        "warningLinks": [],
+        "matchedDistinctSupportedCodes": 109,
+        "matchedHeadingRows": 110
+      },
+      "records": [
+        {
+          "raw24Hex": "1A0001",
+          "statusHex": "00",
+          "displayCode": "P1A0001",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_817_a",
+              "candidateTitleRu": "Серьёзная утечка на одном полюсе",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A0100",
+          "statusHex": "00",
+          "displayCode": "P1A0100",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_803_a",
+              "candidateTitleRu": "Утечка (умеренная)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9900",
+          "statusHex": "00",
+          "displayCode": "P2B9900",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_797_a",
+              "candidateTitleRu": "Утечка на обоих полюсах",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9701",
+          "statusHex": "00",
+          "displayCode": "P2B9701",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_878_a",
+              "candidateTitleRu": "AFE 1: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9702",
+          "statusHex": "00",
+          "displayCode": "P2B9702",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_893_a",
+              "candidateTitleRu": "AFE 2: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9703",
+          "statusHex": "00",
+          "displayCode": "P2B9703",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_889_a",
+              "candidateTitleRu": "AFE 3: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9704",
+          "statusHex": "00",
+          "displayCode": "P2B9704",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_882_a",
+              "candidateTitleRu": "AFE 4: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9705",
+          "statusHex": "00",
+          "displayCode": "P2B9705",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_880_a",
+              "candidateTitleRu": "AFE 5: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9706",
+          "statusHex": "00",
+          "displayCode": "P2B9706",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_887_a",
+              "candidateTitleRu": "AFE 6: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9707",
+          "statusHex": "00",
+          "displayCode": "P2B9707",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_890_a",
+              "candidateTitleRu": "AFE 7: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9708",
+          "statusHex": "00",
+          "displayCode": "P2B9708",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_891_a",
+              "candidateTitleRu": "AFE 8: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9709",
+          "statusHex": "00",
+          "displayCode": "P2B9709",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_877_a",
+              "candidateTitleRu": "AFE 9: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B970A",
+          "statusHex": "00",
+          "displayCode": "P2B970A",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_892_a",
+              "candidateTitleRu": "AFE 10: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B970B",
+          "statusHex": "00",
+          "displayCode": "P2B970B",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_888_a",
+              "candidateTitleRu": "AFE 11: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B970C",
+          "statusHex": "00",
+          "displayCode": "P2B970C",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_881_a",
+              "candidateTitleRu": "AFE 12: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B970D",
+          "statusHex": "00",
+          "displayCode": "P2B970D",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_879_a",
+              "candidateTitleRu": "AFE 13: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B970E",
+          "statusHex": "00",
+          "displayCode": "P2B970E",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_883_a",
+              "candidateTitleRu": "AFE 14: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9801",
+          "statusHex": "00",
+          "displayCode": "P2B9801",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_872_a",
+              "candidateTitleRu": "AFE 1: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9802",
+          "statusHex": "00",
+          "displayCode": "P2B9802",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_874_a",
+              "candidateTitleRu": "AFE 2: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9803",
+          "statusHex": "00",
+          "displayCode": "P2B9803",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_861_a",
+              "candidateTitleRu": "AFE 3: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9804",
+          "statusHex": "00",
+          "displayCode": "P2B9804",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_876_a",
+              "candidateTitleRu": "AFE 4: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9805",
+          "statusHex": "00",
+          "displayCode": "P2B9805",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_870_a",
+              "candidateTitleRu": "AFE 5: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9806",
+          "statusHex": "00",
+          "displayCode": "P2B9806",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_867_a",
+              "candidateTitleRu": "AFE 6: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9807",
+          "statusHex": "00",
+          "displayCode": "P2B9807",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_862_a",
+              "candidateTitleRu": "AFE 7: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9808",
+          "statusHex": "00",
+          "displayCode": "P2B9808",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_868_a",
+              "candidateTitleRu": "AFE 8: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9809",
+          "statusHex": "00",
+          "displayCode": "P2B9809",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_871_a",
+              "candidateTitleRu": "AFE 9: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B980A",
+          "statusHex": "00",
+          "displayCode": "P2B980A",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_873_a",
+              "candidateTitleRu": "AFE 10: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B980B",
+          "statusHex": "00",
+          "displayCode": "P2B980B",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_860_a",
+              "candidateTitleRu": "AFE 11: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B980C",
+          "statusHex": "00",
+          "displayCode": "P2B980C",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_875_a",
+              "candidateTitleRu": "AFE 12: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B980D",
+          "statusHex": "00",
+          "displayCode": "P2B980D",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_869_a",
+              "candidateTitleRu": "AFE 13: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B980E",
+          "statusHex": "00",
+          "displayCode": "P2B980E",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_863_a",
+              "candidateTitleRu": "AFE 14: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9901",
+          "statusHex": "00",
+          "displayCode": "P2B9901",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_848_a",
+              "candidateTitleRu": "AFE 1: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9902",
+          "statusHex": "00",
+          "displayCode": "P2B9902",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_855_a",
+              "candidateTitleRu": "AFE 2: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9903",
+          "statusHex": "00",
+          "displayCode": "P2B9903",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_857_a",
+              "candidateTitleRu": "AFE 3: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9904",
+          "statusHex": "00",
+          "displayCode": "P2B9904",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_844_a",
+              "candidateTitleRu": "AFE 4: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9905",
+          "statusHex": "00",
+          "displayCode": "P2B9905",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_859_a",
+              "candidateTitleRu": "AFE 5: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9906",
+          "statusHex": "00",
+          "displayCode": "P2B9906",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_853_a",
+              "candidateTitleRu": "AFE 6: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9907",
+          "statusHex": "00",
+          "displayCode": "P2B9907",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_846_a",
+              "candidateTitleRu": "AFE 7: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9908",
+          "statusHex": "00",
+          "displayCode": "P2B9908",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_845_a",
+              "candidateTitleRu": "AFE 8: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9909",
+          "statusHex": "00",
+          "displayCode": "P2B9909",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_847_a",
+              "candidateTitleRu": "AFE 9: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B990A",
+          "statusHex": "00",
+          "displayCode": "P2B990A",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_854_a",
+              "candidateTitleRu": "AFE 10: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B990B",
+          "statusHex": "00",
+          "displayCode": "P2B990B",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_856_a",
+              "candidateTitleRu": "AFE 11: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B990C",
+          "statusHex": "00",
+          "displayCode": "P2B990C",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_843_a",
+              "candidateTitleRu": "AFE 12: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B990D",
+          "statusHex": "00",
+          "displayCode": "P2B990D",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_858_a",
+              "candidateTitleRu": "AFE 13: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B990E",
+          "statusHex": "00",
+          "displayCode": "P2B990E",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_849_a",
+              "candidateTitleRu": "AFE 14: ошибка измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3400",
+          "statusHex": "00",
+          "displayCode": "P1A3400",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_809_a",
+              "candidateTitleRu": "Предзаряд не выполнен",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3412",
+          "statusHex": "00",
+          "displayCode": "P1A3412",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_824_a",
+              "candidateTitleRu": "Предзаряд: короткое замыкание",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3522",
+          "statusHex": "00",
+          "displayCode": "P1A3522",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_840_a",
+              "candidateTitleRu": "Элемент ВВБ: напряжение сильно завышено",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3622",
+          "statusHex": "00",
+          "displayCode": "P1A3622",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_816_a",
+              "candidateTitleRu": "Элемент ВВБ: напряжение умеренно завышено",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3721",
+          "statusHex": "00",
+          "displayCode": "P1A3721",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_802_a",
+              "candidateTitleRu": "Элемент ВВБ: напряжение сильно занижено",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3821",
+          "statusHex": "00",
+          "displayCode": "P1A3821",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_792_a",
+              "candidateTitleRu": "Элемент ВВБ: напряжение умеренно занижено",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3922",
+          "statusHex": "00",
+          "displayCode": "P1A3922",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_808_a",
+              "candidateTitleRu": "Элемент ВВБ: температура сильно завышена",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3A22",
+          "statusHex": "00",
+          "displayCode": "P1A3A22",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_823_a",
+              "candidateTitleRu": "Элемент ВВБ: температура умеренно завышена",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3B21",
+          "statusHex": "00",
+          "displayCode": "P1A3B21",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_786_a",
+              "candidateTitleRu": "Элемент ВВБ: температура сильно занижена",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3C00",
+          "statusHex": "00",
+          "displayCode": "P1A3C00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_839_a",
+              "candidateTitleRu": "Элемент ВВБ: температура умеренно занижена",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3501",
+          "statusHex": "00",
+          "displayCode": "P1A3501",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_915_a",
+              "candidateTitleRu": "Элемент ВВБ: напряжение предельно завышено",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3B01",
+          "statusHex": "00",
+          "displayCode": "P1A3B01",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_831_a",
+              "candidateTitleRu": "Элемент ВВБ: напряжение предельно занижено",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9B00",
+          "statusHex": "00",
+          "displayCode": "P2B9B00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_796_a",
+              "candidateTitleRu": "Слишком большой разброс температур батареи",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9C00",
+          "statusHex": "00",
+          "displayCode": "P2B9C00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_812_a",
+              "candidateTitleRu": "Слишком большой разброс напряжений батареи",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3D00",
+          "statusHex": "00",
+          "displayCode": "P1A3D00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_815_a",
+              "candidateTitleRu": "Контактор «−»: ошибка контроля состояния",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3E00",
+          "statusHex": "00",
+          "displayCode": "P1A3E00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_798_a",
+              "candidateTitleRu": "Главный контактор: ошибка контроля состояния",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A3F00",
+          "statusHex": "00",
+          "displayCode": "P1A3F00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_791_a",
+              "candidateTitleRu": "Контактор предзаряда: ошибка контроля состояния",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A4100",
+          "statusHex": "00",
+          "displayCode": "P1A4100",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_807_a",
+              "candidateTitleRu": "Главный контактор: сваривание контактов",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1AF600",
+          "statusHex": "00",
+          "displayCode": "P1AF600",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_820_a",
+              "candidateTitleRu": "Тепловой разгон",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A5100",
+          "statusHex": "00",
+          "displayCode": "P1A5100",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_830_a",
+              "candidateTitleRu": "Предупреждение: неверный ШИМ проводного сигнала столкновения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A5200",
+          "statusHex": "00",
+          "displayCode": "P1A5200",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_785_a",
+              "candidateTitleRu": "Неисправность системы сигнала столкновения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "D10387",
+          "statusHex": "00",
+          "displayCode": "U110387",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_775_a",
+              "candidateTitleRu": "Неисправность связи с ЭБУ подушек безопасности",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A6000",
+          "statusHex": "00",
+          "displayCode": "P1A6000",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_789_a",
+              "candidateTitleRu": "Неисправность высоковольтного разъёма",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "C29787",
+          "statusHex": "00",
+          "displayCode": "U029787",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_776_a",
+              "candidateTitleRu": "Неисправность связи с бортовым зарядным устройством",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1AC000",
+          "statusHex": "00",
+          "displayCode": "P1AC000",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_782_a",
+              "candidateTitleRu": "Сигнал столкновения от подушек безопасности по CAN",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9D01",
+          "statusHex": "00",
+          "displayCode": "P2B9D01",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_841_a",
+              "candidateTitleRu": "AFE: неисправность работы",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "C29800",
+          "statusHex": "00",
+          "displayCode": "U029800",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_779_a",
+              "candidateTitleRu": "BMS: неисправность связи с DC-DC",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "C16400",
+          "statusHex": "00",
+          "displayCode": "U016400",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_769_a",
+              "candidateTitleRu": "BMS: неисправность связи с кондиционером",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1AD698",
+          "statusHex": "00",
+          "displayCode": "P1AD698",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_770_a",
+              "candidateTitleRu": "Зарядный порт: сильный перегрев 3",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1AD900",
+          "statusHex": "00",
+          "displayCode": "P1AD900",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_781_a",
+              "candidateTitleRu": "Зарядный порт: неисправность точки измерения температуры",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A5B01",
+          "statusHex": "00",
+          "displayCode": "P1A5B01",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_766_a",
+              "candidateTitleRu": "Неисправность двойного питания",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A5500",
+          "statusHex": "00",
+          "displayCode": "P1A5500",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_765_a",
+              "candidateTitleRu": "BMS: входное напряжение питания 12 В слишком высокое",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A5600",
+          "statusHex": "00",
+          "displayCode": "P1A5600",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_799_a",
+              "candidateTitleRu": "BMS: входное напряжение питания 12 В слишком низкое",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9E22",
+          "statusHex": "00",
+          "displayCode": "P2B9E22",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_927_a",
+              "candidateTitleRu": "Питание 12 В от IG3: напряжение слишком высокое",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9E21",
+          "statusHex": "00",
+          "displayCode": "P2B9E21",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_928_a",
+              "candidateTitleRu": "Питание 12 В от IG3: напряжение слишком низкое",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "C27D87",
+          "statusHex": "00",
+          "displayCode": "U027D87",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_801_a",
+              "candidateTitleRu": "HVSU: неисправность связи",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9F00",
+          "statusHex": "00",
+          "displayCode": "P2B9F00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_795_a",
+              "candidateTitleRu": "Плата HVSU: перегрев (≥105 °C)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BA200",
+          "statusHex": "00",
+          "displayCode": "P2BA200",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_833_a",
+              "candidateTitleRu": "Перегрев шунта",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BA000",
+          "statusHex": "00",
+          "displayCode": "P2BA000",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_811_a",
+              "candidateTitleRu": "Слишком большая разница суммы напряжений всех элементов и напряжения LINK",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B8000",
+          "statusHex": "00",
+          "displayCode": "P2B8000",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_828_a",
+              "candidateTitleRu": "HVSU: ошибка измерения напряжения PACK+",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "C1D487",
+          "statusHex": "00",
+          "displayCode": "U01D487",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_771_a",
+              "candidateTitleRu": "Неисправность связи с VCU",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9600",
+          "statusHex": "00",
+          "displayCode": "P2B9600",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_835_a",
+              "candidateTitleRu": "Данные напряжения элементов не обновляются",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "C07301",
+          "statusHex": "00",
+          "displayCode": "U007301",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_800_a",
+              "candidateTitleRu": "Силовая сеть CAN: Bus Off",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B8E01",
+          "statusHex": "00",
+          "displayCode": "P2B8E01",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_767_a",
+              "candidateTitleRu": "Драйвер верхнего плеча: пониженное напряжение, размыкание двух контакторов",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A8E73",
+          "statusHex": "00",
+          "displayCode": "P1A8E73",
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1A8F73",
+          "statusHex": "00",
+          "displayCode": "P1A8F73",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_842_a",
+              "candidateTitleRu": "Контактор «+» зарядки DC: сваривание контактов",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BA500",
+          "statusHex": "00",
+          "displayCode": "P2BA500",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_787_a",
+              "candidateTitleRu": "Контактор зарядки AC: неисправность",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B9E00",
+          "statusHex": "00",
+          "displayCode": "P2B9E00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_912_a",
+              "candidateTitleRu": "Параметры батареи и зарядной станции не совпадают",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B7D00",
+          "statusHex": "00",
+          "displayCode": "P1B7D00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_783_a",
+              "candidateTitleRu": "Зарядка DC: перегрузка по току на входе",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "E01187",
+          "statusHex": "00",
+          "displayCode": "U201187",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_780_a",
+              "candidateTitleRu": "Неисправность связи с зарядной станцией",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BA600",
+          "statusHex": "00",
+          "displayCode": "P2BA600",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_773_a",
+              "candidateTitleRu": "Зарядный порт: неверный низковольтный сигнал уровня",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BA700",
+          "statusHex": "00",
+          "displayCode": "P2BA700",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_818_a",
+              "candidateTitleRu": "Реле нагревательной плёнки: ошибка контроля состояния",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BA800",
+          "statusHex": "00",
+          "displayCode": "P2BA800",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_804_a",
+              "candidateTitleRu": "Цепь нагревательной плёнки: неверное напряжение",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BA900",
+          "statusHex": "00",
+          "displayCode": "P2BA900",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_794_a",
+              "candidateTitleRu": "Реле нагревательной плёнки: залипание контактов",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B8812",
+          "statusHex": "00",
+          "displayCode": "P2B8812",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_894_a",
+              "candidateTitleRu": "BIC: короткое замыкание цепи балансировки",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2B8813",
+          "statusHex": "00",
+          "displayCode": "P2B8813",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_819_a",
+              "candidateTitleRu": "BIC: обрыв цепи балансировки",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "C12100",
+          "statusHex": "00",
+          "displayCode": "U012100",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_774_a",
+              "candidateTitleRu": "Неисправность связи с ABS",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BC400",
+          "statusHex": "00",
+          "displayCode": "P2BC400",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_810_a",
+              "candidateTitleRu": "Ячейка: аномальное внутреннее сопротивление",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BAE00",
+          "statusHex": "00",
+          "displayCode": "P2BAE00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_921_a",
+              "candidateTitleRu": "Контактор повышения напряжения: сваривание контактов",
+              "factoryMeaningQualified": false
+            },
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_925_a",
+              "candidateTitleRu": "Общее напряжение батареи предельно занижено",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1AF020",
+          "statusHex": "00",
+          "displayCode": "P1AF020",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_913_a",
+              "candidateTitleRu": "Возврат энергии в батарею вне предела из-за неисправности BSC",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BAD00",
+          "statusHex": "00",
+          "displayCode": "P2BAD00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_924_a",
+              "candidateTitleRu": "Общее напряжение батареи предельно завышено",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BF900",
+          "statusHex": "00",
+          "displayCode": "P2BF900",
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1A8E01",
+          "statusHex": "00",
+          "displayCode": "P1A8E01",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_923_a",
+              "candidateTitleRu": "Контактор делителя напряжения: сваривание контактов",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1A5A01",
+          "statusHex": "00",
+          "displayCode": "P1A5A01",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_922_a",
+              "candidateTitleRu": "Контактор делителя напряжения: ошибка контроля состояния",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BB100",
+          "statusHex": "00",
+          "displayCode": "P2BB100",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_926_a",
+              "candidateTitleRu": "Облачная неисправность BMS",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BFF0B",
+          "statusHex": "00",
+          "displayCode": "P2BFF0B",
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "2BAA00",
+          "statusHex": "00",
+          "displayCode": "P2BAA00",
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1ACF00",
+          "statusHex": "00",
+          "displayCode": "P1ACF00",
+          "candidateHeadings": [
+            {
+              "subsystem": "battery_management",
+              "outlineId": "outline_914_a",
+              "candidateTitleRu": "Сработал интеллектуальный предохранитель",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "2BF600",
+          "statusHex": "00",
+          "displayCode": "P2BF600",
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "2BFF07",
+          "statusHex": "00",
+          "displayCode": "P2BFF07",
+          "candidateHeadings": []
+        }
+      ]
+    },
+    {
+      "run": "drives",
+      "name": "FMCU",
+      "requestIdHex": "7E3",
+      "softwareCode": "48370011E075000000",
+      "identityMatched": true,
+      "targetCompleted": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 1,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "terminalState": {
+        "target": "7E3",
+        "state": "SUPPORTED_READ",
+        "line": 22
+      },
+      "negativeResponses": [],
+      "supportedListRead": true,
+      "supportedCount": 32,
+      "catalogComparison": {
+        "state": "format01_raw_only",
+        "candidateSections": [
+          "front_drive"
+        ],
+        "catalogHeadingRows": 31,
+        "catalogDistinctCodes": 31,
+        "supportedCodesWithoutHeading": null,
+        "conflictingMatchedCodes": null,
+        "qualifiedFactoryMeaning": false,
+        "warningLinks": []
+      },
+      "records": [
+        {
+          "raw24Hex": "1B0019",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BFC00",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B0400",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B0398",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B2798",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B0500",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B0600",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BCC00",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B2680",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BBA00",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BBF00",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BC000",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BC100",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B1496",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B1596",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B1696",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BC900",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BC500",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B6200",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BD117",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BD119",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1B0C48",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BD200",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BD300",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BD400",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "C1D487",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BC901",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BC902",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BC903",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BC904",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BF500",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        },
+        {
+          "raw24Hex": "1BE201",
+          "statusHex": "00",
+          "displayCode": null,
+          "candidateHeadings": []
+        }
+      ]
+    },
+    {
+      "run": "drives",
+      "name": "ISG",
+      "requestIdHex": "7E6",
+      "softwareCode": "48370011E0EA000000",
+      "identityMatched": true,
+      "targetCompleted": false,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 1,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "terminalState": null,
+      "negativeResponses": [],
+      "supportedListRead": false,
+      "supportedCount": null,
+      "catalogComparison": {
+        "state": "supported_list_not_read",
+        "candidateSections": [
+          "generator"
+        ],
+        "catalogHeadingRows": 32,
+        "catalogDistinctCodes": 32,
+        "supportedCodesWithoutHeading": null,
+        "conflictingMatchedCodes": null,
+        "qualifiedFactoryMeaning": false,
+        "warningLinks": []
+      },
+      "records": []
+    },
+    {
+      "run": "rear-drives",
+      "name": "SMCU",
+      "requestIdHex": "744",
+      "softwareCode": "48370011E086001100",
+      "identityMatched": true,
+      "targetCompleted": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 0,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "terminalState": {
+        "target": "744",
+        "state": "SUPPORTED_READ",
+        "line": 22
+      },
+      "negativeResponses": [],
+      "supportedListRead": true,
+      "supportedCount": 32,
+      "catalogComparison": {
+        "state": "compared_unqualified_headings",
+        "candidateSections": [
+          "rear_left",
+          "rear_right"
+        ],
+        "catalogHeadingRows": 64,
+        "catalogDistinctCodes": 64,
+        "supportedCodesWithoutHeading": [],
+        "conflictingMatchedCodes": [],
+        "qualifiedFactoryMeaning": false,
+        "warningLinks": [],
+        "matchedDistinctSupportedCodes": 32,
+        "matchedHeadingRows": 32
+      },
+      "records": [
+        {
+          "raw24Hex": "1B0301",
+          "statusHex": "00",
+          "displayCode": "P1B0301",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_648_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: перенапряжение (программный контроль)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0302",
+          "statusHex": "00",
+          "displayCode": "P1B0302",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_649_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: пониженное напряжение (программный контроль)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0303",
+          "statusHex": "00",
+          "displayCode": "P1B0303",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_650_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: перегрузка по току (программный контроль)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0304",
+          "statusHex": "00",
+          "displayCode": "P1B0304",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_651_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: датчик тока Холла A, короткое замыкание/обрыв",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0305",
+          "statusHex": "00",
+          "displayCode": "P1B0305",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_652_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: датчик тока Холла A, дрейф нуля",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0306",
+          "statusHex": "00",
+          "displayCode": "P1B0306",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_653_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: датчик тока Холла B, короткое замыкание/обрыв",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0307",
+          "statusHex": "00",
+          "displayCode": "P1B0307",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_654_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: датчик тока Холла B, дрейф нуля",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0308",
+          "statusHex": "00",
+          "displayCode": "P1B0308",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_655_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: датчик тока Холла C, короткое замыкание/обрыв",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0309",
+          "statusHex": "00",
+          "displayCode": "P1B0309",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_656_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: датчик тока Холла C, дрейф нуля",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B030A",
+          "statusHex": "00",
+          "displayCode": "P1B030A",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_657_a",
+              "candidateTitleRu": "Левый задний электродвигатель: неисправность резольвера",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B030B",
+          "statusHex": "00",
+          "displayCode": "P1B030B",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_658_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: неисправность IGBT",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B030C",
+          "statusHex": "00",
+          "displayCode": "P1B030C",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_659_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: обрыв фазы A",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B030D",
+          "statusHex": "00",
+          "displayCode": "P1B030D",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_660_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: обрыв фазы B",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B030E",
+          "statusHex": "00",
+          "displayCode": "P1B030E",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_661_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: обрыв фазы C",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B030F",
+          "statusHex": "00",
+          "displayCode": "P1B030F",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_662_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: ошибка контрольной суммы EEPROM",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0310",
+          "statusHex": "00",
+          "displayCode": "P1B0310",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_663_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0311",
+          "statusHex": "00",
+          "displayCode": "P1B0311",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_664_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: ошибка сверки температур IGBT трёх фаз",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0312",
+          "statusHex": "00",
+          "displayCode": "P1B0312",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_665_a",
+              "candidateTitleRu": "Левый задний электродвигатель: превышение частоты вращения, ограничение момента",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0313",
+          "statusHex": "00",
+          "displayCode": "P1B0313",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_666_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: неисправность связи с контроллером автомобиля (VCU)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0314",
+          "statusHex": "00",
+          "displayCode": "P1B0314",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_667_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: пониженное напряжение 12 В",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0315",
+          "statusHex": "00",
+          "displayCode": "P1B0315",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_668_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: повышенное напряжение 12 В",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0316",
+          "statusHex": "00",
+          "displayCode": "P1B0316",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_669_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: сигнал столкновения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0317",
+          "statusHex": "00",
+          "displayCode": "P1B0317",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_670_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: неисправность питания 5 В",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0318",
+          "statusHex": "00",
+          "displayCode": "P1B0318",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_671_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: аппаратная перегрузка по току",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0319",
+          "statusHex": "00",
+          "displayCode": "P1B0319",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_672_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: аппаратное перенапряжение",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B031A",
+          "statusHex": "00",
+          "displayCode": "P1B031A",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_673_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: плата драйвера, ошибка верхнего плеча моста",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B031B",
+          "statusHex": "00",
+          "displayCode": "P1B031B",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_674_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: плата драйвера, ошибка нижнего плеча моста",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B031C",
+          "statusHex": "00",
+          "displayCode": "P1B031C",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_675_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: трёхфазное короткое замыкание",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B031D",
+          "statusHex": "00",
+          "displayCode": "P1B031D",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_676_a",
+              "candidateTitleRu": "Левый задний электродвигатель: перегрев",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B031E",
+          "statusHex": "00",
+          "displayCode": "P1B031E",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_677_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: перегрев конденсатора",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B031F",
+          "statusHex": "00",
+          "displayCode": "P1B031F",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_678_a",
+              "candidateTitleRu": "Контроллер левого заднего электродвигателя: перегрев теплоотводящего основания",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0320",
+          "statusHex": "00",
+          "displayCode": "P1B0320",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_left",
+              "outlineId": "outline_679_a",
+              "candidateTitleRu": "Левый задний электродвигатель: значительное превышение частоты вращения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run": "rear-drives",
+      "name": "SMCU3",
+      "requestIdHex": "745",
+      "softwareCode": "48370011E088001100",
+      "identityMatched": true,
+      "targetCompleted": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 0,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "terminalState": {
+        "target": "745",
+        "state": "SUPPORTED_READ",
+        "line": 43
+      },
+      "negativeResponses": [],
+      "supportedListRead": true,
+      "supportedCount": 32,
+      "catalogComparison": {
+        "state": "compared_unqualified_headings",
+        "candidateSections": [
+          "rear_right",
+          "rear_left"
+        ],
+        "catalogHeadingRows": 64,
+        "catalogDistinctCodes": 64,
+        "supportedCodesWithoutHeading": [],
+        "conflictingMatchedCodes": [],
+        "qualifiedFactoryMeaning": false,
+        "warningLinks": [],
+        "matchedDistinctSupportedCodes": 32,
+        "matchedHeadingRows": 32
+      },
+      "records": [
+        {
+          "raw24Hex": "1B0401",
+          "statusHex": "00",
+          "displayCode": "P1B0401",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_612_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: перенапряжение (программный контроль)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0402",
+          "statusHex": "00",
+          "displayCode": "P1B0402",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_613_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: пониженное напряжение (программный контроль)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0403",
+          "statusHex": "00",
+          "displayCode": "P1B0403",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_614_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: перегрузка по току (программный контроль)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0404",
+          "statusHex": "00",
+          "displayCode": "P1B0404",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_615_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: датчик тока Холла A, короткое замыкание/обрыв",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0405",
+          "statusHex": "00",
+          "displayCode": "P1B0405",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_616_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: датчик тока Холла A, дрейф нуля",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0406",
+          "statusHex": "00",
+          "displayCode": "P1B0406",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_617_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: датчик тока Холла B, короткое замыкание/обрыв",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0407",
+          "statusHex": "00",
+          "displayCode": "P1B0407",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_618_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: датчик тока Холла B, дрейф нуля",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0408",
+          "statusHex": "00",
+          "displayCode": "P1B0408",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_619_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: датчик тока Холла C, короткое замыкание/обрыв",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0409",
+          "statusHex": "00",
+          "displayCode": "P1B0409",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_620_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: датчик тока Холла C, дрейф нуля",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B040A",
+          "statusHex": "00",
+          "displayCode": "P1B040A",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_621_a",
+              "candidateTitleRu": "Правый задний электродвигатель: неисправность резольвера",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B040B",
+          "statusHex": "00",
+          "displayCode": "P1B040B",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_622_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: неисправность IGBT",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B040C",
+          "statusHex": "00",
+          "displayCode": "P1B040C",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_623_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: обрыв фазы A",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B040D",
+          "statusHex": "00",
+          "displayCode": "P1B040D",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_624_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: обрыв фазы B",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B040E",
+          "statusHex": "00",
+          "displayCode": "P1B040E",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_625_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: обрыв фазы C",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B040F",
+          "statusHex": "00",
+          "displayCode": "P1B040F",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_626_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: ошибка контрольной суммы EEPROM",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0410",
+          "statusHex": "00",
+          "displayCode": "P1B0410",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_627_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: ошибка измерения напряжения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0411",
+          "statusHex": "00",
+          "displayCode": "P1B0411",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_628_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: ошибка сверки температур IGBT трёх фаз",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0412",
+          "statusHex": "00",
+          "displayCode": "P1B0412",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_629_a",
+              "candidateTitleRu": "Правый задний электродвигатель: превышение частоты вращения, ограничение момента",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0413",
+          "statusHex": "00",
+          "displayCode": "P1B0413",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_630_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: неисправность связи с контроллером автомобиля (VCU)",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0414",
+          "statusHex": "00",
+          "displayCode": "P1B0414",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_631_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: пониженное напряжение 12 В",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0415",
+          "statusHex": "00",
+          "displayCode": "P1B0415",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_632_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: повышенное напряжение 12 В",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0416",
+          "statusHex": "00",
+          "displayCode": "P1B0416",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_633_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: сигнал столкновения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0417",
+          "statusHex": "00",
+          "displayCode": "P1B0417",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_634_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: неисправность питания 5 В",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0418",
+          "statusHex": "00",
+          "displayCode": "P1B0418",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_635_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: аппаратная перегрузка по току",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0419",
+          "statusHex": "00",
+          "displayCode": "P1B0419",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_636_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: аппаратное перенапряжение",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B041A",
+          "statusHex": "00",
+          "displayCode": "P1B041A",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_637_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: плата драйвера, ошибка верхнего плеча моста",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B041B",
+          "statusHex": "00",
+          "displayCode": "P1B041B",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_638_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: плата драйвера, ошибка нижнего плеча моста",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B041C",
+          "statusHex": "00",
+          "displayCode": "P1B041C",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_639_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: трёхфазное короткое замыкание",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B041D",
+          "statusHex": "00",
+          "displayCode": "P1B041D",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_640_a",
+              "candidateTitleRu": "Правый задний электродвигатель: перегрев",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B041E",
+          "statusHex": "00",
+          "displayCode": "P1B041E",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_641_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: перегрев конденсатора",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B041F",
+          "statusHex": "00",
+          "displayCode": "P1B041F",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_642_a",
+              "candidateTitleRu": "Контроллер правого заднего электродвигателя: перегрев теплоотводящего основания",
+              "factoryMeaningQualified": false
+            }
+          ]
+        },
+        {
+          "raw24Hex": "1B0420",
+          "statusHex": "00",
+          "displayCode": "P1B0420",
+          "candidateHeadings": [
+            {
+              "subsystem": "rear_right",
+              "outlineId": "outline_643_a",
+              "candidateTitleRu": "Правый задний электродвигатель: значительное превышение частоты вращения",
+              "factoryMeaningQualified": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run": "isg-observe",
+      "name": "ISG",
+      "requestIdHex": "7E6",
+      "softwareCode": "48370011E0EA000000",
+      "identityMatched": true,
+      "targetCompleted": false,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 1,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "terminalState": null,
+      "negativeResponses": [],
+      "supportedListRead": false,
+      "supportedCount": null,
+      "catalogComparison": {
+        "state": "supported_list_not_read",
+        "candidateSections": [
+          "generator"
+        ],
+        "catalogHeadingRows": 32,
+        "catalogDistinctCodes": 32,
+        "supportedCodesWithoutHeading": null,
+        "conflictingMatchedCodes": null,
+        "qualifiedFactoryMeaning": false,
+        "warningLinks": []
+      },
+      "records": []
+    }
+  ],
+  "snapshotModules": [
+    {
+      "run": "snapshot-ecm-bms",
+      "name": "ECM",
+      "requestIdHex": "7E0",
+      "responseIdHex": "7E8",
+      "expectedSoftwareCode": "32440011E004000000",
+      "observedSoftwareCode": "32440011E004000000",
+      "exactSoftwareIdentityMatched": true,
+      "formatRead": {
+        "statusAvailabilityHex": "FF",
+        "formatId": 0,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "snapshotIndex": {
+        "records": [],
+        "recordCount": 0,
+        "duplicatePairs": [],
+        "integrityPass": true,
+        "meaning": "returned snapshot-record identifiers, not DTC statuses or a supported-code registry"
+      },
+      "negativeResponses": [],
+      "targetCompleted": true,
+      "terminalState": {
+        "target": "7E0",
+        "state": "SNAPSHOT_INDEX_READ",
+        "line": 22
+      },
+      "rejectedFrames": []
+    },
+    {
+      "run": "snapshot-ecm-bms",
+      "name": "BMS",
+      "requestIdHex": "7E7",
+      "responseIdHex": "7EF",
+      "expectedSoftwareCode": "4A520011E00D00047B",
+      "observedSoftwareCode": "4A520011E00D00047B",
+      "exactSoftwareIdentityMatched": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 0,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "snapshotIndex": {
+        "records": [
+          {
+            "raw24Hex": "1A0100",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A0100"
+          },
+          {
+            "raw24Hex": "1A0001",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A0001"
+          },
+          {
+            "raw24Hex": "2B9900",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2B9900"
+          },
+          {
+            "raw24Hex": "1A3400",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3400"
+          },
+          {
+            "raw24Hex": "1A3419",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3419"
+          },
+          {
+            "raw24Hex": "1A3412",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3412"
+          },
+          {
+            "raw24Hex": "1A3522",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3522"
+          },
+          {
+            "raw24Hex": "1A3622",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3622"
+          },
+          {
+            "raw24Hex": "1A3721",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3721"
+          },
+          {
+            "raw24Hex": "1A3821",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3821"
+          },
+          {
+            "raw24Hex": "1A3922",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3922"
+          },
+          {
+            "raw24Hex": "1A3A22",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3A22"
+          },
+          {
+            "raw24Hex": "1A3B21",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3B21"
+          },
+          {
+            "raw24Hex": "1A3C00",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3C00"
+          },
+          {
+            "raw24Hex": "2B9B00",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2B9B00"
+          },
+          {
+            "raw24Hex": "1A3501",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3501"
+          },
+          {
+            "raw24Hex": "1A3B01",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3B01"
+          },
+          {
+            "raw24Hex": "1A3D00",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3D00"
+          },
+          {
+            "raw24Hex": "1A3E00",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3E00"
+          },
+          {
+            "raw24Hex": "1A3F00",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A3F00"
+          },
+          {
+            "raw24Hex": "1A4100",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A4100"
+          },
+          {
+            "raw24Hex": "1AF600",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1AF600"
+          },
+          {
+            "raw24Hex": "1A5100",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A5100"
+          },
+          {
+            "raw24Hex": "1A5200",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A5200"
+          },
+          {
+            "raw24Hex": "1AC000",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1AC000"
+          },
+          {
+            "raw24Hex": "1A5B01",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A5B01"
+          },
+          {
+            "raw24Hex": "1A5500",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A5500"
+          },
+          {
+            "raw24Hex": "1A5600",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A5600"
+          },
+          {
+            "raw24Hex": "2B9E22",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2B9E22"
+          },
+          {
+            "raw24Hex": "2B9E21",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2B9E21"
+          },
+          {
+            "raw24Hex": "C27D87",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "U027D87"
+          },
+          {
+            "raw24Hex": "2BA000",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2BA000"
+          },
+          {
+            "raw24Hex": "2BA100",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2BA100"
+          },
+          {
+            "raw24Hex": "2B8000",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2B8000"
+          },
+          {
+            "raw24Hex": "2B8E01",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2B8E01"
+          },
+          {
+            "raw24Hex": "1A8E73",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A8E73"
+          },
+          {
+            "raw24Hex": "1A8F73",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1A8F73"
+          },
+          {
+            "raw24Hex": "2BA500",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2BA500"
+          },
+          {
+            "raw24Hex": "1B7D00",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P1B7D00"
+          },
+          {
+            "raw24Hex": "2BA600",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2BA600"
+          },
+          {
+            "raw24Hex": "2BA900",
+            "snapshotRecordNumberHex": "01",
+            "standardDisplay": "P2BA900"
+          }
+        ],
+        "recordCount": 41,
+        "duplicatePairs": [],
+        "integrityPass": true,
+        "meaning": "returned snapshot-record identifiers, not DTC statuses or a supported-code registry"
+      },
+      "negativeResponses": [],
+      "targetCompleted": true,
+      "terminalState": {
+        "target": "7E7",
+        "state": "SNAPSHOT_INDEX_READ",
+        "line": 43
+      },
+      "rejectedFrames": []
+    },
+    {
+      "run": "snapshot-drives",
+      "name": "FMCU",
+      "requestIdHex": "7E3",
+      "responseIdHex": "7EB",
+      "expectedSoftwareCode": "48370011E075000000",
+      "observedSoftwareCode": "48370011E075000000",
+      "exactSoftwareIdentityMatched": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 1,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "snapshotIndex": null,
+      "negativeResponses": [
+        {
+          "request": "1903",
+          "responseHex": "7F1912",
+          "nrcHex": "12",
+          "unsupportedServiceOrSubfunction": true
+        }
+      ],
+      "targetCompleted": true,
+      "terminalState": {
+        "target": "7E3",
+        "state": "UDS_NEGATIVE_12",
+        "line": 21
+      },
+      "rejectedFrames": []
+    },
+    {
+      "run": "snapshot-drives",
+      "name": "ISG",
+      "requestIdHex": "7E6",
+      "responseIdHex": "7EE",
+      "expectedSoftwareCode": "48370011E0EA000000",
+      "observedSoftwareCode": "48370011E0EA000000",
+      "exactSoftwareIdentityMatched": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 1,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "snapshotIndex": null,
+      "negativeResponses": [
+        {
+          "request": "1903",
+          "responseHex": "7F1912",
+          "nrcHex": "12",
+          "unsupportedServiceOrSubfunction": true
+        }
+      ],
+      "targetCompleted": true,
+      "terminalState": {
+        "target": "7E6",
+        "state": "UDS_NEGATIVE_12",
+        "line": 41
+      },
+      "rejectedFrames": []
+    },
+    {
+      "run": "snapshot-drives",
+      "name": "SMCU",
+      "requestIdHex": "744",
+      "responseIdHex": "74C",
+      "expectedSoftwareCode": "48370011E086001100",
+      "observedSoftwareCode": "48370011E086001100",
+      "exactSoftwareIdentityMatched": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 0,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "snapshotIndex": null,
+      "negativeResponses": [
+        {
+          "request": "1903",
+          "responseHex": "7F1931",
+          "nrcHex": "31",
+          "unsupportedServiceOrSubfunction": false
+        }
+      ],
+      "targetCompleted": true,
+      "terminalState": {
+        "target": "744",
+        "state": "UDS_NEGATIVE_31",
+        "line": 61
+      },
+      "rejectedFrames": []
+    },
+    {
+      "run": "snapshot-drives",
+      "name": "SMCU3",
+      "requestIdHex": "745",
+      "responseIdHex": "74D",
+      "expectedSoftwareCode": "48370011E088001100",
+      "observedSoftwareCode": "48370011E088001100",
+      "exactSoftwareIdentityMatched": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 0,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "snapshotIndex": null,
+      "negativeResponses": [
+        {
+          "request": "1903",
+          "responseHex": "7F1931",
+          "nrcHex": "31",
+          "unsupportedServiceOrSubfunction": false
+        }
+      ],
+      "targetCompleted": true,
+      "terminalState": {
+        "target": "745",
+        "state": "UDS_NEGATIVE_31",
+        "line": 81
+      },
+      "rejectedFrames": []
+    }
+  ],
+  "snapshotRecordModules": [
+    {
+      "run": "bms-snapshot-record",
+      "name": "BMS",
+      "requestIdHex": "7E7",
+      "responseIdHex": "7EF",
+      "expectedSoftwareCode": "4A520011E00D00047B",
+      "observedSoftwareCode": "4A520011E00D00047B",
+      "exactSoftwareIdentityMatched": true,
+      "formatRead": {
+        "statusAvailabilityHex": "09",
+        "formatId": 0,
+        "memoryCountForMask09": 0,
+        "countScope": "DTCs matching request mask09; not the supported-registry length"
+      },
+      "exactFormat00PrerequisiteMatched": true,
+      "snapshotIndex": {
+        "records": [
+          {
+            "raw24Hex": "1A0100",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A0001",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2B9900",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3400",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3419",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3412",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3522",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3622",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3721",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3821",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3922",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3A22",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3B21",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3C00",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2B9B00",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3501",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3B01",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3D00",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3E00",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A3F00",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A4100",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1AF600",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A5100",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A5200",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1AC000",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A5B01",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A5500",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A5600",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2B9E22",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2B9E21",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "C27D87",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2BA000",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2BA100",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2B8000",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2B8E01",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A8E73",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1A8F73",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2BA500",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "1B7D00",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2BA600",
+            "snapshotRecordNumberHex": "01"
+          },
+          {
+            "raw24Hex": "2BA900",
+            "snapshotRecordNumberHex": "01"
+          }
+        ],
+        "recordCount": 41,
+        "duplicatePairs": [],
+        "integrityPass": true,
+        "meaning": "returned snapshot-record identifiers, not DTC statuses or a supported-code registry"
+      },
+      "requiredPair": {
+        "raw24Hex": "1A3A22",
+        "snapshotRecordNumberHex": "01"
+      },
+      "requiredPairObserved": true,
+      "snapshotRecord": null,
+      "emptySnapshotRecordResponse": null,
+      "snapshotRecordResponseEvidence": [
+        {
+          "seq": 4,
+          "rawResponseHex": "59041A3A2200",
+          "declaredUdsByteCount": 6,
+          "exchangeComplete": false,
+          "acceptedAsSnapshotRecord": false,
+          "acceptedAsEmptyRecordResponse": false,
+          "positiveSidAndSubfunctionEcho": true,
+          "observedDtcHex": "1A3A22",
+          "observedStatusHex": "00",
+          "recordNumberPresent": false,
+          "observedSnapshotRecordNumberHex": null,
+          "numberOfIdentifiersPresent": false,
+          "observedNumberOfIdentifiers": null,
+          "opaqueRecordDataHex": null,
+          "source": "Declared normalized FRAME payload only; source-buffer bytes beyond declared length are excluded",
+          "protocolValidityQualification": "not assessed by this structural evidence projection"
+        }
+      ],
+      "negativeResponses": [],
+      "targetCompleted": false,
+      "terminalState": null
+    }
+  ],
+  "offlineReaderRevision": {
+    "build": "build-07",
+    "state": "offline_tested_not_run_on_car",
+    "jarSha256": "0f12d66ff762123f38063085a4fa87ca7ecbb07d6a98c9f11d31573cd8335bfe",
+    "tests": "PASS assertions=212 synthetic_only=true",
+    "change": "Exact six-byte positive1904 DTC/status response produces SNAPSHOT_RECORD_EMPTY without invented record fields",
+    "historicalBuild06OutcomeUnchanged": true
+  },
+  "bmsSnapshotIndexComparison": {
+    "supportedCodeCount": 115,
+    "returnedSnapshotPairCount": 41,
+    "intersectingCodes": [
+      "1A0001",
+      "1A0100",
+      "1A3400",
+      "1A3412",
+      "1A3501",
+      "1A3522",
+      "1A3622",
+      "1A3721",
+      "1A3821",
+      "1A3922",
+      "1A3A22",
+      "1A3B01",
+      "1A3B21",
+      "1A3C00",
+      "1A3D00",
+      "1A3E00",
+      "1A3F00",
+      "1A4100",
+      "1A5100",
+      "1A5200",
+      "1A5500",
+      "1A5600",
+      "1A5B01",
+      "1A8E73",
+      "1A8F73",
+      "1AC000",
+      "1AF600",
+      "1B7D00",
+      "2B8000",
+      "2B8E01",
+      "2B9900",
+      "2B9B00",
+      "2B9E21",
+      "2B9E22",
+      "2BA000",
+      "2BA500",
+      "2BA600",
+      "2BA900",
+      "C27D87"
+    ],
+    "snapshotPairsOutsideSupportedRegistry": [
+      {
+        "raw24Hex": "1A3419",
+        "snapshotRecordNumberHex": "01",
+        "standardDisplay": "P1A3419"
+      },
+      {
+        "raw24Hex": "2BA100",
+        "snapshotRecordNumberHex": "01",
+        "standardDisplay": "P2BA100"
+      }
+    ],
+    "supportedCodesOutsideSnapshotIndex": [
+      "1A5A01",
+      "1A6000",
+      "1A8E01",
+      "1ACF00",
+      "1AD698",
+      "1AD900",
+      "1AF020",
+      "2B8812",
+      "2B8813",
+      "2B9600",
+      "2B9701",
+      "2B9702",
+      "2B9703",
+      "2B9704",
+      "2B9705",
+      "2B9706",
+      "2B9707",
+      "2B9708",
+      "2B9709",
+      "2B970A",
+      "2B970B",
+      "2B970C",
+      "2B970D",
+      "2B970E",
+      "2B9801",
+      "2B9802",
+      "2B9803",
+      "2B9804",
+      "2B9805",
+      "2B9806",
+      "2B9807",
+      "2B9808",
+      "2B9809",
+      "2B980A",
+      "2B980B",
+      "2B980C",
+      "2B980D",
+      "2B980E",
+      "2B9901",
+      "2B9902",
+      "2B9903",
+      "2B9904",
+      "2B9905",
+      "2B9906",
+      "2B9907",
+      "2B9908",
+      "2B9909",
+      "2B990A",
+      "2B990B",
+      "2B990C",
+      "2B990D",
+      "2B990E",
+      "2B9C00",
+      "2B9D01",
+      "2B9E00",
+      "2B9F00",
+      "2BA200",
+      "2BA700",
+      "2BA800",
+      "2BAA00",
+      "2BAD00",
+      "2BAE00",
+      "2BB100",
+      "2BC400",
+      "2BF600",
+      "2BF900",
+      "2BFF07",
+      "2BFF0B",
+      "C07301",
+      "C12100",
+      "C16400",
+      "C1D487",
+      "C29787",
+      "C29800",
+      "D10387",
+      "E01187"
+    ],
+    "meaning": "Comparison of returned metadata; no stored-incident or engineering-value claim"
+  },
+  "fmcuReverseNotationHypothesis": {
+    "state": "hypothesis_only_not_qualified_format01_conversion",
+    "assumedEncoding": "Reverse the format00 display notation of public headings; do not apply it as the format01 decoder",
+    "matchedRows": 31,
+    "headingRows": 31,
+    "rawWithoutHypotheticalHeading": [
+      "1BE201"
+    ],
+    "rows": [
+      {
+        "outlineId": "outline_541_a",
+        "publicDisplayCode": "P1BF500",
+        "hypotheticalRaw24": "1BF500",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_542_a",
+        "publicDisplayCode": "P1B0019",
+        "hypotheticalRaw24": "1B0019",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_543_a",
+        "publicDisplayCode": "P1B0398",
+        "hypotheticalRaw24": "1B0398",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_544_a",
+        "publicDisplayCode": "P1B0400",
+        "hypotheticalRaw24": "1B0400",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_545_a",
+        "publicDisplayCode": "P1B0500",
+        "hypotheticalRaw24": "1B0500",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_546_a",
+        "publicDisplayCode": "P1B0600",
+        "hypotheticalRaw24": "1B0600",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_547_a",
+        "publicDisplayCode": "P1B0C48",
+        "hypotheticalRaw24": "1B0C48",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_548_a",
+        "publicDisplayCode": "P1B1496",
+        "hypotheticalRaw24": "1B1496",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_549_a",
+        "publicDisplayCode": "P1B1596",
+        "hypotheticalRaw24": "1B1596",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_550_a",
+        "publicDisplayCode": "P1B1696",
+        "hypotheticalRaw24": "1B1696",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_551_a",
+        "publicDisplayCode": "P1B2680",
+        "hypotheticalRaw24": "1B2680",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_552_a",
+        "publicDisplayCode": "P1B2798",
+        "hypotheticalRaw24": "1B2798",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_553_a",
+        "publicDisplayCode": "P1B6200",
+        "hypotheticalRaw24": "1B6200",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_554_a",
+        "publicDisplayCode": "P1BBA00",
+        "hypotheticalRaw24": "1BBA00",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_555_a",
+        "publicDisplayCode": "P1BBF00",
+        "hypotheticalRaw24": "1BBF00",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_556_a",
+        "publicDisplayCode": "P1BC000",
+        "hypotheticalRaw24": "1BC000",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_557_a",
+        "publicDisplayCode": "P1BC100",
+        "hypotheticalRaw24": "1BC100",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_558_a",
+        "publicDisplayCode": "P1BC500",
+        "hypotheticalRaw24": "1BC500",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_559_a",
+        "publicDisplayCode": "P1BC900",
+        "hypotheticalRaw24": "1BC900",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_560_a",
+        "publicDisplayCode": "P1BC901",
+        "hypotheticalRaw24": "1BC901",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_561_a",
+        "publicDisplayCode": "P1BC902",
+        "hypotheticalRaw24": "1BC902",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_562_a",
+        "publicDisplayCode": "P1BC903",
+        "hypotheticalRaw24": "1BC903",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_563_a",
+        "publicDisplayCode": "P1BC904",
+        "hypotheticalRaw24": "1BC904",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_564_a",
+        "publicDisplayCode": "P1BCC00",
+        "hypotheticalRaw24": "1BCC00",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_565_a",
+        "publicDisplayCode": "P1BD117",
+        "hypotheticalRaw24": "1BD117",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_566_a",
+        "publicDisplayCode": "P1BD119",
+        "hypotheticalRaw24": "1BD119",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_567_a",
+        "publicDisplayCode": "P1BD200",
+        "hypotheticalRaw24": "1BD200",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_568_a",
+        "publicDisplayCode": "P1BD300",
+        "hypotheticalRaw24": "1BD300",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_569_a",
+        "publicDisplayCode": "P1BD400",
+        "hypotheticalRaw24": "1BD400",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_570_a",
+        "publicDisplayCode": "P1BFC00",
+        "hypotheticalRaw24": "1BFC00",
+        "presentInObservedRegistry": true
+      },
+      {
+        "outlineId": "outline_571_a",
+        "publicDisplayCode": "U01D487",
+        "hypotheticalRaw24": "C1D487",
+        "presentInObservedRegistry": true
+      }
+    ],
+    "qualifiedMapping": false,
+    "qualifiedFactoryMeanings": false
+  },
+  "publicSearch": {
+    "date": "2026-10-21",
+    "scope": "Unauthenticated public search for six newly observed BMS supported codes; no vehicle or server credentials used",
+    "queries": [
+      "BYD \"P1A8E73\"",
+      "BYD \"P2BF900\"",
+      "BYD \"P2BFF0B\"",
+      "BYD \"P2BAA00\"",
+      "BYD \"P2BF600\"",
+      "BYD \"P2BFF07\""
+    ],
+    "qualifiedExactVehicleDefinitions": [],
+    "notes": [
+      "No exact Z9GT software-applicable primary definition was recovered.",
+      "Other-model and generic-code hits were not imported as BMS definitions."
+    ],
+    "protocolReferences": [
+      "https://www.autosar.org/fileadmin/standards/R24-11/AP/AUTOSAR_AP_SWS_Diagnostics.pdf",
+      "https://uds.readthedocs.io/en/stable/pages/knowledge_base/service.html"
+    ]
+  },
+  "qualifiedFactoryDefinitions": [],
+  "qualifiedWarningDtcLinks": [],
+  "limitations": [
+    "Supported codes are capabilities, not current faults. Keep mask09 memory count and per-code status separate.",
+    "Exact raw/software membership is live evidence; matching public headings are still unqualified definitions.",
+    "Format01 remains raw; no generic P-code translation is applied.",
+    "The aborted drives pass does not establish ISG190A outcome: its rejected callback was not logged.",
+    "The separate ISG followup retains only gateway fragment1/2 with opaque trace data; it is not an accepted supported registry.",
+    "Snapshot-index identifiers do not establish stored incidents or decode record contents. Record IDs are not status bytes.",
+    "The BMS1904 read returned DTC/status only, with no snapshot record. Build06 rejected that shorter response; its aborted lifecycle is not rewritten by later offline interpretation.",
+    "Bytes beyond a gateway fragment declared payload length are not UDS data, even when retained in a rejected callback buffer.",
+    "An incomplete plan may retain independently validated completed targets but cannot claim whole-plan success."
+  ],
+  "sources": [
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/host-source.py",
+      "sha256": "dd6730d265cd0c30df0a0290ebda8ef3be764c1068a591c93dbc3db3b7e4fd3f"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/processes.txt",
+      "sha256": "ffe2a5fe32d465f6564719e7b40255ff23fd176ce802627fcf375f735cca6ee3"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/sockets.txt",
+      "sha256": "23d17a88bfd0f22bf2bf90ee37b2f253337bfc7952da6d89eb34e97b8861afa2"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/postflight/status.json",
+      "sha256": "a9f960f046ad8ce1ef6c290a5a99f009a3fa0e705d284a245918aa360d1ee2cf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/processes.txt",
+      "sha256": "aa32f1bd913c3364f3a9f5cc16a9785cb71514dddca7c07d6f733d134eba236a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/sockets.txt",
+      "sha256": "9749b604d1569db2a560c6c4682f4fd8d302f6e41b90482b252c921b1956b63a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/preflight/status.json",
+      "sha256": "f29037b4a838631a651edff453749e68f6e1a80e298f0db27083ad481220b3b4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/probe.txt",
+      "sha256": "35e5b15f80cbef82093f4ce8a260b3cb84728eb2111fbbc8f78fa5168b8aaed1"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/run.json",
+      "sha256": "44a0d9da374c69b4c847be5bbbe4a7bf5fce13d7ba32a3d922998d7043b42de1"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/verify-jar-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/verify-jar-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/verify-process-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/bms-snapshot-record/verify-process-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-03/manifest.json",
+      "sha256": "d890af2e569dda312b512e6a1129644353c532ab4e3c871fb6a1b95c63aace3d"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-03/plan.json",
+      "sha256": "735511ccc6c06c445012aa773bf4c7487b0558edd25a148464d39e0de13bb1cd"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-03/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticFrameAssembler.java",
+      "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-03/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/ecu/EcuCatalog.kt",
+      "sha256": "d0b74b54911264f2999dabdd41d828b7ff90a74af242742754c2cf0281f03c42"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-03/sources/apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java",
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-03/sources/tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+      "sha256": "cad88af27c02a8c659187a9f170e645ee1ff777235db28703ca601025d80bbc3"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-03/sources/tools/vehicle-diagnostics/SupportedDtcReadProbeTest.java",
+      "sha256": "8266c552cb7e5d454d9a607b495adf55479c899c550d036d9e8054285c26cf59"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-03/sources/tools/vehicle-diagnostics/build_supported_dtc_probe.py",
+      "sha256": "3b6abcbdb69eccc1607e2fc5f2a5df6c7558a63eb4cd7299abfdd6e04d4e4e00"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-04/manifest.json",
+      "sha256": "4db75e6cf6e9abf21ac056714ea2f92216d492db12d39e5f210cd3da6fe488ff"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-04/plan.json",
+      "sha256": "8226a812a8f8abbdd12f888c78390adfb7a00c856780b7b2db2399e07e54561d"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-04/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticFrameAssembler.java",
+      "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-04/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/ecu/EcuCatalog.kt",
+      "sha256": "d0b74b54911264f2999dabdd41d828b7ff90a74af242742754c2cf0281f03c42"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-04/sources/apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java",
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-04/sources/tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+      "sha256": "df4f16b8dd65631fa1eba630f0220894cce03fe3530d849b30d53f7304603ca2"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-04/sources/tools/vehicle-diagnostics/SupportedDtcReadProbeTest.java",
+      "sha256": "c061bbbe9c08b01a643b0ce6aeeb8a8e4b9690007302cd59bec2a9ef8d8e7dec"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-04/sources/tools/vehicle-diagnostics/build_supported_dtc_probe.py",
+      "sha256": "a3638f7ec4f4560dac8cc12833053c14343438f6afd7536ea1c8b3f75bec242e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-05/manifest.json",
+      "sha256": "ace2ba96fb1274666003f58411fe631ea462905975bf314a9da95406067e5d89"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-05/plan.json",
+      "sha256": "96b42060c676aee799c7cecf4ba2a7e647f980aab26f57210ca377f005cd473b"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-05/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticFrameAssembler.java",
+      "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-05/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/ecu/EcuCatalog.kt",
+      "sha256": "d0b74b54911264f2999dabdd41d828b7ff90a74af242742754c2cf0281f03c42"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-05/sources/apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java",
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-05/sources/tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+      "sha256": "fcb834a2325475d8c4279e784ddf80e8c87273fd6b6e4bf3f3006a20b755c21d"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-05/sources/tools/vehicle-diagnostics/SupportedDtcReadProbeTest.java",
+      "sha256": "61a0ef63f95910af852691818f5116db9012953abc0203fae818b1f7118cc2e0"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-05/sources/tools/vehicle-diagnostics/build_supported_dtc_probe.py",
+      "sha256": "2f9b3d18bfda06699f67604aa6d301b25cdf5f8f4129c50793d59ff30bc876e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-06/manifest.json",
+      "sha256": "7e6579e7f8e6d15587182d74aa089339c5a0fd1fbe2107ed041f4e17396e180b"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-06/plan.json",
+      "sha256": "c1e7d9e7541bb0ce6abbf854e6a8207b2c6f92075eeb554e743b9070845d8c4f"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-06/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticFrameAssembler.java",
+      "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-06/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/ecu/EcuCatalog.kt",
+      "sha256": "d0b74b54911264f2999dabdd41d828b7ff90a74af242742754c2cf0281f03c42"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-06/sources/apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java",
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-06/sources/tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+      "sha256": "88398585e4a97d7689b52cd4d11529f880f1f31cb9eb72558180e4e599e24a40"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-06/sources/tools/vehicle-diagnostics/SupportedDtcReadProbeTest.java",
+      "sha256": "ab9628a27a54224fbfe0dac4e7cda279a554933ae60dfc43f5c7a695b34c6d2d"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-06/sources/tools/vehicle-diagnostics/build_supported_dtc_probe.py",
+      "sha256": "d5967d9633869f6b3344b4e2425cdbeeb59c228bad0b95e4169bebd6a8f30ae7"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-07/manifest.json",
+      "sha256": "830eb96e9f8988f86e3bf0d9a6ca03f2bb2a29f54456f681093904be55018529"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-07/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/bus/DiagnosticFrameAssembler.java",
+      "sha256": "f6b9ac9eae1fd334ebd42aef27c6bdebe94ccc6a941b3c9b3517f9fbc6efb3ff"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-07/sources/apps/denza-apps/src/main/java/dev/denza/apps/feature/diagnostics/ecu/EcuCatalog.kt",
+      "sha256": "d0b74b54911264f2999dabdd41d828b7ff90a74af242742754c2cf0281f03c42"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-07/sources/apps/denza-apps/src/main/java/dev/denza/apps/platform/shell/ShellProxyBootstrap.java",
+      "sha256": "24a033e2d463cc38de5cf21396ee55025840a0f47596b1831afd2755acd27211"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-07/sources/tools/vehicle-diagnostics/SupportedDtcReadProbe.java",
+      "sha256": "7797e8aa14de57cfc3af0fa7bb6307fdeb7bd6e2c7266ea2bbb2d12dd9e05d44"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-07/sources/tools/vehicle-diagnostics/SupportedDtcReadProbeTest.java",
+      "sha256": "89210bda2e15bad5f88babdc6f93c27f99e90da434fd7ea3794a31c624290edb"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/build-07/sources/tools/vehicle-diagnostics/build_supported_dtc_probe.py",
+      "sha256": "d5967d9633869f6b3344b4e2425cdbeeb59c228bad0b95e4169bebd6a8f30ae7"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/processes.txt",
+      "sha256": "f8dac485a3a4ad0d0ee794528d31f66f270ff587a6646087ba58b75ed25618d3"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/sockets.txt",
+      "sha256": "8a07baa0ba528eeb76cf7ab7c130534a4edca58e9aaed15e903a821f333a4c33"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/postflight/status.json",
+      "sha256": "7c54b8a9dba76920a7a2f0611d40dfe1950f49dde5d68e2d5aa0935f39a5784e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/processes.txt",
+      "sha256": "e9533608a44ff2ccfe309492bc2292c30f0efac33bd74da005d6ed7c7297f1bd"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/sockets.txt",
+      "sha256": "7ffb9e2fe292e2cd0c2ad0e42e7b289be110e8f2991254cbc4be13c9d05f29ea"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/preflight/status.json",
+      "sha256": "5182926484d3f3494c27640b1f1478f3b46504efd5e88f78e6187a5c0dcb792c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/probe.txt",
+      "sha256": "4c18f2524b49ac0bb1c125eb71c82f6071542a12e5f6be2923531dfa7a15311a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/run.json",
+      "sha256": "bbc388546d691a496f294ee3de2890533437e68054d3246756754e5f3231fa8d"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/verify-jar-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/verify-jar-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/verify-process-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/drives/verify-process-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/processes.txt",
+      "sha256": "4968f239fd8aec63caec9edb66aa32772ecf7ebdb64044231545d29593890aaa"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/sockets.txt",
+      "sha256": "426e483eed39fe16bdcef1f1b0e6cbdc9103590cb962a34f663c2ec3b9fa6d39"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/postflight/status.json",
+      "sha256": "deb40fb6836c5fac7361429dd7cbd149fef681a1eafa809b363c8156ade3b347"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/processes.txt",
+      "sha256": "e03a423295441f8fc1809dffad46ce67040cf18133b01590a542025b39917374"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/sockets.txt",
+      "sha256": "a45f0ce0550ac530e98d301594c0db4c6b8d418cceeac93967592fda0fd31a7b"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/preflight/status.json",
+      "sha256": "29c077734d9eef46426bffa6f24ad936affa01b70f4cc2137b24c55d18350037"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/probe.txt",
+      "sha256": "3f4bc23fc0ad35d3a725ee5ce7c65bd69ac401c3f6a80ff93d261a0115213f4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/run.json",
+      "sha256": "0dfc63e4b4f2dfcc4b2115ef9c1c4cbfc6216ece6973d7c90987033a1bbf15e6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/verify-jar-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/verify-jar-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/verify-process-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/ecm-bms/verify-process-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/host-source-initial/run_supported_dtc_probe.py",
+      "sha256": "ce0ec08b8b8bd888096a8efa3a19aa8819ea40a7f43fca6fd5d03a1242d1f217"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/host-source.py",
+      "sha256": "0dbbe309f8ca81aa30123de9370972ae3245bc5da960f7c76b723f14853c790f"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/processes.txt",
+      "sha256": "904e972f15a0f6bc77538bc2509f5583b1d9da6beed5b87487ddf14786e2b12b"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/sockets.txt",
+      "sha256": "a472eba84696c42a49292f8c7e0b0beefbd240ea68418eb7666e0a355ded27a2"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/postflight/status.json",
+      "sha256": "5410ec1c4af91484d5550a56a69cbb25cc801bd602569f5c076f54464687da7f"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/processes.txt",
+      "sha256": "09330b638e92954e5d209854db67d7d5c8d85dc70fd00736854592b4cd492e9e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/sockets.txt",
+      "sha256": "c98222541a4319cf728fa23140ae4fe8694ccecb731f10d39d1abbfb3011a316"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/preflight/status.json",
+      "sha256": "031e7e29873c376781818b327b096b081ca4c8cdff6b4d0e03ea953dc1ae742b"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/probe.txt",
+      "sha256": "7d94ccc3a6ec83b446d8cc7584f830a3d2783473f4f872c9c6c7ee40387f3cba"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/run.json",
+      "sha256": "a1bc4a325f2e90616519430ad04eb85c97998a84d1418113d0861d87d26580b5"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/verify-jar-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/verify-jar-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/verify-process-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/isg-observe/verify-process-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/public-missing-code-search.json",
+      "sha256": "bc52b70a78f18c630a359f4110ed9c13789c6ef7f1dc6b7702e36f6584a31ab7"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/host-source.py",
+      "sha256": "499a0ed9e35c96fb6cc46c38e288e8e372dd52de0e614041e579a5ed4908bed0"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/processes.txt",
+      "sha256": "f90f1a5758578b86274343e033fc02e259617ad8a38de3e3a8f21b095cc01bc0"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/sockets.txt",
+      "sha256": "9e5653938bc7364c54da3b8650d491d2918cc7722705e2ebfbf874bcce824d6b"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/postflight/status.json",
+      "sha256": "d3a322039284a497589d525a36de266496d96709cabcde4ef95d6fd8acdf03cd"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/processes.txt",
+      "sha256": "61de8741fd8630f61234d097a27b1299c5d0ec6f1bc583b36383976f35a1e901"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/sockets.txt",
+      "sha256": "ad0d3989e494838a22315205e02b0688ade37f8f0a918bb3727dbe6010215212"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/preflight/status.json",
+      "sha256": "56db11be4464d412e78e23d70dca452821548a0eb221eca494d0fcdcde621879"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/probe.txt",
+      "sha256": "13055bb94f88f8db527961aa3d2cb74fc6b77df570e9e7420f8f2f310e96b3b9"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/run.json",
+      "sha256": "1e4dcfbdd9e9059aa00e614001803b8a3b26f5f909e991374b7bc39cd96db764"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/verify-jar-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/verify-jar-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/verify-process-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/rear-drives/verify-process-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/host-source.py",
+      "sha256": "0dbbe309f8ca81aa30123de9370972ae3245bc5da960f7c76b723f14853c790f"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/processes.txt",
+      "sha256": "26b26d7cc1efdd1eb6a4213009e50be3cad079605706016904a49c4d9fdc6772"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/sockets.txt",
+      "sha256": "be9f518c65239df752aa9d4fe775d98e89c234ff9ae218c7b0901bfe6b7e495b"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/postflight/status.json",
+      "sha256": "9490b1524b9315c9b153a060669e15baeae366cfc06bd26e9ed804b84ad818a6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/processes.txt",
+      "sha256": "9bcf94103a3fe650241dcae30b332f9947a2c78b8df6dc1f369e9936c38faabc"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/sockets.txt",
+      "sha256": "796803cf543a7713be2c016715ad6cb1e4774bf4e10d2b6d5871a52d97bb4472"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/preflight/status.json",
+      "sha256": "e1b95d8639e97848e4400fd82733fb46048f66dde019ac89d3d9941f9117afe6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/probe.txt",
+      "sha256": "5d6b1e9841f6023e9c14609c01400d50708f151ffea3a9040503fbe71c7794c4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/run.json",
+      "sha256": "d5bd119efc86bfb1e9aca80f3f95b4d3b10b9ac148098fc76c7abfaac3c93e37"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/verify-jar-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/verify-jar-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/verify-process-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-drives/verify-process-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/host-source.py",
+      "sha256": "0dbbe309f8ca81aa30123de9370972ae3245bc5da960f7c76b723f14853c790f"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/processes.txt",
+      "sha256": "07c6265203a386a70826a2c70ef0cb90e5e91c5815cc7c16c17145281efac2b8"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/sockets.txt",
+      "sha256": "7fff0bde4ca0da91ba7787f04b1812650416b46a0554e1697d6a5b9792dc629f"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/postflight/status.json",
+      "sha256": "0736370f95bd079145fdf98e9c0975774490a19678d3472ea62172084eab9274"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/app-hash.txt",
+      "sha256": "e7458c0c8c4ed79f1a30385db9dc44902090c7a0ad0a2ac2d9fc815210382e4e"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/app-path.txt",
+      "sha256": "07cd2f0ee9aca7b962a01eb34c85e53046f998a05c3bf497d2608f6dcacbcc31"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/crash.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/export-leases.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/export-threads.txt",
+      "sha256": "aa464aa2c26ce97d0b964fe304174606ab6b7371de9ed3e99b492730a7011a9a"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/firmware-hashes.txt",
+      "sha256": "4a1dca9473032c6deec2f67f891d88e6b53cc2632a469e9329023dabdebd5cdf"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/manager.txt",
+      "sha256": "186dddf5ed94033c899f9120e9521b72a490646b58191d7fe029de51e6cb385c"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/park.txt",
+      "sha256": "3e74bf018ed668d150041cc3cfcd2cfed2dfb304c743e8e7dc3545bc32737df4"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/processes.txt",
+      "sha256": "cd1d854ebe7849aade421d421df5dad015ecd8796282270a70d73df4b9b0eaf1"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/profile.txt",
+      "sha256": "133688d458bf650fa5dcd7475ec449f4d617bacaa8cd63dfdfa5cf620d698b91"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/protocol.txt",
+      "sha256": "bab8e6a0485f5341705d01800391fc6c53285a1fbfa45d41c02e4b50c8124f93"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/sockets.txt",
+      "sha256": "98a1d138f338fc2008b3692c7d35b44da774549b9dcf14a2378253d4ecca8c11"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/speed.txt",
+      "sha256": "0de93a5c30507c3d03b3bed4a982621206e1a8e4518c75b9897debdb772fbad6"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/preflight/status.json",
+      "sha256": "628b515d91b3833f8e85aebd89cc5a78f1052caa942f710b528a28e3b6b3ae1f"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/probe.txt",
+      "sha256": "cc26f2106bb56c6d50d3e132c563d827cf6e1e4977fac292a528123d0f48a8f2"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/run.json",
+      "sha256": "9eb15794f26ee490411debe14da1d2b3862662a490d9fd5e92b81b4fbea6b456"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/verify-jar-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/verify-jar-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/verify-process-absent.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "captures/diagnostics-supported-20261021/snapshot-ecm-bms/verify-process-absent.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_supported_dtc.py",
+      "sha256": "bed27d5007f51770f1c884d948ed2935b81e87a03e2087bbe662b6999bdfe752"
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_snapshot_index.py",
+      "sha256": "b1d2aa681be1f8db5f8185d9f0593b2a30165cda839ada5439c919b4b8e2f051"
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_snapshot_record.py",
+      "sha256": "8486d78952054b45a3b3af94b5035149a65060f1a0bae213e544c7100b5132c1"
+    },
+    {
+      "path": "research/vehicle-diagnostics/decode_supported_dtc.py",
+      "sha256": "b2fd4999cbd6c06ac2bb1da9af811f6f73304d1dd687d59f2ff8f564c19b0933"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-index-20261020.json",
+      "sha256": "093df5ab92416ca017e7dbb67c0685584abdcfe3fd62e3c10e9a0331c3c6cff1"
+    },
+    {
+      "path": "research/vehicle-diagnostics/oem-dtc-public-index-ru-20261020.json",
+      "sha256": "e1ee05b2419d9bb12b891371af41d91be3f555ce58a819d0d803367c11cdd016"
+    },
+    {
+      "path": "tools/vehicle-diagnostics/run_supported_dtc_probe.py",
+      "sha256": "dd6730d265cd0c30df0a0290ebda8ef3be764c1068a591c93dbc3db3b7e4fd3f"
+    }
+  ]
+}

@@ -2,6 +2,48 @@
 
 Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-data-findings.md#diagnostics-and-dtc-2026-10-18).
 
+- `supported-dtc-20261021.json` retains the exact-software supported-code
+  registries: BMS 115, FMCU 32 and each rear drive 32. The ECM NRC13 and the
+  initial ISG transport-shape abort remain explicit; the completed FMCU prefix
+  does not turn that aborted plan into a successful scan. Candidate Russian
+  headings and a separately labelled FMCU reverse-notation hypothesis are
+  acquisition evidence, not qualified factory definitions. Run
+  `python3 research/vehicle-diagnostics/check_supported_dtc.py` to replay wire,
+  source/build hashes, health and cleanup. `decode_supported_dtc.py` supports
+  complete runs by default; `--allow-partial` explicitly retains a validated
+  completed prefix without inventing missing target results.
+- `isg-gateway-trace-20261021.json` retains the separate ISG failure callback:
+  gateway fragment 1/2 contains a partial CAN transcript. The owner-package MCU
+  source explains timeout-transcript publication and record order; the retained
+  prefix contains 26 complete tuples in 107 of 231 declared UDS bytes, not a
+  successful registry. Run `python3 research/vehicle-diagnostics/check_isg_gateway_trace.py`.
+- The supported-DTC evidence also retains `19 03` snapshot-index qualification:
+  ECM empty, BMS 41 DTC/record pairs, front/ISG NRC12 and rear NRC31. Use
+  `decode_snapshot_index.py` with the corresponding fixed plan. Returned record
+  identifiers are neither status bytes nor proof of stored fault payloads.
+- The exact BMS `19041A3A2201` read returned `59041A3A2200`: DTC/status only,
+  without a snapshot record. The original build06 aborted on the short response;
+  `decode_snapshot_record.py --allow-partial` preserves that lifecycle and the
+  observed response. Callback bytes beyond the declared payload length are not
+  snapshot data. No DID or engineering value was obtained. The subsequent
+  build07 handles this as `SNAPSHOT_RECORD_EMPTY`, covered by offline tests;
+  that newer reader has not been run on the car.
+- `diagnostic-event-journal-plan-20261021.json` is a prepared collection
+  contract for natural warning/alarm/DTC events on one monotonic clock. No
+  recorder or background automation was started, and no warning/DTC causal
+  relationship is qualified by this plan.
+
+The supported-code reader stays outside product builds. Build offline with
+`python3 tools/vehicle-diagnostics/build_supported_dtc_probe.py build --output
+/absolute/fresh/build-directory`; the builder records immutable source copies
+and runs synthetic protocol tests. The separate host runner
+`tools/vehicle-diagnostics/run_supported_dtc_probe.py` has explicit `health`
+and `run` actions, uses an existing ADB serial, verifies the pinned build and
+owns only its nonce-named remote JAR. A run requires `--build`, a fixed `--plan`,
+`--serial` and fresh `--output`. It never installs an APK or restarts ADB. Full
+acceptance requires both host lifecycle/health proof and wire decoder success;
+an incomplete run stays incomplete even if its process and file were removed.
+
 - `DtcReadProbe.java` is the original bounded shell-UID research probe for the
   qualified 0x720 → 0x728 transport, retained as evidence rather than built.
 - `dtc-20261018.json` is the small decoded real snapshot: eight raw codes, all
