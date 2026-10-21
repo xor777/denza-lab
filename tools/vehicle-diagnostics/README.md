@@ -244,7 +244,7 @@ them invalidates the build. The new host reuses the old export lease, so it
 cannot run beside another metadata reader. The exposure and watchdog limits
 described below still apply. Full findings: [OTA](../../docs/ota-update-findings.md#подготовленный-изолированный-запрос-gcy).
 
-## Isolated GHY metadata client (input and HTTPS failures; diagnosis prepared)
+## Isolated GHY metadata client (certificate failure before HTTP)
 
 `GhyCheckVersionProbe.java` reads GHY preferences, its own SourceVehicleVersion
 and the common ECU cache. After verified export closure/GO it uses the pinned,
@@ -282,11 +282,32 @@ unchanged 225-row cache and completed factory identity setup, then returned
 counts were not recorded. Cleanup was independently verified; authorization
 is consumed. This is not evidence of a GHY application-level rejection.
 
-The default runner and builder are host-only. Prepared diagnostic build:
+The default runner and builder are host-only. Completed diagnostic build:
 `captures/ota-ghy-20261021/build-v5/`. Offline: 52 GHY Java checks, 27 GCY Java
 checks and 19 host tests. It only unwraps adapter exceptions into fixed safe
-codes, without changing TLS behavior or exporting free-text errors. This build
-needs separate session authorization; GHY server acceptance remains untested.
+codes, without changing TLS behavior or exporting free-text errors. Its separately
+authorized session returned `https/ghy_certificate` before the first HTTP POST,
+after factory identity setup. The error does not distinguish hostname, chain or
+certificate constraints. Cleanup and unchanged APK/process identities were
+independently verified. All three one-session authorizations are consumed.
+
+Under the owner's subsequent general read-only diagnostic authorization, one
+public TLS handshake (no client identity or HTTP) captured the current GHY
+certificate. Its CN matches, but SAN is absent. Replaying the unchanged hostname
+verifier from the car's hash-verified runtime rejects it. This establishes an
+Android adapter incompatibility, not the cause of the stock GCY status 111.
+Reproduce offline with `.venv-firmware/bin/python
+research/vehicle-diagnostics/check_ghy_hostname.py`. No TLS verification bypass
+was implemented; the failed handshake itself did not retain its peer certificate.
+
+Reconciled historical evidence: on October 18, the existing Mac client
+`tools/ads_ghy_factory.py` + `tools/ads_ghy_factory_tls.c` completed mutual TLS
+with this car's hardware identity and one signature. GHY returned HTTP 200 /
+status 100 / an empty ECU catalogue for stock `v1.0.0`; it did not return a plan.
+All 33 retained evidence hashes were rechecked on October 21. This proves prior
+GHY acceptance, not current catalogue contents or success of this Android adapter.
+See [cross-research evidence](../../docs/ota-update-findings.md#сверка-с-исследованием-adas).
+
 The isolated request omits versionSync,
 which in the full stock flow may replace the effective version before checking.
 The shared host runner's optional validators preserve GCY defaults but change

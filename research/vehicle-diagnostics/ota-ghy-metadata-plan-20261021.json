@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "date": "2026-10-21",
-  "state": "completed_input_refusal_before_GO",
+  "state": "three_sessions_completed_latest_certificate_failure_before_HTTP",
   "hypothesis": "Independent GHY catalogue and strategy may differ from the GCY strategy that rejected the preserved ECU cache.",
   "authorization": {
     "path": "captures/ota-ghy-20261021/authorization-session-1.json",
@@ -122,9 +122,9 @@
   "limitations": [
     "Cache measurement time unknown; this is not a fresh diagnostic scan.",
     "Joining by ECU ID does not prove cross-catalogue route/DID equivalence.",
-    "Prior factory TLS success at another endpoint does not prove GHY acceptance.",
     "Certificate/sign APIs can run firmware readiness/recovery paths.",
-    "No applicable OTA or expected tuple matrix has yet been obtained."
+    "No applicable OTA or expected tuple matrix has yet been obtained.",
+    "Historical October 18 Mac GHY acceptance is proven; catalogue was empty. Android adapter failed before HTTP on October 21."
   ],
   "liveRun": {
     "session": {
@@ -286,7 +286,7 @@
     }
   },
   "preparedDiagnosticFollowup": {
-    "state": "prepared_not_authorized_not_run",
+    "state": "completed_certificate_failure_before_HTTP",
     "buildManifest": {
       "path": "captures/ota-ghy-20261021/build-v5/manifest.json",
       "sha256": "5068c74e78ecbeb2a91754f4fa3490e9159c110514ae12fa180374fc3b8fa110"
@@ -338,17 +338,55 @@
       }
     },
     "limitsUnchanged": true,
-    "authorizationRequired": "New bounded session; both previous one-session authorizations consumed.",
+    "authorizationRequired": null,
     "tlsDifferencesNotProvedCausal": [
       "Adapter requires a client signature for every successful TLS handshake.",
-      "Adapter anchors only factory root; stock GHY also anchors issuer and asset identity subCA."
+      "Adapter anchors only factory root; stock GHY also anchors issuer and asset identity subCA.",
+      "Stock GHY callback accepts hostname; adapter uses SAN-only firmware HTTPS verification. Later offline replay rejects the current GHY certificate, but the failed handshake peer/message was not retained."
     ],
     "stockTrustSource": {
       "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/api/util/SecurityUtil.java",
       "sha256": "ba2f7b696dfcf9a5d65ad24b5a6ac0542de14838c6bcc05b55aaecbabcd93b30"
     },
     "expectedTupleMatrixReceived": false,
-    "applicableOtaObtained": false
+    "applicableOtaObtained": false,
+    "authorization": {
+      "path": "captures/ota-ghy-20261021/authorization-session-3.json",
+      "sha256": "951e4bd85ecac1d95425cfcb33d43566d876c34b341a09978108d8e0c7d0a634"
+    },
+    "liveRun": {
+      "session": {
+        "path": "captures/ota-ghy-20261021/approved-session-3/session.json",
+        "sha256": "0894e234a95028f04efe2c7a98f551998a513ae9e1796f206f0e4d184fa2c2e1"
+      },
+      "snapshot": {
+        "path": "captures/ota-ghy-20261021/approved-session-3/snapshot-before-request.json",
+        "sha256": "c2d40f63c4f6287f38016e4f4c8edfc90a4430fbff8fa03da0f91cc99dbad1bc"
+      },
+      "postflight": {
+        "path": "captures/ota-ghy-20261021/approved-session-3/postflight.json",
+        "sha256": "df143d19dff2934d9da2989d0402466c875a375249641178b5b12bf68b800193"
+      },
+      "status": "refused",
+      "error": {
+        "stage": "https",
+        "code": "ghy_certificate"
+      },
+      "goSent": true,
+      "publicCertificateApiCalls": 3,
+      "httpsPosts": 0,
+      "httpsPostsBasis": "Pinned code fails in first connect before HTTP output; second-request failure would return check_failed.",
+      "factoryTlsSignatureApiCalls": {
+        "directCounterRecorded": false,
+        "inferredFromServerTrustGate": 0
+      },
+      "exportClosed": true,
+      "watchdogTerminal": true,
+      "leaseReleased": true,
+      "postflightPassed": true,
+      "expectedTupleMatrixReceived": false,
+      "applicableOtaObtained": false
+    }
   },
   "offlineTrustComparison": {
     "report": {
@@ -377,7 +415,172 @@
         "sha256": "624268033c4ac6c96284342ce2d57af1fa65de3ee41a083c8901740ed9f02bd8"
       }
     ],
-    "assessment": "Both APK CA assets exactly match prior hardware CA fingerprints. A missing independent CA is not established. Anchor-versus-intermediate behavior still differs; current GHY server chain remains unknown.",
+    "assessment": "Historical offline comparison: assets match hardware CA fingerprints. The later publicTlsReadOnlyFollowup captures the GHY leaf and reproduces missing-SAN hostname incompatibility; original historical report remains unchanged.",
     "deviceOrNetworkAccess": false
+  },
+  "crossResearchEvidence": {
+    "reconciledOn": "2026-10-21",
+    "historicalDate": "2026-10-18",
+    "verification": {
+      "path": "captures/ota-ghy-20261021/offline-cross-research-verification.json",
+      "sha256": "ef5eb1c7d2d6b1ef1af0bf2f90a2ac8451af445f9d4a673b138d81b381f21e3d"
+    },
+    "ghy": {
+      "response": {
+        "path": "captures/adas-speed-20261018/reports/ads-ghy/run-3-factory/get-ecu-list.json",
+        "sha256": "c3c2151a71af061b52473d024798d603469a357d3896b28a3df67339a3588b06"
+      },
+      "run": {
+        "path": "captures/adas-speed-20261018/reports/ads-ghy/run-3-factory/result.json",
+        "sha256": "b16d29cb3bb2ced3e03d1362d95ac880f8e11fb2aba612a1b86a1366f22ec78c"
+      },
+      "manifest": {
+        "path": "captures/adas-speed-20261018/reports/ads-ghy/SHA256SUMS",
+        "sha256": "ceae7082bf286da6e5ae7431f2b19762a4a0e45a7158f0db7dda5252bdd86b24"
+      },
+      "verification": {
+        "path": "captures/adas-speed-20261018/reports/ads-ghy/verification.json",
+        "sha256": "ea66e74a5f2acaa5e9d3e7fe78f236393dd4e06c456f6dc3782cf641c1ca2a12"
+      },
+      "serverTls": {
+        "path": "captures/adas-speed-20261018/reports/ads-ghy/server-tls.json",
+        "sha256": "5f9fd97c25949eb3a209e9a290946abeaca66d30842fcb99d9253ee2aa5f2059"
+      },
+      "source": {
+        "path": "captures/adas-speed-20261018/reports/ads-ghy/source-run-3-factory/ads_ghy_factory.py",
+        "sha256": "55aa0bc10b59b9da15a5024bcd3cc2622494a848031c91127e88e225ed56f345"
+      },
+      "projector": {
+        "path": "captures/adas-speed-20261018/reports/ads-ghy/source-run-3-factory/ads_ota_metadata.py",
+        "sha256": "a843b17c57c9e9bc8cdbc9022e430294368f92fb454659f0c29a775a12170b2c"
+      },
+      "tlsSource": {
+        "path": "captures/adas-speed-20261018/reports/ads-ghy/source-run-3-factory/ads_ghy_factory_tls.c",
+        "sha256": "f6be80899fa4174449152968c27e194c72e12ada031294ff361b7e4cf67bb30a"
+      },
+      "httpStatus": 200,
+      "applicationStatus": "100",
+      "ecuCount": 0,
+      "vehicleVersion": "v1.0.0",
+      "signatureCalls": 1,
+      "expectedTupleMatrixReceived": false,
+      "applicableOtaObtained": false
+    },
+    "gcy": {
+      "originalResponse": {
+        "path": "captures/adas-speed-20261018/reports/ads-auth/run-3/check-version.json",
+        "sha256": "2ef57e0a11fab7bfad7070ac73f0baf70507762f9089aaea44ca139e149e7ed0"
+      },
+      "modifiedResponse": {
+        "path": "captures/adas-speed-20261018/reports/ads-auth/run-4/check-version.json",
+        "sha256": "2ef57e0a11fab7bfad7070ac73f0baf70507762f9089aaea44ca139e149e7ed0"
+      },
+      "originalRun": {
+        "path": "captures/adas-speed-20261018/reports/ads-auth/run-3/result.json",
+        "sha256": "dc502cf5f23ad3e6ddeedafbc249149e077305d1df575688c9a48fb502e7bad0"
+      },
+      "modifiedRun": {
+        "path": "captures/adas-speed-20261018/reports/ads-auth/run-4/result.json",
+        "sha256": "34927f520d4649d7147866a37994c4e02c78baf1fadbb003b8dbebebfe1b044b"
+      },
+      "verification": {
+        "path": "captures/adas-speed-20261018/reports/ads-auth/verification.json",
+        "sha256": "957e5bb019111f708d89f7224e10c4655b21cc14032a0d678ad7bab03d429979"
+      },
+      "source": {
+        "path": "captures/adas-speed-20261018/reports/ads-auth/source-run-4/ads_ota_metadata.py",
+        "sha256": "ae7fbfa7223e3981c8c616c0c0e2cb70f8117f26af251c4e8e9cbeb702ca78dd"
+      },
+      "httpsSource": {
+        "path": "captures/adas-speed-20261018/reports/ads-auth/source-run-4/ads_ota_https.mjs",
+        "sha256": "bff5f300f9ba2004eaa6c998b156303aad47860ccf66075d29f572df2f7d12df"
+      },
+      "october21Run": {
+        "path": "captures/ota-isolated-20261021/approved-session-1/session.json",
+        "sha256": "ae9a86b98b574dd2f702b3ae835ca94f00451077c7733944da54beede40f641e"
+      },
+      "applicationStatus": "111",
+      "responseSha256": "41204bab426485f1eb02993605e23a7374d461506b570874350a3399c18fd940",
+      "adsCorrectionAloneInsufficient": true,
+      "doesNotRuleOutMultipleMismatches": true
+    }
+  },
+  "stockHostnameVerifier": {
+    "apk": {
+      "path": "captures/firmware/pulled-from-car-20261018/OTAUpdate2.apk",
+      "sha256": "1529790d11ecf3c3a6883096f30a685e9af6ca3c6d57eb4359daec90a7afdb04"
+    },
+    "decompile": {
+      "path": "captures/ota-ghy-20261021/Api-hostnameVerifier.java",
+      "sha256": "0f715e0171bdc4f1ff1ac392e765b83f8ce2b2d435345726349e4457b21c7930"
+    },
+    "behavior": "Api.AnonymousClass1.verify returns true; not copied into the diagnostic adapter."
+  },
+  "readOnlyDiagnosticAuthorization": {
+    "humanReply": "разрешаю тебе любые диагностические действия с машиной и сервером в режиме только чтение",
+    "scope": "Ongoing read-only diagnosis; no firmware/configuration writes, downloads or installation."
+  },
+  "publicTlsReadOnlyFollowup": {
+    "authorization": "Subsequent human authorization for any read-only diagnostic actions on car and server.",
+    "scope": {
+      "publicTlsHandshakes": 1,
+      "httpRequests": 0,
+      "clientIdentityUsed": false,
+      "hardwareApiCalls": 0,
+      "bydLogExport": false,
+      "vehicleWrites": false,
+      "runtimeJarHashReads": 3,
+      "runtimeJarCopiesToHost": 1
+    },
+    "tlsReport": {
+      "path": "captures/ota-ghy-20261021/public-ghy-server-20261021.json",
+      "sha256": "e119c807027f5bad2896a5c7db6f5a5f7967b72cdab12d7206ceb8358f719bfb"
+    },
+    "readerSource": {
+      "path": "captures/ota-ghy-20261021/read-ghy-public-tls.mjs",
+      "sha256": "f8a0b9590580ab4e015f88fb237301eaf60126889f2b691abf22a6a2eceefba9"
+    },
+    "runtimeHashes": {
+      "path": "captures/ota-ghy-20261021/public-tls-runtime-hashes.json",
+      "sha256": "72f943457a7013d289ed9a550cdaf6aa69b91b83d9d8d423b022a2ffab7871db"
+    },
+    "offlineReplay": {
+      "path": "captures/ota-ghy-20261021/offline-hostname-replay.json",
+      "sha256": "a258bb04db92385e9ec05e3b7011a112750b6aa4f70e535f45d7ae0c6fd6a195"
+    },
+    "replayScript": {
+      "path": "research/vehicle-diagnostics/check_ghy_hostname.py",
+      "sha256": "69e3f96a61107aee703a0dc71d19f0ded0b38f5c6072b23a10f5f74157080d61"
+    },
+    "serverLeafSha256": "47a599ff34cd17f60a253a94d2cd5dac84140c799ef955176970c5ffc406e40b",
+    "serverSubjectAltNameAbsent": true,
+    "serverCommonNameMatchesHost": true,
+    "macVerificationPassed": true,
+    "unchangedFirmwareHostnameVerifierRejectedCertificateOffline": true,
+    "conclusion": "Reproduced SAN-only hostname verification incompatibility in the Android adapter. The failed handshake did not retain its peer or exception message, so an additional cause is not excluded. Does not explain GCY 111.",
+    "tlsVerificationWeakened": false,
+    "sources": [
+      {
+        "path": "captures/firmware/pulled-from-car-20260924/jadx/conscrypt/sources/com/android/org/conscrypt/TrustManagerImpl.java",
+        "sha256": "09541c80db01224bc4d9604b79e131fd3e4fd0c12bbee9d52fc2c9e403453db4"
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20260924/jadx/conscrypt/sources/com/android/org/conscrypt/Platform.java",
+        "sha256": "f8226388eb13fefdddba2bcc6d4ce8664b6bced9ac8dc786a2c8192513da30a8"
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/core-oj/sources/javax/net/ssl/HttpsURLConnection.java",
+        "sha256": "5ca50dbec2600edc38d9c49099d8fac4c554761d1df1a868b0c94419f787524c"
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20261021/jadx/okhttp/sources/com/android/okhttp/internal/tls/OkHostnameVerifier.java",
+        "sha256": "dbe0102b3a9667afd0d2b4929246fc65dacf72597e98533bad220f36d674de95"
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20261021/okhttp.jar",
+        "sha256": "20fce335a932ebd4b5d4132d4ec3930eb12d1bdf4b1bbda4b4b20d98e61bf1b7"
+      }
+    ],
+    "decompileNote": "Full okhttp jadx reported errors in unrelated RealConnection.createTunnel; target OkHostnameVerifier decompiled and compiled unchanged successfully."
   }
 }
