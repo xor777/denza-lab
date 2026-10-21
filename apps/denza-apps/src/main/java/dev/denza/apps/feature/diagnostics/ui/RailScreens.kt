@@ -169,9 +169,13 @@ internal fun SystemPageScreen(
                 ),
                 notes = emptyList(),
             )
-            // the cells: the last sweep's length and the newest page's age, and where they come from
+            // the cells: the pause, the last sweep's length and the newest page's age, and where they come from
             cells -> ScanFooter(
-                emptyList(),
+                listOf(
+                    model.packCells?.paused.let { paused ->
+                        FooterButton(if (paused == true) "Продолжить" else "Пауза", true) { actions.setCellsPaused(paused != true) }
+                    },
+                ),
                 listOfNotNull(
                     model.packCells?.age?.let { FooterNote.Words(it, mono = true) }, model.packCells?.let { FooterNote.Divider },
                     FooterNote.Words(ScannerWords.CELLS_SOURCE, mono = true),

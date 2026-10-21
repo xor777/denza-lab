@@ -15,7 +15,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** «Ячейки» in the session (architecture 6.3): listened to only while shown, beside the autoscan, once a showing. */
+/** «Ячейки» in the session (architecture 6.3): listened to only while shown and not paused, beside the autoscan, once a showing. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PackCellsSessionTest {
     private fun TestScope.session(bus: FakeDiagnosticBus) = DiagnosticsSession(
@@ -101,6 +101,83 @@ class PackCellsSessionTest {
         runCurrent()
         assertEquals(listOf("s", "lost", "lost"), bus.subscriptions)
         assertEquals("поток BMS прерван", s.model.value.packCells!!.age)
+        s.stop()
+    }
+
+    @Test
+    fun pausedNothingIsListenedToAndTheDrawnSweepStays() = runTest {
+        val bus = carNow()
+        val s = session(bus)
+        s.start()
+        s.setCellsVisible(true)
+        bus.pages(atMs = 0)
+        runCurrent()
+        advanceTimeBy(501)
+        runCurrent()
+        val before = s.model.value.packCells!!
+        assertEquals(false, before.paused)
+        assertEquals(166, before.cells.size)
+
+        s.setCellsPaused(true)
+        runCurrent()
+        assertEquals("the subscription is left", listOf("s", "u"), bus.subscriptions)
+        val held = s.model.value.packCells!!
+        assertTrue(held.paused)
+        assertNull(held.sweep)
+        // Fixtures.EPOCH at 0 ms of the test's clock, UTC: the page drawn came then.
+        assertEquals("пауза · снимок ${ScanClock(ZoneOffset.UTC).seconds(Fixtures.EPOCH)}", held.age)
+        assertEquals(before.cells.map { it.value }, held.cells.map { it.value })
+
+        // A minute on, nothing read and nothing faded.
+        advanceTimeBy(60_000)
+        runCurrent()
+        assertEquals(listOf("s", "u"), bus.subscriptions)
+        assertEquals(held.cells, s.model.value.packCells!!.cells)
+        assertEquals(held.age, s.model.value.packCells!!.age)
+
+        // «Продолжить»: listened to again.
+        s.setCellsPaused(false)
+        runCurrent()
+        assertEquals(listOf("s", "u", "s"), bus.subscriptions)
+        assertEquals(false, s.model.value.packCells!!.paused)
+        assertTrue(s.model.value.packCells!!.age.startsWith("обход не завершён · "))
+        s.stop()
+    }
+
+    @Test
+    fun leavingTheTabEndsThePause() = runTest {
+        val bus = carNow()
+        val s = session(bus)
+        s.start()
+        s.setCellsVisible(true)
+        runCurrent()
+        s.setCellsPaused(true)
+        runCurrent()
+        s.setCellsVisible(false)
+        runCurrent()
+        assertNull(s.model.value.packCells)
+        s.setCellsVisible(true)
+        runCurrent()
+        assertEquals("shown again: listened to", listOf("s", "u", "s"), bus.subscriptions)
+        assertEquals(false, s.model.value.packCells!!.paused)
+        assertEquals("ждём страницы BMS", s.model.value.packCells!!.age)
+        s.stop()
+    }
+
+    @Test
+    fun resumingAfterALostSubscriptionAsksAgain() = runTest {
+        val bus = carNow()
+        val s = session(bus)
+        s.start()
+        s.setCellsVisible(true)
+        bus.failPages(DiagFailure.ChannelLost(IllegalStateException("helper gone")))
+        runCurrent()
+        assertEquals("поток BMS прерван", s.model.value.packCells!!.age)
+        s.setCellsPaused(true)
+        s.setCellsPaused(false)
+        runCurrent()
+        assertEquals(listOf("lost", "s"), bus.subscriptions.drop(1))
+        assertEquals("ждём страницы BMS", s.model.value.packCells!!.age)
         s.stop()
     }
 
