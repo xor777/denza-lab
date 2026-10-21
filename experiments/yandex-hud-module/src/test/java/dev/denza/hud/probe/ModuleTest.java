@@ -228,10 +228,13 @@ public final class ModuleTest {
         sink=new SceneSink();
         ModuleFields.publish(sink,map,roles);
         check(sink.calls.equals(Arrays.asList("layer MAP map","fields MANEUVER","fields LANES","withdraw ROAD_LIMIT","withdraw AR")),"limit and AR withdrawn: "+sink.calls);
-        // A manoeuvre without its stock picture keeps metres, street and id; metres are never negative.
+        // A manoeuvre without its stock picture keeps metres, street and id; metres are never under 11,
+        // already in the module's fields, for a Denza Apps host whose encoder has no floor.
         NavigatorSource.Hint passed=withManoeuvre();passed.distance=-1;
         HudFields block=ModuleFields.of(passed,null,0,null,null).get(HudRole.MANEUVER);
-        check(Arrays.equals(block.fields(),new int[]{3,4,9,10,26,27,28})&&block.value(9).equals(0L),"no picture, metres clamped at 0");
+        check(Arrays.equals(block.fields(),new int[]{3,4,9,10,26,27,28})&&block.value(9).equals(11L),"no picture, metres floored at 11");
+        passed.distance=7;
+        check(ModuleFields.of(passed,null,0,null,null).get(HudRole.MANEUVER).value(9).equals(11L),"the module's own fields say 11 in the last ten metres");
         check(!ModuleFields.of(null,null,0,null,ar).containsKey(HudRole.AR)&&!ModuleFields.of(null,null,0,null,ar).containsKey(HudRole.ROAD_LIMIT),"AR and the limit ride on a hint");
         for(int count:new int[]{0,-1,7}){
             HudFields lanes=ModuleFields.of(null,null,count,new byte[]{1},null).get(HudRole.LANES);
