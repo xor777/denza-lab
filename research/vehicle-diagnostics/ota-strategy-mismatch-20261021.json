@@ -1,0 +1,729 @@
+{
+  "schema": "denza-lab.ota-strategy-mismatch.v1",
+  "date": "2026-10-21",
+  "scope": "Offline analysis of existing sources and retained captures only.",
+  "answer": {
+    "strategyAffectsUpdate": "Yes: sequence, allowed ECU/package joins, package URLs/integrity metadata and cached forced-plan resume.",
+    "readingStrategyChangesAnything": false,
+    "cacheLeadObtainsUpdate": "Unproved. ProductLine cache could describe an earlier factory plan, but is not an offer from the regular Settings backend and is currently inaccessible.",
+    "editingLocalStrategyIsAShownServerFix": false
+  },
+  "workflows": {
+    "settings": "com.byd.otaupdate GCY controller with combined GCY/GHY plan in retained18Oct run; final111 came from GCY.",
+    "productLine": "com.byd.productlineota uses manufacture configuration and production-line lifecycle/key-match stages, separate result cache. Similar model/endpoint names do not establish interchangeable eligibility or packages.",
+    "schemaPurpose": {
+      "strategy": "Batch/version/policy and ordered ECU reprogram plan.",
+      "sequence": "ECU identity, route, DID, software/reprogram/source-package conditions.",
+      "targetPackageInfo": "Target main software package descriptors.",
+      "sourcePackageInfo": "Source/rollback package descriptors when required.",
+      "configPackageInfo": "Target configuration package descriptors.",
+      "configSourceInfo": "Source configuration package descriptors when required."
+    }
+  },
+  "requestSchemas": [
+    {
+      "client": "settings_gcy",
+      "topLevelFieldNames": [
+        "version",
+        "uuid",
+        "encType",
+        "ecuInfo"
+      ],
+      "ecuInfoFieldNames": [
+        "ecuId",
+        "ecuSoftCode",
+        "ecuSoftVer",
+        "ecuHardVer",
+        "ecuConfigCode",
+        "ecuConfigVer"
+      ],
+      "sendsLocalStrategyJson": false,
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+      "lineStart": 633,
+      "lineEnd": 651
+    },
+    {
+      "client": "regular_ghy",
+      "topLevelFieldNames": [
+        "version",
+        "uuid",
+        "ecuInfo"
+      ],
+      "ecuInfoFieldNames": [
+        "ecuId",
+        "ecuSoftCode",
+        "ecuSoftVer",
+        "ecuHardVer",
+        "ecuConfigCode",
+        "ecuConfigVer"
+      ],
+      "sendsLocalStrategyJson": false,
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "94362a1e67f9678cca80d1cf9e1871a20eb8ca495b62340674f04f9e57d5958c",
+      "lineStart": 410,
+      "lineEnd": 429
+    },
+    {
+      "client": "productline",
+      "topLevelFieldNames": [
+        "version",
+        "uuid",
+        "ecuInfo"
+      ],
+      "ecuInfoFieldNames": [
+        "ecuId",
+        "ecuSoftCode",
+        "ecuSoftVer",
+        "ecuHardVer",
+        "ecuConfigCode",
+        "ecuConfigVer"
+      ],
+      "sendsLocalStrategyJson": false,
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "504c4c34f2ceb239fe1d596d754b274d48a5fc70a7405e8bfae6c3c90dbe631f",
+      "lineStart": 827,
+      "lineEnd": 841
+    }
+  ],
+  "retainedResponseProjection": {
+    "source": {
+      "path": "captures/ota-status-20261018/live-check-sanitized.txt",
+      "sha256": "7d8e932c623e74370ec33b7673111f51ed68d00dd9db1b58f2a33d37c5cfed23"
+    },
+    "requestEvents": [
+      {
+        "line": 6,
+        "time": "10-18 14:43:24.935",
+        "endpointPath": "ota/otaService/versionSync"
+      },
+      {
+        "line": 32,
+        "time": "10-18 14:43:27.772",
+        "endpointPath": "ota/otaService/checkVersion"
+      }
+    ],
+    "responses": [
+      {
+        "path": "captures/ota-status-20261018/live-check-sanitized.txt",
+        "line": 16,
+        "time": "10-18 14:43:27.749",
+        "status": "104",
+        "latestVersion": "",
+        "hasFunctionAdditionText": true,
+        "hasFunctionOptimizationText": true
+      },
+      {
+        "path": "captures/ota-status-20261018/live-check-sanitized.txt",
+        "line": 40,
+        "time": "10-18 14:43:28.716",
+        "status": "111",
+        "cause": "请求的ECU与策略中ECU版本升级详情不匹配!",
+        "batchId": "SALE-BYDHTH-2021-BATCH-00004",
+        "isSaleCar": "1",
+        "strategyVer": null,
+        "sequenceCount": 0,
+        "rollbackDependencyCount": 0,
+        "packageCounts": {
+          "targetPackageInfo": 0,
+          "sourcePackageInfo": 0,
+          "configPackageInfo": 0,
+          "configSourceInfo": 0
+        }
+      }
+    ],
+    "completeWireRequestBodyRetained": false,
+    "boundedRequestBodyLogScan": [
+      {
+        "path": "captures/ota-status-20261018/logcat-all-ota.txt",
+        "sha256": "608adcc6ea5bf4233b65be34b5a80f0ec3534c03329cd93df32b3798ceea0c1a",
+        "bytes": 229,
+        "ecuInfoOrEncTypeLineCount": 0
+      },
+      {
+        "path": "captures/ota-status-20261018/logcat-ota.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0,
+        "ecuInfoOrEncTypeLineCount": 0
+      },
+      {
+        "path": "captures/ota-status-20261018/phase1-live-check-sanitized.txt",
+        "sha256": "762e6dba1a707220e8474bc959d8ad24849ffc4817285f9205e37f61d8b8318e",
+        "bytes": 11356,
+        "ecuInfoOrEncTypeLineCount": 0
+      },
+      {
+        "path": "captures/ota-status-20261018/live-check-sanitized.txt",
+        "sha256": "7d8e932c623e74370ec33b7673111f51ed68d00dd9db1b58f2a33d37c5cfed23",
+        "bytes": 13306,
+        "ecuInfoOrEncTypeLineCount": 0
+      }
+    ],
+    "serverExpectedUpgradeDetailTableRetained": false,
+    "known": "Server rejected the request/strategy match without naming an ECU and supplied no package records.",
+    "notKnown": "Exact offending ECU, expected version tuple, cause of mismatch, other-vehicle rollout or obtainable newer package."
+  },
+  "vehicleVersionProvenance": {
+    "sourceVersion": {
+      "value": "V1.7.0",
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/06-SourceVehicleVersion2",
+      "sha256": "372cd2377dd2e60c9323fe9e2a7a606cb08babce08e17173100e2d93161e6f98"
+    },
+    "targetOrNewVersion": {
+      "value": "V1.0",
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/05-VehicleVersion2",
+      "sha256": "35a6fd96d1fdcfa5e7af2835bcbb523bd99798499c8115df9eaba3b77c261ba8"
+    },
+    "builderInput": "getCurrentVehicleVersion -> SourceVehicleVersion2, therefore retainedV1.7.0 agrees with request-shaped cache. VehicleVersion2=V1.0 is separate and not by itself a request-version defect."
+  },
+  "cacheAudit": {
+    "source": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    "sourceAge": "not retained by original exporter; unknown",
+    "version": "V1.7.0",
+    "recordCount": 225,
+    "distinctEcuIdCount": 225,
+    "softwareCodeClassCounts": {
+      "nonzero_nine_byte_code": 176,
+      "zero_default": 23,
+      "stock_negative_marker": 26
+    },
+    "fieldClassCounts": {
+      "ecuSoftCode": {
+        "other_value": 176,
+        "zero_nine_byte_value": 23,
+        "stock_negative_marker": 26
+      },
+      "ecuSoftVer": {
+        "other_value": 199,
+        "stock_negative_marker": 26
+      },
+      "ecuHardVer": {
+        "other_value": 194,
+        "stock_negative_marker": 31
+      },
+      "ecuConfigCode": {
+        "zero_nine_byte_value": 185,
+        "stock_negative_marker": 32,
+        "other_value": 8
+      },
+      "ecuConfigVer": {
+        "other_value": 193,
+        "stock_negative_marker": 32
+      }
+    },
+    "sameIdSetAsLaterFactoryMap": {
+      "source": {
+        "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+        "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+      },
+      "count": 225,
+      "limit": "20Oct factory metadata is later than18Oct check; matching IDs do not establish the exact list/version tuple sent at that request time."
+    },
+    "requestAssociation": "Payload-shaped persisted cache, source code writes request JSON immediately before GCY post. No cache source timestamp or complete wire request body is retained, so identity with18Oct specific wire body is unproved.",
+    "uuidValueOmitted": true,
+    "noRowsDuplicated": true,
+    "interpretation": "26 negative markers and23 zero/default records are finite offline inspection candidates, not proof of faulty ECUs or the cause of server111. Optional/supplier alternatives remain in factory candidate list."
+  },
+  "sourceAnchors": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/carsettingbroadcast/CarSettingBroadcastPresenter.java",
+      "sha256": "a200ba1bdf179e08887fc3c99e6489691f94b11e3075c6f92e20e4f1c0bb3452",
+      "lineStart": 25,
+      "lineEnd": 33,
+      "requiredTokens": [
+        "triggerQuery",
+        "checkVersionUpgrade();"
+      ],
+      "meaning": "Settings query enters regular GCY controller."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/productline/ProductLineUpgradePresenter.java",
+      "sha256": "1cb03e596afd21a1f48a17897637ab76fef8ea4893bcd5766cc52715ba1abed1",
+      "lineStart": 527,
+      "lineEnd": 589,
+      "requiredTokens": [
+        "loadManufactureConfig",
+        "validTime",
+        "upgradeType",
+        "isProductLineOTAUpgradeBeforeKeyMatch"
+      ],
+      "meaning": "ProductLineOTA has production-line manufacture configuration and key-match/IPB stages; separate from Settings query."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "792b3a57d980f80831692ecf7b10e4e9b4c0b8b90da1f0fc3a131dbd686814d5",
+      "lineStart": 951,
+      "lineEnd": 954,
+      "requiredTokens": [
+        "shouldCloseApp",
+        "canReadVIN()",
+        "isProductLineOTAFlagExist()",
+        "shouldSubmitResult()"
+      ],
+      "meaning": "Production-line lifecycle gate; no execution or current eligibility inferred."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+      "lineStart": 171,
+      "lineEnd": 188,
+      "requiredTokens": [
+        "getCurrentVehicleVersion()",
+        "VEHICLE_VERSION_SOURCE_FILE_NAME_GCY",
+        "getCurrentVehicleNewVersion()",
+        "VEHICLE_VERSION_NEW_FILE_NAME_GCY"
+      ],
+      "meaning": "Current request version getter reads source version; new-version getter is separate."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/FilePathManager.java",
+      "sha256": "1a03017010ce3d4f008537b748953baf8627c2400d5bcff1cc2934326871be2a",
+      "lineStart": 49,
+      "lineEnd": 53,
+      "requiredTokens": [
+        "\"VehicleVersion2\"",
+        "\"SourceVehicleVersion2\""
+      ],
+      "meaning": "Exact GCY filename constants distinguish target/new from source/current version."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/FilePathManager.java",
+      "sha256": "1a03017010ce3d4f008537b748953baf8627c2400d5bcff1cc2934326871be2a",
+      "lineStart": 82,
+      "lineEnd": 83,
+      "requiredTokens": [
+        "\"collect2\"",
+        "VEHICLE_VERSION_FILE_DIR"
+      ],
+      "meaning": "Both version files are under /collect2/."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+      "lineStart": 401,
+      "lineEnd": 420,
+      "requiredTokens": [
+        "getCurrentVehicleVersion()",
+        "\"ecuInfo\"",
+        "loadVehicleEcuVersionSync"
+      ],
+      "meaning": "GCY versionSync also sends source/current vehicle version plus six ECU fields."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+      "lineStart": 449,
+      "lineEnd": 454,
+      "requiredTokens": [
+        "onFail(String msg)",
+        "loadCheckVehicleVersion();"
+      ],
+      "meaning": "GCY versionSync failure callback still continues final checkVersion, matching observed104 then111."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+      "lineStart": 1996,
+      "lineEnd": 2001,
+      "requiredTokens": [
+        "saveECUVersion",
+        "ECU_VERSION_FILE_NAME",
+        "ecuVersion"
+      ],
+      "meaning": "GCY persists the request string before posting; retained cache age/specific-wire association remain unknown."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+      "lineStart": 89,
+      "lineEnd": 98,
+      "requiredTokens": [
+        "\"000000000000000000\"",
+        "ECU_NEGATIVE_VALUE = \"7F22\""
+      ],
+      "meaning": "Stock defaults/negative sentinel classify the retained cache; neither category identifies the offending server mismatch."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/CheckVersionInfoIsLegalUtil.java",
+      "sha256": "f9a3f5f59fca4f114b89e2d2a6aafb4626521ba7ba57cf5e1949f5a761708c76",
+      "lineStart": 31,
+      "lineEnd": 73,
+      "requiredTokens": [
+        "sequence.size() <= 0",
+        "strategy.strategyVer",
+        "targetPackageInfo.size() + info.configPackageInfo.size() < 1"
+      ],
+      "meaning": "A useful local plan requires nonempty sequence, strategy version and target/config packages; observed111 object fails these prerequisites."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+      "lineStart": 1126,
+      "lineEnd": 1129,
+      "requiredTokens": [
+        "saveEcuResultListInfoAfterDiagnosing",
+        "saveCurrentVehicleVersionInfo(info)"
+      ],
+      "meaning": "Valid server result is persisted as local strategy before processing packages."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+      "lineStart": 861,
+      "lineEnd": 879,
+      "requiredTokens": [
+        "getCurrentVehicleVersionInfo()",
+        "forceUpgradeOldVersion",
+        "isAllUpdateZipExisting(oldVersionInfo)",
+        "checkVersionSuccess(oldVersionInfo, true)"
+      ],
+      "meaning": "Existing local strategy affects forced-version resume/download policy; reading file alone invokes none of this."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "504c4c34f2ceb239fe1d596d754b274d48a5fc70a7405e8bfae6c3c90dbe631f",
+      "lineStart": 278,
+      "lineEnd": 281,
+      "requiredTokens": [
+        "saveCurrentVehicleVersionInfo(vehicleVersionInfo)"
+      ],
+      "meaning": "ProductLineOTA also persists a successful response model."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "504c4c34f2ceb239fe1d596d754b274d48a5fc70a7405e8bfae6c3c90dbe631f",
+      "lineStart": 713,
+      "lineEnd": 715,
+      "requiredTokens": [
+        "versionPath",
+        "downloadUpdatePackageFileData"
+      ],
+      "meaning": "Download consumes supplied package versionPath; a filename lead does not create a package offer."
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/ProductLineOTA/sources/com/byd/productlineota/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "504c4c34f2ceb239fe1d596d754b274d48a5fc70a7405e8bfae6c3c90dbe631f",
+      "lineStart": 1006,
+      "lineEnd": 1011,
+      "requiredTokens": [
+        "targetPackageInfo",
+        "configPackageInfo",
+        "sourcePackageInfo",
+        "configSourceInfo"
+      ],
+      "meaning": "Package consumer combines target, source and configuration package lists."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/model/VehicleVersionInfo.java",
+      "sha256": "d91e65ba53349b5f9bfb470ec8ed8ec81f422f18456d807bfbb855c1199d1e4e",
+      "lineStart": 93,
+      "lineEnd": 125,
+      "requiredTokens": [
+        "ecuDId",
+        "ecuDiaId",
+        "ecuId",
+        "ecuSoftCode",
+        "needSourcePkg",
+        "seq"
+      ],
+      "meaning": "Sequence carries target ECU identifiers, diagnostic routing/reprogram metadata and source-package requirements/order."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/model/EcuVersionInfo.java",
+      "sha256": "c387d10f868dd0d3da27356382d602cd01e191eb191a15c47e7315fb7f5c0b58",
+      "lineStart": 35,
+      "lineEnd": 59,
+      "requiredTokens": [
+        "ecuDescription",
+        "ecuId",
+        "ecuSoftCode",
+        "versionPath",
+        "encryptMd5"
+      ],
+      "meaning": "Package records carry identity/description and download/integrity metadata; no actual URL or secret is copied."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/util/ApiResponseUtil.java",
+      "sha256": "1875d558226b58ec5ddd0d1be81368509ea4380707c15c4903f78a9f90d46eee",
+      "lineStart": 16,
+      "lineEnd": 18,
+      "requiredTokens": [
+        "\"100\".equals(status)"
+      ],
+      "meaning": "Only application status100 is success;111 is not an offered plan."
+    }
+  ],
+  "boundedSourceLeads": {
+    "scope": "Two finite source leads only: tuple provenance and cached-plan/coordinator inheritance. No new cache access or server/vehicle request.",
+    "tupleProvenance": {
+      "result": "A concrete historical repair-substitution path exists; its use in18Oct run is unproved.",
+      "conditions": [
+        "Incoming software version0.00.00 or6.55.35.",
+        "Not a Media ECU and not mcu_default_id.",
+        "Same exact ecuId in retained repair history with isRepairEcu=1."
+      ],
+      "replacementFields": {
+        "ecuSoftCode": "repairEcuInfo.ecuSoftCode",
+        "ecuSoftVer": "repairEcuInfo.ecuOriginSVer"
+      },
+      "fieldsUntouchedByOverrideBlock": [
+        "ecuHardVer",
+        "ecuConfigCode",
+        "ecuConfigVer"
+      ],
+      "provenanceFlagLostInRequestProjection": "isRepairEcu is set internally but is not among the six ecuInfo fields, so request-shaped cache cannot prove live origin of all tuple members.",
+      "retainedCacheSoftwareVersionTriggerCounts": {
+        "0.00.00": 23,
+        "6.55.35": 0,
+        "7F22": 26
+      },
+      "runtimeEvidence": [
+        {
+          "path": "captures/ota-status-20261018/phase1-live-check-sanitized.txt",
+          "sha256": "762e6dba1a707220e8474bc959d8ad24849ffc4817285f9205e37f61d8b8318e",
+          "repairAdjustmentLogLines": 0
+        },
+        {
+          "path": "captures/ota-status-20261018/live-check-sanitized.txt",
+          "sha256": "7d8e932c623e74370ec33b7673111f51ed68d00dd9db1b58f2a33d37c5cfed23",
+          "repairAdjustmentLogLines": 0
+        }
+      ],
+      "limits": [
+        "Selected logs have no repair-adjustment lines, but logging gaps/tag selection prevent an absence-of-execution claim.",
+        "Repair preference contents and source-age/provenance are not retained; no read or private-cache bypass is proposed.",
+        "Current trigger-version counts are postprocessing cache values, not a count of substitutions. This is not the cause of111."
+      ]
+    },
+    "cachedPlanAndCoordinator": {
+      "result": "No demonstrated way to obtain an applicable update from the old local plan or by retrying another backend after111.",
+      "versionSync104": "Non100 status takes onFail, which proceeds to checkVersion without running the onSuccess write of latestVersion to SourceVehicleVersion2. Empty latestVersion in104 is not shown to overwrite V1.7.0.",
+      "forcedPlanGate": "111 is a failure before onSuccess; valid-response and legality gates precede isNeedDownloadCurrentVersion. Existing forced-old-plan resume logic is therefore not a111 fallback.",
+      "combinedPlanFailureCommand": "Settings failure calls sendCommandStartDiagnose -> NEED_DIAGNOSE. The combined-plan GCY command instruction dump logs that this command is not enabled. It does not implement an automatic GHY checkVersion fallback on111.",
+      "lockSyncQualification": "Do not generalize no-local-strategy-in-checkVersion to no strategy synchronization anywhere. GCY status messages can include a cached-plan summary, and GHY has a handler posting it with lockSync. Actual request body and any relation to server111 are unknown.",
+      "summaryFieldSchema": [
+        "batchId",
+        "date",
+        "strategyVer",
+        "description",
+        "functionAddition",
+        "functionOptimization",
+        "rollbackDependencies",
+        "targetPackageInfo[ecuId,ecuSoftVer,ecuSoftCode,dependencies,estimate]"
+      ],
+      "limits": [
+        "Relevant coordinator switch is retained as JADX instruction dump; dispatchPlatformStatus is not fully decompiled, so this is not a fully replayed runtime chain.",
+        "A successful lockSync is coordination success, not package eligibility or a package offer.",
+        "Earlier exported ordinary strategy paths were missing after the run; current productline path is inaccessible. Neither proves an available old plan at request time."
+      ]
+    },
+    "sourceAnchors": [
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DiagnosePresenter.java",
+        "sha256": "c7d9c943ba4c8f06efbe35e580bb58767c84376a9fc89c09465edb50e65a30ab",
+        "lineStart": 67,
+        "lineEnd": 76,
+        "requiredTokens": [
+          "this.mEcuListInfo.addAll(info.ecuList)",
+          "DEFAULT_ECU_SOFT_CODE_VALUE",
+          "DEFAULT_ECU_SOFT_VERSION_VALUE"
+        ],
+        "meaning": "Diagnosis begins with every server candidate initialized to stock default fields."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DiagnosePresenter.java",
+        "sha256": "c7d9c943ba4c8f06efbe35e580bb58767c84376a9fc89c09465edb50e65a30ab",
+        "lineStart": 282,
+        "lineEnd": 310,
+        "requiredTokens": [
+          "adjustEcuResultListInfoAfterDiagnosing();",
+          "DEFAULT_BAD_ECU_SOFT_VERSION_V",
+          "repairEcuInfo.isRepairEcu",
+          "e.ecuSoftCode = repairEcuInfo.ecuSoftCode;",
+          "e.ecuSoftVer = repairEcuInfo.ecuOriginSVer;",
+          "e.isRepairEcu = \"1\";"
+        ],
+        "meaning": "Before success callback, selected failed/default software tuples may be replaced from persisted repair data; hardware/config fields are not changed by this block."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+        "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+        "lineStart": 85,
+        "lineEnd": 91,
+        "requiredTokens": [
+          "DEFAULT_BAD_ECU_SOFT_VERSION_V = \"6.55.35\"",
+          "DEFAULT_ECU_SOFT_VERSION_VALUE = \"0.00.00\""
+        ],
+        "meaning": "Repair override triggers on these version strings, not software-version marker7F22."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+        "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+        "lineStart": 1357,
+        "lineEnd": 1368,
+        "requiredTokens": [
+          "SpUtil.putString(SpConfigConsts.REPAIR_UPGRADE_ECU_LIST_INFO",
+          "SpUtil.getString(SpConfigConsts.REPAIR_UPGRADE_ECU_LIST_INFO",
+          "OtaResultEcuInfo.class"
+        ],
+        "meaning": "Repair history is persisted in preferences; its actual contents/applicability were not exported or accessed in this pass."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/constant/SpConfigConsts.java",
+        "sha256": "0016f4c04c89c6772e55a52625cb39c9d63bf5991746296aff8446b81a826a29",
+        "lineStart": 32,
+        "lineEnd": 32,
+        "requiredTokens": [
+          "\"repairUpgradeEcuListInfo\""
+        ],
+        "meaning": "Exact private preference key for possible repair history, not authority to reopen it."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+        "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+        "lineStart": 345,
+        "lineEnd": 352,
+        "requiredTokens": [
+          "onSuccess(List<EcuListInfo.EcuListBean> list)",
+          "mEcuListInfo.addAll(list)",
+          "loadVehicleEcuVersionSync()"
+        ],
+        "meaning": "Adjusted list feeds sync and the subsequent checkVersion request."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/api/HttpApiService.java",
+        "sha256": "cddfc6653f4f21896cd8d3da52d0d4188a755f37289e186ac2bcb1b75c73bf2a",
+        "lineStart": 129,
+        "lineEnd": 142,
+        "requiredTokens": [
+          "!ApiResponseUtil.isRequestSuccess(status)",
+          "throw new ApiException(status"
+        ],
+        "meaning": "104/111 are converted into failures before the success callback;111 does not reach cache inheritance through success."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+        "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+        "lineStart": 778,
+        "lineEnd": 795,
+        "requiredTokens": [
+          "CheckVersionInfoIsLegalUtil.isLegalOfVehicleVersionInfo",
+          "if (!isLegal)",
+          "if (isNeedDownloadCurrentVersion(versionInfo))"
+        ],
+        "meaning": "Old forced-plan selection occurs only after a successful response and local legality gate."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/carsettingbroadcast/CarSettingBroadcastPresenter.java",
+        "sha256": "a200ba1bdf179e08887fc3c99e6489691f94b11e3075c6f92e20e4f1c0bb3452",
+        "lineStart": 91,
+        "lineEnd": 100,
+        "requiredTokens": [
+          "onCheckVersionFail(String msg)",
+          "sendCommandStartDiagnose()"
+        ],
+        "meaning": "Settings failure callback sends the coordinator NEED_DIAGNOSE command."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/common/UpdateOTABroadcastSender.java",
+        "sha256": "a5ab1e97189f42f7c2bac624a17c6d26da11b5a216c3e3fe60e1e6f1cbc33af0",
+        "lineStart": 51,
+        "lineEnd": 53,
+        "requiredTokens": [
+          "VALUE_NOTICE_STATUS_COMMAND_NEED_DIAGNOSE"
+        ],
+        "meaning": "Command method name is not proof of a GHY backend retry."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/platform/plan/PlanGcyAndGhyPlatform.java",
+        "sha256": "c1cd5d69ed32f1bb811cd2cf291303e83607343ec06a15e696bdcf831113e282",
+        "lineStart": 253,
+        "lineEnd": 257,
+        "requiredTokens": [
+          "Command NEED_DIAGNOSE From GCY is not enable!"
+        ],
+        "meaning": "Combined-plan instruction dump explicitly does not enable this GCY command; not an automatic alternate-backend111 fix."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+        "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+        "lineStart": 334,
+        "lineEnd": 365,
+        "requiredTokens": [
+          "vehicleVersionInfoToLockSyncStrategy",
+          "out.batchId",
+          "out.targetPackageInfo",
+          "bean.ecuSoftVer",
+          "getCurrentVehicleVersionInfoForLockSync()"
+        ],
+        "meaning": "A separate coordinator/lockSync path can report a summary of the cached plan; this is distinct from checkVersion body."
+      },
+      {
+        "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/common/UpdateOTABroadcastSender.java",
+        "sha256": "a5ab1e97189f42f7c2bac624a17c6d26da11b5a216c3e3fe60e1e6f1cbc33af0",
+        "lineStart": 75,
+        "lineEnd": 87,
+        "requiredTokens": [
+          "KEY_COMMON_STRATEGY",
+          "getCurrentVehicleVersionInfoForLockSync()"
+        ],
+        "meaning": "GCY status message includes summary of its current local strategy when present."
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/platformcommand/PlatformCommandBroadcastPresenter.java",
+        "sha256": "7e7de5f894384b84d85bbfe318fec45a0e3b0f7deae06000b4bb2c31423a58b6",
+        "lineStart": 289,
+        "lineEnd": 310,
+        "requiredTokens": [
+          "info.strategy = strategySync",
+          "loadLockSyncInfo(info)",
+          "LockSyncInfo.ReportStrategy.class"
+        ],
+        "meaning": "GHY coordinator handler accepts strategy summary for lockSync; actual18Oct request summary is not retained."
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/UpdateOTAPresenter.java",
+        "sha256": "b0d0c043b8c7f0fe1093cf2eebe7e31b89dcbeb89838b3a776a1b0f4e106162a",
+        "lineStart": 1799,
+        "lineEnd": 1812,
+        "requiredTokens": [
+          "String json = JSONUtil.toJson(info)",
+          "loadLockSyncInfo(json"
+        ],
+        "meaning": "LockSync has its own server request; its success does not offer update packages."
+      }
+    ],
+    "nextDecisiveInput": "The same missing input remains: an already authorized retained actual request/provenance plus applicable server expected ECU upgrade tuples or backend explanation. No further live operation or activation is proposed."
+  },
+  "leadAccessBoundary": {
+    "path": "research/vehicle-diagnostics/ecu-description-cache-lead-20261021.json",
+    "sha256": "611d8423343b7e02300ca4c4ec40111d6a35ea03cfcad73ab650825d4c4e78e1"
+  },
+  "finiteOfflineNextAnalysis": {
+    "completed": [
+      "Project exact104/111 replies without credentials or unique identities.",
+      "Trace actual source/current version getter used by sync/check.",
+      "Audit225 retained cache rows for default/negative classes and schema; compare ID set with later factory map."
+    ],
+    "result": "No exact mismatched ECU can be derived: server expected upgrade-detail tuples are absent, reply names none, and retained request body is a cache of unknown source age.",
+    "missingDecisiveInput": "A previously retained applicable server strategy/package-detail table or backend-side explanation listing expected/received ECU tuples; no such data is present in these inspected artifacts.",
+    "actionsProposed": []
+  },
+  "limits": [
+    "18Oct application104 does not prove no newer release exists globally; release-note text is not a package offer.",
+    "26 markers/23 defaults may be expected optional variants and are not established as cause of111.",
+    "Reading/parsing retained files invokes no client workflow; editing or activating the client is outside this task.",
+    "No local strategy edit is shown to change server eligibility or supply the absent package descriptors/blobs.",
+    "The cache lead has root-confirmed denied ancestor access; existence/content remain unknown.",
+    "No cloud/checkVersion/OTA/BydLog/vehicle request, credential action, installation or bypass occurred; old one-session approvals remain consumed."
+  ],
+  "eligibleForProductAllowlist": false,
+  "offlineChecker": {
+    "path": "research/vehicle-diagnostics/check_ota_strategy_mismatch.py",
+    "sha256": "4b6c904f7c4f311d0a10dc607ce29ee04d2daeedf6aabb3d53ff66611554e6ea",
+    "command": "python3 -B research/vehicle-diagnostics/check_ota_strategy_mismatch.py"
+  }
+}
