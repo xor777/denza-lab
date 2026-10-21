@@ -1,0 +1,893 @@
+{
+  "schema": "denza-lab.ecu-package-name-followup.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "scope": "Finite outer OTA component-package metadata and existing Java persistence-source investigation for nine remaining named ECU subroles. Owner corpora only; no suffix/DID-order or physical-identity inference.",
+  "operations": {
+    "vehicleRequests": 0,
+    "adbCalls": 0,
+    "networkRequests": 0,
+    "cloudRequests": 0,
+    "bydLogActions": 0,
+    "firmwareExecutions": 0,
+    "encryptedWrapperAcquisitions": 0,
+    "encryptedWrapperDecodes": 0,
+    "newExtractions": 0,
+    "newDecompiles": 0,
+    "otaActions": 0,
+    "productChanges": 0
+  },
+  "localReads": {
+    "completeOwnerArchiveHashes": 2,
+    "outerZipCentralDirectories": 2,
+    "plainFseConfigMemberBytes": 11,
+    "alreadyReadableXmlFiles": 1,
+    "pinnedSourceFiles": 15
+  },
+  "result": "no_new_exact_named_child_role_or_physical_brake_binding; outer_component_metadata_scope_and_single_download_record_path_qualified",
+  "newFindings": [
+    {
+      "claim": "The owner IVI outer ZIP has 38 members and the FSE outer ZIP has 11. The already-readable IVI Config manifest lists 35 package entries under Android, Mcu, Dsp, Anc and Screen; module declarations additionally include Camera. The plain FSE config is qc+mcu+dsp. These are IVI/FSE media-component package metadata, not a retained whole-car ECU package manifest.",
+      "sourceKeys": [
+        "archiveInventories",
+        "componentManifest"
+      ],
+      "qualification": "A missing INS/FRL/domain-switch identity here proves only no exact binding in this finite outer metadata; encrypted/member payloads and arbitrary partitions were not searched."
+    },
+    {
+      "claim": "None of the nine exact factory ECU IDs or complete nine-byte software codes appears in those outer inventories or sanitized readable-manifest attributes. No target component description can be joined from this source.",
+      "sourceKeys": [
+        "baseline",
+        "componentManifest",
+        "archiveInventories"
+      ],
+      "qualification": "No prefix/suffix inference, binary rescan or DID-number census was performed."
+    },
+    {
+      "claim": "VersionUpdateStrategyHelper serializes an entire EcuVersionInfo through JSONUtil.toJson and SpUtil.putString. The actual caller uses the single key otaUpdateDownloadFileInfo in share_data_prefs; EcuVersionInfo includes ecuDescription, ecuId, ecuSoftCode, ecuUpgradePart, fileName and isSourcePackage. This is an additional source-backed candidate for a legitimately retained sanitized descriptive record.",
+      "sourceKeys": [
+        "versionDownloadCache",
+        "sharePrefs",
+        "configConsts",
+        "ecuVersionModel",
+        "checkVersionPresenter"
+      ],
+      "qualification": "No raw preference file or key value was acquired. Existence, content, completeness and present accessibility of this key remain unverified. The model also contains private material; only a fixed field-only projection could be useful."
+    },
+    {
+      "claim": "That single download record may come from targetPackageInfo, configPackageInfo, sourcePackageInfo or configSourceInfo: all four feed mAllPackageInfo before index selection. It describes an update package and is not intrinsically an installed-unit or child-role identity.",
+      "sourceKeys": [
+        "checkVersionPresenter",
+        "vehicleVersionModel"
+      ],
+      "qualification": "The download cache match compares ECU id, hashes, paths and filename; it does not by itself prove equality with an observed installed full software code or applicability to a child DID."
+    },
+    {
+      "claim": "The retained approved export receipt records both GCY and GHY strategy.json as missing at its snapshot. It retained only four-byte and six-byte collect2 version-label files; source writes SourceVehicleVersion2 from strategy.strategyVer. They are not retained targetPackageInfo descriptions.",
+      "sourceKeys": [
+        "exportReceipt",
+        "bootPresenter",
+        "filePaths",
+        "vehicleUtil"
+      ],
+      "qualification": "This is a historical receipt, not a current filesystem observation. ProductLineOTA strategy path has a separate prior investigation; it is not newly closed here. A new OTA/check/download must not be started merely to populate these caches."
+    }
+  ],
+  "sources": {
+    "baseline": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/baseline.json",
+      "originalPath": "research/vehicle-diagnostics/ecu-role-binding-followup-20261021.json",
+      "bytes": 35163,
+      "sha256": "81007b4748cb800ae803d99851252aa619575306c036a0ea716238737dbb92ec"
+    },
+    "factory": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/factory.json",
+      "originalPath": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "bytes": 118681,
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    "cacheTargets": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/cacheTargets.json",
+      "originalPath": "captures/ecu-role-binding-followup-20261021/sources/cache-targets.json",
+      "bytes": 3002,
+      "sha256": "529d7f1e2d40dc5d7a013d48d3f620c3db4bf3e616ceda6d3a3f80789d8fbf1b"
+    },
+    "ecuVersionModel": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/ecuVersionModel.java",
+      "originalPath": "captures/ecu-role-binding-followup-20261021/sources/ecuVersionModel.java",
+      "bytes": 8845,
+      "sha256": "c387d10f868dd0d3da27356382d602cd01e191eb191a15c47e7315fb7f5c0b58"
+    },
+    "vehicleVersionModel": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/vehicleVersionModel.java",
+      "originalPath": "captures/ecu-role-binding-followup-20261021/sources/versionModel.java",
+      "bytes": 14817,
+      "sha256": "d91e65ba53349b5f9bfb470ec8ed8ec81f422f18456d807bfbb855c1199d1e4e"
+    },
+    "vehicleUtil": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/vehicleUtil.java",
+      "originalPath": "captures/ecu-role-binding-followup-20261021/sources/vehicleUtil.java",
+      "bytes": 115012,
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b"
+    },
+    "exportReceipt": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/exportReceipt.json",
+      "originalPath": "captures/diagnostics-discovery-20261018/approved-export-1/files/report.json",
+      "bytes": 1730,
+      "sha256": "1833ab9f75d1b3220e1ccde39c41e52d254458783255aa86500a8848610ae8b9"
+    },
+    "versionDownloadCache": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/versionDownloadCache.java",
+      "originalPath": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VersionUpdateStrategyHelper.java",
+      "bytes": 3599,
+      "sha256": "c78ffbbb22cd4614cf2a1009b8700501d926bbd31d2ba9a772a6e16e7160213e"
+    },
+    "filePaths": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/filePaths.java",
+      "originalPath": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/FilePathManager.java",
+      "bytes": 5657,
+      "sha256": "1a03017010ce3d4f008537b748953baf8627c2400d5bcff1cc2934326871be2a"
+    },
+    "checkVersionPresenter": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/checkVersionPresenter.java",
+      "originalPath": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "bytes": 142102,
+      "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e"
+    },
+    "sharePrefs": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/sharePrefs.java",
+      "originalPath": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/base/util/SpUtil.java",
+      "bytes": 2843,
+      "sha256": "7144642264555ac45ca3f7cae7101daaf85957b4ba474bb19fc2e291c9409cdd"
+    },
+    "configConsts": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/configConsts.java",
+      "originalPath": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/constant/ConfigConsts.java",
+      "bytes": 483,
+      "sha256": "57e6de3472c17d4af69573c94740255d7739100cccf64f1685dc206c72438eb1"
+    },
+    "bootPresenter": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/bootPresenter.java",
+      "originalPath": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/bootcompleted/BootCompletedBroadcastPresenter.java",
+      "bytes": 66799,
+      "sha256": "78db56a6c1c92f2161b30277655d6564684cc77c3d085f4ba9d498f062f44038"
+    },
+    "componentManifest": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/ivi-component-manifest.json",
+      "bytes": 7631,
+      "sha256": "e66504c9af3f8decc2905bb3a954ccff84d774750bc2f9010a677baba6bf94eb"
+    },
+    "archiveInventories": {
+      "path": "captures/ecu-package-name-followup-20261021/sources/outer-package-inventories.json",
+      "bytes": 12145,
+      "sha256": "df11185cf320cc3f033f6c8317f10134afb83cc8a284f68284b2531e1b7baa5d"
+    }
+  },
+  "sourceAnchors": [
+    {
+      "sourceKey": "versionDownloadCache",
+      "line": 49,
+      "literal": "public static synchronized void saveOrUpdateVersionOTACacheInfo("
+    },
+    {
+      "sourceKey": "versionDownloadCache",
+      "line": 50,
+      "literal": "String json = JSONUtil.toJson(downloadFileInfo);"
+    },
+    {
+      "sourceKey": "versionDownloadCache",
+      "line": 52,
+      "literal": "SpUtil.putString(downloadInfoKey, json);"
+    },
+    {
+      "sourceKey": "versionDownloadCache",
+      "line": 55,
+      "literal": "public static synchronized EcuVersionInfo getVersionOTACacheInfo("
+    },
+    {
+      "sourceKey": "versionDownloadCache",
+      "line": 57,
+      "literal": "json = SpUtil.getString(downloadInfoKey, null);"
+    },
+    {
+      "sourceKey": "sharePrefs",
+      "line": 15,
+      "literal": "mPrefs = context.getSharedPreferences(ConfigConsts.SHARE_DATA_PREFS_NAME, 0);"
+    },
+    {
+      "sourceKey": "sharePrefs",
+      "line": 53,
+      "literal": "getSPInstance().edit().putString(key, values).apply();"
+    },
+    {
+      "sourceKey": "configConsts",
+      "line": 9,
+      "literal": "SHARE_DATA_PREFS_NAME = \"share_data_prefs\""
+    },
+    {
+      "sourceKey": "checkVersionPresenter",
+      "line": 1159,
+      "literal": "this.mAllPackageInfo.addAll(info.targetPackageInfo);"
+    },
+    {
+      "sourceKey": "checkVersionPresenter",
+      "line": 1160,
+      "literal": "this.mAllPackageInfo.addAll(info.configPackageInfo);"
+    },
+    {
+      "sourceKey": "checkVersionPresenter",
+      "line": 1161,
+      "literal": "this.mAllPackageInfo.addAll(info.sourcePackageInfo);"
+    },
+    {
+      "sourceKey": "checkVersionPresenter",
+      "line": 1162,
+      "literal": "this.mAllPackageInfo.addAll(info.configSourceInfo);"
+    },
+    {
+      "sourceKey": "checkVersionPresenter",
+      "line": 1304,
+      "literal": "return this.mAllPackageInfo.get(index);"
+    },
+    {
+      "sourceKey": "checkVersionPresenter",
+      "line": 1326,
+      "literal": "final EcuVersionInfo cacheInfo = VersionUpdateStrategyHelper.getVersionOTACacheInfo(\"otaUpdateDownloadFileInfo\");"
+    },
+    {
+      "sourceKey": "checkVersionPresenter",
+      "line": 1367,
+      "literal": "VersionUpdateStrategyHelper.saveOrUpdateVersionOTACacheInfo(\"otaUpdateDownloadFileInfo\", info);"
+    },
+    {
+      "sourceKey": "ecuVersionModel",
+      "line": 37,
+      "literal": "public String ecuDescription;"
+    },
+    {
+      "sourceKey": "ecuVersionModel",
+      "line": 39,
+      "literal": "public String ecuId;"
+    },
+    {
+      "sourceKey": "ecuVersionModel",
+      "line": 40,
+      "literal": "public String ecuSoftCode;"
+    },
+    {
+      "sourceKey": "ecuVersionModel",
+      "line": 42,
+      "literal": "public String ecuUpgradePart;"
+    },
+    {
+      "sourceKey": "ecuVersionModel",
+      "line": 47,
+      "literal": "public String fileName;"
+    },
+    {
+      "sourceKey": "ecuVersionModel",
+      "line": 50,
+      "literal": "public boolean isSourcePackage;"
+    },
+    {
+      "sourceKey": "vehicleUtil",
+      "line": 314,
+      "literal": "public static VehicleVersionInfo getCurrentVehicleVersionInfo()"
+    },
+    {
+      "sourceKey": "vehicleUtil",
+      "line": 315,
+      "literal": "String oldStrategyJson = FileUtil.readTextFromFile(FilePathManager.OTA_UPDATE_RESULT_DIR + FilePathManager.VEHICLE_OTA_STRATEGY_FILE_NAME);"
+    },
+    {
+      "sourceKey": "vehicleUtil",
+      "line": 327,
+      "literal": "return FileUtil.writeStrWithProcessBuilder(FilePathManager.OTA_UPDATE_RESULT_DIR, FilePathManager.VEHICLE_OTA_STRATEGY_FILE_NAME, JSONUtil.toJson(info));"
+    },
+    {
+      "sourceKey": "filePaths",
+      "line": 36,
+      "literal": "VEHICLE_OTA_STRATEGY_FILE_NAME = \"strategy.json\""
+    },
+    {
+      "sourceKey": "filePaths",
+      "line": 56,
+      "literal": "String str = File.separator + \"data\" + File.separator + \"ota_package\" + File.separator;"
+    },
+    {
+      "sourceKey": "filePaths",
+      "line": 60,
+      "literal": "String str2 = str + \"ota\" + File.separator;"
+    },
+    {
+      "sourceKey": "filePaths",
+      "line": 63,
+      "literal": "String str3 = str2 + \"result\" + File.separator;"
+    },
+    {
+      "sourceKey": "filePaths",
+      "line": 64,
+      "literal": "OTA_UPDATE_RESULT_DIR = str3;"
+    },
+    {
+      "sourceKey": "bootPresenter",
+      "line": 902,
+      "literal": "FilePathManager.VEHICLE_VERSION_SOURCE_FILE_NAME_GCY, vehicleVersionInfo.strategy.strategyVer"
+    }
+  ],
+  "gapClosure": [
+    {
+      "factoryRecordIndex": 169,
+      "ecuId": "HTH-2021_INS_BYD_00400001",
+      "route": "723/72B",
+      "softwareCodeDid": "F394",
+      "fullSoftwareCode": "4B450011E0250037C1",
+      "candidateNamedRoleRows": [
+        {
+          "rowId": 1406,
+          "systemZh": "多媒体网/组合仪表_开阳MCU(比亚迪)(INS_MCU)"
+        },
+        {
+          "rowId": 1407,
+          "systemZh": "多媒体网/组合仪表_音源模块(比亚迪)(INS2)"
+        }
+      ],
+      "status": "unproven",
+      "qualifiedByThisReport": false,
+      "artifactThatClosesGap": {
+        "kind": "Applicable supplier/scanner component definition, or named component package manifest plus an explicit factory route/DID join",
+        "mustEstablish": [
+          "exact route 723/72B",
+          "child software-code DID F394",
+          "complete code 4B450011E0250037C1 or an explicitly applicable exact factory ECU ID",
+          "descriptive named subrole and applicable model/software scope"
+        ],
+        "insufficient": [
+          "parent function name",
+          "numeric suffix or DID order",
+          "shared code prefix",
+          "another reading of the same code/version",
+          "target description joined by ecuId alone with unqualified target code/applicability"
+        ]
+      }
+    },
+    {
+      "factoryRecordIndex": 170,
+      "ecuId": "HTH-2021_INS_BYD_00500001",
+      "route": "723/72B",
+      "softwareCodeDid": "F494",
+      "fullSoftwareCode": "4B450011E0250037D1",
+      "candidateNamedRoleRows": [
+        {
+          "rowId": 1406,
+          "systemZh": "多媒体网/组合仪表_开阳MCU(比亚迪)(INS_MCU)"
+        },
+        {
+          "rowId": 1407,
+          "systemZh": "多媒体网/组合仪表_音源模块(比亚迪)(INS2)"
+        }
+      ],
+      "status": "unproven",
+      "qualifiedByThisReport": false,
+      "artifactThatClosesGap": {
+        "kind": "Applicable supplier/scanner component definition, or named component package manifest plus an explicit factory route/DID join",
+        "mustEstablish": [
+          "exact route 723/72B",
+          "child software-code DID F494",
+          "complete code 4B450011E0250037D1 or an explicitly applicable exact factory ECU ID",
+          "descriptive named subrole and applicable model/software scope"
+        ],
+        "insufficient": [
+          "parent function name",
+          "numeric suffix or DID order",
+          "shared code prefix",
+          "another reading of the same code/version",
+          "target description joined by ecuId alone with unqualified target code/applicability"
+        ]
+      }
+    },
+    {
+      "factoryRecordIndex": 137,
+      "ecuId": "HTH-2021_FRL_BYD_00300001",
+      "route": "747/74F",
+      "softwareCodeDid": "F644",
+      "fullSoftwareCode": "48330011DEE3003B7A",
+      "candidateNamedRoleRows": [
+        {
+          "rowId": 1390,
+          "systemZh": "顶棚RLIN5网/前室内灯氛围灯左灯头(比亚迪)(FRL1)"
+        },
+        {
+          "rowId": 1391,
+          "systemZh": "顶棚RLIN5网/前室内灯氛围灯右灯头(比亚迪)(FRL2)"
+        },
+        {
+          "rowId": 1392,
+          "systemZh": "顶棚RLIN5网/前室内环境灯(比亚迪)(FRL3)"
+        }
+      ],
+      "status": "unproven",
+      "qualifiedByThisReport": false,
+      "artifactThatClosesGap": {
+        "kind": "Applicable supplier/scanner component definition, or named component package manifest plus an explicit factory route/DID join",
+        "mustEstablish": [
+          "exact route 747/74F",
+          "child software-code DID F644",
+          "complete code 48330011DEE3003B7A or an explicitly applicable exact factory ECU ID",
+          "descriptive named subrole and applicable model/software scope"
+        ],
+        "insufficient": [
+          "parent function name",
+          "numeric suffix or DID order",
+          "shared code prefix",
+          "another reading of the same code/version",
+          "target description joined by ecuId alone with unqualified target code/applicability"
+        ]
+      }
+    },
+    {
+      "factoryRecordIndex": 138,
+      "ecuId": "HTH-2021_FRL_BYD_00200001",
+      "route": "747/74F",
+      "softwareCodeDid": "F654",
+      "fullSoftwareCode": "48330011DEE3003B7B",
+      "candidateNamedRoleRows": [
+        {
+          "rowId": 1390,
+          "systemZh": "顶棚RLIN5网/前室内灯氛围灯左灯头(比亚迪)(FRL1)"
+        },
+        {
+          "rowId": 1391,
+          "systemZh": "顶棚RLIN5网/前室内灯氛围灯右灯头(比亚迪)(FRL2)"
+        },
+        {
+          "rowId": 1392,
+          "systemZh": "顶棚RLIN5网/前室内环境灯(比亚迪)(FRL3)"
+        }
+      ],
+      "status": "unproven",
+      "qualifiedByThisReport": false,
+      "artifactThatClosesGap": {
+        "kind": "Applicable supplier/scanner component definition, or named component package manifest plus an explicit factory route/DID join",
+        "mustEstablish": [
+          "exact route 747/74F",
+          "child software-code DID F654",
+          "complete code 48330011DEE3003B7B or an explicitly applicable exact factory ECU ID",
+          "descriptive named subrole and applicable model/software scope"
+        ],
+        "insufficient": [
+          "parent function name",
+          "numeric suffix or DID order",
+          "shared code prefix",
+          "another reading of the same code/version",
+          "target description joined by ecuId alone with unqualified target code/applicability"
+        ]
+      }
+    },
+    {
+      "factoryRecordIndex": 140,
+      "ecuId": "HTH-2021_FRL_BYD_00400001",
+      "route": "747/74F",
+      "softwareCodeDid": "FB24",
+      "fullSoftwareCode": "48330011DEE3003BB2",
+      "candidateNamedRoleRows": [
+        {
+          "rowId": 1390,
+          "systemZh": "顶棚RLIN5网/前室内灯氛围灯左灯头(比亚迪)(FRL1)"
+        },
+        {
+          "rowId": 1391,
+          "systemZh": "顶棚RLIN5网/前室内灯氛围灯右灯头(比亚迪)(FRL2)"
+        },
+        {
+          "rowId": 1392,
+          "systemZh": "顶棚RLIN5网/前室内环境灯(比亚迪)(FRL3)"
+        }
+      ],
+      "status": "unproven",
+      "qualifiedByThisReport": false,
+      "artifactThatClosesGap": {
+        "kind": "Applicable supplier/scanner component definition, or named component package manifest plus an explicit factory route/DID join",
+        "mustEstablish": [
+          "exact route 747/74F",
+          "child software-code DID FB24",
+          "complete code 48330011DEE3003BB2 or an explicitly applicable exact factory ECU ID",
+          "descriptive named subrole and applicable model/software scope"
+        ],
+        "insufficient": [
+          "parent function name",
+          "numeric suffix or DID order",
+          "shared code prefix",
+          "another reading of the same code/version",
+          "target description joined by ecuId alone with unqualified target code/applicability"
+        ]
+      }
+    },
+    {
+      "factoryRecordIndex": 5,
+      "ecuId": "HTH-2021_CDC_BYD_00200001",
+      "route": "720/728",
+      "softwareCodeDid": "C294",
+      "fullSoftwareCode": "4A500111DF019A0101",
+      "candidateNamedRoleRows": [
+        {
+          "rowId": 1455,
+          "systemZh": "诊断网/跨域计算平台_交换机(比亚迪)(CDC_JH)"
+        }
+      ],
+      "status": "unproven",
+      "qualifiedByThisReport": false,
+      "artifactThatClosesGap": {
+        "kind": "Applicable supplier/scanner component definition, or named component package manifest plus an explicit factory route/DID join",
+        "mustEstablish": [
+          "exact route 720/728",
+          "child software-code DID C294",
+          "complete code 4A500111DF019A0101 or an explicitly applicable exact factory ECU ID",
+          "descriptive named subrole and applicable model/software scope"
+        ],
+        "insufficient": [
+          "parent function name",
+          "numeric suffix or DID order",
+          "shared code prefix",
+          "another reading of the same code/version",
+          "target description joined by ecuId alone with unqualified target code/applicability"
+        ]
+      }
+    },
+    {
+      "factoryRecordIndex": 10,
+      "ecuId": "HTH-2021_F_ZCU_BYD_00200001",
+      "route": "720/728",
+      "softwareCodeDid": "C394",
+      "fullSoftwareCode": "4A500111DF01540101",
+      "candidateNamedRoleRows": [
+        {
+          "rowId": 1397,
+          "systemZh": "多媒体网/前域控制器_交换机(比亚迪)(F_ZCU_CJ)"
+        }
+      ],
+      "status": "unproven",
+      "qualifiedByThisReport": false,
+      "artifactThatClosesGap": {
+        "kind": "Applicable supplier/scanner component definition, or named component package manifest plus an explicit factory route/DID join",
+        "mustEstablish": [
+          "exact route 720/728",
+          "child software-code DID C394",
+          "complete code 4A500111DF01540101 or an explicitly applicable exact factory ECU ID",
+          "descriptive named subrole and applicable model/software scope"
+        ],
+        "insufficient": [
+          "parent function name",
+          "numeric suffix or DID order",
+          "shared code prefix",
+          "another reading of the same code/version",
+          "target description joined by ecuId alone with unqualified target code/applicability"
+        ]
+      }
+    },
+    {
+      "factoryRecordIndex": 7,
+      "ecuId": "HTH-2021_R_ZCU_BYD_00200001",
+      "route": "720/728",
+      "softwareCodeDid": "C494",
+      "fullSoftwareCode": "48450111DF01770101",
+      "candidateNamedRoleRows": [
+        {
+          "rowId": 1398,
+          "systemZh": "多媒体网/右域控制器_交换机(比亚迪)(R_ZCU_CJ)"
+        }
+      ],
+      "status": "unproven",
+      "qualifiedByThisReport": false,
+      "artifactThatClosesGap": {
+        "kind": "Applicable supplier/scanner component definition, or named component package manifest plus an explicit factory route/DID join",
+        "mustEstablish": [
+          "exact route 720/728",
+          "child software-code DID C494",
+          "complete code 48450111DF01770101 or an explicitly applicable exact factory ECU ID",
+          "descriptive named subrole and applicable model/software scope"
+        ],
+        "insufficient": [
+          "parent function name",
+          "numeric suffix or DID order",
+          "shared code prefix",
+          "another reading of the same code/version",
+          "target description joined by ecuId alone with unqualified target code/applicability"
+        ]
+      }
+    },
+    {
+      "factoryRecordIndex": 9,
+      "ecuId": "HTH-2021_B_ZCU_BYD_00200001",
+      "route": "720/728",
+      "softwareCodeDid": "C594",
+      "fullSoftwareCode": "48450111DF01760101",
+      "candidateNamedRoleRows": [
+        {
+          "rowId": 1396,
+          "systemZh": "多媒体网/后域控制器_交换机(比亚迪)(B_ZCU_CJ)"
+        }
+      ],
+      "status": "unproven",
+      "qualifiedByThisReport": false,
+      "artifactThatClosesGap": {
+        "kind": "Applicable supplier/scanner component definition, or named component package manifest plus an explicit factory route/DID join",
+        "mustEstablish": [
+          "exact route 720/728",
+          "child software-code DID C594",
+          "complete code 48450111DF01760101 or an explicitly applicable exact factory ECU ID",
+          "descriptive named subrole and applicable model/software scope"
+        ],
+        "insufficient": [
+          "parent function name",
+          "numeric suffix or DID order",
+          "shared code prefix",
+          "another reading of the same code/version",
+          "target description joined by ecuId alone with unqualified target code/applicability"
+        ]
+      }
+    }
+  ],
+  "brakeGap": {
+    "gap": "Physical relationship of OBD 7E5 and factory route 782",
+    "status": "unproven",
+    "qualifiedByThisReport": false,
+    "retainedIdentities": {
+      "7E5": {
+        "CALID": "4000825042253153",
+        "OBDName": "BSCM-BrakeSystem"
+      },
+      "782": {
+        "softwareCode": "32330011DF0B000101",
+        "candidateAliases": [
+          "ESP_BOSCH",
+          "IPB_BOSCH",
+          "BSC_BYD"
+        ]
+      }
+    },
+    "artifactThatClosesGap": {
+      "kind": "Applicable supplier/gateway definition identifying both routes of one physical component, or a documented unique physical-unit identifier available on both interfaces",
+      "mustEstablish": [
+        "installed unit/software applicability",
+        "exact routes 7E5 and 782",
+        "explicit common physical component identity"
+      ],
+      "insufficient": [
+        "distinct outgoing MCU CAN IDs",
+        "shared brake role or BSC token",
+        "CALID/software-code prefix comparison",
+        "equal empty DTC replies"
+      ]
+    }
+  },
+  "nextExactArtifact": {
+    "priority": "An applicable supplier/scanner component definition or named component manifest explicitly joining the exact route, child DID, full observed software code or precisely applicable factory ECU ID, and named subrole.",
+    "alternativeExistingMetadataLead": {
+      "kind": "Already legitimately retained, sanitized EcuVersionInfo package metadata plus applicability and route/DID evidence",
+      "sourceLocations": [
+        "targetPackageInfo/sourcePackageInfo in an existing applicable strategy.json",
+        "share_data_prefs / otaUpdateDownloadFileInfo, if legitimately retained"
+      ],
+      "fieldAllowlist": [
+        "ecuId",
+        "ecuDescription",
+        "ecuSoftCode",
+        "ecuSoftVer",
+        "ecuHardVer",
+        "ecuUpgradePart",
+        "fileName",
+        "isSourcePackage"
+      ],
+      "additionalProofRequired": [
+        "explicit package-list/source-versus-target context",
+        "observed-code equality or explicit installed-software applicability",
+        "exact factory record route and child DID",
+        "descriptive role unambiguous between candidate model rows"
+      ],
+      "excludedMaterial": [
+        "secretKey",
+        "secretIv",
+        "secretHeadData",
+        "safetyAccessKey",
+        "tokens or credentials",
+        "versionPath/dcdnVersionPath URLs",
+        "raw preference files or encrypted wrappers"
+      ],
+      "acquisitionAuthorizedByThisReport": false
+    },
+    "brake": "Applicable supplier/gateway definition naming both 7E5 and 782 as interfaces of one installed physical component, or the same documented unique physical-unit identifier on both interfaces."
+  },
+  "preservedBoundaries": [
+    "Nine named subroles remain unbound; exact family, route, child DID and complete code stay together.",
+    "Eight prior child software identities remain parent-reported identities behind four logical CAN parents; no new CAN address, physical child separation or independent DTC memory is inferred.",
+    "MCU outgoing-ID preservation distinguishes the two numeric routes 7E5/782 at the traced boundary; it supplies no common physical-unit identity.",
+    "F394 and F494 collisions at other routes remain relevant; DID alone is not a role key.",
+    "The prior 13-binary/23-DID-hit audit was retained, not repeated."
+  ],
+  "limits": [
+    "All nine named child subroles remain unproven; no product catalogue or role was changed.",
+    "The 7E5/782 physical relationship remains unproven.",
+    "The prior SMM registry, FSE positive control and 13-binary/23-false-DID-hit scan were not repeated.",
+    "No raw preference contents, encrypted wrappers, XCD body, new firmware copy or native disassembly was acquired or decoded.",
+    "A component package description without exact installed applicability is not sufficient for role promotion."
+  ],
+  "checker": {
+    "path": "research/vehicle-diagnostics/check_ecu_package_name_followup.py",
+    "command": "python3 research/vehicle-diagnostics/check_ecu_package_name_followup.py --rehash-archives"
+  },
+  "verifiedFacts": {
+    "outerArchives": [
+      {
+        "archive": "Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip",
+        "members": 38,
+        "archiveBytes": 10856386829,
+        "archiveSha256": "bfb4e57834f5b15f30b2d3d94009d0bf756e95225c7afea34145e949ab023014",
+        "packageRoots": [
+          "Anc",
+          "Android",
+          "Config.xml",
+          "Dsp",
+          "META-INF",
+          "Mcu",
+          "Screen",
+          "metadata"
+        ],
+        "plainConfig": null
+      },
+      {
+        "archive": "Di5.1_FSE_42.1.8.2605219.1.42.2.3.2605250.2.zip",
+        "members": 11,
+        "archiveBytes": 2736968467,
+        "archiveSha256": "1283f97fdcb9f511d5443e0a9cc7c5cd318dfc6152e413b99fd5052598aae5fb",
+        "packageRoots": [
+          "META-INF",
+          "config",
+          "dspres_e_0.xcd",
+          "dspres_e_0.xcd.txt",
+          "mcu_42_2_3.xcd",
+          "mcu_42_2_3.xcd.txt",
+          "metadata",
+          "update.zip"
+        ],
+        "plainConfig": "qc+mcu+dsp\n"
+      }
+    ],
+    "readableIviManifest": {
+      "packageCount": 35,
+      "moduleNames": [
+        "Android",
+        "Mcu",
+        "Dsp",
+        "Anc",
+        "Screen",
+        "Camera"
+      ],
+      "upgradeModules": [
+        "Android",
+        "Mcu",
+        "Dsp",
+        "Anc",
+        "Screen"
+      ],
+      "screenDids": [
+        "F254",
+        "F264"
+      ],
+      "cameraDids": [
+        "F194"
+      ]
+    },
+    "exactIdentityMatchesInOuterMetadata": [
+      {
+        "ecuId": "HTH-2021_INS_BYD_00400001",
+        "fullSoftwareCode": "4B450011E0250037C1",
+        "exactEcuIdHits": 0,
+        "exactFullSoftwareCodeHits": 0
+      },
+      {
+        "ecuId": "HTH-2021_INS_BYD_00500001",
+        "fullSoftwareCode": "4B450011E0250037D1",
+        "exactEcuIdHits": 0,
+        "exactFullSoftwareCodeHits": 0
+      },
+      {
+        "ecuId": "HTH-2021_FRL_BYD_00300001",
+        "fullSoftwareCode": "48330011DEE3003B7A",
+        "exactEcuIdHits": 0,
+        "exactFullSoftwareCodeHits": 0
+      },
+      {
+        "ecuId": "HTH-2021_FRL_BYD_00200001",
+        "fullSoftwareCode": "48330011DEE3003B7B",
+        "exactEcuIdHits": 0,
+        "exactFullSoftwareCodeHits": 0
+      },
+      {
+        "ecuId": "HTH-2021_FRL_BYD_00400001",
+        "fullSoftwareCode": "48330011DEE3003BB2",
+        "exactEcuIdHits": 0,
+        "exactFullSoftwareCodeHits": 0
+      },
+      {
+        "ecuId": "HTH-2021_CDC_BYD_00200001",
+        "fullSoftwareCode": "4A500111DF019A0101",
+        "exactEcuIdHits": 0,
+        "exactFullSoftwareCodeHits": 0
+      },
+      {
+        "ecuId": "HTH-2021_F_ZCU_BYD_00200001",
+        "fullSoftwareCode": "4A500111DF01540101",
+        "exactEcuIdHits": 0,
+        "exactFullSoftwareCodeHits": 0
+      },
+      {
+        "ecuId": "HTH-2021_R_ZCU_BYD_00200001",
+        "fullSoftwareCode": "48450111DF01770101",
+        "exactEcuIdHits": 0,
+        "exactFullSoftwareCodeHits": 0
+      },
+      {
+        "ecuId": "HTH-2021_B_ZCU_BYD_00200001",
+        "fullSoftwareCode": "48450111DF01760101",
+        "exactEcuIdHits": 0,
+        "exactFullSoftwareCodeHits": 0
+      }
+    ],
+    "downloadRecordStorage": {
+      "preferenceName": "share_data_prefs",
+      "key": "otaUpdateDownloadFileInfo",
+      "fullModelSerialized": true,
+      "safeFieldsDeclaredInModel": [
+        "ecuId",
+        "ecuDescription",
+        "ecuSoftCode",
+        "ecuSoftVer",
+        "ecuHardVer",
+        "ecuUpgradePart",
+        "fileName",
+        "isSourcePackage"
+      ],
+      "packageListsFeedingDownloadQueue": [
+        "targetPackageInfo",
+        "configPackageInfo",
+        "sourcePackageInfo",
+        "configSourceInfo"
+      ],
+      "cacheEqualityFields": [
+        "encryptMd5",
+        "encryptSHA256",
+        "ecuId",
+        "fileDir",
+        "fileName",
+        "versionPath",
+        "dcdnVersionPath"
+      ],
+      "installedSoftwareCodeComparedByCacheEquality": false,
+      "recordAcquired": false
+    },
+    "retainedExport": {
+      "missingStrategyPathsAtSnapshot": [
+        "/data/ota_package/ota_ghy/result/strategy.json",
+        "/data/ota_package/ota/result/strategy.json"
+      ],
+      "versionLabelFiles": [
+        {
+          "path": "/collect2/VehicleVersion2",
+          "bytes": 4,
+          "sha256": "35a6fd96d1fdcfa5e7af2835bcbb523bd99798499c8115df9eaba3b77c261ba8"
+        },
+        {
+          "path": "/collect2/SourceVehicleVersion2",
+          "bytes": 6,
+          "sha256": "372cd2377dd2e60c9323fe9e2a7a606cb08babce08e17173100e2d93161e6f98"
+        }
+      ],
+      "currentFilesystemStateEstablished": false,
+      "fullPreferenceFileRetainedByReceipt": false
+    },
+    "namedChildRolesClosed": 0,
+    "remainingNamedChildRoles": 9,
+    "brakePhysicalRelationship": null
+  }
+}

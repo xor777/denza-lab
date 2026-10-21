@@ -1,0 +1,389 @@
+{
+  "schema": "denza-lab.dtc-persistence-followup.v1",
+  "date": "2026-10-21",
+  "scope": "Offline retained owner APK/source/receipt evidence. Original EOL dictionary recovery and exact manual-cache locator; no new car or factory-server access.",
+  "status": "persistence_sources_and_subset_label_recovery_qualified_in_code; actual_applicable_content_missing",
+  "captureBase": "captures/dtc-persistence-followup-20261021",
+  "actions": {
+    "vehicleOperations": 0,
+    "adbOperations": 0,
+    "networkRequests": 0,
+    "factoryServerRequests": 0,
+    "BydLogOperations": 0,
+    "credentialAcquisitions": 0,
+    "encryptedWrapperDecodes": 0,
+    "firmwareExecutions": 0,
+    "otaActions": 0,
+    "productChanges": 0
+  },
+  "result": {
+    "newQualifiedOemDefinitions": 0,
+    "newQualifiedWarningDtcLinks": 0,
+    "newQualifiedFormat01Mappings": 0,
+    "applicableOriginalScriptRecovered": false,
+    "selectedScriptTuple": null,
+    "actualAfterRunResultRecovered": false,
+    "actualManualDatabaseRecovered": false
+  },
+  "newFindings": [
+    {
+      "id": "result_subset",
+      "claim": "afterRunRes can preserve a subset of formatted DTC plus factory-description pairs, not only generic display text.",
+      "chain": [
+        "MatchUtils.lambda$log1902$9 reads raw numeric code and finds Attach.Dtc.getCode equality, then gets getDesc; missing description becomes empty string.",
+        "It formats the code using its own P/C/B/U transformation, appends code/status/description to system output, and adds \"%s - %s\" to CaseStatus.troubleCodes.",
+        "ScriptRunCompleteManager selects non-success systems and cases whose code is not1000; each troubleCodes string becomes SystemResult.itemDesc, name is systemId. Without troubleCodes it stores caseName instead.",
+        "complete schedules persistence only when afterDoneEnterSuperLowPower is true and status is not USER_CANCEL, REMOTE_CANCEL or STRATEGY_FAIL; the delayed handler saves RunResultModelData before enterLowPower.",
+        "ScriptResultDao serializes this model into afterRunRes through SpUtils. runCommandData is transient; the persisted name/itemDesc pair has no separate script tuple, ECU address, software code or raw status.",
+        "This is a short-lived continuation cache: it is cleared on low-power failure or the20-second still-alive callback, on result-close confirmation, and when a restored display increments showTime to>=3."
+      ],
+      "qualification": "Source and original DEX proof, not a recovered vehicle record. Only failures that reached this path and were not suppressed by the MATCH_WHITES filter can appear. Generic case labels can coexist. Text is candidate historical evidence until independently joined to original script/ECU/software; stock formatting is not qualification of format01 for this car.",
+      "sourceKeys": [
+        "dtc_lookup",
+        "result_builder",
+        "result_model",
+        "result_storage",
+        "preferences",
+        "result_restore",
+        "result_close"
+      ]
+    },
+    {
+      "id": "storage_scope",
+      "claim": "RUNNING_TASK and afterRunRes share device-protected package preferences. The former has downloadCommand.scriptList selection identities; station sessions do not add a dictionary.",
+      "qualification": "These paths were already source-derived in earlier research. This pass refines what each field can recover; it is not a newly observed cache. The prior approved receipt checked only RUNNING_TASK and reported key_missing in a65-byte preferences file; it did not project afterRunRes. No reason to infer current contents or to repeat acquisition without changed evidence.",
+      "sourceKeys": [
+        "preferences",
+        "task",
+        "download",
+        "script_identity",
+        "script_request",
+        "station"
+      ]
+    },
+    {
+      "id": "manual_db_join",
+      "claim": "ManualRunnable writes the package manifest to classify_cache.db/classify; media_cache.db/media_cache maps the exact URL to the downloaded local file and state.",
+      "qualification": "The failed JADX queryByPage stub was closed with original classes.dex disassembly. queryByPage filters vin and page, orders _id_id, and reconstructs ZipInfo in MANUAL and SANBAO branches. These are manual packages, not demonstrated diagnostic scenarios or ECU-wide DTC dictionaries.",
+      "sourceKeys": [
+        "manual_writer",
+        "manual_schema",
+        "media_schema",
+        "media_state"
+      ]
+    },
+    {
+      "id": "archive_name",
+      "claim": "LocalPathUtil strips non-word characters from the final raw URL substring. ManualFragment.getUnZipFolder then removes exactly the last3 characters of the absolute downloaded filename.",
+      "qualification": "Confirmed original DEX at code_item0x3474f8. It does not parse an extension or strip a query first; do not invent a .zip path. Prefer actual persisted targetFile and media local_path. getLocalPath can initiate a download and the DB singleton opens a writable database, so invoking the app/helper is not an inspection-only operation.",
+      "sourceKeys": [
+        "manual_locator",
+        "manual_cache_dir",
+        "manual_unpack",
+        "manual_schema",
+        "media_schema"
+      ]
+    },
+    {
+      "id": "logging_scope",
+      "claim": "BydEolLog and manual MLog send inspected messages to android.util.Log. This call chain does not establish a durable app-owned report archive.",
+      "qualification": "Four retained logs were searched for8 new manual-related markers; zero matches. This says nothing about current private storage, arbitrary-name files or other historical logs.",
+      "sourceKeys": [
+        "eol_log",
+        "manual_log"
+      ]
+    }
+  ],
+  "storageMap": [
+    {
+      "kind": "original_script",
+      "path": "/sdcard/Android/data/com.byd.spotinspection/files/Scripts/<forStation>/<scriptCode>-<scriptVersion>-script.txt",
+      "value": "data.attach[].dtcList numeric code/desc plus ECU metadata",
+      "status": "prior external cache empty; no applicable original content recovered"
+    },
+    {
+      "kind": "task_identity",
+      "path": "/data/user_de/0/com.byd.spotinspection/shared_prefs/com.byd.spotinspection.xml",
+      "key": "RUNNING_TASK",
+      "allowedProjection": [
+        "downloadCommand.scriptList[].scriptCode",
+        "downloadCommand.scriptList[].scriptVersion",
+        "downloadCommand.scriptList[].scriptFormatVer",
+        "downloadCommand.scriptList[].forStation",
+        "downloadCommand.scriptList[].scriptName",
+        "downloadCommand.scriptList[].funcType"
+      ],
+      "excluded": [
+        "header",
+        "taskId",
+        "token",
+        "downloadBaseUrl",
+        "resultUploadUrl"
+      ],
+      "status": "prior selected-key receipt: key_missing, not refreshed"
+    },
+    {
+      "kind": "historical_failure_labels",
+      "path": "/data/user_de/0/com.byd.spotinspection/shared_prefs/com.byd.spotinspection.xml",
+      "key": "afterRunRes",
+      "allowedProjection": [
+        "commandStatus",
+        "finish",
+        "total",
+        "systemResultList[].name",
+        "systemResultList[].itemDesc"
+      ],
+      "missingBinding": [
+        "scriptCode",
+        "scriptVersion",
+        "forStation",
+        "ECU_address",
+        "ECU_software",
+        "rawDTC_status"
+      ],
+      "status": "short-lived source-backed recovery candidate only; no actual value; explicit clear paths qualified"
+    },
+    {
+      "kind": "manual_manifest",
+      "path": "/data/user/0/com.byd.auto_emanual/databases/classify_cache.db",
+      "table": "classify",
+      "filter": "retain only actual MANUAL/SANBAO package rows; local per-vehicle selection without exporting VIN",
+      "columns": {
+        "page": "package page selector",
+        "header": "zipUploadTime",
+        "coverPath": "zipUrl",
+        "footer": "zipSize",
+        "path": "targetFile (unpacked directory)",
+        "reserve_one": "serverFilepath",
+        "type": "ZIP for ManualRunnable insert",
+        "classify": "sanitized final raw URL substring"
+      },
+      "status": "derived expected user0 CE path; no live stat or copy"
+    },
+    {
+      "kind": "manual_download_locator",
+      "path": "/data/user/0/com.byd.auto_emanual/databases/media_cache.db",
+      "table": "media_cache",
+      "columns": {
+        "url": "exact in-memory join to classify.coverPath",
+        "local_path": "downloaded archive path",
+        "state": "1 DONE,0 LOADING",
+        "current": "download position",
+        "file_size": "declared file size",
+        "time": "cache timestamp"
+      },
+      "status": "derived expected user0 CE path; no live stat or copy"
+    }
+  ],
+  "manualDbJoin": {
+    "join": "classify.coverPath = media_cache.url (exact string, local only)",
+    "requiredPackageFields": [
+      "page",
+      "header",
+      "coverPath",
+      "footer",
+      "path",
+      "reserve_one"
+    ],
+    "completionPredicate": "media_cache.state==1 AND actual local_path exists; DB state alone is insufficient",
+    "pathContext": "MApp and both DB constructors use ordinary applicationContext; manifest does not opt into defaultToDeviceProtectedStorage. User0 CE absolute paths are platform-layout inferences, not observed paths.",
+    "cacheFallback": "existing externalCacheDir else internal getCacheDir; do not assume one guaranteed location",
+    "privacy": "VIN, raw URLs with query/auth/userinfo, arbitrary non-package rows and unfiltered preference/header fields must not enter a retained projection. Exact URL join can be performed in memory before redaction.",
+    "consistency": "A future SQLite acquisition needs a consistent read snapshot or matching WAL state. No live DB copy or projection was attempted.",
+    "notProven": [
+      "manual contains service DTC meanings",
+      "manual matches present ECU software",
+      "package URL is public or currently accessible",
+      "cache exists or is readable today"
+    ]
+  },
+  "verification": {
+    "javaAndManifestSources": 23,
+    "dexMethods": 11,
+    "rawInstructionLines": 715,
+    "dexAddressConvention": "DEX code_item and instruction file offsets in each named DEX member; no virtual-address rebase. Printed raw instruction bytes are compared directly.",
+    "methods": [
+      {
+        "package": "captures/hud-firmware-20260923/system/system/app/BydAutoManual/BydAutoManual.apk",
+        "class": "Lcom/byd/auto_emanual/ClassifyDbUtil;",
+        "method": "queryByPage",
+        "codeItemFileOffset": "0x33b0a4",
+        "instructionsFileOffset": "0x33b0b4",
+        "instructionUnits": 592,
+        "instructionsSha256": "7205b2694e809604a35a628e0f556ffa371c23531549a017fcde4d2fb5517d45",
+        "verifiedInstructionLines": 285,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "captures/hud-firmware-20260923/system/system/app/BydAutoManual/BydAutoManual.apk",
+        "class": "Lcom/byd/auto_emanual/fragment/ManualFragment;",
+        "method": "getUnZipFolder",
+        "codeItemFileOffset": "0x3474f8",
+        "instructionsFileOffset": "0x347508",
+        "instructionUnits": 16,
+        "instructionsSha256": "2bc75abc44b19a899303326cdd098a49319529aa1607e2a68bc19db2dabaa5de",
+        "verifiedInstructionLines": 9,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "reverse/speaker-lift/SpotInspection.apk",
+        "class": "Lcom/byd/spotinspection/eol/executor/runner/ScriptRunCompleteManager;",
+        "method": "lambda$complete$2",
+        "codeItemFileOffset": "0x3da5f8",
+        "instructionsFileOffset": "0x3da608",
+        "instructionUnits": 21,
+        "instructionsSha256": "0b2bf80c54ff1752e8933d7cd246b84e2c29a4d76b2c0ed0288c7935f9f8c201",
+        "verifiedInstructionLines": 10,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "reverse/speaker-lift/SpotInspection.apk",
+        "class": "Lcom/byd/spotinspection/eol/executor/runner/ScriptRunCompleteManager;",
+        "method": "lambda$complete$3",
+        "codeItemFileOffset": "0x3da098",
+        "instructionsFileOffset": "0x3da0a8",
+        "instructionUnits": 89,
+        "instructionsSha256": "201dd0cb7d58a662faac41ed5840e3ff737d8d77234aa2323f8187a87d5e64c0",
+        "verifiedInstructionLines": 44,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "reverse/speaker-lift/SpotInspection.apk",
+        "class": "Lcom/byd/spotinspection/eol/executor/runner/ScriptRunCompleteManager;",
+        "method": "complete",
+        "codeItemFileOffset": "0x3da198",
+        "instructionsFileOffset": "0x3da1a8",
+        "instructionUnits": 185,
+        "instructionsSha256": "db32c046fbb43029b51ef3394676e18fa394d7867398d666f882eebeccfe52bf",
+        "verifiedInstructionLines": 90,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "reverse/speaker-lift/SpotInspection.apk",
+        "class": "Lcom/byd/spotinspection/eol/executor/runner/ScriptRunCompleteManager;",
+        "method": "lambda$complete$4$com-byd-spotinspection-eol-executor-runner-ScriptRunCompleteManager",
+        "codeItemFileOffset": "0x3da634",
+        "instructionsFileOffset": "0x3da644",
+        "instructionUnits": 34,
+        "instructionsSha256": "c64f95acffbf161ddccce5728cffc7ed7dd0854c51d7c373584d8687aa187b3b",
+        "verifiedInstructionLines": 16,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "reverse/speaker-lift/SpotInspection.apk",
+        "class": "Lcom/byd/spotinspection/eol/executor/util/MatchUtils$$ExternalSyntheticLambda14;",
+        "method": "apply",
+        "codeItemFileOffset": "0x3dfe10",
+        "instructionsFileOffset": "0x3dfe20",
+        "instructionUnits": 7,
+        "instructionsSha256": "f5353e6bc0b3353d7e83cb07cf1ea3928c432a8f535b1b3fa5656bbda7c8ec43",
+        "verifiedInstructionLines": 4,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "reverse/speaker-lift/SpotInspection.apk",
+        "class": "Lcom/byd/spotinspection/eol/executor/util/MatchUtils$$ExternalSyntheticLambda16;",
+        "method": "apply",
+        "codeItemFileOffset": "0x3dfec0",
+        "instructionsFileOffset": "0x3dfed0",
+        "instructionUnits": 7,
+        "instructionsSha256": "b71c24df2397d1360f4b0a28b5147845fbe5f395335378da8533e5c25e77242e",
+        "verifiedInstructionLines": 4,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "reverse/speaker-lift/SpotInspection.apk",
+        "class": "Lcom/byd/spotinspection/eol/executor/util/MatchUtils$$ExternalSyntheticLambda3;",
+        "method": "test",
+        "codeItemFileOffset": "0x3e00f4",
+        "instructionsFileOffset": "0x3e0104",
+        "instructionUnits": 9,
+        "instructionsSha256": "e0d0817727a9de9b34203b55724220cb2ba86c3accfc0e5c363e323ce2fca438",
+        "verifiedInstructionLines": 5,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "reverse/speaker-lift/SpotInspection.apk",
+        "class": "Lcom/byd/spotinspection/eol/executor/util/MatchUtils;",
+        "method": "lambda$log1902$7",
+        "codeItemFileOffset": "0x3e0434",
+        "instructionsFileOffset": "0x3e0444",
+        "instructionUnits": 18,
+        "instructionsSha256": "36bea77bb559ed610fed8d10a35cdec64e8c15d0863f3450f68553de1c0902f8",
+        "verifiedInstructionLines": 10,
+        "dexMember": "classes.dex"
+      },
+      {
+        "package": "reverse/speaker-lift/SpotInspection.apk",
+        "class": "Lcom/byd/spotinspection/eol/executor/util/MatchUtils;",
+        "method": "lambda$log1902$9",
+        "codeItemFileOffset": "0x3e0d00",
+        "instructionsFileOffset": "0x3e0d10",
+        "instructionUnits": 469,
+        "instructionsSha256": "1482e2f561da201c576b5db0ac16138fd080bd6ae50736b88ed7fbc6a3df3181",
+        "verifiedInstructionLines": 238,
+        "dexMember": "classes.dex"
+      }
+    ],
+    "historicalLogFiles": 4,
+    "historicalLogBytes": 595823200,
+    "historicalLogLines": 5243436,
+    "manualMarkerHits": 0,
+    "exactNamedLocalCaches": 0
+  },
+  "evidence": {
+    "sourceAnchors": {
+      "path": "captures/dtc-persistence-followup-20261021/source-anchors.json",
+      "sha256": "5a26be6e648b5bb79e6fd04d6473e9e289aa396b2fd53ae558ebd2afabc2373d",
+      "bytes": 57231
+    },
+    "bytecode": {
+      "path": "captures/dtc-persistence-followup-20261021/bytecode-evidence.json",
+      "sha256": "5a098e5d7a62db8369758f7ecba2cb205ca7d3aa968088e42ab41e9a82b937e9",
+      "bytes": 108804
+    },
+    "manualLogs": {
+      "path": "captures/dtc-persistence-followup-20261021/manual-log-projection.json",
+      "sha256": "ebd599c6b1b6a94eb186742f33f17e6b79e4f78597e40203616eb8f055889491",
+      "bytes": 2060
+    },
+    "cacheNames": {
+      "path": "captures/dtc-persistence-followup-20261021/exact-cache-names.json",
+      "sha256": "135339062d12e5e3d44833f67dca399c1a033aaeffed3ca90dafea291a88c455",
+      "bytes": 464
+    },
+    "builder": {
+      "path": "captures/dtc-persistence-followup-20261021/build_evidence.py",
+      "sha256": "4fd21e201632124f067f4ccc54060de94cf057fe73e432594a01c0b8b5891e00",
+      "bytes": 8777
+    }
+  },
+  "priorEvidence": [
+    {
+      "path": "research/vehicle-diagnostics/factory-scenario-origin-20261021.json",
+      "sha256": "5d05824fd134c2ec60101711ecaa611a678cfd07bd24cd78cfeaecded83a6a20",
+      "bytes": 31651
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-dtc-script-route-20261021.json",
+      "sha256": "94a8eccc9421c52160b960fab83e734a41423c521d543992c74f2dfa92d23d61",
+      "bytes": 7712
+    },
+    {
+      "path": "research/vehicle-diagnostics/dtc-packed-source-followup-20261021.json",
+      "sha256": "cbd130ebf7c77d2e572948af1dedd39ec2e7e04fe87942cd27058204c6feabd2",
+      "bytes": 10561
+    },
+    {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-2/files/report.json",
+      "sha256": "8f9ea5f91044e7bbae59f68dfeb0de2843d72ac613eab7150dd36b746f928777",
+      "bytes": 1208
+    }
+  ],
+  "nextUsefulEvidence": [
+    "An already existing original script with station/code/version and ECU/software applicability remains the primary dictionary source.",
+    "If a legitimate historical afterRunRes value is available, retain name/itemDesc as historical candidates with provenance; do not infer a full dictionary or present fault state.",
+    "A consistent pair of manual DB projections can locate the exact retained archive/HTML directory. Inspect an existing package before deciding whether it contains diagnostic information; do not launch a download merely to fill caches."
+  ],
+  "unchangedGaps": "No new ECM/BMS/drive factory DTC definitions. Six BMS heading misses, P2BAE00 conflict, format01 qualification and warning-to-DTC relation remain open."
+}
