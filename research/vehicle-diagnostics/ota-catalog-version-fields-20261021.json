@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "GCY catalog version fields after user0 export readiness correction",
+  "summary": {
+    "catalogRecords": 225,
+    "allSixInspectedFieldsAbsent": true,
+    "priorProjectedRowsUnchanged": true,
+    "finalCloudRequests": 2,
+    "traceFailureCloudRequests": 0,
+    "ecuCalls": 0,
+    "downloadOrInstall": false,
+    "allCleanupVerified": true,
+    "postflightAtUtc": "2026-10-21T15:17:44.343951+00:00"
+  },
+  "sources": {
+    "priorCatalog": {
+      "path": "captures/ota-login-catalog-20261021/read-v6/session/session.json",
+      "sha256": "b25c92eac265ccfe75bd543afb14bad235c0de134446277d4e5f382470da02ba"
+    },
+    "portOwner": {
+      "path": "captures/ota-catalog-listener-trace-20261021/port-owner.json",
+      "sha256": "06a8de0f3f827cf88f5214010202487ac0cb7f91adbbcdb3fd429e6ec9af102c"
+    },
+    "stockExportServer": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydLogTool/sources/com/byd/bydlogtool/socket/filetransfer/FileTransferServer.java",
+      "sha256": "11f91c0280aadc43492b9ebf1bdd23f46bc8c739e2e6e9ee30309275fbe0793f"
+    },
+    "stockStartStop": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydLogTool/sources/com/byd/bydlogtool/LogReceiver.java",
+      "sha256": "675b7cdad63596c4f316418d10e363f23d6850c43373cdb18bd54ded51b66fe3"
+    }
+  },
+  "runs": [
+    {
+      "name": "read",
+      "build": {
+        "path": "captures/ota-catalog-listener-trace-20261021/build/build.json",
+        "sha256": "09764e160adb3738b351a32379a1cb2d01ea6ddbbf41cfeae0467192f62614ac"
+      },
+      "session": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read/session/session.json",
+        "sha256": "4475cad782c71b088b0b1a7ecf52f22a0c07074874f0db4ea4c758d210928136"
+      },
+      "preflight": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read/preflight/status.json",
+        "sha256": "04207a5f477a283f9d1cae8a55f50256e4fd260da6549494354c21a3728c6e51"
+      },
+      "postflight": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read/postflight/status.json",
+        "sha256": "ba48c3710b3d9b6d16dd40b87f8f2bd803b34132cb207b44c4711b94bee56d75"
+      },
+      "preProcesses": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read/preflight/processes.txt",
+        "sha256": "3145e7cd089de3fb52d46394f4626c9923b49ae7f46cdb12f810b16b11564abd"
+      },
+      "postProcesses": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read/postflight/processes.txt",
+        "sha256": "731106d9ebd1035ccc7efb01a2e4033c00c470ec2bb7abdb4cce160ab1ed504f"
+      },
+      "healthComparison": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read/health-comparison.json",
+        "sha256": "a274f31dd155706906bca77062117f9df36909d26699e768503be48e554ad27c"
+      },
+      "preSockets": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read/preflight/sockets.txt",
+        "sha256": "999331fc41e6e271350a6cebcc2455bd0553182a461dd40241a747713ae36eed"
+      },
+      "postSockets": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read/postflight/sockets.txt",
+        "sha256": "004135e2a0673f2b10279d3cb34669aa30f32197529512921a64160c85ec6f7a"
+      }
+    },
+    {
+      "name": "read-user0",
+      "build": {
+        "path": "captures/ota-catalog-listener-trace-20261021/build-user0/build.json",
+        "sha256": "c70d9a89170e8b5101afc54094e0d10ef236f5dbe960115522ab0f2d7567dda8"
+      },
+      "session": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read-user0/session/session.json",
+        "sha256": "38d09d226da4842f9d4dbec0ee9ec38990951a649203d2a8ae2b4c412c1ca1af"
+      },
+      "preflight": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read-user0/preflight/status.json",
+        "sha256": "4cd74b3476c1354738dafb201ca11ed11de9c996167214a24611fd1941e2d3a4"
+      },
+      "postflight": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read-user0/postflight/status.json",
+        "sha256": "80d869aaff4611cadd3b4cde98c331632fe21ffc53b8f21cd81fc294d4d8e72f"
+      },
+      "preProcesses": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read-user0/preflight/processes.txt",
+        "sha256": "47a9760fdbd12414814671379cf44fa14fca5728b184090ce6e14e06d815bb73"
+      },
+      "postProcesses": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read-user0/postflight/processes.txt",
+        "sha256": "fa0cf88f7d3db3a7a704e3f304032a0cb5862360baa745a6816e09a5e36f40bf"
+      },
+      "healthComparison": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read-user0/health-comparison.json",
+        "sha256": "a274f31dd155706906bca77062117f9df36909d26699e768503be48e554ad27c"
+      },
+      "preSockets": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read-user0/preflight/sockets.txt",
+        "sha256": "6082b03f613e08235daad9476577a90834e72b411e7258953fc6097a6157481f"
+      },
+      "postSockets": {
+        "path": "captures/ota-catalog-listener-trace-20261021/read-user0/postflight/sockets.txt",
+        "sha256": "2ad8d2bd5304937b74bc58bcbd992ef1b57e37e9bc64804138736537a3f0bdab"
+      }
+    }
+  ],
+  "fieldPresence": {
+    "ecuSoftCode": {
+      "absent": 225,
+      "null": 0,
+      "empty": 0,
+      "nonempty": 0
+    },
+    "ecuSoftVer": {
+      "absent": 225,
+      "null": 0,
+      "empty": 0,
+      "nonempty": 0
+    },
+    "ecuHardVer": {
+      "absent": 225,
+      "null": 0,
+      "empty": 0,
+      "nonempty": 0
+    },
+    "ecuConfigCode": {
+      "absent": 225,
+      "null": 0,
+      "empty": 0,
+      "nonempty": 0
+    },
+    "ecuConfigVer": {
+      "absent": 225,
+      "null": 0,
+      "empty": 0,
+      "nonempty": 0
+    },
+    "isRepairEcu": {
+      "absent": 225,
+      "null": 0,
+      "empty": 0,
+      "nonempty": 0
+    }
+  },
+  "limits": [
+    "All225 returned ECU rows omit the five stock version fields and isRepairEcu. Those fields cannot supply the expected campaign baseline.",
+    "An established outbound socket used local port46322, UID10151 app.revanced.android.gms, remote port5228. This is consistent with user10 export bind failure; no direct bind exception was captured.",
+    "Startup now accepts exactly46320/46321 with optional46322; all six known export ports remain mandatory exclusion and closure checks. The unrelated established connection is preserved.",
+    "The identical dex reads only user0 files through46321; no native OTA lifecycle, registration, token persistence, version report, ECU call or installation occurs.",
+    "This fixes the diagnostic helper readiness gate, not the stock OTA111 refusal. No applicable update package was obtained."
+  ]
+}

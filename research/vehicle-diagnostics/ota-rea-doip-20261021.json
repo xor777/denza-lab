@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "REA Ghidra static DoIP connection analysis",
+  "sources": {
+    "binary": {
+      "path": "captures/firmware/pulled-from-car-20261018/system/system/lib64/libdoip.so",
+      "sha256": "f2f235cc555662a92c91f0adf35a910092e3c66d6ca8f31c5269c8f76960af79"
+    },
+    "existingSymbols": {
+      "path": "captures/adas-speed-20261018/reports/ads-direct-read/libdoip/symbols.tsv",
+      "sha256": "42e7031912866c97c7ab0f672194ebf192919c8bf019831b3dff426ec3d8899c"
+    },
+    "existingAssembly": {
+      "path": "captures/adas-speed-20261018/reports/ads-direct-read/libdoip/disassembly.txt.gz",
+      "sha256": "e9229649679db95d92fd7f94a9f3c23b2e49d21bc54122b8ed0dca15dde8ba3b"
+    }
+  },
+  "artifacts": {
+    "doctor": {
+      "path": "captures/ota-rea-doip-20261021/doctor.json.gz",
+      "sha256": "0a3533533894fdb0da709db28f1810c6624d77fc31eeb7022fabbae67e6c91a8"
+    },
+    "loadImage": {
+      "path": "captures/ota-rea-doip-20261021/load-image.json.gz",
+      "sha256": "17f0bdf04534ba2666153102692d22a8d231adc9cb9a29cd5fb5a5a2a0cff872"
+    },
+    "decompile": {
+      "path": "captures/ota-rea-doip-20261021/connect-decompile.json.gz",
+      "sha256": "a85237a64ad20e0b72f9334d43837117497edb684e811de39d7c92505a1a7c93"
+    },
+    "addressProof": {
+      "path": "captures/ota-rea-doip-20261021/address-proof.json",
+      "sha256": "77e6a26cef58cbb4b7d4226db8509c5ccfc6de8122ce4abb7f4d13f6541f20c7"
+    },
+    "byteCheck": {
+      "path": "captures/ota-rea-doip-20261021/byte-check.json",
+      "sha256": "301acfb5b9210e65c061ba52c088b38f54dae1652b4eef0f37f0d09c91205668"
+    },
+    "cleanup": {
+      "path": "captures/ota-rea-doip-20261021/cleanup.json",
+      "sha256": "fba3bfbe5f654279483d877519b50c0838471f5f5de45a317c5c17a48e96e8b8"
+    }
+  },
+  "findings": {
+    "originalFunctionVa": "0xac9c0",
+    "analysisFunctionVa": "0x1ac9c0",
+    "name": "CDoIPClient::connectToServerByIPAddress",
+    "signature": "this, const string& IP, bool& retry flag, unsigned long timeout",
+    "asyncTcpPort": 13400,
+    "zeroTimeoutUsesSyncConnect": true,
+    "nonzeroTimeoutPassedToAsyncHandler": true,
+    "tlsConditionalOnConnectionStream": true,
+    "protocolHandlerStartedAfterConnection": true,
+    "comparedByteRanges": 6,
+    "comparedBytes": 92
+  },
+  "limits": [
+    "ELF independent load-image attestation is unsupported. The observed .text source mapping digest was independently matched to original bytes.",
+    "Pseudocode uses inferred types. Procedure identity is corroborated by the exact original exported symbol and mapped address, not a missing structured procedure status.",
+    "Argument, port and call anchors were corroborated with original bytes and independent Capstone disassembly; this is not a whole-function correctness proof.",
+    "Upstream configuration, asynchronous handler internals and live reachability were not tested. This does not explain middle-LiDAR TCP timeout or GCY111.",
+    "No firmware, ECU, TLS handshake, download or installation was executed by this native analysis."
+  ]
+}
