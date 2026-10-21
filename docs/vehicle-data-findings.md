@@ -106,10 +106,10 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 - [Raw CAN-FD callback (2026-09-03)](#raw-can-fd-callback-2026-09-03) — the passive shell-UID frame stream and its envelope
 - [Washer fluid level (2026-09-18, in progress)](#washer-fluid-level-2026-09-18-in-progress) — named refill warning1DD, traced receiver and display gates; no delivery observed in the empty N9 test
   - [Receiver and presentation boundary](#washer-receiver-and-presentation-boundary-2026-10-21) — ready-made CAN warning versus physical trigger; direct level DID optional
+  - [N9 missing-warning audit](#n9-missing-warning-audit-2026-10-21) — confirmed empty reservoir, sampling/transition gaps and rejected power-value inference
 - [Targeted turn-signal events (2026-09-04)](#targeted-turn-signal-events-2026-09-04) — the two-FID light listener, its hub, and the camera contracts it fed
 - [Interior ambient light colour (2026-09-23, in progress)](#interior-ambient-light-colour-2026-09-23-in-progress) — where the cabin lamp colour lives and how it could be read
 - [Legacy BYDAuto events and system logs](#legacy-bydauto-events-and-system-logs) — the 2026-06-27 probe and system-log observations
-  - [N9 missing-warning audit](#n9-missing-warning-audit-2026-10-21) — confirmed empty reservoir, sampling/transition gaps and rejected power-value inference
 - [Existing navigation-derived data](#existing-navigation-derived-data) — the Yandex guidance read through accessibility
 - [Product implications](#product-implications) — which product concepts the available inputs support
 - [Commands and inspected inputs](#commands-and-inspected-inputs) — the read-only commands and vendor APKs used
@@ -4999,6 +4999,12 @@ The retained plan and snapshot are `captures/washer-diagnostics-20261021/live-ga
 snapshot SHA256 `0ead6aa856f6a1693ca1925d25dc72cf21a8a4a84d31ff4e684cf07947a9eba0`.
 No UDS, setters, debug commands, restarts or fluid manipulations were used.
 
+The power value2 above is the **Android API representation**. The later N9
+audit below establishes its conversion from wire3; it is not evidence that
+the native power3 condition failed. The view converter, by contrast, is
+identity, so view4 versus native3 remains a valid numeric comparison, subject
+to the stated runtime-applicability limit.
+
 **Optional diagnostic fallback:** the40 stock tester assets contain only the
 six wiper/washer actuator scenarios above. Exact-model Xtool rows1394/1395
 advertise F_ZCU/R_ZCU live data as `SupportEnum`, without a parameter/DID/decoder.
@@ -5025,6 +5031,77 @@ and `washer-body-read-20261021.json` / `check_washer_body_read.py`.
 Run each checker with `python3`; all operate offline by default. Original bytes,
 bounded disassembly, decoded-script provenance and public-search evidence are
 retained under `captures/washer-diagnostics-20261021/` and the existing corpus.
+
+### N9 missing-warning audit (2026-10-21)
+
+**The owner-confirmed empty N9 is accepted as fact.** Its failure to produce an
+observed1DD is a real negative result, not a reason to reinterpret the reservoir
+as nonempty. It prevents calling1DD a qualified refill notifier for this car.
+The cause remains unresolved after the following offline source/replay checks.
+
+**What the old capture actually covers.** Replaying20 retained raw windows
+finds CAN261/sub0/channel0 only in four GB windows:20 availability samples plus
+179 in each present/empty/refilled window, **557 total, all13F**. The first
+cycle's eight scalar snapshots also all read13F. Host callback sequences are
+contiguous, with zero reported queue drops/errors; that does not establish
+lossless observation before the host callback.
+
+The second-cycle empty GB window ran **14:21:58–14:25:00 Moscow**. It began
+196 seconds after the empty acquisition's first BigData window started;
+BigData and YUN contain no261 in these captures. The exact emptying transition
+was not timestamped or continuously observed. Empty GB delivers records every
+0.991–1.054seconds (median1.0005), but neither the Java callback recorder nor
+the examined HAL fanout contains a1Hz sampler: the upstream collection policy
+and physical CAN frequency remain unqualified. The first-cycle empty warning
+GET occurred34.651seconds into PASS1, the next108.963seconds later; GETs read
+the cache, not warning history. Its saved `logcat main` spans only7.727seconds
+at the end of acquisition, not the empty transition.
+
+Thus a persistent1DD throughout the observed empty GB window is contradicted.
+A brief event before that window or between upstream-delivered records is
+**not excluded**, but no such event has been recovered. The captures do not
+prove that13F hid another warning. Shared native `updateWarningInfoCarBody`
+consumes already-selected13F; it does not replace a raw1DD with13F. The open
+hood in cycle02 supplies a body condition, not proof of warning priority.
+
+**Power-value correction.** The interim hypothesis that SDK power2 meant the
+test missed READY/native power3 is **withdrawn**. Hash-matched HAL
+`FunctionTable::powerlevel` at5FBE0 subtracts1 from wire values1..3 before writing
+the API value. All32,398 saved cycle02 CAN12D power samples have wire3; all
+eight scalar snapshots read API2. These are compatible, not evidence of a
+closed native power gate. Separately,536 CAN26F view samples are3, through an
+identity converter. These YUN windows are sequential to GB, not atomic
+measurements of every warning frame. No washer-specific operating-state rule
+has been recovered.
+
+**Alternative-warning and model checks.** Shared Godot profiles168/170 both
+select Denza UI,2560×720 and hybrid; SUV/CAR differs, but no washer-specific
+disable is identified. MCU CAN0A0 exposes capability `0A00001E=(b2>>6)&3` and
+text `0A000020=b3|(b4<<8)`. Neither has a qualified Android registration in the
+10,997 recovered CANFD registrations;19 retained frame-bearing logs contain
+no0A0 in397,387 frames. This is a coverage gap, not proof the bus lacks0A0.
+Following the capability consumer reveals an **outgoing** non261 signal/bitmap
+mechanism, not a confirmed alternate washer input. All576 non261 constructor
+text IDs were resolved; none equals1DD. Non261 index477 belongs to text3010,
+not washer warning477. No direct0A000020 consumer was identified in the bounded
+native literal-reference scan. Do not substitute this newly found mechanism
+for a recovered explanation.
+
+**Remaining boundary.** N9 framework/HAL/libbydautoservice match the retained
+Android sources, but its native cluster/popup and installed MCU were not
+hash-bound to the Z9GT corpus. The transmitter's sensor-to-warning logic,
+equipment/configuration and priority policy are still missing. A finite search
+of646 VehicleConfigResources and2380 ClientConfigurationService files found no
+named washer-level configuration; that says nothing definitive about coding
+inside the sending ECU. Resolving that source/applicability boundary is now
+the target, not displaying a test popup or assuming1DD must work. No repeat
+draining, active CAN injection, setter or product change was performed.
+
+Reports: `research/vehicle-diagnostics/washer-n9-negative-audit-20261021.json`,
+`washer-n9-origin-20261021.json` and `washer-n9-warning-applicability-20261021.json`.
+Their offline reproducers and bounded original-byte/disassembly evidence remain
+in `captures/washer-diagnostics-20261021/n9-negative-audit/`, `n9-origin/` and
+`n9-warning-applicability/`; root0A0 coverage has a separate hash manifest there.
 
 ### N9 paired-state capture (2026-10-16)
 
@@ -5129,12 +5206,6 @@ property and both provider-query results remain unchanged across all three
 states. The first seven bytes of `0x055` also remain identical in all 162 refill
 samples; its remaining byte varies within captures and was not identified as
 a level signal.
-The power value2 above is the **Android API representation**. The later N9
-audit below establishes its conversion from wire3; it is not evidence that
-the native power3 condition failed. The view converter, by contrast, is
-identity, so view4 versus native3 remains a valid numeric comparison, subject
-to the stated runtime-applicability limit.
-
 
 `compare-empty-refilled.json`, `compare-present-refilled.json` and
 `cycle-analysis.json` preserve the full-cycle comparison:
@@ -5162,77 +5233,6 @@ to the stated runtime-applicability limit.
   deserve retaining rather than assigning a guessed meaning: byte 9 is
   `91 → 90 → 91`, byte 24 is `93 → 92 → 93`, constant within each raw capture.
   The recovered MCU table describes these as eight-bit fields
-### N9 missing-warning audit (2026-10-21)
-
-**The owner-confirmed empty N9 is accepted as fact.** Its failure to produce an
-observed1DD is a real negative result, not a reason to reinterpret the reservoir
-as nonempty. It prevents calling1DD a qualified refill notifier for this car.
-The cause remains unresolved after the following offline source/replay checks.
-
-**What the old capture actually covers.** Replaying20 retained raw windows
-finds CAN261/sub0/channel0 only in four GB windows:20 availability samples plus
-179 in each present/empty/refilled window, **557 total, all13F**. The first
-cycle's eight scalar snapshots also all read13F. Host callback sequences are
-contiguous, with zero reported queue drops/errors; that does not establish
-lossless observation before the host callback.
-
-The second-cycle empty GB window ran **14:21:58–14:25:00 Moscow**. It began
-196 seconds after the empty acquisition's first BigData window started;
-BigData and YUN contain no261 in these captures. The exact emptying transition
-was not timestamped or continuously observed. Empty GB delivers records every
-0.991–1.054seconds (median1.0005), but neither the Java callback recorder nor
-the examined HAL fanout contains a1Hz sampler: the upstream collection policy
-and physical CAN frequency remain unqualified. The first-cycle empty warning
-GET occurred34.651seconds into PASS1, the next108.963seconds later; GETs read
-the cache, not warning history. Its saved `logcat main` spans only7.727seconds
-at the end of acquisition, not the empty transition.
-
-Thus a persistent1DD throughout the observed empty GB window is contradicted.
-A brief event before that window or between upstream-delivered records is
-**not excluded**, but no such event has been recovered. The captures do not
-prove that13F hid another warning. Shared native `updateWarningInfoCarBody`
-consumes already-selected13F; it does not replace a raw1DD with13F. The open
-hood in cycle02 supplies a body condition, not proof of warning priority.
-
-**Power-value correction.** The interim hypothesis that SDK power2 meant the
-test missed READY/native power3 is **withdrawn**. Hash-matched HAL
-`FunctionTable::powerlevel` at5FBE0 subtracts1 from wire values1..3 before writing
-the API value. All32,398 saved cycle02 CAN12D power samples have wire3; all
-eight scalar snapshots read API2. These are compatible, not evidence of a
-closed native power gate. Separately,536 CAN26F view samples are3, through an
-identity converter. These YUN windows are sequential to GB, not atomic
-measurements of every warning frame. No washer-specific operating-state rule
-has been recovered.
-
-**Alternative-warning and model checks.** Shared Godot profiles168/170 both
-select Denza UI,2560×720 and hybrid; SUV/CAR differs, but no washer-specific
-disable is identified. MCU CAN0A0 exposes capability `0A00001E=(b2>>6)&3` and
-text `0A000020=b3|(b4<<8)`. Neither has a qualified Android registration in the
-10,997 recovered CANFD registrations;19 retained frame-bearing logs contain
-no0A0 in397,387 frames. This is a coverage gap, not proof the bus lacks0A0.
-Following the capability consumer reveals an **outgoing** non261 signal/bitmap
-mechanism, not a confirmed alternate washer input. All576 non261 constructor
-text IDs were resolved; none equals1DD. Non261 index477 belongs to text3010,
-not washer warning477. No direct0A000020 consumer was identified in the bounded
-native literal-reference scan. Do not substitute this newly found mechanism
-for a recovered explanation.
-
-**Remaining boundary.** N9 framework/HAL/libbydautoservice match the retained
-Android sources, but its native cluster/popup and installed MCU were not
-hash-bound to the Z9GT corpus. The transmitter's sensor-to-warning logic,
-equipment/configuration and priority policy are still missing. A finite search
-of646 VehicleConfigResources and2380 ClientConfigurationService files found no
-named washer-level configuration; that says nothing definitive about coding
-inside the sending ECU. Resolving that source/applicability boundary is now
-the target, not displaying a test popup or assuming1DD must work. No repeat
-draining, active CAN injection, setter or product change was performed.
-
-Reports: `research/vehicle-diagnostics/washer-n9-negative-audit-20261021.json`,
-`washer-n9-origin-20261021.json` and `washer-n9-warning-applicability-20261021.json`.
-Their offline reproducers and bounded original-byte/disassembly evidence remain
-in `captures/washer-diagnostics-20261021/n9-negative-audit/`, `n9-origin/` and
-`n9-warning-applicability/`; root0A0 coverage has a separate hash manifest there.
-
   (`0x32400050`, `0x324000C8`), not single-bit flags; adjacent named descriptors
   concern engine/energy data. This suggests numeric confounding but does not
   prove their semantics. The MCU image is not live-hash-matched, and its
