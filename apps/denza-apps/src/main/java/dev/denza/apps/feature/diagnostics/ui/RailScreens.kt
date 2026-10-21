@@ -151,6 +151,12 @@ internal fun SystemPageScreen(
         if (cells) current.value.setCellsVisible(true)
         onDispose { if (cells) current.value.setCellsVisible(false) }
     }
+    // the cabin's GETs join the batch only while its scheme is in front (architecture, 6)
+    val cabin = page.system == CarSystem.CABIN && tab == SystemTab.STATE
+    DisposableEffect(cabin) {
+        if (cabin) current.value.setCabinVisible(true)
+        onDispose { if (cabin) current.value.setCabinVisible(false) }
+    }
     var picking by remember { mutableStateOf(false) }
     val read = { requests.forEach(actions::readModule) }
     val codes = FooterButton("Прочитать DTC", true, read)

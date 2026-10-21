@@ -254,6 +254,7 @@ internal object ScannerFixtures {
         override fun resetParam() {}
         override fun setCellsVisible(visible: Boolean) {}
         override fun setCellsPaused(paused: Boolean) {}
+        override fun setCabinVisible(visible: Boolean) {}
     }
 
     /* ----------------------------------------------------------- autoscan */

@@ -98,6 +98,8 @@ internal class HubCarFeed(private val hub: VehicleTelemetryHub, private val extr
     override fun focus(get: SignalGet?) = extras.focus(get)
 
     override fun focused(): List<SignalReading> = extras.drain()
+
+    override fun cabin(shown: Boolean) = extras.cabin(shown)
 }
 
 /** The one persistent shell of [ExtrasPoller]. */
@@ -123,6 +125,10 @@ internal class AdbExtrasShell(private val session: LocalAdbClient.PersistentShel
  * back when the shell is slower), each reading timed on the head unit's clock and kept for
  * [drain]; the batch stands, its last values ageing as they would. A failed read is a gap and the
  * same five seconds' wait: nothing loops on a failure. A new focus, or none, goes at once.
+ *
+ * **The cabin** ([cabin]): while «Салон · Состояние» shows, the batch is
+ * [DiagnosticExtraReader.cabinCommand], the next one at once; the flag outlives [stop], as the
+ * page that set it does.
  */
 internal class ExtrasPoller(
     private val open: () -> ExtrasShell,
@@ -139,6 +145,7 @@ internal class ExtrasPoller(
     private var job: Job? = null
     @Volatile private var shell: ExtrasShell? = null
     @Volatile private var target: SignalGet? = null
+    @Volatile private var cabin = false
     private val readings = ArrayDeque<SignalReading>()
     private val wake = Channel<Unit>(Channel.CONFLATED)
 
@@ -167,6 +174,13 @@ internal class ExtrasPoller(
         wake.trySend(Unit)
     }
 
+    /** The cabin's GETs in the batch or not; a change sends the next batch at once. */
+    fun cabin(shown: Boolean) {
+        if (cabin == shown) return
+        cabin = shown
+        wake.trySend(Unit)
+    }
+
     /** The focused readings since the last call, oldest first. */
     fun drain(): List<SignalReading> = synchronized(this) { readings.toList().also { readings.clear() } }
 
@@ -184,7 +198,7 @@ internal class ExtrasPoller(
                     shell = opened
                 }
                 if (get == null) {
-                    val output = s.shell(DiagnosticExtraReader.command)
+                    val output = s.shell(if (cabin) DiagnosticExtraReader.cabinCommand else DiagnosticExtraReader.command)
                     latest = DiagnosticExtraReader.decode(output, wallClock(), elapsed())
                 } else {
                     val value = DiagnosticExtraReader.word(s.shell(get.command))?.let(get.decode)

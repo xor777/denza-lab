@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.TestScope
 /**
  * The hub as a test sets it: P and speed, and a sweep counter the test bumps. A parameter page's
  * GET is logged in [focusLog]; the test puts its readings in [pending], which the session drains.
+ * The cabin's GETs asked for are logged in [cabinLog].
  */
 internal class FakeCar(var readings: CarReadings = parked()) : CarFeed {
     var opened = 0
@@ -23,6 +24,9 @@ internal class FakeCar(var readings: CarReadings = parked()) : CarFeed {
     override fun close() { closed++ }
     override fun focus(get: SignalGet?) { focusLog += get }
     override fun focused(): List<SignalReading> = pending.toList().also { pending.clear() }
+    /** The cabin's GETs asked for or not, in order. */
+    val cabinLog = mutableListOf<Boolean>()
+    override fun cabin(shown: Boolean) { cabinLog += shown }
 
     companion object {
         fun parked(sweep: Long = 1, extra: Map<VehicleSignal, Double> = emptyMap()) = CarReadings(

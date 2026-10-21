@@ -57,6 +57,12 @@ internal interface CarFeed {
 
     /** The focused GET's readings since the last call, oldest first. */
     fun focused(): List<SignalReading> = emptyList()
+
+    /**
+     * «Салон · Состояние» shown or left (architecture, 6): while shown the batch carries the cabin's
+     * GETs too ([DiagnosticExtra.cabin]), from the next round on; no other page reads them.
+     */
+    fun cabin(shown: Boolean) {}
 }
 
 /** One `autoservice` GET, polled alone for a parameter page: a [DiagnosticExtra] or a cold hub signal. */

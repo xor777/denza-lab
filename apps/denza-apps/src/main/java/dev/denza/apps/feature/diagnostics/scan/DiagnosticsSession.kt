@@ -308,6 +308,9 @@ internal class DiagnosticsSession(
         }
     }
 
+    /** The cabin's GETs ride the car feed's batch; nothing on the bus changes. */
+    override fun setCabinVisible(visible: Boolean) = car.cabin(visible)
+
     /** One subscription to the BMS pages for this showing of «Ячейки»; its end is said, not retried. */
     private suspend fun listenCells() {
         val b = synchronized(lock) { bus } ?: return

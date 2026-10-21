@@ -749,4 +749,6 @@ internal interface DiagnosticsActions {
     fun setCellsVisible(visible: Boolean)
     /** «Пауза» / «Продолжить» on «Ячейки»: paused, nothing is listened to and the drawn sweep stays; leaving the tab ends it. */
     fun setCellsPaused(paused: Boolean)
+    /** «Салон · Состояние» shown or left: the cabin's GETs join the `autoservice` batch only while it is (architecture, 6). */
+    fun setCabinVisible(visible: Boolean)
 }

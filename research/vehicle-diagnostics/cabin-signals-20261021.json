@@ -1,0 +1,4625 @@
+[
+ {
+  "area": "seat heating",
+  "seat_or_side": "driver (front left)",
+  "name": "SET_DRIVER_SEAT_HEATING_STATE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA0000B",
+  "fidSigned": 1335885835,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "level 1",
+   "3": "level 2",
+   "4": "level 3"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2841
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 37
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 44
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 121
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 244
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 436
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/SeatVentilatingHeatingApiImpl.java",
+    "line": 2132
+   }
+  ],
+  "confidence": "high",
+  "note": "Three-level path. DiCarServer picks it when the AC_*_SEAT_*_CONFIG for the seat reads 3 (all four read 3 on 2026-10-20); the 5-level AC_* path read 0 (neither 1 on nor 2 off) so it is inactive here. Stock reader maps 4/3/2 to level 3/2/1 and anything else to off (-100); the voice app shows raw-1. The stock setter writes 6 (not 4) for driver heating level 3 (VentHeatValues.MAIN_DRIVER_LEVEL_3_SET, lines 34, 292-294); the reader does not map 6, so whether the feedback reports 4 or 6 at level 3 must be checked live.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "front passenger (front right)",
+  "name": "SET_PASSENGER_SEAT_HEATING_STATE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA00013",
+  "fidSigned": 1335885843,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "level 1",
+   "3": "level 2",
+   "4": "level 3"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3150
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 38
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 44
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 121
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 244
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 436
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/SeatVentilatingHeatingApiImpl.java",
+    "line": 2132
+   }
+  ],
+  "confidence": "high",
+  "note": "Three-level path. DiCarServer picks it when the AC_*_SEAT_*_CONFIG for the seat reads 3 (all four read 3 on 2026-10-20); the 5-level AC_* path read 0 (neither 1 on nor 2 off) so it is inactive here. Stock reader maps 4/3/2 to level 3/2/1 and anything else to off (-100); the voice app shows raw-1.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 left",
+  "name": "SET_REAR_LEFT_SEAT_HEATING_STATE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4860000B",
+  "fidSigned": 1214251019,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "level 1",
+   "3": "level 2",
+   "4": "level 3"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3173
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 44
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 121
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 244
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 436
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/SeatVentilatingHeatingApiImpl.java",
+    "line": 2132
+   }
+  ],
+  "confidence": "medium",
+  "note": "Three-level path. DiCarServer picks it when the AC_*_SEAT_*_CONFIG for the seat reads 3 (all four read 3 on 2026-10-20); the 5-level AC_* path read 0 (neither 1 on nor 2 off) so it is inactive here. Stock reader maps 4/3/2 to level 3/2/1 and anything else to off (-100); the voice app shows raw-1. Frame 0x486 reported offline in the parked sweep (BODYWORK_ONLINE_HAS_0x048600 1001/0x48600000 = 2); left read 1 (off) with SET_HAS_REAR_LEFT_* = 1; check live with the car ready.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 right",
+  "name": "SET_REAR_RIGHT_SEAT_HEATING_STATE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x48600013",
+  "fidSigned": 1214251027,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "level 1",
+   "3": "level 2",
+   "4": "level 3"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3189
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 40
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 44
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 121
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 244
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 436
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/SeatVentilatingHeatingApiImpl.java",
+    "line": 2132
+   }
+  ],
+  "confidence": "low",
+  "note": "Three-level path. DiCarServer picks it when the AC_*_SEAT_*_CONFIG for the seat reads 3 (all four read 3 on 2026-10-20); the 5-level AC_* path read 0 (neither 1 on nor 2 off) so it is inactive here. Stock reader maps 4/3/2 to level 3/2/1 and anything else to off (-100); the voice app shows raw-1. Frame 0x486 reported offline in the parked sweep (BODYWORK_ONLINE_HAS_0x048600 1001/0x48600000 = 2); right-rear read 65535 and SET_HAS_REAR_RIGHT_* = 0, so the right rear seat may only report when the frame is awake; check live.",
+  "observedParked20261020": "65535"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "driver (front left)",
+  "name": "SET_DRIVER_SEAT_VENTILATING_STATE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA00008",
+  "fidSigned": 1335885832,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "level 1",
+   "3": "level 2",
+   "4": "level 3"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2847
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 44
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 121
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 244
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 436
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/SeatVentilatingHeatingApiImpl.java",
+    "line": 2132
+   }
+  ],
+  "confidence": "high",
+  "note": "Three-level path. DiCarServer picks it when the AC_*_SEAT_*_CONFIG for the seat reads 3 (all four read 3 on 2026-10-20); the 5-level AC_* path read 0 (neither 1 on nor 2 off) so it is inactive here. Stock reader maps 4/3/2 to level 3/2/1 and anything else to off (-100); the voice app shows raw-1.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "front passenger (front right)",
+  "name": "SET_PASSENGER_SEAT_VENTILATING_STATE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA00010",
+  "fidSigned": 1335885840,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "level 1",
+   "3": "level 2",
+   "4": "level 3"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3158
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 22
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 44
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 121
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 244
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 436
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/SeatVentilatingHeatingApiImpl.java",
+    "line": 2132
+   }
+  ],
+  "confidence": "high",
+  "note": "Three-level path. DiCarServer picks it when the AC_*_SEAT_*_CONFIG for the seat reads 3 (all four read 3 on 2026-10-20); the 5-level AC_* path read 0 (neither 1 on nor 2 off) so it is inactive here. Stock reader maps 4/3/2 to level 3/2/1 and anything else to off (-100); the voice app shows raw-1.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 left",
+  "name": "SET_REAR_LEFT_SEAT_VENTILATING_STATE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x48600008",
+  "fidSigned": 1214251016,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "level 1",
+   "3": "level 2",
+   "4": "level 3"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3183
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 23
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 44
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 121
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 244
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 436
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/SeatVentilatingHeatingApiImpl.java",
+    "line": 2132
+   }
+  ],
+  "confidence": "medium",
+  "note": "Three-level path. DiCarServer picks it when the AC_*_SEAT_*_CONFIG for the seat reads 3 (all four read 3 on 2026-10-20); the 5-level AC_* path read 0 (neither 1 on nor 2 off) so it is inactive here. Stock reader maps 4/3/2 to level 3/2/1 and anything else to off (-100); the voice app shows raw-1. Frame 0x486 reported offline in the parked sweep (BODYWORK_ONLINE_HAS_0x048600 1001/0x48600000 = 2); left read 1 (off) with SET_HAS_REAR_LEFT_* = 1; check live with the car ready.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 right",
+  "name": "SET_REAR_RIGHT_SEAT_VENTILATING_STATE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x48600010",
+  "fidSigned": 1214251024,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "level 1",
+   "3": "level 2",
+   "4": "level 3"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3199
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 44
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 121
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 244
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 436
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/SeatVentilatingHeatingApiImpl.java",
+    "line": 2132
+   }
+  ],
+  "confidence": "low",
+  "note": "Three-level path. DiCarServer picks it when the AC_*_SEAT_*_CONFIG for the seat reads 3 (all four read 3 on 2026-10-20); the 5-level AC_* path read 0 (neither 1 on nor 2 off) so it is inactive here. Stock reader maps 4/3/2 to level 3/2/1 and anything else to off (-100); the voice app shows raw-1. Frame 0x486 reported offline in the parked sweep (BODYWORK_ONLINE_HAS_0x048600 1001/0x48600000 = 2); right-rear read 65535 and SET_HAS_REAR_RIGHT_* = 0, so the right rear seat may only report when the frame is awake; check live.",
+  "observedParked20261020": "65535"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "driver (front left)",
+  "name": "AC_MAIN_DRIVE_SEAT_HEATING_STATUS",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x29E0000C",
+  "fidSigned": 702545932,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "on",
+   "2": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 344
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 115
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 243
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path, used only when this reads 1 or 2 (VentHeatValues.FeatureValues.isConfig5). Read 0 on the Z9GT on 2026-10-20: inactive on this car; keep only as a fallback for other trims.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "driver (front left)",
+  "name": "AC_MAIN_DRIVE_SEAT_HEATING_LEVEL",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x29E0001C",
+  "fidSigned": 702545948,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), meaningful only while the matching _STATUS = 1",
+  "values": {
+   "1": "level 1",
+   "2": "level 2",
+   "3": "level 3",
+   "4": "level 4",
+   "5": "level 5"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 342
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 114
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path; inactive on the Z9GT (status read 0).",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "driver (front left)",
+  "name": "AC_MAIN_DRIVE_SEAT_VENTILATING_STATUS",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x29E00008",
+  "fidSigned": 702545928,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "on",
+   "2": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 350
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 115
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 243
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path, used only when this reads 1 or 2 (VentHeatValues.FeatureValues.isConfig5). Read 0 on the Z9GT on 2026-10-20: inactive on this car; keep only as a fallback for other trims.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "driver (front left)",
+  "name": "AC_MAIN_DRIVE_SEAT_VENTILATING_LEVEL",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x29E00018",
+  "fidSigned": 702545944,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), meaningful only while the matching _STATUS = 1",
+  "values": {
+   "1": "level 1",
+   "2": "level 2",
+   "3": "level 3",
+   "4": "level 4",
+   "5": "level 5"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 348
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 114
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path; inactive on the Z9GT (status read 0).",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "front passenger (front right)",
+  "name": "AC_PASSENGER_SEAT_HEATING_STATUS",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x2A70000C",
+  "fidSigned": 711983116,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "on",
+   "2": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 449
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 115
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 243
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path, used only when this reads 1 or 2 (VentHeatValues.FeatureValues.isConfig5). Read 0 on the Z9GT on 2026-10-20: inactive on this car; keep only as a fallback for other trims.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "front passenger (front right)",
+  "name": "AC_PASSENGER_SEAT_HEATING_LEVEL",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x2A70001C",
+  "fidSigned": 711983132,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), meaningful only while the matching _STATUS = 1",
+  "values": {
+   "1": "level 1",
+   "2": "level 2",
+   "3": "level 3",
+   "4": "level 4",
+   "5": "level 5"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 447
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 114
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path; inactive on the Z9GT (status read 0).",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "front passenger (front right)",
+  "name": "AC_PASSENGER_SEAT_VENTILATING_STATUS",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x2A700008",
+  "fidSigned": 711983112,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "on",
+   "2": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 455
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 115
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 243
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path, used only when this reads 1 or 2 (VentHeatValues.FeatureValues.isConfig5). Read 0 on the Z9GT on 2026-10-20: inactive on this car; keep only as a fallback for other trims.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "front passenger (front right)",
+  "name": "AC_PASSENGER_SEAT_VENTILATING_LEVEL",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x2A700018",
+  "fidSigned": 711983128,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), meaningful only while the matching _STATUS = 1",
+  "values": {
+   "1": "level 1",
+   "2": "level 2",
+   "3": "level 3",
+   "4": "level 4",
+   "5": "level 5"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 453
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 114
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path; inactive on the Z9GT (status read 0).",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 left",
+  "name": "AC_REAR_LEFT_SEAT_HEATING_STATUS",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x2710000C",
+  "fidSigned": 655360012,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "on",
+   "2": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 500
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 115
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 243
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path, used only when this reads 1 or 2 (VentHeatValues.FeatureValues.isConfig5). Read 0 on the Z9GT on 2026-10-20: inactive on this car; keep only as a fallback for other trims.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 left",
+  "name": "AC_REAR_LEFT_SEAT_HEATING_LEVEL",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x2710002C",
+  "fidSigned": 655360044,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), meaningful only while the matching _STATUS = 1",
+  "values": {
+   "1": "level 1",
+   "2": "level 2",
+   "3": "level 3",
+   "4": "level 4",
+   "5": "level 5"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 498
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 114
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path; inactive on the Z9GT (status read 0).",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 left",
+  "name": "AC_REAR_LEFT_SEAT_VENTILATING_STATUS",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x27100008",
+  "fidSigned": 655360008,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "on",
+   "2": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 506
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 115
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 243
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path, used only when this reads 1 or 2 (VentHeatValues.FeatureValues.isConfig5). Read 0 on the Z9GT on 2026-10-20: inactive on this car; keep only as a fallback for other trims.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 left",
+  "name": "AC_REAR_LEFT_SEAT_VENTILATING_LEVEL",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x27100028",
+  "fidSigned": 655360040,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), meaningful only while the matching _STATUS = 1",
+  "values": {
+   "1": "level 1",
+   "2": "level 2",
+   "3": "level 3",
+   "4": "level 4",
+   "5": "level 5"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 504
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 114
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path; inactive on the Z9GT (status read 0).",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 right",
+  "name": "AC_REAR_RIGHT_SEAT_HEATING_STATUS",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x27100014",
+  "fidSigned": 655360020,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "on",
+   "2": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 526
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 115
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 243
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path, used only when this reads 1 or 2 (VentHeatValues.FeatureValues.isConfig5). Read 0 on the Z9GT on 2026-10-20: inactive on this car; keep only as a fallback for other trims.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 right",
+  "name": "AC_REAR_RIGHT_SEAT_HEATING_LEVEL",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x27100034",
+  "fidSigned": 655360052,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), meaningful only while the matching _STATUS = 1",
+  "values": {
+   "1": "level 1",
+   "2": "level 2",
+   "3": "level 3",
+   "4": "level 4",
+   "5": "level 5"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 524
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 114
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path; inactive on the Z9GT (status read 0).",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 right",
+  "name": "AC_REAR_RIGHT_SEAT_VENTILATING_STATUS",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x27100010",
+  "fidSigned": 655360016,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "on",
+   "2": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 532
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 115
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 243
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path, used only when this reads 1 or 2 (VentHeatValues.FeatureValues.isConfig5). Read 0 on the Z9GT on 2026-10-20: inactive on this car; keep only as a fallback for other trims.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 right",
+  "name": "AC_REAR_RIGHT_SEAT_VENTILATING_LEVEL",
+  "kind": "status",
+  "device": 1000,
+  "fid": "0x27100030",
+  "fidSigned": 655360048,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), meaningful only while the matching _STATUS = 1",
+  "values": {
+   "1": "level 1",
+   "2": "level 2",
+   "3": "level 3",
+   "4": "level 4",
+   "5": "level 5"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 530
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 114
+   }
+  ],
+  "confidence": "medium",
+  "note": "Five-level path; inactive on the Z9GT (status read 0).",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "driver (front left)",
+  "name": "AC_LF_SEAT_HEATING_CONFIG",
+  "kind": "config",
+  "device": 1000,
+  "fid": "0x2AA0101B",
+  "fidSigned": 715132955,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "3": "three-level heating fitted",
+   "5": "three-level heating with backrest and cushion zones (CONFIG_HEATING_THREE = 336)",
+   "other": "no three-level heating (stock then tries the 5- and 2-level paths)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 296
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 127
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 173
+   }
+  ],
+  "confidence": "high",
+  "note": "All eight read 3 on 2026-10-20. The *_CONFIG_311 twins (0x311010xx) read 65535 here and swap LF/RF naming; ignore them.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "front passenger (front right)",
+  "name": "AC_RF_SEAT_HEATING_CONFIG",
+  "kind": "config",
+  "device": 1000,
+  "fid": "0x2AA01013",
+  "fidSigned": 715132947,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "3": "three-level heating fitted",
+   "5": "three-level heating with backrest and cushion zones (CONFIG_HEATING_THREE = 336)",
+   "other": "no three-level heating (stock then tries the 5- and 2-level paths)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 562
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 128
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 173
+   }
+  ],
+  "confidence": "high",
+  "note": "All eight read 3 on 2026-10-20. The *_CONFIG_311 twins (0x311010xx) read 65535 here and swap LF/RF naming; ignore them.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 left",
+  "name": "AC_LR_SEAT_HEATING_CONFIG",
+  "kind": "config",
+  "device": 1000,
+  "fid": "0x2AA01023",
+  "fidSigned": 715132963,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "3": "three-level heating fitted",
+   "other": "no three-level heating (stock then tries the 5- and 2-level paths)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 301
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 129
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 167
+   }
+  ],
+  "confidence": "high",
+  "note": "All eight read 3 on 2026-10-20. The *_CONFIG_311 twins (0x311010xx) read 65535 here and swap LF/RF naming; ignore them.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 right",
+  "name": "AC_RR_SEAT_HEATING_CONFIG",
+  "kind": "config",
+  "device": 1000,
+  "fid": "0x2AA0102B",
+  "fidSigned": 715132971,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "3": "three-level heating fitted",
+   "other": "no three-level heating (stock then tries the 5- and 2-level paths)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 568
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 130
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 167
+   }
+  ],
+  "confidence": "high",
+  "note": "All eight read 3 on 2026-10-20. The *_CONFIG_311 twins (0x311010xx) read 65535 here and swap LF/RF naming; ignore them.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "driver (front left)",
+  "name": "AC_LF_SEAT_VENTILATION_CONFIG",
+  "kind": "config",
+  "device": 1000,
+  "fid": "0x2AA01018",
+  "fidSigned": 715132952,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "3": "three-level ventilation fitted",
+   "other": "no three-level ventilation (stock then tries the 5- and 2-level paths)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 298
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 111
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 161
+   }
+  ],
+  "confidence": "high",
+  "note": "All eight read 3 on 2026-10-20. The *_CONFIG_311 twins (0x311010xx) read 65535 here and swap LF/RF naming; ignore them.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "front passenger (front right)",
+  "name": "AC_RF_SEAT_VENTILATION_CONFIG",
+  "kind": "config",
+  "device": 1000,
+  "fid": "0x2AA01010",
+  "fidSigned": 715132944,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "3": "three-level ventilation fitted",
+   "other": "no three-level ventilation (stock then tries the 5- and 2-level paths)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 564
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 112
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 161
+   }
+  ],
+  "confidence": "high",
+  "note": "All eight read 3 on 2026-10-20. The *_CONFIG_311 twins (0x311010xx) read 65535 here and swap LF/RF naming; ignore them.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 left",
+  "name": "AC_LR_SEAT_VENTILATION_CONFIG",
+  "kind": "config",
+  "device": 1000,
+  "fid": "0x2AA01020",
+  "fidSigned": 715132960,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "3": "three-level ventilation fitted",
+   "other": "no three-level ventilation (stock then tries the 5- and 2-level paths)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 303
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 113
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 161
+   }
+  ],
+  "confidence": "high",
+  "note": "All eight read 3 on 2026-10-20. The *_CONFIG_311 twins (0x311010xx) read 65535 here and swap LF/RF naming; ignore them.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 right",
+  "name": "AC_RR_SEAT_VENTILATION_CONFIG",
+  "kind": "config",
+  "device": 1000,
+  "fid": "0x2AA01028",
+  "fidSigned": 715132968,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "3": "three-level ventilation fitted",
+   "other": "no three-level ventilation (stock then tries the 5- and 2-level paths)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 570
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatKeys.java",
+    "line": 114
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/VentHeatValues.java",
+    "line": 161
+   }
+  ],
+  "confidence": "high",
+  "note": "All eight read 3 on 2026-10-20. The *_CONFIG_311 twins (0x311010xx) read 65535 here and swap LF/RF naming; ignore them.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "driver (front left)",
+  "name": "SET_HAS_DRIVER_SEAT_HEATING",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0xCFA0000B",
+  "fidSigned": -811597813,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), presence of the feedback signal",
+  "values": {
+   "1": "has the feature",
+   "2": "has the feature",
+   "3": "has the feature",
+   "65535": "link error",
+   "other": "does not have the feature"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2967
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2046
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2100
+   }
+  ],
+  "confidence": "medium",
+  "note": "Framework hasFeature() reading; DiCarServer does not use it (it uses the AC_*_CONFIG). Right-rear read 0 while frame 0x486 was offline, so it is not proof the seat lacks heating/ventilation.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "front passenger (front right)",
+  "name": "SET_HAS_PASSENGER_SEAT_HEATING",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0xCFA00013",
+  "fidSigned": -811597805,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), presence of the feedback signal",
+  "values": {
+   "1": "has the feature",
+   "2": "has the feature",
+   "3": "has the feature",
+   "65535": "link error",
+   "other": "does not have the feature"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2975
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2046
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2100
+   }
+  ],
+  "confidence": "medium",
+  "note": "Framework hasFeature() reading; DiCarServer does not use it (it uses the AC_*_CONFIG). Right-rear read 0 while frame 0x486 was offline, so it is not proof the seat lacks heating/ventilation.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 left",
+  "name": "SET_HAS_REAR_LEFT_SEAT_HEATING",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0xC860000B",
+  "fidSigned": -933232629,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), presence of the feedback signal",
+  "values": {
+   "1": "has the feature",
+   "2": "has the feature",
+   "3": "has the feature",
+   "65535": "link error",
+   "other": "does not have the feature"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2979
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2046
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2100
+   }
+  ],
+  "confidence": "medium",
+  "note": "Framework hasFeature() reading; DiCarServer does not use it (it uses the AC_*_CONFIG). Right-rear read 0 while frame 0x486 was offline, so it is not proof the seat lacks heating/ventilation.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat heating",
+  "seat_or_side": "row 2 right",
+  "name": "SET_HAS_REAR_RIGHT_SEAT_HEATING",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0xC8600013",
+  "fidSigned": -933232621,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), presence of the feedback signal",
+  "values": {
+   "1": "has the feature",
+   "2": "has the feature",
+   "3": "has the feature",
+   "65535": "link error",
+   "other": "does not have the feature"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2981
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2046
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2100
+   }
+  ],
+  "confidence": "medium",
+  "note": "Framework hasFeature() reading; DiCarServer does not use it (it uses the AC_*_CONFIG). Right-rear read 0 while frame 0x486 was offline, so it is not proof the seat lacks heating/ventilation.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "driver (front left)",
+  "name": "SET_HAS_DRIVER_SEAT_VENTILATING",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0xCFA00008",
+  "fidSigned": -811597816,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), presence of the feedback signal",
+  "values": {
+   "1": "has the feature",
+   "2": "has the feature",
+   "3": "has the feature",
+   "65535": "link error",
+   "other": "does not have the feature"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2969
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2046
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2100
+   }
+  ],
+  "confidence": "medium",
+  "note": "Framework hasFeature() reading; DiCarServer does not use it (it uses the AC_*_CONFIG). Right-rear read 0 while frame 0x486 was offline, so it is not proof the seat lacks heating/ventilation.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "front passenger (front right)",
+  "name": "SET_HAS_PASSENGER_SEAT_VENTILATING",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0xCFA00010",
+  "fidSigned": -811597808,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), presence of the feedback signal",
+  "values": {
+   "1": "has the feature",
+   "2": "has the feature",
+   "3": "has the feature",
+   "65535": "link error",
+   "other": "does not have the feature"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2977
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2046
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2100
+   }
+  ],
+  "confidence": "medium",
+  "note": "Framework hasFeature() reading; DiCarServer does not use it (it uses the AC_*_CONFIG). Right-rear read 0 while frame 0x486 was offline, so it is not proof the seat lacks heating/ventilation.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 left",
+  "name": "SET_HAS_REAR_LEFT_SEAT_VENTILATING",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0xC8600008",
+  "fidSigned": -933232632,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), presence of the feedback signal",
+  "values": {
+   "1": "has the feature",
+   "2": "has the feature",
+   "3": "has the feature",
+   "65535": "link error",
+   "other": "does not have the feature"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2980
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2046
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2100
+   }
+  ],
+  "confidence": "medium",
+  "note": "Framework hasFeature() reading; DiCarServer does not use it (it uses the AC_*_CONFIG). Right-rear read 0 while frame 0x486 was offline, so it is not proof the seat lacks heating/ventilation.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat ventilation",
+  "seat_or_side": "row 2 right",
+  "name": "SET_HAS_REAR_RIGHT_SEAT_VENTILATING",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0xC8600010",
+  "fidSigned": -933232624,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), presence of the feedback signal",
+  "values": {
+   "1": "has the feature",
+   "2": "has the feature",
+   "3": "has the feature",
+   "65535": "link error",
+   "other": "does not have the feature"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2982
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2046
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2100
+   }
+  ],
+  "confidence": "medium",
+  "note": "Framework hasFeature() reading; DiCarServer does not use it (it uses the AC_*_CONFIG). Right-rear read 0 while frame 0x486 was offline, so it is not proof the seat lacks heating/ventilation.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "driver (front left)",
+  "name": "SET_FRONT_LEFT_SEAT_MASSAGE_MODE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA00030",
+  "fidSigned": 1335885872,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "wave",
+   "3": "pulse",
+   "4": "stretch",
+   "5": "smoothing",
+   "6": "slack",
+   "8": "shoulder hot stone",
+   "9": "waist hot stone"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2896
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 12
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 13
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 62
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 140
+   }
+  ],
+  "confidence": "high",
+  "note": "Massage is on when mode is 2-6, 8 or 9 AND level is 1-3 (MassageValues.EventValues.isEnable, normal-config seats). 7 is ENABLE_ON, written by the setter only.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "driver (front left)",
+  "name": "SET_FRONT_LEFT_SEAT_MASSAGE_LEVEL",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA00034",
+  "fidSigned": 1335885876,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "0": "invalid",
+   "1": "weak",
+   "2": "medium",
+   "3": "strong",
+   "4": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2895
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 12
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 20
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 69
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/CarSeatMassageServiceImpl.java",
+    "line": 197
+   }
+  ],
+  "confidence": "high",
+  "note": "Intensity words are the stock constant names INTENSITY_WEAK/MEDIUM/STRONG; 4 is LEVEL_OFF, 0 LEVEL_INVALID.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "driver (front left)",
+  "name": "SET_FRONT_LEFT_SEAT_MASSAGE_CONFIG",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x4FA00037",
+  "fidSigned": 1335885879,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt)",
+  "values": {
+   "1": "massage fitted (TYPE_CONFIG_NORMAL)",
+   "other": "no normal massage"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2894
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 77
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 154
+   }
+  ],
+  "confidence": "high",
+  "note": "All four read 1 on 2026-10-20. Hot-stone and low-config variants (SET_*_HOT_STONE_MASSAGE_CONFIG 0x4B3001E8-EB, SET_REAR_*_LOW_CONFIG_MASSAGE_CONFIG) read 0.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "front passenger (front right)",
+  "name": "SET_FRONT_RIGHT_SEAT_MASSAGE_MODE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA00038",
+  "fidSigned": 1335885880,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "wave",
+   "3": "pulse",
+   "4": "stretch",
+   "5": "smoothing",
+   "6": "slack",
+   "8": "shoulder hot stone",
+   "9": "waist hot stone"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2899
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 13
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 13
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 62
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 140
+   }
+  ],
+  "confidence": "high",
+  "note": "Massage is on when mode is 2-6, 8 or 9 AND level is 1-3 (MassageValues.EventValues.isEnable, normal-config seats). 7 is ENABLE_ON, written by the setter only.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "front passenger (front right)",
+  "name": "SET_FRONT_RIGHT_SEAT_MASSAGE_LEVEL",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA0003C",
+  "fidSigned": 1335885884,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "0": "invalid",
+   "1": "weak",
+   "2": "medium",
+   "3": "strong",
+   "4": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2898
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 13
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 20
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 69
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/CarSeatMassageServiceImpl.java",
+    "line": 197
+   }
+  ],
+  "confidence": "high",
+  "note": "Intensity words are the stock constant names INTENSITY_WEAK/MEDIUM/STRONG; 4 is LEVEL_OFF, 0 LEVEL_INVALID.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "front passenger (front right)",
+  "name": "SET_FRONT_RIGHT_SEAT_MASSAGE_CONFIG",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x4FA0003F",
+  "fidSigned": 1335885887,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt)",
+  "values": {
+   "1": "massage fitted (TYPE_CONFIG_NORMAL)",
+   "other": "no normal massage"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2897
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 78
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 154
+   }
+  ],
+  "confidence": "high",
+  "note": "All four read 1 on 2026-10-20. Hot-stone and low-config variants (SET_*_HOT_STONE_MASSAGE_CONFIG 0x4B3001E8-EB, SET_REAR_*_LOW_CONFIG_MASSAGE_CONFIG) read 0.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "row 2 left",
+  "name": "SET_REAR_LEFT_SEAT_MASSAGE_MODE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA00020",
+  "fidSigned": 1335885856,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "wave",
+   "3": "pulse",
+   "4": "stretch",
+   "5": "smoothing",
+   "6": "slack",
+   "8": "shoulder hot stone",
+   "9": "waist hot stone"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3181
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 14
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 13
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 62
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 140
+   }
+  ],
+  "confidence": "high",
+  "note": "Massage is on when mode is 2-6, 8 or 9 AND level is 1-3 (MassageValues.EventValues.isEnable, normal-config seats). 7 is ENABLE_ON, written by the setter only.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "row 2 left",
+  "name": "SET_REAR_LEFT_SEAT_MASSAGE_LEVEL",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA00024",
+  "fidSigned": 1335885860,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "0": "invalid",
+   "1": "weak",
+   "2": "medium",
+   "3": "strong",
+   "4": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3179
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 14
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 20
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 69
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/CarSeatMassageServiceImpl.java",
+    "line": 197
+   }
+  ],
+  "confidence": "high",
+  "note": "Intensity words are the stock constant names INTENSITY_WEAK/MEDIUM/STRONG; 4 is LEVEL_OFF, 0 LEVEL_INVALID.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "row 2 left",
+  "name": "SET_REAR_LEFT_SEAT_MASSAGE_CONFIG",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x4FA00027",
+  "fidSigned": 1335885863,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt)",
+  "values": {
+   "1": "massage fitted (TYPE_CONFIG_NORMAL)",
+   "other": "no normal massage"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3178
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 79
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 154
+   }
+  ],
+  "confidence": "high",
+  "note": "All four read 1 on 2026-10-20. Hot-stone and low-config variants (SET_*_HOT_STONE_MASSAGE_CONFIG 0x4B3001E8-EB, SET_REAR_*_LOW_CONFIG_MASSAGE_CONFIG) read 0.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "row 2 right",
+  "name": "SET_REAR_RIGHT_SEAT_MASSAGE_MODE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA00028",
+  "fidSigned": 1335885864,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "wave",
+   "3": "pulse",
+   "4": "stretch",
+   "5": "smoothing",
+   "6": "slack",
+   "8": "shoulder hot stone",
+   "9": "waist hot stone"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3197
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 15
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 13
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 62
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 140
+   }
+  ],
+  "confidence": "high",
+  "note": "Massage is on when mode is 2-6, 8 or 9 AND level is 1-3 (MassageValues.EventValues.isEnable, normal-config seats). 7 is ENABLE_ON, written by the setter only.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "row 2 right",
+  "name": "SET_REAR_RIGHT_SEAT_MASSAGE_LEVEL",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4FA0002C",
+  "fidSigned": 1335885868,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "0": "invalid",
+   "1": "weak",
+   "2": "medium",
+   "3": "strong",
+   "4": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3195
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 15
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 20
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 69
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/CarSeatMassageServiceImpl.java",
+    "line": 197
+   }
+  ],
+  "confidence": "high",
+  "note": "Intensity words are the stock constant names INTENSITY_WEAK/MEDIUM/STRONG; 4 is LEVEL_OFF, 0 LEVEL_INVALID.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat massage",
+  "seat_or_side": "row 2 right",
+  "name": "SET_REAR_RIGHT_SEAT_MASSAGE_CONFIG",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x4FA0002F",
+  "fidSigned": 1335885871,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt)",
+  "values": {
+   "1": "massage fitted (TYPE_CONFIG_NORMAL)",
+   "other": "no normal massage"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3194
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageKeys.java",
+    "line": 80
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/MassageValues.java",
+    "line": 154
+   }
+  ],
+  "confidence": "high",
+  "note": "All four read 1 on 2026-10-20. Hot-stone and low-config variants (SET_*_HOT_STONE_MASSAGE_CONFIG 0x4B3001E8-EB, SET_REAR_*_LOW_CONFIG_MASSAGE_CONFIG) read 0.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat belt",
+  "seat_or_side": "driver (front left)",
+  "name": "INSTRUMENT_DD_MAIN_SAFETYBELT_STATE",
+  "kind": "status",
+  "device": 1007,
+  "fid": "0x29400018",
+  "fidSigned": 692060184,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "fastened",
+   "0": "not fastened"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/instrument/Instrument.java",
+    "line": 453
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedKeys.java",
+    "line": 22
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 110
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 42
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 391
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/car/CarSingleRepository.java",
+    "line": 109
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+    "line": 674
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+    "line": 2313
+   }
+  ],
+  "confidence": "high",
+  "note": "Front seats: fastened iff 1 (ExtendedValues.isFastened). Voice quick command uses style_on_1_off_0 for MAIN/DEPUTY belts. Cluster name DOMAIN_294_30_31_SEAT_BELT_STATUS (2-bit field).",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat belt",
+  "seat_or_side": "front passenger (front right)",
+  "name": "INSTRUMENT_DD_DEPUTY_SAFETYBELT_STATE",
+  "kind": "status",
+  "device": 1007,
+  "fid": "0x2610001B",
+  "fidSigned": 638582811,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "fastened",
+   "0": "not fastened"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/instrument/Instrument.java",
+    "line": 340
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedKeys.java",
+    "line": 23
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 110
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 42
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 391
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/car/CarSingleRepository.java",
+    "line": 84
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+    "line": 2316
+   }
+  ],
+  "confidence": "high",
+  "note": "Front seats: fastened iff 1.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "seat belt",
+  "seat_or_side": "row 2 left",
+  "name": "SETTING_LEFT_REAR_ROW_SAFETYBELT_STATUS",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x3120000A",
+  "fidSigned": 824180746,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "fastened",
+   "1": "not fastened"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1132
+   },
+   {
+    "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+    "line": 8019
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedKeys.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 30
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 110
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 41
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 410
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/car/CarSingleRepository.java",
+    "line": 114
+   }
+  ],
+  "confidence": "high",
+  "note": "Rear seats: fastened iff 2 (ExtendedValues.isFastened; voice style_on_2_off_1). The DiCar property key is a hash (0xDC1A9893); the native FID is 0x3120000A on device 1023 (resolved table). ",
+  "observedParked20261020": "1",
+  "propertyKey": "0xDC1A9893"
+ },
+ {
+  "area": "seat belt",
+  "seat_or_side": "row 2 right",
+  "name": "SETTING_RIGHT_REAR_ROW_SAFETYBELT_STATUS",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x3120000C",
+  "fidSigned": 824180748,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "fastened",
+   "1": "not fastened"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1846
+   },
+   {
+    "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+    "line": 8643
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedKeys.java",
+    "line": 25
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 30
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 110
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 41
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 410
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/car/CarSingleRepository.java",
+    "line": 124
+   }
+  ],
+  "confidence": "high",
+  "note": "Rear seats: fastened iff 2 (ExtendedValues.isFastened; voice style_on_2_off_1). The DiCar property key is a hash (0x51EA39EE); the native FID is 0x3120000C on device 1023 (resolved table). ",
+  "observedParked20261020": "1",
+  "propertyKey": "0x51EA39EE"
+ },
+ {
+  "area": "seat belt",
+  "seat_or_side": "row 2 centre",
+  "name": "SETTING_CENTER_REAR_ROW_SAFETYBELT_STATUS",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x3120000E",
+  "fidSigned": 824180750,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "fastened",
+   "1": "not fastened"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 242
+   },
+   {
+    "path": "captures/ambient-light-20260923/data/fids-canfd.tsv",
+    "line": 7323
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 30
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 110
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 41
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/QuickCommandCompareUtil.java",
+    "line": 410
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice/qc/car/CarSingleRepository.java",
+    "line": 119
+   }
+  ],
+  "confidence": "medium",
+  "note": "Rear seats: fastened iff 2 (ExtendedValues.isFastened; voice style_on_2_off_1). The DiCar property key is a hash (0x88D4B0C9); the native FID is 0x3120000E on device 1023 (resolved table). Centre seat is not in DiCarServer ExtendedKeys; the meaning comes from the car's voice app quick command SECOND_MID_SAFETY_BELT.",
+  "observedParked20261020": "1",
+  "propertyKey": "0x88D4B0C9"
+ },
+ {
+  "area": "seat belt",
+  "seat_or_side": "row 2 left",
+  "name": "INSTRUMENT_DD_REAR_LEFT_SAFETYBELT_STATE",
+  "kind": "status",
+  "device": 1007,
+  "fid": "0x2610001C",
+  "fidSigned": 638582812,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "1-bit field (cluster DOMAIN_261_3x_3x_*_SEATBELT)",
+  "values": {
+   "1": "LOCK (framework constant SAFETY_BELT_STATE_LOCK)",
+   "0": "UNLOCK (SAFETY_BELT_STATE_UNLOCK)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/instrument/Instrument.java",
+    "line": 465
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+    "line": 674
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+    "line": 2319
+   }
+  ],
+  "confidence": "low",
+  "note": "Not recommended. Framework maps it LOCK=1, but in the parked sweep all three read 1 while the Setting rear-row belts read 1 (= not fastened) and occupancy said nobody; DiCarServer and the voice app use the Setting rear-row FIDs instead. INSTRUMENT_DD_MAIN_DRIVER_SAFETYBELT_STATE 0x2610001A (read 1) is the driver twin of this family.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat belt",
+  "seat_or_side": "row 2 centre",
+  "name": "INSTRUMENT_DD_REAR_MID_SAFETYBELT_STATE",
+  "kind": "status",
+  "device": 1007,
+  "fid": "0x2610001D",
+  "fidSigned": 638582813,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "1-bit field (cluster DOMAIN_261_3x_3x_*_SEATBELT)",
+  "values": {
+   "1": "LOCK (framework constant SAFETY_BELT_STATE_LOCK)",
+   "0": "UNLOCK (SAFETY_BELT_STATE_UNLOCK)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/instrument/Instrument.java",
+    "line": 466
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+    "line": 674
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+    "line": 2319
+   }
+  ],
+  "confidence": "low",
+  "note": "Not recommended. Framework maps it LOCK=1, but in the parked sweep all three read 1 while the Setting rear-row belts read 1 (= not fastened) and occupancy said nobody; DiCarServer and the voice app use the Setting rear-row FIDs instead. INSTRUMENT_DD_MAIN_DRIVER_SAFETYBELT_STATE 0x2610001A (read 1) is the driver twin of this family.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat belt",
+  "seat_or_side": "row 2 right",
+  "name": "INSTRUMENT_DD_REAR_RIGHT_SAFETYBELT_STATE",
+  "kind": "status",
+  "device": 1007,
+  "fid": "0x2610001E",
+  "fidSigned": 638582814,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "1-bit field (cluster DOMAIN_261_3x_3x_*_SEATBELT)",
+  "values": {
+   "1": "LOCK (framework constant SAFETY_BELT_STATE_LOCK)",
+   "0": "UNLOCK (SAFETY_BELT_STATE_UNLOCK)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/instrument/Instrument.java",
+    "line": 467
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+    "line": 674
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/instrument/BYDAutoInstrumentDevice.java",
+    "line": 2319
+   }
+  ],
+  "confidence": "low",
+  "note": "Not recommended. Framework maps it LOCK=1, but in the parked sweep all three read 1 while the Setting rear-row belts read 1 (= not fastened) and occupancy said nobody; DiCarServer and the voice app use the Setting rear-row FIDs instead. INSTRUMENT_DD_MAIN_DRIVER_SAFETYBELT_STATE 0x2610001A (read 1) is the driver twin of this family.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "seat belt",
+  "seat_or_side": "seats 0-7 (no seat mapping in firmware)",
+  "name": "ADAS_SEATn_SEATBELT_RESPONSE_STATUS (n=0..7)",
+  "kind": "status",
+  "device": 1038,
+  "fid": "0x1FF0502C",
+  "fidSigned": 535842860,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer; FIDs 0x1FF0502C,2E,30,32,34,36,38,3A for n=0..7",
+  "values": {},
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/Adas.java",
+    "line": 1175
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/adas/AdasMapper.java",
+    "line": 608
+   }
+  ],
+  "confidence": "low",
+  "note": "Not a buckle state: it is the response to SETTING_SEATn_SEATBELT_RESPONSE_REQUEST_SET (a setting request). No stock code maps n to a seat or names its values. All eight read 3. Do not use for the scheme.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "occupancy",
+  "seat_or_side": "driver (front left)",
+  "name": "SAFETY_BELT_PASSENGER_COMMAND_FRONT_ROW_SEAT_LEFT",
+  "kind": "status",
+  "device": 1042,
+  "fid": "0x31200040",
+  "fidSigned": 824180800,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "seated (ExtendedValues.SEATED)",
+   "other": "not seated (stock treats every value but 2 as not seated)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/safetybelt/Safetybelt.java",
+    "line": 20
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedKeys.java",
+    "line": 16
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 31
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/CarSeatExtendedServiceImpl.java",
+    "line": 337
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/CarFlexibleSpaceApiImpl.java",
+    "line": 1702
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/safetybelt/BYDAutoSafetyBeltDevice.java",
+    "line": 37
+   }
+  ],
+  "confidence": "medium",
+  "note": "Conflict: the framework BYDAutoSafetyBeltDevice constants say 0 nobody / 1 somebody / 2 invalid, but the car's current DiCarServer (IS_SEATED = 2) and voice app (== 2 means people) both use 2 = seated; all five read 1 in the parked sweep, which fits DiCarServer for an empty car. Follow DiCarServer; confirm live with someone seated.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "occupancy",
+  "seat_or_side": "front passenger (front right)",
+  "name": "SAFETY_BELT_PASSENGER_COMMAND_FRONT_ROW_SEAT_RIGHT",
+  "kind": "status",
+  "device": 1042,
+  "fid": "0x31200016",
+  "fidSigned": 824180758,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "seated (ExtendedValues.SEATED)",
+   "other": "not seated (stock treats every value but 2 as not seated)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/safetybelt/Safetybelt.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedKeys.java",
+    "line": 17
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 31
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/CarSeatExtendedServiceImpl.java",
+    "line": 337
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/CarFlexibleSpaceApiImpl.java",
+    "line": 1702
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/safetybelt/BYDAutoSafetyBeltDevice.java",
+    "line": 37
+   }
+  ],
+  "confidence": "medium",
+  "note": "Conflict: the framework BYDAutoSafetyBeltDevice constants say 0 nobody / 1 somebody / 2 invalid, but the car's current DiCarServer (IS_SEATED = 2) and voice app (== 2 means people) both use 2 = seated; all five read 1 in the parked sweep, which fits DiCarServer for an empty car. Follow DiCarServer; confirm live with someone seated.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "occupancy",
+  "seat_or_side": "row 2 left",
+  "name": "SAFETY_BELT_PASSENGER_COMMAND_SECOND_ROW_SEAT_LEFT",
+  "kind": "status",
+  "device": 1042,
+  "fid": "0x31200018",
+  "fidSigned": 824180760,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "seated (ExtendedValues.SEATED)",
+   "other": "not seated (stock treats every value but 2 as not seated)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/safetybelt/Safetybelt.java",
+    "line": 22
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedKeys.java",
+    "line": 18
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 31
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/CarSeatExtendedServiceImpl.java",
+    "line": 337
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/CarFlexibleSpaceApiImpl.java",
+    "line": 1702
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/safetybelt/BYDAutoSafetyBeltDevice.java",
+    "line": 37
+   }
+  ],
+  "confidence": "medium",
+  "note": "Conflict: the framework BYDAutoSafetyBeltDevice constants say 0 nobody / 1 somebody / 2 invalid, but the car's current DiCarServer (IS_SEATED = 2) and voice app (== 2 means people) both use 2 = seated; all five read 1 in the parked sweep, which fits DiCarServer for an empty car. Follow DiCarServer; confirm live with someone seated.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "occupancy",
+  "seat_or_side": "row 2 right",
+  "name": "SAFETY_BELT_PASSENGER_COMMAND_SECOND_ROW_SEAT_RIGHT",
+  "kind": "status",
+  "device": 1042,
+  "fid": "0x3120001C",
+  "fidSigned": 824180764,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "seated (ExtendedValues.SEATED)",
+   "other": "not seated (stock treats every value but 2 as not seated)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/safetybelt/Safetybelt.java",
+    "line": 24
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedKeys.java",
+    "line": 19
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 31
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/CarSeatExtendedServiceImpl.java",
+    "line": 337
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/CarFlexibleSpaceApiImpl.java",
+    "line": 1702
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/safetybelt/BYDAutoSafetyBeltDevice.java",
+    "line": 37
+   }
+  ],
+  "confidence": "medium",
+  "note": "Conflict: the framework BYDAutoSafetyBeltDevice constants say 0 nobody / 1 somebody / 2 invalid, but the car's current DiCarServer (IS_SEATED = 2) and voice app (== 2 means people) both use 2 = seated; all five read 1 in the parked sweep, which fits DiCarServer for an empty car. Follow DiCarServer; confirm live with someone seated.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "occupancy",
+  "seat_or_side": "row 2 centre",
+  "name": "SAFETY_BELT_PASSENGER_COMMAND_SECOND_ROW_SEAT_MID",
+  "kind": "status",
+  "device": 1042,
+  "fid": "0x3120001A",
+  "fidSigned": 824180762,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "seated (ExtendedValues.SEATED)",
+   "other": "not seated (stock treats every value but 2 as not seated)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/safetybelt/Safetybelt.java",
+    "line": 23
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 31
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/property/ExtendedValues.java",
+    "line": 39
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/seat/CarSeatExtendedServiceImpl.java",
+    "line": 337
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/CarFlexibleSpaceApiImpl.java",
+    "line": 1702
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/safetybelt/BYDAutoSafetyBeltDevice.java",
+    "line": 37
+   }
+  ],
+  "confidence": "low",
+  "note": "Conflict: the framework BYDAutoSafetyBeltDevice constants say 0 nobody / 1 somebody / 2 invalid, but the car's current DiCarServer (IS_SEATED = 2) and voice app (== 2 means people) both use 2 = seated; all five read 1 in the parked sweep, which fits DiCarServer for an empty car. Follow DiCarServer; confirm live with someone seated. Centre seat is not in ExtendedKeys; the voice app reads it (CarFlexibleSpaceApiImpl line 1716) without a stated value map.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "steering wheel",
+  "seat_or_side": "steering wheel",
+  "name": "SET_STEERING_WHEEL_HEAT_STATE",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x4290000E",
+  "fidSigned": 1116733454,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "off",
+   "2": "on",
+   "0": "invalid"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3296
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/steerwheel/CarSteerWheelServiceImpl.java",
+    "line": 215
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/steerwheel/property/SteerWheelMaps.java",
+    "line": 13
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 554
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/setting/BYDAutoSettingDevice.java",
+    "line": 2837
+   }
+  ],
+  "confidence": "high",
+  "note": "Feedback, not the command (the command is SET_STEERING_WHEEL_HEAT_STATE_SET). Framework getSteeringWheelHeatingState reads FID 1116733454 = 0x4290000E.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "steering wheel",
+  "seat_or_side": "steering wheel",
+  "name": "SET_AUTO_STEER_WHEEL_HEATING_GEAR",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x42900019",
+  "fidSigned": 1116733465,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), heating level",
+  "values": {
+   "1": "level 1",
+   "2": "level 2",
+   "3": "level 3",
+   "4": "level 4",
+   "5": "level 5",
+   "other": "invalid level (stock returns ERR_AUTO_HAL_INVALID_VALUE)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2692
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/steerwheel/CarSteerWheelServiceImpl.java",
+    "line": 177
+   }
+  ],
+  "confidence": "medium",
+  "note": "Read 0 while heating was off. Only meaningful with SET_STEERING_WHEEL_HEAT_STATE = 2; the Z9GT scheme is triple-level, so expect 1-3.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "steering wheel",
+  "seat_or_side": "steering wheel",
+  "name": "SETTING_AUTO_STEER_WHEEL_HEATING_CONFIG",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x42900038",
+  "fidSigned": 1116733496,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt), heating scheme",
+  "values": {
+   "1": "steer-wheel drive, single level",
+   "2": "steer-wheel drive, triple level",
+   "3": "steer-wheel drive, penta level",
+   "4": "left domain drive, single level",
+   "5": "left domain drive, triple level",
+   "6": "left domain drive, penta level",
+   "0": "invalid"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 169
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/steerwheel/CarSteerWheelServiceImpl.java",
+    "line": 188
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/steerwheel/HeatScheme.java",
+    "line": 8
+   }
+  ],
+  "confidence": "high",
+  "note": "Read 2 (triple level) on 2026-10-20. If outside 1-6 the stock falls back to SET_AUTO_STEER_WHEEL_HEATING_MODE (1/2 -> 3) and then SET_STEERING_WHEEL_HEAT_STATE (1/2 -> 1); 0 = no heated wheel.",
+  "observedParked20261020": "2"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_TYPE",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x48C0003D",
+  "fidSigned": 1220542525,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt)",
+  "values": {
+   "1": "front fridge fitted",
+   "other": "no front fridge"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2493
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 86
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 156
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/fridge/config/FrontConfigProperty.java",
+    "line": 18
+   }
+  ],
+  "confidence": "high",
+  "note": "Read 1.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "rear",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_QUANTITY_FLAG",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x23402012",
+  "fidSigned": 591405074,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt)",
+  "values": {
+   "2": "rear fridge fitted",
+   "other": "no rear fridge"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2475
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+    "line": 171
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+    "line": 202
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/fridge/config/RearConfigProperty.java",
+    "line": 18
+   }
+  ],
+  "confidence": "high",
+  "note": "Read 2.",
+  "observedParked20261020": "2"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_COFING_FLAG",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x48C00008",
+  "fidSigned": 1220542472,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt), work type",
+  "values": {
+   "1": "WORK_TYPE_2: cold/hot/off",
+   "2": "WORK_TYPE_3: cold/hot/off/fresh",
+   "3": "WORK_TYPE_COLD: cold/off",
+   "other": "work mode not reported"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2443
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/FridgeWorkType.java",
+    "line": 5
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 93
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 200
+   }
+  ],
+  "confidence": "high",
+  "note": "Read 1. Work mode is only read when this is 1, 2 or 3.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "rear",
+  "name": "SETTING_REAR_REFRIGERATOR_WORKING_MODE",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x23402020",
+  "fidSigned": 591405088,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt), work type",
+  "values": {
+   "1": "WORK_TYPE_2: cold/hot/off",
+   "2": "WORK_TYPE_3: cold/hot/off/fresh",
+   "3": "WORK_TYPE_COLD: cold/off",
+   "other": "work mode not reported"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1710
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/FridgeWorkType.java",
+    "line": 5
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+    "line": 211
+   }
+  ],
+  "confidence": "high",
+  "note": "Read 1. Despite the name this is the rear work TYPE (config); the state is SETTING_REAR_VEHICLE_REFRIGERATOR_WORKING_STATUS.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_WORKING_STATUS",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x48C00018",
+  "fidSigned": 1220542488,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "cold (WORK_MODE_COLD)",
+   "2": "hot (WORK_MODE_HOT)",
+   "3": "off (WORK_MODE_OFF)",
+   "4": "fresh (WORK_MODE_FRESH)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2494
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/FridgeWorkMode.java",
+    "line": 8
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 200
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/FridgeApilmpl.java",
+    "line": 230
+   }
+  ],
+  "confidence": "high",
+  "note": "Work state = what the fridge is doing. Read 3 (off) on both on 2026-10-20.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "rear",
+  "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_WORKING_STATUS",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x3AE00008",
+  "fidSigned": 987758600,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "cold (WORK_MODE_COLD)",
+   "2": "hot (WORK_MODE_HOT)",
+   "3": "off (WORK_MODE_OFF)",
+   "4": "fresh (WORK_MODE_FRESH)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1740
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/FridgeWorkMode.java",
+    "line": 8
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+    "line": 246
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/FridgeApilmpl.java",
+    "line": 230
+   }
+  ],
+  "confidence": "high",
+  "note": "Work state = what the fridge is doing. Read 3 (off) on both on 2026-10-20.",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_TEMP_REGULATION_COLD",
+  "kind": "control",
+  "device": 1023,
+  "fid": "0x3D60002A",
+  "fidSigned": 1029701674,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, offset; unit chosen by AC_TEMPERATURE_UNIT (1 °C, 0 °F): °C = raw − 19, valid raw 1..34 (−18..15 °C); °F = raw − 1, valid raw 1..60",
+  "values": {
+   "outside valid range": "invalid (stock returns ERR_AUTO_HAL_INVALID_VALUE)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2489
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 60
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 165
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 977
+   }
+  ],
+  "confidence": "high",
+  "note": "Target set point for the cold work mode, not a measured temperature. Show the one matching the work state (1 cold, 2 hot, 4 fresh). Read 19 = 0 °C on 2026-10-20.",
+  "observedParked20261020": "19"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_TEMP_REGULATION_HEAT",
+  "kind": "control",
+  "device": 1023,
+  "fid": "0x3D600030",
+  "fidSigned": 1029701680,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, offset; unit chosen by AC_TEMPERATURE_UNIT (1 °C, 0 °F): °C = raw + 34, valid raw 1..16 (35..50 °C); °F = raw + 94, valid raw 1..28",
+  "values": {
+   "outside valid range": "invalid (stock returns ERR_AUTO_HAL_INVALID_VALUE)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2491
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 84
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 165
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 977
+   }
+  ],
+  "confidence": "high",
+  "note": "Target set point for the heat work mode, not a measured temperature. Show the one matching the work state (1 cold, 2 hot, 4 fresh). Read 6 = 40 °C on 2026-10-20.",
+  "observedParked20261020": "6"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_TEMP_REGULATION_FRESH",
+  "kind": "control",
+  "device": 1023,
+  "fid": "0x3D600035",
+  "fidSigned": 1029701685,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, offset; unit chosen by AC_TEMPERATURE_UNIT (1 °C, 0 °F): °C = raw + 7, valid raw 1..3 (8..10 °C); °F = raw + 45, valid raw 1..5",
+  "values": {
+   "outside valid range": "invalid (stock returns ERR_AUTO_HAL_INVALID_VALUE)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2490
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 69
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 165
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 977
+   }
+  ],
+  "confidence": "high",
+  "note": "Target set point for the fresh work mode, not a measured temperature. Show the one matching the work state (1 cold, 2 hot, 4 fresh). Read 1 = 8 °C on 2026-10-20.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "rear",
+  "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_TEMP_REGULATION_COLD",
+  "kind": "control",
+  "device": 1023,
+  "fid": "0x3AE00010",
+  "fidSigned": 987758608,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, offset; unit chosen by AC_TEMPERATURE_UNIT (1 °C, 0 °F): °C = raw − 19, valid raw 1..34 (−18..15 °C); °F = raw − 1, valid raw 1..60",
+  "values": {
+   "outside valid range": "invalid (stock returns ERR_AUTO_HAL_INVALID_VALUE)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1736
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 60
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+    "line": 211
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 977
+   }
+  ],
+  "confidence": "high",
+  "note": "Target set point for the cold work mode, not a measured temperature. Show the one matching the work state (1 cold, 2 hot, 4 fresh). Read 13 = -6 °C on 2026-10-20.",
+  "observedParked20261020": "13"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "rear",
+  "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_TEMP_REGULATION_HEAT",
+  "kind": "control",
+  "device": 1023,
+  "fid": "0x3AE00018",
+  "fidSigned": 987758616,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, offset; unit chosen by AC_TEMPERATURE_UNIT (1 °C, 0 °F): °C = raw + 34, valid raw 1..16 (35..50 °C); °F = raw + 94, valid raw 1..28",
+  "values": {
+   "outside valid range": "invalid (stock returns ERR_AUTO_HAL_INVALID_VALUE)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1738
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 84
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+    "line": 211
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 977
+   }
+  ],
+  "confidence": "high",
+  "note": "Target set point for the heat work mode, not a measured temperature. Show the one matching the work state (1 cold, 2 hot, 4 fresh). Read 6 = 40 °C on 2026-10-20.",
+  "observedParked20261020": "6"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "rear",
+  "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_TEMP_REGULATION_FRESH",
+  "kind": "control",
+  "device": 1023,
+  "fid": "0x3AE0001D",
+  "fidSigned": 987758621,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, offset; unit chosen by AC_TEMPERATURE_UNIT (1 °C, 0 °F): °C = raw + 7, valid raw 1..3 (8..10 °C); °F = raw + 45, valid raw 1..5",
+  "values": {
+   "outside valid range": "invalid (stock returns ERR_AUTO_HAL_INVALID_VALUE)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1737
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 69
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+    "line": 211
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 977
+   }
+  ],
+  "confidence": "high",
+  "note": "Target set point for the fresh work mode, not a measured temperature. Show the one matching the work state (1 cold, 2 hot, 4 fresh). Read 1 = 8 °C on 2026-10-20.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_TEMP_FEEDBACK",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x48C0001B",
+  "fidSigned": 1220542491,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, scale/offset not defined anywhere in the stock code",
+  "values": {},
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2486
+   }
+  ],
+  "confidence": "low",
+  "note": "Only candidate for the actual compartment temperature, but no stock reader converts it (no consumer in DiCarServer, voice or SystemUI). Read 0 with the fridge off. Do not show until qualified live.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "rear",
+  "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_TEMP_FEEDBACK",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x3AE00030",
+  "fidSigned": 987758640,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, scale/offset not defined anywhere in the stock code",
+  "values": {},
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1734
+   }
+  ],
+  "confidence": "low",
+  "note": "Only candidate for the actual compartment temperature, but no stock reader converts it (no consumer in DiCarServer, voice or SystemUI). Read 0 with the fridge off. Do not show until qualified live.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_DOOR_STATUS",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x48C00025",
+  "fidSigned": 1220542501,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "open",
+   "2": "closed"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2459
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/fridge/door/BaseDoorProperty.java",
+    "line": 17
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 146
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 52
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/FridgeApilmpl.java",
+    "line": 41
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/FridgeApilmpl.java",
+    "line": 435
+   }
+  ],
+  "confidence": "medium",
+  "note": "Open/closed words from the car's voice app (2 -> fridgeDoorClose, getFridgeDoorState returns raw == 1). DiCarServer reports the door only when SETTING_VEHICLE_REFRIGERATOR_TELESCOPIC_CONTROL_FLAG (0x48C0000D) is 1 (full auto door) or 3 (semi auto door); on this car it read 2, so the stock UI hides the door. Read 2 (closed).",
+  "observedParked20261020": "2"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "rear",
+  "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_DOOR_STATUS",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x3AE00016",
+  "fidSigned": 987758614,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "open",
+   "2": "closed"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1726
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/fridge/door/BaseDoorProperty.java",
+    "line": 17
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+    "line": 192
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 52
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/FridgeApilmpl.java",
+    "line": 41
+   },
+   {
+    "path": "reverse/autovoice-jadx/sources/com/byd/autovoice_controlapi/api/system/carControl/FridgeApilmpl.java",
+    "line": 435
+   }
+  ],
+  "confidence": "medium",
+  "note": "Open/closed words from the car's voice app (2 -> fridgeDoorClose, getFridgeDoorState returns raw == 1). DiCarServer reports the door only when SETTING_REAR_REFRIGERATOR_DOOR_BUTTON_TYPE_FLAG (0x2340201C) is 1 (full auto door) or 3 (semi auto door); on this car it read 2, so the stock UI hides the door. Read 2 (closed).",
+  "observedParked20261020": "2"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "SETTING_VEHICLE_REFRIGERATOR_POPUP_REMIND",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x48C00029",
+  "fidSigned": 1220542505,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "lost communication (FRIDGE_LOST_COMMUNICATION_REMINDER)",
+   "2": "long work reminder (FRIDGE_LONG_WORK_REMINDER)",
+   "3": "heat mode reminder (FRIDGE_HEAT_MODE_REMINDER)",
+   "4": "door not closed reminder (FRIDGE_DOOR_NOT_CLOSE_REMINDER)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2471
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/SystemReminder.java",
+    "line": 5
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 261
+   }
+  ],
+  "confidence": "medium",
+  "note": "The only per-fridge warning the stock code reads for front/rear fridges (no fault-reason property exists for them). 0 is not a named value (read 0 on both, idle). Front: stock returns 1 (lost communication) itself when BODYWORK_ONLINE_HAS_0x048C00 != 1.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "rear",
+  "name": "SETTING_REAR_VEHICLE_REFRIGERATOR_POPUP_REMIND",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x3AE00038",
+  "fidSigned": 987758648,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "lost communication (FRIDGE_LOST_COMMUNICATION_REMINDER)",
+   "2": "long work reminder (FRIDGE_LONG_WORK_REMINDER)",
+   "3": "heat mode reminder (FRIDGE_HEAT_MODE_REMINDER)",
+   "4": "door not closed reminder (FRIDGE_DOOR_NOT_CLOSE_REMINDER)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 1732
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/SystemReminder.java",
+    "line": 5
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/RearFridgeStrategy.java",
+    "line": 303
+   }
+  ],
+  "confidence": "medium",
+  "note": "The only per-fridge warning the stock code reads for front/rear fridges (no fault-reason property exists for them). 0 is not a named value (read 0 on both, idle). Front: stock returns 1 (lost communication) itself when BODYWORK_ONLINE_HAS_0x048C00 != 1.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "front",
+  "name": "BODYWORK_ONLINE_HAS_0x048C00",
+  "kind": "status",
+  "device": 1001,
+  "fid": "0x48C00000",
+  "fidSigned": 1220542464,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt), frame-online flag",
+  "values": {
+   "1": "front fridge frame online",
+   "other": "lost communication"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/body/Body.java",
+    "line": 1454
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FrontFridgeStrategy.java",
+    "line": 269
+   }
+  ],
+  "confidence": "high",
+  "note": "Read 1.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "semi (centre console box)",
+  "name": "BODYWORK_FRIDGE_CONFIG",
+  "kind": "config",
+  "device": 1001,
+  "fid": "0x36B00015",
+  "fidSigned": 917504021,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt)",
+  "values": {
+   "1": "semi fridge fitted",
+   "2": "semi fridge fitted",
+   "other": "no semi fridge"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 587
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 885
+   }
+  ],
+  "confidence": "high",
+  "note": "Read 0: no semi fridge on this car, so BODYWORK_FRIDGE_WORK_STATE/DOOR_SEATE/FAULT_REASON do not apply.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "semi (centre console box)",
+  "name": "BODYWORK_FRIDGE_FAULT_REASON",
+  "kind": "status",
+  "device": 1001,
+  "fid": "0x36B00010",
+  "fidSigned": 917504016,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "3": "TC_FAILURE",
+   "4": "SENSOR_FAILURE"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/BoxExceptionType.java",
+    "line": 5
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 879
+   }
+  ],
+  "confidence": "low",
+  "note": "Semi fridge only (read when BODYWORK_FRIDGE_CONFIG is 1 or 2); not applicable to the Z9GT front/rear fridges. TC is not expanded anywhere in the firmware. Read 0.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "fridge",
+  "seat_or_side": "both",
+  "name": "AC_TEMPERATURE_UNIT",
+  "kind": "config",
+  "device": 1000,
+  "fid": "0x40400027",
+  "fidSigned": 1077936167,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "°C (AC_TEMPERATURE_UNIT_OC)",
+   "0": "°F (AC_TEMPERATURE_UNIT_OF)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/ac/Ac.java",
+    "line": 635
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/ac/BYDAutoAcDevice.java",
+    "line": 87
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/CarFridgeServiceImpl.java",
+    "line": 977
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/fridge/strategy/FridgeStrategyUtils.java",
+    "line": 19
+   }
+  ],
+  "confidence": "high",
+  "note": "Selects the fridge set-point formula (unit 0 = °F branch). Read 1 (°C).",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "wireless charging",
+  "seat_or_side": "left",
+  "name": "CHARGING_CHARGE_WIRELESS_CHARGING_STATE",
+  "kind": "status",
+  "device": 1009,
+  "fid": "0x41E00009",
+  "fidSigned": 1105199113,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "0": "charging",
+   "1": "fully charged",
+   "2": "fault",
+   "3": "standby",
+   "other": "standby (stock default)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/charging/Charging.java",
+    "line": 130
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/accessories/WirelessCharging/LChargeStateProperty.java",
+    "line": 15
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/accessories/WirelessCharging/LChargeStateProperty.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/accessories/WirelessCharging/WirelessChargingState.java",
+    "line": 4
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+    "line": 196
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/android/systemui/custom/CustomStatusBarView.java",
+    "line": 2840
+   }
+  ],
+  "confidence": "high",
+  "note": "Status-bar icon: 0 ongoing, 1 full, 2 fault, 3 hidden. No foreign-object or overheat state exists in the firmware enum. Framework getWirelessChargingState reads 1105199113 = 0x41E00009. Read 3 (standby).",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "wireless charging",
+  "seat_or_side": "right",
+  "name": "CHARGING_CHARGE_WIRELESS_CHARGING_R_STATE_MODE",
+  "kind": "status",
+  "device": 1009,
+  "fid": "0xC1E00012",
+  "fidSigned": -1042284526,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "0": "charging",
+   "1": "fully charged",
+   "2": "fault",
+   "3": "standby",
+   "other": "standby (stock default)"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/charging/Charging.java",
+    "line": 125
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/accessories/WirelessCharging/RChargeStateProperty.java",
+    "line": 15
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/accessories/WirelessCharging/RChargeStateProperty.java",
+    "line": 21
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/accessories/WirelessCharging/WirelessChargingState.java",
+    "line": 4
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+    "line": 196
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/android/systemui/custom/CustomStatusBarView.java",
+    "line": 2840
+   }
+  ],
+  "confidence": "high",
+  "note": "Status-bar icon: 0 ongoing, 1 full, 2 fault, 3 hidden. No foreign-object or overheat state exists in the firmware enum. Right pad: DiCarServer and SystemUI read R_STATE_MODE 0xC1E00012; CHARGING_CHARGE_WIRELESS_CHARGING_R_STATE 0x41E00012 read the same 3. Read 3 (standby).",
+  "observedParked20261020": "3"
+ },
+ {
+  "area": "wireless charging",
+  "seat_or_side": "left",
+  "name": "CHARGING_CHARGE_WIRELESS_CHARGING_SWITCH",
+  "kind": "control",
+  "device": 1009,
+  "fid": "0x41E00010",
+  "fidSigned": 1105199120,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "enabled",
+   "2": "disabled",
+   "0": "invalid"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/charging/Charging.java",
+    "line": 134
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/accessories/WirelessCharging/LChargeSwitchProperty.java",
+    "line": 15
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/accessories/WirelessCharging/LChargeSwitchConfig.java",
+    "line": 15
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+    "line": 64
+   }
+  ],
+  "confidence": "high",
+  "note": "User enable switch feedback (what is configured), not charging activity. Also the stock config: 1 or 2 means the pad is fitted. Read 1.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "wireless charging",
+  "seat_or_side": "right",
+  "name": "CHARGING_CHARGE_WIRELESS_CHARGING_R_SWITCH",
+  "kind": "control",
+  "device": 1009,
+  "fid": "0x41E0001C",
+  "fidSigned": 1105199132,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "enabled",
+   "2": "disabled",
+   "0": "invalid"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/charging/Charging.java",
+    "line": 126
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/accessories/WirelessCharging/RChargeSwitchProperty.java",
+    "line": 15
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/accessories/WirelessCharging/LChargeSwitchConfig.java",
+    "line": 15
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/framework/sources/android/hardware/bydauto/charging/BYDAutoChargingDevice.java",
+    "line": 64
+   }
+  ],
+  "confidence": "high",
+  "note": "User enable switch feedback (what is configured), not charging activity. Also the stock config: 1 or 2 means the pad is fitted. Read 1.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "wireless charging",
+  "seat_or_side": "left",
+  "name": "CHARGING_WIRELESS_CHARGING_SWITCH_ONLINE",
+  "kind": "config",
+  "device": 1009,
+  "fid": "0xC1E00010",
+  "fidSigned": -1042284528,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt)",
+  "values": {
+   "1": "pad present",
+   "2": "pad present",
+   "other": "pad absent"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/charging/Charging.java",
+    "line": 532
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/android/systemui/custom/CustomStatusBarView.java",
+    "line": 515
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/android/systemui/custom/CustomStatusBarView.java",
+    "line": 2780
+   }
+  ],
+  "confidence": "high",
+  "note": "SystemUI counts pads with these (left present -> single; plus right -> double). Both read 1.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "wireless charging",
+  "seat_or_side": "right",
+  "name": "CHARGING_CHARGE_WIRELESS_CHARGING_R_SWITCH_ONLINE",
+  "kind": "config",
+  "device": 1009,
+  "fid": "0xC1E0001C",
+  "fidSigned": -1042284516,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer (getInt)",
+  "values": {
+   "1": "pad present",
+   "2": "pad present",
+   "other": "pad absent"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/charging/Charging.java",
+    "line": 128
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/android/systemui/custom/CustomStatusBarView.java",
+    "line": 515
+   },
+   {
+    "path": "captures/split-firmware-20260923/jadx/systemui/sources/com/android/systemui/custom/CustomStatusBarView.java",
+    "line": 2780
+   }
+  ],
+  "confidence": "high",
+  "note": "SystemUI counts pads with these (left present -> single; plus right -> double). Both read 1.",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "wireless charging",
+  "seat_or_side": "left",
+  "name": "CHARGING_CHARGE_WIRELESS_CHARGING_L_POWER",
+  "kind": "status",
+  "device": 1009,
+  "fid": "0x41E00014",
+  "fidSigned": 1105199124,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, unit and scale not defined in stock code",
+  "values": {},
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/charging/Charging.java",
+    "line": 118
+   }
+  ],
+  "confidence": "low",
+  "note": "No stock consumer (SystemUI only maps the key). Read 0 at standby. Do not show a unit until qualified live.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "wireless charging",
+  "seat_or_side": "right",
+  "name": "CHARGING_CHARGE_WIRELESS_CHARGING_R_POWER",
+  "kind": "status",
+  "device": 1009,
+  "fid": "0x41E00020",
+  "fidSigned": 1105199136,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer, unit and scale not defined in stock code",
+  "values": {},
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/charging/Charging.java",
+    "line": 122
+   }
+  ],
+  "confidence": "low",
+  "note": "No stock consumer (SystemUI only maps the key). Read 0 at standby. Do not show a unit until qualified live.",
+  "observedParked20261020": "0"
+ },
+ {
+  "area": "reading light",
+  "seat_or_side": "front left",
+  "name": "LIGHT_LF_READ_LIGHT_SWITCH",
+  "kind": "status",
+  "device": 1004,
+  "fid": "0x3FE0000A",
+  "fidSigned": 1071644682,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "on",
+   "1": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/lights/Lights.java",
+    "line": 389
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/property/EventKeys.java",
+    "line": 9
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 30
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 107
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 129
+   }
+  ],
+  "confidence": "medium",
+  "note": "Fitted iff 1 or 2 (getReadingLightConfig); stock gates the feature by vehicle id list that includes 170. LM/RM (\"middle\") answered on this 2-row car while LR/RR and the rotate variants read 65535, so LM/RM are the row-2 lights. Read 1 (off).",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "reading light",
+  "seat_or_side": "front right",
+  "name": "LIGHT_RF_READ_LIGHT_SWITCH",
+  "kind": "status",
+  "device": 1004,
+  "fid": "0x3FE0000C",
+  "fidSigned": 1071644684,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "on",
+   "1": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/lights/Lights.java",
+    "line": 460
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/property/EventKeys.java",
+    "line": 10
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 30
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 107
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 129
+   }
+  ],
+  "confidence": "medium",
+  "note": "Fitted iff 1 or 2 (getReadingLightConfig); stock gates the feature by vehicle id list that includes 170. LM/RM (\"middle\") answered on this 2-row car while LR/RR and the rotate variants read 65535, so LM/RM are the row-2 lights. Read 1 (off).",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "reading light",
+  "seat_or_side": "row 2 left",
+  "name": "LIGHT_LM_READ_LIGHT_SWITCH",
+  "kind": "status",
+  "device": 1004,
+  "fid": "0x3FE0000E",
+  "fidSigned": 1071644686,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "on",
+   "1": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/lights/Lights.java",
+    "line": 394
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/property/EventKeys.java",
+    "line": 11
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 30
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 107
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 129
+   }
+  ],
+  "confidence": "medium",
+  "note": "Fitted iff 1 or 2 (getReadingLightConfig); stock gates the feature by vehicle id list that includes 170. LM/RM (\"middle\") answered on this 2-row car while LR/RR and the rotate variants read 65535, so LM/RM are the row-2 lights. Read 1 (off).",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "reading light",
+  "seat_or_side": "row 2 right",
+  "name": "LIGHT_RM_READ_LIGHT_SWITCH",
+  "kind": "status",
+  "device": 1004,
+  "fid": "0x3FE00010",
+  "fidSigned": 1071644688,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "2": "on",
+   "1": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/lights/Lights.java",
+    "line": 495
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/property/EventKeys.java",
+    "line": 12
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 30
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 107
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/light/CarReadLightServiceImpl.java",
+    "line": 129
+   }
+  ],
+  "confidence": "medium",
+  "note": "Fitted iff 1 or 2 (getReadingLightConfig); stock gates the feature by vehicle id list that includes 170. LM/RM (\"middle\") answered on this 2-row car while LR/RR and the rotate variants read 65535, so LM/RM are the row-2 lights. Read 1 (off).",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "HUD",
+  "seat_or_side": "windscreen",
+  "name": "SET_HUD_SWITCH_STATUS_FEEDBACK",
+  "kind": "status",
+  "device": 1023,
+  "fid": "0x38B0001C",
+  "fidSigned": 951058460,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "on",
+   "2": "off"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 3001
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/vision/hud/HudSwitchProperty.java",
+    "line": 18
+   },
+   {
+    "path": "docs/hud-projection-findings.md",
+    "line": 3935
+   }
+  ],
+  "confidence": "high",
+  "note": "Read 1 (on).",
+  "observedParked20261020": "1"
+ },
+ {
+  "area": "HUD",
+  "seat_or_side": "windscreen",
+  "name": "SET_HUD_CONFIG",
+  "kind": "config",
+  "device": 1023,
+  "fid": "0x38B00015",
+  "fidSigned": 951058453,
+  "javaType": "int",
+  "transaction": 5,
+  "encoding": "integer enum (getInt)",
+  "values": {
+   "1": "W-HUD system",
+   "2": "AR-HUD system"
+  },
+  "unavailable": [
+   "-10011 (no data on this generation)",
+   "-10013 (wrong transaction)",
+   "65535 (0xFFFF: stock hasFeature/BYDAutoSafetyBeltDevice treat it as link error / no signal)"
+  ],
+  "sources": [
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/feature/setting/Setting.java",
+    "line": 2995
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/property/vision/hud/HudConfigProperty.java",
+    "line": 19
+   },
+   {
+    "path": "captures/ambient-light-20260923/jadx/DiCarServer/sources/com/byd/car/feature/vision/HudFeature.java",
+    "line": 10
+   }
+  ],
+  "confidence": "high",
+  "note": "Read 2 (AR-HUD).",
+  "observedParked20261020": "2"
+ }
+]
