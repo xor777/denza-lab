@@ -215,7 +215,7 @@ internal class ExtrasPoller(
                     val at = elapsed()
                     latest = DiagnosticExtraReader.decode(output, wallClock(), at, at - began)
                 } else {
-                    val value = DiagnosticExtraReader.word(s.shell(get.command))?.let(get.decode)
+                    val value = get.value(s.shell(get.command))
                     keep(get, SignalReading(nanos(), value))
                 }
                 true

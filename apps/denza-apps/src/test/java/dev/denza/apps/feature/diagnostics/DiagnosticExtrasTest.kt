@@ -15,9 +15,10 @@ class DiagnosticExtrasTest {
         // 2026-10-18 reading was the converted channel's, which the app no longer reads.
         val rows = JSONObject(File(root,"research/vehicle-diagnostics/readings-20261018.json").readText()).getJSONArray("rows")
             .let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.filter { it.getString("key") != "charge_current" }
-        val pairs = rows.map { r -> r.getString("key") to r.getLong("raw").toInt() }
+        // The outside temperature counts in the unit the climate names (C2): °C, as the car read it then.
+        val pairs = rows.map { r -> r.getString("key") to r.getLong("raw").toInt() } + ("temp_unit" to 1)
         val decoded = DiagnosticExtraReader.decode(batch(*pairs.toTypedArray()), 123, 10)
-        assertEquals(42,decoded.values.size)
+        assertEquals(43,decoded.values.size)
         for (r in rows) {
             val signal = DiagnosticExtra.entries.first { it.key == r.getString("key") }
             assertEquals(r.getInt("dev"), signal.device); assertEquals(r.getInt("fid"), signal.fid); assertEquals(r.getInt("tx"), signal.transact)
@@ -81,6 +82,32 @@ class DiagnosticExtrasTest {
             assertEquals(e.name, 20000.0, e.decode(20000)!!, 0.0)
             listOf(20001, 32768, 65436, 0xFFFF, -1).forEach { assertNull("${e.name} $it", e.decode(it)) }
         }
+    }
+    @Test fun theOutsideTemperatureIsCelsiusInWhicheverUnitTheCarReadsIt() {
+        fun outside(raw: Int, unit: Int?) = DiagnosticExtraReader.decode(
+            batch(*listOfNotNull("outside_temp" to raw, unit?.let { "temp_unit" to it }).toTypedArray()), 1, 1,
+        ).values[DiagnosticExtra.OUTSIDE_TEMP]
+        // C2: 1000·40400027 is 1 for °C - the sweep of 2026-10-20 read 1 and 12 - and 0 for °F
+        assertEquals(12.0, outside(12, 1)!!, 0.0)
+        assertEquals(12.22, outside(54, 0)!!, 0.01)
+        assertEquals(50.0, outside(122, 0)!!, 1e-9)
+        assertEquals(-39.0, outside(-39, 1)!!, 0.0)
+        assertEquals(50.0, outside(50, 1)!!, 0.0)
+        // outside the stock domain, −40 (the byte's zero) among it, or the unit not known: «н/д»
+        assertNull(outside(51, 1)); assertNull(outside(-40, 1)); assertNull(outside(-40, 0)); assertNull(outside(123, 0))
+        assertNull(outside(12, null)); assertNull(outside(12, 2)); assertNull(outside(12, 65535)); assertNull(outside(65535, 1))
+        // the unit rides the shared batch beside the temperature; PM2.5 rides only the climate's scheme
+        val shared = DiagnosticExtraReader.command
+        assertTrue(shared.contains("@@extra:outside_temp;") && shared.contains("echo @@extra:temp_unit; service call autoservice 5 i32 1000 i32 1077936167"))
+        assertFalse(shared.contains("@@extra:pm_in;") || shared.contains("@@extra:pm_out;"))
+        val climate = DiagnosticExtraReader.command(setOf(ExtraPage.CLIMATE_STATE))
+        assertTrue(climate.contains("@@extra:pm_in;") && climate.contains("@@extra:pm_out;"))
+        assertEquals("the shared batch did not grow", 60, shared.split("; echo ").size)
+        // alone on a parameter page it is asked with its unit
+        val get = dev.denza.apps.feature.diagnostics.scan.SignalGet.of(DiagnosticExtra.OUTSIDE_TEMP)
+        assertEquals(DiagnosticExtraReader.batch(listOf(DiagnosticExtra.TEMP_UNIT, DiagnosticExtra.OUTSIDE_TEMP)), get.command)
+        assertEquals(12.22, get.value(batch("temp_unit" to 0, "outside_temp" to 54))!!, 0.01)
+        assertNull(get.value(batch("outside_temp" to 54)))
     }
     @Test fun insulationAboveTheStockCapIsNoValueNotSixtyThousand() {
         // The stock collector caps the field at 60000; FFFE and FFFF are the firmware's invalid codes.

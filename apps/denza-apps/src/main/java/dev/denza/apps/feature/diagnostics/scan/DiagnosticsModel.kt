@@ -175,6 +175,22 @@ internal enum class SystemTab(val label: String) {
     BLOCKS("Блоки"),
 }
 
+/**
+ * The [ExtraPage] whose GETs join the `autoservice` batch while [tab] of [system] is in front
+ * (architecture, 6): a system's «Состояние» its scheme's, «Флаги GB/T 32960» the flags'; null where
+ * the tab asks for nothing more. The pack's «Потоковые данные» is not here: its page is
+ * [DiagnosticsActions.setPackLiveVisible]'s, which «Пауза» takes away.
+ */
+internal fun extraPage(system: CarSystem, tab: SystemTab): ExtraPage? = when (tab) {
+    SystemTab.GB_FLAGS -> ExtraPage.GB_FLAGS
+    SystemTab.STATE -> when (system) {
+        CarSystem.CABIN -> ExtraPage.CABIN
+        CarSystem.CLIMATE -> ExtraPage.CLIMATE_STATE
+        else -> null
+    }
+    else -> null
+}
+
 internal data class SystemPage(
     val system: CarSystem,
     /** «· 11 блоков», «· BMS 7E7», «· ECM 7E0 · UAES». */

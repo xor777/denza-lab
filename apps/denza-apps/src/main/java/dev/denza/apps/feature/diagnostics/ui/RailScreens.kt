@@ -22,7 +22,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsActions
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
@@ -33,6 +32,7 @@ import dev.denza.apps.feature.diagnostics.scan.SystemDtcRow
 import dev.denza.apps.feature.diagnostics.scan.SystemPage
 import dev.denza.apps.feature.diagnostics.scan.SystemTab
 import dev.denza.apps.feature.diagnostics.scan.Target
+import dev.denza.apps.feature.diagnostics.scan.extraPage
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
 
@@ -153,13 +153,9 @@ internal fun SystemPageScreen(
         if (cells) current.value.setCellsVisible(true)
         onDispose { if (cells) current.value.setCellsVisible(false) }
     }
-    // a page's own GETs join the batch only while it is in front: the cabin's scheme, the pack's
+    // a page's own GETs join the batch only while it is in front: a system's scheme, the pack's
     // GB/T 32960 flags (architecture, 6)
-    val extras = when {
-        page.system == CarSystem.CABIN && tab == SystemTab.STATE -> ExtraPage.CABIN
-        tab == SystemTab.GB_FLAGS -> ExtraPage.GB_FLAGS
-        else -> null
-    }
+    val extras = extraPage(page.system, tab)
     DisposableEffect(extras, run) {
         extras?.let { current.value.setExtrasVisible(it, true) }
         onDispose { extras?.let { current.value.setExtrasVisible(it, false) } }

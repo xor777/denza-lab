@@ -43,9 +43,15 @@ internal enum class DiagnosticExtra(
     // E9A0..EA2C; research battery-validity-followup-20261021.json). PROBE_COUNT likewise.
     CELL_COUNT("cell_count", 1001, 1134559240, 5, 1.0, 0.0, 1.0..253.0),
     CABIN_TEMP("cabin_temp", 1000, 1031798832, 5, 1.0, 0.0, -39.0..150.0),
-    OUTSIDE_TEMP("outside_temp", 1000, 1077936184, 5, 1.0, 0.0, -39.0..150.0),
-    PM_IN("pm_in", 1008, 1331691536, 5, 1.0, 0.0, 0.0..999.0),
-    PM_OUT("pm_out", 1008, 1331691548, 5, 1.0, 0.0, 0.0..999.0),
+    // The outside temperature, `AC_TEMP_OUT`, in the unit TEMP_UNIT names (C2, research
+    // stream-selection-20261021.json; ExtraGates): the stock domains are −40…50 °C and −40…122 °F, so
+    // this range takes either and the gate makes it °C or «н/д». Medium.
+    OUTSIDE_TEMP("outside_temp", 1000, 1077936184, 5, 1.0, 0.0, -40.0..122.0),
+    /** `AC_TEMPERATURE_UNIT`: 1 °C, 0 °F (`BYDAutoAcDevice.AC_TEMPERATURE_UNIT_OC`, `_OF`); read wherever OUTSIDE_TEMP is. */
+    TEMP_UNIT("temp_unit", 1000, 0x40400027, 5, 1.0, 0.0, 0.0..1.0),
+    // PM2.5 inside and out: only the climate's scheme shows them, so only it pays for them.
+    PM_IN("pm_in", 1008, 1331691536, 5, 1.0, 0.0, 0.0..999.0, pages = on(ExtraPage.CLIMATE_STATE)),
+    PM_OUT("pm_out", 1008, 1331691548, 5, 1.0, 0.0, 0.0..999.0, pages = on(ExtraPage.CLIMATE_STATE)),
     FL_PRESSURE("fl_pressure", 1016, -1728052956, 5, 0.01, 0.0, 0.0..40.94),
     FR_PRESSURE("fr_pressure", 1016, -1728052952, 5, 0.01, 0.0, 0.0..40.94),
     RL_PRESSURE("rl_pressure", 1016, -1728052948, 5, 0.01, 0.0, 0.0..40.94),
@@ -255,6 +261,8 @@ internal enum class ExtraPage(
 ) {
     /** «Салон · Состояние». */
     CABIN,
+    /** «Климат · Состояние». */
+    CLIMATE_STATE,
     /** «Тяговая батарея · Флаги GB/T 32960». */
     GB_FLAGS,
     /**
@@ -281,6 +289,7 @@ internal object DiagnosticExtraReader {
         "echo @@extra:${it.key}; service call autoservice ${it.transact} i32 ${it.device} i32 ${it.fid}"
     }
 
+    /** The batch's answer: each GET decoded, then each gated reading resolved by its gate ([ExtraGates]). */
     fun decode(output: String, atMillis: Long, atElapsed: Long, tookMs: Long? = null): DiagnosticExtras {
         val sections = output.split(Regex("(?m)^@@extra:"))
         val byKey = DiagnosticExtra.entries.associateBy { it.key }
@@ -289,10 +298,54 @@ internal object DiagnosticExtraReader {
             val value = word(section)?.let(signal::decode) ?: return@mapNotNull null
             signal to value
         }.toMap()
-        return DiagnosticExtras(values, atMillis, atElapsed, tookMs)
+        return DiagnosticExtras(ExtraGates.apply(values), atMillis, atElapsed, tookMs)
     }
 
     /** The word of a successful `service call` reply: status 0, then one 32-bit value. */
     fun word(output: String): Int? = output.lineSequence().mapNotNull { ServiceCallParcel.oneLineWords(it) }
         .firstOrNull { it.size == 2 && it[0] == 0 }?.get(1)
+}
+
+/**
+ * Readings whose meaning another GET of the same batch decides, as their cards in research
+ * stream-selection-20261021.json say. A gate rides every batch its reading rides - the shared one, or
+ * every page of the reading - and a reading polled alone is asked with its gate (`SignalGet`); a gate
+ * that did not come, or says no, makes its reading «н/д».
+ */
+internal object ExtraGates {
+    private val GATES: Map<DiagnosticExtra, DiagnosticExtra> = mapOf(
+        DiagnosticExtra.OUTSIDE_TEMP to DiagnosticExtra.TEMP_UNIT,
+    )
+
+    /** [reading]'s gate, or null. */
+    fun gate(reading: DiagnosticExtra): DiagnosticExtra? = GATES[reading]
+
+    /** [values] with every gated reading resolved by its gate's value among them. */
+    fun apply(values: Map<DiagnosticExtra, Double>): Map<DiagnosticExtra, Double> = buildMap {
+        values.forEach { (reading, value) ->
+            val gate = GATES[reading]
+            if (gate == null) put(reading, value) else resolve(reading, value, values[gate])?.let { put(reading, it) }
+        }
+    }
+
+    private fun resolve(reading: DiagnosticExtra, value: Double, gate: Double?): Double? = when (reading) {
+        DiagnosticExtra.OUTSIDE_TEMP -> celsius(value, gate)
+        else -> value.takeIf { gate == 1.0 }
+    }
+
+    /**
+     * C2: `AC_TEMP_OUT` is in the unit `AC_TEMPERATURE_UNIT` names, 1 °C and 0 °F. The screens say °C,
+     * so a Fahrenheit reading is converted; the stock Celsius domain is −40…50, and −40, the byte's
+     * zero, is no sensor here as on every temperature.
+     */
+    private fun celsius(value: Double, unit: Double?): Double? {
+        val c = when (unit) {
+            1.0 -> value
+            0.0 -> (value - 32.0) * 5.0 / 9.0
+            else -> return null
+        }
+        return c.takeIf { it in OUTSIDE_CELSIUS }
+    }
+
+    private val OUTSIDE_CELSIUS = -39.0..50.0
 }

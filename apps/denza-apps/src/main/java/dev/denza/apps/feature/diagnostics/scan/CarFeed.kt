@@ -2,6 +2,7 @@ package dev.denza.apps.feature.diagnostics.scan
 
 import dev.denza.apps.feature.diagnostics.DiagnosticExtra
 import dev.denza.apps.feature.diagnostics.DiagnosticExtraReader
+import dev.denza.apps.feature.diagnostics.ExtraGates
 import dev.denza.apps.feature.diagnostics.ExtraPage
 import dev.denza.apps.feature.vehicle.AutoserviceShell
 import dev.denza.apps.feature.vehicle.VehicleAccess
@@ -70,14 +71,40 @@ internal interface CarFeed {
     fun page(page: ExtraPage, shown: Boolean) {}
 }
 
-/** One `autoservice` GET, polled alone for a parameter page: a [DiagnosticExtra] or a cold hub signal. */
-internal class SignalGet(val device: Int, val fid: Int, val transact: Int, val decode: (Int) -> Double?) {
-    /** The shell command; its answer's word is [DiagnosticExtraReader.word]. */
-    val command: String get() = "service call autoservice $transact i32 $device i32 $fid"
+/**
+ * One `autoservice` GET, polled alone for a parameter page: a [DiagnosticExtra] or a cold hub signal.
+ * A reading another GET decides ([ExtraGates]) is asked together with it, as the batch asks them.
+ */
+internal class SignalGet private constructor(
+    /** The reading's own device, FID and transaction. */
+    val device: Int, val fid: Int, val transact: Int,
+    /** The shell command: the reading's GET, after its gate's where it has one. */
+    val command: String,
+    private val read: (String) -> Double?,
+) {
+    /** The value in [output], the command's answer; null for a gap. */
+    fun value(output: String): Double? = read(output)
 
     companion object {
-        fun of(extra: DiagnosticExtra) = SignalGet(extra.device, extra.fid, extra.transact, extra::decode)
-        fun of(signal: VehicleSignal) = SignalGet(signal.device, signal.fid, signal.transact.code) { AutoserviceShell.decode(signal, it) }
+        fun of(extra: DiagnosticExtra): SignalGet {
+            val gate = ExtraGates.gate(extra)
+            return if (gate == null) {
+                SignalGet(extra.device, extra.fid, extra.transact, get(extra.transact, extra.device, extra.fid)) {
+                    DiagnosticExtraReader.word(it)?.let(extra::decode)
+                }
+            } else {
+                SignalGet(extra.device, extra.fid, extra.transact, DiagnosticExtraReader.batch(listOf(gate, extra))) {
+                    DiagnosticExtraReader.decode(it, 0, 0).values[extra]
+                }
+            }
+        }
+
+        fun of(signal: VehicleSignal) =
+            SignalGet(signal.device, signal.fid, signal.transact.code, get(signal.transact.code, signal.device, signal.fid)) { output ->
+                DiagnosticExtraReader.word(output)?.let { AutoserviceShell.decode(signal, it) }
+            }
+
+        private fun get(transact: Int, device: Int, fid: Int) = "service call autoservice $transact i32 $device i32 $fid"
     }
 }
 
