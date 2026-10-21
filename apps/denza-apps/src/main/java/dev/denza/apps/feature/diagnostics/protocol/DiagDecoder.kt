@@ -73,6 +73,13 @@ internal object DiagDecoder {
             IdentCodec.softwareCode(uds, req[1] shl 8 or req[2])
         }
 
+    /** `22 <did>` of a block's ASCII build version → `62 <did>` and digits and dots ([IdentCodec.buildVersion]). */
+    fun buildVersion(answer: DiagReply.Answer): Decoded<String> =
+        checked(answer, 0x22) { req, uds ->
+            if (req.size != 3) return@checked Decoded.Malformed("request is not 22 <did>")
+            IdentCodec.buildVersion(uds, req[1] shl 8 or req[2])
+        }
+
     /** `01 <pid>…` → `41 <pid> <data>…`; PIDs the ECU leaves out are [PidAnswer.unanswered]. */
     fun obdPids(answer: DiagReply.Answer): Decoded<PidAnswer> =
         checked(answer, 0x01) { req, uds ->

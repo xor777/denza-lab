@@ -66,6 +66,29 @@ internal data class ChildIdentity(
 }
 
 /**
+ * A DID a block answers about itself beyond the standard identification (architecture, 5.4): the
+ * passenger computer's combined software code `F294` and its build version `F295` at 5E7 - the pair the
+ * stock updater reads for it (`SmmDiagnostic`), both answered on 2026-10-21 with what the update cache
+ * keeps (`research/vehicle-diagnostics/ota-assy-fields-live-20261021.json`). Read with the block's
+ * identification and shown as its row; not a key of the code history.
+ */
+internal data class OwnDid(
+    val did: Int,
+    /** The identification row's name: «Код сборки». */
+    val shortName: String,
+    val form: Form,
+) {
+    enum class Form {
+        /** A nine-byte software code, shown as hex as F194 is. */
+        SOFTWARE_CODE,
+        /** ASCII of digits and dots only, as the stock `FormatConversionUtil.bytesAsciiToString` accepts it. */
+        BUILD_VERSION,
+    }
+
+    val hex: String get() = "%04X".format(did)
+}
+
+/**
  * One diagnostic address of this car (Z9GT, profile 170). [inferred] is the screen's `≈`: the
  * role comes from the abbreviation, not from the ECU. [request] is null for the three ECUs the
  * OTA cache knows without a route.
@@ -111,6 +134,8 @@ internal data class Ecu(
     val dtcMask: Int = DTC_MASK,
     /** Software codes of the modules behind this block, read with its identification. */
     val children: List<ChildIdentity> = emptyList(),
+    /** DIDs the block answers about itself beyond F18A/F193/F194/F195/F197, read with its identification. */
+    val ownDids: List<OwnDid> = emptyList(),
 ) {
     /** The address the ECU answers on. */
     val reply: Int? get() = request?.plus(8)
@@ -319,9 +344,14 @@ internal object EcuCatalog {
             snapshotF194 = "4B450011E0930034E2"),
         // The passenger computer, through its MCU, the same way: the factory map names 5E7/5EF ASSY_BYD_00100001,
         // and the MCU container of its own OTA (mcu_42_2_3.xcd) carries this code with CanReqID 1511/CanRecID 1519.
-        // ECUVersion.json keeps the FSE software's combined code (…4201), so no alias.
+        // ECUVersion.json keeps the FSE software's combined code (…4201), so no alias: the block reports that
+        // one as F294 and its build version as F295 in ASCII, the pair the stock updater reads (2026-10-21).
         Ecu(EcuGroup.CABIN, "ASSY", "Пассажирский компьютер (MCU)", "Пасс. ПК · MCU", false, 0x5E7, IdentityBasis.F194,
-            snapshotF194 = "4B450011DF990042E2"),
+            snapshotF194 = "4B450011DF990042E2",
+            ownDids = listOf(
+                OwnDid(0xF294, "Код сборки", OwnDid.Form.SOFTWARE_CODE),
+                OwnDid(0xF295, "Версия сборки", OwnDid.Form.BUILD_VERSION),
+            )),
         // From the complete factory map, F194 read live on 2026-10-20; roles from the route names.
         Ecu(EcuGroup.CABIN, "HUD", "Проекционный дисплей", "HUD", true, 0x7B0, IdentityBasis.F194,
             snapshotF194 = "48330011DE80000103", aliases = listOf(cache("HUD_BYD_00100001", "3.00.04", "0.1.3"))),

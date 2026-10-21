@@ -291,6 +291,11 @@ internal class ModelBuilder(
                 field("${DID_LABELS.getValue(did)} · 22 ${did.hex}", identText(p))
                 if (did == IdentDid.F195) updated(SoftwareKey(ecu.request))
             }
+            // What the block says about itself beyond those: 5E7's combined code and build version (5.4).
+            ecu.ownDids.forEach { d ->
+                val p = id?.ownDids?.firstOrNull { it.first == d }?.second ?: Polled.NotPolled
+                field("${d.shortName} · 22 ${d.hex}", answerText(p, id?.read, IdentProcedure.ownRequest(d)))
+            }
         } else {
             field("Протоколы", "OBD-II (SAE J1979)")
         }
@@ -502,10 +507,13 @@ internal class ModelBuilder(
          * so it is not judged against the code the catalog was built from; the answer's bytes as they
          * came when the answer is not a code at all.
          */
-        fun childText(child: ChildIdentity, p: Polled<String>, read: ModuleRead?): String = when (p) {
+        fun childText(child: ChildIdentity, p: Polled<String>, read: ModuleRead?): String =
+            answerText(p, read, IdentProcedure.childRequest(child))
+
+        /** A decoded answer to [uds] as its value; the bytes as they came when it is not of its form; else in words. */
+        fun answerText(p: Polled<String>, read: ModuleRead?, uds: String): String = when (p) {
             is Polled.Got -> p.value
-            is Polled.Inconsistent -> (read?.reply(IdentProcedure.childRequest(child)) as? DiagReply.Answer)
-                ?.let { Figures.spaced(hex(it.uds)) } ?: word(p)
+            is Polled.Inconsistent -> (read?.reply(uds) as? DiagReply.Answer)?.let { Figures.spaced(hex(it.uds)) } ?: word(p)
             else -> identText(p)
         }
 

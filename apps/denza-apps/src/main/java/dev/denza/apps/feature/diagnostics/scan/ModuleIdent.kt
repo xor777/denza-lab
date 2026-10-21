@@ -4,6 +4,7 @@ import dev.denza.apps.feature.diagnostics.bus.DiagReply
 import dev.denza.apps.feature.diagnostics.bus.DiagRequest
 import dev.denza.apps.feature.diagnostics.ecu.ChildIdentity
 import dev.denza.apps.feature.diagnostics.ecu.Ecu
+import dev.denza.apps.feature.diagnostics.ecu.OwnDid
 import dev.denza.apps.feature.diagnostics.protocol.Decoded
 import dev.denza.apps.feature.diagnostics.protocol.DiagDecoder
 import dev.denza.apps.feature.diagnostics.protocol.IdentDid
@@ -19,7 +20,8 @@ import dev.denza.apps.feature.diagnostics.protocol.map
 
 /**
  * An opened module's own read, once per opening (architecture, 6, task «блок»): `22 F194/F195/F193/F18A/F197`
- * where it speaks UDS, then the software codes of the modules behind it once its gate holds
+ * where it speaks UDS and the DIDs it answers about itself beyond those (5E7's F294 and F295), then the
+ * software codes of the modules behind it once its gate holds
  * (architecture, 5.4); for an OBD responder the PID maps `01 00/20/40/60/80/A0` as far as each map
  * points to the next, then `01 1C`, `01 01`, `01 41` and the odometer `01 A6` where offered, and
  * Mode 09: `09 00` first, then the calibration `09 04` and the name `09 0A` where `09 00` lists them.
@@ -35,6 +37,7 @@ internal object IdentProcedure {
 
         if (ecu.uds) {
             val dids = IdentDid.entries.associateWith { send("22" + it.hex) }
+            ecu.ownDids.forEach { send(ownRequest(it)) }
             if (ecu.children.isNotEmpty() && childrenGate(ecu, dids.getValue(IdentDid.F194))) {
                 ecu.children.forEach { send(childRequest(it)) }
             }
@@ -72,6 +75,8 @@ internal object IdentProcedure {
 
     fun childRequest(child: ChildIdentity) = "22" + child.hex
 
+    fun ownRequest(did: OwnDid) = "22" + did.hex
+
     fun pidReading(answer: DiagReply.Answer, pid: Int): PidReading? =
         (DiagDecoder.obdPids(answer) as? Decoded.Ok)?.value?.get(pid)
 
@@ -102,6 +107,19 @@ internal class IdentResult(val ecu: Ecu, val read: ModuleRead) {
      */
     val children: List<Pair<ChildIdentity, Polled<String>>> =
         ecu.children.map { c -> c to polled(IdentProcedure.childRequest(c)) { DiagDecoder.softwareCode(it) } }
+
+    /**
+     * Each DID the block answers about itself beyond the standard ones, by its own answer: a software code or
+     * an ASCII build version. A reply not of its form is [Polled.Inconsistent], its bytes in [read].
+     */
+    val ownDids: List<Pair<OwnDid, Polled<String>>> = ecu.ownDids.map { d ->
+        d to polled(IdentProcedure.ownRequest(d)) { a ->
+            when (d.form) {
+                OwnDid.Form.SOFTWARE_CODE -> DiagDecoder.softwareCode(a)
+                OwnDid.Form.BUILD_VERSION -> DiagDecoder.buildVersion(a)
+            }
+        }
+    }
 
     /** Mode 01 PIDs the module offers, by its own maps, bitmap PIDs included. */
     val offered: List<Int> = IdentProcedure.MAPS.flatMap { base ->

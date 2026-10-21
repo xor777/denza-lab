@@ -65,6 +65,22 @@ internal object IdentCodec {
     const val SOFTWARE_CODE_BYTES = 9
 
     /**
+     * A build version in ASCII (architecture, 5.4): `62 <did>` and bytes that are all digits or dots, as the
+     * stock `FormatConversionUtil.bytesAsciiToString` accepts them for the passenger computer's `F295` -
+     * `42.1.8.2605219.1.42.2.3.2605250.2` on 2026-10-21. Any other byte, or none, is Malformed: the stock
+     * reader refuses it too.
+     */
+    fun buildVersion(uds: ByteArray, did: Int): Decoded<String> {
+        val b = uds.unsigned()
+        if (b.isEmpty() || b[0] != 0x62) return Decoded.Malformed("not 62")
+        if (b.size < 3 || (b[1] shl 8 or b[2]) != did) return Decoded.Malformed("not DID %04X".format(did))
+        val data = b.drop(3)
+        if (data.isEmpty()) return Decoded.Malformed("empty version")
+        if (data.any { it != '.'.code && it !in '0'.code..'9'.code }) return Decoded.Malformed("not digits and dots")
+        return Decoded.Ok(String(uds.copyOfRange(3, uds.size), Charsets.US_ASCII))
+    }
+
+    /**
      * `F195` as the car's own updater reads it (stock GCY `CanDiagnostic.parseEcuVersionInfo` and
      * `VehicleOTAUtil.getCurrentEcuSoftVersion`): data bytes 0-1 big-endian, padded to five decimal digits,
      * `D.DD.DD` - BMS `87F7…` is 3.48.07, ECM `9C4A…` 4.00.10 - then the other bytes as they came, their

@@ -303,6 +303,7 @@ class EcuCatalogContractTest {
                     .forEach { assertTrue(ecu.address, allowed(request, *it)) }
             }
             ecu.children.forEach { assertTrue("${ecu.address} ${it.hex}", allowed(request, 0x22, it.did shr 8, it.did and 0xFF)) }
+            ecu.ownDids.forEach { assertTrue("${ecu.address} ${it.hex}", allowed(request, 0x22, it.did shr 8, it.did and 0xFF)) }
             assertEquals(request + 8, ecu.reply)
         }
     }
@@ -339,6 +340,34 @@ class EcuCatalogContractTest {
             dids.forEach { assertTrue("%03X %04X".format(request, it), read(request, it)) }
             catalogued.filter { it.first != request }.forEach { (_, c) -> assertTrue("%03X %s".format(request, c.hex), !read(request, c.did) || c.did in dids) }
             assertTrue(identification.all { read(request, it) } || !ecu.uds)
+        }
+    }
+
+    /**
+     * The passenger computer's own code and build version: the two DIDs the stock updater reads at 5E7,
+     * answered on 2026-10-21 with the cache's values (ota-assy-fields-live-20261021.json), and the
+     * whitelist opens them there only.
+     */
+    @Test
+    fun thePassengerComputersOwnDidsAreTheTwoTheStockUpdaterReads() {
+        val fields = research("ota-assy-fields-live-20261021.json").getJSONArray("fields").objects()
+        assertEquals(2, fields.size)
+        val assy = EcuCatalog.byRequest(0x5E7)!!
+        fields.forEach { f ->
+            assertEquals(0x5E7, address(f.getString("address")))
+            assertEquals("HTH-2021_ASSY_BYD_00100001", f.getString("ecuId"))
+            assertEquals(f.getString("cached"), f.getString("stockFieldValueFromPrefix"))
+            val did = f.getString("request").removePrefix("22").toInt(16)
+            val own = assy.ownDids.single { it.did == did }
+            assertEquals(f.getString("field"), if (f.getString("field") == "ecuSoftCode") OwnDid.Form.SOFTWARE_CODE else OwnDid.Form.BUILD_VERSION, own.form)
+        }
+        assertEquals(listOf(0xF294, 0xF295), assy.ownDids.map { it.did })
+        assertEquals(listOf("Код сборки", "Версия сборки"), assy.ownDids.map { it.shortName })
+        // No other block has any; the whitelist lets these two through at 5E7 alone.
+        assertEquals(listOf(0x5E7), EcuCatalog.all.filter { it.ownDids.isNotEmpty() }.mapNotNull { it.request })
+        fun read(address: Int, did: Int) = DiagnosticWhitelist.allowed(address, byteArrayOf(0x22, (did shr 8).toByte(), did.toByte()))
+        EcuCatalog.all.mapNotNull { it.request }.forEach { a ->
+            assy.ownDids.forEach { d -> assertEquals("%03X %s".format(a, d.hex), a == 0x5E7, read(a, d.did)) }
         }
     }
 

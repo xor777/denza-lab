@@ -3,6 +3,7 @@ package dev.denza.apps.feature.diagnostics.protocol
 import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -65,6 +66,19 @@ class IdentVersionTest {
         // Fewer bytes than the stock parser asks for, all FF, not hex: as it came.
         listOf("29180302", "29", "", "FFFFFFFFFF", "291803020").forEach { assertEquals(it, it, IdentCodec.hardwareVersion(it)) }
         assertEquals("0.4.1", Identification(IdentDid.F193, "2918030200", false, "2918030200").shown)
+    }
+
+    @Test
+    fun theBuildVersionIsDigitsAndDotsAsTheStockReaderAcceptsThem() {
+        val fields = research("ota-assy-fields-live-20261021.json").getJSONArray("fields")
+        val f295 = (0 until fields.length()).map { fields.getJSONObject(it) }.single { it.getString("request") == "22F295" }
+        val decoded = IdentCodec.buildVersion(hexBytes(f295.getString("responseHex")), 0xF295)
+        assertEquals(Decoded.Ok(f295.getString("stockFieldValueFromPrefix")), decoded)
+        assertEquals(Decoded.Ok("42.1.8.2605219.1.42.2.3.2605250.2"), decoded)
+        // The stock reader refuses a slash, a NUL, anything not ASCII, an empty version; another DID is not this one.
+        listOf("62F295342F31", "62F295342E3100", "62F29534C3A9", "62F295", "62F294342E31", "7F2231").forEach {
+            assertTrue(it, IdentCodec.buildVersion(hexBytes(it), 0xF295) is Decoded.Malformed)
+        }
     }
 
     @Test

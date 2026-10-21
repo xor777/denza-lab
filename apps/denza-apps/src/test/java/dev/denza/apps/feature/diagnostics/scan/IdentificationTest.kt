@@ -127,6 +127,37 @@ class IdentificationTest {
         assertTrue(massage.at("Массаж задн. левого · 22 F8E4").muted)
     }
 
+    @Test
+    fun thePassengerComputerSaysItsCombinedCodeAndBuildVersion() {
+        // 5E7 as it answered on 2026-10-21 (ota-assy-fields-live-20261021.json): F294 and F295 after its own DIDs.
+        val bus = FakeDiagnosticBus()
+        bus.on(0x5E7, "22F194").answer(CarNow.f194.getValue(0x5E7))
+        CarNow.research("ota-assy-fields-live-20261021.json").getJSONArray("fields").objects()
+            .forEach { bus.on(0x5E7, it.getString("request")).answer(it.getString("responseHex")) }
+        val rows = own(read(0x5E7, bus)).getValue(0x5E7)
+        assertEquals(listOf("5E7 22F194", "5E7 22F195", "5E7 22F193", "5E7 22F18A", "5E7 22F197", "5E7 22F294", "5E7 22F295"), bus.requests)
+        assertEquals("4B450011DF99004201", rows.at("Код сборки · 22 F294").value)
+        assertEquals("42.1.8.2605219.1.42.2.3.2605250.2", rows.at("Версия сборки · 22 F295").value)
+        assertFalse(rows.at("Версия сборки · 22 F295").muted)
+        // After the block's own rows, before the memory's format.
+        val keys = rows.map { it.key }
+        assertEquals(keys.indexOf("Имя системы · 22 F197") + 1, keys.indexOf("Код сборки · 22 F294"))
+
+        // A version the stock reader refuses (a slash), zeros for a code, a refusal: bytes as they came, or words.
+        val odd = FakeDiagnosticBus()
+        odd.on(0x5E7, "22F294").answer("62F294000000000000000000")
+        odd.on(0x5E7, "22F295").answer("62F295342E312F32")
+        val r = own(read(0x5E7, odd)).getValue(0x5E7)
+        assertEquals("62 F2 94 00 00 00 00 00 00 00 00 00", r.at("Код сборки · 22 F294").value)
+        assertEquals("62 F2 95 34 2E 31 2F 32", r.at("Версия сборки · 22 F295").value)
+        val refused = FakeDiagnosticBus().apply { on(0x5E7, "22F295").answer("7F2231") }
+        assertEquals("не отдаёт · NRC 31", own(read(0x5E7, refused)).getValue(0x5E7).at("Версия сборки · 22 F295").value)
+        // Another block has no such rows and is not asked.
+        val ecm = FakeDiagnosticBus()
+        own(read(0x7B5, ecm))
+        assertTrue(ecm.requests.none { "22F29" in it })
+    }
+
     /** The brake interface and the VCU as they answered on 2026-10-21 (brake-vcu-obd-completion-20261021.json). */
     private fun brakeAndVcu() = FakeDiagnosticBus().apply {
         CarNow.research("brake-vcu-obd-completion-20261021.json").getJSONArray("wireResponses").objects()

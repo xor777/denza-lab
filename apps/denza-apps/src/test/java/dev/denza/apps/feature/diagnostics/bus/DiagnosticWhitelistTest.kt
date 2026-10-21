@@ -50,6 +50,20 @@ class DiagnosticWhitelistTest {
     }
 
     @Test
+    fun thePassengerComputersCodeAndBuildVersionAreReadOnlyThere() {
+        val identification = setOf(0xF193, 0xF194, 0xF195, 0xF18A, 0xF197)
+        fun read(address: Int, did: Int) = allowed(address, "22%04X".format(did))
+        // At 5E7: the identification DIDs, its combined code F294 and its build version F295, nothing else.
+        assertEquals(identification + setOf(0xF294, 0xF295), (0x0000..0xFFFF).filter { read(0x5E7, it) == null }.toSet())
+        // Nowhere else, and only as a read of one DID.
+        (0x000..0x7FF).filter { it != 0x5E7 && allowed(it, "22F194") == null }.forEach { a ->
+            listOf(0xF294, 0xF295).forEach { d -> assertNotNull("%03X %04X".format(a, d), read(a, d)) }
+        }
+        assertNotNull(allowed(0x5E7, "22F294F295"))
+        assertNotNull(allowed(0x5E7, "2EF29400"))
+    }
+
+    @Test
     fun nothingThatChangesAnEcuOrReadsTheVinIsAllowed() {
         listOf(
             "1003", "1001", "1101", "1103", "14FFFFFF", "2701", "2702", "280000", "2EF19000",

@@ -34,6 +34,15 @@ public final class DiagnosticWhitelist {
         {0x750, 0xF8C4}, {0x7B5, 0xF8D4}, {0x7D2, 0xF8E4}, {0x7D2, 0xF8F4},
         {0x726, 0xF204}, {0x726, 0xF214}, {0x726, 0xF064}, {0x726, 0xF234},
     };
+    /**
+     * A block's own identification beyond the standard DIDs, as exact {address, DID} pairs: the passenger
+     * computer's combined software code F294 and its ASCII build version F295 at 5E7, the pair the stock
+     * updater reads for it, answered on this car on 2026-10-21
+     * (research/vehicle-diagnostics/ota-assy-fields-live-20261021.json); the owner approved reading them.
+     */
+    private static final int[][] OWN_IDENTITIES = {
+        {0x5E7, 0xF294}, {0x5E7, 0xF295},
+    };
     /** One CAN single frame: an OBD 01 with six PIDs is the longest request. */
     public static final int MAX_UDS_LENGTH = 7;
 
@@ -50,8 +59,8 @@ public final class DiagnosticWhitelist {
             case 0x22: {
                 if (uds.length != 3) return "22 reads one DID";
                 int did = ((uds[1] & 0xFF) << 8) | (uds[2] & 0xFF);
-                return identification(did) || childIdentity(address, did)
-                        ? null : "22 only F193, F194, F195, F18A, F197 and the child codes at their parent";
+                return identification(did) || pair(CHILD_IDENTITIES, address, did) || pair(OWN_IDENTITIES, address, did)
+                        ? null : "22 only F193, F194, F195, F18A, F197, the child codes at their parent and 5E7's F294, F295";
             }
             case 0x19:
                 return uds.length == 3 && (uds[1] == 0x01 || uds[1] == 0x02)
@@ -88,8 +97,8 @@ public final class DiagnosticWhitelist {
         return did == 0xF193 || did == 0xF194 || did == 0xF195 || did == 0xF18A || did == 0xF197;
     }
 
-    private static boolean childIdentity(int address, int did) {
-        for (int[] pair : CHILD_IDENTITIES) if (pair[0] == address && pair[1] == did) return true;
+    private static boolean pair(int[][] pairs, int address, int did) {
+        for (int[] pair : pairs) if (pair[0] == address && pair[1] == did) return true;
         return false;
     }
 }
