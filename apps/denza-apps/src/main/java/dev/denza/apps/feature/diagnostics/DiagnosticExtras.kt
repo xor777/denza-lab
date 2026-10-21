@@ -88,9 +88,17 @@ internal enum class DiagnosticExtra(
     PACK_CHARGE_STATE("pack_charge_state", 1009, 0x34400018, 5, 1.0, 0.0, 0.0..254.0),
     CHARGER_STATE("charger_state", 1009, 0x27C0000A, 5, 1.0, 0.0, 0.0..254.0),
     CHARGER_FAULT("charger_fault", 1009, 0x27C00008, 5, 1.0, 0.0, 0.0..254.0),
+    // The rear inverters' IGBTs, °C: the HAL's byte − 40, so FE/FF arrive as 214/215 and byte 0 as −40,
+    // all outside the range. Medium: the unit by the GB/T 32960 field, as INSULATION's kΩ.
     IGBT_REAR_LEFT("igbt_rear_left", 1039, 0x2D000180, 5, 1.0, 0.0, -39.0..150.0),
     IGBT_REAR_RIGHT("igbt_rear_right", 1039, 0x2D000188, 5, 1.0, 0.0, -39.0..150.0),
+    // Low (stream-selection-20261021.json): a mode field switches this FID's source; the unit by the name.
     RPM_FRONT("rpm_front", 1012, 0x44100008, 5, 1.0, 0.0, -20000.0..20000.0),
+    // The rear motors' speed, torque and DC current are unsigned fields (C4; stream-powertrain-20261021.json
+    // fieldAcceptanceMatrix): speed unsigned16 as it comes, torque and current unsigned16 × 0.1. No
+    // negative - no regeneration, no reverse - can arrive: a wrapped one reads 32768+ rpm or 3276.8+, FFFF
+    // 65535 or 6553.5, and the ranges refuse them as «н/д». Medium: the units by the GB/T 32960 fields the
+    // stock collector fills, as INSULATION's kΩ; the sign is to be seen in a drive.
     RPM_REAR_LEFT("rpm_rear_left", 1039, 0x0FC000D0, 5, 1.0, 0.0, 0.0..20000.0),
     RPM_REAR_RIGHT("rpm_rear_right", 1039, 0x0FC000E0, 5, 1.0, 0.0, 0.0..20000.0),
     // The front drive's torque and DC current (C1): the HAL converts wire 0..10000 to wire × 0.1 − 500 and
@@ -98,11 +106,11 @@ internal enum class DiagnosticExtra(
     // 4990, 9990) is a value, not the no-data word; no raw alias is known for them. A wire the HAL
     // rejects keeps its previous cache, so a repeated value is not proof of a fresh one.
     TORQUE_FRONT("torque_front", 1012, 0x44100018, 7, 1.0, 0.0, -500.0..500.0, floatNoData = false),
-    TORQUE_REAR_LEFT("torque_rear_left", 1039, 0x2850002C, 7, 1.0, 0.0, -5000.0..5000.0),
-    TORQUE_REAR_RIGHT("torque_rear_right", 1039, 0x2850003C, 7, 1.0, 0.0, -5000.0..5000.0),
+    TORQUE_REAR_LEFT("torque_rear_left", 1039, 0x2850002C, 7, 1.0, 0.0, 0.0..3000.0),
+    TORQUE_REAR_RIGHT("torque_rear_right", 1039, 0x2850003C, 7, 1.0, 0.0, 0.0..3000.0),
     CURRENT_FRONT("current_front", 1009, 0x46C00008, 7, 1.0, 0.0, -1000.0..1000.0, floatNoData = false),
-    CURRENT_REAR_LEFT("current_rear_left", 1039, 0x28500178, 7, 1.0, 0.0, -2000.0..2000.0),
-    CURRENT_REAR_RIGHT("current_rear_right", 1039, 0x28500188, 7, 1.0, 0.0, -2000.0..2000.0),
+    CURRENT_REAR_LEFT("current_rear_left", 1039, 0x28500178, 7, 1.0, 0.0, 0.0..3000.0),
+    CURRENT_REAR_RIGHT("current_rear_right", 1039, 0x28500188, 7, 1.0, 0.0, 0.0..3000.0),
 
     /**
      * The OEM warning the instrument cluster is asked to show: `BYDAutoInstrumentDevice.getTextInfo`,

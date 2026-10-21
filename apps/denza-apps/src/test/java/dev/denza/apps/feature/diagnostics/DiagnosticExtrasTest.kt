@@ -70,6 +70,18 @@ class DiagnosticExtrasTest {
             assertNull(e.name, e.decode((-1f).toBits()))
         }
     }
+    @Test fun theRearDrivesUnsignedFieldsRefuseAWrapAsNoValue() {
+        // C4: torque and current are unsigned16 × 0.1, speed unsigned16; a wrapped negative is no value.
+        for (e in listOf(DiagnosticExtra.TORQUE_REAR_LEFT, DiagnosticExtra.TORQUE_REAR_RIGHT, DiagnosticExtra.CURRENT_REAR_LEFT, DiagnosticExtra.CURRENT_REAR_RIGHT)) {
+            assertEquals(e.name, 0.0, e.decode(0f.toBits())!!, 0.0)
+            assertEquals(e.name, 3000.0, e.decode(3000f.toBits())!!, 0.0)
+            listOf(3276.8f, 4000f, 6543.6f, 6553.5f, 3000.1f, -0.1f, -1f, -5f).forEach { assertNull("${e.name} $it", e.decode(it.toBits())) }
+        }
+        for (e in listOf(DiagnosticExtra.RPM_REAR_LEFT, DiagnosticExtra.RPM_REAR_RIGHT)) {
+            assertEquals(e.name, 20000.0, e.decode(20000)!!, 0.0)
+            listOf(20001, 32768, 65436, 0xFFFF, -1).forEach { assertNull("${e.name} $it", e.decode(it)) }
+        }
+    }
     @Test fun insulationAboveTheStockCapIsNoValueNotSixtyThousand() {
         // The stock collector caps the field at 60000; FFFE and FFFF are the firmware's invalid codes.
         for (e in listOf(DiagnosticExtra.INSULATION, DiagnosticExtra.INSULATION_2)) {
