@@ -23,12 +23,38 @@ class DiagnosticWhitelistTest {
         ).forEach { (address, uds) -> assertNull("%03X %s".format(address, uds), allowed(address, uds)) }
     }
 
+    /** The parents' child codes, approved by the owner 2026-10-21 (architecture, 3.4). */
+    private val children = mapOf(
+        0x750 to setOf(0xF8C4), 0x7B5 to setOf(0xF8D4), 0x7D2 to setOf(0xF8E4, 0xF8F4),
+        0x726 to setOf(0xF204, 0xF214, 0xF064, 0xF234),
+    )
+
+    @Test
+    fun aChildCodeIsReadOnlyAtItsParentAndNoOtherDidIsOpened() {
+        val identification = setOf(0xF194, 0xF195, 0xF18A, 0xF197)
+        fun read(address: Int, did: Int) = allowed(address, "22%04X".format(did))
+        // At each parent: the four identification DIDs and its own children, and of all 65 536 nothing else.
+        children.forEach { (parent, dids) ->
+            assertEquals("%03X".format(parent), identification + dids, (0x0000..0xFFFF).filter { read(parent, it) == null }.toSet())
+        }
+        // Nowhere else: every other address the whitelist lets through refuses all eight.
+        val addresses = (0x000..0x7FF).filter { allowed(it, "22F194") == null }
+        assertEquals(248 - 1 - 8 + 13, addresses.size)
+        addresses.forEach { a ->
+            children.forEach { (parent, dids) -> dids.forEach { d -> if (a != parent) assertNotNull("%03X %04X".format(a, d), read(a, d)) } }
+        }
+        // A child code is still one DID, read only.
+        assertNotNull(allowed(0x750, "22F8C4F8D4"))
+        assertNotNull(allowed(0x750, "2EF8C400"))
+        assertNotNull(allowed(0x750, "22F8C5"))
+    }
+
     @Test
     fun nothingThatChangesAnEcuOrReadsTheVinIsAllowed() {
         listOf(
             "1003", "1001", "1101", "1103", "14FFFFFF", "2701", "2702", "280000", "2EF19000",
             "2F000000", "3101FF00", "3E00", "8502", "3D00", "04", "08", "0902", "22F190", "22F18C",
-            "1904FFFFFF01", "1906FFFFFFFF", "190A", "1902", "19", "22F1", "0300", "090C",
+            "1904FFFFFF01", "1906FFFFFFFF", "190A", "1902", "19", "22F1", "0300", "090C", "22F8C4", "22F204",
         ).forEach { uds -> assertNotNull(uds, allowed(0x7E0, uds)) }
     }
 

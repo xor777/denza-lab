@@ -2,6 +2,7 @@ package dev.denza.apps.feature.diagnostics.scan
 
 import dev.denza.apps.feature.diagnostics.bus.DiagReply
 import dev.denza.apps.feature.diagnostics.bus.hex
+import dev.denza.apps.feature.diagnostics.ecu.ChildIdentity
 import dev.denza.apps.feature.diagnostics.ecu.Ecu
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.ecu.EcuGroup
@@ -299,6 +300,10 @@ internal class ModelBuilder(
             field("Формат DTC · 19 01", if (it.format == DtcFormat.OTHER) "не сообщён: 19 01 не отвечает" else "%02X · %s".format(it.format.id, formatName(it.format)))
         }
         if (!ecu.uds) field("UDS 19 и 22", "не поддерживает", forceMuted = true)
+        ecu.children.forEach { child ->
+            val p = id?.children?.firstOrNull { it.first == child }?.second ?: Polled.NotPolled
+            field("${child.shortName} · 22 ${child.hex}", childText(child, p, id?.read))
+        }
 
         val cache = mutableListOf(Field("Основание имени", ecu.identity.label))
         ecu.expectedF194?.let { cache += Field("Ожидаемый F194", it) }
@@ -473,6 +478,17 @@ internal class ModelBuilder(
             is Polled.Denied -> "не отдаёт · NRC ${p.nrc.hex}"
             is Polled.Unsupported -> "не отдаёт" + (p.nrc?.let { " · NRC ${it.hex}" } ?: "")
             else -> word(p)
+        }
+
+        /**
+         * A child's row (architecture, 5.4): its code; the code and «не совпал с кэшем» when the parent
+         * reports another; the answer's bytes as they came when the answer is not a code at all.
+         */
+        fun childText(child: ChildIdentity, p: Polled<String>, read: ModuleRead?): String = when (p) {
+            is Polled.Got -> if (p.value == child.expectedCode) p.value else "${p.value} · не совпал с кэшем"
+            is Polled.Inconsistent -> (read?.reply(IdentProcedure.childRequest(child)) as? DiagReply.Answer)
+                ?.let { Figures.spaced(hex(it.uds)) } ?: word(p)
+            else -> identText(p)
         }
 
         fun failureName(code: DtcCode): String = when {

@@ -1,21 +1,33 @@
 package dev.denza.apps.feature.diagnostics.scan
 
 import dev.denza.apps.feature.diagnostics.bus.FakeDiagnosticBus
+import dev.denza.apps.feature.diagnostics.bus.hex
 import dev.denza.apps.feature.diagnostics.ecu.EcuCatalog
 import dev.denza.apps.feature.diagnostics.protocol.hexBytes
 import java.time.ZoneOffset
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * An opened block's identification (architecture, 6): Mode 09 by the block's own `09 00` and the
- * odometer, on the bytes the car answered on 2026-10-21.
+ * An opened block's identification (architecture 5.4, 6): Mode 09 by the block's own `09 00`, and the
+ * software codes of the modules behind a parent, on the bytes the car answered on 2026-10-21.
  */
 class IdentificationTest {
     private fun JSONArray.objects() = (0 until length()).map { getJSONObject(it) }
+
+    /** The eight child codes as the parents answered them (child-identities-live-20261021.json). */
+    private val live: List<JSONObject> = CarNow.research("child-identities-live-20261021.json").getJSONArray("identities").objects()
+
+    /** The UDS inside a logged frame: `0A <reply id> <length> <frames> <index> <result>`, then `<length>` bytes. */
+    private fun uds(frame: String): String {
+        val b = hexBytes(frame)
+        return hex(b.copyOfRange(7, 7 + (b[3].toInt() and 0xFF)))
+    }
 
     private fun read(request: Int, bus: FakeDiagnosticBus): IdentResult = runBlocking {
         val ecu = EcuCatalog.byRequest(request)!!
@@ -34,6 +46,74 @@ class IdentificationTest {
     }
 
     private fun List<Field>.at(key: String) = first { it.key == key }
+
+    /** The four parents' F194 as recorded, and each child's answer as the car sent it. */
+    private fun carAnswers() = FakeDiagnosticBus().apply {
+        listOf(0x750, 0x7B5, 0x7D2).forEach { on(it, "22F194").answer(CarNow.f194.getValue(it)) }
+        live.forEach { on(it.getJSONObject("route").getString("requestIdHex").toInt(16), "22" + it.getString("didHex")).answer(uds(it.getString("responseRawHex"))) }
+    }
+
+    @Test
+    fun everyChildIsReadBehindItsParentAndShownAsItAnswered() {
+        val bus = carAnswers()
+        val idents = listOf(0x750, 0x7B5, 0x7D2, 0x726).map { read(it, bus) }
+        // Each parent: its four DIDs, then its children in the catalog's order, and nothing else.
+        assertEquals(listOf("750 22F194", "750 22F195", "750 22F18A", "750 22F197", "750 22F8C4",
+            "7B5 22F194", "7B5 22F195", "7B5 22F18A", "7B5 22F197", "7B5 22F8D4",
+            "7D2 22F194", "7D2 22F195", "7D2 22F18A", "7D2 22F197", "7D2 22F8E4", "7D2 22F8F4",
+            // B_ZCU is named by the stock route and has no gate: its four lamps are read as its memory is.
+            "726 22F194", "726 22F195", "726 22F18A", "726 22F197", "726 22F204", "726 22F214", "726 22F064", "726 22F234"),
+            bus.requests)
+        val rows = own(*idents.toTypedArray())
+        live.forEach { c ->
+            val parent = c.getJSONObject("route").getString("requestIdHex").toInt(16)
+            val child = EcuCatalog.byRequest(parent)!!.children.single { it.hex == c.getString("didHex") }
+            val row = rows.getValue(parent).at("${child.shortName} · 22 ${child.hex}")
+            assertEquals(c.getString("softwareCodeHex"), row.value)
+            assertFalse(row.muted)
+        }
+        assertEquals("47380011DFE3000102", rows.getValue(0x750).at("Массаж перед. левого · 22 F8C4").value)
+        assertEquals("48330011DFD5000204", rows.getValue(0x726).at("Фонарь TL правый · 22 F234").value)
+        // The children's rows come last, after the parent's own.
+        assertEquals(listOf("Массаж задн. левого · 22 F8E4", "Массаж задн. правого · 22 F8F4"), rows.getValue(0x7D2).takeLast(2).map { it.key })
+    }
+
+    @Test
+    fun aParentThatIsAnotherBlockKeepsItsChildrenUnread() {
+        val bus = FakeDiagnosticBus()
+        bus.on(0x750, "22F194").answer("62F1944B310011DF016A0002")
+        val ident = read(0x750, bus)
+        assertEquals(listOf("750 22F194", "750 22F195", "750 22F18A", "750 22F197"), bus.requests)
+        val row = own(ident).getValue(0x750).at("Массаж перед. левого · 22 F8C4")
+        assertEquals("не читали", row.value)
+        assertTrue(row.muted)
+        // No answer to F194 is no gate passed either.
+        val silent = FakeDiagnosticBus()
+        read(0x7B5, silent)
+        assertTrue(silent.requests.none { it.endsWith("22F8D4") })
+    }
+
+    @Test
+    fun anAnswerThatIsNotACodeShowsItsBytesAndAnotherCodeSaysSo() {
+        val bus = FakeDiagnosticBus()
+        // A zero placeholder, a code cut short, a refusal, another code.
+        bus.on(0x726, "22F204").answer("62F204000000000000000000")
+        bus.on(0x726, "22F214").answer("62F21448330011DFC6")
+        bus.on(0x726, "22F064").answer("7F2231")
+        bus.on(0x726, "22F234").answer("62F23448330011DFD5000299")
+        val rows = own(read(0x726, bus)).getValue(0x726)
+        assertEquals("62 F2 04 00 00 00 00 00 00 00 00 00", rows.at("Комб. фонарь левый · 22 F204").value)
+        assertEquals("62 F2 14 48 33 00 11 DF C6", rows.at("Комб. фонарь правый · 22 F214").value)
+        assertEquals("не отдаёт · NRC 31", rows.at("Фонарь TL левый · 22 F064").value)
+        assertTrue(rows.at("Фонарь TL левый · 22 F064").muted)
+        assertEquals("48330011DFD5000299 · не совпал с кэшем", rows.at("Фонарь TL правый · 22 F234").value)
+        // The massage row of a parent the gateway left unanswered.
+        val silent = FakeDiagnosticBus()
+        silent.on(0x7D2, "22F194").answer(CarNow.f194.getValue(0x7D2))
+        val massage = own(read(0x7D2, silent)).getValue(0x7D2)
+        assertEquals("нет ответа", massage.at("Массаж задн. левого · 22 F8E4").value)
+        assertTrue(massage.at("Массаж задн. левого · 22 F8E4").muted)
+    }
 
     /** The brake interface and the VCU as they answered on 2026-10-21 (brake-vcu-obd-completion-20261021.json). */
     private fun brakeAndVcu() = FakeDiagnosticBus().apply {

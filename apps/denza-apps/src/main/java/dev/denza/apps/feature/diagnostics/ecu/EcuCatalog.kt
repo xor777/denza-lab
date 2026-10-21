@@ -33,6 +33,26 @@ internal enum class IdentityBasis(val label: String) {
 internal data class CachedIdentity(val ecuId: String, val softwareVersion: String? = null, val hardwareVersion: String? = null)
 
 /**
+ * A module behind a parent block that the parent reports a software code for: one `22 <did>` on the
+ * parent's own route, after the parent's gate (architecture, 5.4). Not an address of its own and not a
+ * DTC memory: the seat massage modules and the rear lamps, read live 2026-10-21
+ * (`research/vehicle-diagnostics/child-identities-live-20261021.json`), each code the one the stock
+ * OTA cache keeps under [ecuId].
+ */
+internal data class ChildIdentity(
+    val did: Int,
+    /** «Массаж переднего левого сиденья». */
+    val name: String,
+    /** The identification row's name, short enough for its key column: «Массаж перед. левого». */
+    val shortName: String,
+    val ecuId: String,
+    /** The nine-byte software code the parent returned and the cache keeps. */
+    val expectedCode: String,
+) {
+    val hex: String get() = "%04X".format(did)
+}
+
+/**
  * One diagnostic address of this car (Z9GT, profile 170). [inferred] is the screen's `≈`: the
  * role comes from the abbreviation, not from the ECU. [request] is null for the three ECUs the
  * OTA cache knows without a route.
@@ -69,6 +89,8 @@ internal data class Ecu(
     val dtcFormat: Int? = null,
     /** The `19 01/02` status mask (architecture, 5.2). */
     val dtcMask: Int = DTC_MASK,
+    /** Software codes of the modules behind this block, read with its identification. */
+    val children: List<ChildIdentity> = emptyList(),
 ) {
     /** The address the ECU answers on. */
     val reply: Int? get() = request?.plus(8)
@@ -104,6 +126,7 @@ internal object EcuCatalog {
 
     private fun cache(id: String, sw: String, hw: String) = CachedIdentity("HTH-2021_$id", sw, hw)
     private fun route(id: String) = CachedIdentity("HTH-2021_$id")
+    private fun child(did: Int, name: String, short: String, id: String, code: String) = ChildIdentity(did, name, short, "HTH-2021_$id", code)
 
     private fun radar(abbreviation: String, request: Int, name: String, short: String) = Ecu(
         EcuGroup.ADAS, abbreviation, name, short, inferred = true, request = request, identity = IdentityBasis.F194,
@@ -209,7 +232,13 @@ internal object EcuCatalog {
         Ecu(EcuGroup.BODY, "F_ZCU", "Кузов, зона спереди", "Зона спереди", true, 0x722, IdentityBasis.STOCK_ROUTE,
             aliases = listOf(route("F_ZCU_BYD_00100001")), dtcQualified = true, dtcFormat = 0x00),
         Ecu(EcuGroup.BODY, "B_ZCU", "Кузов, зона сзади", "Зона сзади", false, 0x726, IdentityBasis.STOCK_ROUTE,
-            aliases = listOf(route("B_ZCU_BYD_00100001")), dtcQualified = true, dtcFormat = 0x00),
+            aliases = listOf(route("B_ZCU_BYD_00100001")), dtcQualified = true, dtcFormat = 0x00,
+            children = listOf(
+                child(0xF204, "Левый комбинированный задний фонарь", "Комб. фонарь левый", "RL_L_BYD_00200001", "48330011DFC5000201"),
+                child(0xF214, "Правый комбинированный задний фонарь", "Комб. фонарь правый", "RL_R_BYD_00200001", "48330011DFC6000202"),
+                child(0xF064, "Левый задний фонарь TL", "Фонарь TL левый", "TL_L_BYD_00200001", "48330011DFB2000203"),
+                child(0xF234, "Правый задний фонарь TL", "Фонарь TL правый", "TL_R_BYD_00200001", "48330011DFD5000204"),
+            )),
         Ecu(EcuGroup.BODY, "FL_L", "Фара левая", "Фара Л", true, 0x770, IdentityBasis.F194,
             expectedF194 = "48330011DF2B000201", aliases = listOf(cache("FL_L_BYD_00100001", "4.00.18", "0.1.3"))),
         Ecu(EcuGroup.BODY, "FL_R", "Фара правая", "Фара П", true, 0x771, IdentityBasis.F194,
@@ -276,11 +305,18 @@ internal object EcuCatalog {
         role(EcuGroup.CABIN, "CS", 0x725, "Подрулевые переключатели", "Подрулевые", "48490011DF1D000000",
             cache("CS_BYD_00100001", "4.00.04", "0.1.0")),
         role(EcuGroup.CABIN, "DUCU", 0x750, "Блок водителя", "Блок вод.", "4B310011DF016A0001",
-            cache("DUCU_BYD_00100001", "4.00.11", "0.0.3")),
+            cache("DUCU_BYD_00100001", "4.00.11", "0.0.3")).copy(children = listOf(
+            child(0xF8C4, "Массаж переднего левого сиденья", "Массаж перед. левого", "SMF_L_DFL_00100001", "47380011DFE3000102"),
+        )),
         role(EcuGroup.CABIN, "PUCU", 0x7B5, "Блок пассажира", "Блок пасс.", "4B310011DF016B0001",
-            cache("PUCU_BYD_00100001", "4.00.10", "0.0.3")),
+            cache("PUCU_BYD_00100001", "4.00.10", "0.0.3")).copy(children = listOf(
+            child(0xF8D4, "Массаж переднего правого сиденья", "Массаж перед. правого", "SMF_R_DFL_00100001", "47380011DFE2000200"),
+        )),
         role(EcuGroup.CABIN, "MLUCU", 0x7D2, "Блок среднего ряда слева", "Ср. ряд Л", "4B310011DF016C0001",
-            cache("MLUCU_BYD_00100001", "4.00.08", "0.0.4")),
+            cache("MLUCU_BYD_00100001", "4.00.08", "0.0.4")).copy(children = listOf(
+            child(0xF8E4, "Массаж заднего левого сиденья", "Массаж задн. левого", "SMR_L_DFL_00100001", "47380011DFE0001C00"),
+            child(0xF8F4, "Массаж заднего правого сиденья", "Массаж задн. правого", "SMR_R_DFL_00100001", "47380011DFE1001D00"),
+        )),
         role(EcuGroup.CABIN, "CCS/SCPA", 0x7A7, "Панель селектора передач", "Селектор", "48490011DF55000100",
             cache("CCS_BYD_00100001", "4.00.06", "0.0.5"), cache("SCPA_BYD_00100001", "4.00.06", "0.0.5")),
         role(EcuGroup.CABIN, "RRCP", 0x7C6, "Панель заднего холодильника", "Холод. зад.", "48580011DF02220000",

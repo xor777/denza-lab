@@ -23,6 +23,17 @@ public final class DiagnosticWhitelist {
     private static final int[] FACTORY_5XX = {
         0x582, 0x590, 0x595, 0x597, 0x5A0, 0x5A7, 0x5B0, 0x5B1, 0x5B2, 0x5E0, 0x5E4, 0x5E7, 0x5F4,
     };
+    /**
+     * Software codes a parent block reports for a module behind it, as exact {address, DID} pairs:
+     * the seat massage modules through 750, 7B5 and 7D2, the rear lamps through 726. Each answered
+     * on this car on 2026-10-21 with the code the stock cache keeps
+     * (research/vehicle-diagnostics/child-identities-live-20261021.json); the owner approved
+     * reading them. Only at that parent, never as a range.
+     */
+    private static final int[][] CHILD_IDENTITIES = {
+        {0x750, 0xF8C4}, {0x7B5, 0xF8D4}, {0x7D2, 0xF8E4}, {0x7D2, 0xF8F4},
+        {0x726, 0xF204}, {0x726, 0xF214}, {0x726, 0xF064}, {0x726, 0xF234},
+    };
     /** One CAN single frame: an OBD 01 with six PIDs is the longest request. */
     public static final int MAX_UDS_LENGTH = 7;
 
@@ -36,9 +47,12 @@ public final class DiagnosticWhitelist {
         if (uds == null || uds.length == 0 || uds.length > MAX_UDS_LENGTH) return "UDS length outside 1..7";
         int sid = uds[0] & 0xFF;
         switch (sid) {
-            case 0x22:
-                return uds.length == 3 && identification(((uds[1] & 0xFF) << 8) | (uds[2] & 0xFF))
-                        ? null : "22 only F194, F195, F18A, F197";
+            case 0x22: {
+                if (uds.length != 3) return "22 reads one DID";
+                int did = ((uds[1] & 0xFF) << 8) | (uds[2] & 0xFF);
+                return identification(did) || childIdentity(address, did)
+                        ? null : "22 only F194, F195, F18A, F197 and the child codes at their parent";
+            }
             case 0x19:
                 return uds.length == 3 && (uds[1] == 0x01 || uds[1] == 0x02)
                         ? null : "19 only 01 or 02 with a status mask";
@@ -67,5 +81,10 @@ public final class DiagnosticWhitelist {
 
     private static boolean identification(int did) {
         return did == 0xF194 || did == 0xF195 || did == 0xF18A || did == 0xF197;
+    }
+
+    private static boolean childIdentity(int address, int did) {
+        for (int[] pair : CHILD_IDENTITIES) if (pair[0] == address && pair[1] == did) return true;
+        return false;
     }
 }

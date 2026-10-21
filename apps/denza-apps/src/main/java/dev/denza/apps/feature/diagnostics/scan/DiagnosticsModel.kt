@@ -558,7 +558,10 @@ internal data class DtcReference(
 internal data class Field(val key: String, val value: String, val muted: Boolean = false)
 
 internal data class IdentView(
-    /** What the ECU answered: route, protocols, F18A, F194, F195, F197, PID 1C, DTC format, VIN policy. */
+    /**
+     * What the ECU answered: route, protocols, F18A, F194, F195, F197; for an OBD responder its name and
+     * calibration (Mode 09), PID 1C and the odometer; the DTC format; the codes of the modules behind it.
+     */
     val own: List<Field>,
     /** What the stock OTA cache or route list knows: identifier, versions. */
     val cache: List<Field>,

@@ -63,6 +63,13 @@ internal object DiagDecoder {
             }
         }
 
+    /** `22 <did>` of a child at its parent → `62 <did>` and a nine-byte software code ([IdentCodec.childCode]). */
+    fun childCode(answer: DiagReply.Answer): Decoded<String> =
+        checked(answer, 0x22) { req, uds ->
+            if (req.size != 3) return@checked Decoded.Malformed("request is not 22 <did>")
+            IdentCodec.childCode(uds, req[1] shl 8 or req[2])
+        }
+
     /** `01 <pid>…` → `41 <pid> <data>…`; PIDs the ECU leaves out are [PidAnswer.unanswered]. */
     fun obdPids(answer: DiagReply.Answer): Decoded<PidAnswer> =
         checked(answer, 0x01) { req, uds ->

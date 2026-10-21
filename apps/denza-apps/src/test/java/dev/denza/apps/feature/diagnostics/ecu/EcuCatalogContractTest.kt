@@ -275,7 +275,43 @@ class EcuCatalogContractTest {
                     intArrayOf(0x09, 0x00), intArrayOf(0x09, 0x04), intArrayOf(0x01, 0x80), intArrayOf(0x01, 0xA0), intArrayOf(0x01, 0xA6))
                     .forEach { assertTrue(ecu.address, allowed(request, *it)) }
             }
+            ecu.children.forEach { assertTrue("${ecu.address} ${it.hex}", allowed(request, 0x22, it.did shr 8, it.did and 0xFF)) }
             assertEquals(request + 8, ecu.reply)
+        }
+    }
+
+    @Test
+    fun theChildrenAreTheEightCodesTheirParentsReturnedAndTheWhitelistOpensExactlyThose() {
+        val live = research("child-identities-live-20261021.json").getJSONArray("identities").objects()
+        assertEquals(8, live.size)
+        val catalogued = EcuCatalog.all.flatMap { e -> e.children.map { e.request!! to it } }
+        assertEquals(live.size, catalogued.size)
+        live.forEach { c ->
+            val route = c.getJSONObject("route")
+            val parent = address(route.getString("requestIdHex"))
+            assertEquals(parent + 8, address(route.getString("responseIdHex")))
+            val child = EcuCatalog.byRequest(parent)!!.children.singleOrNull { it.did == c.getString("didHex").toInt(16) }
+            assertNotNull("${c.getString("ecuId")} is not under %03X".format(parent), child)
+            assertEquals(c.getString("ecuId"), child!!.ecuId)
+            assertEquals(c.getString("labelRu"), child.name)
+            // The code the parent returned is the cache's, and it is what the catalog expects.
+            assertEquals(c.getString("cachedCodeHex"), c.getString("softwareCodeHex"))
+            assertEquals(c.getString("softwareCodeHex"), child.expectedCode)
+            assertEquals("22", c.getString("serviceHex"))
+            assertTrue(child.shortName.isNotBlank() && child.shortName.length <= 21)
+        }
+        // Behind DUCU, PUCU and MLUCU (F194 gate) and B_ZCU (stock route).
+        assertEquals(mapOf("DUCU" to 1, "PUCU" to 1, "MLUCU" to 2, "B_ZCU" to 4),
+            EcuCatalog.all.filter { it.children.isNotEmpty() }.associate { it.abbreviation to it.children.size })
+        // The whitelist lets exactly these through, each at its own parent only.
+        fun read(address: Int, did: Int) = DiagnosticWhitelist.allowed(address, byteArrayOf(0x22, (did shr 8).toByte(), did.toByte()))
+        val identification = setOf(0xF194, 0xF195, 0xF18A, 0xF197)
+        EcuCatalog.all.forEach { ecu ->
+            val request = ecu.request ?: return@forEach
+            val dids = catalogued.filter { it.first == request }.map { it.second.did }.toSet()
+            dids.forEach { assertTrue("%03X %04X".format(request, it), read(request, it)) }
+            catalogued.filter { it.first != request }.forEach { (_, c) -> assertTrue("%03X %s".format(request, c.hex), !read(request, c.did) || c.did in dids) }
+            assertTrue(identification.all { read(request, it) } || !ecu.uds)
         }
     }
 
