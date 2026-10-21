@@ -24,6 +24,7 @@ import dev.denza.apps.feature.adb.AdbRestoreSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.network.TrafficMonitorSnapshot
 import dev.denza.apps.feature.network.TrafficMonitorText
+import dev.denza.apps.feature.warning.WarningText
 import dev.denza.apps.ui.components.DenzaChoiceGroup
 import dev.denza.apps.ui.components.DenzaChoiceRow
 import dev.denza.apps.ui.components.DenzaChosenRow
@@ -54,6 +55,7 @@ internal enum class ServicePage {
     JOURNAL,
     RESTORE,
     MOBILE_INTERNET,
+    WARNINGS,
     DIAGNOSTICS,
     ;
 
@@ -147,8 +149,10 @@ internal fun ServicePanel(
     onOpenService: () -> Unit = {},
     nowMs: () -> Long = System::currentTimeMillis,
     trafficMonitorFixture: TrafficMonitorSnapshot? = null,
+    warningsFixture: WarningsView? = null,
 ) {
     LaunchedEffect(Unit) { onOpenService() }
+    val warnings = warningsFixture ?: rememberWarnings()
     var page by rememberSaveable { mutableStateOf(firstPage) }
     val back = { page = page.parent }
     // One place a page: the journal is opened from the bottom of a long report, and the report has
@@ -178,6 +182,7 @@ internal fun ServicePanel(
                     onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
                     onPage = { page = it },
                     nowMs = nowMs,
+                    warnings = warnings,
                 )
             }
             ServicePage.SCREEN -> {
@@ -203,6 +208,10 @@ internal fun ServicePanel(
                 DenzaSheetHeader(title = TrafficMonitorText.TITLE, subtitle = "", onDismiss = onDismiss, onBack = back)
                 ServiceMobileInternetPage(trafficMonitorFixture)
             }
+            ServicePage.WARNINGS -> {
+                DenzaSheetHeader(title = WarningText.TITLE, subtitle = "", onDismiss = onDismiss, onBack = back)
+                ServiceWarningsPage(warnings)
+            }
         }
     }
 }
@@ -216,6 +225,7 @@ private fun ServiceMain(
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onPage: (ServicePage) -> Unit,
     nowMs: () -> Long,
+    warnings: WarningsView,
 ) {
     val model = remember(state) { ServiceModel.of(state) }
     val adb = state.adbRescue
@@ -265,7 +275,8 @@ private fun ServiceMain(
     // owner accepts it on the car (docs/vehicle-diagnostics-architecture.md, 1).
     val pages = listOfNotNull(
         ServicePage.DIAGNOSTICS.takeIf { BuildConfig.DIAGNOSTICS },
-        ServicePage.RESTORE, ServicePage.MOBILE_INTERNET, ServicePage.SCREEN, ServicePage.TECHNICAL,
+        ServicePage.RESTORE, ServicePage.MOBILE_INTERNET, ServicePage.WARNINGS, ServicePage.SCREEN,
+        ServicePage.TECHNICAL,
     )
     DenzaChoiceGroup(pages) { target ->
         when (target) {
@@ -283,6 +294,11 @@ private fun ServiceMain(
                     tone = restore.tone.tile,
                 )
             }
+            ServicePage.WARNINGS -> DenzaChoiceRow(
+                title = WarningText.TITLE,
+                value = WarningText.row(warnings.state, warnings.nowMs, warnings.zone),
+                onClick = { onPage(target) },
+            )
             ServicePage.SCREEN -> DenzaChoiceRow(
                 title = "Приборный экран",
                 value = state.clusterDisplayLabel,

@@ -265,6 +265,7 @@
   const svcMore = (restore, tone) => ({ t: 'group', rows: [
     { kind: 'choice', title: 'Восстановление ADB', summary: restore, tone },
     { kind: 'choice', title: 'Мобильный интернет', summary: 'Штатный контроль трафика' },
+    { kind: 'choice', title: 'Предупреждения машины', summary: 'Последнее: 13F · сегодня, 14:01' },
     { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },
     { kind: 'choice', title: 'Технические сведения', summary: 'Версия, прошивка, состояние функций' }
   ] });
@@ -341,7 +342,30 @@
     '[Открытие 20:33:21 · готово · 1,9 с]',
     'итог=outcome=committed reason=-'
   ];
-  const svcState = { tile: 'SERVICE', adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
+  // «Предупреждения машины»: the cluster's warning slot as the app records it - every change, every
+  // start of the app, every time the car stopped answering - and every code over the whole record,
+  // the latest first. The board's year is 2026 and the panel is opened at 21.10 14:02:11; the names
+  // are the car's dictionary through warnings/popup_ru.tsv. WarningText in the app writes every word
+  // drawn below from this record (WarningBoardContractTest).
+  const WARN_NAMES = {
+    '13F': 'Состояние автомобиля (люк, двери, капот и багажник, окна, ремни безопасности)',
+    '7D': 'Ключ не обнаружен, убедитесь, что ключ находится в автомобиле'
+  };
+  const WARN_EVENTS = [
+    ['21.10 14:01:37', 'code', '0'],
+    ['21.10 14:01:22', 'code', '13F'],
+    ['21.10 14:00:05', 'link', '0'],
+    ['21.10 13:59:58', 'start', ''],
+    ['20.10 19:40:11', 'lost', ''],
+    ['20.10 19:12:30', 'code', '0'],
+    ['20.10 19:12:24', 'code', '7D'],
+    ['20.10 19:05:16', 'link', '0'],
+    ['20.10 19:05:09', 'start', '']
+  ];
+  const WARN = { now: '21.10 14:02:11', enabled: true, since: '19.10 08:02:10', linked: true, lostAt: '',
+    sightings: [['13F', '19.10 08:05:40', '21.10 14:01:22', 14], ['7D', '20.10 08:40:02', '20.10 19:12:24', 2]],
+    events: WARN_EVENTS, names: WARN_NAMES };
+  const svcState = { tile: 'SERVICE', warnings: WARN, adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
     cluster: 'Определён сам: Экран 1 · 1920×720', displays: [[2, 1920, 720]], version: '0.6.2', build: 53, technical: SVC_TECHNICAL,
     // every scene of the panel carries the journal, so the debug build's row opens the page
     journal: SVC_JOURNAL };
@@ -370,7 +394,36 @@
       ...(error ? [{ t: 'status', text: error, tone: 'broken' }] : result ? [{ t: 'status', text: result }] : [])
     ]
   }, Object.assign({}, svcState, { page: 'mobile', trafficMonitor: { state, error, busy, result } }));
+  const warnWords = (kind, code) => kind === 'start' ? 'Приложение запущено'
+    : kind === 'lost' ? 'Машина не отвечает' : kind === 'off' ? 'Запись выключена' : kind === 'on' ? 'Запись включена'
+    : kind === 'cleared' ? 'Журнал очищен'
+    : kind === 'link' ? (code === '0' ? 'Машина отвечает, предупреждений нет' : 'Машина отвечает · ' + code + ' · ' + WARN_NAMES[code])
+    : code === '0' ? 'Предупреждение снято' : code + ' · ' + WARN_NAMES[code];
+  // the status, the switch, the codes, the record's two buttons, then the events newest first
+  const warningsPage = (status, tone, record) => sheetOf(11, {
+    title: 'Предупреждения машины', back: true,
+    blocks: [
+      { t: 'status', text: status, tone },
+      { t: 'switch', title: 'Записывать предупреждения', on: record.enabled,
+        summary: 'Сообщения приборной панели и связь с машиной, пока работает приложение' },
+      { t: 'section', label: 'Коды', body: { t: 'group', rows: [
+        { title: '13F · сегодня, 14:01', summary: '14 раз · ' + WARN_NAMES['13F'] },
+        { title: '7D · вчера, 19:12', summary: '2 раза · ' + WARN_NAMES['7D'] }
+      ] } },
+      { t: 'stack', gap: 12, items: [
+        { t: 'button', kind: 'secondary', text: 'Экспортировать' },
+        { t: 'button', kind: 'secondary', text: 'Очистить' }
+      ] },
+      { t: 'section', label: 'События', body: { t: 'group',
+        rows: record.events.map(([at, kind, code]) => ({ kind: 'pair', title: at, value: warnWords(kind, code) })) } }
+    ]
+  }, Object.assign({}, svcState, { page: 'warnings', warnings: record }));
   const service = {
+    warnings: warningsPage('Запись идёт с 19.10, 08:02', undefined, WARN),
+    warningsOff: warningsPage('Запись выключена', undefined, Object.assign({}, WARN, { enabled: false,
+      events: [['21.10 14:01:50', 'off', '']].concat(WARN_EVENTS) })),
+    warningsLost: warningsPage('Машина не отвечает с 14:01', 'attention', Object.assign({}, WARN, { linked: false,
+      lostAt: '21.10 14:01:45', events: [['21.10 14:01:45', 'lost', '']].concat(WARN_EVENTS) })),
     mobile: mobilePage('ENABLED'),
     mobileOff: mobilePage('DISABLED', undefined, false, 'Отключение подтверждено'),
     mobileUnknown: mobilePage('UNKNOWN'),
@@ -1315,6 +1368,9 @@
     'sheet-service-restore':  [{ kind: 'sheet', mode: 'full' }, service.restore],
     'sheet-service-restored': [{ kind: 'sheet', mode: 'full' }, service.restored],
     'sheet-service-restore-wifi': [{ kind: 'sheet', mode: 'full' }, service.restoreWifi],
+    'sheet-service-warnings': [{ kind: 'sheet', mode: 'full' }, service.warnings],
+    'sheet-service-warnings-off': [{ kind: 'sheet', mode: 'full' }, service.warningsOff],
+    'one-sheet-service-warnings': [{ kind: 'sheet', mode: 'one' }, service.warningsLost],
     'sheet-service-mobile': [{ kind: 'sheet', mode: 'full' }, service.mobile],
     'sheet-service-mobile-off': [{ kind: 'sheet', mode: 'full' }, service.mobileOff],
     'sheet-service-mobile-unknown': [{ kind: 'sheet', mode: 'full' }, service.mobileUnknown],

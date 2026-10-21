@@ -32,6 +32,11 @@ import dev.denza.apps.feature.hud.HudRadarInstall
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.network.TrafficMonitorSnapshot
 import dev.denza.apps.feature.network.TrafficMonitorState
+import dev.denza.apps.feature.warning.WarningEvent
+import dev.denza.apps.feature.warning.WarningEventKind
+import dev.denza.apps.feature.warning.WarningLogState
+import dev.denza.apps.feature.warning.WarningNames
+import dev.denza.apps.feature.warning.WarningSighting
 import dev.denza.apps.ui.dashboard.DashboardActions
 import dev.denza.apps.ui.dashboard.IdleActions
 import dev.denza.apps.ui.dashboard.DefaultAppsSheet
@@ -71,6 +76,7 @@ internal object SheetFixtures {
                     "journal" -> ServicePage.JOURNAL
                     "restore" -> ServicePage.RESTORE
                     "mobile" -> ServicePage.MOBILE_INTERNET
+                    "warnings" -> ServicePage.WARNINGS
                     else -> ServicePage.MAIN
                 },
                 // The board's `scroll: 'end'`: the page at the end of its scroll, where the report's
@@ -86,6 +92,7 @@ internal object SheetFixtures {
                         result = traffic.optString("result").takeIf { it.isNotBlank() && it != "null" },
                     )
                 } ?: TrafficMonitorSnapshot(),
+                warningsFixture = s.optJSONObject("warnings")?.let(WarningsFixture::view),
             )
             return
         }
@@ -209,6 +216,49 @@ internal object SheetFixtures {
     }
 
     /** A board's times of the day, on one day, so «сегодня» is the same words on any date. */
+    /**
+     * The board's record of the warning slot (`WARN` in fixtures.js): times as «21.10 14:01:37» of
+     * the board's 2026 in this device's zone, and the zone the page says them in, so the page reads
+     * the same dates whatever day the screenshot is taken.
+     */
+    object WarningsFixture {
+        private val stamp = java.time.format.DateTimeFormatter.ofPattern("dd.MM HH:mm:ss yyyy")
+        private val zone = java.time.ZoneId.systemDefault()
+
+        fun at(time: String): Long =
+            java.time.LocalDateTime.parse("$time 2026", stamp).atZone(zone).toInstant().toEpochMilli()
+
+        fun view(w: JSONObject): WarningsView {
+            val names = w.getJSONObject("names").let { o -> o.keys().asSequence().associate { it.toInt(16) to o.getString(it) } }
+            val sightings = w.getJSONArray("sightings").let { a ->
+                (0 until a.length()).map { i ->
+                    val r = a.getJSONArray(i)
+                    WarningSighting(r.getString(0).toInt(16), at(r.getString(1)), at(r.getString(2)), r.getInt(3))
+                }
+            }
+            val events = w.getJSONArray("events").let { a ->
+                (0 until a.length()).map { i ->
+                    val r = a.getJSONArray(i)
+                    WarningEvent(at(r.getString(0)), checkNotNull(WarningEventKind.of(r.getString(1))), r.getString(2).takeIf { it.isNotEmpty() }?.toInt(16))
+                }
+            }
+            val linked = w.getBoolean("linked")
+            return WarningsView(
+                state = WarningLogState(
+                    enabled = w.getBoolean("enabled"),
+                    sinceMs = at(w.getString("since")),
+                    linked = linked,
+                    lostAtMs = w.optString("lostAt").takeIf { it.isNotEmpty() }?.let(::at),
+                    events = events,
+                    sightings = sightings,
+                ),
+                names = WarningNames(names),
+                nowMs = at(w.getString("now")),
+                zone = zone,
+            )
+        }
+    }
+
     private object RestoreClock {
         const val NOW = "14:02:11"
         private val day = java.util.Calendar.getInstance().apply {

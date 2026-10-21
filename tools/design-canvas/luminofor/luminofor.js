@@ -794,7 +794,8 @@
     const s = r.summary || (r.kind === 'choice' && !(r.icons && r.icons.length) ? r.value : null);
     if (!s) return [];
     const lines = wrap(c, s, R.summarySize, 400, room);
-    if (lines.length > 2) { let l = lines[1]; while (wordsW(c, l + '…', R.summarySize) > room && l.length) l = l.slice(0, -1); lines.splice(1, lines.length - 1, l + '…'); }
+    // the second line runs on to the edge and is cut mid-word, as Android's ellipsis cuts it
+    if (lines.length > 2) { let l = lines.slice(1).join(' '); while (wordsW(c, l + '…', R.summarySize) > room && l.length) l = l.slice(0, -1); lines.splice(1, lines.length - 1, l + '…'); }
     return lines;
   }
   // A reading on the technical page: the key on the left, the value right-aligned beside it and
