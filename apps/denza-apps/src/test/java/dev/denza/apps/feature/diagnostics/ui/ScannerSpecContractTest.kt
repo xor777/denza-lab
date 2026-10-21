@@ -253,10 +253,6 @@ class ScannerSpecContractTest {
 
     @Test
     fun systemScreens() {
-        val m = ScannerSpec.Bms
-        n(m.TOP, "bms", "top"); n(m.HEAD, "bms", "head"); n(m.ROW, "bms", "row"); n(m.VALUE_PAD, "bms", "valuePad")
-        assertEquals(cols("bms", "cols"), m.COLS)
-
         val d = ScannerSpec.Drives
         n(d.TOP, "drives", "top"); n(d.HEAD, "drives", "head"); n(d.ROW, "drives", "row"); n(d.PAD, "drives", "pad")
         assertEquals(cols("drives", "cols"), d.COLS)

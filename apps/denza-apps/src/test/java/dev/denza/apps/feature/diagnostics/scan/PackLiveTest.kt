@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.diagnostics.scan
 
+import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.feature.diagnostics.DiagnosticExtra
 import dev.denza.apps.feature.diagnostics.DiagnosticExtraReader
 import dev.denza.apps.feature.diagnostics.ExtraPage
@@ -314,6 +315,53 @@ class PackLiveTest {
             assertEquals("· ${r.device}·${r.abbreviation}", spec.aside)
             assertEquals("· ${r.source}", spec.aside)
         }
+    }
+
+    // ------------------------------------------------------------------ the board
+
+    /**
+     * `scanner-sys-pack-live` is what the table makes of a minute: the parked reading of 2026-10-20
+     * as the board's last value, each number passing through its board minimum and maximum on the
+     * way (the cells so that their spread does too), the last batch 2,1 s long. Every word of a row
+     * is the table's; a trace is there where the board draws one (its shape is illustrative).
+     */
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun theBoardIsWhatTheTableMakesOfItsMinute() {
+        val live = PackLive().apply { show() }
+        val volts = listOf(552.0, 554.0, 553.0, 553.0, 553.0)
+        val current = listOf(-6.1, -3.2, -4.5, -4.5, -4.5)
+        val cellMin = listOf(3334.0, 3332.0, 3333.0, 3333.0, 3333.0)
+        val cellMax = listOf(3337.0, 3337.0, 3336.0, 3338.0, 3337.0)
+        val bmc = listOf(14410.0, 14450.0, 14429.0, 14429.0, 14429.0)
+        val second = listOf(19660.0, 19690.0, 19675.0, 19675.0, 19675.0)
+        (0..4).forEach { i ->
+            live.take(round(
+                i + 1L,
+                hub = mapOf(VehicleSignal.PACK_VOLT to volts[i], VehicleSignal.CELL_MIN_MV to cellMin[i], VehicleSignal.CELL_MAX_MV to cellMax[i]),
+                extras = mapOf(DiagnosticExtra.CHARGE_CURRENT to current[i], DiagnosticExtra.INSULATION to bmc[i], DiagnosticExtra.INSULATION_2 to second[i]),
+                tookMs = 2_100,
+            ))
+        }
+        val view = live.view()
+        val board = SpecJson.fixture("scanner-sys-pack-live")
+        val rows = board["rows"] as List<Map<String, Any?>>
+        assertEquals(rows.map { it["name"] }, view.rows.map { it.name })
+        rows.zip(view.rows).forEach { (b, r) ->
+            val id = b["name"] as String
+            assertEquals(id, b["pid"], r.device)
+            assertEquals(id, b["abbr"], r.abbreviation)
+            assertEquals(id, b["value"], r.value)
+            assertEquals(id, b["unit"], r.unit)
+            assertEquals(id, b["min"] to b["max"], r.min to r.max)
+            assertEquals(id, b["norm"], r.norm)
+            assertEquals(id, b["out"], r.outOfNorm)
+            assertEquals("$id: a trace where the board draws one", (b["trace"] as List<*>).isNotEmpty(), r.samples.isNotEmpty())
+        }
+        val footer = board["footer"] as Map<String, Any?>
+        assertEquals("the board's «Пауза»: running", listOf("Пауза", "Сбросить мин/макс"), (footer["buttons"] as List<List<Any?>>).map { it[0] })
+        assertFalse(view.paused)
+        assertEquals((footer["notes"] as List<List<Any?>>).single()[0], view.round)
     }
 
     // ------------------------------------------------------------------ the session

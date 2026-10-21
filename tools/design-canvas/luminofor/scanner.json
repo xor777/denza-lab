@@ -72,7 +72,6 @@
     "groupTitle":   { "size": 11,   "lh": 14, "w": 500, "track": 0.08 },
     "groupSummary": { "size": 12,   "lh": 14, "mono": true },
     "cell":         { "size": 14.5, "lh": 18 },
-    "cell14":       { "size": 14,   "lh": 18 },
     "cellSmall":    { "size": 13.5, "lh": 18 },
     "cellMono":     { "size": 13.5, "lh": 18, "mono": true },
     "cellNum":      { "size": 14.5, "lh": 18, "mono": true },
@@ -82,7 +81,6 @@
     "value":        { "size": 16,   "lh": 20, "mono": true, "w": 500 },
     "valueBms":     { "size": 15,   "lh": 18, "mono": true, "w": 500 },
     "sig":          { "size": 12,   "lh": 16, "mono": true },
-    "norm":         { "size": 12.5, "lh": 16 },
     "normMono":     { "size": 13,   "lh": 18, "mono": true },
     "badge":        { "size": 11.5, "lh": 14, "w": 500, "track": 0.04 },
     "badgeSmall":   { "size": 11,   "lh": 14, "w": 500, "track": 0.04 },
@@ -211,7 +209,6 @@
   "ecuLive": { "top": 168, "head": 30, "row": 32, "cols": [56, 360, 116, 70, 82, 82, 110, "1fr"], "spark": { "w": 300, "h": 22, "stroke": 1.4, "glow": 3 } },
   "ecuIdent": { "left": { "x": 24, "w": 624 }, "right": { "x": 680, "w": 576 }, "ownCols": [240, "1fr"], "cacheCols": [200, "1fr"], "row": 32, "noteGap": 14, "pidGap": 22, "pidHeadH": 18, "pidGridGap": 8, "pid": { "cols": 12, "h": 24, "gap": 4, "r": 3 } },
   "bodyDtc": { "top": 172, "head": 30, "cols": [130, 260, "1fr", 80, 46, 46, 46, 46, 46, 46, 46, 46], "rowMin": 52, "bit": 12, "bitR": 3, "below": 328, "belowGap": 19, "explainW": 600, "explainGap": 8, "legend": { "x": 672, "w": 584, "key": 70, "gap": 12, "rowGap": 6 } },
-  "bms": { "top": 168, "head": 30, "row": 27, "cols": [150, 330, 120, 70, 220, "1fr"], "valuePad": 14 },
   "drives": { "top": 168, "head": 44, "row": 40, "cols": [320, "1fr", "1fr", "1fr", "1fr", 70], "pad": 20 },
   "adas": { "top": 168, "head": 50, "row": 33, "cols": [124, "1fr", "1fr", "1fr", "1fr", "1fr", "1fr", "1fr"], "pad": 8 },
   "brakes": { "top": 172, "head": 30, "askRow": 34, "askCols": ["1fr", 110, 140], "plateGap": 18, "plate": { "padX": 16, "padY": 14, "gap": 10, "r": 6 }, "bits": { "h": 30, "gap": 4, "r": 4 } }

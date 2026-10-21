@@ -506,7 +506,6 @@
     });
   }
 
-  // The pack's readings from the signal bus.
   // The pack's readings as the engine's stream reads: value, the span seen, the norm and 60 s of it.
   function sysPackLive(c, f) {
     shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); liveTable(c, f, L.rail.packLiveCols, 'УСТР.'); });
@@ -1403,22 +1402,6 @@
       text(c, id, x + cw / 2, mid(py, P.h, 'pid'), 'pid', service ? 'sep' : 'text', { align: 'center' });
     });
     footer(c, f.footer);
-  }
-
-  function bmsTable(c, f) {
-    const B = L.bms, cols = columns(B.cols, 24, W - 48);
-    let y = headRow(c, cols, ['СИГНАЛ', 'ПАРАМЕТР', ['ЗНАЧЕНИЕ', 'right', B.valuePad], 'ЕД.', 'НОРМА', 'ОЦЕНКА'], B.top, B.head);
-    for (const [sig, name, value, unit, norm, mark] of f.rows) {
-      const h = B.row;
-      text(c, sig, cols[0][0] + 12, mid(y, h, 'sig'), 'sig', 'faint2');
-      text(c, name, cols[1][0], mid(y, h, 'cell14'), 'cell14', 'white', { max: cols[1][1] });
-      text(c, value, cols[2][0] + cols[2][1] - B.valuePad, mid(y, h, 'valueBms'), 'valueBms', 'white', { align: 'right' });
-      text(c, unit, cols[3][0], mid(y, h, 'unit'), 'unit', 'dim2');
-      text(c, norm, cols[4][0], mid(y, h, 'norm'), 'norm', 'faint', { max: cols[4][1] });
-      if (mark) badge(c, mark, cols[5][0], y + (h - L.badge.small.h) / 2, 'ok', 'small');
-      rule(c, 24, y + h, W - 48, 'hair');
-      y += h + 1;
-    }
   }
 
   const DIM_CELL = ['—', 'н/д', 'нет адреса', 'не читали'];

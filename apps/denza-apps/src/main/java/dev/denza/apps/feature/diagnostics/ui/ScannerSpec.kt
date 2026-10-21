@@ -149,7 +149,6 @@ internal object ScannerSpec {
         val GROUP_TITLE = Style(11f, 14f, 500, track = 0.08f)
         val GROUP_SUMMARY = Style(12f, 14f, mono = true)
         val CELL = Style(14.5f, 18f)
-        val CELL14 = Style(14f, 18f)
         val CELL_SMALL = Style(13.5f, 18f)
         val CELL_MONO = Style(13.5f, 18f, mono = true)
         val CELL_NUM = Style(14.5f, 18f, mono = true)
@@ -159,7 +158,6 @@ internal object ScannerSpec {
         val VALUE = Style(16f, 20f, 500, mono = true)
         val VALUE_BMS = Style(15f, 18f, 500, mono = true)
         val SIG = Style(12f, 16f, mono = true)
-        val NORM = Style(12.5f, 16f)
         val NORM_MONO = Style(13f, 18f, mono = true)
         val BADGE = Style(11.5f, 14f, 500, track = 0.04f)
         val BADGE_SMALL = Style(11f, 14f, 500, track = 0.04f)
@@ -230,9 +228,9 @@ internal object ScannerSpec {
             "counterLabel" to COUNTER_LABEL, "counterBig" to COUNTER_BIG, "counter" to COUNTER, "title" to TITLE,
             "titleAside" to TITLE_ASIDE, "line" to LINE, "tab" to TAB,
             "colHead" to COL_HEAD, "colHeadTight" to COL_HEAD_TIGHT, "bitHead" to BIT_HEAD, "groupTitle" to GROUP_TITLE,
-            "groupSummary" to GROUP_SUMMARY, "cell" to CELL, "cell14" to CELL14, "cellSmall" to CELL_SMALL,
+            "groupSummary" to GROUP_SUMMARY, "cell" to CELL, "cellSmall" to CELL_SMALL,
             "cellMono" to CELL_MONO, "cellNum" to CELL_NUM, "cellAbbr" to CELL_ABBR, "cellAside" to CELL_ASIDE,
-            "unit" to UNIT, "value" to VALUE, "valueBms" to VALUE_BMS, "sig" to SIG, "norm" to NORM,
+            "unit" to UNIT, "value" to VALUE, "valueBms" to VALUE_BMS, "sig" to SIG,
             "normMono" to NORM_MONO, "badge" to BADGE, "badgeSmall" to BADGE_SMALL, "badgeBig" to BADGE_BIG,
             "button" to BUTTON, "note" to NOTE, "noteMono" to NOTE_MONO, "code" to CODE, "codeFault" to CODE_FAULT,
             "lead" to LEAD, "body" to BODY, "bodyStrong" to BODY_STRONG, "small" to SMALL, "legendKey" to LEGEND_KEY,
@@ -460,14 +458,6 @@ internal object ScannerSpec {
         const val LEGEND_KEY = 70f
         const val LEGEND_GAP = 12f
         const val LEGEND_ROW_GAP = 6f
-    }
-
-    object Bms {
-        const val TOP = 168f
-        const val HEAD = 30f
-        const val ROW = 27f
-        val COLS = listOf(150f, 330f, 120f, 70f, 220f, FR)
-        const val VALUE_PAD = 14f
     }
 
     object Drives {
