@@ -349,5 +349,35 @@
     },
     "expectedTupleMatrixReceived": false,
     "applicableOtaObtained": false
+  },
+  "offlineTrustComparison": {
+    "report": {
+      "path": "captures/ota-ghy-20261021/offline-trust-comparison.json",
+      "sha256": "62c20c41f2e22c7bb3f58506f49de8985a78fb669359d21a1d343920fdcc2947"
+    },
+    "verifier": {
+      "path": "research/vehicle-diagnostics/check_ghy_trust.py",
+      "sha256": "72a7502639d565e99460072abaedfeda8f4878b2abf48489c51a9dea32dd440a"
+    },
+    "inputs": [
+      {
+        "path": "captures/telematics-20260923/tls-wifi/live-attempt-3.json",
+        "sha256": "50d14680c971ec429415891db4b2ecb90b69e9d0e0c84e198f706db57aedbbf4"
+      },
+      {
+        "path": "captures/telematics-20260923/tls-wifi/server-public-chain.json",
+        "sha256": "3e7681711fc5377fb22c5ab51ddfb472f24c54c530453e8c72de66641407e730"
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/resources/assets/BYD_Root_CA_RSA.cer",
+        "sha256": "0642a117e10df70c22713ab51325113e32b1c2989ae900bd8af247e9adbe18ae"
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/resources/assets/BYD_Identity_SubCA_RSA.cer",
+        "sha256": "624268033c4ac6c96284342ce2d57af1fa65de3ee41a083c8901740ed9f02bd8"
+      }
+    ],
+    "assessment": "Both APK CA assets exactly match prior hardware CA fingerprints. A missing independent CA is not established. Anchor-versus-intermediate behavior still differs; current GHY server chain remains unknown.",
+    "deviceOrNetworkAccess": false
   }
 }
