@@ -204,7 +204,7 @@ readback errors, lost state persistence, deadline, concurrent stop, failed
 restoration, and lease recovery rules. One host-only child process verifies
 that a blocked stdout consumer does not block child cleanup. None accesses ADB.
 
-## Isolated GCY checkVersion client (prepared, 2026-10-21)
+## Isolated GCY checkVersion client (live refusal reproduced, 2026-10-21)
 
 `OtaCheckVersionProbe.java` and `run_ota_check_metadata.py` prepare one GCY
 metadata request using the existing cache, never a stock OTA workflow. They
@@ -224,8 +224,15 @@ text is omitted. A forced strategy is only projected data.
 
 Offline validation: 27 Java assertions, including the 225-row retained cache,
 and 8 fake-device host tests. DEX is built in
-`captures/ota-isolated-20261021/build/`; it has not run on Android or made a
-checkVersion request. Read-only preflight passed on the existing tunnel.
+`captures/ota-isolated-20261021/build/`. One explicitly authorized live session
+then returned GCY `111` / `ecu_strategy_mismatch`, the same batch and empty
+package arrays. The cache was byte-identical to the October 18 copy; all three
+plan paths returned missing. Independent postflight confirmed closed ports,
+removed helper/lease/export directory, unchanged package PIDs and matching
+GCY/BydLogTool APK hashes. Expected versions and an applicable OTA were not
+obtained. The one-session authorization is consumed. Evidence:
+`captures/ota-isolated-20261021/approved-session-1/` and
+[`ota-isolated-check-20261021.json`](../../research/vehicle-diagnostics/ota-isolated-check-20261021.json).
 
 ```bash
 python3 -B tools/vehicle-diagnostics/run_ota_check_metadata.py

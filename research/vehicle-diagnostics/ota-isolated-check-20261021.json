@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "owner-authorized one isolated GCY checkVersion from existing cache",
+  "authorization": {
+    "explicitOneSession": true,
+    "consumed": true,
+    "goSent": true,
+    "reference": {
+      "path": "captures/ota-isolated-20261021/authorization-session-1.json",
+      "sha256": "c552a287745192117f464be37af931da5d80dc7a2ea936b138c507d63c345299"
+    }
+  },
+  "evidence": {
+    "session": {
+      "path": "captures/ota-isolated-20261021/approved-session-1/session.json",
+      "sha256": "ae9a86b98b574dd2f702b3ae835ca94f00451077c7733944da54beede40f641e"
+    },
+    "snapshotBeforeRequest": {
+      "path": "captures/ota-isolated-20261021/approved-session-1/snapshot-before-request.json",
+      "sha256": "a4d9e147309214873c5cbdc75063c83394adb92e0ccdf6a5f66b609ce352cb74"
+    },
+    "postflight": {
+      "path": "captures/ota-isolated-20261021/approved-session-1/postflight.json",
+      "sha256": "e23c2d02a6ccfbb486889261e9cbe48f1090ef7de132ae3c28f75601127b765d"
+    },
+    "buildManifest": {
+      "path": "captures/ota-isolated-20261021/build/manifest.json",
+      "sha256": "693f7d54010d122c39f276eaf422550ffb6da82a0eca88c43bab80f18386ab1f"
+    },
+    "priorCache": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    }
+  },
+  "cache": {
+    "version": "V1.7.0",
+    "rowCount": 225,
+    "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+    "byteIdenticalToPriorCache": true,
+    "changedTupleCount": 0,
+    "sourceMeasurementTimeKnown": false,
+    "freshEcuDiagnosticScan": false,
+    "frontZcu": {
+      "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+      "ecuSoftCode": "4B310011E001540100",
+      "ecuSoftVer": "4.00.36",
+      "ecuHardVer": "0.4.1",
+      "ecuConfigCode": "FFFFFFFFFFFFFFFFFF",
+      "ecuConfigVer": "6.55.35"
+    }
+  },
+  "plans": {
+    "checkedPaths": [
+      "/data/ota_package/ota/result/strategy.json",
+      "/data/ota_package/ota_ghy/result/strategy.json",
+      "/data/ota_package/ota_productline/result/strategy.json"
+    ],
+    "allReportedMissing": true,
+    "priorExistenceOrDeletionProved": false
+  },
+  "response": {
+    "sha256": "41204bab426485f1eb02993605e23a7374d461506b570874350a3399c18fd940",
+    "status": "111",
+    "causeKind": "ecu_strategy_mismatch",
+    "strategy": {
+      "batchId": "SALE-BYDHTH-2021-BATCH-00004",
+      "sequence": []
+    },
+    "sourcePackageInfo": [],
+    "targetPackageInfo": [],
+    "configSourceInfo": [],
+    "configPackageInfo": []
+  },
+  "execution": {
+    "status": "complete",
+    "exportClosed": true,
+    "watchdogTerminal": true,
+    "leaseReleased": true,
+    "postApkIdentityVerified": true,
+    "goSent": true
+  },
+  "postflight": {
+    "checkedAtUtc": "2026-10-21T10:53:15.261633+00:00",
+    "readOnlyPostflight": "pass",
+    "exportListenersPresent": [],
+    "helperPresent": false,
+    "leaseAndExportDirectoryAbsent": true,
+    "gcYAndBydLogApkHashesMatch": true,
+    "bydLogPid": "4743",
+    "bydLogStart": "2411",
+    "pidsBefore": {
+      "com.byd.otaupdate": "4173",
+      "com.byd.otaupdate2": "3091",
+      "com.byd.bydlogtool": "4743"
+    },
+    "pidsAfter": {
+      "com.byd.otaupdate": "4173",
+      "com.byd.otaupdate2": "3091",
+      "com.byd.bydlogtool": "4743"
+    },
+    "pidsUnchanged": true
+  },
+  "assessment": {
+    "sameKnownGcyMismatchReproducedWithoutStockWorkflow": true,
+    "expectedTupleMatrixReceived": false,
+    "specificFailingEcuKnown": false,
+    "frontZcuAsCauseProved": false,
+    "applicableNewOtaObtained": false,
+    "downloadOrInstallCalled": false,
+    "newGhyRequestExecuted": false,
+    "noRequestRetry": true
+  },
+  "ownerServiceHistory": {
+    "reportedAt": "2026-10-21",
+    "scope": "head unit and vehicle ECUs",
+    "approximateDates": "August 10-12; year not explicitly stated",
+    "packageManifestKnown": false,
+    "independentlyVerified": false
+  },
+  "limits": [
+    "This is a current cloud response to cached measurements, not fresh installed ECU measurements.",
+    "Same status/cause/batch does not prove identical original request or full raw response.",
+    "Missing plans now do not prove what deleted them or whether they existed before.",
+    "A full service update does not prove either compatibility or incompatibility with the assigned cloud campaign."
+  ]
+}
