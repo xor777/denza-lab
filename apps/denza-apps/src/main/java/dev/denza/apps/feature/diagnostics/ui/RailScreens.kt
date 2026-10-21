@@ -163,6 +163,12 @@ internal fun SystemPageScreen(
         extras?.let { current.value.setExtrasVisible(it, true) }
         onDispose { extras?.let { current.value.setExtrasVisible(it, false) } }
     }
+    // the pack's readings go round after round and keep their minute while «Потоковые данные» is in front (6.3)
+    val packLive = page.system == CarSystem.PACK && tab == SystemTab.LIVE
+    DisposableEffect(packLive) {
+        if (packLive) current.value.setPackLiveVisible(true)
+        onDispose { if (packLive) current.value.setPackLiveVisible(false) }
+    }
     var picking by remember { mutableStateOf(false) }
     val read = { requests.forEach(actions::readModule) }
     val codes = FooterButton("Прочитать DTC", true, read)
@@ -181,6 +187,16 @@ internal fun SystemPageScreen(
                 ),
                 notes = emptyList(),
             )
+            // the pack's stream: the pause, the extremes, and how long the last round took
+            packLive -> model.systems.pack.let { pack ->
+                ScanFooter(
+                    listOf(
+                        FooterButton(if (pack.paused) "Продолжить" else "Пауза", true) { actions.setPackLivePaused(!pack.paused) },
+                        FooterButton("Сбросить мин/макс", false) { actions.resetPackLive() },
+                    ),
+                    listOfNotNull(pack.round?.let { FooterNote.Words(it, mono = true) }),
+                )
+            }
             // the cells: the pause, the last sweep's length and the newest page's age, and where they come from
             cells -> ScanFooter(
                 listOf(
@@ -213,7 +229,9 @@ internal fun SystemPageScreen(
         ScanTabs(page.tabs.map { it.label }, page.tabs.indexOf(tab).coerceAtLeast(0), { onTab(page.tabs[it]) })
         when (tab) {
             SystemTab.STATE -> page.scheme?.let { SchemeContent(model, it, onOpen) }
-            SystemTab.LIVE -> if (page.system == CarSystem.PACK) PackTable(model.systems.pack, onParam) else if (obd != null) {
+            SystemTab.LIVE -> if (page.system == CarSystem.PACK) {
+                LiveTable(model.systems.pack.rows, sample?.chartRange, ScannerSpec.Rail.PACK_LIVE_COLS, onParam, first = "УСТР.", scroll = true)
+            } else if (obd != null) {
                 LiveTable(obd.live.rows, sample?.chartRange, ScannerSpec.Rail.LIVE_COLS, onParam)
             }
             SystemTab.COMPARE -> if (page.system == CarSystem.ADAS) AdasTable(model, model.systems.adas) else DrivesTable(model.systems.drives)

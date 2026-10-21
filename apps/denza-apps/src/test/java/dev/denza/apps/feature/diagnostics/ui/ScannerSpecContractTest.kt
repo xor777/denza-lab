@@ -319,6 +319,7 @@ class ScannerSpecContractTest {
         n(r.SEP_GAP, "rail", "sepGap"); n(r.BAR, "rail", "bar")
         assertEquals(cols("rail", "scanCols"), r.SCAN_COLS)
         assertEquals(cols("rail", "liveCols"), r.LIVE_COLS)
+        assertEquals(cols("rail", "packLiveCols"), r.PACK_LIVE_COLS)
         n(r.TOPO_COLUMN, "rail", "topology", "column"); n(r.TOPO_TILE_W, "rail", "topology", "tile", "w")
         n(r.TOPO_TILE_PAD_X, "rail", "topology", "tile", "padX"); n(r.TOPO_TILE_INSET, "rail", "topology", "tile", "inset")
         assertEquals(cols("rail", "dtc", "cols"), r.DTC_COLS)

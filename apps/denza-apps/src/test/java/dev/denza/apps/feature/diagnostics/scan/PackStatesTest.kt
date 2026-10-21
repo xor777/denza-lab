@@ -21,7 +21,7 @@ class PackStatesTest {
         recording = null, car = CarReadings(extras = extras, extrasFresh = fresh), nowMillis = Fixtures.EPOCH,
     ))
 
-    private fun DiagnosticsModel.row(name: String) = systems.pack.first { it.name == name }
+    private fun DiagnosticsModel.row(name: String) = systems.pack.rows.first { it.name == name }
 
     @Test
     fun theFourGetsAreInTheBatchAsTheResearchTypedThem() {
@@ -50,14 +50,16 @@ class PackStatesTest {
         val m = model(mapOf(DiagnosticExtra.CONTACTOR to 1.0, DiagnosticExtra.PACK_CHARGE_STATE to 0.0,
             DiagnosticExtra.CHARGER_STATE to 1.0, DiagnosticExtra.CHARGER_FAULT to 1.0))
         val names = listOf("Главный контактор, разряд", "Состояние заряда батареи", "Зарядное устройство, состояние", "Зарядное устройство, отказ")
-        assertEquals(names, m.systems.pack.takeLast(4).map { it.name })
+        assertEquals(names, m.systems.pack.rows.takeLast(4).map { it.name })
         assertEquals(listOf("замкнут", "готов", "готово", "норма"), names.map { m.row(it).value })
         names.forEach {
             val r = m.row(it)
             assertEquals("", r.unit)
             assertEquals("—", r.norm)
-            assertNull(r.ok)
-            assertFalse(r.stale)
+            assertFalse(r.outOfNorm)
+            // a state keeps no trace and no extremes
+            assertEquals("" to "", r.min to r.max)
+            assertTrue(r.samples.isEmpty())
         }
         assertEquals(listOf("1032·34400010", "1009·34400018", "1009·27C0000A", "1009·27C00008"), names.map { m.row(it).source })
         assertEquals(listOf("contactor", "pack_charge_state", "charger_state", "charger_fault"),
@@ -78,8 +80,8 @@ class PackStatesTest {
         assertEquals("код 0", m.row("Зарядное устройство, состояние").value)
         assertEquals("н/д", m.row("Состояние заряда батареи").value)
         assertEquals("н/д", m.row("Зарядное устройство, отказ").value)
-        assertTrue("an old batch is still shown, marked stale",
-            model(mapOf(DiagnosticExtra.CONTACTOR to 1.0), fresh = false).row("Главный контактор, разряд").stale)
+        assertEquals("a batch past its horizon is no reading", "н/д",
+            model(mapOf(DiagnosticExtra.CONTACTOR to 1.0), fresh = false).row("Главный контактор, разряд").value)
     }
 
     @Test

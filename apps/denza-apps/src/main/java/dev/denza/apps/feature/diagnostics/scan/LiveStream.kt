@@ -391,9 +391,10 @@ internal class LiveStream(val request: Int, offered: List<Int>, carRows: Boolean
  * engine's PIDs and fast car signals and the pack's readings keep their rows in it alike; a null
  * value in [samples] is a gap the chart leaves open, nothing is interpolated.
  */
-internal open class LiveSeries(private val signed: Boolean = false) {
+internal open class LiveSeries(private val signed: Boolean = false, initial: String = "—") {
     val samples = ArrayDeque<Sample>()
-    var value = "—"
+    /** As the table words it; [initial] before anything came. */
+    var value = initial
     var current: Double? = null
         protected set
     var decimals = 0
@@ -420,6 +421,12 @@ internal open class LiveSeries(private val signed: Boolean = false) {
     fun resetMinMax() {
         min = current
         max = current
+    }
+
+    /** Showing the table again: no extremes until the next number. */
+    fun clearMinMax() {
+        min = null
+        max = null
     }
 
     /** «1 180»; «—» before a number. */

@@ -460,11 +460,12 @@ class DiagnosticsSessionTest {
         assertEquals(listOf("555 В", "556 В"), sys.hv.busVoltages)
         assertEquals("статор 7 °C · IGBT 5 °C · н/д об/мин · н/д Н·м", sys.hv.machines[1].value)
         assertEquals("ДВС не работает", sys.hv.machines[3].key)
-        val soh = sys.pack.first { it.name.startsWith("Состояние (SOH)") }
-        assertEquals(true, soh.ok)
-        val insulation = sys.pack.first { it.name.endsWith("канал BMC") }
-        assertEquals("≥ 500 Ом/В (≥ 277 кОм)", insulation.norm)
-        assertEquals(true, insulation.ok)
+        val soh = sys.pack.rows.first { it.name.startsWith("Состояние (SOH)") }
+        assertEquals("≥ 80", soh.norm)
+        assertFalse(soh.outOfNorm)
+        val insulation = sys.pack.rows.first { it.name.endsWith("канал BMC") }
+        assertEquals("≥ 277", insulation.norm)
+        assertFalse(insulation.outOfNorm)
         assertEquals(listOf(0x782, 0x7E5), sys.brakeModules)
         // The four corner radars answered one F194: one band.
         val f194 = sys.adas.rows.first { it.name == "Номер ПО · F194" }.cells

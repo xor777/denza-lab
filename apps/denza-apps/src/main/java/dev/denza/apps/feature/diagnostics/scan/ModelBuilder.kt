@@ -49,6 +49,8 @@ internal class SessionSnapshot(
     val packCells: PackCellsView? = null,
     /** What the scanner remembers of the software codes: an update's row in «Идентификация» (5.5). */
     val software: SoftwareHistory = SoftwareHistory(),
+    /** The pack's «Потоковые данные» while it is in front (6.3); null otherwise. */
+    val packLive: PackLive? = null,
 )
 
 /**

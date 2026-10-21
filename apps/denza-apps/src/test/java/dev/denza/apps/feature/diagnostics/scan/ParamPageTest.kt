@@ -341,7 +341,7 @@ class ParamPageTest {
         assertEquals(1014, cold.device)
         assertEquals(0x44600010, cold.fid)
         assertEquals("· 1014·44600010", s.model.value.param!!.aside)
-        assertEquals("Напряжение ячейки, мин.", s.model.value.param!!.name)
+        assertEquals("Ячейка, мин.", s.model.value.param!!.name)
         s.stop()
     }
 
@@ -361,11 +361,11 @@ class ParamPageTest {
         val s = session(ecm(), FakeCar())
         s.start()
         advanceTimeBy(100)
-        val pack = s.model.value.systems.pack
+        val pack = s.model.value.systems.pack.rows
         assertEquals(ParamKey.Signal("PACK_VOLT"), pack.first { it.name == "Напряжение ВВБ" }.key)
         assertEquals(ParamKey.Signal("charge_current"), pack.first { it.name == "Ток ВВБ" }.key)
         assertEquals(ParamKey.Signal("CELL_MIN_MV"), pack.first { it.source == "1014·44600010" }.key)
-        assertNull(pack.single { it.source == "расчёт" }.key)
+        assertNull(pack.single { it.source == "расч." }.key)
         pack.filter { it.key != null }.forEach { r ->
             val spec = ParamSpec.of(r.key!!)
             assertNotNull(r.name, spec)

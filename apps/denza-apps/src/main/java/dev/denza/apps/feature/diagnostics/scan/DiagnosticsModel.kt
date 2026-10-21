@@ -672,7 +672,7 @@ internal data class LiveView(
 )
 
 internal data class LiveRow(
-    /** The Mode 01 PID; negative for a fast car signal beside the PIDs, whose [source] names it. */
+    /** The Mode 01 PID; negative for a row that is not one - a fast car signal beside the PIDs, a reading of the pack - whose [source] names it. */
     val pid: Int,
     /** «Температура ОЖ». */
     val name: String,
@@ -691,6 +691,8 @@ internal data class LiveRow(
     val samples: List<Sample>,
     /** What a tap on the row opens alone; null when it cannot be read on its own. */
     val key: ParamKey? = null,
+    /** The first column where the row is not a PID's: a reading's device («1009»), «расч.» for a calculation. */
+    val device: String? = null,
 )
 
 /** One reading on the car's clock; a null [value] is a gap the chart leaves open. */
@@ -699,7 +701,8 @@ internal data class Sample(val atNanos: Long, val value: Float?)
 /** The system screens: values from `autoservice` and the ECUs they belong to. */
 internal data class SystemsView(
     val hv: HvView,
-    val pack: List<SignalRow>,
+    /** «Тяговая батарея · Потоковые данные». */
+    val pack: PackLiveView,
     val drives: CompareView,
     val adas: CompareView,
     /** The brake screen is the ESP/IPB module beside the OBD interface: both are in [DiagnosticsModel.modules]. */
@@ -755,19 +758,19 @@ internal data class ClusterWarningView(
     val id: Int?,
 )
 
-/** A value of the car's signal bus, with where it comes from and whether it is still fresh. */
-internal data class SignalRow(
-    /** «1014·44400028», «расчёт». */
-    val source: String,
-    val name: String,
-    val value: String,
-    val unit: String,
-    val norm: String,
-    /** True when the value is inside [norm], false outside, null when there is no norm. */
-    val ok: Boolean?,
-    val stale: Boolean,
-    /** What a tap on the row opens alone; null for a calculation («расчёт»). */
-    val key: ParamKey? = null,
+/**
+ * «Тяговая батарея · Потоковые данные» (architecture 6.3, 7.2; board `scanner-sys-pack-live`): the
+ * pack's readings as the engine's live table reads - the device, the parameter and its FID, the
+ * value, the extremes since shown, the norm, the last minute. [PackLive] keeps it while the tab is
+ * in front; otherwise it is one look at the car now.
+ */
+internal data class PackLiveView(
+    /** In the board's order, the cells' spread («расч.») after their maximum. */
+    val rows: List<LiveRow>,
+    /** «Пауза» pressed: nothing is read, the table stands as it was. */
+    val paused: Boolean = false,
+    /** «обход 2,1 с»: how long the last batch took; null before one was measured. */
+    val round: String? = null,
 )
 
 /** ECUs side by side: the drives, the driver-assistance modules. */
@@ -852,4 +855,13 @@ internal interface DiagnosticsActions {
     fun setCellsPaused(paused: Boolean)
     /** A page with GETs of its own shown or left - «Салон · Состояние», «Флаги GB/T 32960»: they join the `autoservice` batch only while it is (architecture, 6). */
     fun setExtrasVisible(page: ExtraPage, visible: Boolean)
+    /**
+     * The pack's «Потоковые данные» shown or left: while it is, the batch goes round after round and
+     * every reading keeps its minute; showing it starts the extremes over, leaving it ends a pause (6.3).
+     */
+    fun setPackLiveVisible(visible: Boolean)
+    /** «Пауза» / «Продолжить» there: paused, nothing is read and the table stands. */
+    fun setPackLivePaused(paused: Boolean)
+    /** «Сбросить мин/макс» there. */
+    fun resetPackLive()
 }

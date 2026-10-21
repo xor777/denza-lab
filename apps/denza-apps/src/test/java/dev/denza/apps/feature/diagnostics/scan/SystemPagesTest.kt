@@ -395,18 +395,19 @@ class SystemPagesTest {
         val pack = model.page(CarSystem.PACK).scheme as Scheme.Pack
         assertEquals(listOf(Field("канал BMC", "н/д", muted = true), Field("канал 2", "19,7 МОм")), pack.insulation)
         assertEquals("н/д · 19,7 МОм", model.systems.hv.pack.single { it.key == "Изоляция" }.value)
-        val bmc = model.systems.pack.single { it.name == "Сопротивление изоляции, канал BMC" }
+        val bmc = model.systems.pack.rows.single { it.name == "Изоляция, канал BMC" }
         assertEquals("н/д", bmc.value)
-        assertNull("a code is not a resistance: neither OK nor out of norm", bmc.ok)
-        val second = model.systems.pack.single { it.name == "Сопротивление изоляции, канал 2" }
+        assertFalse("a code is not a resistance: not out of norm", bmc.outOfNorm)
+        val second = model.systems.pack.rows.single { it.name == "Изоляция, канал 2" }
         assertEquals("19 675", second.value)
-        assertEquals(true, second.ok)
+        assertEquals("500 Ω/V of 553 V, in kΩ", "≥ 277", second.norm)
+        assertFalse(second.outOfNorm)
 
         // 254 and 255 are not counts.
         val probes = DiagnosticExtraReader.decode("@@extra:probe_count\nResult: Parcel(00000000 000000ff   '........')", 1, 1).values
         val counts = scanned(parked.copy(extras = parked.extras - DiagnosticExtra.PROBE_COUNT + probes))
         assertEquals("166 ячеек · н/д датчиков", (counts.page(CarSystem.PACK).scheme as Scheme.Pack).cells)
-        assertEquals("н/д", counts.systems.pack.single { it.name == "Датчиков температуры" }.value)
+        assertEquals("н/д", counts.systems.pack.rows.single { it.name == "Датчиков температуры" }.value)
     }
 
     @Test

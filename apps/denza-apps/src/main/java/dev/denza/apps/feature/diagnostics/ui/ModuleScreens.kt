@@ -455,34 +455,66 @@ private fun Monitors(list: List<MonitorRow>, x: Halves) {
 
 /* ---------------------------------------------------------------- live */
 
-/** An OBD responder's live data (`liveTable()`): the block's columns across the window, the rail's beside it. */
+/**
+ * A live table (`liveTable()`): an OBD responder's PIDs - the block's columns across the window, the
+ * rail's beside it - or the pack's readings, whose [first] column is the device and whose rows
+ * [scroll] under the captions between them and the footer. A value outside its norm is orange.
+ */
 @Composable
-internal fun LiveTable(rows: List<LiveRow>, chartRange: ClosedFloatingPointRange<Float>?, colSpec: List<Float>, onParam: ((ParamKey) -> Unit)? = null) {
+internal fun LiveTable(
+    rows: List<LiveRow>,
+    chartRange: ClosedFloatingPointRange<Float>?,
+    colSpec: List<Float>,
+    onParam: ((ParamKey) -> Unit)? = null,
+    first: String = "PID",
+    scroll: Boolean = false,
+) {
     val e = ScannerSpec.EcuLive
     val w = LocalScanWidth.current - 48f
     val cols = ScannerSpec.columns(colSpec, 24f, w)
     HeadRow(
         cols,
         listOf(
-            HeadLabel("PID"), HeadLabel("ПАРАМЕТР"), HeadLabel("ЗНАЧЕНИЕ", end = true, pad = 12f), HeadLabel("ЕД."),
+            HeadLabel(first), HeadLabel("ПАРАМЕТР"), HeadLabel("ЗНАЧЕНИЕ", end = true, pad = 12f), HeadLabel("ЕД."),
             HeadLabel("МИН", end = true, pad = 12f), HeadLabel("МАКС", end = true, pad = 12f), HeadLabel("НОРМА"), HeadLabel("ГРАФИК · 60 С"),
         ),
         e.TOP, e.HEAD,
     )
-    var y = e.TOP + e.HEAD + 1f
+    val top = e.TOP + e.HEAD + 1f
+    if (scroll) {
+        // the rows at their board places, scrolling under the captions
+        ScrollRows(top) {
+            Box(Modifier.fillMaxWidth().height((rows.size * (e.ROW + 1f)).dp)) { LiveRows(rows, chartRange, cols, w, 0f, onParam) }
+        }
+    } else {
+        LiveRows(rows, chartRange, cols, w, top, onParam)
+    }
+}
+
+@Composable
+private fun LiveRows(
+    rows: List<LiveRow>,
+    chartRange: ClosedFloatingPointRange<Float>?,
+    cols: List<Pair<Float, Float>>,
+    w: Float,
+    top: Float,
+    onParam: ((ParamKey) -> Unit)?,
+) {
+    val e = ScannerSpec.EcuLive
+    var y = top
     rows.forEach { r ->
         val h = e.ROW
         fun end(i: Int) = cols[i].first + cols[i].second - 12f
         // a row with a key opens its parameter alone; the row itself draws nothing more
         val key = r.key
         if (key != null && onParam != null) Box(Modifier.at(24f, y).size(w.dp, h.dp).tap { onParam(key) })
-        ScanText(ScannerWords.pid(r.pid), Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[0].first + 12f, mid(y, h, Type.NORM_MONO)))
+        ScanText(r.device ?: ScannerWords.pid(r.pid), Type.NORM_MONO, Ink.FAINT, Modifier.at(cols[0].first + 12f, mid(y, h, Type.NORM_MONO)))
         ScanRuns(
             listOf(Triple("${r.name} ", Type.CELL, Ink.WHITE), Triple(r.abbreviation, Type.CELL_ASIDE, Ink.FAINT)),
             Modifier.at(cols[1].first, mid(y, h, Type.CELL)), maxWidth = cols[1].second,
         )
         // a value stays in its column, whatever its length
-        ScanText(r.value, Type.VALUE, if (r.outOfNorm) Ink.ORANGE_INK else Ink.WHITE, Modifier.endAt(end(2), mid(y, h, Type.VALUE)), maxWidth = cols[2].second - 12f)
+        ScanText(r.value, Type.VALUE, if (r.outOfNorm) Ink.ORANGE else Ink.WHITE, Modifier.endAt(end(2), mid(y, h, Type.VALUE)), maxWidth = cols[2].second - 12f)
         ScanText(r.unit, Type.UNIT, Ink.DIM2, Modifier.at(cols[3].first, mid(y, h, Type.UNIT)))
         ScanText(r.min, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(4), mid(y, h, Type.CELL_MONO)))
         ScanText(r.max, Type.CELL_MONO, Ink.DIM2, Modifier.endAt(end(5), mid(y, h, Type.CELL_MONO)))

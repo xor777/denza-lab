@@ -51,6 +51,8 @@ import dev.denza.apps.feature.diagnostics.scan.MonitorRow
 import dev.denza.apps.feature.diagnostics.scan.MonitorState
 import dev.denza.apps.feature.diagnostics.scan.ObdView
 import dev.denza.apps.feature.diagnostics.scan.PackCellsView
+import dev.denza.apps.feature.diagnostics.scan.PackLive
+import dev.denza.apps.feature.diagnostics.scan.PackLiveView
 import dev.denza.apps.feature.diagnostics.scan.PadState
 import dev.denza.apps.feature.diagnostics.scan.RailItem
 import dev.denza.apps.feature.diagnostics.scan.RailTone
@@ -59,16 +61,17 @@ import dev.denza.apps.feature.diagnostics.scan.Sample
 import dev.denza.apps.feature.diagnostics.scan.ScanPhase
 import dev.denza.apps.feature.diagnostics.scan.ScanSummary
 import dev.denza.apps.feature.diagnostics.scan.Scheme
-import dev.denza.apps.feature.diagnostics.scan.SignalRow
 import dev.denza.apps.feature.diagnostics.scan.SystemDtcRow
 import dev.denza.apps.feature.diagnostics.scan.SystemPage
 import dev.denza.apps.feature.diagnostics.scan.SystemTab
+import dev.denza.apps.feature.diagnostics.scan.SystemsBuilder
 import dev.denza.apps.feature.diagnostics.scan.SystemsView
 import dev.denza.apps.feature.diagnostics.scan.Target
 import dev.denza.apps.feature.diagnostics.scan.Tyre
 import dev.denza.apps.feature.diagnostics.ui.ScannerRoute
 import dev.denza.apps.feature.diagnostics.ui.ScannerSample
 import dev.denza.apps.feature.diagnostics.ui.ScannerWords
+import dev.denza.apps.feature.vehicle.VehicleSignal
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -231,7 +234,7 @@ internal object ScannerFixtures {
     private val PARAM_KEYS: Map<String, ParamKey> = mapOf(
         "scanner-sys-engine-rpm" to ParamKey.Pid(ECM, 0x0C),
         "scanner-sys-engine-ect" to ParamKey.Pid(ECM, 0x05),
-        "scanner-sys-pack-cell" to ParamKey.Signal("1014·44600010"),
+        "scanner-sys-pack-cell" to ParamKey.Signal(VehicleSignal.CELL_MIN_MV.name),
     )
 
     /** The board's clock: its series counts seconds back from here. */
@@ -296,6 +299,9 @@ internal object ScannerFixtures {
         override fun setCellsVisible(visible: Boolean) {}
         override fun setCellsPaused(paused: Boolean) {}
         override fun setExtrasVisible(page: ExtraPage, visible: Boolean) {}
+        override fun setPackLiveVisible(visible: Boolean) {}
+        override fun setPackLivePaused(paused: Boolean) {}
+        override fun resetPackLive() {}
     }
 
     /* ----------------------------------------------------------- autoscan */
@@ -740,13 +746,7 @@ internal object ScannerFixtures {
                 machines = objects(hv.getJSONArray("machines")).map { m -> Field(m.getString("name"), m.getString("values"), muted = !m.optBoolean("live")) },
                 contactorClosed = if (hv.has("contactorClosed")) hv.getBoolean("contactorClosed") else null,
             ),
-            pack = arrays(pack.getJSONArray("rows")).map { r ->
-                SignalRow(
-                    r.getString(0), r.getString(1), r.getString(2), r.getString(3), r.getString(4), ok = if (r.getString(5) == "OK") true else null, stale = false,
-                    // a reading opens alone; a calculation has nothing to poll
-                    key = r.getString(0).takeIf { it != "расчёт" }?.let { ParamKey.Signal(it) },
-                )
-            },
+            pack = packLive(pack),
             drives = CompareView(
                 // [«FMCU · 7E3», «передний»]: the block heads its column, its role under it
                 columns = arrays(drives.getJSONArray("units")).map { u ->
@@ -766,6 +766,33 @@ internal object ScannerFixtures {
     }
 
     private val DIM_CELL = setOf("—", "н/д", "нет адреса", "не читали")
+
+    /**
+     * «Тяговая батарея · Потоковые данные» from its board (`sysPackLive()`): a row is the device, the
+     * parameter, its FID, the value and its unit, the minute's extremes, the norm, 60 s of trace (none
+     * for a state or a count) and whether it is outside its norm; the footer's note is the round.
+     */
+    private fun packLive(f: JSONObject): PackLiveView {
+        val footer = f.getJSONObject("footer")
+        return PackLiveView(
+            rows = objects(f.getJSONArray("rows")).map { r ->
+                val trace = r.getJSONArray("trace")
+                val device = r.getString("pid")
+                val source = if (r.getString("abbr").isEmpty()) device else "$device·${r.getString("abbr")}"
+                LiveRow(
+                    pid = PackLive.NOT_A_PID, name = r.getString("name"), abbreviation = r.getString("abbr"),
+                    value = r.getString("value"), unit = r.getString("unit"), min = r.getString("min"), max = r.getString("max"),
+                    norm = r.getString("norm"), outOfNorm = r.optBoolean("out"), source = source,
+                    samples = (0 until trace.length()).map { Sample(it * 1_000_000_000L, trace.getDouble(it).toFloat()) },
+                    // a reading opens alone; a calculation has nothing to poll
+                    key = SystemsBuilder.PACK.firstOrNull { it.source == source }?.let { ParamKey.Signal(it.key) },
+                    device = device,
+                )
+            },
+            paused = "Продолжить" in arrays(footer.getJSONArray("buttons")).map { it.getString(0) },
+            round = arrays(footer.getJSONArray("notes")).firstOrNull()?.getString(0),
+        )
+    }
 
     private fun adas(f: JSONObject): CompareView {
         val rows = objects(f.getJSONArray("rows"))

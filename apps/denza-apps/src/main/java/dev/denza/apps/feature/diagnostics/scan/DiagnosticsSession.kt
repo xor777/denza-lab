@@ -65,6 +65,12 @@ import kotlinx.coroutines.launch
  * «Продолжить». [setCellsPaused] leaves the subscription and keeps the drawn sweep; resuming
  * subscribes again; leaving the tab ends the pause.
  *
+ * **The pack's readings as a stream** (6.3, [setPackLiveVisible]): while the pack's «Потоковые
+ * данные» shows, the car feed reads its batch round after round ([ExtraPage.PACK_LIVE]) and [PackLive]
+ * keeps every reading's minute and extremes, taking each tick what is new. «Пауза» takes nothing and
+ * gives the batch its five seconds back; the minute outlives leaving the tab and stopping the section,
+ * as the page that shows it does, and showing it again starts the extremes over.
+ *
  * **The code history** (5.5): every good software code a read brings - the autoscan's F194, gate or the
  * ungated read of a stock-route block, an opened block's F194 and F195, the modules behind it - goes
  * through [SoftwareHistory], loaded from
@@ -125,6 +131,9 @@ internal class DiagnosticsSession(
     private var cells: PackCells? = null
     private var cellsJob: Job? = null
     private var cellsStopped = false
+    /** «Тяговая батарея · Потоковые данные»: its minute, and whether the tab is in front. */
+    private var packLive: PackLive? = null
+    private var packShown = false
     /** The gap last asked of the bus; a new bus starts at its launch parameter. */
     private var gapAsked = STREAM_GAP_MS
     /** What the scanner remembers of the software codes (5.5): read from [software] once, then kept here. */
@@ -322,6 +331,33 @@ internal class DiagnosticsSession(
 
     /** A page's own GETs ride the car feed's batch; nothing on the bus changes. */
     override fun setExtrasVisible(page: ExtraPage, visible: Boolean) = car.page(page, visible)
+
+    override fun setPackLiveVisible(visible: Boolean) = act {
+        if (visible == packShown) return@act
+        packShown = visible
+        val live = packLive ?: PackLive().also { packLive = it }
+        if (visible) {
+            live.show()
+            live.take(readings)
+            car.page(ExtraPage.PACK_LIVE, true)
+        } else if (!live.paused) {
+            car.page(ExtraPage.PACK_LIVE, false)
+        }
+    }
+
+    override fun setPackLivePaused(paused: Boolean) = act {
+        val live = packLive?.takeIf { packShown } ?: return@act
+        if (live.paused == paused) return@act
+        if (paused) {
+            live.pause()
+        } else {
+            live.resume()
+            live.take(readings)
+        }
+        car.page(ExtraPage.PACK_LIVE, !paused)
+    }
+
+    override fun resetPackLive() = act { packLive?.takeIf { packShown }?.resetMinMax() }
 
     /** One subscription to the BMS pages for this showing of «Ячейки»; its end is said, not retried. */
     private suspend fun listenCells() {
@@ -650,6 +686,7 @@ internal class DiagnosticsSession(
                 paramTick(r, focused)
                 if (r != null) {
                     readings = r
+                    if (packShown) packLive?.take(r)
                     live?.let { request ->
                         val lines = streams[request]?.carTick(r).orEmpty()
                         recording?.takeIf { it.first == request }?.second?.write(lines)
@@ -715,6 +752,7 @@ internal class DiagnosticsSession(
         param = paramView(),
         packCells = cells?.view(carNanos(), cellsStopped),
         software = codes,
+        packLive = packLive?.takeIf { packShown },
     )
 
     private fun publish() {

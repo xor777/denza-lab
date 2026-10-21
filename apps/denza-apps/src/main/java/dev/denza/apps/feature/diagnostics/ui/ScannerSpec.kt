@@ -511,6 +511,8 @@ internal object ScannerSpec {
         const val BAR = 3f
         val SCAN_COLS = listOf(290f, 120f, 150f, 100f, 80f, 80f, 150f, FR)
         val LIVE_COLS = listOf(50f, 300f, 100f, 64f, 76f, 76f, 100f, FR)
+        /** The pack's readings as a live table: the device first, the FID beside the name. */
+        val PACK_LIVE_COLS = listOf(58f, 286f, 132f, 50f, 76f, 76f, 100f, FR)
         const val TOPO_COLUMN = 112f
         const val TOPO_TILE_W = 100f
         const val TOPO_TILE_PAD_X = 5f

@@ -1,8 +1,6 @@
 package dev.denza.apps.feature.diagnostics.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -10,57 +8,14 @@ import androidx.compose.ui.unit.dp
 import dev.denza.apps.feature.diagnostics.scan.CompareCell
 import dev.denza.apps.feature.diagnostics.scan.CompareView
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
-import dev.denza.apps.feature.diagnostics.scan.ParamKey
-import dev.denza.apps.feature.diagnostics.scan.SignalRow
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Ink
 import dev.denza.apps.feature.diagnostics.ui.ScannerSpec.Type
 
 /*
- * A system's tables beside the rail: the pack's readings (`bmsTable()`), the drives side by side
- * (`drivesTable()`) and the driver-assistance blocks side by side (`adasTable()`).
+ * A system's tables beside the rail: the drives side by side (`drivesTable()`) and the
+ * driver-assistance blocks side by side (`adasTable()`). The pack's readings are a live table
+ * (`ModuleScreens.kt`, `liveTable()`).
  */
-
-@Composable
-internal fun PackTable(rows: List<SignalRow>, onParam: ((ParamKey) -> Unit)? = null) {
-    val b = ScannerSpec.Bms
-    val w = LocalScanWidth.current - 48f
-    val cols = ScannerSpec.columns(b.COLS, 24f, w)
-    HeadRow(
-        cols,
-        listOf(HeadLabel("СИГНАЛ"), HeadLabel("ПАРАМЕТР"), HeadLabel("ЗНАЧЕНИЕ", end = true, pad = b.VALUE_PAD), HeadLabel("ЕД."), HeadLabel("НОРМА"), HeadLabel("ОЦЕНКА")),
-        b.TOP, b.HEAD,
-    )
-    // the rows scroll under the captions between them and the footer, at their board places
-    ScrollRows(b.TOP + b.HEAD + 1f) {
-        Box(Modifier.fillMaxWidth().height((rows.size * (b.ROW + 1f)).dp)) { PackRows(rows, cols, w, onParam) }
-    }
-}
-
-@Composable
-private fun PackRows(rows: List<SignalRow>, cols: List<Pair<Float, Float>>, w: Float, onParam: ((ParamKey) -> Unit)?) {
-    val b = ScannerSpec.Bms
-    var y = 0f
-    rows.forEach { r ->
-        val h = b.ROW
-        // a reading with a key opens alone; a calculation has none
-        val key = r.key
-        if (key != null && onParam != null) Box(Modifier.at(24f, y).size(w.dp, h.dp).tap { onParam(key) })
-        ScanText(r.source, Type.SIG, Ink.FAINT2, Modifier.at(cols[0].first + 12f, mid(y, h, Type.SIG)))
-        ScanText(r.name, Type.CELL14, Ink.WHITE, Modifier.at(cols[1].first, mid(y, h, Type.CELL14)), maxWidth = cols[1].second)
-        ScanText(r.value, Type.VALUE_BMS, if (r.stale) Ink.FAINT else Ink.WHITE, Modifier.endAt(cols[2].first + cols[2].second - b.VALUE_PAD, mid(y, h, Type.VALUE_BMS)), maxWidth = cols[2].second - b.VALUE_PAD)
-        ScanText(r.unit, Type.UNIT, Ink.DIM2, Modifier.at(cols[3].first, mid(y, h, Type.UNIT)))
-        ScanText(r.norm, Type.NORM, Ink.FAINT, Modifier.at(cols[4].first, mid(y, h, Type.NORM)), maxWidth = cols[4].second)
-        val mark = when {
-            r.stale -> "УСТАРЕЛО" to ScannerSpec.Tones.UNREAD
-            r.ok == true -> "OK" to ScannerSpec.Tones.OK
-            r.ok == false -> "ВНЕ НОРМЫ" to ScannerSpec.Tones.ON
-            else -> null
-        }
-        if (mark != null) Badge(mark.first, mark.second, BadgeSize.SMALL, Modifier.at(cols[5].first, y + (h - ScannerSpec.Badge.SMALL_H) / 2f))
-        Rule(24f, y + h, w, Ink.HAIR)
-        y += h + 1f
-    }
-}
 
 @Composable
 internal fun DrivesTable(view: CompareView) {
