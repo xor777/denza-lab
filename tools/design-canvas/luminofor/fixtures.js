@@ -977,17 +977,27 @@
   // «Потоковые данные» after «Состояние» wherever the system has readings to stream (the cabin has none)
   const sysTabs = active => ({ items: ['Состояние', 'Потоковые данные', 'DTC', 'Блоки'], active });
   const drivesTabs = active => ({ items: ['Состояние', 'Потоковые данные', 'Сравнение', 'DTC', 'Блоки'], active });
+  // a plate's rows under its label, and a row in the first row's style or a smaller one under it
+  const P = (label, rows) => [[label, 'counterLabel', 'mute'], ...rows];
+  const st = (t, ink) => [t, 'cell', ink || 'white'], sm = (t, ink) => [t, 'cellSmall', ink || 'dim'];
+  // the chassis' readings of the sweep of 2026-10-20 (research stream-selection-20261021.json): every
+  // tyre's pressure judged normal and no leak, TPMS and its batteries normal, the suspension at its
+  // middle level with the last change done, the parking brake applied
+  const tyreStates = [sm('давление: норма'), sm('утечка: норма')];
   const scannerSysChassis = {
     top: sysTop('Шасси', '19:31:29'), rail: sysRail('Шасси'),
     block: { title: 'Шасси', aside: '· 6 блоков', line: 'ESP/IPB 782 · BSCM 7E5 · EPS 783 · RWS 582 796 · IDC 597 · шины: давление 1016, температура 1007',
       counters: [['ДАВЛЕНИЕ', '2,60–2,72'], ['DTC', '4'], ['ПРОЧИТАНО', '6/6']] },
     tabs: sysTabs(0),
     tyres: [
-      { side: 'L', axle: 'F', label: 'ШИНА ПЛ', pressure: '2,72', temp: '19 °C' },
-      { side: 'R', axle: 'F', label: 'ШИНА ПП', pressure: '2,60', temp: '8 °C' },
-      { side: 'L', axle: 'R', label: 'ШИНА ЗЛ', pressure: '2,70', temp: '17 °C' },
-      { side: 'R', axle: 'R', label: 'ШИНА ЗП', pressure: '2,62', temp: '8 °C' },
+      { side: 'L', axle: 'F', label: 'ШИНА ПЛ', pressure: '2,72', temp: '19 °C', states: tyreStates },
+      { side: 'R', axle: 'F', label: 'ШИНА ПП', pressure: '2,60', temp: '8 °C', states: tyreStates },
+      { side: 'L', axle: 'R', label: 'ШИНА ЗЛ', pressure: '2,70', temp: '17 °C', states: tyreStates },
+      { side: 'R', axle: 'R', label: 'ШИНА ЗП', pressure: '2,62', temp: '8 °C', states: tyreStates },
     ],
+    tpms: { label: 'TPMS', row: sm('система: норма · батареи: норма') },
+    suspension: P('ПОДВЕСКА', [st('уровень: средний'), sm('изменение: завершено')]),
+    epb: { look: 'held', row: sm('EPB затянут') },
     units: { esp: u('ESP/IPB', '782', 'Тормоза, ESP'), eps: u('EPS', '783', 'Рулевое'), bscm: u('BSCM', '7E5', 'Тормоза · OBD'),
       rwsL: u('RWS-L', '582', 'Задн. руль Л'), rwsR: u('RWS-R', '796', 'Задн. руль П'), idc: u('IDC', '597', 'Подвеска', 'hist', 4) },
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
@@ -1006,16 +1016,28 @@
       tailgate: u('PDCMB', '724', 'Проекция багажн.'),
     },
     doorRadars: { fl: u('FL_SDR', '5B2', 'Радар ПЛ'), fr: u('FR_SDR', '5B1', 'Радар ПП'), rl: u('RL_SDR', '5B0', 'Радар ЗЛ'), rr: u('RR_SDR', '5A7', 'Радар ЗП') },
+    // the sweep of 2026-10-20: the hood and the tailgate closed, every lamp the scheme draws off
+    hood: { open: false, row: sm('капот закрыт') },
+    trunk: { open: false, row: sm('багажник закрыт') },
+    lamps: { low: false, high: false, turnLeft: false, turnRight: false, stop: false, reverse: false },
+    lights: P('СВЕТ', [st('ближний выкл'), sm('дальний выкл'), sm('поворотники выкл')]),
+    tail: P('ЗАДНИЕ ФОНАРИ', [st('стоп-сигнал не горит · задний ход не горит')]),
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
   };
+  // the same body with every lamp the scheme draws lit and the tailgate open, illustrative: both
+  // beams, the hazard lights, the stop and reversing lamps
+  const scannerSysBodyStateLit = Object.assign({}, scannerSysBodyState, {
+    trunk: { open: true, row: [['багажник ', 'cellSmall', 'dim'], ['открыт', 'cellSmall', 'orange']] },
+    lamps: { low: true, high: true, turnLeft: true, turnRight: true, stop: true, reverse: true },
+    lights: P('СВЕТ', [st('ближний вкл'), sm('дальний вкл'), [['поворотники ', 'cellSmall', 'dim'], ['аварийная', 'cellSmall', 'orange']]]),
+    tail: P('ЗАДНИЕ ФОНАРИ', [[['стоп-сигнал ', 'cell', 'white'], ['горит', 'cell', 'orange'], [' · задний ход горит', 'cell', 'white']]]),
+  });
   // Салон. The cabin's state from the car's own properties (autoservice GETs; research of 2026-10-21,
   // values named by DiCarServer): who sits and the belt, heating and ventilation in three levels,
   // massage, the reading lights, the wheel's heating, the charging pads, the fridges' modes and set
   // points, the cluster's message and the HUD. A trip, illustrative: the driver sits belted with the
   // seat warmed to 2 and a massage, the rear left passenger sits unbelted with the reading light on,
   // the left pad charges, the front fridge cools to 0 °C; the parked board is the sweep of 2026-10-20.
-  const P = (label, rows) => [[label, 'counterLabel', 'mute'], ...rows];
-  const st = (t, ink) => [t, 'cell', ink || 'white'], sm = (t, ink) => [t, 'cellSmall', ink || 'dim'];
   const cabinBlock = { title: 'Салон', aside: '· 18 блоков', line: 'приборы 723 · HUD 7B0 · руль 711 725 · ГУ 741 · пасс. ПК 5E7 · ' +
     'сиденья 750 7B5 7D2 · селектор 7A7 · холодильник 5A0 5F4 7C6 · WCT 733 · MCPA 5E4 · FRL 772 · AMP 751 · ETC 790',
     counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '4'], ['ПРОЧИТАНО', '18/18']] };
@@ -1078,7 +1100,8 @@
   const scannerSysDrives = {
     top: sysTop('Электропривод', '19:31:29'), rail: sysRail('Электропривод'),
     block: { title: 'Электропривод', aside: '· 6 блоков', line: 'VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6',
-      counters: [['ШИНА ПЕРЕД', '555 В'], ['ШИНА ЗАД', '556 В'], ['DTC', '0']] },
+      // the selector as the sweep of 2026-10-20 read it: P
+      counters: [['СЕЛЕКТОР', 'P'], ['ШИНА ПЕРЕД', '555 В'], ['ШИНА ЗАД', '556 В'], ['DTC', '0']] },
     tabs: drivesTabs(0),
     units: { vcu: u('VCU', '7E2', 'Силовая установка'), pdc: u('PDC-VCU', '743', 'Силовой домен') },
     front: { label: 'ПЕРЕДНИЙ МОТОР · FMCU 7E3', rows: ['статор 8 °C · IGBT 9 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
@@ -1089,9 +1112,12 @@
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
   };
 
+  // the power mode and the charge port as the sweep of 2026-10-20 read them: ON, an AC plug in
   const scannerSysHv = Object.assign({}, hvSchema, {
     top: sysTop('ВВ-система', '19:31:29'), rail: sysRail('ВВ-система'),
-    block: Object.assign({}, hvSchema.block, { line: 'BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · LBMS 762' }),
+    block: Object.assign({}, hvSchema.block, { line: 'BMS 7E7 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6 · ECM 7E0 · DCOBC 7E4 · PTC 766 · LBMS 762',
+      counters: [['ПИТАНИЕ', 'ON'], ['U ВВБ', '553 В'], ['SOC', '74 %'], ['DTC', '0']] }),
+    charge: { state: 'AC', plugged: true },
     pack: Object.assign({}, hvSchema.pack, { rows: [['U / I', '553 В · −4,5 А'], ['SOC / SOH', '74 % · 99 %'], ['Ячейки', '3 333–3 337 мВ'],
       ['Разброс', '4 мВ'], ['Температура', '13…18 °C'], ['Изоляция', '14,4 · 19,7 МОм']] }),
     tabs: sysTabs(0),
@@ -1139,9 +1165,10 @@
   const scannerSysLv = {
     top: sysTop('Сеть 12 В', '19:31:29'), rail: sysRail('Сеть 12 В'),
     block: { title: 'Сеть 12 В', aside: '· LBMS 762', line: 'DC-DC в DCOBC 7E4 · АКБ LBMS 762 · напряжение 1001',
-      counters: [['12 В', '13,7 В'], ['DTC', '0']] },
+      // the power mode and the converter's mode as the sweep of 2026-10-20 read them: ON, stepping down
+      counters: [['ПИТАНИЕ', 'ON'], ['12 В', '13,7 В'], ['DTC', '0']] },
     tabs: sysTabs(0),
-    hv: '553 В', lv: '13,7 В',
+    hv: '553 В', lv: '13,7 В', dcdcMode: 'понижение',
     units: { dcdc: u('DCOBC', '7E4', 'DC-DC'), lbms: u('LBMS', '762', 'АКБ 12 В'),
       loads: [u('F_ZCU', '722', 'Зона спереди'), u('LA_BCM', '720', 'Кузов слева', 'hist', 8), u('R_ZCU', '747', 'Зона справа', 'hist', 2), u('B_ZCU', '726', 'Зона сзади')] },
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
@@ -1150,7 +1177,9 @@
   // The tabs a board above shows only one of, from the same parked snapshot.
   const snapshot = { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] };
   const codesFooter = { buttons: [['Прочитать DTC', 'primary']], notes: [['19 01 09 · 19 02 09 · снимок 19:31:29', true]] };
-  // the airbags and the belts: the scheme is the blocks, so its footer reads their memories
+  // the airbags, the belts and the seats: who sits and the belt as the cabin reads them, the sweep
+  // of 2026-10-20 - an empty car, every belt unbuckled
+  const seat = (place, label, occupied, belt, row) => ({ place, label, occupied, belt, row });
   const scannerSysSafety = {
     top: sysTop('Безопасность', '19:31:29'), rail: sysRail('Безопасность'),
     block: { title: 'Безопасность', aside: '· 4 блока', line: 'SRS 7F1 · MSRZ 742 · MSRF 713 · CPD 5E0',
@@ -1158,8 +1187,22 @@
     tabs: sysTabs(0),
     units: { srs: u('SRS', '7F1', 'Подушки'), driverBelt: u('MSRZ', '742', 'Ремень вод.'), passengerBelt: u('MSRF', '713', 'Ремень пасс.'),
       cpd: u('CPD', '5E0', 'Радар детей') },
-    footer: codesFooter,
+    seats: [
+      seat('fl', 'ВОДИТЕЛЬ', false, false, st('пусто', 'dim')), seat('fr', 'ПАССАЖИР', false, false, st('пусто', 'dim')),
+      seat('rl', '2-Й РЯД ЛЕВЫЙ', false, false, st('пусто', 'dim')), seat('rc', '2-Й РЯД ЦЕНТР', false, false, st('пусто', 'dim')),
+      seat('rr', '2-Й РЯД ПРАВЫЙ', false, false, st('пусто', 'dim')),
+    ],
+    footer: snapshot,
   };
+  // the cabin's trip (scanner-sys-cabin), illustrative: the driver sits buckled, the second row's
+  // left passenger sits unbuckled
+  const scannerSysSafetyTrip = Object.assign({}, scannerSysSafety, {
+    seats: [
+      seat('fl', 'ВОДИТЕЛЬ', true, true, st('сидит · пристёгнут')), seat('fr', 'ПАССАЖИР', false, false, st('пусто', 'dim')),
+      seat('rl', '2-Й РЯД ЛЕВЫЙ', true, false, [['сидит · ', 'cell', 'white'], ['не пристёгнут', 'cell', 'orange']]),
+      seat('rc', '2-Й РЯД ЦЕНТР', false, false, st('пусто', 'dim')), seat('rr', '2-Й РЯД ПРАВЫЙ', false, false, st('пусто', 'dim')),
+    ],
+  });
   const scannerSysBodyBlocks = {
     top: sysTop('Кузов', '19:31:29'), rail: sysRail('Кузов'), block: scannerSysBody.block, tabs: sysTabs(3),
     ecus: autoscan.groups.find(g => g.id === 'body').ecus,
@@ -1523,9 +1566,11 @@
     'scanner-sys-body':  [scanner('sysDtc'), scannerSysBody],
     'scanner-sys-chassis': [scanner('sysChassis'), scannerSysChassis],
     'scanner-sys-body-state': [scanner('sysBodyState'), scannerSysBodyState],
+    'scanner-sys-body-state-lit': [scanner('sysBodyState'), scannerSysBodyStateLit],
     'scanner-sys-adas':  [scanner('sysAdas'), scannerSysAdas],
     'scanner-sys-drives': [scanner('sysDrives'), scannerSysDrives],
     'scanner-sys-safety': [scanner('sysSafety'), scannerSysSafety],
+    'scanner-sys-safety-trip': [scanner('sysSafety'), scannerSysSafetyTrip],
     'scanner-sys-hv':    [scanner('sysHv'), scannerSysHv],
     'scanner-sys-pack':  [scanner('sysPack'), scannerSysPack],
     'scanner-sys-pack-cells': [scanner('sysPackCells'), scannerSysPackCells],

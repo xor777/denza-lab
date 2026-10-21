@@ -588,31 +588,70 @@
     unitTile(c, x, y, e);
   }
 
+  // A callout's height for its rows - [text, style, ink] or runs of them - as callout() lays them.
+  function calloutH(rows) {
+    const O = L.callout;
+    return 2 * O.padY + rows.reduce((a, r) => a + style(Array.isArray(r[0]) ? r[0][1] : r[1]).lh, 0) + (rows.length - 1) * O.gap;
+  }
+  // A row of words - [text, style, ink] or runs of them - its line box's top at top, from x,
+  // centred on it ('center') or ending at it ('right'); returns its width.
+  function said(c, r, x, top, align) {
+    const parts = Array.isArray(r[0]) ? r : [r], sn = parts[0][1];
+    const w = parts.reduce((a, [t, s]) => a + measure(c, t, s), 0);
+    runs(c, parts, align === 'center' ? x - w / 2 : align === 'right' ? x - w : x, base(top, sn));
+    return w;
+  }
+  const D2R = Math.PI / 180;
+  // The arc of the circle at x, y of radius r from a0 to a1 degrees, clockwise on the screen.
+  const arcPath = (x, y, r, a0, a1) => { const p = new Path2D(); p.arc(x, y, r, a0 * D2R, a1 * D2R); return p; };
+  // A lamp on the body: lit in its ink over a halo of it, dark in line4.
+  function lamp(c, p, on, ink, w, halo) {
+    if (on) { c.save(); c.globalAlpha = 0.25; stroke(c, p, ink, halo, null, 'round'); c.restore(); }
+    stroke(c, p, on ? ink : 'line4', w, null, 'round');
+  }
+
   // Шасси: the wheels' tyres at their corners, the brake and steering blocks where they sit, the
-  // rear wheels' steering under their tyres, the motion controller in the middle.
+  // rear wheels' steering under their tyres, the motion controller in the middle with the
+  // suspension's words under it, the parking brake's calipers in the rear wheels, the tyre-pressure
+  // system quiet at the top right.
   function sysChassis(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const cx = (W) / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout;
+      const cx = (W) / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, S = L.chassisScheme, T = L.topology.tile;
       stroke(c, `M${K.x0} ${K.front}H${K.x0 + K.w}M${K.x0} ${K.rear}H${K.x0 + K.w}`, 'wire3', 1.4);
       const lx = O.leftX, rx = W - O.leftX - O.w;
+      // each tyre: its pressure and temperature, then the TPMS's judgement of its pressure and its leak
       f.tyres.forEach(t => {
         const left = t.side === 'L', y = t.axle === 'F' ? K.front : K.rear;
-        const rows = [[t.label, 'counterLabel', 'mute'], [[t.pressure, 'counter', 'white'], [' бар', 'unit', 'dim2']], [t.temp, 'cellMono', 'dim']];
-        const h = 2 * O.padY + style('counterLabel').lh + style('counter').lh + style('cellMono').lh + 2 * O.gap;
-        callout(c, left ? lx : rx, y - h / 2, O.w, rows, 'ok', [left ? K.left : K.right, y]);
+        const rows = [[t.label, 'counterLabel', 'mute'], [[t.pressure, 'counter', 'white'], [' бар', 'unit', 'dim2']], [t.temp, 'cellMono', 'dim'], ...(t.states || [])];
+        callout(c, left ? lx : rx, y - calloutH(rows) / 2, O.w, rows, 'ok', [left ? K.left : K.right, y]);
       });
-      const T = L.topology.tile;
       unitTile(c, cx - T.w / 2, K.y0 + 22, f.units.esp);
       stroke(c, `M${K.x0 + 20} ${K.front}H${K.x0 + K.w - 20}`, 'wire2', 3);
       unitTile(c, cx - T.w / 2, K.front - T.h / 2, f.units.eps);
       // the brake system's OBD interface above the left tyres, on its own: no common hardware or
       // software identity with ESP/IPB 782 is known, so no wire joins them
       unitTile(c, lx, L.content.top, f.units.bscm);
-      const S = L.chassisScheme;
+      // across from it, quiet: the tyre-pressure system's state and its sensors' batteries
+      if (f.tpms) {
+        text(c, f.tpms.label, rx, L.content.top, 'counterLabel', 'mute');
+        said(c, f.tpms.row, rx, L.content.top + style('counterLabel').lh + O.gap);
+      }
       hang(c, f.units.rwsL, lx, K.rear + S.steerDrop, [K.x0, K.rear + S.steerAt], cx);
       hang(c, f.units.rwsR, W - lx - T.w, K.rear + S.steerDrop, [K.x0 + K.w, K.rear + S.steerAt], cx);
+      // the suspension's level and its height change between the left tyres, its leader to the motion controller
+      if (f.suspension) callout(c, lx, K.mid - calloutH(f.suspension) / 2, O.w, f.suspension, 'ok', [cx - T.w / 2, K.mid]);
       if (f.units.idc) unitTile(c, cx - T.w / 2, K.mid - T.h / 2, f.units.idc);
+      // the parking brake: a caliper inside each rear wheel - blue holding, orange at fault - and its word under the axle
+      if (f.epb) {
+        const P = S.caliper;
+        [K.x0 + P.in, K.x0 + K.w - P.in - P.w].forEach(x => {
+          const y = K.rear - P.h / 2;
+          if (f.epb.look === 'held' || f.epb.look === 'fault') fill(c, x, y, P.w, P.h, f.epb.look === 'held' ? 'blue' : 'orange', P.r);
+          else if (f.epb.look === 'free') edge(c, x, y, P.w, P.h, 'wire3', P.r);
+        });
+        said(c, f.epb.row, cx, K.rear + S.epbY, 'center');
+      }
     });
   }
 
@@ -635,6 +674,41 @@
         const h = 2 * O.padY + style('counterLabel').lh + style('cell').lh + style('cellSmall').lh + 2 * O.gap;
         callout(c, left ? lx : rx, K.y0 + (a + b) / 2 - h / 2, O.w, rows, 'ok', [x, K.y0 + (a + b) / 2]);
       });
+      // the hood and the tailgate as the doors are, on the nose's and the tail's line: closed
+      // blue, open orange, not read dark
+      const Lm = B.lamps, nr = L.car.noseR, tr0 = L.car.tailR;
+      const lid = open => open === true ? 'orange' : open === false ? 'blueSoft' : 'line4';
+      if (f.hood) {
+        const p = arcPath(K.x0 + nr, K.y0 + nr, nr, 270 - B.hood, 270);
+        p.lineTo(K.x0 + K.w - nr, K.y0); p.arc(K.x0 + K.w - nr, K.y0 + nr, nr, -90 * D2R, (B.hood - 90) * D2R);
+        stroke(c, p, lid(f.hood.open), 3);
+      }
+      if (f.trunk) stroke(c, `M${K.x0 + tr0} ${K.y0 + K.h}H${K.x0 + K.w - tr0}`, lid(f.trunk.open), 3);
+      // the lamps: the headlamps at the nose's corners, blue on a beam and haloed on the high one;
+      // at the tail's corners the stop lamps, orange when lit, and the reversing lamps, blue
+      if (f.lamps) {
+        const m = f.lamps, nose = [[K.x0 + nr, 1], [K.x0 + K.w - nr, -1]], tail = [[K.x0 + tr0, 1], [K.x0 + K.w - tr0, -1]];
+        // an angle of the left corner, mirrored to the right one
+        const span = ([a0, a1], dir) => dir > 0 ? [a0, a1] : [180 - a1, 180 - a0];
+        nose.forEach(([x, dir]) => {
+          const [a0, a1] = span(Lm.head, dir), p = arcPath(x, K.y0 + nr, nr, a0, a1);
+          if (m.high) { c.save(); c.globalAlpha = 0.25; stroke(c, p, 'blue', 2 * Lm.halo, null, 'round'); c.restore(); }
+          lamp(c, p, m.low || m.high, 'blue', Lm.w, Lm.halo);
+        });
+        tail.forEach(([x, dir]) => {
+          const y = K.y0 + K.h - tr0;
+          lamp(c, arcPath(x, y, tr0, ...span(Lm.stop, dir)), m.stop, 'orange', Lm.w, Lm.halo);
+          lamp(c, arcPath(x, y, tr0, ...span(Lm.reverse, dir)), m.reverse, 'blueSoft', Lm.w, Lm.halo);
+        });
+        // the indicators: a mark off each corner, orange on the side that flashes
+        const I = Lm.turn;
+        [[-1, K.y0 + I.y, m.turnLeft], [-1, K.y0 + K.h - I.y, m.turnLeft], [1, K.y0 + I.y, m.turnRight], [1, K.y0 + K.h - I.y, m.turnRight]].forEach(([dir, y, on]) => {
+          const bx = dir < 0 ? K.x0 - I.gap : K.x0 + K.w + I.gap, tx = bx + dir * I.len;
+          if (on) { c.save(); c.globalAlpha = 0.25; dot(c, (bx + tx) / 2, y, I.halo, 'orange'); c.restore(); }
+          const p = new Path2D(`M${bx} ${y - I.half}L${tx} ${y}L${bx} ${y + I.half}Z`);
+          c.fillStyle = col(on ? 'orange' : 'line4'); c.fill(p);
+        });
+      }
       // UWB anchors at the corners, the key's three modules in the middle, radio as dashed lines
       const U = L.car.anchors, ux = cx - T.w / 2, uy = K.mid - T.h / 2;
       [[K.x0 + U[0], K.y0 + U[1]], [K.x0 + K.w - U[0], K.y0 + U[1]], [K.x0 + U[0], K.y0 + K.h - U[1]], [K.x0 + K.w - U[0], K.y0 + K.h - U[1]]].forEach(([x, y]) => {
@@ -646,6 +720,16 @@
       if (f.units.sec) unitTile(c, ux, uy + T.pitch, f.units.sec);
       unitTile(c, cx - T.w / 2, K.y0 + 22, f.units.front);
       unitTile(c, cx - T.w / 2, K.y0 + K.h - 22 - T.h, f.units.back);
+      // the hood's word under the front zone, the tailgate's over the rear one
+      if (f.hood) said(c, f.hood.row, cx, K.y0 + B.words[0], 'center');
+      if (f.trunk) said(c, f.trunk.row, cx, K.y0 + B.words[1], 'center');
+      // the lights' plate under the left headlamp's tile, its leader to that lamp; the tail lamps'
+      // plate under the left zone, to the left stop lamp
+      if (f.lights) callout(c, lx, K.y0 + B.lights - calloutH(f.lights) / 2, O.w, f.lights, 'ok', [K.x0 + 26, K.y0 + 14]);
+      if (f.tail) {
+        const a = (Lm.stop[0] + Lm.stop[1]) / 2 * D2R, y = K.y0 + K.h - tr0;
+        callout(c, lx, K.y0 + B.tail.y - calloutH(f.tail) / 2, B.tail.w, f.tail, 'ok', [K.x0 + tr0 + tr0 * Math.cos(a), y + tr0 * Math.sin(a)]);
+      }
       // the left and right body domains and the headlamps at the edges
       const tr = W - B.x - T.w;
       const side = (e, x, y, to) => {
@@ -668,7 +752,7 @@
       const pillar = K.y0 + (D.front[1] + D.rear[0]) / 2;
       hang(c, f.units.nfc, gr, pillar - T.h / 2, [K.x0 + K.w, pillar], cx);
       // the tailgate's projection: level with its tile, on the rear corner's curve
-      const tr0 = L.car.tailR, ty = K.y0 + B.tailY, dy = ty - (K.y0 + K.h - tr0);
+      const ty = K.y0 + B.tailY, dy = ty - (K.y0 + K.h - tr0);
       hang(c, f.units.tailgate, gr, ty - T.h / 2, [K.x0 + K.w - tr0 + Math.sqrt(tr0 * tr0 - dy * dy), ty], cx);
     });
   }
@@ -972,6 +1056,25 @@
       hang(c, f.units.passengerBelt, K.x0 + K.w + G, pillar - T.h / 2, [K.x0 + K.w, pillar], cx);
       if (f.units.srs) unitTile(c, cx - T.w / 2, K.mid - T.h / 2, f.units.srs);
       if (f.units.cpd) unitTile(c, cx - T.w / 2, K.y0 + K.h - 22 - T.h, f.units.cpd);
+      // the seats in the belts' column either side of the car, as the cabin draws them - filled
+      // where someone sits, the strap blue buckled and orange dashed on someone unbuckled: the
+      // driver over the driver's belt and the second row's left and centre under it, the passenger
+      // and the second row's right across; each seat nearest the car, its words outside it
+      const S = L.safetyScheme, Z = S.seat, lab = style('counterLabel').lh + L.callout.gap;
+      (f.seats || []).forEach(s => {
+        const left = s.place === 'fl' || s.place === 'rl' || s.place === 'rc';
+        const gx = left ? K.x0 - G - Z.w : K.x0 + K.w + G;
+        const y = K.y0 + (s.place === 'fl' || s.place === 'fr' ? S.rows[0] : S.rows[1] + (s.place === 'rc' ? S.step : 0));
+        const gy = y + (lab + style('cell').lh - Z.h) / 2;
+        if (s.occupied) fill(c, gx, gy, Z.w, Z.h, 'blueShare', Z.r);
+        edge(c, gx, gy, Z.w, Z.h, s.occupied ? 'blueEdge' : 'line3', Z.r);
+        const strap = `M${gx + Z.w - Z.strapIn} ${gy + Z.strapTop}L${gx + Z.strapIn} ${gy + Z.h - Z.strapFoot}`;
+        if (s.belt === true) stroke(c, strap, 'blue', 2);
+        else if (s.occupied && s.belt === false) stroke(c, strap, 'orange', 2, [4, 3]);
+        const tx = left ? gx - S.pad : gx + Z.w + S.pad, align = left ? 'right' : undefined;
+        text(c, s.label, tx, y, 'counterLabel', 'mute', { align });
+        said(c, s.row, tx, y + lab, align);
+      });
     });
   }
 
@@ -985,6 +1088,11 @@
       text(c, f.hv, N.x0, y - 26, 'hvVolts', 'text');
       stroke(c, `M${N.x0} ${y}H${N.dcdcX}`, 'wire', 2.4);
       unitTile(c, N.dcdcX, y - T.h / 2, f.units.dcdc);
+      // the converter's mode under it, as the voltages stand over the line
+      if (f.dcdcMode) {
+        text(c, 'РЕЖИМ DC-DC', N.dcdcX, y + T.h / 2 + N.modeY, 'colHead', 'mute');
+        text(c, f.dcdcMode, N.dcdcX, y + T.h / 2 + N.modeY + 18, 'hvVolts', 'text');
+      }
       const lx = N.dcdcX + T.w;
       stroke(c, `M${lx} ${y}H${N.x1}`, 'wire2', 2);
       text(c, '12 В', lx + 16, y - 44, 'colHead', 'mute');
@@ -1526,6 +1634,11 @@
     stroke(c, B.feeds, 'wire3', 1.6, [5, 4]);
     const kh = para(c, f.contactor, K.label[0], K.label[1], 'hvLabel', 'mute', K.label[2]);
     if (f.contactorState) text(c, f.contactorState, K.label[0], K.label[1] + kh, 'hvLabel', 'text');
+    // the charge port under the charger, as the contactor's label: its word blue while a plug is in
+    if (f.charge) {
+      const [x, y, w] = V.charge, ch = para(c, 'зарядный разъём', x, y, 'hvLabel', 'mute', w);
+      text(c, f.charge.state, x, y + ch, 'hvLabel', f.charge.plugged ? 'blueSoft' : 'text');
+    }
     text(c, f.busLabel, V.busLabel.right, V.busLabel.y, 'colHead', 'mute', { align: 'right' });
     f.volts.forEach((v, i) => text(c, v, V.volts[i][0], V.volts[i][1], 'hvVolts', 'text'));
     // the pack

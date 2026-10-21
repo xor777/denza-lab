@@ -407,6 +407,51 @@ class ScannerSpecContractTest {
         n(b.RADAR_REAR_AT, "bodyScheme", "radarRearAt"); n(b.DOMAIN_TOP, "bodyScheme", "domainTop"); n(b.TAIL_Y, "bodyScheme", "tailY")
         n(ScannerSpec.ChassisScheme.STEER_DROP, "chassisScheme", "steerDrop"); n(ScannerSpec.ChassisScheme.STEER_AT, "chassisScheme", "steerAt")
         n(ScannerSpec.SafetyScheme.GAP, "safetyScheme", "gap")
+    }
+
+    /** The readings the body's, the chassis' and the safety's schemes draw (architecture 7.2): their numbers, and nothing else in the JSON. */
+    @Test
+    fun theSchemesReadings() {
+        val b = ScannerSpec.BodyScheme
+        val k = "bodyScheme"
+        assertEquals(setOf("x", "radarFront", "radarRear", "radarRearAt", "domainTop", "tailY", "lamps", "hood", "words", "lights", "tail"), (at(k) as Map<*, *>).keys)
+        assertEquals(pair(k, "lamps", "head"), b.LAMP_HEAD)
+        assertEquals(pair(k, "lamps", "reverse"), b.LAMP_REVERSE)
+        assertEquals(pair(k, "lamps", "stop"), b.LAMP_STOP)
+        n(b.LAMP_W, k, "lamps", "w"); n(b.LAMP_HALO, k, "lamps", "halo")
+        n(b.TURN_GAP, k, "lamps", "turn", "gap"); n(b.TURN_LEN, k, "lamps", "turn", "len"); n(b.TURN_Y, k, "lamps", "turn", "y")
+        n(b.TURN_HALF, k, "lamps", "turn", "half"); n(b.TURN_HALO, k, "lamps", "turn", "halo")
+        n(b.HOOD, k, "hood"); assertEquals(pair(k, "words"), b.WORDS); n(b.LIGHTS, k, "lights")
+        n(b.TAIL_PLATE_Y, k, "tail", "y"); n(b.TAIL_PLATE_W, k, "tail", "w")
+        // the lamps on their corners' arcs, apart: headlamps on the nose's quarter, the tail's lamps on its own
+        assertTrue(b.LAMP_HEAD.first >= 180f && b.LAMP_HEAD.second <= 270f - b.HOOD)
+        assertTrue(90f < b.LAMP_REVERSE.first && b.LAMP_REVERSE.second < b.LAMP_STOP.first && b.LAMP_STOP.second <= 180f)
+        val c = ScannerSpec.ChassisScheme
+        assertEquals(setOf("steerDrop", "steerAt", "caliper", "epbY"), (at("chassisScheme") as Map<*, *>).keys)
+        n(c.CALIPER_IN, "chassisScheme", "caliper", "in"); n(c.CALIPER_W, "chassisScheme", "caliper", "w")
+        n(c.CALIPER_H, "chassisScheme", "caliper", "h"); n(c.CALIPER_R, "chassisScheme", "caliper", "r"); n(c.EPB_Y, "chassisScheme", "epbY")
+        // the rear-wheel steering's tiles over the footer
+        assertTrue(ScannerSpec.Car.TOP + ScannerSpec.Car.H - ScannerSpec.Car.AXLE + c.STEER_DROP + ScannerSpec.Topology.TILE_H <= ScannerSpec.Content.BOTTOM)
+        val s = ScannerSpec.SafetyScheme
+        assertEquals(setOf("gap", "rows", "step", "pad", "seat"), (at("safetyScheme") as Map<*, *>).keys)
+        assertEquals(pair("safetyScheme", "rows"), s.ROWS)
+        n(s.STEP, "safetyScheme", "step"); n(s.PAD, "safetyScheme", "pad")
+        n(s.SEAT_W, "safetyScheme", "seat", "w"); n(s.SEAT_H, "safetyScheme", "seat", "h"); n(s.SEAT_R, "safetyScheme", "seat", "r")
+        n(s.STRAP_IN, "safetyScheme", "seat", "strapIn"); n(s.STRAP_TOP, "safetyScheme", "seat", "strapTop")
+        n(s.STRAP_FOOT, "safetyScheme", "seat", "strapFoot")
+        // the seats clear of the belts' tiles, which stand at the B-pillar
+        val car = ScannerSpec.Car
+        val pillar = (car.DOORS_FRONT.second + car.DOORS_REAR.first) / 2f
+        val seatH = ScannerSpec.Type.COUNTER_LABEL.lh + ScannerSpec.Callout.GAP + ScannerSpec.Type.CELL.lh
+        assertTrue(s.ROWS.first + seatH < pillar - ScannerSpec.Topology.TILE_H / 2)
+        assertTrue(s.ROWS.second > pillar + ScannerSpec.Topology.TILE_H / 2)
+        n(ScannerSpec.LvScheme.MODE_Y, "lvScheme", "modeY")
+        val (cx, cy, cw) = ScannerSpec.Hv.CHARGE_LABEL
+        n(cx, "hvRail", "charge", "0"); n(cy, "hvRail", "charge", "1"); n(cw, "hvRail", "charge", "2")
+    }
+
+    @Test
+    fun theCallouts() {
         val o = ScannerSpec.Callout
         n(o.LEFT_X, "callout", "leftX"); n(o.W, "callout", "w"); n(o.PAD_X, "callout", "padX"); n(o.PAD_Y, "callout", "padY")
         n(o.GAP, "callout", "gap"); n(o.R, "callout", "r"); n(o.DOT, "callout", "dot"); n(o.MACHINE_R, "callout", "machineR")

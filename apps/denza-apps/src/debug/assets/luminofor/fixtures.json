@@ -44126,30 +44126,111 @@
      "axle": "F",
      "label": "ШИНА ПЛ",
      "pressure": "2,72",
-     "temp": "19 °C"
+     "temp": "19 °C",
+     "states": [
+      [
+       "давление: норма",
+       "cellSmall",
+       "dim"
+      ],
+      [
+       "утечка: норма",
+       "cellSmall",
+       "dim"
+      ]
+     ]
     },
     {
      "side": "R",
      "axle": "F",
      "label": "ШИНА ПП",
      "pressure": "2,60",
-     "temp": "8 °C"
+     "temp": "8 °C",
+     "states": [
+      [
+       "давление: норма",
+       "cellSmall",
+       "dim"
+      ],
+      [
+       "утечка: норма",
+       "cellSmall",
+       "dim"
+      ]
+     ]
     },
     {
      "side": "L",
      "axle": "R",
      "label": "ШИНА ЗЛ",
      "pressure": "2,70",
-     "temp": "17 °C"
+     "temp": "17 °C",
+     "states": [
+      [
+       "давление: норма",
+       "cellSmall",
+       "dim"
+      ],
+      [
+       "утечка: норма",
+       "cellSmall",
+       "dim"
+      ]
+     ]
     },
     {
      "side": "R",
      "axle": "R",
      "label": "ШИНА ЗП",
      "pressure": "2,62",
-     "temp": "8 °C"
+     "temp": "8 °C",
+     "states": [
+      [
+       "давление: норма",
+       "cellSmall",
+       "dim"
+      ],
+      [
+       "утечка: норма",
+       "cellSmall",
+       "dim"
+      ]
+     ]
     }
    ],
+   "tpms": {
+    "label": "TPMS",
+    "row": [
+     "система: норма · батареи: норма",
+     "cellSmall",
+     "dim"
+    ]
+   },
+   "suspension": [
+    [
+     "ПОДВЕСКА",
+     "counterLabel",
+     "mute"
+    ],
+    [
+     "уровень: средний",
+     "cell",
+     "white"
+    ],
+    [
+     "изменение: завершено",
+     "cellSmall",
+     "dim"
+    ]
+   ],
+   "epb": {
+    "look": "held",
+    "row": [
+     "EPB затянут",
+     "cellSmall",
+     "dim"
+    ]
+   },
    "units": {
     "esp": {
      "abbr": "ESP/IPB",
@@ -44433,6 +44514,392 @@
      "kind": "ok"
     }
    },
+   "hood": {
+    "open": false,
+    "row": [
+     "капот закрыт",
+     "cellSmall",
+     "dim"
+    ]
+   },
+   "trunk": {
+    "open": false,
+    "row": [
+     "багажник закрыт",
+     "cellSmall",
+     "dim"
+    ]
+   },
+   "lamps": {
+    "low": false,
+    "high": false,
+    "turnLeft": false,
+    "turnRight": false,
+    "stop": false,
+    "reverse": false
+   },
+   "lights": [
+    [
+     "СВЕТ",
+     "counterLabel",
+     "mute"
+    ],
+    [
+     "ближний выкл",
+     "cell",
+     "white"
+    ],
+    [
+     "дальний выкл",
+     "cellSmall",
+     "dim"
+    ],
+    [
+     "поворотники выкл",
+     "cellSmall",
+     "dim"
+    ]
+   ],
+   "tail": [
+    [
+     "ЗАДНИЕ ФОНАРИ",
+     "counterLabel",
+     "mute"
+    ],
+    [
+     "стоп-сигнал не горит · задний ход не горит",
+     "cell",
+     "white"
+    ]
+   ],
+   "footer": {
+    "buttons": [
+     [
+      "Обновить",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "снимок 19:31:29",
+      true
+     ]
+    ]
+   }
+  }
+ ],
+ "scanner-sys-body-state-lit": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysBodyState"
+  },
+  {
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Кузов"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "19:31:29"
+   },
+   "rail": {
+    "active": "Кузов",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси",
+      "mark": [
+       "ИСТ 4",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон",
+      "mark": [
+       "ИСТ 4",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     }
+    ]
+   },
+   "block": {
+    "title": "Кузов",
+    "aside": "· 19 блоков",
+    "line": "LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны · радары дверей 5B2 5B1 5B0 5A7 · HFRM 754 · SEC 7D6 · R-NCM 595 · PDCMB 724",
+    "counters": [
+     [
+      "DTC АКТ.",
+      "0"
+     ],
+     [
+      "DTC ИСТ.",
+      "10"
+     ],
+     [
+      "ПРОЧИТАНО",
+      "19/19"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 0
+   },
+   "doors": [
+    {
+     "side": "L",
+     "axle": "F",
+     "label": "ДВЕРЬ ПЛ",
+     "state": "закрыта",
+     "detail": "не заперта · окно 0 %"
+    },
+    {
+     "side": "R",
+     "axle": "F",
+     "label": "ДВЕРЬ ПП",
+     "state": "закрыта",
+     "detail": "не заперта · окно 0 %"
+    },
+    {
+     "side": "L",
+     "axle": "R",
+     "label": "ДВЕРЬ ЗЛ",
+     "state": "закрыта",
+     "detail": "не заперта · окно 0 %"
+    },
+    {
+     "side": "R",
+     "axle": "R",
+     "label": "ДВЕРЬ ЗП",
+     "state": "закрыта",
+     "detail": "не заперта · окно 0 %"
+    }
+   ],
+   "units": {
+    "uwb": {
+     "abbr": "UWBMC",
+     "req": "7F3",
+     "short": "UWB-ключ",
+     "kind": "ok"
+    },
+    "front": {
+     "abbr": "F_ZCU",
+     "req": "722",
+     "short": "Зона спереди",
+     "kind": "ok"
+    },
+    "back": {
+     "abbr": "B_ZCU",
+     "req": "726",
+     "short": "Зона сзади",
+     "kind": "ok"
+    },
+    "lampL": {
+     "abbr": "FL_L",
+     "req": "770",
+     "short": "Фара Л",
+     "kind": "ok"
+    },
+    "lampR": {
+     "abbr": "FL_R",
+     "req": "771",
+     "short": "Фара П",
+     "kind": "ok"
+    },
+    "left": {
+     "abbr": "LA_BCM",
+     "req": "720",
+     "short": "Кузов слева",
+     "kind": "hist",
+     "history": 8
+    },
+    "right": {
+     "abbr": "R_ZCU",
+     "req": "747",
+     "short": "Зона справа",
+     "kind": "hist",
+     "history": 2
+    },
+    "hfrm": {
+     "abbr": "HFRM",
+     "req": "754",
+     "short": "Радиоключ",
+     "kind": "ok"
+    },
+    "sec": {
+     "abbr": "SEC",
+     "req": "7D6",
+     "short": "Бескл. доступ",
+     "kind": "ok"
+    },
+    "nfc": {
+     "abbr": "R-NCM",
+     "req": "595",
+     "short": "NFC правый",
+     "kind": "ok"
+    },
+    "tailgate": {
+     "abbr": "PDCMB",
+     "req": "724",
+     "short": "Проекция багажн.",
+     "kind": "ok"
+    }
+   },
+   "doorRadars": {
+    "fl": {
+     "abbr": "FL_SDR",
+     "req": "5B2",
+     "short": "Радар ПЛ",
+     "kind": "ok"
+    },
+    "fr": {
+     "abbr": "FR_SDR",
+     "req": "5B1",
+     "short": "Радар ПП",
+     "kind": "ok"
+    },
+    "rl": {
+     "abbr": "RL_SDR",
+     "req": "5B0",
+     "short": "Радар ЗЛ",
+     "kind": "ok"
+    },
+    "rr": {
+     "abbr": "RR_SDR",
+     "req": "5A7",
+     "short": "Радар ЗП",
+     "kind": "ok"
+    }
+   },
+   "hood": {
+    "open": false,
+    "row": [
+     "капот закрыт",
+     "cellSmall",
+     "dim"
+    ]
+   },
+   "trunk": {
+    "open": true,
+    "row": [
+     [
+      "багажник ",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "открыт",
+      "cellSmall",
+      "orange"
+     ]
+    ]
+   },
+   "lamps": {
+    "low": true,
+    "high": true,
+    "turnLeft": true,
+    "turnRight": true,
+    "stop": true,
+    "reverse": true
+   },
+   "lights": [
+    [
+     "СВЕТ",
+     "counterLabel",
+     "mute"
+    ],
+    [
+     "ближний вкл",
+     "cell",
+     "white"
+    ],
+    [
+     "дальний вкл",
+     "cellSmall",
+     "dim"
+    ],
+    [
+     [
+      "поворотники ",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "аварийная",
+      "cellSmall",
+      "orange"
+     ]
+    ]
+   ],
+   "tail": [
+    [
+     "ЗАДНИЕ ФОНАРИ",
+     "counterLabel",
+     "mute"
+    ],
+    [
+     [
+      "стоп-сигнал ",
+      "cell",
+      "white"
+     ],
+     [
+      "горит",
+      "cell",
+      "orange"
+     ],
+     [
+      " · задний ход горит",
+      "cell",
+      "white"
+     ]
+    ]
+   ],
    "footer": {
     "buttons": [
      [
@@ -44687,6 +45154,10 @@
     "line": "VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6",
     "counters": [
      [
+      "СЕЛЕКТОР",
+      "P"
+     ],
+     [
       "ШИНА ПЕРЕД",
       "555 В"
      ],
@@ -44897,16 +45368,281 @@
      "kind": "ok"
     }
    },
+   "seats": [
+    {
+     "place": "fl",
+     "label": "ВОДИТЕЛЬ",
+     "occupied": false,
+     "belt": false,
+     "row": [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    },
+    {
+     "place": "fr",
+     "label": "ПАССАЖИР",
+     "occupied": false,
+     "belt": false,
+     "row": [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    },
+    {
+     "place": "rl",
+     "label": "2-Й РЯД ЛЕВЫЙ",
+     "occupied": false,
+     "belt": false,
+     "row": [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    },
+    {
+     "place": "rc",
+     "label": "2-Й РЯД ЦЕНТР",
+     "occupied": false,
+     "belt": false,
+     "row": [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    },
+    {
+     "place": "rr",
+     "label": "2-Й РЯД ПРАВЫЙ",
+     "occupied": false,
+     "belt": false,
+     "row": [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    }
+   ],
    "footer": {
     "buttons": [
      [
-      "Прочитать DTC",
+      "Обновить",
       "primary"
      ]
     ],
     "notes": [
      [
-      "19 01 09 · 19 02 09 · снимок 19:31:29",
+      "снимок 19:31:29",
+      true
+     ]
+    ]
+   }
+  }
+ ],
+ "scanner-sys-safety-trip": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysSafety"
+  },
+  {
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Безопасность"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "19:31:29"
+   },
+   "rail": {
+    "active": "Безопасность",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси",
+      "mark": [
+       "ИСТ 4",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон",
+      "mark": [
+       "ИСТ 4",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     }
+    ]
+   },
+   "block": {
+    "title": "Безопасность",
+    "aside": "· 4 блока",
+    "line": "SRS 7F1 · MSRZ 742 · MSRF 713 · CPD 5E0",
+    "counters": [
+     [
+      "DTC АКТ.",
+      "0"
+     ],
+     [
+      "DTC ИСТ.",
+      "0"
+     ],
+     [
+      "ПРОЧИТАНО",
+      "4/4"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "Потоковые данные",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 0
+   },
+   "units": {
+    "srs": {
+     "abbr": "SRS",
+     "req": "7F1",
+     "short": "Подушки",
+     "kind": "ok"
+    },
+    "driverBelt": {
+     "abbr": "MSRZ",
+     "req": "742",
+     "short": "Ремень вод.",
+     "kind": "ok"
+    },
+    "passengerBelt": {
+     "abbr": "MSRF",
+     "req": "713",
+     "short": "Ремень пасс.",
+     "kind": "ok"
+    },
+    "cpd": {
+     "abbr": "CPD",
+     "req": "5E0",
+     "short": "Радар детей",
+     "kind": "ok"
+    }
+   },
+   "seats": [
+    {
+     "place": "fl",
+     "label": "ВОДИТЕЛЬ",
+     "occupied": true,
+     "belt": true,
+     "row": [
+      "сидит · пристёгнут",
+      "cell",
+      "white"
+     ]
+    },
+    {
+     "place": "fr",
+     "label": "ПАССАЖИР",
+     "occupied": false,
+     "belt": false,
+     "row": [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    },
+    {
+     "place": "rl",
+     "label": "2-Й РЯД ЛЕВЫЙ",
+     "occupied": true,
+     "belt": false,
+     "row": [
+      [
+       "сидит · ",
+       "cell",
+       "white"
+      ],
+      [
+       "не пристёгнут",
+       "cell",
+       "orange"
+      ]
+     ]
+    },
+    {
+     "place": "rc",
+     "label": "2-Й РЯД ЦЕНТР",
+     "occupied": false,
+     "belt": false,
+     "row": [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    },
+    {
+     "place": "rr",
+     "label": "2-Й РЯД ПРАВЫЙ",
+     "occupied": false,
+     "belt": false,
+     "row": [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    }
+   ],
+   "footer": {
+    "buttons": [
+     [
+      "Обновить",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "снимок 19:31:29",
       true
      ]
     ]
@@ -44924,6 +45660,10 @@
     "title": "Высоковольтная система",
     "aside": "· ВВБ, привод, мотор-генератор",
     "counters": [
+     [
+      "ПИТАНИЕ",
+      "ON"
+     ],
      [
       "U ВВБ",
       "553 В"
@@ -45123,6 +45863,10 @@
       "name": "Сеть 12 В"
      }
     ]
+   },
+   "charge": {
+    "state": "AC",
+    "plugged": true
    },
    "tabs": {
     "items": [
@@ -61318,6 +62062,10 @@
     "line": "DC-DC в DCOBC 7E4 · АКБ LBMS 762 · напряжение 1001",
     "counters": [
      [
+      "ПИТАНИЕ",
+      "ON"
+     ],
+     [
       "12 В",
       "13,7 В"
      ],
@@ -61338,6 +62086,7 @@
    },
    "hv": "553 В",
    "lv": "13,7 В",
+   "dcdcMode": "понижение",
    "units": {
     "dcdc": {
      "abbr": "DCOBC",
@@ -64042,6 +64791,10 @@
     "aside": "· ВВБ, привод, мотор-генератор",
     "counters": [
      [
+      "ПИТАНИЕ",
+      "ON"
+     ],
+     [
       "U ВВБ",
       "553 В"
      ],
@@ -64744,6 +65497,10 @@
     "aside": "· 6 блоков",
     "line": "VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6",
     "counters": [
+     [
+      "СЕЛЕКТОР",
+      "P"
+     ],
      [
       "ШИНА ПЕРЕД",
       "555 В"
@@ -67696,6 +68453,10 @@
     "line": "DC-DC в DCOBC 7E4 · АКБ LBMS 762 · напряжение 1001",
     "counters": [
      [
+      "ПИТАНИЕ",
+      "ON"
+     ],
+     [
       "12 В",
       "13,7 В"
      ],
@@ -68619,6 +69380,10 @@
     "aside": "· 6 блоков",
     "line": "VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6",
     "counters": [
+     [
+      "СЕЛЕКТОР",
+      "P"
+     ],
      [
       "ШИНА ПЕРЕД",
       "555 В"

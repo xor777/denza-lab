@@ -659,17 +659,68 @@ internal object ScannerSpec {
         const val RADAR_REAR_AT = 274f
         const val DOMAIN_TOP = 310f
         const val TAIL_Y = 390f
+
+        /**
+         * The lamps on the left corners' arcs, degrees clockwise on the screen (mirrored to the right):
+         * the headlamp on the nose's, the reversing and the stop lamps on the tail's; [LAMP_W] wide, a
+         * lit one over a [LAMP_HALO] halo of its ink.
+         */
+        val LAMP_HEAD = 200f to 248f
+        val LAMP_REVERSE = 102f to 118f
+        val LAMP_STOP = 126f to 164f
+        const val LAMP_W = 3f
+        const val LAMP_HALO = 9f
+        /** An indicator: a mark [TURN_GAP] off the car's side, [TURN_LEN] long, [TURN_HALF] each way of [TURN_Y] from the end; its halo. */
+        const val TURN_GAP = 8f
+        const val TURN_LEN = 8f
+        const val TURN_Y = 40f
+        const val TURN_HALF = 5f
+        const val TURN_HALO = 9f
+        /** The hood's line takes this many degrees of each nose arc beside the nose's flat. */
+        const val HOOD = 12f
+        /** The hood's and the tailgate's words' tops from the car's top. */
+        val WORDS = 66f to 318f
+        /** «СВЕТ»'s middle from the car's top; «ЗАДНИЕ ФОНАРИ»'s middle and width. */
+        const val LIGHTS = 70f
+        const val TAIL_PLATE_Y = 381f
+        const val TAIL_PLATE_W = 340f
+
+        /** Where the headlamps' tiles' leaders, and «СВЕТ»'s, end: from the car's top-left (top-right). */
+        val LAMP_AT = 26f to 14f
+        /** A lit lamp's halo, as the cabin's reading lights. */
+        const val HALO_ALPHA = 0.25f
     }
 
-    /** Шасси: the rear-wheel steering's tiles this far under the rear axle, their leaders' point on the wheel. */
+    /**
+     * Шасси: the rear-wheel steering's tiles this far under the rear axle, their leaders' point on the
+     * wheel; the parking brake's calipers inside the rear wheels, its word under the rear axle.
+     */
     object ChassisScheme {
-        const val STEER_DROP = 52f
+        const val STEER_DROP = 74f
         const val STEER_AT = 20f
+        const val CALIPER_IN = 9f
+        const val CALIPER_W = 5f
+        const val CALIPER_H = 20f
+        const val CALIPER_R = 1.5f
+        const val EPB_Y = 8f
     }
 
-    /** Безопасность: the belts' tiles this far from the car's sides. */
+    /**
+     * Безопасность: the belts' tiles this far from the car's sides; the seats in their column, their
+     * glyph's edge at the tile's, the front row's and the second row's tops from the car's top, the
+     * second row's centre a [STEP] lower, the words [PAD] outside the glyph.
+     */
     object SafetyScheme {
         const val GAP = 48f
+        val ROWS = 146f to 244f
+        const val STEP = 47f
+        const val PAD = 12f
+        const val SEAT_W = 26f
+        const val SEAT_H = 30f
+        const val SEAT_R = 6f
+        const val STRAP_IN = 6f
+        const val STRAP_TOP = 5f
+        const val STRAP_FOOT = 9f
     }
 
     /**
@@ -801,6 +852,8 @@ internal object ScannerSpec {
         val CONTACTOR_PINS = listOf(504f to 360f, 536f to 360f)
         const val CONTACTOR_PIN = 2.6f
         val CONTACTOR_LABEL = Triple(502f, 368f, 70f)
+        /** The charge port's label under the charger, as the contactor's: its top-left and width. */
+        val CHARGE_LABEL = Triple(110f, 416f, 100f)
         const val TRUNK = "M576 210V540"
         const val TAPS = "M576 210H628M576 320H628M576 440H628M576 540H628"
         const val SHAFTS = "M796 210H822M796 320H822M796 440H822M796 540H822"
@@ -901,6 +954,9 @@ internal object ScannerSpec {
         const val LOAD_X = 520f
         const val LOAD_STEP = 130f
         const val LOAD_DROP = 90f
+        /** The converter's mode this far under its tile, its word a line under the label. */
+        const val MODE_Y = 14f
+        const val MODE_LINE = 18f
     }
 
     /**
