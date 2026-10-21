@@ -519,8 +519,12 @@ internal enum class ModuleStatus {
     NO_REPLY,
     /** A negative response to the memory read. */
     REFUSED,
-    /** F194 is not the catalog's: another ECU on this route, its memory not read. */
-    OTHER_ECU,
+    /**
+     * The gate's positive answer does not name the block, its memory not read (architecture, 5.1): F194
+     * with no software code in it (a zero placeholder, another length), or an OBD name that is not the
+     * catalog's. Newer software is not this: any software code passes.
+     */
+    UNIDENTIFIED,
     /** The answer did not hold together. */
     INCONSISTENT,
     NO_ROUTE,

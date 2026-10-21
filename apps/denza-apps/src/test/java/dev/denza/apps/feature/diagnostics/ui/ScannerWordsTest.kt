@@ -72,6 +72,10 @@ class ScannerWordsTest {
         ModuleStatus.entries.forEach { assertTrue(it.name, ScannerWords.chip(it).text.isNotEmpty()) }
         assertEquals("OK", ScannerWords.chip(ModuleStatus.OK).text)
         assertEquals("НЕТ АДРЕСА", ScannerWords.chip(ModuleStatus.NO_ROUTE).text)
+        // A gate answer with no software code in it: not «другой блок» - newer software passes the gate (5.1).
+        assertEquals("НЕ ОПОЗНАН", ScannerWords.chip(ModuleStatus.UNIDENTIFIED).text)
+        assertEquals("не опознан", ScannerWords.tileState(row(ModuleStatus.UNIDENTIFIED)))
+        assertTrue(ModuleStatus.entries.none { "ДРУГОЙ" in ScannerWords.chip(it).text })
         assertEquals(ScannerWords.Look.UNREAD, ScannerWords.chip(ModuleStatus.UNREAD).look)
         assertTrue(ScannerWords.read(ModuleStatus.HISTORY))
         assertFalse(ScannerWords.read(ModuleStatus.UNREAD))

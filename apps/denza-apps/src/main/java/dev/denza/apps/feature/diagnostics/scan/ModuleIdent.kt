@@ -59,8 +59,10 @@ internal object IdentProcedure {
     }
 
     /**
-     * The children are read behind a parent that is the catalog's: its F194 matched where the gate is
-     * F194; a parent named by a stock route has no gate, and is read as the autoscan reads its memory.
+     * The children are read behind a parent whose gate holds, as its memory would be (5.1): any
+     * software code in its F194 where the gate is F194 - an update of the parent changes its code, not
+     * the modules behind it; a parent named by a stock route has no gate, and is read as the autoscan
+     * reads its memory.
      */
     private fun childrenGate(ecu: Ecu, f194: DiagReply): Boolean = when (ScanRequests.gate(ecu)) {
         null -> true
@@ -99,7 +101,7 @@ internal class IdentResult(val ecu: Ecu, val read: ModuleRead) {
      * hold). A reply that is not the expected form is [Polled.Inconsistent], and its bytes are in [read].
      */
     val children: List<Pair<ChildIdentity, Polled<String>>> =
-        ecu.children.map { c -> c to polled(IdentProcedure.childRequest(c)) { DiagDecoder.childCode(it) } }
+        ecu.children.map { c -> c to polled(IdentProcedure.childRequest(c)) { DiagDecoder.softwareCode(it) } }
 
     /** Mode 01 PIDs the module offers, by its own maps, bitmap PIDs included. */
     val offered: List<Int> = IdentProcedure.MAPS.flatMap { base ->

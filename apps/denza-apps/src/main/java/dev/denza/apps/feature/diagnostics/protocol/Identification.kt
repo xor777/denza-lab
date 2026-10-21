@@ -34,20 +34,22 @@ internal object IdentCodec {
     }
 
     /**
-     * A child's software code behind its parent (architecture, 5.4): `62 <did>` and nine bytes that
-     * are not all zero, as upper-case hex. Another DID, another length or a zero placeholder is not
-     * that form: Malformed, and the screen shows the answer's bytes rather than a code.
+     * A BYD software code (architecture, 5.1, 5.4): `62 <did>` and nine bytes that are not all zero, as
+     * upper-case hex - a block's own `F194`, or a child's code behind its parent. Another DID, another
+     * length or a zero placeholder is not that form: Malformed. The F194 gate passes on any such code,
+     * and a child's row shows the answer's bytes rather than a code when it is not one.
      */
-    fun childCode(uds: ByteArray, did: Int): Decoded<String> {
+    fun softwareCode(uds: ByteArray, did: Int): Decoded<String> {
         val b = uds.unsigned()
         if (b.isEmpty() || b[0] != 0x62) return Decoded.Malformed("not 62")
         if (b.size < 3 || (b[1] shl 8 or b[2]) != did) return Decoded.Malformed("not DID %04X".format(did))
-        if (b.size != 3 + CHILD_CODE_BYTES) return Decoded.Malformed("code is ${b.size - 3} bytes, not $CHILD_CODE_BYTES")
+        if (b.size != 3 + SOFTWARE_CODE_BYTES) return Decoded.Malformed("code is ${b.size - 3} bytes, not $SOFTWARE_CODE_BYTES")
         if (b.drop(3).all { it == 0 }) return Decoded.Malformed("zero placeholder")
         return Decoded.Ok(uds.copyOfRange(3, uds.size).hexString())
     }
 
-    const val CHILD_CODE_BYTES = 9
+    /** Every F194 this car returned, and every child code, is nine bytes (research/vehicle-diagnostics/). */
+    const val SOFTWARE_CODE_BYTES = 9
 }
 
 internal object Ascii {

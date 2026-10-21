@@ -48,7 +48,7 @@ internal object ScannerWords {
         ModuleStatus.POLLING -> Chip("ОПРОС", Look.UNREAD)
         ModuleStatus.NO_REPLY -> Chip("НЕТ ОТВЕТА", Look.NONE)
         ModuleStatus.REFUSED -> Chip("ОТКАЗ", Look.NONE)
-        ModuleStatus.OTHER_ECU -> Chip("ДРУГОЙ БЛОК", Look.ON)
+        ModuleStatus.UNIDENTIFIED -> Chip("НЕ ОПОЗНАН", Look.ON)
         ModuleStatus.INCONSISTENT -> Chip("ОТВЕТ НЕ СХОДИТСЯ", Look.ON)
         ModuleStatus.NO_ROUTE -> Chip("НЕТ АДРЕСА", Look.NONE)
     }
@@ -75,7 +75,7 @@ internal object ScannerWords {
         ModuleStatus.POLLING -> "опрос"
         ModuleStatus.NO_REPLY -> "нет ответа"
         ModuleStatus.REFUSED -> "отказ"
-        ModuleStatus.OTHER_ECU -> "другой блок"
+        ModuleStatus.UNIDENTIFIED -> "не опознан"
         ModuleStatus.INCONSISTENT -> "не сходится"
         ModuleStatus.OK, ModuleStatus.UNREAD, ModuleStatus.NO_ROUTE -> ""
     }

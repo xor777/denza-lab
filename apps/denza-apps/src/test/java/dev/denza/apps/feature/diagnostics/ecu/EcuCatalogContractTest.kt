@@ -83,11 +83,11 @@ class EcuCatalogContractTest {
         f194.forEach { (request, code) ->
             val ecu = EcuCatalog.byRequest(request)
             assertNotNull("%03X answered F194 but is not in the catalog".format(request), ecu)
-            assertEquals("%03X".format(request), code, ecu!!.expectedF194)
+            assertEquals("%03X".format(request), code, ecu!!.snapshotF194)
             assertTrue(ecu.address, ecu.identity in F194_GATED)
         }
         EcuCatalog.all.filter { it.identity in F194_GATED }.forEach {
-            assertEquals(it.address, (f194 + factoryF194 + candidateF194)[it.request], it.expectedF194)
+            assertEquals(it.address, (f194 + factoryF194 + candidateF194)[it.request], it.snapshotF194)
         }
         // 741 is the one code ECUVersion.json does not hold: it is the head unit's MCU, named by the
         // stock route list and the media software mapping instead.
@@ -124,7 +124,7 @@ class EcuCatalogContractTest {
         // answered in the 2026-10-20 run above; DCOBC is in the full cache only.
         val records = cache.getJSONArray("focusedRecords").objects()
         EcuCatalog.inGroup(EcuGroup.POWERTRAIN).filter { it.abbreviation !in setOf("PDC-VCU", "DCOBC") }.forEach { ecu ->
-            val code = ecu.expectedF194 ?: ecu.cachedSoftwareCode
+            val code = ecu.snapshotF194 ?: ecu.cachedSoftwareCode
             val expected = records.filter { it.getString("ecuSoftCode") == code }
                 .map { CachedIdentity(it.getString("ecuId"), it.getString("ecuSoftVer"), it.getString("ecuHardVer")) }
             assertTrue(ecu.abbreviation, expected.isNotEmpty())
@@ -138,7 +138,7 @@ class EcuCatalogContractTest {
         assertEquals(setOf("SMCU", "SMCU3", "DCOBC"), cached.keys)
         cached.forEach { (abbreviation, code) ->
             val ecu = EcuCatalog.all.single { it.abbreviation == abbreviation }
-            assertEquals(abbreviation, code, ecu.expectedF194)
+            assertEquals(abbreviation, code, ecu.snapshotF194)
             assertEquals(abbreviation, code, factoryF194[ecu.request])
             assertTrue(abbreviation, ecu.identity in F194_GATED)
             assertTrue(abbreviation, ecu.uds && !ecu.obd && ecu.dtcQualified)
@@ -155,7 +155,7 @@ class EcuCatalogContractTest {
         candidateF194.forEach { (request, code) ->
             val ecu = EcuCatalog.byRequest(request)
             assertNotNull("%03X answered F194 but is not in the catalog".format(request), ecu)
-            assertEquals("%03X".format(request), code, ecu!!.expectedF194)
+            assertEquals("%03X".format(request), code, ecu!!.snapshotF194)
             assertTrue(ecu.address, ecu.identity in F194_GATED)
             // Identity only: their DTC memory is the first read (acceptance, step 4).
             assertTrue(ecu.address, ecu.uds && !ecu.obd && !ecu.dtcQualified && ecu.dtcFormat == null)
@@ -169,7 +169,7 @@ class EcuCatalogContractTest {
         assertEquals(0x5E7, container.getString("CanReqID").toInt())
         assertEquals(0x5EF, container.getString("CanRecID").toInt())
         val assy = EcuCatalog.byRequest(0x5E7)!!
-        assertEquals(container.getString("EcuSoftwareCode"), assy.expectedF194)
+        assertEquals(container.getString("EcuSoftwareCode"), assy.snapshotF194)
         assertEquals(EcuGroup.CABIN, assy.group)
         assertTrue(assy.aliases.isEmpty())
         // The whitelist lets through exactly the 5xx routes that answered, address by address.
@@ -246,7 +246,7 @@ class EcuCatalogContractTest {
         }
         walk(research("ota-ecu-prefix-20261018.json"))
         EcuCatalog.all.filter { it.identity == IdentityBasis.STOCK_ROUTE }.forEach { ecu ->
-            assertNull(ecu.expectedF194)
+            assertNull(ecu.snapshotF194)
             ecu.aliases.forEach { alias ->
                 assertNull(alias.softwareVersion)
                 val dia = "%03X/%03X".format(ecu.request, ecu.reply)
@@ -296,7 +296,7 @@ class EcuCatalogContractTest {
             assertEquals(c.getString("labelRu"), child.name)
             // The code the parent returned is the cache's, and it is what the catalog expects.
             assertEquals(c.getString("cachedCodeHex"), c.getString("softwareCodeHex"))
-            assertEquals(c.getString("softwareCodeHex"), child.expectedCode)
+            assertEquals(c.getString("softwareCodeHex"), child.snapshotCode)
             assertEquals("22", c.getString("serviceHex"))
             assertTrue(child.shortName.isNotBlank() && child.shortName.length <= 21)
         }
@@ -340,7 +340,7 @@ class EcuCatalogContractTest {
             assertEquals(address(e.getString("requestHex")), e.getInt("requestId"))
             assertEquals(e.getInt("requestId") + 8, e.getInt("responseId"))
             assertEquals(abbreviation, abbreviation, ecu!!.abbreviation)
-            assertEquals(abbreviation, e.getString("expectedF194"), ecu.expectedF194)
+            assertEquals(abbreviation, e.getString("expectedF194"), ecu.snapshotF194)
             assertEquals(abbreviation, IdentityBasis.MODEL_CATALOG, ecu.identity)
             assertEquals(abbreviation, ROLE_GROUPS.getValue(abbreviation), ecu.group)
             assertTrue(abbreviation, ecu.name != "Назначение не установлено" && !ecu.shortName.startsWith("ПО "))

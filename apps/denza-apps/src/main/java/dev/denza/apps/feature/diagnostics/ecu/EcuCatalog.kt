@@ -14,7 +14,10 @@ internal enum class EcuGroup(val title: String, val short: String) {
 
 /** What the catalog's name for an address rests on (architecture, 5.1). */
 internal enum class IdentityBasis(val label: String) {
-    /** `22 F194` returned a software code the stock OTA cache keeps under this name. */
+    /**
+     * `22 F194` returned a software code the stock OTA cache keeps under this name; the gate reads F194
+     * and passes on any software code, since an update changes the code and not the block (5.1).
+     */
     F194("22 F194"),
     /** A stock route or script names the address; F194 was not read. */
     STOCK_ROUTE("маршрут стока"),
@@ -46,8 +49,11 @@ internal data class ChildIdentity(
     /** The identification row's name, short enough for its key column: «Массаж перед. левого». */
     val shortName: String,
     val ecuId: String,
-    /** The nine-byte software code the parent returned and the cache keeps. */
-    val expectedCode: String,
+    /**
+     * The nine-byte software code the parent returned on 2026-10-21 and the cache keeps: how the module
+     * was named. Not compared with an answer: an update changes it.
+     */
+    val snapshotCode: String,
 ) {
     val hex: String get() = "%04X".format(did)
 }
@@ -65,9 +71,13 @@ internal data class Ecu(
     val inferred: Boolean,
     val request: Int?,
     val identity: IdentityBasis,
-    /** The software code `22 F194` must return; any other means another ECU, and its DTC memory is not read. */
-    val expectedF194: String? = null,
-    /** The name OBD `09 0A` must return, for an ECU identified that way. */
+    /**
+     * The software code `22 F194` returned on this car, as the updater's `ECUVersion.json` kept it on
+     * 2026-10-18: the record the role was proved by. Not the gate: an update changes the code while
+     * the address and the role stay, and the gate passes on any software code (5.1).
+     */
+    val snapshotF194: String? = null,
+    /** The name OBD `09 0A` must return, for an ECU identified that way: a name does not change with software. */
     val expectedObdName: String? = null,
     /** For an ECU without a route: its software code in the OTA cache. */
     val cachedSoftwareCode: String? = null,
@@ -130,12 +140,12 @@ internal object EcuCatalog {
 
     private fun radar(abbreviation: String, request: Int, name: String, short: String) = Ecu(
         EcuGroup.ADAS, abbreviation, name, short, inferred = true, request = request, identity = IdentityBasis.F194,
-        expectedF194 = CORNER_RADAR_CODE, aliases = CORNER_RADAR_ALIASES,
+        snapshotF194 = CORNER_RADAR_CODE, aliases = CORNER_RADAR_ALIASES,
     )
 
     private fun uwbAnchor(abbreviation: String, request: Int, name: String, short: String) = Ecu(
         EcuGroup.BODY, abbreviation, name, short, inferred = true, request = request, identity = IdentityBasis.F194,
-        expectedF194 = UWB_ANCHOR_CODE, aliases = UWB_ANCHOR_ALIASES,
+        snapshotF194 = UWB_ANCHOR_CODE, aliases = UWB_ANCHOR_ALIASES,
     )
 
     /** A role named by the model's scanner catalog (vehicle-data-findings, «ECU roles», 2026-10-21). */
@@ -144,52 +154,52 @@ internal object EcuCatalog {
         vararg aliases: CachedIdentity,
     ) = Ecu(
         group, abbreviation, name, short, inferred = false, request = request, identity = IdentityBasis.MODEL_CATALOG,
-        expectedF194 = f194, aliases = aliases.toList(),
+        snapshotF194 = f194, aliases = aliases.toList(),
     )
 
     val all: List<Ecu> = listOf(
         // Powertrain
         Ecu(EcuGroup.POWERTRAIN, "ECM", "ЭБУ двигателя", "Двигатель", false, 0x7E0, IdentityBasis.F194,
-            expectedF194 = "32440011E004000000", supplier = "UAES",
+            snapshotF194 = "32440011E004000000", supplier = "UAES",
             aliases = listOf(cache("ECM_UAES_01200001", "4.00.10", "1.0.0")),
             obd = true, dtcQualified = true, dtcFormat = 0x00),
         Ecu(EcuGroup.POWERTRAIN, "VCU", "Контроллер силовой установки", "Силовая уст.", false, 0x7E2, IdentityBasis.F194,
-            expectedF194 = "32440011E07E007841",
+            snapshotF194 = "32440011E07E007841",
             aliases = listOf(cache("VCU_BYD_00100001", "4.08.22", "0.0.2"), cache("VCU_UAES_00100001", "4.08.22", "0.0.2")),
             obd = true, dtcQualified = true, dtcFormat = 0x00),
         role(EcuGroup.POWERTRAIN, "PDC-VCU", 0x743, "Контроллер силового домена", "Силовой домен", "48370011E002066441",
             cache("PDC-VCU_FDP_00100001", "4.17.18", "0.0.0"), cache("PDC-VCU_BYD_00100001", "4.17.18", "0.0.0")),
         Ecu(EcuGroup.POWERTRAIN, "FMCU", "Контроллер переднего мотора", "Перед. мотор", false, 0x7E3, IdentityBasis.F194,
-            expectedF194 = "48370011E075000000", aliases = listOf(cache("FMCU_BYD_00100001", "4.03.12", "0.0.5")),
+            snapshotF194 = "48370011E075000000", aliases = listOf(cache("FMCU_BYD_00100001", "4.03.12", "0.0.5")),
             dtcQualified = true, dtcFormat = 0x01),
         Ecu(EcuGroup.POWERTRAIN, "ISG", "Контроллер мотор-генератора", "Мотор-генер.", false, 0x7E6, IdentityBasis.F194,
-            expectedF194 = "48370011E0EA000000", aliases = listOf(cache("ISG_BYD_00100001", "4.03.13", "0.0.5")),
+            snapshotF194 = "48370011E0EA000000", aliases = listOf(cache("ISG_BYD_00100001", "4.03.13", "0.0.5")),
             dtcQualified = true, dtcFormat = 0x01),
         Ecu(EcuGroup.POWERTRAIN, "BMS", "Система управления ВВБ", "ВВБ", false, 0x7E7, IdentityBasis.F194,
-            expectedF194 = "4A520011E00D00047B", aliases = listOf(cache("BMS_BYD_03300001", "3.48.07", "0.0.3")),
+            snapshotF194 = "4A520011E00D00047B", aliases = listOf(cache("BMS_BYD_03300001", "3.48.07", "0.0.3")),
             dtcQualified = true, dtcFormat = 0x00),
         // Routes from the complete factory map, F194 and an empty mask-09 list read live on 2026-10-20
         // (vehicle-data-findings, «Complete factory map»); the sides from the model's scanner catalog (2026-10-21).
         Ecu(EcuGroup.POWERTRAIN, "SMCU", "Контроллер заднего левого мотора", "Задн. левый", false, 0x744, IdentityBasis.MODEL_CATALOG,
-            expectedF194 = "48370011E086001100", aliases = listOf(cache("SMCU_BYD_00200001", "4.00.06", "0.0.2")),
+            snapshotF194 = "48370011E086001100", aliases = listOf(cache("SMCU_BYD_00200001", "4.00.06", "0.0.2")),
             dtcQualified = true, dtcFormat = 0x00),
         Ecu(EcuGroup.POWERTRAIN, "SMCU3", "Контроллер заднего правого мотора", "Задн. правый", false, 0x745, IdentityBasis.MODEL_CATALOG,
-            expectedF194 = "48370011E088001100", aliases = listOf(cache("SMCU3_BYD_00100001", "4.00.06", "0.0.2")),
+            snapshotF194 = "48370011E088001100", aliases = listOf(cache("SMCU3_BYD_00100001", "4.00.06", "0.0.2")),
             dtcQualified = true, dtcFormat = 0x00),
         Ecu(EcuGroup.POWERTRAIN, "DCOBC", "Бортовое зарядное и DC-DC", "OBC + DC-DC", true, 0x7E4, IdentityBasis.F194,
-            expectedF194 = "48350011E04D000100", aliases = listOf(cache("DCOBC_BYD_00100001", "4.00.01", "0.0.2")),
+            snapshotF194 = "48350011E04D000100", aliases = listOf(cache("DCOBC_BYD_00100001", "4.00.01", "0.0.2")),
             dtcQualified = true, dtcCountAnswers = false),
 
         // Chassis and safety
         Ecu(EcuGroup.CHASSIS, "ESP/IPB", "Тормозная система, стабилизация", "Тормоза, ESP", false, 0x782, IdentityBasis.F194,
-            expectedF194 = "32330011DF0B000101", supplier = "Bosch",
+            snapshotF194 = "32330011DF0B000101", supplier = "Bosch",
             aliases = listOf(cache("ESP_BOSCH_00100001", "4.00.08", "0.0.4"), cache("IPB_BOSCH_00100001", "4.00.08", "0.0.4"),
                 cache("BSC_BYD_00100001", "4.00.08", "0.0.4")),
             dtcQualified = true, dtcFormat = 0x00),
         Ecu(EcuGroup.CHASSIS, "BSCM", "Тормозная система · интерфейс OBD", "Тормоза · OBD", false, 0x7E5, IdentityBasis.OBD_ECU_NAME,
             expectedObdName = "BSCM-BrakeSystem", uds = false, obd = true, dtcQualified = true),
         Ecu(EcuGroup.CHASSIS, "EPS", "Электроусилитель руля", "Рулевое", false, 0x783, IdentityBasis.F194,
-            expectedF194 = "43430011DE6F000000",
+            snapshotF194 = "43430011DE6F000000",
             aliases = listOf(cache("REPS_BYD_00100001", "4.00.05", "0.0.1"), cache("DPEPS_TRW_00100001", "4.00.05", "0.0.1")),
             dtcQualified = true, dtcFormat = 0x00),
         role(EcuGroup.CHASSIS, "RWS-L", 0x582, "Подруливание задних колёс, левое", "Задн. руль Л", "484B0011DF02030100",
@@ -199,7 +209,7 @@ internal object EcuCatalog {
         role(EcuGroup.CHASSIS, "IDC", 0x597, "Контроллер движения кузова", "Подвеска", "4B4D0011DE01140600",
             cache("IDC_BYD_00100001", "3.01.18", "1.5.0"), cache("IDC_BYD_00200001", "3.01.18", "1.5.0")),
         Ecu(EcuGroup.CHASSIS, "SRS", "Подушки безопасности", "Подушки", false, 0x7F1, IdentityBasis.F194,
-            expectedF194 = "54500011E011000012", supplier = "Veoneer",
+            snapshotF194 = "54500011E011000012", supplier = "Veoneer",
             aliases = listOf(cache("SRS_VEONEER_00100001", "4.00.04", "0.0.2")),
             dtcQualified = true, dtcFormat = 0x00),
         role(EcuGroup.CHASSIS, "MSRZ", 0x742, "Натяжитель ремня водителя", "Ремень вод.", "48430011AD1A000201",
@@ -209,10 +219,10 @@ internal object EcuCatalog {
 
         // Driver assistance
         Ecu(EcuGroup.ADAS, "ADC", "Контроллер ассистентов", "Ассистенты", false, 0x712, IdentityBasis.F194,
-            expectedF194 = "48450011DF83000000", aliases = listOf(cache("ADC_BYD_00100001", "4.14.07", "0.0.0")),
+            snapshotF194 = "48450011DF83000000", aliases = listOf(cache("ADC_BYD_00100001", "4.14.07", "0.0.0")),
             dtcQualified = true, dtcFormat = 0x01),
         Ecu(EcuGroup.ADAS, "MRR", "Радар передний", "Радар перед.", false, 0x7F2, IdentityBasis.F194,
-            expectedF194 = "474E0011DF70000000",
+            snapshotF194 = "474E0011DF70000000",
             aliases = listOf(cache("MRR_BYD_00100001", "4.00.05", "1.0.0"), cache("MRR_WHST_00100001", "4.00.05", "1.0.0"),
                 cache("MRR_chengtech_00100001", "4.00.05", "0.0.0")),
             dtcQualified = true, dtcFormat = 0x00),
@@ -221,7 +231,7 @@ internal object EcuCatalog {
         radar("RRCR", 0x7C2, "Угловой радар задний правый", "Радар ЗП"),
         radar("LRCR", 0x7D4, "Угловой радар задний левый", "Радар ЗЛ"),
         Ecu(EcuGroup.ADAS, "IPA", "Парковочный ассистент", "Парковка", true, 0x701, IdentityBasis.F194,
-            expectedF194 = "32330011DF42000000", supplier = "Bosch",
+            snapshotF194 = "32330011DF42000000", supplier = "Bosch",
             aliases = listOf(cache("IPA_BOSCH_00100001", "4.00.09", "0.0.1"))),
 
         // Body
@@ -240,13 +250,13 @@ internal object EcuCatalog {
                 child(0xF234, "Правый задний фонарь TL", "Фонарь TL правый", "TL_R_BYD_00200001", "48330011DFD5000204"),
             )),
         Ecu(EcuGroup.BODY, "FL_L", "Фара левая", "Фара Л", true, 0x770, IdentityBasis.F194,
-            expectedF194 = "48330011DF2B000201", aliases = listOf(cache("FL_L_BYD_00100001", "4.00.18", "0.1.3"))),
+            snapshotF194 = "48330011DF2B000201", aliases = listOf(cache("FL_L_BYD_00100001", "4.00.18", "0.1.3"))),
         Ecu(EcuGroup.BODY, "FL_R", "Фара правая", "Фара П", true, 0x771, IdentityBasis.F194,
-            expectedF194 = "48330011DF2C000202", aliases = listOf(cache("FL_R_BYD_00100001", "4.00.18", "0.1.3"))),
+            snapshotF194 = "48330011DF2C000202", aliases = listOf(cache("FL_R_BYD_00100001", "4.00.18", "0.1.3"))),
         // The UWB key, from the complete factory map, F194 read live on 2026-10-20 (vehicle-data-findings,
         // «Factory-map candidates»). The four anchors share one code; positions come from the route names.
         Ecu(EcuGroup.BODY, "UWBMC", "Цифровой ключ UWB", "UWB-ключ", true, 0x7F3, IdentityBasis.F194,
-            expectedF194 = "3244001182C7000000",
+            snapshotF194 = "3244001182C7000000",
             aliases = listOf(cache("UWBMC_KOSTAL_00100001", "4.00.88", "0.0.1"), cache("UWBMC_UAES_00100001", "4.00.88", "0.0.1"))),
         uwbAnchor("UWBLFA", 0x7F4, "Антенна UWB передняя левая", "UWB ПЛ"),
         uwbAnchor("UWBRFA", 0x7F5, "Антенна UWB передняя правая", "UWB ПП"),
@@ -271,35 +281,35 @@ internal object EcuCatalog {
 
         // Cabin
         Ecu(EcuGroup.CABIN, "INS", "Комбинация приборов", "Приборы", true, 0x723, IdentityBasis.F194,
-            expectedF194 = "4B450011E0250037B1", aliases = listOf(cache("INS_BYD_00100001", "4.00.04", "0.0.3"))),
+            snapshotF194 = "4B450011E0250037B1", aliases = listOf(cache("INS_BYD_00100001", "4.00.04", "0.0.3"))),
         Ecu(EcuGroup.CABIN, "AMP", "Усилитель звука", "Усилитель", true, 0x751, IdentityBasis.F194,
-            expectedF194 = "5A4A0011DE4A000000", aliases = listOf(cache("AMP_BYD_00100001", "3.00.03", "0.6.0"))),
+            snapshotF194 = "5A4A0011DE4A000000", aliases = listOf(cache("AMP_BYD_00100001", "3.00.03", "0.6.0"))),
         Ecu(EcuGroup.CABIN, "WCT", "Беспроводная зарядка", "Беспр. ЗУ", true, 0x733, IdentityBasis.F194,
-            expectedF194 = "47370011DE06000000",
+            snapshotF194 = "47370011DE06000000",
             aliases = listOf(cache("WCT_BJYG_00200001", "3.00.09", "0.0.2"), cache("WCT_TEME_00100001", "3.00.09", "0.0.2"),
                 cache("WCT_ADAYO_00100001", "3.00.09", "0.0.2"))),
         Ecu(EcuGroup.CABIN, "SWS", "Кнопки руля", "Кнопки руля", true, 0x711, IdentityBasis.F194,
-            expectedF194 = "4D540011DE1E000000",
+            snapshotF194 = "4D540011DE1E000000",
             aliases = listOf(cache("SWS_BYD_00100001", "4.00.07", "0.0.1"), cache("SWS_JOYSON_00100001", "4.00.07", "0.0.1"))),
         // The head unit itself, through its MCU: the stock route list names 741/749 Media_BYD_00200001, and
         // ProductLineOTA's media_softcode_mapping.json lists this F194 as the `mcu` module of the «denza»
         // media software. ECUVersion.json keeps the media's combined code (…3401), not the MCU's, so no alias.
         Ecu(EcuGroup.CABIN, "Media", "Головное устройство (MCU)", "ГУ · MCU", false, 0x741, IdentityBasis.F194,
-            expectedF194 = "4B450011E0930034E2"),
+            snapshotF194 = "4B450011E0930034E2"),
         // The passenger computer, through its MCU, the same way: the factory map names 5E7/5EF ASSY_BYD_00100001,
         // and the MCU container of its own OTA (mcu_42_2_3.xcd) carries this code with CanReqID 1511/CanRecID 1519.
         // ECUVersion.json keeps the FSE software's combined code (…4201), so no alias.
         Ecu(EcuGroup.CABIN, "ASSY", "Пассажирский компьютер (MCU)", "Пасс. ПК · MCU", false, 0x5E7, IdentityBasis.F194,
-            expectedF194 = "4B450011DF990042E2"),
+            snapshotF194 = "4B450011DF990042E2"),
         // From the complete factory map, F194 read live on 2026-10-20; roles from the route names.
         Ecu(EcuGroup.CABIN, "HUD", "Проекционный дисплей", "HUD", true, 0x7B0, IdentityBasis.F194,
-            expectedF194 = "48330011DE80000103", aliases = listOf(cache("HUD_BYD_00100001", "3.00.04", "0.1.3"))),
+            snapshotF194 = "48330011DE80000103", aliases = listOf(cache("HUD_BYD_00100001", "3.00.04", "0.1.3"))),
         Ecu(EcuGroup.CABIN, "ETC", "Модуль оплаты проезда (ETC)", "ETC", true, 0x790, IdentityBasis.F194,
-            expectedF194 = "4B580011AD01990000",
+            snapshotF194 = "4B580011AD01990000",
             aliases = listOf(cache("ETC_Genvict_00100001", "4.00.01", "1.1.0"), cache("ETC_Vanjee_00100001", "4.00.01", "1.1.0"),
                 cache("ETC_Julitech_00100001", "4.00.01", "1.1.0"))),
         Ecu(EcuGroup.CABIN, "CPD", "Радар присутствия детей, задний", "Радар детей", true, 0x5E0, IdentityBasis.F194,
-            expectedF194 = "52420011DF9E000000",
+            snapshotF194 = "52420011DF9E000000",
             aliases = listOf(cache("rear CPD radar_Valeo_00100001", "4.00.12", "0.0.3"),
                 cache("rear CPD radar_Mindcruise_00100001", "4.00.12", "0.0.3"))),
         role(EcuGroup.CABIN, "CS", 0x725, "Подрулевые переключатели", "Подрулевые", "48490011DF1D000000",
@@ -332,12 +342,12 @@ internal object EcuCatalog {
 
         // Climate and thermal management
         Ecu(EcuGroup.CLIMATE, "ACC", "Климат-контроль", "Климат", true, 0x7B3, IdentityBasis.F194,
-            expectedF194 = "48440012AD14004501", aliases = listOf(cache("ACC_BYD_00100001", "1.00.07", "0.0.1"))),
+            snapshotF194 = "48440012AD14004501", aliases = listOf(cache("ACC_BYD_00100001", "1.00.07", "0.0.1"))),
         Ecu(EcuGroup.CLIMATE, "TMIM", "Модуль терморегулирования", "Терморег.", true, 0x7B4, IdentityBasis.F194,
-            expectedF194 = "344E0011E001620101", supplier = "Tuopu",
+            snapshotF194 = "344E0011E001620101", supplier = "Tuopu",
             aliases = listOf(cache("TMIM_TUOPU_00100001", "4.00.00", "0.0.5"))),
         Ecu(EcuGroup.CLIMATE, "PTC", "Высоковольтный нагреватель", "Нагреватель", true, 0x766, IdentityBasis.F194,
-            expectedF194 = "59340011E015000000", supplier = "HGTECH",
+            snapshotF194 = "59340011E015000000", supplier = "HGTECH",
             aliases = listOf(cache("PTC_HGTECH_00300001", "1.00.07", "1.0.2"))),
         role(EcuGroup.CLIMATE, "AQDM", 0x590, "Датчик качества воздуха", "Кач. воздуха", "4A440011DE014A0101",
             cache("AQDM_BYD_00100001", "3.00.08", "0.0.5")),

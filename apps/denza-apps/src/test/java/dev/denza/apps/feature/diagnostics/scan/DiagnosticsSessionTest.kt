@@ -133,18 +133,37 @@ class DiagnosticsSessionTest {
     }
 
     @Test
-    fun anotherSoftwareCodeIsAnotherModuleAndItsMemoryIsNotRead() = runTest {
-        // FMCU's route answers with the ISG's code.
-        val bus = carNow { on(0x7E3, "22F194").answer(CarNow.f194.getValue(0x7E6)) }
+    fun anUpdatedSoftwareCodePassesTheGateAndTheMemoryIsRead() = runTest {
+        // FMCU's route answers a code the catalog's snapshot of 2026-10-18 does not have, as after an update.
+        val bus = carNow { on(0x7E3, "22F194").answer("62F19448370011E075000101") }
+        val s = session(bus)
+        s.start()
+        runCurrent()
+
+        assertEquals(listOf("7E3 22F194", "7E3 190109"), bus.requests.filter { it.startsWith("7E3 ") })
+        val m = s.model.value
+        assertEquals(ModuleStatus.OK, m.row(0x7E3).status)
+        assertEquals("0", m.row(0x7E3).active)
+        assertEquals("19/68", m.scan.memoryRead)
+        assertEquals("48370011E075000101", m.modules.getValue(0x7E3).ident.own.first { "F194" in it.key }.value)
+        assertTrue(m.groups.none { "не опознан" in it.summary })
+        s.stop()
+    }
+
+    @Test
+    fun aGateAnswerWithoutASoftwareCodeKeepsTheMemoryUnread() = runTest {
+        // A zero placeholder where the code should be: the block does not say who it is.
+        val bus = carNow { on(0x7E3, "22F194").answer("62F194000000000000000000") }
         val s = session(bus)
         s.start()
         runCurrent()
 
         assertEquals(listOf("7E3 22F194"), bus.requests.filter { it.startsWith("7E3 ") })
         val m = s.model.value
-        assertEquals(ModuleStatus.OTHER_ECU, m.row(0x7E3).status)
+        assertEquals(ModuleStatus.UNIDENTIFIED, m.row(0x7E3).status)
         assertEquals("—", m.row(0x7E3).active)
         assertEquals("18/68", m.scan.memoryRead)
+        assertEquals("9 бл. · прочитано 7 · DTC не читали 1 · не опознан 1", m.groups.first { it.id == "power" }.summary)
         s.stop()
     }
 

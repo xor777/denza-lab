@@ -126,7 +126,7 @@ internal class ModelBuilder(
             n(ModuleStatus.UNREAD).takeIf { it > 0 }?.let { "DTC не читали $it" },
             n(ModuleStatus.POLLING).takeIf { it > 0 }?.let { "опрос $it" },
             n(ModuleStatus.NO_REPLY).takeIf { it > 0 }?.let { "нет ответа $it" },
-            n(ModuleStatus.OTHER_ECU).takeIf { it > 0 }?.let { "другой блок $it" },
+            n(ModuleStatus.UNIDENTIFIED).takeIf { it > 0 }?.let { "не опознан $it" },
             n(ModuleStatus.REFUSED).takeIf { it > 0 }?.let { "отказ $it" },
             n(ModuleStatus.INCONSISTENT).takeIf { it > 0 }?.let { "несогласованный ответ $it" },
             n(ModuleStatus.NO_ROUTE).takeIf { it > 0 }?.let { "нет адреса $it" },

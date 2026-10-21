@@ -79,18 +79,30 @@ class IdentificationTest {
     }
 
     @Test
-    fun aParentThatIsAnotherBlockKeepsItsChildrenUnread() {
+    fun aParentWithNewerSoftwareStillReadsItsChildren() {
+        // DUCU after an update: a code the catalog's snapshot does not have. The gate holds (5.1), and the
+        // massage module behind it is read as before.
         val bus = FakeDiagnosticBus()
         bus.on(0x750, "22F194").answer("62F1944B310011DF016A0002")
-        val ident = read(0x750, bus)
-        assertEquals(listOf("750 22F194", "750 22F195", "750 22F18A", "750 22F197"), bus.requests)
-        val row = own(ident).getValue(0x750).at("Массаж перед. левого · 22 F8C4")
-        assertEquals("не читали", row.value)
-        assertTrue(row.muted)
-        // No answer to F194 is no gate passed either.
-        val silent = FakeDiagnosticBus()
-        read(0x7B5, silent)
-        assertTrue(silent.requests.none { it.endsWith("22F8D4") })
+        bus.on(0x750, "22F8C4").answer("62F8C447380011DFE3000102")
+        val rows = own(read(0x750, bus)).getValue(0x750)
+        assertEquals(listOf("750 22F194", "750 22F195", "750 22F18A", "750 22F197", "750 22F8C4"), bus.requests)
+        assertEquals("4B310011DF016A0002", rows.at("Номер ПО поставщика · 22 F194").value)
+        assertEquals("47380011DFE3000102", rows.at("Массаж перед. левого · 22 F8C4").value)
+    }
+
+    @Test
+    fun aParentWithoutASoftwareCodeKeepsItsChildrenUnread() {
+        // A zero placeholder, a code cut short, a refusal, an answer to another DID, no answer: no gate passed.
+        listOf("62F194000000000000000000", "62F1944B310011DF016A", "7F2231", "62F1954B310011DF016A0001", null).forEach { f194 ->
+            val bus = FakeDiagnosticBus()
+            f194?.let { bus.on(0x750, "22F194").answer(it) }
+            val ident = read(0x750, bus)
+            assertEquals("$f194", listOf("750 22F194", "750 22F195", "750 22F18A", "750 22F197"), bus.requests)
+            val row = own(ident).getValue(0x750).at("Массаж перед. левого · 22 F8C4")
+            assertEquals("not read behind $f194", "не читали", row.value)
+            assertTrue(row.muted)
+        }
     }
 
     @Test

@@ -66,7 +66,7 @@ internal object SystemsBuilder {
                 ModuleStatus.POLLING -> "опрос…"
                 ModuleStatus.NO_REPLY -> "нет ответа"
                 ModuleStatus.REFUSED -> "отказ"
-                ModuleStatus.OTHER_ECU -> "другой блок"
+                ModuleStatus.UNIDENTIFIED -> "не опознан"
                 ModuleStatus.INCONSISTENT -> "несогласованный ответ"
                 ModuleStatus.NO_ROUTE -> null
             }

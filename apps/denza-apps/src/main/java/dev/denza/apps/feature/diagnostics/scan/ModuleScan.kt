@@ -38,9 +38,12 @@ internal object ScanRequests {
     fun list(mask: Int) = "1902%02X".format(mask)
     val OBD_LISTS = listOf(ObdDtcMode.STORED to "03", ObdDtcMode.PENDING to "07", ObdDtcMode.PERMANENT to "0A")
 
-    /** The identity gate of [ecu] (architecture, 5.1), or null where the name rests on a stock route. */
+    /**
+     * The identity gate of [ecu] (architecture, 5.1), or null where the name rests on a stock route:
+     * `22 F194` where the role was proved by the software code, `09 0A` where by the OBD name.
+     */
     fun gate(ecu: Ecu): String? = when (ecu.identity) {
-        IdentityBasis.F194, IdentityBasis.MODEL_CATALOG -> F194.takeIf { ecu.expectedF194 != null && ecu.uds }
+        IdentityBasis.F194, IdentityBasis.MODEL_CATALOG -> F194.takeIf { ecu.uds }
         IdentityBasis.OBD_ECU_NAME -> ECU_NAME.takeIf { ecu.expectedObdName != null && ecu.obd }
         IdentityBasis.STOCK_ROUTE, IdentityBasis.NONE -> null
     }
@@ -49,8 +52,9 @@ internal object ScanRequests {
 /**
  * The autoscan's read of one module (architecture, 6): the gate, then `19 01`, `19 02` only when the
  * count is above zero (or `19 02` alone where the catalog says `19 01` never answers), then for an
- * OBD responder `01 01`, `03`, `07`, `0A`. A gate that does not pass
- * ends the read: on another module, or on one that does not say who it is, nothing else is asked.
+ * OBD responder `01 01`, `03`, `07`, `0A`. A gate that does not pass ends the read: on a block that
+ * does not say who it is - no answer, a refusal, no software code, another OBD name - nothing else
+ * is asked.
  */
 internal object ModuleProcedure {
     suspend fun read(ecu: Ecu, nowMillis: () -> Long, ask: suspend (DiagRequest) -> DiagReply): ModuleRead {
@@ -82,15 +86,19 @@ internal class ModuleResult(val ecu: Ecu, val read: ModuleRead) {
     private fun <T> polled(uds: String, decode: (DiagReply.Answer) -> Decoded<T>): Polled<T> =
         read.reply(uds)?.let { Polled.of(it, decode) } ?: Polled.NotPolled
 
-    /** The gate's reading: the F194 code or the OBD name, NotPolled where there is no gate. */
+    /** The gate's reading: the F194 data as it came or the OBD name, NotPolled where there is no gate. */
     val identity: Polled<String> = when (ScanRequests.gate(ecu)) {
         ScanRequests.F194 -> polled(ScanRequests.F194) { a -> DiagDecoder.identification(a).map { it.text } }
         ScanRequests.ECU_NAME -> polled(ScanRequests.ECU_NAME) { a -> ecuName(a) }
         else -> Polled.NotPolled
     }
 
-    /** F194 or the OBD name against the catalog: true matched, false another module, null not read. */
-    val matched: Boolean? = (identity as? Polled.Got)?.value?.let { it == expected(ecu) }
+    /**
+     * The gate's answer names the catalog's block (5.1): a software code - any - for F194, the
+     * catalog's own name for `09 0A`; false for a positive answer that is neither, null where the gate
+     * gave no positive answer or there is none.
+     */
+    val identified: Boolean? = (identity as? Polled.Got)?.let { ScanRequests.gate(ecu)?.let(read::reply)?.let { gatePassed(ecu, it) } }
 
     private val gated: Boolean = ScanRequests.gate(ecu) != null
 
@@ -145,7 +153,7 @@ internal class ModuleResult(val ecu: Ecu, val read: ModuleRead) {
             is Polled.Inconsistent -> return@run ModuleStatus.INCONSISTENT
             // A module that will not say who it is keeps its memory unread, as another module would.
             is Polled.Denied, is Polled.Unsupported -> return@run ModuleStatus.UNREAD
-            is Polled.Got -> if (matched != true) return@run ModuleStatus.OTHER_ECU
+            is Polled.Got -> if (identified != true) return@run ModuleStatus.UNIDENTIFIED
         }
         val lit = mil == true
         val memoryState: Polled<*> = if (obdOnly) obdLists.getValue(ObdDtcMode.STORED) else memory
@@ -166,21 +174,20 @@ internal class ModuleResult(val ecu: Ecu, val read: ModuleRead) {
     }
 
     companion object {
-        fun expected(ecu: Ecu): String? = when (ecu.identity) {
-            IdentityBasis.F194, IdentityBasis.MODEL_CATALOG -> ecu.expectedF194
-            IdentityBasis.OBD_ECU_NAME -> ecu.expectedObdName
-            else -> null
-        }
-
-        /** The gate's reply names the catalog's module. */
+        /**
+         * The gate's reply lets the block's memory be read (architecture, 5.1). F194: a positive `62 F194`
+         * with a nine-byte software code that is not all zero - any code, since an update changes it while
+         * the address and the role, which the factory map and the model's catalog give, stay. The OBD
+         * name: exactly the catalog's, since a name does not change with software. No answer, a refusal,
+         * a malformed answer or a zero placeholder does not pass.
+         */
         fun gatePassed(ecu: Ecu, reply: DiagReply): Boolean {
             val answer = reply as? DiagReply.Answer ?: return false
-            val text = when (ScanRequests.gate(ecu)) {
-                ScanRequests.F194 -> (DiagDecoder.identification(answer) as? Decoded.Ok)?.value?.text
-                ScanRequests.ECU_NAME -> (ecuName(answer) as? Decoded.Ok)?.value
-                else -> null
+            return when (ScanRequests.gate(ecu)) {
+                ScanRequests.F194 -> DiagDecoder.softwareCode(answer) is Decoded.Ok
+                ScanRequests.ECU_NAME -> (ecuName(answer) as? Decoded.Ok)?.value.let { it != null && it == ecu.expectedObdName }
+                else -> false
             }
-            return text != null && text == expected(ecu)
         }
 
         fun ecuName(answer: DiagReply.Answer): Decoded<String> = when (val d = DiagDecoder.vehicleInfo(answer)) {
