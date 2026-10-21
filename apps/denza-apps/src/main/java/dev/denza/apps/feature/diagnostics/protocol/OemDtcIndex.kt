@@ -77,8 +77,9 @@ internal data class DtcLookup(
  * 4). A reference, not a decoding: the index is unqualified for the ECUs' software, and its own
  * headings conflict in places.
  *
- * Only format 00 is matched: the record's J2012 code without the dash, `C1170-09` ↔ `C117009`. Format
- * 01 (FMCU, ISG today) needs a display-to-raw mapping nobody has; any other format has no display.
+ * Format 00 is matched by the record's J2012 code without the dash, `C1170-09` ↔ `C117009`; format 01
+ * only from FMCU 7E3, laid out the same way ([catalogCode]). ISG's format 01 needs a mapping nobody has
+ * established; any other format has no display.
  */
 internal class OemDtcIndex(val headings: List<OemHeading>) {
     private val bySectionCode: Map<Pair<OemSection, String>, List<OemHeading>> =
@@ -87,12 +88,10 @@ internal class OemDtcIndex(val headings: List<OemHeading>) {
     fun lookup(request: Int, code: DtcCode): DtcLookup {
         val sections = sections(request)
         if (sections.isEmpty()) return DtcLookup(emptyList(), skipped = LookupSkip.NO_SECTION)
-        when (code.format) {
-            DtcFormat.SAE_J2012_00 -> Unit
-            DtcFormat.ISO_14229_1 -> return DtcLookup(emptyList(), skipped = LookupSkip.FORMAT_01)
-            else -> return DtcLookup(emptyList(), skipped = LookupSkip.FORMAT_UNKNOWN)
-        }
-        val display = catalogCode(code) ?: return DtcLookup(emptyList(), skipped = LookupSkip.FORMAT_UNKNOWN)
+        val display = catalogCode(request, code) ?: return DtcLookup(
+            emptyList(),
+            skipped = if (code.format == DtcFormat.ISO_14229_1) LookupSkip.FORMAT_01 else LookupSkip.FORMAT_UNKNOWN,
+        )
         val found = sections.flatMap { bySectionCode[it to display].orEmpty() }
         val candidates = found.groupBy { it.titleZh }.map { (zh, same) ->
             DtcCandidate(display, zh, same.first().titleRu, same.map { OemLocator(it.section, it.outlineId) })
@@ -118,8 +117,25 @@ internal class OemDtcIndex(val headings: List<OemHeading>) {
             else -> emptyList()
         }
 
-        /** `C117009` for format 00, null otherwise. */
-        fun catalogCode(code: DtcCode): String? = code.base?.let { base -> base + "%02X".format(code.failureType!!) }
+        /**
+         * The modules whose format-01 codes are looked up laid out as J2012: FMCU 7E3 alone. Its live
+         * `19 0A` registry of 32 codes (2026-10-21, `research/vehicle-diagnostics/supported-dtc-20261021.json`)
+         * read that way holds all 31 `front_drive` headings, `1BE201` alone has none. The match
+         * establishes it, not a firmware rule, and only for FMCU: ISG 7E6 is not searched.
+         */
+        val FORMAT_01_AS_J2012: Set<Int> = setOf(0x7E3)
+
+        /**
+         * The catalog's seven characters for a [code] [request] reported; null where there is no mapping.
+         * Format 00: its J2012 code without the dash, `C1170-09` → `C117009`. Format 01 of a module in
+         * [FORMAT_01_AS_J2012]: the same layout over its three bytes - the letter from the first byte's top
+         * two bits, the code's digits, the third byte - `1B0019` → `P1B0019`, `C1D487` → `U01D487`.
+         */
+        fun catalogCode(request: Int, code: DtcCode): String? = when {
+            code.format == DtcFormat.SAE_J2012_00 -> J2012.compact(code.raw)
+            code.format == DtcFormat.ISO_14229_1 && request in FORMAT_01_AS_J2012 -> J2012.compact(code.raw)
+            else -> null
+        }
 
         /**
          * The Chinese heading without its leading code and without the zero-width characters the

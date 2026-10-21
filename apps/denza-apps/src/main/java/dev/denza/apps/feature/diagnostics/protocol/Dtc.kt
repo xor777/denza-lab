@@ -50,7 +50,8 @@ internal enum class DtcFormat(val id: Int, val title: String) {
 /**
  * A three-byte DTC as its format reads it. Format 00 is SAE J2012: letter, four characters and
  * the failure type (`C1170-09`). Format 01 has no letter: six hex digits (`517009`), never
- * P/C/B/U. Any other format: the raw bytes.
+ * P/C/B/U - only the catalog lookup lays FMCU's out as J2012 to find a heading
+ * ([OemDtcIndex.catalogCode]). Any other format: the raw bytes.
  */
 internal data class DtcCode(val raw: Int, val format: DtcFormat, val formatId: Int = format.id) {
     val rawHex: String get() = "%06X".format(raw and 0xFFFFFF)
@@ -75,6 +76,9 @@ internal object J2012 {
         val v = twoBytes and 0xFFFF
         return "%c%d%03X".format("PCBU"[v shr 14], (v shr 12) and 3, v and 0xFFF)
     }
+
+    /** Three bytes in J2012's layout without the dash, as the manual's catalog lists a code: `C117009`. */
+    fun compact(threeBytes: Int): String = base(threeBytes shr 8) + "%02X".format(threeBytes and 0xFF)
 }
 
 /**

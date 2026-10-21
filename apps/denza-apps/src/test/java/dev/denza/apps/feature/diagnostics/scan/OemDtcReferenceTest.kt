@@ -14,6 +14,7 @@ import java.security.MessageDigest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -34,8 +35,10 @@ class OemDtcReferenceTest {
     private val indexFile = research.resolve(OemDtcAssets.INDEX)
     private val ruFile = research.resolve(OemDtcAssets.TRANSLATION)
     private val index = OemDtcAssets.parse(indexFile.readText(), ruFile.readText())
+    private val supported by lazy { JSONObject(research.resolve("supported-dtc-20261021.json").readText()) }
 
     private fun j2012(raw: Int) = DtcCode(raw, DtcFormat.SAE_J2012_00)
+    private fun JSONArray.objects() = (0 until length()).map { getJSONObject(it) }
 
     // ------------------------------------------------------------------ the files
 
@@ -167,16 +170,56 @@ class OemDtcReferenceTest {
     }
 
     @Test
-    fun formatZeroOneAndUnknownFormatsAreNotSearched() {
-        // FMCU and ISG report format 01: six hex digits with no letter, never read as J2012.
-        val fmcu = index.lookup(0x7E3, DtcCode(0x1B0019, DtcFormat.ISO_14229_1))
-        assertEquals(LookupSkip.FORMAT_01, fmcu.skipped)
-        assertTrue(fmcu.candidates.isEmpty())
-        assertEquals("сопоставление формата 01 с каталогом не установлено", fmcu.skipped!!.reason)
-        assertEquals(LookupSkip.FORMAT_01, index.lookup(0x7E6, DtcCode(0x180219, DtcFormat.ISO_14229_1)).skipped)
+    fun fmcuFormatZeroOneRegistryFindsEveryFrontDriveHeading() {
+        // FMCU's live `19 0A` registry of 2026-10-21: 32 codes in format 01, every one it can report.
+        val fmcu = supported.getJSONArray("modules").objects().single { it.getString("requestIdHex") == "7E3" }
+        assertEquals(1, fmcu.getJSONObject("formatRead").getInt("formatId"))
+        val registry = fmcu.getJSONArray("records").objects().map { it.getString("raw24Hex") }
+        assertEquals(32, registry.size)
+        assertEquals(registry.size, registry.toSet().size)
+
+        val found = registry.associateWith { raw ->
+            val code = DtcCode(raw.toInt(16), DtcFormat.ISO_14229_1)
+            assertEquals("the code is shown as it came", raw, code.display)
+            index.lookup(0x7E3, code).also { r ->
+                assertNull(raw, r.skipped)
+                assertFalse(raw, r.conflict)
+            }.candidates
+        }
+        // Read as J2012, the registry holds the front drive's 31 headings, each once; 1BE201 alone has none.
+        assertEquals(listOf("1BE201"), found.filterValues { it.isEmpty() }.keys.toList())
+        assertTrue(found.values.all { it.size <= 1 })
+        val frontDrive = index.headings.filter { it.section == OemSection.FRONT_DRIVE }
+        assertEquals(31, frontDrive.size)
+        assertEquals(frontDrive.map { it.outlineId }.sorted(), found.values.flatten().map { it.outlineId }.sorted())
+
+        // The layout: the letter from the first byte's top two bits, the code's digits, the third byte.
+        assertEquals("P1B0019", OemDtcIndex.catalogCode(0x7E3, DtcCode(0x1B0019, DtcFormat.ISO_14229_1)))
+        val network = index.lookup(0x7E3, DtcCode(0xC1D487, DtcFormat.ISO_14229_1)).candidates.single()
+        assertEquals("U01D487", network.displayCode)
+        assertEquals("outline_571_a", network.outlineId)
+        // The research's own reverse of the 31 headings agrees code for code.
+        val rows = supported.getJSONObject("fmcuReverseNotationHypothesis").getJSONArray("rows").objects()
+        assertEquals(31, rows.size)
+        rows.forEach { r ->
+            val code = DtcCode(r.getString("hypotheticalRaw24").toInt(16), DtcFormat.ISO_14229_1)
+            assertEquals(r.getString("publicDisplayCode"), OemDtcIndex.catalogCode(0x7E3, code))
+        }
+    }
+
+    @Test
+    fun formatZeroOneElsewhereAndUnknownFormatsAreNotSearched() {
+        // ISG reports format 01 too: its mapping is not established, so its codes are not searched.
+        val isg = index.lookup(0x7E6, DtcCode(0x180219, DtcFormat.ISO_14229_1))
+        assertEquals(LookupSkip.FORMAT_01, isg.skipped)
+        assertTrue(isg.candidates.isEmpty())
+        assertEquals("сопоставление формата 01 с каталогом не установлено", isg.skipped!!.reason)
+        assertNull(OemDtcIndex.catalogCode(0x7E6, DtcCode(0x180219, DtcFormat.ISO_14229_1)))
+        assertEquals(setOf(0x7E3), OemDtcIndex.FORMAT_01_AS_J2012)
+        // Format 01 from any other module with a section is not laid out as J2012 either.
+        assertEquals(LookupSkip.FORMAT_01, index.lookup(0x7E0, DtcCode(0x222729, DtcFormat.ISO_14229_1)).skipped)
         assertEquals(LookupSkip.FORMAT_UNKNOWN, index.lookup(0x7E0, DtcCode(0x222729, DtcFormat.OTHER, 0x7F)).skipped)
-        // The same bytes as format 00 in the front drive's section would match: the format alone decides.
-        assertEquals(1, index.lookup(0x7E3, j2012(0x1B0019)).candidates.size)
+        assertEquals(LookupSkip.FORMAT_UNKNOWN, index.lookup(0x7E3, DtcCode(0x1B0019, DtcFormat.OTHER, 0x7F)).skipped)
     }
 
     @Test
@@ -201,9 +244,11 @@ class OemDtcReferenceTest {
         )
         index.headings.forEach { h ->
             val raw = rawOf(h.displayCode)
-            val code = j2012(raw)
-            assertEquals(h.displayCode, OemDtcIndex.catalogCode(code))
-            val found = index.lookup(modules.getValue(h.section), code)
+            val module = modules.getValue(h.section)
+            // FMCU reports format 01; every other module with a section, format 00.
+            val code = if (module == 0x7E3) DtcCode(raw, DtcFormat.ISO_14229_1) else j2012(raw)
+            assertEquals(h.displayCode, OemDtcIndex.catalogCode(module, code))
+            val found = index.lookup(module, code)
             assertTrue(h.toString(), found.candidates.any { c -> c.locators.any { it.outlineId == h.outlineId } })
         }
     }
@@ -236,6 +281,27 @@ class OemDtcReferenceTest {
         assertEquals(2, body.records.size)
         assertTrue(body.records.all { it.description == null && it.reference.isEmpty() && it.note.isEmpty() })
         assertNull(body.source)
+        s.stop()
+    }
+
+    @Test
+    fun theEngineDescribesAnFmcuRecordAndKeepsItsCodeAsItCame() = runTest {
+        val bus = carNow {
+            on(0x7E3, "190109").answer("590109010001")
+            on(0x7E3, "190209").answer("5902091B001909")
+        }
+        val s = session(bus, catalog = { index })
+        s.start()
+        runCurrent()
+
+        val fmcu = s.model.value.modules.getValue(0x7E3).dtc
+        val row = fmcu.records.single()
+        assertEquals("1B0019", row.code)
+        assertEquals("Формат 01: тип отказа не выделяется", row.failureName)
+        assertEquals("Передний тяговый электродвигатель: перегрузка по току", row.description)
+        assertEquals(listOf("P1B0019"), row.reference.map { it.code })
+        assertEquals(listOf(listOf("front_drive · outline_542_a")), row.reference.map { it.locators })
+        assertEquals(ModelBuilder.CATALOG_SOURCE, fmcu.source)
         s.stop()
     }
 

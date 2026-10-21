@@ -598,8 +598,8 @@ internal data class DtcRow(
      * The row's description: the Russian heading the public catalog gives this code in this module's
      * section, as plain text - «Датчик атмосферного давления: неисправность сигнала». Two headings of
      * one section are «A / B»; the rear drives' sections, when they differ, «Л: A / П: B». Null where
-     * the catalog has nothing: another module, format 01, a format nobody reported, a code it does
-     * not list. Its source is the screen's footer ([DtcView.source]), never the row.
+     * the catalog has nothing: another module, format 01 other than FMCU's, a format nobody reported,
+     * a code it does not list. Its source is the screen's footer ([DtcView.source]), never the row.
      */
     val description: String? = null,
     /** What [description] is made of, with the Chinese original; not drawn on the row. */
