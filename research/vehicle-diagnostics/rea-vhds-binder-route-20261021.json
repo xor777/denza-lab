@@ -1,0 +1,197 @@
+{
+  "schema": "denza-lab.rea-vhds-binder-route.v1",
+  "date": "2026-10-21",
+  "captureBase": "captures/rea-vhds-binder-20261021",
+  "baselineCommit": "f1b87b80127b0f1eb4bea4fd976c07933dbc09d8",
+  "vehicleOperations": 0,
+  "firmwareExecutions": 0,
+  "newEcuAddresses": 0,
+  "newDtcDefinitions": 0,
+  "binaries": {
+    "vhds": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+    "libvhds": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libvhds.so"
+  },
+  "tool": {
+    "rea": "6.7.0",
+    "ghidra": "12.1.4",
+    "installation": "existing shared installation via tools/rea; no setup/install/restart",
+    "doctorHealthy": true,
+    "analysisQueries": 4,
+    "querySeconds": [
+      16.895,
+      17.823,
+      17.474,
+      17.726
+    ]
+  },
+  "addressMapping": {
+    "measuredDelta": "0x100000",
+    "textBytesMatched": true,
+    "independentElfAttestation": "unsupported; observation mapping and original text digest checked separately",
+    "corpusAddressesUsedBelow": true
+  },
+  "finding": {
+    "status": "constructor_binding_closed_in_source",
+    "interfaceSubobjectOffset": 8,
+    "constructor": "VHDS::VHDS at141D0, 1140 bytes",
+    "vptrStore": "1426C..14288: x8=49080,x10=490E0; STP stores490E0 at object+8 after IVHDS base construction",
+    "virtualCall": "libvhds BnVDS::onTransact application transaction5 passes int32,buffer,int32 via vtable+40",
+    "slot": "490E0+40=49120; R_AARCH64_RELATIVE1027 addend1FD40",
+    "thunk": "1FD40 subtracts8 from this,1FD44 branches1B7F0; remaining arguments unchanged",
+    "method": "VHDS::remoteOrder(int,const void*,int) at1B7F0; name independently present in embedded .gnu_debugdata",
+    "knownParserEntry": "Existing trigger study: inputType100h plus sys.vhds.test_enable1 gates direct call1BAE4 toparseAllInOneTriggerList1C620. This investigation does not change that applicability limit.",
+    "publication": "publishService2ACD0 allocates0xDB0, calls constructor, builds String16 from9CF8=vhds and passes the object Binder subobject to the service manager. Source registration path only; no current service-list or runtime success checked.",
+    "componentNames": "The same constructor initializes RemoteDiagTransferAndElecHandler at object+8C0 and EdrDiagHandler at object+AE0. These are software component names, not newly identified physical ECUs.",
+    "binderDispatch": "Constructor also stores BBinder vptr49150 at object+10hex. Its onTransact import slot491D0 binds to the libvhds minus8 thunk4F20. That thunk branches to PLT5950, whose7C40 JUMP_SLOT names BnVDS::onTransact at4C90. This is a static ELF linkage; actual runtime symbol resolution/interposition is not observed. The first adjustment selects IVHDS at object+8, and the method thunk later restores the complete object."
+  },
+  "limits": [
+    "The actual client sending transaction5 and the concrete task payload remain unknown.",
+    "The known test-property loader gate is not proof of normal production configuration delivery.",
+    "No Binder invocation, service start, diagnostic command, firmware execution or vehicle contact occurred.",
+    "No current installed daemon hash, permission, successful registration or task applicability is established.",
+    "Constructor/ABI evidence supplies neither a factory dictionary nor missing ECU route values.",
+    "REA does not remove the need for the existing RH850 workflow or the missing ECM first CAN frame.",
+    "The onTransact thunk uses a PLT symbol binding, not a direct branch to4C90. No runtime linker resolution or interposition behavior was observed."
+  ],
+  "assessment": [
+    {
+      "gap": "VHDS CAN condition to worker",
+      "status": "closed by pre-existing REA pilot, not repeated here"
+    },
+    {
+      "gap": "VHDS Binder virtual slot to real handler",
+      "status": "closed by this source pass"
+    },
+    {
+      "gap": "Producer and lifecycle of diagnostic configurations",
+      "status": "next native client/import/reference search now has a named method, interface and service; concrete task still needed"
+    },
+    {
+      "gap": "Native telemetry conversions, sentinels and callback arguments",
+      "status": "suited to focused AArch64 pseudocode plus byte checks; physical units and runtime validity require their own evidence"
+    },
+    {
+      "gap": "ISG format01 display and script-driven layout",
+      "status": "can clarify native parsing/callers; cannot supply missing applicable script content"
+    },
+    {
+      "gap": "OEM DTC dictionaries, physical ECU identities and ECM full response",
+      "status": "cannot be supplied by the decompiler alone; missing artifacts/live evidence remain necessary"
+    }
+  ],
+  "cleanup": {
+    "ownedTemporaryRoot": "/Users/dmitry/Dev/denza-gateway/captures/rea-vhds-binder-20261021/tmp",
+    "ownedTemporaryRootRemoved": true,
+    "providerTemporaryRootEmptyBeforeRemoval": true,
+    "allFourAnalysisCommandsExit0": true,
+    "inputHashesUnchanged": true,
+    "sharedInstallationChanged": false
+  },
+  "sources": [
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/bin/vhds",
+      "bytes": 318376,
+      "sha256": "a8ae8c73f470e2d524ba57c8f7ca1644b1d94480a5fa5d8cbc4fac36498c55e0"
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/system/system/lib64/libvhds.so",
+      "bytes": 34864,
+      "sha256": "42cb603668f8c4b262888fd6590765b2d5bbdce37ad1a5919fdb12d726c31f21"
+    },
+    {
+      "path": "research/vehicle-diagnostics/vhds-client-interface-20261021.json",
+      "bytes": 11089,
+      "sha256": "6d0a7d54ae76b07943b8eba6bbfed2ced8c4175fc18620257bbf64e8df53208c"
+    },
+    {
+      "path": "research/vehicle-diagnostics/vhds-diagnostic-trigger-path-20261021.json",
+      "bytes": 28459,
+      "sha256": "89ec83ea7507439f500859358bac0e0595ac8abbabfe35bb9faee73f507423f5"
+    },
+    {
+      "path": "research/vehicle-diagnostics/check_rea_vhds_binder_route.py",
+      "bytes": 6513,
+      "sha256": "b5d9687baa174666db145b768ad7a1fdfd206666895262fcae2bf18dc03b5df5"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/byte-corroboration.json",
+      "bytes": 86493,
+      "sha256": "3383dd81c0bc0f1e9a86b9d4ba223c42256e42ba632482884bfdb680c98588e6"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/cleanup.json",
+      "bytes": 298,
+      "sha256": "e69b0d627ee7d65b5390159b10c5af309600ea2128cb0411a2260fd7efa748ea"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/constructor-command.json",
+      "bytes": 273,
+      "sha256": "c1d3779bce4d43fcf1a2ed02bea103ea45ebfec340d2df8d72b49dfb6830f56d"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/constructor.c",
+      "bytes": 7899,
+      "sha256": "97694be7250793b41a94a9ceafc42e964a19d6f0d244d60e86d80a4e0b75c776"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/constructor.json",
+      "bytes": 979890,
+      "sha256": "83e0f2c84266a7964238efa608129d9bf57bc1d4a81d63dc0a32c5f833659fea"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/doctor.json",
+      "bytes": 16210,
+      "sha256": "151123509ad1dbe6ac54d4f0b9eeb02d3ef872f0216d4e0487bf2a48403692e8"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/load-image-command.json",
+      "bytes": 274,
+      "sha256": "173af63dcdf814907015ea5984bf5e2cbeee6a42e8a2df5f6dddadefc0eb6e59"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/load-image.json",
+      "bytes": 322232,
+      "sha256": "d51494ce7236371fc6c4da898de7226fb78868c0c4b41eab74f5cd1586b6d04b"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/mapping-corroboration.json",
+      "bytes": 408,
+      "sha256": "0ce0dcd51548285276f0318c2430325e12eb358cd1c270b6eaa0861ebdd069f4"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/publish-command.json",
+      "bytes": 273,
+      "sha256": "d7732897562febf83dc45da0bc347333c50b29368a38ac74b2e7850941876246"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/publish.c",
+      "bytes": 2201,
+      "sha256": "49e0c109c4a6d2134a33a8ea33102fc07e78c2581462eb098b2ab9ebdf318b5d"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/publish.json",
+      "bytes": 387656,
+      "sha256": "7a92552065f6aa75ef57383a781d988901b05c7d5302644f3a8751cefa32e051"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/run_query.py",
+      "bytes": 880,
+      "sha256": "69f039e864c8a992d6a8ba4b35a06159606e03d3695e39c5ba8a6c6b408271e1"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/start.json",
+      "bytes": 328,
+      "sha256": "edb887fdddf667fb8b5261eadf438a5b13de847c3bd5f988cd6f29b8b33cd724"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/vptr-xrefs-command.json",
+      "bytes": 270,
+      "sha256": "9c93e82cd3dbcc2557bd66ae2af5b18d6520fea78e16822b0ab394812f2acfb7"
+    },
+    {
+      "path": "captures/rea-vhds-binder-20261021/vptr-xrefs.json",
+      "bytes": 3252,
+      "sha256": "53c25eaecb8f1d7259802cbd78bb403eb9af032054e264e70f3189c043fd97fb"
+    }
+  ]
+}

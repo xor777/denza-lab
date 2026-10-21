@@ -95,12 +95,22 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   No real task, ECU assignment, warning-to-DTC mapping or dictionary was
   recovered. Parsing/sending can change state and is not a readback route.
   Run `python3 research/vehicle-diagnostics/check_vhds_diagnostic_trigger_path.py`.
+  Later source evidence closes its constructor binding in
+  `rea-vhds-binder-route-20261021.json`; the original bounded report is retained.
 - `ecm-owner3-route-20261021.json` traces the stock prefix03 consumer and MCU
   framing/size/arbitration boundary. Its positive length range7..922 still
   rejects the hypothesized1035-byte ECM registry; it does not offer a larger
   list capacity or an independent raw-response lane. No live alternate-owner
   request was made. Run
   `python3 research/vehicle-diagnostics/check_ecm_owner3_route.py`.
+- `rea-vhds-binder-route-20261021.json` uses the installed REA CLI to close
+  the constructor/virtual-slot gap: Binder transaction5 reaches
+  `VHDS::remoteOrder(int,const void*,int)`, and the source publishes service
+  `vhds`. Six native ranges/579 instructions, ELF relocations and measured
+  loaded-code mapping are checked against the original bytes. The actual
+  client/task and all runtime applicability remain open. Tool suitability and
+  remaining evidence needs are recorded alongside the result. Run
+  `.venv-firmware/bin/python research/vehicle-diagnostics/check_rea_vhds_binder_route.py`.
 - `isg-format-source-applicability-20261021.json` traces factory meanings to
   exact numeric `data.attach[].dtcList` keys in the original downloaded script,
   selected by `scriptCode`/`scriptVersion`/`forStation`. It identifies the

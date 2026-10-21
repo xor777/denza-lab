@@ -53,6 +53,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | MCU raw dispatch precedes diagnostic rejection but requires existing table entries. Four HAL streams delivered3664 callbacks, zero target7E8/7EE; OTA/SecretOBD stayed silent. MCU/HAL and the five-transaction libvhds interface qualify no existing-table readback. Extracted vhds registers conditional MQTT rows347/channel0 and4BF/44A/channel2, plus parsed configuration. Four exact private config paths denied shell stat; runtime tables and the SecretOBD writer remain unknown | source writer found; current file access and live visibility bounded | 2026-10-21 | [CAN visibility pass](#can-visibility-and-complete-isg-response-2026-10-21); [Table readback boundary](#collection-table-readback-boundary-2026-10-21) |
 | Exact definitions: six BMS misses and P2BAE00 conflict remain unresolved. ISG has32 conditional public-heading matches and24 raw misses; format01 mapping is unqualified. Stock descriptions come from exact numeric keys in original downloaded script data.attach[].dtcList. The file path and task-selection chain are traced, but no applicable ISG script or selection tuple was recovered; no new qualified definitions or warning links | exact source located; applicable content missing | 2026-10-21 | [Exact dictionary followup](#exact-dtc-dictionary-followup-2026-10-21); [Local dictionary paths](#local-dictionary-paths-and-resource-audit-2026-10-21); [Stock reader and scripts](#stock-isg-reader-and-factory-script-source-2026-10-21) |
 | VHDS configuration can relate a CAN-field condition to an ECU/service/parameter list. The traced direct loader has a test-property gate; no actual task was recovered. The CAN-trigger data path selects prefix02. Sibling owner03 uses DID-oriented framing and rejects a1035-byte response too; it is no ECM registry bypass. No new address, definition or specific warning-to-DTC link | offline schema and transport limits; runtime configuration missing | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
+| REA continuation closes the VHDS Binder ABI: transaction5 dispatches through the constructor-installed IVHDS vptr and the minus8 thunk to remoteOrder. publishService names the service vhds. The sending client, actual configuration and runtime applicability remain unknown; no new ECU address or DTC meaning | offline constructor and original-byte proof | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | Front-drive DC-current rejected conversion preserves the previous float cache; rear converters differ and six temperature paths preserve FE/FF. Adjacent charging-current CAN444/channel2 now has a complete dual-cache/GB-consumer trace; the18-ID normalization excludes345/44A. Generation state0 is explicitly INVALID. Priority BMS units and dedicated ISG numeric telemetry remain unqualified | firmware + retained observations, not new physical-unit qualification | 2026-10-21 | [Scalar quality](#powertrain-scalar-quality-and-cache-limits-2026-10-21); [Current consumers and ISG](#adjacent-current-consumers-and-isg-boundary-2026-10-21) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
 | Stock Update remains unsuitable for diagnosis-only use. The historical third isolated session refused HTTP headers; a separately authorized corrected session obtained all 225 map records on 2026-10-20. Cleanup passed and that permission is consumed. Cross-reader ownership remains required; the host refuses reused working directories | live | 2026-10-20 | [Bounded observation](#bounded-observation-and-isolated-metadata-2026-10-18); [Successful metadata session](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
@@ -4847,6 +4848,35 @@ not a call to the loader. Source/cache names alone do not bind a warning ID,
 DTC code, description, DID or current ECU address. See
 [`vhds-diagnostic-trigger-path-20261021.json`](../research/vehicle-diagnostics/vhds-diagnostic-trigger-path-20261021.json)
 and [`check_vhds_diagnostic_trigger_path.py`](../research/vehicle-diagnostics/check_vhds_diagnostic_trigger_path.py).
+
+**Installed REA continuation: Binder entry bound through the constructor.**
+The earlier trigger report left the `490E0` vptr as a candidate. REA references
+now lead to `VHDS::VHDS` at corpus VA `141D0`. Original instructions at
+`1426C..14288` establish `object+8 → 490E0`; this is the IVHDS subobject.
+The library's application transaction5 uses its virtual slot `+40`, whose
+ELF relative relocation at `49120` points to `1FD40`. That eight-byte thunk
+subtracts8 from the incoming this pointer and branches to
+`VHDS::remoteOrder(int, const void*, int)` at `1B7F0`, preserving the other
+arguments. The embedded debug symbols corroborate both names. This closes
+that constructor/ABI gap; the original bounded report remains unchanged.
+
+`VHDS::publishService` at `2ACD0` constructs the object and supplies the name
+`vhds` to the service manager. This is a source registration path, not an
+observed service, successful registration or permission test. The actual
+calling client and configuration payload are still missing, and the known
+`0x100`/test-property loader gate still applies. The constructor also names
+its embedded `RemoteDiagTransferAndElecHandler` and `EdrDiagHandler` objects;
+these software classes do not identify additional physical ECUs.
+
+Six existing-binary ranges (2,316 bytes / 579 AArch64 instructions), their
+ELF relocations and loaded `.text` digest were independently checked
+against the original bytes. REA used a measured `0x100000` address delta;
+its unsupported independent ELF attestation was not treated as success.
+No firmware, Binder or vehicle operation ran. The existing installation was
+retained and this pass's empty temporary workspace removed. See
+[`rea-vhds-binder-route-20261021.json`](../research/vehicle-diagnostics/rea-vhds-binder-route-20261021.json)
+and replay with `.venv-firmware/bin/python
+research/vehicle-diagnostics/check_rea_vhds_binder_route.py`.
 
 **Sibling owner03 is not a route around the ECM response-size limit.** The
 VHDS sibling sender `3F460` uses prefix `03`, with an existing stock receiver
