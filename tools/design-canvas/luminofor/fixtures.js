@@ -541,84 +541,100 @@
     if (req) e.opens = true;
     return e;
   };
-  const unread = (name, unit, abbr, short, req) => ecu(name, unit, abbr, short, req, 'UDS', 'unread', null, null);
+  // the parked scan of 2026-10-20 19:31: all 68 answered and all 68 memories read; history in
+  // LA_BCM 8, R_ZCU 2, INS 2, Media 1, CCS/SCPA 1 and IDC 4. Names and groups are ecu/EcuCatalog.kt's
+  // after the roles of 2026-10-21 (findings, «ECU roles and reverse catalog crosswalk»).
+  const uds = (name, unit, abbr, short, req, history) => ecu(name, unit, abbr, short, req, 'UDS', history ? 'hist' : 'ok', 0, history || 0);
   const autoscan = {
-    top: scanTop(['Автоскан'], '16:31:07'),
-    counters: [['ОТВЕТИЛО', '68/68', 'white'], ['DTC АКТИВНЫХ', '0', 'white'], ['DTC В ИСТОРИИ', '10', 'text'], ['ПАМЯТЬ ПРОЧИТАНА', '19/68', 'text'], ['MIL', 'ВЫКЛ', 'text']],
+    top: scanTop(['Автоскан'], '19:31:29'),
+    counters: [['ОТВЕТИЛО', '68/68', 'white'], ['DTC АКТИВНЫХ', '0', 'white'], ['DTC В ИСТОРИИ', '18', 'text'], ['ПАМЯТЬ ПРОЧИТАНА', '68/68', 'text'], ['MIL', 'ВЫКЛ', 'text']],
     tabs: ['Список', 'Топология'],
     headUnit: ['ГУ · диагностика', '+8'],
     groups: [
       { id: 'power', title: 'СИЛОВАЯ УСТАНОВКА', short: 'Силовая', topo: 'СИЛОВАЯ', ecus: [
         ecu('ЭБУ двигателя', 'ECM · UAES', 'ECM', 'Двигатель', '7E0', 'OBD-II, UDS', 'ok', 0, 0),
-        ecu('Контроллер силовой установки', 'VCU', 'VCU', 'Силовая уст.', '7E2', 'OBD-II, UDS', 'ok'),
-        ecu('Контроллер переднего мотора', 'FMCU', 'FMCU', 'Перед. мотор', '7E3', 'UDS', 'ok', 0, 0),
-        ecu('Контроллер мотор-генератора', 'ISG', 'ISG', 'Мотор-генер.', '7E6', 'UDS', 'ok', 0, 0),
-        ecu('Система управления ВВБ', 'BMS', 'BMS', 'ВВБ', '7E7', 'UDS', 'ok', 0, 0),
-        // the factory map's routes (findings, «Complete factory map»): F194 as cached, mask 09 empty.
-        // Which rear motor each SMCU drives is not established: one name, the abbreviation tells them apart.
-        ecu('Контроллер заднего мотора', 'SMCU', 'SMCU', 'Задн. мотор', '744', 'UDS', 'ok', 0, 0),
-        ecu('Контроллер заднего мотора', 'SMCU3', 'SMCU3', 'Задн. мотор', '745', 'UDS', 'ok', 0, 0),
-        ecu('Бортовое зарядное и DC-DC', 'DCOBC', 'DCOBC', 'OBC + DC-DC', '7E4', 'UDS', 'ok', 0, 0),
+        ecu('Контроллер силовой установки', 'VCU', 'VCU', 'Силовая уст.', '7E2', 'OBD-II, UDS', 'ok', 0, 0),
+        uds('Контроллер переднего мотора', 'FMCU', 'FMCU', 'Перед. мотор', '7E3'),
+        uds('Контроллер мотор-генератора', 'ISG', 'ISG', 'Мотор-генер.', '7E6'),
+        uds('Система управления ВВБ', 'BMS', 'BMS', 'ВВБ', '7E7'),
+        // SMCU drives the left rear motor, SMCU3 the right (findings, 2026-10-21)
+        uds('Контроллер заднего левого мотора', 'SMCU', 'SMCU', 'Задн. левый', '744'),
+        uds('Контроллер заднего правого мотора', 'SMCU3', 'SMCU3', 'Задн. правый', '745'),
+        uds('Бортовое зарядное и DC-DC', 'DCOBC', 'DCOBC', 'OBC + DC-DC', '7E4'),
+        uds('Контроллер силового домена', 'PDC-VCU', 'PDC-VCU', 'Силовой домен', '743'),
       ] },
       { id: 'chassis', title: 'ШАССИ И БЕЗОПАСНОСТЬ', short: 'Шасси', topo: 'ШАССИ', ecus: [
-        ecu('Тормозная система, стабилизация', 'ESP/IPB · Bosch', 'ESP/IPB', 'Тормоза, ESP', '782', 'UDS', 'ok', 0, 0),
+        uds('Тормозная система, стабилизация', 'ESP/IPB · Bosch', 'ESP/IPB', 'Тормоза, ESP', '782'),
         ecu('Тормозная система · интерфейс OBD', 'BSCM', 'BSCM', 'Тормоза · OBD', '7E5', 'OBD-II', 'ok', 0, '—'),
-        ecu('Электроусилитель руля', 'EPS', 'EPS', 'Рулевое', '783', 'UDS', 'ok'),
-        ecu('Подушки безопасности', 'SRS · Veoneer', 'SRS', 'Подушки', '7F1', 'UDS', 'ok'),
+        uds('Электроусилитель руля', 'EPS', 'EPS', 'Рулевое', '783'),
+        uds('Подушки безопасности', 'SRS · Veoneer', 'SRS', 'Подушки', '7F1'),
+        uds('Натяжитель ремня пассажира', 'MSRF', 'MSRF', 'Ремень пасс.', '713'),
+        uds('Натяжитель ремня водителя', 'MSRZ', 'MSRZ', 'Ремень вод.', '742'),
+        uds('Подруливание задних колёс, левое', 'RWS-L', 'RWS-L', 'Задн. руль Л', '582'),
+        uds('Подруливание задних колёс, правое', 'RWS-R', 'RWS-R', 'Задн. руль П', '796'),
+        uds('Контроллер движения кузова', 'IDC', 'IDC', 'Подвеска', '597', 4),
       ] },
       { id: 'assist', title: 'АССИСТЕНТЫ ВОДИТЕЛЯ', short: 'Ассистенты', topo: 'АССИСТЕНТЫ', ecus: [
-        ecu('Контроллер ассистентов', 'ADC', 'ADC', 'Ассистенты', '712', 'UDS', 'ok', 0, 0),
-        ecu('Радар передний', 'MRR', 'MRR', 'Радар перед.', '7F2', 'UDS', 'ok', 0, 0),
-        unread('Угловой радар передний левый', 'LFCR', 'LFCR', 'Радар ПЛ', '760'),
-        unread('Угловой радар передний правый', 'RFCR', 'RFCR', 'Радар ПП', '761'),
-        unread('Угловой радар задний правый', 'RRCR', 'RRCR', 'Радар ЗП', '7C2'),
-        unread('Угловой радар задний левый', 'LRCR', 'LRCR', 'Радар ЗЛ', '7D4'),
-        unread('Парковочный ассистент', 'IPA · Bosch', 'IPA', 'Парковка', '701'),
+        uds('Контроллер ассистентов', 'ADC', 'ADC', 'Ассистенты', '712'),
+        uds('Радар передний', 'MRR', 'MRR', 'Радар перед.', '7F2'),
+        uds('Угловой радар передний левый', 'LFCR', 'LFCR', 'Радар ПЛ', '760'),
+        uds('Угловой радар передний правый', 'RFCR', 'RFCR', 'Радар ПП', '761'),
+        uds('Угловой радар задний правый', 'RRCR', 'RRCR', 'Радар ЗП', '7C2'),
+        uds('Угловой радар задний левый', 'LRCR', 'LRCR', 'Радар ЗЛ', '7D4'),
+        uds('Парковочный ассистент', 'IPA · Bosch', 'IPA', 'Парковка', '701'),
       ] },
       { id: 'body', title: 'КУЗОВ', short: 'Кузов', topo: 'КУЗОВ', ecus: [
-        ecu('Кузовной контроллер левый', 'LA_BCM', 'LA_BCM', 'Кузов слева', '720', 'UDS', 'hist', 0, 8),
-        ecu('Кузов, зона справа', 'R_ZCU', 'R_ZCU', 'Зона справа', '747', 'UDS', 'hist', 0, 2),
-        ecu('Кузов, зона спереди', 'F_ZCU', 'F_ZCU', 'Зона спереди', '722', 'UDS', 'ok'),
-        ecu('Кузов, зона сзади', 'B_ZCU', 'B_ZCU', 'Зона сзади', '726', 'UDS', 'ok'),
-        unread('Фара левая', 'FL_L', 'FL_L', 'Фара Л', '770'),
-        unread('Фара правая', 'FL_R', 'FL_R', 'Фара П', '771'),
-        // the UWB key and its four anchors: factory-map candidates that answered F194 (ecu/EcuCatalog.kt)
-        unread('Цифровой ключ UWB', 'UWBMC', 'UWBMC', 'UWB-ключ', '7F3'),
-        unread('Антенна UWB передняя левая', 'UWBLFA', 'UWBLFA', 'UWB ПЛ', '7F4'),
-        unread('Антенна UWB передняя правая', 'UWBRFA', 'UWBRFA', 'UWB ПП', '7F5'),
-        unread('Антенна UWB задняя левая', 'UWBLRA', 'UWBLRA', 'UWB ЗЛ', '7F6'),
-        unread('Антенна UWB задняя правая', 'UWBRRA', 'UWBRRA', 'UWB ЗП', '7F7'),
+        uds('Кузовной контроллер левый', 'LA_BCM', 'LA_BCM', 'Кузов слева', '720', 8),
+        uds('Кузов, зона справа', 'R_ZCU', 'R_ZCU', 'Зона справа', '747', 2),
+        uds('Кузов, зона спереди', 'F_ZCU', 'F_ZCU', 'Зона спереди', '722'),
+        uds('Кузов, зона сзади', 'B_ZCU', 'B_ZCU', 'Зона сзади', '726'),
+        uds('Фара левая', 'FL_L', 'FL_L', 'Фара Л', '770'),
+        uds('Фара правая', 'FL_R', 'FL_R', 'Фара П', '771'),
+        uds('Цифровой ключ UWB', 'UWBMC', 'UWBMC', 'UWB-ключ', '7F3'),
+        uds('Антенна UWB передняя левая', 'UWBLFA', 'UWBLFA', 'UWB ПЛ', '7F4'),
+        uds('Антенна UWB передняя правая', 'UWBRFA', 'UWBRFA', 'UWB ПП', '7F5'),
+        uds('Антенна UWB задняя левая', 'UWBLRA', 'UWBLRA', 'UWB ЗЛ', '7F6'),
+        uds('Антенна UWB задняя правая', 'UWBRRA', 'UWBRRA', 'UWB ЗП', '7F7'),
+        uds('Проекция у двери багажника', 'PDCMB', 'PDCMB', 'Проекция багажн.', '724'),
+        uds('Приёмник радиоключа', 'HFRM', 'HFRM', 'Радиоключ', '754'),
+        uds('Бесключевой доступ', 'SEC', 'SEC', 'Бескл. доступ', '7D6'),
+        uds('NFC правый', 'R-NCM', 'R-NCM', 'NFC правый', '595'),
+        uds('Радар двери задней правой', 'RR_SDR', 'RR_SDR', 'Радар ЗП', '5A7'),
+        uds('Радар двери задней левой', 'RL_SDR', 'RL_SDR', 'Радар ЗЛ', '5B0'),
+        uds('Радар двери передней правой', 'FR_SDR', 'FR_SDR', 'Радар ПП', '5B1'),
+        uds('Радар двери передней левой', 'FL_SDR', 'FL_SDR', 'Радар ПЛ', '5B2'),
       ] },
-      // in ecu/EcuCatalog.kt's order and words: 741 and 5E7 are the head unit's and the passenger
-      // computer's own MCUs; HUD, ETC and CPD answered F194 from the factory map.
+      // 741 and 5E7 are the head unit's and the passenger computer's own MCUs
       { id: 'salon', title: 'САЛОН', short: 'Салон', topo: 'САЛОН', ecus: [
-        unread('Комбинация приборов', 'INS', 'INS', 'Приборы', '723'),
-        unread('Усилитель звука', 'AMP', 'AMP', 'Усилитель', '751'),
-        unread('Беспроводная зарядка', 'WCT', 'WCT', 'Беспр. ЗУ', '733'),
-        unread('Кнопки руля', 'SWS', 'SWS', 'Кнопки руля', '711'),
-        unread('Головное устройство (MCU)', 'Media', 'Media', 'ГУ · MCU', '741'),
-        unread('Пассажирский компьютер (MCU)', 'ASSY', 'ASSY', 'Пасс. ПК · MCU', '5E7'),
-        unread('Проекционный дисплей', 'HUD', 'HUD', 'HUD', '7B0'),
-        unread('Модуль оплаты проезда (ETC)', 'ETC', 'ETC', 'ETC', '790'),
-        unread('Радар присутствия детей, задний', 'CPD', 'CPD', 'Радар детей', '5E0'),
+        uds('Комбинация приборов', 'INS', 'INS', 'Приборы', '723', 2),
+        uds('Усилитель звука', 'AMP', 'AMP', 'Усилитель', '751'),
+        uds('Беспроводная зарядка', 'WCT', 'WCT', 'Беспр. ЗУ', '733'),
+        uds('Кнопки руля', 'SWS', 'SWS', 'Кнопки руля', '711'),
+        uds('Головное устройство (MCU)', 'Media', 'Media', 'ГУ · MCU', '741', 1),
+        uds('Пассажирский компьютер (MCU)', 'ASSY', 'ASSY', 'Пасс. ПК · MCU', '5E7'),
+        uds('Проекционный дисплей', 'HUD', 'HUD', 'HUD', '7B0'),
+        uds('Модуль оплаты проезда (ETC)', 'ETC', 'ETC', 'ETC', '790'),
+        uds('Радар присутствия детей, задний', 'CPD', 'CPD', 'Радар детей', '5E0'),
+        uds('Подрулевые переключатели', 'CS', 'CS', 'Подрулевые', '725'),
+        uds('Блок водителя', 'DUCU', 'DUCU', 'Блок вод.', '750'),
+        uds('Блок пассажира', 'PUCU', 'PUCU', 'Блок пасс.', '7B5'),
+        uds('Блок среднего ряда слева', 'MLUCU', 'MLUCU', 'Ср. ряд Л', '7D2'),
+        uds('Панель селектора передач', 'CCS/SCPA', 'CCS/SCPA', 'Селектор', '7A7', 1),
+        uds('Панель заднего холодильника', 'RRCP', 'RRCP', 'Холод. зад.', '7C6'),
+        uds('Холодильник', 'VR', 'VR', 'Холодильник', '5A0'),
+        uds('Пульт среднего ряда', 'MCPA', 'MCPA', 'Пульт ср. ряда', '5E4'),
+        uds('Панель холодильника', 'RCP', 'RCP', 'Холод. панель', '5F4'),
+        uds('Передний плафон', 'FRL', 'FRL', 'Плафон пер.', '772'),
       ] },
       { id: 'climate', title: 'КЛИМАТ И ТЕРМОРЕГУЛИРОВАНИЕ', short: 'Климат', topo: 'КЛИМАТ', ecus: [
-        unread('Климат-контроль', 'ACC', 'ACC', 'Климат', '7B3'),
-        unread('Модуль терморегулирования', 'TMIM · Tuopu', 'TMIM', 'Терморег.', '7B4'),
-        unread('Высоковольтный нагреватель', 'PTC · HGTECH', 'PTC', 'Нагреватель', '766'),
+        uds('Климат-контроль', 'ACC', 'ACC', 'Климат', '7B3'),
+        uds('Модуль терморегулирования', 'TMIM · Tuopu', 'TMIM', 'Терморег.', '7B4'),
+        uds('Высоковольтный нагреватель', 'PTC · HGTECH', 'PTC', 'Нагреватель', '766'),
+        uds('Датчик качества воздуха', 'AQDM', 'AQDM', 'Кач. воздуха', '590'),
       ] },
       { id: 'lv', title: 'ЭЛЕКТРОСЕТЬ 12 В', short: '12 В', topo: '12 В', ecus: [
-        ecu('АКБ 12 В', 'LBMS', 'LBMS', 'АКБ 12 В', '762', 'UDS', 'ok'),
+        uds('АКБ 12 В', 'LBMS', 'LBMS', 'АКБ 12 В', '762'),
       ] },
-      { id: 'misc', title: 'НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО', short: 'Прочие', topo: 'НАЗНАЧЕНИЕ НЕ УСТАНОВЛЕНО', ecus: [
-        ['PDC-VCU', '743', '4.17.18'], ['PDCMB', '724', '4.02.03'], ['CS', '725', '4.00.04'], ['MSRF', '713', '4.00.08'], ['MSRZ', '742', '4.00.08'],
-        ['DUCU', '750', '4.00.11'], ['PUCU', '7B5', '4.00.10'], ['MLUCU', '7D2', '4.00.08'], ['HFRM', '754', '4.00.01'], ['CCS/SCPA', '7A7', '4.00.06'],
-        ['RRCP', '7C6', '4.00.04'], ['SEC', '7D6', '1.11.36'],
-        ['RWS-L', '582', '4.00.08'], ['RWS-R', '796', '4.00.08'], ['AQDM', '590', '3.00.08'], ['R-NCM', '595', '1.00.09'],
-        ['IDC', '597', '3.01.18'], ['VR', '5A0', '2.00.05'], ['RR_SDR', '5A7', '4.00.07'], ['RL_SDR', '5B0', '4.00.07'],
-        ['FR_SDR', '5B1', '4.00.07'], ['FL_SDR', '5B2', '4.00.07'], ['MCPA', '5E4', '3.00.10'], ['RCP', '5F4', '4.00.04'],
-        ['FRL', '772', '4.00.01'],
-      ].map(([abbr, req, soft]) => unread('Блок ' + req, abbr, abbr, 'ПО ' + soft, req)) },
     ],
   };
 
@@ -757,7 +773,7 @@
 
   // the drives side by side
   const drivesSide = {
-    units: [['FMCU · 7E3', 'передний'], ['SMCU · 744', 'задний'], ['SMCU3 · 745', 'задний'], ['ISG · 7E6', 'мотор-генератор']],
+    units: [['FMCU · 7E3', 'передний'], ['SMCU · 744', 'задний левый'], ['SMCU3 · 745', 'задний правый'], ['ISG · 7E6', 'мотор-генератор']],
     // [parameter, signals, unit, [front, rear left, rear right, motor-generator]]
     rows: [
       ['Температура статора', '1039·46406018 · Л 285001A8 · П 285001B0', '°C', ['8', '7', '7', '—']],
@@ -784,18 +800,18 @@
     units: [
       { abbr: 'FMCU', addr: '7E3', name: 'Инвертор передний', kind: 'ok', state: 'OK · IPM 9 °C' },
       { abbr: 'ISG', addr: '7E6', name: 'Мотор-генератор', kind: 'ok', state: 'OK · DTC 0' },
-      { abbr: 'SMCU', addr: '744', name: 'Инвертор задний', kind: 'ok', state: 'OK · DTC 0' },
-      { abbr: 'SMCU3', addr: '745', name: 'Инвертор задний', kind: 'ok', state: 'OK · DTC 0' },
+      { abbr: 'SMCU', addr: '744', name: 'Инвертор задний левый', kind: 'ok', state: 'OK · DTC 0' },
+      { abbr: 'SMCU3', addr: '745', name: 'Инвертор задний правый', kind: 'ok', state: 'OK · DTC 0' },
       { abbr: 'ECM', addr: '7E0', name: 'ДВС', kind: 'ok', state: 'OK · MIL ВЫКЛ' },
-      { abbr: 'PTC', addr: '766', name: 'Нагреватель ВВ', kind: 'unread', state: 'ошибки не читали' },
+      { abbr: 'PTC', addr: '766', name: 'Нагреватель ВВ', kind: 'ok', state: 'OK · DTC 0' },
       { abbr: 'DCOBC', addr: '7E4', name: 'Зарядное + DC-DC', kind: 'ok', state: 'OK · DTC 0' },
       { abbr: 'LBMS', addr: '762', name: 'АКБ 12 В · 13,7 В', kind: 'ok', state: 'OK · DTC 0' },
     ],
     machines: [
       { name: 'Передний мотор', values: 'статор 8 °C · 0 об/мин · 0 Н·м', live: true },
       { name: 'ДВС не работает', values: '0 об/мин · ОЖ 9 °C' },
-      { name: 'Задний мотор левый', values: 'статор 7 °C · н/д об/мин · 0 Н·м' },
-      { name: 'Задний мотор правый', values: 'статор 7 °C · 0 об/мин · 0 Н·м' },
+      { name: 'Задний мотор левый', values: 'статор 7 °C · н/д об/мин · 0 Н·м', live: true },
+      { name: 'Задний мотор правый', values: 'статор 7 °C · 0 об/мин · 0 Н·м', live: true },
     ],
   };
 
@@ -811,12 +827,13 @@
     footer: { buttons: [['‹ Шасси', 'quiet'], ['Прочитать DTC', 'primary']], notes: [['19 01 09 · 19 02 09', true]] },
   };
 
-  // read 2026-10-20; cache versions from the update cache. shared: the four corner radars' one answer.
+  // read 2026-10-20 (the parked scan of 19:31 for the memories); cache versions from the update
+  // cache. shared: the four corner radars' one answer.
   const cellA = (t, o) => Object.assign({ t }, o || {});
   const four = (t, o) => [0, 1, 2, 3].map(() => cellA(t, o));
   const adasSide = {
-    units: [['ADC', 'Контроллер ADAS', true], ['MRR', 'Радар передний', true], ['LFCR', 'Угловой ПЛ', false], ['RFCR', 'Угловой ПП', false],
-      ['RRCR', 'Угловой ЗП', false], ['LRCR', 'Угловой ЗЛ', false], ['IPA', 'Парковка', false]],
+    units: [['ADC', 'Контроллер ADAS', true], ['MRR', 'Радар передний', true], ['LFCR', 'Угловой ПЛ', true], ['RFCR', 'Угловой ПП', true],
+      ['RRCR', 'Угловой ЗП', true], ['LRCR', 'Угловой ЗЛ', true], ['IPA', 'Парковка', true]],
     rows: [
       { name: 'Запрос → ответ', cells: ['712 → 71A', '7F2 → 7FA', '760 → 768', '761 → 769', '7C2 → 7CA', '7D4 → 7DC', '701 → 709'].map(t => cellA(t, { ink: 'dim', size: 13 })) },
       { name: 'Номер ПО · F194', cells: [cellA('48450011DF83000000', { size: 11 }), cellA('474E0011DF70000000', { size: 11 }),
@@ -826,9 +843,9 @@
       { name: 'Версия ПО · кэш', cells: [cellA('4.14.07'), cellA('4.00.05'), ...four('4.00.12', { shared: true }), cellA('4.00.09')] },
       { name: 'Положение', cells: ['—', 'перед', 'ПЛ', 'ПП', 'ЗП', 'ЗЛ', '—'].map(t => cellA(t)) },
       { name: 'Связь', cells: [cellA('CAN · DoIP', { ink: 'orangeInk' }), cellA('CAN'), ...four('CAN'), cellA('CAN')] },
-      { name: 'Доступность DTC', cells: [cellA('09'), cellA('09'), ...four('—'), cellA('—')] },
-      { name: 'Формат DTC', cells: [cellA('01 · не SAE', { ink: 'orangeInk', size: 13 }), cellA('00 · SAE', { size: 13 }), ...four('—'), cellA('—')] },
-      { name: 'DTC · маска 09', cells: [cellA('0', { size: 16 }), cellA('0', { size: 16 }), ...four('не читали', { size: 12.5 }), cellA('не читали', { size: 12.5 })] },
+      { name: 'Доступность DTC', cells: [cellA('09'), cellA('09'), ...four('29', { shared: true }), cellA('09')] },
+      { name: 'Формат DTC', cells: [cellA('01 · не SAE', { ink: 'orangeInk', size: 13 }), cellA('00 · SAE', { size: 13 }), ...four('00 · SAE', { size: 13, shared: true }), cellA('00 · SAE', { size: 13 })] },
+      { name: 'DTC · маска 09', cells: [cellA('0', { size: 16 }), cellA('0', { size: 16 }), ...four('0', { size: 16 }), cellA('0', { size: 16 })] },
     ],
   };
   const scanner = screen => ({ kind: 'scanner', mode: 'full', screen });
@@ -839,16 +856,16 @@
   const sysRail = active => ({ active, items: [
     { name: 'Автоскан', mark: ['68/68', 'faint'] }, '|',
     { name: 'ВВ-система' }, { name: 'Тяговая батарея' }, { name: 'Электропривод' }, { name: 'Двигатель' },
-    { name: 'Шасси' }, { name: 'Безопасность' }, { name: 'Ассистенты' },
-    { name: 'Кузов', mark: ['ИСТ 10', 'ink4'] }, { name: 'Салон' }, { name: 'Климат' }, { name: 'Сеть 12 В' }, { name: 'Прочие блоки' },
+    { name: 'Шасси', mark: ['ИСТ 4', 'ink4'] }, { name: 'Безопасность' }, { name: 'Ассистенты' },
+    { name: 'Кузов', mark: ['ИСТ 10', 'ink4'] }, { name: 'Салон', mark: ['ИСТ 4', 'ink4'] }, { name: 'Климат' }, { name: 'Сеть 12 В' },
   ] });
   const sysTop = (crumb, time, car) => scanTop([crumb], time, car);
 
   const scannerSysScan = Object.assign({}, autoscan, {
-    top: sysTop('Автоскан', '16:31:07'),
+    top: sysTop('Автоскан', '19:31:29'),
     rail: sysRail('Автоскан'),
-    block: { title: 'Автоскан', aside: '· 68 блоков', line: 'опрос 16:31 · маска DTC 09',
-      counters: [['ОТВЕТИЛО', '68/68'], ['DTC АКТ.', '0'], ['DTC ИСТ.', '10'], ['ПРОЧИТАНО', '19/68']] },
+    block: { title: 'Автоскан', aside: '· 68 блоков', line: 'опрос 19:31 · маска DTC 09',
+      counters: [['ОТВЕТИЛО', '68/68'], ['DTC АКТ.', '0'], ['DTC ИСТ.', '18'], ['ПРОЧИТАНО', '68/68']] },
     tabs: { items: ['Список', 'Топология'], active: 0 },
     footer: { buttons: [['Опросить снова', 'primary'], ['Только с DTC', 'quiet']] },
   });
@@ -881,8 +898,9 @@
   const scannerSysBody = {
     top: sysTop('Кузов', '19:31:29'),
     rail: sysRail('Кузов'),
-    block: { title: 'Кузов', aside: '· 11 блоков', line: 'LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны',
-      counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '10'], ['ПРОЧИТАНО', '11/11']] },
+    block: { title: 'Кузов', aside: '· 19 блоков', line: 'LA_BCM 720 · R_ZCU 747 · F_ZCU 722 · B_ZCU 726 · фары 770 771 · UWB-ключ 7F3 и 4 антенны · ' +
+      'радары дверей 5B2 5B1 5B0 5A7 · HFRM 754 · SEC 7D6 · R-NCM 595 · PDCMB 724',
+      counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '10'], ['ПРОЧИТАНО', '19/19']] },
     tabs: { items: ['Состояние', 'DTC', 'Блоки'], active: 1 },
     codes: [
       bodyCode('LA_BCM', '720', 'C1160-06', '06', 'Отказ по алгоритму', 'Шасси · код производителя (C1xxx)'),
@@ -904,8 +922,8 @@
   const sysTabs = active => ({ items: ['Состояние', 'DTC', 'Блоки'], active });
   const scannerSysChassis = {
     top: sysTop('Шасси', '19:31:29'), rail: sysRail('Шасси'),
-    block: { title: 'Шасси', aside: '· 3 блока', line: 'ESP/IPB 782 · BSCM 7E5 · EPS 783 · шины: давление 1016, температура 1007',
-      counters: [['ДАВЛЕНИЕ', '2,60–2,72'], ['DTC', '0'], ['ПРОЧИТАНО', '3/3']] },
+    block: { title: 'Шасси', aside: '· 6 блоков', line: 'ESP/IPB 782 · BSCM 7E5 · EPS 783 · RWS-L 582 · RWS-R 796 · IDC 597 · шины: давление 1016, температура 1007',
+      counters: [['ДАВЛЕНИЕ', '2,60–2,72'], ['DTC', '4'], ['ПРОЧИТАНО', '6/6']] },
     tabs: sysTabs(0),
     tyres: [
       { side: 'L', axle: 'F', label: 'ШИНА ПЛ', pressure: '2,72', temp: '19 °C' },
@@ -913,7 +931,8 @@
       { side: 'L', axle: 'R', label: 'ШИНА ЗЛ', pressure: '2,70', temp: '17 °C' },
       { side: 'R', axle: 'R', label: 'ШИНА ЗП', pressure: '2,62', temp: '8 °C' },
     ],
-    units: { esp: u('ESP/IPB', '782', 'Тормоза, ESP'), eps: u('EPS', '783', 'Рулевое'), bscm: u('BSCM', '7E5', 'Тормоза · OBD') },
+    units: { esp: u('ESP/IPB', '782', 'Тормоза, ESP'), eps: u('EPS', '783', 'Рулевое'), bscm: u('BSCM', '7E5', 'Тормоза · OBD'),
+      rwsL: u('RWS-L', '582', 'Задн. руль Л'), rwsR: u('RWS-R', '796', 'Задн. руль П'), idc: u('IDC', '597', 'Подвеска', 'hist', 4) },
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
   };
   const door = (side, axle, label) => ({ side, axle, label, state: 'закрыта', detail: 'не заперта · окно 0 %' });
@@ -926,7 +945,10 @@
       uwb: u('UWBMC', '7F3', 'UWB-ключ'), front: u('F_ZCU', '722', 'Зона спереди'), back: u('B_ZCU', '726', 'Зона сзади'),
       lampL: u('FL_L', '770', 'Фара Л'), lampR: u('FL_R', '771', 'Фара П'),
       left: u('LA_BCM', '720', 'Кузов слева', 'hist', 8), right: u('R_ZCU', '747', 'Зона справа', 'hist', 2),
+      hfrm: u('HFRM', '754', 'Радиоключ'), sec: u('SEC', '7D6', 'Бескл. доступ'), nfc: u('R-NCM', '595', 'NFC правый'),
+      tailgate: u('PDCMB', '724', 'Проекция багажн.'),
     },
+    doorRadars: { fl: u('FL_SDR', '5B2', 'Радар ПЛ'), fr: u('FR_SDR', '5B1', 'Радар ПП'), rl: u('RL_SDR', '5B0', 'Радар ЗЛ'), rr: u('RR_SDR', '5A7', 'Радар ЗП') },
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
   };
   const scannerSysAdas = {
@@ -942,15 +964,14 @@
   };
   const scannerSysDrives = {
     top: sysTop('Электропривод', '19:31:29'), rail: sysRail('Электропривод'),
-    block: { title: 'Электропривод', aside: '· 5 блоков', line: 'VCU 7E2 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6',
+    block: { title: 'Электропривод', aside: '· 6 блоков', line: 'VCU 7E2 · PDC-VCU 743 · FMCU 7E3 · SMCU 744 · SMCU3 745 · ISG 7E6',
       counters: [['ШИНА ПЕРЕД', '555 В'], ['ШИНА ЗАД', '556 В'], ['DTC', '0']] },
     tabs: { items: ['Состояние', 'Сравнение', 'DTC', 'Блоки'], active: 0 },
-    units: { vcu: u('VCU', '7E2', 'Силовая установка') },
-    rearBlocks: 'SMCU 744 · SMCU3 745',
+    units: { vcu: u('VCU', '7E2', 'Силовая установка'), pdc: u('PDC-VCU', '743', 'Силовой домен') },
     front: { label: 'ПЕРЕДНИЙ МОТОР · FMCU 7E3', rows: ['статор 8 °C · IGBT 9 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
     isg: { label: 'МОТОР-ГЕНЕРАТОР · ISG 7E6', rows: ['DTC 0 · ПО 9D79190A1E0D', 'ДВС не работает'] },
-    rearLeft: { label: 'ЗАДНИЙ ЛЕВЫЙ', rows: ['статор 7 °C · IGBT 5 °C', 'н/д об/мин · 0,0 Н·м · 0,0 А'] },
-    rearRight: { label: 'ЗАДНИЙ ПРАВЫЙ', rows: ['статор 7 °C · IGBT 5 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
+    rearLeft: { label: 'ЗАДНИЙ ЛЕВЫЙ · SMCU 744', rows: ['статор 7 °C · IGBT 5 °C', 'н/д об/мин · 0,0 Н·м · 0,0 А'] },
+    rearRight: { label: 'ЗАДНИЙ ПРАВЫЙ · SMCU3 745', rows: ['статор 7 °C · IGBT 5 °C', '0 об/мин · 0,0 Н·м · 0,0 А'] },
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
   };
 
@@ -992,12 +1013,13 @@
   };
   const scannerSysClimate = {
     top: sysTop('Климат', '19:31:29'), rail: sysRail('Климат'),
-    block: { title: 'Климат', aside: '· 3 блока', line: 'ACC 7B3 · TMIM 7B4 · PTC 766 · температуры 1000 · PM2.5 1008',
+    block: { title: 'Климат', aside: '· 4 блока', line: 'ACC 7B3 · TMIM 7B4 · PTC 766 · AQDM 590 · температуры 1000 · PM2.5 1008',
       counters: [['САЛОН', '21 °C'], ['УЛИЦА', '12 °C'], ['DTC', '0']] },
     tabs: sysTabs(0),
     outside: { label: 'УЛИЦА', temp: '12 °C', pm: '18' },
     cabin: { label: 'САЛОН', temp: '21 °C', pm: '5', inside: true },
-    units: { acc: u('ACC', '7B3', 'Климат-контроль'), ptc: u('PTC', '766', 'Нагреватель ВВ'), tmim: u('TMIM', '7B4', 'Терморегул.') },
+    units: { acc: u('ACC', '7B3', 'Климат-контроль'), ptc: u('PTC', '766', 'Нагреватель ВВ'), tmim: u('TMIM', '7B4', 'Терморегул.'),
+      aqdm: u('AQDM', '590', 'Кач. воздуха') },
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
   };
   const scannerSysLv = {
@@ -1014,6 +1036,16 @@
   // The tabs a board above shows only one of, from the same parked snapshot.
   const snapshot = { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] };
   const codesFooter = { buttons: [['Прочитать DTC', 'primary']], notes: [['19 01 09 · 19 02 09 · снимок 19:31:29', true]] };
+  // the airbags and the belts: the scheme is the blocks, so its footer reads their memories
+  const scannerSysSafety = {
+    top: sysTop('Безопасность', '19:31:29'), rail: sysRail('Безопасность'),
+    block: { title: 'Безопасность', aside: '· 4 блока', line: 'SRS 7F1 · MSRZ 742 · MSRF 713 · CPD 5E0',
+      counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '0'], ['ПРОЧИТАНО', '4/4']] },
+    tabs: sysTabs(0),
+    units: { srs: u('SRS', '7F1', 'Подушки'), driverBelt: u('MSRZ', '742', 'Ремень вод.'), passengerBelt: u('MSRF', '713', 'Ремень пасс.'),
+      cpd: u('CPD', '5E0', 'Радар детей') },
+    footer: codesFooter,
+  };
   const scannerSysBodyBlocks = {
     top: sysTop('Кузов', '19:31:29'), rail: sysRail('Кузов'), block: scannerSysBody.block, tabs: sysTabs(2),
     ecus: autoscan.groups.find(g => g.id === 'body').ecus,
@@ -1174,6 +1206,7 @@
     'scanner-sys-body-state': [scanner('sysBodyState'), scannerSysBodyState],
     'scanner-sys-adas':  [scanner('sysAdas'), scannerSysAdas],
     'scanner-sys-drives': [scanner('sysDrives'), scannerSysDrives],
+    'scanner-sys-safety': [scanner('sysSafety'), scannerSysSafety],
     'scanner-sys-hv':    [scanner('sysHv'), scannerSysHv],
     'scanner-sys-pack':  [scanner('sysPack'), scannerSysPack],
     'scanner-sys-engine-scheme': [scanner('sysEngineScheme'), scannerSysEngineScheme],

@@ -544,7 +544,18 @@
     glyphs(c, glyph, x - measure(c, glyph, s) / 2, y + 5, s, live ? 'text' : 'dim');
   }
 
-  // Шасси: the wheels' tyres at their corners, the brake and steering blocks where they sit.
+  // A tile hung on the car: its leader from the tile's near side to a point on the car - straight
+  // when the point is level with the tile's middle, bent half way otherwise - a dot at the end.
+  function hang(c, e, x, y, to, cx) {
+    if (!e) return;
+    const T = L.topology.tile, near = x < cx ? x + T.w : x, my = y + T.h / 2;
+    stroke(c, to[1] === my ? `M${near} ${my}H${to[0]}` : `M${near} ${my}H${(near + to[0]) / 2}V${to[1]}H${to[0]}`, 'wire4', 1.2);
+    dot(c, to[0], to[1], L.callout.dot, 'wire5');
+    unitTile(c, x, y, e);
+  }
+
+  // Шасси: the wheels' tyres at their corners, the brake and steering blocks where they sit, the
+  // rear wheels' steering under their tyres, the motion controller in the middle.
   function sysChassis(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
@@ -565,16 +576,23 @@
       const by = K.y0 + 22 + T.h / 2, top = L.content.top;
       stroke(c, `M${lx + T.w} ${top + T.h / 2}H${(lx + T.w + cx - T.w / 2) / 2}V${by}H${cx - T.w / 2}`, 'wire4', 1.2, [4, 3]);
       unitTile(c, lx, top, f.units.bscm);
+      const S = L.chassisScheme;
+      hang(c, f.units.rwsL, lx, K.rear + S.steerDrop, [K.x0, K.rear + S.steerAt], cx);
+      hang(c, f.units.rwsR, W - lx - T.w, K.rear + S.steerDrop, [K.x0 + K.w, K.rear + S.steerAt], cx);
+      if (f.units.idc) unitTile(c, cx - T.w / 2, K.mid - T.h / 2, f.units.idc);
     });
   }
 
   // Кузов: doors, locks and windows on the body; the zone controllers and lights where they sit;
-  // the UWB key with its four anchors.
+  // the key - its RF receiver, UWB with its four anchors, keyless entry - in the middle; each
+  // door's radar beside its door, the right NFC reader at the right B-pillar, the tailgate's
+  // projection at the tail. The plates stand at the edges; the radars and the reader in the gaps
+  // between the plates and the car.
   function sysBodyState(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
-      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, T = L.topology.tile;
-      const D = L.car.doors, lx = O.leftX, rx = W - O.leftX - O.w;
+      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), O = L.callout, T = L.topology.tile, B = L.bodyScheme;
+      const D = L.car.doors, lx = B.x, rx = W - B.x - O.w;
       // the doors as heavy strokes on the sides: closed lies on the body, open would swing out
       f.doors.forEach(d => {
         const left = d.side === 'L', x = left ? K.x0 : K.x0 + K.w;
@@ -584,25 +602,41 @@
         const h = 2 * O.padY + style('counterLabel').lh + style('cell').lh + style('cellSmall').lh + 2 * O.gap;
         callout(c, left ? lx : rx, K.y0 + (a + b) / 2 - h / 2, O.w, rows, 'ok', [x, K.y0 + (a + b) / 2]);
       });
-      // UWB anchors at the corners, the key module in the middle, radio as dashed lines
+      // UWB anchors at the corners, the key's three modules in the middle, radio as dashed lines
       const U = L.car.anchors, ux = cx - T.w / 2, uy = K.mid - T.h / 2;
       [[K.x0 + U[0], K.y0 + U[1]], [K.x0 + K.w - U[0], K.y0 + U[1]], [K.x0 + U[0], K.y0 + K.h - U[1]], [K.x0 + K.w - U[0], K.y0 + K.h - U[1]]].forEach(([x, y]) => {
         stroke(c, `M${x} ${y}L${cx} ${K.mid}`, 'line3', 1, [3, 3]);
         dot(c, x, y, 4, 'blue');
       });
+      if (f.units.hfrm) unitTile(c, ux, uy - T.pitch, f.units.hfrm);
       unitTile(c, ux, uy, f.units.uwb);
+      if (f.units.sec) unitTile(c, ux, uy + T.pitch, f.units.sec);
       unitTile(c, cx - T.w / 2, K.y0 + 22, f.units.front);
       unitTile(c, cx - T.w / 2, K.y0 + K.h - 22 - T.h, f.units.back);
-      // the left and right body domains and the headlamps, beside the car
+      // the left and right body domains and the headlamps at the edges
+      const tr = W - B.x - T.w;
       const side = (e, x, y, to) => {
         stroke(c, `M${x < cx ? x + T.w : x} ${y + T.h / 2}H${to[0]}V${to[1]}`, 'wire4', 1.2);
         dot(c, to[0], to[1], O.dot, 'wire5');
         unitTile(c, x, y, e);
       };
       side(f.units.lampL, lx, L.content.top, [K.x0 + 26, K.y0 + 14]);
-      side(f.units.lampR, W - lx - T.w, L.content.top, [K.x0 + K.w - 26, K.y0 + 14]);
-      side(f.units.left, lx, K.y0 + L.car.domainY, [K.x0, K.y0 + L.car.domainY + T.h / 2]);
-      side(f.units.right, W - lx - T.w, K.y0 + L.car.domainY, [K.x0 + K.w, K.y0 + L.car.domainY + T.h / 2]);
+      side(f.units.lampR, tr, L.content.top, [K.x0 + K.w - 26, K.y0 + 14]);
+      side(f.units.left, lx, K.y0 + B.domainTop, [K.x0, K.y0 + B.domainTop + T.h / 2]);
+      side(f.units.right, tr, K.y0 + B.domainTop, [K.x0 + K.w, K.y0 + B.domainTop + T.h / 2]);
+      // the gaps between the plates and the car: each door's radar - the front ones over the
+      // door's leader, the rear ones under it - and the NFC reader at the B-pillar
+      const gl = (lx + O.w + K.x0) / 2 - T.w / 2, gr = (K.x0 + K.w + rx) / 2 - T.w / 2;
+      const R = f.doorRadars || {};
+      hang(c, R.fl, gl, K.y0 + B.radarFront - T.h / 2, [K.x0, K.y0 + B.radarFront], cx);
+      hang(c, R.fr, gr, K.y0 + B.radarFront - T.h / 2, [K.x0 + K.w, K.y0 + B.radarFront], cx);
+      hang(c, R.rl, gl, K.y0 + B.radarRear - T.h / 2, [K.x0, K.y0 + B.radarRearAt], cx);
+      hang(c, R.rr, gr, K.y0 + B.radarRear - T.h / 2, [K.x0 + K.w, K.y0 + B.radarRearAt], cx);
+      const pillar = K.y0 + (D.front[1] + D.rear[0]) / 2;
+      hang(c, f.units.nfc, gr, pillar - T.h / 2, [K.x0 + K.w, pillar], cx);
+      // the tailgate's projection: level with its tile, on the rear corner's curve
+      const tr0 = L.car.tailR, ty = K.y0 + B.tailY, dy = ty - (K.y0 + K.h - tr0);
+      hang(c, f.units.tailgate, gr, ty - T.h / 2, [K.x0 + K.w - tr0 + Math.sqrt(tr0 * tr0 - dy * dy), ty], cx);
     });
   }
 
@@ -642,8 +676,8 @@
   }
 
   // Электропривод: the engine and generator and the front motor on the front axle, the two rear
-  // motors on the rear; their readings beside them. Which rear motor SMCU drives and which SMCU3
-  // is not established: the two blocks stand between the rear motors, bound to neither side.
+  // motors on the rear - SMCU drives the left, SMCU3 the right, and their callouts say so; their
+  // readings beside them. The VCU in the middle, the power-domain controller beside it.
   function sysDrives(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
@@ -660,10 +694,14 @@
       const vy = K.mid - T.h / 2;
       [[gx, K.front], [mx, K.front], [cx - D.pair, K.rear], [cx + D.pair, K.rear]].forEach(([x, y]) =>
         stroke(c, `M${cx} ${y < K.mid ? vy : vy + T.h}L${x} ${y < K.mid ? y + 22 : y - 22}`, 'line3', 1, [3, 3]));
+      if (f.units.pdc) {
+        const px = K.x0 - D.domainGap - T.w;
+        stroke(c, `M${px + T.w} ${K.mid}H${cx - T.w / 2}`, 'line3', 1, [3, 3]);
+        unitTile(c, px, vy, f.units.pdc);
+      }
       unitTile(c, cx - T.w / 2, vy, f.units.vcu);
       machine(c, gx, K.front, 'G', true); machine(c, mx, K.front, 'M', true);
       machine(c, cx - D.pair, K.rear, 'M', true); machine(c, cx + D.pair, K.rear, 'M', true);
-      text(c, f.rearBlocks, cx, K.rear + D.rearBlocksDy, 'cellAbbr', 'dim', { align: 'center' });
       const lx = O.leftX - (D.boxW - O.w), rx = W - lx - D.boxW;
       const box = (d, left, to) => {
         const rows = [[d.label, 'counterLabel', 'mute'], ...d.rows.map(t => [t, 'cellMono', 'text'])];
@@ -779,7 +817,7 @@
   }
 
   // Климат: outside air through the climate unit into the cabin; the HV heater and the thermal
-  // module at the unit.
+  // module at the unit, the air-quality module under the cabin.
   function sysClimate(c, f) {
     shell(c, f, () => {
       blockHead(c, f.block); tabs(c, f.tabs);
@@ -803,6 +841,26 @@
       unitTile(c, ux, uy + T.h + C.stem, f.units.ptc);
       stroke(c, `M${W / 2} ${uy}V${uy - C.stem}`, 'wire4', 1.2);
       unitTile(c, ux, uy - C.stem - T.h, f.units.tmim);
+      if (f.units.aqdm) {
+        const ax = W - C.leftX - C.zoneW / 2;
+        stroke(c, `M${ax} ${C.zoneY + C.zoneH}V${C.zoneY + C.zoneH + C.stem}`, 'wire4', 1.2);
+        unitTile(c, ax - T.w / 2, C.zoneY + C.zoneH + C.stem, f.units.aqdm);
+      }
+    });
+  }
+
+  // Безопасность: the car from above - the airbag controller in the middle, each front belt's
+  // pretensioner at its B-pillar (the driver's left, the passenger's right), the child-presence
+  // radar at the rear.
+  function sysSafety(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const cx = W / 2, K = car(c, cx, L.car.top, L.car.h), T = L.topology.tile, D = L.car.doors, G = L.safetyScheme.gap;
+      const pillar = K.y0 + (D.front[1] + D.rear[0]) / 2;
+      hang(c, f.units.driverBelt, K.x0 - G - T.w, pillar - T.h / 2, [K.x0, pillar], cx);
+      hang(c, f.units.passengerBelt, K.x0 + K.w + G, pillar - T.h / 2, [K.x0 + K.w, pillar], cx);
+      if (f.units.srs) unitTile(c, cx - T.w / 2, K.mid - T.h / 2, f.units.srs);
+      if (f.units.cpd) unitTile(c, cx - T.w / 2, K.y0 + K.h - 22 - T.h, f.units.cpd);
     });
   }
 
@@ -1326,11 +1384,13 @@
     });
     // the units on the bus and beside the pack
     const U = V.unit;
+    // a unit's place, and its width where it is not the common one (the inverters on the bus, wide
+    // enough for «Инвертор задний правый»)
     f.units.forEach(u => {
-      const [x, uy] = V.units[u.abbr], k = HV_UNIT[u.kind];
-      fill(c, x, uy, U.w, U.h, k.fill, U.r);
-      if (k.dash) edge(c, x, uy, U.w, U.h, k.dash, U.r, [3, 3]); else edge(c, x, uy, U.w, U.h, k.line, U.r);
-      const ux = x + 1 + U.padX, uw = U.w - 2 - 2 * U.padX;
+      const [x, uy, w0] = V.units[u.abbr], k = HV_UNIT[u.kind], w = w0 || U.w;
+      fill(c, x, uy, w, U.h, k.fill, U.r);
+      if (k.dash) edge(c, x, uy, w, U.h, k.dash, U.r, [3, 3]); else edge(c, x, uy, w, U.h, k.line, U.r);
+      const ux = x + 1 + U.padX, uw = w - 2 - 2 * U.padX;
       const top = uy + (U.h - style('hvAbbr').lh - style('hvName').lh - style('hvState').lh - 2 * U.rowGap) / 2;
       text(c, u.abbr, ux, top, 'hvAbbr', k.ink);
       text(c, u.addr, ux + uw, top, 'tileAddr', 'faint', { align: 'right' });
@@ -1339,7 +1399,7 @@
     });
   }
 
-  const SCREENS = { sysParam, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  const SCREENS = { sysParam, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);
