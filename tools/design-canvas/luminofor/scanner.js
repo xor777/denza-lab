@@ -496,7 +496,7 @@
   /* ------------------------------------------------- the car from above */
   // The body from above, front up, in lines: outline, glass, mirrors and wheels. Returns where the
   // schemes hang things: the axles, the sides, the corners.
-  function car(c, cx, y0, h) {
+  function car(c, cx, y0, h, inside) {
     const C = L.car, w = C.w, x0 = cx - w / 2;
     c.save();
     rrect(c, x0, y0, w, h, [C.noseR, C.noseR, C.tailR, C.tailR]);
@@ -506,7 +506,8 @@
     const g = C.glass, ws = y0 + g.shield, rw = y0 + h - g.rear;
     stroke(c, `M${x0 + g.inset} ${ws + 10}Q${cx} ${ws - 14} ${x0 + w - g.inset} ${ws + 10}`, 'wire3', 1.4);
     stroke(c, `M${x0 + g.inset} ${rw - 8}Q${cx} ${rw + 12} ${x0 + w - g.inset} ${rw - 8}`, 'wire3', 1.4);
-    edge(c, x0 + g.roofInset, ws + 18, w - 2 * g.roofInset, rw - ws - 34, 'line3', 14);
+    // the roof; a scheme of the inside draws the cabin in its place
+    if (!inside) edge(c, x0 + g.roofInset, ws + 18, w - 2 * g.roofInset, rw - ws - 34, 'line3', 14);
     const m = C.mirror;
     stroke(c, `M${x0} ${ws + 4}l${-m[0]} ${-m[1] / 2}v${-m[1]}l${m[0]} ${m[1] / 2}`, 'wire3', 1.4);
     stroke(c, `M${x0 + w} ${ws + 4}l${m[0]} ${-m[1] / 2}v${-m[1]}l${-m[0]} ${m[1] / 2}`, 'wire3', 1.4);
@@ -519,12 +520,13 @@
 
   // A callout: a plate of lines - [text, style, ink] or runs [[t, style, ink], ...] - and its leader
   // to a point on the car, a dot at the end.
-  function callout(c, x, y, w, rows, kind, to) {
+  function callout(c, x, y, w, rows, kind, to, bend) {
     const O = L.callout, k = TILE[kind || 'ok'];
     const h = 2 * O.padY + rows.reduce((a, r) => a + style(Array.isArray(r[0]) ? r[0][1] : r[1]).lh, 0) + (rows.length - 1) * O.gap;
     if (to) {
+      // the leader bends half way, or at [bend] when the caller orders several bends
       const [tx, ty] = to, sx = tx < x ? x : x + w, sy = y + h / 2;
-      stroke(c, ty === sy ? `M${sx} ${sy}H${tx}` : `M${sx} ${sy}H${(sx + tx) / 2}V${ty}H${tx}`, 'wire4', 1.2);
+      stroke(c, ty === sy ? `M${sx} ${sy}H${tx}` : `M${sx} ${sy}H${bend == null ? (sx + tx) / 2 : bend}V${ty}H${tx}`, 'wire4', 1.2);
       c.beginPath(); c.arc(tx, ty, O.dot, 0, 2 * Math.PI); c.fillStyle = col('wire5'); c.fill();
     }
     fill(c, x, y, w, h, k.fill, O.r); edge(c, x, y, w, h, k.line, O.r);
@@ -637,6 +639,84 @@
       // the tailgate's projection: level with its tile, on the rear corner's curve
       const tr0 = L.car.tailR, ty = K.y0 + B.tailY, dy = ty - (K.y0 + K.h - tr0);
       hang(c, f.units.tailgate, gr, ty - T.h / 2, [K.x0 + K.w - tr0 + Math.sqrt(tr0 * tr0 - dy * dy), ty], cx);
+    });
+  }
+
+  // Салон: the cabin seen through the roof. Each seat shows who sits (filled), the belt (a strap:
+  // blue fastened, orange dashed when someone sits unfastened), heating and ventilation as three
+  // pips each - warm and cool - and its reading light; the wheel glows warm when heated; on the
+  // console the two charging pads and the fridges. The words are in the plates, a plate's leader
+  // to its place; a plate names the block that serves the place where the role says so.
+  function sysCabin(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const S = L.cabinScheme, cx = W / 2, K = car(c, cx, L.car.top, L.car.h, true), at = (x, y) => [K.x0 + x, K.y0 + y];
+      const P = S.pip, ink = { cold: 'blue', fresh: 'blueSoft', hot: 'orange' };
+      // a seat: its cushion, the strap, the pips at its foot, its lamp at the outer front corner
+      const seat = (x, y, w, h, r, s, outer) => {
+        if (s.occupied) fill(c, x, y, w, h, 'blueShare', r);
+        edge(c, x, y, w, h, s.occupied ? 'blueEdge' : 'line3', r);
+        if (s.belt === true) stroke(c, `M${x + w - 8} ${y + 6}L${x + 8} ${y + h - 14}`, 'blue', 2);
+        else if (s.occupied && s.belt === false) stroke(c, `M${x + w - 8} ${y + 6}L${x + 8} ${y + h - 14}`, 'orange', 2, [4, 3]);
+        const py = y + h - P.pad - P.s;
+        [['heat', 'orange', x + P.pad, 1], ['vent', 'blue', x + w - P.pad - P.s, -1]].forEach(([k, on, x1, dir]) => {
+          if (s[k] == null) return;
+          for (let i = 0; i < 3; i++) fill(c, x1 + dir * i * (P.s + P.gap), py, P.s, P.s, i < s[k] ? on : 'line3', 1);
+        });
+        if (s.lamp != null) {
+          const lx = outer < 0 ? x + S.lamp.in : x + w - S.lamp.in, ly = y + S.lamp.down;
+          if (s.lamp) { c.save(); c.globalAlpha = 0.25; dot(c, lx, ly, S.lamp.glow, 'orange'); c.restore(); }
+          dot(c, lx, ly, S.lamp.r, s.lamp ? 'orange' : 'faint3');
+        }
+      };
+      const F = S.front, B = S.bench;
+      seat(...at(F.x[0], F.y), F.w, F.h, F.r, f.seats.fl, -1);
+      seat(...at(F.x[1], F.y), F.w, F.h, F.r, f.seats.fr, 1);
+      seat(...at(B.x[0], B.y), B.w, B.h, B.r, f.seats.rl, -1);
+      seat(...at(B.x[1], B.y), B.w, B.h, B.r, f.seats.rc, 0);
+      seat(...at(B.x[2], B.y), B.w, B.h, B.r, f.seats.rr, 1);
+      // the wheel in front of the driver
+      const [wx, wy] = at(S.wheel[0], S.wheel[1]);
+      stroke(c, (() => { const p = new Path2D(); p.arc(wx, wy, S.wheel[2], 0, 2 * Math.PI); return p; })(), f.wheelHeat ? 'orange' : 'wire3', 2);
+      dot(c, wx, wy, 2.5, f.wheelHeat ? 'orange' : 'wire3');
+      // the console: the pads at its front, the fridge in the armrest, the rear fridge behind it
+      const Cn = S.console, kx = cx - Cn.w / 2;
+      edge(c, kx, K.y0 + Cn.y, Cn.w, Cn.h, 'line3', Cn.r);
+      const pad = (x, state) => {
+        const y = K.y0 + S.pad.y;
+        if (state === 'charging' || state === 'full') fill(c, x, y, S.pad.w, S.pad.h, state === 'charging' ? 'blue' : 'blueSoft', 2);
+        edge(c, x, y, S.pad.w, S.pad.h, state === 'fault' ? 'orange' : state == null ? 'line3' : 'blueEdge', 2);
+      };
+      pad(cx - 1 - S.pad.w, f.pads.left); pad(cx + 1, f.pads.right);
+      const box = (y, h, mode) => {
+        if (ink[mode]) fill(c, kx + 2, K.y0 + y, Cn.w - 4, h, ink[mode], 2);
+        else edge(c, kx + 2, K.y0 + y, Cn.w - 4, h, mode == null ? 'line3' : 'wire3', 2);
+      };
+      box(S.fridge.y, S.fridge.h, f.fridges.front); box(S.rearFridge.y, S.rearFridge.h, f.fridges.rear);
+      // the plates: each column in its order, each plate level with its place where the column
+      // has room, pushed down by the one above, and the column lifted if it runs past the bottom
+      const O = L.callout, pw = S.plateW, rx = W - S.x - pw;
+      const to = {
+        cluster: at(S.wheel[0], S.wheel[1] - 18), wheel: [wx - S.wheel[2], wy], fl: at(F.x[0], F.y + F.h / 2),
+        rl: at(B.x[0], B.y + B.h / 2), rc: [cx, K.y0 + S.centreLeader],
+        pads: [cx + 1 + S.pad.w, K.y0 + S.pad.y - 4], fr: at(F.x[1] + F.w, F.y + F.h / 2),
+        fridges: [kx + Cn.w - 2, K.y0 + S.fridge.y + S.fridge.h - 3], rr: at(B.x[2] + B.w, B.y + B.h / 2),
+      };
+      const tall = rows => 2 * O.padY + rows.reduce((a, r) => a + style(Array.isArray(r[0]) ? r[0][1] : r[1]).lh, 0) + (rows.length - 1) * O.gap;
+      [['left', S.x], ['right', rx]].forEach(([side, x]) => {
+        const ids = f.plates[side], hs = ids.map(id => tall(f.text[id])), ys = [];
+        ids.forEach((id, i) => { ys[i] = Math.max(to[id][1] - hs[i] / 2, i ? ys[i - 1] + hs[i - 1] + S.gap : S.top); });
+        const over = ys[ids.length - 1] + hs[ids.length - 1] - S.bottom;
+        if (over > 0) ids.forEach((_, i) => { ys[i] = Math.max(S.top, ys[i] - over); });
+        for (let i = 1; i < ids.length; i++) ys[i] = Math.max(ys[i], ys[i - 1] + hs[i - 1] + S.gap);
+        // the bends between the car and the plates: the leader that climbs or drops the most bends
+        // nearest the car, so no leader crosses another
+        const edgeX = side === 'left' ? K.left - S.bendIn : K.right + S.bendIn, dir = side === 'left' ? -1 : 1;
+        const order = ids.map((id, i) => [Math.abs(to[id][1] - (ys[i] + hs[i] / 2)), i]).sort((a, b) => b[0] - a[0]);
+        const bends = [];
+        order.forEach(([, i], r) => { bends[i] = edgeX + dir * r * S.bendStep; });
+        ids.forEach((id, i) => callout(c, x, ys[i], pw, f.text[id], f.kind && f.kind[id], to[id], bends[i]));
+      });
     });
   }
 
@@ -1464,7 +1544,7 @@
     });
   }
 
-  const SCREENS = { sysParam, sysPackCells, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  const SCREENS = { sysParam, sysPackCells, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, sysCabin, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);

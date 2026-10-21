@@ -57543,6 +57543,693 @@
    }
   }
  ],
+ "scanner-sys-cabin": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysCabin"
+  },
+  {
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Салон"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "19:31:29"
+   },
+   "rail": {
+    "active": "Салон",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси",
+      "mark": [
+       "ИСТ 4",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон",
+      "mark": [
+       "ИСТ 4",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     }
+    ]
+   },
+   "block": {
+    "title": "Салон",
+    "aside": "· 18 блоков",
+    "line": "приборы 723 · HUD 7B0 · руль 711 725 · ГУ 741 · пасс. ПК 5E7 · сиденья 750 7B5 7D2 · селектор 7A7 · холодильник 5A0 5F4 7C6 · WCT 733 · MCPA 5E4 · FRL 772 · AMP 751 · ETC 790",
+    "counters": [
+     [
+      "DTC АКТ.",
+      "0"
+     ],
+     [
+      "DTC ИСТ.",
+      "4"
+     ],
+     [
+      "ПРОЧИТАНО",
+      "18/18"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 0
+   },
+   "seats": {
+    "fl": {
+     "occupied": true,
+     "belt": true,
+     "heat": 2,
+     "vent": 0,
+     "lamp": false
+    },
+    "fr": {
+     "occupied": false,
+     "belt": false,
+     "heat": 0,
+     "vent": 0,
+     "lamp": false
+    },
+    "rl": {
+     "occupied": true,
+     "belt": false,
+     "heat": 0,
+     "vent": 0,
+     "lamp": true
+    },
+    "rc": {
+     "occupied": false,
+     "belt": false
+    },
+    "rr": {
+     "occupied": false,
+     "belt": false,
+     "heat": null,
+     "vent": null,
+     "lamp": false
+    }
+   },
+   "wheelHeat": true,
+   "pads": {
+    "left": "charging",
+    "right": "standby"
+   },
+   "fridges": {
+    "front": "cold",
+    "rear": "off"
+   },
+   "plates": {
+    "left": [
+     "cluster",
+     "wheel",
+     "fl",
+     "rl",
+     "rc"
+    ],
+    "right": [
+     "pads",
+     "fr",
+     "fridges",
+     "rr"
+    ]
+   },
+   "text": {
+    "cluster": [
+     [
+      "ПРИБОРЫ · INS 723 · HUD 7B0",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "сообщений нет",
+      "cell",
+      "white"
+     ],
+     [
+      "проекция вкл",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "wheel": [
+     [
+      "РУЛЬ · SWS 711",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "подогрев вкл",
+      "cell",
+      "orangeInk"
+     ]
+    ],
+    "fl": [
+     [
+      "ВОДИТЕЛЬ · DUCU 750",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "сидит · пристёгнут",
+      "cell",
+      "white"
+     ],
+     [
+      "подогрев 2 · вентиляция выкл",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "массаж: волна · средне",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "rl": [
+     [
+      "2-Й РЯД ЛЕВЫЙ · MLUCU 7D2",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      [
+       "сидит · ",
+       "cell",
+       "white"
+      ],
+      [
+       "не пристёгнут",
+       "cell",
+       "orange"
+      ]
+     ],
+     [
+      "подогрев выкл · вентиляция выкл",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "массаж выкл · свет для чтения",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "rc": [
+     [
+      "2-Й РЯД ЦЕНТР",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    ],
+    "pads": [
+     [
+      "БЕСПРОВОДНАЯ ЗАРЯДКА · WCT 733",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "левая: заряжает",
+      "cell",
+      "white"
+     ],
+     [
+      "правая: ожидание",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "fr": [
+     [
+      "ПАССАЖИР · PUCU 7B5",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "пусто",
+      "cell",
+      "dim"
+     ],
+     [
+      "подогрев выкл · вентиляция выкл",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "массаж выкл",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "fridges": [
+     [
+      "ХОЛОДИЛЬНИКИ · VR 5A0 · RRCP 7C6",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "передний: холод · 0 °C",
+      "cell",
+      "white"
+     ],
+     [
+      "задний: выкл",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "rr": [
+     [
+      "2-Й РЯД ПРАВЫЙ",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "пусто",
+      "cell",
+      "dim"
+     ],
+     [
+      "подогрев н/д · вентиляция н/д",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "массаж выкл",
+      "cellSmall",
+      "dim"
+     ]
+    ]
+   },
+   "footer": {
+    "buttons": [
+     [
+      "Обновить",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "снимок 19:31:29",
+      true
+     ]
+    ]
+   }
+  }
+ ],
+ "scanner-sys-cabin-parked": [
+  {
+   "kind": "scanner",
+   "mode": "full",
+   "screen": "sysCabin"
+  },
+  {
+   "top": {
+    "crumbs": [
+     "Диагностика",
+     "Салон"
+    ],
+    "link": "Связь OK",
+    "car": "Z9 GT DM · P · 0 км/ч",
+    "time": "07:36:12"
+   },
+   "rail": {
+    "active": "Салон",
+    "items": [
+     {
+      "name": "Автоскан",
+      "mark": [
+       "68/68",
+       "faint"
+      ]
+     },
+     "|",
+     {
+      "name": "ВВ-система"
+     },
+     {
+      "name": "Тяговая батарея"
+     },
+     {
+      "name": "Электропривод"
+     },
+     {
+      "name": "Двигатель"
+     },
+     {
+      "name": "Шасси",
+      "mark": [
+       "ИСТ 4",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Безопасность"
+     },
+     {
+      "name": "Ассистенты"
+     },
+     {
+      "name": "Кузов",
+      "mark": [
+       "ИСТ 10",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Салон",
+      "mark": [
+       "ИСТ 4",
+       "ink4"
+      ]
+     },
+     {
+      "name": "Климат"
+     },
+     {
+      "name": "Сеть 12 В"
+     }
+    ]
+   },
+   "block": {
+    "title": "Салон",
+    "aside": "· 18 блоков",
+    "line": "приборы 723 · HUD 7B0 · руль 711 725 · ГУ 741 · пасс. ПК 5E7 · сиденья 750 7B5 7D2 · селектор 7A7 · холодильник 5A0 5F4 7C6 · WCT 733 · MCPA 5E4 · FRL 772 · AMP 751 · ETC 790",
+    "counters": [
+     [
+      "DTC АКТ.",
+      "0"
+     ],
+     [
+      "DTC ИСТ.",
+      "4"
+     ],
+     [
+      "ПРОЧИТАНО",
+      "18/18"
+     ]
+    ]
+   },
+   "tabs": {
+    "items": [
+     "Состояние",
+     "DTC",
+     "Блоки"
+    ],
+    "active": 0
+   },
+   "seats": {
+    "fl": {
+     "occupied": false,
+     "belt": false,
+     "heat": 0,
+     "vent": 0,
+     "lamp": false
+    },
+    "fr": {
+     "occupied": false,
+     "belt": false,
+     "heat": 0,
+     "vent": 0,
+     "lamp": false
+    },
+    "rl": {
+     "occupied": false,
+     "belt": false,
+     "heat": 0,
+     "vent": 0,
+     "lamp": false
+    },
+    "rc": {
+     "occupied": false,
+     "belt": false
+    },
+    "rr": {
+     "occupied": false,
+     "belt": false,
+     "heat": null,
+     "vent": null,
+     "lamp": false
+    }
+   },
+   "wheelHeat": false,
+   "pads": {
+    "left": "standby",
+    "right": "standby"
+   },
+   "fridges": {
+    "front": "off",
+    "rear": "off"
+   },
+   "plates": {
+    "left": [
+     "cluster",
+     "wheel",
+     "fl",
+     "rl",
+     "rc"
+    ],
+    "right": [
+     "pads",
+     "fr",
+     "fridges",
+     "rr"
+    ]
+   },
+   "text": {
+    "cluster": [
+     [
+      "ПРИБОРЫ · INS 723 · HUD 7B0",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "сообщений нет",
+      "cell",
+      "white"
+     ],
+     [
+      "проекция вкл",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "wheel": [
+     [
+      "РУЛЬ · SWS 711",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "подогрев выкл",
+      "cell",
+      "dim"
+     ]
+    ],
+    "fl": [
+     [
+      "ВОДИТЕЛЬ · DUCU 750",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "пусто",
+      "cell",
+      "dim"
+     ],
+     [
+      "подогрев выкл · вентиляция выкл",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "массаж выкл",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "rl": [
+     [
+      "2-Й РЯД ЛЕВЫЙ · MLUCU 7D2",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "пусто",
+      "cell",
+      "dim"
+     ],
+     [
+      "подогрев выкл · вентиляция выкл",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "массаж выкл",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "rc": [
+     [
+      "2-Й РЯД ЦЕНТР",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "пусто",
+      "cell",
+      "dim"
+     ]
+    ],
+    "pads": [
+     [
+      "БЕСПРОВОДНАЯ ЗАРЯДКА · WCT 733",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "левая: ожидание",
+      "cell",
+      "white"
+     ],
+     [
+      "правая: ожидание",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "fr": [
+     [
+      "ПАССАЖИР · PUCU 7B5",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "пусто",
+      "cell",
+      "dim"
+     ],
+     [
+      "подогрев выкл · вентиляция выкл",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "массаж выкл",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "fridges": [
+     [
+      "ХОЛОДИЛЬНИКИ · VR 5A0 · RRCP 7C6",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "передний: выкл",
+      "cell",
+      "white"
+     ],
+     [
+      "задний: выкл",
+      "cellSmall",
+      "dim"
+     ]
+    ],
+    "rr": [
+     [
+      "2-Й РЯД ПРАВЫЙ",
+      "counterLabel",
+      "mute"
+     ],
+     [
+      "пусто",
+      "cell",
+      "dim"
+     ],
+     [
+      "подогрев н/д · вентиляция н/д",
+      "cellSmall",
+      "dim"
+     ],
+     [
+      "массаж выкл",
+      "cellSmall",
+      "dim"
+     ]
+    ]
+   },
+   "footer": {
+    "buttons": [
+     [
+      "Обновить",
+      "primary"
+     ]
+    ],
+    "notes": [
+     [
+      "снимок 07:36:12",
+      true
+     ]
+    ]
+   }
+  }
+ ],
  "scanner-sys-engine-dtc": [
   {
    "kind": "scanner",

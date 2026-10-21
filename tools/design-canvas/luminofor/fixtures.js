@@ -957,6 +957,62 @@
     doorRadars: { fl: u('FL_SDR', '5B2', 'Радар ПЛ'), fr: u('FR_SDR', '5B1', 'Радар ПП'), rl: u('RL_SDR', '5B0', 'Радар ЗЛ'), rr: u('RR_SDR', '5A7', 'Радар ЗП') },
     footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
   };
+  // Салон. The cabin's state from the car's own properties (autoservice GETs; research of 2026-10-21,
+  // values named by DiCarServer): who sits and the belt, heating and ventilation in three levels,
+  // massage, the reading lights, the wheel's heating, the charging pads, the fridges' modes and set
+  // points, the cluster's message and the HUD. A trip, illustrative: the driver sits belted with the
+  // seat warmed to 2 and a massage, the rear left passenger sits unbelted with the reading light on,
+  // the left pad charges, the front fridge cools to 0 °C; the parked board is the sweep of 2026-10-20.
+  const P = (label, rows) => [[label, 'counterLabel', 'mute'], ...rows];
+  const st = (t, ink) => [t, 'cell', ink || 'white'], sm = (t, ink) => [t, 'cellSmall', ink || 'dim'];
+  const cabinBlock = { title: 'Салон', aside: '· 18 блоков', line: 'приборы 723 · HUD 7B0 · руль 711 725 · ГУ 741 · пасс. ПК 5E7 · ' +
+    'сиденья 750 7B5 7D2 · селектор 7A7 · холодильник 5A0 5F4 7C6 · WCT 733 · MCPA 5E4 · FRL 772 · AMP 751 · ETC 790',
+    counters: [['DTC АКТ.', '0'], ['DTC ИСТ.', '4'], ['ПРОЧИТАНО', '18/18']] };
+  const scannerSysCabin = {
+    top: sysTop('Салон', '19:31:29'), rail: sysRail('Салон'), block: cabinBlock, tabs: sysTabs(0),
+    seats: {
+      fl: { occupied: true, belt: true, heat: 2, vent: 0, lamp: false },
+      fr: { occupied: false, belt: false, heat: 0, vent: 0, lamp: false },
+      rl: { occupied: true, belt: false, heat: 0, vent: 0, lamp: true },
+      rc: { occupied: false, belt: false },
+      rr: { occupied: false, belt: false, heat: null, vent: null, lamp: false },
+    },
+    wheelHeat: true, pads: { left: 'charging', right: 'standby' }, fridges: { front: 'cold', rear: 'off' },
+    plates: { left: ['cluster', 'wheel', 'fl', 'rl', 'rc'], right: ['pads', 'fr', 'fridges', 'rr'] },
+    text: {
+      cluster: P('ПРИБОРЫ · INS 723 · HUD 7B0', [st('сообщений нет'), sm('проекция вкл')]),
+      wheel: P('РУЛЬ · SWS 711', [st('подогрев вкл', 'orangeInk')]),
+      fl: P('ВОДИТЕЛЬ · DUCU 750', [st('сидит · пристёгнут'), sm('подогрев 2 · вентиляция выкл'), sm('массаж: волна · средне')]),
+      rl: P('2-Й РЯД ЛЕВЫЙ · MLUCU 7D2', [[['сидит · ', 'cell', 'white'], ['не пристёгнут', 'cell', 'orange']], sm('подогрев выкл · вентиляция выкл'), sm('массаж выкл · свет для чтения')]),
+      rc: P('2-Й РЯД ЦЕНТР', [st('пусто', 'dim')]),
+      pads: P('БЕСПРОВОДНАЯ ЗАРЯДКА · WCT 733', [st('левая: заряжает'), sm('правая: ожидание')]),
+      fr: P('ПАССАЖИР · PUCU 7B5', [st('пусто', 'dim'), sm('подогрев выкл · вентиляция выкл'), sm('массаж выкл')]),
+      fridges: P('ХОЛОДИЛЬНИКИ · VR 5A0 · RRCP 7C6', [st('передний: холод · 0 °C'), sm('задний: выкл')]),
+      rr: P('2-Й РЯД ПРАВЫЙ', [st('пусто', 'dim'), sm('подогрев н/д · вентиляция н/д'), sm('массаж выкл')]),
+    },
+    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 19:31:29', true]] },
+  };
+  // parked and empty, as the sweep of 2026-10-20 read it: nothing on, the right rear's climate not
+  // answering (65535), the fridges off with their set points kept, the HUD on
+  const scannerSysCabinParked = Object.assign({}, scannerSysCabin, {
+    top: sysTop('Салон', '07:36:12'),
+    seats: {
+      fl: { occupied: false, belt: false, heat: 0, vent: 0, lamp: false },
+      fr: { occupied: false, belt: false, heat: 0, vent: 0, lamp: false },
+      rl: { occupied: false, belt: false, heat: 0, vent: 0, lamp: false },
+      rc: { occupied: false, belt: false },
+      rr: { occupied: false, belt: false, heat: null, vent: null, lamp: false },
+    },
+    wheelHeat: false, pads: { left: 'standby', right: 'standby' }, fridges: { front: 'off', rear: 'off' },
+    text: Object.assign({}, scannerSysCabin.text, {
+      wheel: P('РУЛЬ · SWS 711', [st('подогрев выкл', 'dim')]),
+      fl: P('ВОДИТЕЛЬ · DUCU 750', [st('пусто', 'dim'), sm('подогрев выкл · вентиляция выкл'), sm('массаж выкл')]),
+      rl: P('2-Й РЯД ЛЕВЫЙ · MLUCU 7D2', [st('пусто', 'dim'), sm('подогрев выкл · вентиляция выкл'), sm('массаж выкл')]),
+      pads: P('БЕСПРОВОДНАЯ ЗАРЯДКА · WCT 733', [st('левая: ожидание'), sm('правая: ожидание')]),
+      fridges: P('ХОЛОДИЛЬНИКИ · VR 5A0 · RRCP 7C6', [st('передний: выкл'), sm('задний: выкл')]),
+    }),
+    footer: { buttons: [['Обновить', 'primary']], notes: [['снимок 07:36:12', true]] },
+  });
   const scannerSysAdas = {
     top: sysTop('Ассистенты', '19:31:29'), rail: sysRail('Ассистенты'),
     block: { title: 'Ассистенты', aside: '· 7 блоков', line: 'ADC 712 · MRR 7F2 · угловые радары 760 761 7C2 7D4 · IPA 701',
@@ -1262,6 +1318,8 @@
     'scanner-sys-pack-cell': [scanner('sysParam'), scannerSysPackCell],
     'scanner-sys-climate': [scanner('sysClimate'), scannerSysClimate],
     'scanner-sys-lv':    [scanner('sysLv'), scannerSysLv],
+    'scanner-sys-cabin': [scanner('sysCabin'), scannerSysCabin],
+    'scanner-sys-cabin-parked': [scanner('sysCabin'), scannerSysCabinParked],
     'scanner-sys-engine-dtc': [scanner('sysEngineDtc'), scannerSysEngineDtc],
     'scanner-sys-body-blocks': [scanner('sysBlocks'), scannerSysBodyBlocks],
     'scanner-sys-pack-live': [scanner('sysPackLive'), scannerSysPackLive],
