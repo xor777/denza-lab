@@ -60,6 +60,7 @@ internal object DiagnosticsSessions {
             zone = zone,
             log = log,
             catalog = { catalog },
+            carNanos = SystemClock::elapsedRealtimeNanos,
         )
     }
 

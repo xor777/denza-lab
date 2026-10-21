@@ -93,7 +93,7 @@ class SystemPagesTest {
 
         fun tabs(system: CarSystem) = model.page(system).tabs.map { it.label }
         assertEquals(listOf("Состояние", "DTC", "Блоки"), tabs(CarSystem.HV))
-        assertEquals(listOf("Состояние", "Потоковые данные", "Флаги GB/T 32960", "DTC", "Блоки"), tabs(CarSystem.PACK))
+        assertEquals(listOf("Состояние", "Ячейки", "Потоковые данные", "Флаги GB/T 32960", "DTC", "Блоки"), tabs(CarSystem.PACK))
         assertEquals(listOf("Состояние", "Сравнение", "DTC", "Блоки"), tabs(CarSystem.DRIVES))
         assertEquals(listOf("Состояние", "Потоковые данные", "DTC и готовность", "Блоки"), tabs(CarSystem.ENGINE))
         assertEquals(listOf("Состояние", "Сравнение", "DTC", "Блоки"), tabs(CarSystem.ADAS))

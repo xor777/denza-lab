@@ -41,6 +41,8 @@ internal class SessionSnapshot(
     val nowMillis: Long,
     /** The parameter page, built by the session from its trace (architecture, 6.2). */
     val param: ParamView? = null,
+    /** «Ячейки» while the screens hold them (architecture, 6.3). */
+    val packCells: PackCellsView? = null,
 )
 
 /**
@@ -76,6 +78,7 @@ internal class ModelBuilder(
             rail = SystemPagesBuilder.rail(pages),
             systemPages = if (anything) SystemPagesBuilder.pages(pages) else emptyMap(),
             param = s.param,
+            packCells = s.packCells,
         )
     }
 

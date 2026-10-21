@@ -56,6 +56,11 @@ import kotlinx.coroutines.launch
  * three seconds), so the session asks nothing it can see would be refused: before each exchange it
  * looks at the hub, and a car the hub sees out of P or moving pauses the work without a request.
  *
+ * **The pack's cells** (6.3, [setCellsVisible]): while «Ячейки» shows, the bus's [DiagnosticBus.batteryPages]
+ * is collected beside the work - listening only, so the autoscan, the button and the streams go on -
+ * and [PackCells] assembles the pages. One subscription a showing: a refused or lost one ends with
+ * «поток BMS прерван» on the age line until the tab is shown again.
+ *
  * Only [ScanStore] and [StreamSinks] touch files and only [CarFeed] touches the hub; the rest is
  * plain Kotlin on a [DiagnosticBus], tested on the scripted fake.
  */
@@ -74,6 +79,8 @@ internal class DiagnosticsSession(
      * work loop makes first so a stored scan's records do not parse it on the caller's thread.
      */
     private val catalog: () -> OemDtcIndex = { OemDtcIndex.EMPTY },
+    /** The car's `elapsedRealtimeNanos`, the clock the helper stamps the BMS pages with. */
+    private val carNanos: () -> Long = System::nanoTime,
 ) : DiagnosticsActions {
     private val clock = ScanClock(zone)
     private val builder = ModelBuilder(clock, catalog)
@@ -102,6 +109,10 @@ internal class DiagnosticsSession(
     private var recording: Pair<Int, StreamSink>? = null
     private var readings = CarReadings()
     private var param: ParamState? = null
+    /** «Ячейки»: the assembled pages while the tab shows, its subscription, and whether that ended. */
+    private var cells: PackCells? = null
+    private var cellsJob: Job? = null
+    private var cellsStopped = false
     /** The gap last asked of the bus; a new bus starts at its launch parameter. */
     private var gapAsked = STREAM_GAP_MS
 
@@ -167,6 +178,8 @@ internal class DiagnosticsSession(
             recording = null
             live = null
             polling = null
+            cells = null
+            cellsJob = null
             if (param?.spec?.get != null) car.focus(null)
             param = null
             if (phase == ScanPhase.RUNNING || phase == ScanPhase.PAUSED) phase = ScanPhase.STOPPED
@@ -263,8 +276,45 @@ internal class DiagnosticsSession(
 
     override fun resetParam() = act { param?.trace?.reset() }
 
-    // The pack's cells (architecture, 6.3): the contract; the listening is the next change.
-    override fun setCellsVisible(visible: Boolean) = act {}
+    override fun setCellsVisible(visible: Boolean) = act {
+        if (visible) {
+            if (cells != null) return@act
+            val s = scope ?: return@act
+            cells = PackCells()
+            cellsStopped = false
+            cellsJob = s.launch { listenCells() }
+        } else {
+            cellsJob?.cancel()
+            cellsJob = null
+            cells = null
+        }
+    }
+
+    /** One subscription to the BMS pages for this showing of «Ячейки»; its end is said, not retried. */
+    private suspend fun listenCells() {
+        val b = synchronized(lock) { bus } ?: return
+        try {
+            b.batteryPages().collect { page ->
+                synchronized(lock) {
+                    val c = cells ?: return@synchronized
+                    val first = c.cells.newestNanos == null && c.probes.newestNanos == null
+                    c.accept(page)
+                    // The tick republishes four times a second; the first page need not wait for it.
+                    if (first) publish()
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            log("diagnostics: the BMS pages ended: $error")
+        }
+        synchronized(lock) {
+            if (cells != null) {
+                cellsStopped = true
+                publish()
+            }
+        }
+    }
 
     /** The helper's gap from the next exchange on; asked only when it changes. Under [lock]. */
     private fun gap(ms: Int) {
@@ -593,6 +643,7 @@ internal class DiagnosticsSession(
         car = readings,
         nowMillis = wallClock(),
         param = paramView(),
+        packCells = cells?.view(carNanos(), cellsStopped),
     )
 
     private fun publish() {
@@ -633,6 +684,9 @@ internal class DiagnosticsSession(
         live = null
         recording = null
         param = null
+        cells = null
+        cellsJob = null
+        cellsStopped = false
     }
 
     companion object {

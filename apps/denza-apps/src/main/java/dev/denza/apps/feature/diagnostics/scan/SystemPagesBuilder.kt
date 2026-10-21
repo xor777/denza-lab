@@ -67,7 +67,7 @@ internal object SystemPagesBuilder {
 
     val TABS: Map<CarSystem, List<SystemTab>> = CarSystem.entries.associateWith { system ->
         when (system) {
-            CarSystem.PACK -> listOf(SystemTab.STATE, SystemTab.LIVE, SystemTab.GB_FLAGS, SystemTab.DTC, SystemTab.BLOCKS)
+            CarSystem.PACK -> listOf(SystemTab.STATE, SystemTab.CELLS, SystemTab.LIVE, SystemTab.GB_FLAGS, SystemTab.DTC, SystemTab.BLOCKS)
             CarSystem.DRIVES, CarSystem.ADAS -> listOf(SystemTab.STATE, SystemTab.COMPARE, SystemTab.DTC, SystemTab.BLOCKS)
             CarSystem.ENGINE -> listOf(SystemTab.STATE, SystemTab.LIVE, SystemTab.DTC_READINESS, SystemTab.BLOCKS)
             CarSystem.CABIN, CarSystem.OTHER -> listOf(SystemTab.DTC, SystemTab.BLOCKS)
