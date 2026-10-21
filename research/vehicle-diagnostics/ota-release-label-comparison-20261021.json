@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "mode": "offline_sources_and_public_web_only",
+  "serverCapture": {
+    "path": "captures/ota-status-20261018/live-check-sanitized.txt",
+    "sha256": "7d8e932c623e74370ec33b7673111f51ed68d00dd9db1b58f2a33d37c5cfed23"
+  },
+  "serverResponse": {
+    "status": "104",
+    "latestVersion": "",
+    "additionCount": 12,
+    "optimizationCount": 7,
+    "additionSha256": "f1cccc5f6efdb311cc35dea13314f88e12aac4271c57dd813a1cde131303169c",
+    "optimizationSha256": "23d4a7b621b531d9f2bf2f7506533a76ccb7d12d6171a14fe46530317929f0e7"
+  },
+  "publicSnapshot": {
+    "imageUrl": "https://cdn.10100.com/content/20251225/843a0e71-3485-4ae3-808b-4a858b69564d.png?x-oss-process=style%2Fwmlogo",
+    "publicationUrl": "https://www.10100.com/article/59169848",
+    "publicationDateAsDisplayed": "2025-12-12",
+    "publisherAsDisplayed": "BYDOTA (self-described unofficial)",
+    "visibleVersion": "V1.7.0",
+    "observation": "Inspected image in browser at native scale: version label, addition items 1-10 and all seven optimization items match the topics/order of the car server response. This is a manual visual comparison, not a pixel/text hash match.",
+    "provenanceLimit": "Redistributed client-like screenshot; original device, VIN, capture date and OEM authenticity are not established."
+  },
+  "ownerArchiveMetadata": {
+    "archive": "/Users/dmitry/Dev/denza/firmware/Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip",
+    "member": "metadata",
+    "crc32": "54ff90c3",
+    "memberSha256": "36f4df466aed5de52f4ffdac346b85ff28bb44a98b489ee216445999fa78befd",
+    "selectedFields": {
+      "post-build": "BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys",
+      "post-build-incremental": "eng.build20260705.011226",
+      "post-outswver": "34.1.33.2605218.1",
+      "post-timestamp": "1783185542"
+    },
+    "scope": "HU archive build identity; not an ECU programming timestamp or whole-car strategy version."
+  },
+  "programmingDateLead": {
+    "table": {
+      "path": "research/vehicle-diagnostics/hu-uds-server-tables-20261021.json",
+      "sha256": "4f4e527645bb0890add7ff9586f0ef1fa243ec9c1849ee3d9358ade9db2c55b5"
+    },
+    "did": "F199",
+    "recordBytes": 4,
+    "scope": "Own head-unit UDS server initializer; no qualified remote-ECU reader or programming-date decoder found in GCY/GHY/ProductLineOTA/SpotInspection source searches.",
+    "liveRequestSent": false
+  },
+  "conclusions": [
+    "The status104 response text is consistent with an existing V1.7.0 description; it does not prove a new applicable campaign.",
+    "The HU archive and the whole-car V1.7.0 label cannot be used to infer the expected cloud ECU baseline.",
+    "No proof that changing SourceVehicleVersion2 would cure111; no version or ECU tuple was changed.",
+    "Owner confirmed there is no retained service package name, ECU version list or report number.",
+    "Still required: the backend expected/received tuple for the assigned batch, or a qualified service baseline."
+  ],
+  "vehicleRequests": 0,
+  "oemRequests": 0,
+  "applicableOtaObtained": false
+}
