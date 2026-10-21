@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "fresh login followed by unchanged GCY checkVersion",
+  "summary": {
+    "loginStatus": "100",
+    "checkStatus": "111",
+    "responseSha256": "41204bab426485f1eb02993605e23a7374d461506b570874350a3399c18fd940",
+    "sameResponseAsEarlier": true,
+    "cacheRawSha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+    "ecuRecords": 225,
+    "cloudRequests": 2,
+    "ecuCalls": 0,
+    "downloadOrInstall": false,
+    "cleanupVerified": true
+  },
+  "sources": {
+    "build": {
+      "path": "captures/ota-authenticated-check-20261021/build/build.json",
+      "sha256": "5389aa5ee97498fd57c3436607d9ff7d125f1a7f901a9bdd7e5365c344e214b1"
+    },
+    "priorResponse": {
+      "path": "captures/ota-isolated-20261021/approved-session-1/session.json",
+      "sha256": "ae9a86b98b574dd2f702b3ae835ca94f00451077c7733944da54beede40f641e"
+    },
+    "stockCheck": {
+      "path": "tools/vehicle-diagnostics/OtaCheckVersionProbe.java",
+      "sha256": "c43b8fd2e6fa1e165e38374b3ba85a80e1ed4fc5e715b81b094c3ad937a6dd4e"
+    }
+  },
+  "response": {
+    "sha256": "41204bab426485f1eb02993605e23a7374d461506b570874350a3399c18fd940",
+    "status": "111",
+    "causeKind": "ecu_strategy_mismatch",
+    "strategy": {
+      "batchId": "SALE-BYDHTH-2021-BATCH-00004",
+      "sequence": []
+    },
+    "sourcePackageInfo": [],
+    "targetPackageInfo": [],
+    "configSourceInfo": [],
+    "configPackageInfo": []
+  },
+  "session": {
+    "path": "captures/ota-authenticated-check-20261021/read/session.json",
+    "sha256": "21b6d610b6ce12eaa14c544bcea2fcaacc60598c4d069aaccc179171c371e957"
+  },
+  "snapshot": {
+    "path": "captures/ota-authenticated-check-20261021/read/snapshot-before-request.json",
+    "sha256": "a4d9e147309214873c5cbdc75063c83394adb92e0ccdf6a5f66b609ce352cb74"
+  },
+  "preflight": {
+    "path": "captures/ota-authenticated-check-20261021/read/preflight/status.json",
+    "sha256": "ab96efcdb1952e8cb7ad328095366502918fd7c7c2f71f949bc90ba3e6586860"
+  },
+  "postflight": {
+    "path": "captures/ota-authenticated-check-20261021/read/postflight/status.json",
+    "sha256": "33f7bda32d05023444bb0b7c14c48c0d31c8ea5994567c86eee1a91b4d46d1f1"
+  },
+  "preProcesses": {
+    "path": "captures/ota-authenticated-check-20261021/read/preflight/processes.txt",
+    "sha256": "555ef3288ebe7e1dc01895f89e974ea005d8cffa905360de3633b332a2522fd5"
+  },
+  "postProcesses": {
+    "path": "captures/ota-authenticated-check-20261021/read/postflight/processes.txt",
+    "sha256": "201b624cfa61c43cd953ba8453bb64b253bd630835ccb7175765c028c3ca29c0"
+  },
+  "healthComparison": {
+    "path": "captures/ota-authenticated-check-20261021/read/health-comparison.json",
+    "sha256": "a274f31dd155706906bca77062117f9df36909d26699e768503be48e554ad27c"
+  },
+  "limits": [
+    "Fresh login succeeds but the server response remains byte-for-byte111. Expiry versus revocation of the prior token is not determined.",
+    "Read ECUVersion.json hash must equal the pinned retained cache before GO; no field substitution or filtering is performed.",
+    "Four package arrays and strategy sequence remain empty, so neither an expected ECU tuple nor an applicable update package was obtained.",
+    "No versionSync, registration, stock OTA lifecycle, token persistence, firmware download or installation was invoked."
+  ]
+}

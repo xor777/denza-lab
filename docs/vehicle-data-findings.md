@@ -3057,7 +3057,13 @@ No previously untested CAN route was discovered in this factory map. `7E5` and
 `712` are already answered routes outside its CAN set; ADC `712` has a factory
 DoIP entry instead. The five DoIP tuples are `0010/0001` (CDC SOC/FPGA with distinct
 DIDs), `071A/0001` (ADC), `073E/0001` and `078C/0001` (right/left LiDAR alternatives),
-and `075F/0001` (middle LiDAR, zero cache). None has a retained DoIP observation.
+and `075F/0001` (middle LiDAR, zero cache).
+
+> **Superseded 2026-10-21:** The initial statement that none had a retained
+> DoIP observation missed the October 18 ADC identity capture. The later OTA
+> pass also read ADC, CDC SOC and both side LiDAR routes: eight positive
+> software fields matched cache. CDC FPGA returned `7F2210`; the middle LiDAR
+> timed out before a DoIP frame was sent. See [OTA DoIP results](ota-update-findings.md#свежие-версии-doip-ecu-21-октября).
 
 The important unresolved identities are INS `723/F394,F494`, three FRL children
 behind `747/F644,F654,FB24`, numbered DAL/IAL/FMPL heads, and CDC/ZCU subidentities.

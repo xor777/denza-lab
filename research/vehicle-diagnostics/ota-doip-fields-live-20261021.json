@@ -1,0 +1,393 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "fresh fixed DoIP software identity reads without UDS session change",
+  "summary": {
+    "groups": 5,
+    "tcpConnectionAttempts": 5,
+    "routingActivationsAccepted": 4,
+    "udsRequests": 9,
+    "positiveResponses": 8,
+    "negativeResponses": 1,
+    "positiveFieldsMatchCache": true,
+    "positiveRecordsRepresented": 6,
+    "cdcFpgaCodeReply": "7F2210",
+    "cdcFpgaVersionRead": false,
+    "middleLidar": "connect_timeout_before_first_frame",
+    "cloudRequests": 0,
+    "sessionControlRequests": 0,
+    "downloadOrInstall": false,
+    "allCleanupVerified": true
+  },
+  "sources": {
+    "build": {
+      "path": "captures/ota-doip-fields-20261021/build/build.json",
+      "sha256": "be32f847f14f1519de61db6756c71243fc36284df308ab6c6a3a2f0e993bf0e8"
+    },
+    "catalog": {
+      "path": "captures/ota-login-catalog-20261021/read-v6/ethernet-routes.json",
+      "sha256": "4b54d560eab488fb6c8065962054f71031aa822b9e6719f5fbc9bcf83a927fd9"
+    },
+    "cache": {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53"
+    },
+    "stockDoipReader": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DoipDiagnostic.java",
+      "sha256": "284603fe3b2e667216814905cf24774e3db10f6778b6e86c2278728be42ab58a"
+    },
+    "stockVersionFormatter": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b"
+    },
+    "priorWireSource": {
+      "path": "captures/adas-speed-20261018/reports/ads-direct-read/doip-routing.asm",
+      "sha256": "aef62ff24496eda795843d2063ee691c55b7686c1cf758d16ac1d7b3f6853c57"
+    },
+    "priorIdentityPlan": {
+      "path": "captures/adas-speed-20261018/reports/ads-direct-read/identity-plan.json",
+      "sha256": "9fa5256c88c8a45d681896a2dc4783534b37ef4ea74708cfbdf5ede6122a307c"
+    },
+    "priorIdentityProtocol": {
+      "path": "captures/adas-speed-20261018/reports/ads-direct-read/identity.txt",
+      "sha256": "e934a8dcc8eb46e4e99f0a1f64e569d3c055b3188bcb06efee62d25850ef0897"
+    },
+    "priorIdentityResult": {
+      "path": "captures/adas-speed-20261018/reports/ads-direct-read/identity-result.json",
+      "sha256": "c2b49f0a32714b027fb437e2730d1908669b4e263ca33e77babd2a6a2e4e56a6"
+    }
+  },
+  "runs": [
+    {
+      "group": "adc",
+      "snapshot": {
+        "path": "captures/ota-doip-fields-20261021/adc/inputs.json",
+        "sha256": "1228f43d09fcdd8292284ec48425dcb6d08df5c54d457182ed4cd5a8b13ff72a"
+      },
+      "stdout": {
+        "path": "captures/ota-doip-fields-20261021/adc/stdout.txt",
+        "sha256": "7f52b50d8c9a7cbea91d96b53ba7e694581a928b602d05c04918920bcf0a487b"
+      },
+      "comparison": {
+        "path": "captures/ota-doip-fields-20261021/adc/comparison.json",
+        "sha256": "faa4f69a1358db6c455d951d26c41815dc5f59d6d90bab3134a6a98ca6ad487f"
+      },
+      "preflight": {
+        "path": "captures/ota-doip-fields-20261021/adc/preflight/status.json",
+        "sha256": "3bb3304e3057b2ad4719e8d1b5127b1f4087c4c01c947ac841ee14315ee6e91b"
+      },
+      "postflight": {
+        "path": "captures/ota-doip-fields-20261021/adc/postflight/status.json",
+        "sha256": "cb5c5692d6b0f7e776e8c738c0f30b89d1d61b275c6e32cd8c3e82ec5432fb33"
+      },
+      "preProcesses": {
+        "path": "captures/ota-doip-fields-20261021/adc/preflight/processes.txt",
+        "sha256": "deeb0a811112c0666019b451ca60422f448e75120af2bb01d5b072370c27ef98"
+      },
+      "postProcesses": {
+        "path": "captures/ota-doip-fields-20261021/adc/postflight/processes.txt",
+        "sha256": "d5b5e87bb3a72c459a47a4f4d7b46fa94c24aefd22e4effc91f1f631c81c315f"
+      }
+    },
+    {
+      "group": "cdc",
+      "snapshot": {
+        "path": "captures/ota-doip-fields-20261021/cdc/inputs.json",
+        "sha256": "9e304936558d1e51f3d361a97c4b45002973e95841431b2e2c91749a6d30d539"
+      },
+      "stdout": {
+        "path": "captures/ota-doip-fields-20261021/cdc/stdout.txt",
+        "sha256": "814e24d3563f02ce5e230682ec390aeaf6652d3fe7be140353229ed6e3a2372e"
+      },
+      "comparison": {
+        "path": "captures/ota-doip-fields-20261021/cdc/comparison.json",
+        "sha256": "a978cc34cf2a02498acaac8bb7d3d17e30ebf739b9f5bb7033d070f887e06c03"
+      },
+      "preflight": {
+        "path": "captures/ota-doip-fields-20261021/cdc/preflight/status.json",
+        "sha256": "997d7af8d658f812fd6dac7487b28982fb623a7f5c0271847398734229a99bfe"
+      },
+      "postflight": {
+        "path": "captures/ota-doip-fields-20261021/cdc/postflight/status.json",
+        "sha256": "21c45fe8c6bc2d1c2c6ea7f37cc77c0cea4709e6d9364c53fe1f9fefe91ed920"
+      },
+      "preProcesses": {
+        "path": "captures/ota-doip-fields-20261021/cdc/preflight/processes.txt",
+        "sha256": "1a292eb2f17492771eed558382a864a7d691c997d79c8914abdeca8b5fa7e208"
+      },
+      "postProcesses": {
+        "path": "captures/ota-doip-fields-20261021/cdc/postflight/processes.txt",
+        "sha256": "0a1263b74a9320016a9450cb1b16adfd5bda2cf7c0570f1740830300e71fcc06"
+      }
+    },
+    {
+      "group": "lidar-left",
+      "snapshot": {
+        "path": "captures/ota-doip-fields-20261021/lidar-left/inputs.json",
+        "sha256": "baa5e1815f7550c4a2c9988e39ba1b502d3395869306d18501726bf5f2d2dce5"
+      },
+      "stdout": {
+        "path": "captures/ota-doip-fields-20261021/lidar-left/stdout.txt",
+        "sha256": "10fb81d3c4731c835dd0fa0f10212be30e71f060ce2d52587520d2816d31c31d"
+      },
+      "comparison": {
+        "path": "captures/ota-doip-fields-20261021/lidar-left/comparison.json",
+        "sha256": "ac3954031e642c67a657eca78e5ddc68f32c27a05b0cb64c83805487c6680f3a"
+      },
+      "preflight": {
+        "path": "captures/ota-doip-fields-20261021/lidar-left/preflight/status.json",
+        "sha256": "0b604c5fae48f29cd8a39b8c092b0184841e693d70cdd55a7f007f8507e42d2c"
+      },
+      "postflight": {
+        "path": "captures/ota-doip-fields-20261021/lidar-left/postflight/status.json",
+        "sha256": "162ccfbfdaa2b29c479dd181646cdbda6b07f4964741937d0aaacd137dc85c41"
+      },
+      "preProcesses": {
+        "path": "captures/ota-doip-fields-20261021/lidar-left/preflight/processes.txt",
+        "sha256": "b62c6417c1fc8477652dfffb7f7e0660c1bd5835c57dc51617fcd2b858d72b96"
+      },
+      "postProcesses": {
+        "path": "captures/ota-doip-fields-20261021/lidar-left/postflight/processes.txt",
+        "sha256": "bc2ca18e5f4754f7a01e997796270a433881c0b442b442da3c85b8320e7eb62d"
+      }
+    },
+    {
+      "group": "lidar-right",
+      "snapshot": {
+        "path": "captures/ota-doip-fields-20261021/lidar-right/inputs.json",
+        "sha256": "bc93774ac7297c45211e99609a6c30d4ad37faa4a67be137bf70930b9788476e"
+      },
+      "stdout": {
+        "path": "captures/ota-doip-fields-20261021/lidar-right/stdout.txt",
+        "sha256": "9c314200671fd5554824eafb03cd17ad59c2788f324ee84970e3b3ad6aecd381"
+      },
+      "comparison": {
+        "path": "captures/ota-doip-fields-20261021/lidar-right/comparison.json",
+        "sha256": "a6c364a33627495918c933b1e0968979ba5a2f5b07e0d83da796e27647605605"
+      },
+      "preflight": {
+        "path": "captures/ota-doip-fields-20261021/lidar-right/preflight/status.json",
+        "sha256": "04f0656f00196202e3a5b790c4f8a5a7d87ab3bff0423a66f207a9d5b74d66a3"
+      },
+      "postflight": {
+        "path": "captures/ota-doip-fields-20261021/lidar-right/postflight/status.json",
+        "sha256": "b93bd95562f02dac980cde7b489e4906583ba4cb5055b6a6cf19545ec201ce88"
+      },
+      "preProcesses": {
+        "path": "captures/ota-doip-fields-20261021/lidar-right/preflight/processes.txt",
+        "sha256": "9750f66bc6e16e00f7dd7f4679649700b0be849459e99cd668c211f2e117f415"
+      },
+      "postProcesses": {
+        "path": "captures/ota-doip-fields-20261021/lidar-right/postflight/processes.txt",
+        "sha256": "2b43fd896a8bfa1d6d9de7829588158726df94e484af34e4cac87939538a5dd6"
+      }
+    },
+    {
+      "group": "lidar-middle",
+      "snapshot": {
+        "path": "captures/ota-doip-fields-20261021/lidar-middle/inputs.json",
+        "sha256": "edc331a19304f57404e16c41d79db25e64c38cdb3a2fbfc430c04db1541ac54e"
+      },
+      "stdout": {
+        "path": "captures/ota-doip-fields-20261021/lidar-middle/stdout.txt",
+        "sha256": "e6239e25856229f024bd2708d4ccecdd810f3bf6698b0189669af739a0b65b7a"
+      },
+      "comparison": {
+        "path": "captures/ota-doip-fields-20261021/lidar-middle/comparison.json",
+        "sha256": "c09acb88e88f69dcd31667326dd8d7d9af3d5ded71d14ef2b6c3414faa878ae1"
+      },
+      "preflight": {
+        "path": "captures/ota-doip-fields-20261021/lidar-middle/preflight/status.json",
+        "sha256": "a6795002acfedcf03709275e1e767c3109bbdfc218b5c8cb18bd39942be8a9b6"
+      },
+      "postflight": {
+        "path": "captures/ota-doip-fields-20261021/lidar-middle/postflight/status.json",
+        "sha256": "16f107a9fd1ccb2d68b0eb11d18450277e98975997158cd257acc1ac2b08b413"
+      },
+      "preProcesses": {
+        "path": "captures/ota-doip-fields-20261021/lidar-middle/preflight/processes.txt",
+        "sha256": "1aed1bb2d2ffeacba04c7ce12239a75a69d505844e7521477aceb820d1be4c8e"
+      },
+      "postProcesses": {
+        "path": "captures/ota-doip-fields-20261021/lidar-middle/postflight/processes.txt",
+        "sha256": "643857f21b555eb1ab4e2f031799cb2c3196f1a2bb4827697a866245f6e02a2e"
+      }
+    }
+  ],
+  "positiveComparisons": [
+    {
+      "did": "F194",
+      "field": "ecuSoftCode",
+      "ecuIds": [
+        "HTH-2021_ADC_BYD_00100001"
+      ],
+      "cached": "48450011DF83000000",
+      "observation": {
+        "did": "F194",
+        "responsePending": true,
+        "ack": true,
+        "outcome": "positive",
+        "uds": "62F19448450011DF83000000"
+      },
+      "stockParseValid": true,
+      "value": "48450011DF83000000",
+      "cacheMatch": true,
+      "group": "adc"
+    },
+    {
+      "did": "F195",
+      "field": "ecuSoftVer",
+      "ecuIds": [
+        "HTH-2021_ADC_BYD_00100001"
+      ],
+      "cached": "4.14.07",
+      "observation": {
+        "did": "F195",
+        "ack": true,
+        "outcome": "positive",
+        "uds": "62F195A1BF1A061D00"
+      },
+      "stockParseValid": true,
+      "value": "4.14.07",
+      "cacheMatch": true,
+      "group": "adc"
+    },
+    {
+      "did": "F194",
+      "field": "ecuSoftCode",
+      "ecuIds": [
+        "HTH-2021_CDC_SOC_BYD_00100001"
+      ],
+      "cached": "4A410011DE018B0101",
+      "observation": {
+        "did": "F194",
+        "ack": true,
+        "outcome": "positive",
+        "uds": "62F1944A410011DE018B0101"
+      },
+      "stockParseValid": true,
+      "value": "4A410011DE018B0101",
+      "cacheMatch": true,
+      "group": "cdc"
+    },
+    {
+      "did": "F195",
+      "field": "ecuSoftVer",
+      "ecuIds": [
+        "HTH-2021_CDC_SOC_BYD_00100001"
+      ],
+      "cached": "4.00.16",
+      "observation": {
+        "did": "F195",
+        "ack": true,
+        "outcome": "positive",
+        "uds": "62F1959C5019070B01"
+      },
+      "stockParseValid": true,
+      "value": "4.00.16",
+      "cacheMatch": true,
+      "group": "cdc"
+    },
+    {
+      "did": "F194",
+      "field": "ecuSoftCode",
+      "ecuIds": [
+        "HTH-2021_LIDAR-L_RoboSense_00100001",
+        "HTH-2021_LIDAR-L_HESAI_00100001"
+      ],
+      "cached": "5A370011DF48000000",
+      "observation": {
+        "did": "F194",
+        "ack": true,
+        "outcome": "positive",
+        "uds": "62F1945A370011DF48000000"
+      },
+      "stockParseValid": true,
+      "value": "5A370011DF48000000",
+      "cacheMatch": true,
+      "group": "lidar-left"
+    },
+    {
+      "did": "F195",
+      "field": "ecuSoftVer",
+      "ecuIds": [
+        "HTH-2021_LIDAR-L_RoboSense_00100001",
+        "HTH-2021_LIDAR-L_HESAI_00100001"
+      ],
+      "cached": "4.03.08",
+      "observation": {
+        "did": "F195",
+        "ack": true,
+        "outcome": "positive",
+        "uds": "62F1959D741A051C01"
+      },
+      "stockParseValid": true,
+      "value": "4.03.08",
+      "cacheMatch": true,
+      "group": "lidar-left"
+    },
+    {
+      "did": "F194",
+      "field": "ecuSoftCode",
+      "ecuIds": [
+        "HTH-2021_LIDAR-R_RoboSense_00100001",
+        "HTH-2021_LIDAR-R_HESAI_00100001"
+      ],
+      "cached": "5A370011DF52000000",
+      "observation": {
+        "did": "F194",
+        "ack": true,
+        "outcome": "positive",
+        "uds": "62F1945A370011DF52000000"
+      },
+      "stockParseValid": true,
+      "value": "5A370011DF52000000",
+      "cacheMatch": true,
+      "group": "lidar-right"
+    },
+    {
+      "did": "F195",
+      "field": "ecuSoftVer",
+      "ecuIds": [
+        "HTH-2021_LIDAR-R_RoboSense_00100001",
+        "HTH-2021_LIDAR-R_HESAI_00100001"
+      ],
+      "cached": "4.03.08",
+      "observation": {
+        "did": "F195",
+        "ack": true,
+        "outcome": "positive",
+        "uds": "62F1959D741A051C01"
+      },
+      "stockParseValid": true,
+      "value": "4.03.08",
+      "cacheMatch": true,
+      "group": "lidar-right"
+    }
+  ],
+  "negativeComparisons": [
+    {
+      "did": "F294",
+      "field": "ecuSoftCode",
+      "ecuIds": [
+        "HTH-2021_CDC_FPGA_BYD_00100001"
+      ],
+      "cached": "000000000000000000",
+      "observation": {
+        "did": "F294",
+        "ack": true,
+        "outcome": "negative",
+        "uds": "7F2210"
+      },
+      "group": "cdc"
+    }
+  ],
+  "limits": [
+    "Eight projected Ethernet rows are candidates and aliases, not eight proved physical ECUs.",
+    "Stock DoipDiagnostic reads only code/version from ecuDId; hardware and configuration fields remain defaults in these rows.",
+    "The retained October18 ADC DoIP observation was rediscovered and reused for framing; not every DoIP route was previously unobserved.",
+    "All nine requests used default diagnostic state; native DoipDiagnostic switches to session03, which was not invoked. A negative here does not reproduce that branch or prove absence.",
+    "CDC FPGA F295 was skipped after F294 generalReject. Middle LiDAR got no UDS request; its cached zero tuple remains unmeasured.",
+    "No CAN identity value, zero placeholder or duplicate catalog alias was removed or substituted in an OTA request."
+  ]
+}

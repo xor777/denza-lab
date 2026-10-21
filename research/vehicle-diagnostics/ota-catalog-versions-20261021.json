@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "kind": "catalog version projection qualification and pre-network export failures",
+  "summary": {
+    "liveRuns": 2,
+    "cloudRequests": 0,
+    "ecuCalls": 0,
+    "catalogVersionsObtained": false,
+    "allCleanupVerified": true,
+    "partialStockLogRows": 8,
+    "partialStockLogVersionFieldsPresent": 0
+  },
+  "sources": {
+    "build": {
+      "path": "captures/ota-catalog-versions-20261021/build-v2/build.json",
+      "sha256": "f35874731cb5022cd717043b5ddafa9d63c968da045c78338fceb56e029dc785"
+    },
+    "reader": {
+      "path": "tools/vehicle-diagnostics/ota_catalog_versions.py",
+      "sha256": "8d5830847ebab76bc8ec6145f29fc334a98234752768b10b515ab8b5a95d6f7d"
+    },
+    "stockModel": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/model/EcuListInfo.java",
+      "sha256": "9511ddc5b50d3a528c4312420d40f29455ee4d0d5bc1425b6ad15629263676bd"
+    },
+    "stockReset": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DiagnosePresenter.java",
+      "sha256": "c7d9c943ba4c8f06efbe35e580bb58767c84376a9fc89c09465edb50e65a30ab"
+    },
+    "partialStockLog": {
+      "path": "captures/ota-status-20261018/phase1-live-check-sanitized.txt",
+      "sha256": "762e6dba1a707220e8474bc959d8ad24849ffc4817285f9205e37f61d8b8318e"
+    },
+    "exportLogMarkers": {
+      "path": "captures/ota-catalog-versions-20261021/export-log-markers.json",
+      "sha256": "26ca3110d5fb8db2ddd981a520cec565de2b5227a2ff6055bf714edb4ac7878e"
+    }
+  },
+  "runs": [
+    {
+      "name": "read",
+      "session": {
+        "path": "captures/ota-catalog-versions-20261021/read/session/session.json",
+        "sha256": "dad1ff43c03d86bcd290a9307f3d4489c606646a0b77389b72515dd61529c06d"
+      },
+      "preflight": {
+        "path": "captures/ota-catalog-versions-20261021/read/preflight/status.json",
+        "sha256": "5ae81d2684d8d1f776cdd64c8a4ac40eaf9d8da226c7461b83b6848b633aa7e2"
+      },
+      "postflight": {
+        "path": "captures/ota-catalog-versions-20261021/read/postflight/status.json",
+        "sha256": "15480546206be1770e0cae7ed918e78d9a3e8b46e2a7d07075a8f950a42c27b6"
+      },
+      "preProcesses": {
+        "path": "captures/ota-catalog-versions-20261021/read/preflight/processes.txt",
+        "sha256": "fdc3a495cf928dea370cc82f72cf744ad15f25acb2f8bad22456f53cd64b2174"
+      },
+      "postProcesses": {
+        "path": "captures/ota-catalog-versions-20261021/read/postflight/processes.txt",
+        "sha256": "43528ade215e304bca1cadd7dffeb9601db69fd2b811329ebfc5eb9f5f325e3b"
+      },
+      "healthComparison": {
+        "path": "captures/ota-catalog-versions-20261021/read/health-comparison.json",
+        "sha256": "a274f31dd155706906bca77062117f9df36909d26699e768503be48e554ad27c"
+      }
+    },
+    {
+      "name": "read-2",
+      "session": {
+        "path": "captures/ota-catalog-versions-20261021/read-2/session/session.json",
+        "sha256": "dad1ff43c03d86bcd290a9307f3d4489c606646a0b77389b72515dd61529c06d"
+      },
+      "preflight": {
+        "path": "captures/ota-catalog-versions-20261021/read-2/preflight/status.json",
+        "sha256": "7afb5175d29cdd4bcbf27a429355bedb91845ce67d1921fecfd32b32daaaa0ee"
+      },
+      "postflight": {
+        "path": "captures/ota-catalog-versions-20261021/read-2/postflight/status.json",
+        "sha256": "8a9d75138fefa1213b6c03c5c108183aec0c6d01df4fce855836232c6330c125"
+      },
+      "preProcesses": {
+        "path": "captures/ota-catalog-versions-20261021/read-2/preflight/processes.txt",
+        "sha256": "089e00e4be30a2fafd177e12fc529aa1fe72596680a822c4f6066c9a6191415a"
+      },
+      "postProcesses": {
+        "path": "captures/ota-catalog-versions-20261021/read-2/postflight/processes.txt",
+        "sha256": "7f6fc73b67247ffd9bbca598e6b4f5205341265dfc66138cc5a729a36f734d51"
+      },
+      "healthComparison": {
+        "path": "captures/ota-catalog-versions-20261021/read-2/health-comparison.json",
+        "sha256": "a274f31dd155706906bca77062117f9df36909d26699e768503be48e554ad27c"
+      }
+    }
+  ],
+  "partialStockLog": {
+    "line": 33,
+    "completeEcuRows": 8,
+    "tailTruncated": true,
+    "fields": [
+      "ecuSoftCode",
+      "ecuSoftVer",
+      "ecuHardVer",
+      "ecuConfigCode",
+      "ecuConfigVer",
+      "isRepairEcu"
+    ],
+    "presenceCounts": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "limits": [
+    "Both live attempts stopped at listeners_not_ready before helper launch and GO. No login or catalog request was sent.",
+    "The previous projection excluded five version fields; its output does not establish absence in the complete server response.",
+    "Eight complete ECU objects in the raw pre-parse stock log omit all six inspected fields; the log truncates the remaining list.",
+    "Stock DiagnosePresenter overwrites all five version fields before querying ECUs; model field declarations alone do not establish server payload semantics.",
+    "No expected campaign baseline, applicable package or safe installation path has been obtained."
+  ]
+}
