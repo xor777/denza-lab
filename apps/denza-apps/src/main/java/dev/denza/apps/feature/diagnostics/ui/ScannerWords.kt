@@ -236,7 +236,8 @@ internal object ScannerWords {
     /** The rail: the session's, or before it has one «Автоскан» and every system without a mark. */
     fun rail(model: DiagnosticsModel): List<RailItem> = model.rail.ifEmpty {
         listOf(RailItem(null, "Автоскан", model.scan.answered.takeIf { it.isNotEmpty() }, RailTone.COUNT)) +
-            CarSystem.entries.map { RailItem(it, it.railName, null, RailTone.NONE) }
+            // before the session describes the systems: every one that holds a block in the catalog
+            CarSystem.entries.filter { it != CarSystem.OTHER }.map { RailItem(it, it.railName, null, RailTone.NONE) }
     }
 
     /** A rail mark's ink: the autoscan's count quiet, history as the tiles have it, active in the car's orange. */

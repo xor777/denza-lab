@@ -61,8 +61,7 @@ internal fun DrivesTable(view: CompareView) {
     view.columns.take(4).forEachIndexed { i, c ->
         val (x, cw) = cols[1 + i]
         val top = d.TOP + (h0 - Type.UNIT_NAME.lh - 2f - Type.UNIT_TAG.lh) / 2f
-        // a column is headed by its block - which rear motor each SMCU drives is not established -
-        // and its role stands under it
+        // a column is headed by its block, its role and side under it («Задний левый»)
         ScanText(ScannerWords.columnTag(c), Type.UNIT_NAME, Ink.WHITE, Modifier.endAt(x + cw - d.PAD, top))
         ScanText(c.name, Type.UNIT_TAG, Ink.FAINT, Modifier.endAt(x + cw - d.PAD, top + Type.UNIT_NAME.lh + 2f))
     }
