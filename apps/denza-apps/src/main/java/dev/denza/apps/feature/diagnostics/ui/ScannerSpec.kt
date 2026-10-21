@@ -649,6 +649,77 @@ internal object ScannerSpec {
         const val GAP = 48f
     }
 
+    /**
+     * Салон (`sysCabin()`): the plates [X] from either side, [PLATE_W] wide, stacked from [TOP] to
+     * [BOTTOM] [GAP] apart, their leaders bending [BEND_IN] off the car's edge and [BEND_STEP] further
+     * out each; the wheel, the seats, the console with its pads and fridges, the pips and the lamps
+     * from the car's top-left. The JSON's `cabinScheme`, then the numbers `scanner.js` writes inline.
+     */
+    object CabinScheme {
+        const val X = 24f
+        const val PLATE_W = 300f
+        const val TOP = 176f
+        const val BOTTOM = 618f
+        const val GAP = 10f
+        const val BEND_IN = 14f
+        const val BEND_STEP = 18f
+        /** The wheel: its centre and radius. */
+        val WHEEL = Triple(46f, 134f, 12f)
+        val FRONT_X = listOf(20f, 104f)
+        const val FRONT_Y = 150f
+        const val FRONT_W = 52f
+        const val FRONT_H = 52f
+        const val FRONT_R = 10f
+        /** The second row: left, centre, right. */
+        val BENCH_X = listOf(16f, 65f, 114f)
+        const val BENCH_Y = 234f
+        const val BENCH_W = 46f
+        const val BENCH_H = 52f
+        const val BENCH_R = 9f
+        const val CONSOLE_Y = 144f
+        const val CONSOLE_H = 82f
+        const val CONSOLE_W = 22f
+        const val CONSOLE_R = 4f
+        const val PAD_Y = 150f
+        const val PAD_W = 8f
+        const val PAD_H = 13f
+        const val FRIDGE_Y = 190f
+        const val FRIDGE_H = 18f
+        const val REAR_FRIDGE_Y = 214f
+        const val REAR_FRIDGE_H = 9f
+        /** A pip's side, the gap between pips, its inset from the seat's foot and side. */
+        const val PIP = 5f
+        const val PIP_GAP = 2f
+        const val PIP_PAD = 6f
+        const val LAMP_R = 2.6f
+        const val LAMP_GLOW = 6f
+        const val LAMP_IN = 7f
+        const val LAMP_DOWN = 7f
+        /** The centre seat's leader ends this far under the car's top, between the rear seats. */
+        const val CENTRE_LEADER = 292f
+
+        /** The strap: from [STRAP_IN] in from the right and [STRAP_TOP] down to [STRAP_IN] in from the left, [STRAP_FOOT] over the foot. */
+        const val STRAP_IN = 8f
+        const val STRAP_TOP = 6f
+        const val STRAP_FOOT = 14f
+        const val STRAP = 2f
+        val STRAP_DASH = floatArrayOf(4f, 3f)
+        const val PIP_R = 1f
+        const val WHEEL_STROKE = 2f
+        const val WHEEL_DOT = 2.5f
+        /** The pads either side of the console's middle, this far from it. */
+        const val PAD_GAP = 1f
+        const val PAD_R = 2f
+        /** A fridge's box inside the console. */
+        const val BOX_INSET = 2f
+        const val BOX_R = 2f
+        const val LAMP_GLOW_ALPHA = 0.25f
+        /** Where leaders end: over the wheel to the cluster, over the pads, over a fridge's foot. */
+        const val CLUSTER_LIFT = 18f
+        const val PADS_LIFT = 4f
+        const val FRIDGE_LIFT = 3f
+    }
+
     /** A plate of lines beside a scheme with its leader (`callout()`), and a machine's circle. */
     object Callout {
         const val LEFT_X = 96f

@@ -26,13 +26,19 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
+import dev.denza.apps.feature.diagnostics.scan.CabinPlace
+import dev.denza.apps.feature.diagnostics.scan.CabinPlate
+import dev.denza.apps.feature.diagnostics.scan.CabinSeat
+import dev.denza.apps.feature.diagnostics.scan.CabinTone
 import dev.denza.apps.feature.diagnostics.scan.CarSystem
 import dev.denza.apps.feature.diagnostics.scan.Corner
 import dev.denza.apps.feature.diagnostics.scan.DiagnosticsModel
 import dev.denza.apps.feature.diagnostics.scan.EnginePlace
+import dev.denza.apps.feature.diagnostics.scan.FridgeMode
 import dev.denza.apps.feature.diagnostics.scan.HvUnit
 import dev.denza.apps.feature.diagnostics.scan.ModuleRowView
 import dev.denza.apps.feature.diagnostics.scan.ModuleStatus
+import dev.denza.apps.feature.diagnostics.scan.PadState
 import dev.denza.apps.feature.diagnostics.scan.RangeView
 import dev.denza.apps.feature.diagnostics.scan.Scheme
 import dev.denza.apps.feature.diagnostics.scan.Target
@@ -45,7 +51,7 @@ import kotlin.math.sin
 /*
  * A system's «Состояние»: the mnemonic schemes of `scanner.js` - the car from above (`car()`) with
  * callouts (`callout()`) and the blocks' tiles (`unitTile()`, `hang()`) for Шасси, Кузов,
- * Ассистенты, Электропривод and Безопасность; the HV schema (`hvBody()`); the pack (`sysPack()`, `rangeBar()`); the engine's air
+ * Ассистенты, Электропривод and Безопасность; the cabin through the roof (`sysCabin()`); the HV schema (`hvBody()`); the pack (`sysPack()`, `rangeBar()`); the engine's air
  * path; climate; the 12 V net. Line art is drawn on one canvas in window dp, words and tiles are
  * composables over it, so a tile still opens its block.
  */
@@ -63,8 +69,7 @@ internal fun SchemeContent(model: DiagnosticsModel, scheme: Scheme, onOpen: (Tar
         is Scheme.Climate -> ClimateScheme(scheme, onOpen)
         is Scheme.Lv -> LvScheme(scheme, onOpen)
         is Scheme.Safety -> SafetyScheme(scheme, onOpen)
-        // drawn by the next change: the cabin seen through the roof
-        is Scheme.Cabin -> Unit
+        is Scheme.Cabin -> CabinScheme(scheme)
     }
 }
 
@@ -134,8 +139,8 @@ private class CarGeom(val cx: Float, val y0: Float, val h: Float) {
     val mid = y0 + h / 2f
 }
 
-/** The body from above, front up, in lines: outline, glass, mirrors and wheels (`car()`). */
-private fun DrawScope.car(k: CarGeom) {
+/** The body from above, front up, in lines: outline, glass, mirrors and wheels (`car()`); [inside] leaves out the roof. */
+private fun DrawScope.car(k: CarGeom, inside: Boolean = false) {
     val c = ScannerSpec.Car
     val body = Path().apply {
         addRoundRect(
@@ -153,7 +158,8 @@ private fun DrawScope.car(k: CarGeom) {
     val b = k.x0 + k.w - c.GLASS_INSET
     wire("M$a ${ws + 10}Q${k.cx} ${ws - 14} $b ${ws + 10}", Ink.WIRE3, 1.4f)
     wire("M$a ${rw - 8}Q${k.cx} ${rw + 12} $b ${rw - 8}", Ink.WIRE3, 1.4f)
-    frame(k.x0 + c.ROOF_INSET, ws + 18, k.w - 2 * c.ROOF_INSET, rw - ws - 34, Ink.LINE3, 14f)
+    // the roof; a scheme of the inside draws the cabin in its place
+    if (!inside) frame(k.x0 + c.ROOF_INSET, ws + 18, k.w - 2 * c.ROOF_INSET, rw - ws - 34, Ink.LINE3, 14f)
     val mw = c.MIRROR_W
     val mh = c.MIRROR_H
     wire("M${k.x0} ${ws + 4}l${-mw} ${-mh / 2}v${-mh}l$mw ${mh / 2}", Ink.WIRE3, 1.4f)
@@ -196,11 +202,11 @@ private fun calloutH(lines: List<Line>): Float {
     return 2f * o.PAD_Y + lines.sumOf { it.style.lh.toDouble() }.toFloat() + (lines.size - 1) * o.GAP
 }
 
-/** A callout's leader: from the plate's near side to a point on the car, a dot at the end. */
-private fun DrawScope.leader(x: Float, y: Float, w: Float, h: Float, tx: Float, ty: Float) {
+/** A callout's leader: from the plate's near side to a point on the car, a dot at the end; bent half way, or at [bend]. */
+private fun DrawScope.leader(x: Float, y: Float, w: Float, h: Float, tx: Float, ty: Float, bend: Float? = null) {
     val sx = if (tx < x) x else x + w
     val sy = y + h / 2f
-    wire(if (ty == sy) "M$sx ${sy}H$tx" else "M$sx ${sy}H${(sx + tx) / 2f}V${ty}H$tx", Ink.WIRE4, 1.2f)
+    wire(if (ty == sy) "M$sx ${sy}H$tx" else "M$sx ${sy}H${bend ?: ((sx + tx) / 2f)}V${ty}H$tx", Ink.WIRE4, 1.2f)
     dot(tx, ty, ScannerSpec.Callout.DOT, Ink.WIRE5)
 }
 
@@ -687,6 +693,144 @@ private fun SafetyScheme(s: Scheme.Safety, onOpen: (Target) -> Unit) {
     belts.forEach { SchemeTile(it.row, it.x, it.y, onOpen) }
     SchemeTile(s.airbags, cx - TILE_W / 2, k.mid - TILE_H / 2, onOpen)
     SchemeTile(s.childRadar, cx - TILE_W / 2, k.y0 + k.h - 22f - TILE_H, onOpen)
+}
+
+/* ------------------------------------------------------------------- cabin */
+
+/**
+ * The plates of one side stacked as `sysCabin()` stacks them: each level with its place where the
+ * column has room, pushed down by the one above, the column lifted when it runs past [bottom];
+ * and the bends of their leaders from the car's [edge] outward - the leader that climbs or drops
+ * the most bends nearest the car, so no leader crosses another.
+ */
+internal object CabinStack {
+    /** The plates' tops for their places' [targets] and their [heights]. */
+    fun tops(targets: List<Float>, heights: List<Float>, top: Float, bottom: Float, gap: Float): List<Float> {
+        val ys = FloatArray(targets.size)
+        targets.indices.forEach { i ->
+            ys[i] = maxOf(targets[i] - heights[i] / 2f, if (i > 0) ys[i - 1] + heights[i - 1] + gap else top)
+        }
+        val over = if (ys.isEmpty()) 0f else ys.last() + heights.last() - bottom
+        if (over > 0f) ys.indices.forEach { ys[it] = maxOf(top, ys[it] - over) }
+        for (i in 1 until ys.size) ys[i] = maxOf(ys[i], ys[i - 1] + heights[i - 1] + gap)
+        return ys.toList()
+    }
+
+    /** Each leader's bend: [edge] out by [step] a rank, the rank by how far the leader climbs or drops, the most first. */
+    fun bends(targets: List<Float>, tops: List<Float>, heights: List<Float>, edge: Float, step: Float, dir: Float): List<Float> {
+        val order = targets.indices.sortedByDescending { kotlin.math.abs(targets[it] - (tops[it] + heights[it] / 2f)) }
+        val bends = FloatArray(targets.size)
+        order.forEachIndexed { rank, i -> bends[i] = edge + dir * rank * step }
+        return bends.toList()
+    }
+}
+
+/** A cabin word's ink: the row's own - white on the first row, dim under it - or its tone's. */
+private fun cabinInk(tone: CabinTone, small: Boolean): Int = when (tone) {
+    CabinTone.PLAIN -> if (small) Ink.DIM else Ink.WHITE
+    CabinTone.QUIET -> Ink.DIM
+    CabinTone.ALERT -> Ink.ORANGE
+    CabinTone.WARM -> Ink.ORANGE_INK
+}
+
+private fun cabinLines(p: CabinPlate): List<Line> = listOf<Line>(Words(p.label, Type.COUNTER_LABEL, Ink.MUTE)) + p.rows.map { r ->
+    val style = if (r.small) Type.CELL_SMALL else Type.CELL
+    if (r.runs.size == 1) Words(r.runs[0].text, style, cabinInk(r.runs[0].tone, r.small))
+    else Runs(r.runs.map { Triple(it.text, style, cabinInk(it.tone, r.small)) })
+}
+
+/**
+ * A seat seen through the roof (`sysCabin()`'s `seat()`): filled when someone sits, the strap across
+ * it - blue fastened, orange and dashed when someone sits unfastened - heating's warm pips from its
+ * left foot and ventilation's cool ones from its right, the reading light at its outer front corner.
+ */
+private fun DrawScope.seat(x: Float, y: Float, w: Float, h: Float, r: Float, s: CabinSeat, outer: Int) {
+    val c = ScannerSpec.CabinScheme
+    if (s.occupied == true) box(x, y, w, h, Ink.BLUE_SHARE, r)
+    frame(x, y, w, h, if (s.occupied == true) Ink.BLUE_EDGE else Ink.LINE3, r)
+    val strap = "M${x + w - c.STRAP_IN} ${y + c.STRAP_TOP}L${x + c.STRAP_IN} ${y + h - c.STRAP_FOOT}"
+    if (s.belt == true) wire(strap, Ink.BLUE, c.STRAP)
+    else if (s.occupied == true && s.belt == false) wire(strap, Ink.ORANGE, c.STRAP, c.STRAP_DASH)
+    val py = y + h - c.PIP_PAD - c.PIP
+    listOf(Triple(s.heat, Ink.ORANGE, x + c.PIP_PAD to 1f), Triple(s.vent, Ink.BLUE, x + w - c.PIP_PAD - c.PIP to -1f)).forEach { (level, on, from) ->
+        if (level == null) return@forEach
+        val (x1, dir) = from
+        for (i in 0 until 3) box(x1 + dir * i * (c.PIP + c.PIP_GAP), py, c.PIP, c.PIP, if (i < level) on else Ink.LINE3, c.PIP_R)
+    }
+    val lamp = s.lamp ?: return
+    val lx = if (outer < 0) x + c.LAMP_IN else x + w - c.LAMP_IN
+    val ly = y + c.LAMP_DOWN
+    if (lamp) drawCircle(ink(Ink.ORANGE), c.LAMP_GLOW, Offset(lx, ly), alpha = c.LAMP_GLOW_ALPHA)
+    dot(lx, ly, c.LAMP_R, if (lamp) Ink.ORANGE else Ink.FAINT3)
+}
+
+/**
+ * Салон: the cabin seen through the roof (`sysCabin()`) - the seats, the wheel, the console with
+ * the pads and the fridges - and the plates down both sides, each level with its place where the
+ * column has room, their bends ordered so no leader crosses another.
+ */
+@Composable
+private fun CabinScheme(s: Scheme.Cabin) {
+    val c = ScannerSpec.CabinScheme
+    val w = LocalScanWidth.current
+    val cx = w / 2f
+    val k = CarGeom(cx, ScannerSpec.Car.TOP, ScannerSpec.Car.H)
+    val kx = cx - c.CONSOLE_W / 2f
+    val (wx0, wy0, wr) = c.WHEEL
+    val wx = k.x0 + wx0
+    val wy = k.y0 + wy0
+    val to = mapOf(
+        CabinPlace.CLUSTER to Offset(wx, wy - c.CLUSTER_LIFT),
+        CabinPlace.WHEEL to Offset(wx - wr, wy),
+        CabinPlace.FL to Offset(k.x0 + c.FRONT_X[0], k.y0 + c.FRONT_Y + c.FRONT_H / 2f),
+        CabinPlace.RL to Offset(k.x0 + c.BENCH_X[0], k.y0 + c.BENCH_Y + c.BENCH_H / 2f),
+        CabinPlace.RC to Offset(cx, k.y0 + c.CENTRE_LEADER),
+        CabinPlace.PADS to Offset(cx + c.PAD_GAP + c.PAD_W, k.y0 + c.PAD_Y - c.PADS_LIFT),
+        CabinPlace.FR to Offset(k.x0 + c.FRONT_X[1] + c.FRONT_W, k.y0 + c.FRONT_Y + c.FRONT_H / 2f),
+        CabinPlace.FRIDGES to Offset(kx + c.CONSOLE_W - c.BOX_INSET, k.y0 + c.FRIDGE_Y + c.FRIDGE_H - c.FRIDGE_LIFT),
+        CabinPlace.RR to Offset(k.x0 + c.BENCH_X[2] + c.BENCH_W, k.y0 + c.BENCH_Y + c.BENCH_H / 2f),
+    )
+    data class Placed(val x: Float, val y: Float, val h: Float, val lines: List<Line>, val to: Offset, val bend: Float)
+    fun column(plates: List<CabinPlate>, x: Float, edge: Float, dir: Float): List<Placed> {
+        val lines = plates.map(::cabinLines)
+        val heights = lines.map(::calloutH)
+        val targets = plates.map { to.getValue(it.place).y }
+        val tops = CabinStack.tops(targets, heights, c.TOP, c.BOTTOM, c.GAP)
+        val bends = CabinStack.bends(targets, tops, heights, edge, c.BEND_STEP, dir)
+        return plates.indices.map { Placed(x, tops[it], heights[it], lines[it], to.getValue(plates[it].place), bends[it]) }
+    }
+    val placed = column(s.left, c.X, k.left - c.BEND_IN, -1f) + column(s.right, w - c.X - c.PLATE_W, k.right + c.BEND_IN, 1f)
+    SchemeCanvas {
+        car(k, inside = true)
+        val sat = { place: CabinPlace -> s.seats[place] ?: CabinSeat(null, null, null, null, null) }
+        seat(k.x0 + c.FRONT_X[0], k.y0 + c.FRONT_Y, c.FRONT_W, c.FRONT_H, c.FRONT_R, sat(CabinPlace.FL), -1)
+        seat(k.x0 + c.FRONT_X[1], k.y0 + c.FRONT_Y, c.FRONT_W, c.FRONT_H, c.FRONT_R, sat(CabinPlace.FR), 1)
+        seat(k.x0 + c.BENCH_X[0], k.y0 + c.BENCH_Y, c.BENCH_W, c.BENCH_H, c.BENCH_R, sat(CabinPlace.RL), -1)
+        seat(k.x0 + c.BENCH_X[1], k.y0 + c.BENCH_Y, c.BENCH_W, c.BENCH_H, c.BENCH_R, sat(CabinPlace.RC), 0)
+        seat(k.x0 + c.BENCH_X[2], k.y0 + c.BENCH_Y, c.BENCH_W, c.BENCH_H, c.BENCH_R, sat(CabinPlace.RR), 1)
+        // the wheel in front of the driver, warm when heated
+        val rim = if (s.wheelHeat == true) Ink.ORANGE else Ink.WIRE3
+        drawCircle(ink(rim), wr, Offset(wx, wy), style = Stroke(c.WHEEL_STROKE))
+        dot(wx, wy, c.WHEEL_DOT, rim)
+        // the console: the pads at its front, the fridge in the armrest, the rear fridge behind it
+        frame(kx, k.y0 + c.CONSOLE_Y, c.CONSOLE_W, c.CONSOLE_H, Ink.LINE3, c.CONSOLE_R)
+        listOf(cx - c.PAD_GAP - c.PAD_W to s.padLeft, cx + c.PAD_GAP to s.padRight).forEach { (x, state) ->
+            val y = k.y0 + c.PAD_Y
+            if (state == PadState.CHARGING || state == PadState.FULL) {
+                box(x, y, c.PAD_W, c.PAD_H, if (state == PadState.CHARGING) Ink.BLUE else Ink.BLUE_SOFT, c.PAD_R)
+            }
+            frame(x, y, c.PAD_W, c.PAD_H, when (state) { PadState.FAULT -> Ink.ORANGE; null -> Ink.LINE3; else -> Ink.BLUE_EDGE }, c.PAD_R)
+        }
+        listOf(Triple(c.FRIDGE_Y, c.FRIDGE_H, s.fridgeFront), Triple(c.REAR_FRIDGE_Y, c.REAR_FRIDGE_H, s.fridgeRear)).forEach { (y, h, mode) ->
+            val fill = when (mode) { FridgeMode.COLD -> Ink.BLUE; FridgeMode.FRESH -> Ink.BLUE_SOFT; FridgeMode.HOT -> Ink.ORANGE; else -> null }
+            val bx = kx + c.BOX_INSET
+            val bw = c.CONSOLE_W - 2f * c.BOX_INSET
+            if (fill != null) box(bx, k.y0 + y, bw, h, fill, c.BOX_R)
+            else frame(bx, k.y0 + y, bw, h, if (mode == null) Ink.LINE3 else Ink.WIRE3, c.BOX_R)
+        }
+        placed.forEach { p -> leader(p.x, p.y, c.PLATE_W, p.h, p.to.x, p.to.y, p.bend) }
+    }
+    placed.forEach { Plate(it.x, it.y, c.PLATE_W, it.lines) }
 }
 
 /* ---------------------------------------------------------------------- lv */

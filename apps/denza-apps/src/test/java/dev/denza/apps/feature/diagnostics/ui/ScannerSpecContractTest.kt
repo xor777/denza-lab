@@ -392,6 +392,41 @@ class ScannerSpecContractTest {
     }
 
     @Test
+    fun theCabin() {
+        val c = ScannerSpec.CabinScheme
+        val k = "cabinScheme"
+        // every number of the JSON's cabinScheme is held here, and nothing else is in it
+        assertEquals(
+            setOf("x", "plateW", "top", "bottom", "gap", "bendIn", "bendStep", "wheel", "front", "bench", "console", "pad", "fridge",
+                "rearFridge", "pip", "lamp", "centreLeader"),
+            (at(k) as Map<*, *>).keys,
+        )
+        n(c.X, k, "x"); n(c.PLATE_W, k, "plateW"); n(c.TOP, k, "top"); n(c.BOTTOM, k, "bottom"); n(c.GAP, k, "gap")
+        n(c.BEND_IN, k, "bendIn"); n(c.BEND_STEP, k, "bendStep")
+        n(c.WHEEL.first, k, "wheel", "0"); n(c.WHEEL.second, k, "wheel", "1"); n(c.WHEEL.third, k, "wheel", "2")
+        assertEquals(cols(k, "front", "x"), c.FRONT_X)
+        n(c.FRONT_Y, k, "front", "y"); n(c.FRONT_W, k, "front", "w"); n(c.FRONT_H, k, "front", "h"); n(c.FRONT_R, k, "front", "r")
+        assertEquals(cols(k, "bench", "x"), c.BENCH_X)
+        n(c.BENCH_Y, k, "bench", "y"); n(c.BENCH_W, k, "bench", "w"); n(c.BENCH_H, k, "bench", "h"); n(c.BENCH_R, k, "bench", "r")
+        n(c.CONSOLE_Y, k, "console", "y"); n(c.CONSOLE_H, k, "console", "h"); n(c.CONSOLE_W, k, "console", "w"); n(c.CONSOLE_R, k, "console", "r")
+        n(c.PAD_Y, k, "pad", "y"); n(c.PAD_W, k, "pad", "w"); n(c.PAD_H, k, "pad", "h")
+        n(c.FRIDGE_Y, k, "fridge", "y"); n(c.FRIDGE_H, k, "fridge", "h")
+        n(c.REAR_FRIDGE_Y, k, "rearFridge", "y"); n(c.REAR_FRIDGE_H, k, "rearFridge", "h")
+        n(c.PIP, k, "pip", "s"); n(c.PIP_GAP, k, "pip", "gap"); n(c.PIP_PAD, k, "pip", "pad")
+        n(c.LAMP_R, k, "lamp", "r"); n(c.LAMP_GLOW, k, "lamp", "glow"); n(c.LAMP_IN, k, "lamp", "in"); n(c.LAMP_DOWN, k, "lamp", "down")
+        n(c.CENTRE_LEADER, k, "centreLeader")
+        // the plates stand under the tabs and over the footer, clear of the car
+        val car = ScannerSpec.Car
+        assertTrue(c.TOP >= ScannerSpec.Content.TOP && c.BOTTOM <= ScannerSpec.Footer.TOP)
+        val width = ScannerSpec.W - ScannerSpec.Rail.W
+        val left = width / 2f - car.W / 2f - car.WHEEL_W / 2f
+        assertTrue(c.X + c.PLATE_W < left - c.BEND_IN - 4 * c.BEND_STEP)
+        // the seats and the console inside the body
+        assertTrue(c.FRONT_X.last() + c.FRONT_W < car.W && c.BENCH_X.last() + c.BENCH_W < car.W)
+        assertTrue(c.CONSOLE_Y + c.CONSOLE_H < c.BENCH_Y && c.REAR_FRIDGE_Y + c.REAR_FRIDGE_H <= c.CONSOLE_Y + c.CONSOLE_H)
+    }
+
+    @Test
     fun theSchemes() {
         val r = ScannerSpec.RangeBar
         n(r.H, "rangeBar", "h"); n(r.HEAD_GAP, "rangeBar", "headGap"); n(r.TICK_GAP, "rangeBar", "tickGap"); n(r.MIN_SPAN, "rangeBar", "minSpan")
