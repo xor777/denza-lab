@@ -1,0 +1,446 @@
+{
+  "schema": "denza-lab.washer-producer-routing.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleCalls": 0,
+  "ADBCalls": 0,
+  "networkCalls": 0,
+  "firmwareExecuted": false,
+  "finding": "The OEM source names the CAN 261 text input DOMAIN. No independent source joins that namespace to a unique physical transmitter, 1DD selector or reservoir-input ECU.",
+  "ownership": {
+    "physicalCAN261Transmitter": {
+      "identity": null,
+      "known": "The retained IVI implementation receives CAN 261 and decodes its existing warning enum.",
+      "gap": "No sender-node definition, bus communication matrix or matching transmitting-controller firmware is retained in this evidence set.",
+      "gatewayBoundary": "A gateway may retransmit a frame selected by another controller. Its physical TX ownership would not by itself identify the 1DD-selection algorithm."
+    },
+    "warning1DDSelector": {
+      "identity": null,
+      "known": "The cluster displays the admitted warning identifier; its input name is DOMAIN_261_10_21_TEXT_INFO.",
+      "gap": "No producer implementation maps a named reservoir input or condition to warning 1DD in the selected sources."
+    },
+    "reservoirInputOwner": {
+      "identity": null,
+      "acceptedPremise": "Sensors are fitted and the N9 reservoir was empty, as reported by the owner/service.",
+      "gap": "No applicable circuit sheet, sensor-to-controller definition, diagnostic measurement definition or ECU firmware binds this input.",
+      "boundary": "A stock front-washer actuator route does not establish level-input ownership."
+    }
+  },
+  "nativeNamespace": {
+    "source": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+    "DIEOffset": "0x1b5af",
+    "enum": "vehicle_data_appid_enum",
+    "totalEnumerators": 2021,
+    "warning": {
+      "name": "DOMAIN_261_10_21_TEXT_INFO",
+      "value": 638582792
+    },
+    "frame261Names": [
+      {
+        "name": "DOMAIN_261_10_21_TEXT_INFO",
+        "value": 638582792
+      },
+      {
+        "name": "DOMAIN_261_24_24_LF_DOOR",
+        "value": 638582804
+      },
+      {
+        "name": "DOMAIN_261_25_25_RF_DOOR",
+        "value": 638582805
+      },
+      {
+        "name": "DOMAIN_261_26_26_LB_DOOR",
+        "value": 638582806
+      },
+      {
+        "name": "DOMAIN_261_27_27_RB_DOOR",
+        "value": 638582807
+      },
+      {
+        "name": "DOMAIN_261_30_30_LUGGAGE_STATE",
+        "value": 638582808
+      },
+      {
+        "name": "DOMAIN_261_31_31_FRONT_HATCH_STATE",
+        "value": 638582809
+      },
+      {
+        "name": "DOMAIN_261_32_32_MAIN_SEATBELT",
+        "value": 638582810
+      },
+      {
+        "name": "DOMAIN_261_33_33_COPILOT_SEATBELT",
+        "value": 638582811
+      },
+      {
+        "name": "DOMAIN_261_34_34_REAR_L_SEATBELT",
+        "value": 638582812
+      },
+      {
+        "name": "DOMAIN_261_35_35_REAR_MID_SEATBELT",
+        "value": 638582813
+      },
+      {
+        "name": "DOMAIN_261_36_36_REAR_R_SEATBELT",
+        "value": 638582814
+      },
+      {
+        "name": "DOMAIN_261_37_43_VEHICLE_POWER_GENERATION",
+        "value": 638582815
+      },
+      {
+        "name": "DOMAIN_261_46_47_ENERGY_FEEDBACK",
+        "value": 638582822
+      },
+      {
+        "name": "DOMAIN_261_50_52_TEXT_COLOR",
+        "value": 638582824
+      },
+      {
+        "name": "DOMAIN_261_53_55_TJA_ICA_STANDBY_ACTIVE_LIGHT",
+        "value": 638582827
+      },
+      {
+        "name": "DOMAIN_261_56_60_TJA_ICA_STANDBY_ACTIVE_LIGHT_COLOR",
+        "value": 638582830
+      },
+      {
+        "name": "DOMAIN_261_61_61_LEFT_BELT",
+        "value": 638582833
+      },
+      {
+        "name": "DOMAIN_261_62_62_MID_BELT",
+        "value": 638582834
+      },
+      {
+        "name": "DOMAIN_261_63_63_RIGHT_BELT",
+        "value": 638582835
+      },
+      {
+        "name": "DOMAIN_261_64_64_FIRST_MID_BELT",
+        "value": 638582836
+      },
+      {
+        "name": "DOMAIN_261_65_67_VOICE_FREQUENCY",
+        "value": 638582837
+      },
+      {
+        "name": "DOMAIN_261_70_73_VOICE_TYPE",
+        "value": 638582840
+      },
+      {
+        "name": "DOMAIN_261_ONLINE",
+        "value": 638582784
+      }
+    ],
+    "prefixCounts": {
+      "CLUSTER": 72,
+      "DOMAIN": 1371,
+      "VCU": 187,
+      "VCM": 5,
+      "BCM": 2,
+      "DISUS": 4,
+      "RRSE": 48,
+      "LRSE": 48,
+      "IVI": 98,
+      "FSE": 47,
+      "NAVI": 44,
+      "RIES": 36,
+      "LBCM": 3,
+      "V2X": 16,
+      "HUD": 2,
+      "GW": 2,
+      "AC": 7,
+      "ECM": 2,
+      "SWS": 2,
+      "KEYBOARD": 5,
+      "UDS": 4,
+      "ADAS": 5,
+      "PAD": 4,
+      "CLU": 4,
+      "MCU": 3
+    },
+    "interpretation": "DOMAIN is an explicit OEM namespace. It covers 1371 properties, including body, warning, drivetrain and ADAS data. The name alone does not establish one physical ECU or equate DOMAIN with the factory CDC token."
+  },
+  "channelBoundary": {
+    "logicalCaptureChannel": 0,
+    "physicalVehicleNetwork": null,
+    "boardTransceiver": null,
+    "vehicleConnectorOrPins": null,
+    "known": "The earlier ingress audit follows the MCU receive record and logical channel into its lookup key. MCU receive-register record 0 has control base FFD00000 and message base FFD00700.",
+    "notEstablished": "A source mapping from this MCU controller/interface index to the vehicle harness, named CAN network, physical transceiver or connector is absent from the selected evidence.",
+    "prohibitedJoin": "Neither logical capture channel 0 nor a matching numeric factory ecuChannel 0 identifies a physical network or sender. Diagnostic net indices and broadcast capture channels are separate namespaces until a source joins them."
+  },
+  "identityAnchorScope": "The following four controller records are available identity/document anchors. They are not a ranked list of proven or probable CAN 261 senders.",
+  "candidateIdentityAnchors": [
+    {
+      "factoryPointer": "/ecus/4",
+      "factory": {
+        "ecuId": "HTH-2021_CDC_BYD_00100001",
+        "ecuDiaId": "720/728",
+        "ecuReprogramType": "canfd",
+        "ecuChannel": "0",
+        "networkNumber": null,
+        "logicAddress": "0728",
+        "ecuDId": "F195/F194",
+        "ecuHardDid": "F193",
+        "ecuConfigDid": "FF95/FF94",
+        "seq": "300",
+        "route": {
+          "kind": "can",
+          "requestId": 1824,
+          "responseId": 1832,
+          "physicalBus": null
+        },
+        "evidence": "server_candidate_only",
+        "eligibleForProductAllowlist": false
+      },
+      "cachedIdentity": {
+        "pointer": "/ecuInfo/4",
+        "ecuSoftCode": "4B310011E0019A0002",
+        "ecuConfigCode": "4B50FF11E0019A0002",
+        "ecuHardVer": "0.4.1",
+        "ecuId": "HTH-2021_CDC_BYD_00100001",
+        "ecuConfigVer": "4.00.02",
+        "ecuSoftVer": "4.00.53"
+      },
+      "modelCatalogLabels": [
+        {
+          "rowId": 1452,
+          "token": "CDC",
+          "systemZh": "诊断网/跨域计算平台(比亚迪)(CDC)",
+          "networkZh": "诊断网"
+        }
+      ],
+      "CAN261SenderProved": false,
+      "warning1DDSelectorProved": false,
+      "washerSensorInputOwnerProved": false
+    },
+    {
+      "factoryPointer": "/ecus/168",
+      "factory": {
+        "ecuId": "HTH-2021_INS_BYD_00100001",
+        "ecuDiaId": "723/72B",
+        "ecuReprogramType": "canfd",
+        "ecuChannel": "0",
+        "networkNumber": null,
+        "logicAddress": "",
+        "ecuDId": "F195/F194",
+        "ecuHardDid": "F193",
+        "ecuConfigDid": "",
+        "seq": "3714",
+        "route": {
+          "kind": "can",
+          "requestId": 1827,
+          "responseId": 1835,
+          "physicalBus": null
+        },
+        "evidence": "server_candidate_only",
+        "eligibleForProductAllowlist": false
+      },
+      "cachedIdentity": {
+        "pointer": "/ecuInfo/168",
+        "ecuSoftCode": "4B450011E0250037B1",
+        "ecuConfigCode": "000000000000000000",
+        "ecuHardVer": "0.0.3",
+        "ecuId": "HTH-2021_INS_BYD_00100001",
+        "ecuConfigVer": "0.00.00",
+        "ecuSoftVer": "4.00.04"
+      },
+      "modelCatalogLabels": [
+        {
+          "rowId": 1400,
+          "token": "INS",
+          "systemZh": "多媒体网/组合仪表(比亚迪)(INS)",
+          "networkZh": "多媒体网"
+        }
+      ],
+      "CAN261SenderProved": false,
+      "warning1DDSelectorProved": false,
+      "washerSensorInputOwnerProved": false
+    },
+    {
+      "factoryPointer": "/ecus/2",
+      "factory": {
+        "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+        "ecuDiaId": "722/72A",
+        "ecuReprogramType": "canfd",
+        "ecuChannel": "0",
+        "networkNumber": null,
+        "logicAddress": "",
+        "ecuDId": "F195/F194",
+        "ecuHardDid": "F193",
+        "ecuConfigDid": "FF95/FF94",
+        "seq": "109",
+        "route": {
+          "kind": "can",
+          "requestId": 1826,
+          "responseId": 1834,
+          "physicalBus": null
+        },
+        "evidence": "server_candidate_only",
+        "eligibleForProductAllowlist": false
+      },
+      "cachedIdentity": {
+        "pointer": "/ecuInfo/2",
+        "ecuSoftCode": "4B310011E001540100",
+        "ecuConfigCode": "FFFFFFFFFFFFFFFFFF",
+        "ecuHardVer": "0.4.1",
+        "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+        "ecuConfigVer": "6.55.35",
+        "ecuSoftVer": "4.00.36"
+      },
+      "modelCatalogLabels": [
+        {
+          "rowId": 1394,
+          "token": "F_ZCU",
+          "systemZh": "多媒体网/前域控制器(比亚迪)(F_ZCU)",
+          "networkZh": "多媒体网"
+        }
+      ],
+      "CAN261SenderProved": false,
+      "warning1DDSelectorProved": false,
+      "washerSensorInputOwnerProved": false
+    },
+    {
+      "factoryPointer": "/ecus/6",
+      "factory": {
+        "ecuId": "HTH-2021_R_ZCU_BYD_00100001",
+        "ecuDiaId": "747/74F",
+        "ecuReprogramType": "canfd",
+        "ecuChannel": "1",
+        "networkNumber": null,
+        "logicAddress": "",
+        "ecuDId": "F195/F194",
+        "ecuHardDid": "F193",
+        "ecuConfigDid": "FF95/FF94",
+        "seq": "340",
+        "route": {
+          "kind": "can",
+          "requestId": 1863,
+          "responseId": 1871,
+          "physicalBus": null
+        },
+        "evidence": "server_candidate_only",
+        "eligibleForProductAllowlist": false
+      },
+      "cachedIdentity": {
+        "pointer": "/ecuInfo/6",
+        "ecuSoftCode": "4B310011E001770002",
+        "ecuConfigCode": "4B31FF11E001770002",
+        "ecuHardVer": "0.4.1",
+        "ecuId": "HTH-2021_R_ZCU_BYD_00100001",
+        "ecuConfigVer": "1.00.02",
+        "ecuSoftVer": "4.00.54"
+      },
+      "modelCatalogLabels": [
+        {
+          "rowId": 1395,
+          "token": "R_ZCU",
+          "systemZh": "多媒体网/右域控制器(比亚迪)(R_ZCU)",
+          "networkZh": "多媒体网"
+        }
+      ],
+      "CAN261SenderProved": false,
+      "warning1DDSelectorProved": false,
+      "washerSensorInputOwnerProved": false
+    }
+  ],
+  "nameConflict": {
+    "factoryLabel": "CDC / 跨域计算平台",
+    "modelCatalogRow": 1452,
+    "factoryRoute": "720/728",
+    "stockLowPowerPointer": "/data/attach/0",
+    "stockLowPowerLabel": {
+      "ecuAbbrName": "LA_BCM",
+      "ecuName": "左车身域控制器",
+      "bus": {
+        "net": 0,
+        "type": "CANFD"
+      },
+      "can": {
+        "arbBaud": 500000,
+        "datBaud": 2000000,
+        "frameFormat": 0,
+        "reqCanId": 1824,
+        "rspCanId": [
+          1832
+        ]
+      }
+    },
+    "interpretation": "The same diagnostic address has CDC/cross-domain and LA_BCM/left-body-domain labels in different retained sources. This is a documented naming ambiguity, not a CAN 261 sender binding."
+  },
+  "normalMCUDispatch": {
+    "tableBase": "0xbc55c",
+    "buckets": 8838,
+    "uniqueRecords": 3017,
+    "recordsWithContext": 2933,
+    "FIDPrefix261Matches": [],
+    "interpretation": "No normal FID dispatch entry has prefix 261. This does not prove absence of CAN 261 transmission from all MCU code, dynamic state, bridge logic or arbitrary raw/diagnostic paths.",
+    "tableSHA256": "6f86d5d718323a3cb620dcab245496c239c9936e410ba77d7fd81f5af8b87814"
+  },
+  "concreteDocumentAnchor": {
+    "requestedArtifact": "Model/software-applicable CAN-FD communication matrix or sender-side signal definition for frame 0x261, its text-info bits 0..9 and warning 1DD.",
+    "exactSignalLabel": "DOMAIN_261_10_21_TEXT_INFO / FID 26100008",
+    "requiredFields": [
+      "Physical bus and transmitting node for CAN 261",
+      "Origin/forwarding node if a gateway relays the frame",
+      "ECU and software that select warning 1DD",
+      "Source reservoir input and applicable equipment/coding gates"
+    ],
+    "modelBoundary": "Obtain applicability separately for N9/profile 168 and Z9GT/profile 170; the retained factory identities below are profile 170 candidates/cache.",
+    "factoryRecordToDisambiguate": {
+      "ecuId": "HTH-2021_CDC_BYD_00100001",
+      "route": "720/728",
+      "identityReadDefinition": "F195/F194",
+      "cachedSoftwareCode": "4B310011E0019A0002",
+      "cachedVersion": "4.00.53",
+      "liveRefreshPerformed": false
+    },
+    "caution": "This identifies a concrete record for obtaining an applicable definition; it is not a claim that CDC is the sender and authorizes no new diagnostic or private-network request."
+  },
+  "limits": [
+    "The RX/cache chain is not re-derived as a substitute for identifying its upstream producer.",
+    "Diagnostic request addresses, native DOMAIN naming, factory ecuChannel and model network labels do not independently identify a broadcast sender.",
+    "No generic-looking MCU context pointer is interpreted as a physical CAN transmit ID.",
+    "No inference of sensor absence, no Ready2/3 inference, and no attribution to R_ZCU from pump actuation.",
+    "No product, shared documentation, prior report, live configuration or physical state changed."
+  ],
+  "sources": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6",
+      "bytes": 17834072
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "sha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "bytes": 1933312
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac",
+      "bytes": 118681
+    },
+    {
+      "path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json",
+      "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24",
+      "bytes": 149793
+    },
+    {
+      "path": "captures/diagnostics-discovery-20261018/approved-export-1/files/04-ECUVersion.json",
+      "sha256": "8e31658bc0387da5ea905595da8bb0d3df859bf7b172d3f80d9ce77f9ebd1d53",
+      "bytes": 39890
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/SpotInspection/resources/res/raw/low_power_script.json",
+      "sha256": "c3883631aa7f336d7c5d3da2af6a3549c988d166704106425bc9be9535cb064f",
+      "bytes": 11809
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-route-topology-20261021.json",
+      "sha256": "c5b8b112599f66f97ae8ae1f993d8ab40ea2bad88fcec6db6ec93355f6fa2ef0",
+      "bytes": 216725
+    }
+  ]
+}

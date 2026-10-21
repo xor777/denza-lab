@@ -1,0 +1,439 @@
+{
+  "schema": "denza-lab.washer-producer-cluster.v1",
+  "date": "2026-10-21",
+  "offlineOnly": true,
+  "vehicleOperations": 0,
+  "networkOperations": 0,
+  "libraryExecution": false,
+  "question": "Which physical/logical block forms selected washer warning0x1DD?",
+  "result": {
+    "physicalProducerIdentified": false,
+    "producerECUId": null,
+    "producerSoftwareCode": null,
+    "confirmed": "The examined Cells/Godot path receives a completed selected warning number; it does not derive1DD from a reservoir reading.",
+    "usefulNewBoundary": "Renderer, renderer supervisor, Android projection companion and a diagnostic INS identity are distinct evidence objects. None alone identifies the CAN sender."
+  },
+  "semanticNames": [
+    {
+      "name": "DOMAIN_0A0_36_37_SUPPORT_NEW_WARNINGINFO",
+      "fid": "0xa00001e"
+    },
+    {
+      "name": "DOMAIN_0A0_40_57_NEW_TEXT_INFO",
+      "fid": "0xa000020"
+    },
+    {
+      "name": "DOMAIN_261_10_21_TEXT_INFO",
+      "fid": "0x26100008"
+    }
+  ],
+  "semanticNameLimit": "DOMAIN_261 and DOMAIN_0A0 are protocol symbolic names. They suggest a domain message family, but contain no ECU address/software identity; DOMAIN is not automatically CDC, ADC, INS or an external physical instrument module.",
+  "components": [
+    {
+      "name": "libCellsClusterDs.so",
+      "role": "CAN/SPI input, business logic, HMI data items and outgoing controls",
+      "evidence": "CanHandleReadThread reads g_can_service_node_name; CanHandleDataWriter opens the same device path. Paths are spidev_cluster variants selected by product.",
+      "producerBoundary": "Reads raw26100008 and publishes admitted value. Existing eight exact literal references are registration, read, comparison, UI/debug/projection consumption; no direct warning261 write found in that bounded set."
+    },
+    {
+      "name": "libClusterClient.android.release.so",
+      "role": "Godot extension consuming HMI data items",
+      "evidence": "DT_NEEDED contains libCellsClusterDs.so; PopupMsgHandle turns item320 into sig_warn_id.",
+      "producerBoundary": "This is a display/model consumer, not the observed CAN261 sender."
+    },
+    {
+      "name": "BydClusterApp/com.byd.cluster",
+      "role": "Android projection companion",
+      "evidence": "Application requests CLUSTER_FULL/CLASSIC_VIEW; SimpleClusterDenzaActivity draws an image, observes INSTRUMENT_SIZE and syncs projection state.",
+      "producerBoundary": "The examined source has no getTextInfo/onTextInfoChanged consumer or1DD generation logic. A com.byd.cluster PID does not demonstrate Cells/Godot loading."
+    },
+    {
+      "name": "BydClusterManager",
+      "role": "Renderer supervisor and Fission integration",
+      "evidence": "Strings/imports and startup path include fork/execl/execle, Qt/Kanzi variants and cells_godot --main-pack /system/lib64/cluster_hmi.pck.",
+      "producerBoundary": "The Godot launch branch exists at88D4..8918. Its actual runtime selection is not established. The separate startBydCluster.sh chooses Kanzi/Qt, so that script alone neither proves nor excludes Godot."
+    },
+    {
+      "name": "FissionManager",
+      "role": "Inter-cell projection/plugin-message bridge",
+      "evidence": "reciveDateFromIvi/2 pass data to PluginMsgManager under235C/235D; sendDataToIvi calls Fission callbacks.",
+      "producerBoundary": "A bridge between renderer host and Android is not a demonstrated physical-CAN publisher of1DD."
+    }
+  ],
+  "outgoingBoundary": {
+    "example": "BusinessAdasProjectionSR::adsAlarmCardHandle reads selected261 warning, compares247, then writes1/2 to projection field40C0B01A. That output is not26100008.",
+    "non261": "The separately audited new-warning path can write local event signals/bitmap28C01008 toward a domain. No source joins a reservoir input or1DD to that outgoing path.",
+    "transport": "CanHandleDataWriter::Write writes to spidev_cluster. The physical controller behind that SPI endpoint and any downstream CAN forwarding need routing evidence, not an assumption that an application named Cluster owns the bus frame."
+  },
+  "exactWarningFIDReferences": [
+    {
+      "va": "0x17b604",
+      "function": "BusinessUi2::registerCanData()",
+      "prior": [
+        "0017b5f4  ldr      x8, [sp, #8]",
+        "0017b5f8  ldr      x2, [sp, #0x10]",
+        "0017b5fc  ldr      x0, [x8]",
+        "0017b600  mov      w1, #8"
+      ],
+      "instruction": "0017b604  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x182e7c",
+      "function": "BusinessUi2::updateWarningInfo()",
+      "prior": [
+        "00182e6c  sturb    w0, [x29, #-0x64]",
+        "00182e70  sturh    w9, [x29, #-0x44]",
+        "00182e74  ldr      x0, [x8]",
+        "00182e78  mov      w1, #8"
+      ],
+      "instruction": "00182e7c  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x183834",
+      "function": "BusinessUi2::updateWarningInfoCarBody()",
+      "prior": [
+        "00183824  stur     x0, [x29, #-0x80]",
+        "00183828  sturh    wzr, [x29, #-0x82]",
+        "0018382c  ldr      x0, [x8]",
+        "00183830  mov      w1, #8"
+      ],
+      "instruction": "00183834  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x183db8",
+      "function": "BusinessUi2::warningInfoCanDataUpdate(unsigned int, void*)",
+      "prior": [
+        "00183da8  b.eq     #0x183e70",
+        "00183dac  b        #0x183db0",
+        "00183db0  ldr      w8, [sp, #0x10]",
+        "00183db4  mov      w9, #8"
+      ],
+      "instruction": "00183db8  movk     w9, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x185fa4",
+      "function": "BusinessUi2::clusterDebug(unsigned int)",
+      "prior": [
+        "00185f94  adrp     x8, #0x32f000",
+        "00185f98  ldr      x8, [x8, #0xce8]",
+        "00185f9c  ldr      x0, [x8]",
+        "00185fa0  mov      w1, #8"
+      ],
+      "instruction": "00185fa4  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x1e26e8",
+      "function": "BusinessAdasProjectionSR::registerCanData()",
+      "prior": [
+        "001e26d8  ldr      x8, [sp, #8]",
+        "001e26dc  ldr      x2, [sp, #0x10]",
+        "001e26e0  ldr      x0, [x8]",
+        "001e26e4  mov      w1, #8"
+      ],
+      "instruction": "001e26e8  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x1e2b08",
+      "function": "BusinessAdasProjectionSR::canDataUpdate(unsigned int, void*)",
+      "prior": [
+        "001e2af8  b.eq     #0x1e33b8",
+        "001e2afc  b        #0x1e2b00",
+        "001e2b00  ldr      w8, [sp, #0x54]",
+        "001e2b04  mov      w9, #8"
+      ],
+      "instruction": "001e2b08  movk     w9, #0x2610, lsl #16",
+      "exactFID26100008": true
+    },
+    {
+      "va": "0x1e5348",
+      "function": "BusinessAdasProjectionSR::adsAlarmCardHandle()",
+      "prior": [
+        "001e5338  sturb    w0, [x29, #-0x24]",
+        "001e533c  sturh    w9, [x29, #-0x28]",
+        "001e5340  ldr      x0, [x8]",
+        "001e5344  mov      w1, #8"
+      ],
+      "instruction": "001e5348  movk     w1, #0x2610, lsl #16",
+      "exactFID26100008": true
+    }
+  ],
+  "catalogCandidate": {
+    "family": "INS",
+    "diagnosticRoute": "723/72B",
+    "rows": [
+      {
+        "ecuId": "HTH-2021_INS_BYD_00100001",
+        "familyToken": "INS",
+        "supplierToken": "BYD",
+        "variantSuffix": "00100001",
+        "routeKey": "can:723/72B",
+        "ecuChannelMetadata": "0",
+        "versionCodeDidPair": "F195/F194",
+        "hardwareDid": "F193",
+        "cacheState": "valid_9byte_code",
+        "cachedSoftwareCodeOrMarker": "4B450011E0250037B1",
+        "cachedSoftwareVersion": "4.00.04",
+        "cachedHardwareVersion": "0.0.3",
+        "sameRouteCodeIdentityEvidence": "F194_matches_cache_on_same_CAN_route",
+        "exactModelFamilyXtoolRowIds": [
+          1400
+        ],
+        "sameValidCodeObservedAtCANRequests": [
+          "723"
+        ],
+        "cacheEcuInfoIndex": 168,
+        "ecuReprogramType": "canfd"
+      },
+      {
+        "ecuId": "HTH-2021_INS_BYD_00400001",
+        "familyToken": "INS",
+        "supplierToken": "BYD",
+        "variantSuffix": "00400001",
+        "routeKey": "can:723/72B",
+        "ecuChannelMetadata": "0",
+        "versionCodeDidPair": "F395/F394",
+        "hardwareDid": "F393",
+        "cacheState": "valid_9byte_code",
+        "cachedSoftwareCodeOrMarker": "4B450011E0250037C1",
+        "cachedSoftwareVersion": "4.00.04",
+        "cachedHardwareVersion": "0.0.1",
+        "sameRouteCodeIdentityEvidence": "different_did_not_read_in_retained_scan",
+        "exactModelFamilyXtoolRowIds": [
+          1400
+        ],
+        "sameValidCodeObservedAtCANRequests": [],
+        "cacheEcuInfoIndex": 169,
+        "ecuReprogramType": "canfd"
+      },
+      {
+        "ecuId": "HTH-2021_INS_BYD_00500001",
+        "familyToken": "INS",
+        "supplierToken": "BYD",
+        "variantSuffix": "00500001",
+        "routeKey": "can:723/72B",
+        "ecuChannelMetadata": "0",
+        "versionCodeDidPair": "F495/F494",
+        "hardwareDid": "F493",
+        "cacheState": "valid_9byte_code",
+        "cachedSoftwareCodeOrMarker": "4B450011E0250037D1",
+        "cachedSoftwareVersion": "3.00.00",
+        "cachedHardwareVersion": "0.0.1",
+        "sameRouteCodeIdentityEvidence": "different_did_not_read_in_retained_scan",
+        "exactModelFamilyXtoolRowIds": [
+          1400
+        ],
+        "sameValidCodeObservedAtCANRequests": [],
+        "cacheEcuInfoIndex": 170,
+        "ecuReprogramType": "canfd"
+      }
+    ],
+    "strength": "The catalog and historical F194 response establish an INS diagnostic identity. This is a candidate inventory entry, not a source join to CAN261 or to washer input.",
+    "mainIdentity": "HTH-2021_INS_BYD_00100001; F195/F194; software4B450011E0250037B1; version4.00.04; hardware0.0.3",
+    "childLimit": "004/F394 and005/F494 share the route. MCU-versus-audio assignment is unresolved in retained role audit; route membership does not identify separate physical hardware or select the warning producer."
+  },
+  "noSourceJoin": [
+    "No sender-ECU/software field exists in the selected ten-bit warning itself.",
+    "Semantic DOMAIN prefix is not joined to a factory ECU record.",
+    "INS723 diagnostic identity is not joined to runtime CAN261.",
+    "The physical washer input owner, selected-warning composer and transport-forwarding node may be different blocks.",
+    "Runtime renderer and installed MCU routing applicability remain separately unproved."
+  ],
+  "nextDiscriminator": "A source-defined CAN sender/routing table or a firmware image of the warning composer with an explicit261 packing/write path and software identity. Reading a diagnostic identity alone cannot close this join.",
+  "sources": [
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "bytes": 17834072,
+      "sha256": "124d6b567c0c6205a59579a3d4df06cc2e0dba5a89bead73cb4151852298b3f6"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "bytes": 29886784,
+      "sha256": "0cdcd130d471c6a5a6cc05e7ee04e644227b025f852f44bc686c63f1e9450bf3"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/BydClusterManager",
+      "bytes": 79560,
+      "sha256": "8e95f4aaf8edd4883be16eaa2047cc1bd02c9355597d791a1eaa2f609bde5fdd"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/startBydCluster.sh",
+      "bytes": 765,
+      "sha256": "4b36e88c572f489f82cc33c11d0a171bc25c074ca5362524fad7a50e59ce1d97"
+    },
+    {
+      "path": "captures/cluster-native-20261018/BydClusterManager/metadata.json",
+      "bytes": 4262,
+      "sha256": "60be02aa1ca4ac120d69760aedf5808dcdc0be005fc5bf861ad04893ea77ad52"
+    },
+    {
+      "path": "captures/cluster-native-20261018/BydClusterManager/strings.tsv",
+      "bytes": 8281,
+      "sha256": "b089f0d2b40e7e2cac31c9ba077c9cd6db292a0d1145b47adee5b30f5bb97fff"
+    },
+    {
+      "path": "captures/cluster-native-20261018/BydClusterManager/disassembly.txt.gz",
+      "bytes": 58785,
+      "sha256": "5408ca6d7b63f436a964f2d80839f6cf540a19f00a38dbbce0d7d8df0c77e0ab"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/android-rela.tsv",
+      "bytes": 74630,
+      "sha256": "d021661533908ddbefc747dd8c3475d1665bea6d892b2b8fe4e61f54deaf7f1d"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/dwarf-enums.jsonl",
+      "bytes": 8109790,
+      "sha256": "04c7e6cdd6c6e51a0aa329ba57c7cdc6037fcfe724264ad5f17ebaa61da22367"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/functions.tsv",
+      "bytes": 4826465,
+      "sha256": "a8dcff56e811f874f8b1545b868952300edba7475cbc45a7b68f9e247a93504a"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libClusterClient/metadata.json",
+      "bytes": 5033,
+      "sha256": "5abdf694a3f48693a579a76772363324820f11fe991f044c1dc5cade2f400667"
+    },
+    {
+      "path": "captures/cluster-native-20261018/libCellsClusterDs/metadata.json",
+      "bytes": 5586,
+      "sha256": "9a58d83e80fa9d6825e176a98a2a24ca00567940f3345b77dc1ff9683ac8601c"
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/BydClusterApp/sources/com/byd/cluster/SimpleClusterDenzaActivity.java",
+      "bytes": 6150,
+      "sha256": "7bc8a8ed52f1320a6c8c795426741f78135a9070e2d1257811bf5b4001c2eb7c"
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/BydClusterApp/sources/com/byd/cluster/BydClusterApplication.java",
+      "bytes": 3118,
+      "sha256": "03dfe9ec2b70a2af90054aa9487a8a59dfa0a6fbc45de54540379713725e940c"
+    },
+    {
+      "path": "research/vehicle-diagnostics/warning-dtc-linkage-20261021.json",
+      "bytes": 28817,
+      "sha256": "b0da96525f3903ce67d918219f502617fbe9b3c9bcbbc17f21efb2db9aa593ab"
+    },
+    {
+      "path": "captures/diagnostics-linkage-20261021/warnings/native-261-references.json",
+      "bytes": 17120,
+      "sha256": "1f5e93fba9c6c0a017cd483b22f78bf218f802232fa0a2f42654bd3670b97c74"
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-route-topology-20261021.json",
+      "bytes": 216725,
+      "sha256": "c5b8b112599f66f97ae8ae1f993d8ab40ea2bad88fcec6db6ec93355f6fa2ef0"
+    },
+    {
+      "path": "research/vehicle-diagnostics/ecu-inventory-coverage-20261021.json",
+      "bytes": 133089,
+      "sha256": "1fa320c66569abc10b01267424c7b48acbfc4b142746e23e410b2707c45f6fc4"
+    },
+    {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "bytes": 118681,
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    {
+      "path": "research/vehicle-diagnostics/remaining-role-followup-20261021.json",
+      "bytes": 39556,
+      "sha256": "a3dabd3cfe3ac6e758abd32f265601ea098d323bfb708263d0849f1ffe847c4d"
+    }
+  ],
+  "nativeByteAnchors": [
+    {
+      "label": "raw warning read at UI consumer",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x182e78",
+      "bytes": "0101805201c2a472d0840694"
+    },
+    {
+      "label": "admitted identifier copied to UI state without translation",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x183260",
+      "bytes": "e01740f9a8c35b780840007901049052e2031faa438b0694e01740f9bd8c0694"
+    },
+    {
+      "label": "client emits WarnId signal",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libClusterClient.android.release.so",
+      "va": "0x4455a8",
+      "bytes": "688e42f862820139021900b974825ff8b47600b461eaffd021a80791e0630091e2031f2a71ac0194e2e9fff042180e91a8c300d1e1630091e00314aae30313aa26f50494"
+    },
+    {
+      "label": "writer opens g_can_service_node_name",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1166a8",
+      "bytes": "c81000b008b144f9080140f9a8831ff808008092a8031ff8480080520801a072a8c31eb8a0835ff8a1c35eb823360894"
+    },
+    {
+      "label": "writer writes bytes to device fd",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x11684c",
+      "bytes": "a0435fb8a1835ef8a2835df8e31b40f9e9350894"
+    },
+    {
+      "label": "Fission receive string dispatches PluginMsg235C",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x14a3e8",
+      "bytes": "c2650794a2c35fb8a3835fb8e40b40f9816b8452356a079420008052"
+    },
+    {
+      "label": "Fission receive buffer dispatches PluginMsg235D",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x14a47c",
+      "bytes": "9d650794a2c35fb8e30340f9a16b8452196a079420008052"
+    },
+    {
+      "label": "ADS overlay reads warning261",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1e5344",
+      "bytes": "0101805201c2a4729dfb0494"
+    },
+    {
+      "label": "ADS overlay writes projection40C0B01A, not warning261",
+      "path": "captures/firmware/pulled-from-car-20261018/native/libCellsClusterDs.so",
+      "va": "0x1e5488",
+      "bytes": "480a00d0087946f9000140f9410396520118a872a23300d1f4fa04940c00001448008052a8431f38480a00d0087946f9000140f9410396520118a872a23300d123008052e9fa0494"
+    },
+    {
+      "label": "manager cells_godot launch path, --main-pack and PCK",
+      "path": "captures/firmware/pulled-from-car-20261018/native/BydClusterManager",
+      "va": "0x88d4",
+      "bytes": "480000d0e0ffff9008c1089100d013910001c03de007803d6923009480010035e0ffff90c2fffff0e3ffff9000a8089142983d9163641791e5430091e10300aae4031faa66230094"
+    }
+  ],
+  "sourceLineAnchors": [
+    {
+      "path": "captures/hud-firmware-20260923/jadx/BydClusterApp/sources/com/byd/cluster/SimpleClusterDenzaActivity.java",
+      "line": 33,
+      "text": "            BydClusterApplication.mContentProjectionManager.syncViewState(ContentType.CLASSIC_VIEW, 1, SimpleClusterDenzaActivity.this.mIntent.getStringExtra(\"actionId\"));"
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/BydClusterApp/sources/com/byd/cluster/SimpleClusterDenzaActivity.java",
+      "line": 74,
+      "text": "            BydClusterApplication.mContentProjectionManager.syncViewState(ContentType.CLASSIC_VIEW, 1, this.mIntent.getStringExtra(\"actionId\"));"
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/BydClusterApp/sources/com/byd/cluster/SimpleClusterDenzaActivity.java",
+      "line": 59,
+      "text": "        this.mBydAutoInstrumentDevice.registerListener(this.mAbsBYDAutoInstrumentListener, new int[]{BYDAutoFeatureIds.Instrument.INSTRUMENT_SIZE});"
+    },
+    {
+      "path": "captures/hud-firmware-20260923/jadx/BydClusterApp/sources/com/byd/cluster/BydClusterApplication.java",
+      "line": 38,
+      "text": "                contentProjectionManager.startContentProjection(ScreenPosition.CLUSTER_FULL, ContentType.CLASSIC_VIEW);"
+    },
+    {
+      "path": "captures/firmware/pulled-from-car-20261018/native/startBydCluster.sh",
+      "line": 24,
+      "text": "         nice -n -20 /system/bin/qtandroidnative panel_5_15 /system/lib64/libBydClusterForDi51Qt.so"
+    }
+  ]
+}

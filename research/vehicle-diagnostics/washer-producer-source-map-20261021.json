@@ -1,0 +1,114 @@
+{
+  "schema": "denza-lab.washer-warning-producer-source-map.v1",
+  "date": "2026-10-21",
+  "scope": "Finite offline owner-corpus and public-primary-source search for the ECU that forms warning1DD or transmits CAN261. No vehicle, ADB, private/authenticated API, cloud request, firmware execution, physical manipulation or shared-document/product change.",
+  "result": "semantic_producer_and_physical_can_sender_not_identified",
+  "qualifiedSender": null,
+  "qualifiedSemanticProducer": null,
+  "qualifiedSensorInputOwner": null,
+  "qualifiedN9SenderDefinition": null,
+  "qualifiedCnZ9gtDmSenderDefinition": null,
+  "separateQuestions": [
+    "Which ECU reads the reservoir level contact?",
+    "Which ECU selects warning number1DD from physical conditions?",
+    "Which ECU or gateway physically transmits261 on the observed logical channel0?",
+    "Which active HMI implementation consumes and displays that warning on each model?"
+  ],
+  "confirmedLocalObjects": {
+    "headUnitMcuReceiver": {
+      "image": "captures/firmware/ivi-34.1.33.2605218.1/mcu/app.bin",
+      "imageSha256": "6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02",
+      "installedN9McuHashMatched": false,
+      "rxKey": "0xE0026100",
+      "rxTable": "0xD637C",
+      "warningDescriptor": "0xDF890",
+      "handler": "0x18A09C",
+      "outputProperty": "0x26100008",
+      "propertyCache": "0xFEEF5168",
+      "descriptorCount": 25,
+      "kind": "RX ingress and scalar forwarding of an already selected warning number",
+      "senderFieldFound": false,
+      "meaning": "Confirms a receiver on this head-unit MCU image. It does not identify the remote CAN transmitter or the ECU that chose1DD. The examined receive-register/queue path does not inspect a reservoir contact."
+    },
+    "androidSemanticAliases": {
+      "warning": "INSTRUMENT_DD_FAULT_NOTICE_261=0x26100008",
+      "online": "BODYWORK_ONLINE_HAS_0x026100=0x26100000",
+      "meaning": "Instrument and Bodywork are SDK vocabulary/categories for different fields of the same received frame. Neither alias names a physical transmitting ECU."
+    },
+    "nativeClusterConsumer": {
+      "nativeEnum": "vehicle_data_appid_enum",
+      "nativeWarningName": "DOMAIN_261_10_21_TEXT_INFO",
+      "nativeWarningValueDecimal": 638582792,
+      "nativeWarningValueHex": "0x26100008",
+      "nativeOnlineName": "DOMAIN_261_ONLINE",
+      "nativeOnlineValueDecimal": 638582784,
+      "familyLabel": "DOMAIN_261 also labels door, hood, seat-belt, generation, energy-feedback, color and voice fields",
+      "domainToConcreteEcuJoin": null,
+      "signalTable": "captures/cluster-native-20261018/tables/can-signals.tsv",
+      "warningRow": {"line": 476, "index": 474, "address": "0x33C890", "fid": "0x26100008", "length": 2, "type": "CAN_DATA_TYPE_UINT16"},
+      "onlineRow": {"line": 1886, "index": 1884, "address": "0x34FD00", "fid": "0x26100000"},
+      "tableColumns": ["index", "address", "fid", "real_fid", "length", "type", "repeated", "sync", "no_need_platform", "static_data_hex"],
+      "transmittingEcuColumn": false,
+      "warningDictionary": "1DD / 请加注洗涤液",
+      "admissionAnchor": "libCellsClusterDs.so17EBE4 inserts1DD into warning admission set",
+      "meaning": "Retained HMI code accepts an already formed warning number; no reservoir-to1DD computation or transmitting ECU label was found in these objects. Installed-file identity alone does not prove this is the active implementation on N9 or Z9GT."
+    }
+  },
+  "modelCatalogObjectsNotSenderAssignments": {
+    "model": "Z9GT/Z9GT DM",
+    "source": "Xtool public manufacturer capability catalog6.61, joined with the independently retained factory diagnostic route map",
+    "objects": [
+      {"rowId": 1400, "nameZh": "多媒体网/组合仪表(比亚迪)(INS)", "ecuId": "HTH-2021_INS_BYD_00100001", "diagnosticRoute": "723/72B", "retainedZ9gtF194": "4B450011E0250037B1", "can261TxAssignment": null},
+      {"rowId": 1452, "nameZh": "诊断网/跨域计算平台(比亚迪)(CDC)", "ecuId": "HTH-2021_CDC_BYD_00100001", "diagnosticRoute": "720/728", "can261TxAssignment": null},
+      {"rowId": 1394, "nameZh": "多媒体网/前域控制器(比亚迪)(F_ZCU)", "ecuId": "HTH-2021_F_ZCU_BYD_00100001", "diagnosticRoute": "722/72A", "retainedZ9gtF194": "4B310011E001540100", "can261TxAssignment": null},
+      {"rowId": 1395, "nameZh": "多媒体网/右域控制器(比亚迪)(R_ZCU)", "ecuId": "HTH-2021_R_ZCU_BYD_00100001", "diagnosticRoute": "747/74F", "can261TxAssignment": null}
+    ],
+    "legacyAliasBoundary": "The prior stock scan labels720 LA_BCM; the model catalog also hasCDC and distinct ZCU DID namespaces on720. No exact physical sender role is inferred from this alias discrepancy.",
+    "networkBoundary": "Catalog network labels and ecuChannel metadata do not bind261 logical channel0 to a physical ECU connector/bus. Diagnostic request/reply IDs do not identify periodic-message transmitters.",
+    "actuatorBoundary": "SpotInspection747/2F3362 names front-washer actuation, not reservoir input ownership, warning formation or261 transmission. R_ZCU means right zone, not rear.",
+    "applicabilityBoundary": "These are Z9GT DM catalog/retained identity objects. They are not an independently qualified N9 topology or N9 ECU software inventory."
+  },
+  "boundedSearch": {
+    "localNetworkDefinitionExtensions": [".dbc", ".arxml", ".ldf", ".a2l", ".odx", ".pdx", ".cdd"],
+    "localRoots": ["captures", "reverse", "research"],
+    "matchingFiles": [],
+    "scopeLimit": "File-name extension inventory, not a scan/decryption of every binary archive or embedded firmware section.",
+    "firmwareText261Search": {
+      "root": "captures/firmware",
+      "extensions": [".json", ".xml", ".csv", ".txt", ".ini"],
+      "pattern": "0x0?261 or can_id/canid609",
+      "matchingFiles": [],
+      "scopeLimit": "No sender-assignment text recovered in these selected extensions. The known261 definitions are compiled tables/decompiled names, not an OEM network transmitter matrix."
+    },
+    "publicPrimarySearch": "captures/washer-diagnostics-20261021/producer-source-map/public-search.json",
+    "publicQueryCount": 28,
+    "qualifiedModelApplicableSenderDocuments": 0
+  },
+  "rejectedJoins": [
+    "INSTRUMENT in an Android field name does not establishINS as transmitter or semantic producer.",
+    "BODYWORK_ONLINE in another field of261 does not establishLA_BCM/F_ZCU/R_ZCU as transmitter.",
+    "The primary native DOMAIN_261 name supersedes using Instrument as a sender hint, but DOMAIN is not joined to a concrete CDC/LA_BCM/F_ZCU/R_ZCU ECU identifier in these records. The native enum also uses DOMAIN for0A0/0AE/0DC and other message families. Do not select a node by translatingDOMAIN to域控制器 alone.",
+    "747 washer-motor control does not establish sensor or warning ownership.",
+    "Logical channel0 does not establish the physical network or exclude a forwarding gateway.",
+    "A patent/general domain-controller architecture or another model's DBC cannot assign261/1DD onN9/CN Z9GTDM.",
+    "A live receipt of13F establishes that a frame was delivered, not which ECU transmitted it."
+  ],
+  "nextExactAcquisitionObjects": [
+    "OEM CAN/CAN-FD communication matrix or DBC/ARXML for the relevant N9 or CN Z9GTDM variant/revision: messageID0x261 (609), native labelDOMAIN_261_10_21_TEXT_INFO, physical network, Tx ECU node, receiver/gateway routing, and the warning signal. DOMAIN is a concrete search label, not yet an ECU ID.",
+    "The warning signal's enumeration/functional allocation: value0x1DD (477), add-washer-fluid condition, and which application selects it from the reservoir input.",
+    "The identified Tx/generator ECU firmware or supplier functional specification with software applicability. Use retained Z9GT identity anchors only to select a matching source; do not transfer them toN9.",
+    "An OEM reservoir-level circuit diagram can identify the input owner, but alone cannot prove it also owns warning arbitration or261 transmission."
+  ],
+  "sources": [
+    {"path": "research/vehicle-diagnostics/washer-sensor-origin-20261021.json", "sha256": "a527c6789982ee317459b52f5aea7cb05787add31ab92b243369ff2e2812b180"},
+    {"path": "research/vehicle-diagnostics/washer-warning-conditions-20261021.json", "sha256": "c9c067f8bee0b26db7bfac22c3de6c19f448e65fa37941b5286bc0e2a0dc2ac2"},
+    {"path": "research/vehicle-diagnostics/ecu-route-topology-20261021.json", "sha256": "c5b8b112599f66f97ae8ae1f993d8ab40ea2bad88fcec6db6ec93355f6fa2ef0"},
+    {"path": "research/vehicle-diagnostics/xtool-z9gt-dm-20261021.json", "sha256": "93cb9bfbb6cd5b91393671d26d206db230447467785ba91fa600ef5e93b39a24"},
+    {"path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json", "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"},
+    {"path": "captures/cluster-native-20261018/tables/can-signals.tsv", "sha256": "022f2fe417b0b5f6b7bd64bcb5abe65c60c4529945e00fd4803d54f54656f3b9"},
+    {"path": "captures/ambient-light-20260923/data/fids-canfd.tsv", "sha256": "2b302b419d4f79e19a12604034cca08d7f9a07d77973a49242bd7e0ccedff885"},
+    {"path": "captures/diagnostics-scanner-20261020/last-scan-1931.json", "sha256": "cc54c867d6f2f9eacf565af62943767ac5e6e3d2c38de3a892a39d5adef797e4"},
+    {"path": "research/vehicle-diagnostics/ota-zcu-config-live-20261021.json", "sha256": "41b48856ea1c4f439c8c25180b2d36e20edd43a4374b9229ce0928df16d01f10"},
+    {"path": "captures/cluster-native-20261018/libCellsClusterDs/dwarf-enums.jsonl", "sha256": "04c7e6cdd6c6e51a0aa329ba57c7cdc6037fcfe724264ad5f17ebaa61da22367"}
+  ]
+}
