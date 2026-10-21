@@ -10,7 +10,10 @@
       "111 has an intentional client cache purge before failure UI callback; ordinary checks are not passive reads of old strategy.",
       "Media software code and Android/MCU composite are consistent with retained IVI firmware and shipped mapping.",
       "One concrete config sentinel candidate can be named: F_ZCU allFF configuration; no server-causality claim.",
-      "GHY empty need-check cache is CDN-validation metadata; allEcuVersionSync100 acknowledges telemetry, not strategy eligibility."
+      "GHY empty need-check cache is CDN-validation metadata; allEcuVersionSync100 acknowledges telemetry, not strategy eligibility.",
+      "F_ZCU allFF config passes client success predicate and alone triggers neither retry nor repair substitution.",
+      "Owner reports diagnostic-computer updates only; whole-car baseline compatibility remains unproved.",
+      "Ordinary check may auto-download and schedule forced installation; not diagnosis-only."
     ]
   },
   "cacheSources": {
@@ -203,12 +206,12 @@
     "allEcuVersionSync100Means": "Version report accepted; no strategy sequence or package availability verdict."
   },
   "nextMinimalStep": {
-    "offlineCompleted": "Use full retained tuple and assigned batch identifier to request expected-versus-received comparison; no new local artifact contains expected version table.",
-    "beforeAnyAuthorizedRetry": "Preserve currently existing ordinary strategy/upgradeInfo/repair history and exactECUVersion plus source timestamps by an approved bounded read-only method first; repeat111 can purge normal plan cache. ProductLine is separate and not assumed applicable.",
+    "offlineCompleted": "Server tuple mismatch is established, offending ECU is not. Owner reports diagnostic-computer updates with no successful cloud OTA; applicable expected versions remain unavailable.",
+    "beforeAnyAuthorizedRetry": "Preserve currently existing ordinary strategy/upgradeInfo/repair history and exactECUVersion plus source timestamps by an approved bounded read-only method first; repeat111 can purge normal plan cache. ProductLine is separate and not assumed applicable. A stock check can auto-download and schedule forced installation; a logger timeout is not an OTA stop boundary.",
     "officialServiceQuestion": "For SALE-BYDHTH-2021-BATCH-00004 and vehicle sourceV1.7.0, identify failed ECU and exact expected/received six-field tuple, verify backend ECU baseline and rollout assignment, then offer an official compatible campaign or service rebaseline if required.",
     "needsOwnerOrMachine": [
       "Any new cache access under inaccessible data directories",
-      "Any new normal check (active ECU diagnosis and backend traffic)",
+      "Any new normal check, including diagnosis/download/possible forced-installation behavior; never promise diagnosis-only scope.",
       "Any private/backend identity use",
       "Any state or strategy correction, download or installation"
     ],
@@ -545,7 +548,169 @@
         "HttpApiService.dealResponseBodyException"
       ],
       "meaning": "Rx map calls the status-checking response method before subscribe."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1701d2f0d30926a22f9bbd0d465900d53009f020a437e4a679bf9138f6efbb2c",
+      "lineStart": 339,
+      "lineEnd": 341,
+      "requiredTokens": [
+        "isEcuConfigDiagnosisSuccess",
+        "DEFAULT_ECU_SOFT_CODE_VALUE",
+        "ECU_NEGATIVE_VALUE",
+        "DEFAULT_ECU_SOFT_VERSION_VALUE"
+      ],
+      "meaning": "AllFF/config6.55.35 passes client config success predicate, not proof of server acceptance."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/DiagnosePresenter.java",
+      "sha256": "c7d9c943ba4c8f06efbe35e580bb58767c84376a9fc89c09465edb50e65a30ab",
+      "lineStart": 334,
+      "lineEnd": 356,
+      "requiredTokens": [
+        "isNeedLoopDiagnoseAgain",
+        "DEFAULT_ECU_SOFT_CODE_VALUE.equals(e.ecuConfigCode)",
+        "DEFAULT_ECU_SOFT_VERSION_VALUE.equals(e.ecuConfigVer)"
+      ],
+      "meaning": "AllFF config alone does not request another loop; other candidates may trigger one."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+      "lineStart": 171,
+      "lineEnd": 181,
+      "requiredTokens": [
+        "getCurrentVehicleVersion",
+        "FileUtil.readTextFromFile",
+        "VEHICLE_DEFAULT_VERSION_GCY"
+      ],
+      "meaning": "Whole-car version getter reads persisted metadata, not current ECU versions."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/bootcompleted/BootCompletedBroadcastPresenter.java",
+      "sha256": "78db56a6c1c92f2161b30277655d6564684cc77c3d085f4ba9d498f062f44038",
+      "lineStart": 890,
+      "lineEnd": 907,
+      "requiredTokens": [
+        "saveVehicleVersionInfoToCollect2",
+        "\"1\".equals(vehicleVersionInfo.strategy.strategyType)",
+        "VEHICLE_VERSION_SOURCE_FILE_NAME_GCY, vehicleVersionInfo.strategy.strategyVer"
+      ],
+      "meaning": "Stock result handler saves strategy version except for factory strategy type1."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/bootcompleted/BootCompletedBroadcastPresenter.java",
+      "sha256": "78db56a6c1c92f2161b30277655d6564684cc77c3d085f4ba9d498f062f44038",
+      "lineStart": 1247,
+      "lineEnd": 1265,
+      "requiredTokens": [
+        "checkAndSaveRepairUpgradeEcuInfos",
+        "clearRepairUpgradeEcuInfos",
+        "\"1\".equals(e.isRepairEcu)",
+        "saveRepairUpgradeEcuInfos"
+      ],
+      "meaning": "Saves flagged stock result records; not proof external diagnostic work creates this cache."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/carsettingbroadcast/CarSettingBroadcastPresenter.java",
+      "sha256": "a200ba1bdf179e08887fc3c99e6489691f94b11e3075c6f92e20e4f1c0bb3452",
+      "lineStart": 76,
+      "lineEnd": 84,
+      "requiredTokens": [
+        "actualCheckVersionUpgrade",
+        "isNeedAloneLoadFileSizeToShowConfirm",
+        "return false"
+      ],
+      "meaning": "Settings declines separate download-size confirmation."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "a27b285eb046ee9ee09937bc69527cfa53f1467fc69ebc3b7bf1549237f7011e",
+      "lineStart": 1369,
+      "lineEnd": 1380,
+      "requiredTokens": [
+        "isNeedAloneLoadFileSizeToShowConfirm",
+        "downloadUpdatePackageFileData(info)"
+      ],
+      "meaning": "No-confirmation callback permits automatic package download."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/UpdateOTAPresenter.java",
+      "sha256": "e6963dd351cd21efc5162c8f9e01b6a96948779a735a4157724dd9d1f74e2297",
+      "lineStart": 677,
+      "lineEnd": 681,
+      "requiredTokens": [
+        "downloadAllFileOnSuccess",
+        "alarmType == -1",
+        "setForceUpgradeAlarmIfNeed"
+      ],
+      "meaning": "Download completion may schedule forced upgrade before mode-specific UI."
+    },
+    {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "73241aa11424b64c3383c5ec46dc11f0ee5aa379623d0f8ce3766c6fdcc2358b",
+      "lineStart": 1155,
+      "lineEnd": 1172,
+      "requiredTokens": [
+        "isForceUpgradeVersion",
+        "\"1\".equals(info.strategy.isForce)",
+        "isAllUpdateZipExisting(info)",
+        "AlarmManagerHelper.setAppointAlarm",
+        "saveUpgradeAlarmType(1)"
+      ],
+      "meaning": "Forced strategy with packages can schedule upgrade without a new confirmation in this method."
     }
   ],
-  "eligibleForProductAllowlist": false
+  "eligibleForProductAllowlist": false,
+  "baselineAssessment": {
+    "ownerHistory": {
+      "date": "2026-10-21",
+      "source": "owner statement in this chat",
+      "statement": "Vehicle was updated with a diagnostic computer; cloud OTA has never succeeded.",
+      "updatedModulesKnown": false,
+      "servicePackageManifestAvailable": false,
+      "independentlyVerified": false
+    },
+    "causalHypotheses": [
+      {
+        "hypothesis": "Service-installed ECU baseline differs from supported cloud source combination.",
+        "status": "plausible, not established",
+        "decisiveEvidence": "Service package/result manifest plus server expected/received comparison."
+      },
+      {
+        "hypothesis": "Backend campaign or baseline assignment is unsuitable.",
+        "status": "not excluded",
+        "decisiveEvidence": "Backend explanation; batchId with null strategyVer does not prove an applicable campaign."
+      },
+      {
+        "hypothesis": "An ECU tuple is incomplete, substituted or not accepted.",
+        "status": "not localized",
+        "decisiveEvidence": "Actual request tuple and expected table; F_ZCU is one candidate."
+      }
+    ],
+    "sourceVersionMeaning": "V1.7.0 is persisted metadata, not a certificate for all current ECU versions. No claim that diagnostic-computer updates must leave it stale.",
+    "repairHistoryMeaning": "Stock boot result processing saves flagged records. Owner use of diagnostic computer does not prove this cache exists or affected the request.",
+    "factoryRouteSource": {
+      "path": "research/vehicle-diagnostics/factory-ecu-map-20261020.json",
+      "sha256": "8db4eb52600c869bcf749114ef925f1fb7bba9941babfec0328c1dcfa4de2fac"
+    },
+    "fZcuSourceRoute": {
+      "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+      "ecuDiaId": "722/72A",
+      "ecuConfigDid": "FF95/FF94",
+      "date": "2026-10-20",
+      "status": "later server candidate metadata, not a bus transcript or new diagnostic authorization"
+    },
+    "configCodeClassCounts": {
+      "zero": 185,
+      "negativeMarker": 32,
+      "allFF": 1,
+      "otherNonzero": 7
+    },
+    "fZcuConfigAcceptedByClientPredicate": true,
+    "fZcuConfigAloneTriggersRetry": false,
+    "fZcuConfigTriggersRepairSubstitution": false,
+    "normalCheckBoundary": "Stock Settings check can automatically download and schedule forced installation; it is not guaranteed diagnosis-only.",
+    "newDeviceOrNetworkActionsExecuted": []
+  }
 }

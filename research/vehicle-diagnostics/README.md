@@ -135,8 +135,11 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   the only all-FF config tuple (F_ZCU) as a comparison candidate, not a proven
   mismatch cause. It also corrects the old needCheck timestamp ordering in
   `ota-strategy-mismatch-20261021.json`; cache absence after the failed check
-  was not established. `check_ota_strategy_followup.py` checks43 pinned
-  references. This was offline research with no OTA request or update action.
+  was not established. The follow-up also records the owner's diagnostic-computer
+  update history, the client's acceptance of all-FF config, and the automatic
+  download/forced-appointment boundary of a stock check.
+  `check_ota_strategy_followup.py` checks53 pinned references. This was offline
+  research with no OTA request or update action.
 
 - `xtool-z9gt-dm-20261021.json` preserves 172 exact-model Xtool system/variant
   rows (`PS_TENGSHIEV` 6.61, Z9GT/Z9GT DM), source pointers/hashes and an exact-token

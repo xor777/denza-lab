@@ -69,6 +69,22 @@ def main():
     assert matches[0]['ecuSoftVer'] == '4.00.36'
     assert not candidate['isFailureCauseProved']
 
+    assessment = data['baselineAssessment']
+    config_counts = dict.fromkeys(['zero', 'negativeMarker', 'allFF', 'otherNonzero'], 0)
+    for row in rows.values():
+        code = row['ecuConfigCode']
+        kind = {'00' * 9: 'zero', '7F22': 'negativeMarker', 'FF' * 9: 'allFF'}.get(code, 'otherNonzero')
+        config_counts[kind] += 1
+    assert config_counts == assessment['configCodeClassCounts']
+    factory_rows = {row['ecuId']: row for row in read_json(assessment['factoryRouteSource'])['ecus']}
+    route = assessment['fZcuSourceRoute']
+    assert all(factory_rows[route['ecuId']][key] == route[key] for key in ['ecuDiaId', 'ecuConfigDid'])
+    assert assessment['fZcuConfigAcceptedByClientPredicate']
+    assert not assessment['fZcuConfigAloneTriggersRetry']
+    assert not assessment['fZcuConfigTriggersRepairSubstitution']
+    assert not assessment['ownerHistory']['independentlyVerified']
+    assert assessment['newDeviceOrNetworkActionsExecuted'] == []
+
     need = read_json(source['needCheck'])
     timing = data['cacheTimeQualification']
     assert need['timestamp'] == timing['needCheckResponseLocalTimestamp']
@@ -138,7 +154,8 @@ def main():
     assert data['nextMinimalStep']['newActionsExecuted'] == []
     assert not data['eligibleForProductAllowlist']
     print(f'PASS: {refs} hashed references;111 cleanup/cause chain; two archive metadata;'
-          ' two MCU headers; Media mapping in three clients; one F_ZCU config candidate; GHY cache scope')
+          ' two MCU headers; Media mapping in three clients; F_ZCU config and route; GHY cache scope;'
+          ' baseline and stock-check boundaries')
 
 
 if __name__ == '__main__':
