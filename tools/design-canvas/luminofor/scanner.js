@@ -475,6 +475,37 @@
     });
   }
 
+  // «Флаги GB/T 32960»: the general alarm flags the stock reporter computes for GB/T 32960.3, each
+  // from one reading of the car (device 1039), in the standard's bit order and grouped - the pack,
+  // then the drive and high voltage. A flag in alarm is lit orange; one not read says «н/д».
+  function sysGbFlags(c, f) {
+    shell(c, f, () => {
+      blockHead(c, f.block); tabs(c, f.tabs);
+      const G = L.gbFlags, T = G.tile, tw = (W - 48 - (G.cols - 1) * G.gap) / G.cols;
+      let r = W - 24;
+      [...f.counters].reverse().forEach(([k, v, on]) => {
+        r -= text(c, v, r, G.headY - 3, 'valueBms', on ? 'orange' : 'white', { align: 'right' }) + 6;
+        r -= text(c, k, r, G.headY, 'counterLabel', 'mute', { align: 'right' }) + 22;
+      });
+      text(c, f.head, 24, G.headY, 'counterLabel', 'mute');
+      const ink = { ok: 'dim2', alarm: 'orange', none: 'faint' };
+      f.groups.forEach((g, gi) => {
+        text(c, g.title, 24, G.groupY[gi], 'counterLabel', 'mute');
+        g.flags.forEach((fl, i) => {
+          const row = gi === 0 ? Math.floor(i / G.cols) : 2, col = i % G.cols;
+          const x = 24 + col * (tw + G.gap), y = G.rowY[row], alarm = fl.state === 'alarm';
+          fill(c, x, y, tw, T.h, alarm ? 'orangeFill' : fl.state === 'none' ? 'tileUnread' : 'tileOk', T.r);
+          edge(c, x, y, tw, T.h, alarm ? 'orange' : fl.state === 'none' ? 'line3' : 'blueEdge', T.r);
+          text(c, 'бит ' + fl.bit, x + T.padX, y + T.padY, 'counterLabel', 'mute');
+          text(c, fl.fid, x + tw - T.padX, y + T.padY, 'tileAddr', 'faint', { align: 'right' });
+          text(c, fl.name, x + T.padX, y + T.nameY + T.padY - 4, 'cellSmall', 'white', { max: tw - 2 * T.padX });
+          text(c, fl.word, x + T.padX, y + T.stateY, 'cell', ink[fl.state]);
+          if (fl.raw != null) text(c, 'код ' + fl.raw, x + tw - T.padX, y + T.stateY + 2, 'tileAddr', 'faint', { align: 'right' });
+        });
+      });
+    });
+  }
+
   // The pack's readings from the signal bus.
   function sysPackLive(c, f) {
     shell(c, f, () => { blockHead(c, f.block); tabs(c, f.tabs); bmsTable(c, f); });
@@ -1541,7 +1572,7 @@
     });
   }
 
-  const SCREENS = { sysParam, sysPackCells, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, sysCabin, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
+  const SCREENS = { sysParam, sysPackCells, sysScan, sysTopology, sysLive, sysDtc, sysBlocks, sysPending, sysPackLive, sysDrivesCompare, sysAdasCompare, sysEngineDtc, sysChassis, sysBodyState, sysAdas, sysDrives, sysSafety, sysHv, sysPack, sysEngineScheme, sysClimate, sysLv, sysCabin, sysGbFlags, bodyDtc, ecuDtc, ecuFault, ecuLive, ecuIdent, blockMask };
   function draw(c, board, fixture) {
     c.save();
     c.fillStyle = col('ground'); c.fillRect(0, 0, W, H);

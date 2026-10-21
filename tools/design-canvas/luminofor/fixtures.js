@@ -1135,10 +1135,36 @@
     top: scannerSysPack.top, rail: scannerSysPack.rail, block: scannerSysPack.block,
     tabs: Object.assign({}, scannerSysPack.tabs, { active: 2 }), footer: snapshot,
   });
+  // «Флаги GB/T 32960»: the 14 general alarm flags the stock reporter (gbacqservice) sets from one
+  // reading of device 1039 each, in GB/T 32960.3 table 18's bit order; the codes that raise a flag
+  // are the reporter's own (research gb-alarm-dtc-boundary-20261021.json). The values are the parked
+  // sweep of 2026-10-20: no flag raised.
+  const gbFlag = (bit, fid, name, raw, state) => ({ bit, fid, name, raw, state: state || 'ok', word: { ok: 'норма', alarm: 'тревога', none: 'н/д' }[state || 'ok'] });
+  const gbGroups = alarmBit => [
+    { title: 'БАТАРЕЯ', flags: [
+      gbFlag(0, '43800008', 'Разброс температур', 1), gbFlag(1, '2440000C', 'Высокая температура', 0),
+      gbFlag(2, '4380000E', 'Перенапряжение', 1), gbFlag(3, '43800010', 'Пониженное напряжение', 1),
+      gbFlag(7, '43800014', 'Высокий SOC', 1), gbFlag(8, '43800016', 'Скачок SOC', 1),
+      gbFlag(9, '4380000C', 'Несоответствие батареи', 1), gbFlag(10, '4380000A', 'Однородность ячеек', 1),
+      gbFlag(18, '43800012', 'Перезаряд', 1),
+    ] },
+    { title: 'ПРИВОД И ВЫСОКОЕ НАПРЯЖЕНИЕ', flags: [
+      gbFlag(12, '26C00010', 'Температура DC-DC', 0), gbFlag(14, '26C00022', 'Состояние DC-DC', 1),
+      gbFlag(15, '2400000C', 'Температура контроллера', 0), alarmBit === 16 ? gbFlag(16, '2440003E', 'Блокировка ВВ (HVIL)', 1, 'alarm') : gbFlag(16, '2440003E', 'Блокировка ВВ (HVIL)', 0),
+      gbFlag(17, '2400000A', 'Температура мотора', 0),
+    ] },
+  ];
   const scannerSysPackFlags = {
     top: scannerSysPack.top, rail: scannerSysPack.rail, block: scannerSysPack.block,
-    tabs: Object.assign({}, scannerSysPack.tabs, { active: 3 }), pending: 'Нет данных', footer: snapshot,
+    tabs: Object.assign({}, scannerSysPack.tabs, { active: 3 }),
+    head: 'ОБЩИЕ ТРЕВОГИ GB/T 32960.3 · 14', counters: [['ТРЕВОГ', '0']],
+    groups: gbGroups(null),
+    footer: { buttons: [['Обновить', 'primary']], notes: [['1039 · gbacqservice', true], '|', ['снимок 19:31:29', true]] },
   };
+  // one flag raised, illustrative: the high-voltage interlock open
+  const scannerSysPackFlagsAlarm = Object.assign({}, scannerSysPackFlags, {
+    counters: [['ТРЕВОГ', '1', true]], groups: gbGroups(16),
+  });
   const scannerSysDrivesCompare = Object.assign({}, drivesSide, {
     top: scannerSysDrives.top, rail: scannerSysDrives.rail, block: scannerSysDrives.block,
     tabs: Object.assign({}, scannerSysDrives.tabs, { active: 1 }), footer: snapshot,
@@ -1340,7 +1366,8 @@
     'scanner-sys-engine-dtc': [scanner('sysEngineDtc'), scannerSysEngineDtc],
     'scanner-sys-body-blocks': [scanner('sysBlocks'), scannerSysBodyBlocks],
     'scanner-sys-pack-live': [scanner('sysPackLive'), scannerSysPackLive],
-    'scanner-sys-pack-flags': [scanner('sysPending'), scannerSysPackFlags],
+    'scanner-sys-pack-flags': [scanner('sysGbFlags'), scannerSysPackFlags],
+    'scanner-sys-pack-flags-alarm': [scanner('sysGbFlags'), scannerSysPackFlagsAlarm],
     'scanner-sys-drives-compare': [scanner('sysDrivesCompare'), scannerSysDrivesCompare],
     'scanner-sys-adas-compare': [scanner('sysAdasCompare'), scannerSysAdasCompare],
     'scanner-body-dtc':  [scanner('bodyDtc'), scannerBodyDtc],
