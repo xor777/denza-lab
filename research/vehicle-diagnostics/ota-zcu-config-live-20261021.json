@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-21",
+  "state": "live_three_reads_received_host_rejected_third_length_no_retry",
+  "authorization": "Existing general owner permission for any read-only diagnostic actions on car/server.",
+  "hypotheses": {
+    "frontZcuAllFfIsOnlyStaleOrPaddingInStockCache": "Fresh matched positive replies reproduce allFF; cache-only hypothesis is insufficient.",
+    "ghyMissingVersionSyncBeforeGetEcuList": "Rejected for the traced stock check flow: getEcuList precedes diagnosis and versionSync; empty list stops before sync.",
+    "frontZcuIsCauseOf111": "Unproven: expected campaign configuration is still unavailable."
+  },
+  "ecuId": "HTH-2021_F_ZCU_BYD_00100001",
+  "requestAddressHex": "722",
+  "responseAddressHex": "72A",
+  "requestCount": 3,
+  "udsServiceHex": "22",
+  "responses": [
+    {
+      "seq": 1,
+      "frames": 1,
+      "latencyMs": 25,
+      "receivedNanos": 162303295703863,
+      "udsHex": "62F1944B310011E001540100",
+      "didHex": "F194",
+      "dataHex": "4B310011E001540100",
+      "dataBytes": 9
+    },
+    {
+      "seq": 2,
+      "frames": 1,
+      "latencyMs": 144,
+      "receivedNanos": 162303942343786,
+      "udsHex": "62FF94FFFFFFFFFFFFFFFFFF",
+      "didHex": "FF94",
+      "dataHex": "FFFFFFFFFFFFFFFFFF",
+      "dataBytes": 9
+    },
+    {
+      "seq": 3,
+      "frames": 1,
+      "latencyMs": 149,
+      "receivedNanos": 162304592854555,
+      "udsHex": "62FF95FFFFFFFFFFFF",
+      "didHex": "FF95",
+      "dataHex": "FFFFFFFFFFFF",
+      "dataBytes": 6
+    }
+  ],
+  "hostValidation": {
+    "state": "stopped",
+    "error": "Unexpected UDS length; preserved raw reply, no padded parsing",
+    "thirdExpectedDataBytes": 2,
+    "thirdReceivedDataBytes": 6,
+    "thirdResponsePreservedInProtocol": true,
+    "malformedEcuClaim": false
+  },
+  "interpretation": {
+    "freshConfigCode": "FFFFFFFFFFFFFFFFFF",
+    "stockVersionFirstTwoDataBytes": "FFFF",
+    "stockVersionRendering": "6.55.35",
+    "remainingVersionDataHex": "FFFFFFFF",
+    "remainingVersionDataMeaning": "unknown; stock parser ignores it",
+    "expectedTupleMatrixReceived": false,
+    "applicableOtaObtained": false
+  },
+  "cleanup": {
+    "exitCode": 0,
+    "jarRemoved": true,
+    "processAbsent": true,
+    "postflightPassed": true,
+    "selectedProcessPidsUnchanged": {
+      "autoservice": "128",
+      "gbacqservice": "521",
+      "gbdataservice": "523",
+      "safekeyservice": "653",
+      "com.byd.otaupdate2": "3091",
+      "com.byd.otaupdate": "4173",
+      "com.byd.avc": "4634",
+      "dev.denza.apps": "9827"
+    },
+    "crashBuffersEmpty": true,
+    "productAllowlistChanged": false,
+    "ecuConfigurationWritten": false,
+    "stockOtaStarted": false,
+    "cloudRequests": 0
+  },
+  "evidence": {
+    "authorization": {
+      "path": "captures/ota-zcu-config-20261021/authorization-and-provenance.json",
+      "sha256": "6fe335dac138c1e05f3de81097457093796be3d9c89305ab0427f92a56c8ed6f"
+    },
+    "plan": {
+      "path": "captures/ota-zcu-config-20261021/plan.json",
+      "sha256": "9c4ab50580892fd774e6d25f1fd8762c844c4759340a4d026f68589fbad369e6"
+    },
+    "runnerWrapper": {
+      "path": "captures/ota-zcu-config-20261021/run.py",
+      "sha256": "b8d1791b3416f255772a97b9c818413d1c7a6ec01aff70ad057bcd4ea5cc3be1"
+    },
+    "preflight": {
+      "path": "captures/ota-zcu-config-20261021/preflight/status.json",
+      "sha256": "024f364ce11d843f803a6e2171f3623873d7279443d1c99f2ec43c8cc7986f1a"
+    },
+    "postflight": {
+      "path": "captures/ota-zcu-config-20261021/postflight/status.json",
+      "sha256": "5e61fd59e124921400c68693f0f6eabdfedb3353b5bd2df7253c1b7dc977c014"
+    },
+    "preProcesses": {
+      "path": "captures/ota-zcu-config-20261021/preflight/processes.txt",
+      "sha256": "d02c3b9c3a37009a4df9533b999c9ec7be6f7630996bc0e58b519e1677268536"
+    },
+    "postProcesses": {
+      "path": "captures/ota-zcu-config-20261021/postflight/processes.txt",
+      "sha256": "1d613469100e7a64e922a2bb6b9ba06b557aef9c3ac28d661d03d730717c056a"
+    },
+    "result": {
+      "path": "captures/ota-zcu-config-20261021/live-01/result.json",
+      "sha256": "a0df893eddcd23fad3577f684e22c217811fab215fa39941688458dae462e6cb"
+    },
+    "protocol": {
+      "path": "captures/ota-zcu-config-20261021/live-01/protocol.txt",
+      "sha256": "b67dd7f19c5a6a2b26dc3a7d69c90e4fa89f99e17667290f92c4801cfcd5a1b6"
+    }
+  },
+  "sources": {
+    "stockCanDiagnostic": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/OTAUpdatePlatformizedUI/sources/com/byd/otaupdate/ui/vehicleota/checkversion/diagnose/CanDiagnostic.java",
+      "sha256": "1701d2f0d30926a22f9bbd0d465900d53009f020a437e4a679bf9138f6efbb2c"
+    },
+    "ghyCheckFlow": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+      "sha256": "94362a1e67f9678cca80d1cf9e1871a20eb8ca495b62340674f04f9e57d5958c"
+    },
+    "frameAssembler": {
+      "path": "captures/diagnostics-followup-20261021/front-zcu/build/source/DiagnosticFrameAssembler.java",
+      "sha256": "640cb9f86bf331e7ceda6687b950f7a8b910cc95f3d30c6d895316fd5e6472e0"
+    },
+    "compiledProbeManifest": {
+      "path": "captures/diagnostics-followup-20261021/front-zcu/build/build.json",
+      "sha256": "526f77af6799492681d7057dd199748d4aad1680b80c1289d344361768c2730a"
+    },
+    "retainedRunner": {
+      "path": "captures/diagnostics-followup-20261021/front-zcu/run.py",
+      "sha256": "ef68be380aaabf5725167a4587f37e3c6db9993a6cf15027d9e399c990bbcfe7"
+    },
+    "stockParserReplayManifest": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/source-methods.json",
+      "sha256": "e53d717638ebe6cbfb88fd930b7e9309b06c56c79482b3f3b4cde30244763dc6"
+    },
+    "stockParserReplaySource": {
+      "path": "captures/diagnostics-followup-20261021/ota-config/CanDiagnostic.java",
+      "sha256": "dddfd8038e59a2d8d15bf86d3f1fb0cee5078f0aa22ee9f87d1632281384f85a"
+    },
+    "ghyPostUpdateSync": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/UpdateOTAPresenter.java",
+      "sha256": "b0d0c043b8c7f0fe1093cf2eebe7e31b89dcbeb89838b3a776a1b0f4e106162a"
+    }
+  },
+  "limits": [
+    "Reads use the validated diagnostic gateway, not a passive physical CAN capture.",
+    "Responses do not establish why configuration bytes are FF or whether the server permits them.",
+    "Six FF bytes in FF95 differ from our host expectation; no repeat or vehicle fix was attempted."
+  ],
+  "offlineVerification": {
+    "path": "captures/ota-zcu-config-20261021/offline-verification.json",
+    "sha256": "1adf659815a34c225456337023fa9ac0fe7e9e77bc419055ece69f4da3dcb000"
+  },
+  "verifier": {
+    "path": "research/vehicle-diagnostics/check_ota_zcu_config.py",
+    "sha256": "45fc565e4f91e04c493f2fc441e3b63625bad411ebccd2a671675625d9ca2106"
+  }
+}
