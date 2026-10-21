@@ -31,10 +31,15 @@ public final class GhyCheckVersionProbe {
         String token=values.get("user_token"),uuid=values.getOrDefault("upgradeUuid","");
         need(token!=null && !"null".equalsIgnoreCase(token) && token.matches("[!-~]{1,4096}"),"token_invalid");
         need(uuid.isEmpty() || (uuid.matches("[ -~]{1,256}")&&!uuid.trim().isEmpty()),"uuid_invalid");
-        String v=EcuMapMetadataProbe.utf8(version).trim();
-        // Read the real GHY file. Do not substitute the GCY version or guess a default.
+        // VehicleOTAUtil.getCurrentVehicleVersion uses this exact constant for
+        // an absent/zero-length file. null only comes from the validated status-1
+        // exporter response for FILES[1]; access/transport errors still abort.
+        String v=version==null||version.length==0?"v1.0.0":EcuMapMetadataProbe.utf8(version).trim();
         need(v.matches("[vV][A-Za-z0-9_.-]{1,63}"),"version_invalid");
         return new EcuMapMetadataProbe.Inputs(null,null,token,uuid,v);
+    }
+    static String versionSource(byte[] version) {
+        return version==null?"stock_default_exporter_missing":version.length==0?"stock_default_empty":"file";
     }
     static Map<String,Object> cached(byte[] raw) throws Exception {
         Map<String,Object> doc=object(parse(raw));
@@ -85,6 +90,7 @@ public final class GhyCheckVersionProbe {
         out.put("outcome","check_returned");return out;
     }
     static byte[] fetch(int index,long end) throws Exception {
+        need(index>=0&&index<FILES.length,"input_index");
         Socket s=new Socket();EcuMapMetadataProbe.active=s;
         try {
             s.connect(new InetSocketAddress(InetAddress.getByAddress(new byte[]{127,0,0,1}),46321),EcuMapMetadataProbe.remaining(end));
@@ -92,21 +98,33 @@ public final class GhyCheckVersionProbe {
             byte[] request=encode(map("filePath","/data/local/tmp/logtool/../../../../"+FILES[index].substring(1)));
             DataOutputStream output=new DataOutputStream(s.getOutputStream());
             output.writeInt(EcuMapMetadataProbe.MAGIC);output.writeInt(1);output.writeInt(request.length);output.write(request);output.flush();
-            InputStream input=s.getInputStream();ByteBuffer h=ByteBuffer.wrap(EcuMapMetadataProbe.readExact(input,12,end));
+            return decode(s.getInputStream(),index,end);
+        } finally {s.close();EcuMapMetadataProbe.active=null;}
+    }
+    static byte[] decode(InputStream input,int index,long end) throws Exception {
+            need(index>=0&&index<FILES.length,"input_index");
+            ByteBuffer h=ByteBuffer.wrap(EcuMapMetadataProbe.readExact(input,12,end));
             int magic=h.getInt(),status=h.getInt(),length=h.getInt();
             need(magic==EcuMapMetadataProbe.MAGIC&&length>0&&length<=4096,"transfer_header");
-            if(status==1)throw new EcuMapMetadataProbe.Failure("missing_input"+index);
+            if(status==1) {
+                if(index!=1)throw new EcuMapMetadataProbe.Failure("missing_input"+index);
+                Map<String,Object> missing=object(parse(EcuMapMetadataProbe.readExact(input,length,end)));
+                need(missing.keySet().equals(new HashSet<>(Arrays.asList("code","message")))&&
+                    Long.valueOf(1).equals(missing.get("code"))&&
+                    ("File not found: /data/local/tmp/logtool/../../../../"+FILES[1].substring(1)).equals(missing.get("message")),"transfer_metadata");
+                need(EcuMapMetadataProbe.readOne(input,end)==-1,"transfer_trailing");
+                return null;
+            }
             if(status==5)throw new EcuMapMetadataProbe.Failure("input_access_denied");
             need(status==0,"transfer_header");Map<String,Object> meta=object(parse(EcuMapMetadataProbe.readExact(input,length,end)));
             need(meta.keySet().equals(new HashSet<>(Arrays.asList("code","fileName","fileSize","md5")))&&Long.valueOf(0).equals(meta.get("code")),"transfer_metadata");
             need(FILES[index].substring(FILES[index].lastIndexOf('/')+1).equals(meta.get("fileName")),"transfer_name");
             Object size=meta.get("fileSize"),md5=meta.get("md5");
-            need(size instanceof Long&&(Long)size>0&&(Long)size<=LIMITS[index],"transfer_size");
+            need(size instanceof Long&&(Long)size>=(index==1?0:1)&&(Long)size<=LIMITS[index],"transfer_size");
             need(md5 instanceof String&&((String)md5).matches("[0-9a-fA-F]{32}"),"transfer_md5");
             byte[] bytes=EcuMapMetadataProbe.readExact(input,((Long)size).intValue(),end);
             need(EcuMapMetadataProbe.readOne(input,end)==-1,"transfer_trailing");
             need(EcuMapMetadataProbe.hex(MessageDigest.getInstance("MD5").digest(bytes)).equalsIgnoreCase((String)md5),"transfer_md5");return bytes;
-        } finally {s.close();EcuMapMetadataProbe.active=null;}
     }
     static Object factoryCall(String method,Class<?>[] types,Object... args) throws Exception {
         // Exact retained adapter hash is pinned by the build/runner. Its main is never called.
@@ -142,14 +160,14 @@ public final class GhyCheckVersionProbe {
             EcuMapMetadataProbe.silenceRuntimeOutput();EcuMapMetadataProbe.watchdog(75000);EcuMapMetadataProbe.androidShellGuard();
             need(args.length==2&&"--nonce".equals(args[0])&&args[1].matches("[0-9a-f]{32}"),"arguments");
             long end=EcuMapMetadataProbe.deadline(18000);byte[] prefs=null,version=null,raw=null;
-            EcuMapMetadataProbe.Inputs in;Map<String,Object> cache;
+            EcuMapMetadataProbe.Inputs in;Map<String,Object> cache;String versionSource;
             try {
                 EcuMapMetadataProbe.stage="input_prefs";prefs=fetch(0,end);
                 EcuMapMetadataProbe.stage="input_version";version=fetch(1,end);
-                EcuMapMetadataProbe.stage="input_validate";in=inputs(prefs,version);
+                EcuMapMetadataProbe.stage="input_validate";in=inputs(prefs,version);versionSource=versionSource(version);
                 EcuMapMetadataProbe.stage="input_cache";raw=fetch(2,end);cache=cached(raw);
             } finally {for(byte[] b:new byte[][]{prefs,version,raw})if(b!=null)Arrays.fill(b,(byte)0);}
-            Map<String,Object> snap=map("cache",cache,"ghyVersion",in.version);
+            Map<String,Object> snap=map("cache",cache,"ghyVersion",in.version,"ghyVersionSource",versionSource);
             OtaCheckVersionProbe.privacy(snap,in);
             protocol.println(new String(encode(map("state","INPUTS_READY","nonce",args[1],"snapshot",snap)),StandardCharsets.UTF_8));protocol.flush();
             EcuMapMetadataProbe.stage="go_wait";EcuMapMetadataProbe.awaitGo(System.in,args[1]);

@@ -37,11 +37,15 @@ def hashes():
 
 
 def snapshot(value):
-    gcy.require(type(value) is dict and set(value) == {"cache", "ghyVersion"})
+    gcy.require(type(value) is dict and set(value) == {"cache", "ghyVersion", "ghyVersionSource"})
     # Reuse exactly the already-tested cache schema; the synthetic plans exist
     # only in this validator, are never returned or treated as file observations.
     gcy.snapshot({"cache": value["cache"], "plans": {p: None for p in gcy.PLAN_PATHS}})
     gcy.text(value["ghyVersion"], r"[vV][A-Za-z0-9_.-]{1,63}", 64)
+    gcy.require(type(value["ghyVersionSource"]) is str and value["ghyVersionSource"] in
+                {"file", "stock_default_exporter_missing", "stock_default_empty"})
+    if value["ghyVersionSource"] != "file":
+        gcy.require(value["ghyVersion"] == "v1.0.0")
 
 
 def ids(value):
@@ -132,7 +136,7 @@ def main():
             "stockCryptoReadinessRecoveryMayRun": True,
             "stockOtaInvoked": False, "downloads": False, "installation": False,
             "ecuSource": "unchanged cached six-field records; source measurement time unknown",
-            "ghyVersion": "actual SourceVehicleVersion; no GCY version substitution",
+            "ghyVersion": "SourceVehicleVersion; stock v1.0.0 only for verified exporter FILE_NOT_FOUND or empty file",
             "credentials": "GHY prefs stay in device RAM; no private-key export",
             "exportPorts": sorted(base.PORTS), "requiresNewSessionAuthorization": True,
             "sourceHashes": hashes()}, indent=2))

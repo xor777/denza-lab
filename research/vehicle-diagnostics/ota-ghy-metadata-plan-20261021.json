@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "date": "2026-10-21",
-  "state": "prepared_owner_authorized_not_live",
+  "state": "completed_input_refusal_before_GO",
   "hypothesis": "Independent GHY catalogue and strategy may differ from the GCY strategy that rejected the preserved ECU cache.",
   "authorization": {
     "path": "captures/ota-ghy-20261021/authorization-session-1.json",
-    "sha256": "d30245021b2ff603b73ea37e04cb4be366a03f041ae6f539c37341c696c796f1"
+    "sha256": "ccfc663b3ba5acc046e193c881ba62ccc3c755e008bfecd719f0c22dd27ed5b1"
   },
   "bounds": {
     "sessions": 1,
@@ -30,36 +30,44 @@
   "artifactSha256": "ed9e763ad04eba70f0caa1244ba1b587c8f849d03910dbac52f979e321ccc81c",
   "sources": [
     {
-      "path": "tools/vehicle-diagnostics/run_ghy_check_metadata.py",
-      "sha256": "a69da00002e45f74f4505430eee310e22e92d1b9544e8225cb73426ee8e56f6d"
+      "path": "captures/ota-ghy-20261021/build-v3/source-snapshot/tools/vehicle-diagnostics/run_ghy_check_metadata.py",
+      "sha256": "a69da00002e45f74f4505430eee310e22e92d1b9544e8225cb73426ee8e56f6d",
+      "originalPath": "tools/vehicle-diagnostics/run_ghy_check_metadata.py"
     },
     {
-      "path": "tools/vehicle-diagnostics/build_ghy_check_metadata.py",
-      "sha256": "ad9c221de732627eca2ff6886d97709ec810af254660fd04c70f5a6d0b01e581"
+      "path": "captures/ota-ghy-20261021/build-v3/source-snapshot/tools/vehicle-diagnostics/build_ghy_check_metadata.py",
+      "sha256": "ad9c221de732627eca2ff6886d97709ec810af254660fd04c70f5a6d0b01e581",
+      "originalPath": "tools/vehicle-diagnostics/build_ghy_check_metadata.py"
     },
     {
-      "path": "tools/vehicle-diagnostics/GhyCheckVersionProbe.java",
-      "sha256": "74634fbed8efea1b9c71696dd72a7b4513fb273b24b8149695bff31d413b8eb5"
+      "path": "captures/ota-ghy-20261021/build-v3/source-snapshot/tools/vehicle-diagnostics/GhyCheckVersionProbe.java",
+      "sha256": "74634fbed8efea1b9c71696dd72a7b4513fb273b24b8149695bff31d413b8eb5",
+      "originalPath": "tools/vehicle-diagnostics/GhyCheckVersionProbe.java"
     },
     {
-      "path": "tools/vehicle-diagnostics/OtaCheckVersionProbe.java",
-      "sha256": "c43b8fd2e6fa1e165e38374b3ba85a80e1ed4fc5e715b81b094c3ad937a6dd4e"
+      "path": "captures/ota-ghy-20261021/build-v3/source-snapshot/tools/vehicle-diagnostics/OtaCheckVersionProbe.java",
+      "sha256": "c43b8fd2e6fa1e165e38374b3ba85a80e1ed4fc5e715b81b094c3ad937a6dd4e",
+      "originalPath": "tools/vehicle-diagnostics/OtaCheckVersionProbe.java"
     },
     {
-      "path": "tools/vehicle-diagnostics/EcuMapMetadataProbe.java",
-      "sha256": "4b140b1fd1d8540ea253e000d1d65b896d4ee575009b7935221d824890a4f0cf"
+      "path": "captures/ota-ghy-20261021/build-v3/source-snapshot/tools/vehicle-diagnostics/EcuMapMetadataProbe.java",
+      "sha256": "4b140b1fd1d8540ea253e000d1d65b896d4ee575009b7935221d824890a4f0cf",
+      "originalPath": "tools/vehicle-diagnostics/EcuMapMetadataProbe.java"
     },
     {
-      "path": "tools/vehicle-diagnostics/run_ota_check_metadata.py",
-      "sha256": "e6f36f083d3db92b41a6eff1461bf5e4dbcc591debe51a9bf12c5a811e1bd50b"
+      "path": "captures/ota-ghy-20261021/build-v3/source-snapshot/tools/vehicle-diagnostics/run_ota_check_metadata.py",
+      "sha256": "e6f36f083d3db92b41a6eff1461bf5e4dbcc591debe51a9bf12c5a811e1bd50b",
+      "originalPath": "tools/vehicle-diagnostics/run_ota_check_metadata.py"
     },
     {
-      "path": "tools/vehicle-diagnostics/run_ecu_map_metadata.py",
-      "sha256": "8dd71f394a0cd9e263fb748122335528a75c652e644b214719be5087aa891b92"
+      "path": "captures/ota-ghy-20261021/build-v3/source-snapshot/tools/vehicle-diagnostics/run_ecu_map_metadata.py",
+      "sha256": "8dd71f394a0cd9e263fb748122335528a75c652e644b214719be5087aa891b92",
+      "originalPath": "tools/vehicle-diagnostics/run_ecu_map_metadata.py"
     },
     {
-      "path": "captures/telematics-20260924/oncar-native-session/sources/OncarTls.java",
-      "sha256": "95bbb8e871dc306145d298eaa8a70af5611c113a73726b703bf47dac6aecfbc9"
+      "path": "captures/ota-ghy-20261021/build-v3/source-snapshot/captures/telematics-20260924/oncar-native-session/sources/OncarTls.java",
+      "sha256": "95bbb8e871dc306145d298eaa8a70af5611c113a73726b703bf47dac6aecfbc9",
+      "originalPath": "captures/telematics-20260924/oncar-native-session/sources/OncarTls.java"
     }
   ],
   "evidence": [
@@ -118,5 +126,114 @@
     "Certificate/sign APIs can run firmware readiness/recovery paths.",
     "No applicable OTA or expected tuple matrix has yet been obtained."
   ],
-  "liveRun": null
+  "liveRun": {
+    "session": {
+      "path": "captures/ota-ghy-20261021/approved-session-1/session.json",
+      "sha256": "89a35c689547be2db5f7706505a069130f71711c8bd0b1cd143bdd44db80c4b3"
+    },
+    "postflight": {
+      "path": "captures/ota-ghy-20261021/approved-session-1/postflight.json",
+      "sha256": "c7135263ddfaffd3ba6d16291596f0990b5e3d2f1807a80c0f33f898fafd3088"
+    },
+    "status": "refused",
+    "error": {
+      "stage": "input_version",
+      "code": "missing_input1"
+    },
+    "goSent": false,
+    "httpsPosts": 0,
+    "publicCertificateApiCalls": 0,
+    "factoryTlsSignatureApiCalls": 0,
+    "exportClosed": true,
+    "watchdogTerminal": true,
+    "leaseReleased": true,
+    "peerProcessIdentityVerified": true,
+    "postflightPassed": true,
+    "expectedTupleMatrixReceived": false,
+    "applicableOtaObtained": false
+  },
+  "inputFinding": {
+    "path": "/collect2/SourceVehicleVersion",
+    "exporterStatus": 1,
+    "meaning": "Exporter file.exists() or file.isFile() returned false; not independent filesystem proof under the GHY UID.",
+    "stockMissingOrEmptyVersion": "v1.0.0",
+    "doesNotExplainGcy111": true,
+    "exporterSource": {
+      "path": "captures/firmware/ivi-34.1.33.2605218.1/jadx/BydLogTool/sources/com/byd/bydlogtool/socket/filetransfer/FileTransferHandler.java",
+      "sha256": "587a8dec0f3720f9e762feb8aae4df08df99431a380aa15465cc80667b15d011"
+    },
+    "versionSource": {
+      "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/base/VehicleOTAUtil.java",
+      "sha256": "8f757e43c8da34c1f0357db881072c69117b8b1a99578997f4b6f46e5a10506b"
+    },
+    "versionWriters": [
+      {
+        "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/checkversion/CheckVersionDownloadPresenter.java",
+        "sha256": "94362a1e67f9678cca80d1cf9e1871a20eb8ca495b62340674f04f9e57d5958c"
+      },
+      {
+        "path": "captures/firmware/pulled-from-car-20261018/jadx/OTAUpdate2/sources/com/byd/otaupdate2/ui/vehicleota/bootcompleted/BootCompletedBroadcastPresenter.java",
+        "sha256": "d5e943ff9afba25fc4a2855876733cf803540d75ddb76f9ea6d538972ae66e4a"
+      }
+    ]
+  },
+  "preparedFollowup": {
+    "state": "prepared_not_authorized_not_run",
+    "buildManifest": {
+      "path": "captures/ota-ghy-20261021/build-v4/manifest.json",
+      "sha256": "e41c7bd9ac2c6f216c5d4005ab5d44852796e7607341737cca11593271b60086"
+    },
+    "artifactSha256": "473093f836c3e4c29d985b76a8762e0a6e777e73561c3b699e19d640bc6c71b0",
+    "sources": [
+      {
+        "path": "tools/vehicle-diagnostics/run_ghy_check_metadata.py",
+        "sha256": "9b6b56c5f25fc91cf8a9c42e6efa6a964ee7b91e625c1e5104a9e9879de64307"
+      },
+      {
+        "path": "tools/vehicle-diagnostics/build_ghy_check_metadata.py",
+        "sha256": "ad9c221de732627eca2ff6886d97709ec810af254660fd04c70f5a6d0b01e581"
+      },
+      {
+        "path": "tools/vehicle-diagnostics/GhyCheckVersionProbe.java",
+        "sha256": "b3f455e4754146a09147b9839d10097d0c39b766a55cceaa2d8ada978dd31a21"
+      },
+      {
+        "path": "tools/vehicle-diagnostics/OtaCheckVersionProbe.java",
+        "sha256": "c43b8fd2e6fa1e165e38374b3ba85a80e1ed4fc5e715b81b094c3ad937a6dd4e"
+      },
+      {
+        "path": "tools/vehicle-diagnostics/EcuMapMetadataProbe.java",
+        "sha256": "4b140b1fd1d8540ea253e000d1d65b896d4ee575009b7935221d824890a4f0cf"
+      },
+      {
+        "path": "tools/vehicle-diagnostics/run_ota_check_metadata.py",
+        "sha256": "e6f36f083d3db92b41a6eff1461bf5e4dbcc591debe51a9bf12c5a811e1bd50b"
+      },
+      {
+        "path": "tools/vehicle-diagnostics/run_ecu_map_metadata.py",
+        "sha256": "8dd71f394a0cd9e263fb748122335528a75c652e644b214719be5087aa891b92"
+      },
+      {
+        "path": "captures/telematics-20260924/oncar-native-session/sources/OncarTls.java",
+        "sha256": "95bbb8e871dc306145d298eaa8a70af5611c113a73726b703bf47dac6aecfbc9"
+      }
+    ],
+    "change": "Stock v1.0.0 for validated exporter FILE_NOT_FOUND or zero-length GHY SourceVehicleVersion, with explicit origin; other errors abort.",
+    "offlineValidation": {
+      "ghyJavaChecks": 42,
+      "gcyJavaChecks": 27,
+      "hostTests": 18,
+      "passed": true,
+      "javaLog": {
+        "path": "captures/ota-ghy-20261021/build-v4/offline-java-tests.txt",
+        "sha256": "80b672888fb7fc805766498629a3ecdba0f3e57dd222bc2b48a0abb342ef3684"
+      }
+    },
+    "authorizationRequired": "A new bounded session; the first session authorization was consumed before GO.",
+    "limitsUnchanged": true,
+    "versionSyncCalled": false,
+    "stockFlowEquivalenceProved": false,
+    "expectedTupleMatrixReceived": false,
+    "applicableOtaObtained": false
+  }
 }

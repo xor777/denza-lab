@@ -1,6 +1,7 @@
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
+import java.io.*;
 
 /** Offline synthetic transport: never calls main/fetch/FactoryNetwork/factoryCall. */
 public final class GhyCheckVersionProbeTest {
@@ -13,6 +14,15 @@ public final class GhyCheckVersionProbeTest {
     }
     static byte[] bytes(String v){return v.getBytes(StandardCharsets.UTF_8);}
     static Map<String,Object> map(Object... v){return GhyCheckVersionProbe.map(v);}
+    static byte[] frame(int status,Map<String,Object> metadata,byte[] body)throws Exception {
+        ByteArrayOutputStream buffer=new ByteArrayOutputStream();DataOutputStream out=new DataOutputStream(buffer);
+        byte[] json=GhyCheckVersionProbe.encode(metadata);
+        out.writeInt(EcuMapMetadataProbe.MAGIC);out.writeInt(status);out.writeInt(json.length);out.write(json);out.write(body);
+        return buffer.toByteArray();
+    }
+    static byte[] decode(byte[] frame,int index)throws Exception {
+        return GhyCheckVersionProbe.decode(new ByteArrayInputStream(frame),index,EcuMapMetadataProbe.deadline(1000));
+    }
     static Map<String,Object> row(String id){return map("ecuId",id,"ecuSoftCode","4B310011E001540100",
         "ecuSoftVer","4.00.36","ecuHardVer","0.4.1","ecuConfigCode","FFFFFFFFFFFFFFFFFF","ecuConfigVer","6.55.35");}
     static EcuMapMetadataProbe.Inputs inputs()throws Exception {
@@ -38,7 +48,30 @@ public final class GhyCheckVersionProbeTest {
     @SuppressWarnings("unchecked")
     public static void main(String[] args)throws Exception {
         EcuMapMetadataProbe.Inputs in=inputs();check(in.version.equals("v1.2.3"));check(in.privateKey==null&&in.certificate==null);
-        reject(()->GhyCheckVersionProbe.inputs(bytes("<map><string name=\"user_token\">x</string></map>"),bytes("")));
+        byte[] prefs=bytes("<map><string name=\"user_token\">x</string></map>");
+        check(GhyCheckVersionProbe.inputs(prefs,null).version.equals("v1.0.0"));
+        check(GhyCheckVersionProbe.inputs(prefs,new byte[0]).version.equals("v1.0.0"));
+        reject(()->GhyCheckVersionProbe.inputs(prefs,bytes(" \n")));
+        reject(()->GhyCheckVersionProbe.inputs(prefs,bytes("garbage")));
+        check(GhyCheckVersionProbe.versionSource(null).equals("stock_default_exporter_missing"));
+        check(GhyCheckVersionProbe.versionSource(new byte[0]).equals("stock_default_empty"));
+        check(GhyCheckVersionProbe.versionSource(bytes("v1.2.3")).equals("file"));
+        // Captured first-session failure: input_version / missing_input1. The
+        // exact error-frame schema below comes from pinned FileTransferHandler.
+        Map<String,Object> missing=map("code",1,"message","File not found: /data/local/tmp/logtool/../../../../collect2/SourceVehicleVersion");
+        check(decode(frame(1,missing,new byte[0]),1)==null);
+        reject(()->decode(frame(1,missing,new byte[0]),0));
+        reject(()->decode(frame(1,missing,new byte[0]),2));
+        reject(()->decode(frame(5,map("code",5,"message","Access denied"),new byte[0]),1));
+        reject(()->decode(frame(4,map("code",4,"message","IO error"),new byte[0]),1));
+        reject(()->decode(frame(1,map("code",1,"message","File not found: /another/path"),new byte[0]),1));
+        reject(()->decode(frame(1,map("code",5,"message",missing.get("message")),new byte[0]),1));
+        reject(()->decode(frame(1,missing,new byte[]{1}),1));
+        Map<String,Object> emptyFile=map("code",0,"fileName","SourceVehicleVersion","fileSize",0,"md5","d41d8cd98f00b204e9800998ecf8427e");
+        check(decode(frame(0,emptyFile,new byte[0]),1).length==0);
+        reject(()->decode(frame(0,emptyFile,new byte[]{1}),1));
+        Map<String,Object> emptyCache=new LinkedHashMap<>(emptyFile);emptyCache.put("fileName","ECUVersion.json");
+        reject(()->decode(frame(0,emptyCache,new byte[0]),2));
         reject(()->GhyCheckVersionProbe.inputs(bytes("<map><string name=\"user_token\">x\nHeader: bad</string></map>"),bytes("v1.0")));
         Fake f=new Fake();Map<String,Object> result=GhyCheckVersionProbe.query(in,cache(),f);
         check(f.operations.equals(Arrays.asList("getEcuList","checkVersion")));
@@ -68,6 +101,9 @@ public final class GhyCheckVersionProbeTest {
         reject(()->GhyCheckVersionProbe.catalogue(GhyCheckVersionProbe.encode(map("status","100","ecuList",new ArrayList<>()))));
         f=new Fake();f.candidates=Arrays.asList(map("ecuId","A"));result=GhyCheckVersionProbe.query(in,cache(),f);
         check(GhyCheckVersionProbe.object(f.bodies.get(1)).get("ecuInfo").equals(Arrays.asList(row("A"))));
+        f=new Fake();GhyCheckVersionProbe.query(GhyCheckVersionProbe.inputs(prefs,null),cache(),f);
+        check(GhyCheckVersionProbe.object(f.bodies.get(0)).get("version").equals("v1.0.0")&&
+              GhyCheckVersionProbe.object(f.bodies.get(1)).get("version").equals("v1.0.0"));
         if(args.length==1) {
             Map<String,Object> real=GhyCheckVersionProbe.cached(Files.readAllBytes(Paths.get(args[0])));
             List<Object> rows=(List<Object>)real.get("ecuInfo");List<Object> candidates=new ArrayList<>();

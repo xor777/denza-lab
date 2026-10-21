@@ -7,7 +7,7 @@ import test_run_ota_check_metadata as old
 
 
 def snapshot():
-    return {"cache": old.snapshot()["cache"], "ghyVersion": "v1.2.3"}
+    return {"cache": old.snapshot()["cache"], "ghyVersion": "v1.2.3", "ghyVersionSource": "file"}
 
 
 def response():
@@ -85,6 +85,15 @@ class Tests(unittest.TestCase):
         d.shell = lambda command: "package:" + path if command.startswith("pm path") else digest + "  " + path
         with mock.patch.object(host.gcy.Device, "identity"):
             with self.assertRaises(host.base.Refused): d.identity()
+
+    def test_stock_default_is_explicit_and_exact(self):
+        for source in ("stock_default_exporter_missing", "stock_default_empty"):
+            v = snapshot(); v.update(ghyVersion="v1.0.0", ghyVersionSource=source); host.snapshot(v)
+            v["ghyVersion"] = "V1.7.0"
+            with self.assertRaises(host.base.Refused): host.snapshot(v)
+        for source in (None, [], "access_denied", "guessed"):
+            v = snapshot(); v["ghyVersionSource"] = source
+            with self.assertRaises(host.base.Refused): host.snapshot(v)
 
 
 if __name__ == "__main__": unittest.main()
