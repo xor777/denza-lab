@@ -277,30 +277,36 @@ class BoundaryTests(unittest.TestCase):
         # accelerated clock, on the host. Neither adb nor real am is invoked.
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            lease, binaries = root / "lease", root / "bin"
-            lease.mkdir(); binaries.mkdir()
+            lease = root / "lease"
+            lease.mkdir()
             for name, value in (("nonce", NONCE), ("phase", "prepared"), ("bydlog.start", "111")):
                 (lease / name).write_text(value + "\n")
             stat = root / "procstat"
             stat.write_text("1234 (fake app) S " + "0 " * 18 + "111\n")
             transition, watchdog = host.scripts(NONCE, "1234")
-            # Substitution only relocates fixed Android paths for the fixture.
+            # Functions avoid cold executable-script startup delays on macOS.
+            # Only fixed Android paths in the state machine are substituted.
+            # Begin the accelerated clock only after START enters its am call.
+            commands = '''
+pidof() { echo 1234; }
+sleep() {
+  while [ ! -e "$FIXTURE/start_entered" ] && [ ! -e "$FIXTURE/allow_start" ]; do /bin/sleep 0.01; done
+  /bin/sleep 0.01
+}
+am() {
+  case "$*" in
+    *START_SOCKET_SERVER*)
+      echo started > "$FIXTURE/start_entered"
+      while [ ! -e "$FIXTURE/allow_start" ]; do /bin/sleep 0.01; done
+      echo START >> "$FIXTURE/events"; touch "$FIXTURE/listener";;
+    *STOP_SOCKET_SERVER*)
+      echo STOP >> "$FIXTURE/events"; rm -f "$FIXTURE/listener";;
+  esac
+}
+'''
             for name, text in (("transition.sh", transition), ("watchdog.sh", watchdog)):
-                (lease / name).write_text(text.replace(host.LEASE, str(lease)).replace("/proc/1234/stat", str(stat)))
-            fake = {
-                "pidof": "#!/bin/sh\necho 1234\n",
-                "sleep": "#!/bin/sh\n/bin/sleep 0.01\n",
-                "am": "#!/bin/sh\ncase \"$*\" in *START_SOCKET_SERVER*)\n"
-                      "echo started > \"$FIXTURE/start_entered\"\n"
-                      "while [ ! -e \"$FIXTURE/allow_start\" ]; do /bin/sleep 0.01; done\n"
-                      "echo START >> \"$FIXTURE/events\"; touch \"$FIXTURE/listener\";;\n"
-                      "*STOP_SOCKET_SERVER*) echo STOP >> \"$FIXTURE/events\"; "
-                      "rm -f \"$FIXTURE/listener\";; esac\n",
-            }
-            for name, text in fake.items():
-                path = binaries / name
-                path.write_text(text); path.chmod(0o700)
-            env = dict(os.environ, PATH=str(binaries) + ":/usr/bin:/bin", FIXTURE=str(root))
+                (lease / name).write_text(commands + text.replace(host.LEASE, str(lease)).replace("/proc/1234/stat", str(stat)))
+            env = dict(os.environ, PATH="/usr/bin:/bin", FIXTURE=str(root))
             def wait_for(predicate):
                 until = time.monotonic() + 3
                 while not predicate():
@@ -329,7 +335,10 @@ class BoundaryTests(unittest.TestCase):
                 (root / "allow_start").touch()
                 for proc in (start, watch):
                     if proc is not None and proc.poll() is None:
-                        proc.terminate(); proc.wait(timeout=3)
+                        try:
+                            proc.wait(timeout=3)
+                        except subprocess.TimeoutExpired:
+                            proc.terminate(); proc.wait(timeout=3)
 
     def test_default_plan_is_offline(self):
         output = io.StringIO()

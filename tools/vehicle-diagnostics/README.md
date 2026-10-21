@@ -409,3 +409,39 @@ independent checks against nine saved routes and all225 cached IDs passed before
 execution. The complete225-row projection was validated afterward. Evidence,
 reviewed sources, pins, authorization and cleanup are in
 `captures/diagnostics-next-20261020/`; no private input bytes are retained there.
+
+## Existing VHDS signal configuration (prepared, 2026-10-21)
+
+`run_vhds_config_export.py` prepares a separate one-file export; it does not
+invoke the metadata/OTA helper above. Default execution prints a local plan
+with hashes of itself, the shared lifecycle, the narrow reader and the wire
+parser. `--preflight` performs only read-only car checks. Neither mode starts
+BydLogTool export or claims a device directory.
+
+The sole file is `/data/vhds/trigger_list_cfg/allone.txt`, preceded by one listing
+of its parent to check size. No alternate path, retry, credentials, factory
+HTTP request, VHDS call, property write or ECU request is implemented. Maximum
+file size is1MiB and the wire deadline is20 seconds. Raw JSON remains in RAM;
+only result code and validated signal/diagnostic-request fields may reach disk.
+These are source candidates, not DTC definitions or a product whitelist.
+
+After fresh owner approval, execution requires `--run-acknowledged`, a
+`--reviewed-plan` matching every current source hash, and a new `--output`
+directory. The plan is marked consumed before preflight. The runner uses the
+existing shared export lease, atomically claims the export directory and arms
+the serialized device watchdog before START. It creates one ephemeral ADB
+forward and removes only that matching forward. Closure, terminal watchdog,
+APK identity and cleanup must all pass before projecting the response.
+
+The server still binds all interfaces and supports deletion; client restrictions
+do not remove this exposure. Watchdog STOP begins at30 seconds, without a hard
+closure guarantee for a hung Android receiver. Ambiguous closure leaves the
+watchdog/lease in place. Earlier approvals are consumed and do not authorize
+this session. The2026-10-21 passive preflight passed; no export has run.
+
+Offline checks:
+
+```bash
+python3 -m unittest discover -s tools/vehicle-diagnostics -p 'test_run_vhds_config_export.py'
+python3 -m unittest discover -s research/vehicle-diagnostics -p 'test_read_vhds_config_export.py'
+```

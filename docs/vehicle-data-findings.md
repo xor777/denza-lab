@@ -57,7 +57,7 @@ Updated 2026-10-21. Which vehicle signals Denza Apps can read on this head unit,
 | Factory script lifecycle: production EOL ingress is traced, and normal completion/startup cleanup can remove Scripts and the saved task. This does not prove the cause of this car's empty cache; original applicable ECM/BMS/drive dictionaries remain missing | offline Java source | 2026-10-21 | [Stock script source](#stock-isg-reader-and-factory-script-source-2026-10-21) |
 | The MCU transmit path preserves distinct7E5/782 request IDs; physical BSCM/ESP identity remains open. F394 and F494 each occur on different factory routes, so a DID alone cannot assign a child role | offline original-byte and catalog proof | 2026-10-21 | [ECU roles](#ecu-roles-and-reverse-catalog-crosswalk-2026-10-21) |
 | Drive scalar source: torque input bounds/cache rejection and mode-dependent speed FID aliases are traced. A converted -1 can be valid and rejected samples can leave old cache values; units/freshness and dedicated ISG numeric ownership remain unqualified | offline byte proof plus historical GET rows | 2026-10-21 | [Battery validity](#battery-validity-and-collection-gates-2026-10-21) |
-| VHDS production source requests signal and ECU diagnostic configurations through callbacks, independently of the test-only direct entry. Signal replies are written to allone.txt before the result-code gate; ECU-list persistence is not established. Actual payloads and OEM DTC meanings remain missing | offline REA and original-byte proof | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
+| VHDS production source requests signal and ECU diagnostic configurations through callbacks. Live passive reads now confirm its process/service and matching client library; the daemon/private cache are shell-inaccessible and its current journal is empty. Signal replies are written to allone.txt before the result-code gate; actual payloads and OEM DTC meanings remain missing | source route plus live presence; cache acquisition pending | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | REA continuation closes the VHDS Binder ABI: transaction5 dispatches through the constructor-installed IVHDS vptr and the minus8 thunk to remoteOrder. publishService names the service vhds. The sending client, actual configuration and runtime applicability remain unknown; no new ECU address or DTC meaning | offline constructor and original-byte proof | 2026-10-21 | [VHDS diagnostic tasks](#vhds-diagnostic-tasks-and-owner03-boundary-2026-10-21) |
 | Front-drive DC-current rejected conversion preserves the previous float cache; rear converters differ and six temperature paths preserve FE/FF. Adjacent charging-current CAN444/channel2 now has a complete dual-cache/GB-consumer trace; the18-ID normalization excludes345/44A. Generation state0 is explicitly INVALID. Priority BMS units and dedicated ISG numeric telemetry remain unqualified | firmware + retained observations, not new physical-unit qualification | 2026-10-21 | [Scalar quality](#powertrain-scalar-quality-and-cache-limits-2026-10-21); [Current consumers and ISG](#adjacent-current-consumers-and-isg-boundary-2026-10-21) |
 | Head-unit cache: 225 candidate/version records, 49 with defaults/negative markers. The original truncated route prefix is superseded by the complete 2026-10-20 map. `720/728` has multiple CDC/ZCU candidates with different DIDs. Legacy fault GET/SET are unregistered; DiDiag diagnostic is a stub; MCU requests carry external addresses and `7DF` cannot collect OBD replies. OEM dictionaries remain missing | live inventory and full candidate map; dictionary open | 2026-10-20 | [Vehicle-specific inventory and dictionary acquisition](#vehicle-specific-inventory-and-dictionary-acquisition-2026-10-18); [Complete map](#complete-factory-map-and-remaining-powertrain-dtc-2026-10-20) |
@@ -4975,9 +4975,10 @@ arguments. The embedded debug symbols corroborate both names. This closes
 that constructor/ABI gap; the original bounded report remains unchanged.
 
 `VHDS::publishService` at `2ACD0` constructs the object and supplies the name
-`vhds` to the service manager. This is a source registration path, not an
-observed service, successful registration or permission test. The actual
-calling Binder client and configuration payload are still missing. The
+`vhds` to the service manager. That source pass did not observe a running
+service; the later passive pass below confirms registration, but does not test
+Binder permissions. The actual calling Binder client and configuration payload
+are still missing. The
 `0x100`/test-property gate applies to that direct Binder entry; the production
 callback route below has different conditions. The constructor also names
 its embedded `RemoteDiagTransferAndElecHandler` and `EdrDiagHandler` objects;
@@ -5046,6 +5047,34 @@ matches the original section. A bounded inventory of 42 indexed extracted
 ELFs found the VHDS names only in its daemon/interface, not a sending client;
 unindexed and APK-embedded clients are outside that result. The owned REA
 session closed with unchanged source hash and an empty temporary workspace.
+
+**Passive car check, 2026-10-21.** The existing ADB transport answered with
+AutoType170, CANFD and brand `denza`. Process518 is named `vhds`, and
+`service check vhds` reports the service found. The installed `libvhds.so`
+SHA256 matches `42cb603668f8c4b262888fd6590765b2d5bbdce37ad1a5919fdb12d726c31f21`.
+The daemon executable hash and `/proc/518/exe` readback could not be verified;
+matching the interface library does not attest that executable.
+
+The current process journal and crash buffer returned zero bytes. Shell
+metadata access to `/data/vhds`, its configuration directory and `allone.txt`
+returned `Permission denied`, so file existence and content remain unknown.
+The observed cloud-test, test-entry, log-enable and two refresh properties were
+empty; none was changed. The diagnostic manager reported both tasks idle.
+See [`vhds-live-passive-20261021.json`](../research/vehicle-diagnostics/vhds-live-passive-20261021.json)
+for hashes of the retained local evidence. Empty logs do not establish that a
+configuration was never downloaded.
+
+A separate read-only export preflight verified the pinned BydLogTool APK,
+idle threads, closed relevant ports and free shared export/lifecycle leases.
+No export was started. The prepared
+[`run_vhds_config_export.py`](../tools/vehicle-diagnostics/run_vhds_config_export.py)
+allows one parent-directory listing and at most one download of `allone.txt`,
+with no retry or fallback path. It reuses the serialized START/STOP and device
+watchdog; raw response bytes stay in RAM, and only a strict configuration
+projection may be saved after confirmed closure. Its separate one-session
+approval is still required because the stock export server binds all interfaces
+and exposes deletion. This is not a VHDS invocation, factory request, ECU scan,
+or a source of qualified DTC descriptions until an actual payload is analysed.
 No actual ECU address, factory DTC definition or warning-to-DTC join is added.
 
 **Sibling owner03 is not a route around the ECM response-size limit.** The

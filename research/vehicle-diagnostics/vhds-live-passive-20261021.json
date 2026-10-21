@@ -1,0 +1,122 @@
+{
+  "schema": "denza-lab.vhds-live-passive.v1",
+  "date": "2026-10-21",
+  "captureBase": "captures/vhds-live-passive-20261021",
+  "acquisition": "Existing trusted ADB transport; bounded passive shell reads only. No reconnect, property writes, VHDS invocation, diagnostic requests, backend requests or BydLog export START.",
+  "observed": {
+    "profile": {
+      "AutoType": "170",
+      "protocol": "CANFD",
+      "brand": "denza"
+    },
+    "vhdsPid": 518,
+    "vhdsServiceRegistered": true,
+    "libvhdsSha256": "42cb603668f8c4b262888fd6590765b2d5bbdce37ad1a5919fdb12d726c31f21",
+    "daemonHashVerified": false,
+    "daemonReadlinkVerified": false,
+    "vhdsLogBytes": 0,
+    "crashLogBytes": 0,
+    "diagnosticTaskState": "r@-1_0&w@-1_0",
+    "cacheMetadata": "Permission denied for private directory and allone.txt; existence and content unknown",
+    "bydLogExportPreflight": "ready; pinned APK, no relevant listeners, idle export threads, lifecycle lease and shared export directory absent"
+  },
+  "unchangedPropertiesObservedEmpty": [
+    "persist.sys.cloudtest",
+    "sys.vhds.test_enable",
+    "sys.vhds.all_log_enable",
+    "persist.sys.vhds.req_cfg_again",
+    "persist.sys.vhds.cfg_update"
+  ],
+  "limits": [
+    "Empty current process journal is not proof that configuration was never received.",
+    "Matching client library does not attest the unreadable daemon binary or its active configuration.",
+    "Service-manager registration does not establish Binder permission or identify its calling client.",
+    "No new ECU address, DTC meaning or warning-to-DTC mapping recovered.",
+    "BydLog export not started; old one-session approvals consumed; fresh approval required for the prepared single-file acquisition."
+  ],
+  "nextAcquisition": {
+    "file": "/data/vhds/trigger_list_cfg/allone.txt",
+    "directory": "/data/vhds/trigger_list_cfg",
+    "maxDownloads": 1,
+    "maxDirectoryListings": 1,
+    "maxFileBytes": 1048576,
+    "ecuRequests": 0,
+    "factoryRequests": 0,
+    "vhdsInvocations": 0
+  },
+  "evidence": {
+    "preflight.json": {
+      "bytes": 2410,
+      "sha256": "3e1152ff6e6d7228fdc32078987c69fd0e2141469a46d466d83b5c5a7523744f"
+    },
+    "passive-read.json": {
+      "bytes": 1319,
+      "sha256": "b5868d7f407d933569554fe1c91d8dfca61393b2804632693f68d1773eaa6ccf"
+    },
+    "export-preflight.json": {
+      "bytes": 352,
+      "sha256": "1db6fc87a35c47d57e89fcdf8433a3b60600f828ee65aea5637b72e0bd58c6fd"
+    },
+    "processes.txt": {
+      "bytes": 7270,
+      "sha256": "0d151e25eb1d68ef6f2235bdacba491403ef051006100f1da9f56375089ac4f7"
+    },
+    "firmware-sha256.txt": {
+      "bytes": 91,
+      "sha256": "051257a294124c690ead8398c232f4a2d33d6466d1e3b8dfe0da550b016148fe"
+    },
+    "firmware-sha256.stderr": {
+      "bytes": 47,
+      "sha256": "90ae090ee24d954ebd0685d66c765da894ce871cb1386f00e0855d8594ecace1"
+    },
+    "vhds-service.txt": {
+      "bytes": 20,
+      "sha256": "e13902dd27c92db4d79384de941a96ae51fb6dbdbafa2d86cc8760da11c3bb13"
+    },
+    "vhds-logcat.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "vhds-files.stderr": {
+      "bytes": 260,
+      "sha256": "7ea26530792a6871415c12b4431db99108104e98db8730c35c2bfb0a7c4ac74f"
+    },
+    "vhds-exe.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "crash.txt": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "offline-verification.json": {
+      "bytes": 1228,
+      "sha256": "2aa9fc7ee725628eaf237345ea95ede0ad512224eeefd1bda5856083967a3693"
+    },
+    "watchdog-fixture-review.json": {
+      "bytes": 3504,
+      "sha256": "7efc01e8c3aa51a481e571c090639a35a57708d72f462c76d9c49d26e56bea75"
+    }
+  },
+  "newEcuAddresses": 0,
+  "newDtcDefinitions": 0,
+  "exportSessions": 0,
+  "preparedClient": {
+    "runner": "tools/vehicle-diagnostics/run_vhds_config_export.py",
+    "reader": "research/vehicle-diagnostics/read_vhds_config_export.py",
+    "reviewedPlan": "captures/vhds-live-passive-20261021/reviewed-plan.json",
+    "executionAuthorization": "not yet granted",
+    "offlineTests": {
+      "runner": 14,
+      "reader": 33,
+      "sharedLifecycle": 23
+    },
+    "sourceSha256": {
+      "tools/vehicle-diagnostics/run_vhds_config_export.py": "762d57f94caa41ca7bca2801b377e5466028035680ce4b57a644cb8b92d86cd7",
+      "tools/vehicle-diagnostics/run_ecu_map_metadata.py": "8dd71f394a0cd9e263fb748122335528a75c652e644b214719be5087aa891b92",
+      "research/vehicle-diagnostics/read_vhds_config_export.py": "c09e45b4f71d9fd9ce7b459dafd07d85fc483797573e75db8858be69b6df109b",
+      "research/vehicle-diagnostics/read_ecu_cache_export.py": "c0fe036f6c8954d5a75561ce34751f95875fa72cb0fd8e1d31d75afd0aae5dad"
+    },
+    "review": "Offline independent lifecycle review passed after correcting release_unverified reporting. Delayed-START fixture timing was synchronized and temporary executable shims replaced with shell functions for deterministic host execution; production lifecycle unchanged."
+  }
+}

@@ -120,6 +120,13 @@ Current findings and scope are in [vehicle-data-findings.md](../../docs/vehicle-
   the HAL REA session exhausted its heap and is explicitly not decompilation
   proof. Units, freshness and dedicated ISG ownership remain open. Run
   `python3 research/vehicle-diagnostics/check_battery_drive_telemetry.py`.
+- `vhds-live-passive-20261021.json` records the connected-car check: running
+  process and registered service, matching libvhds hash, empty current journal,
+  and denied shell access to the daemon/config cache. File existence and actual
+  configuration remain unknown. The prepared one-file reader is
+  `read_vhds_config_export.py`; its lifecycle is
+  `tools/vehicle-diagnostics/run_vhds_config_export.py`. No export has run;
+  fresh one-session approval is required for the stock all-interface listener.
 - `vhds-production-route-20261021.json` resolves production configuration loading
   through bound callbacks: type4 signal configuration and type2 ECU diagnostic
   requests have different parsers/cache behavior. The signal response is saved
