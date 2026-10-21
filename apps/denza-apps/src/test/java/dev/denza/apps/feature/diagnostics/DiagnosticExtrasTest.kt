@@ -11,12 +11,15 @@ class DiagnosticExtrasTest {
     private fun batch(vararg pairs: Pair<String, Int>) = pairs.joinToString("\n") { "@@extra:${it.first}\n${parcel(it.second)}" }
     private val root = generateSequence(File(requireNotNull(System.getProperty("user.dir")))) { it.parentFile }.first { File(it,"research/vehicle-diagnostics").exists() }
     @Test fun replayAllFortyThreeQualifiedGetsWithoutChangingUnitsOrWheelOrder() {
+        // The pack's current moved to its raw channel (C1, research stream-selection-20261021.json): its
+        // 2026-10-18 reading was the converted channel's, which the app no longer reads.
         val rows = JSONObject(File(root,"research/vehicle-diagnostics/readings-20261018.json").readText()).getJSONArray("rows")
-        val pairs = (0 until rows.length()).map { rows.getJSONObject(it).let { r -> r.getString("key") to r.getLong("raw").toInt() } }
+            .let { a -> (0 until a.length()).map { a.getJSONObject(it) } }.filter { it.getString("key") != "charge_current" }
+        val pairs = rows.map { r -> r.getString("key") to r.getLong("raw").toInt() }
         val decoded = DiagnosticExtraReader.decode(batch(*pairs.toTypedArray()), 123, 10)
-        assertEquals(43,decoded.values.size)
-        for (i in 0 until rows.length()) {
-            val r = rows.getJSONObject(i); val signal = DiagnosticExtra.entries.first { it.key == r.getString("key") }
+        assertEquals(42,decoded.values.size)
+        for (r in rows) {
+            val signal = DiagnosticExtra.entries.first { it.key == r.getString("key") }
             assertEquals(r.getInt("dev"), signal.device); assertEquals(r.getInt("fid"), signal.fid); assertEquals(r.getInt("tx"), signal.transact)
             assertEquals(r.getDouble("value"), decoded.values.getValue(signal), 0.00001)
         }
@@ -35,6 +38,37 @@ class DiagnosticExtrasTest {
         assertNull(DiagnosticExtra.CHARGE_CURRENT.decode(-10011))
         assertNull(DiagnosticExtra.CHARGE_CURRENT.decode(-10013))
         assertTrue(DiagnosticExtraReader.decode("@@extra:soh\nResult: Parcel(ffffffff 00000063)",1,1).values.isEmpty())
+    }
+    @Test fun thePacksCurrentIsItsRawChannelWithTheStockArithmetic() {
+        // C1: 1009·C4400018 is float32(wire) of CAN 0x444; the app applies wire × 0.1 − 500.
+        val e = DiagnosticExtra.CHARGE_CURRENT
+        assertEquals(1009, e.device); assertEquals(0xC4400018.toInt(), e.fid); assertEquals(7, e.transact)
+        assertEquals(-4.5, e.decode(4955f.toBits())!!, 1e-9)   // the sweep of 2026-10-20: raw 4955.0 beside converted −4.5
+        assertEquals(0.0, e.decode(5000f.toBits())!!, 1e-9)    // CAN444 2026-10-21: wire 5000
+        assertEquals(-1.0, e.decode(4990f.toBits())!!, 1e-9)   // a real −1 A, which the converted channel lost
+        assertEquals(-500.0, e.decode(0f.toBits())!!, 1e-9)
+        assertEquals(1500.0, e.decode(20000f.toBits())!!, 1e-9)
+        // −1.0 on the raw channel is only the no-data word: the wire is unsigned
+        assertNull(e.decode((-1f).toBits()))
+        // FFFF, whose meaning is unproven, and anything above 1500 A
+        assertNull(e.decode(65535f.toBits())); assertNull(e.decode(20001f.toBits()))
+    }
+    @Test fun aRealMinusOneIsAValueWhereTheConvertersRangeHoldsIt() {
+        // C1: the front torque (wire × 0.1 − 500) and DC current (wire × 0.1 − 1000) give −1.0 at wire 4990 and 9990.
+        for (e in listOf(DiagnosticExtra.TORQUE_FRONT, DiagnosticExtra.CURRENT_FRONT)) {
+            assertEquals(e.name, -1.0, e.decode((-1f).toBits())!!, 0.0)
+            assertNull(e.decode(-10011)); assertNull(e.decode(-10013))
+        }
+        // their ranges are the converters' whole range
+        assertEquals(-500.0, DiagnosticExtra.TORQUE_FRONT.decode((-500f).toBits())!!, 0.0)
+        assertEquals(500.0, DiagnosticExtra.TORQUE_FRONT.decode(500f.toBits())!!, 0.0)
+        assertNull(DiagnosticExtra.TORQUE_FRONT.decode(500.1f.toBits())); assertNull(DiagnosticExtra.TORQUE_FRONT.decode((-500.1f).toBits()))
+        assertEquals(-1000.0, DiagnosticExtra.CURRENT_FRONT.decode((-1000f).toBits())!!, 0.0)
+        assertNull(DiagnosticExtra.CURRENT_FRONT.decode(1000.1f.toBits())); assertNull(DiagnosticExtra.CURRENT_FRONT.decode((-1000.1f).toBits()))
+        // elsewhere a float's −1.0 stays the no-data word
+        for (e in DiagnosticExtra.entries.filter { it.transact == 7 } - DiagnosticExtra.TORQUE_FRONT - DiagnosticExtra.CURRENT_FRONT) {
+            assertNull(e.name, e.decode((-1f).toBits()))
+        }
     }
     @Test fun insulationAboveTheStockCapIsNoValueNotSixtyThousand() {
         // The stock collector caps the field at 60000; FFFE and FFFF are the firmware's invalid codes.

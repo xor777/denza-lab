@@ -7,12 +7,15 @@ import dev.denza.apps.platform.shell.ServiceCallParcel
  *
  * [pages]: read only while one of them is in front ([DiagnosticExtraReader.command]) - a reading two
  * pages need rides both - and empty for the batch every system screen shares; [codes], where a range
- * would admit a code the firmware does not name, the only codes taken.
+ * would admit a code the firmware does not name, the only codes taken; [floatNoData], whether the
+ * float word −1.0 is the HAL's no-data fallback here (it is, unless the converter's own range holds a
+ * real −1.0).
  */
 internal enum class DiagnosticExtra(
     val key: String, val device: Int, val fid: Int, val transact: Int,
     private val scale: Double, private val offset: Double, private val range: ClosedFloatingPointRange<Double>,
     val pages: Set<ExtraPage> = emptySet(), private val codes: Set<Int>? = null,
+    private val floatNoData: Boolean = true,
 ) {
     SOC("soc", 1014, 1246777400, 7, 1.0, 0.0, 0.0..100.0),
     SOH("soh", 1014, 1145045032, 5, 1.0, 0.0, 0.0..100.0),
@@ -20,9 +23,18 @@ internal enum class DiagnosticExtra(
     TEMP_MAX("temp_max", 1014, 1148190752, 5, 1.0, -40.0, -39.0..150.0),
     LV("lv", 1001, 1128267816, 7, 1.0, 0.0, 1.0..30.0),
     FUEL("fuel", 1014, 1246785600, 5, 1.0, 0.0, 0.0..100.0),
+    // The DC buses before the front and the rear inverters, V. Medium (research stream-selection-20261021.json):
+    // volts by the GB/T 32960 field the stock gbacqservice fills from these FIDs, as INSULATION's kΩ.
     BUS_FRONT("bus_front", 1039, 1178628128, 5, 1.0, 0.0, 1.0..1000.0),
     BUS_REAR("bus_rear", 1039, 1178628112, 5, 1.0, 0.0, 1.0..1000.0),
-    CHARGE_CURRENT("charge_current", 1009, 1145045016, 7, 1.0, 0.0, -1000.0..1000.0),
+    // The pack's current, A, on the raw channel `CHARGING_CHARGE_CURRENT_NOT_CONVERT` (correction C1 of
+    // research stream-selection-20261021.json; stream-powertrain-20261021.json chargingCurrent): the HAL
+    // hands the CAN 0x444 wire as float32(wire), unsigned, so −1.0 can only be its no-data word, and the
+    // app applies the stock `currentcompat` arithmetic wire × 0.1 − 500 itself. The converted channel
+    // 1009·44400018 it replaces held a real −1.0 A at wire 4990, which the no-data word refused. The
+    // converter cannot go below −500 A; above 1500 A is no pack current here (pack power ±600 kW), and
+    // wire FFFF (6053.5 A), whose meaning is unproven, is refused with it. Medium: the sign is unproven.
+    CHARGE_CURRENT("charge_current", 1009, 0xC4400018.toInt(), 7, 0.1, -500.0, -500.0..1500.0),
     // The stock GB/T 32960 collector reads this FID and caps it at 60000 (gbacqservice 1381C..13850;
     // research insulation-consumer-20261021.json): above that is the firmware's invalid code, FFFE and
     // FFFF among them, not a resistance - «н/д», never 60000 and never judged against the norm.
@@ -81,10 +93,14 @@ internal enum class DiagnosticExtra(
     RPM_FRONT("rpm_front", 1012, 0x44100008, 5, 1.0, 0.0, -20000.0..20000.0),
     RPM_REAR_LEFT("rpm_rear_left", 1039, 0x0FC000D0, 5, 1.0, 0.0, 0.0..20000.0),
     RPM_REAR_RIGHT("rpm_rear_right", 1039, 0x0FC000E0, 5, 1.0, 0.0, 0.0..20000.0),
-    TORQUE_FRONT("torque_front", 1012, 0x44100018, 7, 1.0, 0.0, -5000.0..5000.0),
+    // The front drive's torque and DC current (C1): the HAL converts wire 0..10000 to wire × 0.1 − 500 and
+    // wire ≤ 20000 to wire × 0.1 − 1000, so these ranges are the converters' whole range and −1.0 (wire
+    // 4990, 9990) is a value, not the no-data word; no raw alias is known for them. A wire the HAL
+    // rejects keeps its previous cache, so a repeated value is not proof of a fresh one.
+    TORQUE_FRONT("torque_front", 1012, 0x44100018, 7, 1.0, 0.0, -500.0..500.0, floatNoData = false),
     TORQUE_REAR_LEFT("torque_rear_left", 1039, 0x2850002C, 7, 1.0, 0.0, -5000.0..5000.0),
     TORQUE_REAR_RIGHT("torque_rear_right", 1039, 0x2850003C, 7, 1.0, 0.0, -5000.0..5000.0),
-    CURRENT_FRONT("current_front", 1009, 0x46C00008, 7, 1.0, 0.0, -2000.0..2000.0),
+    CURRENT_FRONT("current_front", 1009, 0x46C00008, 7, 1.0, 0.0, -1000.0..1000.0, floatNoData = false),
     CURRENT_REAR_LEFT("current_rear_left", 1039, 0x28500178, 7, 1.0, 0.0, -2000.0..2000.0),
     CURRENT_REAR_RIGHT("current_rear_right", 1039, 0x28500188, 7, 1.0, 0.0, -2000.0..2000.0),
 
@@ -187,13 +203,16 @@ internal enum class DiagnosticExtra(
     GB_OVERCHARGE("gb_overcharge", 1039, 0x43800012, 5, 1.0, 0.0, 0.0..254.0, pages = on(ExtraPage.GB_FLAGS));
 
     fun decode(word: Int): Double? {
-        // Same native no-data words as the shared AutoserviceShell; -1f is not a current.
-        if (word == -10013 || word == -10011 || word == 0xBF800000.toInt()) return null
+        // Same native no-data words as the shared AutoserviceShell; -1f is no data unless it is a value here.
+        if (word == -10013 || word == -10011 || (floatNoData && word == FLOAT_MINUS_ONE)) return null
         val raw = if (transact == 7) Float.fromBits(word).toDouble() else word.toDouble()
         val value = raw * scale + offset
         return value.takeIf { it.isFinite() && it in range && (codes == null || it.toInt() in codes) }
     }
 }
+
+/** The float −1.0, the HAL's no-data fallback for a float GET. */
+private val FLOAT_MINUS_ONE = (-1f).toBits()
 
 /** The massage modes the firmware names: off, wave, pulse, stretch, smoothing, slack, the two hot stones. */
 private val MASSAGE_MODES = setOf(1, 2, 3, 4, 5, 6, 8, 9)
